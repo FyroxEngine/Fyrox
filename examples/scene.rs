@@ -105,7 +105,7 @@ fn main() {
     let scene_handle = engine.scenes.add(scene);
 
     // Set ambient light.
-    engine.renderer.set_ambient_color(Color::opaque(0, 0, 0));
+    engine.renderer.set_ambient_color(Color::opaque(80, 80, 80));
 
     let clock = Instant::now();
     let fixed_timestep = 1.0 / 60.0;

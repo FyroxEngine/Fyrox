@@ -1,4 +1,5 @@
 use crate::core::algebra::{UnitQuaternion, Vector3};
+use crate::utils::log::MessageKind;
 use crate::{
     core::pool::Handle,
     resource::fbx::{
@@ -49,7 +50,10 @@ impl FbxAnimationCurve {
 
     fn eval(&self, time: f32) -> f32 {
         if self.keys.is_empty() {
-            Log::writeln("FBX: Trying to evaluate curve with no keys!".to_owned());
+            Log::writeln(
+                MessageKind::Warning,
+                "FBX: Trying to evaluate curve with no keys!".to_owned(),
+            );
 
             return 0.0;
         }

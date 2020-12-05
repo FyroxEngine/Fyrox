@@ -15,6 +15,7 @@ pub mod physics;
 pub mod sprite;
 pub mod transform;
 
+use crate::utils::log::MessageKind;
 use crate::{
     animation::AnimationContainer,
     core::{
@@ -755,7 +756,7 @@ impl Scene {
     }
 
     pub(in crate) fn resolve(&mut self) {
-        Log::writeln("Starting resolve...".to_owned());
+        Log::writeln(MessageKind::Information, "Starting resolve...".to_owned());
 
         self.graph.resolve();
         self.animations.resolve(&self.graph);
@@ -796,6 +797,7 @@ impl Scene {
                     }
                 } else {
                     Log::writeln(
+                        MessageKind::Warning,
                         "Failed to get surface data patch while resolving lightmap!\
                     This means that surface has changed and lightmap must be regenerated!"
                             .to_owned(),
@@ -813,7 +815,7 @@ impl Scene {
             }
         }
 
-        Log::writeln("Resolve succeeded!".to_owned());
+        Log::writeln(MessageKind::Information, "Resolve succeeded!".to_owned());
     }
 
     /// Tries to set new lightmap to scene.

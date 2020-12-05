@@ -24,6 +24,7 @@
 
 use crate::core::algebra::{Matrix4, UnitQuaternion, Vector2, Vector3};
 use crate::core::math::Matrix4Ext;
+use crate::utils::log::MessageKind;
 use crate::{
     core::{
         math::frustum::Frustum,
@@ -347,7 +348,7 @@ impl Graph {
     }
 
     pub(in crate) fn resolve(&mut self) {
-        Log::writeln("Resolving graph...".to_owned());
+        Log::writeln(MessageKind::Information, "Resolving graph...".to_owned());
 
         self.update_hierarchical_data();
 
@@ -378,7 +379,10 @@ impl Graph {
             }
         }
 
-        Log::writeln("Original handles resolved!".to_owned());
+        Log::writeln(
+            MessageKind::Information,
+            "Original handles resolved!".to_owned(),
+        );
 
         // Taking second reference to self is safe here because we need it only
         // to iterate over graph and find copy of bone node. We won't modify pool
@@ -429,7 +433,10 @@ impl Graph {
             }
         }
 
-        Log::writeln("Graph resolved successfully!".to_owned());
+        Log::writeln(
+            MessageKind::Information,
+            "Graph resolved successfully!".to_owned(),
+        );
     }
 
     /// Calculates local and global transform, global visibility for each node in graph.

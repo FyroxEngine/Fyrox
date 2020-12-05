@@ -1,3 +1,4 @@
+use crate::utils::log::MessageKind;
 use crate::{
     core::scope_profile,
     renderer::{
@@ -338,10 +339,13 @@ impl GeometryBuffer {
 impl Drop for GeometryBuffer {
     fn drop(&mut self) {
         unsafe {
-            Log::writeln(format!(
-                "GL geometry buffer was destroyed - VAO: {}!",
-                self.vertex_array_object
-            ));
+            Log::writeln(
+                MessageKind::Information,
+                format!(
+                    "GL geometry buffer was destroyed - VAO: {}!",
+                    self.vertex_array_object
+                ),
+            );
 
             self.buffers.clear();
             gl::DeleteBuffers(1, &self.element_buffer_object);

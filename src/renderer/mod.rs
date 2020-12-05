@@ -30,7 +30,7 @@ mod sprite_renderer;
 mod ssao;
 mod ui_renderer;
 
-use crate::utils::log::Log;
+use crate::utils::log::{Log, MessageKind};
 use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector3},
@@ -577,7 +577,10 @@ impl TextureCache {
                     ) {
                         Ok(texture) => texture,
                         Err(e) => {
-                            Log::writeln(format!("Failed to create GPU texture. Reason: {:?}", e));
+                            Log::writeln(
+                                MessageKind::Error,
+                                format!("Failed to create GPU texture. Reason: {:?}", e),
+                            );
                             return None;
                         }
                     };

@@ -2,6 +2,7 @@
 
 use crate::resource::texture::{TextureError, TextureWrapMode};
 use crate::resource::ResourceLoadError;
+use crate::utils::log::MessageKind;
 use crate::{
     core::visitor::{Visit, VisitResult, Visitor},
     resource::{
@@ -278,11 +279,10 @@ impl ResourceManager {
             let time = time::Instant::now();
             match TextureData::load_from_file(&path) {
                 Ok(mut raw_texture) => {
-                    Log::writeln(format!(
-                        "Texture {:?} is loaded in {:?}!",
-                        path,
-                        time.elapsed()
-                    ));
+                    Log::writeln(
+                        MessageKind::Information,
+                        format!("Texture {:?} is loaded in {:?}!", path, time.elapsed()),
+                    );
 
                     raw_texture.set_magnification_filter(options.magnification_filter);
                     raw_texture.set_minification_filter(options.minification_filter);
@@ -293,10 +293,10 @@ impl ResourceManager {
                     texture.state().commit(ResourceState::Ok(raw_texture));
                 }
                 Err(error) => {
-                    Log::writeln(format!(
-                        "Unable to load texture {:?}! Reason {:?}",
-                        &path, &error
-                    ));
+                    Log::writeln(
+                        MessageKind::Error,
+                        format!("Unable to load texture {:?}! Reason {:?}", &path, &error),
+                    );
 
                     texture.state().commit(ResourceState::LoadError {
                         path,
@@ -374,15 +374,18 @@ impl ResourceManager {
         state.thread_pool.spawn_ok(async move {
             match ModelData::load(&path, resource_manager).await {
                 Ok(raw_model) => {
-                    Log::writeln(format!("Model {:?} is loaded!", path));
+                    Log::writeln(
+                        MessageKind::Information,
+                        format!("Model {:?} is loaded!", path),
+                    );
 
                     model.state().commit(ResourceState::Ok(raw_model));
                 }
                 Err(error) => {
-                    Log::writeln(format!(
-                        "Unable to load model from {:?}! Reason {:?}",
-                        path, error
-                    ));
+                    Log::writeln(
+                        MessageKind::Error,
+                        format!("Unable to load model from {:?}! Reason {:?}", path, error),
+                    );
 
                     model.state().commit(ResourceState::LoadError {
                         path,
@@ -427,12 +430,18 @@ impl ResourceManager {
                     };
                     match buffer {
                         Ok(sound_buffer) => {
-                            Log::writeln(format!("Sound buffer {:?} is loaded!", path));
+                            Log::writeln(
+                                MessageKind::Information,
+                                format!("Sound buffer {:?} is loaded!", path),
+                            );
 
                             resource.state().commit(ResourceState::Ok(sound_buffer));
                         }
                         Err(_) => {
-                            Log::writeln(format!("Unable to load sound buffer from {:?}!", path));
+                            Log::writeln(
+                                MessageKind::Error,
+                                format!("Unable to load sound buffer from {:?}!", path),
+                            );
 
                             resource.state().commit(ResourceState::LoadError {
                                 path: path.clone(),
@@ -442,7 +451,7 @@ impl ResourceManager {
                     }
                 }
                 Err(e) => {
-                    Log::writeln(format!("Invalid data source: {:?}", e));
+                    Log::writeln(MessageKind::Error, format!("Invalid data source: {:?}", e));
 
                     resource.state().commit(ResourceState::LoadError {
                         path: path.clone(),
@@ -474,15 +483,18 @@ impl ResourceManager {
                 state.thread_pool.spawn_ok(async move {
                     match TextureData::load_from_file(&path) {
                         Ok(data) => {
-                            Log::writeln(format!("Texture {:?} successfully reloaded!", path,));
+                            Log::writeln(
+                                MessageKind::Information,
+                                format!("Texture {:?} successfully reloaded!", path,),
+                            );
 
                             resource.state().commit(ResourceState::Ok(data));
                         }
                         Err(e) => {
-                            Log::writeln(format!(
-                                "Unable to reload {:?} texture! Reason: {:?}",
-                                path, e
-                            ));
+                            Log::writeln(
+                                MessageKind::Error,
+                                format!("Unable to reload {:?} texture! Reason: {:?}", path, e),
+                            );
 
                             resource.state().commit(ResourceState::LoadError {
                                 path,
@@ -519,15 +531,18 @@ impl ResourceManager {
                 state.thread_pool.spawn_ok(async move {
                     match ModelData::load(&path, this).await {
                         Ok(data) => {
-                            Log::writeln(format!("Model {:?} successfully reloaded!", path,));
+                            Log::writeln(
+                                MessageKind::Information,
+                                format!("Model {:?} successfully reloaded!", path,),
+                            );
 
                             model.state().commit(ResourceState::Ok(data));
                         }
                         Err(e) => {
-                            Log::writeln(format!(
-                                "Unable to reload {:?} model! Reason: {:?}",
-                                path, e
-                            ));
+                            Log::writeln(
+                                MessageKind::Error,
+                                format!("Unable to reload {:?} model! Reason: {:?}", path, e),
+                            );
 
                             model.state().commit(ResourceState::LoadError {
                                 path,
@@ -543,7 +558,10 @@ impl ResourceManager {
 
         futures::future::join_all(models).await;
 
-        Log::write("All model resources reloaded!".to_owned());
+        Log::writeln(
+            MessageKind::Information,
+            "All model resources reloaded!".to_owned(),
+        );
     }
 
     /// Reloads every loaded sound buffer. This method is asynchronous, internally it uses thread pool
@@ -583,19 +601,22 @@ impl ResourceManager {
                             };
                             match new_sound_buffer {
                                 Ok(new_sound_buffer) => {
-                                    Log::writeln(format!(
-                                        "Sound buffer {:?} successfully reloaded!",
-                                        ext_path,
-                                    ));
+                                    Log::writeln(
+                                        MessageKind::Information,
+                                        format!(
+                                            "Sound buffer {:?} successfully reloaded!",
+                                            ext_path,
+                                        ),
+                                    );
 
                                     *inner_buffer.lock().unwrap() = new_sound_buffer;
                                     resource.state().commit(ResourceState::Ok(inner_buffer));
                                 }
                                 Err(_) => {
-                                    Log::writeln(format!(
-                                        "Unable to reload {:?} sound buffer!",
-                                        ext_path
-                                    ));
+                                    Log::writeln(
+                                        MessageKind::Error,
+                                        format!("Unable to reload {:?} sound buffer!", ext_path),
+                                    );
 
                                     resource.state().commit(ResourceState::LoadError {
                                         path: ext_path,
@@ -822,10 +843,13 @@ impl ResourceManagerState {
         self.textures.retain(|texture| {
             let retain = texture.time_to_live > 0.0;
             if !retain && texture.state().path().exists() {
-                Log::writeln(format!(
-                    "Texture resource {:?} destroyed because it not used anymore!",
-                    texture.state().path()
-                ));
+                Log::writeln(
+                    MessageKind::Information,
+                    format!(
+                        "Texture resource {:?} destroyed because it not used anymore!",
+                        texture.state().path()
+                    ),
+                );
             }
             retain
         });
@@ -841,10 +865,13 @@ impl ResourceManagerState {
         self.models.retain(|model| {
             let retain = model.time_to_live > 0.0;
             if !retain && model.state().path().exists() {
-                Log::writeln(format!(
-                    "Model resource {:?} destroyed because it not used anymore!",
-                    model.state().path()
-                ));
+                Log::writeln(
+                    MessageKind::Information,
+                    format!(
+                        "Model resource {:?} destroyed because it not used anymore!",
+                        model.state().path()
+                    ),
+                );
             }
             retain
         });
@@ -860,10 +887,13 @@ impl ResourceManagerState {
         self.sound_buffers.retain(|buffer| {
             let retain = buffer.time_to_live > 0.0;
             if !retain {
-                Log::writeln(format!(
-                    "Sound resource {:?} destroyed because it not used anymore!",
-                    buffer.state().path()
-                ));
+                Log::writeln(
+                    MessageKind::Information,
+                    format!(
+                        "Sound resource {:?} destroyed because it not used anymore!",
+                        buffer.state().path()
+                    ),
+                );
             }
             retain
         });

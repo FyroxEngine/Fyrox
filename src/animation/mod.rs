@@ -2,6 +2,7 @@ pub mod machine;
 
 use crate::core::algebra::{UnitQuaternion, Vector3};
 use crate::core::pool::Ticket;
+use crate::utils::log::MessageKind;
 use crate::{
     core::{
         math::{clampf, wrapf},
@@ -351,7 +352,7 @@ impl AnimationPose {
     pub fn apply(&self, graph: &mut Graph) {
         for (node, local_pose) in self.local_poses.iter() {
             if node.is_none() {
-                Log::writeln("Invalid node handle found for animation pose, most likely it means that animation retargetting failed!".to_owned());
+                Log::writeln(MessageKind::Error, "Invalid node handle found for animation pose, most likely it means that animation retargetting failed!".to_owned());
             } else {
                 graph[*node]
                     .local_transform_mut()
@@ -564,10 +565,13 @@ impl Animation {
                             }
                         }
                         if !found {
-                            Log::write(format!(
-                                "Failed to copy key frames for node {}!",
-                                track_node.name()
-                            ));
+                            Log::write(
+                                MessageKind::Error,
+                                format!(
+                                    "Failed to copy key frames for node {}!",
+                                    track_node.name()
+                                ),
+                            );
                         }
                     }
                 }
@@ -717,11 +721,17 @@ impl AnimationContainer {
     }
 
     pub fn resolve(&mut self, graph: &Graph) {
-        Log::writeln("Resolving animations...".to_owned());
+        Log::writeln(
+            MessageKind::Information,
+            "Resolving animations...".to_owned(),
+        );
         for animation in self.pool.iter_mut() {
             animation.resolve(graph)
         }
-        Log::writeln("Animations resolved successfully!".to_owned());
+        Log::writeln(
+            MessageKind::Information,
+            "Animations resolved successfully!".to_owned(),
+        );
     }
 
     pub fn update_animations(&mut self, dt: f32) {

@@ -17,6 +17,7 @@
 //!
 //! Currently only FBX (common format in game industry for storing complex 3d models)
 //! and RGS (native rusty-editor format) formats are supported.
+use crate::utils::log::MessageKind;
 use crate::{
     animation::Animation,
     core::{
@@ -123,11 +124,14 @@ impl Model {
                 // Find instantiated node that corresponds to node in resource
                 let instance_node = dest_scene.graph.find_by_name(root, ref_node.name());
                 if instance_node.is_none() {
-                    Log::writeln(format!(
-                        "Failed to retarget animation {:?} for node {}",
-                        data.path(),
-                        ref_node.name()
-                    ));
+                    Log::writeln(
+                        MessageKind::Error,
+                        format!(
+                            "Failed to retarget animation {:?} for node {}",
+                            data.path(),
+                            ref_node.name()
+                        ),
+                    );
                 }
                 // One-to-one track mapping so there is [i] indexing.
                 anim_copy.get_tracks_mut()[i].set_node(instance_node);

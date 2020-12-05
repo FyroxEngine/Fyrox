@@ -85,6 +85,7 @@
 //! locomotion and other is for combat. This means that locomotion machine will take control over
 //! lower body and combat machine will control upper body.
 
+use crate::utils::log::MessageKind;
 use crate::{
     animation::{Animation, AnimationContainer, AnimationPose},
     core::{
@@ -740,18 +741,24 @@ impl Machine {
                             if *active {
                                 self.events.push(Event::StateLeave(self.active_state));
                                 if self.debug {
-                                    Log::writeln(format!(
-                                        "Leaving state: {}",
-                                        self.states[self.active_state].name
-                                    ));
+                                    Log::writeln(
+                                        MessageKind::Information,
+                                        format!(
+                                            "Leaving state: {}",
+                                            self.states[self.active_state].name
+                                        ),
+                                    );
                                 }
 
                                 self.events.push(Event::StateEnter(transition.source));
                                 if self.debug {
-                                    Log::writeln(format!(
-                                        "Entering state: {}",
-                                        self.states[transition.source].name
-                                    ));
+                                    Log::writeln(
+                                        MessageKind::Information,
+                                        format!(
+                                            "Entering state: {}",
+                                            self.states[transition.source].name
+                                        ),
+                                    );
                                 }
 
                                 self.active_state = Handle::NONE;
@@ -786,10 +793,13 @@ impl Machine {
                         .push(Event::ActiveStateChanged(self.active_state));
 
                     if self.debug {
-                        Log::writeln(format!(
-                            "Active state changed: {}",
-                            self.states[self.active_state].name
-                        ));
+                        Log::writeln(
+                            MessageKind::Information,
+                            format!(
+                                "Active state changed: {}",
+                                self.states[self.active_state].name
+                            ),
+                        );
                     }
                 }
             } else {

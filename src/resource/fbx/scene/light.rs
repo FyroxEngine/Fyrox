@@ -1,6 +1,7 @@
 use crate::scene::graph::Graph;
 use crate::scene::light::DirectionalLightBuilder;
 use crate::scene::node::Node;
+use crate::utils::log::MessageKind;
 use crate::{
     core::{color::Color, pool::Handle},
     resource::fbx::document::{FbxNode, FbxNodeContainer},
@@ -68,10 +69,13 @@ impl FbxLight {
                         3 => FbxLightType::Area,
                         4 => FbxLightType::Volume,
                         _ => {
-                            Log::writeln(format!(
-                                "FBX: Unknown light type {}, fallback to Point!",
-                                type_code
-                            ));
+                            Log::writeln(
+                                MessageKind::Warning,
+                                format!(
+                                    "FBX: Unknown light type {}, fallback to Point!",
+                                    type_code
+                                ),
+                            );
                             FbxLightType::Point
                         }
                     };

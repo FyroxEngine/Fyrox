@@ -23,6 +23,7 @@ use crate::core::math::RotationOrder;
 use crate::scene::base::BaseBuilder;
 use crate::scene::mesh::MeshBuilder;
 use crate::scene::transform::TransformBuilder;
+use crate::utils::log::MessageKind;
 use crate::{
     animation::{Animation, AnimationContainer, KeyFrame, Track},
     core::{math::triangulator::triangulate, pool::Handle},
@@ -545,7 +546,10 @@ pub fn load_to_scene<P: AsRef<Path>>(
 ) -> Result<Handle<Node>, FbxError> {
     let start_time = Instant::now();
 
-    Log::writeln(format!("Trying to load {:?}", path.as_ref()));
+    Log::writeln(
+        MessageKind::Information,
+        format!("Trying to load {:?}", path.as_ref()),
+    );
 
     let now = Instant::now();
     let fbx = FbxDocument::new(path.as_ref())?;
@@ -559,7 +563,8 @@ pub fn load_to_scene<P: AsRef<Path>>(
     let result = convert(&fbx_scene, resource_manager, scene);
     let conversion_time = now.elapsed().as_millis();
 
-    Log::writeln(format!("FBX {:?} loaded in {} ms\n\t- Parsing - {} ms\n\t- DOM Prepare - {} ms\n\t- Conversion - {} ms",
+    Log::writeln(MessageKind::Information,
+                 format!("FBX {:?} loaded in {} ms\n\t- Parsing - {} ms\n\t- DOM Prepare - {} ms\n\t- Conversion - {} ms",
                          path.as_ref(), start_time.elapsed().as_millis(), parsing_time, dom_prepare_time, conversion_time));
 
     result

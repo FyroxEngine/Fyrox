@@ -1,6 +1,7 @@
 // Keep this for now, some texture kind might be used in future.
 #![allow(dead_code)]
 
+use crate::utils::log::MessageKind;
 use crate::{
     core::color::Color,
     renderer::{
@@ -835,7 +836,10 @@ impl GpuTexture {
 
             state.set_texture(0, target, 0);
 
-            Log::writeln(format!("GL texture {} was created!", texture));
+            Log::writeln(
+                MessageKind::Information,
+                format!("GL texture {} was created!", texture),
+            );
 
             Ok(result)
         }
@@ -886,7 +890,10 @@ impl GpuTexture {
 impl Drop for GpuTexture {
     fn drop(&mut self) {
         unsafe {
-            Log::writeln(format!("GL texture {} was destroyed!", self.texture));
+            Log::writeln(
+                MessageKind::Information,
+                format!("GL texture {} was destroyed!", self.texture),
+            );
 
             gl::DeleteTextures(1, &self.texture);
         }

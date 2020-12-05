@@ -1,4 +1,5 @@
 use crate::core::algebra::{Matrix3, Matrix4, Vector2, Vector3, Vector4};
+use crate::utils::log::MessageKind;
 use crate::{
     core::color::Color,
     renderer::{
@@ -79,19 +80,19 @@ fn create_shader(name: String, actual_type: GLuint, source: &str) -> Result<GLui
         let compilation_message = String::from_utf8_unchecked(buffer);
 
         if status == 0 {
-            Log::writeln(format!(
-                "Failed to compile {} shader: {}",
-                name, compilation_message
-            ));
+            Log::writeln(
+                MessageKind::Error,
+                format!("Failed to compile {} shader: {}", name, compilation_message),
+            );
             Err(RendererError::ShaderCompilationFailed {
                 shader_name: name,
                 error_message: compilation_message,
             })
         } else {
-            Log::writeln(format!(
-                "Shader {} compiled!\n{}",
-                name, compilation_message
-            ));
+            Log::writeln(
+                MessageKind::Information,
+                format!("Shader {} compiled!\n{}", name, compilation_message),
+            );
             Ok(shader)
         }
     }
@@ -150,13 +151,19 @@ impl GpuProgram {
             );
             let link_message = String::from_utf8_lossy(&buffer).to_string();
             if status == 0 {
-                Log::writeln(format!("Failed to link {} shader: {}", name, link_message));
+                Log::writeln(
+                    MessageKind::Error,
+                    format!("Failed to link {} shader: {}", name, link_message),
+                );
                 Err(RendererError::ShaderLinkingFailed {
                     shader_name: name.to_owned(),
                     error_message: link_message,
                 })
             } else {
-                Log::writeln(format!("Shader {} linked!\n{}", name, link_message));
+                Log::writeln(
+                    MessageKind::Information,
+                    format!("Shader {} linked!\n{}", name, link_message),
+                );
                 Ok(Self {
                     id: program,
                     name_buf: Default::default(),

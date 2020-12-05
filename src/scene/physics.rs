@@ -1,5 +1,6 @@
 //! Contains all structures and methods to operate with physics world.
 
+use crate::utils::log::MessageKind;
 use crate::{
     core::{
         color::Color,
@@ -387,15 +388,18 @@ impl Physics {
                             self.colliders
                                 .insert(collider, desc.parent.into(), &mut self.bodies);
 
-                            Log::writeln(format!(
+                            Log::writeln(
+                                MessageKind::Information,
+                                format!(
                                 "Geometry for trimesh {:?} was restored from node at handle {:?}!",
                                 desc.parent, associated_node
-                            ))
+                            ),
+                            )
                         } else {
-                            Log::writeln(format!("Unable to get geometry for trimesh, node at handle {:?} is not a mesh!", associated_node))
+                            Log::writeln(MessageKind::Error,format!("Unable to get geometry for trimesh, node at handle {:?} is not a mesh!", associated_node))
                         }
                     } else {
-                        Log::writeln(format!("Unable to get geometry for trimesh, node at handle {:?} does not exists!", associated_node))
+                        Log::writeln(MessageKind::Error,format!("Unable to get geometry for trimesh, node at handle {:?} does not exists!", associated_node))
                     }
                 }
             } else {

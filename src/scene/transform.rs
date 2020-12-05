@@ -46,6 +46,7 @@
 //! initial components, thats why engine does not provide any methods to get those
 //! properties back.
 
+use crate::utils::log::MessageKind;
 use crate::{
     core::{
         algebra::{Matrix3, Matrix4, UnitQuaternion, Vector3},
@@ -110,6 +111,7 @@ fn build_post_rotation_matrix(post_rotation: UnitQuaternion<f32>) -> Matrix3<f32
         .try_inverse()
         .unwrap_or_else(|| {
             Log::writeln(
+                MessageKind::Warning,
                 "Unable to inverse post rotation matrix! Fallback to identity matrix.".to_owned(),
             );
             Matrix3::identity()
