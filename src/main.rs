@@ -8,6 +8,7 @@ extern crate lazy_static;
 pub mod asset;
 pub mod camera;
 pub mod command;
+pub mod configurator;
 pub mod gui;
 pub mod interaction;
 pub mod light;
@@ -20,7 +21,7 @@ pub mod settings;
 pub mod sidebar;
 pub mod world_outliner;
 
-use crate::physics::Physics;
+use crate::configurator::Configurator;
 use crate::{
     asset::{AssetBrowser, AssetKind},
     camera::CameraController,
@@ -33,6 +34,7 @@ use crate::{
     light::LightPanel,
     log::Log,
     menu::{Menu, MenuContext},
+    physics::Physics,
     scene::{AddNodeCommand, SetMeshTextureCommand, SetSpriteTextureCommand},
     scene::{
         ChangeSelectionCommand, CommandGroup, DeleteNodeCommand, EditorScene, LoadModelCommand,
@@ -41,12 +43,11 @@ use crate::{
     sidebar::SideBar,
     world_outliner::WorldOutliner,
 };
-use rg3d::core::algebra::Vector2;
-use rg3d::core::math::aabb::AxisAlignedBoundingBox;
-use rg3d::core::visitor::Visit;
-use rg3d::resource::texture::{Texture, TextureKind, TextureState};
 use rg3d::{
-    core::{color::Color, pool::Handle, scope_profile, visitor::Visitor},
+    core::{
+        algebra::Vector2, color::Color, math::aabb::AxisAlignedBoundingBox, pool::Handle,
+        scope_profile, visitor::Visit, visitor::Visitor,
+    },
     engine::resource_manager::ResourceManager,
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -62,18 +63,16 @@ use rg3d::{
         image::ImageBuilder,
         message::{
             ButtonMessage, FileSelectorMessage, ImageMessage, KeyCode, MessageBoxMessage,
-            MessageDirection, MouseButton, TextBoxMessage, UiMessageData, WidgetMessage,
-            WindowMessage,
+            MessageDirection, MouseButton, UiMessageData, WidgetMessage, WindowMessage,
         },
         messagebox::{MessageBoxBuilder, MessageBoxButtons, MessageBoxResult},
         stack_panel::StackPanelBuilder,
-        text::TextBuilder,
-        text_box::TextBoxBuilder,
         ttf::Font,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
-        HorizontalAlignment, Orientation, Thickness, VerticalAlignment,
+        Thickness,
     },
+    resource::texture::{Texture, TextureKind, TextureState},
     scene::{base::BaseBuilder, node::Node, Scene},
     utils::{into_gui_texture, translate_cursor_icon, translate_event},
 };
@@ -370,293 +369,6 @@ pub fn make_save_file_selector(ctx: &mut BuildContext) -> Handle<UiNode> {
     .build(ctx)
 }
 
-pub struct Configurator {
-    pub window: Handle<UiNode>,
-    textures_dir_browser: Handle<UiNode>,
-    work_dir_browser: Handle<UiNode>,
-    select_work_dir: Handle<UiNode>,
-    select_textures_dir: Handle<UiNode>,
-    ok: Handle<UiNode>,
-    sender: Sender<Message>,
-    work_dir: PathBuf,
-    textures_path: PathBuf,
-    tb_work_dir: Handle<UiNode>,
-    tb_textures_path: Handle<UiNode>,
-}
-
-impl Configurator {
-    pub fn new(sender: Sender<Message>, ctx: &mut BuildContext) -> Self {
-        let select_work_dir;
-        let select_textures_dir;
-        let ok;
-        let tb_work_dir;
-        let tb_textures_path;
-
-        let filter = Rc::new(RefCell::new(|p: &Path| p.is_dir()));
-
-        let scene_browser = FileSelectorBuilder::new(
-            WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
-                .open(false)
-                .with_title(WindowTitle::Text("Select Textures Path".into())),
-        )
-        .with_filter(filter.clone())
-        .build(ctx);
-
-        let folder_browser = FileSelectorBuilder::new(
-            WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
-                .open(false)
-                .with_title(WindowTitle::Text("Select Working Directory".into())),
-        )
-        .with_filter(filter)
-        .build(ctx);
-
-        let window = WindowBuilder::new(WidgetBuilder::new().with_width(370.0).with_height(150.0))
-            .with_title(WindowTitle::Text("Configure Editor".into()))
-            .open(false)
-            .can_close(false)
-            .with_content(
-                GridBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child(
-                            TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
-                                .with_text("Please select a working directory of a project your will work on and a path to the textures. Textures directory must be under working directory!")
-                                .with_wrap(true)
-                                .build(ctx),
-                        )
-                        .with_child(
-                            GridBuilder::new(
-                                WidgetBuilder::new()
-                                    .on_row(1)
-                                    .with_child(
-                                        TextBuilder::new(
-                                            WidgetBuilder::new()
-                                                .on_row(0)
-                                                .on_column(0)
-                                                .with_margin(Thickness::uniform(1.0))
-                                                .with_vertical_alignment(
-                                                    VerticalAlignment::Center,
-                                                ),
-                                        )
-                                            .with_text("Working Directory")
-                                            .build(ctx)
-                                    )
-                                    .with_child({
-                                        tb_work_dir = TextBoxBuilder::new(
-                                            WidgetBuilder::new()
-                                                .on_row(0)
-                                                .on_column(1)
-                                                .with_margin(Thickness::uniform(1.0)),
-                                        )
-                                            .with_vertical_text_alignment(VerticalAlignment::Center)
-                                            .build(ctx);
-                                        tb_work_dir
-                                    })
-                                    .with_child({
-                                        select_work_dir = ButtonBuilder::new(
-                                            WidgetBuilder::new()
-                                                .on_row(0)
-                                                .on_column(2)
-                                                .with_margin(Thickness::uniform(1.0)),
-                                        )
-                                            .with_text("...")
-                                            .build(ctx);
-                                        select_work_dir
-                                    })
-                                    .with_child(
-                                        TextBuilder::new(
-                                            WidgetBuilder::new()
-                                                .on_row(1)
-                                                .on_column(0)
-                                                .with_margin(Thickness::uniform(1.0))
-                                                .with_vertical_alignment(
-                                                    VerticalAlignment::Center,
-                                                ),
-                                        )
-                                            .with_text("Textures Directory")
-                                            .build(ctx)
-                                    )
-                                    .with_child(
-                                        {
-                                            tb_textures_path = TextBoxBuilder::new(
-                                                WidgetBuilder::new()
-                                                    .on_row(1)
-                                                    .on_column(1)
-                                                    .with_margin(Thickness::uniform(1.0)),
-                                            )
-                                                .with_vertical_text_alignment(VerticalAlignment::Center)
-                                                .build(ctx);
-                                            tb_textures_path
-                                        },
-                                    )
-                                    .with_child(
-                                        {
-                                            select_textures_dir =ButtonBuilder::new(
-                                                WidgetBuilder::new()
-                                                    .on_row(1)
-                                                    .on_column(2)
-                                                    .with_margin(Thickness::uniform(1.0)),
-                                            )
-                                                .with_text("...")
-                                                .build(ctx);
-                                            select_textures_dir
-                                        },
-                                    ),
-                            )
-                                .add_row(Row::strict(25.0))
-                                .add_row(Row::strict(25.0))
-                                .add_column(Column::strict(120.0))
-                                .add_column(Column::stretch())
-                                .add_column(Column::strict(25.0))
-                                .build(ctx),
-                        )
-                        .with_child(
-                            StackPanelBuilder::new(
-                                WidgetBuilder::new()
-                                    .with_horizontal_alignment(HorizontalAlignment::Right)
-                                    .with_vertical_alignment(VerticalAlignment::Bottom)
-                                    .with_child({
-                                        ok = ButtonBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_enabled(false) // Disabled by default.
-                                                .with_width(80.0)
-                                                .with_height(25.0)
-                                                .with_margin(Thickness::uniform(1.0)),
-                                        )
-                                            .with_text("OK")
-                                            .build(ctx);
-                                        ok
-                                    })
-                                    .on_row(2),
-                            )
-                                .with_orientation(Orientation::Horizontal)
-                                .build(ctx),
-                        ),
-                )
-                    .add_row(Row::auto())
-                    .add_row(Row::auto())
-                    .add_row(Row::stretch())
-                    .add_column(Column::stretch())
-                    .build(ctx),
-            )
-            .build(ctx);
-
-        Self {
-            window,
-            textures_dir_browser: scene_browser,
-            work_dir_browser: folder_browser,
-            select_work_dir,
-            select_textures_dir,
-            ok,
-            sender,
-            tb_work_dir,
-            tb_textures_path,
-            work_dir: Default::default(),
-            textures_path: Default::default(),
-        }
-    }
-
-    fn validate(&mut self, engine: &mut GameEngine) {
-        let is_valid_scene_path = self.textures_path.exists()
-            && self.work_dir.exists()
-            && self.textures_path.starts_with(&self.work_dir);
-        engine.user_interface.send_message(WidgetMessage::enabled(
-            self.ok,
-            MessageDirection::ToWidget,
-            is_valid_scene_path,
-        ));
-    }
-
-    pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut GameEngine) {
-        match message.data() {
-            UiMessageData::FileSelector(msg) => {
-                if let FileSelectorMessage::Commit(path) = msg {
-                    if message.destination() == self.textures_dir_browser {
-                        if let Ok(textures_path) = path.clone().canonicalize() {
-                            self.textures_path = textures_path;
-                            engine.user_interface.send_message(TextBoxMessage::text(
-                                self.tb_textures_path,
-                                MessageDirection::ToWidget,
-                                self.textures_path.to_string_lossy().to_string(),
-                            ));
-
-                            self.validate(engine);
-                        }
-                    } else if message.destination() == self.work_dir_browser {
-                        if let Ok(work_dir) = path.clone().canonicalize() {
-                            self.work_dir = work_dir;
-                            self.textures_path = self.work_dir.clone();
-                            engine.user_interface.send_message(TextBoxMessage::text(
-                                self.tb_work_dir,
-                                MessageDirection::ToWidget,
-                                self.work_dir.to_string_lossy().to_string(),
-                            ));
-                            engine
-                                .user_interface
-                                .send_message(FileSelectorMessage::root(
-                                    self.textures_dir_browser,
-                                    MessageDirection::ToWidget,
-                                    Some(self.textures_path.clone()),
-                                ));
-                            engine.user_interface.send_message(TextBoxMessage::text(
-                                self.tb_textures_path,
-                                MessageDirection::ToWidget,
-                                self.textures_path.to_string_lossy().to_string(),
-                            ));
-
-                            self.validate(engine);
-                        }
-                    }
-                }
-            }
-            UiMessageData::Button(msg) => {
-                if let ButtonMessage::Click = msg {
-                    if message.destination() == self.ok {
-                        self.sender
-                            .send(Message::Configure {
-                                working_directory: self.work_dir.clone(),
-                                textures_path: self.textures_path.clone(),
-                            })
-                            .unwrap();
-
-                        engine.user_interface.send_message(WindowMessage::close(
-                            self.window,
-                            MessageDirection::ToWidget,
-                        ));
-                    } else if message.destination() == self.select_textures_dir {
-                        engine
-                            .user_interface
-                            .send_message(WindowMessage::open_modal(
-                                self.textures_dir_browser,
-                                MessageDirection::ToWidget,
-                                true,
-                            ));
-                        if self.work_dir.exists() {
-                            // Once working directory was selected we can reduce amount of clicks
-                            // for user by setting initial path of scene selector to working dir.
-                            engine
-                                .user_interface
-                                .send_message(FileSelectorMessage::path(
-                                    self.textures_dir_browser,
-                                    MessageDirection::ToWidget,
-                                    self.work_dir.clone(),
-                                ));
-                        }
-                    } else if message.destination() == self.select_work_dir {
-                        engine
-                            .user_interface
-                            .send_message(WindowMessage::open_modal(
-                                self.work_dir_browser,
-                                MessageDirection::ToWidget,
-                                true,
-                            ));
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-}
-
 struct Editor {
     sidebar: SideBar,
     scene: Option<EditorScene>,
@@ -817,6 +529,10 @@ impl Editor {
         if let Some(previous_editor_scene) = self.scene.as_ref() {
             engine.scenes.remove(previous_editor_scene.scene);
         }
+
+        // Disable binder so we'll have full control over node's transform even if
+        // it has a physical body.
+        scene.physics_binder.enabled = false;
 
         scene.render_target = Some(Texture::new_render_target(0, 0));
         engine.user_interface.send_message(ImageMessage::texture(
@@ -1305,6 +1021,7 @@ impl Editor {
                             scene.clone(&mut |node, _| node != editor_root);
                         let (desc, binder) = editor_scene.physics.generate_engine_desc();
                         pure_scene.physics.desc = Some(desc);
+                        pure_scene.physics_binder.enabled = true;
                         pure_scene.physics_binder.node_rigid_body_map.clear();
                         for (node, body) in binder {
                             pure_scene

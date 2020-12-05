@@ -430,7 +430,7 @@ impl RotateNodeCommand {
         position
     }
 
-    fn set_scale(&self, graph: &mut Graph, rotation: UnitQuaternion<f32>) {
+    fn set_rotation(&self, graph: &mut Graph, rotation: UnitQuaternion<f32>) {
         graph[self.node]
             .local_transform_mut()
             .set_rotation(rotation);
@@ -446,12 +446,12 @@ impl<'a> Command<'a> for RotateNodeCommand {
 
     fn execute(&mut self, context: &mut Self::Context) {
         let rotation = self.swap();
-        self.set_scale(&mut context.scene.graph, rotation);
+        self.set_rotation(&mut context.scene.graph, rotation);
     }
 
     fn revert(&mut self, context: &mut Self::Context) {
         let rotation = self.swap();
-        self.set_scale(&mut context.scene.graph, rotation);
+        self.set_rotation(&mut context.scene.graph, rotation);
     }
 }
 
