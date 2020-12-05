@@ -107,12 +107,17 @@ impl Visit for RapierHandle {
 pub struct PhysicsBinder {
     /// Mapping Node -> RigidBody.
     pub node_rigid_body_map: HashMap<Handle<Node>, RigidBodyHandle>,
+
+    /// Whether binder is enabled or not. If binder is disabled, it won't synchronize
+    /// node's transform with body's transform.
+    pub enabled: bool,
 }
 
 impl Default for PhysicsBinder {
     fn default() -> Self {
         Self {
             node_rigid_body_map: Default::default(),
+            enabled: true,
         }
     }
 }
@@ -182,6 +187,7 @@ impl Visit for PhysicsBinder {
         visitor.enter_region(name)?;
 
         self.node_rigid_body_map.visit("Map", visitor)?;
+        let _ = self.enabled.visit("Enabled", visitor);
 
         visitor.leave_region()
     }
@@ -725,12 +731,14 @@ impl Scene {
             });
 
         // Sync node positions with assigned physics bodies
-        for (&node, &body) in self.physics_binder.node_rigid_body_map.iter() {
-            let body = physics.bodies.get(body.into()).unwrap();
-            self.graph[node]
-                .local_transform_mut()
-                .set_position(body.position().translation.vector)
-                .set_rotation(body.position().rotation);
+        if self.physics_binder.enabled {
+            for (&node, &body) in self.physics_binder.node_rigid_body_map.iter() {
+                let body = physics.bodies.get(body.into()).unwrap();
+                self.graph[node]
+                    .local_transform_mut()
+                    .set_position(body.position().translation.vector)
+                    .set_rotation(body.position().rotation);
+            }
         }
     }
 

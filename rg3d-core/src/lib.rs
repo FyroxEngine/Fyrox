@@ -60,17 +60,23 @@ macro_rules! define_is_as {
 pub fn replace_slashes<P: AsRef<Path>>(path: P) -> PathBuf {
     #[cfg(target_os = "windows")]
     {
-        // Replace all \ to /. This is needed because on macos or linux \ is a valid symbol in
-        // file name, and not separator (except linux which understand both variants).
-        let mut os_str = OsString::new();
-        let count = path.as_ref().components().count();
-        for (i, component) in path.as_ref().components().enumerate() {
-            os_str.push(component.as_os_str());
-            if i != count - 1 {
-                os_str.push("/");
+        if path.as_ref().is_absolute() {
+            // Absolute Windows paths are incompatible with other operating systems so
+            // don't bother here and return existing path as owned.
+            path.as_ref().to_owned()
+        } else {
+            // Replace all \ to /. This is needed because on macos or linux \ is a valid symbol in
+            // file name, and not separator (except linux which understand both variants).
+            let mut os_str = OsString::new();
+            let count = path.as_ref().components().count();
+            for (i, component) in path.as_ref().components().enumerate() {
+                os_str.push(component.as_os_str());
+                if i != count - 1 {
+                    os_str.push("/");
+                }
             }
+            PathBuf::from(os_str)
         }
-        PathBuf::from(os_str)
     }
 
     #[cfg(not(target_os = "windows"))]
