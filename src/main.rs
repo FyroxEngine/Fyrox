@@ -1024,9 +1024,9 @@ impl Editor {
                         pure_scene.physics_binder.enabled = true;
                         pure_scene.physics_binder.node_rigid_body_map.clear();
                         for (node, body) in binder {
-                            pure_scene
-                                .physics_binder
-                                .bind(*old_to_new.get(&node).unwrap(), body);
+                            if let Some(new_node) = old_to_new.get(&node) {
+                                pure_scene.physics_binder.bind(*new_node, body);
+                            }
                         }
                         let mut visitor = Visitor::new();
                         pure_scene.visit("Scene", &mut visitor).unwrap();

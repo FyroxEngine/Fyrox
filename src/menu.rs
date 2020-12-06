@@ -46,6 +46,7 @@ pub struct Menu {
     redo: Handle<UiNode>,
     copy: Handle<UiNode>,
     paste: Handle<UiNode>,
+    create_pivot: Handle<UiNode>,
     create_cube: Handle<UiNode>,
     create_cone: Handle<UiNode>,
     create_sphere: Handle<UiNode>,
@@ -119,6 +120,7 @@ impl Menu {
         let configure;
         let light_panel;
         let log_panel;
+        let create_pivot;
         let ctx = &mut engine.user_interface.build_ctx();
         let configure_message = MessageBoxBuilder::new(
             WindowBuilder::new(WidgetBuilder::new().with_width(250.0).with_height(150.0))
@@ -252,6 +254,13 @@ impl Menu {
                 MenuItemBuilder::new(WidgetBuilder::new().with_margin(Thickness::right(10.0)))
                     .with_content(MenuItemContent::text_with_shortcut("Create", ""))
                     .with_items(vec![
+                        {
+                            create_pivot =
+                                MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
+                                    .with_content(MenuItemContent::text("Pivot"))
+                                    .build(ctx);
+                            create_pivot
+                        },
                         MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
                             .with_content(MenuItemContent::text("Mesh"))
                             .with_items(vec![
@@ -419,6 +428,7 @@ impl Menu {
             copy,
             paste,
             log_panel,
+            create_pivot,
         }
     }
 
@@ -461,6 +471,14 @@ impl Menu {
                         .with_hotspot_cone_angle(45.0f32.to_radians())
                         .with_falloff_angle_delta(2.0f32.to_radians())
                         .build_node();
+
+                        self.message_sender
+                            .send(Message::DoSceneCommand(SceneCommand::AddNode(
+                                AddNodeCommand::new(node),
+                            )))
+                            .unwrap();
+                    } else if message.destination() == self.create_pivot {
+                        let node = BaseBuilder::new().with_name("Pivot").build_node();
 
                         self.message_sender
                             .send(Message::DoSceneCommand(SceneCommand::AddNode(
