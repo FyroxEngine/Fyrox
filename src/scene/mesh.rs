@@ -35,6 +35,7 @@ pub struct Mesh {
     surfaces: Vec<Surface>,
     bounding_box: Cell<AxisAlignedBoundingBox>,
     bounding_box_dirty: Cell<bool>,
+    cast_shadows: bool,
 }
 
 impl Default for Mesh {
@@ -44,6 +45,7 @@ impl Default for Mesh {
             surfaces: Default::default(),
             bounding_box: Default::default(),
             bounding_box_dirty: Cell::new(true),
+            cast_shadows: true,
         }
     }
 }
@@ -67,6 +69,7 @@ impl Visit for Mesh {
         visitor.enter_region(name)?;
 
         self.base.visit("Common", visitor)?;
+        let _ = self.cast_shadows.visit("CastShadows", visitor);
 
         // Serialize surfaces, but keep in mind that surfaces from resources will be automatically
         // recreated on resolve stage! Serialization of surfaces needed for procedural surfaces.
@@ -109,6 +112,18 @@ impl Mesh {
         for surface in self.surfaces.iter_mut() {
             surface.set_color(color);
         }
+    }
+
+    /// Returns true if mesh should cast shadows, false - otherwise.
+    #[inline]
+    pub fn cast_shadows(&self) -> bool {
+        self.cast_shadows
+    }
+
+    /// Sets whether mesh should cast shadows or not.
+    #[inline]
+    pub fn set_cast_shadows(&mut self, cast_shadows: bool) {
+        self.cast_shadows = cast_shadows;
     }
 
     /// Performs lazy bounding box evaluation. Bounding box presented in *local coordinates*
@@ -221,6 +236,7 @@ impl Mesh {
             surfaces: self.surfaces.clone(),
             bounding_box: self.bounding_box.clone(),
             bounding_box_dirty: self.bounding_box_dirty.clone(),
+            cast_shadows: self.cast_shadows,
         }
     }
 }
@@ -229,6 +245,7 @@ impl Mesh {
 pub struct MeshBuilder {
     base_builder: BaseBuilder,
     surfaces: Vec<Surface>,
+    cast_shadows: bool,
 }
 
 impl MeshBuilder {
@@ -237,6 +254,7 @@ impl MeshBuilder {
         Self {
             base_builder,
             surfaces: Default::default(),
+            cast_shadows: true,
         }
     }
 
@@ -246,10 +264,17 @@ impl MeshBuilder {
         self
     }
 
+    /// Sets whether mesh should cast shadows or not.
+    pub fn with_cast_shadows(mut self, cast_shadows: bool) -> Self {
+        self.cast_shadows = cast_shadows;
+        self
+    }
+
     /// Creates new mesh.
     pub fn build_node(self) -> Node {
         Node::Mesh(Mesh {
             base: self.base_builder.build_base(),
+            cast_shadows: self.cast_shadows,
             surfaces: self.surfaces,
             bounding_box: Default::default(),
             bounding_box_dirty: Cell::new(true),

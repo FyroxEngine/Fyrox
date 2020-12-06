@@ -185,7 +185,7 @@ impl SpotShadowMapRenderer {
 
                 let visible = node.global_visibility() && {
                     if let Node::Mesh(mesh) = node {
-                        mesh.is_intersect_frustum(graph, &frustum)
+                        mesh.cast_shadows() && mesh.is_intersect_frustum(graph, &frustum)
                     } else {
                         false
                     }
@@ -479,7 +479,7 @@ impl PointShadowMapRenderer {
 
                     let visible = node.global_visibility() && {
                         if let Node::Mesh(mesh) = node {
-                            mesh.is_intersect_frustum(graph, &frustum)
+                            mesh.cast_shadows() && mesh.is_intersect_frustum(graph, &frustum)
                         } else {
                             false
                         }
