@@ -95,6 +95,7 @@ fn make_move_axis(
                                 .build(),
                         ),
                 )
+                .with_cast_shadows(false)
                 .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
                     SurfaceSharedData::make_cone(10, 0.05, 0.1, Matrix4::identity()),
                 )))
@@ -111,6 +112,7 @@ fn make_move_axis(
                     .build(),
             ),
     )
+    .with_cast_shadows(false)
     .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
         SurfaceSharedData::make_cylinder(10, 0.015, 1.0, true, Matrix4::identity()),
     )))
@@ -137,6 +139,7 @@ fn create_quad_plane(
                     .build(),
             ),
     )
+    .with_cast_shadows(false)
     .with_surfaces(vec![{
         SurfaceBuilder::new(Arc::new(RwLock::new(SurfaceSharedData::make_quad(
             transform,
@@ -589,6 +592,7 @@ fn make_scale_axis(
                                 .build(),
                         ),
                 )
+                .with_cast_shadows(false)
                 .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
                     SurfaceSharedData::make_cube(Matrix4::new_nonuniform_scaling(&Vector3::new(
                         0.1, 0.1, 0.1,
@@ -607,6 +611,7 @@ fn make_scale_axis(
                     .build(),
             ),
     )
+    .with_cast_shadows(false)
     .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
         SurfaceSharedData::make_cylinder(10, 0.015, 1.0, true, Matrix4::identity()),
     )))
@@ -628,6 +633,7 @@ impl ScaleGizmo {
                 .with_name("Origin")
                 .with_visibility(false),
         )
+        .with_cast_shadows(false)
         .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
             SurfaceSharedData::make_cube(Matrix4::new_nonuniform_scaling(&Vector3::new(
                 0.1, 0.1, 0.1,
@@ -1020,6 +1026,7 @@ fn make_rotation_ribbon(
                     .build(),
             ),
     )
+    .with_cast_shadows(false)
     .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
         SurfaceSharedData::make_cylinder(
             30,
@@ -1045,6 +1052,7 @@ impl RotationGizmo {
                 .with_depth_offset(0.5)
                 .with_visibility(false),
         )
+        .with_cast_shadows(false)
         .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
             SurfaceSharedData::make_sphere(10, 10, 0.1),
         )))
