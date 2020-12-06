@@ -44,6 +44,7 @@ pub trait InteractionMode {
         camera: Handle<Node>,
         editor_scene: &EditorScene,
         engine: &mut GameEngine,
+        frame_size: Vector2<f32>,
     );
     fn update(&mut self, editor_scene: &EditorScene, camera: Handle<Node>, engine: &mut GameEngine);
     fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine);
@@ -295,11 +296,10 @@ impl MoveGizmo {
         mouse_offset: Vector2<f32>,
         mouse_position: Vector2<f32>,
         engine: &GameEngine,
+        frame_size: Vector2<f32>,
     ) -> Vector3<f32> {
         let scene = &engine.scenes[editor_scene.scene];
         let graph = &scene.graph;
-        let screen_size = engine.renderer.get_frame_size();
-        let screen_size = Vector2::new(screen_size.0 as f32, screen_size.1 as f32);
         let node_global_transform = graph[self.origin].global_transform();
         let node_local_transform = graph[self.origin].local_transform().matrix();
 
@@ -309,10 +309,10 @@ impl MoveGizmo {
 
             // Create two rays in object space.
             let initial_ray = camera
-                .make_ray(mouse_position, screen_size)
+                .make_ray(mouse_position, frame_size)
                 .transform(inv_node_transform);
             let offset_ray = camera
-                .make_ray(mouse_position + mouse_offset, screen_size)
+                .make_ray(mouse_position + mouse_offset, frame_size)
                 .transform(inv_node_transform);
 
             // Select plane by current active mode.
@@ -505,6 +505,7 @@ impl InteractionMode for MoveInteractionMode {
         camera: Handle<Node>,
         editor_scene: &EditorScene,
         engine: &mut GameEngine,
+        frame_size: Vector2<f32>,
     ) {
         if self.interacting {
             let node_offset = self.move_gizmo.calculate_offset(
@@ -513,6 +514,7 @@ impl InteractionMode for MoveInteractionMode {
                 mouse_offset,
                 mouse_position,
                 engine,
+                frame_size,
             );
             editor_scene
                 .selection
@@ -739,10 +741,9 @@ impl ScaleGizmo {
         mouse_offset: Vector2<f32>,
         mouse_position: Vector2<f32>,
         engine: &GameEngine,
+        frame_size: Vector2<f32>,
     ) -> Vector3<f32> {
         let graph = &engine.scenes[editor_scene.scene].graph;
-        let screen_size = engine.renderer.get_frame_size();
-        let screen_size = Vector2::new(screen_size.0 as f32, screen_size.1 as f32);
         let node_global_transform = graph[self.origin].global_transform();
 
         if let Node::Camera(camera) = &graph[camera] {
@@ -751,10 +752,10 @@ impl ScaleGizmo {
 
             // Create two rays in object space.
             let initial_ray = camera
-                .make_ray(mouse_position, screen_size)
+                .make_ray(mouse_position, frame_size)
                 .transform(inv_node_transform);
             let offset_ray = camera
-                .make_ray(mouse_position + mouse_offset, screen_size)
+                .make_ray(mouse_position + mouse_offset, frame_size)
                 .transform(inv_node_transform);
 
             // Select plane by current active mode.
@@ -939,6 +940,7 @@ impl InteractionMode for ScaleInteractionMode {
         camera: Handle<Node>,
         editor_scene: &EditorScene,
         engine: &mut GameEngine,
+        frame_size: Vector2<f32>,
     ) {
         if self.interacting {
             let scale_delta = self.scale_gizmo.calculate_scale_delta(
@@ -947,6 +949,7 @@ impl InteractionMode for ScaleInteractionMode {
                 mouse_offset,
                 mouse_position,
                 engine,
+                frame_size,
             );
             for &node in editor_scene.selection.nodes().iter() {
                 let transform = engine.scenes[editor_scene.scene].graph[node].local_transform_mut();
@@ -1134,16 +1137,15 @@ impl RotationGizmo {
         mouse_offset: Vector2<f32>,
         mouse_position: Vector2<f32>,
         engine: &GameEngine,
+        frame_size: Vector2<f32>,
     ) -> UnitQuaternion<f32> {
         let graph = &engine.scenes[editor_scene.scene].graph;
-        let screen_size = engine.renderer.get_frame_size();
-        let screen_size = Vector2::new(screen_size.0 as f32, screen_size.1 as f32);
 
         if let Node::Camera(camera) = &graph[camera] {
             let transform = graph[self.origin].global_transform();
 
-            let initial_ray = camera.make_ray(mouse_position, screen_size);
-            let offset_ray = camera.make_ray(mouse_position + mouse_offset, screen_size);
+            let initial_ray = camera.make_ray(mouse_position, frame_size);
+            let offset_ray = camera.make_ray(mouse_position + mouse_offset, frame_size);
 
             let oriented_axis = match self.mode {
                 RotateGizmoMode::Pitch => transform.side(),
@@ -1321,6 +1323,7 @@ impl InteractionMode for RotateInteractionMode {
         camera: Handle<Node>,
         editor_scene: &EditorScene,
         engine: &mut GameEngine,
+        frame_size: Vector2<f32>,
     ) {
         if self.interacting {
             let rotation_delta = self.rotation_gizmo.calculate_rotation_delta(
@@ -1329,6 +1332,7 @@ impl InteractionMode for RotateInteractionMode {
                 mouse_offset,
                 mouse_position,
                 engine,
+                frame_size,
             );
             for &node in editor_scene.selection.nodes().iter() {
                 let transform = engine.scenes[editor_scene.scene].graph[node].local_transform_mut();
@@ -1494,6 +1498,7 @@ impl InteractionMode for SelectInteractionMode {
         _camera: Handle<Node>,
         _editor_scene: &EditorScene,
         engine: &mut GameEngine,
+        _frame_size: Vector2<f32>,
     ) {
         let ui = &mut engine.user_interface;
         let width = mouse_position.x - self.click_pos.x;

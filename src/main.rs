@@ -706,6 +706,7 @@ impl Editor {
                                     editor_scene.camera_controller.camera,
                                     editor_scene,
                                     engine,
+                                    frame_size,
                                 );
                             }
                             self.preview.last_mouse_pos = Some(pos);
@@ -1156,7 +1157,7 @@ impl Editor {
 
             for &node in editor_scene.selection.nodes() {
                 let node = &scene.graph[node];
-                let mut aabb = match node {
+                let aabb = match node {
                     Node::Base(_) => AxisAlignedBoundingBox::unit(),
                     Node::Light(_) => AxisAlignedBoundingBox::unit(),
                     Node::Camera(_) => AxisAlignedBoundingBox::unit(),
@@ -1164,8 +1165,9 @@ impl Editor {
                     Node::Sprite(_) => AxisAlignedBoundingBox::unit(),
                     Node::ParticleSystem(_) => AxisAlignedBoundingBox::unit(),
                 };
-                aabb.transform(node.global_transform());
-                scene.drawing_context.draw_aabb(&aabb, Color::GREEN);
+                scene
+                    .drawing_context
+                    .draw_oob(&aabb, node.global_transform(), Color::GREEN);
             }
 
             let graph = &mut scene.graph;
