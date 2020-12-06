@@ -22,6 +22,7 @@ pub mod sidebar;
 pub mod world_outliner;
 
 use crate::configurator::Configurator;
+use crate::scene::{DeleteBodyCommand, DeleteColliderCommand};
 use crate::{
     asset::{AssetBrowser, AssetKind},
     camera::CameraController,
@@ -43,6 +44,8 @@ use crate::{
     sidebar::SideBar,
     world_outliner::WorldOutliner,
 };
+use rg3d::scene::graph::Graph;
+use rg3d::scene::SceneDrawingContext;
 use rg3d::{
     core::{
         algebra::Vector2, color::Color, math::aabb::AxisAlignedBoundingBox, pool::Handle,
@@ -795,6 +798,27 @@ impl Editor {
                                             ),
                                         ]);
                                         for &node in editor_scene.selection.nodes().iter() {
+                                            if let Some(body) =
+                                                editor_scene.physics.binder.get(&node)
+                                            {
+                                                for &collider in editor_scene.physics.bodies[*body]
+                                                    .colliders
+                                                    .iter()
+                                                {
+                                                    command_group.push(
+                                                        SceneCommand::DeleteCollider(
+                                                            DeleteColliderCommand::new(
+                                                                collider.into(),
+                                                            ),
+                                                        ),
+                                                    )
+                                                }
+
+                                                command_group.push(SceneCommand::DeleteBody(
+                                                    DeleteBodyCommand::new(*body),
+                                                ));
+                                            }
+
                                             command_group.push(SceneCommand::DeleteNode(
                                                 DeleteNodeCommand::new(node),
                                             ));
@@ -1025,9 +1049,9 @@ impl Editor {
                         pure_scene.physics_binder.enabled = true;
                         pure_scene.physics_binder.node_rigid_body_map.clear();
                         for (node, body) in binder {
-                            if let Some(new_node) = old_to_new.get(&node) {
-                                pure_scene.physics_binder.bind(*new_node, body);
-                            }
+                            pure_scene
+                                .physics_binder
+                                .bind(*old_to_new.get(&node).unwrap(), body);
                         }
                         let mut visitor = Visitor::new();
                         pure_scene.visit("Scene", &mut visitor).unwrap();
@@ -1169,6 +1193,39 @@ impl Editor {
                     .drawing_context
                     .draw_oob(&aabb, node.global_transform(), Color::GREEN);
             }
+
+            fn draw_recursively(
+                node: Handle<Node>,
+                graph: &Graph,
+                ctx: &mut SceneDrawingContext,
+                editor_scene: &EditorScene,
+            ) {
+                // Ignore editor nodes.
+                if node == editor_scene.root {
+                    return;
+                }
+
+                let node = &graph[node];
+                if let Node::Base(_) = node {
+                    ctx.draw_oob(
+                        &AxisAlignedBoundingBox::unit(),
+                        node.global_transform(),
+                        Color::opaque(255, 127, 39),
+                    );
+                }
+
+                for &child in node.children() {
+                    draw_recursively(child, graph, ctx, editor_scene)
+                }
+            }
+
+            // Draw pivots.
+            draw_recursively(
+                scene.graph.get_root(),
+                &scene.graph,
+                &mut scene.drawing_context,
+                editor_scene,
+            );
 
             let graph = &mut scene.graph;
 

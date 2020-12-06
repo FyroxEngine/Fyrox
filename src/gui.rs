@@ -18,6 +18,7 @@ pub enum AssetItemMessage {
 #[derive(Debug, Clone, PartialEq)]
 pub enum SceneItemMessage {
     NodeVisibility(bool),
+    Name(String),
     /// Odd or even.
     Order(bool),
 }
@@ -36,6 +37,14 @@ impl SceneItemMessage {
             destination,
             MessageDirection::ToWidget,
             EditorUiMessage::SceneItem(SceneItemMessage::NodeVisibility(visibility)),
+        )
+    }
+
+    pub fn name(destination: Handle<UiNode>, name: String) -> UiMessage {
+        UiMessage::user(
+            destination,
+            MessageDirection::ToWidget,
+            EditorUiMessage::SceneItem(SceneItemMessage::Name(name)),
         )
     }
 }

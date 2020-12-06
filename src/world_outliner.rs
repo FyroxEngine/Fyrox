@@ -10,6 +10,7 @@ use crate::{
     },
     GameEngine, Message,
 };
+use rg3d::gui::message::TextMessage;
 use rg3d::{
     core::{algebra::Vector2, math::Rect, pool::Handle},
     engine::resource_manager::ResourceManager,
@@ -50,6 +51,7 @@ pub struct WorldOutliner {
 #[derive(Clone)]
 pub struct SceneItem {
     tree: Tree<EditorUiMessage, EditorUiNode>,
+    text_name: Handle<UiNode>,
     node: Handle<Node>,
     visibility_toggle: Handle<UiNode>,
     sender: Sender<Message>,
@@ -80,6 +82,7 @@ impl DerefMut for SceneItem {
 impl Control<EditorUiMessage, EditorUiNode> for SceneItem {
     fn resolve(&mut self, node_map: &NodeHandleMapping<EditorUiMessage, EditorUiNode>) {
         self.tree.resolve(node_map);
+        node_map.resolve(&mut self.text_name);
     }
 
     fn measure_override(&self, ui: &Ui, available_size: Vector2<f32>) -> Vector2<f32> {
@@ -123,8 +126,8 @@ impl Control<EditorUiMessage, EditorUiNode> for SceneItem {
             }
             UiMessageData::User(msg) => {
                 if let EditorUiMessage::SceneItem(item) = msg {
-                    match *item {
-                        SceneItemMessage::NodeVisibility(visibility) => {
+                    match item {
+                        &SceneItemMessage::NodeVisibility(visibility) => {
                             if self.visibility != visibility
                                 && message.destination() == self.handle()
                             {
@@ -148,7 +151,7 @@ impl Control<EditorUiMessage, EditorUiNode> for SceneItem {
                                 ));
                             }
                         }
-                        SceneItemMessage::Order(order) => {
+                        &SceneItemMessage::Order(order) => {
                             if message.destination() == self.handle() {
                                 ui.send_message(DecoratorMessage::normal_brush(
                                     self.tree.back(),
@@ -158,6 +161,15 @@ impl Control<EditorUiMessage, EditorUiNode> for SceneItem {
                                     } else {
                                         Color::opaque(60, 60, 60)
                                     }),
+                                ));
+                            }
+                        }
+                        SceneItemMessage::Name(name) => {
+                            if message.destination() == self.handle() {
+                                ui.send_message(TextMessage::text(
+                                    self.text_name,
+                                    MessageDirection::ToWidget,
+                                    name.clone(),
                                 ));
                             }
                         }
@@ -227,6 +239,7 @@ impl SceneItemBuilder {
     ) -> Handle<UiNode> {
         let visible_texture = load_image("resources/visible.png", resource_manager.clone());
 
+        let text_name;
         let visibility_toggle;
         let tree = TreeBuilder::new(WidgetBuilder::new().with_margin(Thickness {
             left: 1.0,
@@ -248,16 +261,17 @@ impl SceneItemBuilder {
                         .with_opt_texture(self.icon)
                         .build(ctx),
                     )
-                    .with_child(
-                        TextBuilder::new(
+                    .with_child({
+                        text_name = TextBuilder::new(
                             WidgetBuilder::new()
                                 .with_margin(Thickness::uniform(1.0))
                                 .on_column(1)
                                 .with_vertical_alignment(VerticalAlignment::Center),
                         )
                         .with_text(self.name)
-                        .build(ctx),
-                    )
+                        .build(ctx);
+                        text_name
+                    })
                     .with_child({
                         visibility_toggle = ButtonBuilder::new(
                             WidgetBuilder::new()
@@ -293,6 +307,7 @@ impl SceneItemBuilder {
             sender,
             visibility: self.visibility,
             resource_manager,
+            text_name,
         };
 
         ctx.add_node(UiNode::User(EditorUiNode::SceneItem(item)))
@@ -505,6 +520,7 @@ impl WorldOutliner {
                                 handle,
                                 node.visibility(),
                             ));
+                            ui.send_message(SceneItemMessage::name(handle, node.name().to_owned()));
                             stack.extend_from_slice(item.tree.items());
                         }
                     }

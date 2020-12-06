@@ -63,6 +63,7 @@ pub struct SideBar {
     sender: Sender<Message>,
     body: Handle<UiNode>,
     collider: Handle<UiNode>,
+    collider_text: Handle<UiNode>,
     light_section: LightSection,
     camera_section: CameraSection,
     particle_system_section: ParticleSystemSection,
@@ -775,6 +776,7 @@ impl SideBar {
         let scale;
         let body;
         let collider;
+        let collider_text;
 
         let light_section = LightSection::new(ctx, sender.clone());
         let camera_section = CameraSection::new(ctx, sender.clone());
@@ -834,7 +836,10 @@ impl SideBar {
                                                 .build(ctx);
                                                 body
                                             })
-                                            .with_child(make_text_mark(ctx, "Collider", 5))
+                                            .with_child({
+                                                collider_text = make_text_mark(ctx, "Collider", 5);
+                                                collider_text
+                                            })
                                             .with_child({
                                                 collider = DropdownListBuilder::new(
                                                     WidgetBuilder::new()
@@ -901,6 +906,7 @@ impl SideBar {
             camera_section,
             particle_system_section,
             sprite_section,
+            collider_text,
         }
     }
 
@@ -963,6 +969,17 @@ impl SideBar {
                         0
                     };
 
+                ui.send_message(WidgetMessage::visibility(
+                    self.collider,
+                    MessageDirection::ToWidget,
+                    body_index != 0,
+                ));
+                ui.send_message(WidgetMessage::visibility(
+                    self.collider_text,
+                    MessageDirection::ToWidget,
+                    body_index != 0,
+                ));
+
                 ui.send_message(DropdownListMessage::selection(
                     self.body,
                     MessageDirection::ToWidget,
@@ -986,7 +1003,6 @@ impl SideBar {
                                 ColliderShapeDesc::Trimesh(_) => 8,
                                 ColliderShapeDesc::Heightfield(_) => 9,
                             };
-                        dbg!(collider_index);
                         ui.send_message(DropdownListMessage::selection(
                             self.collider,
                             MessageDirection::ToWidget,
@@ -1081,11 +1097,27 @@ impl SideBar {
                                         if let Some(&body_handle) =
                                             editor_scene.physics.binder.get(&node_handle)
                                         {
+                                            let mut commands = Vec::new();
+
+                                            for &collider in editor_scene.physics.bodies
+                                                [body_handle]
+                                                .colliders
+                                                .iter()
+                                            {
+                                                commands.push(SceneCommand::DeleteCollider(
+                                                    DeleteColliderCommand::new(collider.into()),
+                                                ))
+                                            }
+
+                                            commands.push(SceneCommand::DeleteBody(
+                                                DeleteBodyCommand::new(body_handle),
+                                            ));
+
                                             self.sender
                                                 .send(Message::DoSceneCommand(
-                                                    SceneCommand::DeleteBody(
-                                                        DeleteBodyCommand::new(body_handle),
-                                                    ),
+                                                    SceneCommand::CommandGroup(CommandGroup::from(
+                                                        commands,
+                                                    )),
                                                 ))
                                                 .unwrap();
                                         }
