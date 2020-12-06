@@ -42,6 +42,24 @@ pub struct Position {
     offset: usize,
 }
 
+#[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Ord, Hash)]
+#[repr(u32)]
+pub enum TextCommitMode {
+    /// Text box will immediately send Text message after any change.
+    Immediate = 0,
+
+    /// Text box will send Text message only when it loses focus.
+    LostFocus = 1,
+
+    /// Text box will send Text message when it loses focus or if Enter
+    /// key was pressed. This is **default** behavior.
+    ///
+    /// # Notes
+    ///
+    /// In case of multiline text box hitting Enter key won't commit text!
+    LostFocusPlusEnter = 2,
+}
+
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct SelectionRange {
     begin: Position,
@@ -87,6 +105,8 @@ pub struct TextBox<M: MessageData, C: Control<M, C>> {
     caret_brush: Brush,
     selection_brush: Brush,
     filter: Option<Rc<RefCell<FilterCallback>>>,
+    commit_mode: TextCommitMode,
+    multiline: bool,
 }
 
 impl<M: MessageData, C: Control<M, C>> Debug for TextBox<M, C> {
@@ -98,27 +118,6 @@ impl<M: MessageData, C: Control<M, C>> Debug for TextBox<M, C> {
 crate::define_widget_deref!(TextBox<M, C>);
 
 impl<M: MessageData, C: Control<M, C>> TextBox<M, C> {
-    pub fn new(widget: Widget<M, C>) -> Self {
-        Self {
-            widget,
-            caret_position: Position::default(),
-            caret_visible: false,
-            blink_timer: 0.0,
-            blink_interval: 0.0,
-            formatted_text: RefCell::new(
-                FormattedTextBuilder::new()
-                    .with_font(crate::DEFAULT_FONT.clone())
-                    .build(),
-            ),
-            selection_range: None,
-            selecting: false,
-            has_focus: false,
-            caret_brush: Brush::Solid(Color::WHITE),
-            selection_brush: Brush::Solid(Color::opaque(65, 65, 90)),
-            filter: None,
-        }
-    }
-
     pub fn reset_blink(&mut self) {
         self.caret_visible = true;
         self.blink_timer = 0.0;
@@ -353,27 +352,6 @@ impl<M: MessageData, C: Control<M, C>> TextBox<M, C> {
             }
         }
         None
-    }
-
-    pub fn set_text<P: AsRef<str>>(&mut self, text: P) -> &mut Self {
-        let mut equals = false;
-        for (&new, old) in self
-            .formatted_text
-            .borrow()
-            .get_raw_text()
-            .iter()
-            .zip(text.as_ref().chars())
-        {
-            if old as u32 != new {
-                equals = false;
-                break;
-            }
-        }
-        if !equals {
-            self.formatted_text.borrow_mut().set_text(text);
-            self.invalidate_layout();
-        }
-        self
     }
 
     pub fn text(&self) -> String {
@@ -627,6 +605,18 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
                                 self.remove_char(HorizontalDirection::Right, ui);
                             }
                         }
+                        KeyCode::NumpadEnter | KeyCode::Return => {
+                            if self.multiline {
+                                self.insert_char('\n', ui);
+                            } else if self.commit_mode == TextCommitMode::LostFocusPlusEnter {
+                                ui.send_message(TextBoxMessage::text(
+                                    self.handle,
+                                    MessageDirection::FromWidget,
+                                    self.text(),
+                                ));
+                                self.has_focus = false;
+                            }
+                        }
                         KeyCode::Backspace => {
                             if let Some(range) = self.selection_range {
                                 self.remove_range(ui, range);
@@ -702,11 +692,22 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
                     WidgetMessage::LostFocus => {
                         self.selection_range = None;
                         self.has_focus = false;
+
+                        if self.commit_mode == TextCommitMode::LostFocus
+                            || self.commit_mode == TextCommitMode::LostFocusPlusEnter
+                        {
+                            ui.send_message(TextBoxMessage::text(
+                                self.handle,
+                                MessageDirection::FromWidget,
+                                self.text(),
+                            ));
+                        }
                     }
                     WidgetMessage::MouseDown { pos, button } => {
                         if *button == MouseButton::Left {
                             self.selection_range = None;
                             self.selecting = true;
+                            self.has_focus = true;
 
                             if let Some(position) = self.screen_pos_to_text_pos(*pos) {
                                 self.caret_position = position;
@@ -743,9 +744,31 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
                     }
                     _ => {}
                 },
-                UiMessageData::TextBox(msg) => {
+                UiMessageData::TextBox(msg)
+                    if message.direction() == MessageDirection::ToWidget =>
+                {
                     if let TextBoxMessage::Text(new_text) = msg {
-                        self.set_text(new_text);
+                        let mut equals = false;
+                        for (&new, old) in self
+                            .formatted_text
+                            .borrow()
+                            .get_raw_text()
+                            .iter()
+                            .zip(new_text.chars())
+                        {
+                            if old as u32 != new {
+                                equals = false;
+                                break;
+                            }
+                        }
+                        if !equals {
+                            self.formatted_text.borrow_mut().set_text(new_text);
+                            self.invalidate_layout();
+
+                            if self.commit_mode == TextCommitMode::Immediate {
+                                ui.send_message(message.reverse());
+                            }
+                        }
                     }
                 }
                 _ => {}
@@ -764,6 +787,8 @@ pub struct TextBoxBuilder<M: MessageData, C: Control<M, C>> {
     vertical_alignment: VerticalAlignment,
     horizontal_alignment: HorizontalAlignment,
     wrap: bool,
+    commit_mode: TextCommitMode,
+    multiline: bool,
 }
 
 impl<M: MessageData, C: Control<M, C>> TextBoxBuilder<M, C> {
@@ -778,6 +803,8 @@ impl<M: MessageData, C: Control<M, C>> TextBoxBuilder<M, C> {
             vertical_alignment: VerticalAlignment::Top,
             horizontal_alignment: HorizontalAlignment::Left,
             wrap: false,
+            commit_mode: TextCommitMode::LostFocusPlusEnter,
+            multiline: false,
         }
     }
 
@@ -821,6 +848,16 @@ impl<M: MessageData, C: Control<M, C>> TextBoxBuilder<M, C> {
         self
     }
 
+    pub fn with_text_commit_mode(mut self, mode: TextCommitMode) -> Self {
+        self.commit_mode = mode;
+        self
+    }
+
+    pub fn with_multiline(mut self, multiline: bool) -> Self {
+        self.multiline = multiline;
+        self
+    }
+
     pub fn build(mut self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
         if self.widget_builder.foreground.is_none() {
             self.widget_builder.foreground = Some(Brush::Solid(Color::opaque(220, 220, 220)));
@@ -853,6 +890,8 @@ impl<M: MessageData, C: Control<M, C>> TextBoxBuilder<M, C> {
             caret_brush: self.caret_brush,
             has_focus: false,
             filter: self.filter,
+            commit_mode: self.commit_mode,
+            multiline: self.multiline,
         };
 
         ctx.add_node(UINode::TextBox(text_box))

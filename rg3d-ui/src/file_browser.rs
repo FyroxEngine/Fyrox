@@ -161,7 +161,9 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileBrowser<M, C> {
                 }
             }
             UiMessageData::TextBox(msg) => {
-                if message.destination() == self.path_text {
+                if message.destination() == self.path_text
+                    && message.direction() == MessageDirection::FromWidget
+                {
                     if let TextBoxMessage::Text(txt) = msg {
                         self.path = txt.into();
                     }
