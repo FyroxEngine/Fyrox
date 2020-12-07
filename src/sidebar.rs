@@ -1140,9 +1140,7 @@ impl SideBar {
                                             let node = &graph[node_handle];
                                             let body = RigidBody {
                                                 position: node.global_position(),
-                                                rotation: UnitQuaternion::from_matrix(
-                                                    &node.global_transform().basis(),
-                                                ),
+                                                rotation: node.local_transform().rotation(),
                                                 status: match index {
                                                     1 => BodyStatusDesc::Dynamic,
                                                     2 => BodyStatusDesc::Static,
