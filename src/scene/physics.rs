@@ -1,5 +1,7 @@
 //! Contains all structures and methods to operate with physics world.
 
+use crate::core::pool::Handle;
+use crate::resource::model::Model;
 use crate::utils::log::MessageKind;
 use crate::{
     core::{
@@ -34,6 +36,7 @@ use rapier3d::{
     ncollide::{query, shape::FeatureId},
     pipeline::{EventHandler, PhysicsPipeline, QueryPipeline},
 };
+use std::collections::HashMap;
 use std::{
     cell::{Cell, RefCell},
     cmp::Ordering,
@@ -73,6 +76,28 @@ pub struct RayCastOptions {
 
     /// Whether to sort intersections from closest to farthest.
     pub sort_results: bool,
+}
+
+#[derive(Default, Clone)]
+pub struct ResourceLink {
+    model: Model,
+    // HandleInInstance -> HandleInResource mappings
+    bodies: HashMap<RigidBodyHandle, RigidBodyHandle>,
+    colliders: HashMap<ColliderHandle, ColliderHandle>,
+    joints: HashMap<JointHandle, JointHandle>,
+}
+
+impl Visit for ResourceLink {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.model.visit("Model", visitor)?;
+        self.bodies.visit("Bodies", visitor)?;
+        self.colliders.visit("Colliders", visitor)?;
+        self.joints.visit("Visit", visitor)?;
+
+        visitor.leave_region()
+    }
 }
 
 /// Physics world.
@@ -133,6 +158,8 @@ pub struct Physics {
     ///    yet.
     pub desc: Option<PhysicsDesc>,
 
+    pub embedded_resources: Vec<ResourceLink>,
+
     query_updated: Cell<bool>,
     query: RefCell<QueryPipeline>,
 }
@@ -164,12 +191,14 @@ impl Physics {
             query_updated: Cell::new(false),
             query: Default::default(),
             desc: Default::default(),
+            embedded_resources: Default::default(),
         }
     }
 
     // Deep copy is performed using descriptors.
     pub(in crate) fn deep_copy(&self, binder: &PhysicsBinder, graph: &Graph) -> Self {
         let mut phys = Self::new();
+        phys.embedded_resources = self.embedded_resources.clone();
         phys.desc = Some(self.generate_desc());
         phys.resolve(binder, graph);
         phys
@@ -372,6 +401,8 @@ impl Physics {
 
         let mut phys_desc = self.desc.take().unwrap();
 
+        self.integration_parameters = phys_desc.integration_parameters.into();
+
         for desc in phys_desc.bodies.drain(..) {
             self.bodies.insert(desc.convert_to_body());
         }
@@ -417,6 +448,106 @@ impl Physics {
                 desc.params,
             );
         }
+    }
+
+    pub fn embed_resource(
+        &mut self,
+        target_binder: &mut PhysicsBinder,
+        target_graph: &Graph,
+        old_to_new: HashMap<Handle<Node>, Handle<Node>>,
+        resource: Model,
+    ) {
+        let data = resource.data_ref();
+        let resource_scene = data.get_scene();
+        let resource_binder = &resource_scene.physics_binder;
+        let resource_physics = &resource_scene.physics;
+        let mut link = ResourceLink::default();
+
+        // Instantiate rigid bodies.
+        for (resource_handle, body) in resource_physics.bodies.iter() {
+            let desc = RigidBodyDesc::<ColliderHandle>::from_body(body);
+            dbg!(&desc);
+            let new_handle = self.bodies.insert(desc.convert_to_body());
+
+            link.bodies
+                .insert(new_handle.into(), resource_handle.into());
+        }
+
+        // Bind instantiated nodes with their respective rigid bodies from resource.
+        for (handle, body) in resource_binder.node_rigid_body_map.iter() {
+            let new_handle = *old_to_new.get(handle).unwrap();
+            let new_body = *link.bodies.get(body).unwrap();
+            target_binder.bind(new_handle, new_body);
+        }
+
+        // Instantiate colliders.
+        for (resource_handle, collider) in resource_physics.colliders.iter() {
+            let desc = ColliderDesc::from_collider(collider);
+            dbg!(&desc);
+            // Remap handle from resource to one that was created above.
+            let remapped_parent = *link.bodies.get(&desc.parent).unwrap();
+            if let (ColliderShapeDesc::Trimesh(_), Some(associated_node)) =
+                (desc.shape, target_binder.node_of(remapped_parent))
+            {
+                if target_graph.is_valid_handle(associated_node) {
+                    if let Node::Mesh(mesh) = &target_graph[associated_node] {
+                        // Restore data only for trimeshes.
+                        let collider = ColliderBuilder::new(Self::make_trimesh(mesh)).build();
+                        let new_handle = self.colliders.insert(
+                            collider,
+                            remapped_parent.into(),
+                            &mut self.bodies,
+                        );
+                        link.colliders
+                            .insert(new_handle.into(), resource_handle.into());
+
+                        Log::writeln(
+                            MessageKind::Information,
+                            format!(
+                                "Geometry for trimesh {:?} was restored from node at handle {:?}!",
+                                desc.parent, associated_node
+                            ),
+                        )
+                    } else {
+                        Log::writeln(MessageKind::Error,format!("Unable to get geometry for trimesh, node at handle {:?} is not a mesh!", associated_node))
+                    }
+                } else {
+                    Log::writeln(MessageKind::Error,format!("Unable to get geometry for trimesh, node at handle {:?} does not exists!", associated_node))
+                }
+            } else {
+                let (new_collider, _) = desc.convert_to_collider();
+                let new_handle =
+                    self.colliders
+                        .insert(new_collider, remapped_parent.into(), &mut self.bodies);
+                link.colliders
+                    .insert(new_handle.into(), resource_handle.into());
+            }
+        }
+
+        // Instantiate joints.
+        for (resource_handle, joint) in resource_physics.joints.iter() {
+            let desc = JointDesc::<RigidBodyHandle>::from_joint(joint);
+            let new_body1_handle = *link.bodies.get(&joint.body1.into()).unwrap();
+            let new_body2_handle = *link.bodies.get(&joint.body2.into()).unwrap();
+            let new_handle = self.joints.insert(
+                &mut self.bodies,
+                new_body1_handle.into(),
+                new_body2_handle.into(),
+                desc.params,
+            );
+            link.joints
+                .insert(new_handle.into(), resource_handle.into());
+        }
+
+        self.embedded_resources.push(link);
+
+        Log::writeln(
+            MessageKind::Information,
+            format!(
+                "Resource {} was successfully embedded into physics world!",
+                data.path.display()
+            ),
+        );
     }
 
     /// Adds new rigid body. This method must be used instead of bodies.insert(...) because
@@ -956,7 +1087,7 @@ impl Visit for ColliderShapeDesc {
     }
 }
 
-#[derive(Default, Clone, Debug)]
+#[derive(Clone, Debug)]
 #[doc(hidden)]
 pub struct ColliderDesc<R> {
     pub shape: ColliderShapeDesc,
@@ -969,6 +1100,23 @@ pub struct ColliderDesc<R> {
     pub rotation: UnitQuaternion<f32>,
     pub collision_groups: u32,
     pub solver_groups: u32,
+}
+
+impl<R: Default> Default for ColliderDesc<R> {
+    fn default() -> Self {
+        Self {
+            shape: Default::default(),
+            parent: Default::default(),
+            friction: 0.5,
+            density: 1.0,
+            restitution: 0.0,
+            is_sensor: false,
+            translation: Default::default(),
+            rotation: Default::default(),
+            collision_groups: u32::MAX,
+            solver_groups: u32::MAX,
+        }
+    }
 }
 
 impl<R: From<Index>> ColliderDesc<R> {
@@ -1039,6 +1187,8 @@ impl Visit for Physics {
             self.generate_desc()
         };
         desc.visit("Desc", visitor)?;
+
+        let _ = self.embedded_resources.visit("EmbeddedResources", visitor);
 
         // Save descriptors for resolve stage.
         if visitor.is_reading() {
