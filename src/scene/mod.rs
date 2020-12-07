@@ -527,6 +527,7 @@ impl SceneDrawingContext {
         });
     }
 
+    /// Draws a wire sphere with given parameters.
     pub fn draw_sphere(
         &mut self,
         position: Vector3<f32>,
@@ -574,6 +575,7 @@ impl SceneDrawingContext {
         }
     }
 
+    /// Draws a wire cone with given parameters.
     pub fn draw_cone(
         &mut self,
         sides: usize,
@@ -615,6 +617,7 @@ impl SceneDrawingContext {
         }
     }
 
+    /// Draws a wire cylinder with given parameters.
     pub fn draw_cylinder(
         &mut self,
         sides: usize,

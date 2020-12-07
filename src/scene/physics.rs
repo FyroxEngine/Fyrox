@@ -79,6 +79,9 @@ pub struct RayCastOptions {
     pub sort_results: bool,
 }
 
+/// A set of data that has all associations with physics from resource.
+/// It is used to embedding physics from resource to a scene during
+/// the instantiation process.
 #[derive(Default, Clone)]
 pub struct ResourceLink {
     model: Model,
@@ -159,6 +162,8 @@ pub struct Physics {
     ///    yet.
     pub desc: Option<PhysicsDesc>,
 
+    /// A list of external resources that were embedded in the physics during
+    /// instantiation process.
     pub embedded_resources: Vec<ResourceLink>,
 
     query_updated: Cell<bool>,
@@ -516,7 +521,7 @@ impl Physics {
         }
     }
 
-    pub fn embed_resource(
+    pub(in crate) fn embed_resource(
         &mut self,
         target_binder: &mut PhysicsBinder,
         target_graph: &Graph,
@@ -532,7 +537,6 @@ impl Physics {
         // Instantiate rigid bodies.
         for (resource_handle, body) in resource_physics.bodies.iter() {
             let desc = RigidBodyDesc::<ColliderHandle>::from_body(body);
-            dbg!(&desc);
             let new_handle = self.bodies.insert(desc.convert_to_body());
 
             link.bodies
@@ -549,7 +553,6 @@ impl Physics {
         // Instantiate colliders.
         for (resource_handle, collider) in resource_physics.colliders.iter() {
             let desc = ColliderDesc::from_collider(collider);
-            dbg!(&desc);
             // Remap handle from resource to one that was created above.
             let remapped_parent = *link.bodies.get(&desc.parent).unwrap();
             if let (ColliderShapeDesc::Trimesh(_), Some(associated_node)) =
