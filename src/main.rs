@@ -21,12 +21,11 @@ pub mod settings;
 pub mod sidebar;
 pub mod world_outliner;
 
-use crate::configurator::Configurator;
-use crate::scene::{DeleteBodyCommand, DeleteColliderCommand};
 use crate::{
     asset::{AssetBrowser, AssetKind},
     camera::CameraController,
     command::CommandStack,
+    configurator::Configurator,
     gui::{BuildContext, EditorUiMessage, EditorUiNode, UiMessage, UiNode},
     interaction::{
         InteractionMode, InteractionModeKind, MoveInteractionMode, RotateInteractionMode,
@@ -41,11 +40,10 @@ use crate::{
         ChangeSelectionCommand, CommandGroup, DeleteNodeCommand, EditorScene, LoadModelCommand,
         SceneCommand, SceneContext, Selection,
     },
+    scene::{DeleteBodyCommand, DeleteColliderCommand},
     sidebar::SideBar,
     world_outliner::WorldOutliner,
 };
-use rg3d::scene::graph::Graph;
-use rg3d::scene::SceneDrawingContext;
 use rg3d::{
     core::{
         algebra::Vector2, color::Color, math::aabb::AxisAlignedBoundingBox, pool::Handle,
@@ -76,7 +74,7 @@ use rg3d::{
         Thickness,
     },
     resource::texture::{Texture, TextureKind, TextureState},
-    scene::{base::BaseBuilder, node::Node, Scene},
+    scene::{base::BaseBuilder, graph::Graph, node::Node, Scene, SceneDrawingContext},
     utils::{into_gui_texture, translate_cursor_icon, translate_event},
 };
 use std::{
@@ -1226,6 +1224,10 @@ impl Editor {
                 &mut scene.drawing_context,
                 editor_scene,
             );
+
+            editor_scene
+                .physics
+                .draw(&mut scene.drawing_context, &scene.graph);
 
             let graph = &mut scene.graph;
 

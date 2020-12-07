@@ -1,6 +1,6 @@
 use crate::{
     gui::{BuildContext, UiMessage, UiNode},
-    GameEngine, Message,
+    GameEngine, Message, STARTUP_WORKING_DIR,
 };
 use rg3d::core::algebra::Vector2;
 use rg3d::core::visitor::{Visit, VisitResult, Visitor};
@@ -49,6 +49,8 @@ impl Visit for HistoryEntry {
         visitor.leave_region()
     }
 }
+
+pub const HISTORY_PATH: &'static str = "history.bin";
 
 pub struct Configurator {
     pub window: Handle<UiNode>,
@@ -110,7 +112,9 @@ impl Configurator {
 
         // Load history.
         let mut history: Vec<HistoryEntry> = Vec::new();
-        if let Ok(mut visitor) = Visitor::load_binary("history.bin") {
+        if let Ok(mut visitor) =
+            Visitor::load_binary(STARTUP_WORKING_DIR.lock().unwrap().join(HISTORY_PATH))
+        {
             history.visit("History", &mut visitor).unwrap();
         }
 
@@ -305,7 +309,9 @@ impl Configurator {
                         // Save history for next editor runs.
                         let mut visitor = Visitor::new();
                         self.history.visit("History", &mut visitor).unwrap();
-                        visitor.save_binary("history.bin").unwrap();
+                        visitor
+                            .save_binary(STARTUP_WORKING_DIR.lock().unwrap().join(HISTORY_PATH))
+                            .unwrap();
                     }
                 }
             }
