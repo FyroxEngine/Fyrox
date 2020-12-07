@@ -1,6 +1,6 @@
 use rg3d::{
     core::{
-        algebra::{Isometry3, Point3, Translation3, UnitQuaternion},
+        algebra::{Isometry3, Point3, Translation3},
         color::Color,
         math::aabb::AxisAlignedBoundingBox,
         pool::{ErasedHandle, Handle, Pool},
