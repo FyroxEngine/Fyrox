@@ -36,6 +36,7 @@ use rapier3d::{
     ncollide::{query, shape::FeatureId},
     pipeline::{EventHandler, PhysicsPipeline, QueryPipeline},
 };
+use rg3d_core::math::aabb::AxisAlignedBoundingBox;
 use std::collections::HashMap;
 use std::{
     cell::{Cell, RefCell},
@@ -227,6 +228,71 @@ impl Physics {
                         Color::opaque(200, 200, 200),
                     );
                 }
+            } else if let Some(cuboid) = collider.shape().as_cuboid() {
+                let max = cuboid.half_extents.scale(2.0);
+                let min = -max;
+                context.draw_oob(
+                    &AxisAlignedBoundingBox::from_min_max(min, max),
+                    transform,
+                    Color::opaque(200, 200, 200),
+                );
+            } else if let Some(ball) = collider.shape().as_ball() {
+                context.draw_sphere(
+                    body.position().translation.vector,
+                    10,
+                    10,
+                    ball.radius,
+                    Color::opaque(200, 200, 200),
+                );
+            } else if let Some(cone) = collider.shape().as_cone() {
+                context.draw_cone(
+                    10,
+                    cone.radius,
+                    cone.half_height * 2.0,
+                    transform,
+                    Color::opaque(200, 200, 200),
+                );
+            } else if let Some(cylinder) = collider.shape().as_cylinder() {
+                context.draw_cylinder(
+                    10,
+                    cylinder.radius,
+                    cylinder.half_height * 2.0,
+                    true,
+                    transform,
+                    Color::opaque(200, 200, 200),
+                );
+            } else if let Some(round_cylinder) = collider.shape().as_round_cylinder() {
+                context.draw_cylinder(
+                    10,
+                    round_cylinder.cylinder.radius,
+                    round_cylinder.cylinder.half_height * 2.0,
+                    false,
+                    transform,
+                    Color::opaque(200, 200, 200),
+                );
+            } else if let Some(triangle) = collider.shape().as_triangle() {
+                context.draw_triangle(
+                    triangle.a.coords,
+                    triangle.b.coords,
+                    triangle.c.coords,
+                    Color::opaque(200, 200, 200),
+                );
+            } else if let Some(capsule) = collider.shape().as_capsule() {
+                // TODO: Draw as it should be.
+                context.draw_sphere(
+                    capsule.segment.a.coords,
+                    10,
+                    10,
+                    capsule.radius,
+                    Color::opaque(200, 200, 200),
+                );
+                context.draw_sphere(
+                    capsule.segment.b.coords,
+                    10,
+                    10,
+                    capsule.radius,
+                    Color::opaque(200, 200, 200),
+                );
             }
         }
     }

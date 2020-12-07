@@ -527,6 +527,153 @@ impl SceneDrawingContext {
         });
     }
 
+    pub fn draw_sphere(
+        &mut self,
+        position: Vector3<f32>,
+        slices: usize,
+        stacks: usize,
+        radius: f32,
+        color: Color,
+    ) {
+        let d_theta = std::f32::consts::PI / slices as f32;
+        let d_phi = 2.0 * std::f32::consts::PI / stacks as f32;
+
+        for i in 0..stacks {
+            for j in 0..slices {
+                let nj = j + 1;
+                let ni = i + 1;
+
+                let k0 = radius * (d_theta * i as f32).sin();
+                let k1 = (d_phi * j as f32).cos();
+                let k2 = (d_phi * j as f32).sin();
+                let k3 = radius * (d_theta * i as f32).cos();
+
+                let k4 = radius * (d_theta * ni as f32).sin();
+                let k5 = (d_phi * nj as f32).cos();
+                let k6 = (d_phi * nj as f32).sin();
+                let k7 = radius * (d_theta * ni as f32).cos();
+
+                if i != (stacks - 1) {
+                    self.draw_triangle(
+                        position + Vector3::new(k0 * k1, k0 * k2, k3),
+                        position + Vector3::new(k4 * k1, k4 * k2, k7),
+                        position + Vector3::new(k4 * k5, k4 * k6, k7),
+                        color,
+                    );
+                }
+
+                if i != 0 {
+                    self.draw_triangle(
+                        position + Vector3::new(k4 * k5, k4 * k6, k7),
+                        position + Vector3::new(k0 * k5, k0 * k6, k3),
+                        position + Vector3::new(k0 * k1, k0 * k2, k3),
+                        color,
+                    );
+                }
+            }
+        }
+    }
+
+    pub fn draw_cone(
+        &mut self,
+        sides: usize,
+        r: f32,
+        h: f32,
+        transform: Matrix4<f32>,
+        color: Color,
+    ) {
+        let d_phi = 2.0 * std::f32::consts::PI / sides as f32;
+
+        for i in 0..sides {
+            let nx0 = (d_phi * i as f32).cos();
+            let ny0 = (d_phi * i as f32).sin();
+            let nx1 = (d_phi * (i + 1) as f32).cos();
+            let ny1 = (d_phi * (i + 1) as f32).sin();
+
+            let x0 = r * nx0;
+            let z0 = r * ny0;
+            let x1 = r * nx1;
+            let z1 = r * ny1;
+
+            // back cap
+            self.draw_triangle(
+                transform
+                    .transform_point(&Point3::new(0.0, 0.0, 0.0))
+                    .coords,
+                transform.transform_point(&Point3::new(x0, 0.0, z0)).coords,
+                transform.transform_point(&Point3::new(x1, 0.0, z1)).coords,
+                color,
+            );
+
+            // sides
+            self.draw_triangle(
+                transform.transform_point(&Point3::new(0.0, h, 0.0)).coords,
+                transform.transform_point(&Point3::new(x1, 0.0, z1)).coords,
+                transform.transform_point(&Point3::new(x0, 0.0, z0)).coords,
+                color,
+            );
+        }
+    }
+
+    pub fn draw_cylinder(
+        &mut self,
+        sides: usize,
+        r: f32,
+        h: f32,
+        caps: bool,
+        transform: Matrix4<f32>,
+        color: Color,
+    ) {
+        let d_phi = 2.0 * std::f32::consts::PI / sides as f32;
+
+        for i in 0..sides {
+            let nx0 = (d_phi * i as f32).cos();
+            let ny0 = (d_phi * i as f32).sin();
+            let nx1 = (d_phi * (i + 1) as f32).cos();
+            let ny1 = (d_phi * (i + 1) as f32).sin();
+
+            let x0 = r * nx0;
+            let z0 = r * ny0;
+            let x1 = r * nx1;
+            let z1 = r * ny1;
+
+            if caps {
+                // front cap
+                self.draw_triangle(
+                    transform.transform_point(&Point3::new(x1, h, z1)).coords,
+                    transform.transform_point(&Point3::new(x0, h, z0)).coords,
+                    transform.transform_point(&Point3::new(0.0, h, 0.0)).coords,
+                    color,
+                );
+
+                // back cap
+                self.draw_triangle(
+                    transform.transform_point(&Point3::new(x0, 0.0, z0)).coords,
+                    transform.transform_point(&Point3::new(x1, 0.0, z1)).coords,
+                    transform
+                        .transform_point(&Point3::new(0.0, 0.0, 0.0))
+                        .coords,
+                    color,
+                );
+            }
+
+            // sides
+            self.draw_triangle(
+                transform.transform_point(&Point3::new(x0, 0.0, z0)).coords,
+                transform.transform_point(&Point3::new(x0, h, z0)).coords,
+                transform.transform_point(&Point3::new(x1, 0.0, z1)).coords,
+                color,
+            );
+
+            self.draw_triangle(
+                transform.transform_point(&Point3::new(x1, 0.0, z1)).coords,
+                transform.transform_point(&Point3::new(x0, h, z0)).coords,
+                transform.transform_point(&Point3::new(x1, h, z1)).coords,
+                color,
+            );
+        }
+    }
+
     /// Adds single line into internal buffer.
     pub fn add_line(&mut self, line: Line) {
         self.lines.push(line);
