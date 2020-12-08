@@ -50,6 +50,7 @@ impl Physics {
                 status: b.body_status.into(),
                 // Filled later.
                 colliders: vec![],
+                mass: b.mass(),
             });
 
             body_map.insert(h, pool_handle);
@@ -143,6 +144,7 @@ impl Physics {
                     status: r.status,
                     // Filled later.
                     colliders: vec![],
+                    mass: r.mass,
                 }
             })
             .collect::<Vec<_>>();

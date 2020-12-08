@@ -5,6 +5,7 @@ use crate::{
     physics::{Physics, RigidBody},
     Message,
 };
+use rg3d::scene::physics::ColliderShapeDesc;
 use rg3d::sound::pool::ErasedHandle;
 use rg3d::{
     core::{
@@ -66,7 +67,10 @@ pub enum SceneCommand {
     SetVisible(SetVisibleCommand),
     SetName(SetNameCommand),
     SetBody(SetBodyCommand),
+    SetBodyMass(SetBodyMassCommand),
     SetCollider(SetColliderCommand),
+    SetCylinderHalfHeight(SetCylinderHalfHeightCommand),
+    SetCylinderRadius(SetCylinderRadiusCommand),
     DeleteBody(DeleteBodyCommand),
     DeleteCollider(DeleteColliderCommand),
     LoadModel(LoadModelCommand),
@@ -111,7 +115,10 @@ macro_rules! static_dispatch {
             SceneCommand::SetVisible(v) => v.$func($($args),*),
             SceneCommand::SetName(v) => v.$func($($args),*),
             SceneCommand::SetBody(v) => v.$func($($args),*),
+            SceneCommand::SetBodyMass(v) => v.$func($($args),*),
             SceneCommand::SetCollider(v) => v.$func($($args),*),
+            SceneCommand::SetCylinderHalfHeight(v) => v.$func($($args),*),
+            SceneCommand::SetCylinderRadius(v) => v.$func($($args),*),
             SceneCommand::DeleteBody(v) => v.$func($($args),*),
             SceneCommand::DeleteCollider(v) => v.$func($($args),*),
             SceneCommand::LoadModel(v) => v.$func($($args),*),
@@ -829,7 +836,7 @@ impl<'a> Command<'a> for DeleteColliderCommand {
     }
 }
 
-macro_rules! define_simple_command {
+macro_rules! define_simple_scene_command {
     ($name:ident, $human_readable_name:expr, $value_type:ty => $apply_method:expr ) => {
         #[derive(Debug)]
         pub struct $name {
@@ -862,6 +869,54 @@ macro_rules! define_simple_command {
                 self.swap(&mut context.scene.graph);
             }
         }
+    };
+}
+
+macro_rules! define_simple_physics_command {
+    ($name:ident, $human_readable_name:expr, $handle_type:ty, $value_type:ty => $apply_method:expr ) => {
+        #[derive(Debug)]
+        pub struct $name {
+            handle: $handle_type,
+            value: $value_type,
+        }
+
+        impl $name {
+            pub fn new(handle: $handle_type, value: $value_type) -> Self {
+                Self { handle, value }
+            }
+
+            fn swap(&mut self, physics: &mut Physics) {
+                $apply_method(self, physics)
+            }
+        }
+
+        impl<'a> Command<'a> for $name {
+            type Context = SceneContext<'a>;
+
+            fn name(&self, _context: &Self::Context) -> String {
+                $human_readable_name.to_owned()
+            }
+
+            fn execute(&mut self, context: &mut Self::Context) {
+                self.swap(&mut context.physics);
+            }
+
+            fn revert(&mut self, context: &mut Self::Context) {
+                self.swap(&mut context.physics);
+            }
+        }
+    };
+}
+
+macro_rules! define_simple_body_command {
+    ($name:ident, $human_readable_name:expr, $value_type:ty => $apply_method:expr ) => {
+        define_simple_physics_command!($name, $human_readable_name, Handle<RigidBody>, $value_type => $apply_method);
+    };
+}
+
+macro_rules! define_simple_collider_command {
+    ($name:ident, $human_readable_name:expr, $value_type:ty => $apply_method:expr ) => {
+        define_simple_physics_command!($name, $human_readable_name, Handle<Collider>, $value_type => $apply_method);
     };
 }
 
@@ -925,130 +980,153 @@ impl<'a> Command<'a> for SetMeshTextureCommand {
     }
 }
 
-define_simple_command!(SetLightScatterCommand, "Set Light Scatter", Vector3<f32> => |this: &mut SetLightScatterCommand, graph: &mut Graph| {
+define_simple_scene_command!(SetLightScatterCommand, "Set Light Scatter", Vector3<f32> => |this: &mut SetLightScatterCommand, graph: &mut Graph| {
     let node = graph[this.handle].as_light_mut();
     let old = node.scatter();
     node.set_scatter(this.value);
     this.value = old;
 });
 
-define_simple_command!(SetLightScatterEnabledCommand, "Set Light Scatter Enabled", bool => |this: &mut SetLightScatterEnabledCommand, graph: &mut Graph| {
+define_simple_scene_command!(SetLightScatterEnabledCommand, "Set Light Scatter Enabled", bool => |this: &mut SetLightScatterEnabledCommand, graph: &mut Graph| {
     let node = graph[this.handle].as_light_mut();
     let old = node.is_scatter_enabled();
     node.enable_scatter(this.value);
     this.value = old;
 });
 
-define_simple_command!(SetLightCastShadowsCommand, "Set Light Cast Shadows", bool => |this: &mut SetLightCastShadowsCommand, graph: &mut Graph| {
+define_simple_scene_command!(SetLightCastShadowsCommand, "Set Light Cast Shadows", bool => |this: &mut SetLightCastShadowsCommand, graph: &mut Graph| {
     let node = graph[this.handle].as_light_mut();
     let old = node.is_cast_shadows();
     node.set_cast_shadows(this.value);
     this.value = old;
 });
 
-define_simple_command!(SetPointLightRadiusCommand, "Set Point Light Radius", f32 => |this: &mut SetPointLightRadiusCommand, graph: &mut Graph| {
+define_simple_scene_command!(SetPointLightRadiusCommand, "Set Point Light Radius", f32 => |this: &mut SetPointLightRadiusCommand, graph: &mut Graph| {
     let point_light = graph[this.handle].as_light_mut().as_point_mut();
     let old = point_light.radius();
     point_light.set_radius(this.value);
     this.value = old;
 });
 
-define_simple_command!(SetSpotLightHotspotCommand, "Set Spot Light Hotspot", f32 => |this: &mut SetSpotLightHotspotCommand, graph: &mut Graph| {
+define_simple_scene_command!(SetSpotLightHotspotCommand, "Set Spot Light Hotspot", f32 => |this: &mut SetSpotLightHotspotCommand, graph: &mut Graph| {
     let spot_light = graph[this.handle].as_light_mut().as_spot_mut();
     let old = spot_light.hotspot_cone_angle();
     spot_light.set_hotspot_cone_angle(this.value);
     this.value = old;
 });
 
-define_simple_command!(SetSpotLightFalloffAngleDeltaCommand, "Set Spot Light Falloff Angle Delta", f32 => |this: &mut SetSpotLightFalloffAngleDeltaCommand, graph: &mut Graph| {
+define_simple_scene_command!(SetSpotLightFalloffAngleDeltaCommand, "Set Spot Light Falloff Angle Delta", f32 => |this: &mut SetSpotLightFalloffAngleDeltaCommand, graph: &mut Graph| {
     let spot_light = graph[this.handle].as_light_mut().as_spot_mut();
     let old = spot_light.falloff_angle_delta();
     spot_light.set_falloff_angle_delta(this.value);
     this.value = old;
 });
 
-define_simple_command!(SetSpotLightDistanceCommand, "Set Spot Light Distance", f32 => |this: &mut SetSpotLightDistanceCommand, graph: &mut Graph| {
+define_simple_scene_command!(SetSpotLightDistanceCommand, "Set Spot Light Distance", f32 => |this: &mut SetSpotLightDistanceCommand, graph: &mut Graph| {
     let spot_light = graph[this.handle].as_light_mut().as_spot_mut();
     let old = spot_light.distance();
     spot_light.set_distance(this.value);
     this.value = old;
 });
 
-define_simple_command!(SetLightColorCommand, "Set Light Color", Color => |this: &mut SetLightColorCommand, graph: &mut Graph| {
+define_simple_scene_command!(SetLightColorCommand, "Set Light Color", Color => |this: &mut SetLightColorCommand, graph: &mut Graph| {
     let node = graph[this.handle].as_light_mut();
     let old = node.color();
     node.set_color(this.value);
     this.value = old;
 });
 
-define_simple_command!(SetNameCommand, "Set Name", String => |this: &mut SetNameCommand, graph: &mut Graph| {
+define_simple_scene_command!(SetNameCommand, "Set Name", String => |this: &mut SetNameCommand, graph: &mut Graph| {
     let node = &mut graph[this.handle];
     let old = node.name().to_owned();
     node.set_name(&this.value);
     this.value = old;
 });
 
-define_simple_command!(SetVisibleCommand, "Set Visible", bool => |this: &mut SetVisibleCommand, graph: &mut Graph| {
+define_simple_scene_command!(SetVisibleCommand, "Set Visible", bool => |this: &mut SetVisibleCommand, graph: &mut Graph| {
     let node = &mut graph[this.handle];
     let old = node.visibility();
     node.set_visibility(this.value);
     this.value = old;
 });
 
-define_simple_command!(SetFovCommand, "Set Fov", f32 => |this: &mut SetFovCommand, graph: &mut Graph| {
+define_simple_scene_command!(SetFovCommand, "Set Fov", f32 => |this: &mut SetFovCommand, graph: &mut Graph| {
     let node = graph[this.handle].as_camera_mut();
     let old = node.fov();
     node.set_fov(this.value);
     this.value = old;
 });
 
-define_simple_command!(SetZNearCommand, "Set Camera Z Near", f32 => |this: &mut SetZNearCommand, graph: &mut Graph| {
+define_simple_scene_command!(SetZNearCommand, "Set Camera Z Near", f32 => |this: &mut SetZNearCommand, graph: &mut Graph| {
     let node = graph[this.handle].as_camera_mut();
     let old = node.z_near();
     node.set_z_near(this.value);
     this.value = old;
 });
 
-define_simple_command!(SetZFarCommand, "Set Camera Z Far", f32 => |this: &mut SetZFarCommand, graph: &mut Graph| {
+define_simple_scene_command!(SetZFarCommand, "Set Camera Z Far", f32 => |this: &mut SetZFarCommand, graph: &mut Graph| {
     let node = graph[this.handle].as_camera_mut();
     let old = node.z_far();
     node.set_z_far(this.value);
     this.value = old;
 });
 
-define_simple_command!(SetParticleSystemAccelerationCommand, "Set Particle System Acceleration", Vector3<f32> => |this: &mut SetParticleSystemAccelerationCommand, graph: &mut Graph| {
+define_simple_scene_command!(SetParticleSystemAccelerationCommand, "Set Particle System Acceleration", Vector3<f32> => |this: &mut SetParticleSystemAccelerationCommand, graph: &mut Graph| {
     let node = graph[this.handle].as_particle_system_mut();
     let old = node.acceleration();
     node.set_acceleration(this.value);
     this.value = old;
 });
 
-define_simple_command!(SetSpriteSizeCommand, "Set Sprite Size", f32 => |this: &mut SetSpriteSizeCommand, graph: &mut Graph| {
+define_simple_scene_command!(SetSpriteSizeCommand, "Set Sprite Size", f32 => |this: &mut SetSpriteSizeCommand, graph: &mut Graph| {
     let node = graph[this.handle].as_sprite_mut();
     let old = node.size();
     node.set_size(this.value);
     this.value = old;
 });
 
-define_simple_command!(SetSpriteRotationCommand, "Set Sprite Rotation", f32 => |this: &mut SetSpriteRotationCommand, graph: &mut Graph| {
+define_simple_scene_command!(SetSpriteRotationCommand, "Set Sprite Rotation", f32 => |this: &mut SetSpriteRotationCommand, graph: &mut Graph| {
     let node = graph[this.handle].as_sprite_mut();
     let old = node.rotation();
     node.set_rotation(this.value);
     this.value = old;
 });
 
-define_simple_command!(SetSpriteColorCommand, "Set Sprite Color", Color => |this: &mut SetSpriteColorCommand, graph: &mut Graph| {
+define_simple_scene_command!(SetSpriteColorCommand, "Set Sprite Color", Color => |this: &mut SetSpriteColorCommand, graph: &mut Graph| {
     let node = graph[this.handle].as_sprite_mut();
     let old = node.color();
     node.set_color(this.value);
     this.value = old;
 });
 
-define_simple_command!(SetSpriteTextureCommand, "Set Sprite Texture", Option<Texture> => |this: &mut SetSpriteTextureCommand, graph: &mut Graph| {
+define_simple_scene_command!(SetSpriteTextureCommand, "Set Sprite Texture", Option<Texture> => |this: &mut SetSpriteTextureCommand, graph: &mut Graph| {
     let node = graph[this.handle].as_sprite_mut();
     let old = node.texture();
     node.set_texture(this.value.clone());
     this.value = old;
+});
+
+define_simple_body_command!(SetBodyMassCommand, "Set Body Mass", f32 => |this: &mut SetBodyMassCommand, physics: &mut Physics| {
+    let body = &mut physics.bodies[this.handle];
+    std::mem::swap(&mut body.mass, &mut this.value);
+});
+
+define_simple_collider_command!(SetCylinderHalfHeightCommand, "Set Cylinder Half Height", f32 => |this: &mut SetCylinderHalfHeightCommand, physics: &mut Physics| {
+    let collider = &mut physics.colliders[this.handle];
+    if let ColliderShapeDesc::Cylinder(cylinder) = &mut collider.shape {
+        std::mem::swap(&mut cylinder.half_height, &mut this.value);
+    } else {
+        unreachable!();
+    }
+});
+
+define_simple_collider_command!(SetCylinderRadiusCommand, "Set Cylinder Radius", f32 => |this: &mut SetCylinderRadiusCommand, physics: &mut Physics| {
+    let collider = &mut physics.colliders[this.handle];
+    if let ColliderShapeDesc::Cylinder(cylinder) = &mut collider.shape {
+        std::mem::swap(&mut cylinder.radius, &mut this.value);
+    } else {
+        unreachable!();
+    }
 });
 
 #[derive(Debug, Default, Clone, Eq, PartialEq)]

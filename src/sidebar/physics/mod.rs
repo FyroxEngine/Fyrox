@@ -1,3 +1,6 @@
+use crate::gui::Ui;
+use crate::sidebar::physics::body::BodySection;
+use crate::sidebar::physics::cylinder::CylinderSection;
 use crate::{
     gui::{BuildContext, UiMessage, UiNode},
     physics::{Collider, RigidBody},
@@ -25,12 +28,23 @@ use rg3d::{
 };
 use std::sync::mpsc::Sender;
 
+mod body;
+mod capsule;
+mod cone;
+mod cuboid;
+mod cylinder;
+mod segment;
+mod triangle;
+mod trimesh;
+
 pub struct PhysicsSection {
     pub section: Handle<UiNode>,
     body: Handle<UiNode>,
     collider: Handle<UiNode>,
     collider_text: Handle<UiNode>,
     sender: Sender<Message>,
+    pub body_section: BodySection,
+    pub cylinder_section: CylinderSection,
 }
 
 impl PhysicsSection {
@@ -92,6 +106,8 @@ impl PhysicsSection {
         .build(ctx);
 
         Self {
+            body_section: BodySection::new(ctx, sender.clone()),
+            cylinder_section: CylinderSection::new(ctx, sender.clone()),
             section,
             body,
             collider,
@@ -121,16 +137,16 @@ impl PhysicsSection {
                         0
                     };
 
-                ui.send_message(WidgetMessage::visibility(
-                    self.collider,
-                    MessageDirection::ToWidget,
-                    body_index != 0,
-                ));
-                ui.send_message(WidgetMessage::visibility(
-                    self.collider_text,
-                    MessageDirection::ToWidget,
-                    body_index != 0,
-                ));
+                fn toggle_visibility(ui: &mut Ui, destination: Handle<UiNode>, value: bool) {
+                    ui.send_message(WidgetMessage::visibility(
+                        destination,
+                        MessageDirection::ToWidget,
+                        value,
+                    ));
+                };
+
+                toggle_visibility(ui, self.collider, body_index != 0);
+                toggle_visibility(ui, self.collider_text, body_index != 0);
 
                 ui.send_message(DropdownListMessage::selection(
                     self.body,
@@ -138,14 +154,24 @@ impl PhysicsSection {
                     Some(body_index),
                 ));
 
+                toggle_visibility(ui, self.cylinder_section.section, false);
+                toggle_visibility(ui, self.body_section.section, false);
+
                 if let Some(&body_handle) = editor_scene.physics.binder.get(&node_handle) {
                     let body = &editor_scene.physics.bodies[body_handle];
 
+                    self.body_section.sync_to_model(body, ui);
+                    toggle_visibility(ui, self.body_section.section, true);
+
                     if let Some(&collider) = body.colliders.get(0) {
                         let collider_index =
-                            match editor_scene.physics.colliders[collider.into()].shape {
+                            match &editor_scene.physics.colliders[collider.into()].shape {
                                 ColliderShapeDesc::Ball(_) => 0,
-                                ColliderShapeDesc::Cylinder(_) => 1,
+                                ColliderShapeDesc::Cylinder(cylinder) => {
+                                    toggle_visibility(ui, self.cylinder_section.section, true);
+                                    self.cylinder_section.sync_to_model(cylinder, ui);
+                                    1
+                                }
                                 ColliderShapeDesc::RoundCylinder(_) => 2,
                                 ColliderShapeDesc::Cone(_) => 3,
                                 ColliderShapeDesc::Cuboid(_) => 4,
@@ -179,6 +205,29 @@ impl PhysicsSection {
             && message.direction() == MessageDirection::FromWidget
         {
             let node_handle = editor_scene.selection.nodes()[0];
+
+            if let Some(&body_handle) = editor_scene.physics.binder.get(&node_handle) {
+                let body = &editor_scene.physics.bodies[body_handle];
+                self.body_section.handle_message(message, body, body_handle);
+
+                if let Some(&collider) = body.colliders.get(0) {
+                    match &editor_scene.physics.colliders[collider.into()].shape {
+                        ColliderShapeDesc::Ball(_) => {}
+                        ColliderShapeDesc::Cylinder(_) => {
+                            self.cylinder_section
+                                .handle_message(message, collider.into());
+                        }
+                        ColliderShapeDesc::RoundCylinder(_) => {}
+                        ColliderShapeDesc::Cone(_) => {}
+                        ColliderShapeDesc::Cuboid(_) => {}
+                        ColliderShapeDesc::Capsule(_) => {}
+                        ColliderShapeDesc::Segment(_) => {}
+                        ColliderShapeDesc::Triangle(_) => {}
+                        ColliderShapeDesc::Trimesh(_) => {}
+                        ColliderShapeDesc::Heightfield(_) => {}
+                    };
+                }
+            }
 
             if let UiMessageData::DropdownList(msg) = &message.data() {
                 if let DropdownListMessage::SelectionChanged(index) = msg {

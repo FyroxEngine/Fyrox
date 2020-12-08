@@ -513,7 +513,7 @@ impl Menu {
                             .with_surfaces(vec![Surface::new(Arc::new(RwLock::new(
                                 SurfaceSharedData::make_cylinder(
                                     16,
-                                    1.0,
+                                    0.5,
                                     1.0,
                                     true,
                                     Matrix4::identity(),

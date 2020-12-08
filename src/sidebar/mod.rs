@@ -193,6 +193,8 @@ impl SideBar {
                                     particle_system_section.section,
                                     sprite_section.section,
                                     physics_section.section,
+                                    physics_section.body_section.section,
+                                    physics_section.cylinder_section.section,
                                 ]),
                             )
                             .build(ctx),
