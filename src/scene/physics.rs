@@ -758,6 +758,7 @@ pub struct RigidBodyDesc<C> {
     pub sleeping: bool,
     pub status: BodyStatusDesc,
     pub colliders: Vec<C>,
+    pub mass: f32,
 }
 
 impl<C: From<Index>> RigidBodyDesc<C> {
@@ -771,6 +772,7 @@ impl<C: From<Index>> RigidBodyDesc<C> {
             status: body.body_status.into(),
             sleeping: body.is_sleeping(),
             colliders: body.colliders().iter().map(|&c| C::from(c)).collect(),
+            mass: body.mass(),
         }
     }
 
@@ -782,6 +784,7 @@ impl<C: From<Index>> RigidBodyDesc<C> {
                 },
                 rotation: self.rotation,
             })
+            .mass(self.mass, true)
             .linvel(self.linvel.x, self.linvel.y, self.linvel.z)
             .angvel(AngVector::new(self.angvel.x, self.angvel.y, self.angvel.z))
             .build();
@@ -803,6 +806,7 @@ impl<C: Visit + Default + 'static> Visit for RigidBodyDesc<C> {
         self.sleeping.visit("Sleeping", visitor)?;
         self.status.visit("Status", visitor)?;
         self.colliders.visit("Colliders", visitor)?;
+        let _ = self.mass.visit("Mass", visitor);
 
         visitor.leave_region()
     }
