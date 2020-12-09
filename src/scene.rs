@@ -69,6 +69,10 @@ pub enum SceneCommand {
     SetBody(SetBodyCommand),
     SetBodyMass(SetBodyMassCommand),
     SetCollider(SetColliderCommand),
+    SetColliderFriction(SetColliderFrictionCommand),
+    SetColliderRestitution(SetColliderRestitutionCommand),
+    SetColliderPosition(SetColliderPositionCommand),
+    SetColliderRotation(SetColliderRotationCommand),
     SetCylinderHalfHeight(SetCylinderHalfHeightCommand),
     SetCylinderRadius(SetCylinderRadiusCommand),
     SetConeHalfHeight(SetConeHalfHeightCommand),
@@ -119,6 +123,10 @@ macro_rules! static_dispatch {
             SceneCommand::SetBody(v) => v.$func($($args),*),
             SceneCommand::SetBodyMass(v) => v.$func($($args),*),
             SceneCommand::SetCollider(v) => v.$func($($args),*),
+            SceneCommand::SetColliderFriction(v) => v.$func($($args),*),
+            SceneCommand::SetColliderRestitution(v) => v.$func($($args),*),
+            SceneCommand::SetColliderPosition(v) => v.$func($($args),*),
+            SceneCommand::SetColliderRotation(v) => v.$func($($args),*),
             SceneCommand::SetCylinderHalfHeight(v) => v.$func($($args),*),
             SceneCommand::SetCylinderRadius(v) => v.$func($($args),*),
             SceneCommand::SetConeHalfHeight(v) => v.$func($($args),*),
@@ -1168,6 +1176,26 @@ define_simple_scene_command!(SetSpriteTextureCommand, "Set Sprite Texture", Opti
 define_simple_body_command!(SetBodyMassCommand, "Set Body Mass", f32 => |this: &mut SetBodyMassCommand, physics: &mut Physics| {
     let body = &mut physics.bodies[this.handle];
     std::mem::swap(&mut body.mass, &mut this.value);
+});
+
+define_simple_collider_command!(SetColliderFrictionCommand, "Set Collider Friction", f32 => |this: &mut SetColliderFrictionCommand, physics: &mut Physics| {
+    let collider = &mut physics.colliders[this.handle];
+    std::mem::swap(&mut collider.friction, &mut this.value);
+});
+
+define_simple_collider_command!(SetColliderRestitutionCommand, "Set Collider Restitution", f32 => |this: &mut SetColliderRestitutionCommand, physics: &mut Physics| {
+    let collider = &mut physics.colliders[this.handle];
+    std::mem::swap(&mut collider.restitution, &mut this.value);
+});
+
+define_simple_collider_command!(SetColliderPositionCommand, "Set Collider Position", Vector3<f32> => |this: &mut SetColliderPositionCommand, physics: &mut Physics| {
+    let collider = &mut physics.colliders[this.handle];
+    std::mem::swap(&mut collider.translation, &mut this.value);
+});
+
+define_simple_collider_command!(SetColliderRotationCommand, "Set Collider Rotation", UnitQuaternion<f32> => |this: &mut SetColliderRotationCommand, physics: &mut Physics| {
+    let collider = &mut physics.colliders[this.handle];
+    std::mem::swap(&mut collider.rotation, &mut this.value);
 });
 
 define_simple_collider_command!(SetCylinderHalfHeightCommand, "Set Cylinder Half Height", f32 => |this: &mut SetCylinderHalfHeightCommand, physics: &mut Physics| {

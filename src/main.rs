@@ -21,11 +21,10 @@ pub mod settings;
 pub mod sidebar;
 pub mod world_outliner;
 
-use crate::command::CommandStackViewer;
 use crate::{
     asset::{AssetBrowser, AssetKind},
     camera::CameraController,
-    command::CommandStack,
+    command::{CommandStack, CommandStackViewer},
     configurator::Configurator,
     gui::{BuildContext, EditorUiMessage, EditorUiNode, UiMessage, UiNode},
     interaction::{
@@ -36,12 +35,11 @@ use crate::{
     log::Log,
     menu::{Menu, MenuContext},
     physics::Physics,
-    scene::{AddNodeCommand, SetMeshTextureCommand, SetSpriteTextureCommand},
     scene::{
-        ChangeSelectionCommand, CommandGroup, DeleteNodeCommand, EditorScene, LoadModelCommand,
-        SceneCommand, SceneContext, Selection,
+        AddNodeCommand, ChangeSelectionCommand, CommandGroup, DeleteBodyCommand,
+        DeleteColliderCommand, DeleteNodeCommand, EditorScene, LoadModelCommand, SceneCommand,
+        SceneContext, SetMeshTextureCommand, SetSpriteTextureCommand,
     },
-    scene::{DeleteBodyCommand, DeleteColliderCommand},
     sidebar::SideBar,
     world_outliner::WorldOutliner,
 };

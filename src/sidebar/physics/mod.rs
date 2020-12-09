@@ -1,21 +1,22 @@
-use crate::gui::Ui;
-use crate::sidebar::physics::body::BodySection;
-use crate::sidebar::physics::cone::ConeSection;
-use crate::sidebar::physics::cuboid::CuboidSection;
-use crate::sidebar::physics::cylinder::CylinderSection;
+use crate::sidebar::physics::collider::ColliderSection;
 use crate::{
-    gui::{BuildContext, UiMessage, UiNode},
+    gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::{Collider, RigidBody},
     scene::{
         CommandGroup, DeleteBodyCommand, DeleteColliderCommand, EditorScene, SceneCommand,
         SetBodyCommand, SetColliderCommand,
     },
-    sidebar::{make_dropdown_list_option, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT},
+    sidebar::{
+        make_dropdown_list_option, make_text_mark,
+        physics::{
+            body::BodySection, cone::ConeSection, cuboid::CuboidSection, cylinder::CylinderSection,
+        },
+        COLUMN_WIDTH, ROW_HEIGHT,
+    },
     GameEngine, Message,
 };
-use rg3d::core::algebra::Vector3;
 use rg3d::{
-    core::pool::Handle,
+    core::{algebra::Vector3, pool::Handle},
     gui::{
         dropdown_list::DropdownListBuilder,
         grid::{Column, GridBuilder, Row},
@@ -32,6 +33,7 @@ use std::sync::mpsc::Sender;
 
 mod body;
 mod capsule;
+mod collider;
 mod cone;
 mod cuboid;
 mod cylinder;
@@ -46,6 +48,7 @@ pub struct PhysicsSection {
     collider_text: Handle<UiNode>,
     sender: Sender<Message>,
     pub body_section: BodySection,
+    pub collider_section: ColliderSection,
     pub cylinder_section: CylinderSection,
     pub cone_section: ConeSection,
     pub cuboid_section: CuboidSection,
@@ -111,6 +114,7 @@ impl PhysicsSection {
 
         Self {
             body_section: BodySection::new(ctx, sender.clone()),
+            collider_section: ColliderSection::new(ctx, sender.clone()),
             cylinder_section: CylinderSection::new(ctx, sender.clone()),
             cone_section: ConeSection::new(ctx, sender.clone()),
             cuboid_section: CuboidSection::new(ctx, sender.clone()),
@@ -153,6 +157,7 @@ impl PhysicsSection {
 
                 toggle_visibility(ui, self.collider, body_index != 0);
                 toggle_visibility(ui, self.collider_text, body_index != 0);
+                toggle_visibility(ui, self.collider_section.section, false);
 
                 ui.send_message(DropdownListMessage::selection(
                     self.body,
@@ -167,6 +172,12 @@ impl PhysicsSection {
 
                 if let Some(&body_handle) = editor_scene.physics.binder.get(&node_handle) {
                     let body = &editor_scene.physics.bodies[body_handle];
+
+                    if let Some(&collider_handle) = body.colliders.first() {
+                        let collider = &editor_scene.physics.colliders[collider_handle.into()];
+                        toggle_visibility(ui, self.collider_section.section, true);
+                        self.collider_section.sync_to_model(collider, ui);
+                    }
 
                     self.body_section.sync_to_model(body, ui);
                     toggle_visibility(ui, self.body_section.section, true);
@@ -225,6 +236,12 @@ impl PhysicsSection {
             if let Some(&body_handle) = editor_scene.physics.binder.get(&node_handle) {
                 let body = &editor_scene.physics.bodies[body_handle];
                 self.body_section.handle_message(message, body, body_handle);
+
+                if let Some(&collider_handle) = body.colliders.first() {
+                    let collider = &editor_scene.physics.colliders[collider_handle.into()];
+                    self.collider_section
+                        .handle_message(message, collider, collider_handle.into());
+                }
 
                 if let Some(&collider) = body.colliders.get(0) {
                     match &editor_scene.physics.colliders[collider.into()].shape {

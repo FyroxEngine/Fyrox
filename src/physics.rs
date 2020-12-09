@@ -214,18 +214,30 @@ impl Physics {
             );
         }
 
-        let color = Color::opaque(200, 200, 200);
+        let color = Color::opaque(255, 0, 255);
 
         for collider in self.colliders.iter() {
             let parent = collider.parent.into();
             let body = self.bodies.borrow(parent);
-            let transform = Isometry3 {
+
+            let body_global_transform = Isometry3 {
                 rotation: body.rotation,
                 translation: Translation3 {
                     vector: body.position,
                 },
             }
             .to_homogeneous();
+
+            let collider_local_tranform = Isometry3 {
+                rotation: collider.rotation,
+                translation: Translation3 {
+                    vector: collider.translation,
+                },
+            }
+            .to_homogeneous();
+
+            let transform = body_global_transform * collider_local_tranform;
+
             match &collider.shape {
                 ColliderShapeDesc::Ball(ball) => {
                     context.draw_sphere(body.position, 10, 10, ball.radius, color);
