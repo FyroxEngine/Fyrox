@@ -1046,7 +1046,7 @@ impl ColliderShapeDesc {
         } else if let Some(cylinder) = shape.as_cylinder() {
             ColliderShapeDesc::Cylinder(CylinderDesc {
                 half_height: cylinder.half_height,
-                radius: cylinder.half_height,
+                radius: cylinder.radius,
             })
         } else if let Some(round_cylinder) = shape.as_round_cylinder() {
             ColliderShapeDesc::RoundCylinder(RoundCylinderDesc {
