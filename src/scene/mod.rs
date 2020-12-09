@@ -586,6 +586,8 @@ impl SceneDrawingContext {
     ) {
         let d_phi = 2.0 * std::f32::consts::PI / sides as f32;
 
+        let half_height = h / 2.0;
+
         for i in 0..sides {
             let nx0 = (d_phi * i as f32).cos();
             let ny0 = (d_phi * i as f32).sin();
@@ -600,18 +602,28 @@ impl SceneDrawingContext {
             // back cap
             self.draw_triangle(
                 transform
-                    .transform_point(&Point3::new(0.0, 0.0, 0.0))
+                    .transform_point(&Point3::new(0.0, -half_height, 0.0))
                     .coords,
-                transform.transform_point(&Point3::new(x0, 0.0, z0)).coords,
-                transform.transform_point(&Point3::new(x1, 0.0, z1)).coords,
+                transform
+                    .transform_point(&Point3::new(x0, -half_height, z0))
+                    .coords,
+                transform
+                    .transform_point(&Point3::new(x1, -half_height, z1))
+                    .coords,
                 color,
             );
 
             // sides
             self.draw_triangle(
-                transform.transform_point(&Point3::new(0.0, h, 0.0)).coords,
-                transform.transform_point(&Point3::new(x1, 0.0, z1)).coords,
-                transform.transform_point(&Point3::new(x0, 0.0, z0)).coords,
+                transform
+                    .transform_point(&Point3::new(0.0, half_height, 0.0))
+                    .coords,
+                transform
+                    .transform_point(&Point3::new(x1, -half_height, z1))
+                    .coords,
+                transform
+                    .transform_point(&Point3::new(x0, -half_height, z0))
+                    .coords,
                 color,
             );
         }
@@ -629,6 +641,8 @@ impl SceneDrawingContext {
     ) {
         let d_phi = 2.0 * std::f32::consts::PI / sides as f32;
 
+        let half_height = h / 2.0;
+
         for i in 0..sides {
             let nx0 = (d_phi * i as f32).cos();
             let ny0 = (d_phi * i as f32).sin();
@@ -643,18 +657,28 @@ impl SceneDrawingContext {
             if caps {
                 // front cap
                 self.draw_triangle(
-                    transform.transform_point(&Point3::new(x1, h, z1)).coords,
-                    transform.transform_point(&Point3::new(x0, h, z0)).coords,
-                    transform.transform_point(&Point3::new(0.0, h, 0.0)).coords,
+                    transform
+                        .transform_point(&Point3::new(x1, half_height, z1))
+                        .coords,
+                    transform
+                        .transform_point(&Point3::new(x0, half_height, z0))
+                        .coords,
+                    transform
+                        .transform_point(&Point3::new(0.0, half_height, 0.0))
+                        .coords,
                     color,
                 );
 
                 // back cap
                 self.draw_triangle(
-                    transform.transform_point(&Point3::new(x0, 0.0, z0)).coords,
-                    transform.transform_point(&Point3::new(x1, 0.0, z1)).coords,
                     transform
-                        .transform_point(&Point3::new(0.0, 0.0, 0.0))
+                        .transform_point(&Point3::new(x0, -half_height, z0))
+                        .coords,
+                    transform
+                        .transform_point(&Point3::new(x1, -half_height, z1))
+                        .coords,
+                    transform
+                        .transform_point(&Point3::new(0.0, -half_height, 0.0))
                         .coords,
                     color,
                 );
@@ -662,16 +686,28 @@ impl SceneDrawingContext {
 
             // sides
             self.draw_triangle(
-                transform.transform_point(&Point3::new(x0, 0.0, z0)).coords,
-                transform.transform_point(&Point3::new(x0, h, z0)).coords,
-                transform.transform_point(&Point3::new(x1, 0.0, z1)).coords,
+                transform
+                    .transform_point(&Point3::new(x0, -half_height, z0))
+                    .coords,
+                transform
+                    .transform_point(&Point3::new(x0, half_height, z0))
+                    .coords,
+                transform
+                    .transform_point(&Point3::new(x1, -half_height, z1))
+                    .coords,
                 color,
             );
 
             self.draw_triangle(
-                transform.transform_point(&Point3::new(x1, 0.0, z1)).coords,
-                transform.transform_point(&Point3::new(x0, h, z0)).coords,
-                transform.transform_point(&Point3::new(x1, h, z1)).coords,
+                transform
+                    .transform_point(&Point3::new(x1, -half_height, z1))
+                    .coords,
+                transform
+                    .transform_point(&Point3::new(x0, half_height, z0))
+                    .coords,
+                transform
+                    .transform_point(&Point3::new(x1, half_height, z1))
+                    .coords,
                 color,
             );
         }
