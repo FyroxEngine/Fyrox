@@ -234,8 +234,8 @@ impl Physics {
                     );
                 }
             } else if let Some(cuboid) = collider.shape().as_cuboid() {
-                let max = cuboid.half_extents.scale(2.0);
-                let min = -max;
+                let min = -cuboid.half_extents;
+                let max = cuboid.half_extents;
                 context.draw_oob(
                     &AxisAlignedBoundingBox::from_min_max(min, max),
                     transform,
