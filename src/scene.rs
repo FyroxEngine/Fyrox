@@ -71,6 +71,8 @@ pub enum SceneCommand {
     SetCollider(SetColliderCommand),
     SetCylinderHalfHeight(SetCylinderHalfHeightCommand),
     SetCylinderRadius(SetCylinderRadiusCommand),
+    SetConeHalfHeight(SetConeHalfHeightCommand),
+    SetConeRadius(SetConeRadiusCommand),
     DeleteBody(DeleteBodyCommand),
     DeleteCollider(DeleteColliderCommand),
     LoadModel(LoadModelCommand),
@@ -119,6 +121,8 @@ macro_rules! static_dispatch {
             SceneCommand::SetCollider(v) => v.$func($($args),*),
             SceneCommand::SetCylinderHalfHeight(v) => v.$func($($args),*),
             SceneCommand::SetCylinderRadius(v) => v.$func($($args),*),
+            SceneCommand::SetConeHalfHeight(v) => v.$func($($args),*),
+            SceneCommand::SetConeRadius(v) => v.$func($($args),*),
             SceneCommand::DeleteBody(v) => v.$func($($args),*),
             SceneCommand::DeleteCollider(v) => v.$func($($args),*),
             SceneCommand::LoadModel(v) => v.$func($($args),*),
@@ -668,14 +672,6 @@ impl<'a> Command<'a> for SetColliderCommand {
     fn finalize(&mut self, context: &mut Self::Context) {
         if let Some(ticket) = self.ticket.take() {
             context.physics.colliders.forget_ticket(ticket);
-
-            let body = &mut context.physics.bodies[self.body];
-            body.colliders.remove(
-                body.colliders
-                    .iter()
-                    .position(|&c| c == ErasedHandle::from(self.handle))
-                    .unwrap(),
-            );
         }
     }
 }
@@ -1127,6 +1123,24 @@ define_simple_collider_command!(SetCylinderRadiusCommand, "Set Cylinder Radius",
     let collider = &mut physics.colliders[this.handle];
     if let ColliderShapeDesc::Cylinder(cylinder) = &mut collider.shape {
         std::mem::swap(&mut cylinder.radius, &mut this.value);
+    } else {
+        unreachable!();
+    }
+});
+
+define_simple_collider_command!(SetConeHalfHeightCommand, "Set Cone Half Height", f32 => |this: &mut SetConeHalfHeightCommand, physics: &mut Physics| {
+    let collider = &mut physics.colliders[this.handle];
+    if let ColliderShapeDesc::Cone(cone) = &mut collider.shape {
+        std::mem::swap(&mut cone.half_height, &mut this.value);
+    } else {
+        unreachable!();
+    }
+});
+
+define_simple_collider_command!(SetConeRadiusCommand, "Set Cone Radius", f32 => |this: &mut SetConeRadiusCommand, physics: &mut Physics| {
+    let collider = &mut physics.colliders[this.handle];
+    if let ColliderShapeDesc::Cone(cone) = &mut collider.shape {
+        std::mem::swap(&mut cone.radius, &mut this.value);
     } else {
         unreachable!();
     }

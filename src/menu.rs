@@ -500,7 +500,7 @@ impl Menu {
                     } else if message.destination() == self.create_cone {
                         let mesh = MeshBuilder::new(BaseBuilder::new().with_name("Cone"))
                             .with_surfaces(vec![Surface::new(Arc::new(RwLock::new(
-                                SurfaceSharedData::make_cone(16, 1.0, 1.0, Matrix4::identity()),
+                                SurfaceSharedData::make_cone(16, 0.5, 1.0, Matrix4::identity()),
                             )))])
                             .build_node();
                         self.message_sender
