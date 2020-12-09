@@ -254,8 +254,8 @@ impl Physics {
                     context.draw_cone(10, cone.radius, cone.half_height * 2.0, transform, color);
                 }
                 ColliderShapeDesc::Cuboid(cuboid) => {
-                    let max = cuboid.half_extents.scale(2.0);
-                    let min = -max;
+                    let min = -cuboid.half_extents;
+                    let max = cuboid.half_extents;
                     context.draw_oob(
                         &AxisAlignedBoundingBox::from_min_max(min, max),
                         transform,
