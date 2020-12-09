@@ -73,6 +73,7 @@ pub enum SceneCommand {
     SetCylinderRadius(SetCylinderRadiusCommand),
     SetConeHalfHeight(SetConeHalfHeightCommand),
     SetConeRadius(SetConeRadiusCommand),
+    SetCuboidHalfExtents(SetCuboidHalfExtentsCommand),
     DeleteBody(DeleteBodyCommand),
     DeleteCollider(DeleteColliderCommand),
     LoadModel(LoadModelCommand),
@@ -122,6 +123,7 @@ macro_rules! static_dispatch {
             SceneCommand::SetCylinderRadius(v) => v.$func($($args),*),
             SceneCommand::SetConeHalfHeight(v) => v.$func($($args),*),
             SceneCommand::SetConeRadius(v) => v.$func($($args),*),
+            SceneCommand::SetCuboidHalfExtents(v) => v.$func($($args),*),
             SceneCommand::DeleteBody(v) => v.$func($($args),*),
             SceneCommand::DeleteCollider(v) => v.$func($($args),*),
             SceneCommand::LoadModel(v) => v.$func($($args),*),
@@ -453,10 +455,18 @@ impl RotateNodeCommand {
         position
     }
 
-    fn set_rotation(&self, graph: &mut Graph, rotation: UnitQuaternion<f32>) {
+    fn set_rotation(
+        &self,
+        graph: &mut Graph,
+        physics: &mut Physics,
+        rotation: UnitQuaternion<f32>,
+    ) {
         graph[self.node]
             .local_transform_mut()
             .set_rotation(rotation);
+        if let Some(&body) = physics.binder.get(&self.node) {
+            physics.bodies[body].rotation = rotation;
+        }
     }
 }
 
@@ -469,12 +479,20 @@ impl<'a> Command<'a> for RotateNodeCommand {
 
     fn execute(&mut self, context: &mut Self::Context) {
         let rotation = self.swap();
-        self.set_rotation(&mut context.scene.graph, rotation);
+        self.set_rotation(
+            &mut context.scene.graph,
+            &mut context.editor_scene.physics,
+            rotation,
+        );
     }
 
     fn revert(&mut self, context: &mut Self::Context) {
         let rotation = self.swap();
-        self.set_rotation(&mut context.scene.graph, rotation);
+        self.set_rotation(
+            &mut context.scene.graph,
+            &mut context.editor_scene.physics,
+            rotation,
+        );
     }
 }
 
@@ -1183,6 +1201,15 @@ define_simple_collider_command!(SetConeRadiusCommand, "Set Cone Radius", f32 => 
     let collider = &mut physics.colliders[this.handle];
     if let ColliderShapeDesc::Cone(cone) = &mut collider.shape {
         std::mem::swap(&mut cone.radius, &mut this.value);
+    } else {
+        unreachable!();
+    }
+});
+
+define_simple_collider_command!(SetCuboidHalfExtentsCommand, "Set Cone Radius", Vector3<f32> => |this: &mut SetCuboidHalfExtentsCommand, physics: &mut Physics| {
+    let collider = &mut physics.colliders[this.handle];
+    if let ColliderShapeDesc::Cuboid(cuboid) = &mut collider.shape {
+        std::mem::swap(&mut cuboid.half_extents, &mut this.value);
     } else {
         unreachable!();
     }

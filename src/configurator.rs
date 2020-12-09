@@ -70,16 +70,19 @@ pub struct Configurator {
 
 fn make_history_entry_widget(ctx: &mut BuildContext, entry: &HistoryEntry) -> Handle<UiNode> {
     DecoratorBuilder::new(BorderBuilder::new(
-        WidgetBuilder::new().with_height(32.0).with_child(
-            TextBuilder::new(WidgetBuilder::new())
-                .with_text(format!(
-                    "WD: {}\nTP: {}",
-                    entry.work_dir.display(),
-                    entry.textures_path.display()
-                ))
-                .with_vertical_text_alignment(VerticalAlignment::Center)
-                .build(ctx),
-        ),
+        WidgetBuilder::new()
+            .with_height(32.0)
+            .with_margin(Thickness::uniform(1.0))
+            .with_child(
+                TextBuilder::new(WidgetBuilder::new())
+                    .with_text(format!(
+                        "WD: {}\nTP: {}",
+                        entry.work_dir.display(),
+                        entry.textures_path.display()
+                    ))
+                    .with_vertical_text_alignment(VerticalAlignment::Center)
+                    .build(ctx),
+            ),
     ))
     .build(ctx)
 }
