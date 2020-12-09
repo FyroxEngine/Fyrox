@@ -167,9 +167,9 @@ impl CommandGroup {
 impl<'a> Command<'a> for CommandGroup {
     type Context = SceneContext<'a>;
 
-    fn name(&self, context: &Self::Context) -> String {
+    fn name(&mut self, context: &Self::Context) -> String {
         let mut name = String::from("Command group: ");
-        for cmd in self.commands.iter() {
+        for cmd in self.commands.iter_mut() {
             name.push_str(&cmd.name(context));
             name.push_str(", ");
         }
@@ -199,7 +199,7 @@ impl<'a> Command<'a> for CommandGroup {
 impl<'a> Command<'a> for SceneCommand {
     type Context = SceneContext<'a>;
 
-    fn name(&self, context: &Self::Context) -> String {
+    fn name(&mut self, context: &Self::Context) -> String {
         static_dispatch!(self, name, context)
     }
 
@@ -221,6 +221,7 @@ pub struct AddNodeCommand {
     ticket: Option<Ticket<Node>>,
     handle: Handle<Node>,
     node: Option<Node>,
+    cached_name: String,
 }
 
 impl AddNodeCommand {
@@ -228,6 +229,7 @@ impl AddNodeCommand {
         Self {
             ticket: None,
             handle: Default::default(),
+            cached_name: format!("Add Node {}", node.name()),
             node: Some(node),
         }
     }
@@ -236,8 +238,8 @@ impl AddNodeCommand {
 impl<'a> Command<'a> for AddNodeCommand {
     type Context = SceneContext<'a>;
 
-    fn name(&self, _context: &Self::Context) -> String {
-        "Add Node".to_owned()
+    fn name(&mut self, _context: &Self::Context) -> String {
+        self.cached_name.clone()
     }
 
     fn execute(&mut self, context: &mut Self::Context) {
@@ -246,10 +248,11 @@ impl<'a> Command<'a> for AddNodeCommand {
                 self.handle = context.scene.graph.add_node(self.node.take().unwrap());
             }
             Some(ticket) => {
-                context
+                let handle = context
                     .scene
                     .graph
                     .put_back(ticket, self.node.take().unwrap());
+                assert_eq!(handle, self.handle);
             }
         }
     }
@@ -291,7 +294,7 @@ impl ChangeSelectionCommand {
 impl<'a> Command<'a> for ChangeSelectionCommand {
     type Context = SceneContext<'a>;
 
-    fn name(&self, _context: &Self::Context) -> String {
+    fn name(&mut self, _context: &Self::Context) -> String {
         "Change Selection".to_owned()
     }
 
@@ -351,7 +354,7 @@ impl MoveNodeCommand {
 impl<'a> Command<'a> for MoveNodeCommand {
     type Context = SceneContext<'a>;
 
-    fn name(&self, _context: &Self::Context) -> String {
+    fn name(&mut self, _context: &Self::Context) -> String {
         "Move Node".to_owned()
     }
 
@@ -396,7 +399,7 @@ impl ScaleNodeCommand {
 impl<'a> Command<'a> for ScaleNodeCommand {
     type Context = SceneContext<'a>;
 
-    fn name(&self, _context: &Self::Context) -> String {
+    fn name(&mut self, _context: &Self::Context) -> String {
         "Scale Node".to_owned()
     }
 
@@ -447,7 +450,7 @@ impl RotateNodeCommand {
 impl<'a> Command<'a> for RotateNodeCommand {
     type Context = SceneContext<'a>;
 
-    fn name(&self, _context: &Self::Context) -> String {
+    fn name(&mut self, _context: &Self::Context) -> String {
         "Rotate Node".to_owned()
     }
 
@@ -483,7 +486,7 @@ impl LinkNodesCommand {
 impl<'a> Command<'a> for LinkNodesCommand {
     type Context = SceneContext<'a>;
 
-    fn name(&self, _context: &Self::Context) -> String {
+    fn name(&mut self, _context: &Self::Context) -> String {
         "Link Nodes".to_owned()
     }
 
@@ -518,7 +521,7 @@ impl DeleteNodeCommand {
 impl<'a> Command<'a> for DeleteNodeCommand {
     type Context = SceneContext<'a>;
 
-    fn name(&self, _context: &Self::Context) -> String {
+    fn name(&mut self, _context: &Self::Context) -> String {
         "Delete Node".to_owned()
     }
 
@@ -566,7 +569,7 @@ impl SetBodyCommand {
 impl<'a> Command<'a> for SetBodyCommand {
     type Context = SceneContext<'a>;
 
-    fn name(&self, _context: &Self::Context) -> String {
+    fn name(&mut self, _context: &Self::Context) -> String {
         "Set Node Body".to_owned()
     }
 
@@ -622,7 +625,7 @@ impl SetColliderCommand {
 impl<'a> Command<'a> for SetColliderCommand {
     type Context = SceneContext<'a>;
 
-    fn name(&self, _context: &Self::Context) -> String {
+    fn name(&mut self, _context: &Self::Context) -> String {
         "Set Collider".to_owned()
     }
 
@@ -697,7 +700,7 @@ impl LoadModelCommand {
 impl<'a> Command<'a> for LoadModelCommand {
     type Context = SceneContext<'a>;
 
-    fn name(&self, _context: &Self::Context) -> String {
+    fn name(&mut self, _context: &Self::Context) -> String {
         "Load Model".to_owned()
     }
 
@@ -752,7 +755,7 @@ impl DeleteBodyCommand {
 impl<'a> Command<'a> for DeleteBodyCommand {
     type Context = SceneContext<'a>;
 
-    fn name(&self, _context: &Self::Context) -> String {
+    fn name(&mut self, _context: &Self::Context) -> String {
         "Delete Body".to_owned()
     }
 
@@ -800,7 +803,7 @@ impl DeleteColliderCommand {
 impl<'a> Command<'a> for DeleteColliderCommand {
     type Context = SceneContext<'a>;
 
-    fn name(&self, _context: &Self::Context) -> String {
+    fn name(&mut self, _context: &Self::Context) -> String {
         "Delete Collider".to_owned()
     }
 
@@ -857,7 +860,7 @@ macro_rules! define_simple_scene_command {
         impl<'a> Command<'a> for $name {
             type Context = SceneContext<'a>;
 
-            fn name(&self, _context: &Self::Context) -> String {
+            fn name(&mut self, _context: &Self::Context) -> String {
                 $human_readable_name.to_owned()
             }
 
@@ -893,7 +896,7 @@ macro_rules! define_simple_physics_command {
         impl<'a> Command<'a> for $name {
             type Context = SceneContext<'a>;
 
-            fn name(&self, _context: &Self::Context) -> String {
+            fn name(&mut self, _context: &Self::Context) -> String {
                 $human_readable_name.to_owned()
             }
 
@@ -944,7 +947,7 @@ impl SetMeshTextureCommand {
 impl<'a> Command<'a> for SetMeshTextureCommand {
     type Context = SceneContext<'a>;
 
-    fn name(&self, _context: &Self::Context) -> String {
+    fn name(&mut self, _context: &Self::Context) -> String {
         "Set Texture".to_owned()
     }
 

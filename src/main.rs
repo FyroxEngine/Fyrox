@@ -21,6 +21,7 @@ pub mod settings;
 pub mod sidebar;
 pub mod world_outliner;
 
+use crate::command::CommandStackViewer;
 use crate::{
     asset::{AssetBrowser, AssetKind},
     camera::CameraController,
@@ -389,6 +390,7 @@ struct Editor {
     exit: bool,
     configurator: Configurator,
     log: Log,
+    command_stack_viewer: CommandStackViewer,
 }
 
 impl Editor {
@@ -418,6 +420,8 @@ impl Editor {
         let ctx = &mut engine.user_interface.build_ctx();
         let node_editor = SideBar::new(ctx, message_sender.clone());
         let world_outliner = WorldOutliner::new(ctx, message_sender.clone());
+        let command_stack_viewer =
+            CommandStackViewer::new(ctx, engine.resource_manager.clone(), message_sender.clone());
         let log = Log::new(ctx);
 
         let root_grid = GridBuilder::new(
@@ -465,9 +469,21 @@ impl Editor {
                                             splitter: 0.66,
                                             tiles: [
                                                 TileBuilder::new(WidgetBuilder::new())
-                                                    .with_content(TileContent::Window(
-                                                        asset_browser.window,
-                                                    ))
+                                                    .with_content(TileContent::HorizontalTiles {
+                                                        splitter: 0.80,
+                                                        tiles: [
+                                                            TileBuilder::new(WidgetBuilder::new())
+                                                                .with_content(TileContent::Window(
+                                                                    asset_browser.window,
+                                                                ))
+                                                                .build(ctx),
+                                                            TileBuilder::new(WidgetBuilder::new())
+                                                                .with_content(TileContent::Window(
+                                                                    command_stack_viewer.window,
+                                                                ))
+                                                                .build(ctx),
+                                                        ],
+                                                    })
                                                     .build(ctx),
                                                 TileBuilder::new(WidgetBuilder::new())
                                                     .with_content(TileContent::Window(log.window))
@@ -519,6 +535,7 @@ impl Editor {
             configurator,
             log,
             light_panel,
+            command_stack_viewer,
         };
 
         editor.set_interaction_mode(Some(InteractionModeKind::Move), engine);
@@ -619,6 +636,7 @@ impl Editor {
 
         self.log.handle_ui_message(message, engine);
         self.asset_browser.handle_ui_message(message, engine);
+        self.command_stack_viewer.handle_ui_message(message);
 
         if let Some(editor_scene) = self.scene.as_mut() {
             self.sidebar
@@ -972,9 +990,20 @@ impl Editor {
     }
 
     fn sync_to_model(&mut self, engine: &mut GameEngine) {
-        if let Some(editor_scene) = self.scene.as_ref() {
+        if let Some(editor_scene) = self.scene.as_mut() {
             self.world_outliner.sync_to_model(editor_scene, engine);
             self.sidebar.sync_to_model(editor_scene, engine);
+            self.command_stack_viewer.sync_to_model(
+                &mut self.command_stack,
+                &SceneContext {
+                    scene: &mut engine.scenes[editor_scene.scene],
+                    message_sender: self.message_sender.clone(),
+                    current_selection: editor_scene.selection.clone(),
+                    resource_manager: engine.resource_manager.clone(),
+                    physics: &mut editor_scene.physics,
+                },
+                &mut engine.user_interface,
+            )
         } else {
             self.world_outliner.clear(&mut engine.user_interface);
         }

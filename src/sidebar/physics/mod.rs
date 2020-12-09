@@ -213,9 +213,12 @@ impl PhysicsSection {
                 if let Some(&collider) = body.colliders.get(0) {
                     match &editor_scene.physics.colliders[collider.into()].shape {
                         ColliderShapeDesc::Ball(_) => {}
-                        ColliderShapeDesc::Cylinder(_) => {
-                            self.cylinder_section
-                                .handle_message(message, collider.into());
+                        ColliderShapeDesc::Cylinder(cylinder) => {
+                            self.cylinder_section.handle_message(
+                                message,
+                                cylinder,
+                                collider.into(),
+                            );
                         }
                         ColliderShapeDesc::RoundCylinder(_) => {}
                         ColliderShapeDesc::Cone(_) => {}

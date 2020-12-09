@@ -1,9 +1,31 @@
-use std::fmt::Debug;
+use crate::{
+    gui::{BuildContext, Ui, UiMessage, UiNode},
+    load_image, Message,
+};
+use rg3d::{
+    core::{color::Color, pool::Handle},
+    engine::resource_manager::ResourceManager,
+    gui::{
+        brush::Brush,
+        button::ButtonBuilder,
+        grid::{Column, GridBuilder, Row},
+        image::ImageBuilder,
+        list_view::ListViewBuilder,
+        message::{ButtonMessage, ListViewMessage, MessageDirection, UiMessageData},
+        scroll_viewer::ScrollViewerBuilder,
+        stack_panel::StackPanelBuilder,
+        text::TextBuilder,
+        widget::WidgetBuilder,
+        window::{WindowBuilder, WindowTitle},
+        Orientation, Thickness,
+    },
+};
+use std::{fmt::Debug, sync::mpsc::Sender};
 
 pub trait Command<'a> {
     type Context;
 
-    fn name(&self, context: &Self::Context) -> String;
+    fn name(&mut self, context: &Self::Context) -> String;
     fn execute(&mut self, context: &mut Self::Context);
     fn revert(&mut self, context: &mut Self::Context);
     fn finalize(&mut self, _: &mut Self::Context) {}
@@ -85,15 +107,14 @@ impl<C> CommandStack<C> {
         if !self.commands.is_empty() {
             let command = match self.top.as_mut() {
                 None => {
-                    self.top = Some(1);
+                    self.top = Some(0);
                     self.commands.first_mut()
                 }
                 Some(top) => {
-                    let last = self.commands.len();
+                    let last = self.commands.len() - 1;
                     if *top < last {
-                        let command = self.commands.get_mut(*top);
                         *top += 1;
-                        command
+                        self.commands.get_mut(*top)
                     } else {
                         None
                     }
@@ -107,5 +128,152 @@ impl<C> CommandStack<C> {
                 command.execute(&mut context)
             }
         }
+    }
+}
+
+pub struct CommandStackViewer {
+    pub window: Handle<UiNode>,
+    list: Handle<UiNode>,
+    sender: Sender<Message>,
+    undo: Handle<UiNode>,
+    redo: Handle<UiNode>,
+}
+
+impl CommandStackViewer {
+    pub fn new(
+        ctx: &mut BuildContext,
+        resource_manager: ResourceManager,
+        sender: Sender<Message>,
+    ) -> Self {
+        let list;
+        let undo;
+        let redo;
+        let window = WindowBuilder::new(WidgetBuilder::new())
+            .with_title(WindowTitle::Text("Command Stack".to_owned()))
+            .with_content(
+                GridBuilder::new(
+                    WidgetBuilder::new()
+                        .with_child(
+                            StackPanelBuilder::new(
+                                WidgetBuilder::new()
+                                    .with_child({
+                                        undo = ButtonBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_margin(Thickness::uniform(1.0)),
+                                        )
+                                        .with_content(
+                                            ImageBuilder::new(
+                                                WidgetBuilder::new()
+                                                    .with_margin(Thickness::uniform(1.0))
+                                                    .with_height(28.0)
+                                                    .with_width(28.0),
+                                            )
+                                            .with_opt_texture(load_image(
+                                                "resources/undo.png",
+                                                resource_manager.clone(),
+                                            ))
+                                            .build(ctx),
+                                        )
+                                        .build(ctx);
+                                        undo
+                                    })
+                                    .with_child({
+                                        redo = ButtonBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_margin(Thickness::uniform(1.0)),
+                                        )
+                                        .with_content(
+                                            ImageBuilder::new(
+                                                WidgetBuilder::new()
+                                                    .with_margin(Thickness::uniform(1.0))
+                                                    .with_height(28.0)
+                                                    .with_width(28.0),
+                                            )
+                                            .with_opt_texture(load_image(
+                                                "resources/redo.png",
+                                                resource_manager,
+                                            ))
+                                            .build(ctx),
+                                        )
+                                        .build(ctx);
+                                        redo
+                                    }),
+                            )
+                            .with_orientation(Orientation::Horizontal)
+                            .build(ctx),
+                        )
+                        .with_child(
+                            ScrollViewerBuilder::new(WidgetBuilder::new().on_row(1))
+                                .with_content({
+                                    list = ListViewBuilder::new(WidgetBuilder::new()).build(ctx);
+                                    list
+                                })
+                                .build(ctx),
+                        ),
+                )
+                .add_column(Column::stretch())
+                .add_row(Row::strict(30.0))
+                .add_row(Row::stretch())
+                .build(ctx),
+            )
+            .build(ctx);
+
+        Self {
+            window,
+            list,
+            sender,
+            undo,
+            redo,
+        }
+    }
+
+    pub fn handle_ui_message(&self, message: &UiMessage) {
+        if let UiMessageData::Button(msg) = message.data() {
+            if let ButtonMessage::Click = msg {
+                if message.destination() == self.undo {
+                    self.sender.send(Message::UndoSceneCommand).unwrap();
+                } else if message.destination() == self.redo {
+                    self.sender.send(Message::RedoSceneCommand).unwrap();
+                }
+            }
+        }
+    }
+
+    pub fn sync_to_model<'a, C, Ctx>(
+        &mut self,
+        command_stack: &mut CommandStack<C>,
+        ctx: &Ctx,
+        ui: &mut Ui,
+    ) where
+        C: Command<'a, Context = Ctx> + Debug,
+    {
+        let top = command_stack.top;
+        let items = command_stack
+            .commands
+            .iter_mut()
+            .enumerate()
+            .rev() // First command in list is last on stack.
+            .map(|(i, cmd)| {
+                let brush = if let Some(top) = top {
+                    if (0..=top).contains(&i) {
+                        Brush::Solid(Color::opaque(255, 255, 255))
+                    } else {
+                        Brush::Solid(Color::opaque(100, 100, 100))
+                    }
+                } else {
+                    Brush::Solid(Color::opaque(100, 100, 100))
+                };
+
+                TextBuilder::new(WidgetBuilder::new().with_foreground(brush))
+                    .with_text(cmd.name(ctx))
+                    .build(&mut ui.build_ctx())
+            })
+            .collect();
+
+        ui.send_message(ListViewMessage::items(
+            self.list,
+            MessageDirection::ToWidget,
+            items,
+        ));
     }
 }

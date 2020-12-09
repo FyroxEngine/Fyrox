@@ -314,7 +314,7 @@ impl SideBar {
                                 value.z.to_radians(),
                             );
                             let new_rotation = quat_from_euler(euler, RotationOrder::XYZ);
-                            if !old_rotation.approx_eq(&new_rotation, 0.001) {
+                            if !old_rotation.approx_eq(&new_rotation, 0.000001) {
                                 self.sender
                                     .send(Message::DoSceneCommand(SceneCommand::RotateNode(
                                         RotateNodeCommand::new(

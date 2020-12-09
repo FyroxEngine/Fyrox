@@ -55,13 +55,13 @@ impl BodySection {
     pub fn handle_message(
         &mut self,
         message: &UiMessage,
-        _body: &RigidBody,
+        body: &RigidBody,
         handle: Handle<RigidBody>,
     ) {
         if let UiMessageData::NumericUpDown(msg) = message.data() {
             if let &NumericUpDownMessage::Value(value) = msg {
                 if message.direction() == MessageDirection::FromWidget {
-                    if message.destination() == self.mass {
+                    if message.destination() == self.mass && body.mass.ne(&value) {
                         self.sender
                             .send(Message::DoSceneCommand(SceneCommand::SetBodyMass(
                                 SetBodyMassCommand::new(handle, value),

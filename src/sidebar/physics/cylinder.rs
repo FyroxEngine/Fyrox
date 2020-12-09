@@ -68,11 +68,17 @@ impl CylinderSection {
         ));
     }
 
-    pub fn handle_message(&mut self, message: &UiMessage, handle: Handle<Collider>) {
+    pub fn handle_message(
+        &mut self,
+        message: &UiMessage,
+        cylinder: &CylinderDesc,
+        handle: Handle<Collider>,
+    ) {
         if let UiMessageData::NumericUpDown(msg) = message.data() {
             if let &NumericUpDownMessage::Value(value) = msg {
                 if message.direction() == MessageDirection::FromWidget {
-                    if message.destination() == self.half_height {
+                    if message.destination() == self.half_height && cylinder.half_height.ne(&value)
+                    {
                         self.sender
                             .send(Message::DoSceneCommand(
                                 SceneCommand::SetCylinderHalfHeight(
@@ -80,7 +86,7 @@ impl CylinderSection {
                                 ),
                             ))
                             .unwrap();
-                    } else if message.destination() == self.radius {
+                    } else if message.destination() == self.radius && cylinder.radius.ne(&value) {
                         self.sender
                             .send(Message::DoSceneCommand(SceneCommand::SetCylinderRadius(
                                 SetCylinderRadiusCommand::new(handle, value),
