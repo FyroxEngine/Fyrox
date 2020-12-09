@@ -623,20 +623,28 @@ impl WorldOutliner {
         ));
     }
 
-    pub fn handle_message(&mut self, message: &Message, engine: &mut GameEngine) {
+    pub fn handle_message(
+        &mut self,
+        message: &Message,
+        engine: &mut GameEngine,
+        editor_scene: Option<&EditorScene>,
+    ) {
         let ui = &engine.user_interface;
 
-        if let Message::SetSelection(selection) = message {
-            let trees = selection
-                .nodes()
-                .iter()
-                .map(|&n| self.map_node_to_tree(ui, n))
-                .collect();
-            ui.send_message(TreeRootMessage::select(
-                self.root,
-                MessageDirection::ToWidget,
-                trees,
-            ));
+        if let Some(editor_scene) = editor_scene {
+            if let Message::SelectionChanged = message {
+                let trees = editor_scene
+                    .selection
+                    .nodes()
+                    .iter()
+                    .map(|&n| self.map_node_to_tree(ui, n))
+                    .collect();
+                ui.send_message(TreeRootMessage::select(
+                    self.root,
+                    MessageDirection::ToWidget,
+                    trees,
+                ));
+            }
         }
     }
 

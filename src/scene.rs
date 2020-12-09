@@ -96,10 +96,9 @@ pub enum SceneCommand {
 }
 
 pub struct SceneContext<'a> {
+    pub editor_scene: &'a mut EditorScene,
     pub scene: &'a mut Scene,
-    pub physics: &'a mut Physics,
     pub message_sender: Sender<Message>,
-    pub current_selection: Selection,
     pub resource_manager: ResourceManager,
 }
 
@@ -304,20 +303,22 @@ impl<'a> Command<'a> for ChangeSelectionCommand {
 
     fn execute(&mut self, context: &mut Self::Context) {
         let new_selection = self.swap();
-        if new_selection != context.current_selection {
+        if new_selection != context.editor_scene.selection {
+            context.editor_scene.selection = new_selection;
             context
                 .message_sender
-                .send(Message::SetSelection(new_selection))
+                .send(Message::SelectionChanged)
                 .unwrap();
         }
     }
 
     fn revert(&mut self, context: &mut Self::Context) {
         let new_selection = self.swap();
-        if new_selection != context.current_selection {
+        if new_selection != context.editor_scene.selection {
+            context.editor_scene.selection = new_selection;
             context
                 .message_sender
-                .send(Message::SetSelection(new_selection))
+                .send(Message::SelectionChanged)
                 .unwrap();
         }
     }
@@ -364,12 +365,20 @@ impl<'a> Command<'a> for MoveNodeCommand {
 
     fn execute(&mut self, context: &mut Self::Context) {
         let position = self.swap();
-        self.set_position(&mut context.scene.graph, &mut context.physics, position);
+        self.set_position(
+            &mut context.scene.graph,
+            &mut context.editor_scene.physics,
+            position,
+        );
     }
 
     fn revert(&mut self, context: &mut Self::Context) {
         let position = self.swap();
-        self.set_position(&mut context.scene.graph, &mut context.physics, position);
+        self.set_position(
+            &mut context.scene.graph,
+            &mut context.editor_scene.physics,
+            position,
+        );
     }
 }
 
@@ -580,29 +589,42 @@ impl<'a> Command<'a> for SetBodyCommand {
     fn execute(&mut self, context: &mut Self::Context) {
         match self.ticket.take() {
             None => {
-                self.handle = context.physics.bodies.spawn(self.body.take().unwrap());
+                self.handle = context
+                    .editor_scene
+                    .physics
+                    .bodies
+                    .spawn(self.body.take().unwrap());
             }
             Some(ticket) => {
                 context
+                    .editor_scene
                     .physics
                     .bodies
                     .put_back(ticket, self.body.take().unwrap());
             }
         }
-        context.physics.binder.insert(self.node, self.handle);
+        context
+            .editor_scene
+            .physics
+            .binder
+            .insert(self.node, self.handle);
     }
 
     fn revert(&mut self, context: &mut Self::Context) {
-        let (ticket, node) = context.physics.bodies.take_reserve(self.handle);
+        let (ticket, node) = context
+            .editor_scene
+            .physics
+            .bodies
+            .take_reserve(self.handle);
         self.ticket = Some(ticket);
         self.body = Some(node);
-        context.physics.binder.remove(&self.node);
+        context.editor_scene.physics.binder.remove(&self.node);
     }
 
     fn finalize(&mut self, context: &mut Self::Context) {
         if let Some(ticket) = self.ticket.take() {
-            context.physics.bodies.forget_ticket(ticket);
-            context.physics.binder.remove(&self.node);
+            context.editor_scene.physics.bodies.forget_ticket(ticket);
+            context.editor_scene.physics.binder.remove(&self.node);
         }
     }
 }
@@ -637,30 +659,36 @@ impl<'a> Command<'a> for SetColliderCommand {
         match self.ticket.take() {
             None => {
                 self.handle = context
+                    .editor_scene
                     .physics
                     .colliders
                     .spawn(self.collider.take().unwrap());
             }
             Some(ticket) => {
                 context
+                    .editor_scene
                     .physics
                     .colliders
                     .put_back(ticket, self.collider.take().unwrap());
             }
         }
-        context.physics.colliders[self.handle].parent = self.body.into();
-        context.physics.bodies[self.body]
+        context.editor_scene.physics.colliders[self.handle].parent = self.body.into();
+        context.editor_scene.physics.bodies[self.body]
             .colliders
             .push(self.handle.into());
     }
 
     fn revert(&mut self, context: &mut Self::Context) {
-        let (ticket, mut collider) = context.physics.colliders.take_reserve(self.handle);
+        let (ticket, mut collider) = context
+            .editor_scene
+            .physics
+            .colliders
+            .take_reserve(self.handle);
         collider.parent = Default::default();
         self.ticket = Some(ticket);
         self.collider = Some(collider);
 
-        let body = &mut context.physics.bodies[self.body];
+        let body = &mut context.editor_scene.physics.bodies[self.body];
         body.colliders.remove(
             body.colliders
                 .iter()
@@ -671,7 +699,7 @@ impl<'a> Command<'a> for SetColliderCommand {
 
     fn finalize(&mut self, context: &mut Self::Context) {
         if let Some(ticket) = self.ticket.take() {
-            context.physics.colliders.forget_ticket(ticket);
+            context.editor_scene.physics.colliders.forget_ticket(ticket);
         }
     }
 }
@@ -756,23 +784,32 @@ impl<'a> Command<'a> for DeleteBodyCommand {
     }
 
     fn execute(&mut self, context: &mut Self::Context) {
-        let (ticket, node) = context.physics.bodies.take_reserve(self.handle);
+        let (ticket, node) = context
+            .editor_scene
+            .physics
+            .bodies
+            .take_reserve(self.handle);
         self.body = Some(node);
         self.ticket = Some(ticket);
-        self.node = context.physics.unbind_by_body(self.handle);
+        self.node = context.editor_scene.physics.unbind_by_body(self.handle);
     }
 
     fn revert(&mut self, context: &mut Self::Context) {
         self.handle = context
+            .editor_scene
             .physics
             .bodies
             .put_back(self.ticket.take().unwrap(), self.body.take().unwrap());
-        context.physics.binder.insert(self.node, self.handle);
+        context
+            .editor_scene
+            .physics
+            .binder
+            .insert(self.node, self.handle);
     }
 
     fn finalize(&mut self, context: &mut Self::Context) {
         if let Some(ticket) = self.ticket.take() {
-            context.physics.bodies.forget_ticket(ticket)
+            context.editor_scene.physics.bodies.forget_ticket(ticket)
         }
     }
 }
@@ -804,12 +841,16 @@ impl<'a> Command<'a> for DeleteColliderCommand {
     }
 
     fn execute(&mut self, context: &mut Self::Context) {
-        let (ticket, collider) = context.physics.colliders.take_reserve(self.handle);
+        let (ticket, collider) = context
+            .editor_scene
+            .physics
+            .colliders
+            .take_reserve(self.handle);
         self.body = collider.parent.into();
         self.collider = Some(collider);
         self.ticket = Some(ticket);
 
-        let body = &mut context.physics.bodies[self.body];
+        let body = &mut context.editor_scene.physics.bodies[self.body];
         body.colliders.remove(
             body.colliders
                 .iter()
@@ -820,17 +861,18 @@ impl<'a> Command<'a> for DeleteColliderCommand {
 
     fn revert(&mut self, context: &mut Self::Context) {
         self.handle = context
+            .editor_scene
             .physics
             .colliders
             .put_back(self.ticket.take().unwrap(), self.collider.take().unwrap());
 
-        let body = &mut context.physics.bodies[self.body];
+        let body = &mut context.editor_scene.physics.bodies[self.body];
         body.colliders.push(self.handle.into());
     }
 
     fn finalize(&mut self, context: &mut Self::Context) {
         if let Some(ticket) = self.ticket.take() {
-            context.physics.colliders.forget_ticket(ticket)
+            context.editor_scene.physics.colliders.forget_ticket(ticket)
         }
     }
 }
@@ -897,11 +939,11 @@ macro_rules! define_simple_physics_command {
             }
 
             fn execute(&mut self, context: &mut Self::Context) {
-                self.swap(&mut context.physics);
+                self.swap(&mut context.editor_scene.physics);
             }
 
             fn revert(&mut self, context: &mut Self::Context) {
-                self.swap(&mut context.physics);
+                self.swap(&mut context.editor_scene.physics);
             }
         }
     };

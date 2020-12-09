@@ -334,7 +334,7 @@ pub enum Message {
     DoSceneCommand(SceneCommand),
     UndoSceneCommand,
     RedoSceneCommand,
-    SetSelection(Selection),
+    SelectionChanged,
     SaveScene(PathBuf),
     LoadScene(PathBuf),
     CloseScene,
@@ -998,9 +998,8 @@ impl Editor {
                 &SceneContext {
                     scene: &mut engine.scenes[editor_scene.scene],
                     message_sender: self.message_sender.clone(),
-                    current_selection: editor_scene.selection.clone(),
+                    editor_scene,
                     resource_manager: engine.resource_manager.clone(),
-                    physics: &mut editor_scene.physics,
                 },
                 &mut engine.user_interface,
             )
@@ -1016,7 +1015,8 @@ impl Editor {
 
         while let Ok(message) = self.message_receiver.try_recv() {
             self.log.handle_message(&message, engine);
-            self.world_outliner.handle_message(&message, engine);
+            self.world_outliner
+                .handle_message(&message, engine, self.scene.as_ref());
 
             match message {
                 Message::DoSceneCommand(command) => {
@@ -1026,9 +1026,8 @@ impl Editor {
                             SceneContext {
                                 scene: &mut engine.scenes[editor_scene.scene],
                                 message_sender: self.message_sender.clone(),
-                                current_selection: editor_scene.selection.clone(),
+                                editor_scene,
                                 resource_manager: engine.resource_manager.clone(),
-                                physics: &mut editor_scene.physics,
                             },
                         );
                         needs_sync = true;
@@ -1039,9 +1038,8 @@ impl Editor {
                         self.command_stack.undo(SceneContext {
                             scene: &mut engine.scenes[editor_scene.scene],
                             message_sender: self.message_sender.clone(),
-                            current_selection: editor_scene.selection.clone(),
+                            editor_scene,
                             resource_manager: engine.resource_manager.clone(),
-                            physics: &mut editor_scene.physics,
                         });
                         needs_sync = true;
                     }
@@ -1051,18 +1049,14 @@ impl Editor {
                         self.command_stack.redo(SceneContext {
                             scene: &mut engine.scenes[editor_scene.scene],
                             message_sender: self.message_sender.clone(),
-                            current_selection: editor_scene.selection.clone(),
+                            editor_scene,
                             resource_manager: engine.resource_manager.clone(),
-                            physics: &mut editor_scene.physics,
                         });
                         needs_sync = true;
                     }
                 }
-                Message::SetSelection(selection) => {
-                    if let Some(editor_scene) = self.scene.as_mut() {
-                        editor_scene.selection = selection;
-                        needs_sync = true;
-                    }
+                Message::SelectionChanged => {
+                    // Do nothing.
                 }
                 Message::SaveScene(path) => {
                     if let Some(editor_scene) = self.scene.as_mut() {
