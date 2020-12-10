@@ -75,6 +75,9 @@ pub enum SceneCommand {
     SetColliderRotation(SetColliderRotationCommand),
     SetCylinderHalfHeight(SetCylinderHalfHeightCommand),
     SetCylinderRadius(SetCylinderRadiusCommand),
+    SetCapsuleRadius(SetCapsuleRadiusCommand),
+    SetCapsuleBegin(SetCapsuleBeginCommand),
+    SetCapsuleEnd(SetCapsuleEndCommand),
     SetConeHalfHeight(SetConeHalfHeightCommand),
     SetConeRadius(SetConeRadiusCommand),
     SetCuboidHalfExtents(SetCuboidHalfExtentsCommand),
@@ -129,6 +132,9 @@ macro_rules! static_dispatch {
             SceneCommand::SetColliderRotation(v) => v.$func($($args),*),
             SceneCommand::SetCylinderHalfHeight(v) => v.$func($($args),*),
             SceneCommand::SetCylinderRadius(v) => v.$func($($args),*),
+            SceneCommand::SetCapsuleRadius(v) => v.$func($($args),*),
+            SceneCommand::SetCapsuleBegin(v) => v.$func($($args),*),
+            SceneCommand::SetCapsuleEnd(v) => v.$func($($args),*),
             SceneCommand::SetConeHalfHeight(v) => v.$func($($args),*),
             SceneCommand::SetConeRadius(v) => v.$func($($args),*),
             SceneCommand::SetCuboidHalfExtents(v) => v.$func($($args),*),
@@ -1234,10 +1240,37 @@ define_simple_collider_command!(SetConeRadiusCommand, "Set Cone Radius", f32 => 
     }
 });
 
-define_simple_collider_command!(SetCuboidHalfExtentsCommand, "Set Cone Radius", Vector3<f32> => |this: &mut SetCuboidHalfExtentsCommand, physics: &mut Physics| {
+define_simple_collider_command!(SetCuboidHalfExtentsCommand, "Set Cuboid Half Extents", Vector3<f32> => |this: &mut SetCuboidHalfExtentsCommand, physics: &mut Physics| {
     let collider = &mut physics.colliders[this.handle];
     if let ColliderShapeDesc::Cuboid(cuboid) = &mut collider.shape {
         std::mem::swap(&mut cuboid.half_extents, &mut this.value);
+    } else {
+        unreachable!();
+    }
+});
+
+define_simple_collider_command!(SetCapsuleRadiusCommand, "Set Capsule Radius", f32 => |this: &mut SetCapsuleRadiusCommand, physics: &mut Physics| {
+    let collider = &mut physics.colliders[this.handle];
+    if let ColliderShapeDesc::Capsule(capsule) = &mut collider.shape {
+        std::mem::swap(&mut capsule.radius, &mut this.value);
+    } else {
+        unreachable!();
+    }
+});
+
+define_simple_collider_command!(SetCapsuleBeginCommand, "Set Capsule Begin", Vector3<f32> => |this: &mut SetCapsuleBeginCommand, physics: &mut Physics| {
+    let collider = &mut physics.colliders[this.handle];
+    if let ColliderShapeDesc::Capsule(capsule) = &mut collider.shape {
+        std::mem::swap(&mut capsule.begin, &mut this.value);
+    } else {
+        unreachable!();
+    }
+});
+
+define_simple_collider_command!(SetCapsuleEndCommand, "Set Capsule End", Vector3<f32> => |this: &mut SetCapsuleEndCommand, physics: &mut Physics| {
+    let collider = &mut physics.colliders[this.handle];
+    if let ColliderShapeDesc::Capsule(capsule) = &mut collider.shape {
+        std::mem::swap(&mut capsule.end, &mut this.value);
     } else {
         unreachable!();
     }

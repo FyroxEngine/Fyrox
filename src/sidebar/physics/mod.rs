@@ -1,3 +1,4 @@
+use crate::sidebar::physics::capsule::CapsuleSection;
 use crate::sidebar::physics::collider::ColliderSection;
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
@@ -52,6 +53,7 @@ pub struct PhysicsSection {
     pub cylinder_section: CylinderSection,
     pub cone_section: ConeSection,
     pub cuboid_section: CuboidSection,
+    pub capsule_section: CapsuleSection,
 }
 
 impl PhysicsSection {
@@ -118,6 +120,7 @@ impl PhysicsSection {
             cylinder_section: CylinderSection::new(ctx, sender.clone()),
             cone_section: ConeSection::new(ctx, sender.clone()),
             cuboid_section: CuboidSection::new(ctx, sender.clone()),
+            capsule_section: CapsuleSection::new(ctx, sender.clone()),
             section,
             body,
             collider,
@@ -168,6 +171,7 @@ impl PhysicsSection {
                 toggle_visibility(ui, self.cylinder_section.section, false);
                 toggle_visibility(ui, self.cone_section.section, false);
                 toggle_visibility(ui, self.cuboid_section.section, false);
+                toggle_visibility(ui, self.capsule_section.section, false);
                 toggle_visibility(ui, self.body_section.section, false);
 
                 if let Some(&body_handle) = editor_scene.physics.binder.get(&node_handle) {
@@ -202,7 +206,11 @@ impl PhysicsSection {
                                     self.cuboid_section.sync_to_model(cuboid, ui);
                                     4
                                 }
-                                ColliderShapeDesc::Capsule(_) => 5,
+                                ColliderShapeDesc::Capsule(capsule) => {
+                                    toggle_visibility(ui, self.capsule_section.section, true);
+                                    self.capsule_section.sync_to_model(capsule, ui);
+                                    5
+                                }
                                 ColliderShapeDesc::Segment(_) => 6,
                                 ColliderShapeDesc::Triangle(_) => 7,
                                 ColliderShapeDesc::Trimesh(_) => 8,
@@ -262,7 +270,10 @@ impl PhysicsSection {
                             self.cuboid_section
                                 .handle_message(message, cuboid, collider.into());
                         }
-                        ColliderShapeDesc::Capsule(_) => {}
+                        ColliderShapeDesc::Capsule(capsule) => {
+                            self.capsule_section
+                                .handle_message(message, capsule, collider.into());
+                        }
                         ColliderShapeDesc::Segment(_) => {}
                         ColliderShapeDesc::Triangle(_) => {}
                         ColliderShapeDesc::Trimesh(_) => {}
