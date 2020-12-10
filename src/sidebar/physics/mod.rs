@@ -189,7 +189,10 @@ impl PhysicsSection {
                     if let Some(&collider) = body.colliders.get(0) {
                         let collider_index =
                             match &editor_scene.physics.colliders[collider.into()].shape {
-                                ColliderShapeDesc::Ball(_) => 0,
+                                ColliderShapeDesc::Ball(_) => {
+                                    // TODO
+                                    0
+                                }
                                 ColliderShapeDesc::Cylinder(cylinder) => {
                                     toggle_visibility(ui, self.cylinder_section.section, true);
                                     self.cylinder_section.sync_to_model(cylinder, ui);
@@ -211,10 +214,22 @@ impl PhysicsSection {
                                     self.capsule_section.sync_to_model(capsule, ui);
                                     5
                                 }
-                                ColliderShapeDesc::Segment(_) => 6,
-                                ColliderShapeDesc::Triangle(_) => 7,
-                                ColliderShapeDesc::Trimesh(_) => 8,
-                                ColliderShapeDesc::Heightfield(_) => 9,
+                                ColliderShapeDesc::Segment(_) => {
+                                    // TODO
+                                    6
+                                }
+                                ColliderShapeDesc::Triangle(_) => {
+                                    // TODO
+                                    7
+                                }
+                                ColliderShapeDesc::Trimesh(_) => {
+                                    // Nothing to edit.
+                                    8
+                                }
+                                ColliderShapeDesc::Heightfield(_) => {
+                                    // TODO
+                                    9
+                                }
                             };
                         ui.send_message(DropdownListMessage::selection(
                             self.collider,
@@ -253,7 +268,9 @@ impl PhysicsSection {
 
                 if let Some(&collider) = body.colliders.get(0) {
                     match &editor_scene.physics.colliders[collider.into()].shape {
-                        ColliderShapeDesc::Ball(_) => {}
+                        ColliderShapeDesc::Ball(_) => {
+                            // TODO
+                        }
                         ColliderShapeDesc::Cylinder(cylinder) => {
                             self.cylinder_section.handle_message(
                                 message,
@@ -261,7 +278,9 @@ impl PhysicsSection {
                                 collider.into(),
                             );
                         }
-                        ColliderShapeDesc::RoundCylinder(_) => {}
+                        ColliderShapeDesc::RoundCylinder(_) => {
+                            // TODO
+                        }
                         ColliderShapeDesc::Cone(cone) => {
                             self.cone_section
                                 .handle_message(message, cone, collider.into());
@@ -274,10 +293,18 @@ impl PhysicsSection {
                             self.capsule_section
                                 .handle_message(message, capsule, collider.into());
                         }
-                        ColliderShapeDesc::Segment(_) => {}
-                        ColliderShapeDesc::Triangle(_) => {}
-                        ColliderShapeDesc::Trimesh(_) => {}
-                        ColliderShapeDesc::Heightfield(_) => {}
+                        ColliderShapeDesc::Segment(_) => {
+                            // TODO
+                        }
+                        ColliderShapeDesc::Triangle(_) => {
+                            // TODO
+                        }
+                        ColliderShapeDesc::Trimesh(_) => {
+                            // Nothing to edit.
+                        }
+                        ColliderShapeDesc::Heightfield(_) => {
+                            // TODO
+                        }
                     };
                 }
             }

@@ -66,10 +66,6 @@ let scene_handle = engine.scenes.add(scene);
 
 ```
 
-## Goals
-
-- Current goal is to make editor suitable to edit scenes for [rusty-shooter](https://github.com/mrDIMAS/rusty-shooter). 
-
 ## Plan
 
 - [x] Interaction modes.

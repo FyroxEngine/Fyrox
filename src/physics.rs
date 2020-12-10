@@ -1,3 +1,4 @@
+use rg3d::scene::physics::{JointDesc, JointParamsDesc};
 use rg3d::{
     core::{
         algebra::{Isometry3, Point3, Translation3},
@@ -17,6 +18,7 @@ use std::collections::HashMap;
 
 pub type RigidBody = RigidBodyDesc<ErasedHandle>;
 pub type Collider = ColliderDesc<ErasedHandle>;
+pub type Joint = JointDesc<ErasedHandle>;
 
 /// Editor uses its own data model for physics because engine's is not suitable
 /// for editor. Algorithm is very simple:
@@ -24,10 +26,16 @@ pub type Collider = ColliderDesc<ErasedHandle>;
 /// 2) Operate with editor's representation
 /// 3) On save: convert physics back to engine representation and save.
 /// This works ok because we don't need physics simulation while editing scene.
+///
+/// We using Pool to store descriptors because it allows to temporarily move
+/// object out, reserving entry for later re-use. This is very handy because
+/// handles are not invalidating during this process and it works perfectly
+/// with undo/redo.  
 #[derive(Default)]
 pub struct Physics {
     pub bodies: Pool<RigidBody>,
     pub colliders: Pool<Collider>,
+    pub joints: Pool<Joint>,
     pub binder: HashMap<Handle<Node>, Handle<RigidBody>>,
 }
 
@@ -37,7 +45,6 @@ impl Physics {
         dbg!(scene.physics.colliders.len());
 
         let mut bodies: Pool<RigidBody> = Default::default();
-
         let mut body_map = HashMap::new();
 
         for (h, b) in scene.physics.bodies.iter() {
@@ -57,7 +64,6 @@ impl Physics {
         }
 
         let mut colliders: Pool<Collider> = Default::default();
-
         let mut collider_map = HashMap::new();
 
         for (h, c) in scene.physics.colliders.iter() {
@@ -89,6 +95,16 @@ impl Physics {
                 .collect()
         }
 
+        let mut joints: Pool<Joint> = Pool::new();
+
+        for (_, j) in scene.physics.joints.iter() {
+            let _ = joints.spawn(JointDesc {
+                body1: ErasedHandle::from(*body_map.get(&j.body1.into()).unwrap()),
+                body2: ErasedHandle::from(*body_map.get(&j.body2.into()).unwrap()),
+                params: JointParamsDesc::from_params(&j.params),
+            });
+        }
+
         let mut binder = HashMap::new();
 
         for (&node, body) in scene.physics_binder.node_rigid_body_map.iter() {
@@ -97,11 +113,13 @@ impl Physics {
 
         dbg!(&bodies);
         dbg!(&colliders);
+        dbg!(&joints);
         dbg!(&binder);
 
         Self {
             bodies,
             colliders,
+            joints,
             binder,
         }
     }
@@ -191,10 +209,21 @@ impl Physics {
             binder.insert(node, *body_map.get(body).unwrap());
         }
 
+        let joints = self
+            .joints
+            .iter()
+            .map(|j| JointDesc {
+                body1: *body_map.get(&j.body1.into()).unwrap(),
+                body2: *body_map.get(&j.body2.into()).unwrap(),
+                params: j.params.clone(),
+            })
+            .collect();
+
         (
             PhysicsDesc {
                 colliders,
                 bodies,
+                joints,
                 ..Default::default()
             },
             binder,
