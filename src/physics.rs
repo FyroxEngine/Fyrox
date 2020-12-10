@@ -297,27 +297,33 @@ impl Physics {
                             break;
                         }
                     }
+
                     if node.is_some() {
-                        if let Node::Mesh(mesh) = &graph[node] {
-                            // Trimesh's transform is special - it has transform baked into vertices.
-                            // We have to emulate it here.
-                            let transform = mesh.global_transform();
-                            for surface in mesh.surfaces() {
-                                let data = surface.data();
-                                let data = data.read().unwrap();
-                                for triangle in data.triangles() {
-                                    let a = transform.transform_point(&Point3::from(
-                                        data.get_vertices()[triangle[0] as usize].position,
-                                    ));
-                                    let b = transform.transform_point(&Point3::from(
-                                        data.get_vertices()[triangle[1] as usize].position,
-                                    ));
-                                    let c = transform.transform_point(&Point3::from(
-                                        data.get_vertices()[triangle[2] as usize].position,
-                                    ));
-                                    context.draw_triangle(a.coords, b.coords, c.coords, color);
+                        let mut stack = vec![node];
+                        while let Some(handle) = stack.pop() {
+                            let node = &graph[handle];
+                            if let Node::Mesh(mesh) = node {
+                                // Trimesh's transform is special - it has transform baked into vertices.
+                                // We have to emulate it here.
+                                let transform = mesh.global_transform();
+                                for surface in mesh.surfaces() {
+                                    let data = surface.data();
+                                    let data = data.read().unwrap();
+                                    for triangle in data.triangles() {
+                                        let a = transform.transform_point(&Point3::from(
+                                            data.get_vertices()[triangle[0] as usize].position,
+                                        ));
+                                        let b = transform.transform_point(&Point3::from(
+                                            data.get_vertices()[triangle[1] as usize].position,
+                                        ));
+                                        let c = transform.transform_point(&Point3::from(
+                                            data.get_vertices()[triangle[2] as usize].position,
+                                        ));
+                                        context.draw_triangle(a.coords, b.coords, c.coords, color);
+                                    }
                                 }
                             }
+                            stack.extend_from_slice(node.children());
                         }
                     }
                 }
