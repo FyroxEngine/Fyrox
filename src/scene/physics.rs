@@ -11,8 +11,8 @@ use crate::{
     },
     physics::math::AngVector,
     scene::{
-        graph::Graph, mesh::Mesh, node::Node, ColliderHandle, JointHandle, PhysicsBinder,
-        RigidBodyHandle, SceneDrawingContext,
+        graph::Graph, node::Node, ColliderHandle, JointHandle, PhysicsBinder, RigidBodyHandle,
+        SceneDrawingContext,
     },
     utils::{
         log::Log,
@@ -344,48 +344,68 @@ impl Physics {
         }
     }
 
-    /// Creates new trimesh collider shape from given mesh node. It also bakes global transform into
-    /// vertices of trimesh.
-    pub fn make_trimesh(mesh: &Mesh) -> ColliderShape {
+    /// Creates new trimesh collider shape from given mesh node. It also bakes scale into
+    /// vertices of trimesh because rapier does not support collider scaling yet.
+    pub fn make_trimesh(root: Handle<Node>, graph: &Graph) -> ColliderShape {
         let mut mesh_builder = RawMeshBuilder::new(0, 0);
 
-        let mut global_transform = mesh.global_transform();
+        // Create inverse transform that will discard rotation and translation, but leave scaling and
+        // other parameters of global transform.
+        // When global transform of node is combined with this transform, we'll get relative transform
+        // with scale baked in. We need to do this because root's transform will be synced with body's
+        // but we don't want to bake entire transform including root's transform.
+        let root_inv_transform = graph
+            .isometric_global_transform(root)
+            .try_inverse()
+            .unwrap();
 
-        global_transform.data[12] = 0.0;
-        global_transform.data[13] = 0.0;
-        global_transform.data[14] = 0.0;
+        // Iterate over hierarchy of nodes and build one single trimesh.
+        let mut stack = vec![root];
+        while let Some(handle) = stack.pop() {
+            let node = &graph[handle];
+            if let Node::Mesh(mesh) = node {
+                let global_transform = root_inv_transform * mesh.global_transform();
 
-        for surface in mesh.surfaces() {
-            let shared_data = surface.data();
-            let shared_data = shared_data.read().unwrap();
+                for surface in mesh.surfaces() {
+                    let shared_data = surface.data();
+                    let shared_data = shared_data.read().unwrap();
 
-            let vertices = shared_data.get_vertices();
-            for triangle in shared_data.triangles() {
-                let a = RawVertex::from(
-                    global_transform
-                        .transform_point(&Point3::from(vertices[triangle[0] as usize].position))
-                        .coords,
-                );
-                let b = RawVertex::from(
-                    global_transform
-                        .transform_point(&Point3::from(vertices[triangle[1] as usize].position))
-                        .coords,
-                );
-                let c = RawVertex::from(
-                    global_transform
-                        .transform_point(&Point3::from(vertices[triangle[2] as usize].position))
-                        .coords,
-                );
+                    let vertices = shared_data.get_vertices();
+                    for triangle in shared_data.triangles() {
+                        let a = RawVertex::from(
+                            global_transform
+                                .transform_point(&Point3::from(
+                                    vertices[triangle[0] as usize].position,
+                                ))
+                                .coords,
+                        );
+                        let b = RawVertex::from(
+                            global_transform
+                                .transform_point(&Point3::from(
+                                    vertices[triangle[1] as usize].position,
+                                ))
+                                .coords,
+                        );
+                        let c = RawVertex::from(
+                            global_transform
+                                .transform_point(&Point3::from(
+                                    vertices[triangle[2] as usize].position,
+                                ))
+                                .coords,
+                        );
 
-                mesh_builder.insert(a);
-                mesh_builder.insert(b);
-                mesh_builder.insert(c);
+                        mesh_builder.insert(a);
+                        mesh_builder.insert(b);
+                        mesh_builder.insert(c);
+                    }
+                }
             }
+            stack.extend_from_slice(node.children.as_slice());
         }
 
         let raw_mesh = mesh_builder.build();
 
-        let vertices = raw_mesh
+        let vertices: Vec<Point3<f32>> = raw_mesh
             .vertices
             .into_iter()
             .map(|v| Point3::new(v.x, v.y, v.z))
@@ -408,12 +428,17 @@ impl Physics {
     /// data. So if given mesh was at some position with any rotation and scale
     /// resulting static geometry will have vertices that exactly matches given
     /// mesh.
-    pub fn mesh_to_trimesh(&mut self, mesh: &Mesh) -> RigidBodyHandle {
-        let shape = Self::make_trimesh(mesh);
+    pub fn mesh_to_trimesh(&mut self, root: Handle<Node>, graph: &Graph) -> RigidBodyHandle {
+        let shape = Self::make_trimesh(root, graph);
         let tri_mesh = ColliderBuilder::new(shape).friction(0.0).build();
-        let position = mesh.global_position();
+        let (global_rotation, global_position) = graph.isometric_global_rotation_position(root);
         let body = RigidBodyBuilder::new(BodyStatus::Static)
-            .translation(position.x, position.y, position.z)
+            .position(Isometry3 {
+                rotation: global_rotation,
+                translation: Translation {
+                    vector: global_position,
+                },
+            })
             .build();
         let handle = self.bodies.insert(body);
         self.colliders.insert(tri_mesh, handle, &mut self.bodies);
@@ -484,22 +509,20 @@ impl Physics {
                 // one from associated mesh in the scene.
                 if let Some(associated_node) = binder.node_of(desc.parent) {
                     if graph.is_valid_handle(associated_node) {
-                        if let Node::Mesh(mesh) = &graph[associated_node] {
-                            // Restore data only for trimeshes.
-                            let collider = ColliderBuilder::new(Self::make_trimesh(mesh)).build();
-                            self.colliders
-                                .insert(collider, desc.parent.into(), &mut self.bodies);
+                        // Restore data only for trimeshes.
+                        let collider =
+                            ColliderBuilder::new(Self::make_trimesh(associated_node, graph))
+                                .build();
+                        self.colliders
+                            .insert(collider, desc.parent.into(), &mut self.bodies);
 
-                            Log::writeln(
-                                MessageKind::Information,
-                                format!(
+                        Log::writeln(
+                            MessageKind::Information,
+                            format!(
                                 "Geometry for trimesh {:?} was restored from node at handle {:?}!",
                                 desc.parent, associated_node
                             ),
-                            )
-                        } else {
-                            Log::writeln(MessageKind::Error,format!("Unable to get geometry for trimesh, node at handle {:?} is not a mesh!", associated_node))
-                        }
+                        )
                     } else {
                         Log::writeln(MessageKind::Error,format!("Unable to get geometry for trimesh, node at handle {:?} does not exists!", associated_node))
                     }
@@ -559,27 +582,23 @@ impl Physics {
                 (desc.shape, target_binder.node_of(remapped_parent))
             {
                 if target_graph.is_valid_handle(associated_node) {
-                    if let Node::Mesh(mesh) = &target_graph[associated_node] {
-                        // Restore data only for trimeshes.
-                        let collider = ColliderBuilder::new(Self::make_trimesh(mesh)).build();
-                        let new_handle = self.colliders.insert(
-                            collider,
-                            remapped_parent.into(),
-                            &mut self.bodies,
-                        );
-                        link.colliders
-                            .insert(new_handle.into(), resource_handle.into());
+                    // Restore data only for trimeshes.
+                    let collider =
+                        ColliderBuilder::new(Self::make_trimesh(associated_node, target_graph))
+                            .build();
+                    let new_handle =
+                        self.colliders
+                            .insert(collider, remapped_parent.into(), &mut self.bodies);
+                    link.colliders
+                        .insert(new_handle.into(), resource_handle.into());
 
-                        Log::writeln(
-                            MessageKind::Information,
-                            format!(
-                                "Geometry for trimesh {:?} was restored from node at handle {:?}!",
-                                desc.parent, associated_node
-                            ),
-                        )
-                    } else {
-                        Log::writeln(MessageKind::Error,format!("Unable to get geometry for trimesh, node at handle {:?} is not a mesh!", associated_node))
-                    }
+                    Log::writeln(
+                        MessageKind::Information,
+                        format!(
+                            "Geometry for trimesh {:?} was restored from node at handle {:?}!",
+                            desc.parent, associated_node
+                        ),
+                    )
                 } else {
                     Log::writeln(MessageKind::Error,format!("Unable to get geometry for trimesh, node at handle {:?} does not exists!", associated_node))
                 }

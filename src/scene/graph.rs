@@ -24,6 +24,7 @@
 
 use crate::core::algebra::{Matrix4, UnitQuaternion, Vector2, Vector3};
 use crate::core::math::Matrix4Ext;
+use crate::scene::transform::TransformBuilder;
 use crate::utils::log::MessageKind;
 use crate::{
     core::{
@@ -703,6 +704,28 @@ impl Graph {
         }
     }
 
+    /// Returns isometric local transformation matrix of a node. Such transform has
+    /// only translation and rotation.
+    pub fn isometric_local_transform(&self, node: Handle<Node>) -> Matrix4<f32> {
+        let transform = self[node].local_transform();
+        TransformBuilder::new()
+            .with_local_position(transform.position())
+            .with_local_rotation(transform.rotation())
+            .build()
+            .matrix()
+    }
+
+    /// Returns world transformation matrix of a node only.  Such transform has
+    /// only translation and rotation.
+    pub fn isometric_global_transform(&self, node: Handle<Node>) -> Matrix4<f32> {
+        let parent = self[node].parent();
+        if parent.is_some() {
+            self.isometric_global_transform(parent) * self.isometric_local_transform(node)
+        } else {
+            self.isometric_local_transform(node)
+        }
+    }
+
     /// Returns global scale matrix of a node.
     pub fn global_scale_matrix(&self, node: Handle<Node>) -> Matrix4<f32> {
         let node = &self[node];
@@ -721,12 +744,30 @@ impl Graph {
         ))
     }
 
+    /// Returns rotation quaternion of a node in world coordinates without pre- and post-rotations.
+    pub fn isometric_global_rotation(&self, node: Handle<Node>) -> UnitQuaternion<f32> {
+        UnitQuaternion::from(Rotation3::from_matrix(
+            &self.isometric_global_transform(node).basis(),
+        ))
+    }
+
     /// Returns rotation quaternion and position of a node in world coordinates, scale is eliminated.
     pub fn global_rotation_position_no_scale(
         &self,
         node: Handle<Node>,
     ) -> (UnitQuaternion<f32>, Vector3<f32>) {
         (self.global_rotation(node), self[node].global_position())
+    }
+
+    /// Returns isometric global rotation and position.
+    pub fn isometric_global_rotation_position(
+        &self,
+        node: Handle<Node>,
+    ) -> (UnitQuaternion<f32>, Vector3<f32>) {
+        (
+            self.isometric_global_rotation(node),
+            self[node].global_position(),
+        )
     }
 
     /// Returns global scale of a node.

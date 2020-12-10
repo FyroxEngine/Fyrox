@@ -744,6 +744,8 @@ pub trait Vector3Ext {
     fn follow(&mut self, other: &Self, fraction: f32);
 
     fn sqr_distance(&self, other: &Self) -> f32;
+
+    fn non_uniform_scale(&self, other: &Self) -> Self;
 }
 
 impl Vector3Ext for Vector3<f32> {
@@ -755,6 +757,10 @@ impl Vector3Ext for Vector3<f32> {
 
     fn sqr_distance(&self, other: &Self) -> f32 {
         (self - other).norm_squared()
+    }
+
+    fn non_uniform_scale(&self, other: &Self) -> Self {
+        Self::new(self.x * other.x, self.y * other.y, self.z * other.z)
     }
 }
 
