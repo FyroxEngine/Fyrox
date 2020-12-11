@@ -1,3 +1,4 @@
+use crate::sidebar::physics::ball::BallSection;
 use crate::sidebar::physics::capsule::CapsuleSection;
 use crate::sidebar::physics::collider::ColliderSection;
 use crate::{
@@ -32,6 +33,7 @@ use rg3d::{
 };
 use std::sync::mpsc::Sender;
 
+mod ball;
 mod body;
 mod capsule;
 mod collider;
@@ -54,6 +56,7 @@ pub struct PhysicsSection {
     pub cone_section: ConeSection,
     pub cuboid_section: CuboidSection,
     pub capsule_section: CapsuleSection,
+    pub ball_section: BallSection,
 }
 
 impl PhysicsSection {
@@ -121,6 +124,7 @@ impl PhysicsSection {
             cone_section: ConeSection::new(ctx, sender.clone()),
             cuboid_section: CuboidSection::new(ctx, sender.clone()),
             capsule_section: CapsuleSection::new(ctx, sender.clone()),
+            ball_section: BallSection::new(ctx, sender.clone()),
             section,
             body,
             collider,
@@ -172,6 +176,7 @@ impl PhysicsSection {
                 toggle_visibility(ui, self.cone_section.section, false);
                 toggle_visibility(ui, self.cuboid_section.section, false);
                 toggle_visibility(ui, self.capsule_section.section, false);
+                toggle_visibility(ui, self.ball_section.section, false);
                 toggle_visibility(ui, self.body_section.section, false);
 
                 if let Some(&body_handle) = editor_scene.physics.binder.get(&node_handle) {
@@ -189,8 +194,9 @@ impl PhysicsSection {
                     if let Some(&collider) = body.colliders.get(0) {
                         let collider_index =
                             match &editor_scene.physics.colliders[collider.into()].shape {
-                                ColliderShapeDesc::Ball(_) => {
-                                    // TODO
+                                ColliderShapeDesc::Ball(ball) => {
+                                    toggle_visibility(ui, self.ball_section.section, true);
+                                    self.ball_section.sync_to_model(ball, ui);
                                     0
                                 }
                                 ColliderShapeDesc::Cylinder(cylinder) => {
@@ -268,8 +274,9 @@ impl PhysicsSection {
 
                 if let Some(&collider) = body.colliders.get(0) {
                     match &editor_scene.physics.colliders[collider.into()].shape {
-                        ColliderShapeDesc::Ball(_) => {
-                            // TODO
+                        ColliderShapeDesc::Ball(ball) => {
+                            self.ball_section
+                                .handle_message(message, ball, collider.into());
                         }
                         ColliderShapeDesc::Cylinder(cylinder) => {
                             self.cylinder_section.handle_message(

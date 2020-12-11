@@ -80,6 +80,7 @@ pub enum SceneCommand {
     SetCapsuleEnd(SetCapsuleEndCommand),
     SetConeHalfHeight(SetConeHalfHeightCommand),
     SetConeRadius(SetConeRadiusCommand),
+    SetBallRadius(SetBallRadiusCommand),
     SetCuboidHalfExtents(SetCuboidHalfExtentsCommand),
     DeleteBody(DeleteBodyCommand),
     DeleteCollider(DeleteColliderCommand),
@@ -137,6 +138,7 @@ macro_rules! static_dispatch {
             SceneCommand::SetCapsuleEnd(v) => v.$func($($args),*),
             SceneCommand::SetConeHalfHeight(v) => v.$func($($args),*),
             SceneCommand::SetConeRadius(v) => v.$func($($args),*),
+            SceneCommand::SetBallRadius(v) => v.$func($($args),*),
             SceneCommand::SetCuboidHalfExtents(v) => v.$func($($args),*),
             SceneCommand::DeleteBody(v) => v.$func($($args),*),
             SceneCommand::DeleteCollider(v) => v.$func($($args),*),
@@ -1271,6 +1273,15 @@ define_simple_collider_command!(SetCapsuleEndCommand, "Set Capsule End", Vector3
     let collider = &mut physics.colliders[this.handle];
     if let ColliderShapeDesc::Capsule(capsule) = &mut collider.shape {
         std::mem::swap(&mut capsule.end, &mut this.value);
+    } else {
+        unreachable!();
+    }
+});
+
+define_simple_collider_command!(SetBallRadiusCommand, "Set Ball Radius", f32 => |this: &mut SetBallRadiusCommand, physics: &mut Physics| {
+    let collider = &mut physics.colliders[this.handle];
+    if let ColliderShapeDesc::Ball(ball) = &mut collider.shape {
+        std::mem::swap(&mut ball.radius, &mut this.value);
     } else {
         unreachable!();
     }

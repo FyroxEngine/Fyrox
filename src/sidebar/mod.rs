@@ -199,6 +199,7 @@ impl SideBar {
                                     physics_section.cone_section.section,
                                     physics_section.cuboid_section.section,
                                     physics_section.capsule_section.section,
+                                    physics_section.ball_section.section,
                                 ]),
                             )
                             .build(ctx),
