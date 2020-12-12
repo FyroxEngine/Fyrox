@@ -728,14 +728,14 @@ fn generate_lightmap(
                                             for &triangle_index in indices {
                                                 let triangle =
                                                     &other_data.triangles[triangle_index as usize];
-                                                let a = other_data.vertices[triangle[0] as usize]
+                                                let va = other_data.vertices[triangle[0] as usize]
                                                     .world_position;
-                                                let b = other_data.vertices[triangle[1] as usize]
+                                                let vb = other_data.vertices[triangle[1] as usize]
                                                     .world_position;
-                                                let c = other_data.vertices[triangle[2] as usize]
+                                                let vc = other_data.vertices[triangle[2] as usize]
                                                     .world_position;
                                                 if let Some(pt) =
-                                                    ray.triangle_intersection(&[a, b, c])
+                                                    ray.triangle_intersection(&[va, vb, vc])
                                                 {
                                                     if ray.origin.metric_distance(&pt) + shadow_bias
                                                         < ray.dir.norm()

@@ -1,5 +1,7 @@
 //! 3D Game Engine.
 
+#![allow(clippy::too_many_arguments)]
+
 extern crate glutin;
 extern crate image;
 extern crate inflate;
