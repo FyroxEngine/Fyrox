@@ -25,6 +25,7 @@ pub struct DropdownList<M: MessageData, C: Control<M, C>> {
     list_view: Handle<UINode<M, C>>,
     current: Handle<UINode<M, C>>,
     selection: Option<usize>,
+    close_on_selection: bool,
 }
 
 crate::define_widget_deref!(DropdownList<M, C>);
@@ -118,6 +119,13 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for DropdownList<M, C> {
                                 self.current = Handle::NONE;
                             }
 
+                            if self.close_on_selection {
+                                ui.send_message(PopupMessage::close(
+                                    self.popup,
+                                    MessageDirection::ToWidget,
+                                ));
+                            }
+
                             ui.send_message(message.reverse());
                         }
                     }
@@ -148,6 +156,7 @@ pub struct DropdownListBuilder<M: MessageData, C: Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     items: Vec<Handle<UINode<M, C>>>,
     selected: usize,
+    close_on_selection: bool,
 }
 
 impl<M: MessageData, C: Control<M, C>> DropdownListBuilder<M, C> {
@@ -156,6 +165,7 @@ impl<M: MessageData, C: Control<M, C>> DropdownListBuilder<M, C> {
             widget_builder,
             items: Default::default(),
             selected: 0,
+            close_on_selection: false,
         }
     }
 
@@ -166,6 +176,11 @@ impl<M: MessageData, C: Control<M, C>> DropdownListBuilder<M, C> {
 
     pub fn with_selected(mut self, index: usize) -> Self {
         self.selected = index;
+        self
+    }
+
+    pub fn with_close_on_selection(mut self, value: bool) -> Self {
+        self.close_on_selection = value;
         self
     }
 
@@ -198,6 +213,7 @@ impl<M: MessageData, C: Control<M, C>> DropdownListBuilder<M, C> {
             list_view: items_control,
             current,
             selection: Some(self.selected),
+            close_on_selection: self.close_on_selection,
         });
 
         ctx.add_node(dropdown_list)
