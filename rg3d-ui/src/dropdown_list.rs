@@ -73,11 +73,11 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for DropdownList<M, C> {
             {
                 match msg {
                     DropdownListMessage::Items(items) => {
-                        ListViewMessage::items(
+                        ui.send_message(ListViewMessage::items(
                             self.list_view,
                             MessageDirection::ToWidget,
                             items.clone(),
-                        );
+                        ));
                         self.items = items.clone();
                     }
                     &DropdownListMessage::AddItem(item) => {
