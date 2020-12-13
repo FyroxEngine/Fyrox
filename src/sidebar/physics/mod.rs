@@ -1,6 +1,5 @@
-use crate::sidebar::physics::ball::BallSection;
-use crate::sidebar::physics::capsule::CapsuleSection;
-use crate::sidebar::physics::collider::ColliderSection;
+use crate::physics::Joint;
+use crate::scene::{AddJointCommand, DeleteJointCommand};
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::{Collider, RigidBody},
@@ -11,20 +10,24 @@ use crate::{
     sidebar::{
         make_dropdown_list_option, make_text_mark,
         physics::{
-            body::BodySection, cone::ConeSection, cuboid::CuboidSection, cylinder::CylinderSection,
+            ball::BallSection, body::BodySection, capsule::CapsuleSection,
+            collider::ColliderSection, cone::ConeSection, cuboid::CuboidSection,
+            cylinder::CylinderSection, joint::JointSection,
         },
         COLUMN_WIDTH, ROW_HEIGHT,
     },
     GameEngine, Message,
 };
+use rg3d::scene::physics::{BallJointDesc, FixedJointDesc, JointParamsDesc, PrismaticJointDesc};
 use rg3d::{
     core::{algebra::Vector3, pool::Handle},
     gui::{
         dropdown_list::DropdownListBuilder,
         grid::{Column, GridBuilder, Row},
         message::{DropdownListMessage, MessageDirection, UiMessageData, WidgetMessage},
+        stack_panel::StackPanelBuilder,
         widget::WidgetBuilder,
-        Thickness,
+        Orientation, Thickness,
     },
     scene::physics::{
         BallDesc, BodyStatusDesc, CapsuleDesc, ColliderShapeDesc, ConeDesc, CuboidDesc,
@@ -40,6 +43,7 @@ mod collider;
 mod cone;
 mod cuboid;
 mod cylinder;
+mod joint;
 mod segment;
 mod triangle;
 mod trimesh;
@@ -49,6 +53,8 @@ pub struct PhysicsSection {
     body: Handle<UiNode>,
     collider: Handle<UiNode>,
     collider_text: Handle<UiNode>,
+    joint: Handle<UiNode>,
+    joint_text: Handle<UiNode>,
     sender: Sender<Message>,
     pub body_section: BodySection,
     pub collider_section: ColliderSection,
@@ -57,6 +63,7 @@ pub struct PhysicsSection {
     pub cuboid_section: CuboidSection,
     pub capsule_section: CapsuleSection,
     pub ball_section: BallSection,
+    pub joint_section: JointSection,
 }
 
 impl PhysicsSection {
@@ -64,72 +71,126 @@ impl PhysicsSection {
         let body;
         let collider;
         let collider_text;
-
-        let section = GridBuilder::new(
+        let joint;
+        let joint_text;
+        let body_section = BodySection::new(ctx, sender.clone());
+        let collider_section = ColliderSection::new(ctx, sender.clone());
+        let cylinder_section = CylinderSection::new(ctx, sender.clone());
+        let cone_section = ConeSection::new(ctx, sender.clone());
+        let cuboid_section = CuboidSection::new(ctx, sender.clone());
+        let capsule_section = CapsuleSection::new(ctx, sender.clone());
+        let ball_section = BallSection::new(ctx, sender.clone());
+        let joint_section = JointSection::new(ctx, sender.clone());
+        let section = StackPanelBuilder::new(
             WidgetBuilder::new()
-                .with_child(make_text_mark(ctx, "Body", 0))
-                .with_child({
-                    body = DropdownListBuilder::new(
+                .with_child(
+                    GridBuilder::new(
                         WidgetBuilder::new()
-                            .on_row(0)
-                            .on_column(1)
-                            .with_margin(Thickness::uniform(1.0)),
+                            .with_child(make_text_mark(ctx, "Body", 0))
+                            .with_child({
+                                body = DropdownListBuilder::new(
+                                    WidgetBuilder::new()
+                                        .on_row(0)
+                                        .on_column(1)
+                                        .with_margin(Thickness::uniform(1.0)),
+                                )
+                                .with_close_on_selection(true)
+                                .with_items(vec![
+                                    make_dropdown_list_option(ctx, "None"),
+                                    make_dropdown_list_option(ctx, "Dynamic"),
+                                    make_dropdown_list_option(ctx, "Static"),
+                                    make_dropdown_list_option(ctx, "Kinematic"),
+                                ])
+                                .build(ctx);
+                                body
+                            })
+                            .with_child({
+                                collider_text = make_text_mark(ctx, "Collider", 1);
+                                collider_text
+                            })
+                            .with_child({
+                                collider = DropdownListBuilder::new(
+                                    WidgetBuilder::new()
+                                        .on_row(1)
+                                        .on_column(1)
+                                        .with_margin(Thickness::uniform(1.0)),
+                                )
+                                .with_close_on_selection(true)
+                                .with_items(vec![
+                                    make_dropdown_list_option(ctx, "Ball"),
+                                    make_dropdown_list_option(ctx, "Cylinder"),
+                                    make_dropdown_list_option(ctx, "Round Cylinder"),
+                                    make_dropdown_list_option(ctx, "Cone"),
+                                    make_dropdown_list_option(ctx, "Cuboid"),
+                                    make_dropdown_list_option(ctx, "Capsule"),
+                                    make_dropdown_list_option(ctx, "Segment"),
+                                    make_dropdown_list_option(ctx, "Triangle"),
+                                    make_dropdown_list_option(ctx, "Trimesh"),
+                                    make_dropdown_list_option(ctx, "Heightfield"),
+                                ])
+                                .build(ctx);
+                                collider
+                            })
+                            .with_child({
+                                joint_text = make_text_mark(ctx, "Joint", 2);
+                                joint_text
+                            })
+                            .with_child({
+                                joint = DropdownListBuilder::new(
+                                    WidgetBuilder::new()
+                                        .on_row(2)
+                                        .on_column(1)
+                                        .with_margin(Thickness::uniform(1.0)),
+                                )
+                                .with_close_on_selection(true)
+                                .with_items(vec![
+                                    make_dropdown_list_option(ctx, "None"),
+                                    make_dropdown_list_option(ctx, "Ball Joint"),
+                                    make_dropdown_list_option(ctx, "Fixed Joint"),
+                                    make_dropdown_list_option(ctx, "Prismatic Joint"),
+                                    make_dropdown_list_option(ctx, "Revolute Joint"),
+                                ])
+                                .build(ctx);
+                                joint
+                            }),
                     )
-                    .with_items(vec![
-                        make_dropdown_list_option(ctx, "None"),
-                        make_dropdown_list_option(ctx, "Dynamic"),
-                        make_dropdown_list_option(ctx, "Static"),
-                        make_dropdown_list_option(ctx, "Kinematic"),
-                    ])
-                    .build(ctx);
-                    body
-                })
-                .with_child({
-                    collider_text = make_text_mark(ctx, "Collider", 1);
-                    collider_text
-                })
-                .with_child({
-                    collider = DropdownListBuilder::new(
-                        WidgetBuilder::new()
-                            .on_row(1)
-                            .on_column(1)
-                            .with_margin(Thickness::uniform(1.0)),
-                    )
-                    .with_items(vec![
-                        make_dropdown_list_option(ctx, "Ball"),
-                        make_dropdown_list_option(ctx, "Cylinder"),
-                        make_dropdown_list_option(ctx, "Round Cylinder"),
-                        make_dropdown_list_option(ctx, "Cone"),
-                        make_dropdown_list_option(ctx, "Cuboid"),
-                        make_dropdown_list_option(ctx, "Capsule"),
-                        make_dropdown_list_option(ctx, "Segment"),
-                        make_dropdown_list_option(ctx, "Triangle"),
-                        make_dropdown_list_option(ctx, "Trimesh"),
-                        make_dropdown_list_option(ctx, "Heightfield"),
-                    ])
-                    .build(ctx);
-                    collider
-                }),
+                    .add_column(Column::strict(COLUMN_WIDTH))
+                    .add_column(Column::stretch())
+                    .add_row(Row::strict(ROW_HEIGHT))
+                    .add_row(Row::strict(ROW_HEIGHT))
+                    .add_row(Row::strict(ROW_HEIGHT))
+                    .build(ctx),
+                )
+                .with_children(&[
+                    body_section.section,
+                    collider_section.section,
+                    cylinder_section.section,
+                    cone_section.section,
+                    cuboid_section.section,
+                    capsule_section.section,
+                    ball_section.section,
+                    joint_section.section,
+                ]),
         )
-        .add_column(Column::strict(COLUMN_WIDTH))
-        .add_column(Column::stretch())
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
+        .with_orientation(Orientation::Vertical)
         .build(ctx);
 
         Self {
-            body_section: BodySection::new(ctx, sender.clone()),
-            collider_section: ColliderSection::new(ctx, sender.clone()),
-            cylinder_section: CylinderSection::new(ctx, sender.clone()),
-            cone_section: ConeSection::new(ctx, sender.clone()),
-            cuboid_section: CuboidSection::new(ctx, sender.clone()),
-            capsule_section: CapsuleSection::new(ctx, sender.clone()),
-            ball_section: BallSection::new(ctx, sender.clone()),
+            body_section,
+            collider_section,
+            cylinder_section,
+            cone_section,
+            cuboid_section,
+            capsule_section,
+            ball_section,
             section,
             body,
             collider,
             collider_text,
             sender,
+            joint_section,
+            joint,
+            joint_text,
         }
     }
 
@@ -142,17 +203,28 @@ impl PhysicsSection {
                 let ui = &mut engine.user_interface;
 
                 // Sync physical body info.
-                let body_index =
-                    if let Some(&body_handle) = editor_scene.physics.binder.get(&node_handle) {
-                        let body = &editor_scene.physics.bodies[body_handle];
-                        match body.status {
-                            BodyStatusDesc::Dynamic => 1,
-                            BodyStatusDesc::Static => 2,
-                            BodyStatusDesc::Kinematic => 3,
-                        }
-                    } else {
-                        0
+                let mut body_index = 0;
+                let mut joint = Handle::NONE;
+                if let Some(&body_handle) = editor_scene.physics.binder.get(&node_handle) {
+                    let body = &editor_scene.physics.bodies[body_handle];
+                    body_index = match body.status {
+                        BodyStatusDesc::Dynamic => 1,
+                        BodyStatusDesc::Static => 2,
+                        BodyStatusDesc::Kinematic => 3,
                     };
+                    for (h, j) in editor_scene.physics.joints.pair_iter() {
+                        if j.body1 == body_handle.into() {
+                            joint = h;
+                            break;
+                        }
+                    }
+                }
+
+                ui.send_message(DropdownListMessage::selection(
+                    self.body,
+                    MessageDirection::ToWidget,
+                    Some(body_index),
+                ));
 
                 fn toggle_visibility(ui: &mut Ui, destination: Handle<UiNode>, value: bool) {
                     ui.send_message(WidgetMessage::visibility(
@@ -164,20 +236,45 @@ impl PhysicsSection {
 
                 toggle_visibility(ui, self.collider, body_index != 0);
                 toggle_visibility(ui, self.collider_text, body_index != 0);
+                toggle_visibility(ui, self.joint_text, body_index != 0);
+                toggle_visibility(ui, self.joint, body_index != 0);
+                toggle_visibility(ui, self.joint_section.section, joint.is_some());
                 toggle_visibility(ui, self.collider_section.section, false);
-
-                ui.send_message(DropdownListMessage::selection(
-                    self.body,
-                    MessageDirection::ToWidget,
-                    Some(body_index),
-                ));
-
                 toggle_visibility(ui, self.cylinder_section.section, false);
                 toggle_visibility(ui, self.cone_section.section, false);
                 toggle_visibility(ui, self.cuboid_section.section, false);
                 toggle_visibility(ui, self.capsule_section.section, false);
                 toggle_visibility(ui, self.ball_section.section, false);
                 toggle_visibility(ui, self.body_section.section, false);
+
+                if joint.is_some() {
+                    let joint = &editor_scene.physics.joints[joint];
+
+                    self.joint_section.sync_to_model(
+                        joint,
+                        &scene.graph,
+                        &editor_scene.physics.binder,
+                        ui,
+                    );
+
+                    let joint_index = match joint.params {
+                        JointParamsDesc::BallJoint(_) => 1,
+                        JointParamsDesc::FixedJoint(_) => 2,
+                        JointParamsDesc::PrismaticJoint(_) => 3,
+                        JointParamsDesc::RevoluteJoint(_) => 4,
+                    };
+                    ui.send_message(DropdownListMessage::selection(
+                        self.joint,
+                        MessageDirection::ToWidget,
+                        Some(joint_index),
+                    ));
+                } else {
+                    ui.send_message(DropdownListMessage::selection(
+                        self.joint,
+                        MessageDirection::ToWidget,
+                        Some(0),
+                    ));
+                }
 
                 if let Some(&body_handle) = editor_scene.physics.binder.get(&node_handle) {
                     let body = &editor_scene.physics.bodies[body_handle];
@@ -313,6 +410,22 @@ impl PhysicsSection {
                             // TODO
                         }
                     };
+                }
+
+                let mut joint = Handle::NONE;
+                for (h, j) in editor_scene.physics.joints.pair_iter() {
+                    if j.body1 == body_handle.into() {
+                        joint = h;
+                        break;
+                    }
+                }
+
+                if joint.is_some() {
+                    self.joint_section.handle_message(
+                        message,
+                        &editor_scene.physics.joints[joint],
+                        joint,
+                    );
                 }
             }
 
@@ -508,6 +621,94 @@ impl PhysicsSection {
                                     commands.push(SceneCommand::SetCollider(
                                         SetColliderCommand::new(body, collider),
                                     ));
+                                    self.sender
+                                        .send(Message::DoSceneCommand(SceneCommand::CommandGroup(
+                                            CommandGroup::from(commands),
+                                        )))
+                                        .unwrap();
+                                }
+                            }
+                        } else if message.destination() == self.joint {
+                            if let Some(&body_handle) =
+                                editor_scene.physics.binder.get(&node_handle)
+                            {
+                                let mut joint = Handle::NONE;
+                                for (h, j) in editor_scene.physics.joints.pair_iter() {
+                                    if j.body1 == body_handle.into() {
+                                        joint = h;
+                                        break;
+                                    }
+                                }
+
+                                let current_value = if joint.is_some() {
+                                    let joint = &editor_scene.physics.joints[joint];
+                                    match joint.params {
+                                        JointParamsDesc::BallJoint(_) => 1,
+                                        JointParamsDesc::FixedJoint(_) => 2,
+                                        JointParamsDesc::PrismaticJoint(_) => 3,
+                                        JointParamsDesc::RevoluteJoint(_) => 4,
+                                    }
+                                } else {
+                                    0
+                                };
+
+                                if current_value != *index {
+                                    let mut commands = Vec::new();
+
+                                    if joint.is_some() {
+                                        commands.push(SceneCommand::DeleteJoint(
+                                            DeleteJointCommand::new(joint),
+                                        ));
+                                    }
+
+                                    match *index {
+                                        0 => {
+                                            // Do nothing
+                                        }
+                                        1 => commands.push(SceneCommand::AddJoint(
+                                            AddJointCommand::new(Joint {
+                                                body1: body_handle.into(),
+                                                body2: Default::default(),
+                                                params: JointParamsDesc::BallJoint(BallJointDesc {
+                                                    local_anchor1: Default::default(),
+                                                    local_anchor2: Default::default(),
+                                                }),
+                                            }),
+                                        )),
+                                        2 => commands.push(SceneCommand::AddJoint(
+                                            AddJointCommand::new(Joint {
+                                                body1: body_handle.into(),
+                                                body2: Default::default(),
+                                                params: JointParamsDesc::FixedJoint(
+                                                    FixedJointDesc {
+                                                        local_anchor1_translation: Default::default(
+                                                        ),
+                                                        local_anchor1_rotation: Default::default(),
+                                                        local_anchor2_translation: Default::default(
+                                                        ),
+                                                        local_anchor2_rotation: Default::default(),
+                                                    },
+                                                ),
+                                            }),
+                                        )),
+                                        3 => commands.push(SceneCommand::AddJoint(
+                                            AddJointCommand::new(Joint {
+                                                body1: body_handle.into(),
+                                                body2: Default::default(),
+                                                params: JointParamsDesc::PrismaticJoint(
+                                                    PrismaticJointDesc {
+                                                        local_anchor1: Default::default(),
+                                                        local_axis1: Vector3::y(),
+                                                        local_anchor2: Default::default(),
+                                                        local_axis2: Vector3::x(),
+                                                    },
+                                                ),
+                                            }),
+                                        )),
+                                        4 => {}
+                                        _ => unreachable!(),
+                                    };
+
                                     self.sender
                                         .send(Message::DoSceneCommand(SceneCommand::CommandGroup(
                                             CommandGroup::from(commands),

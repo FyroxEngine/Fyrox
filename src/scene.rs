@@ -1,12 +1,9 @@
-use crate::physics::Collider;
 use crate::{
     camera::CameraController,
     command::Command,
-    physics::{Physics, RigidBody},
+    physics::{Collider, Joint, Physics, RigidBody},
     Message,
 };
-use rg3d::scene::physics::ColliderShapeDesc;
-use rg3d::sound::pool::ErasedHandle;
 use rg3d::{
     core::{
         algebra::{UnitQuaternion, Vector3},
@@ -16,7 +13,14 @@ use rg3d::{
     },
     engine::resource_manager::ResourceManager,
     resource::texture::Texture,
-    scene::{graph::Graph, graph::SubGraph, mesh::Mesh, node::Node, Scene},
+    scene::{
+        graph::{Graph, SubGraph},
+        mesh::Mesh,
+        node::Node,
+        physics::{ColliderShapeDesc, JointParamsDesc},
+        Scene,
+    },
+    sound::pool::ErasedHandle,
 };
 use std::{path::PathBuf, sync::mpsc::Sender};
 
@@ -66,6 +70,9 @@ pub enum SceneCommand {
     LinkNodes(LinkNodesCommand),
     SetVisible(SetVisibleCommand),
     SetName(SetNameCommand),
+    AddJoint(AddJointCommand),
+    DeleteJoint(DeleteJointCommand),
+    SetJointConnectedBody(SetJointConnectedBodyCommand),
     SetBody(SetBodyCommand),
     SetBodyMass(SetBodyMassCommand),
     SetCollider(SetColliderCommand),
@@ -81,6 +88,8 @@ pub enum SceneCommand {
     SetConeHalfHeight(SetConeHalfHeightCommand),
     SetConeRadius(SetConeRadiusCommand),
     SetBallRadius(SetBallRadiusCommand),
+    SetBallJointAnchor1(SetBallJointAnchor1Command),
+    SetBallJointAnchor2(SetBallJointAnchor2Command),
     SetCuboidHalfExtents(SetCuboidHalfExtentsCommand),
     DeleteBody(DeleteBodyCommand),
     DeleteCollider(DeleteColliderCommand),
@@ -125,6 +134,9 @@ macro_rules! static_dispatch {
             SceneCommand::SetVisible(v) => v.$func($($args),*),
             SceneCommand::SetName(v) => v.$func($($args),*),
             SceneCommand::SetBody(v) => v.$func($($args),*),
+            SceneCommand::AddJoint(v) => v.$func($($args),*),
+            SceneCommand::SetJointConnectedBody(v) => v.$func($($args),*),
+            SceneCommand::DeleteJoint(v) => v.$func($($args),*),
             SceneCommand::SetBodyMass(v) => v.$func($($args),*),
             SceneCommand::SetCollider(v) => v.$func($($args),*),
             SceneCommand::SetColliderFriction(v) => v.$func($($args),*),
@@ -139,6 +151,8 @@ macro_rules! static_dispatch {
             SceneCommand::SetConeHalfHeight(v) => v.$func($($args),*),
             SceneCommand::SetConeRadius(v) => v.$func($($args),*),
             SceneCommand::SetBallRadius(v) => v.$func($($args),*),
+            SceneCommand::SetBallJointAnchor1(v) => v.$func($($args),*),
+            SceneCommand::SetBallJointAnchor2(v) => v.$func($($args),*),
             SceneCommand::SetCuboidHalfExtents(v) => v.$func($($args),*),
             SceneCommand::DeleteBody(v) => v.$func($($args),*),
             SceneCommand::DeleteCollider(v) => v.$func($($args),*),
@@ -287,6 +301,116 @@ impl<'a> Command<'a> for AddNodeCommand {
     fn finalize(&mut self, context: &mut Self::Context) {
         if let Some(ticket) = self.ticket.take() {
             context.scene.graph.forget_ticket(ticket)
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct AddJointCommand {
+    ticket: Option<Ticket<Joint>>,
+    handle: Handle<Joint>,
+    joint: Option<Joint>,
+}
+
+impl AddJointCommand {
+    pub fn new(node: Joint) -> Self {
+        Self {
+            ticket: None,
+            handle: Default::default(),
+            joint: Some(node),
+        }
+    }
+}
+
+impl<'a> Command<'a> for AddJointCommand {
+    type Context = SceneContext<'a>;
+
+    fn name(&mut self, _context: &Self::Context) -> String {
+        "Add Joint".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut Self::Context) {
+        match self.ticket.take() {
+            None => {
+                self.handle = context
+                    .editor_scene
+                    .physics
+                    .joints
+                    .spawn(self.joint.take().unwrap());
+            }
+            Some(ticket) => {
+                let handle = context
+                    .editor_scene
+                    .physics
+                    .joints
+                    .put_back(ticket, self.joint.take().unwrap());
+                assert_eq!(handle, self.handle);
+            }
+        }
+    }
+
+    fn revert(&mut self, context: &mut Self::Context) {
+        let (ticket, node) = context
+            .editor_scene
+            .physics
+            .joints
+            .take_reserve(self.handle);
+        self.ticket = Some(ticket);
+        self.joint = Some(node);
+    }
+
+    fn finalize(&mut self, context: &mut Self::Context) {
+        if let Some(ticket) = self.ticket.take() {
+            context.editor_scene.physics.joints.forget_ticket(ticket)
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct DeleteJointCommand {
+    handle: Handle<Joint>,
+    ticket: Option<Ticket<Joint>>,
+    node: Option<Joint>,
+}
+
+impl DeleteJointCommand {
+    pub fn new(handle: Handle<Joint>) -> Self {
+        Self {
+            handle,
+            ticket: None,
+            node: None,
+        }
+    }
+}
+
+impl<'a> Command<'a> for DeleteJointCommand {
+    type Context = SceneContext<'a>;
+
+    fn name(&mut self, _context: &Self::Context) -> String {
+        "Delete Joint".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut Self::Context) {
+        let (ticket, node) = context
+            .editor_scene
+            .physics
+            .joints
+            .take_reserve(self.handle);
+        self.node = Some(node);
+        self.ticket = Some(ticket);
+    }
+
+    fn revert(&mut self, context: &mut Self::Context) {
+        self.handle = context
+            .editor_scene
+            .physics
+            .joints
+            .put_back(self.ticket.take().unwrap(), self.node.take().unwrap());
+    }
+
+    fn finalize(&mut self, context: &mut Self::Context) {
+        if let Some(ticket) = self.ticket.take() {
+            context.editor_scene.physics.joints.forget_ticket(ticket)
         }
     }
 }
@@ -995,6 +1119,12 @@ macro_rules! define_simple_collider_command {
     };
 }
 
+macro_rules! define_simple_joint_command {
+    ($name:ident, $human_readable_name:expr, $value_type:ty => $apply_method:expr ) => {
+        define_simple_physics_command!($name, $human_readable_name, Handle<Joint>, $value_type => $apply_method);
+    };
+}
+
 #[derive(Debug)]
 enum TextureSet {
     Single(Texture),
@@ -1285,6 +1415,29 @@ define_simple_collider_command!(SetBallRadiusCommand, "Set Ball Radius", f32 => 
     } else {
         unreachable!();
     }
+});
+
+define_simple_joint_command!(SetBallJointAnchor1Command, "Set Ball Joint Anchor 1", Vector3<f32> => |this: &mut SetBallJointAnchor1Command, physics: &mut Physics| {
+    let joint = &mut physics.joints[this.handle];
+    if let JointParamsDesc::BallJoint(ball) = &mut joint.params {
+        std::mem::swap(&mut ball.local_anchor1, &mut this.value);
+    } else {
+        unreachable!();
+    }
+});
+
+define_simple_joint_command!(SetBallJointAnchor2Command, "Set Ball Joint Anchor 2", Vector3<f32> => |this: &mut SetBallJointAnchor2Command, physics: &mut Physics| {
+    let joint = &mut physics.joints[this.handle];
+    if let JointParamsDesc::BallJoint(ball) = &mut joint.params {
+        std::mem::swap(&mut ball.local_anchor2, &mut this.value);
+    } else {
+        unreachable!();
+    }
+});
+
+define_simple_joint_command!(SetJointConnectedBodyCommand, "Set Joint Connected Body", ErasedHandle => |this: &mut SetJointConnectedBodyCommand, physics: &mut Physics| {
+    let joint = &mut physics.joints[this.handle];
+    std::mem::swap(&mut joint.body2, &mut this.value);
 });
 
 #[derive(Debug, Default, Clone, Eq, PartialEq)]

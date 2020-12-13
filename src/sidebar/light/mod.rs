@@ -10,6 +10,7 @@ use crate::{
     },
     Message,
 };
+use rg3d::gui::stack_panel::StackPanelBuilder;
 use rg3d::{
     core::pool::Handle,
     gui::{
@@ -45,35 +46,45 @@ impl LightSection {
         let cast_shadows;
         let light_scatter;
         let enable_scatter;
-        let section = GridBuilder::new(
-            WidgetBuilder::new()
-                .with_child(make_text_mark(ctx, "Color", 0))
-                .with_child({
-                    color = ColorFieldBuilder::new(WidgetBuilder::new().on_column(1)).build(ctx);
-                    color
-                })
-                .with_child(make_text_mark(ctx, "Cast Shadows", 1))
-                .with_child({
-                    cast_shadows = make_bool_input_field(ctx, 1);
-                    cast_shadows
-                })
-                .with_child(make_text_mark(ctx, "Enable Scatter", 2))
-                .with_child({
-                    enable_scatter = make_bool_input_field(ctx, 2);
-                    enable_scatter
-                })
-                .with_child(make_text_mark(ctx, "Scatter", 3))
-                .with_child({
-                    light_scatter = make_vec3_input_field(ctx, 3);
-                    light_scatter
-                }),
+        let point_light_section = PointLightSection::new(ctx, sender.clone());
+        let spot_light_section = SpotLightSection::new(ctx, sender.clone());
+        let section = StackPanelBuilder::new(
+            WidgetBuilder::new().with_children(&[
+                GridBuilder::new(
+                    WidgetBuilder::new()
+                        .with_child(make_text_mark(ctx, "Color", 0))
+                        .with_child({
+                            color = ColorFieldBuilder::new(WidgetBuilder::new().on_column(1))
+                                .build(ctx);
+                            color
+                        })
+                        .with_child(make_text_mark(ctx, "Cast Shadows", 1))
+                        .with_child({
+                            cast_shadows = make_bool_input_field(ctx, 1);
+                            cast_shadows
+                        })
+                        .with_child(make_text_mark(ctx, "Enable Scatter", 2))
+                        .with_child({
+                            enable_scatter = make_bool_input_field(ctx, 2);
+                            enable_scatter
+                        })
+                        .with_child(make_text_mark(ctx, "Scatter", 3))
+                        .with_child({
+                            light_scatter = make_vec3_input_field(ctx, 3);
+                            light_scatter
+                        }),
+                )
+                .add_column(Column::strict(COLUMN_WIDTH))
+                .add_column(Column::stretch())
+                .add_row(Row::strict(ROW_HEIGHT))
+                .add_row(Row::strict(ROW_HEIGHT))
+                .add_row(Row::strict(ROW_HEIGHT))
+                .add_row(Row::strict(ROW_HEIGHT))
+                .build(ctx),
+                point_light_section.section,
+                spot_light_section.section,
+            ]),
         )
-        .add_column(Column::strict(COLUMN_WIDTH))
-        .add_column(Column::stretch())
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
         .build(ctx);
 
         Self {
@@ -82,8 +93,8 @@ impl LightSection {
             cast_shadows,
             light_scatter,
             enable_scatter,
-            point_light_section: PointLightSection::new(ctx, sender.clone()),
-            spot_light_section: SpotLightSection::new(ctx, sender.clone()),
+            point_light_section,
+            spot_light_section,
             sender,
         }
     }
