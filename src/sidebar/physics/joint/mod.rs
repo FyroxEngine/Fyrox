@@ -98,18 +98,20 @@ impl JointSection {
         let ctx = &mut ui.build_ctx();
         for (handle, node) in graph.pair_iter() {
             if let Some(&body) = binder.get(&handle) {
-                let item = DecoratorBuilder::new(BorderBuilder::new(
-                    WidgetBuilder::new().with_height(26.0).with_child(
-                        TextBuilder::new(WidgetBuilder::new())
-                            .with_vertical_text_alignment(VerticalAlignment::Center)
-                            .with_horizontal_text_alignment(HorizontalAlignment::Center)
-                            .with_text(node.name())
-                            .build(ctx),
-                    ),
-                ))
-                .build(ctx);
-                self.available_bodies.push(body);
-                items.push(item);
+                if body != joint.body1.into() {
+                    let item = DecoratorBuilder::new(BorderBuilder::new(
+                        WidgetBuilder::new().with_height(26.0).with_child(
+                            TextBuilder::new(WidgetBuilder::new())
+                                .with_vertical_text_alignment(VerticalAlignment::Center)
+                                .with_horizontal_text_alignment(HorizontalAlignment::Center)
+                                .with_text(node.name())
+                                .build(ctx),
+                        ),
+                    ))
+                    .build(ctx);
+                    self.available_bodies.push(body);
+                    items.push(item);
+                }
             }
         }
 
@@ -134,17 +136,17 @@ impl JointSection {
             if let &DropdownListMessage::SelectionChanged(value) = msg {
                 if let Some(index) = value {
                     if message.direction() == MessageDirection::FromWidget {
-                        let body = self.available_bodies[index];
-                        if message.destination() == self.connected_body
-                            && joint.body2.ne(&body.into())
-                        {
-                            self.sender
-                                .send(Message::DoSceneCommand(
-                                    SceneCommand::SetJointConnectedBody(
-                                        SetJointConnectedBodyCommand::new(handle, body.into()),
-                                    ),
-                                ))
-                                .unwrap();
+                        if message.destination() == self.connected_body {
+                            let body = self.available_bodies[index];
+                            if joint.body2.ne(&body.into()) {
+                                self.sender
+                                    .send(Message::DoSceneCommand(
+                                        SceneCommand::SetJointConnectedBody(
+                                            SetJointConnectedBodyCommand::new(handle, body.into()),
+                                        ),
+                                    ))
+                                    .unwrap();
+                            }
                         }
                     }
                 }

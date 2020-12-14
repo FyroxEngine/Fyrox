@@ -29,12 +29,12 @@ impl BallJointSection {
         let anchor2;
         let section = GridBuilder::new(
             WidgetBuilder::new()
-                .with_child(make_text_mark(ctx, "Anchor 1", 0))
+                .with_child(make_text_mark(ctx, "Joint Anchor", 0))
                 .with_child({
                     anchor1 = make_vec3_input_field(ctx, 0);
                     anchor1
                 })
-                .with_child(make_text_mark(ctx, "Anchor 2", 1))
+                .with_child(make_text_mark(ctx, "Connected Anchor", 1))
                 .with_child({
                     anchor2 = make_vec3_input_field(ctx, 1);
                     anchor2

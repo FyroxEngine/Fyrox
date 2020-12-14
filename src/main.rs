@@ -601,6 +601,8 @@ impl Editor {
 
         self.set_interaction_mode(Some(InteractionModeKind::Move), engine);
         self.sync_to_model(engine);
+
+        engine.renderer.flush();
     }
 
     fn set_interaction_mode(&mut self, mode: Option<InteractionModeKind>, engine: &mut GameEngine) {
@@ -1091,7 +1093,6 @@ impl Editor {
                     match result {
                         Ok(scene) => {
                             self.set_scene(engine, scene, Some(scene_path));
-                            engine.renderer.flush();
                         }
                         Err(e) => {
                             self.message_sender

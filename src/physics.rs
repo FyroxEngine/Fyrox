@@ -1,3 +1,4 @@
+use rg3d::core::algebra::Vector3;
 use rg3d::scene::physics::{JointDesc, JointParamsDesc};
 use rg3d::{
     core::{
@@ -357,6 +358,41 @@ impl Physics {
                     }
                 }
                 ColliderShapeDesc::Heightfield(_) => {} // TODO
+            }
+        }
+
+        for joint in self.joints.iter() {
+            match &joint.params {
+                JointParamsDesc::BallJoint(ball) => {
+                    let mut draw_anchor = |local_anchor: Vector3<f32>| -> Option<Vector3<f32>> {
+                        if joint.body1.is_some() {
+                            let frame_of_reference =
+                                self.bodies[joint.body1.into()].local_transform();
+
+                            let anchor = frame_of_reference
+                                .transform_point(&Point3::from(local_anchor))
+                                .coords;
+                            context.draw_sphere(anchor, 6, 6, 0.2, Color::BLUE);
+                            Some(anchor)
+                        } else {
+                            None
+                        }
+                    };
+
+                    let anchor1 = draw_anchor(ball.local_anchor1);
+                    let anchor2 = draw_anchor(-ball.local_anchor2);
+
+                    if let (Some(anchor1), Some(anchor2)) = (anchor1, anchor2) {
+                        context.add_line(Line {
+                            begin: anchor1,
+                            end: anchor2,
+                            color: Color::BLUE,
+                        })
+                    }
+                }
+                JointParamsDesc::FixedJoint(_) => {}
+                JointParamsDesc::PrismaticJoint(_) => {}
+                JointParamsDesc::RevoluteJoint(_) => {}
             }
         }
     }

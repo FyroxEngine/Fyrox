@@ -528,7 +528,7 @@ impl Menu {
                     } else if message.destination() == self.create_sphere {
                         let mesh = MeshBuilder::new(BaseBuilder::new().with_name("Sphere"))
                             .with_surfaces(vec![Surface::new(Arc::new(RwLock::new(
-                                SurfaceSharedData::make_sphere(16, 16, 1.0),
+                                SurfaceSharedData::make_sphere(16, 16, 0.5),
                             )))])
                             .build_node();
                         self.message_sender
