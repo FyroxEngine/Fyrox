@@ -44,6 +44,8 @@ There are many examples covering various aspects of the engine. Also don't hesit
 ## Features
 
 - Deferred shading.
+	- Renderer based on OpenGL 3.3 Core (released in 2010) which means that your game will run on almost
+	  any relatively modern GPU. 
 	- Directional light.
 	- Point light + shadows.
 	- Spot light + shadows.
