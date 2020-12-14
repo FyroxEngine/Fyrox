@@ -96,6 +96,26 @@ impl ErasedHandle {
             generation: INVALID_GENERATION,
         }
     }
+
+    #[inline(always)]
+    pub fn is_some(&self) -> bool {
+        self.generation != INVALID_GENERATION
+    }
+
+    #[inline(always)]
+    pub fn is_none(&self) -> bool {
+        !self.is_some()
+    }
+
+    #[inline(always)]
+    pub fn index(self) -> u32 {
+        self.index
+    }
+
+    #[inline(always)]
+    pub fn generation(self) -> u32 {
+        self.generation
+    }
 }
 
 impl<T> Visit for Handle<T> {

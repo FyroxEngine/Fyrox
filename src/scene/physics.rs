@@ -814,6 +814,18 @@ impl<C: From<Index>> RigidBodyDesc<C> {
     }
 }
 
+impl<C> RigidBodyDesc<C> {
+    #[doc(hidden)]
+    pub fn local_transform(&self) -> Isometry3<f32> {
+        Isometry3 {
+            rotation: self.rotation,
+            translation: Translation {
+                vector: self.position,
+            },
+        }
+    }
+}
+
 impl<C: Visit + Default + 'static> Visit for RigidBodyDesc<C> {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
