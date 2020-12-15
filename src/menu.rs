@@ -444,6 +444,19 @@ impl Menu {
         }
     }
 
+    pub fn open_load_file_selector(&self, ui: &mut Ui) {
+        ui.send_message(WindowMessage::open_modal(
+            self.load_file_selector,
+            MessageDirection::ToWidget,
+            true,
+        ));
+        ui.send_message(FileSelectorMessage::root(
+            self.load_file_selector,
+            MessageDirection::ToWidget,
+            Some(std::env::current_dir().unwrap()),
+        ));
+    }
+
     pub fn handle_ui_message(&mut self, message: &UiMessage, ctx: MenuContext) {
         self.settings.handle_message(message, ctx.engine);
 
@@ -635,20 +648,7 @@ impl Menu {
                                 std::env::current_dir().unwrap(),
                             ));
                     } else if message.destination() == self.load {
-                        ctx.engine
-                            .user_interface
-                            .send_message(WindowMessage::open_modal(
-                                self.load_file_selector,
-                                MessageDirection::ToWidget,
-                                true,
-                            ));
-                        ctx.engine
-                            .user_interface
-                            .send_message(FileSelectorMessage::root(
-                                self.load_file_selector,
-                                MessageDirection::ToWidget,
-                                Some(std::env::current_dir().unwrap()),
-                            ));
+                        self.open_load_file_selector(&mut ctx.engine.user_interface);
                     } else if message.destination() == self.close_scene {
                         self.message_sender.send(Message::CloseScene).unwrap();
                     } else if message.destination() == self.copy {

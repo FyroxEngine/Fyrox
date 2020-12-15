@@ -99,11 +99,13 @@ let scene_handle = engine.scenes.add(scene);
 			- [x] Cone
 			- [x] Cylinder
 		- [x] Light
+		  	- [x] Directional light
 			- [x] Spot light
 			- [x] Point light
 		- [x] Particle system
 		- [x] Camera
 		- [x] Sprite
+		- [x] Pivot
 - [ ] World outliner
 	- [x] Syncing with graph.
 	- [x] Syncing selection with scene selection and vice versa.

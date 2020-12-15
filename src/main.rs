@@ -765,12 +765,8 @@ impl Editor {
                                 KeyCode::L
                                     if engine.user_interface.keyboard_modifiers().control =>
                                 {
-                                    {
-                                        /*
-                                        self.message_sender
-                                            .send(Message::LoadScene(SCENE_PATH.into()))
-                                            .unwrap();*/
-                                    }
+                                    self.menu
+                                        .open_load_file_selector(&mut engine.user_interface);
                                 }
                                 KeyCode::C
                                     if engine.user_interface.keyboard_modifiers().control =>
