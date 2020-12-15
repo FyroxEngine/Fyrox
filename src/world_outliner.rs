@@ -46,6 +46,10 @@ pub struct WorldOutliner {
     root: Handle<UiNode>,
     sender: Sender<Message>,
     stack: Vec<(Handle<UiNode>, Handle<Node>)>,
+    /// Hack. Due to delayed execution of UI code we can't sync immediately after we
+    /// did sync_to_model, instead we defer selection syncing to post_update() - at
+    /// this moment UI is completely built and we can do syncing.
+    pub sync_selection: bool,
 }
 
 #[derive(Clone)]
@@ -392,6 +396,7 @@ impl WorldOutliner {
             sender,
             root,
             stack: Default::default(),
+            sync_selection: false,
         }
     }
 
@@ -615,37 +620,34 @@ impl WorldOutliner {
         }
     }
 
+    pub fn post_update(&mut self, editor_scene: &EditorScene, engine: &GameEngine) {
+        // Hack. See `self.sync_selection` for details.
+        if self.sync_selection {
+            let ui = &engine.user_interface;
+
+            let trees = editor_scene
+                .selection
+                .nodes()
+                .iter()
+                .map(|&n| self.map_node_to_tree(ui, n))
+                .collect();
+
+            ui.send_message(TreeRootMessage::select(
+                self.root,
+                MessageDirection::ToWidget,
+                trees,
+            ));
+
+            self.sync_selection = false;
+        }
+    }
+
     pub fn clear(&mut self, ui: &mut Ui) {
         ui.send_message(TreeRootMessage::items(
             self.root,
             MessageDirection::ToWidget,
             vec![],
         ));
-    }
-
-    pub fn handle_message(
-        &mut self,
-        message: &Message,
-        engine: &mut GameEngine,
-        editor_scene: Option<&EditorScene>,
-    ) {
-        let ui = &engine.user_interface;
-
-        if let Some(editor_scene) = editor_scene {
-            if let Message::SelectionChanged = message {
-                let trees = editor_scene
-                    .selection
-                    .nodes()
-                    .iter()
-                    .map(|&n| self.map_node_to_tree(ui, n))
-                    .collect();
-                ui.send_message(TreeRootMessage::select(
-                    self.root,
-                    MessageDirection::ToWidget,
-                    trees,
-                ));
-            }
-        }
     }
 
     fn map_node_to_tree(&self, ui: &Ui, node: Handle<Node>) -> Handle<UiNode> {
@@ -666,6 +668,7 @@ impl WorldOutliner {
                 _ => unreachable!(),
             }
         }
-        Handle::NONE
+        // Must not be reached. If still triggered then there is a bug.
+        unreachable!()
     }
 }

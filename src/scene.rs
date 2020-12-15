@@ -2,7 +2,7 @@ use crate::{
     camera::CameraController,
     command::Command,
     physics::{Collider, Joint, Physics, RigidBody},
-    Message,
+    GameEngine, Message,
 };
 use rg3d::{
     core::{
@@ -63,6 +63,7 @@ pub enum SceneCommand {
     CommandGroup(CommandGroup),
     AddNode(AddNodeCommand),
     DeleteNode(DeleteNodeCommand),
+    DeleteSubGraph(DeleteSubGraphCommand),
     ChangeSelection(ChangeSelectionCommand),
     MoveNode(MoveNodeCommand),
     ScaleNode(ScaleNodeCommand),
@@ -137,6 +138,7 @@ macro_rules! static_dispatch {
             SceneCommand::AddJoint(v) => v.$func($($args),*),
             SceneCommand::SetJointConnectedBody(v) => v.$func($($args),*),
             SceneCommand::DeleteJoint(v) => v.$func($($args),*),
+            SceneCommand::DeleteSubGraph(v) => v.$func($($args),*),
             SceneCommand::SetBodyMass(v) => v.$func($($args),*),
             SceneCommand::SetCollider(v) => v.$func($($args),*),
             SceneCommand::SetColliderFriction(v) => v.$func($($args),*),
@@ -916,6 +918,58 @@ impl<'a> Command<'a> for LoadModelCommand {
 }
 
 #[derive(Debug)]
+pub struct DeleteSubGraphCommand {
+    sub_graph_root: Handle<Node>,
+    sub_graph: Option<SubGraph>,
+    parent: Handle<Node>,
+}
+
+impl DeleteSubGraphCommand {
+    pub fn new(sub_graph_root: Handle<Node>) -> Self {
+        Self {
+            sub_graph_root,
+            sub_graph: None,
+            parent: Handle::NONE,
+        }
+    }
+}
+
+impl<'a> Command<'a> for DeleteSubGraphCommand {
+    type Context = SceneContext<'a>;
+
+    fn name(&mut self, _context: &Self::Context) -> String {
+        "Delete Sub Graph".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut Self::Context) {
+        self.parent = context.scene.graph[self.sub_graph_root].parent();
+        self.sub_graph = Some(
+            context
+                .scene
+                .graph
+                .take_reserve_sub_graph(self.sub_graph_root),
+        );
+    }
+
+    fn revert(&mut self, context: &mut Self::Context) {
+        context
+            .scene
+            .graph
+            .put_sub_graph_back(self.sub_graph.take().unwrap());
+        context
+            .scene
+            .graph
+            .link_nodes(self.sub_graph_root, self.parent);
+    }
+
+    fn finalize(&mut self, context: &mut Self::Context) {
+        if let Some(sub_graph) = self.sub_graph.take() {
+            context.scene.graph.forget_sub_graph(sub_graph)
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct DeleteBodyCommand {
     handle: Handle<RigidBody>,
     ticket: Option<Ticket<RigidBody>>,
@@ -1440,9 +1494,33 @@ define_simple_joint_command!(SetJointConnectedBodyCommand, "Set Joint Connected 
     std::mem::swap(&mut joint.body2, &mut this.value);
 });
 
-#[derive(Debug, Default, Clone, Eq, PartialEq)]
+#[derive(Debug, Default, Clone, Eq)]
 pub struct Selection {
     nodes: Vec<Handle<Node>>,
+}
+
+impl PartialEq for Selection {
+    fn eq(&self, other: &Self) -> bool {
+        if self.nodes.is_empty() && !other.nodes.is_empty() {
+            false
+        } else {
+            // Selection is equal even when order of elements is different.
+            // TODO: Find a way to do this faster.
+            for &node in self.nodes.iter() {
+                let mut found = false;
+                for &other_node in other.nodes.iter() {
+                    if other_node == node {
+                        found = true;
+                        break;
+                    }
+                }
+                if !found {
+                    return false;
+                }
+            }
+            true
+        }
+    }
 }
 
 impl Selection {
@@ -1577,4 +1655,96 @@ impl Selection {
         }
         scales
     }
+}
+
+fn is_descendant_of(handle: Handle<Node>, other: Handle<Node>, graph: &Graph) -> bool {
+    for &child in graph[other].children() {
+        if child == handle {
+            return true;
+        }
+
+        let inner = is_descendant_of(handle, child, graph);
+        if inner {
+            return true;
+        }
+    }
+    false
+}
+
+/// Creates scene command (command group) which removes current selection in editor's scene.
+/// This is **not** trivial because each node has multiple connections inside engine and
+/// in editor's data model, so we have to thoroughly build command using simple commands.
+pub fn make_delete_selection_command(
+    editor_scene: &EditorScene,
+    engine: &GameEngine,
+) -> SceneCommand {
+    // Change selection first.
+    let mut command_group = CommandGroup::from(vec![SceneCommand::ChangeSelection(
+        ChangeSelectionCommand::new(Default::default(), editor_scene.selection.clone()),
+    )]);
+
+    // Find sub-graphs to delete - we need to do this because we can end up in situation like this:
+    // A_
+    //   B_      <-
+    //   | C       | these are selected
+    //   | D_    <-
+    //   |   E
+    //   F
+    // In this case we must deleted only node B, there is no need to delete node D separately because
+    // by engine's design when we delete a node, we also delete all its children. So we have to keep
+    // this behaviour in editor too.
+    let graph = &engine.scenes[editor_scene.scene].graph;
+    let mut root_nodes = Vec::new();
+    for &node in editor_scene.selection.nodes().iter() {
+        let mut descendant = false;
+        for &other_node in editor_scene.selection.nodes().iter() {
+            if is_descendant_of(node, other_node, graph) {
+                descendant = true;
+                break;
+            }
+        }
+        if !descendant {
+            root_nodes.push(node);
+        }
+    }
+
+    // Delete all associated physics entities in the whole hierarchy starting from root nodes
+    // found above.
+    let mut stack = root_nodes.clone();
+    while let Some(node) = stack.pop() {
+        if let Some(&body) = editor_scene.physics.binder.get(&node) {
+            for &collider in editor_scene.physics.bodies[body].colliders.iter() {
+                command_group.push(SceneCommand::DeleteCollider(DeleteColliderCommand::new(
+                    collider.into(),
+                )))
+            }
+
+            command_group.push(SceneCommand::DeleteBody(DeleteBodyCommand::new(body)));
+
+            // Remove any associated joints.
+            let joint = editor_scene.physics.find_joint(body);
+            if joint.is_some() {
+                command_group.push(SceneCommand::DeleteJoint(DeleteJointCommand::new(joint)));
+            }
+
+            // Also check if this node is attached to a joint as
+            // "connected body".
+            for (handle, joint) in editor_scene.physics.joints.pair_iter() {
+                if joint.body2 == ErasedHandle::from(body) {
+                    command_group.push(SceneCommand::SetJointConnectedBody(
+                        SetJointConnectedBodyCommand::new(handle, ErasedHandle::none()),
+                    ));
+                }
+            }
+        }
+        stack.extend_from_slice(graph[node].children());
+    }
+
+    for root_node in root_nodes {
+        command_group.push(SceneCommand::DeleteSubGraph(DeleteSubGraphCommand::new(
+            root_node,
+        )));
+    }
+
+    SceneCommand::CommandGroup(command_group)
 }

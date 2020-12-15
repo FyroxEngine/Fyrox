@@ -21,6 +21,7 @@ pub mod settings;
 pub mod sidebar;
 pub mod world_outliner;
 
+use crate::scene::make_delete_selection_command;
 use crate::{
     asset::{AssetBrowser, AssetKind},
     camera::CameraController,
@@ -36,9 +37,8 @@ use crate::{
     menu::{Menu, MenuContext},
     physics::Physics,
     scene::{
-        AddNodeCommand, ChangeSelectionCommand, CommandGroup, DeleteBodyCommand,
-        DeleteColliderCommand, DeleteNodeCommand, EditorScene, LoadModelCommand, SceneCommand,
-        SceneContext, SetMeshTextureCommand, SetSpriteTextureCommand,
+        AddNodeCommand, CommandGroup, EditorScene, LoadModelCommand, SceneCommand, SceneContext,
+        SetMeshTextureCommand, SetSpriteTextureCommand,
     },
     sidebar::SideBar,
     world_outliner::WorldOutliner,
@@ -805,44 +805,9 @@ impl Editor {
                                 }
                                 KeyCode::Delete => {
                                     if !editor_scene.selection.is_empty() {
-                                        let mut command_group = CommandGroup::from(vec![
-                                            SceneCommand::ChangeSelection(
-                                                ChangeSelectionCommand::new(
-                                                    Default::default(),
-                                                    editor_scene.selection.clone(),
-                                                ),
-                                            ),
-                                        ]);
-                                        for &node in editor_scene.selection.nodes().iter() {
-                                            if let Some(body) =
-                                                editor_scene.physics.binder.get(&node)
-                                            {
-                                                for &collider in editor_scene.physics.bodies[*body]
-                                                    .colliders
-                                                    .iter()
-                                                {
-                                                    command_group.push(
-                                                        SceneCommand::DeleteCollider(
-                                                            DeleteColliderCommand::new(
-                                                                collider.into(),
-                                                            ),
-                                                        ),
-                                                    )
-                                                }
-
-                                                command_group.push(SceneCommand::DeleteBody(
-                                                    DeleteBodyCommand::new(*body),
-                                                ));
-                                            }
-
-                                            command_group.push(SceneCommand::DeleteNode(
-                                                DeleteNodeCommand::new(node),
-                                            ));
-                                        }
-
                                         self.message_sender
                                             .send(Message::DoSceneCommand(
-                                                SceneCommand::CommandGroup(command_group),
+                                                make_delete_selection_command(editor_scene, engine),
                                             ))
                                             .unwrap();
                                     }
@@ -1008,6 +973,12 @@ impl Editor {
         }
     }
 
+    fn post_update(&mut self, engine: &mut GameEngine) {
+        if let Some(scene) = self.scene.as_mut() {
+            self.world_outliner.post_update(scene, engine);
+        }
+    }
+
     fn update(&mut self, engine: &mut GameEngine, dt: f32) {
         scope_profile!();
 
@@ -1015,8 +986,6 @@ impl Editor {
 
         while let Ok(message) = self.message_receiver.try_recv() {
             self.log.handle_message(&message, engine);
-            self.world_outliner
-                .handle_message(&message, engine, self.scene.as_ref());
 
             match message {
                 Message::DoSceneCommand(command) => {
@@ -1056,7 +1025,7 @@ impl Editor {
                     }
                 }
                 Message::SelectionChanged => {
-                    // Do nothing.
+                    self.world_outliner.sync_selection = true;
                 }
                 Message::SaveScene(path) => {
                     if let Some(editor_scene) = self.scene.as_mut() {
@@ -1291,6 +1260,8 @@ fn update(
         editor.update(engine, fixed_timestep);
 
         poll_ui_messages(editor, engine);
+
+        editor.post_update(engine);
     }
 
     let window = engine.get_window();

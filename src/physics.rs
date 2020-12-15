@@ -231,6 +231,16 @@ impl Physics {
         )
     }
 
+    /// Searches joint by its **first** body.
+    pub fn find_joint(&self, body1: Handle<RigidBody>) -> Handle<Joint> {
+        for (handle, joint) in self.joints.pair_iter() {
+            if joint.body1 == body1.into() {
+                return handle;
+            }
+        }
+        Handle::NONE
+    }
+
     pub fn draw(&self, context: &mut SceneDrawingContext, graph: &Graph) {
         for body in self.bodies.iter() {
             context.draw_transform(
