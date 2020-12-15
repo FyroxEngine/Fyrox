@@ -1678,9 +1678,17 @@ pub fn make_delete_selection_command(
     editor_scene: &EditorScene,
     engine: &GameEngine,
 ) -> SceneCommand {
+    let graph = &engine.scenes[editor_scene.scene].graph;
+
+    // Graph's root is non-deletable.
+    let mut selection = editor_scene.selection.clone();
+    if let Some(root_position) = selection.nodes.iter().position(|&n| n == graph.get_root()) {
+        selection.nodes.remove(root_position);
+    }
+
     // Change selection first.
     let mut command_group = CommandGroup::from(vec![SceneCommand::ChangeSelection(
-        ChangeSelectionCommand::new(Default::default(), editor_scene.selection.clone()),
+        ChangeSelectionCommand::new(Default::default(), selection.clone()),
     )]);
 
     // Find sub-graphs to delete - we need to do this because we can end up in situation like this:
@@ -1693,11 +1701,11 @@ pub fn make_delete_selection_command(
     // In this case we must deleted only node B, there is no need to delete node D separately because
     // by engine's design when we delete a node, we also delete all its children. So we have to keep
     // this behaviour in editor too.
-    let graph = &engine.scenes[editor_scene.scene].graph;
+
     let mut root_nodes = Vec::new();
-    for &node in editor_scene.selection.nodes().iter() {
+    for &node in selection.nodes().iter() {
         let mut descendant = false;
-        for &other_node in editor_scene.selection.nodes().iter() {
+        for &other_node in selection.nodes().iter() {
             if is_descendant_of(node, other_node, graph) {
                 descendant = true;
                 break;
