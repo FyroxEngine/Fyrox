@@ -453,11 +453,9 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TreeRoot<M, C> {
         if self.panel == handle {
             self.panel = Default::default();
         }
-        self.selected = self
-            .selected
-            .iter()
-            .filter_map(|&s| if s != handle { Some(s) } else { None })
-            .collect();
+        if let Some(position) = self.selected.iter().position(|&s| s == handle) {
+            self.selected.remove(position);
+        }
     }
 }
 
