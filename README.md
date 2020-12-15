@@ -129,6 +129,7 @@ let scene_handle = engine.scenes.add(scene);
 			- [x] Hotspot angle
 			- [x] Falloff angle delta
 			- [x] Distance
+		- [x] Directional light
 	- [x] Camera node
 		- [x] Fov
 		- [x] Z near

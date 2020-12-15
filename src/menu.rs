@@ -5,6 +5,7 @@ use crate::{
     settings::Settings,
     GameEngine, Message,
 };
+use rg3d::scene::light::DirectionalLightBuilder;
 use rg3d::{
     core::{
         algebra::{Matrix4, Vector2},
@@ -53,6 +54,7 @@ pub struct Menu {
     create_cylinder: Handle<UiNode>,
     create_point_light: Handle<UiNode>,
     create_spot_light: Handle<UiNode>,
+    create_directional_light: Handle<UiNode>,
     exit: Handle<UiNode>,
     message_sender: Sender<Message>,
     save_file_selector: Handle<UiNode>,
@@ -109,6 +111,7 @@ impl Menu {
         let create_cylinder;
         let create_point_light;
         let create_spot_light;
+        let create_directional_light;
         let exit;
         let create_camera;
         let create_sprite;
@@ -302,6 +305,14 @@ impl Menu {
                             .with_content(MenuItemContent::text("Light"))
                             .with_items(vec![
                                 {
+                                    create_directional_light = MenuItemBuilder::new(
+                                        WidgetBuilder::new().with_min_size(min_size),
+                                    )
+                                    .with_content(MenuItemContent::text("Directional Light"))
+                                    .build(ctx);
+                                    create_directional_light
+                                },
+                                {
                                     create_spot_light = MenuItemBuilder::new(
                                         WidgetBuilder::new().with_min_size(min_size),
                                     )
@@ -410,6 +421,7 @@ impl Menu {
             create_cylinder,
             create_point_light,
             create_spot_light,
+            create_directional_light,
             exit,
             settings: Settings::new(engine, message_sender.clone()),
             message_sender,
@@ -490,6 +502,17 @@ impl Menu {
                             BaseBuilder::new().with_name("PointLight"),
                         ))
                         .with_radius(10.0)
+                        .build_node();
+
+                        self.message_sender
+                            .send(Message::DoSceneCommand(SceneCommand::AddNode(
+                                AddNodeCommand::new(node),
+                            )))
+                            .unwrap();
+                    } else if message.destination() == self.create_directional_light {
+                        let node = DirectionalLightBuilder::new(BaseLightBuilder::new(
+                            BaseBuilder::new().with_name("DirectionalLight"),
+                        ))
                         .build_node();
 
                         self.message_sender
