@@ -112,6 +112,7 @@ pub enum SceneCommand {
     SetSpriteColor(SetSpriteColorCommand),
     SetSpriteTexture(SetSpriteTextureCommand),
     SetMeshTexture(SetMeshTextureCommand),
+    SetMeshCastShadows(SetMeshCastShadowsCommand),
 }
 
 pub struct SceneContext<'a> {
@@ -176,6 +177,7 @@ macro_rules! static_dispatch {
             SceneCommand::SetSpriteColor(v) => v.$func($($args),*),
             SceneCommand::SetSpriteTexture(v) => v.$func($($args),*),
             SceneCommand::SetMeshTexture(v) => v.$func($($args),*),
+            SceneCommand::SetMeshCastShadows(v) => v.$func($($args),*),
         }
     };
 }
@@ -1362,6 +1364,13 @@ define_simple_scene_command!(SetSpriteTextureCommand, "Set Sprite Texture", Opti
     let node = graph[this.handle].as_sprite_mut();
     let old = node.texture();
     node.set_texture(this.value.clone());
+    this.value = old;
+});
+
+define_simple_scene_command!(SetMeshCastShadowsCommand, "Set Mesh Cast Shadows", bool => |this: &mut SetMeshCastShadowsCommand, graph: &mut Graph| {
+    let node = graph[this.handle].as_mesh_mut();
+    let old = node.cast_shadows();
+    node.set_cast_shadows(this.value.clone());
     this.value = old;
 });
 

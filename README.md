@@ -137,10 +137,21 @@ let scene_handle = engine.scenes.add(scene);
 	- [ ] Particle system node.
 		- [x] Acceleration
 		- [ ] Other
-	- [ ] Sprite node.
-		- [ ] Sprite properties.
-- [ ] Asset browser.
-	- [x] Proof-of-concept version
+	- [x] Sprite node.
+		- [x] Size
+		- [x] Rotation
+		- [x] Color
+	- [x] Mesh node
+		- [x] Cast shadows
+- [x] Asset browser.
+	- [x] Asset previewer
+	- [x] Folder view
+	- [x] Asset view
+	- [x] Drag'n'drop resource import to scene
+	- [ ] Sync with file system on changes
+- [x] Command stack viewer
+  	- [x] Undo/redo buttons
+    - [x] Command stack visualization
 - [ ] Animation graph editor
 	- [ ] Simple node-based animation blending machine editor is needed.
 

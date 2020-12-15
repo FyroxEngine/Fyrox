@@ -1,3 +1,4 @@
+use crate::sidebar::mesh::MeshSection;
 use crate::{
     gui::{BuildContext, UiMessage, UiNode},
     scene::{
@@ -40,6 +41,7 @@ use std::sync::mpsc::Sender;
 
 mod camera;
 mod light;
+mod mesh;
 mod particle;
 mod physics;
 mod sprite;
@@ -59,6 +61,7 @@ pub struct SideBar {
     camera_section: CameraSection,
     particle_system_section: ParticleSystemSection,
     sprite_section: SpriteSection,
+    mesh_section: MeshSection,
     physics_section: PhysicsSection,
 }
 
@@ -139,6 +142,7 @@ impl SideBar {
         let camera_section = CameraSection::new(ctx, sender.clone());
         let particle_system_section = ParticleSystemSection::new(ctx, sender.clone());
         let sprite_section = SpriteSection::new(ctx, sender.clone());
+        let mesh_section = MeshSection::new(ctx, sender.clone());
         let physics_section = PhysicsSection::new(ctx, sender.clone());
 
         let window = WindowBuilder::new(WidgetBuilder::new())
@@ -190,6 +194,7 @@ impl SideBar {
                                     camera_section.section,
                                     particle_system_section.section,
                                     sprite_section.section,
+                                    mesh_section.section,
                                     physics_section.section,
                                 ]),
                             )
@@ -213,6 +218,7 @@ impl SideBar {
             camera_section,
             particle_system_section,
             sprite_section,
+            mesh_section,
             physics_section,
         }
     }
@@ -267,6 +273,7 @@ impl SideBar {
                 self.camera_section.sync_to_model(node, ui);
                 self.particle_system_section.sync_to_model(node, ui);
                 self.sprite_section.sync_to_model(node, ui);
+                self.mesh_section.sync_to_model(node, ui);
                 self.physics_section.sync_to_model(editor_scene, engine);
             }
         }
@@ -295,6 +302,7 @@ impl SideBar {
                 .handle_message(message, node, node_handle);
             self.sprite_section
                 .handle_message(message, node, node_handle);
+            self.mesh_section.handle_message(message, node, node_handle);
             self.physics_section
                 .handle_ui_message(message, editor_scene, engine);
 
