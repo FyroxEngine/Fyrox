@@ -152,10 +152,20 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for DropdownList<M, C> {
     }
 }
 
+impl<M: MessageData, C: Control<M, C>> DropdownList<M, C> {
+    pub fn selection(&self) -> Option<usize> {
+        self.selection
+    }
+
+    pub fn close_on_selection(&self) -> bool {
+        self.close_on_selection
+    }
+}
+
 pub struct DropdownListBuilder<M: MessageData, C: Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     items: Vec<Handle<UINode<M, C>>>,
-    selected: usize,
+    selected: Option<usize>,
     close_on_selection: bool,
 }
 
@@ -164,7 +174,7 @@ impl<M: MessageData, C: Control<M, C>> DropdownListBuilder<M, C> {
         Self {
             widget_builder,
             items: Default::default(),
-            selected: 0,
+            selected: None,
             close_on_selection: false,
         }
     }
@@ -175,7 +185,7 @@ impl<M: MessageData, C: Control<M, C>> DropdownListBuilder<M, C> {
     }
 
     pub fn with_selected(mut self, index: usize) -> Self {
-        self.selected = index;
+        self.selected = Some(index);
         self
     }
 
@@ -198,10 +208,13 @@ impl<M: MessageData, C: Control<M, C>> DropdownListBuilder<M, C> {
             .with_content(items_control)
             .build(ctx);
 
-        let current = self
-            .items
-            .get(self.selected)
-            .map_or(Handle::NONE, |&f| ctx.copy(f));
+        let current = if let Some(selected) = self.selected {
+            self.items
+                .get(selected)
+                .map_or(Handle::NONE, |&f| ctx.copy(f))
+        } else {
+            Handle::NONE
+        };
 
         let dropdown_list = UINode::DropdownList(DropdownList {
             widget: self
@@ -212,7 +225,7 @@ impl<M: MessageData, C: Control<M, C>> DropdownListBuilder<M, C> {
             items: self.items,
             list_view: items_control,
             current,
-            selection: Some(self.selected),
+            selection: self.selected,
             close_on_selection: self.close_on_selection,
         });
 
