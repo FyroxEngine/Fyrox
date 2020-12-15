@@ -6,6 +6,8 @@ use crate::{
     sidebar::{make_text_mark, physics::joint::ball::BallJointSection, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
 };
+use rg3d::core::color::Color;
+use rg3d::gui::brush::Brush;
 use rg3d::{
     core::pool::Handle,
     gui::{
@@ -29,6 +31,7 @@ mod fixed;
 pub struct JointSection {
     pub section: Handle<UiNode>,
     connected_body: Handle<UiNode>,
+    connected_body_text: Handle<UiNode>,
     sender: Sender<Message>,
     ball_section: BallJointSection,
     fixed_section: FixedJointSection,
@@ -38,13 +41,17 @@ pub struct JointSection {
 impl JointSection {
     pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
         let connected_body;
+        let connected_body_text;
         let ball_section = BallJointSection::new(ctx, sender.clone());
         let fixed_section = FixedJointSection::new(ctx, sender.clone());
         let section = StackPanelBuilder::new(
             WidgetBuilder::new().with_children(&[
                 GridBuilder::new(
                     WidgetBuilder::new()
-                        .with_child(make_text_mark(ctx, "Connected Body", 0))
+                        .with_child({
+                            connected_body_text = make_text_mark(ctx, "Connected Body", 0);
+                            connected_body_text
+                        })
                         .with_child({
                             connected_body =
                                 DropdownListBuilder::new(WidgetBuilder::new().on_column(1))
@@ -65,6 +72,7 @@ impl JointSection {
         Self {
             section,
             sender,
+            connected_body_text,
             connected_body,
             ball_section,
             fixed_section,
@@ -129,6 +137,23 @@ impl JointSection {
             self.connected_body,
             MessageDirection::ToWidget,
             items,
+        ));
+
+        let brush = if ui
+            .node(self.connected_body)
+            .as_dropdown_list()
+            .selection()
+            .is_some()
+        {
+            Brush::Solid(Color::WHITE)
+        } else {
+            Brush::Solid(Color::RED)
+        };
+
+        ui.send_message(WidgetMessage::foreground(
+            self.connected_body_text,
+            MessageDirection::ToWidget,
+            brush,
         ));
     }
 
