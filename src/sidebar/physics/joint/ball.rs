@@ -18,8 +18,8 @@ use std::sync::mpsc::Sender;
 
 pub struct BallJointSection {
     pub section: Handle<UiNode>,
-    anchor1: Handle<UiNode>,
-    anchor2: Handle<UiNode>,
+    joint_anchor: Handle<UiNode>,
+    connected_anchor: Handle<UiNode>,
     sender: Sender<Message>,
 }
 
@@ -49,20 +49,20 @@ impl BallJointSection {
         Self {
             section,
             sender,
-            anchor1,
-            anchor2,
+            joint_anchor: anchor1,
+            connected_anchor: anchor2,
         }
     }
 
     pub fn sync_to_model(&mut self, ball: &BallJointDesc, ui: &mut Ui) {
         ui.send_message(Vec3EditorMessage::value(
-            self.anchor1,
+            self.joint_anchor,
             MessageDirection::ToWidget,
             ball.local_anchor1,
         ));
 
         ui.send_message(Vec3EditorMessage::value(
-            self.anchor2,
+            self.connected_anchor,
             MessageDirection::ToWidget,
             ball.local_anchor2,
         ));
@@ -77,13 +77,14 @@ impl BallJointSection {
         if let UiMessageData::Vec3Editor(msg) = message.data() {
             if let &Vec3EditorMessage::Value(value) = msg {
                 if message.direction() == MessageDirection::FromWidget {
-                    if message.destination() == self.anchor1 && ball.local_anchor1.ne(&value) {
+                    if message.destination() == self.joint_anchor && ball.local_anchor1.ne(&value) {
                         self.sender
                             .send(Message::DoSceneCommand(SceneCommand::SetBallJointAnchor1(
                                 SetBallJointAnchor1Command::new(handle, value),
                             )))
                             .unwrap();
-                    } else if message.destination() == self.anchor2 && ball.local_anchor2.ne(&value)
+                    } else if message.destination() == self.connected_anchor
+                        && ball.local_anchor2.ne(&value)
                     {
                         self.sender
                             .send(Message::DoSceneCommand(SceneCommand::SetBallJointAnchor2(

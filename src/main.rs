@@ -78,6 +78,7 @@ use rg3d::{
 };
 use std::{
     cell::RefCell,
+    fmt::Write,
     path::{Path, PathBuf},
     rc::Rc,
     sync::{
@@ -389,6 +390,7 @@ struct Editor {
     configurator: Configurator,
     log: Log,
     command_stack_viewer: CommandStackViewer,
+    validation_message_box: Handle<UiNode>,
 }
 
 impl Editor {
@@ -508,10 +510,20 @@ impl Editor {
                 .can_close(false)
                 .can_minimize(false)
                 .open(false)
-                .with_title(WindowTitle::Text("Unsaved changed".to_owned())),
+                .with_title(WindowTitle::Text("Unsaved changes".to_owned())),
         )
         .with_text("There are unsaved changes. Do you wish to save them before exit?")
         .with_buttons(MessageBoxButtons::YesNoCancel)
+        .build(ctx);
+
+        let validation_message_box = MessageBoxBuilder::new(
+            WindowBuilder::new(WidgetBuilder::new().with_width(400.0).with_height(500.0))
+                .can_close(false)
+                .can_minimize(false)
+                .open(false)
+                .with_title(WindowTitle::Text("Validation failed!".to_owned())),
+        )
+        .with_buttons(MessageBoxButtons::Ok)
         .build(ctx);
 
         let mut editor = Self {
@@ -534,6 +546,7 @@ impl Editor {
             log,
             light_panel,
             command_stack_viewer,
+            validation_message_box,
         };
 
         editor.set_interaction_mode(Some(InteractionModeKind::Move), engine);
@@ -1025,26 +1038,66 @@ impl Editor {
                 }
                 Message::SaveScene(path) => {
                     if let Some(editor_scene) = self.scene.as_mut() {
-                        editor_scene.path = Some(path.clone());
                         let scene = &mut engine.scenes[editor_scene.scene];
-                        let editor_root = editor_scene.root;
-                        let (mut pure_scene, old_to_new) =
-                            scene.clone(&mut |node, _| node != editor_root);
-                        let (desc, binder) = editor_scene.physics.generate_engine_desc();
-                        pure_scene.physics.desc = Some(desc);
-                        pure_scene.physics_binder.enabled = true;
-                        pure_scene.physics_binder.node_rigid_body_map.clear();
-                        for (node, body) in binder {
-                            pure_scene
-                                .physics_binder
-                                .bind(*old_to_new.get(&node).unwrap(), body);
-                        }
-                        let mut visitor = Visitor::new();
-                        pure_scene.visit("Scene", &mut visitor).unwrap();
-                        if let Err(e) = visitor.save_binary(&path) {
-                            self.message_sender
-                                .send(Message::Log(e.to_string()))
+
+                        // Validate first.
+                        let mut valid = true;
+                        let mut reason =
+                            "Scene is not saved, because validation failed:\n".to_owned();
+
+                        for joint in editor_scene.physics.joints.iter() {
+                            if joint.body1.is_none() || joint.body2.is_none() {
+                                let mut associated_node = Handle::NONE;
+                                for (&node, &body) in editor_scene.physics.binder.iter() {
+                                    if body == joint.body1.into() {
+                                        associated_node = node;
+                                        break;
+                                    }
+                                }
+
+                                writeln!(
+                                    &mut reason,
+                                    "Invalid joint on node {} ({}:{}). Associated body is missing!",
+                                    scene.graph[associated_node].name(),
+                                    associated_node.index(),
+                                    associated_node.generation()
+                                )
                                 .unwrap();
+                                valid = false;
+                            }
+                        }
+
+                        if valid {
+                            editor_scene.path = Some(path.clone());
+
+                            let editor_root = editor_scene.root;
+                            let (mut pure_scene, old_to_new) =
+                                scene.clone(&mut |node, _| node != editor_root);
+                            let (desc, binder) = editor_scene.physics.generate_engine_desc();
+                            pure_scene.physics.desc = Some(desc);
+                            pure_scene.physics_binder.enabled = true;
+                            pure_scene.physics_binder.node_rigid_body_map.clear();
+                            for (node, body) in binder {
+                                pure_scene
+                                    .physics_binder
+                                    .bind(*old_to_new.get(&node).unwrap(), body);
+                            }
+                            let mut visitor = Visitor::new();
+                            pure_scene.visit("Scene", &mut visitor).unwrap();
+                            if let Err(e) = visitor.save_binary(&path) {
+                                self.message_sender
+                                    .send(Message::Log(e.to_string()))
+                                    .unwrap();
+                            }
+                        } else {
+                            writeln!(&mut reason, "\nPlease fix errors and try again.").unwrap();
+
+                            engine.user_interface.send_message(MessageBoxMessage::open(
+                                self.validation_message_box,
+                                MessageDirection::ToWidget,
+                                None,
+                                Some(reason),
+                            ));
                         }
                     }
                 }

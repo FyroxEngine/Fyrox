@@ -91,6 +91,10 @@ pub enum SceneCommand {
     SetBallRadius(SetBallRadiusCommand),
     SetBallJointAnchor1(SetBallJointAnchor1Command),
     SetBallJointAnchor2(SetBallJointAnchor2Command),
+    SetFixedJointAnchor1Translation(SetFixedJointAnchor1TranslationCommand),
+    SetFixedJointAnchor2Translation(SetFixedJointAnchor2TranslationCommand),
+    SetFixedJointAnchor1Rotation(SetFixedJointAnchor1RotationCommand),
+    SetFixedJointAnchor2Rotation(SetFixedJointAnchor2RotationCommand),
     SetCuboidHalfExtents(SetCuboidHalfExtentsCommand),
     DeleteBody(DeleteBodyCommand),
     DeleteCollider(DeleteColliderCommand),
@@ -156,6 +160,10 @@ macro_rules! static_dispatch {
             SceneCommand::SetBallRadius(v) => v.$func($($args),*),
             SceneCommand::SetBallJointAnchor1(v) => v.$func($($args),*),
             SceneCommand::SetBallJointAnchor2(v) => v.$func($($args),*),
+            SceneCommand::SetFixedJointAnchor1Translation(v) => v.$func($($args),*),
+            SceneCommand::SetFixedJointAnchor2Translation(v) => v.$func($($args),*),
+            SceneCommand::SetFixedJointAnchor1Rotation(v) => v.$func($($args),*),
+            SceneCommand::SetFixedJointAnchor2Rotation(v) => v.$func($($args),*),
             SceneCommand::SetCuboidHalfExtents(v) => v.$func($($args),*),
             SceneCommand::DeleteBody(v) => v.$func($($args),*),
             SceneCommand::DeleteCollider(v) => v.$func($($args),*),
@@ -1493,6 +1501,42 @@ define_simple_joint_command!(SetBallJointAnchor2Command, "Set Ball Joint Anchor 
     let joint = &mut physics.joints[this.handle];
     if let JointParamsDesc::BallJoint(ball) = &mut joint.params {
         std::mem::swap(&mut ball.local_anchor2, &mut this.value);
+    } else {
+        unreachable!();
+    }
+});
+
+define_simple_joint_command!(SetFixedJointAnchor1TranslationCommand, "Set Fixed Joint Anchor 1 Translation", Vector3<f32> => |this: &mut SetFixedJointAnchor1TranslationCommand, physics: &mut Physics| {
+    let joint = &mut physics.joints[this.handle];
+    if let JointParamsDesc::FixedJoint(fixed) = &mut joint.params {
+        std::mem::swap(&mut fixed.local_anchor1_translation, &mut this.value);
+    } else {
+        unreachable!();
+    }
+});
+
+define_simple_joint_command!(SetFixedJointAnchor2TranslationCommand, "Set Fixed Joint Anchor 2 Translation", Vector3<f32> => |this: &mut SetFixedJointAnchor2TranslationCommand, physics: &mut Physics| {
+    let joint = &mut physics.joints[this.handle];
+    if let JointParamsDesc::FixedJoint(fixed) = &mut joint.params {
+        std::mem::swap(&mut fixed.local_anchor2_translation, &mut this.value);
+    } else {
+        unreachable!();
+    }
+});
+
+define_simple_joint_command!(SetFixedJointAnchor1RotationCommand, "Set Fixed Joint Anchor 1 Rotation", UnitQuaternion<f32> => |this: &mut SetFixedJointAnchor1RotationCommand, physics: &mut Physics| {
+    let joint = &mut physics.joints[this.handle];
+    if let JointParamsDesc::FixedJoint(fixed) = &mut joint.params {
+        std::mem::swap(&mut fixed.local_anchor1_rotation, &mut this.value);
+    } else {
+        unreachable!();
+    }
+});
+
+define_simple_joint_command!(SetFixedJointAnchor2RotationCommand, "Set Fixed Joint Anchor 2 Rotation", UnitQuaternion<f32> => |this: &mut SetFixedJointAnchor2RotationCommand, physics: &mut Physics| {
+    let joint = &mut physics.joints[this.handle];
+    if let JointParamsDesc::FixedJoint(fixed) = &mut joint.params {
+        std::mem::swap(&mut fixed.local_anchor2_rotation, &mut this.value);
     } else {
         unreachable!();
     }

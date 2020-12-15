@@ -1,3 +1,4 @@
+use crate::sidebar::physics::joint::fixed::FixedJointSection;
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::{Joint, RigidBody},
@@ -23,12 +24,14 @@ use rg3d::{
 use std::{collections::HashMap, sync::mpsc::Sender};
 
 mod ball;
+mod fixed;
 
 pub struct JointSection {
     pub section: Handle<UiNode>,
     connected_body: Handle<UiNode>,
     sender: Sender<Message>,
     ball_section: BallJointSection,
+    fixed_section: FixedJointSection,
     available_bodies: Vec<Handle<RigidBody>>,
 }
 
@@ -36,6 +39,7 @@ impl JointSection {
     pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
         let connected_body;
         let ball_section = BallJointSection::new(ctx, sender.clone());
+        let fixed_section = FixedJointSection::new(ctx, sender.clone());
         let section = StackPanelBuilder::new(
             WidgetBuilder::new().with_children(&[
                 GridBuilder::new(
@@ -53,6 +57,7 @@ impl JointSection {
                 .add_row(Row::strict(ROW_HEIGHT))
                 .build(ctx),
                 ball_section.section,
+                fixed_section.section,
             ]),
         )
         .build(ctx);
@@ -62,6 +67,7 @@ impl JointSection {
             sender,
             connected_body,
             ball_section,
+            fixed_section,
             available_bodies: Default::default(),
         }
     }
@@ -82,13 +88,17 @@ impl JointSection {
         };
 
         toggle_visibility(ui, self.ball_section.section, false);
+        toggle_visibility(ui, self.fixed_section.section, false);
 
         match &joint.params {
             JointParamsDesc::BallJoint(ball) => {
                 toggle_visibility(ui, self.ball_section.section, true);
                 self.ball_section.sync_to_model(ball, ui);
             }
-            JointParamsDesc::FixedJoint(_) => {}
+            JointParamsDesc::FixedJoint(fixed) => {
+                toggle_visibility(ui, self.fixed_section.section, true);
+                self.fixed_section.sync_to_model(fixed, ui);
+            }
             JointParamsDesc::PrismaticJoint(_) => {}
             JointParamsDesc::RevoluteJoint(_) => {}
         };
@@ -127,7 +137,9 @@ impl JointSection {
             JointParamsDesc::BallJoint(ball) => {
                 self.ball_section.handle_message(message, ball, handle);
             }
-            JointParamsDesc::FixedJoint(_) => (),
+            JointParamsDesc::FixedJoint(fixed) => {
+                self.fixed_section.handle_message(message, fixed, handle);
+            }
             JointParamsDesc::PrismaticJoint(_) => (),
             JointParamsDesc::RevoluteJoint(_) => (),
         }
