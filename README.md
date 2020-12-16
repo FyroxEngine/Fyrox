@@ -76,6 +76,7 @@ let scene_handle = engine.scenes.add(scene);
 - [x] Undo/redo.
 - [x] Camera controller.
 - [x] Save scene.
+  	- [x] Validation
 - [x] Load scene.
 - [x] Docking windows.
 - [x] Scene preview
@@ -145,6 +146,17 @@ let scene_handle = engine.scenes.add(scene);
 		- [x] Color
 	- [x] Mesh node
 		- [x] Cast shadows
+	- [x] Joints
+		- [x] Ball joint
+		- [x] Prismatic joint
+		- [x] Fixed joint
+		- [x] Revolute joint
+	- [x] Colliders
+	  	- [x] Translation
+	  	- [x] Rotation
+	- [x] Rigid body
+- [x] Configurator
+  	- [x] History
 - [x] Asset browser.
 	- [x] Asset previewer
 	- [x] Folder view
