@@ -85,12 +85,10 @@ use crate::{
     scene::base::{Base, BaseBuilder},
 };
 use std::{
-    any::Any,
     cell::Cell,
     cmp::Ordering,
     fmt::Debug,
     ops::{Deref, DerefMut},
-    sync::{LockResult, Mutex, MutexGuard},
 };
 
 /// OpenGL expects this structure packed as in C.
@@ -279,6 +277,102 @@ impl Visit for BoxEmitter {
     }
 }
 
+/// Vertical cylinder emitter.
+#[derive(Clone, Debug)]
+pub struct CylinderEmitter {
+    emitter: BaseEmitter,
+    height: f32,
+    radius: f32,
+}
+
+impl Default for CylinderEmitter {
+    fn default() -> Self {
+        Self {
+            emitter: Default::default(),
+            height: 1.0,
+            radius: 0.5,
+        }
+    }
+}
+
+impl Deref for CylinderEmitter {
+    type Target = BaseEmitter;
+
+    fn deref(&self) -> &Self::Target {
+        &self.emitter
+    }
+}
+
+impl DerefMut for CylinderEmitter {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.emitter
+    }
+}
+
+impl Visit for CylinderEmitter {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.radius.visit("Radius", visitor)?;
+        self.height.visit("Height", visitor)?;
+
+        visitor.leave_region()
+    }
+}
+
+impl Emit for CylinderEmitter {
+    fn emit(&self, _particle_system: &ParticleSystem, particle: &mut Particle) {
+        // Disk point picking extended in 3D - http://mathworld.wolfram.com/DiskPointPicking.html
+        let scale: f32 = crate::rand::thread_rng().gen_range(0.0, 1.0);
+        let theta = crate::rand::thread_rng().gen_range(0.0, 2.0 * std::f32::consts::PI);
+        let z = crate::rand::thread_rng().gen_range(0.0, self.height);
+        let radius = scale.sqrt() * self.radius;
+        let x = radius * theta.cos();
+        let y = radius * theta.sin();
+        particle.position = Vector3::new(x, y, z);
+    }
+}
+
+/// Box emitter builder allows you to construct cylinder emitter in declarative manner.
+/// This is typical implementation of Builder pattern.
+pub struct CylinderEmitterBuilder {
+    base: BaseEmitterBuilder,
+    height: f32,
+    radius: f32,
+}
+
+impl CylinderEmitterBuilder {
+    /// Creates new cylinder emitter builder.
+    pub fn new(base: BaseEmitterBuilder) -> Self {
+        Self {
+            base,
+            height: 1.0,
+            radius: 0.5,
+        }
+    }
+
+    /// Sets desired height of the emitter.
+    pub fn with_height(mut self, height: f32) -> Self {
+        self.height = height;
+        self
+    }
+
+    /// Sets desired radius of the emitter.
+    pub fn with_radius(mut self, radius: f32) -> Self {
+        self.radius = radius;
+        self
+    }
+
+    /// Creates new cylinder emitter with given parameters.
+    pub fn build(self) -> Emitter {
+        Emitter::Cylinder(CylinderEmitter {
+            emitter: self.base.build(),
+            height: self.height,
+            radius: self.radius,
+        })
+    }
+}
+
 /// Box emitter builder allows you to construct box emitter in declarative manner.
 /// This is typical implementation of Builder pattern.
 pub struct BoxEmitterBuilder {
@@ -423,63 +517,6 @@ impl SphereEmitterBuilder {
     }
 }
 
-/// Callback that creates emitter by its numeric identifier.
-pub type CustomEmitterFactoryCallback =
-    dyn Fn(i32) -> Result<Box<dyn CustomEmitter>, String> + Send + 'static;
-
-/// Custom emitter factory is used to be able to make your own emitters if none of
-/// predefined are not suits to your case.
-pub struct CustomEmitterFactory {
-    callback: Option<Box<CustomEmitterFactoryCallback>>,
-}
-
-impl Default for CustomEmitterFactory {
-    fn default() -> Self {
-        Self { callback: None }
-    }
-}
-
-impl CustomEmitterFactory {
-    /// Locks factory singleton and returns lock result.
-    pub fn get() -> LockResult<MutexGuard<'static, Self>> {
-        CUSTOM_EMITTER_FACTORY_INSTANCE.lock()
-    }
-
-    /// Sets new callback that will be used to create custom emitters.
-    pub fn set_callback(&mut self, callback: Box<CustomEmitterFactoryCallback>) {
-        self.callback = Some(callback);
-    }
-
-    fn spawn(&self, kind: i32) -> Result<Box<dyn CustomEmitter>, String> {
-        match &self.callback {
-            Some(callback) => callback(kind),
-            None => Err(String::from("no callback specified")),
-        }
-    }
-}
-
-lazy_static! {
-    static ref CUSTOM_EMITTER_FACTORY_INSTANCE: Mutex<CustomEmitterFactory> =
-        Mutex::new(Default::default());
-}
-
-/// Custom emitter allows you to make your own emitters. It can be implemented on serializable
-/// types only!
-///
-/// # Example
-///
-/// TODO
-pub trait CustomEmitter:
-    Any + Emit + Visit + Send + Debug + Deref<Target = BaseEmitter> + DerefMut
-{
-    /// Creates boxed copy of custom emitter.
-    fn box_clone(&self) -> Box<dyn CustomEmitter>;
-
-    /// Returns unique of custom emitter. Must never be negative!
-    /// Negative numbers reserved for built-in kinds.
-    fn get_kind(&self) -> i32;
-}
-
 /// Emitter is an enum over all possible emitter types, they all must
 /// use BaseEmitter which contains base functionality.
 #[derive(Debug)]
@@ -491,38 +528,29 @@ pub enum Emitter {
     Box(BoxEmitter),
     /// See SphereEmitter docs.
     Sphere(SphereEmitter),
-    /// Custom emitter.
-    Custom(Box<dyn CustomEmitter>),
+    /// Cylinder emitter.
+    Cylinder(CylinderEmitter),
 }
 
 impl Emitter {
     /// Creates new emitter from given id.
     pub fn new(id: i32) -> Result<Self, String> {
         match id {
-            -1 => Ok(Self::Unknown),
-            -2 => Ok(Self::Box(Default::default())),
-            -3 => Ok(Self::Sphere(Default::default())),
-            _ => match CustomEmitterFactory::get() {
-                Ok(factory) => Ok(Emitter::Custom(factory.spawn(id)?)),
-                Err(_) => Err(String::from("Failed get custom emitter factory!")),
-            },
+            0 => Ok(Self::Unknown),
+            1 => Ok(Self::Box(Default::default())),
+            2 => Ok(Self::Sphere(Default::default())),
+            3 => Ok(Self::Cylinder(Default::default())),
+            _ => Err(format!("Invalid emitter id {}!", id)),
         }
     }
 
     /// Returns id of current emitter kind.
     pub fn id(&self) -> i32 {
         match self {
-            Self::Unknown => -1,
-            Self::Box(_) => -2,
-            Self::Sphere(_) => -3,
-            Self::Custom(custom_emitter) => {
-                let id = custom_emitter.get_kind();
-                assert!(
-                    id >= 0,
-                    "Negative number for emitter kind are reserved for built-in types!"
-                );
-                id
-            }
+            Self::Unknown => 0,
+            Self::Box(_) => 1,
+            Self::Sphere(_) => 2,
+            Self::Cylinder(_) => 3,
         }
     }
 }
@@ -533,7 +561,7 @@ macro_rules! static_dispatch {
             Emitter::Unknown => panic!("Unknown emitter must not be used!"),
             Emitter::Box(v) => v.$func($($args),*),
             Emitter::Sphere(v) => v.$func($($args),*),
-            Emitter::Custom(v) => v.$func($($args),*),
+            Emitter::Cylinder(v) => v.$func($($args),*),
         }
     };
 }
@@ -550,7 +578,7 @@ impl Clone for Emitter {
             Self::Unknown => panic!("Unknown emitter kind is not supported"),
             Self::Box(box_emitter) => Self::Box(box_emitter.clone()),
             Self::Sphere(sphere_emitter) => Self::Sphere(sphere_emitter.clone()),
-            Self::Custom(custom_emitter) => Self::Custom(custom_emitter.box_clone()),
+            Self::Cylinder(cylinder) => Self::Cylinder(cylinder.clone()),
         }
     }
 }
