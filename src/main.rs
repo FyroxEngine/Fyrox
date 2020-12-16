@@ -1086,11 +1086,25 @@ impl Editor {
                             pure_scene.visit("Scene", &mut visitor).unwrap();
                             if let Err(e) = visitor.save_binary(&path) {
                                 self.message_sender
-                                    .send(Message::Log(e.to_string()))
+                                    .send(Message::Log(format!(
+                                        "Failed to save scene! Reason: {}",
+                                        e.to_string()
+                                    )))
+                                    .unwrap();
+                            } else {
+                                self.message_sender
+                                    .send(Message::Log(format!(
+                                        "Scene {} was successfully saved!",
+                                        path.display()
+                                    )))
                                     .unwrap();
                             }
                         } else {
                             writeln!(&mut reason, "\nPlease fix errors and try again.").unwrap();
+
+                            self.message_sender
+                                .send(Message::Log(reason.clone()))
+                                .unwrap();
 
                             engine.user_interface.send_message(MessageBoxMessage::open(
                                 self.validation_message_box,

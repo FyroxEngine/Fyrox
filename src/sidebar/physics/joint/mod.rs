@@ -1,17 +1,21 @@
-use crate::sidebar::physics::joint::fixed::FixedJointSection;
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::{Joint, RigidBody},
     scene::{SceneCommand, SetJointConnectedBodyCommand},
-    sidebar::{make_text_mark, physics::joint::ball::BallJointSection, COLUMN_WIDTH, ROW_HEIGHT},
+    sidebar::{
+        make_text_mark,
+        physics::joint::{
+            ball::BallJointSection, fixed::FixedJointSection, revolute::RevoluteJointSection,
+        },
+        COLUMN_WIDTH, ROW_HEIGHT,
+    },
     Message,
 };
-use rg3d::core::color::Color;
-use rg3d::gui::brush::Brush;
 use rg3d::{
-    core::pool::Handle,
+    core::{color::Color, pool::Handle},
     gui::{
         border::BorderBuilder,
+        brush::Brush,
         decorator::DecoratorBuilder,
         dropdown_list::DropdownListBuilder,
         grid::{Column, GridBuilder, Row},
@@ -27,6 +31,7 @@ use std::{collections::HashMap, sync::mpsc::Sender};
 
 mod ball;
 mod fixed;
+mod revolute;
 
 pub struct JointSection {
     pub section: Handle<UiNode>,
@@ -35,6 +40,7 @@ pub struct JointSection {
     sender: Sender<Message>,
     ball_section: BallJointSection,
     fixed_section: FixedJointSection,
+    revolute_section: RevoluteJointSection,
     available_bodies: Vec<Handle<RigidBody>>,
 }
 
@@ -44,6 +50,7 @@ impl JointSection {
         let connected_body_text;
         let ball_section = BallJointSection::new(ctx, sender.clone());
         let fixed_section = FixedJointSection::new(ctx, sender.clone());
+        let revolute_section = RevoluteJointSection::new(ctx, sender.clone());
         let section = StackPanelBuilder::new(
             WidgetBuilder::new().with_children(&[
                 GridBuilder::new(
@@ -65,6 +72,7 @@ impl JointSection {
                 .build(ctx),
                 ball_section.section,
                 fixed_section.section,
+                revolute_section.section,
             ]),
         )
         .build(ctx);
@@ -76,6 +84,7 @@ impl JointSection {
             connected_body,
             ball_section,
             fixed_section,
+            revolute_section,
             available_bodies: Default::default(),
         }
     }
@@ -97,6 +106,7 @@ impl JointSection {
 
         toggle_visibility(ui, self.ball_section.section, false);
         toggle_visibility(ui, self.fixed_section.section, false);
+        toggle_visibility(ui, self.revolute_section.section, false);
 
         match &joint.params {
             JointParamsDesc::BallJoint(ball) => {
@@ -108,12 +118,16 @@ impl JointSection {
                 self.fixed_section.sync_to_model(fixed, ui);
             }
             JointParamsDesc::PrismaticJoint(_) => {}
-            JointParamsDesc::RevoluteJoint(_) => {}
+            JointParamsDesc::RevoluteJoint(revolute) => {
+                toggle_visibility(ui, self.revolute_section.section, true);
+                self.revolute_section.sync_to_model(revolute, ui);
+            }
         };
 
         self.available_bodies.clear();
         let mut items = Vec::new();
         let ctx = &mut ui.build_ctx();
+        let mut connected_index = None;
         for (handle, node) in graph.pair_iter() {
             if let Some(&body) = binder.get(&handle) {
                 if body != joint.body1.into() {
@@ -130,6 +144,10 @@ impl JointSection {
                     self.available_bodies.push(body);
                     items.push(item);
                 }
+
+                if body == joint.body2.into() {
+                    connected_index = Some(items.len() - 1);
+                }
             }
         }
 
@@ -137,6 +155,12 @@ impl JointSection {
             self.connected_body,
             MessageDirection::ToWidget,
             items,
+        ));
+
+        ui.send_message(DropdownListMessage::selection(
+            self.connected_body,
+            MessageDirection::ToWidget,
+            connected_index,
         ));
 
         let brush = if ui
@@ -166,7 +190,10 @@ impl JointSection {
                 self.fixed_section.handle_message(message, fixed, handle);
             }
             JointParamsDesc::PrismaticJoint(_) => (),
-            JointParamsDesc::RevoluteJoint(_) => (),
+            JointParamsDesc::RevoluteJoint(revolute) => {
+                self.revolute_section
+                    .handle_message(message, revolute, handle);
+            }
         }
 
         if let UiMessageData::DropdownList(msg) = message.data() {

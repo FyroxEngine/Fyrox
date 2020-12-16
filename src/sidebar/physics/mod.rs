@@ -18,7 +18,9 @@ use crate::{
     },
     GameEngine, Message,
 };
-use rg3d::scene::physics::{BallJointDesc, FixedJointDesc, JointParamsDesc, PrismaticJointDesc};
+use rg3d::scene::physics::{
+    BallJointDesc, FixedJointDesc, JointParamsDesc, PrismaticJointDesc, RevoluteJointDesc,
+};
 use rg3d::{
     core::{algebra::Vector3, pool::Handle},
     gui::{
@@ -705,7 +707,20 @@ impl PhysicsSection {
                                                 ),
                                             }),
                                         )),
-                                        4 => {}
+                                        4 => commands.push(SceneCommand::AddJoint(
+                                            AddJointCommand::new(Joint {
+                                                body1: body_handle.into(),
+                                                body2: Default::default(),
+                                                params: JointParamsDesc::RevoluteJoint(
+                                                    RevoluteJointDesc {
+                                                        local_anchor1: Default::default(),
+                                                        local_axis1: Vector3::y(),
+                                                        local_anchor2: Default::default(),
+                                                        local_axis2: Vector3::x(),
+                                                    },
+                                                ),
+                                            }),
+                                        )),
                                         _ => unreachable!(),
                                     };
 

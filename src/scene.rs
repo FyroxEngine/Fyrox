@@ -95,6 +95,10 @@ pub enum SceneCommand {
     SetFixedJointAnchor2Translation(SetFixedJointAnchor2TranslationCommand),
     SetFixedJointAnchor1Rotation(SetFixedJointAnchor1RotationCommand),
     SetFixedJointAnchor2Rotation(SetFixedJointAnchor2RotationCommand),
+    SetRevoluteJointAnchor1(SetRevoluteJointAnchor1Command),
+    SetRevoluteJointAxis1(SetRevoluteJointAxis1Command),
+    SetRevoluteJointAnchor2(SetRevoluteJointAnchor2Command),
+    SetRevoluteJointAxis2(SetRevoluteJointAxis2Command),
     SetCuboidHalfExtents(SetCuboidHalfExtentsCommand),
     DeleteBody(DeleteBodyCommand),
     DeleteCollider(DeleteColliderCommand),
@@ -164,6 +168,10 @@ macro_rules! static_dispatch {
             SceneCommand::SetFixedJointAnchor2Translation(v) => v.$func($($args),*),
             SceneCommand::SetFixedJointAnchor1Rotation(v) => v.$func($($args),*),
             SceneCommand::SetFixedJointAnchor2Rotation(v) => v.$func($($args),*),
+            SceneCommand::SetRevoluteJointAnchor1(v) => v.$func($($args),*),
+            SceneCommand::SetRevoluteJointAxis1(v) => v.$func($($args),*),
+            SceneCommand::SetRevoluteJointAnchor2(v) => v.$func($($args),*),
+            SceneCommand::SetRevoluteJointAxis2(v) => v.$func($($args),*),
             SceneCommand::SetCuboidHalfExtents(v) => v.$func($($args),*),
             SceneCommand::DeleteBody(v) => v.$func($($args),*),
             SceneCommand::DeleteCollider(v) => v.$func($($args),*),
@@ -1537,6 +1545,42 @@ define_simple_joint_command!(SetFixedJointAnchor2RotationCommand, "Set Fixed Joi
     let joint = &mut physics.joints[this.handle];
     if let JointParamsDesc::FixedJoint(fixed) = &mut joint.params {
         std::mem::swap(&mut fixed.local_anchor2_rotation, &mut this.value);
+    } else {
+        unreachable!();
+    }
+});
+
+define_simple_joint_command!(SetRevoluteJointAnchor1Command, "Set Revolute Joint Anchor 1", Vector3<f32> => |this: &mut SetRevoluteJointAnchor1Command, physics: &mut Physics| {
+    let joint = &mut physics.joints[this.handle];
+    if let JointParamsDesc::RevoluteJoint(revolute) = &mut joint.params {
+        std::mem::swap(&mut revolute.local_anchor1, &mut this.value);
+    } else {
+        unreachable!();
+    }
+});
+
+define_simple_joint_command!(SetRevoluteJointAxis1Command, "Set Revolute Joint Axis 1", Vector3<f32> => |this: &mut SetRevoluteJointAxis1Command, physics: &mut Physics| {
+    let joint = &mut physics.joints[this.handle];
+    if let JointParamsDesc::RevoluteJoint(revolute) = &mut joint.params {
+        std::mem::swap(&mut revolute.local_axis1, &mut this.value);
+    } else {
+        unreachable!();
+    }
+});
+
+define_simple_joint_command!(SetRevoluteJointAnchor2Command, "Set Revolute Joint Anchor 2", Vector3<f32> => |this: &mut SetRevoluteJointAnchor2Command, physics: &mut Physics| {
+    let joint = &mut physics.joints[this.handle];
+    if let JointParamsDesc::RevoluteJoint(revolute) = &mut joint.params {
+        std::mem::swap(&mut revolute.local_anchor2, &mut this.value);
+    } else {
+        unreachable!();
+    }
+});
+
+define_simple_joint_command!(SetRevoluteJointAxis2Command, "Set Revolute Joint Axis 2", Vector3<f32> => |this: &mut SetRevoluteJointAxis2Command, physics: &mut Physics| {
+    let joint = &mut physics.joints[this.handle];
+    if let JointParamsDesc::RevoluteJoint(revolute) = &mut joint.params {
+        std::mem::swap(&mut revolute.local_axis2, &mut this.value);
     } else {
         unreachable!();
     }
