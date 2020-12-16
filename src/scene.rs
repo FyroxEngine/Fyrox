@@ -99,6 +99,10 @@ pub enum SceneCommand {
     SetRevoluteJointAxis1(SetRevoluteJointAxis1Command),
     SetRevoluteJointAnchor2(SetRevoluteJointAnchor2Command),
     SetRevoluteJointAxis2(SetRevoluteJointAxis2Command),
+    SetPrismaticJointAnchor1(SetPrismaticJointAnchor1Command),
+    SetPrismaticJointAxis1(SetPrismaticJointAxis1Command),
+    SetPrismaticJointAnchor2(SetPrismaticJointAnchor2Command),
+    SetPrismaticJointAxis2(SetPrismaticJointAxis2Command),
     SetCuboidHalfExtents(SetCuboidHalfExtentsCommand),
     DeleteBody(DeleteBodyCommand),
     DeleteCollider(DeleteColliderCommand),
@@ -172,6 +176,10 @@ macro_rules! static_dispatch {
             SceneCommand::SetRevoluteJointAxis1(v) => v.$func($($args),*),
             SceneCommand::SetRevoluteJointAnchor2(v) => v.$func($($args),*),
             SceneCommand::SetRevoluteJointAxis2(v) => v.$func($($args),*),
+            SceneCommand::SetPrismaticJointAnchor1(v) => v.$func($($args),*),
+            SceneCommand::SetPrismaticJointAxis1(v) => v.$func($($args),*),
+            SceneCommand::SetPrismaticJointAnchor2(v) => v.$func($($args),*),
+            SceneCommand::SetPrismaticJointAxis2(v) => v.$func($($args),*),
             SceneCommand::SetCuboidHalfExtents(v) => v.$func($($args),*),
             SceneCommand::DeleteBody(v) => v.$func($($args),*),
             SceneCommand::DeleteCollider(v) => v.$func($($args),*),
@@ -1577,10 +1585,46 @@ define_simple_joint_command!(SetRevoluteJointAnchor2Command, "Set Revolute Joint
     }
 });
 
-define_simple_joint_command!(SetRevoluteJointAxis2Command, "Set Revolute Joint Axis 2", Vector3<f32> => |this: &mut SetRevoluteJointAxis2Command, physics: &mut Physics| {
+define_simple_joint_command!(SetRevoluteJointAxis2Command, "Set Prismatic Joint Axis 2", Vector3<f32> => |this: &mut SetRevoluteJointAxis2Command, physics: &mut Physics| {
     let joint = &mut physics.joints[this.handle];
     if let JointParamsDesc::RevoluteJoint(revolute) = &mut joint.params {
         std::mem::swap(&mut revolute.local_axis2, &mut this.value);
+    } else {
+        unreachable!();
+    }
+});
+
+define_simple_joint_command!(SetPrismaticJointAnchor1Command, "Set Prismatic Joint Anchor 1", Vector3<f32> => |this: &mut SetPrismaticJointAnchor1Command, physics: &mut Physics| {
+    let joint = &mut physics.joints[this.handle];
+    if let JointParamsDesc::PrismaticJoint(prismatic) = &mut joint.params {
+        std::mem::swap(&mut prismatic.local_anchor1, &mut this.value);
+    } else {
+        unreachable!();
+    }
+});
+
+define_simple_joint_command!(SetPrismaticJointAxis1Command, "Set Prismatic Joint Axis 1", Vector3<f32> => |this: &mut SetPrismaticJointAxis1Command, physics: &mut Physics| {
+    let joint = &mut physics.joints[this.handle];
+    if let JointParamsDesc::PrismaticJoint(prismatic) = &mut joint.params {
+        std::mem::swap(&mut prismatic.local_axis1, &mut this.value);
+    } else {
+        unreachable!();
+    }
+});
+
+define_simple_joint_command!(SetPrismaticJointAnchor2Command, "Set Prismatic Joint Anchor 2", Vector3<f32> => |this: &mut SetPrismaticJointAnchor2Command, physics: &mut Physics| {
+    let joint = &mut physics.joints[this.handle];
+    if let JointParamsDesc::PrismaticJoint(prismatic) = &mut joint.params {
+        std::mem::swap(&mut prismatic.local_anchor2, &mut this.value);
+    } else {
+        unreachable!();
+    }
+});
+
+define_simple_joint_command!(SetPrismaticJointAxis2Command, "Set Prismatic Joint Axis 2", Vector3<f32> => |this: &mut SetPrismaticJointAxis2Command, physics: &mut Physics| {
+    let joint = &mut physics.joints[this.handle];
+    if let JointParamsDesc::PrismaticJoint(prismatic) = &mut joint.params {
+        std::mem::swap(&mut prismatic.local_axis2, &mut this.value);
     } else {
         unreachable!();
     }

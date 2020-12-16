@@ -1,3 +1,4 @@
+use crate::sidebar::physics::joint::prismatic::PrismaticJointSection;
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::{Joint, RigidBody},
@@ -31,6 +32,7 @@ use std::{collections::HashMap, sync::mpsc::Sender};
 
 mod ball;
 mod fixed;
+mod prismatic;
 mod revolute;
 
 pub struct JointSection {
@@ -41,6 +43,7 @@ pub struct JointSection {
     ball_section: BallJointSection,
     fixed_section: FixedJointSection,
     revolute_section: RevoluteJointSection,
+    prismatic_section: PrismaticJointSection,
     available_bodies: Vec<Handle<RigidBody>>,
 }
 
@@ -51,6 +54,7 @@ impl JointSection {
         let ball_section = BallJointSection::new(ctx, sender.clone());
         let fixed_section = FixedJointSection::new(ctx, sender.clone());
         let revolute_section = RevoluteJointSection::new(ctx, sender.clone());
+        let prismatic_section = PrismaticJointSection::new(ctx, sender.clone());
         let section = StackPanelBuilder::new(
             WidgetBuilder::new().with_children(&[
                 GridBuilder::new(
@@ -73,6 +77,7 @@ impl JointSection {
                 ball_section.section,
                 fixed_section.section,
                 revolute_section.section,
+                prismatic_section.section,
             ]),
         )
         .build(ctx);
@@ -85,6 +90,7 @@ impl JointSection {
             ball_section,
             fixed_section,
             revolute_section,
+            prismatic_section,
             available_bodies: Default::default(),
         }
     }
@@ -107,6 +113,7 @@ impl JointSection {
         toggle_visibility(ui, self.ball_section.section, false);
         toggle_visibility(ui, self.fixed_section.section, false);
         toggle_visibility(ui, self.revolute_section.section, false);
+        toggle_visibility(ui, self.prismatic_section.section, false);
 
         match &joint.params {
             JointParamsDesc::BallJoint(ball) => {
@@ -117,7 +124,10 @@ impl JointSection {
                 toggle_visibility(ui, self.fixed_section.section, true);
                 self.fixed_section.sync_to_model(fixed, ui);
             }
-            JointParamsDesc::PrismaticJoint(_) => {}
+            JointParamsDesc::PrismaticJoint(prismatic) => {
+                toggle_visibility(ui, self.prismatic_section.section, true);
+                self.prismatic_section.sync_to_model(prismatic, ui);
+            }
             JointParamsDesc::RevoluteJoint(revolute) => {
                 toggle_visibility(ui, self.revolute_section.section, true);
                 self.revolute_section.sync_to_model(revolute, ui);
@@ -189,7 +199,10 @@ impl JointSection {
             JointParamsDesc::FixedJoint(fixed) => {
                 self.fixed_section.handle_message(message, fixed, handle);
             }
-            JointParamsDesc::PrismaticJoint(_) => (),
+            JointParamsDesc::PrismaticJoint(prismatic) => {
+                self.prismatic_section
+                    .handle_message(message, prismatic, handle);
+            }
             JointParamsDesc::RevoluteJoint(revolute) => {
                 self.revolute_section
                     .handle_message(message, revolute, handle);
