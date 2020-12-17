@@ -37,6 +37,7 @@ use rg3d::{
         },
     },
 };
+use std::ops::Deref;
 use std::sync::mpsc::Sender;
 
 mod emitter;
@@ -347,6 +348,14 @@ impl ParticleSystemSection {
                                     unreachable!()
                                 }
                             }
+                        }
+                    }
+                }
+                UiMessageData::DropdownList(msg) => {
+                    if let DropdownListMessage::SelectionChanged(selection) = msg {
+                        if message.destination() == self.emitters {
+                            self.emitter_index = *selection;
+                            self.sender.send(Message::SyncToModel).unwrap();
                         }
                     }
                 }

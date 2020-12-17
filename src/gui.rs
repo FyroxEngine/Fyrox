@@ -113,7 +113,7 @@ impl<D: Clone + 'static> Control<EditorUiMessage, EditorUiNode> for DeletableIte
                 if message.destination() == self.delete {
                     ui.send_message(UiMessage::user(
                         self.handle(),
-                        MessageDirection::ToWidget,
+                        MessageDirection::FromWidget,
                         EditorUiMessage::DeletableItem(DeletableItemMessage::Delete),
                     ));
                 }

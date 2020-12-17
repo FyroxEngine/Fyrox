@@ -298,23 +298,23 @@ impl SideBar {
         let scene = &engine.scenes[editor_scene.scene];
         let graph = &scene.graph;
 
-        if editor_scene.selection.is_single_selection() {
+        if editor_scene.selection.is_single_selection()
+            && message.direction() == MessageDirection::FromWidget
+        {
             let node_handle = editor_scene.selection.nodes()[0];
             let node = &graph[node_handle];
-
-            self.particle_system_section.handle_message(
-                message,
-                node,
-                node_handle,
-                &engine.user_interface,
-            );
 
             if message.direction() == MessageDirection::FromWidget {
                 self.light_section
                     .handle_message(message, node, node_handle);
                 self.camera_section
                     .handle_message(message, node, node_handle);
-
+                self.particle_system_section.handle_message(
+                    message,
+                    node,
+                    node_handle,
+                    &engine.user_interface,
+                );
                 self.sprite_section
                     .handle_message(message, node, node_handle);
                 self.mesh_section.handle_message(message, node, node_handle);

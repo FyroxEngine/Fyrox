@@ -333,6 +333,7 @@ pub enum Message {
     UndoSceneCommand,
     RedoSceneCommand,
     SelectionChanged,
+    SyncToModel,
     SaveScene(PathBuf),
     LoadScene(PathBuf),
     CloseScene,
@@ -1035,6 +1036,9 @@ impl Editor {
                 }
                 Message::SelectionChanged => {
                     self.world_outliner.sync_selection = true;
+                }
+                Message::SyncToModel => {
+                    needs_sync = true;
                 }
                 Message::SaveScene(path) => {
                     if let Some(editor_scene) = self.scene.as_mut() {
