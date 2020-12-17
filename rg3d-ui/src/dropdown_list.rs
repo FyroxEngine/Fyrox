@@ -160,6 +160,10 @@ impl<M: MessageData, C: Control<M, C>> DropdownList<M, C> {
     pub fn close_on_selection(&self) -> bool {
         self.close_on_selection
     }
+
+    pub fn items(&self) -> &[Handle<UINode<M, C>>] {
+        &self.items
+    }
 }
 
 pub struct DropdownListBuilder<M: MessageData, C: Control<M, C>> {
