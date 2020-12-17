@@ -298,83 +298,89 @@ impl SideBar {
         let scene = &engine.scenes[editor_scene.scene];
         let graph = &scene.graph;
 
-        if editor_scene.selection.is_single_selection()
-            && message.direction() == MessageDirection::FromWidget
-        {
+        if editor_scene.selection.is_single_selection() {
             let node_handle = editor_scene.selection.nodes()[0];
             let node = &graph[node_handle];
 
-            self.light_section
-                .handle_message(message, node, node_handle);
-            self.camera_section
-                .handle_message(message, node, node_handle);
-            self.particle_system_section
-                .handle_message(message, node, node_handle);
-            self.sprite_section
-                .handle_message(message, node, node_handle);
-            self.mesh_section.handle_message(message, node, node_handle);
-            self.physics_section
-                .handle_ui_message(message, editor_scene, engine);
+            self.particle_system_section.handle_message(
+                message,
+                node,
+                node_handle,
+                &engine.user_interface,
+            );
 
-            match &message.data() {
-                UiMessageData::Vec3Editor(msg) => {
-                    if let Vec3EditorMessage::Value(value) = *msg {
-                        let transform = graph[node_handle].local_transform();
-                        if message.destination() == self.rotation {
-                            let old_rotation = transform.rotation();
-                            let euler = Vector3::new(
-                                value.x.to_radians(),
-                                value.y.to_radians(),
-                                value.z.to_radians(),
-                            );
-                            let new_rotation = quat_from_euler(euler, RotationOrder::XYZ);
-                            if !old_rotation.approx_eq(&new_rotation, 0.00001) {
-                                self.sender
-                                    .send(Message::DoSceneCommand(SceneCommand::RotateNode(
-                                        RotateNodeCommand::new(
-                                            node_handle,
-                                            old_rotation,
-                                            new_rotation,
-                                        ),
-                                    )))
-                                    .unwrap();
-                            }
-                        } else if message.destination() == self.position {
-                            let old_position = transform.position();
-                            if old_position != value {
-                                self.sender
-                                    .send(Message::DoSceneCommand(SceneCommand::MoveNode(
-                                        MoveNodeCommand::new(node_handle, old_position, value),
-                                    )))
-                                    .unwrap();
-                            }
-                        } else if message.destination() == self.scale {
-                            let old_scale = transform.scale();
-                            if old_scale != value {
-                                self.sender
-                                    .send(Message::DoSceneCommand(SceneCommand::ScaleNode(
-                                        ScaleNodeCommand::new(node_handle, old_scale, value),
-                                    )))
-                                    .unwrap();
+            if message.direction() == MessageDirection::FromWidget {
+                self.light_section
+                    .handle_message(message, node, node_handle);
+                self.camera_section
+                    .handle_message(message, node, node_handle);
+
+                self.sprite_section
+                    .handle_message(message, node, node_handle);
+                self.mesh_section.handle_message(message, node, node_handle);
+                self.physics_section
+                    .handle_ui_message(message, editor_scene, engine);
+
+                match &message.data() {
+                    UiMessageData::Vec3Editor(msg) => {
+                        if let Vec3EditorMessage::Value(value) = *msg {
+                            let transform = graph[node_handle].local_transform();
+                            if message.destination() == self.rotation {
+                                let old_rotation = transform.rotation();
+                                let euler = Vector3::new(
+                                    value.x.to_radians(),
+                                    value.y.to_radians(),
+                                    value.z.to_radians(),
+                                );
+                                let new_rotation = quat_from_euler(euler, RotationOrder::XYZ);
+                                if !old_rotation.approx_eq(&new_rotation, 0.00001) {
+                                    self.sender
+                                        .send(Message::DoSceneCommand(SceneCommand::RotateNode(
+                                            RotateNodeCommand::new(
+                                                node_handle,
+                                                old_rotation,
+                                                new_rotation,
+                                            ),
+                                        )))
+                                        .unwrap();
+                                }
+                            } else if message.destination() == self.position {
+                                let old_position = transform.position();
+                                if old_position != value {
+                                    self.sender
+                                        .send(Message::DoSceneCommand(SceneCommand::MoveNode(
+                                            MoveNodeCommand::new(node_handle, old_position, value),
+                                        )))
+                                        .unwrap();
+                                }
+                            } else if message.destination() == self.scale {
+                                let old_scale = transform.scale();
+                                if old_scale != value {
+                                    self.sender
+                                        .send(Message::DoSceneCommand(SceneCommand::ScaleNode(
+                                            ScaleNodeCommand::new(node_handle, old_scale, value),
+                                        )))
+                                        .unwrap();
+                                }
                             }
                         }
                     }
-                }
-                UiMessageData::TextBox(msg) => {
-                    if message.destination() == self.node_name {
-                        if let TextBoxMessage::Text(new_name) = msg {
-                            let old_name = graph[node_handle].name();
-                            if old_name != new_name {
-                                self.sender
-                                    .send(Message::DoSceneCommand(SceneCommand::SetName(
-                                        SetNameCommand::new(node_handle, new_name.to_owned()),
-                                    )))
-                                    .unwrap();
+                    UiMessageData::TextBox(msg) => {
+                        if message.destination() == self.node_name {
+                            if let TextBoxMessage::Text(new_name) = msg {
+                                let old_name = graph[node_handle].name();
+                                if old_name != new_name {
+                                    self.sender
+                                        .send(Message::DoSceneCommand(SceneCommand::SetName(
+                                            SetNameCommand::new(node_handle, new_name.to_owned()),
+                                        )))
+                                        .unwrap();
+                                }
                             }
                         }
                     }
+                    _ => (),
                 }
-                _ => (),
             }
         }
     }

@@ -1,9 +1,15 @@
-use crate::sidebar::particle::emitter::EmitterSection;
+use crate::scene::DeleteEmitterCommand;
 use crate::{
-    gui::{BuildContext, DeletableItemBuilder, EditorUiNode, Ui, UiMessage, UiNode},
+    gui::{
+        BuildContext, DeletableItemBuilder, DeletableItemMessage, EditorUiMessage, EditorUiNode,
+        Ui, UiMessage, UiNode,
+    },
     load_image,
     scene::{AddParticleSystemEmitterCommand, SceneCommand, SetParticleSystemAccelerationCommand},
-    sidebar::{make_text_mark, make_vec3_input_field, COLUMN_WIDTH, ROW_HEIGHT},
+    sidebar::{
+        make_text_mark, make_vec3_input_field, particle::emitter::EmitterSection, COLUMN_WIDTH,
+        ROW_HEIGHT,
+    },
     Message,
 };
 use rg3d::{
@@ -239,7 +245,13 @@ impl ParticleSystemSection {
         }
     }
 
-    pub fn handle_message(&mut self, message: &UiMessage, node: &Node, handle: Handle<Node>) {
+    pub fn handle_message(
+        &mut self,
+        message: &UiMessage,
+        node: &Node,
+        handle: Handle<Node>,
+        ui: &Ui,
+    ) {
         if let Node::ParticleSystem(particle_system) = node {
             if let Some(emitter_index) = self.emitter_index {
                 self.emitter_section.handle_message(
@@ -304,6 +316,37 @@ impl ParticleSystemSection {
                                     ),
                                 ))
                                 .unwrap();
+                        }
+                    }
+                }
+                UiMessageData::User(msg) => {
+                    if let EditorUiMessage::DeletableItem(msg) = msg {
+                        if let DeletableItemMessage::Delete = msg {
+                            if ui
+                                .node(self.emitters)
+                                .as_dropdown_list()
+                                .items()
+                                .contains(&message.destination())
+                            {
+                                if let UiNode::User(u) = ui.node(message.destination()) {
+                                    if let EditorUiNode::EmitterItem(ei) = u {
+                                        self.sender
+                                            .send(Message::DoSceneCommand(
+                                                SceneCommand::DeleteEmitter(
+                                                    DeleteEmitterCommand::new(
+                                                        handle,
+                                                        ei.data.unwrap(),
+                                                    ),
+                                                ),
+                                            ))
+                                            .unwrap();
+                                    } else {
+                                        unreachable!()
+                                    }
+                                } else {
+                                    unreachable!()
+                                }
+                            }
                         }
                     }
                 }

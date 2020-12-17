@@ -5,7 +5,7 @@ use crate::{
     GameEngine, Message,
 };
 use rg3d::core::numeric_range::NumericRange;
-use rg3d::scene::particle_system::ParticleLimit;
+use rg3d::scene::particle_system::{ParticleLimit, ParticleSystem};
 use rg3d::{
     core::{
         algebra::{UnitQuaternion, Vector3},
@@ -194,6 +194,7 @@ pub enum SceneCommand {
     SetParticleSystemAcceleration(SetParticleSystemAccelerationCommand),
     AddParticleSystemEmitter(AddParticleSystemEmitterCommand),
     SetEmitterNumericParameter(SetEmitterNumericParameterCommand),
+    DeleteEmitter(DeleteEmitterCommand),
     SetSpriteSize(SetSpriteSizeCommand),
     SetSpriteRotation(SetSpriteRotationCommand),
     SetSpriteColor(SetSpriteColorCommand),
@@ -273,6 +274,7 @@ macro_rules! static_dispatch {
             SceneCommand::SetParticleSystemAcceleration(v) => v.$func($($args),*),
             SceneCommand::AddParticleSystemEmitter(v) => v.$func($($args),*),
             SceneCommand::SetEmitterNumericParameter(v) => v.$func($($args),*),
+            SceneCommand::DeleteEmitter(v) => v.$func($($args),*),
             SceneCommand::SetSpriteSize(v) => v.$func($($args),*),
             SceneCommand::SetSpriteRotation(v) => v.$func($($args),*),
             SceneCommand::SetSpriteColor(v) => v.$func($($args),*),
@@ -447,6 +449,52 @@ impl<'a> Command<'a> for AddParticleSystemEmitterCommand {
                 .pop()
                 .unwrap(),
         );
+    }
+}
+
+#[derive(Debug)]
+pub struct DeleteEmitterCommand {
+    particle_system: Handle<Node>,
+    emitter: Option<Emitter>,
+    emitter_index: usize,
+}
+
+impl DeleteEmitterCommand {
+    pub fn new(particle_system: Handle<Node>, emitter_index: usize) -> Self {
+        Self {
+            particle_system,
+            emitter: None,
+            emitter_index,
+        }
+    }
+}
+
+impl<'a> Command<'a> for DeleteEmitterCommand {
+    type Context = SceneContext<'a>;
+
+    fn name(&mut self, _context: &Self::Context) -> String {
+        "Delete Particle System Emitter".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut Self::Context) {
+        self.emitter = Some(
+            context.scene.graph[self.particle_system]
+                .as_particle_system_mut()
+                .emitters
+                .remove(self.emitter_index),
+        );
+    }
+
+    fn revert(&mut self, context: &mut Self::Context) {
+        let particle_system: &mut ParticleSystem =
+            context.scene.graph[self.particle_system].as_particle_system_mut();
+        if self.emitter_index == 0 {
+            particle_system.emitters.push(self.emitter.take().unwrap());
+        } else {
+            particle_system
+                .emitters
+                .insert(self.emitter_index, self.emitter.take().unwrap());
+        }
     }
 }
 

@@ -33,7 +33,7 @@ pub enum SceneItemMessage {
 pub enum EditorUiMessage {
     AssetItem(AssetItemMessage),
     SceneItem(SceneItemMessage),
-    EmitterItem(DeletableItemMessage),
+    DeletableItem(DeletableItemMessage),
 }
 
 impl MessageData for EditorUiMessage {}
@@ -114,7 +114,7 @@ impl<D: Clone + 'static> Control<EditorUiMessage, EditorUiNode> for DeletableIte
                     ui.send_message(UiMessage::user(
                         self.handle(),
                         MessageDirection::ToWidget,
-                        EditorUiMessage::EmitterItem(DeletableItemMessage::Delete),
+                        EditorUiMessage::DeletableItem(DeletableItemMessage::Delete),
                     ));
                 }
             }
@@ -193,7 +193,7 @@ impl<D: Clone + 'static> DeletableItemBuilder<D> {
                 )
                 .build(),
             delete,
-            data: None,
+            data: self.data,
         }
     }
 }
