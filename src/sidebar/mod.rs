@@ -48,7 +48,7 @@ mod physics;
 mod sprite;
 
 const ROW_HEIGHT: f32 = 25.0;
-const COLUMN_WIDTH: f32 = 120.0;
+const COLUMN_WIDTH: f32 = 140.0;
 
 pub struct SideBar {
     pub window: Handle<UiNode>,
