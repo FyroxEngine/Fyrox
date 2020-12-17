@@ -152,6 +152,7 @@ let scene_handle = engine.scenes.add(scene);
 		- [x] Fixed joint
 		- [x] Revolute joint
 	- [x] Colliders
+	  	- [ ] Multiple colliders per body
 	  	- [x] Translation
 	  	- [x] Rotation
 	- [x] Rigid body
@@ -168,5 +169,9 @@ let scene_handle = engine.scenes.add(scene);
     - [x] Command stack visualization
 - [ ] Animation graph editor
 	- [ ] Simple node-based animation blending machine editor is needed.
+- [ ] Scene preview in runtime. Currently, an editable scene is static: no physics simulation, particle systems are
+	frozen, etc. We need an ability to clone a current scene and put it into the engine for preview with free camera.
+  	This is somewhat similar to "play mode" in Unity, Unreal Engine, etc. but much more restrictive because it should
+  	allow only to observe your scene in dynamics.
 
 ... Lots of stuff.

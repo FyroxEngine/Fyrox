@@ -46,7 +46,7 @@ use crate::{
 use rg3d::{
     core::{
         algebra::Vector2, color::Color, math::aabb::AxisAlignedBoundingBox, pool::Handle,
-        scope_profile, visitor::Visit, visitor::Visitor,
+        scope_profile,
     },
     engine::resource_manager::ResourceManager,
     event::{Event, WindowEvent},
@@ -78,7 +78,6 @@ use rg3d::{
 };
 use std::{
     cell::RefCell,
-    fmt::Write,
     path::{Path, PathBuf},
     rc::Rc,
     sync::{
@@ -418,7 +417,8 @@ impl Editor {
         let light_panel = LightPanel::new(engine);
 
         let ctx = &mut engine.user_interface.build_ctx();
-        let node_editor = SideBar::new(ctx, message_sender.clone());
+        let node_editor =
+            SideBar::new(ctx, message_sender.clone(), engine.resource_manager.clone());
         let world_outliner = WorldOutliner::new(ctx, message_sender.clone());
         let command_stack_viewer =
             CommandStackViewer::new(ctx, engine.resource_manager.clone(), message_sender.clone());
@@ -1038,80 +1038,22 @@ impl Editor {
                 }
                 Message::SaveScene(path) => {
                     if let Some(editor_scene) = self.scene.as_mut() {
-                        let scene = &mut engine.scenes[editor_scene.scene];
-
-                        // Validate first.
-                        let mut valid = true;
-                        let mut reason =
-                            "Scene is not saved, because validation failed:\n".to_owned();
-
-                        for joint in editor_scene.physics.joints.iter() {
-                            if joint.body1.is_none() || joint.body2.is_none() {
-                                let mut associated_node = Handle::NONE;
-                                for (&node, &body) in editor_scene.physics.binder.iter() {
-                                    if body == joint.body1.into() {
-                                        associated_node = node;
-                                        break;
-                                    }
-                                }
-
-                                writeln!(
-                                    &mut reason,
-                                    "Invalid joint on node {} ({}:{}). Associated body is missing!",
-                                    scene.graph[associated_node].name(),
-                                    associated_node.index(),
-                                    associated_node.generation()
-                                )
-                                .unwrap();
-                                valid = false;
-                            }
-                        }
-
-                        if valid {
-                            editor_scene.path = Some(path.clone());
-
-                            let editor_root = editor_scene.root;
-                            let (mut pure_scene, old_to_new) =
-                                scene.clone(&mut |node, _| node != editor_root);
-                            let (desc, binder) = editor_scene.physics.generate_engine_desc();
-                            pure_scene.physics.desc = Some(desc);
-                            pure_scene.physics_binder.enabled = true;
-                            pure_scene.physics_binder.node_rigid_body_map.clear();
-                            for (node, body) in binder {
-                                pure_scene
-                                    .physics_binder
-                                    .bind(*old_to_new.get(&node).unwrap(), body);
-                            }
-                            let mut visitor = Visitor::new();
-                            pure_scene.visit("Scene", &mut visitor).unwrap();
-                            if let Err(e) = visitor.save_binary(&path) {
+                        match editor_scene.save(path, engine) {
+                            Ok(message) => {
                                 self.message_sender
-                                    .send(Message::Log(format!(
-                                        "Failed to save scene! Reason: {}",
-                                        e.to_string()
-                                    )))
+                                    .send(Message::Log(message.clone()))
                                     .unwrap();
-                            } else {
-                                self.message_sender
-                                    .send(Message::Log(format!(
-                                        "Scene {} was successfully saved!",
-                                        path.display()
-                                    )))
-                                    .unwrap();
+
+                                engine.user_interface.send_message(MessageBoxMessage::open(
+                                    self.validation_message_box,
+                                    MessageDirection::ToWidget,
+                                    None,
+                                    Some(message),
+                                ));
                             }
-                        } else {
-                            writeln!(&mut reason, "\nPlease fix errors and try again.").unwrap();
-
-                            self.message_sender
-                                .send(Message::Log(reason.clone()))
-                                .unwrap();
-
-                            engine.user_interface.send_message(MessageBoxMessage::open(
-                                self.validation_message_box,
-                                MessageDirection::ToWidget,
-                                None,
-                                Some(reason),
-                            ));
+                            Err(message) => {
+                                self.message_sender.send(Message::Log(message)).unwrap();
+                            }
                         }
                     }
                 }

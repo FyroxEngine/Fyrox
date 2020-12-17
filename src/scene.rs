@@ -4,12 +4,15 @@ use crate::{
     physics::{Collider, Joint, Physics, RigidBody},
     GameEngine, Message,
 };
+use rg3d::core::numeric_range::NumericRange;
+use rg3d::scene::particle_system::ParticleLimit;
 use rg3d::{
     core::{
         algebra::{UnitQuaternion, Vector3},
         color::Color,
         math::Matrix4Ext,
         pool::{Handle, Ticket},
+        visitor::{Visit, Visitor},
     },
     engine::resource_manager::ResourceManager,
     resource::texture::Texture,
@@ -17,12 +20,13 @@ use rg3d::{
         graph::{Graph, SubGraph},
         mesh::Mesh,
         node::Node,
+        particle_system::Emitter,
         physics::{ColliderShapeDesc, JointParamsDesc},
         Scene,
     },
     sound::pool::ErasedHandle,
 };
-use std::{path::PathBuf, sync::mpsc::Sender};
+use std::{fmt::Write, path::PathBuf, sync::mpsc::Sender};
 
 #[derive(Default)]
 pub struct Clipboard {
@@ -56,6 +60,75 @@ pub struct EditorScene {
     pub clipboard: Clipboard,
     pub camera_controller: CameraController,
     pub physics: Physics,
+}
+
+impl EditorScene {
+    pub fn save(&mut self, path: PathBuf, engine: &mut GameEngine) -> Result<String, String> {
+        let scene = &mut engine.scenes[self.scene];
+
+        // Validate first.
+        let mut valid = true;
+        let mut reason = "Scene is not saved, because validation failed:\n".to_owned();
+
+        for joint in self.physics.joints.iter() {
+            if joint.body1.is_none() || joint.body2.is_none() {
+                let mut associated_node = Handle::NONE;
+                for (&node, &body) in self.physics.binder.iter() {
+                    if body == joint.body1.into() {
+                        associated_node = node;
+                        break;
+                    }
+                }
+
+                writeln!(
+                    &mut reason,
+                    "Invalid joint on node {} ({}:{}). Associated body is missing!",
+                    scene.graph[associated_node].name(),
+                    associated_node.index(),
+                    associated_node.generation()
+                )
+                .unwrap();
+                valid = false;
+            }
+        }
+
+        if valid {
+            self.path = Some(path.clone());
+
+            let editor_root = self.root;
+            let (mut pure_scene, old_to_new) = scene.clone(&mut |node, _| node != editor_root);
+
+            // Reset state of nodes. For some nodes (such as particles systems) we use scene as preview
+            // so before saving scene, we have to reset state of such nodes.
+            for node in pure_scene.graph.linear_iter_mut() {
+                if let Node::ParticleSystem(particle_system) = node {
+                    // Particle system must not save generated vertices.
+                    particle_system.clear_particles();
+                }
+            }
+
+            let (desc, binder) = self.physics.generate_engine_desc();
+            pure_scene.physics.desc = Some(desc);
+            pure_scene.physics_binder.enabled = true;
+            pure_scene.physics_binder.node_rigid_body_map.clear();
+            for (node, body) in binder {
+                pure_scene
+                    .physics_binder
+                    .bind(*old_to_new.get(&node).unwrap(), body);
+            }
+            let mut visitor = Visitor::new();
+            pure_scene.visit("Scene", &mut visitor).unwrap();
+            if let Err(e) = visitor.save_binary(&path) {
+                Err(format!("Failed to save scene! Reason: {}", e.to_string()))
+            } else {
+                Ok(format!("Scene {} was successfully saved!", path.display()))
+            }
+        } else {
+            writeln!(&mut reason, "\nPlease fix errors and try again.").unwrap();
+
+            Err(reason)
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -119,6 +192,8 @@ pub enum SceneCommand {
     SetZNear(SetZNearCommand),
     SetZFar(SetZFarCommand),
     SetParticleSystemAcceleration(SetParticleSystemAccelerationCommand),
+    AddParticleSystemEmitter(AddParticleSystemEmitterCommand),
+    SetEmitterNumericParameter(SetEmitterNumericParameterCommand),
     SetSpriteSize(SetSpriteSizeCommand),
     SetSpriteRotation(SetSpriteRotationCommand),
     SetSpriteColor(SetSpriteColorCommand),
@@ -196,6 +271,8 @@ macro_rules! static_dispatch {
             SceneCommand::SetZNear(v) => v.$func($($args),*),
             SceneCommand::SetZFar(v) => v.$func($($args),*),
             SceneCommand::SetParticleSystemAcceleration(v) => v.$func($($args),*),
+            SceneCommand::AddParticleSystemEmitter(v) => v.$func($($args),*),
+            SceneCommand::SetEmitterNumericParameter(v) => v.$func($($args),*),
             SceneCommand::SetSpriteSize(v) => v.$func($($args),*),
             SceneCommand::SetSpriteRotation(v) => v.$func($($args),*),
             SceneCommand::SetSpriteColor(v) => v.$func($($args),*),
@@ -330,6 +407,46 @@ impl<'a> Command<'a> for AddNodeCommand {
         if let Some(ticket) = self.ticket.take() {
             context.scene.graph.forget_ticket(ticket)
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct AddParticleSystemEmitterCommand {
+    particle_system: Handle<Node>,
+    emitter: Option<Emitter>,
+}
+
+impl AddParticleSystemEmitterCommand {
+    pub fn new(particle_system: Handle<Node>, emitter: Emitter) -> Self {
+        Self {
+            particle_system,
+            emitter: Some(emitter),
+        }
+    }
+}
+
+impl<'a> Command<'a> for AddParticleSystemEmitterCommand {
+    type Context = SceneContext<'a>;
+
+    fn name(&mut self, _context: &Self::Context) -> String {
+        "Add Particle System Emitter".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut Self::Context) {
+        context.scene.graph[self.particle_system]
+            .as_particle_system_mut()
+            .emitters
+            .push(self.emitter.take().unwrap());
+    }
+
+    fn revert(&mut self, context: &mut Self::Context) {
+        self.emitter = Some(
+            context.scene.graph[self.particle_system]
+                .as_particle_system_mut()
+                .emitters
+                .pop()
+                .unwrap(),
+        );
     }
 }
 
@@ -1262,6 +1379,184 @@ impl<'a> Command<'a> for SetMeshTextureCommand {
         } else {
             unreachable!()
         }
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum EmitterNumericParameter {
+    SpawnRate,
+    MaxParticles,
+    MinLifetime,
+    MaxLifetime,
+    MinSizeModifier,
+    MaxSizeModifier,
+    MinXVelocity,
+    MaxXVelocity,
+    MinYVelocity,
+    MaxYVelocity,
+    MinZVelocity,
+    MaxZVelocity,
+    MinRotationSpeed,
+    MaxRotationSpeed,
+    MinRotation,
+    MaxRotation,
+}
+
+impl EmitterNumericParameter {
+    fn name(self) -> &'static str {
+        match self {
+            EmitterNumericParameter::SpawnRate => "SpawnRate",
+            EmitterNumericParameter::MaxParticles => "MaxParticles",
+            EmitterNumericParameter::MinLifetime => "MinLifetime",
+            EmitterNumericParameter::MaxLifetime => "MaxLifetime",
+            EmitterNumericParameter::MinSizeModifier => "MinSizeModifier",
+            EmitterNumericParameter::MaxSizeModifier => "MaxSizeModifier",
+            EmitterNumericParameter::MinXVelocity => "MinXVelocity",
+            EmitterNumericParameter::MaxXVelocity => "MaxXVelocity",
+            EmitterNumericParameter::MinYVelocity => "MinYVelocity",
+            EmitterNumericParameter::MaxYVelocity => "MaxYVelocity",
+            EmitterNumericParameter::MinZVelocity => "MinZVelocity",
+            EmitterNumericParameter::MaxZVelocity => "MaxZVelocity",
+            EmitterNumericParameter::MinRotationSpeed => "MinRotationSpeed",
+            EmitterNumericParameter::MaxRotationSpeed => "MaxRotationSpeed",
+            EmitterNumericParameter::MinRotation => "MinRotation",
+            EmitterNumericParameter::MaxRotation => "MaxRotation",
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct SetEmitterNumericParameterCommand {
+    node: Handle<Node>,
+    parameter: EmitterNumericParameter,
+    value: f32,
+    emitter_index: usize,
+}
+
+impl SetEmitterNumericParameterCommand {
+    pub fn new(
+        node: Handle<Node>,
+        emitter_index: usize,
+        parameter: EmitterNumericParameter,
+        value: f32,
+    ) -> Self {
+        Self {
+            node,
+            parameter,
+            value,
+            emitter_index,
+        }
+    }
+
+    fn swap(&mut self, context: &mut SceneContext) {
+        let emitter: &mut Emitter = &mut context.scene.graph[self.node]
+            .as_particle_system_mut()
+            .emitters[self.emitter_index];
+        match self.parameter {
+            EmitterNumericParameter::SpawnRate => {
+                let old = emitter.spawn_rate();
+                emitter.set_spawn_rate(self.value as u32);
+                self.value = old as f32;
+            }
+            EmitterNumericParameter::MaxParticles => {
+                let old = emitter.max_particles();
+                emitter.set_max_particles(if self.value < 0.0 {
+                    ParticleLimit::Unlimited
+                } else {
+                    ParticleLimit::Strict(self.value as u32)
+                });
+                self.value = match old {
+                    ParticleLimit::Unlimited => -1.0,
+                    ParticleLimit::Strict(value) => value as f32,
+                };
+            }
+            EmitterNumericParameter::MinLifetime => {
+                let old = emitter.life_time_range();
+                emitter.set_life_time_range(NumericRange::new(self.value, old.max));
+                self.value = old.min;
+            }
+            EmitterNumericParameter::MaxLifetime => {
+                let old = emitter.life_time_range();
+                emitter.set_life_time_range(NumericRange::new(old.min, self.value));
+                self.value = old.max;
+            }
+            EmitterNumericParameter::MinSizeModifier => {
+                let old = emitter.size_modifier_range();
+                emitter.set_size_modifier_range(NumericRange::new(self.value, old.max));
+                self.value = old.min;
+            }
+            EmitterNumericParameter::MaxSizeModifier => {
+                let old = emitter.size_modifier_range();
+                emitter.set_size_modifier_range(NumericRange::new(old.min, self.value));
+                self.value = old.max;
+            }
+            EmitterNumericParameter::MinXVelocity => {
+                let old = emitter.x_velocity_range();
+                emitter.set_x_velocity_range(NumericRange::new(self.value, old.max));
+                self.value = old.min;
+            }
+            EmitterNumericParameter::MaxXVelocity => {
+                let old = emitter.x_velocity_range();
+                emitter.set_x_velocity_range(NumericRange::new(old.min, self.value));
+                self.value = old.max;
+            }
+            EmitterNumericParameter::MinYVelocity => {
+                let old = emitter.y_velocity_range();
+                emitter.set_y_velocity_range(NumericRange::new(self.value, old.max));
+                self.value = old.min;
+            }
+            EmitterNumericParameter::MaxYVelocity => {
+                let old = emitter.y_velocity_range();
+                emitter.set_y_velocity_range(NumericRange::new(old.min, self.value));
+                self.value = old.max;
+            }
+            EmitterNumericParameter::MinZVelocity => {
+                let old = emitter.z_velocity_range();
+                emitter.set_z_velocity_range(NumericRange::new(self.value, old.max));
+                self.value = old.min;
+            }
+            EmitterNumericParameter::MaxZVelocity => {
+                let old = emitter.z_velocity_range();
+                emitter.set_z_velocity_range(NumericRange::new(old.min, self.value));
+                self.value = old.max;
+            }
+            EmitterNumericParameter::MinRotationSpeed => {
+                let old = emitter.rotation_speed_range();
+                emitter.set_rotation_speed_range(NumericRange::new(self.value, old.max));
+                self.value = old.min;
+            }
+            EmitterNumericParameter::MaxRotationSpeed => {
+                let old = emitter.rotation_speed_range();
+                emitter.set_rotation_speed_range(NumericRange::new(old.min, self.value));
+                self.value = old.max;
+            }
+            EmitterNumericParameter::MinRotation => {
+                let old = emitter.rotation_range();
+                emitter.set_rotation_range(NumericRange::new(self.value, old.max));
+                self.value = old.min;
+            }
+            EmitterNumericParameter::MaxRotation => {
+                let old = emitter.rotation_range();
+                emitter.set_rotation_range(NumericRange::new(old.min, self.value));
+                self.value = old.max;
+            }
+        };
+    }
+}
+
+impl<'a> Command<'a> for SetEmitterNumericParameterCommand {
+    type Context = SceneContext<'a>;
+
+    fn name(&mut self, _context: &Self::Context) -> String {
+        format!("Set Emitter F32 Parameter: {}", self.parameter.name())
+    }
+
+    fn execute(&mut self, context: &mut Self::Context) {
+        self.swap(context);
+    }
+
+    fn revert(&mut self, context: &mut Self::Context) {
+        self.swap(context);
     }
 }
 

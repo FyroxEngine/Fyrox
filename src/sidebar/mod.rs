@@ -11,6 +11,7 @@ use crate::{
     },
     GameEngine, Message,
 };
+use rg3d::engine::resource_manager::ResourceManager;
 use rg3d::{
     core::{
         algebra::Vector3,
@@ -131,7 +132,11 @@ fn make_dropdown_list_option(ctx: &mut BuildContext, name: &str) -> Handle<UiNod
 }
 
 impl SideBar {
-    pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
+    pub fn new(
+        ctx: &mut BuildContext,
+        sender: Sender<Message>,
+        resource_manager: ResourceManager,
+    ) -> Self {
         let scroll_viewer;
         let node_name;
         let position;
@@ -140,7 +145,8 @@ impl SideBar {
 
         let light_section = LightSection::new(ctx, sender.clone());
         let camera_section = CameraSection::new(ctx, sender.clone());
-        let particle_system_section = ParticleSystemSection::new(ctx, sender.clone());
+        let particle_system_section =
+            ParticleSystemSection::new(ctx, sender.clone(), resource_manager);
         let sprite_section = SpriteSection::new(ctx, sender.clone());
         let mesh_section = MeshSection::new(ctx, sender.clone());
         let physics_section = PhysicsSection::new(ctx, sender.clone());
@@ -271,7 +277,11 @@ impl SideBar {
 
                 self.light_section.sync_to_model(node, ui);
                 self.camera_section.sync_to_model(node, ui);
-                self.particle_system_section.sync_to_model(node, ui);
+                self.particle_system_section.sync_to_model(
+                    node,
+                    ui,
+                    engine.resource_manager.clone(),
+                );
                 self.sprite_section.sync_to_model(node, ui);
                 self.mesh_section.sync_to_model(node, ui);
                 self.physics_section.sync_to_model(editor_scene, engine);
