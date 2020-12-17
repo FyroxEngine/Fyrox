@@ -157,7 +157,7 @@ impl<M: MessageData, C: Control<M, C>> UINode<M, C> {
     define_is_as!(UINode : Window -> ref Window<M, C> => fn is_window, fn as_window, fn as_window_mut);
     define_is_as!(UINode : Popup -> ref Popup<M, C> => fn is_popup, fn as_popup, fn as_popup_mut);
     define_is_as!(UINode : DropdownList -> ref DropdownList<M, C> => fn is_dropdown_list, fn as_dropdown_list, fn as_dropdown_list_mut);
-    define_is_as!(UINode : ListView -> ref ListView<M, C> => fn is_list_view, fn as_list_view_list, fn as_list_view_mut);
+    define_is_as!(UINode : ListView -> ref ListView<M, C> => fn is_list_view, fn as_list_view, fn as_list_view_mut);
     define_is_as!(UINode : ListViewItem -> ref ListViewItem<M, C> => fn is_list_view_item, fn as_list_view_item, fn as_list_view_item_mut);
     define_is_as!(UINode : ProgressBar -> ref ProgressBar<M, C> => fn is_progress_bar, fn as_progress_bar, fn as_progress_bar_mut);
     define_is_as!(UINode : Decorator -> ref Decorator<M, C> => fn is_decorator, fn as_decorator, fn as_decorator_mut);
