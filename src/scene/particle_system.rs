@@ -1101,7 +1101,8 @@ pub struct ParticleSystem {
     base: Base,
     particles: Vec<Particle>,
     free_particles: Vec<u32>,
-    emitters: Vec<Emitter>,
+    /// List of emitters of the particle system.
+    pub emitters: Vec<Emitter>,
     texture: Option<Texture>,
     acceleration: Vector3<f32>,
     color_over_lifetime: Option<ColorGradient>,
@@ -1135,11 +1136,6 @@ impl ParticleSystem {
         }
     }
 
-    /// Adds new emitter to particle system.
-    pub fn add_emitter(&mut self, emitter: Emitter) {
-        self.emitters.push(emitter)
-    }
-
     /// Returns current acceleration for particles in particle system.
     pub fn acceleration(&self) -> Vector3<f32> {
         self.acceleration
@@ -1154,6 +1150,14 @@ impl ParticleSystem {
     /// Sets new "color curve" that will evaluate color over lifetime.
     pub fn set_color_over_lifetime_gradient(&mut self, gradient: ColorGradient) {
         self.color_over_lifetime = Some(gradient)
+    }
+
+    /// Removes all generated particles.
+    pub fn clear_particles(&mut self) {
+        self.particles.clear();
+        for emitter in self.emitters.iter_mut() {
+            emitter.alive_particles.set(0);
+        }
     }
 
     /// Updates state of particle system, this means that it moves particles,

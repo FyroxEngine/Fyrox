@@ -48,6 +48,16 @@ where
     pub fn random(&self) -> T {
         rand::thread_rng().gen_range(self.min, self.max)
     }
+
+    pub fn clamp_value(&self, value: &mut T) -> T {
+        if *value < self.min {
+            self.min
+        } else if *value > self.max {
+            self.max
+        } else {
+            *value
+        }
+    }
 }
 
 impl<T> Visit for NumericRange<T>
