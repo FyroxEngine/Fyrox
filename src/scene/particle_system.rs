@@ -68,21 +68,22 @@
 //! }
 //! ```
 
-use crate::core::algebra::{Vector2, Vector3};
-use crate::core::pool::Handle;
-use crate::rand::Rng;
-use crate::scene::graph::Graph;
-use crate::scene::node::Node;
 use crate::{
     core::{
+        algebra::{Vector2, Vector3},
         color::Color,
         color_gradient::ColorGradient,
         math::TriangleDefinition,
         numeric_range::NumericRange,
+        pool::Handle,
         visitor::{Visit, VisitResult, Visitor},
     },
     resource::texture::Texture,
-    scene::base::{Base, BaseBuilder},
+    scene::{
+        base::{Base, BaseBuilder},
+        graph::Graph,
+        node::Node,
+    },
 };
 use std::{
     cell::Cell,
@@ -256,11 +257,10 @@ impl Default for BoxEmitter {
 impl Emit for BoxEmitter {
     fn emit(&self, _particle_system: &ParticleSystem, particle: &mut Particle) {
         self.emitter.emit(particle);
-        let mut rng = crate::rand::thread_rng();
         particle.position = Vector3::new(
-            self.position.x + rng.gen_range(-self.half_width, self.half_width),
-            self.position.y + rng.gen_range(-self.half_height, self.half_height),
-            self.position.z + rng.gen_range(-self.half_depth, self.half_depth),
+            self.position.x + NumericRange::new(-self.half_width, self.half_width).random(),
+            self.position.y + NumericRange::new(-self.half_height, self.half_height).random(),
+            self.position.z + NumericRange::new(-self.half_depth, self.half_depth).random(),
         )
     }
 }
@@ -323,9 +323,9 @@ impl Visit for CylinderEmitter {
 impl Emit for CylinderEmitter {
     fn emit(&self, _particle_system: &ParticleSystem, particle: &mut Particle) {
         // Disk point picking extended in 3D - http://mathworld.wolfram.com/DiskPointPicking.html
-        let scale: f32 = crate::rand::thread_rng().gen_range(0.0, 1.0);
-        let theta = crate::rand::thread_rng().gen_range(0.0, 2.0 * std::f32::consts::PI);
-        let z = crate::rand::thread_rng().gen_range(0.0, self.height);
+        let scale: f32 = NumericRange::new(0.0, 1.0).random();
+        let theta = NumericRange::new(0.0, 2.0 * std::f32::consts::PI).random();
+        let z = NumericRange::new(0.0, self.height).random();
         let radius = scale.sqrt() * self.radius;
         let x = radius * theta.cos();
         let y = radius * theta.sin();
@@ -458,6 +458,16 @@ impl SphereEmitter {
     pub fn new(emitter: BaseEmitter, radius: f32) -> Self {
         Self { emitter, radius }
     }
+
+    /// Returns current radius.
+    pub fn radius(&self) -> f32 {
+        self.radius
+    }
+
+    /// Sets new sphere radius.
+    pub fn set_radius(&mut self, radius: f32) {
+        self.radius = radius.max(0.0);
+    }
 }
 
 impl Visit for SphereEmitter {
@@ -473,10 +483,9 @@ impl Visit for SphereEmitter {
 impl Emit for SphereEmitter {
     fn emit(&self, _particle_system: &ParticleSystem, particle: &mut Particle) {
         self.emitter.emit(particle);
-        let mut rng = crate::rand::thread_rng();
-        let phi = rng.gen_range(0.0, std::f32::consts::PI);
-        let theta = rng.gen_range(0.0, 2.0 * std::f32::consts::PI);
-        let radius = rng.gen_range(0.0, self.radius);
+        let phi = NumericRange::new(0.0, std::f32::consts::PI).random();
+        let theta = NumericRange::new(0.0, 2.0 * std::f32::consts::PI).random();
+        let radius = NumericRange::new(0.0, self.radius).random();
         let cos_theta = theta.cos();
         let sin_theta = theta.sin();
         let cos_phi = phi.cos();

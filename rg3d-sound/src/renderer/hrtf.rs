@@ -93,12 +93,12 @@ impl HrtfRenderer {
                 self.processor.process_samples(hrtf::HrtfContext {
                     source: &spatial.generic.frame_samples,
                     output: out_buf,
-                    new_sample_vector: (
+                    new_sample_vector: hrtf::Vec3::new(
                         new_sampling_vector.x,
                         new_sampling_vector.y,
                         new_sampling_vector.z,
                     ),
-                    prev_sample_vector: (
+                    prev_sample_vector: hrtf::Vec3::new(
                         spatial.prev_sampling_vector.x,
                         spatial.prev_sampling_vector.y,
                         spatial.prev_sampling_vector.z,

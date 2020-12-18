@@ -222,6 +222,11 @@ impl Base {
         self.name.as_str()
     }
 
+    /// Returns owned name of node.
+    pub fn name_owned(&self) -> String {
+        self.name.clone()
+    }
+
     /// Returns shared reference to local transform of a node, can be used to fetch
     /// some local spatial properties, such as position, rotation, scale, etc.
     pub fn local_transform(&self) -> &Transform {
