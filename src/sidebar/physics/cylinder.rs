@@ -31,12 +31,12 @@ impl CylinderSection {
             WidgetBuilder::new()
                 .with_child(make_text_mark(ctx, "Half Height", 0))
                 .with_child({
-                    half_height = make_f32_input_field(ctx, 0);
+                    half_height = make_f32_input_field(ctx, 0, 0.0, std::f32::MAX, 0.1);
                     half_height
                 })
                 .with_child(make_text_mark(ctx, "Radius", 1))
                 .with_child({
-                    radius = make_f32_input_field(ctx, 1);
+                    radius = make_f32_input_field(ctx, 1, 0.0, std::f32::MAX, 0.1);
                     radius
                 }),
         )

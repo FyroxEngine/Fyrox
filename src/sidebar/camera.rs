@@ -1,9 +1,7 @@
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     scene::{SceneCommand, SetFovCommand, SetZFarCommand, SetZNearCommand},
-    sidebar::{
-        make_f32_input_field, make_text_mark, make_vec3_input_field, COLUMN_WIDTH, ROW_HEIGHT,
-    },
+    sidebar::{make_f32_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
 };
 use rg3d::{
@@ -34,17 +32,17 @@ impl CameraSection {
             WidgetBuilder::new()
                 .with_child(make_text_mark(ctx, "FOV", 0))
                 .with_child({
-                    fov = make_f32_input_field(ctx, 0);
+                    fov = make_f32_input_field(ctx, 0, 0.0, std::f32::consts::PI, 0.01);
                     fov
                 })
                 .with_child(make_text_mark(ctx, "Z Near", 1))
                 .with_child({
-                    z_near = make_f32_input_field(ctx, 1);
+                    z_near = make_f32_input_field(ctx, 1, 0.0, std::f32::MAX, 0.01);
                     z_near
                 })
                 .with_child(make_text_mark(ctx, "Z Far", 2))
                 .with_child({
-                    z_far = make_vec3_input_field(ctx, 2);
+                    z_far = make_f32_input_field(ctx, 2, 0.0, std::f32::MAX, 1.0);
                     z_far
                 }),
         )

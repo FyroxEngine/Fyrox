@@ -1,25 +1,30 @@
-use crate::gui::UiMessage;
-use crate::scene::{EmitterNumericParameter, SceneCommand, SetEmitterNumericParameterCommand};
 use crate::{
-    gui::{BuildContext, Ui, UiNode},
+    gui::{BuildContext, Ui, UiMessage, UiNode},
+    scene::{EmitterNumericParameter, SceneCommand, SetEmitterNumericParameterCommand},
     sidebar::{
         make_bool_input_field, make_f32_input_field, make_text_mark, make_vec3_input_field,
-        COLUMN_WIDTH, ROW_HEIGHT,
+        particle::sphere::SphereSection, COLUMN_WIDTH, ROW_HEIGHT,
     },
     Message,
 };
-use rg3d::gui::message::UiMessageData;
-use rg3d::scene::node::Node;
+use rg3d::gui::message::WidgetMessage;
 use rg3d::{
     core::pool::Handle,
     gui::{
         grid::{Column, GridBuilder, Row},
-        message::{CheckBoxMessage, MessageDirection, NumericUpDownMessage, Vec3EditorMessage},
+        message::{
+            CheckBoxMessage, MessageDirection, NumericUpDownMessage, UiMessageData,
+            Vec3EditorMessage,
+        },
         numeric::NumericUpDownBuilder,
+        stack_panel::StackPanelBuilder,
         widget::WidgetBuilder,
         Thickness,
     },
-    scene::particle_system::{Emitter, ParticleLimit},
+    scene::{
+        node::Node,
+        particle_system::{Emitter, ParticleLimit},
+    },
 };
 use std::sync::mpsc::Sender;
 
@@ -44,6 +49,7 @@ pub struct EmitterSection {
     max_rotation: Handle<UiNode>,
     resurrect_particles: Handle<UiNode>,
     sender: Sender<Message>,
+    sphere_section: SphereSection,
 }
 
 fn make_range_field(ctx: &mut BuildContext, column: usize) -> Handle<UiNode> {
@@ -83,6 +89,8 @@ fn make_range(
 
 impl EmitterSection {
     pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
+        let sphere_section = SphereSection::new(ctx, sender.clone());
+
         let position;
         let spawn_rate;
         let max_particles;
@@ -101,7 +109,7 @@ impl EmitterSection {
         let min_rotation;
         let max_rotation;
         let resurrect_particles;
-        let section = GridBuilder::new(
+        let common_properties = GridBuilder::new(
             WidgetBuilder::new()
                 .with_child(make_text_mark(ctx, "Position", 0))
                 .with_child({
@@ -110,12 +118,12 @@ impl EmitterSection {
                 })
                 .with_child(make_text_mark(ctx, "Spawn Rate", 1))
                 .with_child({
-                    spawn_rate = make_f32_input_field(ctx, 1);
+                    spawn_rate = make_f32_input_field(ctx, 1, 0.0, std::f32::MAX, 1.0);
                     spawn_rate
                 })
                 .with_child(make_text_mark(ctx, "Max Particles", 2))
                 .with_child({
-                    max_particles = make_f32_input_field(ctx, 2);
+                    max_particles = make_f32_input_field(ctx, 2, 0.0, std::f32::MAX, 1.0);
                     max_particles
                 })
                 .with_child(make_text_mark(ctx, "Lifetime Range", 3))
@@ -188,6 +196,13 @@ impl EmitterSection {
         .add_column(Column::stretch())
         .build(ctx);
 
+        let section = StackPanelBuilder::new(
+            WidgetBuilder::new()
+                .with_child(common_properties)
+                .with_child(sphere_section.section),
+        )
+        .build(ctx);
+
         Self {
             section,
             sender,
@@ -209,6 +224,7 @@ impl EmitterSection {
             min_rotation,
             max_rotation,
             resurrect_particles,
+            sphere_section,
         }
     }
 
@@ -235,26 +251,58 @@ impl EmitterSection {
             },
         );
         sync_f32(self.spawn_rate, emitter.spawn_rate() as f32);
-        sync_f32(self.min_lifetime, emitter.life_time_range().min);
-        sync_f32(self.max_lifetime, emitter.life_time_range().max);
-        sync_f32(self.min_size_modifier, emitter.size_modifier_range().min);
-        sync_f32(self.max_size_modifier, emitter.size_modifier_range().max);
-        sync_f32(self.min_x_velocity, emitter.x_velocity_range().min);
-        sync_f32(self.max_x_velocity, emitter.x_velocity_range().max);
-        sync_f32(self.min_y_velocity, emitter.y_velocity_range().min);
-        sync_f32(self.max_y_velocity, emitter.y_velocity_range().max);
-        sync_f32(self.min_z_velocity, emitter.z_velocity_range().min);
-        sync_f32(self.max_z_velocity, emitter.z_velocity_range().max);
-        sync_f32(self.min_rotation_speed, emitter.rotation_speed_range().min);
-        sync_f32(self.max_rotation_speed, emitter.rotation_speed_range().max);
-        sync_f32(self.min_rotation, emitter.rotation_range().min);
-        sync_f32(self.max_rotation, emitter.rotation_range().max);
+        sync_f32(self.min_lifetime, emitter.life_time_range().bounds[0]);
+        sync_f32(self.max_lifetime, emitter.life_time_range().bounds[1]);
+        sync_f32(
+            self.min_size_modifier,
+            emitter.size_modifier_range().bounds[0],
+        );
+        sync_f32(
+            self.max_size_modifier,
+            emitter.size_modifier_range().bounds[1],
+        );
+        sync_f32(self.min_x_velocity, emitter.x_velocity_range().bounds[0]);
+        sync_f32(self.max_x_velocity, emitter.x_velocity_range().bounds[1]);
+        sync_f32(self.min_y_velocity, emitter.y_velocity_range().bounds[0]);
+        sync_f32(self.max_y_velocity, emitter.y_velocity_range().bounds[1]);
+        sync_f32(self.min_z_velocity, emitter.z_velocity_range().bounds[0]);
+        sync_f32(self.max_z_velocity, emitter.z_velocity_range().bounds[1]);
+        sync_f32(
+            self.min_rotation_speed,
+            emitter.rotation_speed_range().bounds[0],
+        );
+        sync_f32(
+            self.max_rotation_speed,
+            emitter.rotation_speed_range().bounds[1],
+        );
+        sync_f32(self.min_rotation, emitter.rotation_range().bounds[0]);
+        sync_f32(self.max_rotation, emitter.rotation_range().bounds[1]);
 
         ui.send_message(CheckBoxMessage::checked(
             self.resurrect_particles,
             MessageDirection::ToWidget,
             Some(emitter.is_particles_resurrects()),
         ));
+
+        fn toggle_visibility(ui: &mut Ui, destination: Handle<UiNode>, value: bool) {
+            ui.send_message(WidgetMessage::visibility(
+                destination,
+                MessageDirection::ToWidget,
+                value,
+            ));
+        };
+
+        toggle_visibility(ui, self.sphere_section.section, false);
+
+        match emitter {
+            Emitter::Unknown => unreachable!(),
+            Emitter::Box(_) => {}
+            Emitter::Sphere(sphere) => {
+                toggle_visibility(ui, self.sphere_section.section, true);
+                self.sphere_section.sync_to_model(sphere, ui);
+            }
+            Emitter::Cylinder(_) => {}
+        }
     }
 
     pub fn handle_message(
@@ -264,6 +312,16 @@ impl EmitterSection {
         emitter_index: usize,
         handle: Handle<Node>,
     ) {
+        match emitter {
+            Emitter::Unknown => unreachable!(),
+            Emitter::Box(_) => {}
+            Emitter::Sphere(sphere) => {
+                self.sphere_section
+                    .handle_message(message, sphere, handle, emitter_index);
+            }
+            Emitter::Cylinder(_) => {}
+        }
+
         if let UiMessageData::NumericUpDown(msg) = message.data() {
             if let (&NumericUpDownMessage::Value(value), true) =
                 (msg, message.direction() == MessageDirection::FromWidget)
@@ -284,72 +342,72 @@ impl EmitterSection {
                 {
                     parameter = Some(EmitterNumericParameter::SpawnRate);
                 } else if message.destination() == self.min_lifetime
-                    && emitter.life_time_range().min.ne(&value)
+                    && emitter.life_time_range().bounds[0].ne(&value)
                 {
                     parameter = Some(EmitterNumericParameter::MinLifetime);
                     emitter.life_time_range().clamp_value(&mut final_value);
                 } else if message.destination() == self.max_lifetime
-                    && emitter.life_time_range().max.ne(&value)
+                    && emitter.life_time_range().bounds[1].ne(&value)
                 {
                     parameter = Some(EmitterNumericParameter::MaxLifetime);
                     emitter.life_time_range().clamp_value(&mut final_value);
                 } else if message.destination() == self.min_size_modifier
-                    && emitter.size_modifier_range().min.ne(&value)
+                    && emitter.size_modifier_range().bounds[0].ne(&value)
                 {
                     parameter = Some(EmitterNumericParameter::MinSizeModifier);
                     emitter.size_modifier_range().clamp_value(&mut final_value);
                 } else if message.destination() == self.max_size_modifier
-                    && emitter.size_modifier_range().max.ne(&value)
+                    && emitter.size_modifier_range().bounds[1].ne(&value)
                 {
                     parameter = Some(EmitterNumericParameter::MaxSizeModifier);
                     emitter.size_modifier_range().clamp_value(&mut final_value);
                 } else if message.destination() == self.min_x_velocity
-                    && emitter.x_velocity_range().min.ne(&value)
+                    && emitter.x_velocity_range().bounds[0].ne(&value)
                 {
                     parameter = Some(EmitterNumericParameter::MinXVelocity);
                     emitter.x_velocity_range().clamp_value(&mut final_value);
                 } else if message.destination() == self.max_x_velocity
-                    && emitter.x_velocity_range().max.ne(&value)
+                    && emitter.x_velocity_range().bounds[1].ne(&value)
                 {
                     parameter = Some(EmitterNumericParameter::MaxXVelocity);
                     emitter.x_velocity_range().clamp_value(&mut final_value);
                 } else if message.destination() == self.min_y_velocity
-                    && emitter.y_velocity_range().min.ne(&value)
+                    && emitter.y_velocity_range().bounds[0].ne(&value)
                 {
                     parameter = Some(EmitterNumericParameter::MinYVelocity);
                     emitter.y_velocity_range().clamp_value(&mut final_value);
                 } else if message.destination() == self.max_y_velocity
-                    && emitter.y_velocity_range().max.ne(&value)
+                    && emitter.y_velocity_range().bounds[1].ne(&value)
                 {
                     parameter = Some(EmitterNumericParameter::MaxYVelocity);
                     emitter.y_velocity_range().clamp_value(&mut final_value);
                 } else if message.destination() == self.min_z_velocity
-                    && emitter.z_velocity_range().min.ne(&value)
+                    && emitter.z_velocity_range().bounds[0].ne(&value)
                 {
                     emitter.z_velocity_range().clamp_value(&mut final_value);
                     parameter = Some(EmitterNumericParameter::MinZVelocity);
                 } else if message.destination() == self.max_z_velocity
-                    && emitter.z_velocity_range().max.ne(&value)
+                    && emitter.z_velocity_range().bounds[1].ne(&value)
                 {
                     parameter = Some(EmitterNumericParameter::MaxZVelocity);
                     emitter.z_velocity_range().clamp_value(&mut final_value);
                 } else if message.destination() == self.min_rotation_speed
-                    && emitter.rotation_speed_range().min.ne(&value)
+                    && emitter.rotation_speed_range().bounds[0].ne(&value)
                 {
                     parameter = Some(EmitterNumericParameter::MinRotationSpeed);
                     emitter.rotation_speed_range().clamp_value(&mut final_value);
                 } else if message.destination() == self.max_rotation_speed
-                    && emitter.rotation_speed_range().max.ne(&value)
+                    && emitter.rotation_speed_range().bounds[1].ne(&value)
                 {
                     parameter = Some(EmitterNumericParameter::MaxRotationSpeed);
                     emitter.rotation_speed_range().clamp_value(&mut final_value);
                 } else if message.destination() == self.min_rotation
-                    && emitter.rotation_range().min.ne(&value)
+                    && emitter.rotation_range().bounds[0].ne(&value)
                 {
                     parameter = Some(EmitterNumericParameter::MinRotation);
                     emitter.rotation_range().clamp_value(&mut final_value);
                 } else if message.destination() == self.max_rotation
-                    && emitter.rotation_range().max.ne(&value)
+                    && emitter.rotation_range().bounds[1].ne(&value)
                 {
                     parameter = Some(EmitterNumericParameter::MaxRotation);
                     emitter.rotation_range().clamp_value(&mut final_value);

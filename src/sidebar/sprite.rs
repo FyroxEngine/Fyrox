@@ -36,12 +36,12 @@ impl SpriteSection {
             WidgetBuilder::new()
                 .with_child(make_text_mark(ctx, "Size", 0))
                 .with_child({
-                    size = make_f32_input_field(ctx, 0);
+                    size = make_f32_input_field(ctx, 0, 0.0, std::f32::MAX, 0.1);
                     size
                 })
                 .with_child(make_text_mark(ctx, "Rotation", 1))
                 .with_child({
-                    rotation = make_f32_input_field(ctx, 1);
+                    rotation = make_f32_input_field(ctx, 1, 0.0, std::f32::MAX, 0.1);
                     rotation
                 })
                 .with_child(make_text_mark(ctx, "Color", 2))

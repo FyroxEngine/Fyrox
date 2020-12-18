@@ -39,12 +39,12 @@ impl ColliderSection {
             WidgetBuilder::new()
                 .with_child(make_text_mark(ctx, "Friction", 0))
                 .with_child({
-                    friction = make_f32_input_field(ctx, 0);
+                    friction = make_f32_input_field(ctx, 0, 0.0, std::f32::MAX, 0.1);
                     friction
                 })
                 .with_child(make_text_mark(ctx, "Restitution", 1))
                 .with_child({
-                    restitution = make_f32_input_field(ctx, 1);
+                    restitution = make_f32_input_field(ctx, 1, 0.0, std::f32::MAX, 0.1);
                     restitution
                 })
                 .with_child(make_text_mark(ctx, "Collider Position", 2))

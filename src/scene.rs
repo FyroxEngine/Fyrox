@@ -4,13 +4,12 @@ use crate::{
     physics::{Collider, Joint, Physics, RigidBody},
     GameEngine, Message,
 };
-use rg3d::core::numeric_range::NumericRange;
-use rg3d::scene::particle_system::{ParticleLimit, ParticleSystem};
 use rg3d::{
     core::{
         algebra::{UnitQuaternion, Vector3},
         color::Color,
         math::Matrix4Ext,
+        numeric_range::NumericRange,
         pool::{Handle, Ticket},
         visitor::{Visit, Visitor},
     },
@@ -20,7 +19,7 @@ use rg3d::{
         graph::{Graph, SubGraph},
         mesh::Mesh,
         node::Node,
-        particle_system::Emitter,
+        particle_system::{Emitter, ParticleLimit, ParticleSystem},
         physics::{ColliderShapeDesc, JointParamsDesc},
         Scene,
     },
@@ -194,6 +193,7 @@ pub enum SceneCommand {
     SetParticleSystemAcceleration(SetParticleSystemAccelerationCommand),
     AddParticleSystemEmitter(AddParticleSystemEmitterCommand),
     SetEmitterNumericParameter(SetEmitterNumericParameterCommand),
+    SetSphereEmitterRadius(SetSphereEmitterRadiusCommand),
     DeleteEmitter(DeleteEmitterCommand),
     SetSpriteSize(SetSpriteSizeCommand),
     SetSpriteRotation(SetSpriteRotationCommand),
@@ -274,6 +274,7 @@ macro_rules! static_dispatch {
             SceneCommand::SetParticleSystemAcceleration(v) => v.$func($($args),*),
             SceneCommand::AddParticleSystemEmitter(v) => v.$func($($args),*),
             SceneCommand::SetEmitterNumericParameter(v) => v.$func($($args),*),
+            SceneCommand::SetSphereEmitterRadius(v) => v.$func($($args),*),
             SceneCommand::DeleteEmitter(v) => v.$func($($args),*),
             SceneCommand::SetSpriteSize(v) => v.$func($($args),*),
             SceneCommand::SetSpriteRotation(v) => v.$func($($args),*),
@@ -1280,96 +1281,6 @@ impl<'a> Command<'a> for DeleteColliderCommand {
     }
 }
 
-macro_rules! define_simple_scene_command {
-    ($name:ident, $human_readable_name:expr, $value_type:ty => $apply_method:expr ) => {
-        #[derive(Debug)]
-        pub struct $name {
-            handle: Handle<Node>,
-            value: $value_type,
-        }
-
-        impl $name {
-            pub fn new(handle: Handle<Node>, value: $value_type) -> Self {
-                Self { handle, value }
-            }
-
-            fn swap(&mut self, graph: &mut Graph) {
-                $apply_method(self, graph)
-            }
-        }
-
-        impl<'a> Command<'a> for $name {
-            type Context = SceneContext<'a>;
-
-            fn name(&mut self, _context: &Self::Context) -> String {
-                $human_readable_name.to_owned()
-            }
-
-            fn execute(&mut self, context: &mut Self::Context) {
-                self.swap(&mut context.scene.graph);
-            }
-
-            fn revert(&mut self, context: &mut Self::Context) {
-                self.swap(&mut context.scene.graph);
-            }
-        }
-    };
-}
-
-macro_rules! define_simple_physics_command {
-    ($name:ident, $human_readable_name:expr, $handle_type:ty, $value_type:ty => $apply_method:expr ) => {
-        #[derive(Debug)]
-        pub struct $name {
-            handle: $handle_type,
-            value: $value_type,
-        }
-
-        impl $name {
-            pub fn new(handle: $handle_type, value: $value_type) -> Self {
-                Self { handle, value }
-            }
-
-            fn swap(&mut self, physics: &mut Physics) {
-                $apply_method(self, physics)
-            }
-        }
-
-        impl<'a> Command<'a> for $name {
-            type Context = SceneContext<'a>;
-
-            fn name(&mut self, _context: &Self::Context) -> String {
-                $human_readable_name.to_owned()
-            }
-
-            fn execute(&mut self, context: &mut Self::Context) {
-                self.swap(&mut context.editor_scene.physics);
-            }
-
-            fn revert(&mut self, context: &mut Self::Context) {
-                self.swap(&mut context.editor_scene.physics);
-            }
-        }
-    };
-}
-
-macro_rules! define_simple_body_command {
-    ($name:ident, $human_readable_name:expr, $value_type:ty => $apply_method:expr ) => {
-        define_simple_physics_command!($name, $human_readable_name, Handle<RigidBody>, $value_type => $apply_method);
-    };
-}
-
-macro_rules! define_simple_collider_command {
-    ($name:ident, $human_readable_name:expr, $value_type:ty => $apply_method:expr ) => {
-        define_simple_physics_command!($name, $human_readable_name, Handle<Collider>, $value_type => $apply_method);
-    };
-}
-
-macro_rules! define_simple_joint_command {
-    ($name:ident, $human_readable_name:expr, $value_type:ty => $apply_method:expr ) => {
-        define_simple_physics_command!($name, $human_readable_name, Handle<Joint>, $value_type => $apply_method);
-    };
-}
-
 #[derive(Debug)]
 enum TextureSet {
     Single(Texture),
@@ -1520,73 +1431,73 @@ impl SetEmitterNumericParameterCommand {
             }
             EmitterNumericParameter::MinLifetime => {
                 let old = emitter.life_time_range();
-                emitter.set_life_time_range(NumericRange::new(self.value, old.max));
-                self.value = old.min;
+                emitter.set_life_time_range(NumericRange::new(self.value, old.bounds[1]));
+                self.value = old.bounds[0];
             }
             EmitterNumericParameter::MaxLifetime => {
                 let old = emitter.life_time_range();
-                emitter.set_life_time_range(NumericRange::new(old.min, self.value));
-                self.value = old.max;
+                emitter.set_life_time_range(NumericRange::new(old.bounds[0], self.value));
+                self.value = old.bounds[1];
             }
             EmitterNumericParameter::MinSizeModifier => {
                 let old = emitter.size_modifier_range();
-                emitter.set_size_modifier_range(NumericRange::new(self.value, old.max));
-                self.value = old.min;
+                emitter.set_size_modifier_range(NumericRange::new(self.value, old.bounds[1]));
+                self.value = old.bounds[0];
             }
             EmitterNumericParameter::MaxSizeModifier => {
                 let old = emitter.size_modifier_range();
-                emitter.set_size_modifier_range(NumericRange::new(old.min, self.value));
-                self.value = old.max;
+                emitter.set_size_modifier_range(NumericRange::new(old.bounds[0], self.value));
+                self.value = old.bounds[1];
             }
             EmitterNumericParameter::MinXVelocity => {
                 let old = emitter.x_velocity_range();
-                emitter.set_x_velocity_range(NumericRange::new(self.value, old.max));
-                self.value = old.min;
+                emitter.set_x_velocity_range(NumericRange::new(self.value, old.bounds[1]));
+                self.value = old.bounds[0];
             }
             EmitterNumericParameter::MaxXVelocity => {
                 let old = emitter.x_velocity_range();
-                emitter.set_x_velocity_range(NumericRange::new(old.min, self.value));
-                self.value = old.max;
+                emitter.set_x_velocity_range(NumericRange::new(old.bounds[0], self.value));
+                self.value = old.bounds[1];
             }
             EmitterNumericParameter::MinYVelocity => {
                 let old = emitter.y_velocity_range();
-                emitter.set_y_velocity_range(NumericRange::new(self.value, old.max));
-                self.value = old.min;
+                emitter.set_y_velocity_range(NumericRange::new(self.value, old.bounds[1]));
+                self.value = old.bounds[0];
             }
             EmitterNumericParameter::MaxYVelocity => {
                 let old = emitter.y_velocity_range();
-                emitter.set_y_velocity_range(NumericRange::new(old.min, self.value));
-                self.value = old.max;
+                emitter.set_y_velocity_range(NumericRange::new(old.bounds[0], self.value));
+                self.value = old.bounds[1];
             }
             EmitterNumericParameter::MinZVelocity => {
                 let old = emitter.z_velocity_range();
-                emitter.set_z_velocity_range(NumericRange::new(self.value, old.max));
-                self.value = old.min;
+                emitter.set_z_velocity_range(NumericRange::new(self.value, old.bounds[1]));
+                self.value = old.bounds[0];
             }
             EmitterNumericParameter::MaxZVelocity => {
                 let old = emitter.z_velocity_range();
-                emitter.set_z_velocity_range(NumericRange::new(old.min, self.value));
-                self.value = old.max;
+                emitter.set_z_velocity_range(NumericRange::new(old.bounds[0], self.value));
+                self.value = old.bounds[1];
             }
             EmitterNumericParameter::MinRotationSpeed => {
                 let old = emitter.rotation_speed_range();
-                emitter.set_rotation_speed_range(NumericRange::new(self.value, old.max));
-                self.value = old.min;
+                emitter.set_rotation_speed_range(NumericRange::new(self.value, old.bounds[1]));
+                self.value = old.bounds[0];
             }
             EmitterNumericParameter::MaxRotationSpeed => {
                 let old = emitter.rotation_speed_range();
-                emitter.set_rotation_speed_range(NumericRange::new(old.min, self.value));
-                self.value = old.max;
+                emitter.set_rotation_speed_range(NumericRange::new(old.bounds[0], self.value));
+                self.value = old.bounds[1];
             }
             EmitterNumericParameter::MinRotation => {
                 let old = emitter.rotation_range();
-                emitter.set_rotation_range(NumericRange::new(self.value, old.max));
-                self.value = old.min;
+                emitter.set_rotation_range(NumericRange::new(self.value, old.bounds[1]));
+                self.value = old.bounds[0];
             }
             EmitterNumericParameter::MaxRotation => {
                 let old = emitter.rotation_range();
-                emitter.set_rotation_range(NumericRange::new(old.min, self.value));
-                self.value = old.max;
+                emitter.set_rotation_range(NumericRange::new(old.bounds[0], self.value));
+                self.value = old.bounds[1];
             }
         };
     }
@@ -1608,374 +1519,380 @@ impl<'a> Command<'a> for SetEmitterNumericParameterCommand {
     }
 }
 
-define_simple_scene_command!(SetLightScatterCommand, "Set Light Scatter", Vector3<f32> => |this: &mut SetLightScatterCommand, graph: &mut Graph| {
-    let node = graph[this.handle].as_light_mut();
-    let old = node.scatter();
-    node.set_scatter(this.value);
-    this.value = old;
+macro_rules! define_node_command {
+    ($name:ident($human_readable_name:expr, $value_type:ty) where fn swap($self:ident, $node:ident) $apply_method:block ) => {
+        #[derive(Debug)]
+        pub struct $name {
+            handle: Handle<Node>,
+            value: $value_type,
+        }
+
+        impl $name {
+            pub fn new(handle: Handle<Node>, value: $value_type) -> Self {
+                Self { handle, value }
+            }
+
+            fn swap(&mut $self, graph: &mut Graph) {
+                let $node = &mut graph[$self.handle];
+                $apply_method
+            }
+        }
+
+        impl<'a> Command<'a> for $name {
+            type Context = SceneContext<'a>;
+
+            fn name(&mut self, _context: &Self::Context) -> String {
+                $human_readable_name.to_owned()
+            }
+
+            fn execute(&mut self, context: &mut Self::Context) {
+                self.swap(&mut context.scene.graph);
+            }
+
+            fn revert(&mut self, context: &mut Self::Context) {
+                self.swap(&mut context.scene.graph);
+            }
+        }
+    };
+}
+
+macro_rules! define_physics_command {
+    ($name:ident($human_readable_name:expr, $handle_type:ty, $value_type:ty) where fn swap($self:ident, $physics:ident) $apply_method:block ) => {
+        #[derive(Debug)]
+        pub struct $name {
+            handle: Handle<$handle_type>,
+            value: $value_type,
+        }
+
+        impl $name {
+            pub fn new(handle: Handle<$handle_type>, value: $value_type) -> Self {
+                Self { handle, value }
+            }
+
+            fn swap(&mut $self, $physics: &mut Physics) {
+                 $apply_method
+            }
+        }
+
+        impl<'a> Command<'a> for $name {
+            type Context = SceneContext<'a>;
+
+            fn name(&mut self, _context: &Self::Context) -> String {
+                $human_readable_name.to_owned()
+            }
+
+            fn execute(&mut self, context: &mut Self::Context) {
+                self.swap(&mut context.editor_scene.physics);
+            }
+
+            fn revert(&mut self, context: &mut Self::Context) {
+                self.swap(&mut context.editor_scene.physics);
+            }
+        }
+    };
+}
+
+macro_rules! define_body_command {
+    ($name:ident($human_readable_name:expr, $value_type:ty) where fn swap($self:ident, $physics: ident, $body:ident) $apply_method:block ) => {
+        define_physics_command!($name($human_readable_name, RigidBody, $value_type) where fn swap($self, $physics) {
+            let $body = &mut $physics.bodies[$self.handle];
+            $apply_method
+        });
+    };
+}
+
+macro_rules! define_collider_command {
+    ($name:ident($human_readable_name:expr, $value_type:ty) where fn swap($self:ident, $physics:ident, $collider:ident) $apply_method:block ) => {
+        define_physics_command!($name($human_readable_name, Collider, $value_type) where fn swap($self, $physics) {
+            let $collider = &mut $physics.colliders[$self.handle];
+            $apply_method
+        });
+    };
+}
+
+macro_rules! define_joint_command {
+    ($name:ident($human_readable_name:expr, $value_type:ty) where fn swap($self:ident, $physics:ident, $joint:ident) $apply_method:block ) => {
+        define_physics_command!($name($human_readable_name, Joint, $value_type) where fn swap($self, $physics) {
+            let $joint = &mut $physics.joints[$self.handle];
+            $apply_method
+        });
+    };
+}
+
+macro_rules! define_joint_variant_command {
+    ($name:ident($human_readable_name:expr, $value_type:ty) where fn swap($self:ident, $physics:ident, $variant:ident, $var:ident) $apply_method:block ) => {
+        define_physics_command!($name($human_readable_name, Joint, $value_type) where fn swap($self, $physics) {
+            let joint = &mut $physics.joints[$self.handle];
+            if let JointParamsDesc::$variant($var) = &mut joint.params {
+                $apply_method
+            } else {
+                unreachable!();
+            }
+        });
+    };
+}
+
+macro_rules! define_collider_variant_command {
+    ($name:ident($human_readable_name:expr, $value_type:ty) where fn swap($self:ident, $physics:ident, $variant:ident, $var:ident) $apply_method:block ) => {
+        define_physics_command!($name($human_readable_name, Collider, $value_type) where fn swap($self, $physics) {
+            let collider = &mut $physics.colliders[$self.handle];
+            if let ColliderShapeDesc::$variant($var) = &mut collider.shape {
+                $apply_method
+            } else {
+                unreachable!();
+            }
+        });
+    };
+}
+
+macro_rules! define_emitter_variant_command {
+    ($name:ident($human_readable_name:expr, $value_type:ty) where fn swap($self:ident, $variant:ident, $var:ident) $apply_method:block ) => {
+        #[derive(Debug)]
+        pub struct $name {
+            handle: Handle<Node>,
+            value: $value_type,
+            index: usize
+        }
+
+        impl $name {
+            pub fn new(handle: Handle<Node>, index: usize, value: $value_type) -> Self {
+                Self { handle, index, value }
+            }
+
+            fn swap(&mut $self, graph: &mut Graph) {
+                let emitter = &mut graph[$self.handle].as_particle_system_mut().emitters[$self.index];
+                if let Emitter::$variant($var) = emitter{
+                    $apply_method
+                } else {
+                    unreachable!()
+                }
+            }
+        }
+
+        impl<'a> Command<'a> for $name {
+            type Context = SceneContext<'a>;
+
+            fn name(&mut self, _context: &Self::Context) -> String {
+                $human_readable_name.to_owned()
+            }
+
+            fn execute(&mut self, context: &mut Self::Context) {
+                self.swap(&mut context.scene.graph);
+            }
+
+            fn revert(&mut self, context: &mut Self::Context) {
+                self.swap(&mut context.scene.graph);
+            }
+        }
+    };
+}
+
+macro_rules! get_set_swap {
+    ($self:ident, $host:expr, $get:ident, $set:ident) => {
+        match $host {
+            host => {
+                let old = host.$get();
+                host.$set($self.value.clone());
+                $self.value = old;
+            }
+        }
+    };
+}
+
+define_node_command!(SetLightScatterCommand("Set Light Scatter", Vector3<f32>) where fn swap(self, node) {
+    get_set_swap!(self, node.as_light_mut(), scatter, set_scatter)
 });
 
-define_simple_scene_command!(SetLightScatterEnabledCommand, "Set Light Scatter Enabled", bool => |this: &mut SetLightScatterEnabledCommand, graph: &mut Graph| {
-    let node = graph[this.handle].as_light_mut();
-    let old = node.is_scatter_enabled();
-    node.enable_scatter(this.value);
-    this.value = old;
+define_node_command!(SetLightScatterEnabledCommand("Set Light Scatter Enabled", bool) where fn swap(self, node) {
+    get_set_swap!(self, node.as_light_mut(), is_scatter_enabled, enable_scatter)
 });
 
-define_simple_scene_command!(SetLightCastShadowsCommand, "Set Light Cast Shadows", bool => |this: &mut SetLightCastShadowsCommand, graph: &mut Graph| {
-    let node = graph[this.handle].as_light_mut();
-    let old = node.is_cast_shadows();
-    node.set_cast_shadows(this.value);
-    this.value = old;
+define_node_command!(SetLightCastShadowsCommand("Set Light Cast Shadows", bool) where fn swap(self, node) {
+    get_set_swap!(self, node.as_light_mut(), is_cast_shadows, set_cast_shadows)
 });
 
-define_simple_scene_command!(SetPointLightRadiusCommand, "Set Point Light Radius", f32 => |this: &mut SetPointLightRadiusCommand, graph: &mut Graph| {
-    let point_light = graph[this.handle].as_light_mut().as_point_mut();
-    let old = point_light.radius();
-    point_light.set_radius(this.value);
-    this.value = old;
+define_node_command!(SetPointLightRadiusCommand("Set Point Light Radius", f32) where fn swap(self, node) {
+    get_set_swap!(self, node.as_light_mut().as_point_mut(), radius, set_radius)
 });
 
-define_simple_scene_command!(SetSpotLightHotspotCommand, "Set Spot Light Hotspot", f32 => |this: &mut SetSpotLightHotspotCommand, graph: &mut Graph| {
-    let spot_light = graph[this.handle].as_light_mut().as_spot_mut();
-    let old = spot_light.hotspot_cone_angle();
-    spot_light.set_hotspot_cone_angle(this.value);
-    this.value = old;
+define_node_command!(SetSpotLightHotspotCommand("Set Spot Light Hotspot", f32) where fn swap(self, node) {
+    get_set_swap!(self, node.as_light_mut().as_spot_mut(), hotspot_cone_angle, set_hotspot_cone_angle)
 });
 
-define_simple_scene_command!(SetSpotLightFalloffAngleDeltaCommand, "Set Spot Light Falloff Angle Delta", f32 => |this: &mut SetSpotLightFalloffAngleDeltaCommand, graph: &mut Graph| {
-    let spot_light = graph[this.handle].as_light_mut().as_spot_mut();
-    let old = spot_light.falloff_angle_delta();
-    spot_light.set_falloff_angle_delta(this.value);
-    this.value = old;
+define_node_command!(SetSpotLightFalloffAngleDeltaCommand("Set Spot Light Falloff Angle Delta", f32) where fn swap(self, node) {
+    get_set_swap!(self, node.as_light_mut().as_spot_mut(), falloff_angle_delta, set_falloff_angle_delta)
 });
 
-define_simple_scene_command!(SetSpotLightDistanceCommand, "Set Spot Light Distance", f32 => |this: &mut SetSpotLightDistanceCommand, graph: &mut Graph| {
-    let spot_light = graph[this.handle].as_light_mut().as_spot_mut();
-    let old = spot_light.distance();
-    spot_light.set_distance(this.value);
-    this.value = old;
+define_node_command!(SetSpotLightDistanceCommand("Set Spot Light Distance", f32) where fn swap(self, node) {
+    get_set_swap!(self, node.as_light_mut().as_spot_mut(), distance, set_distance);
 });
 
-define_simple_scene_command!(SetLightColorCommand, "Set Light Color", Color => |this: &mut SetLightColorCommand, graph: &mut Graph| {
-    let node = graph[this.handle].as_light_mut();
-    let old = node.color();
-    node.set_color(this.value);
-    this.value = old;
+define_node_command!(SetLightColorCommand("Set Light Color", Color) where fn swap(self, node) {
+    get_set_swap!(self, node.as_light_mut(), color, set_color)
 });
 
-define_simple_scene_command!(SetNameCommand, "Set Name", String => |this: &mut SetNameCommand, graph: &mut Graph| {
-    let node = &mut graph[this.handle];
-    let old = node.name().to_owned();
-    node.set_name(&this.value);
-    this.value = old;
+define_node_command!(SetNameCommand("Set Name", String) where fn swap(self, node) {
+    get_set_swap!(self, node, name_owned, set_name);
 });
 
-define_simple_scene_command!(SetVisibleCommand, "Set Visible", bool => |this: &mut SetVisibleCommand, graph: &mut Graph| {
-    let node = &mut graph[this.handle];
-    let old = node.visibility();
-    node.set_visibility(this.value);
-    this.value = old;
+define_node_command!(SetVisibleCommand("Set Visible", bool) where fn swap(self, node) {
+    get_set_swap!(self, node, visibility, set_visibility)
 });
 
-define_simple_scene_command!(SetFovCommand, "Set Fov", f32 => |this: &mut SetFovCommand, graph: &mut Graph| {
-    let node = graph[this.handle].as_camera_mut();
-    let old = node.fov();
-    node.set_fov(this.value);
-    this.value = old;
+define_node_command!(SetFovCommand("Set Fov", f32) where fn swap(self, node) {
+    get_set_swap!(self, node.as_camera_mut(), fov, set_fov);
 });
 
-define_simple_scene_command!(SetZNearCommand, "Set Camera Z Near", f32 => |this: &mut SetZNearCommand, graph: &mut Graph| {
-    let node = graph[this.handle].as_camera_mut();
-    let old = node.z_near();
-    node.set_z_near(this.value);
-    this.value = old;
+define_node_command!(SetZNearCommand("Set Camera Z Near", f32) where fn swap(self, node) {
+    get_set_swap!(self, node.as_camera_mut(), z_near, set_z_near);
 });
 
-define_simple_scene_command!(SetZFarCommand, "Set Camera Z Far", f32 => |this: &mut SetZFarCommand, graph: &mut Graph| {
-    let node = graph[this.handle].as_camera_mut();
-    let old = node.z_far();
-    node.set_z_far(this.value);
-    this.value = old;
+define_node_command!(SetZFarCommand("Set Camera Z Far", f32) where fn swap(self, node) {
+    get_set_swap!(self, node.as_camera_mut(), z_far, set_z_far);
 });
 
-define_simple_scene_command!(SetParticleSystemAccelerationCommand, "Set Particle System Acceleration", Vector3<f32> => |this: &mut SetParticleSystemAccelerationCommand, graph: &mut Graph| {
-    let node = graph[this.handle].as_particle_system_mut();
-    let old = node.acceleration();
-    node.set_acceleration(this.value);
-    this.value = old;
+define_node_command!(SetParticleSystemAccelerationCommand("Set Particle System Acceleration", Vector3<f32>) where fn swap(self, node) {
+    get_set_swap!(self, node.as_particle_system_mut(), acceleration, set_acceleration);
 });
 
-define_simple_scene_command!(SetSpriteSizeCommand, "Set Sprite Size", f32 => |this: &mut SetSpriteSizeCommand, graph: &mut Graph| {
-    let node = graph[this.handle].as_sprite_mut();
-    let old = node.size();
-    node.set_size(this.value);
-    this.value = old;
+define_node_command!(SetSpriteSizeCommand("Set Sprite Size", f32) where fn swap(self, node) {
+    get_set_swap!(self, node.as_sprite_mut(), size, set_size);
 });
 
-define_simple_scene_command!(SetSpriteRotationCommand, "Set Sprite Rotation", f32 => |this: &mut SetSpriteRotationCommand, graph: &mut Graph| {
-    let node = graph[this.handle].as_sprite_mut();
-    let old = node.rotation();
-    node.set_rotation(this.value);
-    this.value = old;
+define_node_command!(SetSpriteRotationCommand("Set Sprite Rotation", f32) where fn swap(self, node) {
+    get_set_swap!(self, node.as_sprite_mut(), rotation, set_rotation);
 });
 
-define_simple_scene_command!(SetSpriteColorCommand, "Set Sprite Color", Color => |this: &mut SetSpriteColorCommand, graph: &mut Graph| {
-    let node = graph[this.handle].as_sprite_mut();
-    let old = node.color();
-    node.set_color(this.value);
-    this.value = old;
+define_node_command!(SetSpriteColorCommand("Set Sprite Color", Color) where fn swap(self, node) {
+    get_set_swap!(self, node.as_sprite_mut(), color, set_color);
 });
 
-define_simple_scene_command!(SetSpriteTextureCommand, "Set Sprite Texture", Option<Texture> => |this: &mut SetSpriteTextureCommand, graph: &mut Graph| {
-    let node = graph[this.handle].as_sprite_mut();
-    let old = node.texture();
-    node.set_texture(this.value.clone());
-    this.value = old;
+define_node_command!(SetSpriteTextureCommand("Set Sprite Texture", Option<Texture>) where fn swap(self, node) {
+    get_set_swap!(self, node.as_sprite_mut(), texture, set_texture);
 });
 
-define_simple_scene_command!(SetMeshCastShadowsCommand, "Set Mesh Cast Shadows", bool => |this: &mut SetMeshCastShadowsCommand, graph: &mut Graph| {
-    let node = graph[this.handle].as_mesh_mut();
-    let old = node.cast_shadows();
-    node.set_cast_shadows(this.value.clone());
-    this.value = old;
+define_node_command!(SetMeshCastShadowsCommand("Set Mesh Cast Shadows", bool) where fn swap(self, node) {
+    get_set_swap!(self, node.as_mesh_mut(), cast_shadows, set_cast_shadows);
 });
 
-define_simple_body_command!(SetBodyMassCommand, "Set Body Mass", f32 => |this: &mut SetBodyMassCommand, physics: &mut Physics| {
-    let body = &mut physics.bodies[this.handle];
-    std::mem::swap(&mut body.mass, &mut this.value);
+define_body_command!(SetBodyMassCommand("Set Body Mass", f32) where fn swap(self, physics, body) {
+    std::mem::swap(&mut body.mass, &mut self.value);
 });
 
-define_simple_collider_command!(SetColliderFrictionCommand, "Set Collider Friction", f32 => |this: &mut SetColliderFrictionCommand, physics: &mut Physics| {
-    let collider = &mut physics.colliders[this.handle];
-    std::mem::swap(&mut collider.friction, &mut this.value);
+define_collider_command!(SetColliderFrictionCommand("Set Collider Friction", f32) where fn swap(self, physics, collider) {
+    std::mem::swap(&mut collider.friction, &mut self.value);
 });
 
-define_simple_collider_command!(SetColliderRestitutionCommand, "Set Collider Restitution", f32 => |this: &mut SetColliderRestitutionCommand, physics: &mut Physics| {
-    let collider = &mut physics.colliders[this.handle];
-    std::mem::swap(&mut collider.restitution, &mut this.value);
+define_collider_command!(SetColliderRestitutionCommand("Set Collider Restitution", f32) where fn swap(self, physics, collider) {
+    std::mem::swap(&mut collider.restitution, &mut self.value);
 });
 
-define_simple_collider_command!(SetColliderPositionCommand, "Set Collider Position", Vector3<f32> => |this: &mut SetColliderPositionCommand, physics: &mut Physics| {
-    let collider = &mut physics.colliders[this.handle];
-    std::mem::swap(&mut collider.translation, &mut this.value);
+define_collider_command!(SetColliderPositionCommand("Set Collider Position", Vector3<f32>) where fn swap(self, physics, collider) {
+    std::mem::swap(&mut collider.translation, &mut self.value);
 });
 
-define_simple_collider_command!(SetColliderRotationCommand, "Set Collider Rotation", UnitQuaternion<f32> => |this: &mut SetColliderRotationCommand, physics: &mut Physics| {
-    let collider = &mut physics.colliders[this.handle];
-    std::mem::swap(&mut collider.rotation, &mut this.value);
+define_collider_command!(SetColliderRotationCommand("Set Collider Rotation", UnitQuaternion<f32>) where fn swap(self, physics, collider) {
+    std::mem::swap(&mut collider.rotation, &mut self.value);
 });
 
-define_simple_collider_command!(SetCylinderHalfHeightCommand, "Set Cylinder Half Height", f32 => |this: &mut SetCylinderHalfHeightCommand, physics: &mut Physics| {
-    let collider = &mut physics.colliders[this.handle];
-    if let ColliderShapeDesc::Cylinder(cylinder) = &mut collider.shape {
-        std::mem::swap(&mut cylinder.half_height, &mut this.value);
-    } else {
-        unreachable!();
-    }
+define_collider_variant_command!(SetCylinderHalfHeightCommand("Set Cylinder Half Height", f32) where fn swap(self, physics, Cylinder, cylinder) {
+    std::mem::swap(&mut cylinder.half_height, &mut self.value);
 });
 
-define_simple_collider_command!(SetCylinderRadiusCommand, "Set Cylinder Radius", f32 => |this: &mut SetCylinderRadiusCommand, physics: &mut Physics| {
-    let collider = &mut physics.colliders[this.handle];
-    if let ColliderShapeDesc::Cylinder(cylinder) = &mut collider.shape {
-        std::mem::swap(&mut cylinder.radius, &mut this.value);
-    } else {
-        unreachable!();
-    }
+define_collider_variant_command!(SetCylinderRadiusCommand("Set Cylinder Radius", f32) where fn swap(self, physics, Cylinder, cylinder) {
+    std::mem::swap(&mut cylinder.radius, &mut self.value);
 });
 
-define_simple_collider_command!(SetConeHalfHeightCommand, "Set Cone Half Height", f32 => |this: &mut SetConeHalfHeightCommand, physics: &mut Physics| {
-    let collider = &mut physics.colliders[this.handle];
-    if let ColliderShapeDesc::Cone(cone) = &mut collider.shape {
-        std::mem::swap(&mut cone.half_height, &mut this.value);
-    } else {
-        unreachable!();
-    }
+define_collider_variant_command!(SetConeHalfHeightCommand("Set Cone Half Height", f32) where fn swap(self, physics, Cone, cone) {
+    std::mem::swap(&mut cone.half_height, &mut self.value);
 });
 
-define_simple_collider_command!(SetConeRadiusCommand, "Set Cone Radius", f32 => |this: &mut SetConeRadiusCommand, physics: &mut Physics| {
-    let collider = &mut physics.colliders[this.handle];
-    if let ColliderShapeDesc::Cone(cone) = &mut collider.shape {
-        std::mem::swap(&mut cone.radius, &mut this.value);
-    } else {
-        unreachable!();
-    }
+define_collider_variant_command!(SetConeRadiusCommand("Set Cone Radius", f32) where fn swap(self, physics, Cone, cone) {
+    std::mem::swap(&mut cone.radius, &mut self.value);
 });
 
-define_simple_collider_command!(SetCuboidHalfExtentsCommand, "Set Cuboid Half Extents", Vector3<f32> => |this: &mut SetCuboidHalfExtentsCommand, physics: &mut Physics| {
-    let collider = &mut physics.colliders[this.handle];
-    if let ColliderShapeDesc::Cuboid(cuboid) = &mut collider.shape {
-        std::mem::swap(&mut cuboid.half_extents, &mut this.value);
-    } else {
-        unreachable!();
-    }
+define_collider_variant_command!(SetCuboidHalfExtentsCommand("Set Cuboid Half Extents", Vector3<f32>) where fn swap(self, physics, Cuboid, cuboid) {
+    std::mem::swap(&mut cuboid.half_extents, &mut self.value);
 });
 
-define_simple_collider_command!(SetCapsuleRadiusCommand, "Set Capsule Radius", f32 => |this: &mut SetCapsuleRadiusCommand, physics: &mut Physics| {
-    let collider = &mut physics.colliders[this.handle];
-    if let ColliderShapeDesc::Capsule(capsule) = &mut collider.shape {
-        std::mem::swap(&mut capsule.radius, &mut this.value);
-    } else {
-        unreachable!();
-    }
+define_collider_variant_command!(SetCapsuleRadiusCommand("Set Capsule Radius", f32) where fn swap(self, physics, Capsule, capsule) {
+    std::mem::swap(&mut capsule.radius, &mut self.value);
 });
 
-define_simple_collider_command!(SetCapsuleBeginCommand, "Set Capsule Begin", Vector3<f32> => |this: &mut SetCapsuleBeginCommand, physics: &mut Physics| {
-    let collider = &mut physics.colliders[this.handle];
-    if let ColliderShapeDesc::Capsule(capsule) = &mut collider.shape {
-        std::mem::swap(&mut capsule.begin, &mut this.value);
-    } else {
-        unreachable!();
-    }
+define_collider_variant_command!(SetCapsuleBeginCommand("Set Capsule Begin", Vector3<f32>) where fn swap(self, physics, Capsule, capsule) {
+    std::mem::swap(&mut capsule.begin, &mut self.value);
 });
 
-define_simple_collider_command!(SetCapsuleEndCommand, "Set Capsule End", Vector3<f32> => |this: &mut SetCapsuleEndCommand, physics: &mut Physics| {
-    let collider = &mut physics.colliders[this.handle];
-    if let ColliderShapeDesc::Capsule(capsule) = &mut collider.shape {
-        std::mem::swap(&mut capsule.end, &mut this.value);
-    } else {
-        unreachable!();
-    }
+define_collider_variant_command!(SetCapsuleEndCommand("Set Capsule End", Vector3<f32>) where fn swap(self, physics, Capsule, capsule) {
+    std::mem::swap(&mut capsule.end, &mut self.value);
 });
 
-define_simple_collider_command!(SetBallRadiusCommand, "Set Ball Radius", f32 => |this: &mut SetBallRadiusCommand, physics: &mut Physics| {
-    let collider = &mut physics.colliders[this.handle];
-    if let ColliderShapeDesc::Ball(ball) = &mut collider.shape {
-        std::mem::swap(&mut ball.radius, &mut this.value);
-    } else {
-        unreachable!();
-    }
+define_collider_variant_command!(SetBallRadiusCommand("Set Ball Radius", f32) where fn swap(self, physics, Ball, ball) {
+    std::mem::swap(&mut ball.radius, &mut self.value);
 });
 
-define_simple_joint_command!(SetBallJointAnchor1Command, "Set Ball Joint Anchor 1", Vector3<f32> => |this: &mut SetBallJointAnchor1Command, physics: &mut Physics| {
-    let joint = &mut physics.joints[this.handle];
-    if let JointParamsDesc::BallJoint(ball) = &mut joint.params {
-        std::mem::swap(&mut ball.local_anchor1, &mut this.value);
-    } else {
-        unreachable!();
-    }
+define_joint_variant_command!(SetBallJointAnchor1Command("Set Ball Joint Anchor 1", Vector3<f32>) where fn swap(self, physics, BallJoint, ball) {
+    std::mem::swap(&mut ball.local_anchor1, &mut self.value);
 });
 
-define_simple_joint_command!(SetBallJointAnchor2Command, "Set Ball Joint Anchor 2", Vector3<f32> => |this: &mut SetBallJointAnchor2Command, physics: &mut Physics| {
-    let joint = &mut physics.joints[this.handle];
-    if let JointParamsDesc::BallJoint(ball) = &mut joint.params {
-        std::mem::swap(&mut ball.local_anchor2, &mut this.value);
-    } else {
-        unreachable!();
-    }
+define_joint_variant_command!(SetBallJointAnchor2Command("Set Ball Joint Anchor 2", Vector3<f32>) where fn swap(self, physics, BallJoint, ball) {
+    std::mem::swap(&mut ball.local_anchor2, &mut self.value);
 });
 
-define_simple_joint_command!(SetFixedJointAnchor1TranslationCommand, "Set Fixed Joint Anchor 1 Translation", Vector3<f32> => |this: &mut SetFixedJointAnchor1TranslationCommand, physics: &mut Physics| {
-    let joint = &mut physics.joints[this.handle];
-    if let JointParamsDesc::FixedJoint(fixed) = &mut joint.params {
-        std::mem::swap(&mut fixed.local_anchor1_translation, &mut this.value);
-    } else {
-        unreachable!();
-    }
+define_joint_variant_command!(SetFixedJointAnchor1TranslationCommand("Set Fixed Joint Anchor 1 Translation", Vector3<f32>) where fn swap(self, physics, FixedJoint, fixed) {
+    std::mem::swap(&mut fixed.local_anchor1_translation, &mut self.value);
 });
 
-define_simple_joint_command!(SetFixedJointAnchor2TranslationCommand, "Set Fixed Joint Anchor 2 Translation", Vector3<f32> => |this: &mut SetFixedJointAnchor2TranslationCommand, physics: &mut Physics| {
-    let joint = &mut physics.joints[this.handle];
-    if let JointParamsDesc::FixedJoint(fixed) = &mut joint.params {
-        std::mem::swap(&mut fixed.local_anchor2_translation, &mut this.value);
-    } else {
-        unreachable!();
-    }
+define_joint_variant_command!(SetFixedJointAnchor2TranslationCommand("Set Fixed Joint Anchor 2 Translation", Vector3<f32>) where fn swap(self, physics, FixedJoint, fixed) {
+    std::mem::swap(&mut fixed.local_anchor2_translation, &mut self.value);
 });
 
-define_simple_joint_command!(SetFixedJointAnchor1RotationCommand, "Set Fixed Joint Anchor 1 Rotation", UnitQuaternion<f32> => |this: &mut SetFixedJointAnchor1RotationCommand, physics: &mut Physics| {
-    let joint = &mut physics.joints[this.handle];
-    if let JointParamsDesc::FixedJoint(fixed) = &mut joint.params {
-        std::mem::swap(&mut fixed.local_anchor1_rotation, &mut this.value);
-    } else {
-        unreachable!();
-    }
+define_joint_variant_command!(SetFixedJointAnchor1RotationCommand("Set Fixed Joint Anchor 1 Rotation", UnitQuaternion<f32>) where fn swap(self, physics, FixedJoint, fixed) {
+    std::mem::swap(&mut fixed.local_anchor1_rotation, &mut self.value);
 });
 
-define_simple_joint_command!(SetFixedJointAnchor2RotationCommand, "Set Fixed Joint Anchor 2 Rotation", UnitQuaternion<f32> => |this: &mut SetFixedJointAnchor2RotationCommand, physics: &mut Physics| {
-    let joint = &mut physics.joints[this.handle];
-    if let JointParamsDesc::FixedJoint(fixed) = &mut joint.params {
-        std::mem::swap(&mut fixed.local_anchor2_rotation, &mut this.value);
-    } else {
-        unreachable!();
-    }
+define_joint_variant_command!(SetFixedJointAnchor2RotationCommand("Set Fixed Joint Anchor 2 Rotation", UnitQuaternion<f32>) where fn swap(self, physics, FixedJoint, fixed) {
+    std::mem::swap(&mut fixed.local_anchor2_rotation, &mut self.value);
 });
 
-define_simple_joint_command!(SetRevoluteJointAnchor1Command, "Set Revolute Joint Anchor 1", Vector3<f32> => |this: &mut SetRevoluteJointAnchor1Command, physics: &mut Physics| {
-    let joint = &mut physics.joints[this.handle];
-    if let JointParamsDesc::RevoluteJoint(revolute) = &mut joint.params {
-        std::mem::swap(&mut revolute.local_anchor1, &mut this.value);
-    } else {
-        unreachable!();
-    }
+define_joint_variant_command!(SetRevoluteJointAnchor1Command("Set Revolute Joint Anchor 1", Vector3<f32>) where fn swap(self, physics, RevoluteJoint, revolute) {
+    std::mem::swap(&mut revolute.local_anchor1, &mut self.value);
 });
 
-define_simple_joint_command!(SetRevoluteJointAxis1Command, "Set Revolute Joint Axis 1", Vector3<f32> => |this: &mut SetRevoluteJointAxis1Command, physics: &mut Physics| {
-    let joint = &mut physics.joints[this.handle];
-    if let JointParamsDesc::RevoluteJoint(revolute) = &mut joint.params {
-        std::mem::swap(&mut revolute.local_axis1, &mut this.value);
-    } else {
-        unreachable!();
-    }
+define_joint_variant_command!(SetRevoluteJointAxis1Command("Set Revolute Joint Axis 1", Vector3<f32>) where fn swap(self, physics, RevoluteJoint, revolute) {
+    std::mem::swap(&mut revolute.local_axis1, &mut self.value);
 });
 
-define_simple_joint_command!(SetRevoluteJointAnchor2Command, "Set Revolute Joint Anchor 2", Vector3<f32> => |this: &mut SetRevoluteJointAnchor2Command, physics: &mut Physics| {
-    let joint = &mut physics.joints[this.handle];
-    if let JointParamsDesc::RevoluteJoint(revolute) = &mut joint.params {
-        std::mem::swap(&mut revolute.local_anchor2, &mut this.value);
-    } else {
-        unreachable!();
-    }
+define_joint_variant_command!(SetRevoluteJointAnchor2Command("Set Revolute Joint Anchor 2", Vector3<f32>) where fn swap(self, physics, RevoluteJoint, revolute) {
+    std::mem::swap(&mut revolute.local_anchor2, &mut self.value);
 });
 
-define_simple_joint_command!(SetRevoluteJointAxis2Command, "Set Prismatic Joint Axis 2", Vector3<f32> => |this: &mut SetRevoluteJointAxis2Command, physics: &mut Physics| {
-    let joint = &mut physics.joints[this.handle];
-    if let JointParamsDesc::RevoluteJoint(revolute) = &mut joint.params {
-        std::mem::swap(&mut revolute.local_axis2, &mut this.value);
-    } else {
-        unreachable!();
-    }
+define_joint_variant_command!(SetRevoluteJointAxis2Command("Set Prismatic Joint Axis 2", Vector3<f32>) where fn swap(self, physics, RevoluteJoint, revolute) {
+    std::mem::swap(&mut revolute.local_axis2, &mut self.value);
 });
 
-define_simple_joint_command!(SetPrismaticJointAnchor1Command, "Set Prismatic Joint Anchor 1", Vector3<f32> => |this: &mut SetPrismaticJointAnchor1Command, physics: &mut Physics| {
-    let joint = &mut physics.joints[this.handle];
-    if let JointParamsDesc::PrismaticJoint(prismatic) = &mut joint.params {
-        std::mem::swap(&mut prismatic.local_anchor1, &mut this.value);
-    } else {
-        unreachable!();
-    }
+define_joint_variant_command!(SetPrismaticJointAnchor1Command("Set Prismatic Joint Anchor 1", Vector3<f32>) where fn swap(self, physics, PrismaticJoint, prismatic) {
+    std::mem::swap(&mut prismatic.local_anchor1, &mut self.value);
 });
 
-define_simple_joint_command!(SetPrismaticJointAxis1Command, "Set Prismatic Joint Axis 1", Vector3<f32> => |this: &mut SetPrismaticJointAxis1Command, physics: &mut Physics| {
-    let joint = &mut physics.joints[this.handle];
-    if let JointParamsDesc::PrismaticJoint(prismatic) = &mut joint.params {
-        std::mem::swap(&mut prismatic.local_axis1, &mut this.value);
-    } else {
-        unreachable!();
-    }
+define_joint_variant_command!(SetPrismaticJointAxis1Command("Set Prismatic Joint Axis 1", Vector3<f32>) where fn swap(self, physics, PrismaticJoint, prismatic) {
+    std::mem::swap(&mut prismatic.local_axis1, &mut self.value);
 });
 
-define_simple_joint_command!(SetPrismaticJointAnchor2Command, "Set Prismatic Joint Anchor 2", Vector3<f32> => |this: &mut SetPrismaticJointAnchor2Command, physics: &mut Physics| {
-    let joint = &mut physics.joints[this.handle];
-    if let JointParamsDesc::PrismaticJoint(prismatic) = &mut joint.params {
-        std::mem::swap(&mut prismatic.local_anchor2, &mut this.value);
-    } else {
-        unreachable!();
-    }
+define_joint_variant_command!(SetPrismaticJointAnchor2Command("Set Prismatic Joint Anchor 2", Vector3<f32>) where fn swap(self, physics, PrismaticJoint, prismatic) {
+    std::mem::swap(&mut prismatic.local_anchor2, &mut self.value);
 });
 
-define_simple_joint_command!(SetPrismaticJointAxis2Command, "Set Prismatic Joint Axis 2", Vector3<f32> => |this: &mut SetPrismaticJointAxis2Command, physics: &mut Physics| {
-    let joint = &mut physics.joints[this.handle];
-    if let JointParamsDesc::PrismaticJoint(prismatic) = &mut joint.params {
-        std::mem::swap(&mut prismatic.local_axis2, &mut this.value);
-    } else {
-        unreachable!();
-    }
+define_joint_variant_command!(SetPrismaticJointAxis2Command("Set Prismatic Joint Axis 2", Vector3<f32>) where fn swap(self, physics, PrismaticJoint, prismatic) {
+    std::mem::swap(&mut prismatic.local_axis2, &mut self.value);
 });
 
-define_simple_joint_command!(SetJointConnectedBodyCommand, "Set Joint Connected Body", ErasedHandle => |this: &mut SetJointConnectedBodyCommand, physics: &mut Physics| {
-    let joint = &mut physics.joints[this.handle];
-    std::mem::swap(&mut joint.body2, &mut this.value);
+define_joint_command!(SetJointConnectedBodyCommand("Set Joint Connected Body", ErasedHandle) where fn swap(self, physics, joint) {
+    std::mem::swap(&mut joint.body2, &mut self.value);
+});
+
+define_emitter_variant_command!(SetSphereEmitterRadiusCommand("Set Sphere Emitter Radius", f32) where fn swap(self, Sphere, sphere) {
+    get_set_swap!(self, sphere, radius, set_radius);
 });
 
 #[derive(Debug, Default, Clone, Eq)]

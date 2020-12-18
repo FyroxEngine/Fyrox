@@ -33,17 +33,17 @@ impl CuboidSection {
             WidgetBuilder::new()
                 .with_child(make_text_mark(ctx, "Half Width", 0))
                 .with_child({
-                    half_width = make_f32_input_field(ctx, 0);
+                    half_width = make_f32_input_field(ctx, 0, 0.0, std::f32::MAX, 0.1);
                     half_width
                 })
                 .with_child(make_text_mark(ctx, "Half Height", 1))
                 .with_child({
-                    half_height = make_f32_input_field(ctx, 1);
+                    half_height = make_f32_input_field(ctx, 1, 0.0, std::f32::MAX, 0.1);
                     half_height
                 })
                 .with_child(make_text_mark(ctx, "Half Depth", 2))
                 .with_child({
-                    half_depth = make_f32_input_field(ctx, 2);
+                    half_depth = make_f32_input_field(ctx, 2, 0.0, std::f32::MAX, 0.1);
                     half_depth
                 }),
         )

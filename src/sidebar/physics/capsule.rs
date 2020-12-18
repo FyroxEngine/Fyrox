@@ -45,7 +45,7 @@ impl CapsuleSection {
                 })
                 .with_child(make_text_mark(ctx, "Radius", 2))
                 .with_child({
-                    radius = make_f32_input_field(ctx, 2);
+                    radius = make_f32_input_field(ctx, 2, 0.0, std::f32::MAX, 0.1);
                     radius
                 }),
         )

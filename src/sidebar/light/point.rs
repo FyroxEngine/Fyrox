@@ -29,7 +29,7 @@ impl PointLightSection {
             WidgetBuilder::new()
                 .with_child(make_text_mark(ctx, "Radius", 0))
                 .with_child({
-                    radius = make_f32_input_field(ctx, 0);
+                    radius = make_f32_input_field(ctx, 0, 0.0, std::f32::MAX, 0.1);
                     radius
                 }),
         )

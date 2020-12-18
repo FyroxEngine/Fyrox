@@ -39,7 +39,10 @@ use rg3d::{
 };
 use std::sync::mpsc::Sender;
 
+mod cuboid;
+mod cylinder;
 mod emitter;
+mod sphere;
 
 pub struct ParticleSystemSection {
     pub section: Handle<UiNode>,

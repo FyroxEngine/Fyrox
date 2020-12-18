@@ -88,13 +88,22 @@ fn make_vec3_input_field(ctx: &mut BuildContext, row: usize) -> Handle<UiNode> {
     .build(ctx)
 }
 
-fn make_f32_input_field(ctx: &mut BuildContext, row: usize) -> Handle<UiNode> {
+fn make_f32_input_field(
+    ctx: &mut BuildContext,
+    row: usize,
+    min: f32,
+    max: f32,
+    step: f32,
+) -> Handle<UiNode> {
     NumericUpDownBuilder::new(
         WidgetBuilder::new()
             .on_row(row)
             .with_margin(Thickness::uniform(1.0))
             .on_column(1),
     )
+    .with_min_value(min)
+    .with_max_value(max)
+    .with_step(step)
     .build(ctx)
 }
 

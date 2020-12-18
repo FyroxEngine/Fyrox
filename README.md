@@ -139,7 +139,28 @@ let scene_handle = engine.scenes.add(scene);
 		- [x] Z far
 	- [ ] Particle system node.
 		- [x] Acceleration
-		- [ ] Other
+		- [x] Select emitter
+		- [x] Add/remove emitter
+		- [x] Position
+		- [x] Spawn Rate
+		- [x] Max Particles
+		- [x] Min Lifetime
+		- [x] Max Lifetime
+		- [x] Min Size Modifier
+		- [x] Max Size Modifier
+		- [x] Min X Velocity
+		- [x] Max X Velocity
+		- [x] Min Y Velocity
+		- [x] Max Y Velocity
+		- [x] Min Z Velocity
+		- [x] Max Z Velocity
+		- [x] Min Rotation Speed
+		- [x] Max Rotation Speed
+		- [x] Min Rotation
+		- [x] Max Rotation
+		- [x] Resurrect Particles
+		- [x] Sphere emitter
+		- [ ] Color-over-lifetime curve (requires curve editor)
 	- [x] Sprite node.
 		- [x] Size
 		- [x] Rotation
@@ -156,6 +177,9 @@ let scene_handle = engine.scenes.add(scene);
 	  	- [x] Translation
 	  	- [x] Rotation
 	- [x] Rigid body
+- [ ] Shape editors - many things in the engine has shapes: colliders, emitters, etc. There should be shape editor
+  that will allow to edit them using mouse. Currently, editing is performed by setting values directly in side bar.
+- [ ] Curve editor - many parameters can be expressed as a curve, we need a way to edit such curves.
 - [x] Configurator
   	- [x] History
 - [x] Asset browser.

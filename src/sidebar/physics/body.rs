@@ -28,7 +28,7 @@ impl BodySection {
             WidgetBuilder::new()
                 .with_child(make_text_mark(ctx, "Mass", 0))
                 .with_child({
-                    mass = make_f32_input_field(ctx, 0);
+                    mass = make_f32_input_field(ctx, 0, 0.0, std::f32::MAX, 0.1);
                     mass
                 }),
         )

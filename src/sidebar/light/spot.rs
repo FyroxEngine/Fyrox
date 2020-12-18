@@ -37,17 +37,17 @@ impl SpotLightSection {
             WidgetBuilder::new()
                 .with_child(make_text_mark(ctx, "Hotspot", 0))
                 .with_child({
-                    hotspot = make_f32_input_field(ctx, 0);
+                    hotspot = make_f32_input_field(ctx, 0, 0.0, std::f32::consts::PI, 0.1);
                     hotspot
                 })
                 .with_child(make_text_mark(ctx, "Falloff Delta", 1))
                 .with_child({
-                    falloff_delta = make_f32_input_field(ctx, 1);
+                    falloff_delta = make_f32_input_field(ctx, 1, 0.0, std::f32::consts::PI, 0.01);
                     falloff_delta
                 })
                 .with_child(make_text_mark(ctx, "Radius", 2))
                 .with_child({
-                    distance = make_f32_input_field(ctx, 2);
+                    distance = make_f32_input_field(ctx, 2, 0.0, std::f32::MAX, 0.1);
                     distance
                 }),
         )
