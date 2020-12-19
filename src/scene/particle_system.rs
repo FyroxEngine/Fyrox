@@ -329,7 +329,7 @@ impl Emit for CylinderEmitter {
         let radius = scale.sqrt() * self.radius;
         let x = radius * theta.cos();
         let y = radius * theta.sin();
-        particle.position = Vector3::new(x, y, z);
+        particle.position = self.position + Vector3::new(x, y, z);
     }
 }
 
@@ -490,11 +490,12 @@ impl Emit for SphereEmitter {
         let sin_theta = theta.sin();
         let cos_phi = phi.cos();
         let sin_phi = phi.sin();
-        particle.position = Vector3::new(
-            radius * sin_theta * cos_phi,
-            radius * sin_theta * sin_phi,
-            radius * cos_theta,
-        );
+        particle.position = self.position
+            + Vector3::new(
+                radius * sin_theta * cos_phi,
+                radius * sin_theta * sin_phi,
+                radius * cos_theta,
+            );
     }
 }
 
@@ -667,21 +668,21 @@ pub struct BaseEmitter {
     /// Maximum amount of particles emitter can emit. Unlimited if < 0
     max_particles: ParticleLimit,
     /// Range of initial lifetime of a particle
-    lifetime: NumericRange<f32>,
+    lifetime: NumericRange,
     /// Range of initial size of a particle
-    size: NumericRange<f32>,
+    size: NumericRange,
     /// Range of initial size modifier of a particle
-    size_modifier: NumericRange<f32>,
+    size_modifier: NumericRange,
     /// Range of initial X-component of velocity for a particle
-    x_velocity: NumericRange<f32>,
+    x_velocity: NumericRange,
     /// Range of initial Y-component of velocity for a particle
-    y_velocity: NumericRange<f32>,
+    y_velocity: NumericRange,
     /// Range of initial Z-component of velocity for a particle
-    z_velocity: NumericRange<f32>,
+    z_velocity: NumericRange,
     /// Range of initial rotation speed for a particle
-    rotation_speed: NumericRange<f32>,
+    rotation_speed: NumericRange,
     /// Range of initial rotation for a particle
-    rotation: NumericRange<f32>,
+    rotation: NumericRange,
     alive_particles: Cell<u32>,
     time: f32,
     particles_to_spawn: usize,
@@ -695,14 +696,14 @@ pub struct BaseEmitterBuilder {
     position: Option<Vector3<f32>>,
     particle_spawn_rate: Option<u32>,
     max_particles: Option<u32>,
-    lifetime: Option<NumericRange<f32>>,
-    size: Option<NumericRange<f32>>,
-    size_modifier: Option<NumericRange<f32>>,
-    x_velocity: Option<NumericRange<f32>>,
-    y_velocity: Option<NumericRange<f32>>,
-    z_velocity: Option<NumericRange<f32>>,
-    rotation_speed: Option<NumericRange<f32>>,
-    rotation: Option<NumericRange<f32>>,
+    lifetime: Option<NumericRange>,
+    size: Option<NumericRange>,
+    size_modifier: Option<NumericRange>,
+    x_velocity: Option<NumericRange>,
+    y_velocity: Option<NumericRange>,
+    z_velocity: Option<NumericRange>,
+    rotation_speed: Option<NumericRange>,
+    rotation: Option<NumericRange>,
     resurrect_particles: bool,
 }
 
@@ -750,49 +751,49 @@ impl BaseEmitterBuilder {
     }
 
     /// Sets desired lifetime range.
-    pub fn with_lifetime_range(mut self, time_range: NumericRange<f32>) -> Self {
+    pub fn with_lifetime_range(mut self, time_range: NumericRange) -> Self {
         self.lifetime = Some(time_range);
         self
     }
 
     /// Sets desired size range.
-    pub fn with_size_range(mut self, size_range: NumericRange<f32>) -> Self {
+    pub fn with_size_range(mut self, size_range: NumericRange) -> Self {
         self.size = Some(size_range);
         self
     }
 
     /// Sets desired size modifier range.
-    pub fn with_size_modifier_range(mut self, mod_range: NumericRange<f32>) -> Self {
+    pub fn with_size_modifier_range(mut self, mod_range: NumericRange) -> Self {
         self.size_modifier = Some(mod_range);
         self
     }
 
     /// Sets desired x velocity range.
-    pub fn with_x_velocity_range(mut self, x_vel_range: NumericRange<f32>) -> Self {
+    pub fn with_x_velocity_range(mut self, x_vel_range: NumericRange) -> Self {
         self.x_velocity = Some(x_vel_range);
         self
     }
 
     /// Sets desired y velocity range.
-    pub fn with_y_velocity_range(mut self, y_vel_range: NumericRange<f32>) -> Self {
+    pub fn with_y_velocity_range(mut self, y_vel_range: NumericRange) -> Self {
         self.y_velocity = Some(y_vel_range);
         self
     }
 
     /// Sets desired z velocity range.
-    pub fn with_z_velocity_range(mut self, z_vel_range: NumericRange<f32>) -> Self {
+    pub fn with_z_velocity_range(mut self, z_vel_range: NumericRange) -> Self {
         self.z_velocity = Some(z_vel_range);
         self
     }
 
     /// Sets desired rotation speed range.
-    pub fn with_rotation_speed_range(mut self, speed_range: NumericRange<f32>) -> Self {
+    pub fn with_rotation_speed_range(mut self, speed_range: NumericRange) -> Self {
         self.rotation_speed = Some(speed_range);
         self
     }
 
     /// Sets desired rotation range.
-    pub fn with_rotation_range(mut self, angle_range: NumericRange<f32>) -> Self {
+    pub fn with_rotation_range(mut self, angle_range: NumericRange) -> Self {
         self.rotation = Some(angle_range);
         self
     }
@@ -916,102 +917,102 @@ impl BaseEmitter {
 
     /// Sets new range of lifetimes which will be used to generate random lifetime
     /// of new particle.
-    pub fn set_life_time_range(&mut self, range: NumericRange<f32>) -> &mut Self {
+    pub fn set_life_time_range(&mut self, range: NumericRange) -> &mut Self {
         self.lifetime = range;
         self
     }
 
     /// Returns current lifetime range.
-    pub fn life_time_range(&self) -> NumericRange<f32> {
+    pub fn life_time_range(&self) -> NumericRange {
         self.lifetime
     }
 
     /// Sets new range of sizes which will be used to generate random size
     /// of new particle.
-    pub fn set_size_range(&mut self, range: NumericRange<f32>) -> &mut Self {
+    pub fn set_size_range(&mut self, range: NumericRange) -> &mut Self {
         self.size = range;
         self
     }
 
     /// Returns current size range.
-    pub fn size_range(&self) -> NumericRange<f32> {
+    pub fn size_range(&self) -> NumericRange {
         self.size
     }
 
     /// Sets new range of size modifier which will be used to generate random size modifier
     /// of new particle.
-    pub fn set_size_modifier_range(&mut self, range: NumericRange<f32>) -> &mut Self {
+    pub fn set_size_modifier_range(&mut self, range: NumericRange) -> &mut Self {
         self.size_modifier = range;
         self
     }
 
     /// Returns current size modifier.
-    pub fn size_modifier_range(&self) -> NumericRange<f32> {
+    pub fn size_modifier_range(&self) -> NumericRange {
         self.size_modifier
     }
 
     /// Sets new range of initial x velocity that will be used to generate random
     /// value of initial x velocity of a particle.
-    pub fn set_x_velocity_range(&mut self, range: NumericRange<f32>) -> &mut Self {
+    pub fn set_x_velocity_range(&mut self, range: NumericRange) -> &mut Self {
         self.x_velocity = range;
         self
     }
 
     /// Returns current range of initial x velocity that will be used to generate
     /// random value of initial x velocity of a particle.
-    pub fn x_velocity_range(&self) -> NumericRange<f32> {
+    pub fn x_velocity_range(&self) -> NumericRange {
         self.x_velocity
     }
 
     /// Sets new range of initial y velocity that will be used to generate random
     /// value of initial y velocity of a particle.
-    pub fn set_y_velocity_range(&mut self, range: NumericRange<f32>) -> &mut Self {
+    pub fn set_y_velocity_range(&mut self, range: NumericRange) -> &mut Self {
         self.y_velocity = range;
         self
     }
 
     /// Returns current range of initial y velocity that will be used to generate
     /// random value of initial y velocity of a particle.
-    pub fn y_velocity_range(&self) -> NumericRange<f32> {
+    pub fn y_velocity_range(&self) -> NumericRange {
         self.y_velocity
     }
 
     /// Sets new range of initial z velocity that will be used to generate random
     /// value of initial z velocity of a particle.
-    pub fn set_z_velocity_range(&mut self, range: NumericRange<f32>) -> &mut Self {
+    pub fn set_z_velocity_range(&mut self, range: NumericRange) -> &mut Self {
         self.z_velocity = range;
         self
     }
 
     /// Returns current range of initial z velocity that will be used to generate
     /// random value of initial z velocity of a particle.
-    pub fn z_velocity_range(&self) -> NumericRange<f32> {
+    pub fn z_velocity_range(&self) -> NumericRange {
         self.z_velocity
     }
 
     /// Sets new range of rotation speed that will be used to generate random value
     /// of rotation speed of a particle.
-    pub fn set_rotation_speed_range(&mut self, range: NumericRange<f32>) -> &mut Self {
+    pub fn set_rotation_speed_range(&mut self, range: NumericRange) -> &mut Self {
         self.rotation_speed = range;
         self
     }
 
     /// Returns current range of rotation speed that will be used to generate random
     /// value of rotation speed of a particle.
-    pub fn rotation_speed_range(&self) -> NumericRange<f32> {
+    pub fn rotation_speed_range(&self) -> NumericRange {
         self.rotation_speed
     }
 
     /// Sets new range of initial rotations that will be used to generate random
     /// value of initial rotation of a particle.
-    pub fn set_rotation_range(&mut self, range: NumericRange<f32>) -> &mut Self {
+    pub fn set_rotation_range(&mut self, range: NumericRange) -> &mut Self {
         self.rotation = range;
         self
     }
 
     /// Returns current range of initial rotations that will be used to generate
     /// random value of initial rotation of a particle.
-    pub fn rotation_range(&self) -> NumericRange<f32> {
+    pub fn rotation_range(&self) -> NumericRange {
         self.rotation
     }
 

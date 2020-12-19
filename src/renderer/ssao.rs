@@ -131,15 +131,15 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                     let k = i as f32 / KERNEL_SIZE as f32;
                     let scale = lerpf(0.1, 1.0, k * k);
                     *v = Vector3::new(
-                        rng.gen_range(-1.0, 1.0),
-                        rng.gen_range(-1.0, 1.0),
-                        rng.gen_range(0.0, 1.0),
+                        rng.gen_range(-1.0..1.0),
+                        rng.gen_range(-1.0..1.0),
+                        rng.gen_range(0.0..1.0),
                     )
                     // Make sphere
                     .try_normalize(std::f32::EPSILON)
                     .unwrap()
                     // Use non-uniform distribution to shuffle points inside hemisphere.
-                    .scale(scale * rng.gen_range(0.0, 1.0));
+                    .scale(scale * rng.gen_range(0.0..1.0));
                 }
                 kernel
             },
@@ -147,8 +147,8 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                 const RGB_PIXEL_SIZE: usize = 3;
                 let mut pixels = [0u8; RGB_PIXEL_SIZE * NOISE_SIZE * NOISE_SIZE];
                 for pixel in pixels.chunks_exact_mut(RGB_PIXEL_SIZE) {
-                    pixel[0] = rng.gen_range(0u8, 255u8); // R
-                    pixel[1] = rng.gen_range(0u8, 255u8); // G
+                    pixel[0] = rng.gen_range(0u8..255u8); // R
+                    pixel[1] = rng.gen_range(0u8..255u8); // G
                     pixel[2] = 0u8; // B
                 }
                 let kind = GpuTextureKind::Rectangle {
