@@ -976,6 +976,9 @@ impl Editor {
     }
 
     fn sync_to_model(&mut self, engine: &mut GameEngine) {
+        self.menu
+            .sync_to_model(self.scene.as_ref(), &mut engine.user_interface);
+
         if let Some(editor_scene) = self.scene.as_mut() {
             self.world_outliner.sync_to_model(editor_scene, engine);
             self.sidebar.sync_to_model(editor_scene, engine);
@@ -1153,6 +1156,8 @@ impl Editor {
 
                     self.message_sender
                         .send(Message::Log(format!("New working directory and path to textures were successfully set:\n\tWD: {:?}\n\tTP: {:?}", working_directory, relative_tex_path))).unwrap();
+
+                    needs_sync = true;
                 }
             }
         }

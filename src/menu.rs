@@ -5,6 +5,7 @@ use crate::{
     settings::Settings,
     GameEngine, Message,
 };
+use rg3d::gui::message::WidgetMessage;
 use rg3d::scene::light::DirectionalLightBuilder;
 use rg3d::{
     core::{
@@ -71,6 +72,8 @@ pub struct Menu {
     settings: Settings,
     configure_message: Handle<UiNode>,
     log_panel: Handle<UiNode>,
+    create: Handle<UiNode>,
+    edit: Handle<UiNode>,
 }
 
 pub struct MenuContext<'a, 'b> {
@@ -133,6 +136,130 @@ impl Menu {
         .with_text("Cannot reconfigure editor while scene is open! Close scene first and retry.")
         .with_buttons(MessageBoxButtons::Ok)
         .build(ctx);
+
+        let create = MenuItemBuilder::new(WidgetBuilder::new().with_margin(Thickness::right(10.0)))
+            .with_content(MenuItemContent::text_with_shortcut("Create", ""))
+            .with_items(vec![
+                {
+                    create_pivot =
+                        MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
+                            .with_content(MenuItemContent::text("Pivot"))
+                            .build(ctx);
+                    create_pivot
+                },
+                MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
+                    .with_content(MenuItemContent::text("Mesh"))
+                    .with_items(vec![
+                        {
+                            create_cube =
+                                MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
+                                    .with_content(MenuItemContent::text("Cube"))
+                                    .build(ctx);
+                            create_cube
+                        },
+                        {
+                            create_sphere =
+                                MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
+                                    .with_content(MenuItemContent::text("Sphere"))
+                                    .build(ctx);
+                            create_sphere
+                        },
+                        {
+                            create_cylinder =
+                                MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
+                                    .with_content(MenuItemContent::text("Cylinder"))
+                                    .build(ctx);
+                            create_cylinder
+                        },
+                        {
+                            create_cone =
+                                MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
+                                    .with_content(MenuItemContent::text("Cone"))
+                                    .build(ctx);
+                            create_cone
+                        },
+                    ])
+                    .build(ctx),
+                MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
+                    .with_content(MenuItemContent::text("Light"))
+                    .with_items(vec![
+                        {
+                            create_directional_light =
+                                MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
+                                    .with_content(MenuItemContent::text("Directional Light"))
+                                    .build(ctx);
+                            create_directional_light
+                        },
+                        {
+                            create_spot_light =
+                                MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
+                                    .with_content(MenuItemContent::text("Spot Light"))
+                                    .build(ctx);
+                            create_spot_light
+                        },
+                        {
+                            create_point_light =
+                                MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
+                                    .with_content(MenuItemContent::text("Point Light"))
+                                    .build(ctx);
+                            create_point_light
+                        },
+                    ])
+                    .build(ctx),
+                {
+                    create_camera =
+                        MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
+                            .with_content(MenuItemContent::text("Camera"))
+                            .build(ctx);
+                    create_camera
+                },
+                {
+                    create_sprite =
+                        MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
+                            .with_content(MenuItemContent::text("Sprite"))
+                            .build(ctx);
+                    create_sprite
+                },
+                {
+                    create_particle_system =
+                        MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
+                            .with_content(MenuItemContent::text("Particle System"))
+                            .build(ctx);
+                    create_particle_system
+                },
+            ])
+            .build(ctx);
+
+        let edit = MenuItemBuilder::new(WidgetBuilder::new().with_margin(Thickness::right(10.0)))
+            .with_content(MenuItemContent::text_with_shortcut("Edit", ""))
+            .with_items(vec![
+                {
+                    undo = MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
+                        .with_content(MenuItemContent::text_with_shortcut("Undo", "Ctrl+Z"))
+                        .build(ctx);
+                    undo
+                },
+                {
+                    redo = MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
+                        .with_content(MenuItemContent::text_with_shortcut("Redo", "Ctrl+Y"))
+                        .build(ctx);
+                    redo
+                },
+                {
+                    copy = MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
+                        .with_content(MenuItemContent::text_with_shortcut("Copy", "Ctrl+C"))
+                        .build(ctx);
+                    copy
+                },
+                {
+                    paste = MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
+                        .with_content(MenuItemContent::text_with_shortcut("Paste", "Ctrl+V"))
+                        .build(ctx);
+                    paste
+                },
+            ])
+            .build(ctx);
+
         let menu = MenuBuilder::new(WidgetBuilder::new().on_row(0))
             .with_items(vec![
                 MenuItemBuilder::new(WidgetBuilder::new().with_margin(Thickness::right(10.0)))
@@ -213,146 +340,8 @@ impl Menu {
                         },
                     ])
                     .build(ctx),
-                MenuItemBuilder::new(WidgetBuilder::new().with_margin(Thickness::right(10.0)))
-                    .with_content(MenuItemContent::text_with_shortcut("Edit", ""))
-                    .with_items(vec![
-                        {
-                            undo =
-                                MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
-                                    .with_content(MenuItemContent::text_with_shortcut(
-                                        "Undo", "Ctrl+Z",
-                                    ))
-                                    .build(ctx);
-                            undo
-                        },
-                        {
-                            redo =
-                                MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
-                                    .with_content(MenuItemContent::text_with_shortcut(
-                                        "Redo", "Ctrl+Y",
-                                    ))
-                                    .build(ctx);
-                            redo
-                        },
-                        {
-                            copy =
-                                MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
-                                    .with_content(MenuItemContent::text_with_shortcut(
-                                        "Copy", "Ctrl+C",
-                                    ))
-                                    .build(ctx);
-                            copy
-                        },
-                        {
-                            paste =
-                                MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
-                                    .with_content(MenuItemContent::text_with_shortcut(
-                                        "Paste", "Ctrl+V",
-                                    ))
-                                    .build(ctx);
-                            paste
-                        },
-                    ])
-                    .build(ctx),
-                MenuItemBuilder::new(WidgetBuilder::new().with_margin(Thickness::right(10.0)))
-                    .with_content(MenuItemContent::text_with_shortcut("Create", ""))
-                    .with_items(vec![
-                        {
-                            create_pivot =
-                                MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
-                                    .with_content(MenuItemContent::text("Pivot"))
-                                    .build(ctx);
-                            create_pivot
-                        },
-                        MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
-                            .with_content(MenuItemContent::text("Mesh"))
-                            .with_items(vec![
-                                {
-                                    create_cube = MenuItemBuilder::new(
-                                        WidgetBuilder::new().with_min_size(min_size),
-                                    )
-                                    .with_content(MenuItemContent::text("Cube"))
-                                    .build(ctx);
-                                    create_cube
-                                },
-                                {
-                                    create_sphere = MenuItemBuilder::new(
-                                        WidgetBuilder::new().with_min_size(min_size),
-                                    )
-                                    .with_content(MenuItemContent::text("Sphere"))
-                                    .build(ctx);
-                                    create_sphere
-                                },
-                                {
-                                    create_cylinder = MenuItemBuilder::new(
-                                        WidgetBuilder::new().with_min_size(min_size),
-                                    )
-                                    .with_content(MenuItemContent::text("Cylinder"))
-                                    .build(ctx);
-                                    create_cylinder
-                                },
-                                {
-                                    create_cone = MenuItemBuilder::new(
-                                        WidgetBuilder::new().with_min_size(min_size),
-                                    )
-                                    .with_content(MenuItemContent::text("Cone"))
-                                    .build(ctx);
-                                    create_cone
-                                },
-                            ])
-                            .build(ctx),
-                        MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
-                            .with_content(MenuItemContent::text("Light"))
-                            .with_items(vec![
-                                {
-                                    create_directional_light = MenuItemBuilder::new(
-                                        WidgetBuilder::new().with_min_size(min_size),
-                                    )
-                                    .with_content(MenuItemContent::text("Directional Light"))
-                                    .build(ctx);
-                                    create_directional_light
-                                },
-                                {
-                                    create_spot_light = MenuItemBuilder::new(
-                                        WidgetBuilder::new().with_min_size(min_size),
-                                    )
-                                    .with_content(MenuItemContent::text("Spot Light"))
-                                    .build(ctx);
-                                    create_spot_light
-                                },
-                                {
-                                    create_point_light = MenuItemBuilder::new(
-                                        WidgetBuilder::new().with_min_size(min_size),
-                                    )
-                                    .with_content(MenuItemContent::text("Point Light"))
-                                    .build(ctx);
-                                    create_point_light
-                                },
-                            ])
-                            .build(ctx),
-                        {
-                            create_camera =
-                                MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
-                                    .with_content(MenuItemContent::text("Camera"))
-                                    .build(ctx);
-                            create_camera
-                        },
-                        {
-                            create_sprite =
-                                MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
-                                    .with_content(MenuItemContent::text("Sprite"))
-                                    .build(ctx);
-                            create_sprite
-                        },
-                        {
-                            create_particle_system =
-                                MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
-                                    .with_content(MenuItemContent::text("Particle System"))
-                                    .build(ctx);
-                            create_particle_system
-                        },
-                    ])
-                    .build(ctx),
+                edit,
+                create,
                 MenuItemBuilder::new(WidgetBuilder::new().with_margin(Thickness::right(10.0)))
                     .with_content(MenuItemContent::text_with_shortcut("View", ""))
                     .with_items(vec![
@@ -441,6 +430,8 @@ impl Menu {
             paste,
             log_panel,
             create_pivot,
+            create,
+            edit,
         }
     }
 
@@ -455,6 +446,24 @@ impl Menu {
             MessageDirection::ToWidget,
             Some(std::env::current_dir().unwrap()),
         ));
+    }
+
+    pub fn sync_to_model(&mut self, editor_scene: Option<&EditorScene>, ui: &mut Ui) {
+        for &widget in [
+            self.close_scene,
+            self.save,
+            self.save_as,
+            self.create,
+            self.edit,
+        ]
+        .iter()
+        {
+            ui.send_message(WidgetMessage::enabled(
+                widget,
+                MessageDirection::ToWidget,
+                editor_scene.is_some(),
+            ));
+        }
     }
 
     pub fn handle_ui_message(&mut self, message: &UiMessage, ctx: MenuContext) {
