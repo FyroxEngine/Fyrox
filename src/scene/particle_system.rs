@@ -299,6 +299,7 @@ impl Visit for BoxEmitter {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
+        self.emitter.visit("Emitter", visitor)?;
         self.half_width.visit("HalfWidth", visitor)?;
         self.half_height.visit("HalfHeight", visitor)?;
         self.half_depth.visit("HalfDepth", visitor)?;
@@ -343,6 +344,7 @@ impl Visit for CylinderEmitter {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
+        self.emitter.visit("Emitter", visitor)?;
         self.radius.visit("Radius", visitor)?;
         self.height.visit("Height", visitor)?;
 
@@ -526,6 +528,7 @@ impl Visit for SphereEmitter {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
+        self.emitter.visit("Emitter", visitor)?;
         self.radius.visit("Radius", visitor)?;
 
         visitor.leave_region()
@@ -1138,7 +1141,7 @@ impl Default for BaseEmitter {
     fn default() -> Self {
         Self {
             position: Vector3::default(),
-            particle_spawn_rate: 0,
+            particle_spawn_rate: 100,
             max_particles: ParticleLimit::Unlimited,
             lifetime: NumericRange::new(5.0, 10.0),
             size: NumericRange::new(0.125, 0.250),
@@ -1217,6 +1220,7 @@ impl ParticleSystem {
     /// Removes all generated particles.
     pub fn clear_particles(&mut self) {
         self.particles.clear();
+        self.free_particles.clear();
         for emitter in self.emitters.iter_mut() {
             emitter.alive_particles.set(0);
         }
