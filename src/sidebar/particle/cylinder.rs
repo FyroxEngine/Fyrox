@@ -1,9 +1,11 @@
+use crate::scene::{SetCylinderEmitterHeightCommand, SetCylinderEmitterRadiusCommand};
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
-    scene::{SceneCommand, SetSphereEmitterRadiusCommand},
+    scene::SceneCommand,
     sidebar::{make_f32_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
 };
+use rg3d::scene::particle_system::CylinderEmitter;
 use rg3d::{
     core::pool::Handle,
     gui::{
@@ -11,7 +13,7 @@ use rg3d::{
         message::{MessageDirection, NumericUpDownMessage, UiMessageData},
         widget::WidgetBuilder,
     },
-    scene::{node::Node, particle_system::SphereEmitter},
+    scene::node::Node,
 };
 use std::sync::mpsc::Sender;
 
@@ -53,29 +55,47 @@ impl CylinderSection {
         }
     }
 
-    pub fn sync_to_model(&mut self, sphere: &SphereEmitter, ui: &mut Ui) {
+    pub fn sync_to_model(&mut self, cylinder: &CylinderEmitter, ui: &mut Ui) {
         ui.send_message(NumericUpDownMessage::value(
             self.radius,
             MessageDirection::ToWidget,
-            sphere.radius(),
+            cylinder.radius(),
+        ));
+
+        ui.send_message(NumericUpDownMessage::value(
+            self.height,
+            MessageDirection::ToWidget,
+            cylinder.height(),
         ));
     }
 
     pub fn handle_message(
         &mut self,
         message: &UiMessage,
-        sphere: &SphereEmitter,
+        cylinder: &CylinderEmitter,
         handle: Handle<Node>,
         emitter_index: usize,
     ) {
         if let UiMessageData::NumericUpDown(msg) = message.data() {
             if let &NumericUpDownMessage::Value(value) = msg {
                 if message.direction() == MessageDirection::FromWidget {
-                    if message.destination() == self.radius && sphere.radius().ne(&value) {
+                    if message.destination() == self.radius && cylinder.radius().ne(&value) {
                         self.sender
                             .send(Message::DoSceneCommand(
-                                SceneCommand::SetSphereEmitterRadius(
-                                    SetSphereEmitterRadiusCommand::new(
+                                SceneCommand::SetCylinderEmitterRadius(
+                                    SetCylinderEmitterRadiusCommand::new(
+                                        handle,
+                                        emitter_index,
+                                        value,
+                                    ),
+                                ),
+                            ))
+                            .unwrap();
+                    } else if message.destination() == self.height && cylinder.height().ne(&value) {
+                        self.sender
+                            .send(Message::DoSceneCommand(
+                                SceneCommand::SetCylinderEmitterHeight(
+                                    SetCylinderEmitterHeightCommand::new(
                                         handle,
                                         emitter_index,
                                         value,

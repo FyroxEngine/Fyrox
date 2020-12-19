@@ -1,4 +1,5 @@
 use crate::scene::SetEmitterPositionCommand;
+use crate::sidebar::particle::cylinder::CylinderSection;
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     scene::{EmitterNumericParameter, SceneCommand, SetEmitterNumericParameterCommand},
@@ -51,6 +52,7 @@ pub struct EmitterSection {
     resurrect_particles: Handle<UiNode>,
     sender: Sender<Message>,
     sphere_section: SphereSection,
+    cylinder_section: CylinderSection,
 }
 
 fn make_range_field(ctx: &mut BuildContext, column: usize) -> Handle<UiNode> {
@@ -91,6 +93,7 @@ fn make_range(
 impl EmitterSection {
     pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
         let sphere_section = SphereSection::new(ctx, sender.clone());
+        let cylinder_section = CylinderSection::new(ctx, sender.clone());
 
         let position;
         let spawn_rate;
@@ -200,7 +203,8 @@ impl EmitterSection {
         let section = StackPanelBuilder::new(
             WidgetBuilder::new()
                 .with_child(common_properties)
-                .with_child(sphere_section.section),
+                .with_child(sphere_section.section)
+                .with_child(cylinder_section.section),
         )
         .build(ctx);
 
@@ -226,6 +230,7 @@ impl EmitterSection {
             max_rotation,
             resurrect_particles,
             sphere_section,
+            cylinder_section,
         }
     }
 
@@ -294,6 +299,7 @@ impl EmitterSection {
         };
 
         toggle_visibility(ui, self.sphere_section.section, false);
+        toggle_visibility(ui, self.cylinder_section.section, false);
 
         match emitter {
             Emitter::Unknown => unreachable!(),
@@ -302,7 +308,10 @@ impl EmitterSection {
                 toggle_visibility(ui, self.sphere_section.section, true);
                 self.sphere_section.sync_to_model(sphere, ui);
             }
-            Emitter::Cylinder(_) => {}
+            Emitter::Cylinder(cylinder) => {
+                toggle_visibility(ui, self.cylinder_section.section, true);
+                self.cylinder_section.sync_to_model(cylinder, ui);
+            }
         }
     }
 
@@ -320,7 +329,10 @@ impl EmitterSection {
                 self.sphere_section
                     .handle_message(message, sphere, handle, emitter_index);
             }
-            Emitter::Cylinder(_) => {}
+            Emitter::Cylinder(cylinder) => {
+                self.cylinder_section
+                    .handle_message(message, cylinder, handle, emitter_index);
+            }
         }
 
         match message.data() {

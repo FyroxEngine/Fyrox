@@ -194,6 +194,8 @@ pub enum SceneCommand {
     AddParticleSystemEmitter(AddParticleSystemEmitterCommand),
     SetEmitterNumericParameter(SetEmitterNumericParameterCommand),
     SetSphereEmitterRadius(SetSphereEmitterRadiusCommand),
+    SetCylinderEmitterRadius(SetCylinderEmitterRadiusCommand),
+    SetCylinderEmitterHeight(SetCylinderEmitterHeightCommand),
     SetEmitterPosition(SetEmitterPositionCommand),
     DeleteEmitter(DeleteEmitterCommand),
     SetSpriteSize(SetSpriteSizeCommand),
@@ -277,6 +279,8 @@ macro_rules! static_dispatch {
             SceneCommand::SetEmitterNumericParameter(v) => v.$func($($args),*),
             SceneCommand::SetSphereEmitterRadius(v) => v.$func($($args),*),
             SceneCommand::SetEmitterPosition(v) => v.$func($($args),*),
+            SceneCommand::SetCylinderEmitterRadius(v) => v.$func($($args),*),
+            SceneCommand::SetCylinderEmitterHeight(v) => v.$func($($args),*),
             SceneCommand::DeleteEmitter(v) => v.$func($($args),*),
             SceneCommand::SetSpriteSize(v) => v.$func($($args),*),
             SceneCommand::SetSpriteRotation(v) => v.$func($($args),*),
@@ -1907,6 +1911,14 @@ define_emitter_command!(SetEmitterPositionCommand("Set Emitter Position", Vector
 
 define_emitter_variant_command!(SetSphereEmitterRadiusCommand("Set Sphere Emitter Radius", f32) where fn swap(self, emitter, Sphere, sphere) {
     get_set_swap!(self, sphere, radius, set_radius);
+});
+
+define_emitter_variant_command!(SetCylinderEmitterRadiusCommand("Set Cylinder Emitter Radius", f32) where fn swap(self, emitter, Cylinder, cylinder) {
+    get_set_swap!(self, cylinder, radius, set_radius);
+});
+
+define_emitter_variant_command!(SetCylinderEmitterHeightCommand("Set Cylinder Emitter Radius", f32) where fn swap(self, emitter, Cylinder, cylinder) {
+    get_set_swap!(self, cylinder, height, set_height);
 });
 
 #[derive(Debug, Default, Clone, Eq)]

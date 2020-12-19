@@ -148,6 +148,7 @@ impl ParticleSystemSection {
                                             emitters = DropdownListBuilder::new(
                                                 WidgetBuilder::new().on_row(1),
                                             )
+                                            .with_close_on_selection(true)
                                             .build(ctx);
                                             emitters
                                         }),

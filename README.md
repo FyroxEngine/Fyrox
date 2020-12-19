@@ -180,6 +180,8 @@ let scene_handle = engine.scenes.add(scene);
 - [ ] Shape editors - many things in the engine has shapes: colliders, emitters, etc. There should be shape editor
   that will allow to edit them using mouse. Currently, editing is performed by setting values directly in side bar.
 - [ ] Curve editor - many parameters can be expressed as a curve, we need a way to edit such curves.
+- [ ] Sound - we need a way to add/remove/edit sounds.
+	- [ ] Properties  	
 - [x] Configurator
   	- [x] History
 - [x] Asset browser.
