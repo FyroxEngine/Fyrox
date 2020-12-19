@@ -182,6 +182,7 @@ let scene_handle = engine.scenes.add(scene);
 - [ ] Curve editor - many parameters can be expressed as a curve, we need a way to edit such curves.
 - [ ] Sound - we need a way to add/remove/edit sounds.
 	- [ ] Properties  	
+- [ ] Navmesh editor
 - [x] Configurator
   	- [x] History
 - [x] Asset browser.
