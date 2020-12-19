@@ -200,6 +200,7 @@ pub enum SceneCommand {
     SetBoxEmitterHalfHeight(SetBoxEmitterHalfHeightCommand),
     SetBoxEmitterHalfDepth(SetBoxEmitterHalfDepthCommand),
     SetEmitterPosition(SetEmitterPositionCommand),
+    SetParticleSystemTexture(SetParticleSystemTextureCommand),
     DeleteEmitter(DeleteEmitterCommand),
     SetSpriteSize(SetSpriteSizeCommand),
     SetSpriteRotation(SetSpriteRotationCommand),
@@ -282,6 +283,7 @@ macro_rules! static_dispatch {
             SceneCommand::SetEmitterNumericParameter(v) => v.$func($($args),*),
             SceneCommand::SetSphereEmitterRadius(v) => v.$func($($args),*),
             SceneCommand::SetEmitterPosition(v) => v.$func($($args),*),
+            SceneCommand::SetParticleSystemTexture(v) => v.$func($($args),*),
             SceneCommand::SetCylinderEmitterRadius(v) => v.$func($($args),*),
             SceneCommand::SetCylinderEmitterHeight(v) => v.$func($($args),*),
             SceneCommand::SetBoxEmitterHalfWidth(v) => v.$func($($args),*),
@@ -1789,6 +1791,10 @@ define_node_command!(SetSpriteColorCommand("Set Sprite Color", Color) where fn s
 
 define_node_command!(SetSpriteTextureCommand("Set Sprite Texture", Option<Texture>) where fn swap(self, node) {
     get_set_swap!(self, node.as_sprite_mut(), texture, set_texture);
+});
+
+define_node_command!(SetParticleSystemTextureCommand("Set Particle System Texture", Option<Texture>) where fn swap(self, node) {
+    get_set_swap!(self, node.as_particle_system_mut(), texture, set_texture);
 });
 
 define_node_command!(SetMeshCastShadowsCommand("Set Mesh Cast Shadows", bool) where fn swap(self, node) {

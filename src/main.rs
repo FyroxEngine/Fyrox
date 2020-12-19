@@ -21,7 +21,7 @@ pub mod settings;
 pub mod sidebar;
 pub mod world_outliner;
 
-use crate::scene::make_delete_selection_command;
+use crate::scene::{make_delete_selection_command, SetParticleSystemTextureCommand};
 use crate::{
     asset::{AssetBrowser, AssetKind},
     camera::CameraController,
@@ -894,6 +894,17 @@ impl Editor {
                                                                         ))
                                                                         .unwrap();
                                                             }
+                                                            Node::ParticleSystem(_) => {
+                                                                self.message_sender
+                                                                    .send(Message::DoSceneCommand(
+                                                                        SceneCommand::SetParticleSystemTexture(
+                                                                            SetParticleSystemTextureCommand::new(
+                                                                                handle, Some(tex),
+                                                                            ),
+                                                                        ),
+                                                                    ))
+                                                                    .unwrap();
+                                                            }
                                                             _ => {}
                                                         }
                                                     }
@@ -1044,6 +1055,9 @@ impl Editor {
                     if let Some(editor_scene) = self.scene.as_mut() {
                         match editor_scene.save(path, engine) {
                             Ok(message) => {
+                                self.message_sender.send(Message::Log(message)).unwrap();
+                            }
+                            Err(message) => {
                                 self.message_sender
                                     .send(Message::Log(message.clone()))
                                     .unwrap();
@@ -1054,9 +1068,6 @@ impl Editor {
                                     None,
                                     Some(message),
                                 ));
-                            }
-                            Err(message) => {
-                                self.message_sender.send(Message::Log(message)).unwrap();
                             }
                         }
                     }
