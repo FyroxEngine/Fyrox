@@ -194,6 +194,7 @@ pub enum SceneCommand {
     AddParticleSystemEmitter(AddParticleSystemEmitterCommand),
     SetEmitterNumericParameter(SetEmitterNumericParameterCommand),
     SetSphereEmitterRadius(SetSphereEmitterRadiusCommand),
+    SetEmitterPosition(SetEmitterPositionCommand),
     DeleteEmitter(DeleteEmitterCommand),
     SetSpriteSize(SetSpriteSizeCommand),
     SetSpriteRotation(SetSpriteRotationCommand),
@@ -275,6 +276,7 @@ macro_rules! static_dispatch {
             SceneCommand::AddParticleSystemEmitter(v) => v.$func($($args),*),
             SceneCommand::SetEmitterNumericParameter(v) => v.$func($($args),*),
             SceneCommand::SetSphereEmitterRadius(v) => v.$func($($args),*),
+            SceneCommand::SetEmitterPosition(v) => v.$func($($args),*),
             SceneCommand::DeleteEmitter(v) => v.$func($($args),*),
             SceneCommand::SetSpriteSize(v) => v.$func($($args),*),
             SceneCommand::SetSpriteRotation(v) => v.$func($($args),*),
@@ -1645,8 +1647,8 @@ macro_rules! define_collider_variant_command {
     };
 }
 
-macro_rules! define_emitter_variant_command {
-    ($name:ident($human_readable_name:expr, $value_type:ty) where fn swap($self:ident, $variant:ident, $var:ident) $apply_method:block ) => {
+macro_rules! define_emitter_command {
+    ($name:ident($human_readable_name:expr, $value_type:ty) where fn swap($self:ident, $emitter:ident) $apply_method:block ) => {
         #[derive(Debug)]
         pub struct $name {
             handle: Handle<Node>,
@@ -1660,12 +1662,8 @@ macro_rules! define_emitter_variant_command {
             }
 
             fn swap(&mut $self, graph: &mut Graph) {
-                let emitter = &mut graph[$self.handle].as_particle_system_mut().emitters[$self.index];
-                if let Emitter::$variant($var) = emitter{
-                    $apply_method
-                } else {
-                    unreachable!()
-                }
+                let $emitter = &mut graph[$self.handle].as_particle_system_mut().emitters[$self.index];
+                $apply_method
             }
         }
 
@@ -1684,6 +1682,18 @@ macro_rules! define_emitter_variant_command {
                 self.swap(&mut context.scene.graph);
             }
         }
+    };
+}
+
+macro_rules! define_emitter_variant_command {
+    ($name:ident($human_readable_name:expr, $value_type:ty) where fn swap($self:ident, $emitter:ident, $variant:ident, $var:ident) $apply_method:block ) => {
+        define_emitter_command!($name($human_readable_name, $value_type) where fn swap($self, $emitter) {
+            if let Emitter::$variant($var) = $emitter {
+                $apply_method
+            } else {
+                unreachable!()
+            }
+        });
     };
 }
 
@@ -1891,7 +1901,11 @@ define_joint_command!(SetJointConnectedBodyCommand("Set Joint Connected Body", E
     std::mem::swap(&mut joint.body2, &mut self.value);
 });
 
-define_emitter_variant_command!(SetSphereEmitterRadiusCommand("Set Sphere Emitter Radius", f32) where fn swap(self, Sphere, sphere) {
+define_emitter_command!(SetEmitterPositionCommand("Set Emitter Position", Vector3<f32>) where fn swap(self, emitter) {
+    get_set_swap!(self, emitter, position, set_position);
+});
+
+define_emitter_variant_command!(SetSphereEmitterRadiusCommand("Set Sphere Emitter Radius", f32) where fn swap(self, emitter, Sphere, sphere) {
     get_set_swap!(self, sphere, radius, set_radius);
 });
 
