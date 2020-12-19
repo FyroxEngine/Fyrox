@@ -292,20 +292,6 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
         self
     }
 
-    pub fn is_enabled(&self, ui: &UserInterface<M, C>) -> bool {
-        let mut enabled = self.enabled;
-        let mut parent = self.parent;
-        while parent.is_some() {
-            let node = ui.node(parent);
-            if !node.enabled {
-                enabled = false;
-                break;
-            }
-            parent = node.parent;
-        }
-        enabled
-    }
-
     #[inline]
     pub fn screen_bounds(&self) -> Rect<f32> {
         Rect::new(

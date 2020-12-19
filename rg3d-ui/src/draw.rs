@@ -94,6 +94,7 @@ pub struct Command {
     pub texture: CommandTexture,
     pub triangles: Range<usize>,
     pub nesting: u8,
+    pub opacity: f32,
 }
 
 pub struct DrawingContext {
@@ -101,6 +102,7 @@ pub struct DrawingContext {
     triangle_buffer: Vec<TriangleDefinition>,
     command_buffer: Vec<Command>,
     clip_cmd_stack: Vec<usize>,
+    opacity_stack: Vec<f32>,
     triangles_to_commit: usize,
     current_nesting: u8,
 }
@@ -128,6 +130,7 @@ impl DrawingContext {
             clip_cmd_stack: Vec::new(),
             triangles_to_commit: 0,
             current_nesting: 0,
+            opacity_stack: vec![1.0],
         }
     }
 
@@ -170,6 +173,14 @@ impl DrawingContext {
     #[inline]
     pub fn get_commands(&self) -> &Vec<Command> {
         &self.command_buffer
+    }
+
+    pub fn push_opacity(&mut self, opacity: f32) {
+        self.opacity_stack.push(opacity);
+    }
+
+    pub fn pop_opacity(&mut self) {
+        self.opacity_stack.pop().unwrap();
     }
 
     pub fn triangle_points(
@@ -393,6 +404,7 @@ impl DrawingContext {
         if self.triangles_to_commit > 0 {
             let triangles = self.pending_range();
             let bounds = self.bounds_of(triangles.clone());
+            let opacity = *self.opacity_stack.last().unwrap();
             self.command_buffer.push(Command {
                 bounds,
                 kind,
@@ -400,6 +412,7 @@ impl DrawingContext {
                 texture,
                 triangles,
                 nesting: self.current_nesting,
+                opacity,
             });
             self.triangles_to_commit = 0;
         }

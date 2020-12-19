@@ -576,6 +576,11 @@ fn draw_node<M: MessageData, C: Control<M, C>>(
     let start_index = drawing_context.get_commands().len();
     drawing_context.set_nesting(nesting);
     drawing_context.commit_clip_rect(&bounds.inflate(0.9, 0.9));
+    drawing_context.push_opacity(if is_node_enabled(nodes, node_handle) {
+        1.0
+    } else {
+        0.4
+    });
 
     node.draw(drawing_context);
 
@@ -592,7 +597,26 @@ fn draw_node<M: MessageData, C: Control<M, C>>(
         }
     }
 
+    drawing_context.pop_opacity();
     drawing_context.revert_clip_geom();
+}
+
+fn is_node_enabled<M: MessageData, C: Control<M, C>>(
+    nodes: &Pool<UINode<M, C>>,
+    handle: Handle<UINode<M, C>>,
+) -> bool {
+    let root_node = &nodes[handle];
+    let mut enabled = root_node.enabled();
+    let mut parent = root_node.parent();
+    while parent.is_some() {
+        let node = &nodes[parent];
+        if !node.enabled() {
+            enabled = false;
+            break;
+        }
+        parent = node.parent();
+    }
+    enabled
 }
 
 impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
@@ -654,6 +678,10 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
     #[inline]
     pub fn get_drawing_context_mut(&mut self) -> &mut DrawingContext {
         &mut self.drawing_context
+    }
+
+    pub fn is_node_enabled(&self, handle: Handle<UINode<M, C>>) -> bool {
+        is_node_enabled(&self.nodes, handle)
     }
 
     fn update_visibility(&mut self) {

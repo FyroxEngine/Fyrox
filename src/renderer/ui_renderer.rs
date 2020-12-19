@@ -49,6 +49,7 @@ struct UiShader {
     resolution: UniformLocation,
     bounds_min: UniformLocation,
     bounds_max: UniformLocation,
+    opacity: UniformLocation,
 }
 
 impl UiShader {
@@ -70,6 +71,7 @@ impl UiShader {
             bounds_min: program.uniform_location("boundsMin")?,
             bounds_max: program.uniform_location("boundsMax")?,
             resolution: program.uniform_location("resolution")?,
+            opacity: program.uniform_location("opacity")?,
             program,
         })
     }
@@ -339,6 +341,7 @@ impl UiRenderer {
                         }
                     }),
                 ),
+                (self.shader.opacity, UniformValue::Float(cmd.opacity)),
             ];
 
             let params = DrawParameters {
