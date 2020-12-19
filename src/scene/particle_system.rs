@@ -333,6 +333,28 @@ impl Emit for CylinderEmitter {
     }
 }
 
+impl CylinderEmitter {
+    /// Returns radius of the cylinder emitter.
+    pub fn radius(&self) -> f32 {
+        self.radius
+    }
+
+    /// Sets radius of the cylinder emitter.
+    pub fn set_radius(&mut self, radius: f32) {
+        self.radius = radius.max(0.0);
+    }
+
+    /// Returns height of the cylinder emitter.
+    pub fn height(&self) -> f32 {
+        self.height
+    }
+
+    /// Sets height of the cylinder emitter.
+    pub fn set_height(&mut self, height: f32) {
+        self.height = height.max(0.0);
+    }
+}
+
 /// Box emitter builder allows you to construct cylinder emitter in declarative manner.
 /// This is typical implementation of Builder pattern.
 pub struct CylinderEmitterBuilder {
