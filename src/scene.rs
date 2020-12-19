@@ -196,6 +196,9 @@ pub enum SceneCommand {
     SetSphereEmitterRadius(SetSphereEmitterRadiusCommand),
     SetCylinderEmitterRadius(SetCylinderEmitterRadiusCommand),
     SetCylinderEmitterHeight(SetCylinderEmitterHeightCommand),
+    SetBoxEmitterHalfWidth(SetBoxEmitterHalfWidthCommand),
+    SetBoxEmitterHalfHeight(SetBoxEmitterHalfHeightCommand),
+    SetBoxEmitterHalfDepth(SetBoxEmitterHalfDepthCommand),
     SetEmitterPosition(SetEmitterPositionCommand),
     DeleteEmitter(DeleteEmitterCommand),
     SetSpriteSize(SetSpriteSizeCommand),
@@ -281,6 +284,9 @@ macro_rules! static_dispatch {
             SceneCommand::SetEmitterPosition(v) => v.$func($($args),*),
             SceneCommand::SetCylinderEmitterRadius(v) => v.$func($($args),*),
             SceneCommand::SetCylinderEmitterHeight(v) => v.$func($($args),*),
+            SceneCommand::SetBoxEmitterHalfWidth(v) => v.$func($($args),*),
+            SceneCommand::SetBoxEmitterHalfHeight(v) => v.$func($($args),*),
+            SceneCommand::SetBoxEmitterHalfDepth(v) => v.$func($($args),*),
             SceneCommand::DeleteEmitter(v) => v.$func($($args),*),
             SceneCommand::SetSpriteSize(v) => v.$func($($args),*),
             SceneCommand::SetSpriteRotation(v) => v.$func($($args),*),
@@ -1919,6 +1925,18 @@ define_emitter_variant_command!(SetCylinderEmitterRadiusCommand("Set Cylinder Em
 
 define_emitter_variant_command!(SetCylinderEmitterHeightCommand("Set Cylinder Emitter Radius", f32) where fn swap(self, emitter, Cylinder, cylinder) {
     get_set_swap!(self, cylinder, height, set_height);
+});
+
+define_emitter_variant_command!(SetBoxEmitterHalfWidthCommand("Set Box Emitter Half Width", f32) where fn swap(self, emitter, Box, box_emitter) {
+    get_set_swap!(self, box_emitter, half_width, set_half_width);
+});
+
+define_emitter_variant_command!(SetBoxEmitterHalfHeightCommand("Set Box Emitter Half Height", f32) where fn swap(self, emitter, Box, box_emitter) {
+    get_set_swap!(self, box_emitter, half_height, set_half_height);
+});
+
+define_emitter_variant_command!(SetBoxEmitterHalfDepthCommand("Set Box Emitter Half Depth", f32) where fn swap(self, emitter, Box, box_emitter) {
+    get_set_swap!(self, box_emitter, half_depth, set_half_depth);
 });
 
 #[derive(Debug, Default, Clone, Eq)]

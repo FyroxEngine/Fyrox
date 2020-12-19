@@ -1,4 +1,5 @@
 use crate::scene::SetEmitterPositionCommand;
+use crate::sidebar::particle::cuboid::BoxSection;
 use crate::sidebar::particle::cylinder::CylinderSection;
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
@@ -53,6 +54,7 @@ pub struct EmitterSection {
     sender: Sender<Message>,
     sphere_section: SphereSection,
     cylinder_section: CylinderSection,
+    box_section: BoxSection,
 }
 
 fn make_range_field(ctx: &mut BuildContext, column: usize) -> Handle<UiNode> {
@@ -94,6 +96,7 @@ impl EmitterSection {
     pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
         let sphere_section = SphereSection::new(ctx, sender.clone());
         let cylinder_section = CylinderSection::new(ctx, sender.clone());
+        let box_section = BoxSection::new(ctx, sender.clone());
 
         let position;
         let spawn_rate;
@@ -204,7 +207,8 @@ impl EmitterSection {
             WidgetBuilder::new()
                 .with_child(common_properties)
                 .with_child(sphere_section.section)
-                .with_child(cylinder_section.section),
+                .with_child(cylinder_section.section)
+                .with_child(box_section.section),
         )
         .build(ctx);
 
@@ -231,6 +235,7 @@ impl EmitterSection {
             resurrect_particles,
             sphere_section,
             cylinder_section,
+            box_section,
         }
     }
 
@@ -300,10 +305,14 @@ impl EmitterSection {
 
         toggle_visibility(ui, self.sphere_section.section, false);
         toggle_visibility(ui, self.cylinder_section.section, false);
+        toggle_visibility(ui, self.box_section.section, false);
 
         match emitter {
             Emitter::Unknown => unreachable!(),
-            Emitter::Box(_) => {}
+            Emitter::Box(box_emitter) => {
+                toggle_visibility(ui, self.box_section.section, true);
+                self.box_section.sync_to_model(box_emitter, ui);
+            }
             Emitter::Sphere(sphere) => {
                 toggle_visibility(ui, self.sphere_section.section, true);
                 self.sphere_section.sync_to_model(sphere, ui);
@@ -324,7 +333,10 @@ impl EmitterSection {
     ) {
         match emitter {
             Emitter::Unknown => unreachable!(),
-            Emitter::Box(_) => {}
+            Emitter::Box(box_emitter) => {
+                self.box_section
+                    .handle_message(message, box_emitter, handle, emitter_index);
+            }
             Emitter::Sphere(sphere) => {
                 self.sphere_section
                     .handle_message(message, sphere, handle, emitter_index);
