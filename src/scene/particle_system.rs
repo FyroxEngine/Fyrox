@@ -241,6 +241,36 @@ impl BoxEmitter {
             half_depth: depth * 0.5,
         }
     }
+
+    /// Returns half width of the box emitter.
+    pub fn half_width(&self) -> f32 {
+        self.half_width
+    }
+
+    /// Sets half width of the box emitter.
+    pub fn set_half_width(&mut self, half_width: f32) {
+        self.half_width = half_width.max(0.0);
+    }
+
+    /// Returns half height of the box emitter.
+    pub fn half_height(&self) -> f32 {
+        self.half_height
+    }
+
+    /// Sets half height of the box emitter.
+    pub fn set_half_height(&mut self, half_height: f32) {
+        self.half_height = half_height.max(0.0);
+    }
+
+    /// Returns half depth of the box emitter.
+    pub fn half_depth(&self) -> f32 {
+        self.half_depth
+    }
+
+    /// Sets half depth of the box emitter.
+    pub fn set_half_depth(&mut self, half_depth: f32) {
+        self.half_depth = half_depth.max(0.0);
+    }
 }
 
 impl Default for BoxEmitter {
