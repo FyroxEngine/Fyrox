@@ -1,3 +1,4 @@
+use crate::border::BorderBuilder;
 use crate::{
     brush::Brush,
     core::{color::Color, pool::Handle},
@@ -9,7 +10,8 @@ use crate::{
     scroll_viewer::ScrollViewerBuilder,
     stack_panel::StackPanelBuilder,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, NodeHandleMapping, Thickness, UINode, UserInterface,
+    BuildContext, Control, NodeHandleMapping, Thickness, UINode, UserInterface, BRUSH_DARK,
+    BRUSH_LIGHT,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -224,6 +226,14 @@ impl<M: MessageData, C: Control<M, C>> ListViewBuilder<M, C> {
             StackPanelBuilder::new(WidgetBuilder::new().with_children(&item_containers)).build(ctx)
         });
 
+        let back = BorderBuilder::new(
+            WidgetBuilder::new()
+                .with_background(BRUSH_DARK)
+                .with_foreground(BRUSH_LIGHT),
+        )
+        .with_stroke_thickness(Thickness::uniform(1.0))
+        .build(ctx);
+
         let scroll_viewer = self.scroll_viewer.unwrap_or_else(|| {
             ScrollViewerBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(3.0)))
                 .build(ctx)
@@ -236,8 +246,10 @@ impl<M: MessageData, C: Control<M, C>> ListViewBuilder<M, C> {
             panic!("must be scroll viewer!");
         }
 
+        ctx.link(scroll_viewer, back);
+
         let list_box = ListView {
-            widget: self.widget_builder.with_child(scroll_viewer).build(),
+            widget: self.widget_builder.with_child(back).build(),
             selected_index: None,
             item_containers,
             items: self.items,

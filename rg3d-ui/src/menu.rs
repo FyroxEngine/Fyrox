@@ -16,16 +16,12 @@ use crate::{
     text::TextBuilder,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, RestrictionEntry,
-    Thickness, UserInterface, VerticalAlignment,
+    Thickness, UserInterface, VerticalAlignment, BRUSH_BRIGHT_BLUE, BRUSH_PRIMARY,
 };
 use std::{
     ops::{Deref, DerefMut},
     rc::Rc,
 };
-
-pub const MENU_ITEM_HOVER_BACKGROUND_COLOR: Color = Color::opaque(80, 118, 178);
-pub const MENU_ITEM_BACKGROUND_COLOR: Color = Color::opaque(33, 33, 33);
-pub const MENU_BACKGROUND_COLOR: Color = Color::opaque(33, 33, 33);
 
 #[derive(Clone)]
 pub struct Menu<M: MessageData, C: Control<M, C>> {
@@ -341,7 +337,7 @@ impl<M: MessageData, C: Control<M, C>> MenuBuilder<M, C> {
 
         let back = BorderBuilder::new(
             WidgetBuilder::new()
-                .with_background(Brush::Solid(MENU_BACKGROUND_COLOR))
+                .with_background(BRUSH_PRIMARY)
                 .with_child(
                     StackPanelBuilder::new(WidgetBuilder::new().with_children(&self.items))
                         .with_orientation(Orientation::Horizontal)
@@ -475,8 +471,8 @@ impl<'a, 'b, M: MessageData, C: Control<M, C>> MenuItemBuilder<'a, 'b, M, C> {
                 BorderBuilder::new(WidgetBuilder::new())
                     .with_stroke_thickness(Thickness::uniform(0.0)),
             )
-            .with_hover_brush(Brush::Solid(MENU_ITEM_HOVER_BACKGROUND_COLOR))
-            .with_normal_brush(Brush::Solid(MENU_ITEM_BACKGROUND_COLOR))
+            .with_hover_brush(BRUSH_BRIGHT_BLUE)
+            .with_normal_brush(BRUSH_PRIMARY)
             .with_pressed_brush(Brush::Solid(Color::TRANSPARENT))
             .with_pressable(false)
             .build(ctx)

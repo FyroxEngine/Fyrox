@@ -203,7 +203,7 @@ impl<M: MessageData, C: Control<M, C>> DropdownListBuilder<M, C> {
         Self: Sized,
     {
         let items_control = ListViewBuilder::new(
-            WidgetBuilder::new().with_max_size(Vector2::new(std::f32::INFINITY, 300.0)),
+            WidgetBuilder::new().with_max_size(Vector2::new(std::f32::INFINITY, 200.0)),
         )
         .with_items(self.items.clone())
         .build(ctx);

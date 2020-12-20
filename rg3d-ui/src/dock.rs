@@ -855,7 +855,7 @@ pub struct TileBuilder<M: MessageData, C: Control<M, C>> {
     content: TileContent<M, C>,
 }
 
-pub const DEFAULT_SPLITTER_SIZE: f32 = 6.0;
+pub const DEFAULT_SPLITTER_SIZE: f32 = 4.0;
 pub const DEFAULT_ANCHOR_COLOR: Color = Color::opaque(150, 150, 150);
 
 pub fn make_default_anchor<M: MessageData, C: Control<M, C>>(

@@ -1,11 +1,10 @@
-use crate::core::algebra::Vector2;
 use crate::{
     border::Border,
     button::Button,
     canvas::Canvas,
     check_box::CheckBox,
     color::{AlphaBar, ColorField, ColorPicker, HueBar, SaturationBrightnessField},
-    core::{define_is_as, math::Rect, pool::Handle},
+    core::{algebra::Vector2, define_is_as, math::Rect, pool::Handle},
     decorator::Decorator,
     dock::{DockingManager, Tile},
     draw::DrawingContext,
@@ -29,6 +28,7 @@ use crate::{
     text_box::TextBox,
     tree::{Tree, TreeRoot},
     vec::Vec3Editor,
+    vector_image::VectorImage,
     widget::Widget,
     window::Window,
     wrap_panel::WrapPanel,
@@ -75,6 +75,7 @@ pub enum UINode<M: MessageData, C: Control<M, C>> {
     MenuItem(MenuItem<M, C>),
     MessageBox(MessageBox<M, C>),
     WrapPanel(WrapPanel<M, C>),
+    VectorImage(VectorImage<M, C>),
     User(C),
 }
 
@@ -118,6 +119,7 @@ macro_rules! static_dispatch {
             UINode::MenuItem(v) => v.$func($($args),*),
             UINode::MessageBox(v) => v.$func($($args),*),
             UINode::WrapPanel(v) => v.$func($($args),*),
+            UINode::VectorImage(v) => v.$func($($args),*),
             UINode::User(v) => v.$func($($args),*),
         }
     };

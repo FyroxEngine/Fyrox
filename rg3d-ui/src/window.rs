@@ -1,10 +1,10 @@
-use crate::core::algebra::Vector2;
-use crate::decorator::DecoratorBuilder;
+use crate::vector_image::{Primitive, VectorImageBuilder};
 use crate::{
     border::BorderBuilder,
     brush::{Brush, GradientPoint},
     button::ButtonBuilder,
-    core::{color::Color, math::Rect, pool::Handle},
+    core::{algebra::Vector2, color::Color, math::Rect, pool::Handle},
+    decorator::DecoratorBuilder,
     grid::{Column, GridBuilder, Row},
     message::{
         ButtonMessage, CursorIcon, MessageData, MessageDirection, TextMessage, UiMessage,
@@ -13,7 +13,8 @@ use crate::{
     text::TextBuilder,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, RestrictionEntry, Thickness,
-    UINode, UserInterface,
+    UINode, UserInterface, VerticalAlignment, BRUSH_BRIGHT, BRUSH_DARKER, BRUSH_DARKEST,
+    BRUSH_LIGHTER, COLOR_DARK, COLOR_DARKEST,
 };
 use std::{
     cell::RefCell,
@@ -578,9 +579,57 @@ fn make_text_title<M: MessageData, C: Control<M, C>>(
     .build(ctx)
 }
 
+enum HeaderButton {
+    Close,
+    Minimize,
+}
+
+fn make_mark<M: MessageData, C: Control<M, C>>(
+    ctx: &mut BuildContext<M, C>,
+    button: HeaderButton,
+) -> Handle<UINode<M, C>> {
+    VectorImageBuilder::new(
+        WidgetBuilder::new()
+            .with_horizontal_alignment(HorizontalAlignment::Center)
+            .with_vertical_alignment(match button {
+                HeaderButton::Close => VerticalAlignment::Center,
+                HeaderButton::Minimize => VerticalAlignment::Bottom,
+            })
+            .with_margin(match button {
+                HeaderButton::Close => Thickness::uniform(0.0),
+                HeaderButton::Minimize => Thickness::bottom(3.0),
+            })
+            .with_foreground(BRUSH_BRIGHT),
+    )
+    .with_primitives(match button {
+        HeaderButton::Close => {
+            vec![
+                Primitive::Line {
+                    begin: Vector2::new(0.0, 0.0),
+                    end: Vector2::new(12.0, 12.0),
+                    thickness: 3.0,
+                },
+                Primitive::Line {
+                    begin: Vector2::new(12.0, 0.0),
+                    end: Vector2::new(0.0, 12.0),
+                    thickness: 3.0,
+                },
+            ]
+        }
+        HeaderButton::Minimize => {
+            vec![Primitive::Line {
+                begin: Vector2::new(0.0, 0.0),
+                end: Vector2::new(12.0, 0.0),
+                thickness: 3.0,
+            }]
+        }
+    })
+    .build(ctx)
+}
+
 fn make_header_button<M: MessageData, C: Control<M, C>>(
     ctx: &mut BuildContext<M, C>,
-    text: &str,
+    button: HeaderButton,
 ) -> Handle<UINode<M, C>> {
     ButtonBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(2.0)))
         .with_back(
@@ -589,11 +638,11 @@ fn make_header_button<M: MessageData, C: Control<M, C>>(
                     .with_stroke_thickness(Thickness::uniform(0.0)),
             )
             .with_normal_brush(Brush::Solid(Color::TRANSPARENT))
-            .with_hover_brush(Brush::Solid(Color::opaque(120, 120, 120)))
-            .with_pressed_brush(Brush::Solid(Color::opaque(100, 100, 100)))
+            .with_hover_brush(BRUSH_DARKER.clone())
+            .with_pressed_brush(BRUSH_DARKEST.clone())
             .build(ctx),
         )
-        .with_text(text)
+        .with_content(make_mark(ctx, button))
         .build(ctx)
 }
 
@@ -674,15 +723,15 @@ impl<'a, M: MessageData, C: Control<M, C>> WindowBuilder<M, C> {
                     stops: vec![
                         GradientPoint {
                             stop: 0.0,
-                            color: Color::opaque(85, 85, 85),
+                            color: COLOR_DARK,
                         },
                         GradientPoint {
-                            stop: 0.5,
-                            color: Color::opaque(65, 65, 65),
+                            stop: 0.85,
+                            color: COLOR_DARK,
                         },
                         GradientPoint {
                             stop: 1.0,
-                            color: Color::opaque(75, 75, 75),
+                            color: COLOR_DARKEST,
                         },
                     ],
                 })
@@ -700,9 +749,9 @@ impl<'a, M: MessageData, C: Control<M, C>> WindowBuilder<M, C> {
                                 title
                             })
                             .with_child({
-                                minimize_button = self
-                                    .minimize_button
-                                    .unwrap_or_else(|| make_header_button(ctx, "_"));
+                                minimize_button = self.minimize_button.unwrap_or_else(|| {
+                                    make_header_button(ctx, HeaderButton::Minimize)
+                                });
                                 ctx[minimize_button]
                                     .set_visibility(self.can_minimize)
                                     .set_width(30.0)
@@ -711,9 +760,9 @@ impl<'a, M: MessageData, C: Control<M, C>> WindowBuilder<M, C> {
                                 minimize_button
                             })
                             .with_child({
-                                close_button = self
-                                    .close_button
-                                    .unwrap_or_else(|| make_header_button(ctx, "X"));
+                                close_button = self.close_button.unwrap_or_else(|| {
+                                    make_header_button(ctx, HeaderButton::Close)
+                                });
                                 ctx[close_button]
                                     .set_width(30.0)
                                     .set_visibility(self.can_close)
@@ -742,18 +791,21 @@ impl<'a, M: MessageData, C: Control<M, C>> WindowBuilder<M, C> {
                 .with_visibility(self.open)
                 .with_child(
                     BorderBuilder::new(
-                        WidgetBuilder::new().with_child(
-                            GridBuilder::new(
-                                WidgetBuilder::new()
-                                    .with_child(self.content)
-                                    .with_child(header),
-                            )
-                            .add_column(Column::stretch())
-                            .add_row(Row::auto())
-                            .add_row(Row::stretch())
-                            .build(ctx),
-                        ),
+                        WidgetBuilder::new()
+                            .with_foreground(BRUSH_LIGHTER)
+                            .with_child(
+                                GridBuilder::new(
+                                    WidgetBuilder::new()
+                                        .with_child(self.content)
+                                        .with_child(header),
+                                )
+                                .add_column(Column::stretch())
+                                .add_row(Row::auto())
+                                .add_row(Row::stretch())
+                                .build(ctx),
+                            ),
                     )
+                    .with_stroke_thickness(Thickness::uniform(1.0))
                     .build(ctx),
                 )
                 .build(),

@@ -1,7 +1,6 @@
-use crate::core::algebra::Vector2;
 use crate::{
     brush::Brush,
-    core::{color::Color, math::Rect, pool::Handle},
+    core::{algebra::Vector2, color::Color, math::Rect, pool::Handle},
     draw::{CommandKind, CommandTexture, DrawingContext},
     formatted_text::{FormattedText, FormattedTextBuilder},
     message::{
@@ -11,11 +10,11 @@ use crate::{
     ttf::SharedFont,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, HorizontalAlignment, UINode, UserInterface, VerticalAlignment,
+    BRUSH_DARKER, BRUSH_TEXT,
 };
-use std::cmp::Ordering;
 use std::{
     cell::RefCell,
-    cmp,
+    cmp::{self, Ordering},
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
     rc::Rc,
@@ -860,10 +859,10 @@ impl<M: MessageData, C: Control<M, C>> TextBoxBuilder<M, C> {
 
     pub fn build(mut self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
         if self.widget_builder.foreground.is_none() {
-            self.widget_builder.foreground = Some(Brush::Solid(Color::opaque(220, 220, 220)));
+            self.widget_builder.foreground = Some(BRUSH_TEXT);
         }
         if self.widget_builder.background.is_none() {
-            self.widget_builder.background = Some(Brush::Solid(Color::opaque(100, 100, 100)));
+            self.widget_builder.background = Some(BRUSH_DARKER);
         }
         if self.widget_builder.cursor.is_none() {
             self.widget_builder.cursor = Some(CursorIcon::Text);

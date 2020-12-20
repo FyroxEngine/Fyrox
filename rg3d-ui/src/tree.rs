@@ -13,7 +13,8 @@ use crate::{
     node::UINode,
     stack_panel::StackPanelBuilder,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, NodeHandleMapping, Thickness, UserInterface,
+    BuildContext, Control, NodeHandleMapping, Thickness, UserInterface, BRUSH_DARK, BRUSH_DARKEST,
+    BRUSH_LIGHT,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -304,10 +305,12 @@ impl<M: MessageData, C: Control<M, C>> TreeBuilder<M, C> {
 
         let item_background = self.back.unwrap_or_else(|| {
             DecoratorBuilder::new(BorderBuilder::new(
-                WidgetBuilder::new().with_background(Brush::Solid(Color::TRANSPARENT)),
+                WidgetBuilder::new()
+                    .with_foreground(BRUSH_LIGHT)
+                    .with_background(Brush::Solid(Color::TRANSPARENT)),
             ))
-            .with_selected_brush(Brush::Solid(Color::opaque(140, 140, 140)))
-            .with_hover_brush(Brush::Solid(Color::opaque(100, 100, 100)))
+            .with_selected_brush(BRUSH_DARKEST)
+            .with_hover_brush(BRUSH_DARK)
             .with_normal_brush(Brush::Solid(Color::TRANSPARENT))
             .with_pressed_brush(Brush::Solid(Color::TRANSPARENT))
             .with_pressable(false)

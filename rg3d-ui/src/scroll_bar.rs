@@ -1,6 +1,6 @@
 use crate::{
     border::BorderBuilder,
-    brush::Brush,
+    brush::{Brush, GradientPoint},
     button::ButtonBuilder,
     canvas::CanvasBuilder,
     core::{
@@ -12,13 +12,15 @@ use crate::{
     decorator::DecoratorBuilder,
     grid::{Column, GridBuilder, Row},
     message::{
-        ButtonMessage, ScrollBarMessage, TextMessage, UiMessage, UiMessageData, WidgetMessage,
+        ButtonMessage, MessageData, MessageDirection, ScrollBarMessage, TextMessage, UiMessage,
+        UiMessageData, WidgetMessage,
     },
-    message::{MessageData, MessageDirection},
     text::TextBuilder,
+    utils::{make_arrow, ArrowDirection},
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, Thickness, UINode,
-    UserInterface, VerticalAlignment,
+    UserInterface, VerticalAlignment, BRUSH_LIGHT, BRUSH_LIGHTER, BRUSH_LIGHTEST, COLOR_DARKEST,
+    COLOR_LIGHTEST,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -67,6 +69,17 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollBar<M, C> {
                     MessageDirection::ToWidget,
                     field_size.y,
                 ));
+                ui.send_message(WidgetMessage::width(
+                    self.decrease,
+                    MessageDirection::ToWidget,
+                    field_size.y,
+                ));
+                ui.send_message(WidgetMessage::width(
+                    self.increase,
+                    MessageDirection::ToWidget,
+                    field_size.y,
+                ));
+
                 let position = Vector2::new(
                     percent * (field_size.x - indicator.actual_size().x).max(0.0),
                     0.0,
@@ -83,6 +96,17 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollBar<M, C> {
                     MessageDirection::ToWidget,
                     field_size.x,
                 ));
+                ui.send_message(WidgetMessage::height(
+                    self.decrease,
+                    MessageDirection::ToWidget,
+                    field_size.x,
+                ));
+                ui.send_message(WidgetMessage::height(
+                    self.increase,
+                    MessageDirection::ToWidget,
+                    field_size.x,
+                ));
+
                 let position = Vector2::new(
                     0.0,
                     percent * (field_size.y - indicator.actual_size().y).max(0.0),
@@ -431,9 +455,9 @@ impl<M: MessageData, C: Control<M, C>> ScrollBarBuilder<M, C> {
 
         let increase = self.increase.unwrap_or_else(|| {
             ButtonBuilder::new(WidgetBuilder::new())
-                .with_text(match orientation {
-                    Orientation::Horizontal => ">",
-                    Orientation::Vertical => "v",
+                .with_content(match orientation {
+                    Orientation::Horizontal => make_arrow(ctx, ArrowDirection::West, 8.0),
+                    Orientation::Vertical => make_arrow(ctx, ArrowDirection::South, 8.0),
                 })
                 .build(ctx)
         });
@@ -449,9 +473,9 @@ impl<M: MessageData, C: Control<M, C>> ScrollBarBuilder<M, C> {
 
         let decrease = self.decrease.unwrap_or_else(|| {
             ButtonBuilder::new(WidgetBuilder::new())
-                .with_text(match orientation {
-                    Orientation::Horizontal => "<",
-                    Orientation::Vertical => "^",
+                .with_content(match orientation {
+                    Orientation::Horizontal => make_arrow(ctx, ArrowDirection::East, 8.0),
+                    Orientation::Vertical => make_arrow(ctx, ArrowDirection::North, 8.0),
                 })
                 .build(ctx)
         });
@@ -464,11 +488,35 @@ impl<M: MessageData, C: Control<M, C>> ScrollBarBuilder<M, C> {
         };
 
         let indicator = self.indicator.unwrap_or_else(|| {
-            DecoratorBuilder::new(BorderBuilder::new(WidgetBuilder::new()))
-                .with_normal_brush(Brush::Solid(Color::opaque(110, 110, 110)))
-                .with_hover_brush(Brush::Solid(Color::opaque(120, 120, 120)))
-                .with_pressed_brush(Brush::Solid(Color::opaque(130, 130, 130)))
-                .build(ctx)
+            DecoratorBuilder::new(
+                BorderBuilder::new(WidgetBuilder::new().with_foreground(Brush::LinearGradient {
+                    from: Vector2::new(0.5, 0.0),
+                    to: Vector2::new(0.5, 1.0),
+                    stops: vec![
+                        GradientPoint {
+                            stop: 0.0,
+                            color: COLOR_DARKEST,
+                        },
+                        GradientPoint {
+                            stop: 0.25,
+                            color: COLOR_LIGHTEST,
+                        },
+                        GradientPoint {
+                            stop: 0.75,
+                            color: COLOR_LIGHTEST,
+                        },
+                        GradientPoint {
+                            stop: 1.0,
+                            color: COLOR_DARKEST,
+                        },
+                    ],
+                }))
+                .with_stroke_thickness(Thickness::uniform(1.0)),
+            )
+            .with_normal_brush(BRUSH_LIGHT)
+            .with_hover_brush(BRUSH_LIGHTER)
+            .with_pressed_brush(BRUSH_LIGHTEST)
+            .build(ctx)
         });
 
         match orientation {

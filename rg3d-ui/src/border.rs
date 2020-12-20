@@ -1,12 +1,9 @@
-use crate::core::algebra::Vector2;
-use crate::message::MessageData;
 use crate::{
-    brush::Brush,
-    core::{color::Color, math::Rect, pool::Handle, scope_profile},
+    core::{algebra::Vector2, math::Rect, pool::Handle, scope_profile},
     draw::{CommandKind, CommandTexture, DrawingContext},
-    message::UiMessage,
+    message::{MessageData, UiMessage},
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, Thickness, UINode, UserInterface,
+    BuildContext, Control, Thickness, UINode, UserInterface, BRUSH_PRIMARY,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -130,7 +127,7 @@ impl<M: MessageData, C: Control<M, C>> BorderBuilder<M, C> {
 
     pub fn build_border(mut self) -> Border<M, C> {
         if self.widget_builder.foreground.is_none() {
-            self.widget_builder.foreground = Some(Brush::Solid(Color::opaque(100, 100, 100)));
+            self.widget_builder.foreground = Some(BRUSH_PRIMARY);
         }
         Border {
             widget: self.widget_builder.build(),

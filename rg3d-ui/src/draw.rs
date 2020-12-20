@@ -224,6 +224,16 @@ impl DrawingContext {
         self.push_triangle(index, index + 1, index + 2);
     }
 
+    pub fn push_triangle_filled(&mut self, vertices: [Vector2<f32>; 3]) {
+        let index = self.last_vertex_index();
+
+        for &pos in &vertices {
+            self.push_vertex(pos, Default::default());
+        }
+
+        self.push_triangle(index, index + 1, index + 2);
+    }
+
     pub fn push_line(&mut self, a: Vector2<f32>, b: Vector2<f32>, thickness: f32) {
         let index = self.last_vertex_index();
         let perp = get_line_thickness_vector(a, b, thickness);

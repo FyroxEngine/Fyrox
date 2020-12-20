@@ -5,7 +5,8 @@ use crate::{
     core::{color::Color, pool::Handle},
     message::{CheckBoxMessage, UiMessage, UiMessageData, WidgetMessage},
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, NodeHandleMapping, Thickness, UINode, UserInterface,
+    BuildContext, Control, NodeHandleMapping, Thickness, UINode, UserInterface, BRUSH_DARK,
+    BRUSH_LIGHT,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -156,7 +157,8 @@ impl<M: MessageData, C: Control<M, C>> CheckBoxBuilder<M, C> {
                 .with_child(
                     BorderBuilder::new(
                         WidgetBuilder::new()
-                            .with_background(Brush::Solid(Color::opaque(60, 60, 60)))
+                            .with_background(BRUSH_DARK)
+                            .with_foreground(BRUSH_LIGHT)
                             .with_child(check_mark),
                     )
                     .with_stroke_thickness(Thickness::uniform(1.0))

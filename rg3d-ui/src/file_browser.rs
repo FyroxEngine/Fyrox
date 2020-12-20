@@ -516,7 +516,7 @@ impl<M: MessageData, C: Control<M, C>> FileBrowserBuilder<M, C> {
                         WidgetBuilder::new()
                             .on_row(0)
                             .on_column(0)
-                            .with_margin(Thickness::uniform(1.0)),
+                            .with_margin(Thickness::uniform(2.0)),
                     )
                     .with_vertical_text_alignment(VerticalAlignment::Center)
                     .with_text(self.path.to_string_lossy().as_ref())

@@ -1,7 +1,9 @@
+use crate::brush::GradientPoint;
+use crate::core::algebra::Vector2;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
-    core::{color::Color, pool::Handle},
+    core::pool::Handle,
     decorator::DecoratorBuilder,
     message::{
         ButtonMessage, MessageData, MessageDirection, UiMessage, UiMessageData, WidgetMessage,
@@ -10,7 +12,8 @@ use crate::{
     ttf::SharedFont,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Thickness, UINode,
-    UserInterface, VerticalAlignment,
+    UserInterface, VerticalAlignment, BRUSH_LIGHT, BRUSH_LIGHTER, BRUSH_LIGHTEST, COLOR_DARKEST,
+    COLOR_LIGHTEST,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -172,12 +175,33 @@ impl<M: MessageData, C: Control<M, C>> ButtonBuilder<M, C> {
 
         let back = self.back.unwrap_or_else(|| {
             DecoratorBuilder::new(
-                BorderBuilder::new(WidgetBuilder::new().with_child(content))
-                    .with_stroke_thickness(Thickness::uniform(0.0)),
+                BorderBuilder::new(
+                    WidgetBuilder::new()
+                        .with_foreground(Brush::LinearGradient {
+                            from: Vector2::new(0.5, 0.0),
+                            to: Vector2::new(0.5, 1.0),
+                            stops: vec![
+                                GradientPoint {
+                                    stop: 0.0,
+                                    color: COLOR_LIGHTEST,
+                                },
+                                GradientPoint {
+                                    stop: 0.25,
+                                    color: COLOR_LIGHTEST,
+                                },
+                                GradientPoint {
+                                    stop: 1.0,
+                                    color: COLOR_DARKEST,
+                                },
+                            ],
+                        })
+                        .with_child(content),
+                )
+                .with_stroke_thickness(Thickness::uniform(1.0)),
             )
-            .with_normal_brush(Brush::Solid(Color::opaque(90, 90, 90)))
-            .with_hover_brush(Brush::Solid(Color::opaque(110, 110, 110)))
-            .with_pressed_brush(Brush::Solid(Color::opaque(80, 118, 178)))
+            .with_normal_brush(BRUSH_LIGHT)
+            .with_hover_brush(BRUSH_LIGHTER)
+            .with_pressed_brush(BRUSH_LIGHTEST)
             .build(ctx)
         });
         ctx.link(content, back);

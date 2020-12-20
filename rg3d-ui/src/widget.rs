@@ -1,10 +1,9 @@
-use crate::core::algebra::Vector2;
-use crate::message::{MessageData, MessageDirection};
 use crate::{
     brush::Brush,
-    core::{color::Color, math::Rect, pool::Handle},
-    message::{CursorIcon, UiMessage, UiMessageData, WidgetMessage},
+    core::{algebra::Vector2, math::Rect, pool::Handle},
+    message::{CursorIcon, MessageData, MessageDirection, UiMessage, UiMessageData, WidgetMessage},
     Control, HorizontalAlignment, Thickness, UINode, UserInterface, VerticalAlignment,
+    BRUSH_FOREGROUND, BRUSH_PRIMARY,
 };
 use std::{
     any::Any,
@@ -806,10 +805,8 @@ impl<M: MessageData, C: Control<M, C>> WidgetBuilder<M, C> {
             max_size: self
                 .max_size
                 .unwrap_or_else(|| Vector2::new(std::f32::INFINITY, std::f32::INFINITY)),
-            background: self
-                .background
-                .unwrap_or_else(|| Brush::Solid(Color::opaque(50, 50, 50))),
-            foreground: self.foreground.unwrap_or(Brush::Solid(Color::WHITE)),
+            background: self.background.unwrap_or_else(|| BRUSH_PRIMARY.clone()),
+            foreground: self.foreground.unwrap_or_else(|| BRUSH_FOREGROUND.clone()),
             row: self.row,
             column: self.column,
             vertical_alignment: self.vertical_alignment,

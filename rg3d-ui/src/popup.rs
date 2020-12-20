@@ -6,7 +6,8 @@ use crate::{
     message::{ButtonState, OsEvent, PopupMessage, UiMessage, UiMessageData, WidgetMessage},
     node::UINode,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, NodeHandleMapping, RestrictionEntry, UserInterface,
+    BuildContext, Control, NodeHandleMapping, RestrictionEntry, Thickness, UserInterface,
+    BRUSH_DARKER, BRUSH_LIGHTER,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -192,7 +193,14 @@ impl<M: MessageData, C: Control<M, C>> PopupBuilder<M, C> {
     }
 
     pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
-        let body = BorderBuilder::new(WidgetBuilder::new().with_child(self.content)).build(ctx);
+        let body = BorderBuilder::new(
+            WidgetBuilder::new()
+                .with_background(BRUSH_DARKER)
+                .with_foreground(BRUSH_LIGHTER)
+                .with_child(self.content),
+        )
+        .with_stroke_thickness(Thickness::uniform(1.0))
+        .build(ctx);
 
         let popup = Popup {
             widget: self

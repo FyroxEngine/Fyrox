@@ -44,7 +44,9 @@ pub mod text;
 pub mod text_box;
 pub mod tree;
 pub mod ttf;
+pub mod utils;
 pub mod vec;
+pub mod vector_image;
 pub mod widget;
 pub mod window;
 pub mod wrap_panel;
@@ -68,6 +70,7 @@ use crate::{
     ttf::{Font, SharedFont},
     widget::{Widget, WidgetBuilder},
 };
+use rg3d_core::math::clampf;
 use std::{
     cell::Cell,
     collections::{HashMap, VecDeque},
@@ -78,6 +81,31 @@ use std::{
         Arc, Mutex,
     },
 };
+
+// TODO: Make this part of UserInterface struct.
+pub const COLOR_DARKEST: Color = Color::opaque(20, 20, 20);
+pub const COLOR_DARKER: Color = Color::opaque(30, 30, 30);
+pub const COLOR_DARK: Color = Color::opaque(40, 40, 40);
+pub const COLOR_PRIMARY: Color = Color::opaque(50, 50, 50);
+pub const COLOR_LIGHT: Color = Color::opaque(65, 65, 65);
+pub const COLOR_LIGHTER: Color = Color::opaque(80, 80, 80);
+pub const COLOR_LIGHTEST: Color = Color::opaque(95, 95, 95);
+pub const COLOR_BRIGHT: Color = Color::opaque(130, 130, 130);
+pub const COLOR_BRIGHT_BLUE: Color = Color::opaque(80, 118, 178);
+pub const COLOR_TEXT: Color = Color::opaque(220, 220, 220);
+pub const COLOR_FOREGROUND: Color = Color::WHITE;
+
+pub const BRUSH_DARKEST: Brush = Brush::Solid(COLOR_DARKEST);
+pub const BRUSH_DARKER: Brush = Brush::Solid(COLOR_DARKER);
+pub const BRUSH_DARK: Brush = Brush::Solid(COLOR_DARK);
+pub const BRUSH_PRIMARY: Brush = Brush::Solid(COLOR_PRIMARY);
+pub const BRUSH_LIGHT: Brush = Brush::Solid(COLOR_LIGHT);
+pub const BRUSH_LIGHTER: Brush = Brush::Solid(COLOR_LIGHTER);
+pub const BRUSH_LIGHTEST: Brush = Brush::Solid(COLOR_LIGHTEST);
+pub const BRUSH_BRIGHT: Brush = Brush::Solid(COLOR_BRIGHT);
+pub const BRUSH_BRIGHT_BLUE: Brush = Brush::Solid(COLOR_BRIGHT_BLUE);
+pub const BRUSH_TEXT: Brush = Brush::Solid(COLOR_TEXT);
+pub const BRUSH_FOREGROUND: Brush = Brush::Solid(COLOR_FOREGROUND);
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum HorizontalAlignment {
@@ -360,8 +388,8 @@ where
                 },
             );
 
-            size.x = size.x.min(self.max_size().x).max(self.min_size().x);
-            size.y = size.y.min(self.max_size().y).max(self.min_size().y);
+            size.x = clampf(size.x, self.min_size().x, self.max_size().x);
+            size.y = clampf(size.y, self.min_size().y, self.max_size().y);
 
             let mut desired_size = self.measure_override(ui, size);
 
@@ -372,10 +400,11 @@ where
                 desired_size.y = self.height();
             }
 
-            desired_size.x = desired_size.x.min(self.max_size().x).max(self.min_size().x);
-            desired_size.y = desired_size.y.min(self.max_size().y).max(self.min_size().y);
+            desired_size.x = clampf(desired_size.x, self.min_size().x, self.max_size().x);
+            desired_size.y = clampf(desired_size.y, self.min_size().y, self.max_size().y);
 
             desired_size += axes_margin;
+
             desired_size.x = desired_size.x.min(available_size.x);
             desired_size.y = desired_size.y.min(available_size.y);
 
