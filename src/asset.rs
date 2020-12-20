@@ -7,6 +7,7 @@ use crate::{
     preview::PreviewPanel,
     GameEngine,
 };
+use rg3d::gui::BRUSH_DARK;
 use rg3d::{
     core::{color::Color, pool::Handle},
     engine::resource_manager::ResourceManager,
@@ -226,13 +227,21 @@ impl AssetBrowser {
             .with_content(
                 GridBuilder::new(
                     WidgetBuilder::new()
-                        .with_child({
-                            folder_browser =
-                                FileBrowserBuilder::new(WidgetBuilder::new().on_column(0))
-                                    .with_filter(Rc::new(RefCell::new(|p: &Path| p.is_dir())))
-                                    .build(&mut ctx);
-                            folder_browser
-                        })
+                        .with_child(
+                            BorderBuilder::new(
+                                WidgetBuilder::new()
+                                    .with_background(BRUSH_DARK)
+                                    .with_child({
+                                        folder_browser = FileBrowserBuilder::new(
+                                            WidgetBuilder::new().on_column(0),
+                                        )
+                                        .with_filter(Rc::new(RefCell::new(|p: &Path| p.is_dir())))
+                                        .build(&mut ctx);
+                                        folder_browser
+                                    }),
+                            )
+                            .build(&mut ctx),
+                        )
                         .with_child({
                             ScrollViewerBuilder::new(WidgetBuilder::new().on_column(1))
                                 .with_content({

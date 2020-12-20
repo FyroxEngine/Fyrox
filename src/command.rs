@@ -203,12 +203,16 @@ impl CommandStackViewer {
                             .build(ctx),
                         )
                         .with_child(
-                            ScrollViewerBuilder::new(WidgetBuilder::new().on_row(1))
-                                .with_content({
-                                    list = ListViewBuilder::new(WidgetBuilder::new()).build(ctx);
-                                    list
-                                })
-                                .build(ctx),
+                            ScrollViewerBuilder::new(
+                                WidgetBuilder::new()
+                                    .with_margin(Thickness::uniform(1.0))
+                                    .on_row(1),
+                            )
+                            .with_content({
+                                list = ListViewBuilder::new(WidgetBuilder::new()).build(ctx);
+                                list
+                            })
+                            .build(ctx),
                         ),
                 )
                 .add_column(Column::stretch())

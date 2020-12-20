@@ -72,7 +72,12 @@ fn make_history_entry_widget(ctx: &mut BuildContext, entry: &HistoryEntry) -> Ha
     DecoratorBuilder::new(BorderBuilder::new(
         WidgetBuilder::new()
             .with_height(32.0)
-            .with_margin(Thickness::uniform(1.0))
+            .with_margin(Thickness {
+                left: 1.0,
+                top: 0.0,
+                right: 1.0,
+                bottom: 1.0,
+            })
             .with_child(
                 TextBuilder::new(WidgetBuilder::new())
                     .with_text(format!(
@@ -138,6 +143,7 @@ impl Configurator {
         .with_content(
             GridBuilder::new(
                 WidgetBuilder::new()
+                    .with_margin(Thickness::uniform(1.0))
                     .with_child(
                         TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
                             .with_text(message)
