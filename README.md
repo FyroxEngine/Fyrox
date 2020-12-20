@@ -12,7 +12,7 @@ It should be noted that this editor is the **scene** editor, it does **not** all
 
 ## Screenshots
 
-![1](screenshots/1.png?raw=true "Editor")
+![1](screenshots/latest.png?raw=true "Editor")
 
 ## Controls
 
