@@ -90,7 +90,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for WrapPanel<M, C> {
                         line_size = Vector2::default();
                     } else {
                         line_size.x += desired.x;
-                        line_size.y = line_size.y.max(desired.x);
+                        line_size.y = line_size.y.max(desired.y);
                     }
                 }
             }
