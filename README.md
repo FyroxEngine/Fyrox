@@ -39,7 +39,7 @@ There are many examples covering various aspects of the engine. Also don't hesit
 
 ## [Editor](https://github.com/mrDIMAS/rusty-editor/)
 
-[![editor](https://raw.githubusercontent.com/mrDIMAS/rusty-editor/master/screenshots/1.png)](https://github.com/mrDIMAS/rusty-editor/)
+[![editor](https://raw.githubusercontent.com/mrDIMAS/rusty-editor/master/screenshots/latest.png)](https://github.com/mrDIMAS/rusty-editor/)
 
 ## Features
 
