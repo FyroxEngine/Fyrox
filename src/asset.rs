@@ -7,7 +7,7 @@ use crate::{
     preview::PreviewPanel,
     GameEngine,
 };
-use rg3d::gui::BRUSH_DARK;
+use rg3d::gui::{VerticalAlignment, BRUSH_DARK};
 use rg3d::{
     core::{color::Color, pool::Handle},
     engine::resource_manager::ResourceManager,
@@ -245,9 +245,13 @@ impl AssetBrowser {
                         .with_child({
                             ScrollViewerBuilder::new(WidgetBuilder::new().on_column(1))
                                 .with_content({
-                                    content_panel = WrapPanelBuilder::new(WidgetBuilder::new())
-                                        .with_orientation(Orientation::Horizontal)
-                                        .build(&mut ctx);
+                                    content_panel = WrapPanelBuilder::new(
+                                        WidgetBuilder::new()
+                                            .with_horizontal_alignment(HorizontalAlignment::Left)
+                                            .with_vertical_alignment(VerticalAlignment::Top),
+                                    )
+                                    .with_orientation(Orientation::Horizontal)
+                                    .build(&mut ctx);
                                     content_panel
                                 })
                                 .build(&mut ctx)
