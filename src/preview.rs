@@ -2,6 +2,8 @@ use crate::{
     gui::{UiMessage, UiNode},
     GameEngine,
 };
+use rg3d::core::color::Color;
+use rg3d::scene::Line;
 use rg3d::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
@@ -54,24 +56,85 @@ impl PreviewPanel {
     pub fn new(engine: &mut GameEngine, width: u32, height: u32) -> Self {
         let mut scene = Scene::new();
 
-        let camera_pivot = scene.graph.add_node(BaseBuilder::new().build_node());
-        let hinge = scene.graph.add_node(BaseBuilder::new().build_node());
-        let camera = scene.graph.add_node(
-            CameraBuilder::new(
-                BaseBuilder::new().with_local_transform(
-                    TransformBuilder::new()
-                        .with_local_rotation(UnitQuaternion::from_axis_angle(
-                            &Vector3::y_axis(),
-                            180.0f32.to_radians(),
-                        ))
-                        .with_local_position(Vector3::new(0.0, 0.0, 3.0))
-                        .build(),
-                ),
-            )
-            .build_node(),
-        );
+        let size = 10;
+
+        for x in -size..=size {
+            if x == 0 {
+                // Z Axis
+                scene.drawing_context.add_line(Line {
+                    begin: Vector3::new(x as f32, 0.0, -size as f32),
+                    end: Vector3::new(x as f32, 0.0, 0.0),
+                    color: Color::BLACK,
+                });
+                scene.drawing_context.add_line(Line {
+                    begin: Vector3::new(x as f32, 0.0, 0.0),
+                    end: Vector3::new(x as f32, 0.0, size as f32),
+                    color: Color::BLUE,
+                });
+            } else {
+                scene.drawing_context.add_line(Line {
+                    begin: Vector3::new(x as f32, 0.0, -size as f32),
+                    end: Vector3::new(x as f32, 0.0, size as f32),
+                    color: Color::BLACK,
+                });
+            }
+        }
+
+        for z in -size..=size {
+            if z == 0 {
+                // X Axis
+                scene.drawing_context.add_line(Line {
+                    begin: Vector3::new(-size as f32, 0.0, z as f32),
+                    end: Vector3::new(0.0, 0.0, z as f32),
+                    color: Color::BLACK,
+                });
+                scene.drawing_context.add_line(Line {
+                    begin: Vector3::new(0.0, 0.0, z as f32),
+                    end: Vector3::new(size as f32, 0.0, z as f32),
+                    color: Color::RED,
+                });
+            } else {
+                scene.drawing_context.add_line(Line {
+                    begin: Vector3::new(-size as f32, 0.0, z as f32),
+                    end: Vector3::new(size as f32, 0.0, z as f32),
+                    color: Color::BLACK,
+                });
+            }
+        }
+
+        // Y Axis
+        scene.drawing_context.add_line(Line {
+            begin: Vector3::new(0.0, 0.0, 0.0),
+            end: Vector3::new(0.0, 2.0, 0.0),
+            color: Color::GREEN,
+        });
+
+        let camera;
+        let hinge;
+        let camera_pivot = BaseBuilder::new()
+            .with_children(&[{
+                hinge = BaseBuilder::new()
+                    .with_children(&[{
+                        camera = CameraBuilder::new(
+                            BaseBuilder::new().with_local_transform(
+                                TransformBuilder::new()
+                                    .with_local_rotation(UnitQuaternion::from_axis_angle(
+                                        &Vector3::y_axis(),
+                                        180.0f32.to_radians(),
+                                    ))
+                                    .with_local_position(Vector3::new(0.0, 0.0, 3.0))
+                                    .build(),
+                            ),
+                        )
+                        .build(&mut scene.graph);
+                        camera
+                    }])
+                    .build(&mut scene.graph);
+                hinge
+            }])
+            .build(&mut scene.graph);
+
         scene.graph.link_nodes(hinge, camera_pivot);
-        scene.graph.link_nodes(camera, hinge);
 
         let render_target = Texture::new_render_target(width, height);
         scene.render_target = Some(render_target.clone());
@@ -89,6 +152,7 @@ impl PreviewPanel {
                             .on_row(1)
                             .with_cursor(Some(CursorIcon::Grab)),
                     )
+                    .with_flip(true)
                     .with_texture(into_gui_texture(render_target))
                     .build(&mut engine.user_interface.build_ctx());
                     frame
@@ -115,7 +179,7 @@ impl PreviewPanel {
             mode: Mode::None,
             prev_mouse_pos: Default::default(),
             yaw: 0.0,
-            pitch: 0.0,
+            pitch: -45.0,
             distance: 3.0,
             hinge,
             xz_position: Default::default(),
@@ -132,7 +196,7 @@ impl PreviewPanel {
         }
 
         self.yaw = 0.0;
-        self.pitch = 45.0;
+        self.pitch = -45.0;
 
         let fov = scene.graph[self.camera].as_camera().fov();
         self.xz_position = bounding_box.center().xz();
@@ -164,7 +228,7 @@ impl PreviewPanel {
                                 self.xz_position += delta;
                             }
                             Mode::Rotate => {
-                                self.yaw += delta.x;
+                                self.yaw -= delta.x;
                                 self.pitch = (self.pitch - delta.y).max(-90.0).min(90.0);
                             }
                         }
@@ -188,7 +252,7 @@ impl PreviewPanel {
                         }
                     }
                     WidgetMessage::MouseWheel { amount, .. } => {
-                        self.distance = (self.distance + amount).max(0.0);
+                        self.distance = (self.distance - amount).max(0.0);
                     }
                     _ => {}
                 }

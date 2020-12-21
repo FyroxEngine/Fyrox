@@ -186,7 +186,6 @@ impl AssetItemBuilder {
                                         .to_string_lossy()
                                         .to_string(),
                                 )
-                                .with_wrap(true)
                                 .build(ctx),
                             ),
                     )
