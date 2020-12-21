@@ -9,6 +9,7 @@ use crate::{
     dock::{DockingManager, Tile},
     draw::DrawingContext,
     dropdown_list::DropdownList,
+    expander::Expander,
     file_browser::{FileBrowser, FileSelector},
     grid::Grid,
     image::Image,
@@ -76,6 +77,7 @@ pub enum UINode<M: MessageData, C: Control<M, C>> {
     MessageBox(MessageBox<M, C>),
     WrapPanel(WrapPanel<M, C>),
     VectorImage(VectorImage<M, C>),
+    Expander(Expander<M, C>),
     User(C),
 }
 
@@ -120,6 +122,7 @@ macro_rules! static_dispatch {
             UINode::MessageBox(v) => v.$func($($args),*),
             UINode::WrapPanel(v) => v.$func($($args),*),
             UINode::VectorImage(v) => v.$func($($args),*),
+            UINode::Expander(v) => v.$func($($args),*),
             UINode::User(v) => v.$func($($args),*),
         }
     };
@@ -175,6 +178,8 @@ impl<M: MessageData, C: Control<M, C>> UINode<M, C> {
     define_is_as!(UINode : MenuItem -> ref MenuItem<M, C> => fn is_menu_item, fn as_menu_item, fn as_menu_item_mut);
     define_is_as!(UINode : MessageBox -> ref MessageBox<M, C> => fn is_message_box, fn as_message_box, fn as_message_box_mut);
     define_is_as!(UINode : WrapPanel -> ref WrapPanel<M, C> => fn is_wrap_panel, fn as_wrap_panel, fn as_wrap_panel_mut);
+    define_is_as!(UINode : VectorImage -> ref VectorImage<M, C> => fn is_vector_image, fn as_vector_image, fn as_vector_image_mut);
+    define_is_as!(UINode : Expander -> ref Expander<M, C> => fn is_expander, fn as_expander, fn as_expander_mut);
     define_is_as!(UINode : User -> ref C => fn is_user, fn as_user, fn as_user_mut);
 }
 

@@ -23,6 +23,7 @@ pub mod decorator;
 pub mod dock;
 pub mod draw;
 pub mod dropdown_list;
+pub mod expander;
 pub mod file_browser;
 pub mod formatted_text;
 pub mod grid;

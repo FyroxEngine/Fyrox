@@ -422,6 +422,15 @@ impl CheckBoxMessage {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub enum ExpanderMessage {
+    Expand(bool),
+}
+
+impl ExpanderMessage {
+    define_constructor_unbound!(Expander(ExpanderMessage:Expand) => fn expand(bool), layout: false);
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum WindowMessage<M: MessageData, C: Control<M, C>> {
     /// Opens a window.
     Open { center: bool },
@@ -876,6 +885,7 @@ pub enum UiMessageData<M: MessageData, C: Control<M, C>> {
     AlphaBar(AlphaBarMessage),
     ColorPicker(ColorPickerMessage),
     ColorField(ColorFieldMessage),
+    Expander(ExpanderMessage),
     SaturationBrightnessField(SaturationBrightnessFieldMessage),
     User(M),
 }

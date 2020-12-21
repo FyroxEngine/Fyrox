@@ -456,8 +456,8 @@ impl<M: MessageData, C: Control<M, C>> ScrollBarBuilder<M, C> {
         let increase = self.increase.unwrap_or_else(|| {
             ButtonBuilder::new(WidgetBuilder::new())
                 .with_content(match orientation {
-                    Orientation::Horizontal => make_arrow(ctx, ArrowDirection::West, 8.0),
-                    Orientation::Vertical => make_arrow(ctx, ArrowDirection::South, 8.0),
+                    Orientation::Horizontal => make_arrow(ctx, ArrowDirection::Right, 8.0),
+                    Orientation::Vertical => make_arrow(ctx, ArrowDirection::Bottom, 8.0),
                 })
                 .build(ctx)
         });
@@ -474,8 +474,8 @@ impl<M: MessageData, C: Control<M, C>> ScrollBarBuilder<M, C> {
         let decrease = self.decrease.unwrap_or_else(|| {
             ButtonBuilder::new(WidgetBuilder::new())
                 .with_content(match orientation {
-                    Orientation::Horizontal => make_arrow(ctx, ArrowDirection::East, 8.0),
-                    Orientation::Vertical => make_arrow(ctx, ArrowDirection::North, 8.0),
+                    Orientation::Horizontal => make_arrow(ctx, ArrowDirection::Left, 8.0),
+                    Orientation::Vertical => make_arrow(ctx, ArrowDirection::Top, 8.0),
                 })
                 .build(ctx)
         });

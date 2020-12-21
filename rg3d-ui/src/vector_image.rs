@@ -33,7 +33,7 @@ fn line_thickness_vector(a: Vector2<f32>, b: Vector2<f32>, thickness: f32) -> Ve
 }
 
 impl Primitive {
-    pub fn size(&self) -> Vector2<f32> {
+    pub fn bounds(&self) -> (Vector2<f32>, Vector2<f32>) {
         match self {
             Primitive::Triangle { points } => {
                 let min = points[0]
@@ -42,7 +42,7 @@ impl Primitive {
                 let max = points[0]
                     .per_component_max(&points[1])
                     .per_component_max(&points[2]);
-                max - min
+                (min, max)
             }
             Primitive::Line {
                 begin,
@@ -56,11 +56,11 @@ impl Primitive {
                     min = min.per_component_min(v);
                     max = max.per_component_max(v);
                 }
-                max - min
+                (min, max)
             }
-            Primitive::Circle { radius, .. } => {
-                let diameter = *radius * 2.0;
-                Vector2::new(diameter, diameter)
+            Primitive::Circle { radius, center, .. } => {
+                let radius = Vector2::new(*radius, *radius);
+                (center - radius, center + radius)
             }
         }
     }
@@ -80,13 +80,20 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for VectorImage<M, C> {
         _ui: &UserInterface<M, C>,
         _available_size: Vector2<f32>,
     ) -> Vector2<f32> {
-        let mut size: Vector2<f32> = Vector2::default();
+        if self.primitives.is_empty() {
+            Default::default()
+        } else {
+            let mut max = Vector2::new(-std::f32::MAX, -std::f32::MAX);
+            let mut min = Vector2::new(std::f32::MAX, std::f32::MAX);
 
-        for primitive in self.primitives.iter() {
-            size = size.per_component_max(&primitive.size());
+            for primitive in self.primitives.iter() {
+                let (pmin, pmax) = primitive.bounds();
+                min = min.per_component_min(&pmin);
+                max = max.per_component_max(&pmax);
+            }
+
+            max - min
         }
-
-        size
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {

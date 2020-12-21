@@ -9,10 +9,10 @@ use crate::{
 };
 
 pub enum ArrowDirection {
-    North,
-    South,
-    West,
-    East,
+    Top,
+    Bottom,
+    Left,
+    Right,
 }
 
 pub fn make_arrow<M: MessageData, C: Control<M, C>>(
@@ -27,28 +27,28 @@ pub fn make_arrow<M: MessageData, C: Control<M, C>>(
             .with_vertical_alignment(VerticalAlignment::Center),
     )
     .with_primitives(vec![match orientation {
-        ArrowDirection::North => Primitive::Triangle {
+        ArrowDirection::Top => Primitive::Triangle {
             points: [
                 Vector2::new(size * 0.5, 0.0),
                 Vector2::new(size, size),
                 Vector2::new(0.0, size),
             ],
         },
-        ArrowDirection::South => Primitive::Triangle {
+        ArrowDirection::Bottom => Primitive::Triangle {
             points: [
                 Vector2::new(0.0, 0.0),
                 Vector2::new(size, 0.0),
                 Vector2::new(size * 0.5, size),
             ],
         },
-        ArrowDirection::West => Primitive::Triangle {
+        ArrowDirection::Right => Primitive::Triangle {
             points: [
                 Vector2::new(0.0, 0.0),
                 Vector2::new(size, size * 0.5),
                 Vector2::new(0.0, size),
             ],
         },
-        ArrowDirection::East => Primitive::Triangle {
+        ArrowDirection::Left => Primitive::Triangle {
             points: [
                 Vector2::new(0.0, size * 0.5),
                 Vector2::new(size, 0.0),

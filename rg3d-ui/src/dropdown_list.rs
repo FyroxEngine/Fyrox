@@ -223,7 +223,7 @@ impl<M: MessageData, C: Control<M, C>> DropdownListBuilder<M, C> {
             Handle::NONE
         };
 
-        let arrow = make_arrow(ctx, ArrowDirection::South, 10.0);
+        let arrow = make_arrow(ctx, ArrowDirection::Bottom, 10.0);
         ctx[arrow].set_column(1);
 
         let main_grid;

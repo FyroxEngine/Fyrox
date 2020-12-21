@@ -238,11 +238,11 @@ impl<M: MessageData, C: Control<M, C>> NumericUpDownBuilder<M, C> {
                         WidgetBuilder::new()
                             .on_column(1)
                             .with_child({
-                                increase = make_button(ctx, ArrowDirection::North, 0);
+                                increase = make_button(ctx, ArrowDirection::Top, 0);
                                 increase
                             })
                             .with_child({
-                                decrease = make_button(ctx, ArrowDirection::South, 1);
+                                decrease = make_button(ctx, ArrowDirection::Bottom, 1);
                                 decrease
                             }),
                     )
