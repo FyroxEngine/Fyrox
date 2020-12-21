@@ -2,20 +2,20 @@ use crate::{
     gui::{BuildContext, UiMessage, UiNode},
     GameEngine, Message,
 };
-use rg3d::gui::grid::{Column, Row};
-use rg3d::gui::window::WindowTitle;
-use rg3d::gui::Thickness;
+use rg3d::gui::{HorizontalAlignment, VerticalAlignment, BRUSH_BRIGHT};
 use rg3d::{
-    core::pool::Handle,
+    core::{algebra::Vector2, pool::Handle},
     gui::{
         button::ButtonBuilder,
-        grid::GridBuilder,
+        grid::{Column, GridBuilder, Row},
         list_view::ListViewBuilder,
         message::{ButtonMessage, ListViewMessage, MessageDirection, UiMessageData},
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
+        vector_image::{Primitive, VectorImageBuilder},
         widget::WidgetBuilder,
-        window::WindowBuilder,
+        window::{WindowBuilder, WindowTitle},
+        Thickness,
     },
 };
 
@@ -40,7 +40,28 @@ impl Log {
                                 clear = ButtonBuilder::new(
                                     WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
                                 )
-                                .with_text("X")
+                                .with_content(
+                                    VectorImageBuilder::new(
+                                        WidgetBuilder::new()
+                                            .with_vertical_alignment(VerticalAlignment::Center)
+                                            .with_horizontal_alignment(HorizontalAlignment::Center)
+                                            .with_foreground(BRUSH_BRIGHT)
+                                            .with_margin(Thickness::uniform(3.0)),
+                                    )
+                                    .with_primitives(vec![
+                                        Primitive::Line {
+                                            begin: Vector2::new(0.0, 0.0),
+                                            end: Vector2::new(12.0, 12.0),
+                                            thickness: 3.0,
+                                        },
+                                        Primitive::Line {
+                                            begin: Vector2::new(12.0, 0.0),
+                                            end: Vector2::new(0.0, 12.0),
+                                            thickness: 3.0,
+                                        },
+                                    ])
+                                    .build(ctx),
+                                )
                                 .build(ctx);
                                 clear
                             }))
@@ -57,7 +78,7 @@ impl Log {
                         }),
                 )
                 .add_row(Row::stretch())
-                .add_column(Column::strict(20.0))
+                .add_column(Column::strict(23.0))
                 .add_column(Column::stretch())
                 .build(ctx),
             )
