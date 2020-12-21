@@ -1,4 +1,3 @@
-use crate::vector_image::{Primitive, VectorImageBuilder};
 use crate::{
     border::BorderBuilder,
     brush::{Brush, GradientPoint},
@@ -11,10 +10,11 @@ use crate::{
         UiMessageData, WidgetMessage, WindowMessage,
     },
     text::TextBuilder,
+    vector_image::{Primitive, VectorImageBuilder},
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, RestrictionEntry, Thickness,
-    UINode, UserInterface, VerticalAlignment, BRUSH_BRIGHT, BRUSH_DARKER, BRUSH_DARKEST,
-    BRUSH_LIGHTER, COLOR_DARK, COLOR_DARKEST,
+    UINode, UserInterface, VerticalAlignment, BRUSH_BRIGHT, BRUSH_LIGHT, BRUSH_LIGHTER,
+    BRUSH_LIGHTEST, COLOR_DARK, COLOR_DARKEST,
 };
 use std::{
     cell::RefCell,
@@ -638,8 +638,8 @@ fn make_header_button<M: MessageData, C: Control<M, C>>(
                     .with_stroke_thickness(Thickness::uniform(0.0)),
             )
             .with_normal_brush(Brush::Solid(Color::TRANSPARENT))
-            .with_hover_brush(BRUSH_DARKER.clone())
-            .with_pressed_brush(BRUSH_DARKEST.clone())
+            .with_hover_brush(BRUSH_LIGHT)
+            .with_pressed_brush(BRUSH_LIGHTEST)
             .build(ctx),
         )
         .with_content(make_mark(ctx, button))
