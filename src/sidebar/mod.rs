@@ -120,6 +120,7 @@ fn make_color_input_field(ctx: &mut BuildContext, row: usize) -> Handle<UiNode> 
 fn make_bool_input_field(ctx: &mut BuildContext, row: usize) -> Handle<UiNode> {
     CheckBoxBuilder::new(
         WidgetBuilder::new()
+            .with_horizontal_alignment(HorizontalAlignment::Left)
             .on_row(row)
             .with_margin(Thickness::uniform(1.0))
             .on_column(1),

@@ -10,7 +10,10 @@ use crate::{
     },
     Message,
 };
+use rg3d::gui::expander::ExpanderBuilder;
 use rg3d::gui::message::WidgetMessage;
+use rg3d::gui::text::TextBuilder;
+use rg3d::gui::VerticalAlignment;
 use rg3d::{
     core::pool::Handle,
     gui::{
@@ -203,14 +206,27 @@ impl EmitterSection {
         .add_column(Column::stretch())
         .build(ctx);
 
-        let section = StackPanelBuilder::new(
-            WidgetBuilder::new()
-                .with_child(common_properties)
-                .with_child(sphere_section.section)
-                .with_child(cylinder_section.section)
-                .with_child(box_section.section),
-        )
-        .build(ctx);
+        let section = ExpanderBuilder::new(WidgetBuilder::new())
+            .with_header(
+                TextBuilder::new(
+                    WidgetBuilder::new()
+                        .with_margin(Thickness::uniform(1.0))
+                        .with_vertical_alignment(VerticalAlignment::Center),
+                )
+                .with_text("Emitter Properties")
+                .build(ctx),
+            )
+            .with_content(
+                StackPanelBuilder::new(
+                    WidgetBuilder::new()
+                        .with_child(common_properties)
+                        .with_child(sphere_section.section)
+                        .with_child(cylinder_section.section)
+                        .with_child(box_section.section),
+                )
+                .build(ctx),
+            )
+            .build(ctx);
 
         Self {
             section,
