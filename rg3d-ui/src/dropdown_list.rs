@@ -2,7 +2,9 @@
 //! list to select its current item. It is build using composition with standard list view.
 
 use crate::core::algebra::Vector2;
+use crate::grid::{Column, GridBuilder, Row};
 use crate::message::{MessageData, MessageDirection};
+use crate::utils::{make_arrow, ArrowDirection};
 use crate::{
     border::BorderBuilder,
     core::pool::Handle,
@@ -13,7 +15,7 @@ use crate::{
     popup::{Placement, PopupBuilder},
     widget::Widget,
     widget::WidgetBuilder,
-    BuildContext, Control, NodeHandleMapping, UserInterface,
+    BuildContext, Control, NodeHandleMapping, UserInterface, BRUSH_LIGHT,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -26,6 +28,7 @@ pub struct DropdownList<M: MessageData, C: Control<M, C>> {
     current: Handle<UINode<M, C>>,
     selection: Option<usize>,
     close_on_selection: bool,
+    main_grid: Handle<UINode<M, C>>,
 }
 
 crate::define_widget_deref!(DropdownList<M, C>);
@@ -35,6 +38,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for DropdownList<M, C> {
         node_map.resolve(&mut self.popup);
         node_map.resolve(&mut self.list_view);
         node_map.resolve(&mut self.current);
+        node_map.resolve(&mut self.main_grid);
         node_map.resolve_slice(&mut self.items);
     }
 
@@ -106,11 +110,10 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for DropdownList<M, C> {
                             if let Some(index) = selection {
                                 if let Some(item) = self.items.get(index) {
                                     self.current = ui.copy_node(*item);
-                                    let body = self.widget.children()[0];
                                     ui.send_message(WidgetMessage::link(
                                         self.current,
                                         MessageDirection::ToWidget,
-                                        body,
+                                        self.main_grid,
                                     ));
                                 } else {
                                     self.current = Handle::NONE;
@@ -220,10 +223,30 @@ impl<M: MessageData, C: Control<M, C>> DropdownListBuilder<M, C> {
             Handle::NONE
         };
 
+        let arrow = make_arrow(ctx, ArrowDirection::South, 10.0);
+        ctx[arrow].set_column(1);
+
+        let main_grid;
         let dropdown_list = UINode::DropdownList(DropdownList {
             widget: self
                 .widget_builder
-                .with_child(BorderBuilder::new(WidgetBuilder::new().with_child(current)).build(ctx))
+                .with_child(
+                    BorderBuilder::new(
+                        WidgetBuilder::new()
+                            .with_foreground(BRUSH_LIGHT)
+                            .with_child({
+                                main_grid = GridBuilder::new(
+                                    WidgetBuilder::new().with_child(current).with_child(arrow),
+                                )
+                                .add_row(Row::stretch())
+                                .add_column(Column::stretch())
+                                .add_column(Column::strict(20.0))
+                                .build(ctx);
+                                main_grid
+                            }),
+                    )
+                    .build(ctx),
+                )
                 .build(),
             popup,
             items: self.items,
@@ -231,6 +254,7 @@ impl<M: MessageData, C: Control<M, C>> DropdownListBuilder<M, C> {
             current,
             selection: self.selected,
             close_on_selection: self.close_on_selection,
+            main_grid,
         });
 
         ctx.add_node(dropdown_list)
