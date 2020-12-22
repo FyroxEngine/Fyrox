@@ -559,6 +559,9 @@ impl Editor {
         if let Some(previous_editor_scene) = self.scene.as_ref() {
             engine.scenes.remove(previous_editor_scene.scene);
         }
+        self.scene = None;
+        self.sync_to_model(engine);
+        poll_ui_messages(self, engine);
 
         // Disable binder so we'll have full control over node's transform even if
         // it has a physical body.
@@ -609,7 +612,6 @@ impl Editor {
             )),
         ];
 
-        self.world_outliner.clear(&mut engine.user_interface);
         self.command_stack = CommandStack::new(false);
         self.scene = Some(editor_scene);
 
