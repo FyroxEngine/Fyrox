@@ -3,6 +3,7 @@
 uniform sampler2D diffuseTexture;
 uniform bool isFont;
 uniform vec4 solidColor;
+uniform float opacity;
 
 uniform int brushType;
 
@@ -78,6 +79,8 @@ void main()
     {
         fragColor *= texture(diffuseTexture, texCoord);
     }
+
+    fragColor.a *= opacity;
 
     fragColor *= color;
 }

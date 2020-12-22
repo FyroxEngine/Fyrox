@@ -1,27 +1,72 @@
-use crate::renderer::framework::gpu_texture::{MagnificationFilter, MinificationFilter};
+use crate::renderer::TextureCache;
 use crate::{
     core::{
+        algebra::{Matrix4, Vector4},
         color::Color,
-        math::{mat4::Mat4, Rect},
+        math::Rect,
         scope_profile,
     },
     renderer::{
+        batch::{BatchStorage, InstanceData, MatrixStorage, BONE_MATRICES_COUNT},
         error::RendererError,
         framework::{
             framebuffer::{
                 Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer, FrameBufferTrait,
             },
             gpu_program::{GpuProgram, UniformLocation, UniformValue},
-            gpu_texture::{Coordinate, GpuTexture, GpuTextureKind, PixelKind, WrapMode},
-            state::State,
+            gpu_texture::{
+                Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
+                PixelKind, WrapMode,
+            },
+            state::PipelineState,
         },
-        GeometryCache, RenderPassStatistics, TextureCache,
+        GeometryCache, RenderPassStatistics,
     },
-    scene::{camera::Camera, graph::Graph, node::Node},
+    scene::camera::Camera,
 };
 use std::{cell::RefCell, rc::Rc};
 
-struct GBufferShader {
+struct InstancedShader {
+    program: GpuProgram,
+    use_skeletal_animation: UniformLocation,
+    diffuse_texture: UniformLocation,
+    normal_texture: UniformLocation,
+    specular_texture: UniformLocation,
+    roughness_texture: UniformLocation,
+    lightmap_texture: UniformLocation,
+    matrix_buffer_stride: UniformLocation,
+    matrix_storage_size: UniformLocation,
+    matrix_storage: UniformLocation,
+    environment_map: UniformLocation,
+    camera_position: UniformLocation,
+    view_projection_matrix: UniformLocation,
+}
+
+impl InstancedShader {
+    fn new() -> Result<Self, RendererError> {
+        let fragment_source = include_str!("shaders/gbuffer_fs_instanced.glsl");
+        let vertex_source = include_str!("shaders/gbuffer_vs_instanced.glsl");
+        let program =
+            GpuProgram::from_source("GBufferInstancedShader", vertex_source, fragment_source)?;
+        Ok(Self {
+            use_skeletal_animation: program.uniform_location("useSkeletalAnimation")?,
+            diffuse_texture: program.uniform_location("diffuseTexture")?,
+            normal_texture: program.uniform_location("normalTexture")?,
+            specular_texture: program.uniform_location("specularTexture")?,
+            roughness_texture: program.uniform_location("roughnessTexture")?,
+            lightmap_texture: program.uniform_location("lightmapTexture")?,
+            matrix_buffer_stride: program.uniform_location("matrixBufferStride")?,
+            matrix_storage_size: program.uniform_location("matrixStorageSize")?,
+            matrix_storage: program.uniform_location("matrixStorage")?,
+            environment_map: program.uniform_location("environmentMap")?,
+            camera_position: program.uniform_location("cameraPosition")?,
+            view_projection_matrix: program.uniform_location("viewProjectionMatrix")?,
+            program,
+        })
+    }
+}
+
+struct Shader {
     program: GpuProgram,
     world_matrix: UniformLocation,
     wvp_matrix: UniformLocation,
@@ -29,11 +74,15 @@ struct GBufferShader {
     bone_matrices: UniformLocation,
     diffuse_texture: UniformLocation,
     normal_texture: UniformLocation,
+    specular_texture: UniformLocation,
+    roughness_texture: UniformLocation,
     lightmap_texture: UniformLocation,
     diffuse_color: UniformLocation,
+    environment_map: UniformLocation,
+    camera_position: UniformLocation,
 }
 
-impl GBufferShader {
+impl Shader {
     fn new() -> Result<Self, RendererError> {
         let fragment_source = include_str!("shaders/gbuffer_fs.glsl");
         let vertex_source = include_str!("shaders/gbuffer_vs.glsl");
@@ -45,8 +94,12 @@ impl GBufferShader {
             bone_matrices: program.uniform_location("boneMatrices")?,
             diffuse_texture: program.uniform_location("diffuseTexture")?,
             normal_texture: program.uniform_location("normalTexture")?,
+            specular_texture: program.uniform_location("specularTexture")?,
+            roughness_texture: program.uniform_location("roughnessTexture")?,
             lightmap_texture: program.uniform_location("lightmapTexture")?,
             diffuse_color: program.uniform_location("diffuseColor")?,
+            environment_map: program.uniform_location("environmentMap")?,
+            camera_position: program.uniform_location("cameraPosition")?,
             program,
         })
     }
@@ -55,24 +108,30 @@ impl GBufferShader {
 pub struct GBuffer {
     framebuffer: FrameBuffer,
     pub final_frame: FrameBuffer,
-    shader: GBufferShader,
-    bone_matrices: Vec<Mat4>,
+    instanced_shader: InstancedShader,
+    shader: Shader,
     pub width: i32,
     pub height: i32,
+    matrix_storage: MatrixStorage,
+    instance_data_set: Vec<InstanceData>,
+    bone_matrices: Vec<Matrix4<f32>>,
 }
 
 pub(in crate) struct GBufferRenderContext<'a, 'b> {
-    pub state: &'a mut State,
-    pub graph: &'b Graph,
+    pub state: &'a mut PipelineState,
     pub camera: &'b Camera,
-    pub white_dummy: Rc<RefCell<GpuTexture>>,
-    pub normal_dummy: Rc<RefCell<GpuTexture>>,
-    pub texture_cache: &'a mut TextureCache,
     pub geom_cache: &'a mut GeometryCache,
+    pub batch_storage: &'a BatchStorage,
+    pub texture_cache: &'a mut TextureCache,
+    pub environment_dummy: Rc<RefCell<GpuTexture>>,
 }
 
 impl GBuffer {
-    pub fn new(state: &mut State, width: usize, height: usize) -> Result<Self, RendererError> {
+    pub fn new(
+        state: &mut PipelineState,
+        width: usize,
+        height: usize,
+    ) -> Result<Self, RendererError> {
         scope_profile!();
 
         let mut depth_stencil_texture = GpuTexture::new(
@@ -179,11 +238,14 @@ impl GBuffer {
 
         Ok(Self {
             framebuffer,
-            shader: GBufferShader::new()?,
-            bone_matrices: Vec::new(),
+            instanced_shader: InstancedShader::new()?,
+            shader: Shader::new()?,
             width: width as i32,
             height: height as i32,
             final_frame: opt_framebuffer,
+            matrix_storage: MatrixStorage::new(state)?,
+            instance_data_set: Default::default(),
+            bone_matrices: Default::default(),
         })
     }
 
@@ -215,12 +277,11 @@ impl GBuffer {
 
         let GBufferRenderContext {
             state,
-            graph,
             camera,
-            white_dummy,
-            normal_dummy,
-            texture_cache,
             geom_cache,
+            batch_storage,
+            texture_cache,
+            environment_dummy,
         } = args;
 
         let viewport = Rect::new(0, 0, self.width, self.height);
@@ -232,110 +293,235 @@ impl GBuffer {
             Some(0),
         );
 
+        let params = DrawParameters {
+            cull_face: CullFace::Back,
+            culling: true,
+            color_write: Default::default(),
+            depth_write: true,
+            stencil_test: false,
+            depth_test: true,
+            blend: false,
+        };
+
         let initial_view_projection = camera.view_projection_matrix();
 
-        for mesh in graph.pair_iter().filter_map(|(handle, node)| {
-            if let (Node::Mesh(mesh), true) = (node, camera.visibility_cache.is_visible(handle)) {
-                Some(mesh)
-            } else {
-                None
-            }
-        }) {
-            let view_projection = if mesh.depth_offset_factor() != 0.0 {
-                let mut projection = camera.projection_matrix();
-                projection.f[14] -= mesh.depth_offset_factor();
-                projection * camera.view_matrix()
-            } else {
-                initial_view_projection
+        for batch in batch_storage.batches.iter() {
+            let data = batch.data.read().unwrap();
+            let geometry = geom_cache.get(state, &data);
+
+            let environment = match camera.environment_ref() {
+                Some(texture) => texture_cache.get(state, texture.clone()).unwrap(),
+                None => environment_dummy.clone(),
             };
 
-            for surface in mesh.surfaces().iter() {
-                let is_skinned = !surface.bones.is_empty();
+            if batch.instances.len() == 1 {
+                // Draw single instances the usual way, there is no need to spend time to
+                // pass additional data via textures on GPU just to draw single instance.
 
-                let world = if is_skinned {
-                    Mat4::IDENTITY
-                } else {
-                    mesh.global_transform()
-                };
-                let mvp = view_projection * world;
+                let instance = batch.instances.first().unwrap();
+                if camera.visibility_cache.is_visible(instance.owner) {
+                    let view_projection = if instance.depth_offset != 0.0 {
+                        let mut projection = camera.projection_matrix();
+                        projection[14] -= instance.depth_offset;
+                        projection * camera.view_matrix()
+                    } else {
+                        initial_view_projection
+                    };
 
-                let diffuse_texture = surface
-                    .diffuse_texture()
-                    .and_then(|texture| texture_cache.get(state, texture))
-                    .unwrap_or_else(|| white_dummy.clone());
+                    statistics += self.framebuffer.draw(
+                        geometry,
+                        state,
+                        viewport,
+                        &self.shader.program,
+                        &params,
+                        &[
+                            (
+                                self.shader.diffuse_texture,
+                                UniformValue::Sampler {
+                                    index: 0,
+                                    texture: batch.diffuse_texture.clone(),
+                                },
+                            ),
+                            (
+                                self.shader.normal_texture,
+                                UniformValue::Sampler {
+                                    index: 1,
+                                    texture: batch.normal_texture.clone(),
+                                },
+                            ),
+                            (
+                                self.shader.specular_texture,
+                                UniformValue::Sampler {
+                                    index: 2,
+                                    texture: batch.specular_texture.clone(),
+                                },
+                            ),
+                            (
+                                self.shader.lightmap_texture,
+                                UniformValue::Sampler {
+                                    index: 3,
+                                    texture: batch.lightmap_texture.clone(),
+                                },
+                            ),
+                            (
+                                self.shader.camera_position,
+                                UniformValue::Vector3(camera.global_position()),
+                            ),
+                            (
+                                self.shader.environment_map,
+                                UniformValue::Sampler {
+                                    index: 4,
+                                    texture: environment.clone(),
+                                },
+                            ),
+                            (
+                                self.shader.roughness_texture,
+                                UniformValue::Sampler {
+                                    index: 5,
+                                    texture: batch.roughness_texture.clone(),
+                                },
+                            ),
+                            (
+                                self.shader.wvp_matrix,
+                                UniformValue::Matrix4(view_projection * instance.world_transform),
+                            ),
+                            (
+                                self.shader.world_matrix,
+                                UniformValue::Matrix4(instance.world_transform),
+                            ),
+                            (
+                                self.shader.use_skeletal_animation,
+                                UniformValue::Bool(batch.is_skinned),
+                            ),
+                            (
+                                self.shader.diffuse_color,
+                                UniformValue::Color(instance.color),
+                            ),
+                            (
+                                self.shader.bone_matrices,
+                                UniformValue::Mat4Array({
+                                    self.bone_matrices.clear();
+                                    self.bone_matrices
+                                        .extend_from_slice(instance.bone_matrices.as_slice());
+                                    &self.bone_matrices
+                                }),
+                            ),
+                        ],
+                    );
+                }
+            } else {
+                self.matrix_storage.clear();
+                self.instance_data_set.clear();
+                for instance in batch.instances.iter() {
+                    if camera.visibility_cache.is_visible(instance.owner) {
+                        self.instance_data_set.push(InstanceData {
+                            color: instance.color,
+                            world: instance.world_transform,
+                            depth_offset: instance.depth_offset,
+                        });
+                        self.matrix_storage
+                            .push_slice(instance.bone_matrices.as_slice());
+                    }
+                }
 
-                let normal_texture = surface
-                    .normal_texture()
-                    .and_then(|texture| texture_cache.get(state, texture))
-                    .unwrap_or_else(|| normal_dummy.clone());
+                if !self.instance_data_set.is_empty() {
+                    self.matrix_storage.update(state);
+                    geometry.set_buffer_data(state, 1, self.instance_data_set.as_slice());
 
-                let lightmap_texture = surface
-                    .lightmap_texture()
-                    .and_then(|texture| texture_cache.get(state, texture))
-                    .unwrap_or_else(|| white_dummy.clone());
-
-                statistics += self.framebuffer.draw(
-                    geom_cache.get(state, &surface.data().lock().unwrap()),
-                    state,
-                    viewport,
-                    &self.shader.program,
-                    DrawParameters {
-                        cull_face: CullFace::Back,
-                        culling: true,
-                        color_write: Default::default(),
-                        depth_write: true,
-                        stencil_test: false,
-                        depth_test: true,
-                        blend: false,
-                    },
-                    &[
-                        (
-                            self.shader.diffuse_texture,
-                            UniformValue::Sampler {
-                                index: 0,
-                                texture: diffuse_texture,
-                            },
-                        ),
-                        (
-                            self.shader.normal_texture,
-                            UniformValue::Sampler {
-                                index: 1,
-                                texture: normal_texture,
-                            },
-                        ),
-                        (
-                            self.shader.lightmap_texture,
-                            UniformValue::Sampler {
-                                index: 2,
-                                texture: lightmap_texture,
-                            },
-                        ),
-                        (self.shader.wvp_matrix, UniformValue::Mat4(mvp)),
-                        (self.shader.world_matrix, UniformValue::Mat4(world)),
-                        (
-                            self.shader.use_skeletal_animation,
-                            UniformValue::Bool(is_skinned),
-                        ),
-                        (
-                            self.shader.diffuse_color,
-                            UniformValue::Color(surface.color()),
-                        ),
-                        (
-                            self.shader.bone_matrices,
-                            UniformValue::Mat4Array({
-                                self.bone_matrices.clear();
-                                for &bone_handle in surface.bones.iter() {
-                                    let bone_node = &graph[bone_handle];
-                                    self.bone_matrices.push(
-                                        bone_node.global_transform()
-                                            * bone_node.inv_bind_pose_transform(),
-                                    );
-                                }
-                                &self.bone_matrices
-                            }),
-                        ),
-                    ],
-                );
+                    statistics += self.framebuffer.draw_instances(
+                        self.instance_data_set.len(),
+                        geometry,
+                        state,
+                        viewport,
+                        &self.instanced_shader.program,
+                        &params,
+                        &[
+                            (
+                                self.instanced_shader.diffuse_texture,
+                                UniformValue::Sampler {
+                                    index: 0,
+                                    texture: batch.diffuse_texture.clone(),
+                                },
+                            ),
+                            (
+                                self.instanced_shader.normal_texture,
+                                UniformValue::Sampler {
+                                    index: 1,
+                                    texture: batch.normal_texture.clone(),
+                                },
+                            ),
+                            (
+                                self.instanced_shader.specular_texture,
+                                UniformValue::Sampler {
+                                    index: 2,
+                                    texture: batch.specular_texture.clone(),
+                                },
+                            ),
+                            (
+                                self.instanced_shader.lightmap_texture,
+                                UniformValue::Sampler {
+                                    index: 3,
+                                    texture: batch.lightmap_texture.clone(),
+                                },
+                            ),
+                            (
+                                self.instanced_shader.camera_position,
+                                UniformValue::Vector3(camera.global_position()),
+                            ),
+                            (
+                                self.instanced_shader.environment_map,
+                                UniformValue::Sampler {
+                                    index: 4,
+                                    texture: environment.clone(),
+                                },
+                            ),
+                            (
+                                self.instanced_shader.roughness_texture,
+                                UniformValue::Sampler {
+                                    index: 5,
+                                    texture: batch.roughness_texture.clone(),
+                                },
+                            ),
+                            (
+                                self.instanced_shader.matrix_storage,
+                                UniformValue::Sampler {
+                                    index: 6,
+                                    texture: self.matrix_storage.matrices_storage.clone(),
+                                },
+                            ),
+                            (
+                                self.instanced_shader.use_skeletal_animation,
+                                UniformValue::Bool(batch.is_skinned),
+                            ),
+                            (
+                                self.instanced_shader.matrix_buffer_stride,
+                                UniformValue::Integer(BONE_MATRICES_COUNT as i32),
+                            ),
+                            (
+                                self.instanced_shader.matrix_storage_size,
+                                UniformValue::Vector4({
+                                    let kind = self.matrix_storage.matrices_storage.borrow().kind();
+                                    let (w, h) =
+                                        if let GpuTextureKind::Rectangle { width, height } = kind {
+                                            (width, height)
+                                        } else {
+                                            unreachable!()
+                                        };
+                                    Vector4::new(
+                                        1.0 / (w as f32),
+                                        1.0 / (h as f32),
+                                        w as f32,
+                                        h as f32,
+                                    )
+                                }),
+                            ),
+                            (
+                                self.instanced_shader.view_projection_matrix,
+                                UniformValue::Matrix4(camera.view_projection_matrix()),
+                            ),
+                        ],
+                    );
+                }
             }
         }
 

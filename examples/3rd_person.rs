@@ -27,8 +27,8 @@ extern crate rg3d;
 pub mod shared;
 
 use crate::shared::{create_ui, fix_shadows_distance, Game, GameScene};
+use rg3d::core::algebra::Vector2;
 use rg3d::{
-    core::math::vec2::Vec2,
     event::{Event, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
     gui::message::{MessageDirection, ProgressBarMessage, TextMessage, WidgetMessage},
@@ -44,7 +44,7 @@ fn main() {
     let screen_size = window.inner_size().to_logical(window.scale_factor());
     let interface = create_ui(
         &mut game.engine.user_interface.build_ctx(),
-        Vec2::new(screen_size.width, screen_size.height),
+        Vector2::new(screen_size.width, screen_size.height),
     );
 
     let clock = std::time::Instant::now();
@@ -125,12 +125,14 @@ fn main() {
                         game_scene.player.update(scene, fixed_timestep);
                     }
 
-                    let fps = game.engine.renderer.get_statistics().frames_per_second;
                     let debug_text = format!(
-                        "Example 03 - 3rd Person\n[W][S][A][D] - walk, [SPACE] - jump.\nFPS: {}\nUse [1][2][3][4] to select graphics quality.",
-                        fps
+                        "Example 03 - 3rd Person\n\
+                        [W][S][A][D] - walk, [SPACE] - jump.\n\
+                        Use [1][2][3][4] to select graphics quality.\n\
+                        {}",
+                        game.engine.renderer.get_statistics()
                     );
-                    game. engine.user_interface.send_message(TextMessage::text(
+                    game.engine.user_interface.send_message(TextMessage::text(
                         interface.debug_text,
                         MessageDirection::ToWidget,
                         debug_text,
@@ -172,16 +174,20 @@ fn main() {
                         // Root UI node should be resized too, otherwise progress bar will stay
                         // in wrong position after resize.
                         let size = size.to_logical(game.engine.get_window().scale_factor());
-                        game.engine.user_interface.send_message(WidgetMessage::width(
-                            interface.root,
-                            MessageDirection::ToWidget,
-                            size.width,
-                        ));
-                        game.engine.user_interface.send_message(WidgetMessage::height(
-                            interface.root,
-                            MessageDirection::ToWidget,
-                            size.height,
-                        ));
+                        game.engine
+                            .user_interface
+                            .send_message(WidgetMessage::width(
+                                interface.root,
+                                MessageDirection::ToWidget,
+                                size.width,
+                            ));
+                        game.engine
+                            .user_interface
+                            .send_message(WidgetMessage::height(
+                                interface.root,
+                                MessageDirection::ToWidget,
+                                size.height,
+                            ));
                     }
                     WindowEvent::KeyboardInput { input, .. } => {
                         if let Some(code) = input.virtual_keycode {
@@ -195,7 +201,7 @@ fn main() {
                                 VirtualKeyCode::Key2 => Some(QualitySettings::high()),
                                 VirtualKeyCode::Key3 => Some(QualitySettings::medium()),
                                 VirtualKeyCode::Key4 => Some(QualitySettings::low()),
-                                _ => None
+                                _ => None,
                             };
 
                             if let Some(settings) = settings {
@@ -218,7 +224,9 @@ fn main() {
             }
             Event::DeviceEvent { event, .. } => {
                 if let Some(game_scene) = game.game_scene.as_mut() {
-                    game_scene.player.handle_device_event(&event, fixed_timestep);
+                    game_scene
+                        .player
+                        .handle_device_event(&event, fixed_timestep);
                 }
             }
             _ => *control_flow = ControlFlow::Poll,

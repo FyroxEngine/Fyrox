@@ -2,6 +2,7 @@ use crate::border::BorderBuilder;
 use crate::brush::Brush;
 use crate::core::color::Color;
 use crate::decorator::DecoratorBuilder;
+use crate::utils::{make_arrow, ArrowDirection};
 use crate::{
     button::ButtonBuilder,
     core::pool::Handle,
@@ -14,7 +15,7 @@ use crate::{
     text_box::TextBoxBuilder,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Thickness, UserInterface,
-    VerticalAlignment,
+    VerticalAlignment, BRUSH_DARK, BRUSH_LIGHT,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -144,7 +145,7 @@ pub struct NumericUpDownBuilder<M: MessageData, C: Control<M, C>> {
 
 pub fn make_button<M: MessageData, C: Control<M, C>>(
     ctx: &mut BuildContext<M, C>,
-    text: &str,
+    arrow: ArrowDirection,
     row: usize,
 ) -> Handle<UINode<M, C>> {
     ButtonBuilder::new(
@@ -161,7 +162,7 @@ pub fn make_button<M: MessageData, C: Control<M, C>>(
         .with_pressed_brush(Brush::Solid(Color::opaque(80, 118, 178)))
         .build(ctx),
     )
-    .with_text(text)
+    .with_content(make_arrow(ctx, arrow, 6.0))
     .build(ctx)
 }
 
@@ -213,6 +214,14 @@ impl<M: MessageData, C: Control<M, C>> NumericUpDownBuilder<M, C> {
         let increase;
         let decrease;
         let field;
+        let back = BorderBuilder::new(
+            WidgetBuilder::new()
+                .with_background(BRUSH_DARK)
+                .with_foreground(BRUSH_LIGHT),
+        )
+        .with_stroke_thickness(Thickness::uniform(1.0))
+        .build(ctx);
+
         let grid = GridBuilder::new(
             WidgetBuilder::new()
                 .with_child({
@@ -229,11 +238,11 @@ impl<M: MessageData, C: Control<M, C>> NumericUpDownBuilder<M, C> {
                         WidgetBuilder::new()
                             .on_column(1)
                             .with_child({
-                                increase = make_button(ctx, "^", 0);
+                                increase = make_button(ctx, ArrowDirection::Top, 0);
                                 increase
                             })
                             .with_child({
-                                decrease = make_button(ctx, "v", 1);
+                                decrease = make_button(ctx, ArrowDirection::Bottom, 1);
                                 decrease
                             }),
                     )
@@ -248,8 +257,10 @@ impl<M: MessageData, C: Control<M, C>> NumericUpDownBuilder<M, C> {
         .add_column(Column::auto())
         .build(ctx);
 
+        ctx.link(grid, back);
+
         let node = NumericUpDown {
-            widget: self.widget_builder.with_child(grid).build(),
+            widget: self.widget_builder.with_child(back).build(),
             increase,
             decrease,
             field,

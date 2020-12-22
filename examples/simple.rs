@@ -12,8 +12,8 @@ use crate::shared::create_camera;
 use rg3d::{
     animation::Animation,
     core::{
+        algebra::{Matrix4, UnitQuaternion, Vector3},
         color::Color,
-        math::{mat4::Mat4, quat::Quat, vec3::Vec3},
         pool::Handle,
     },
     engine::resource_manager::ResourceManager,
@@ -30,7 +30,7 @@ use rg3d::{
     utils::translate_event,
 };
 use std::{
-    sync::{Arc, Mutex},
+    sync::{Arc, RwLock},
     time::Instant,
 };
 
@@ -54,9 +54,12 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     let mut scene = Scene::new();
 
     // Camera is our eyes in the world - you won't see anything without it.
-    let camera = create_camera(resource_manager.clone(), Vec3::new(0.0, 6.0, -12.0)).await;
-
-    scene.graph.add_node(Node::Camera(camera));
+    let camera = create_camera(
+        resource_manager.clone(),
+        Vector3::new(0.0, 6.0, -12.0),
+        &mut scene.graph,
+    )
+    .await;
 
     // Load model and animation resource in parallel. Is does *not* adds anything to
     // our scene - it just loads a resource then can be used later on to instantiate
@@ -78,7 +81,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     scene.graph[model_handle]
         .local_transform_mut()
         // Our model is too big, fix it by scale.
-        .set_scale(Vec3::new(0.05, 0.05, 0.05));
+        .set_scale(Vector3::new(0.05, 0.05, 0.05));
 
     // Add simple animation for our model. Animations are loaded from model resources -
     // this is because animation is a set of skeleton bones with their own transforms.
@@ -92,21 +95,22 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
         .get(0)
         .unwrap();
 
-    scene.graph.add_node(
-        MeshBuilder::new(
-            BaseBuilder::new().with_local_transform(
-                TransformBuilder::new()
-                    .with_local_position(Vec3::new(0.0, -0.25, 0.0))
-                    .build(),
-            ),
-        )
-        .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
-            SurfaceSharedData::make_cube(Mat4::scale(Vec3::new(25.0, 0.25, 25.0))),
-        )))
-        .with_diffuse_texture(resource_manager.request_texture("examples/data/concrete2.dds"))
-        .build()])
-        .build_node(),
-    );
+    // Add floor.
+    MeshBuilder::new(
+        BaseBuilder::new().with_local_transform(
+            TransformBuilder::new()
+                .with_local_position(Vector3::new(0.0, -0.25, 0.0))
+                .build(),
+        ),
+    )
+    .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
+        SurfaceSharedData::make_cube(Matrix4::new_nonuniform_scaling(&Vector3::new(
+            25.0, 0.25, 25.0,
+        ))),
+    )))
+    .with_diffuse_texture(resource_manager.request_texture("examples/data/concrete2.dds"))
+    .build()])
+    .build(&mut scene.graph);
 
     GameScene {
         scene,
@@ -127,7 +131,7 @@ fn main() {
         .with_title("Example - Model")
         .with_resizable(true);
 
-    let mut engine = GameEngine::new(window_builder, &event_loop).unwrap();
+    let mut engine = GameEngine::new(window_builder, &event_loop, true).unwrap();
 
     // Prepare resource manager - it must be notified where to search textures. When engine
     // loads model resource it automatically tries to load textures it uses. But since most
@@ -210,7 +214,10 @@ fn main() {
 
                     scene.graph[model_handle]
                         .local_transform_mut()
-                        .set_rotation(Quat::from_axis_angle(Vec3::new(0.0, 1.0, 0.0), model_angle));
+                        .set_rotation(UnitQuaternion::from_axis_angle(
+                            &Vector3::y_axis(),
+                            model_angle,
+                        ));
 
                     let fps = engine.renderer.get_statistics().frames_per_second;
                     let text = format!(

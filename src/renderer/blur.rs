@@ -1,7 +1,7 @@
-use crate::renderer::framework::gpu_texture::{MagnificationFilter, MinificationFilter};
 use crate::{
     core::{
-        math::{mat4::Mat4, vec3::Vec3, Rect},
+        algebra::{Matrix4, Vector3},
+        math::Rect,
         scope_profile,
     },
     renderer::{
@@ -11,8 +11,11 @@ use crate::{
                 Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer, FrameBufferTrait,
             },
             gpu_program::{GpuProgram, UniformLocation, UniformValue},
-            gpu_texture::{Coordinate, GpuTexture, GpuTextureKind, PixelKind, WrapMode},
-            state::State,
+            gpu_texture::{
+                Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
+                PixelKind, WrapMode,
+            },
+            state::PipelineState,
         },
         surface::SurfaceSharedData,
         GeometryCache,
@@ -49,7 +52,11 @@ pub struct Blur {
 }
 
 impl Blur {
-    pub fn new(state: &mut State, width: usize, height: usize) -> Result<Self, RendererError> {
+    pub fn new(
+        state: &mut PipelineState,
+        width: usize,
+        height: usize,
+    ) -> Result<Self, RendererError> {
         let frame = {
             let kind = GpuTextureKind::Rectangle { width, height };
             let mut texture = GpuTexture::new(
@@ -90,7 +97,7 @@ impl Blur {
 
     pub(in crate) fn render(
         &mut self,
-        state: &mut State,
+        state: &mut PipelineState,
         geom_cache: &mut GeometryCache,
         input: Rc<RefCell<GpuTexture>>,
     ) {
@@ -103,7 +110,7 @@ impl Blur {
             state,
             viewport,
             &self.shader.program,
-            DrawParameters {
+            &DrawParameters {
                 cull_face: CullFace::Back,
                 culling: false,
                 color_write: Default::default(),
@@ -115,9 +122,19 @@ impl Blur {
             &[
                 (
                     self.shader.world_view_projection_matrix,
-                    UniformValue::Mat4(
-                        Mat4::ortho(0.0, viewport.w as f32, viewport.h as f32, 0.0, -1.0, 1.0)
-                            * Mat4::scale(Vec3::new(viewport.w as f32, viewport.h as f32, 0.0)),
+                    UniformValue::Matrix4(
+                        Matrix4::new_orthographic(
+                            0.0,
+                            viewport.w() as f32,
+                            viewport.h() as f32,
+                            0.0,
+                            -1.0,
+                            1.0,
+                        ) * Matrix4::new_nonuniform_scaling(&Vector3::new(
+                            viewport.w() as f32,
+                            viewport.h() as f32,
+                            0.0,
+                        )),
                     ),
                 ),
                 (

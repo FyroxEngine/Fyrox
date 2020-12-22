@@ -1,11 +1,9 @@
 #![allow(clippy::reversed_empty_ranges)]
 
+use crate::core::algebra::Vector2;
 use crate::message::MessageData;
 use crate::{
-    core::{
-        math::{vec2::Vec2, Rect},
-        pool::Handle,
-    },
+    core::{math::Rect, pool::Handle},
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Orientation, UINode, UserInterface,
@@ -61,9 +59,13 @@ impl Default for Line {
 }
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for WrapPanel<M, C> {
-    fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
-        let mut measured_size = Vec2::ZERO;
-        let mut line_size = Vec2::ZERO;
+    fn measure_override(
+        &self,
+        ui: &UserInterface<M, C>,
+        available_size: Vector2<f32>,
+    ) -> Vector2<f32> {
+        let mut measured_size: Vector2<f32> = Vector2::default();
+        let mut line_size = Vector2::default();
         for child_handle in self.widget.children() {
             let child = ui.node(*child_handle);
             child.measure(ui, available_size);
@@ -74,7 +76,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for WrapPanel<M, C> {
                         // Commit column.
                         measured_size.y = measured_size.y.max(line_size.y);
                         measured_size.x += line_size.x;
-                        line_size = Vec2::ZERO;
+                        line_size = Vector2::default();
                     } else {
                         line_size.x = line_size.x.max(desired.x);
                         line_size.y += desired.y;
@@ -85,10 +87,10 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for WrapPanel<M, C> {
                         // Commit row.
                         measured_size.x = measured_size.x.max(line_size.x);
                         measured_size.y += line_size.y;
-                        line_size = Vec2::ZERO;
+                        line_size = Vector2::default();
                     } else {
                         line_size.x += desired.x;
-                        line_size.y = line_size.y.max(desired.x);
+                        line_size.y = line_size.y.max(desired.y);
                     }
                 }
             }
@@ -109,7 +111,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for WrapPanel<M, C> {
         measured_size
     }
 
-    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
+    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
         // First pass - arrange lines.
         let mut lines = self.lines.borrow_mut();
         lines.clear();
@@ -119,38 +121,38 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for WrapPanel<M, C> {
             let desired = child.desired_size();
             match self.orientation {
                 Orientation::Vertical => {
-                    if line.bounds.h + desired.y > final_size.y {
+                    if line.bounds.h() + desired.y > final_size.y {
                         // Commit column.
                         lines.push(line.clone());
                         // Advance column.
-                        line.bounds.x += line.bounds.w;
-                        line.bounds.y = 0.0;
-                        line.bounds.w = desired.x;
-                        line.bounds.h = desired.y;
+                        line.bounds.position.x += line.bounds.w();
+                        line.bounds.position.y = 0.0;
+                        line.bounds.size.x = desired.x;
+                        line.bounds.size.y = desired.y;
                         // Reset children.
                         line.children.start = line.children.end;
                         line.children.end = line.children.start + 1;
                     } else {
-                        line.bounds.h += desired.y;
-                        line.bounds.w = line.bounds.w.max(desired.x);
+                        line.bounds.size.y += desired.y;
+                        line.bounds.size.x = line.bounds.w().max(desired.x);
                         line.children.end += 1;
                     }
                 }
                 Orientation::Horizontal => {
-                    if line.bounds.w + desired.x > final_size.x {
+                    if line.bounds.w() + desired.x > final_size.x {
                         // Commit row.
                         lines.push(line.clone());
                         // Advance row.
-                        line.bounds.x = 0.0;
-                        line.bounds.y += line.bounds.h;
-                        line.bounds.w = desired.x;
-                        line.bounds.h = desired.y;
+                        line.bounds.position.x = 0.0;
+                        line.bounds.position.y += line.bounds.h();
+                        line.bounds.size.x = desired.x;
+                        line.bounds.size.y = desired.y;
                         // Reset children.
                         line.children.start = line.children.end;
                         line.children.end = line.children.start + 1;
                     } else {
-                        line.bounds.w += desired.x;
-                        line.bounds.h = line.bounds.h.max(desired.y);
+                        line.bounds.size.x += desired.x;
+                        line.bounds.size.y = line.bounds.h().max(desired.y);
                         line.children.end += 1;
                     }
                 }
@@ -161,31 +163,23 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for WrapPanel<M, C> {
         lines.push(line);
 
         // Second pass - arrange children of lines.
-        let mut full_size = Vec2::ZERO;
+        let mut full_size = Vector2::default();
         for line in lines.iter() {
-            let mut cursor = Vec2::from(line.bounds.position());
+            let mut cursor = line.bounds.position;
             for child_index in line.children.clone() {
                 let child_handle = self.children()[child_index];
                 let child = ui.node(child_handle);
                 let desired = child.desired_size();
                 match self.orientation {
                     Orientation::Vertical => {
-                        let child_bounds = Rect {
-                            x: line.bounds.x,
-                            y: cursor.y,
-                            w: line.bounds.w,
-                            h: desired.y,
-                        };
+                        let child_bounds =
+                            Rect::new(line.bounds.x(), cursor.y, line.bounds.w(), desired.y);
                         child.arrange(ui, &child_bounds);
                         cursor.y += desired.y;
                     }
                     Orientation::Horizontal => {
-                        let child_bounds = Rect {
-                            x: cursor.x,
-                            y: line.bounds.y,
-                            w: desired.x,
-                            h: line.bounds.h,
-                        };
+                        let child_bounds =
+                            Rect::new(cursor.x, line.bounds.y(), desired.x, line.bounds.h());
                         child.arrange(ui, &child_bounds);
                         cursor.x += desired.x;
                     }
@@ -193,12 +187,12 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for WrapPanel<M, C> {
             }
             match self.orientation {
                 Orientation::Vertical => {
-                    full_size.x += line.bounds.w;
-                    full_size.y = final_size.y.max(line.bounds.h);
+                    full_size.x += line.bounds.w();
+                    full_size.y = final_size.y.max(line.bounds.h());
                 }
                 Orientation::Horizontal => {
-                    full_size.x = final_size.x.max(line.bounds.w);
-                    full_size.y += line.bounds.h;
+                    full_size.x = final_size.x.max(line.bounds.w());
+                    full_size.y += line.bounds.h();
                 }
             }
         }

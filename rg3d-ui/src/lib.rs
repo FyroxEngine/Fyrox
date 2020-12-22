@@ -23,6 +23,7 @@ pub mod decorator;
 pub mod dock;
 pub mod draw;
 pub mod dropdown_list;
+pub mod expander;
 pub mod file_browser;
 pub mod formatted_text;
 pub mod grid;
@@ -44,17 +45,20 @@ pub mod text;
 pub mod text_box;
 pub mod tree;
 pub mod ttf;
+pub mod utils;
 pub mod vec;
+pub mod vector_image;
 pub mod widget;
 pub mod window;
 pub mod wrap_panel;
 
+use crate::core::algebra::Vector2;
 use crate::{
     brush::Brush,
     canvas::Canvas,
     core::{
         color::Color,
-        math::{vec2::Vec2, Rect},
+        math::Rect,
         pool::{Handle, Pool},
         scope_profile,
     },
@@ -67,16 +71,42 @@ use crate::{
     ttf::{Font, SharedFont},
     widget::{Widget, WidgetBuilder},
 };
-use std::cell::Cell;
-use std::fmt::Debug;
+use rg3d_core::math::clampf;
 use std::{
+    cell::Cell,
     collections::{HashMap, VecDeque},
+    fmt::Debug,
     ops::{Deref, DerefMut, Index, IndexMut},
     sync::{
         mpsc::{self, Receiver, Sender, TryRecvError},
         Arc, Mutex,
     },
 };
+
+// TODO: Make this part of UserInterface struct.
+pub const COLOR_DARKEST: Color = Color::opaque(20, 20, 20);
+pub const COLOR_DARKER: Color = Color::opaque(30, 30, 30);
+pub const COLOR_DARK: Color = Color::opaque(40, 40, 40);
+pub const COLOR_PRIMARY: Color = Color::opaque(50, 50, 50);
+pub const COLOR_LIGHT: Color = Color::opaque(65, 65, 65);
+pub const COLOR_LIGHTER: Color = Color::opaque(80, 80, 80);
+pub const COLOR_LIGHTEST: Color = Color::opaque(95, 95, 95);
+pub const COLOR_BRIGHT: Color = Color::opaque(130, 130, 130);
+pub const COLOR_BRIGHT_BLUE: Color = Color::opaque(80, 118, 178);
+pub const COLOR_TEXT: Color = Color::opaque(220, 220, 220);
+pub const COLOR_FOREGROUND: Color = Color::WHITE;
+
+pub const BRUSH_DARKEST: Brush = Brush::Solid(COLOR_DARKEST);
+pub const BRUSH_DARKER: Brush = Brush::Solid(COLOR_DARKER);
+pub const BRUSH_DARK: Brush = Brush::Solid(COLOR_DARK);
+pub const BRUSH_PRIMARY: Brush = Brush::Solid(COLOR_PRIMARY);
+pub const BRUSH_LIGHT: Brush = Brush::Solid(COLOR_LIGHT);
+pub const BRUSH_LIGHTER: Brush = Brush::Solid(COLOR_LIGHTER);
+pub const BRUSH_LIGHTEST: Brush = Brush::Solid(COLOR_LIGHTEST);
+pub const BRUSH_BRIGHT: Brush = Brush::Solid(COLOR_BRIGHT);
+pub const BRUSH_BRIGHT_BLUE: Brush = Brush::Solid(COLOR_BRIGHT_BLUE);
+pub const BRUSH_TEXT: Brush = Brush::Solid(COLOR_TEXT);
+pub const BRUSH_FOREGROUND: Brush = Brush::Solid(COLOR_FOREGROUND);
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum HorizontalAlignment {
@@ -169,13 +199,13 @@ impl Thickness {
         }
     }
 
-    pub fn offset(&self) -> Vec2 {
-        Vec2::new(self.left, self.top)
+    pub fn offset(&self) -> Vector2<f32> {
+        Vector2::new(self.left, self.top)
     }
 
     /// Returns margin for each axis.
-    pub fn axes_margin(&self) -> Vec2 {
-        Vec2::new(self.left + self.right, self.top + self.bottom)
+    pub fn axes_margin(&self) -> Vector2<f32> {
+        Vector2::new(self.left + self.right, self.top + self.bottom)
     }
 }
 
@@ -227,13 +257,17 @@ where
 {
     fn resolve(&mut self, _node_map: &NodeHandleMapping<M, C>) {}
 
-    fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
+    fn measure_override(
+        &self,
+        ui: &UserInterface<M, C>,
+        available_size: Vector2<f32>,
+    ) -> Vector2<f32> {
         scope_profile!();
 
         self.deref().measure_override(ui, available_size)
     }
 
-    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
+    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
 
         self.deref().arrange_override(ui, final_size)
@@ -251,7 +285,10 @@ where
 
             let margin = self.margin().axes_margin();
 
-            let mut size = (Vec2::from(final_rect.size()) - margin).max(Vec2::ZERO);
+            let mut size = Vector2::new(
+                (final_rect.w() - margin.x).max(0.0),
+                (final_rect.h() - margin.y).max(0.0),
+            );
 
             let available_size = size;
 
@@ -269,11 +306,12 @@ where
                 size.y = self.height();
             }
 
-            size = self
-                .arrange_override(ui, size)
-                .min(final_rect.size().into());
+            size = self.arrange_override(ui, size);
 
-            let mut origin = Vec2::from(final_rect.position()) + self.margin().offset();
+            size.x = size.x.min(final_rect.w());
+            size.y = size.y.min(final_rect.h());
+
+            let mut origin = final_rect.position + self.margin().offset();
 
             match self.horizontal_alignment() {
                 HorizontalAlignment::Center | HorizontalAlignment::Stretch => {
@@ -323,7 +361,7 @@ where
         valid
     }
 
-    fn measure(&self, ui: &UserInterface<M, C>, available_size: Vec2) {
+    fn measure(&self, ui: &UserInterface<M, C>, available_size: Vector2<f32>) {
         scope_profile!();
 
         if self.is_measure_valid(ui) && self.prev_measure.get() == available_size {
@@ -334,9 +372,11 @@ where
             self.prev_measure.set(available_size);
 
             let axes_margin = self.margin().axes_margin();
-            let inner_size = (available_size - axes_margin).max(Vec2::ZERO);
+            let mut inner_size = available_size - axes_margin;
+            inner_size.x = inner_size.x.max(0.0);
+            inner_size.y = inner_size.y.max(0.0);
 
-            let size = Vec2::new(
+            let mut size = Vector2::new(
                 if self.width() > 0.0 {
                     self.width()
                 } else {
@@ -347,9 +387,10 @@ where
                 } else {
                     inner_size.y
                 },
-            )
-            .min(self.max_size())
-            .max(self.min_size());
+            );
+
+            size.x = clampf(size.x, self.min_size().x, self.max_size().x);
+            size.y = clampf(size.y, self.min_size().y, self.max_size().y);
 
             let mut desired_size = self.measure_override(ui, size);
 
@@ -360,12 +401,17 @@ where
                 desired_size.y = self.height();
             }
 
-            desired_size = desired_size.min(self.max_size()).max(self.min_size());
-            desired_size = (desired_size + axes_margin).min(available_size);
+            desired_size.x = clampf(desired_size.x, self.min_size().x, self.max_size().x);
+            desired_size.y = clampf(desired_size.y, self.min_size().y, self.max_size().y);
+
+            desired_size += axes_margin;
+
+            desired_size.x = desired_size.x.min(available_size.x);
+            desired_size.y = desired_size.y.min(available_size.y);
 
             self.commit_measure(desired_size);
         } else {
-            self.commit_measure(Vec2::new(0.0, 0.0));
+            self.commit_measure(Vector2::new(0.0, 0.0));
         }
     }
 
@@ -420,7 +466,7 @@ where
 pub struct DragContext<M: MessageData, C: Control<M, C>> {
     is_dragging: bool,
     drag_node: Handle<UINode<M, C>>,
-    click_pos: Vec2,
+    click_pos: Vector2<f32>,
 }
 
 impl<M: MessageData, C: Control<M, C>> Default for DragContext<M, C> {
@@ -428,7 +474,7 @@ impl<M: MessageData, C: Control<M, C>> Default for DragContext<M, C> {
         Self {
             is_dragging: false,
             drag_node: Default::default(),
-            click_pos: Default::default(),
+            click_pos: Vector2::new(0.0, 0.0),
         }
     }
 }
@@ -501,7 +547,7 @@ pub struct RestrictionEntry<M: MessageData, C: Control<M, C>> {
 }
 
 pub struct UserInterface<M: MessageData, C: Control<M, C>> {
-    screen_size: Vec2,
+    screen_size: Vector2<f32>,
     nodes: Pool<UINode<M, C>>,
     drawing_context: DrawingContext,
     visual_debug: bool,
@@ -510,7 +556,7 @@ pub struct UserInterface<M: MessageData, C: Control<M, C>> {
     prev_picked_node: Handle<UINode<M, C>>,
     captured_node: Handle<UINode<M, C>>,
     keyboard_focus_node: Handle<UINode<M, C>>,
-    cursor_position: Vec2,
+    cursor_position: Vector2<f32>,
     receiver: Receiver<UiMessage<M, C>>,
     sender: Sender<UiMessage<M, C>>,
     stack: Vec<Handle<UINode<M, C>>>,
@@ -560,6 +606,11 @@ fn draw_node<M: MessageData, C: Control<M, C>>(
     let start_index = drawing_context.get_commands().len();
     drawing_context.set_nesting(nesting);
     drawing_context.commit_clip_rect(&bounds.inflate(0.9, 0.9));
+    drawing_context.push_opacity(if is_node_enabled(nodes, node_handle) {
+        1.0
+    } else {
+        0.4
+    });
 
     node.draw(drawing_context);
 
@@ -576,11 +627,30 @@ fn draw_node<M: MessageData, C: Control<M, C>>(
         }
     }
 
+    drawing_context.pop_opacity();
     drawing_context.revert_clip_geom();
 }
 
+fn is_node_enabled<M: MessageData, C: Control<M, C>>(
+    nodes: &Pool<UINode<M, C>>,
+    handle: Handle<UINode<M, C>>,
+) -> bool {
+    let root_node = &nodes[handle];
+    let mut enabled = root_node.enabled();
+    let mut parent = root_node.parent();
+    while parent.is_some() {
+        let node = &nodes[parent];
+        if !node.enabled() {
+            enabled = false;
+            break;
+        }
+        parent = node.parent();
+    }
+    enabled
+}
+
 impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
-    pub fn new(screen_size: Vec2) -> UserInterface<M, C> {
+    pub fn new(screen_size: Vector2<f32>) -> UserInterface<M, C> {
         let (sender, receiver) = mpsc::channel();
         let mut ui = UserInterface {
             screen_size,
@@ -590,7 +660,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
             captured_node: Handle::NONE,
             root_canvas: Handle::NONE,
             nodes: Pool::new(),
-            cursor_position: Vec2::ZERO,
+            cursor_position: Vector2::new(0.0, 0.0),
             drawing_context: DrawingContext::new(),
             picked_node: Handle::NONE,
             prev_picked_node: Handle::NONE,
@@ -640,6 +710,10 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         &mut self.drawing_context
     }
 
+    pub fn is_node_enabled(&self, handle: Handle<UINode<M, C>>) -> bool {
+        is_node_enabled(&self.nodes, handle)
+    }
+
     fn update_visibility(&mut self) {
         scope_profile!();
 
@@ -679,11 +753,11 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         }
     }
 
-    pub fn screen_size(&self) -> Vec2 {
+    pub fn screen_size(&self) -> Vector2<f32> {
         self.screen_size
     }
 
-    pub fn update(&mut self, screen_size: Vec2, dt: f32) {
+    pub fn update(&mut self, screen_size: Vector2<f32>, dt: f32) {
         scope_profile!();
 
         self.screen_size = screen_size;
@@ -691,8 +765,8 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
 
         for n in self.nodes.iter() {
             if !n.is_globally_visible() && n.prev_global_visibility == n.is_globally_visible() {
-                n.commit_measure(Vec2::ZERO);
-                n.commit_arrange(Vec2::ZERO, Vec2::ZERO);
+                n.commit_measure(Vector2::default());
+                n.commit_arrange(Vector2::new(0.0, 0.0), Vector2::default());
             }
         }
 
@@ -779,7 +853,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         &self.drawing_context
     }
 
-    fn is_node_clipped(&self, node_handle: Handle<UINode<M, C>>, pt: Vec2) -> bool {
+    fn is_node_clipped(&self, node_handle: Handle<UINode<M, C>>, pt: Vector2<f32>) -> bool {
         scope_profile!();
 
         let mut clipped = true;
@@ -808,7 +882,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         clipped
     }
 
-    fn is_node_contains_point(&self, node_handle: Handle<UINode<M, C>>, pt: Vec2) -> bool {
+    fn is_node_contains_point(&self, node_handle: Handle<UINode<M, C>>, pt: Vector2<f32>) -> bool {
         scope_profile!();
 
         let widget = self.nodes.borrow(node_handle);
@@ -835,7 +909,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
     fn pick_node(
         &self,
         node_handle: Handle<UINode<M, C>>,
-        pt: Vec2,
+        pt: Vector2<f32>,
         level: &mut i32,
     ) -> Handle<UINode<M, C>> {
         scope_profile!();
@@ -865,11 +939,11 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         picked
     }
 
-    pub fn cursor_position(&self) -> Vec2 {
+    pub fn cursor_position(&self) -> Vector2<f32> {
         self.cursor_position
     }
 
-    pub fn hit_test(&self, pt: Vec2) -> Handle<UINode<M, C>> {
+    pub fn hit_test(&self, pt: Vector2<f32>) -> Handle<UINode<M, C>> {
         scope_profile!();
 
         if self.nodes.is_valid_handle(self.captured_node) {
@@ -1335,7 +1409,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
                     && self.mouse_state.left == ButtonState::Pressed
                     && self.picked_node.is_some()
                     && self.drag_context.drag_node.is_some()
-                    && (self.drag_context.click_pos - *position).len() > 5.0
+                    && (self.drag_context.click_pos - *position).norm() > 5.0
                 {
                     self.drag_context.is_dragging = true;
 
@@ -1616,7 +1690,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
 mod test {
     use crate::{
         border::BorderBuilder,
-        core::math::vec2::Vec2,
+        core::math::vec2::Vector2,
         message::{MessageDirection, WidgetMessage},
         node::StubNode,
         widget::WidgetBuilder,
@@ -1625,8 +1699,8 @@ mod test {
 
     #[test]
     fn center() {
-        let screen_size = Vec2::new(1000.0, 1000.0);
-        let widget_size = Vec2::new(100.0, 100.0);
+        let screen_size = Vector2::new(1000.0, 1000.0);
+        let widget_size = Vector2::new(100.0, 100.0);
         let mut ui = UserInterface::<(), StubNode>::new(screen_size);
         let widget = BorderBuilder::new(
             WidgetBuilder::new()

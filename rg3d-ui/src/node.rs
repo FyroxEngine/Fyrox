@@ -4,15 +4,12 @@ use crate::{
     canvas::Canvas,
     check_box::CheckBox,
     color::{AlphaBar, ColorField, ColorPicker, HueBar, SaturationBrightnessField},
-    core::{
-        define_is_as,
-        math::{vec2::Vec2, Rect},
-        pool::Handle,
-    },
+    core::{algebra::Vector2, define_is_as, math::Rect, pool::Handle},
     decorator::Decorator,
     dock::{DockingManager, Tile},
     draw::DrawingContext,
     dropdown_list::DropdownList,
+    expander::Expander,
     file_browser::{FileBrowser, FileSelector},
     grid::Grid,
     image::Image,
@@ -32,6 +29,7 @@ use crate::{
     text_box::TextBox,
     tree::{Tree, TreeRoot},
     vec::Vec3Editor,
+    vector_image::VectorImage,
     widget::Widget,
     window::Window,
     wrap_panel::WrapPanel,
@@ -78,6 +76,8 @@ pub enum UINode<M: MessageData, C: Control<M, C>> {
     MenuItem(MenuItem<M, C>),
     MessageBox(MessageBox<M, C>),
     WrapPanel(WrapPanel<M, C>),
+    VectorImage(VectorImage<M, C>),
+    Expander(Expander<M, C>),
     User(C),
 }
 
@@ -121,6 +121,8 @@ macro_rules! static_dispatch {
             UINode::MenuItem(v) => v.$func($($args),*),
             UINode::MessageBox(v) => v.$func($($args),*),
             UINode::WrapPanel(v) => v.$func($($args),*),
+            UINode::VectorImage(v) => v.$func($($args),*),
+            UINode::Expander(v) => v.$func($($args),*),
             UINode::User(v) => v.$func($($args),*),
         }
     };
@@ -160,7 +162,7 @@ impl<M: MessageData, C: Control<M, C>> UINode<M, C> {
     define_is_as!(UINode : Window -> ref Window<M, C> => fn is_window, fn as_window, fn as_window_mut);
     define_is_as!(UINode : Popup -> ref Popup<M, C> => fn is_popup, fn as_popup, fn as_popup_mut);
     define_is_as!(UINode : DropdownList -> ref DropdownList<M, C> => fn is_dropdown_list, fn as_dropdown_list, fn as_dropdown_list_mut);
-    define_is_as!(UINode : ListView -> ref ListView<M, C> => fn is_list_view, fn as_list_view_list, fn as_list_view_mut);
+    define_is_as!(UINode : ListView -> ref ListView<M, C> => fn is_list_view, fn as_list_view, fn as_list_view_mut);
     define_is_as!(UINode : ListViewItem -> ref ListViewItem<M, C> => fn is_list_view_item, fn as_list_view_item, fn as_list_view_item_mut);
     define_is_as!(UINode : ProgressBar -> ref ProgressBar<M, C> => fn is_progress_bar, fn as_progress_bar, fn as_progress_bar_mut);
     define_is_as!(UINode : Decorator -> ref Decorator<M, C> => fn is_decorator, fn as_decorator, fn as_decorator_mut);
@@ -176,6 +178,8 @@ impl<M: MessageData, C: Control<M, C>> UINode<M, C> {
     define_is_as!(UINode : MenuItem -> ref MenuItem<M, C> => fn is_menu_item, fn as_menu_item, fn as_menu_item_mut);
     define_is_as!(UINode : MessageBox -> ref MessageBox<M, C> => fn is_message_box, fn as_message_box, fn as_message_box_mut);
     define_is_as!(UINode : WrapPanel -> ref WrapPanel<M, C> => fn is_wrap_panel, fn as_wrap_panel, fn as_wrap_panel_mut);
+    define_is_as!(UINode : VectorImage -> ref VectorImage<M, C> => fn is_vector_image, fn as_vector_image, fn as_vector_image_mut);
+    define_is_as!(UINode : Expander -> ref Expander<M, C> => fn is_expander, fn as_expander, fn as_expander_mut);
     define_is_as!(UINode : User -> ref C => fn is_user, fn as_user, fn as_user_mut);
 }
 
@@ -184,11 +188,15 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for UINode<M, C> {
         static_dispatch!(self, resolve, node_map);
     }
 
-    fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
+    fn measure_override(
+        &self,
+        ui: &UserInterface<M, C>,
+        available_size: Vector2<f32>,
+    ) -> Vector2<f32> {
         static_dispatch!(self, measure_override, ui, available_size)
     }
 
-    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
+    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
         static_dispatch!(self, arrange_override, ui, final_size)
     }
 
@@ -196,7 +204,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for UINode<M, C> {
         static_dispatch!(self, arrange, ui, final_rect)
     }
 
-    fn measure(&self, ui: &UserInterface<M, C>, available_size: Vec2) {
+    fn measure(&self, ui: &UserInterface<M, C>, available_size: Vector2<f32>) {
         static_dispatch!(self, measure, ui, available_size)
     }
 

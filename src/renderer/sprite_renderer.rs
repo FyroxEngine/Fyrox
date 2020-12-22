@@ -1,5 +1,5 @@
 use crate::{
-    core::{math::Rect, scope_profile},
+    core::{math::Matrix4Ext, math::Rect, scope_profile},
     renderer::{
         error::RendererError,
         framework::{
@@ -7,7 +7,7 @@ use crate::{
             gl,
             gpu_program::{GpuProgram, UniformLocation, UniformValue},
             gpu_texture::GpuTexture,
-            state::State,
+            state::PipelineState,
         },
         surface::SurfaceSharedData,
         GeometryCache, RenderPassStatistics, TextureCache,
@@ -53,7 +53,7 @@ pub struct SpriteRenderer {
 }
 
 pub(in crate) struct SpriteRenderContext<'a, 'b, 'c> {
-    pub state: &'a mut State,
+    pub state: &'a mut PipelineState,
     pub framebuffer: &'b mut FrameBuffer,
     pub graph: &'c Graph,
     pub camera: &'c Camera,
@@ -119,7 +119,7 @@ impl SpriteRenderer {
                 state,
                 viewport,
                 &self.shader.program,
-                DrawParameters {
+                &DrawParameters {
                     cull_face: CullFace::Back,
                     culling: true,
                     color_write: Default::default(),
@@ -138,16 +138,19 @@ impl SpriteRenderer {
                     ),
                     (
                         self.shader.view_projection_matrix,
-                        UniformValue::Mat4(camera.view_projection_matrix()),
+                        UniformValue::Matrix4(camera.view_projection_matrix()),
                     ),
                     (
                         self.shader.world_matrix,
-                        UniformValue::Mat4(node.global_transform()),
+                        UniformValue::Matrix4(node.global_transform()),
                     ),
-                    (self.shader.camera_up_vector, UniformValue::Vec3(camera_up)),
+                    (
+                        self.shader.camera_up_vector,
+                        UniformValue::Vector3(camera_up),
+                    ),
                     (
                         self.shader.camera_side_vector,
-                        UniformValue::Vec3(camera_side),
+                        UniformValue::Vector3(camera_side),
                     ),
                     (self.shader.size, UniformValue::Float(sprite.size())),
                     (self.shader.color, UniformValue::Color(sprite.color())),

@@ -13,6 +13,9 @@ mod dsound;
 #[cfg(target_os = "linux")]
 mod alsa;
 
+#[cfg(target_os = "macos")]
+mod coreaudio;
+
 // The dummy target works on all platforms
 #[cfg(not(any(target_os = "windows", target_os = "linux")))]
 mod dummy;
@@ -53,7 +56,7 @@ fn sample_to_i16(sample: f32) -> i16 {
 trait Device {
     fn get_mix_context(&mut self) -> MixContext;
 
-    fn feed(&mut self);
+    fn run(&mut self);
 
     fn mix(&mut self) {
         let context = self.get_mix_context();
@@ -82,14 +85,16 @@ pub(in crate) fn run_device(
     buffer_len_bytes: u32,
     callback: Box<FeedCallback>,
 ) -> Result<(), SoundError> {
-    #[cfg(target_os = "windows")]
-    let mut device = dsound::DirectSoundDevice::new(buffer_len_bytes, callback)?;
-    #[cfg(target_os = "linux")]
-    let mut device = alsa::AlsaSoundDevice::new(buffer_len_bytes, callback)?;
-    #[cfg(not(any(target_os = "windows", target_os = "linux")))]
-    let mut device = dummy::DummySoundDevice::new(buffer_len_bytes, callback)?;
-    std::thread::spawn(move || loop {
-        device.feed()
+    std::thread::spawn(move || {
+        #[cfg(target_os = "windows")]
+        let mut device = dsound::DirectSoundDevice::new(buffer_len_bytes, callback).unwrap();
+        #[cfg(target_os = "linux")]
+        let mut device = alsa::AlsaSoundDevice::new(buffer_len_bytes, callback).unwrap();
+        #[cfg(target_os = "macos")]
+        let mut device = coreaudio::CoreaudioSoundDevice::new(buffer_len_bytes, callback).unwrap();
+        #[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))]
+        let mut device = dummy::DummySoundDevice::new(buffer_len_bytes, callback).unwrap();
+        device.run()
     });
     Ok(())
 }

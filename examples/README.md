@@ -21,7 +21,7 @@ This example shows how to load scene in separate thread and how create standard 
 ![Example 02_0](screenshots/async_0.png?raw=true "Example 02_0")
 ![Example 02_1](screenshots/async_1.png?raw=true "Example 02_1")
 
-## Example 03 - 3rd Person Walking Sumilator
+## Example 03 - 3rd Person Walking Simulator
 
 *Difficulty*: Advanced.
 
@@ -62,6 +62,21 @@ TODO: It still should be improved, it needs to use more high poly model to show 
 
 ![Example 08](screenshots/lod.png?raw=true "Example 08")
 
-## Example 09 - Simple game
+## Example 09 - Lightmap
+
+Lightmap is a texture with precomputed light. This example shows how to load simple scene made in 
+[rusty-editor](https://github.com/mrDIMAS/rusty-editor) and generate lightmap for it. Lightmaps are still in
+active development and not meant to be used.
+
+![Example 09](screenshots/lightmap.png?raw=true "Example 09")
+
+## Example 10 - Instancing
+
+This example shows how to create simple scene with lots of animated models with low performance
+impact.
+
+![Example 10](screenshots/instancing.jpg?raw=true "Example 10")
+
+## Example 11 - Simple game
 
 - TODO

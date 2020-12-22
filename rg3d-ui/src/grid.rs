@@ -1,11 +1,7 @@
-use crate::message::MessageData;
 use crate::{
-    core::{
-        math::{vec2::Vec2, Rect},
-        pool::Handle,
-        scope_profile,
-    },
+    core::{algebra::Vector2, math::Rect, pool::Handle, scope_profile},
     draw::{CommandKind, CommandTexture, DrawingContext},
+    message::MessageData,
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UINode, UserInterface,
@@ -127,7 +123,11 @@ pub struct Grid<M: MessageData, C: Control<M, C>> {
 crate::define_widget_deref!(Grid<M, C>);
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for Grid<M, C> {
-    fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
+    fn measure_override(
+        &self,
+        ui: &UserInterface<M, C>,
+        available_size: Vector2<f32>,
+    ) -> Vector2<f32> {
         scope_profile!();
 
         // In case of no rows or columns, grid acts like default panel.
@@ -135,7 +135,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Grid<M, C> {
             return self.widget.measure_override(ui, available_size);
         }
 
-        let mut desired_size = Vec2::ZERO;
+        let mut desired_size = Vector2::default();
         // Step 1. Measure every children with relaxed constraints (size of grid).
         for child_handle in self.widget.children() {
             ui.node(*child_handle).measure(ui, available_size);
@@ -157,7 +157,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Grid<M, C> {
                     // fit to content size anyways, this check saves millions of calls on nested
                     // grids.
                     if column.size_mode != SizeMode::Auto && row.size_mode != SizeMode::Auto {
-                        let cell_size = Vec2::new(column.actual_width, row.actual_height);
+                        let cell_size = Vector2::new(column.actual_width, row.actual_height);
                         ui.node(*child_handle).measure(ui, cell_size);
                     }
                 }
@@ -175,7 +175,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Grid<M, C> {
         desired_size
     }
 
-    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
+    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
 
         if self.columns.borrow().is_empty() || self.rows.borrow().is_empty() {
@@ -214,10 +214,10 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Grid<M, C> {
         if self.draw_border {
             let bounds = self.widget.screen_bounds();
 
-            let left_top = Vec2::new(bounds.x, bounds.y);
-            let right_top = Vec2::new(bounds.x + bounds.w, bounds.y);
-            let right_bottom = Vec2::new(bounds.x + bounds.w, bounds.y + bounds.h);
-            let left_bottom = Vec2::new(bounds.x, bounds.y + bounds.h);
+            let left_top = Vector2::new(bounds.x(), bounds.y());
+            let right_top = Vector2::new(bounds.x() + bounds.w(), bounds.y());
+            let right_bottom = Vector2::new(bounds.x() + bounds.w(), bounds.y() + bounds.h());
+            let left_bottom = Vector2::new(bounds.x(), bounds.y() + bounds.h());
 
             drawing_context.push_line(left_top, right_top, self.border_thickness);
             drawing_context.push_line(right_top, right_bottom, self.border_thickness);
@@ -225,13 +225,13 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Grid<M, C> {
             drawing_context.push_line(left_bottom, left_top, self.border_thickness);
 
             for column in self.columns.borrow().iter() {
-                let a = Vec2::new(bounds.x + column.x, bounds.y);
-                let b = Vec2::new(bounds.x + column.x, bounds.y + bounds.h);
+                let a = Vector2::new(bounds.x() + column.x, bounds.y());
+                let b = Vector2::new(bounds.x() + column.x, bounds.y() + bounds.h());
                 drawing_context.push_line(a, b, self.border_thickness);
             }
             for row in self.rows.borrow().iter() {
-                let a = Vec2::new(bounds.x, bounds.y + row.y);
-                let b = Vec2::new(bounds.x + bounds.w, bounds.y + row.y);
+                let a = Vector2::new(bounds.x(), bounds.y() + row.y);
+                let b = Vector2::new(bounds.x() + bounds.w(), bounds.y() + row.y);
                 drawing_context.push_line(a, b, self.border_thickness);
             }
 
@@ -405,7 +405,7 @@ impl<M: MessageData, C: Control<M, C>> Grid<M, C> {
     fn fit_stretch_sized_columns(
         &self,
         ui: &UserInterface<M, C>,
-        available_size: Vec2,
+        available_size: Vector2<f32>,
         preset_width: f32,
     ) {
         let mut rest_width = 0.0;
@@ -442,7 +442,7 @@ impl<M: MessageData, C: Control<M, C>> Grid<M, C> {
     fn fit_stretch_sized_rows(
         &self,
         ui: &UserInterface<M, C>,
-        available_size: Vec2,
+        available_size: Vector2<f32>,
         preset_height: f32,
     ) {
         let mut stretch_sized_rows = 0;

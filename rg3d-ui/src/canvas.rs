@@ -1,11 +1,6 @@
-use crate::message::MessageData;
 use crate::{
-    core::{
-        math::{vec2::Vec2, Rect},
-        pool::Handle,
-        scope_profile,
-    },
-    message::UiMessage,
+    core::{algebra::Vector2, math::Rect, pool::Handle, scope_profile},
+    message::{MessageData, UiMessage},
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UINode, UserInterface,
 };
@@ -20,19 +15,23 @@ pub struct Canvas<M: MessageData, C: Control<M, C>> {
 crate::define_widget_deref!(Canvas<M, C>);
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for Canvas<M, C> {
-    fn measure_override(&self, ui: &UserInterface<M, C>, _available_size: Vec2) -> Vec2 {
+    fn measure_override(
+        &self,
+        ui: &UserInterface<M, C>,
+        _available_size: Vector2<f32>,
+    ) -> Vector2<f32> {
         scope_profile!();
 
-        let size_for_child = Vec2::new(std::f32::INFINITY, std::f32::INFINITY);
+        let size_for_child = Vector2::new(std::f32::INFINITY, std::f32::INFINITY);
 
         for child_handle in self.widget.children() {
             ui.node(*child_handle).measure(ui, size_for_child);
         }
 
-        Vec2::ZERO
+        Vector2::default()
     }
 
-    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
+    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
 
         for child_handle in self.widget.children() {

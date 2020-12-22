@@ -1,19 +1,15 @@
-use crate::message::{MessageData, MessageDirection};
 use crate::{
-    border::Border,
-    border::BorderBuilder,
+    border::{Border, BorderBuilder},
     brush::{Brush, GradientPoint},
-    core::{
-        color::Color,
-        math::{vec2::Vec2, Rect},
-        pool::Handle,
-    },
+    core::{algebra::Vector2, color::Color, math::Rect, pool::Handle},
     draw::DrawingContext,
-    message::DecoratorMessage,
-    message::{UiMessage, UiMessageData, WidgetMessage},
+    message::{
+        DecoratorMessage, MessageData, MessageDirection, UiMessage, UiMessageData, WidgetMessage,
+    },
     node::UINode,
     widget::Widget,
-    BuildContext, Control, NodeHandleMapping, UserInterface,
+    BuildContext, Control, NodeHandleMapping, UserInterface, BRUSH_BRIGHT, BRUSH_LIGHT,
+    BRUSH_LIGHTER, BRUSH_LIGHTEST, COLOR_DARKEST, COLOR_LIGHTEST,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -58,11 +54,15 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Decorator<M, C> {
         self.border.resolve(node_map)
     }
 
-    fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
+    fn measure_override(
+        &self,
+        ui: &UserInterface<M, C>,
+        available_size: Vector2<f32>,
+    ) -> Vector2<f32> {
         self.border.measure_override(ui, available_size)
     }
 
-    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
+    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
         self.border.arrange_override(ui, final_size)
     }
 
@@ -78,7 +78,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Decorator<M, C> {
         self.border.is_arrange_valid(ui)
     }
 
-    fn measure(&self, ui: &UserInterface<M, C>, available_size: Vec2) {
+    fn measure(&self, ui: &UserInterface<M, C>, available_size: Vector2<f32>) {
         self.border.measure(ui, available_size);
     }
 
@@ -266,33 +266,29 @@ impl<M: MessageData, C: Control<M, C>> DecoratorBuilder<M, C> {
         self
     }
 
-    pub fn build(self, ui: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
-        let normal_brush = self.normal_brush.unwrap_or_else(|| Brush::LinearGradient {
-            from: Vec2::new(0.5, 0.0),
-            to: Vec2::new(0.5, 1.0),
-            stops: vec![
-                GradientPoint {
-                    stop: 0.0,
-                    color: Color::opaque(85, 85, 85),
-                },
-                GradientPoint {
-                    stop: 0.46,
-                    color: Color::opaque(85, 85, 85),
-                },
-                GradientPoint {
-                    stop: 0.5,
-                    color: Color::opaque(65, 65, 65),
-                },
-                GradientPoint {
-                    stop: 0.54,
-                    color: Color::opaque(75, 75, 75),
-                },
-                GradientPoint {
-                    stop: 1.0,
-                    color: Color::opaque(75, 75, 75),
-                },
-            ],
-        });
+    pub fn build(mut self, ui: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+        let normal_brush = self.normal_brush.unwrap_or(BRUSH_LIGHT);
+
+        if self.border_builder.widget_builder.foreground.is_none() {
+            self.border_builder.widget_builder.foreground = Some(Brush::LinearGradient {
+                from: Vector2::new(0.5, 0.0),
+                to: Vector2::new(0.5, 1.0),
+                stops: vec![
+                    GradientPoint {
+                        stop: 0.0,
+                        color: COLOR_LIGHTEST,
+                    },
+                    GradientPoint {
+                        stop: 0.25,
+                        color: COLOR_LIGHTEST,
+                    },
+                    GradientPoint {
+                        stop: 1.0,
+                        color: COLOR_DARKEST,
+                    },
+                ],
+            });
+        }
 
         let mut border = self.border_builder.build_border();
 
@@ -301,86 +297,9 @@ impl<M: MessageData, C: Control<M, C>> DecoratorBuilder<M, C> {
         let node = UINode::Decorator(Decorator {
             border,
             normal_brush,
-            hover_brush: self.hover_brush.unwrap_or_else(|| Brush::LinearGradient {
-                from: Vec2::new(0.5, 0.0),
-                to: Vec2::new(0.5, 1.0),
-                stops: vec![
-                    GradientPoint {
-                        stop: 0.0,
-                        color: Color::opaque(105, 95, 85),
-                    },
-                    GradientPoint {
-                        stop: 0.46,
-                        color: Color::opaque(105, 95, 85),
-                    },
-                    GradientPoint {
-                        stop: 0.5,
-                        color: Color::opaque(85, 75, 65),
-                    },
-                    GradientPoint {
-                        stop: 0.54,
-                        color: Color::opaque(95, 85, 75),
-                    },
-                    GradientPoint {
-                        stop: 1.0,
-                        color: Color::opaque(95, 85, 75),
-                    },
-                ],
-            }),
-            pressed_brush: self.pressed_brush.unwrap_or_else(|| Brush::LinearGradient {
-                from: Vec2::new(0.5, 0.0),
-                to: Vec2::new(0.5, 1.0),
-                stops: vec![
-                    GradientPoint {
-                        stop: 0.0,
-                        color: Color::opaque(65, 65, 65),
-                    },
-                    GradientPoint {
-                        stop: 0.46,
-                        color: Color::opaque(65, 65, 65),
-                    },
-                    GradientPoint {
-                        stop: 0.5,
-                        color: Color::opaque(45, 45, 45),
-                    },
-                    GradientPoint {
-                        stop: 0.54,
-                        color: Color::opaque(55, 55, 55),
-                    },
-                    GradientPoint {
-                        stop: 1.0,
-                        color: Color::opaque(55, 55, 55),
-                    },
-                ],
-            }),
-            selected_brush: self
-                .selected_brush
-                .unwrap_or_else(|| Brush::LinearGradient {
-                    from: Vec2::new(0.5, 0.0),
-                    to: Vec2::new(0.5, 1.0),
-                    stops: vec![
-                        GradientPoint {
-                            stop: 0.0,
-                            color: Color::opaque(170, 108, 57),
-                        },
-                        GradientPoint {
-                            stop: 0.46,
-                            color: Color::opaque(170, 108, 57),
-                        },
-                        GradientPoint {
-                            stop: 0.5,
-                            color: Color::opaque(150, 88, 37),
-                        },
-                        GradientPoint {
-                            stop: 0.54,
-                            color: Color::opaque(160, 98, 47),
-                        },
-                        GradientPoint {
-                            stop: 1.0,
-                            color: Color::opaque(160, 98, 47),
-                        },
-                    ],
-                }),
+            hover_brush: self.hover_brush.unwrap_or(BRUSH_LIGHTER),
+            pressed_brush: self.pressed_brush.unwrap_or(BRUSH_LIGHTEST),
+            selected_brush: self.selected_brush.unwrap_or(BRUSH_BRIGHT),
             disabled_brush: self
                 .disabled_brush
                 .unwrap_or_else(|| Brush::Solid(Color::opaque(50, 50, 50))),

@@ -1,8 +1,9 @@
+use crate::core::algebra::Vector2;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
     button::ButtonBuilder,
-    core::{color::Color, math::vec2::Vec2, pool::Handle},
+    core::{color::Color, pool::Handle},
     decorator::DecoratorBuilder,
     grid::{Column, GridBuilder, Row},
     message::{
@@ -12,7 +13,8 @@ use crate::{
     node::UINode,
     stack_panel::StackPanelBuilder,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, NodeHandleMapping, Thickness, UserInterface,
+    BuildContext, Control, NodeHandleMapping, Thickness, UserInterface, BRUSH_DARK, BRUSH_DARKEST,
+    BRUSH_LIGHT,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -39,7 +41,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tree<M, C> {
         node_map.resolve(&mut self.background);
     }
 
-    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
+    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
         let size = self.widget.arrange_override(ui, final_size);
 
         if !self.always_show_expander {
@@ -303,10 +305,12 @@ impl<M: MessageData, C: Control<M, C>> TreeBuilder<M, C> {
 
         let item_background = self.back.unwrap_or_else(|| {
             DecoratorBuilder::new(BorderBuilder::new(
-                WidgetBuilder::new().with_background(Brush::Solid(Color::TRANSPARENT)),
+                WidgetBuilder::new()
+                    .with_foreground(BRUSH_LIGHT)
+                    .with_background(Brush::Solid(Color::TRANSPARENT)),
             ))
-            .with_selected_brush(Brush::Solid(Color::opaque(140, 140, 140)))
-            .with_hover_brush(Brush::Solid(Color::opaque(100, 100, 100)))
+            .with_selected_brush(BRUSH_DARKEST)
+            .with_hover_brush(BRUSH_DARK)
             .with_normal_brush(Brush::Solid(Color::TRANSPARENT))
             .with_pressed_brush(Brush::Solid(Color::TRANSPARENT))
             .with_pressable(false)
@@ -452,11 +456,9 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TreeRoot<M, C> {
         if self.panel == handle {
             self.panel = Default::default();
         }
-        self.selected = self
-            .selected
-            .iter()
-            .filter_map(|&s| if s != handle { Some(s) } else { None })
-            .collect();
+        if let Some(position) = self.selected.iter().position(|&s| s == handle) {
+            self.selected.remove(position);
+        }
     }
 }
 

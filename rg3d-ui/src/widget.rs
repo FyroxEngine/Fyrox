@@ -1,13 +1,9 @@
-use crate::message::{MessageData, MessageDirection};
 use crate::{
     brush::Brush,
-    core::{
-        color::Color,
-        math::{vec2::Vec2, Rect},
-        pool::Handle,
-    },
-    message::{CursorIcon, UiMessage, UiMessageData, WidgetMessage},
+    core::{algebra::Vector2, math::Rect, pool::Handle},
+    message::{CursorIcon, MessageData, MessageDirection, UiMessage, UiMessageData, WidgetMessage},
     Control, HorizontalAlignment, Thickness, UINode, UserInterface, VerticalAlignment,
+    BRUSH_FOREGROUND, BRUSH_PRIMARY,
 };
 use std::{
     any::Any,
@@ -21,17 +17,17 @@ pub struct Widget<M: MessageData, C: Control<M, C>> {
     pub(in crate) handle: Handle<UINode<M, C>>,
     name: String,
     /// Desired position relative to parent node
-    desired_local_position: Vec2,
+    desired_local_position: Vector2<f32>,
     /// Explicit width for node or automatic if NaN (means value is undefined). Default is NaN
     width: f32,
     /// Explicit height for node or automatic if NaN (means value is undefined). Default is NaN
     height: f32,
     /// Screen position of the node
-    pub(in crate) screen_position: Vec2,
+    pub(in crate) screen_position: Vector2<f32>,
     /// Minimum width and height
-    min_size: Vec2,
+    min_size: Vector2<f32>,
     /// Maximum width and height
-    max_size: Vec2,
+    max_size: Vector2<f32>,
     background: Brush,
     foreground: Brush,
     /// Index of row to which this node belongs
@@ -66,14 +62,14 @@ pub struct Widget<M: MessageData, C: Control<M, C>> {
     /// a series of recursive calls.
     pub(in crate) measure_valid: Cell<bool>,
     pub(in crate) arrange_valid: Cell<bool>,
-    pub(in crate) prev_measure: Cell<Vec2>,
+    pub(in crate) prev_measure: Cell<Vector2<f32>>,
     pub(in crate) prev_arrange: Cell<Rect<f32>>,
     /// Desired size of the node after Measure pass.
-    pub(in crate) desired_size: Cell<Vec2>,
+    pub(in crate) desired_size: Cell<Vector2<f32>>,
     /// Actual node local position after Arrange pass.
-    pub(in crate) actual_local_position: Cell<Vec2>,
+    pub(in crate) actual_local_position: Cell<Vector2<f32>>,
     /// Actual size of the node after Arrange pass.
-    pub(in crate) actual_size: Cell<Vec2>,
+    pub(in crate) actual_size: Cell<Vector2<f32>>,
     pub(in crate) prev_global_visibility: bool,
 }
 
@@ -94,18 +90,18 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
     }
 
     #[inline]
-    pub fn actual_size(&self) -> Vec2 {
+    pub fn actual_size(&self) -> Vector2<f32> {
         self.actual_size.get()
     }
 
     #[inline]
-    pub fn set_min_size(&mut self, value: Vec2) -> &mut Self {
+    pub fn set_min_size(&mut self, value: Vector2<f32>) -> &mut Self {
         self.min_size = value;
         self
     }
 
     #[inline]
-    pub fn min_size(&self) -> Vec2 {
+    pub fn min_size(&self) -> Vector2<f32> {
         self.min_size
     }
 
@@ -138,13 +134,13 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
     }
 
     #[inline]
-    pub fn set_max_size(&mut self, value: Vec2) -> &mut Self {
+    pub fn set_max_size(&mut self, value: Vector2<f32>) -> &mut Self {
         self.max_size = value;
         self
     }
 
     #[inline]
-    pub fn max_size(&self) -> Vec2 {
+    pub fn max_size(&self) -> Vector2<f32> {
         self.max_size
     }
 
@@ -218,13 +214,13 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
     }
 
     #[inline]
-    pub fn set_desired_local_position(&mut self, pos: Vec2) -> &mut Self {
+    pub fn set_desired_local_position(&mut self, pos: Vector2<f32>) -> &mut Self {
         self.desired_local_position = pos;
         self
     }
 
     #[inline]
-    pub fn screen_position(&self) -> Vec2 {
+    pub fn screen_position(&self) -> Vector2<f32> {
         self.screen_position
     }
 
@@ -280,12 +276,12 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
     }
 
     #[inline]
-    pub fn desired_size(&self) -> Vec2 {
+    pub fn desired_size(&self) -> Vector2<f32> {
         self.desired_size.get()
     }
 
     #[inline]
-    pub fn desired_local_position(&self) -> Vec2 {
+    pub fn desired_local_position(&self) -> Vector2<f32> {
         self.desired_local_position
     }
 
@@ -293,20 +289,6 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
     pub fn set_visibility(&mut self, visibility: bool) -> &mut Self {
         self.visibility = visibility;
         self
-    }
-
-    pub fn is_enabled(&self, ui: &UserInterface<M, C>) -> bool {
-        let mut enabled = self.enabled;
-        let mut parent = self.parent;
-        while parent.is_some() {
-            let node = ui.node(parent);
-            if !node.enabled {
-                enabled = false;
-                break;
-            }
-            parent = node.parent;
-        }
-        enabled
     }
 
     #[inline]
@@ -493,19 +475,28 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
     }
 
     #[inline]
-    pub fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
-        let mut size = Vec2::ZERO;
+    pub fn measure_override(
+        &self,
+        ui: &UserInterface<M, C>,
+        available_size: Vector2<f32>,
+    ) -> Vector2<f32> {
+        let mut size: Vector2<f32> = Vector2::default();
 
         for child in self.children.iter().map(|&h| ui.node(h)) {
             child.measure(ui, available_size);
-            size = size.max(child.desired_size.get());
+            size.x = size.x.max(child.desired_size.get().x);
+            size.y = size.y.max(child.desired_size.get().y);
         }
 
         size
     }
 
     #[inline]
-    pub fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
+    pub fn arrange_override(
+        &self,
+        ui: &UserInterface<M, C>,
+        final_size: Vector2<f32>,
+    ) -> Vector2<f32> {
         let final_rect = Rect::new(0.0, 0.0, final_size.x, final_size.y);
 
         for child in self.children.iter().map(|&h| ui.node(h)) {
@@ -516,7 +507,7 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
     }
 
     #[inline]
-    pub(in crate) fn commit_arrange(&self, position: Vec2, size: Vec2) {
+    pub(in crate) fn commit_arrange(&self, position: Vector2<f32>, size: Vector2<f32>) {
         self.actual_size.set(size);
         self.actual_local_position.set(position);
         self.arrange_valid.set(true);
@@ -534,7 +525,7 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
     }
 
     #[inline]
-    pub(in crate) fn commit_measure(&self, desired_size: Vec2) {
+    pub(in crate) fn commit_measure(&self, desired_size: Vector2<f32>) {
         self.desired_size.set(desired_size);
         self.measure_valid.set(true);
     }
@@ -545,7 +536,7 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
     }
 
     #[inline]
-    pub fn actual_local_position(&self) -> Vec2 {
+    pub fn actual_local_position(&self) -> Vector2<f32> {
         self.actual_local_position.get()
     }
 
@@ -595,29 +586,29 @@ macro_rules! define_widget_deref {
     ($ty: ty) => {
         impl<M: MessageData, C: Control<M, C>> Deref for $ty {
             type Target = Widget<M, C>;
-        
+
             fn deref(&self) -> &Self::Target {
                 &self.widget
             }
         }
-        
+
         impl<M: MessageData, C: Control<M, C>> DerefMut for $ty {
             fn deref_mut(&mut self) -> &mut Self::Target {
                 &mut self.widget
             }
         }
-    }
+    };
 }
 
 pub struct WidgetBuilder<M: MessageData, C: Control<M, C>> {
     pub name: String,
     pub width: f32,
     pub height: f32,
-    pub desired_position: Vec2,
+    pub desired_position: Vector2<f32>,
     pub vertical_alignment: VerticalAlignment,
     pub horizontal_alignment: HorizontalAlignment,
-    pub max_size: Option<Vec2>,
-    pub min_size: Option<Vec2>,
+    pub max_size: Option<Vector2<f32>>,
+    pub min_size: Option<Vector2<f32>>,
     pub background: Option<Brush>,
     pub foreground: Option<Brush>,
     pub row: usize,
@@ -656,7 +647,7 @@ impl<M: MessageData, C: Control<M, C>> WidgetBuilder<M, C> {
             row: 0,
             column: 0,
             margin: Thickness::zero(),
-            desired_position: Vec2::ZERO,
+            desired_position: Vector2::default(),
             children: Vec::new(),
             is_hit_test_visible: true,
             visibility: true,
@@ -695,12 +686,12 @@ impl<M: MessageData, C: Control<M, C>> WidgetBuilder<M, C> {
         self
     }
 
-    pub fn with_max_size(mut self, max_size: Vec2) -> Self {
+    pub fn with_max_size(mut self, max_size: Vector2<f32>) -> Self {
         self.max_size = Some(max_size);
         self
     }
 
-    pub fn with_min_size(mut self, min_size: Vec2) -> Self {
+    pub fn with_min_size(mut self, min_size: Vector2<f32>) -> Self {
         self.min_size = Some(min_size);
         self
     }
@@ -730,7 +721,7 @@ impl<M: MessageData, C: Control<M, C>> WidgetBuilder<M, C> {
         self
     }
 
-    pub fn with_desired_position(mut self, desired_position: Vec2) -> Self {
+    pub fn with_desired_position(mut self, desired_position: Vector2<f32>) -> Self {
         self.desired_position = desired_position;
         self
     }
@@ -806,20 +797,16 @@ impl<M: MessageData, C: Control<M, C>> WidgetBuilder<M, C> {
             desired_local_position: self.desired_position,
             width: self.width,
             height: self.height,
-            screen_position: Vec2::ZERO,
-            desired_size: Cell::new(Vec2::ZERO),
-            actual_local_position: Cell::new(Vec2::ZERO),
-            actual_size: Cell::new(Vec2::ZERO),
-            min_size: self.min_size.unwrap_or(Vec2::ZERO),
+            screen_position: Vector2::default(),
+            desired_size: Cell::new(Vector2::default()),
+            actual_local_position: Cell::new(Vector2::default()),
+            actual_size: Cell::new(Vector2::default()),
+            min_size: self.min_size.unwrap_or_default(),
             max_size: self
                 .max_size
-                .unwrap_or_else(|| Vec2::new(std::f32::INFINITY, std::f32::INFINITY)),
-            background: self
-                .background
-                .unwrap_or_else(|| Brush::Solid(Color::opaque(50, 50, 50))),
-            foreground: self
-                .foreground
-                .unwrap_or_else(|| Brush::Solid(Color::WHITE)),
+                .unwrap_or_else(|| Vector2::new(std::f32::INFINITY, std::f32::INFINITY)),
+            background: self.background.unwrap_or_else(|| BRUSH_PRIMARY.clone()),
+            foreground: self.foreground.unwrap_or_else(|| BRUSH_FOREGROUND.clone()),
             row: self.row,
             column: self.column,
             vertical_alignment: self.vertical_alignment,

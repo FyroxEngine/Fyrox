@@ -70,7 +70,6 @@ extern crate winapi;
 extern crate alsa_sys;
 
 // Generic crates.
-extern crate byteorder;
 extern crate lewton;
 extern crate rg3d_core;
 
@@ -85,6 +84,7 @@ pub mod source;
 
 // Reexport some modules because there some types of them in public API.
 pub use hrtf;
+pub use rg3d_core::algebra;
 pub use rg3d_core::math;
 pub use rg3d_core::pool;
 

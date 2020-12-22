@@ -1,9 +1,11 @@
 pub mod machine;
 
+use crate::core::algebra::{UnitQuaternion, Vector3};
 use crate::core::pool::Ticket;
+use crate::utils::log::MessageKind;
 use crate::{
     core::{
-        math::{clampf, quat::Quat, vec3::Vec3, wrapf},
+        math::{clampf, wrapf},
         pool::{
             Handle, Pool, PoolIterator, PoolIteratorMut, PoolPairIterator, PoolPairIteratorMut,
         },
@@ -18,14 +20,19 @@ use std::collections::{HashMap, VecDeque};
 
 #[derive(Copy, Clone, Debug)]
 pub struct KeyFrame {
-    pub position: Vec3,
-    pub scale: Vec3,
-    pub rotation: Quat,
+    pub position: Vector3<f32>,
+    pub scale: Vector3<f32>,
+    pub rotation: UnitQuaternion<f32>,
     pub time: f32,
 }
 
 impl KeyFrame {
-    pub fn new(time: f32, position: Vec3, scale: Vec3, rotation: Quat) -> Self {
+    pub fn new(
+        time: f32,
+        position: Vector3<f32>,
+        scale: Vector3<f32>,
+        rotation: UnitQuaternion<f32>,
+    ) -> Self {
         Self {
             time,
             position,
@@ -183,26 +190,24 @@ impl Track {
         }
 
         if right_index == 0 {
-            return self.frames.first().map(|k| LocalPose {
+            self.frames.first().map(|k| LocalPose {
                 node: self.node,
                 position: k.position,
                 scale: k.scale,
                 rotation: k.rotation,
-            });
-        } else if let Some(left) = self.frames.get(right_index - 1) {
-            if let Some(right) = self.frames.get(right_index) {
-                let interpolator = (time - left.time) / (right.time - left.time);
+            })
+        } else {
+            let left = &self.frames[right_index - 1];
+            let right = &self.frames[right_index];
+            let interpolator = (time - left.time) / (right.time - left.time);
 
-                return Some(LocalPose {
-                    node: self.node,
-                    position: left.position.lerp(&right.position, interpolator),
-                    scale: left.scale.lerp(&right.scale, interpolator),
-                    rotation: left.rotation.slerp(&right.rotation, interpolator),
-                });
-            }
+            Some(LocalPose {
+                node: self.node,
+                position: left.position.lerp(&right.position, interpolator),
+                scale: left.scale.lerp(&right.scale, interpolator),
+                rotation: left.rotation.nlerp(&right.rotation, interpolator),
+            })
         }
-
-        None
     }
 }
 
@@ -278,18 +283,18 @@ pub struct Animation {
 #[derive(Clone, Debug)]
 pub struct LocalPose {
     node: Handle<Node>,
-    position: Vec3,
-    scale: Vec3,
-    rotation: Quat,
+    position: Vector3<f32>,
+    scale: Vector3<f32>,
+    rotation: UnitQuaternion<f32>,
 }
 
 impl Default for LocalPose {
     fn default() -> Self {
         Self {
             node: Handle::NONE,
-            position: Vec3::ZERO,
-            scale: Vec3::UNIT,
-            rotation: Quat::IDENTITY,
+            position: Vector3::default(),
+            scale: Vector3::new(1.0, 1.0, 1.0),
+            rotation: UnitQuaternion::identity(),
         }
     }
 }
@@ -299,8 +304,8 @@ impl LocalPose {
         Self {
             node: self.node,
             position: self.position.scale(weight),
-            rotation: Quat::IDENTITY.nlerp(&self.rotation, weight),
-            scale: Vec3::UNIT, // TODO: Implement scale blending
+            rotation: UnitQuaternion::identity().nlerp(&self.rotation, weight),
+            scale: Vector3::new(1.0, 1.0, 1.0), // TODO: Implement scale blending
         }
     }
 
@@ -347,7 +352,7 @@ impl AnimationPose {
     pub fn apply(&self, graph: &mut Graph) {
         for (node, local_pose) in self.local_poses.iter() {
             if node.is_none() {
-                Log::writeln("Invalid node handle found for animation pose, most likely it means that animation retargetting failed!".to_owned());
+                Log::writeln(MessageKind::Error, "Invalid node handle found for animation pose, most likely it means that animation retargetting failed!".to_owned());
             } else {
                 graph[*node]
                     .local_transform_mut()
@@ -560,10 +565,13 @@ impl Animation {
                             }
                         }
                         if !found {
-                            Log::write(format!(
-                                "Failed to copy key frames for node {}!",
-                                track_node.name()
-                            ));
+                            Log::write(
+                                MessageKind::Error,
+                                format!(
+                                    "Failed to copy key frames for node {}!",
+                                    track_node.name()
+                                ),
+                            );
                         }
                     }
                 }
@@ -713,11 +721,17 @@ impl AnimationContainer {
     }
 
     pub fn resolve(&mut self, graph: &Graph) {
-        Log::writeln("Resolving animations...".to_owned());
+        Log::writeln(
+            MessageKind::Information,
+            "Resolving animations...".to_owned(),
+        );
         for animation in self.pool.iter_mut() {
             animation.resolve(graph)
         }
-        Log::writeln("Animations resolved successfully!".to_owned());
+        Log::writeln(
+            MessageKind::Information,
+            "Animations resolved successfully!".to_owned(),
+        );
     }
 
     pub fn update_animations(&mut self, dt: f32) {

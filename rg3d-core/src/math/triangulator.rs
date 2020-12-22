@@ -1,4 +1,5 @@
-use crate::math::{self, vec2::*, vec3::*};
+use crate::math;
+use nalgebra::{Vector2, Vector3};
 use std::fmt;
 
 ///
@@ -6,7 +7,7 @@ use std::fmt;
 ///
 #[derive(Debug)]
 struct Vertex {
-    position: Vec2,
+    position: Vector2<f32>,
     prev: usize,
     index: usize,
     next: usize,
@@ -98,7 +99,7 @@ fn is_ear(poly: &Polygon, prev: &Vertex, ear: &Vertex, next: &Vertex) -> bool {
 ///
 /// Triangulates specified polygon.
 ///
-pub fn triangulate(vertices: &[Vec3], out_triangles: &mut Vec<[usize; 3]>) {
+pub fn triangulate(vertices: &[Vector3<f32>], out_triangles: &mut Vec<[usize; 3]>) {
     out_triangles.clear();
     if vertices.len() == 3 {
         // Triangulating a triangle?
@@ -109,11 +110,11 @@ pub fn triangulate(vertices: &[Vec3], out_triangles: &mut Vec<[usize; 3]>) {
         for i in 0..4 {
             let v = vertices[i];
             let v0 = vertices[(i + 3) % 4];
-            if let Some(left) = (v0 - v).normalized() {
+            if let Some(left) = (v0 - v).try_normalize(std::f32::EPSILON) {
                 let v1 = vertices[(i + 2) % 4];
-                if let Some(diag) = (v1 - v).normalized() {
+                if let Some(diag) = (v1 - v).try_normalize(std::f32::EPSILON) {
                     let v2 = vertices[(i + 1) % 4];
-                    if let Some(right) = (v2 - v).normalized() {
+                    if let Some(right) = (v2 - v).try_normalize(std::f32::EPSILON) {
                         // Check for concave vertex
                         let angle = left.dot(&diag).acos() + right.dot(&diag).acos();
                         if angle > std::f32::consts::PI {
@@ -168,10 +169,10 @@ pub fn triangulate(vertices: &[Vec3], out_triangles: &mut Vec<[usize; 3]>) {
 #[test]
 fn quadrilaterals_triangulation_non_concave() {
     let polygon = vec![
-        Vec3::new(0.0, 0.0, 1.0),
-        Vec3::new(1.0, 2.0, 1.0),
-        Vec3::new(2.0, 3.0, 1.0),
-        Vec3::new(3.0, 2.0, 1.0),
+        Vector3::new(0.0, 0.0, 1.0),
+        Vector3::new(1.0, 2.0, 1.0),
+        Vector3::new(2.0, 3.0, 1.0),
+        Vector3::new(3.0, 2.0, 1.0),
     ];
 
     let mut ref_indices = Vec::new();
@@ -182,10 +183,10 @@ fn quadrilaterals_triangulation_non_concave() {
 #[test]
 fn quadrilaterals_triangulation_concave() {
     let polygon = vec![
-        Vec3::new(0.0, 2.0, 1.0),
-        Vec3::new(3.0, 3.0, 1.0),
-        Vec3::new(2.0, 2.0, 1.0),
-        Vec3::new(3.0, 1.0, 1.0),
+        Vector3::new(0.0, 2.0, 1.0),
+        Vector3::new(3.0, 3.0, 1.0),
+        Vector3::new(2.0, 2.0, 1.0),
+        Vector3::new(3.0, 1.0, 1.0),
     ];
 
     let mut ref_indices = Vec::new();
@@ -196,21 +197,19 @@ fn quadrilaterals_triangulation_concave() {
 #[test]
 fn ear_clip_test() {
     let polygon = vec![
-        Vec3::new(0.0, 0.0, 1.0),
-        Vec3::new(1.0, 2.0, 1.0),
-        Vec3::new(2.0, 4.0, 1.0),
-        Vec3::new(3.0, 2.0, 1.0),
-        Vec3::new(4.0, 1.0, 1.0),
-        Vec3::new(3.0, 0.0, 1.0),
-        Vec3::new(2.0, 0.5, 1.0),
+        Vector3::new(0.0, 0.0, 1.0),
+        Vector3::new(1.0, 2.0, 1.0),
+        Vector3::new(2.0, 4.0, 1.0),
+        Vector3::new(3.0, 2.0, 1.0),
+        Vector3::new(4.0, 1.0, 1.0),
+        Vector3::new(3.0, 0.0, 1.0),
+        Vector3::new(2.0, 0.5, 1.0),
     ];
 
     // First test flat case
     let mut ref_indices = Vec::new();
     triangulate(polygon.as_slice(), &mut ref_indices);
     assert_ne!(ref_indices.len(), 0);
-
-    use crate::math::{mat4::Mat4, quat::Quat};
 
     // Then compare previous result with series of rotated versions of the polygon
     // This could give false fails because of not sufficient precision of f32 when
@@ -219,15 +218,17 @@ fn ear_clip_test() {
     // order of indices but visually result stays correct. So for test I'm not using
     // such polygons just to not trigger false fails.
     for axis in &[
-        Vec3::new(1.0, 0.0, 0.0),
-        Vec3::new(0.0, 1.0, 0.0),
-        Vec3::new(0.0, 0.0, 1.0),
-        Vec3::new(1.0, 1.0, 1.0),
+        Vector3::new(1.0, 0.0, 0.0),
+        Vector3::new(0.0, 1.0, 0.0),
+        Vector3::new(0.0, 0.0, 1.0),
+        Vector3::new(1.0, 1.0, 1.0),
     ] {
         let mut angle: f32 = 0.0;
         while angle <= 360.0 {
-            let mrot = Mat4::from_quat(Quat::from_axis_angle(*axis, angle.to_radians()));
-            let rotated: Vec<Vec3> = polygon.iter().map(|v| mrot.transform_vector(*v)).collect();
+            let mrot =
+                Matrix4::from_quat(UnitQuaternion::from_axis_angle(*axis, angle.to_radians()));
+            let rotated: Vec<Vector3<f32>> =
+                polygon.iter().map(|v| mrot.transform_point(*v)).collect();
             let mut new_indices = Vec::new();
             triangulate(rotated.as_slice(), &mut new_indices);
             assert_eq!(new_indices, ref_indices);

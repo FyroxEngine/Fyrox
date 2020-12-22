@@ -1,8 +1,9 @@
+use crate::core::algebra::Vector2;
 use crate::message::MessageData;
 use crate::ttf::SharedFont;
 use crate::{
     brush::Brush,
-    core::{color::Color, math::vec2::Vec2, pool::Handle},
+    core::{color::Color, pool::Handle},
     draw::DrawingContext,
     formatted_text::{FormattedText, FormattedTextBuilder},
     message::UiMessage,
@@ -24,7 +25,11 @@ pub struct Text<M: MessageData, C: Control<M, C>> {
 crate::define_widget_deref!(Text<M, C>);
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for Text<M, C> {
-    fn measure_override(&self, _: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
+    fn measure_override(
+        &self,
+        _: &UserInterface<M, C>,
+        available_size: Vector2<f32>,
+    ) -> Vector2<f32> {
         self.formatted_text
             .borrow_mut()
             .set_constraint(available_size)
@@ -34,7 +39,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Text<M, C> {
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.widget.screen_bounds();
-        drawing_context.draw_text(Vec2::new(bounds.x, bounds.y), &self.formatted_text.borrow());
+        drawing_context.draw_text(bounds.position, &self.formatted_text.borrow());
     }
 
     fn handle_routed_message(

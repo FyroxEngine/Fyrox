@@ -121,12 +121,22 @@ pub(in crate) trait EffectRenderTrait {
 
 /// Base effect for all other kinds of effects. It contains set of inputs (direct
 /// or filtered), provides some basic methods to control them.
-#[derive(Default)]
 pub struct BaseEffect {
     gain: f32,
     filters: Pool<InputFilter>,
     inputs: Vec<EffectInput>,
     frame_samples: Vec<(f32, f32)>,
+}
+
+impl Default for BaseEffect {
+    fn default() -> Self {
+        Self {
+            gain: 1.0,
+            filters: Default::default(),
+            inputs: Default::default(),
+            frame_samples: Default::default(),
+        }
+    }
 }
 
 impl BaseEffect {

@@ -1,7 +1,8 @@
+use crate::core::algebra::Vector2;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
-    core::{color::Color, math::vec2::Vec2, pool::Handle},
+    core::{color::Color, pool::Handle},
     decorator::DecoratorBuilder,
     grid::{Column, GridBuilder, Row},
     message::{
@@ -15,16 +16,12 @@ use crate::{
     text::TextBuilder,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, RestrictionEntry,
-    Thickness, UserInterface, VerticalAlignment,
+    Thickness, UserInterface, VerticalAlignment, BRUSH_BRIGHT_BLUE, BRUSH_PRIMARY,
 };
 use std::{
     ops::{Deref, DerefMut},
     rc::Rc,
 };
-
-pub const MENU_ITEM_HOVER_BACKGROUND_COLOR: Color = Color::opaque(80, 118, 178);
-pub const MENU_ITEM_BACKGROUND_COLOR: Color = Color::opaque(33, 33, 33);
-pub const MENU_BACKGROUND_COLOR: Color = Color::opaque(33, 33, 33);
 
 #[derive(Clone)]
 pub struct Menu<M: MessageData, C: Control<M, C>> {
@@ -94,7 +91,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Menu<M, C> {
             if *state == ButtonState::Pressed && self.active {
                 // TODO: Make picking more accurate - right now it works only with rects.
                 let pos = ui.cursor_position();
-                if !self.widget.screen_bounds().contains(pos.x, pos.y) {
+                if !self.widget.screen_bounds().contains(pos) {
                     // Also check if we clicked inside some descendant menu item - in this
                     // case we don't need to close menu.
                     let mut any_picked = false;
@@ -102,7 +99,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Menu<M, C> {
                     'depth_search: while let Some(handle) = stack.pop() {
                         let node = ui.node(handle);
                         if let UINode::MenuItem(item) = node {
-                            if ui.node(item.popup).screen_bounds().contains(pos.x, pos.y) {
+                            if ui.node(item.popup).screen_bounds().contains(pos) {
                                 // Once we found that we clicked inside some descendant menu item
                                 // we can immediately stop search - we don't want to close menu
                                 // items popups in this case and can safely skip all stuff below.
@@ -245,10 +242,10 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for MenuItem<M, C> {
                         if !self.items.is_empty() {
                             let position = match self.placement {
                                 MenuItemPlacement::Bottom => {
-                                    self.screen_position + Vec2::new(0.0, self.actual_size().y)
+                                    self.screen_position + Vector2::new(0.0, self.actual_size().y)
                                 }
                                 MenuItemPlacement::Right => {
-                                    self.screen_position + Vec2::new(self.actual_size().x, 0.0)
+                                    self.screen_position + Vector2::new(self.actual_size().x, 0.0)
                                 }
                             };
 
@@ -340,7 +337,7 @@ impl<M: MessageData, C: Control<M, C>> MenuBuilder<M, C> {
 
         let back = BorderBuilder::new(
             WidgetBuilder::new()
-                .with_background(Brush::Solid(MENU_BACKGROUND_COLOR))
+                .with_background(BRUSH_PRIMARY)
                 .with_child(
                     StackPanelBuilder::new(WidgetBuilder::new().with_children(&self.items))
                         .with_orientation(Orientation::Horizontal)
@@ -474,8 +471,8 @@ impl<'a, 'b, M: MessageData, C: Control<M, C>> MenuItemBuilder<'a, 'b, M, C> {
                 BorderBuilder::new(WidgetBuilder::new())
                     .with_stroke_thickness(Thickness::uniform(0.0)),
             )
-            .with_hover_brush(Brush::Solid(MENU_ITEM_HOVER_BACKGROUND_COLOR))
-            .with_normal_brush(Brush::Solid(MENU_ITEM_BACKGROUND_COLOR))
+            .with_hover_brush(BRUSH_BRIGHT_BLUE)
+            .with_normal_brush(BRUSH_PRIMARY)
             .with_pressed_brush(Brush::Solid(Color::TRANSPARENT))
             .with_pressable(false)
             .build(ctx)
@@ -483,7 +480,7 @@ impl<'a, 'b, M: MessageData, C: Control<M, C>> MenuItemBuilder<'a, 'b, M, C> {
 
         ctx.link(content, back);
 
-        let popup = PopupBuilder::new(WidgetBuilder::new().with_min_size(Vec2::new(10.0, 10.0)))
+        let popup = PopupBuilder::new(WidgetBuilder::new().with_min_size(Vector2::new(10.0, 10.0)))
             .with_content(
                 StackPanelBuilder::new(WidgetBuilder::new().with_children(&self.items)).build(ctx),
             )

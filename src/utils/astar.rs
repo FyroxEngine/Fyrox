@@ -6,7 +6,8 @@
 
 #![warn(missing_docs)]
 
-use crate::core::math::{self, vec3::Vec3, PositionProvider};
+use crate::core::algebra::Vector3;
+use crate::core::math::{self, PositionProvider};
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 enum PathVertexState {
@@ -19,7 +20,7 @@ enum PathVertexState {
 /// vertices.
 pub struct PathVertex {
     /// Position in world.
-    position: Vec3,
+    position: Vector3<f32>,
     state: PathVertexState,
     g_score: f32,
     f_score: f32,
@@ -29,7 +30,7 @@ pub struct PathVertex {
 
 impl PathVertex {
     /// Creates new vertex at given position.
-    pub fn new(position: Vec3) -> Self {
+    pub fn new(position: Vector3<f32>) -> Self {
         Self {
             position,
             parent: None,
@@ -72,8 +73,8 @@ pub enum PathKind {
     Empty,
 }
 
-fn heuristic(a: Vec3, b: Vec3) -> f32 {
-    a.sqr_distance(&b)
+fn heuristic(a: Vector3<f32>, b: Vector3<f32>) -> f32 {
+    (a - b).norm_squared()
 }
 
 impl Default for PathFinder {
@@ -83,7 +84,7 @@ impl Default for PathFinder {
 }
 
 impl PositionProvider for PathVertex {
-    fn position(&self) -> Vec3 {
+    fn position(&self) -> Vector3<f32> {
         self.position
     }
 }
@@ -119,7 +120,7 @@ impl PathFinder {
     /// # Notes
     ///
     /// O(n) complexity.
-    pub fn get_closest_vertex_to(&self, point: Vec3) -> Option<usize> {
+    pub fn get_closest_vertex_to(&self, point: Vector3<f32>) -> Option<usize> {
         math::get_closest_point(&self.vertices, point)
     }
 
@@ -164,7 +165,7 @@ impl PathFinder {
         &mut self,
         from: usize,
         to: usize,
-        path: &mut Vec<Vec3>,
+        path: &mut Vec<Vector3<f32>>,
     ) -> Result<PathKind, PathError> {
         if self.vertices.is_empty() {
             return Ok(PathKind::Empty);
@@ -233,7 +234,7 @@ impl PathFinder {
                     .ok_or(PathError::InvalidIndex(*neighbour_index))?;
 
                 let g_score = current_vertex.g_score
-                    + current_vertex.position.sqr_distance(&neighbour.position);
+                    + (current_vertex.position - neighbour.position).norm_squared();
                 if g_score < neighbour.g_score {
                     neighbour.parent = Some(current_index);
                     neighbour.g_score = g_score;
@@ -270,7 +271,7 @@ impl PathFinder {
         }
     }
 
-    fn reconstruct_path(&self, mut current: usize, path: &mut Vec<Vec3>) {
+    fn reconstruct_path(&self, mut current: usize, path: &mut Vec<Vector3<f32>>) {
         while let Some(vertex) = self.vertices.get(current) {
             path.push(vertex.position);
             if let Some(parent) = vertex.parent {
@@ -284,8 +285,10 @@ impl PathFinder {
 
 #[cfg(test)]
 mod test {
-    use crate::core::math::vec3::Vec3;
-    use crate::utils::astar::{PathFinder, PathVertex};
+    use crate::{
+        core::{algebra::Vector3, rand},
+        utils::astar::{PathFinder, PathVertex},
+    };
     use rand::Rng;
 
     #[test]
@@ -302,7 +305,7 @@ mod test {
         let mut vertices = Vec::new();
         for y in 0..size {
             for x in 0..size {
-                vertices.push(PathVertex::new(Vec3::new(x as f32, y as f32, 0.0)));
+                vertices.push(PathVertex::new(Vector3::new(x as f32, y as f32, 0.0)));
             }
         }
         pathfinder.set_vertices(vertices);
@@ -354,7 +357,7 @@ mod test {
                     let a = pair[0];
                     let b = pair[1];
 
-                    assert!(a.distance(&b) <= 2.0f32.sqrt());
+                    assert!(a.metric_distance(&b) <= 2.0f32.sqrt());
                 }
             }
         }

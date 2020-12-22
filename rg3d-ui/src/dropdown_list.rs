@@ -1,10 +1,13 @@
 //! Drop-down list. This is control which shows currently selected item and provides drop-down
 //! list to select its current item. It is build using composition with standard list view.
 
+use crate::core::algebra::Vector2;
+use crate::grid::{Column, GridBuilder, Row};
 use crate::message::{MessageData, MessageDirection};
+use crate::utils::{make_arrow, ArrowDirection};
 use crate::{
     border::BorderBuilder,
-    core::{math::vec2::Vec2, pool::Handle},
+    core::pool::Handle,
     list_view::ListViewBuilder,
     message::PopupMessage,
     message::{DropdownListMessage, ListViewMessage, UiMessage, UiMessageData, WidgetMessage},
@@ -12,7 +15,7 @@ use crate::{
     popup::{Placement, PopupBuilder},
     widget::Widget,
     widget::WidgetBuilder,
-    BuildContext, Control, NodeHandleMapping, UserInterface,
+    BuildContext, Control, NodeHandleMapping, UserInterface, BRUSH_LIGHT,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -24,6 +27,8 @@ pub struct DropdownList<M: MessageData, C: Control<M, C>> {
     list_view: Handle<UINode<M, C>>,
     current: Handle<UINode<M, C>>,
     selection: Option<usize>,
+    close_on_selection: bool,
+    main_grid: Handle<UINode<M, C>>,
 }
 
 crate::define_widget_deref!(DropdownList<M, C>);
@@ -33,6 +38,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for DropdownList<M, C> {
         node_map.resolve(&mut self.popup);
         node_map.resolve(&mut self.list_view);
         node_map.resolve(&mut self.current);
+        node_map.resolve(&mut self.main_grid);
         node_map.resolve_slice(&mut self.items);
     }
 
@@ -55,7 +61,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for DropdownList<M, C> {
                             self.actual_size().x,
                         ));
                         let placement_position = self.widget.screen_position
-                            + Vec2::new(0.0, self.widget.actual_size().y);
+                            + Vector2::new(0.0, self.widget.actual_size().y);
                         ui.send_message(PopupMessage::placement(
                             self.popup,
                             MessageDirection::ToWidget,
@@ -71,11 +77,11 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for DropdownList<M, C> {
             {
                 match msg {
                     DropdownListMessage::Items(items) => {
-                        ListViewMessage::items(
+                        ui.send_message(ListViewMessage::items(
                             self.list_view,
                             MessageDirection::ToWidget,
                             items.clone(),
-                        );
+                        ));
                         self.items = items.clone();
                     }
                     &DropdownListMessage::AddItem(item) => {
@@ -104,17 +110,23 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for DropdownList<M, C> {
                             if let Some(index) = selection {
                                 if let Some(item) = self.items.get(index) {
                                     self.current = ui.copy_node(*item);
-                                    let body = self.widget.children()[0];
                                     ui.send_message(WidgetMessage::link(
                                         self.current,
                                         MessageDirection::ToWidget,
-                                        body,
+                                        self.main_grid,
                                     ));
                                 } else {
                                     self.current = Handle::NONE;
                                 }
                             } else {
                                 self.current = Handle::NONE;
+                            }
+
+                            if self.close_on_selection {
+                                ui.send_message(PopupMessage::close(
+                                    self.popup,
+                                    MessageDirection::ToWidget,
+                                ));
                             }
 
                             ui.send_message(message.reverse());
@@ -143,10 +155,25 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for DropdownList<M, C> {
     }
 }
 
+impl<M: MessageData, C: Control<M, C>> DropdownList<M, C> {
+    pub fn selection(&self) -> Option<usize> {
+        self.selection
+    }
+
+    pub fn close_on_selection(&self) -> bool {
+        self.close_on_selection
+    }
+
+    pub fn items(&self) -> &[Handle<UINode<M, C>>] {
+        &self.items
+    }
+}
+
 pub struct DropdownListBuilder<M: MessageData, C: Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     items: Vec<Handle<UINode<M, C>>>,
-    selected: usize,
+    selected: Option<usize>,
+    close_on_selection: bool,
 }
 
 impl<M: MessageData, C: Control<M, C>> DropdownListBuilder<M, C> {
@@ -154,7 +181,8 @@ impl<M: MessageData, C: Control<M, C>> DropdownListBuilder<M, C> {
         Self {
             widget_builder,
             items: Default::default(),
-            selected: 0,
+            selected: None,
+            close_on_selection: false,
         }
     }
 
@@ -164,7 +192,12 @@ impl<M: MessageData, C: Control<M, C>> DropdownListBuilder<M, C> {
     }
 
     pub fn with_selected(mut self, index: usize) -> Self {
-        self.selected = index;
+        self.selected = Some(index);
+        self
+    }
+
+    pub fn with_close_on_selection(mut self, value: bool) -> Self {
+        self.close_on_selection = value;
         self
     }
 
@@ -173,7 +206,7 @@ impl<M: MessageData, C: Control<M, C>> DropdownListBuilder<M, C> {
         Self: Sized,
     {
         let items_control = ListViewBuilder::new(
-            WidgetBuilder::new().with_max_size(Vec2::new(std::f32::INFINITY, 300.0)),
+            WidgetBuilder::new().with_max_size(Vector2::new(std::f32::INFINITY, 200.0)),
         )
         .with_items(self.items.clone())
         .build(ctx);
@@ -182,21 +215,46 @@ impl<M: MessageData, C: Control<M, C>> DropdownListBuilder<M, C> {
             .with_content(items_control)
             .build(ctx);
 
-        let current = self
-            .items
-            .get(self.selected)
-            .map_or(Handle::NONE, |&f| ctx.copy(f));
+        let current = if let Some(selected) = self.selected {
+            self.items
+                .get(selected)
+                .map_or(Handle::NONE, |&f| ctx.copy(f))
+        } else {
+            Handle::NONE
+        };
 
+        let arrow = make_arrow(ctx, ArrowDirection::Bottom, 10.0);
+        ctx[arrow].set_column(1);
+
+        let main_grid;
         let dropdown_list = UINode::DropdownList(DropdownList {
             widget: self
                 .widget_builder
-                .with_child(BorderBuilder::new(WidgetBuilder::new().with_child(current)).build(ctx))
+                .with_child(
+                    BorderBuilder::new(
+                        WidgetBuilder::new()
+                            .with_foreground(BRUSH_LIGHT)
+                            .with_child({
+                                main_grid = GridBuilder::new(
+                                    WidgetBuilder::new().with_child(current).with_child(arrow),
+                                )
+                                .add_row(Row::stretch())
+                                .add_column(Column::stretch())
+                                .add_column(Column::strict(20.0))
+                                .build(ctx);
+                                main_grid
+                            }),
+                    )
+                    .build(ctx),
+                )
                 .build(),
             popup,
             items: self.items,
             list_view: items_control,
             current,
-            selection: Some(self.selected),
+            selection: self.selected,
+            close_on_selection: self.close_on_selection,
+            main_grid,
         });
 
         ctx.add_node(dropdown_list)

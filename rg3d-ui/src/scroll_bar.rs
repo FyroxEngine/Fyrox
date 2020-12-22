@@ -1,23 +1,26 @@
-use crate::message::{MessageData, MessageDirection};
 use crate::{
     border::BorderBuilder,
-    brush::Brush,
+    brush::{Brush, GradientPoint},
     button::ButtonBuilder,
     canvas::CanvasBuilder,
     core::{
+        algebra::Vector2,
         color::Color,
-        math::{self, vec2::Vec2},
+        math::{self},
         pool::Handle,
     },
     decorator::DecoratorBuilder,
     grid::{Column, GridBuilder, Row},
     message::{
-        ButtonMessage, ScrollBarMessage, TextMessage, UiMessage, UiMessageData, WidgetMessage,
+        ButtonMessage, MessageData, MessageDirection, ScrollBarMessage, TextMessage, UiMessage,
+        UiMessageData, WidgetMessage,
     },
     text::TextBuilder,
+    utils::{make_arrow, ArrowDirection},
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, Thickness, UINode,
-    UserInterface, VerticalAlignment,
+    UserInterface, VerticalAlignment, BRUSH_LIGHT, BRUSH_LIGHTER, BRUSH_LIGHTEST, COLOR_DARKEST,
+    COLOR_LIGHTEST,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -30,7 +33,7 @@ pub struct ScrollBar<M: MessageData, C: Control<M, C>> {
     pub step: f32,
     pub orientation: Orientation,
     pub is_dragging: bool,
-    pub offset: Vec2,
+    pub offset: Vector2<f32>,
     pub increase: Handle<UINode<M, C>>,
     pub decrease: Handle<UINode<M, C>>,
     pub indicator: Handle<UINode<M, C>>,
@@ -50,7 +53,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollBar<M, C> {
         node_map.resolve(&mut self.field);
     }
 
-    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
+    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
         let size = self.widget.arrange_override(ui, final_size);
 
         // Adjust indicator position according to current value
@@ -66,7 +69,18 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollBar<M, C> {
                     MessageDirection::ToWidget,
                     field_size.y,
                 ));
-                let position = Vec2::new(
+                ui.send_message(WidgetMessage::width(
+                    self.decrease,
+                    MessageDirection::ToWidget,
+                    field_size.y,
+                ));
+                ui.send_message(WidgetMessage::width(
+                    self.increase,
+                    MessageDirection::ToWidget,
+                    field_size.y,
+                ));
+
+                let position = Vector2::new(
                     percent * (field_size.x - indicator.actual_size().x).max(0.0),
                     0.0,
                 );
@@ -82,7 +96,18 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollBar<M, C> {
                     MessageDirection::ToWidget,
                     field_size.x,
                 ));
-                let position = Vec2::new(
+                ui.send_message(WidgetMessage::height(
+                    self.decrease,
+                    MessageDirection::ToWidget,
+                    field_size.x,
+                ));
+                ui.send_message(WidgetMessage::height(
+                    self.increase,
+                    MessageDirection::ToWidget,
+                    field_size.x,
+                ));
+
+                let position = Vector2::new(
                     0.0,
                     percent * (field_size.y - indicator.actual_size().y).max(0.0),
                 );
@@ -430,9 +455,9 @@ impl<M: MessageData, C: Control<M, C>> ScrollBarBuilder<M, C> {
 
         let increase = self.increase.unwrap_or_else(|| {
             ButtonBuilder::new(WidgetBuilder::new())
-                .with_text(match orientation {
-                    Orientation::Horizontal => ">",
-                    Orientation::Vertical => "v",
+                .with_content(match orientation {
+                    Orientation::Horizontal => make_arrow(ctx, ArrowDirection::Right, 8.0),
+                    Orientation::Vertical => make_arrow(ctx, ArrowDirection::Bottom, 8.0),
                 })
                 .build(ctx)
         });
@@ -448,9 +473,9 @@ impl<M: MessageData, C: Control<M, C>> ScrollBarBuilder<M, C> {
 
         let decrease = self.decrease.unwrap_or_else(|| {
             ButtonBuilder::new(WidgetBuilder::new())
-                .with_text(match orientation {
-                    Orientation::Horizontal => "<",
-                    Orientation::Vertical => "^",
+                .with_content(match orientation {
+                    Orientation::Horizontal => make_arrow(ctx, ArrowDirection::Left, 8.0),
+                    Orientation::Vertical => make_arrow(ctx, ArrowDirection::Top, 8.0),
                 })
                 .build(ctx)
         });
@@ -463,22 +488,46 @@ impl<M: MessageData, C: Control<M, C>> ScrollBarBuilder<M, C> {
         };
 
         let indicator = self.indicator.unwrap_or_else(|| {
-            DecoratorBuilder::new(BorderBuilder::new(WidgetBuilder::new()))
-                .with_normal_brush(Brush::Solid(Color::opaque(110, 110, 110)))
-                .with_hover_brush(Brush::Solid(Color::opaque(120, 120, 120)))
-                .with_pressed_brush(Brush::Solid(Color::opaque(130, 130, 130)))
-                .build(ctx)
+            DecoratorBuilder::new(
+                BorderBuilder::new(WidgetBuilder::new().with_foreground(Brush::LinearGradient {
+                    from: Vector2::new(0.5, 0.0),
+                    to: Vector2::new(0.5, 1.0),
+                    stops: vec![
+                        GradientPoint {
+                            stop: 0.0,
+                            color: COLOR_DARKEST,
+                        },
+                        GradientPoint {
+                            stop: 0.25,
+                            color: COLOR_LIGHTEST,
+                        },
+                        GradientPoint {
+                            stop: 0.75,
+                            color: COLOR_LIGHTEST,
+                        },
+                        GradientPoint {
+                            stop: 1.0,
+                            color: COLOR_DARKEST,
+                        },
+                    ],
+                }))
+                .with_stroke_thickness(Thickness::uniform(1.0)),
+            )
+            .with_normal_brush(BRUSH_LIGHT)
+            .with_hover_brush(BRUSH_LIGHTER)
+            .with_pressed_brush(BRUSH_LIGHTEST)
+            .build(ctx)
         });
 
         match orientation {
             Orientation::Vertical => {
                 ctx[indicator]
-                    .set_min_size(Vec2::new(0.0, 30.0))
+                    .set_min_size(Vector2::new(0.0, 30.0))
                     .set_width(30.0);
             }
             Orientation::Horizontal => {
                 ctx[indicator]
-                    .set_min_size(Vec2::new(30.0, 0.0))
+                    .set_min_size(Vector2::new(30.0, 0.0))
                     .set_height(30.0);
             }
         }
@@ -556,7 +605,7 @@ impl<M: MessageData, C: Control<M, C>> ScrollBarBuilder<M, C> {
             step: self.step.unwrap_or(1.0),
             orientation,
             is_dragging: false,
-            offset: Vec2::ZERO,
+            offset: Vector2::default(),
             increase,
             decrease,
             indicator,

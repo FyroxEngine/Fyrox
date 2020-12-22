@@ -5,34 +5,34 @@
 //! Engine has only one listener which can be positioned and oriented in space. Listener defined as coordinate
 //! system which is used to compute spatial properties of sound sources.
 
-use crate::math::mat3::Mat3;
-use crate::math::vec3::Vec3;
+use rg3d_core::algebra::{Matrix3, Vector3};
+use rg3d_core::math::Matrix3Ext;
 use rg3d_core::visitor::{Visit, VisitResult, Visitor};
 
 /// See module docs.
 pub struct Listener {
-    basis: Mat3,
-    position: Vec3,
+    basis: Matrix3<f32>,
+    position: Vector3<f32>,
 }
 
 impl Listener {
     pub(in crate) fn new() -> Self {
         Self {
-            basis: Default::default(),
-            position: Default::default(),
+            basis: Matrix3::identity(),
+            position: Vector3::new(0.0, 0.0, 0.0),
         }
     }
 
     /// Sets new basis from given vectors in left-handed coordinate system.
     /// See `set_basis` for more info.
-    pub fn set_orientation_lh(&mut self, look: Vec3, up: Vec3) {
-        self.basis = Mat3::from_vectors(look.cross(&up), up, look)
+    pub fn set_orientation_lh(&mut self, look: Vector3<f32>, up: Vector3<f32>) {
+        self.basis = Matrix3::from_columns(&[look.cross(&up), up, look])
     }
 
     /// Sets new basis from given vectors in right-handed coordinate system.
     /// See `set_basis` for more info.
-    pub fn set_orientation_rh(&mut self, look: Vec3, up: Vec3) {
-        self.basis = Mat3::from_vectors(up.cross(&look), up, look)
+    pub fn set_orientation_rh(&mut self, look: Vector3<f32>, up: Vector3<f32>) {
+        self.basis = Matrix3::from_columns(&[up.cross(&look), up, look])
     }
 
     /// Sets arbitrary basis. Basis defines orientation of the listener in space.
@@ -49,46 +49,46 @@ impl Listener {
     ///
     /// ```
     /// use rg3d_sound::listener::Listener;
-    /// use rg3d_sound::math::mat3::Mat3;
-    /// use rg3d_sound::math::vec3::Vec3;
-    /// use rg3d_sound::math::quat::Quat;
+    /// use rg3d_sound::math::mat3::Matrix3;
+    /// use rg3d_sound::math::vec3::Vector3;
+    /// use rg3d_sound::math::quat::UnitQuaternion;
     ///
     /// fn orient_listener(listener: &mut Listener) {
-    ///     let basis = Mat3::from_quat(Quat::from_axis_angle(Vec3::new(0.0, 1.0, 0.0), 45.0f32.to_radians()));
+    ///     let basis = Matrix3::from_quat(UnitQuaternion::from_axis_angle(Vector3::new(0.0, 1.0, 0.0), 45.0f32.to_radians()));
     ///     listener.set_basis(basis);
     /// }
     /// ```
-    pub fn set_basis(&mut self, matrix: Mat3) {
+    pub fn set_basis(&mut self, matrix: Matrix3<f32>) {
         self.basis = matrix;
     }
 
     /// Returns shared reference to current basis.
-    pub fn basis(&self) -> &Mat3 {
+    pub fn basis(&self) -> &Matrix3<f32> {
         &self.basis
     }
 
     /// Sets current position in world space.
-    pub fn set_position(&mut self, position: Vec3) {
+    pub fn set_position(&mut self, position: Vector3<f32>) {
         self.position = position;
     }
 
     /// Returns position of listener.
-    pub fn position(&self) -> Vec3 {
+    pub fn position(&self) -> Vector3<f32> {
         self.position
     }
 
     /// Returns up axis from basis.
-    pub fn up_axis(&self) -> Vec3 {
+    pub fn up_axis(&self) -> Vector3<f32> {
         self.basis.up()
     }
 
     /// Returns look axis from basis.
-    pub fn look_axis(&self) -> Vec3 {
+    pub fn look_axis(&self) -> Vector3<f32> {
         self.basis.look()
     }
 
     /// Returns ear axis from basis.
-    pub fn ear_axis(&self) -> Vec3 {
+    pub fn ear_axis(&self) -> Vector3<f32> {
         self.basis.side()
     }
 }

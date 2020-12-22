@@ -1,11 +1,12 @@
-use crate::message::{MessageData, MessageDirection};
 use crate::{
     button::ButtonBuilder,
-    core::{math::vec2::Vec2, math::Rect, pool::Handle},
+    core::{algebra::Vector2, math::Rect, pool::Handle},
     draw::DrawingContext,
     grid::{Column, GridBuilder, Row},
-    message::TextMessage,
-    message::{ButtonMessage, MessageBoxMessage, OsEvent, UiMessage, UiMessageData, WindowMessage},
+    message::{
+        ButtonMessage, MessageBoxMessage, MessageData, MessageDirection, OsEvent, TextMessage,
+        UiMessage, UiMessageData, WindowMessage,
+    },
     node::UINode,
     stack_panel::StackPanelBuilder,
     text::TextBuilder,
@@ -66,11 +67,15 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for MessageBox<M, C> {
         node_map.resolve(&mut self.text);
     }
 
-    fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
+    fn measure_override(
+        &self,
+        ui: &UserInterface<M, C>,
+        available_size: Vector2<f32>,
+    ) -> Vector2<f32> {
         self.window.measure_override(ui, available_size)
     }
 
-    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
+    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
         self.window.arrange_override(ui, final_size)
     }
 
@@ -86,7 +91,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for MessageBox<M, C> {
         self.window.is_arrange_valid(ui)
     }
 
-    fn measure(&self, ui: &UserInterface<M, C>, available_size: Vec2) {
+    fn measure(&self, ui: &UserInterface<M, C>, available_size: Vector2<f32>) {
         self.window.measure(ui, available_size)
     }
 
@@ -348,7 +353,7 @@ impl<'a, 'b, M: MessageData, C: Control<M, C>> MessageBoxBuilder<'b, M, C> {
         };
 
         if self.window_builder.widget_builder.min_size.is_none() {
-            self.window_builder.widget_builder.min_size = Some(Vec2::new(200.0, 100.0));
+            self.window_builder.widget_builder.min_size = Some(Vector2::new(200.0, 100.0));
         }
 
         let is_open = self.window_builder.open;

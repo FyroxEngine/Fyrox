@@ -27,7 +27,7 @@
 //! ```
 //! use rg3d::scene::particle_system::{SphereEmitter, ParticleSystemBuilder, Emitter, BaseEmitterBuilder, SphereEmitterBuilder};
 //! use rg3d::engine::resource_manager::ResourceManager;
-//! use rg3d::core::math::vec3::Vec3;
+//! use rg3d::core::algebra::Vector3;
 //! use rg3d::scene::graph::Graph;
 //! use rg3d::scene::node::Node;
 //! use rg3d::scene::transform::TransformBuilder;
@@ -38,13 +38,13 @@
 //! use std::path::Path;
 //! use rg3d::resource::texture::TexturePixelKind;
 //!
-//! fn create_smoke(graph: &mut Graph, resource_manager: &mut ResourceManager, pos: Vec3) {
+//! fn create_smoke(graph: &mut Graph, resource_manager: &mut ResourceManager, pos: Vector3<f32>) {
 //!     graph.add_node(Node::ParticleSystem(ParticleSystemBuilder::new(BaseBuilder::new()
 //!         .with_lifetime(5.0)
 //!         .with_local_transform(TransformBuilder::new()
 //!             .with_local_position(pos)
 //!             .build()))
-//!         .with_acceleration(Vec3::new(0.0, 0.0, 0.0))
+//!         .with_acceleration(Vector3::new(0.0, 0.0, 0.0))
 //!         .with_color_over_lifetime_gradient({
 //!             let mut gradient = ColorGradient::new();
 //!             gradient.add_point(GradientPoint::new(0.00, Color::from_rgba(150, 150, 150, 0)));
@@ -63,39 +63,41 @@
 //!                 .with_radius(0.01)
 //!                 .build()
 //!         ])
-//!         .with_opt_texture(resource_manager.request_texture(Path::new("data/particles/smoke_04.tga"), TexturePixelKind::R8))
+//!         .with_texture(resource_manager.request_texture(Path::new("data/particles/smoke_04.tga")))
 //!         .build()));
 //! }
 //! ```
 
-use crate::scene::node::Node;
 use crate::{
     core::{
+        algebra::{Vector2, Vector3},
         color::Color,
         color_gradient::ColorGradient,
-        math::{vec2::Vec2, vec3::Vec3, TriangleDefinition},
+        math::TriangleDefinition,
         numeric_range::NumericRange,
+        pool::Handle,
         visitor::{Visit, VisitResult, Visitor},
     },
     resource::texture::Texture,
-    scene::base::{Base, BaseBuilder},
+    scene::{
+        base::{Base, BaseBuilder},
+        graph::Graph,
+        node::Node,
+    },
 };
-use rand::Rng;
 use std::{
-    any::Any,
     cell::Cell,
     cmp::Ordering,
     fmt::Debug,
     ops::{Deref, DerefMut},
-    sync::{LockResult, Mutex, MutexGuard},
 };
 
 /// OpenGL expects this structure packed as in C.
 #[repr(C)]
 #[derive(Debug)]
 pub struct Vertex {
-    position: Vec3,
-    tex_coord: Vec2,
+    position: Vector3<f32>,
+    tex_coord: Vector2<f32>,
     size: f32,
     rotation: f32,
     color: Color,
@@ -138,9 +140,9 @@ impl DrawData {
 #[derive(Clone, Debug)]
 pub struct Particle {
     /// Position of particle in local coordinates.
-    pub position: Vec3,
+    pub position: Vector3<f32>,
     /// Velocity of particle in local coordinates.
-    pub velocity: Vec3,
+    pub velocity: Vector3<f32>,
     /// Size of particle.
     pub size: f32,
     alive: bool,
@@ -239,6 +241,36 @@ impl BoxEmitter {
             half_depth: depth * 0.5,
         }
     }
+
+    /// Returns half width of the box emitter.
+    pub fn half_width(&self) -> f32 {
+        self.half_width
+    }
+
+    /// Sets half width of the box emitter.
+    pub fn set_half_width(&mut self, half_width: f32) {
+        self.half_width = half_width.max(0.0);
+    }
+
+    /// Returns half height of the box emitter.
+    pub fn half_height(&self) -> f32 {
+        self.half_height
+    }
+
+    /// Sets half height of the box emitter.
+    pub fn set_half_height(&mut self, half_height: f32) {
+        self.half_height = half_height.max(0.0);
+    }
+
+    /// Returns half depth of the box emitter.
+    pub fn half_depth(&self) -> f32 {
+        self.half_depth
+    }
+
+    /// Sets half depth of the box emitter.
+    pub fn set_half_depth(&mut self, half_depth: f32) {
+        self.half_depth = half_depth.max(0.0);
+    }
 }
 
 impl Default for BoxEmitter {
@@ -255,11 +287,10 @@ impl Default for BoxEmitter {
 impl Emit for BoxEmitter {
     fn emit(&self, _particle_system: &ParticleSystem, particle: &mut Particle) {
         self.emitter.emit(particle);
-        let mut rng = rand::thread_rng();
-        particle.position = Vec3::new(
-            self.position.x + rng.gen_range(-self.half_width, self.half_width),
-            self.position.y + rng.gen_range(-self.half_height, self.half_height),
-            self.position.z + rng.gen_range(-self.half_depth, self.half_depth),
+        particle.position = Vector3::new(
+            self.position.x + NumericRange::new(-self.half_width, self.half_width).random(),
+            self.position.y + NumericRange::new(-self.half_height, self.half_height).random(),
+            self.position.z + NumericRange::new(-self.half_depth, self.half_depth).random(),
         )
     }
 }
@@ -268,11 +299,131 @@ impl Visit for BoxEmitter {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
+        self.emitter.visit("Emitter", visitor)?;
         self.half_width.visit("HalfWidth", visitor)?;
         self.half_height.visit("HalfHeight", visitor)?;
         self.half_depth.visit("HalfDepth", visitor)?;
 
         visitor.leave_region()
+    }
+}
+
+/// Vertical cylinder emitter.
+#[derive(Clone, Debug)]
+pub struct CylinderEmitter {
+    emitter: BaseEmitter,
+    height: f32,
+    radius: f32,
+}
+
+impl Default for CylinderEmitter {
+    fn default() -> Self {
+        Self {
+            emitter: Default::default(),
+            height: 1.0,
+            radius: 0.5,
+        }
+    }
+}
+
+impl Deref for CylinderEmitter {
+    type Target = BaseEmitter;
+
+    fn deref(&self) -> &Self::Target {
+        &self.emitter
+    }
+}
+
+impl DerefMut for CylinderEmitter {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.emitter
+    }
+}
+
+impl Visit for CylinderEmitter {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.emitter.visit("Emitter", visitor)?;
+        self.radius.visit("Radius", visitor)?;
+        self.height.visit("Height", visitor)?;
+
+        visitor.leave_region()
+    }
+}
+
+impl Emit for CylinderEmitter {
+    fn emit(&self, _particle_system: &ParticleSystem, particle: &mut Particle) {
+        // Disk point picking extended in 3D - http://mathworld.wolfram.com/DiskPointPicking.html
+        let scale: f32 = NumericRange::new(0.0, 1.0).random();
+        let theta = NumericRange::new(0.0, 2.0 * std::f32::consts::PI).random();
+        let z = NumericRange::new(0.0, self.height).random();
+        let radius = scale.sqrt() * self.radius;
+        let x = radius * theta.cos();
+        let y = radius * theta.sin();
+        particle.position = self.position + Vector3::new(x, y, z);
+    }
+}
+
+impl CylinderEmitter {
+    /// Returns radius of the cylinder emitter.
+    pub fn radius(&self) -> f32 {
+        self.radius
+    }
+
+    /// Sets radius of the cylinder emitter.
+    pub fn set_radius(&mut self, radius: f32) {
+        self.radius = radius.max(0.0);
+    }
+
+    /// Returns height of the cylinder emitter.
+    pub fn height(&self) -> f32 {
+        self.height
+    }
+
+    /// Sets height of the cylinder emitter.
+    pub fn set_height(&mut self, height: f32) {
+        self.height = height.max(0.0);
+    }
+}
+
+/// Box emitter builder allows you to construct cylinder emitter in declarative manner.
+/// This is typical implementation of Builder pattern.
+pub struct CylinderEmitterBuilder {
+    base: BaseEmitterBuilder,
+    height: f32,
+    radius: f32,
+}
+
+impl CylinderEmitterBuilder {
+    /// Creates new cylinder emitter builder.
+    pub fn new(base: BaseEmitterBuilder) -> Self {
+        Self {
+            base,
+            height: 1.0,
+            radius: 0.5,
+        }
+    }
+
+    /// Sets desired height of the emitter.
+    pub fn with_height(mut self, height: f32) -> Self {
+        self.height = height;
+        self
+    }
+
+    /// Sets desired radius of the emitter.
+    pub fn with_radius(mut self, radius: f32) -> Self {
+        self.radius = radius;
+        self
+    }
+
+    /// Creates new cylinder emitter with given parameters.
+    pub fn build(self) -> Emitter {
+        Emitter::Cylinder(CylinderEmitter {
+            emitter: self.base.build(),
+            height: self.height,
+            radius: self.radius,
+        })
     }
 }
 
@@ -361,12 +512,23 @@ impl SphereEmitter {
     pub fn new(emitter: BaseEmitter, radius: f32) -> Self {
         Self { emitter, radius }
     }
+
+    /// Returns current radius.
+    pub fn radius(&self) -> f32 {
+        self.radius
+    }
+
+    /// Sets new sphere radius.
+    pub fn set_radius(&mut self, radius: f32) {
+        self.radius = radius.max(0.0);
+    }
 }
 
 impl Visit for SphereEmitter {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
+        self.emitter.visit("Emitter", visitor)?;
         self.radius.visit("Radius", visitor)?;
 
         visitor.leave_region()
@@ -376,19 +538,19 @@ impl Visit for SphereEmitter {
 impl Emit for SphereEmitter {
     fn emit(&self, _particle_system: &ParticleSystem, particle: &mut Particle) {
         self.emitter.emit(particle);
-        let mut rng = rand::thread_rng();
-        let phi = rng.gen_range(0.0, std::f32::consts::PI);
-        let theta = rng.gen_range(0.0, 2.0 * std::f32::consts::PI);
-        let radius = rng.gen_range(0.0, self.radius);
+        let phi = NumericRange::new(0.0, std::f32::consts::PI).random();
+        let theta = NumericRange::new(0.0, 2.0 * std::f32::consts::PI).random();
+        let radius = NumericRange::new(0.0, self.radius).random();
         let cos_theta = theta.cos();
         let sin_theta = theta.sin();
         let cos_phi = phi.cos();
         let sin_phi = phi.sin();
-        particle.position = Vec3::new(
-            radius * sin_theta * cos_phi,
-            radius * sin_theta * sin_phi,
-            radius * cos_theta,
-        );
+        particle.position = self.position
+            + Vector3::new(
+                radius * sin_theta * cos_phi,
+                radius * sin_theta * sin_phi,
+                radius * cos_theta,
+            );
     }
 }
 
@@ -420,63 +582,6 @@ impl SphereEmitterBuilder {
     }
 }
 
-/// Callback that creates emitter by its numeric identifier.
-pub type CustomEmitterFactoryCallback =
-    dyn Fn(i32) -> Result<Box<dyn CustomEmitter>, String> + Send + 'static;
-
-/// Custom emitter factory is used to be able to make your own emitters if none of
-/// predefined are not suits to your case.
-pub struct CustomEmitterFactory {
-    callback: Option<Box<CustomEmitterFactoryCallback>>,
-}
-
-impl Default for CustomEmitterFactory {
-    fn default() -> Self {
-        Self { callback: None }
-    }
-}
-
-impl CustomEmitterFactory {
-    /// Locks factory singleton and returns lock result.
-    pub fn get() -> LockResult<MutexGuard<'static, Self>> {
-        CUSTOM_EMITTER_FACTORY_INSTANCE.lock()
-    }
-
-    /// Sets new callback that will be used to create custom emitters.
-    pub fn set_callback(&mut self, callback: Box<CustomEmitterFactoryCallback>) {
-        self.callback = Some(callback);
-    }
-
-    fn spawn(&self, kind: i32) -> Result<Box<dyn CustomEmitter>, String> {
-        match &self.callback {
-            Some(callback) => callback(kind),
-            None => Err(String::from("no callback specified")),
-        }
-    }
-}
-
-lazy_static! {
-    static ref CUSTOM_EMITTER_FACTORY_INSTANCE: Mutex<CustomEmitterFactory> =
-        Mutex::new(Default::default());
-}
-
-/// Custom emitter allows you to make your own emitters. It can be implemented on serializable
-/// types only!
-///
-/// # Example
-///
-/// TODO
-pub trait CustomEmitter:
-    Any + Emit + Visit + Send + Debug + Deref<Target = BaseEmitter> + DerefMut
-{
-    /// Creates boxed copy of custom emitter.
-    fn box_clone(&self) -> Box<dyn CustomEmitter>;
-
-    /// Returns unique of custom emitter. Must never be negative!
-    /// Negative numbers reserved for built-in kinds.
-    fn get_kind(&self) -> i32;
-}
-
 /// Emitter is an enum over all possible emitter types, they all must
 /// use BaseEmitter which contains base functionality.
 #[derive(Debug)]
@@ -488,38 +593,29 @@ pub enum Emitter {
     Box(BoxEmitter),
     /// See SphereEmitter docs.
     Sphere(SphereEmitter),
-    /// Custom emitter.
-    Custom(Box<dyn CustomEmitter>),
+    /// Cylinder emitter.
+    Cylinder(CylinderEmitter),
 }
 
 impl Emitter {
     /// Creates new emitter from given id.
     pub fn new(id: i32) -> Result<Self, String> {
         match id {
-            -1 => Ok(Self::Unknown),
-            -2 => Ok(Self::Box(Default::default())),
-            -3 => Ok(Self::Sphere(Default::default())),
-            _ => match CustomEmitterFactory::get() {
-                Ok(factory) => Ok(Emitter::Custom(factory.spawn(id)?)),
-                Err(_) => Err(String::from("Failed get custom emitter factory!")),
-            },
+            0 => Ok(Self::Unknown),
+            1 => Ok(Self::Box(Default::default())),
+            2 => Ok(Self::Sphere(Default::default())),
+            3 => Ok(Self::Cylinder(Default::default())),
+            _ => Err(format!("Invalid emitter id {}!", id)),
         }
     }
 
     /// Returns id of current emitter kind.
     pub fn id(&self) -> i32 {
         match self {
-            Self::Unknown => -1,
-            Self::Box(_) => -2,
-            Self::Sphere(_) => -3,
-            Self::Custom(custom_emitter) => {
-                let id = custom_emitter.get_kind();
-                assert!(
-                    id >= 0,
-                    "Negative number for emitter kind are reserved for built-in types!"
-                );
-                id
-            }
+            Self::Unknown => 0,
+            Self::Box(_) => 1,
+            Self::Sphere(_) => 2,
+            Self::Cylinder(_) => 3,
         }
     }
 }
@@ -530,7 +626,7 @@ macro_rules! static_dispatch {
             Emitter::Unknown => panic!("Unknown emitter must not be used!"),
             Emitter::Box(v) => v.$func($($args),*),
             Emitter::Sphere(v) => v.$func($($args),*),
-            Emitter::Custom(v) => v.$func($($args),*),
+            Emitter::Cylinder(v) => v.$func($($args),*),
         }
     };
 }
@@ -547,7 +643,7 @@ impl Clone for Emitter {
             Self::Unknown => panic!("Unknown emitter kind is not supported"),
             Self::Box(box_emitter) => Self::Box(box_emitter.clone()),
             Self::Sphere(sphere_emitter) => Self::Sphere(sphere_emitter.clone()),
-            Self::Custom(custom_emitter) => Self::Custom(custom_emitter.box_clone()),
+            Self::Cylinder(cylinder) => Self::Cylinder(cylinder.clone()),
         }
     }
 }
@@ -620,28 +716,28 @@ impl Visit for ParticleLimit {
 #[derive(Debug)]
 pub struct BaseEmitter {
     /// Offset from center of particle system.
-    position: Vec3,
+    position: Vector3<f32>,
     /// Particle spawn rate in unit-per-second. If < 0, spawns `max_particles`,
     /// spawns nothing if `max_particles` < 0
     particle_spawn_rate: u32,
     /// Maximum amount of particles emitter can emit. Unlimited if < 0
     max_particles: ParticleLimit,
     /// Range of initial lifetime of a particle
-    lifetime: NumericRange<f32>,
+    lifetime: NumericRange,
     /// Range of initial size of a particle
-    size: NumericRange<f32>,
+    size: NumericRange,
     /// Range of initial size modifier of a particle
-    size_modifier: NumericRange<f32>,
+    size_modifier: NumericRange,
     /// Range of initial X-component of velocity for a particle
-    x_velocity: NumericRange<f32>,
+    x_velocity: NumericRange,
     /// Range of initial Y-component of velocity for a particle
-    y_velocity: NumericRange<f32>,
+    y_velocity: NumericRange,
     /// Range of initial Z-component of velocity for a particle
-    z_velocity: NumericRange<f32>,
+    z_velocity: NumericRange,
     /// Range of initial rotation speed for a particle
-    rotation_speed: NumericRange<f32>,
+    rotation_speed: NumericRange,
     /// Range of initial rotation for a particle
-    rotation: NumericRange<f32>,
+    rotation: NumericRange,
     alive_particles: Cell<u32>,
     time: f32,
     particles_to_spawn: usize,
@@ -652,17 +748,17 @@ pub struct BaseEmitter {
 /// Emitter builder allows you to construct emitter in declarative manner.
 /// This is typical implementation of Builder pattern.
 pub struct BaseEmitterBuilder {
-    position: Option<Vec3>,
+    position: Option<Vector3<f32>>,
     particle_spawn_rate: Option<u32>,
     max_particles: Option<u32>,
-    lifetime: Option<NumericRange<f32>>,
-    size: Option<NumericRange<f32>>,
-    size_modifier: Option<NumericRange<f32>>,
-    x_velocity: Option<NumericRange<f32>>,
-    y_velocity: Option<NumericRange<f32>>,
-    z_velocity: Option<NumericRange<f32>>,
-    rotation_speed: Option<NumericRange<f32>>,
-    rotation: Option<NumericRange<f32>>,
+    lifetime: Option<NumericRange>,
+    size: Option<NumericRange>,
+    size_modifier: Option<NumericRange>,
+    x_velocity: Option<NumericRange>,
+    y_velocity: Option<NumericRange>,
+    z_velocity: Option<NumericRange>,
+    rotation_speed: Option<NumericRange>,
+    rotation: Option<NumericRange>,
     resurrect_particles: bool,
 }
 
@@ -692,7 +788,7 @@ impl BaseEmitterBuilder {
     }
 
     /// Sets desired position of emitter in local coordinates.
-    pub fn with_position(mut self, position: Vec3) -> Self {
+    pub fn with_position(mut self, position: Vector3<f32>) -> Self {
         self.position = Some(position);
         self
     }
@@ -710,49 +806,49 @@ impl BaseEmitterBuilder {
     }
 
     /// Sets desired lifetime range.
-    pub fn with_lifetime_range(mut self, time_range: NumericRange<f32>) -> Self {
+    pub fn with_lifetime_range(mut self, time_range: NumericRange) -> Self {
         self.lifetime = Some(time_range);
         self
     }
 
     /// Sets desired size range.
-    pub fn with_size_range(mut self, size_range: NumericRange<f32>) -> Self {
+    pub fn with_size_range(mut self, size_range: NumericRange) -> Self {
         self.size = Some(size_range);
         self
     }
 
     /// Sets desired size modifier range.
-    pub fn with_size_modifier_range(mut self, mod_range: NumericRange<f32>) -> Self {
+    pub fn with_size_modifier_range(mut self, mod_range: NumericRange) -> Self {
         self.size_modifier = Some(mod_range);
         self
     }
 
     /// Sets desired x velocity range.
-    pub fn with_x_velocity_range(mut self, x_vel_range: NumericRange<f32>) -> Self {
+    pub fn with_x_velocity_range(mut self, x_vel_range: NumericRange) -> Self {
         self.x_velocity = Some(x_vel_range);
         self
     }
 
     /// Sets desired y velocity range.
-    pub fn with_y_velocity_range(mut self, y_vel_range: NumericRange<f32>) -> Self {
+    pub fn with_y_velocity_range(mut self, y_vel_range: NumericRange) -> Self {
         self.y_velocity = Some(y_vel_range);
         self
     }
 
     /// Sets desired z velocity range.
-    pub fn with_z_velocity_range(mut self, z_vel_range: NumericRange<f32>) -> Self {
+    pub fn with_z_velocity_range(mut self, z_vel_range: NumericRange) -> Self {
         self.z_velocity = Some(z_vel_range);
         self
     }
 
     /// Sets desired rotation speed range.
-    pub fn with_rotation_speed_range(mut self, speed_range: NumericRange<f32>) -> Self {
+    pub fn with_rotation_speed_range(mut self, speed_range: NumericRange) -> Self {
         self.rotation_speed = Some(speed_range);
         self
     }
 
     /// Sets desired rotation range.
-    pub fn with_rotation_range(mut self, angle_range: NumericRange<f32>) -> Self {
+    pub fn with_rotation_range(mut self, angle_range: NumericRange) -> Self {
         self.rotation = Some(angle_range);
         self
     }
@@ -766,7 +862,7 @@ impl BaseEmitterBuilder {
     /// Creates new instance of emitter.
     pub fn build(self) -> BaseEmitter {
         BaseEmitter {
-            position: self.position.unwrap_or(Vec3::ZERO),
+            position: self.position.unwrap_or_default(),
             particle_spawn_rate: self.particle_spawn_rate.unwrap_or(25),
             max_particles: self
                 .max_particles
@@ -832,7 +928,7 @@ impl BaseEmitter {
         particle.color = Color::WHITE;
         particle.size = self.size.random();
         particle.size_modifier = self.size_modifier.random();
-        particle.velocity = Vec3::new(
+        particle.velocity = Vector3::new(
             self.x_velocity.random(),
             self.y_velocity.random(),
             self.z_velocity.random(),
@@ -842,13 +938,13 @@ impl BaseEmitter {
     }
 
     /// Sets new position of emitter in local coordinates.
-    pub fn set_position(&mut self, position: Vec3) -> &mut Self {
+    pub fn set_position(&mut self, position: Vector3<f32>) -> &mut Self {
         self.position = position;
         self
     }
 
     /// Returns position of emitter in local coordinates.
-    pub fn position(&self) -> Vec3 {
+    pub fn position(&self) -> Vector3<f32> {
         self.position
     }
 
@@ -876,102 +972,102 @@ impl BaseEmitter {
 
     /// Sets new range of lifetimes which will be used to generate random lifetime
     /// of new particle.
-    pub fn set_life_time_range(&mut self, range: NumericRange<f32>) -> &mut Self {
+    pub fn set_life_time_range(&mut self, range: NumericRange) -> &mut Self {
         self.lifetime = range;
         self
     }
 
     /// Returns current lifetime range.
-    pub fn life_time_range(&self) -> NumericRange<f32> {
+    pub fn life_time_range(&self) -> NumericRange {
         self.lifetime
     }
 
     /// Sets new range of sizes which will be used to generate random size
     /// of new particle.
-    pub fn set_size_range(&mut self, range: NumericRange<f32>) -> &mut Self {
+    pub fn set_size_range(&mut self, range: NumericRange) -> &mut Self {
         self.size = range;
         self
     }
 
     /// Returns current size range.
-    pub fn size_range(&self) -> NumericRange<f32> {
+    pub fn size_range(&self) -> NumericRange {
         self.size
     }
 
     /// Sets new range of size modifier which will be used to generate random size modifier
     /// of new particle.
-    pub fn set_size_modifier_range(&mut self, range: NumericRange<f32>) -> &mut Self {
+    pub fn set_size_modifier_range(&mut self, range: NumericRange) -> &mut Self {
         self.size_modifier = range;
         self
     }
 
     /// Returns current size modifier.
-    pub fn size_modifier_range(&self) -> NumericRange<f32> {
+    pub fn size_modifier_range(&self) -> NumericRange {
         self.size_modifier
     }
 
     /// Sets new range of initial x velocity that will be used to generate random
     /// value of initial x velocity of a particle.
-    pub fn set_x_velocity_range(&mut self, range: NumericRange<f32>) -> &mut Self {
+    pub fn set_x_velocity_range(&mut self, range: NumericRange) -> &mut Self {
         self.x_velocity = range;
         self
     }
 
     /// Returns current range of initial x velocity that will be used to generate
     /// random value of initial x velocity of a particle.
-    pub fn x_velocity_range(&self) -> NumericRange<f32> {
+    pub fn x_velocity_range(&self) -> NumericRange {
         self.x_velocity
     }
 
     /// Sets new range of initial y velocity that will be used to generate random
     /// value of initial y velocity of a particle.
-    pub fn set_y_velocity_range(&mut self, range: NumericRange<f32>) -> &mut Self {
+    pub fn set_y_velocity_range(&mut self, range: NumericRange) -> &mut Self {
         self.y_velocity = range;
         self
     }
 
     /// Returns current range of initial y velocity that will be used to generate
     /// random value of initial y velocity of a particle.
-    pub fn y_velocity_range(&self) -> NumericRange<f32> {
+    pub fn y_velocity_range(&self) -> NumericRange {
         self.y_velocity
     }
 
     /// Sets new range of initial z velocity that will be used to generate random
     /// value of initial z velocity of a particle.
-    pub fn set_z_velocity_range(&mut self, range: NumericRange<f32>) -> &mut Self {
+    pub fn set_z_velocity_range(&mut self, range: NumericRange) -> &mut Self {
         self.z_velocity = range;
         self
     }
 
     /// Returns current range of initial z velocity that will be used to generate
     /// random value of initial z velocity of a particle.
-    pub fn z_velocity_range(&self) -> NumericRange<f32> {
+    pub fn z_velocity_range(&self) -> NumericRange {
         self.z_velocity
     }
 
     /// Sets new range of rotation speed that will be used to generate random value
     /// of rotation speed of a particle.
-    pub fn set_rotation_speed_range(&mut self, range: NumericRange<f32>) -> &mut Self {
+    pub fn set_rotation_speed_range(&mut self, range: NumericRange) -> &mut Self {
         self.rotation_speed = range;
         self
     }
 
     /// Returns current range of rotation speed that will be used to generate random
     /// value of rotation speed of a particle.
-    pub fn rotation_speed_range(&self) -> NumericRange<f32> {
+    pub fn rotation_speed_range(&self) -> NumericRange {
         self.rotation_speed
     }
 
     /// Sets new range of initial rotations that will be used to generate random
     /// value of initial rotation of a particle.
-    pub fn set_rotation_range(&mut self, range: NumericRange<f32>) -> &mut Self {
+    pub fn set_rotation_range(&mut self, range: NumericRange) -> &mut Self {
         self.rotation = range;
         self
     }
 
     /// Returns current range of initial rotations that will be used to generate
     /// random value of initial rotation of a particle.
-    pub fn rotation_range(&self) -> NumericRange<f32> {
+    pub fn rotation_range(&self) -> NumericRange {
         self.rotation
     }
 
@@ -1044,8 +1140,8 @@ impl Clone for BaseEmitter {
 impl Default for BaseEmitter {
     fn default() -> Self {
         Self {
-            position: Vec3::ZERO,
-            particle_spawn_rate: 0,
+            position: Vector3::default(),
+            particle_spawn_rate: 100,
             max_particles: ParticleLimit::Unlimited,
             lifetime: NumericRange::new(5.0, 10.0),
             size: NumericRange::new(0.125, 0.250),
@@ -1070,9 +1166,10 @@ pub struct ParticleSystem {
     base: Base,
     particles: Vec<Particle>,
     free_particles: Vec<u32>,
-    emitters: Vec<Emitter>,
+    /// List of emitters of the particle system.
+    pub emitters: Vec<Emitter>,
     texture: Option<Texture>,
-    acceleration: Vec3,
+    acceleration: Vector3<f32>,
     color_over_lifetime: Option<ColorGradient>,
 }
 
@@ -1104,25 +1201,29 @@ impl ParticleSystem {
         }
     }
 
-    /// Adds new emitter to particle system.
-    pub fn add_emitter(&mut self, emitter: Emitter) {
-        self.emitters.push(emitter)
-    }
-
     /// Returns current acceleration for particles in particle system.
-    pub fn acceleration(&self) -> Vec3 {
+    pub fn acceleration(&self) -> Vector3<f32> {
         self.acceleration
     }
 
     /// Set new acceleration that will be applied to all particles,
     /// can be used to change "gravity" vector of particles.
-    pub fn set_acceleration(&mut self, accel: Vec3) {
+    pub fn set_acceleration(&mut self, accel: Vector3<f32>) {
         self.acceleration = accel;
     }
 
     /// Sets new "color curve" that will evaluate color over lifetime.
     pub fn set_color_over_lifetime_gradient(&mut self, gradient: ColorGradient) {
         self.color_over_lifetime = Some(gradient)
+    }
+
+    /// Removes all generated particles.
+    pub fn clear_particles(&mut self) {
+        self.particles.clear();
+        self.free_particles.clear();
+        for emitter in self.emitters.iter_mut() {
+            emitter.alive_particles.set(0);
+        }
     }
 
     /// Updates state of particle system, this means that it moves particles,
@@ -1188,7 +1289,7 @@ impl ParticleSystem {
         &self,
         sorted_particles: &mut Vec<u32>,
         draw_data: &mut DrawData,
-        camera_pos: &Vec3,
+        camera_pos: &Vector3<f32>,
     ) {
         sorted_particles.clear();
         for (i, particle) in self.particles.iter().enumerate() {
@@ -1196,7 +1297,7 @@ impl ParticleSystem {
                 let actual_position = particle.position + self.base.global_position();
                 particle
                     .sqr_distance_to_camera
-                    .set(camera_pos.sqr_distance(&actual_position));
+                    .set((camera_pos - actual_position).norm_squared());
                 sorted_particles.push(i as u32);
             }
         }
@@ -1224,7 +1325,7 @@ impl ParticleSystem {
 
             draw_data.vertices.push(Vertex {
                 position: particle.position,
-                tex_coord: Vec2::ZERO,
+                tex_coord: Vector2::default(),
                 size: particle.size,
                 rotation: particle.rotation,
                 color: particle.color,
@@ -1232,7 +1333,7 @@ impl ParticleSystem {
 
             draw_data.vertices.push(Vertex {
                 position: particle.position,
-                tex_coord: Vec2::new(1.0, 0.0),
+                tex_coord: Vector2::new(1.0, 0.0),
                 size: particle.size,
                 rotation: particle.rotation,
                 color: particle.color,
@@ -1240,7 +1341,7 @@ impl ParticleSystem {
 
             draw_data.vertices.push(Vertex {
                 position: particle.position,
-                tex_coord: Vec2::new(1.0, 1.0),
+                tex_coord: Vector2::new(1.0, 1.0),
                 size: particle.size,
                 rotation: particle.rotation,
                 color: particle.color,
@@ -1248,7 +1349,7 @@ impl ParticleSystem {
 
             draw_data.vertices.push(Vertex {
                 position: particle.position,
-                tex_coord: Vec2::new(0.0, 1.0),
+                tex_coord: Vector2::new(0.0, 1.0),
                 size: particle.size,
                 rotation: particle.rotation,
                 color: particle.color,
@@ -1298,7 +1399,7 @@ impl Visit for ParticleSystem {
 
 impl Default for ParticleSystem {
     fn default() -> Self {
-        ParticleSystemBuilder::new(BaseBuilder::new()).build()
+        ParticleSystemBuilder::new(BaseBuilder::new()).build_particle_system()
     }
 }
 
@@ -1308,7 +1409,7 @@ pub struct ParticleSystemBuilder {
     base_builder: BaseBuilder,
     emitters: Vec<Emitter>,
     texture: Option<Texture>,
-    acceleration: Vec3,
+    acceleration: Vector3<f32>,
     color_over_lifetime: Option<ColorGradient>,
 }
 
@@ -1319,7 +1420,7 @@ impl ParticleSystemBuilder {
             base_builder,
             emitters: Default::default(),
             texture: None,
-            acceleration: Vec3::new(0.0, -9.81, 0.0),
+            acceleration: Vector3::new(0.0, -9.81, 0.0),
             color_over_lifetime: None,
         }
     }
@@ -1343,7 +1444,7 @@ impl ParticleSystemBuilder {
     }
 
     /// Sets desired acceleration for particle system.
-    pub fn with_acceleration(mut self, acceleration: Vec3) -> Self {
+    pub fn with_acceleration(mut self, acceleration: Vector3<f32>) -> Self {
         self.acceleration = acceleration;
         self
     }
@@ -1354,10 +1455,9 @@ impl ParticleSystemBuilder {
         self
     }
 
-    /// Creates new instance of particle system.
-    pub fn build(self) -> ParticleSystem {
+    fn build_particle_system(self) -> ParticleSystem {
         ParticleSystem {
-            base: self.base_builder.build(),
+            base: self.base_builder.build_base(),
             particles: Vec::new(),
             free_particles: Vec::new(),
             emitters: self.emitters,
@@ -1367,8 +1467,13 @@ impl ParticleSystemBuilder {
         }
     }
 
-    /// Creates new node instance.
+    /// Creates new instance of particle system.
     pub fn build_node(self) -> Node {
-        Node::ParticleSystem(self.build())
+        Node::ParticleSystem(self.build_particle_system())
+    }
+
+    /// Creates new instance of particle system and adds it to the graph.
+    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
+        graph.add_node(self.build_node())
     }
 }

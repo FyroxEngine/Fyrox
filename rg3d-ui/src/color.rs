@@ -1,18 +1,18 @@
-use crate::message::AlphaBarMessage;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
     core::{
+        algebra::Vector2,
         color::{Color, Hsv},
-        math::{vec2::Vec2, Rect},
+        math::Rect,
         pool::Handle,
     },
     draw::{CommandKind, CommandTexture, DrawingContext},
     grid::{Column, GridBuilder, Row},
     message::{
-        ColorFieldMessage, ColorPickerMessage, HueBarMessage, MessageData, MessageDirection,
-        MouseButton, NumericUpDownMessage, PopupMessage, SaturationBrightnessFieldMessage,
-        UiMessage, UiMessageData, WidgetMessage,
+        AlphaBarMessage, ColorFieldMessage, ColorPickerMessage, HueBarMessage, MessageData,
+        MessageDirection, MouseButton, NumericUpDownMessage, PopupMessage,
+        SaturationBrightnessFieldMessage, UiMessage, UiMessageData, WidgetMessage,
     },
     numeric::NumericUpDownBuilder,
     popup::{Placement, PopupBuilder},
@@ -34,7 +34,7 @@ pub struct AlphaBar<M: MessageData, C: Control<M, C>> {
 crate::define_widget_deref!(AlphaBar<M, C>);
 
 impl<M: MessageData, C: Control<M, C>> AlphaBar<M, C> {
-    fn alpha_at(&self, mouse_pos: Vec2) -> f32 {
+    fn alpha_at(&self, mouse_pos: Vector2<f32>) -> f32 {
         let relative_pos = mouse_pos - self.screen_position;
         let k = match self.orientation {
             Orientation::Vertical => relative_pos.y / self.actual_size().y,
@@ -57,29 +57,29 @@ fn push_gradient_rect(
         Orientation::Vertical => {
             drawing_context.push_triangle_multicolor([
                 (
-                    Vec2::new(bounds.x, bounds.y + bounds.h * prev_k),
+                    Vector2::new(bounds.x(), bounds.y() + bounds.h() * prev_k),
                     prev_color,
                 ),
                 (
-                    Vec2::new(bounds.x + bounds.w, bounds.y + bounds.h * prev_k),
+                    Vector2::new(bounds.x() + bounds.w(), bounds.y() + bounds.h() * prev_k),
                     prev_color,
                 ),
                 (
-                    Vec2::new(bounds.x, bounds.y + bounds.h * curr_k),
+                    Vector2::new(bounds.x(), bounds.y() + bounds.h() * curr_k),
                     curr_color,
                 ),
             ]);
             drawing_context.push_triangle_multicolor([
                 (
-                    Vec2::new(bounds.x + bounds.w, bounds.y + bounds.h * prev_k),
+                    Vector2::new(bounds.x() + bounds.w(), bounds.y() + bounds.h() * prev_k),
                     prev_color,
                 ),
                 (
-                    Vec2::new(bounds.x + bounds.w, bounds.y + bounds.h * curr_k),
+                    Vector2::new(bounds.x() + bounds.w(), bounds.y() + bounds.h() * curr_k),
                     curr_color,
                 ),
                 (
-                    Vec2::new(bounds.x, bounds.y + bounds.h * curr_k),
+                    Vector2::new(bounds.x(), bounds.y() + bounds.h() * curr_k),
                     curr_color,
                 ),
             ]);
@@ -87,29 +87,29 @@ fn push_gradient_rect(
         Orientation::Horizontal => {
             drawing_context.push_triangle_multicolor([
                 (
-                    Vec2::new(bounds.x + bounds.w * prev_k, bounds.y),
+                    Vector2::new(bounds.x() + bounds.w() * prev_k, bounds.y()),
                     prev_color,
                 ),
                 (
-                    Vec2::new(bounds.x + bounds.w * curr_k, bounds.y),
+                    Vector2::new(bounds.x() + bounds.w() * curr_k, bounds.y()),
                     curr_color,
                 ),
                 (
-                    Vec2::new(bounds.x + bounds.w * prev_k, bounds.y + bounds.h),
+                    Vector2::new(bounds.x() + bounds.w() * prev_k, bounds.y() + bounds.h()),
                     prev_color,
                 ),
             ]);
             drawing_context.push_triangle_multicolor([
                 (
-                    Vec2::new(bounds.x + bounds.w * curr_k, bounds.y),
+                    Vector2::new(bounds.x() + bounds.w() * curr_k, bounds.y()),
                     curr_color,
                 ),
                 (
-                    Vec2::new(bounds.x + bounds.w * curr_k, bounds.y + bounds.h),
+                    Vector2::new(bounds.x() + bounds.w() * curr_k, bounds.y() + bounds.h()),
                     curr_color,
                 ),
                 (
-                    Vec2::new(bounds.x + bounds.w * prev_k, bounds.y + bounds.h),
+                    Vector2::new(bounds.x() + bounds.w() * prev_k, bounds.y() + bounds.h()),
                     prev_color,
                 ),
             ]);
@@ -124,13 +124,13 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for AlphaBar<M, C> {
         let bounds = self.screen_bounds();
 
         // Draw checker board first.
-        let h_amount = (bounds.w / CHECKERBOARD_SIZE).ceil() as usize;
-        let v_amount = (bounds.h / CHECKERBOARD_SIZE).ceil() as usize;
+        let h_amount = (bounds.w() / CHECKERBOARD_SIZE).ceil() as usize;
+        let v_amount = (bounds.h() / CHECKERBOARD_SIZE).ceil() as usize;
         for y in 0..v_amount {
             for x in 0..h_amount {
                 let rect = Rect::new(
-                    bounds.x + x as f32 * CHECKERBOARD_SIZE,
-                    bounds.y + y as f32 * CHECKERBOARD_SIZE,
+                    bounds.x() + x as f32 * CHECKERBOARD_SIZE,
+                    bounds.y() + y as f32 * CHECKERBOARD_SIZE,
                     CHECKERBOARD_SIZE,
                     CHECKERBOARD_SIZE,
                 );
@@ -168,11 +168,11 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for AlphaBar<M, C> {
         let k = self.alpha / 255.0;
         match self.orientation {
             Orientation::Vertical => drawing_context.push_rect_multicolor(
-                &Rect::new(bounds.x, bounds.y + bounds.h * k, bounds.w, 1.0),
+                &Rect::new(bounds.x(), bounds.y() + bounds.h() * k, bounds.w(), 1.0),
                 [Color::WHITE; 4],
             ),
             Orientation::Horizontal => drawing_context.push_rect_multicolor(
-                &Rect::new(bounds.x + k * bounds.w, bounds.y, 1.0, bounds.h),
+                &Rect::new(bounds.x() + k * bounds.w(), bounds.y(), 1.0, bounds.h()),
                 [Color::WHITE; 4],
             ),
         }
@@ -287,7 +287,7 @@ pub struct HueBar<M: MessageData, C: Control<M, C>> {
 crate::define_widget_deref!(HueBar<M, C>);
 
 impl<M: MessageData, C: Control<M, C>> HueBar<M, C> {
-    fn hue_at(&self, mouse_pos: Vec2) -> f32 {
+    fn hue_at(&self, mouse_pos: Vector2<f32>) -> f32 {
         let relative_pos = mouse_pos - self.screen_position;
         let k = match self.orientation {
             Orientation::Vertical => relative_pos.y / self.actual_size().y,
@@ -319,11 +319,11 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for HueBar<M, C> {
         let k = self.hue / 360.0;
         match self.orientation {
             Orientation::Vertical => drawing_context.push_rect_multicolor(
-                &Rect::new(bounds.x, bounds.y + bounds.h * k, bounds.w, 1.0),
+                &Rect::new(bounds.x(), bounds.y() + bounds.h() * k, bounds.w(), 1.0),
                 [Color::BLACK; 4],
             ),
             Orientation::Horizontal => drawing_context.push_rect_multicolor(
-                &Rect::new(bounds.x + k * bounds.w, bounds.y, 1.0, bounds.h),
+                &Rect::new(bounds.x() + k * bounds.w(), bounds.y(), 1.0, bounds.h()),
                 [Color::BLACK; 4],
             ),
         }
@@ -442,16 +442,16 @@ pub struct SaturationBrightnessField<M: MessageData, C: Control<M, C>> {
 crate::define_widget_deref!(SaturationBrightnessField<M, C>);
 
 impl<M: MessageData, C: Control<M, C>> SaturationBrightnessField<M, C> {
-    fn saturation_at(&self, mouse_pos: Vec2) -> f32 {
-        ((mouse_pos.x - self.screen_position.x) / self.screen_bounds().w)
+    fn saturation_at(&self, mouse_pos: Vector2<f32>) -> f32 {
+        ((mouse_pos.x - self.screen_position.x) / self.screen_bounds().w())
             .min(1.0)
             .max(0.0)
             * 100.0
     }
 
-    fn brightness_at(&self, mouse_pos: Vec2) -> f32 {
+    fn brightness_at(&self, mouse_pos: Vector2<f32>) -> f32 {
         100.0
-            - ((mouse_pos.y - self.screen_position.y) / self.screen_bounds().h)
+            - ((mouse_pos.y - self.screen_position.y) / self.screen_bounds().h())
                 .min(1.0)
                 .max(0.0)
                 * 100.0
@@ -459,7 +459,7 @@ impl<M: MessageData, C: Control<M, C>> SaturationBrightnessField<M, C> {
 }
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for SaturationBrightnessField<M, C> {
-    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
+    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
         let size = self.deref().arrange_override(ui, final_size);
         // Make sure field is always square.
         ui.send_message(WidgetMessage::width(
@@ -489,9 +489,9 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for SaturationBrightnessFie
         );
 
         // Indicator must be drawn separately, otherwise it may be drawn incorrectly.
-        let origin = Vec2::new(
-            bounds.x + self.saturation / 100.0 * bounds.w,
-            bounds.y + (100.0 - self.brightness) / 100.0 * bounds.h,
+        let origin = Vector2::new(
+            bounds.x() + self.saturation / 100.0 * bounds.w(),
+            bounds.y() + (100.0 - self.brightness) / 100.0 * bounds.h(),
         );
         drawing_context.push_circle(
             origin,
@@ -1123,7 +1123,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ColorField<M, C> {
                             self.actual_size().x,
                         ));
                         let placement_position = self.widget.screen_position
-                            + Vec2::new(0.0, self.widget.actual_size().y);
+                            + Vector2::new(0.0, self.widget.actual_size().y);
                         ui.send_message(PopupMessage::placement(
                             self.popup,
                             MessageDirection::ToWidget,

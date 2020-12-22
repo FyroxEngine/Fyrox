@@ -1,21 +1,21 @@
 // Clippy complains about normal mathematical symbols like A, B, C for quadratic equation.
 #![allow(clippy::many_single_char_names)]
 
+use crate::algebra::{Matrix4, Point3, Vector3};
 use crate::math::aabb::AxisAlignedBoundingBox;
-use crate::math::mat4::Mat4;
-use crate::math::{is_point_inside_triangle, plane::Plane, solve_quadratic, vec3::Vec3};
+use crate::math::{is_point_inside_triangle, plane::Plane, solve_quadratic};
 
 #[derive(Copy, Clone, Debug)]
 pub struct Ray {
-    pub origin: Vec3,
-    pub dir: Vec3,
+    pub origin: Vector3<f32>,
+    pub dir: Vector3<f32>,
 }
 
 impl Default for Ray {
     fn default() -> Self {
         Ray {
-            origin: Vec3::default(),
-            dir: Vec3::new(0.0, 0.0, 1.0),
+            origin: Vector3::new(0.0, 0.0, 0.0),
+            dir: Vector3::new(0.0, 0.0, 1.0),
         }
     }
 }
@@ -81,9 +81,9 @@ pub enum CylinderKind {
 impl Ray {
     /// Creates ray from two points. May fail if begin == end.
     #[inline]
-    pub fn from_two_points(begin: &Vec3, end: &Vec3) -> Option<Ray> {
-        let dir = *end - *begin;
-        if dir.len() >= std::f32::EPSILON {
+    pub fn from_two_points(begin: &Vector3<f32>, end: &Vector3<f32>) -> Option<Ray> {
+        let dir = end - begin;
+        if dir.norm() >= std::f32::EPSILON {
             Some(Ray {
                 origin: *begin,
                 dir,
@@ -96,11 +96,19 @@ impl Ray {
     /// Checks intersection with sphere. Returns two intersection points or none
     /// if there was no intersection.
     #[inline]
-    pub fn sphere_intersection_points(&self, position: &Vec3, radius: f32) -> Option<[Vec3; 2]> {
+    pub fn sphere_intersection_points(
+        &self,
+        position: &Vector3<f32>,
+        radius: f32,
+    ) -> Option<[Vector3<f32>; 2]> {
         self.try_eval_points(self.sphere_intersection(position, radius))
     }
 
-    pub fn sphere_intersection(&self, position: &Vec3, radius: f32) -> Option<IntersectionResult> {
+    pub fn sphere_intersection(
+        &self,
+        position: &Vector3<f32>,
+        radius: f32,
+    ) -> Option<IntersectionResult> {
         let d = self.origin - *position;
         let a = self.dir.dot(&self.dir);
         let b = 2.0 * self.dir.dot(&d);
@@ -114,7 +122,7 @@ impl Ray {
 
     /// Checks intersection with sphere.
     #[inline]
-    pub fn is_intersect_sphere(&self, position: Vec3, radius: f32) -> bool {
+    pub fn is_intersect_sphere(&self, position: &Vector3<f32>, radius: f32) -> bool {
         let d = self.origin - position;
         let a = self.dir.dot(&self.dir);
         let b = 2.0 * self.dir.dot(&d);
@@ -125,17 +133,21 @@ impl Ray {
 
     /// Returns t factor (at pt=o+d*t equation) for projection of given point at ray
     #[inline]
-    pub fn project_point(&self, point: Vec3) -> f32 {
-        (point - self.origin).dot(&self.dir) / self.dir.sqr_len()
+    pub fn project_point(&self, point: &Vector3<f32>) -> f32 {
+        (point - self.origin).dot(&self.dir) / self.dir.norm_squared()
     }
 
     /// Returns point on ray which defined by pt=o+d*t equation.
     #[inline]
-    pub fn get_point(&self, t: f32) -> Vec3 {
+    pub fn get_point(&self, t: f32) -> Vector3<f32> {
         self.origin + self.dir.scale(t)
     }
 
-    pub fn box_intersection(&self, min: &Vec3, max: &Vec3) -> Option<IntersectionResult> {
+    pub fn box_intersection(
+        &self,
+        min: &Vector3<f32>,
+        max: &Vector3<f32>,
+    ) -> Option<IntersectionResult> {
         let (mut tmin, mut tmax) = if self.dir.x >= 0.0 {
             (
                 (min.x - self.origin.x) / self.dir.x,
@@ -200,7 +212,11 @@ impl Ray {
         }
     }
 
-    pub fn box_intersection_points(&self, min: &Vec3, max: &Vec3) -> Option<[Vec3; 2]> {
+    pub fn box_intersection_points(
+        &self,
+        min: &Vector3<f32>,
+        max: &Vector3<f32>,
+    ) -> Option<[Vector3<f32>; 2]> {
         self.try_eval_points(self.box_intersection(min, max))
     }
 
@@ -208,7 +224,10 @@ impl Ray {
         self.box_intersection(&aabb.min, &aabb.max)
     }
 
-    pub fn aabb_intersection_points(&self, aabb: &AxisAlignedBoundingBox) -> Option<[Vec3; 2]> {
+    pub fn aabb_intersection_points(
+        &self,
+        aabb: &AxisAlignedBoundingBox,
+    ) -> Option<[Vector3<f32>; 2]> {
         self.box_intersection_points(&aabb.min, &aabb.max)
     }
 
@@ -220,7 +239,7 @@ impl Ray {
         u / v
     }
 
-    pub fn plane_intersection_point(&self, plane: &Plane) -> Option<Vec3> {
+    pub fn plane_intersection_point(&self, plane: &Plane) -> Option<Vector3<f32>> {
         let t = self.plane_intersection(plane);
         if t < 0.0 || t > 1.0 {
             None
@@ -229,7 +248,7 @@ impl Ray {
         }
     }
 
-    pub fn triangle_intersection(&self, vertices: &[Vec3; 3]) -> Option<Vec3> {
+    pub fn triangle_intersection(&self, vertices: &[Vector3<f32>; 3]) -> Option<Vector3<f32>> {
         let ba = vertices[1] - vertices[0];
         let ca = vertices[2] - vertices[0];
         let plane = Plane::from_normal_and_point(&ba.cross(&ca), &vertices[0]).ok()?;
@@ -259,21 +278,21 @@ impl Ray {
     ///  to get root which will be t parameter of ray equation.
     pub fn cylinder_intersection(
         &self,
-        pa: &Vec3,
-        pb: &Vec3,
+        pa: &Vector3<f32>,
+        pb: &Vector3<f32>,
         r: f32,
         kind: CylinderKind,
     ) -> Option<IntersectionResult> {
         let va = (*pb - *pa)
-            .normalized()
-            .unwrap_or_else(|| Vec3::new(0.0, 1.0, 0.0));
+            .try_normalize(std::f32::EPSILON)
+            .unwrap_or_else(|| Vector3::new(0.0, 1.0, 0.0));
         let vl = self.dir - va.scale(self.dir.dot(&va));
         let dp = self.origin - *pa;
         let dpva = dp - va.scale(dp.dot(&va));
 
-        let a = vl.sqr_len();
+        let a = vl.norm_squared();
         let b = 2.0 * vl.dot(&dpva);
-        let c = dpva.sqr_len() - r * r;
+        let c = dpva.norm_squared() - r * r;
 
         // Get roots for cylinder surfaces
         if let Some(cylinder_roots) = solve_quadratic(a, b, c) {
@@ -288,7 +307,7 @@ impl Ray {
                         let t = self.plane_intersection(&cap_plane);
                         if t > 0.0 {
                             let intersection = self.get_point(t);
-                            if cap_center.sqr_distance(&intersection) <= r * r {
+                            if (*cap_center - intersection).norm_squared() <= r * r {
                                 // Point inside cap bounds
                                 result.merge(t);
                             }
@@ -324,7 +343,7 @@ impl Ray {
         }
     }
 
-    pub fn try_eval_points(&self, result: Option<IntersectionResult>) -> Option<[Vec3; 2]> {
+    pub fn try_eval_points(&self, result: Option<IntersectionResult>) -> Option<[Vector3<f32>; 2]> {
         match result {
             None => None,
             Some(result) => {
@@ -354,7 +373,12 @@ impl Ray {
         }
     }
 
-    pub fn capsule_intersection(&self, pa: &Vec3, pb: &Vec3, radius: f32) -> Option<[Vec3; 2]> {
+    pub fn capsule_intersection(
+        &self,
+        pa: &Vector3<f32>,
+        pb: &Vector3<f32>,
+        radius: f32,
+    ) -> Option<[Vector3<f32>; 2]> {
         // Dumb approach - check intersection with finite cylinder without caps,
         // then check two sphere caps.
         let cylinder = self.cylinder_intersection(pa, pb, radius, CylinderKind::Finite);
@@ -371,10 +395,10 @@ impl Ray {
     /// be to put ray into object space and do intersection test in object space. This
     /// removes vertex*matrix multiplication and significantly improves performance.
     #[must_use = "Method does not modify ray, instead it returns transformed copy"]
-    pub fn transform(&self, mat: Mat4) -> Self {
+    pub fn transform(&self, mat: Matrix4<f32>) -> Self {
         Self {
-            origin: mat.transform_vector(self.origin),
-            dir: mat.transform_vector(self.dir),
+            origin: mat.transform_point(&Point3::from(self.origin)).coords,
+            dir: mat.transform_point(&Point3::from(self.dir)).coords,
         }
     }
 }
@@ -382,17 +406,18 @@ impl Ray {
 #[cfg(test)]
 mod test {
     use crate::math::ray::Ray;
-    use crate::math::vec3::Vec3;
+    use crate::math::Vector3;
 
     #[test]
     fn intersection() {
         let triangle = [
-            Vec3::new(0.0, 0.5, 0.0),
-            Vec3::new(-0.5, -0.5, 0.0),
-            Vec3::new(0.5, -0.5, 0.0),
+            Vector3::new(0.0, 0.5, 0.0),
+            Vector3::new(-0.5, -0.5, 0.0),
+            Vector3::new(0.5, -0.5, 0.0),
         ];
         let ray =
-            Ray::from_two_points(&Vec3::new(0.0, 0.0, -2.0), &Vec3::new(0.0, 0.0, -1.0)).unwrap();
+            Ray::from_two_points(&Vector3::new(0.0, 0.0, -2.0), &Vector3::new(0.0, 0.0, -1.0))
+                .unwrap();
         assert!(ray.triangle_intersection(&triangle).is_none());
     }
 }

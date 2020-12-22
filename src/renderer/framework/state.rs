@@ -8,8 +8,40 @@ use crate::{
         },
     },
 };
+use std::fmt::{Display, Formatter};
 
-pub struct State {
+#[derive(Default, Copy, Clone)]
+pub struct PipelineStatistics {
+    pub texture_binding_changes: usize,
+    pub vbo_binding_changes: usize,
+    pub vao_binding_changes: usize,
+    pub blend_state_changes: usize,
+    pub framebuffer_binding_changes: usize,
+    pub program_binding_changes: usize,
+}
+
+impl Display for PipelineStatistics {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Pipeline state changes:\n\
+            \tTextures: {},\n\
+            \tVBO: {},\n\
+            \tVAO: {},\n\
+            \tFBO: {},\n\
+            \tShaders: {},\n\
+            \tBlend: {}",
+            self.texture_binding_changes,
+            self.vbo_binding_changes,
+            self.vao_binding_changes,
+            self.framebuffer_binding_changes,
+            self.program_binding_changes,
+            self.blend_state_changes
+        )
+    }
+}
+
+pub struct PipelineState {
     blend: bool,
     depth_test: bool,
     depth_write: bool,
@@ -36,6 +68,8 @@ pub struct State {
 
     vao: GLuint,
     vbo: GLuint,
+
+    frame_statistics: PipelineStatistics,
 }
 
 #[derive(Copy, Clone)]
@@ -125,7 +159,7 @@ impl Default for StencilOp {
     }
 }
 
-impl State {
+impl PipelineState {
     pub fn new() -> Self {
         Self {
             blend: false,
@@ -140,12 +174,7 @@ impl State {
             clear_stencil: 0,
             clear_depth: 1.0,
             framebuffer: 0,
-            viewport: Rect {
-                x: 0,
-                y: 0,
-                w: 1,
-                h: 1,
-            },
+            viewport: Rect::new(0, 0, 1, 1),
             blend_src_factor: gl::ONE,
             blend_dst_factor: gl::ZERO,
             program: 0,
@@ -154,12 +183,15 @@ impl State {
             stencil_op: Default::default(),
             vao: 0,
             vbo: 0,
+            frame_statistics: Default::default(),
         }
     }
 
     pub fn set_framebuffer(&mut self, framebuffer: GLuint) {
         if self.framebuffer != framebuffer {
             self.framebuffer = framebuffer;
+
+            self.frame_statistics.framebuffer_binding_changes += 1;
 
             unsafe { gl::BindFramebuffer(gl::FRAMEBUFFER, self.framebuffer) }
         }
@@ -171,10 +203,10 @@ impl State {
 
             unsafe {
                 gl::Viewport(
-                    self.viewport.x,
-                    self.viewport.y,
-                    self.viewport.w,
-                    self.viewport.h,
+                    self.viewport.x(),
+                    self.viewport.y(),
+                    self.viewport.w(),
+                    self.viewport.h(),
                 );
             }
         }
@@ -183,6 +215,8 @@ impl State {
     pub fn set_blend(&mut self, blend: bool) {
         if self.blend != blend {
             self.blend = blend;
+
+            self.frame_statistics.blend_state_changes += 1;
 
             unsafe {
                 if self.blend {
@@ -325,6 +359,8 @@ impl State {
         if self.program != program {
             self.program = program;
 
+            self.frame_statistics.program_binding_changes += 1;
+
             unsafe {
                 gl::UseProgram(self.program);
             }
@@ -337,6 +373,8 @@ impl State {
         if unit.target != target || unit.texture != texture {
             unit.texture = texture;
             unit.target = target;
+
+            self.frame_statistics.texture_binding_changes += 1;
 
             unsafe {
                 gl::ActiveTexture(gl::TEXTURE0 + sampler_index as u32);
@@ -377,6 +415,8 @@ impl State {
         if self.vao != vao {
             self.vao = vao;
 
+            self.frame_statistics.vao_binding_changes += 1;
+
             unsafe {
                 gl::BindVertexArray(vao);
             }
@@ -387,6 +427,8 @@ impl State {
         if self.vbo != vbo {
             self.vbo = vbo;
 
+            self.frame_statistics.vbo_binding_changes += 1;
+
             unsafe {
                 gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
             }
@@ -396,6 +438,8 @@ impl State {
     pub fn invalidate_resource_bindings_cache(&mut self) {
         self.texture_units = Default::default();
         self.program = 0;
+
+        self.frame_statistics = Default::default();
     }
 
     pub fn apply_draw_parameters(&mut self, draw_params: &DrawParameters) {
@@ -406,5 +450,9 @@ impl State {
         self.set_stencil_test(draw_params.stencil_test);
         self.set_cull_face(draw_params.cull_face);
         self.set_culling(draw_params.culling);
+    }
+
+    pub fn pipeline_statistics(&self) -> PipelineStatistics {
+        self.frame_statistics
     }
 }

@@ -9,48 +9,16 @@ pub mod navmesh;
 pub mod raw_mesh;
 pub mod uvgen;
 
+use crate::core::algebra::Vector2;
 use crate::{
-    core::math::vec2::Vec2,
     event::{ElementState, ModifiersState, MouseScrollDelta, VirtualKeyCode, WindowEvent},
     gui::{
         draw,
         message::{ButtonState, KeyCode, KeyboardModifiers, OsEvent},
     },
-    physics::static_geometry::{StaticGeometry, StaticTriangle},
     resource::texture::Texture,
-    scene::mesh::Mesh,
 };
 use std::{any::Any, sync::Arc};
-
-/// Small helper that creates static physics geometry from given mesh.
-///
-/// # Notes
-///
-/// This method *bakes* global transform of given mesh into static geometry
-/// data. So if given mesh was at some position with any rotation and scale
-/// resulting static geometry will have vertices that exactly matches given
-/// mesh.
-pub fn mesh_to_static_geometry(mesh: &Mesh, save_triangles: bool) -> StaticGeometry {
-    let mut triangles = Vec::new();
-    let global_transform = mesh.global_transform();
-    for surface in mesh.surfaces() {
-        let shared_data = surface.data();
-        let shared_data = shared_data.lock().unwrap();
-
-        let vertices = shared_data.get_vertices();
-        for triangle in shared_data.triangles() {
-            let a = global_transform.transform_vector(vertices[triangle[0] as usize].position);
-            let b = global_transform.transform_vector(vertices[triangle[1] as usize].position);
-            let c = global_transform.transform_vector(vertices[triangle[2] as usize].position);
-
-            // Silently ignore degenerated triangles.
-            if let Some(triangle) = StaticTriangle::from_points(&a, &b, &c) {
-                triangles.push(triangle);
-            }
-        }
-    }
-    StaticGeometry::new(triangles, save_triangles)
-}
 
 /// Translated key code to rg3d-ui key code.
 pub fn translate_key(key: VirtualKeyCode) -> KeyCode {
@@ -147,7 +115,7 @@ pub fn translate_key(key: VirtualKeyCode) -> KeyCode {
         VirtualKeyCode::Numpad9 => KeyCode::Numpad9,
         VirtualKeyCode::AbntC1 => KeyCode::AbntC1,
         VirtualKeyCode::AbntC2 => KeyCode::AbntC2,
-        VirtualKeyCode::Add => KeyCode::Add,
+        VirtualKeyCode::NumpadAdd => KeyCode::NumpadAdd,
         VirtualKeyCode::Apostrophe => KeyCode::Apostrophe,
         VirtualKeyCode::Apps => KeyCode::Apps,
         VirtualKeyCode::At => KeyCode::At,
@@ -158,8 +126,8 @@ pub fn translate_key(key: VirtualKeyCode) -> KeyCode {
         VirtualKeyCode::Colon => KeyCode::Colon,
         VirtualKeyCode::Comma => KeyCode::Comma,
         VirtualKeyCode::Convert => KeyCode::Convert,
-        VirtualKeyCode::Decimal => KeyCode::Decimal,
-        VirtualKeyCode::Divide => KeyCode::Divide,
+        VirtualKeyCode::NumpadDecimal => KeyCode::NumpadDecimal,
+        VirtualKeyCode::NumpadDivide => KeyCode::NumpadDivide,
         VirtualKeyCode::Equals => KeyCode::Equals,
         VirtualKeyCode::Grave => KeyCode::Grave,
         VirtualKeyCode::Kana => KeyCode::Kana,
@@ -173,7 +141,7 @@ pub fn translate_key(key: VirtualKeyCode) -> KeyCode {
         VirtualKeyCode::MediaSelect => KeyCode::MediaSelect,
         VirtualKeyCode::MediaStop => KeyCode::MediaStop,
         VirtualKeyCode::Minus => KeyCode::Minus,
-        VirtualKeyCode::Multiply => KeyCode::Multiply,
+        VirtualKeyCode::NumpadMultiply => KeyCode::NumpadMultiply,
         VirtualKeyCode::Mute => KeyCode::Mute,
         VirtualKeyCode::MyComputer => KeyCode::MyComputer,
         VirtualKeyCode::NavigateForward => KeyCode::NavigateForward,
@@ -197,7 +165,7 @@ pub fn translate_key(key: VirtualKeyCode) -> KeyCode {
         VirtualKeyCode::Slash => KeyCode::Slash,
         VirtualKeyCode::Sleep => KeyCode::Sleep,
         VirtualKeyCode::Stop => KeyCode::Stop,
-        VirtualKeyCode::Subtract => KeyCode::Subtract,
+        VirtualKeyCode::NumpadSubtract => KeyCode::NumpadSubtract,
         VirtualKeyCode::Sysrq => KeyCode::Sysrq,
         VirtualKeyCode::Tab => KeyCode::Tab,
         VirtualKeyCode::Underline => KeyCode::Underline,
@@ -216,6 +184,8 @@ pub fn translate_key(key: VirtualKeyCode) -> KeyCode {
         VirtualKeyCode::Copy => KeyCode::Copy,
         VirtualKeyCode::Paste => KeyCode::Paste,
         VirtualKeyCode::Cut => KeyCode::Cut,
+        VirtualKeyCode::Asterisk => KeyCode::Asterisk,
+        VirtualKeyCode::Plus => KeyCode::Plus,
     }
 }
 
@@ -293,7 +263,7 @@ pub fn translate_event(event: &WindowEvent) -> Option<OsEvent> {
             }
         }
         WindowEvent::CursorMoved { position, .. } => Some(OsEvent::CursorMoved {
-            position: Vec2::new(position.x as f32, position.y as f32),
+            position: Vector2::new(position.x as f32, position.y as f32),
         }),
         WindowEvent::MouseWheel { delta, .. } => match delta {
             MouseScrollDelta::LineDelta(x, y) => Some(OsEvent::MouseWheel(*x, *y)),
@@ -418,7 +388,7 @@ pub fn virtual_key_code_name(code: VirtualKeyCode) -> &'static str {
         VirtualKeyCode::Numpad9 => "Numpad9",
         VirtualKeyCode::AbntC1 => "AbntC1",
         VirtualKeyCode::AbntC2 => "AbntC2",
-        VirtualKeyCode::Add => "Add",
+        VirtualKeyCode::NumpadAdd => "NumpadAdd",
         VirtualKeyCode::Apostrophe => "Apostrophe",
         VirtualKeyCode::Apps => "Apps",
         VirtualKeyCode::At => "At",
@@ -429,8 +399,8 @@ pub fn virtual_key_code_name(code: VirtualKeyCode) -> &'static str {
         VirtualKeyCode::Colon => "Colon",
         VirtualKeyCode::Comma => "Comma",
         VirtualKeyCode::Convert => "Convert",
-        VirtualKeyCode::Decimal => "Decimal",
-        VirtualKeyCode::Divide => "Divide",
+        VirtualKeyCode::NumpadDecimal => "NumpadDecimal",
+        VirtualKeyCode::NumpadDivide => "NumpadDivide",
         VirtualKeyCode::Equals => "Equals",
         VirtualKeyCode::Grave => "Grave",
         VirtualKeyCode::Kana => "Kana",
@@ -444,7 +414,7 @@ pub fn virtual_key_code_name(code: VirtualKeyCode) -> &'static str {
         VirtualKeyCode::MediaSelect => "MediaSelect",
         VirtualKeyCode::MediaStop => "MediaStop",
         VirtualKeyCode::Minus => "Minus",
-        VirtualKeyCode::Multiply => "Multiply",
+        VirtualKeyCode::NumpadMultiply => "NumpadMultiply",
         VirtualKeyCode::Mute => "Mute",
         VirtualKeyCode::MyComputer => "MyComputer",
         VirtualKeyCode::NavigateForward => "NavigateForward",
@@ -468,7 +438,7 @@ pub fn virtual_key_code_name(code: VirtualKeyCode) -> &'static str {
         VirtualKeyCode::Slash => "Slash",
         VirtualKeyCode::Sleep => "Sleep",
         VirtualKeyCode::Stop => "Stop",
-        VirtualKeyCode::Subtract => "Subtract",
+        VirtualKeyCode::NumpadSubtract => "NumpadSubtract",
         VirtualKeyCode::Sysrq => "Sysrq",
         VirtualKeyCode::Tab => "Tab",
         VirtualKeyCode::Underline => "Underline",
@@ -487,6 +457,8 @@ pub fn virtual_key_code_name(code: VirtualKeyCode) -> &'static str {
         VirtualKeyCode::Copy => "Copy",
         VirtualKeyCode::Paste => "Paste",
         VirtualKeyCode::Cut => "Cut",
+        VirtualKeyCode::Asterisk => "Asterisk",
+        VirtualKeyCode::Plus => "Plus",
     }
 }
 

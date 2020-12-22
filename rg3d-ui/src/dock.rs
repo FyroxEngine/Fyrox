@@ -8,11 +8,7 @@
 use crate::{
     border::BorderBuilder,
     brush::Brush,
-    core::{
-        color::Color,
-        math::{vec2::Vec2, Rect},
-        pool::Handle,
-    },
+    core::{algebra::Vector2, color::Color, math::Rect, pool::Handle},
     grid::{Column, GridBuilder, Row},
     message::{
         CursorIcon, MessageData, MessageDirection, TileMessage, UiMessage, UiMessageData,
@@ -22,8 +18,10 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, NodeHandleMapping, Thickness, UserInterface,
 };
-use std::cell::{Cell, RefCell};
-use std::ops::{Deref, DerefMut};
+use std::{
+    cell::{Cell, RefCell},
+    ops::{Deref, DerefMut},
+};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum TileContent<M: MessageData, C: Control<M, C>> {
@@ -88,7 +86,11 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
         }
     }
 
-    fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
+    fn measure_override(
+        &self,
+        ui: &UserInterface<M, C>,
+        available_size: Vector2<f32>,
+    ) -> Vector2<f32> {
         for &child_handle in self.children() {
             // Determine available size for each child by its kind:
             // - Every child not in content of tile just takes whole available size.
@@ -100,9 +102,9 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
                     ref tiles,
                 } => {
                     if tiles[0] == child_handle {
-                        Vec2::new(available_size.x, available_size.y * splitter)
+                        Vector2::new(available_size.x, available_size.y * splitter)
                     } else if tiles[1] == child_handle {
-                        Vec2::new(available_size.x, available_size.y * (1.0 - splitter))
+                        Vector2::new(available_size.x, available_size.y * (1.0 - splitter))
                     } else {
                         available_size
                     }
@@ -112,9 +114,9 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
                     ref tiles,
                 } => {
                     if tiles[0] == child_handle {
-                        Vec2::new(available_size.x * splitter, available_size.y)
+                        Vector2::new(available_size.x * splitter, available_size.y)
                     } else if tiles[1] == child_handle {
-                        Vec2::new(available_size.x * (1.0 - splitter), available_size.y)
+                        Vector2::new(available_size.x * (1.0 - splitter), available_size.y)
                     } else {
                         available_size
                     }
@@ -128,16 +130,11 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
         available_size
     }
 
-    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
+    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
         let splitter_size = ui.node(self.splitter).desired_size();
 
         for &child_handle in self.children() {
-            let full_bounds = Rect {
-                x: 0.0,
-                y: 0.0,
-                w: final_size.x,
-                h: final_size.y,
-            };
+            let full_bounds = Rect::new(0.0, 0.0, final_size.x, final_size.y);
 
             let bounds = match self.content {
                 TileContent::VerticalTiles {
@@ -145,26 +142,26 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
                     ref tiles,
                 } => {
                     if tiles[0] == child_handle {
-                        Rect {
-                            x: 0.0,
-                            y: 0.0,
-                            w: final_size.x,
-                            h: final_size.y * splitter - splitter_size.y * 0.5,
-                        }
+                        Rect::new(
+                            0.0,
+                            0.0,
+                            final_size.x,
+                            final_size.y * splitter - splitter_size.y * 0.5,
+                        )
                     } else if tiles[1] == child_handle {
-                        Rect {
-                            x: 0.0,
-                            y: final_size.y * splitter + splitter_size.y * 0.5,
-                            w: final_size.x,
-                            h: final_size.y * (1.0 - splitter) - splitter_size.y,
-                        }
+                        Rect::new(
+                            0.0,
+                            final_size.y * splitter + splitter_size.y * 0.5,
+                            final_size.x,
+                            final_size.y * (1.0 - splitter) - splitter_size.y,
+                        )
                     } else if self.splitter == child_handle {
-                        Rect {
-                            x: 0.0,
-                            y: final_size.y * splitter - splitter_size.y * 0.5,
-                            w: final_size.x,
-                            h: splitter_size.y,
-                        }
+                        Rect::new(
+                            0.0,
+                            final_size.y * splitter - splitter_size.y * 0.5,
+                            final_size.x,
+                            splitter_size.y,
+                        )
                     } else {
                         full_bounds
                     }
@@ -174,26 +171,26 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
                     ref tiles,
                 } => {
                     if tiles[0] == child_handle {
-                        Rect {
-                            x: 0.0,
-                            y: 0.0,
-                            w: final_size.x * splitter - splitter_size.x * 0.5,
-                            h: final_size.y,
-                        }
+                        Rect::new(
+                            0.0,
+                            0.0,
+                            final_size.x * splitter - splitter_size.x * 0.5,
+                            final_size.y,
+                        )
                     } else if tiles[1] == child_handle {
-                        Rect {
-                            x: final_size.x * splitter + splitter_size.x * 0.5,
-                            y: 0.0,
-                            w: final_size.x * (1.0 - splitter) - splitter_size.x * 0.5,
-                            h: final_size.y,
-                        }
+                        Rect::new(
+                            final_size.x * splitter + splitter_size.x * 0.5,
+                            0.0,
+                            final_size.x * (1.0 - splitter) - splitter_size.x * 0.5,
+                            final_size.y,
+                        )
                     } else if self.splitter == child_handle {
-                        Rect {
-                            x: final_size.x * splitter - splitter_size.x * 0.5,
-                            y: 0.0,
-                            w: splitter_size.x,
-                            h: final_size.y,
-                        }
+                        Rect::new(
+                            final_size.x * splitter - splitter_size.x * 0.5,
+                            0.0,
+                            splitter_size.x,
+                            final_size.y,
+                        )
                     } else {
                         full_bounds
                     }
@@ -210,12 +207,12 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
                 ui.send_message(WidgetMessage::width(
                     child_handle,
                     MessageDirection::ToWidget,
-                    bounds.w,
+                    bounds.w(),
                 ));
                 ui.send_message(WidgetMessage::height(
                     child_handle,
                     MessageDirection::ToWidget,
-                    bounds.h,
+                    bounds.h(),
                 ));
             }
         }
@@ -345,13 +342,15 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
                                 TileContent::VerticalTiles {
                                     ref mut splitter, ..
                                 } => {
-                                    *splitter = ((pos.y - bounds.y) / bounds.h).max(0.0).min(1.0);
+                                    *splitter =
+                                        ((pos.y - bounds.y()) / bounds.h()).max(0.0).min(1.0);
                                     self.invalidate_layout();
                                 }
                                 TileContent::HorizontalTiles {
                                     ref mut splitter, ..
                                 } => {
-                                    *splitter = ((pos.x - bounds.x) / bounds.w).max(0.0).min(1.0);
+                                    *splitter =
+                                        ((pos.x - bounds.x()) / bounds.w()).max(0.0).min(1.0);
                                     self.invalidate_layout();
                                 }
                                 _ => (),
@@ -469,7 +468,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
 
                     if content_moved {
                         if let UINode::Window(window) = ui.node(message.destination()) {
-                            if window.drag_delta().len() > 20.0 {
+                            if window.drag_delta().norm() > 20.0 {
                                 ui.send_message(TileMessage::content(
                                     self.handle,
                                     MessageDirection::ToWidget,
@@ -555,11 +554,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
                                                 Brush::Solid(DEFAULT_ANCHOR_COLOR),
                                             ))
                                         }
-                                        if ui
-                                            .node(self.left_anchor)
-                                            .screen_bounds()
-                                            .contains(pos.x, pos.y)
-                                        {
+                                        if ui.node(self.left_anchor).screen_bounds().contains(pos) {
                                             ui.send_message(WidgetMessage::background(
                                                 self.left_anchor,
                                                 MessageDirection::ToWidget,
@@ -569,7 +564,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
                                         } else if ui
                                             .node(self.right_anchor)
                                             .screen_bounds()
-                                            .contains(pos.x, pos.y)
+                                            .contains(pos)
                                         {
                                             ui.send_message(WidgetMessage::background(
                                                 self.right_anchor,
@@ -580,7 +575,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
                                         } else if ui
                                             .node(self.top_anchor)
                                             .screen_bounds()
-                                            .contains(pos.x, pos.y)
+                                            .contains(pos)
                                         {
                                             ui.send_message(WidgetMessage::background(
                                                 self.top_anchor,
@@ -591,7 +586,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
                                         } else if ui
                                             .node(self.bottom_anchor)
                                             .screen_bounds()
-                                            .contains(pos.x, pos.y)
+                                            .contains(pos)
                                         {
                                             ui.send_message(WidgetMessage::background(
                                                 self.bottom_anchor,
@@ -602,7 +597,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
                                         } else if ui
                                             .node(self.center_anchor)
                                             .screen_bounds()
-                                            .contains(pos.x, pos.y)
+                                            .contains(pos)
                                         {
                                             ui.send_message(WidgetMessage::background(
                                                 self.center_anchor,
@@ -860,7 +855,7 @@ pub struct TileBuilder<M: MessageData, C: Control<M, C>> {
     content: TileContent<M, C>,
 }
 
-pub const DEFAULT_SPLITTER_SIZE: f32 = 6.0;
+pub const DEFAULT_SPLITTER_SIZE: f32 = 4.0;
 pub const DEFAULT_ANCHOR_COLOR: Color = Color::opaque(150, 150, 150);
 
 pub fn make_default_anchor<M: MessageData, C: Control<M, C>>(

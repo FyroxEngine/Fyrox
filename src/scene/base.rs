@@ -6,15 +6,18 @@
 //! block for all complex node hierarchies - it contains list of children and handle to
 //! parent node.
 
+use crate::scene::graph::Graph;
 use crate::{
     core::{
-        math::{mat4::Mat4, vec3::Vec3},
+        algebra::{Matrix4, Vector3},
+        math::Matrix4Ext,
         pool::Handle,
-        visitor::{Visit, VisitResult, Visitor},
+        visitor::{Visit, VisitError, VisitResult, Visitor},
     },
     resource::model::Model,
     scene::{node::Node, transform::Transform},
 };
+use std::cell::Cell;
 
 /// Level of detail is a collection of objects for given normalized distance range.
 /// Objects will be rendered **only** if they're in specified range.
@@ -113,18 +116,82 @@ impl Visit for LodGroup {
     }
 }
 
+/// Mobility defines a group for scene node which has direct impact on performance
+/// and capabilities of nodes.
+#[derive(Copy, Clone, PartialOrd, PartialEq, Ord, Eq, Debug)]
+#[repr(u32)]
+pub enum Mobility {
+    /// Transform cannot be changed.
+    ///
+    /// ## Scene and performance.
+    ///
+    /// Nodes with Static mobility should be used all the time you need unchangeable
+    /// node. Such nodes will have maximum optimization during the rendering.
+    ///
+    /// ### Meshes
+    ///
+    /// Static meshes will be baked into larger blocks to reduce draw call count per frame.
+    /// Also static meshes will participate in lightmap generation.
+    ///
+    /// ### Lights
+    ///
+    /// Static lights will be baked in lightmap. They lit only static geometry!
+    /// Specular lighting is not supported.
+    Static = 0,
+
+    /// Transform cannot be changed, but other node-dependent properties are changeable.
+    ///
+    /// ## Scene and performance.
+    ///
+    /// ### Meshes
+    ///
+    /// Same as Static.
+    ///
+    /// ### Lights
+    ///
+    /// Stationary lights have complex route for shadows:
+    ///   - Shadows from Static/Stationary meshes will be baked into lightmap.
+    ///   - Shadows from Dynamic lights will be re-rendered each frame into shadow map.
+    /// Stationary lights support specular lighting.
+    Stationary = 1,
+
+    /// Transform can be freely changed.
+    ///
+    /// ## Scene and performance.
+    ///
+    /// Dynamic mobility should be used only for the objects that are designed to be
+    /// moving in the scene, for example - objects with physics, or dynamic lights, etc.
+    Dynamic = 2,
+}
+
+impl Visit for Mobility {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        let mut id = *self as u32;
+        id.visit(name, visitor)?;
+        if visitor.is_reading() {
+            *self = match id {
+                0 => Self::Static,
+                1 => Self::Stationary,
+                2 => Self::Dynamic,
+                _ => return Err(VisitError::User(format!("Invalid mobility id {}!", id))),
+            };
+        }
+        Ok(())
+    }
+}
+
 /// See module docs.
 #[derive(Debug)]
 pub struct Base {
     name: String,
     local_transform: Transform,
     visibility: bool,
-    pub(in crate) global_visibility: bool,
+    pub(in crate) global_visibility: Cell<bool>,
     pub(in crate) parent: Handle<Node>,
     pub(in crate) children: Vec<Handle<Node>>,
-    pub(in crate) global_transform: Mat4,
+    pub(in crate) global_transform: Cell<Matrix4<f32>>,
     /// Bone-specific matrix. Non-serializable.
-    pub(in crate) inv_bind_pose_transform: Mat4,
+    pub(in crate) inv_bind_pose_transform: Matrix4<f32>,
     /// A resource from which this node was instantiated from, can work in pair
     /// with `original` handle to get corresponding node from resource.
     pub(in crate) resource: Option<Model>,
@@ -140,6 +207,7 @@ pub struct Base {
     pub(in crate) lifetime: Option<f32>,
     depth_offset: f32,
     lod_group: Option<LodGroup>,
+    mobility: Mobility,
 }
 
 impl Base {
@@ -152,6 +220,11 @@ impl Base {
     /// Returns name of node.
     pub fn name(&self) -> &str {
         self.name.as_str()
+    }
+
+    /// Returns owned name of node.
+    pub fn name_owned(&self) -> String {
+        self.name.clone()
     }
 
     /// Returns shared reference to local transform of a node, can be used to fetch
@@ -193,7 +266,7 @@ impl Base {
     }
 
     /// Returns handle of parent node.
-    pub fn parent(&self) -> crate::core::pool::Handle<Node> {
+    pub fn parent(&self) -> Handle<Node> {
         self.parent
     }
 
@@ -206,14 +279,14 @@ impl Base {
     /// Returns global transform matrix, such matrix contains combined transformation
     /// of transforms of parent nodes. This is the final matrix that describes real
     /// location of object in the world.
-    pub fn global_transform(&self) -> Mat4 {
-        self.global_transform
+    pub fn global_transform(&self) -> Matrix4<f32> {
+        self.global_transform.get()
     }
 
     /// Returns inverse of bind pose matrix. Bind pose matrix - is special matrix
     /// for bone nodes, it stores initial transform of bone node at the moment
     /// of "binding" vertices to bones.
-    pub fn inv_bind_pose_transform(&self) -> Mat4 {
+    pub fn inv_bind_pose_transform(&self) -> Matrix4<f32> {
         self.inv_bind_pose_transform
     }
 
@@ -246,7 +319,7 @@ impl Base {
     /// camera, use frustum visibility check. However this still can't tell you if object
     /// is behind obstacle or not.
     pub fn global_visibility(&self) -> bool {
-        self.global_visibility
+        self.global_visibility.get()
     }
 
     /// Handle to node in scene of model resource from which this node
@@ -256,26 +329,26 @@ impl Base {
     }
 
     /// Returns position of the node in absolute coordinates.
-    pub fn global_position(&self) -> Vec3 {
-        self.global_transform.position()
+    pub fn global_position(&self) -> Vector3<f32> {
+        self.global_transform.get().position()
     }
 
     /// Returns "look" vector of global transform basis, in most cases return vector
     /// will be non-normalized.
-    pub fn look_vector(&self) -> Vec3 {
-        self.global_transform.look()
+    pub fn look_vector(&self) -> Vector3<f32> {
+        self.global_transform.get().look()
     }
 
     /// Returns "side" vector of global transform basis, in most cases return vector
     /// will be non-normalized.
-    pub fn side_vector(&self) -> Vec3 {
-        self.global_transform.side()
+    pub fn side_vector(&self) -> Vector3<f32> {
+        self.global_transform.get().side()
     }
 
     /// Returns "up" vector of global transform basis, in most cases return vector
     /// will be non-normalized.
-    pub fn up_vector(&self) -> Vec3 {
-        self.global_transform.up()
+    pub fn up_vector(&self) -> Vector3<f32> {
+        self.global_transform.get().up()
     }
 
     /// Sets depth range offset factor. It allows you to move depth range by given
@@ -317,13 +390,14 @@ impl Base {
         Self {
             name: self.name.clone(),
             local_transform: self.local_transform.clone(),
-            global_transform: self.global_transform,
+            global_transform: self.global_transform.clone(),
             visibility: self.visibility,
-            global_visibility: self.global_visibility,
+            global_visibility: self.global_visibility.clone(),
             inv_bind_pose_transform: self.inv_bind_pose_transform,
             resource: self.resource.clone(),
             is_resource_instance: self.is_resource_instance,
             lifetime: self.lifetime,
+            mobility: self.mobility,
             // Rest of data is *not* copied!
             ..Default::default()
         }
@@ -332,7 +406,7 @@ impl Base {
 
 impl Default for Base {
     fn default() -> Self {
-        BaseBuilder::new().build()
+        BaseBuilder::new().build_base()
     }
 }
 
@@ -351,6 +425,7 @@ impl Visit for Base {
         self.lifetime.visit("Lifetime", visitor)?;
         self.depth_offset.visit("DepthOffset", visitor)?;
         let _ = self.lod_group.visit("LodGroup", visitor);
+        let _ = self.mobility.visit("Mobility", visitor);
 
         visitor.leave_region()
     }
@@ -358,13 +433,15 @@ impl Visit for Base {
 
 /// Base node builder allows you to create nodes in declarative manner.
 pub struct BaseBuilder {
-    name: Option<String>,
-    visibility: Option<bool>,
-    local_transform: Option<Transform>,
-    children: Option<Vec<Handle<Node>>>,
+    name: String,
+    visibility: bool,
+    local_transform: Transform,
+    children: Vec<Handle<Node>>,
     lifetime: Option<f32>,
     depth_offset: f32,
     lod_group: Option<LodGroup>,
+    mobility: Mobility,
+    inv_bind_pose_transform: Matrix4<f32>,
 }
 
 impl Default for BaseBuilder {
@@ -377,37 +454,58 @@ impl BaseBuilder {
     /// Creates new builder instance.
     pub fn new() -> Self {
         Self {
-            name: None,
-            visibility: None,
-            local_transform: None,
-            children: None,
+            name: Default::default(),
+            visibility: true,
+            local_transform: Default::default(),
+            children: Default::default(),
             lifetime: None,
             depth_offset: 0.0,
             lod_group: None,
+            mobility: Mobility::Dynamic,
+            inv_bind_pose_transform: Matrix4::identity(),
         }
+    }
+
+    /// Sets desired mobility.
+    pub fn with_mobility(mut self, mobility: Mobility) -> Self {
+        self.mobility = mobility;
+        self
     }
 
     /// Sets desired name.
     pub fn with_name<P: AsRef<str>>(mut self, name: P) -> Self {
-        self.name = Some(name.as_ref().to_owned());
+        self.name = name.as_ref().to_owned();
         self
     }
 
     /// Sets desired visibility.
     pub fn with_visibility(mut self, visibility: bool) -> Self {
-        self.visibility = Some(visibility);
+        self.visibility = visibility;
         self
     }
 
     /// Sets desired local transform.
     pub fn with_local_transform(mut self, transform: Transform) -> Self {
-        self.local_transform = Some(transform);
+        self.local_transform = transform;
+        self
+    }
+
+    /// Sets desired inverse bind pose transform.
+    pub fn with_inv_bind_pose_transform(mut self, inv_bind_pose: Matrix4<f32>) -> Self {
+        self.inv_bind_pose_transform = inv_bind_pose;
         self
     }
 
     /// Sets desired list of children nodes.
-    pub fn with_children(mut self, children: Vec<Handle<Node>>) -> Self {
-        self.children = Some(children);
+    pub fn with_children<'a, I: IntoIterator<Item = &'a Handle<Node>>>(
+        mut self,
+        children: I,
+    ) -> Self {
+        for &child in children.into_iter() {
+            if child.is_some() {
+                self.children.push(child)
+            }
+        }
         self
     }
 
@@ -429,29 +527,33 @@ impl BaseBuilder {
         self
     }
 
-    /// Creates new instance of base scene node. Do not forget to add
-    /// node to scene or pass to other nodes as base.
-    pub fn build(self) -> Base {
+    pub(in crate) fn build_base(self) -> Base {
         Base {
-            name: self.name.unwrap_or_default(),
-            children: self.children.unwrap_or_default(),
-            local_transform: self.local_transform.unwrap_or_else(Transform::identity),
+            name: self.name,
+            children: self.children,
+            local_transform: self.local_transform,
             lifetime: self.lifetime,
-            visibility: self.visibility.unwrap_or(true),
-            global_visibility: true,
+            visibility: self.visibility,
+            global_visibility: Cell::new(true),
             parent: Handle::NONE,
-            global_transform: Mat4::IDENTITY,
-            inv_bind_pose_transform: Mat4::IDENTITY,
+            global_transform: Cell::new(Matrix4::identity()),
+            inv_bind_pose_transform: self.inv_bind_pose_transform,
             resource: None,
             original: Handle::NONE,
             is_resource_instance: false,
             depth_offset: self.depth_offset,
             lod_group: self.lod_group,
+            mobility: self.mobility,
         }
     }
 
-    /// Creates new node instance.
+    /// Creates new instance of base node.
     pub fn build_node(self) -> Node {
-        Node::Base(self.build())
+        Node::Base(self.build_base())
+    }
+
+    /// Creates new instance of base node and adds it to the graph.
+    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
+        graph.add_node(self.build_node())
     }
 }

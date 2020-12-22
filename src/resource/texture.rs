@@ -301,7 +301,7 @@ pub enum TextureMinificationFilter {
 
     /// Chooses the mipmap that most closely matches the size of the pixel being textured and
     /// uses the Linear criterion (a weighted average of the four texture elements that are
-    /// closest to the center of the pixel) to produce a texture value.   
+    /// closest to the center of the pixel) to produce a texture value.
     LinearMipMapNearest = 4,
 
     /// Chooses the two mipmaps that most closely match the size of the pixel being textured
@@ -353,7 +353,7 @@ pub enum TextureWrapMode {
 
     /// Evaluates a coordinates in a similar manner to ClampToEdge. However, in cases where clamping
     /// would have occurred in ClampToEdge mode, the fetched texel data is substituted with the values
-    /// specified by border color.     
+    /// specified by border color.
     ClampToBorder = 2,
 
     /// Causes the a coordinate to be set to the fractional part of the texture coordinate if the integer
@@ -514,18 +514,18 @@ impl TextureData {
                 D3DFormat::R8G8B8 => TexturePixelKind::RGB8,
                 D3DFormat::A8L8 => TexturePixelKind::RG8,
                 D3DFormat::A8R8G8B8 => {
-                    // ARGB8 -> RGBA8
-                    assert_eq!(bytes.len() % 4, 0);
-                    for chunk in bytes.chunks_exact_mut(4) {
-                        let a = chunk[0];
-                        let r = chunk[1];
-                        let g = chunk[2];
-                        let b = chunk[3];
-                        chunk[0] = r;
-                        chunk[1] = g;
-                        chunk[2] = b;
-                        chunk[3] = a;
-                    }
+                    // // ARGB8 -> RGBA8
+                    // assert_eq!(bytes.len() % 4, 0);
+                    // for chunk in bytes.chunks_exact_mut(4) {
+                    //     let a = chunk[0];
+                    //     let r = chunk[1];
+                    //     let g = chunk[2];
+                    //     let b = chunk[3];
+                    //     chunk[0] = r;
+                    //     chunk[1] = g;
+                    //     chunk[2] = b;
+                    //     chunk[3] = a;
+                    // }
                     TexturePixelKind::RGBA8
                 }
                 D3DFormat::G16R16 => {
@@ -738,7 +738,7 @@ impl TextureData {
     }
 
     /// Sets new path to source file.
-    pub fn set_path<P: AsRef<Path>>(&mut self, path: &P) {
+    pub fn set_path<P: AsRef<Path>>(&mut self, path: P) {
         self.path = path.as_ref().to_owned();
     }
 

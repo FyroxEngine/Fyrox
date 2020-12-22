@@ -1,13 +1,14 @@
-//! For efficient rendering each mesh is split into sets of triangles that uses same texture,
+//! For efficient rendering each mesh is split into sets of triangles that use the same texture,
 //! such sets are called surfaces.
 //!
-//! Surfaces can use same data source across many instances, this is memory optimization for
-//! to be able to re-use data when you need to draw same mesh in many places.
+//! Surfaces can use the same data source across many instances, this is a memory optimization for
+//! being able to re-use data when you need to draw the same mesh in many places.
 
 use crate::{
     core::{
+        algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
         color::Color,
-        math::{mat4::Mat4, vec2::Vec2, vec3::Vec3, vec4::Vec4, TriangleDefinition},
+        math::TriangleDefinition,
         pool::{ErasedHandle, Handle},
         visitor::{Visit, VisitResult, Visitor},
     },
@@ -15,9 +16,11 @@ use crate::{
     scene::node::Node,
     utils::raw_mesh::{RawMesh, RawMeshBuilder},
 };
+use std::collections::hash_map::DefaultHasher;
+use std::sync::RwLock;
 use std::{
     hash::{Hash, Hasher},
-    sync::{Arc, Mutex},
+    sync::Arc,
 };
 
 /// Vertex for each mesh in engine.
@@ -31,15 +34,15 @@ use std::{
 #[repr(C)] // OpenGL expects this structure packed as in C
 pub struct Vertex {
     /// Position of vertex in local coordinates.
-    pub position: Vec3,
+    pub position: Vector3<f32>,
     /// Texture coordinates.
-    pub tex_coord: Vec2,
+    pub tex_coord: Vector2<f32>,
     /// Second texture coordinates. Usually used for lightmapping.
-    pub second_tex_coord: Vec2,
+    pub second_tex_coord: Vector2<f32>,
     /// Normal in local coordinates.
-    pub normal: Vec3,
+    pub normal: Vector3<f32>,
     /// Tangent vector in local coordinates.
-    pub tangent: Vec4,
+    pub tangent: Vector4<f32>,
     /// Array of bone weights. Unused bones will have 0.0 weight so they won't
     /// impact the shape of mesh.
     pub bone_weights: [f32; 4],
@@ -74,13 +77,13 @@ impl Visit for Vertex {
 
 impl Vertex {
     /// Creates new vertex from given position and texture coordinates.
-    pub fn from_pos_uv(position: Vec3, tex_coord: Vec2) -> Self {
+    pub fn from_pos_uv(position: Vector3<f32>, tex_coord: Vector2<f32>) -> Self {
         Self {
             position,
             tex_coord,
             second_tex_coord: Default::default(),
-            normal: Vec3::new(0.0, 1.0, 0.0),
-            tangent: Vec4::ZERO,
+            normal: Vector3::new(0.0, 1.0, 0.0),
+            tangent: Vector4::default(),
             bone_weights: [0.0; 4],
             bone_indices: Default::default(),
         }
@@ -183,8 +186,8 @@ impl SurfaceSharedData {
     /// there is no need to call this manually in this case. However if you making your
     /// mesh procedurally, you have to use this method!
     pub fn calculate_tangents(&mut self) {
-        let mut tan1 = vec![Vec3::ZERO; self.vertices.len()];
-        let mut tan2 = vec![Vec3::ZERO; self.vertices.len()];
+        let mut tan1 = vec![Vector3::default(); self.vertices.len()];
+        let mut tan2 = vec![Vector3::default(); self.vertices.len()];
 
         for triangle in self.triangles.iter() {
             let i1 = triangle[0] as usize;
@@ -213,7 +216,7 @@ impl SurfaceSharedData {
 
             let r = 1.0 / (s1 * t2 - s2 * t1);
 
-            let sdir = Vec3::new(
+            let sdir = Vector3::new(
                 (t2 * x1 - t1 * x2) * r,
                 (t2 * y1 - t1 * y2) * r,
                 (t2 * z1 - t1 * z2) * r,
@@ -223,7 +226,7 @@ impl SurfaceSharedData {
             tan1[i2] += sdir;
             tan1[i3] += sdir;
 
-            let tdir = Vec3::new(
+            let tdir = Vector3::new(
                 (s1 * x2 - s2 * x1) * r,
                 (s1 * y2 - s2 * y1) * r,
                 (s1 * z2 - s2 * z1) * r,
@@ -236,10 +239,10 @@ impl SurfaceSharedData {
         for (v, (t1, t2)) in self.vertices.iter_mut().zip(tan1.into_iter().zip(tan2)) {
             // Gram-Schmidt orthogonalize
             let tangent = (t1 - v.normal.scale(v.normal.dot(&t1)))
-                .normalized()
-                .unwrap_or_else(|| Vec3::new(0.0, 1.0, 0.0));
+                .try_normalize(std::f32::EPSILON)
+                .unwrap_or_else(|| Vector3::new(0.0, 1.0, 0.0));
             let handedness = v.normal.cross(&t1).dot(&t2).signum();
-            v.tangent = Vec4::from_vec3(tangent, handedness);
+            v.tangent = Vector4::new(tangent.x, tangent.y, tangent.z, handedness);
         }
     }
 
@@ -247,41 +250,37 @@ impl SurfaceSharedData {
     pub fn make_unit_xy_quad() -> Self {
         let vertices = vec![
             Vertex {
-                position: Vec3::ZERO,
-                normal: Vec3::Z,
-                tex_coord: Vec2::Y,
-                tangent: Vec4::ZERO,
+                position: Vector3::default(),
+                normal: Vector3::z(),
+                tex_coord: Vector2::y(),
+                tangent: Vector4::default(),
                 bone_weights: [0.0; 4],
                 bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
-                position: Vec3::X,
-                normal: Vec3::Z,
-                tex_coord: Vec2::UNIT,
-                tangent: Vec4::ZERO,
+                position: Vector3::x(),
+                normal: Vector3::z(),
+                tex_coord: Vector2::new(1.0, 1.0),
+                tangent: Vector4::default(),
                 bone_weights: [0.0; 4],
                 bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
-                position: Vec3 {
-                    x: 1.0,
-                    y: 1.0,
-                    z: 0.0,
-                },
-                normal: Vec3::Z,
-                tex_coord: Vec2::X,
-                tangent: Vec4::ZERO,
+                position: Vector3::new(1.0, 1.0, 0.0),
+                normal: Vector3::z(),
+                tex_coord: Vector2::x(),
+                tangent: Vector4::default(),
                 bone_weights: [0.0; 4],
                 bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
-                position: Vec3::Y,
-                normal: Vec3::Z,
-                tex_coord: Vec2::ZERO,
-                tangent: Vec4::ZERO,
+                position: Vector3::y(),
+                normal: Vector3::z(),
+                tex_coord: Vector2::default(),
+                tangent: Vector4::default(),
                 bone_weights: [0.0; 4],
                 bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
@@ -299,37 +298,37 @@ impl SurfaceSharedData {
     pub fn make_collapsed_xy_quad() -> Self {
         let vertices = vec![
             Vertex {
-                position: Vec3::ZERO,
-                normal: Vec3::Z,
-                tex_coord: Vec2::ZERO,
-                tangent: Vec4::ZERO,
+                position: Vector3::default(),
+                normal: Vector3::z(),
+                tex_coord: Vector2::default(),
+                tangent: Vector4::default(),
                 bone_weights: [0.0; 4],
                 bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
-                position: Vec3::ZERO,
-                normal: Vec3::Z,
-                tex_coord: Vec2::X,
-                tangent: Vec4::ZERO,
+                position: Vector3::default(),
+                normal: Vector3::z(),
+                tex_coord: Vector2::x(),
+                tangent: Vector4::default(),
                 bone_weights: [0.0; 4],
                 bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
-                position: Vec3::ZERO,
-                normal: Vec3::Z,
-                tex_coord: Vec2::UNIT,
-                tangent: Vec4::ZERO,
+                position: Vector3::default(),
+                normal: Vector3::z(),
+                tex_coord: Vector2::new(1.0, 1.0),
+                tangent: Vector4::default(),
                 bone_weights: [0.0; 4],
                 bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
-                position: Vec3::ZERO,
-                normal: Vec3::Z,
-                tex_coord: Vec2::Y,
-                tangent: Vec4::ZERO,
+                position: Vector3::default(),
+                normal: Vector3::z(),
+                tex_coord: Vector2::y(),
+                tangent: Vector4::default(),
                 bone_weights: [0.0; 4],
                 bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
@@ -342,56 +341,40 @@ impl SurfaceSharedData {
     }
 
     /// Creates new quad at oXZ plane with given transform.
-    pub fn make_quad(transform: Mat4) -> Self {
+    pub fn make_quad(transform: Matrix4<f32>) -> Self {
         let mut vertices = vec![
             Vertex {
-                position: Vec3 {
-                    x: -0.5,
-                    y: 0.0,
-                    z: 0.5,
-                },
-                normal: Vec3::Z,
-                tex_coord: Vec2::Y,
-                tangent: Vec4::ZERO,
+                position: Vector3::new(-0.5, 0.0, 0.5),
+                normal: Vector3::z(),
+                tex_coord: Vector2::y(),
+                tangent: Vector4::default(),
                 bone_weights: [0.0; 4],
                 bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
-                position: Vec3 {
-                    x: 0.5,
-                    y: 0.0,
-                    z: 0.5,
-                },
-                normal: Vec3::Z,
-                tex_coord: Vec2::UNIT,
-                tangent: Vec4::ZERO,
+                position: Vector3::new(0.5, 0.0, 0.5),
+                normal: Vector3::z(),
+                tex_coord: Vector2::new(1.0, 1.0),
+                tangent: Vector4::default(),
                 bone_weights: [0.0; 4],
                 bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
-                position: Vec3 {
-                    x: 0.5,
-                    y: 0.0,
-                    z: -0.5,
-                },
-                normal: Vec3::Z,
-                tex_coord: Vec2::X,
-                tangent: Vec4::ZERO,
+                position: Vector3::new(0.5, 0.0, -0.5),
+                normal: Vector3::z(),
+                tex_coord: Vector2::x(),
+                tangent: Vector4::default(),
                 bone_weights: [0.0; 4],
                 bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
-                position: Vec3 {
-                    x: -0.5,
-                    y: 0.0,
-                    z: -0.5,
-                },
-                normal: Vec3::Z,
-                tex_coord: Vec2::ZERO,
-                tangent: Vec4::ZERO,
+                position: Vector3::new(-0.5, 0.0, -0.5),
+                normal: Vector3::z(),
+                tex_coord: Vector2::default(),
+                tangent: Vector4::default(),
                 bone_weights: [0.0; 4],
                 bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
@@ -399,7 +382,8 @@ impl SurfaceSharedData {
         ];
 
         for v in vertices.iter_mut() {
-            v.position = transform.transform_vector(v.position);
+            v.position =
+                Vector3::from_homogeneous(transform * v.position.to_homogeneous()).unwrap();
         }
 
         let indices = vec![TriangleDefinition([0, 1, 2]), TriangleDefinition([0, 2, 3])];
@@ -424,7 +408,7 @@ impl SurfaceSharedData {
             let b = self.vertices[ib].position;
             let c = self.vertices[ic].position;
 
-            let normal = (b - a).cross(&(c - a)).normalized().unwrap();
+            let normal = (b - a).cross(&(c - a)).normalize();
 
             self.vertices[ia].normal = normal;
             self.vertices[ib].normal = normal;
@@ -458,31 +442,31 @@ impl SurfaceSharedData {
 
                 if i != (stacks - 1) {
                     builder.insert(Vertex::from_pos_uv(
-                        Vec3::new(k0 * k1, k0 * k2, k3),
-                        Vec2::new(d_tc_x * j as f32, d_tc_y * i as f32),
+                        Vector3::new(k0 * k1, k0 * k2, k3),
+                        Vector2::new(d_tc_x * j as f32, d_tc_y * i as f32),
                     ));
                     builder.insert(Vertex::from_pos_uv(
-                        Vec3::new(k4 * k1, k4 * k2, k7),
-                        Vec2::new(d_tc_x * j as f32, d_tc_y * ni as f32),
+                        Vector3::new(k4 * k1, k4 * k2, k7),
+                        Vector2::new(d_tc_x * j as f32, d_tc_y * ni as f32),
                     ));
                     builder.insert(Vertex::from_pos_uv(
-                        Vec3::new(k4 * k5, k4 * k6, k7),
-                        Vec2::new(d_tc_x * nj as f32, d_tc_y * ni as f32),
+                        Vector3::new(k4 * k5, k4 * k6, k7),
+                        Vector2::new(d_tc_x * nj as f32, d_tc_y * ni as f32),
                     ));
                 }
 
                 if i != 0 {
                     builder.insert(Vertex::from_pos_uv(
-                        Vec3::new(k4 * k5, k4 * k6, k7),
-                        Vec2::new(d_tc_x * nj as f32, d_tc_y * ni as f32),
+                        Vector3::new(k4 * k5, k4 * k6, k7),
+                        Vector2::new(d_tc_x * nj as f32, d_tc_y * ni as f32),
                     ));
                     builder.insert(Vertex::from_pos_uv(
-                        Vec3::new(k0 * k5, k0 * k6, k3),
-                        Vec2::new(d_tc_x * nj as f32, d_tc_y * i as f32),
+                        Vector3::new(k0 * k5, k0 * k6, k3),
+                        Vector2::new(d_tc_x * nj as f32, d_tc_y * i as f32),
                     ));
                     builder.insert(Vertex::from_pos_uv(
-                        Vec3::new(k0 * k1, k0 * k2, k3),
-                        Vec2::new(d_tc_x * j as f32, d_tc_y * i as f32),
+                        Vector3::new(k0 * k1, k0 * k2, k3),
+                        Vector2::new(d_tc_x * j as f32, d_tc_y * i as f32),
                     ));
                 }
             }
@@ -495,7 +479,7 @@ impl SurfaceSharedData {
     }
 
     /// Creates vertical cone - it has its vertex higher than base.
-    pub fn make_cone(sides: usize, r: f32, h: f32, transform: Mat4) -> Self {
+    pub fn make_cone(sides: usize, r: f32, h: f32, transform: Matrix4<f32>) -> Self {
         let mut builder = RawMeshBuilder::<Vertex>::new(3 * sides, 3 * sides);
 
         let d_phi = 2.0 * std::f32::consts::PI / sides as f32;
@@ -516,30 +500,32 @@ impl SurfaceSharedData {
 
             // back cap
             builder.insert(Vertex::from_pos_uv(
-                transform.transform_vector(Vec3::ZERO),
-                Vec2::ZERO,
+                transform
+                    .transform_point(&Point3::new(0.0, 0.0, 0.0))
+                    .coords,
+                Vector2::default(),
             ));
             builder.insert(Vertex::from_pos_uv(
-                transform.transform_vector(Vec3::new(x0, 0.0, z0)),
-                Vec2::new(tx0, 1.0),
+                transform.transform_point(&Point3::new(x0, 0.0, z0)).coords,
+                Vector2::new(tx0, 1.0),
             ));
             builder.insert(Vertex::from_pos_uv(
-                transform.transform_vector(Vec3::new(x1, 0.0, z1)),
-                Vec2::new(tx1, 0.0),
+                transform.transform_point(&Point3::new(x1, 0.0, z1)).coords,
+                Vector2::new(tx1, 0.0),
             ));
 
             // sides
             builder.insert(Vertex::from_pos_uv(
-                transform.transform_vector(Vec3::new(0.0, h, 0.0)),
-                Vec2::new(tx1, 0.0),
+                transform.transform_point(&Point3::new(0.0, h, 0.0)).coords,
+                Vector2::new(tx1, 0.0),
             ));
             builder.insert(Vertex::from_pos_uv(
-                transform.transform_vector(Vec3::new(x1, 0.0, z1)),
-                Vec2::new(tx0, 1.0),
+                transform.transform_point(&Point3::new(x1, 0.0, z1)).coords,
+                Vector2::new(tx0, 1.0),
             ));
             builder.insert(Vertex::from_pos_uv(
-                transform.transform_vector(Vec3::new(x0, 0.0, z0)),
-                Vec2::new(tx0, 0.0),
+                transform.transform_point(&Point3::new(x0, 0.0, z0)).coords,
+                Vector2::new(tx0, 0.0),
             ));
         }
 
@@ -550,7 +536,13 @@ impl SurfaceSharedData {
     }
 
     /// Creates vertical cylinder.
-    pub fn make_cylinder(sides: usize, r: f32, h: f32, caps: bool, transform: Mat4) -> Self {
+    pub fn make_cylinder(
+        sides: usize,
+        r: f32,
+        h: f32,
+        caps: bool,
+        transform: Matrix4<f32>,
+    ) -> Self {
         let mut builder = RawMeshBuilder::<Vertex>::new(3 * sides, 3 * sides);
 
         let d_phi = 2.0 * std::f32::consts::PI / sides as f32;
@@ -572,58 +564,60 @@ impl SurfaceSharedData {
             if caps {
                 // front cap
                 builder.insert(Vertex::from_pos_uv(
-                    transform.transform_vector(Vec3::new(x1, h, z1)),
-                    Vec2::new(tx1, 1.0),
+                    transform.transform_point(&Point3::new(x1, h, z1)).coords,
+                    Vector2::new(tx1, 1.0),
                 ));
                 builder.insert(Vertex::from_pos_uv(
-                    transform.transform_vector(Vec3::new(x0, h, z0)),
-                    Vec2::new(tx0, 1.0),
+                    transform.transform_point(&Point3::new(x0, h, z0)).coords,
+                    Vector2::new(tx0, 1.0),
                 ));
                 builder.insert(Vertex::from_pos_uv(
-                    transform.transform_vector(Vec3::new(0.0, h, 0.0)),
-                    Vec2::ZERO,
+                    transform.transform_point(&Point3::new(0.0, h, 0.0)).coords,
+                    Vector2::default(),
                 ));
 
                 // back cap
                 builder.insert(Vertex::from_pos_uv(
-                    transform.transform_vector(Vec3::new(x0, 0.0, z0)),
-                    Vec2::new(tx1, 1.0),
+                    transform.transform_point(&Point3::new(x0, 0.0, z0)).coords,
+                    Vector2::new(tx1, 1.0),
                 ));
                 builder.insert(Vertex::from_pos_uv(
-                    transform.transform_vector(Vec3::new(x1, 0.0, z1)),
-                    Vec2::new(tx0, 1.0),
+                    transform.transform_point(&Point3::new(x1, 0.0, z1)).coords,
+                    Vector2::new(tx0, 1.0),
                 ));
                 builder.insert(Vertex::from_pos_uv(
-                    transform.transform_vector(Vec3::ZERO),
-                    Vec2::ZERO,
+                    transform
+                        .transform_point(&Point3::new(0.0, 0.0, 0.0))
+                        .coords,
+                    Vector2::default(),
                 ));
             }
 
             // sides
             builder.insert(Vertex::from_pos_uv(
-                transform.transform_vector(Vec3::new(x0, 0.0, z0)),
-                Vec2::new(tx0, 0.0),
+                transform.transform_point(&Point3::new(x0, 0.0, z0)).coords,
+                Vector2::new(tx0, 0.0),
             ));
             builder.insert(Vertex::from_pos_uv(
-                transform.transform_vector(Vec3::new(x0, h, z0)),
-                Vec2::new(tx0, 1.0),
+                transform.transform_point(&Point3::new(x0, h, z0)).coords,
+                Vector2::new(tx0, 1.0),
             ));
             builder.insert(Vertex::from_pos_uv(
-                transform.transform_vector(Vec3::new(x1, 0.0, z1)),
-                Vec2::new(tx1, 0.0),
+                transform.transform_point(&Point3::new(x1, 0.0, z1)).coords,
+                Vector2::new(tx1, 0.0),
             ));
 
             builder.insert(Vertex::from_pos_uv(
-                transform.transform_vector(Vec3::new(x1, 0.0, z1)),
-                Vec2::new(tx1, 0.0),
+                transform.transform_point(&Point3::new(x1, 0.0, z1)).coords,
+                Vector2::new(tx1, 0.0),
             ));
             builder.insert(Vertex::from_pos_uv(
-                transform.transform_vector(Vec3::new(x0, h, z0)),
-                Vec2::new(tx0, 1.0),
+                transform.transform_point(&Point3::new(x0, h, z0)).coords,
+                Vector2::new(tx0, 1.0),
             ));
             builder.insert(Vertex::from_pos_uv(
-                transform.transform_vector(Vec3::new(x1, h, z1)),
-                Vec2::new(tx1, 1.0),
+                transform.transform_point(&Point3::new(x1, h, z1)).coords,
+                Vector2::new(tx1, 1.0),
             ));
         }
 
@@ -634,322 +628,226 @@ impl SurfaceSharedData {
     }
 
     /// Creates unit cube with given transform.
-    pub fn make_cube(transform: Mat4) -> Self {
+    pub fn make_cube(transform: Matrix4<f32>) -> Self {
         let mut vertices = vec![
             // Front
             Vertex {
-                position: Vec3 {
-                    x: -0.5,
-                    y: -0.5,
-                    z: 0.5,
-                },
-                normal: Vec3::Z,
-                tex_coord: Vec2::ZERO,
-                tangent: Vec4::ZERO,
+                position: Vector3::new(-0.5, -0.5, 0.5),
+                normal: Vector3::z(),
+                tex_coord: Vector2::default(),
+                tangent: Vector4::default(),
                 bone_weights: [0.0; 4],
                 bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
-                position: Vec3 {
-                    x: -0.5,
-                    y: 0.5,
-                    z: 0.5,
-                },
-                normal: Vec3::Z,
-                tex_coord: Vec2::Y,
-                tangent: Vec4::ZERO,
+                position: Vector3::new(-0.5, 0.5, 0.5),
+                normal: Vector3::z(),
+                tex_coord: Vector2::y(),
+                tangent: Vector4::default(),
                 bone_weights: [0.0; 4],
                 bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
-                position: Vec3 {
-                    x: 0.5,
-                    y: 0.5,
-                    z: 0.5,
-                },
-                normal: Vec3::Z,
-                tex_coord: Vec2::UNIT,
-                tangent: Vec4::ZERO,
+                position: Vector3::new(0.5, 0.5, 0.5),
+                normal: Vector3::z(),
+                tex_coord: Vector2::new(1.0, 1.0),
+                tangent: Vector4::default(),
                 bone_weights: [0.0; 4],
                 bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
-                position: Vec3 {
-                    x: 0.5,
-                    y: -0.5,
-                    z: 0.5,
-                },
-                normal: Vec3::Z,
-                tex_coord: Vec2::X,
-                tangent: Vec4::ZERO,
+                position: Vector3::new(0.5, -0.5, 0.5),
+                normal: Vector3::z(),
+                tex_coord: Vector2::x(),
+                tangent: Vector4::default(),
                 bone_weights: [0.0; 4],
                 bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             // Back
             Vertex {
-                position: Vec3 {
-                    x: -0.5,
-                    y: -0.5,
-                    z: -0.5,
-                },
-                normal: -Vec3::Z,
-                tex_coord: Vec2::ZERO,
-                tangent: Vec4::ZERO,
+                position: Vector3::new(-0.5, -0.5, -0.5),
+                normal: -Vector3::z(),
+                tex_coord: Vector2::default(),
+                tangent: Vector4::default(),
                 bone_weights: [0.0; 4],
                 bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
-                position: Vec3 {
-                    x: -0.5,
-                    y: 0.5,
-                    z: -0.5,
-                },
-                normal: -Vec3::Z,
-                tex_coord: Vec2::Y,
-                tangent: Vec4::ZERO,
+                position: Vector3::new(-0.5, 0.5, -0.5),
+                normal: -Vector3::z(),
+                tex_coord: Vector2::y(),
+                tangent: Vector4::default(),
                 bone_weights: [0.0; 4],
                 bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
-                position: Vec3 {
-                    x: 0.5,
-                    y: 0.5,
-                    z: -0.5,
-                },
-                normal: -Vec3::Z,
-                tex_coord: Vec2::UNIT,
-                tangent: Vec4::ZERO,
+                position: Vector3::new(0.5, 0.5, -0.5),
+                normal: -Vector3::z(),
+                tex_coord: Vector2::new(1.0, 1.0),
+                tangent: Vector4::default(),
                 bone_weights: [0.0; 4],
                 bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
-                position: Vec3 {
-                    x: 0.5,
-                    y: -0.5,
-                    z: -0.5,
-                },
-                normal: -Vec3::Z,
-                tex_coord: Vec2::X,
-                tangent: Vec4::ZERO,
+                position: Vector3::new(0.5, -0.5, -0.5),
+                normal: -Vector3::z(),
+                tex_coord: Vector2::x(),
+                tangent: Vector4::default(),
                 bone_weights: [0.0; 4],
                 bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             // Left
             Vertex {
-                position: Vec3 {
-                    x: -0.5,
-                    y: -0.5,
-                    z: -0.5,
-                },
-                normal: -Vec3::X,
-                tex_coord: Vec2::ZERO,
-                tangent: Vec4::ZERO,
+                position: Vector3::new(-0.5, -0.5, -0.5),
+                normal: -Vector3::x(),
+                tex_coord: Vector2::default(),
+                tangent: Vector4::default(),
                 bone_weights: [0.0; 4],
                 bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
-                position: Vec3 {
-                    x: -0.5,
-                    y: 0.5,
-                    z: -0.5,
-                },
-                normal: -Vec3::X,
-                tex_coord: Vec2::Y,
-                tangent: Vec4::ZERO,
+                position: Vector3::new(-0.5, 0.5, -0.5),
+                normal: -Vector3::x(),
+                tex_coord: Vector2::y(),
+                tangent: Vector4::default(),
                 bone_weights: [0.0; 4],
                 bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
-                position: Vec3 {
-                    x: -0.5,
-                    y: 0.5,
-                    z: 0.5,
-                },
-                normal: -Vec3::X,
-                tex_coord: Vec2::UNIT,
-                tangent: Vec4::ZERO,
+                position: Vector3::new(-0.5, 0.5, 0.5),
+                normal: -Vector3::x(),
+                tex_coord: Vector2::new(1.0, 1.0),
+                tangent: Vector4::default(),
                 bone_weights: [0.0; 4],
                 bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
-                position: Vec3 {
-                    x: -0.5,
-                    y: -0.5,
-                    z: 0.5,
-                },
-                normal: -Vec3::X,
-                tex_coord: Vec2::X,
-                tangent: Vec4::ZERO,
+                position: Vector3::new(-0.5, -0.5, 0.5),
+                normal: -Vector3::x(),
+                tex_coord: Vector2::x(),
+                tangent: Vector4::default(),
                 bone_weights: [0.0; 4],
                 bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             // Right
             Vertex {
-                position: Vec3 {
-                    x: 0.5,
-                    y: -0.5,
-                    z: -0.5,
-                },
-                normal: Vec3::X,
-                tex_coord: Vec2::ZERO,
-                tangent: Vec4::ZERO,
+                position: Vector3::new(0.5, -0.5, -0.5),
+                normal: Vector3::x(),
+                tex_coord: Vector2::default(),
+                tangent: Vector4::default(),
                 bone_weights: [0.0; 4],
                 bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
-                position: Vec3 {
-                    x: 0.5,
-                    y: 0.5,
-                    z: -0.5,
-                },
-                normal: Vec3::X,
-                tex_coord: Vec2::Y,
-                tangent: Vec4::ZERO,
+                position: Vector3::new(0.5, 0.5, -0.5),
+                normal: Vector3::x(),
+                tex_coord: Vector2::y(),
+                tangent: Vector4::default(),
                 bone_weights: [0.0; 4],
                 bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
-                position: Vec3 {
-                    x: 0.5,
-                    y: 0.5,
-                    z: 0.5,
-                },
-                normal: Vec3::X,
-                tex_coord: Vec2::UNIT,
-                tangent: Vec4::ZERO,
+                position: Vector3::new(0.5, 0.5, 0.5),
+                normal: Vector3::x(),
+                tex_coord: Vector2::new(1.0, 1.0),
+                tangent: Vector4::default(),
                 bone_weights: [0.0; 4],
                 bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
-                position: Vec3 {
-                    x: 0.5,
-                    y: -0.5,
-                    z: 0.5,
-                },
-                normal: Vec3::X,
-                tex_coord: Vec2::X,
-                tangent: Vec4::ZERO,
+                position: Vector3::new(0.5, -0.5, 0.5),
+                normal: Vector3::x(),
+                tex_coord: Vector2::x(),
+                tangent: Vector4::default(),
                 bone_weights: [0.0; 4],
                 bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             // Top
             Vertex {
-                position: Vec3 {
-                    x: -0.5,
-                    y: 0.5,
-                    z: 0.5,
-                },
-                normal: Vec3::Y,
-                tex_coord: Vec2::ZERO,
-                tangent: Vec4::ZERO,
+                position: Vector3::new(-0.5, 0.5, 0.5),
+                normal: Vector3::y(),
+                tex_coord: Vector2::default(),
+                tangent: Vector4::default(),
                 bone_weights: [0.0; 4],
                 bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
-                position: Vec3 {
-                    x: -0.5,
-                    y: 0.5,
-                    z: -0.5,
-                },
-                normal: Vec3::Y,
-                tex_coord: Vec2::Y,
-                tangent: Vec4::ZERO,
+                position: Vector3::new(-0.5, 0.5, -0.5),
+                normal: Vector3::y(),
+                tex_coord: Vector2::y(),
+                tangent: Vector4::default(),
                 bone_weights: [0.0; 4],
                 bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
-                position: Vec3 {
-                    x: 0.5,
-                    y: 0.5,
-                    z: -0.5,
-                },
-                normal: Vec3::Y,
-                tex_coord: Vec2::UNIT,
-                tangent: Vec4::ZERO,
+                position: Vector3::new(0.5, 0.5, -0.5),
+                normal: Vector3::y(),
+                tex_coord: Vector2::new(1.0, 1.0),
+                tangent: Vector4::default(),
                 bone_weights: [0.0; 4],
                 bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
-                position: Vec3 {
-                    x: 0.5,
-                    y: 0.5,
-                    z: 0.5,
-                },
-                normal: Vec3::Y,
-                tex_coord: Vec2::X,
-                tangent: Vec4::ZERO,
+                position: Vector3::new(0.5, 0.5, 0.5),
+                normal: Vector3::y(),
+                tex_coord: Vector2::x(),
+                tangent: Vector4::default(),
                 bone_weights: [0.0; 4],
                 bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             // Bottom
             Vertex {
-                position: Vec3 {
-                    x: -0.5,
-                    y: -0.5,
-                    z: 0.5,
-                },
-                normal: -Vec3::Y,
-                tex_coord: Vec2::ZERO,
-                tangent: Vec4::ZERO,
+                position: Vector3::new(-0.5, -0.5, 0.5),
+                normal: -Vector3::y(),
+                tex_coord: Vector2::default(),
+                tangent: Vector4::default(),
                 bone_weights: [0.0; 4],
                 bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
-                position: Vec3 {
-                    x: -0.5,
-                    y: -0.5,
-                    z: -0.5,
-                },
-                normal: -Vec3::Y,
-                tex_coord: Vec2::Y,
-                tangent: Vec4::ZERO,
+                position: Vector3::new(-0.5, -0.5, -0.5),
+                normal: -Vector3::y(),
+                tex_coord: Vector2::y(),
+                tangent: Vector4::default(),
                 bone_weights: [0.0; 4],
                 bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
-                position: Vec3 {
-                    x: 0.5,
-                    y: -0.5,
-                    z: -0.5,
-                },
-                normal: -Vec3::Y,
-                tex_coord: Vec2::UNIT,
-                tangent: Vec4::ZERO,
+                position: Vector3::new(0.5, -0.5, -0.5),
+                normal: -Vector3::y(),
+                tex_coord: Vector2::new(1.0, 1.0),
+                tangent: Vector4::default(),
                 bone_weights: [0.0; 4],
                 bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
-                position: Vec3 {
-                    x: 0.5,
-                    y: -0.5,
-                    z: 0.5,
-                },
-                normal: -Vec3::Y,
-                tex_coord: Vec2::X,
-                tangent: Vec4::ZERO,
+                position: Vector3::new(0.5, -0.5, 0.5),
+                normal: -Vector3::y(),
+                tex_coord: Vector2::x(),
+                tangent: Vector4::default(),
                 bone_weights: [0.0; 4],
                 bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
@@ -957,7 +855,7 @@ impl SurfaceSharedData {
         ];
 
         for v in vertices.iter_mut() {
-            v.position = transform.transform_vector(v.position);
+            v.position = transform.transform_point(&Point3::from(v.position)).coords;
         }
 
         let indices = vec![
@@ -978,6 +876,25 @@ impl SurfaceSharedData {
         let mut data = Self::new(vertices, indices, true);
         data.calculate_tangents();
         data
+    }
+
+    /// Calculates unique id based on contents of surface shared data.
+    pub fn id(&self) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        unsafe {
+            let triangles_bytes = std::slice::from_raw_parts(
+                self.triangles.as_ptr() as *const u8,
+                self.triangles.len() * std::mem::size_of::<TriangleDefinition>(),
+            );
+            triangles_bytes.hash(&mut hasher);
+
+            let vertices_bytes = std::slice::from_raw_parts(
+                self.vertices.as_ptr() as *const u8,
+                self.vertices.len() * std::mem::size_of::<Vertex>(),
+            );
+            vertices_bytes.hash(&mut hasher);
+        }
+        hasher.finish()
     }
 }
 
@@ -1093,10 +1010,12 @@ impl VertexWeightSet {
 pub struct Surface {
     // Wrapped into option to be able to implement Default for serialization.
     // In normal conditions it must never be None!
-    data: Option<Arc<Mutex<SurfaceSharedData>>>,
+    data: Option<Arc<RwLock<SurfaceSharedData>>>,
     diffuse_texture: Option<Texture>,
     normal_texture: Option<Texture>,
     lightmap_texture: Option<Texture>,
+    specular_texture: Option<Texture>,
+    roughness_texture: Option<Texture>,
     /// Temporal array for FBX conversion needs, it holds skinning data (weight + bone handle)
     /// and will be used to fill actual bone indices and weight in vertices that will be
     /// sent to GPU. The idea is very simple: GPU needs to know only indices of matrices of
@@ -1121,6 +1040,8 @@ impl Clone for Surface {
             data: self.data.clone(),
             diffuse_texture: self.diffuse_texture.clone(),
             normal_texture: self.normal_texture.clone(),
+            specular_texture: self.specular_texture.clone(),
+            roughness_texture: self.roughness_texture.clone(),
             bones: self.bones.clone(),
             vertex_weights: Vec::new(), // Intentionally not copied.
             color: self.color,
@@ -1132,11 +1053,13 @@ impl Clone for Surface {
 impl Surface {
     /// Creates new surface instance with given data and without any texture.
     #[inline]
-    pub fn new(data: Arc<Mutex<SurfaceSharedData>>) -> Self {
+    pub fn new(data: Arc<RwLock<SurfaceSharedData>>) -> Self {
         Self {
             data: Some(data),
             diffuse_texture: None,
             normal_texture: None,
+            specular_texture: None,
+            roughness_texture: None,
             bones: Vec::new(),
             vertex_weights: Vec::new(),
             color: Color::WHITE,
@@ -1144,9 +1067,35 @@ impl Surface {
         }
     }
 
+    /// Calculates batch id.
+    pub fn batch_id(&self) -> u64 {
+        let mut hasher = DefaultHasher::new();
+
+        let data_key = &*self.data() as *const _ as u64;
+        data_key.hash(&mut hasher);
+
+        if let Some(diffuse_texture) = self.diffuse_texture.as_ref() {
+            diffuse_texture.key().hash(&mut hasher);
+        }
+        if let Some(normal_texture) = self.normal_texture.as_ref() {
+            normal_texture.key().hash(&mut hasher);
+        }
+        if let Some(specular_texture) = self.specular_texture.as_ref() {
+            specular_texture.key().hash(&mut hasher);
+        }
+        if let Some(roughness_texture) = self.roughness_texture.as_ref() {
+            roughness_texture.key().hash(&mut hasher);
+        }
+        if let Some(lightmap_texture) = self.lightmap_texture.as_ref() {
+            lightmap_texture.key().hash(&mut hasher);
+        }
+
+        hasher.finish()
+    }
+
     /// Returns current data used by surface.
     #[inline]
-    pub fn data(&self) -> Arc<Mutex<SurfaceSharedData>> {
+    pub fn data(&self) -> Arc<RwLock<SurfaceSharedData>> {
         self.data.as_ref().unwrap().clone()
     }
 
@@ -1172,6 +1121,30 @@ impl Surface {
     #[inline]
     pub fn normal_texture(&self) -> Option<Texture> {
         self.normal_texture.clone()
+    }
+
+    /// Sets new specular texture.
+    #[inline]
+    pub fn set_specular_texture(&mut self, tex: Option<Texture>) {
+        self.specular_texture = tex;
+    }
+
+    /// Returns current specular texture.
+    #[inline]
+    pub fn specular_texture(&self) -> Option<Texture> {
+        self.specular_texture.clone()
+    }
+
+    /// Sets new roughness texture.
+    #[inline]
+    pub fn set_roughness_texture(&mut self, tex: Option<Texture>) {
+        self.roughness_texture = tex;
+    }
+
+    /// Returns current roughness texture.
+    #[inline]
+    pub fn roughness_texture(&self) -> Option<Texture> {
+        self.roughness_texture.clone()
     }
 
     /// Sets new lightmap texture.
@@ -1212,6 +1185,8 @@ impl Visit for Surface {
         self.data.visit("Data", visitor)?;
         self.normal_texture.visit("NormalTexture", visitor)?;
         self.diffuse_texture.visit("DiffuseTexture", visitor)?;
+        let _ = self.specular_texture.visit("SpecularTexture", visitor);
+        let _ = self.roughness_texture.visit("RoughnessTexture", visitor);
         self.color.visit("Color", visitor)?;
         self.bones.visit("Bones", visitor)?;
         // self.vertex_weights intentionally not serialized!
@@ -1226,22 +1201,26 @@ impl Visit for Surface {
 
 /// Surface builder allows you to create surfaces in declarative manner.
 pub struct SurfaceBuilder {
-    data: Arc<Mutex<SurfaceSharedData>>,
+    data: Arc<RwLock<SurfaceSharedData>>,
     diffuse_texture: Option<Texture>,
     normal_texture: Option<Texture>,
     lightmap_texture: Option<Texture>,
+    specular_texture: Option<Texture>,
+    roughness_texture: Option<Texture>,
     bones: Vec<Handle<Node>>,
     color: Color,
 }
 
 impl SurfaceBuilder {
     /// Creates new builder instance with given data and no textures or bones.
-    pub fn new(data: Arc<Mutex<SurfaceSharedData>>) -> Self {
+    pub fn new(data: Arc<RwLock<SurfaceSharedData>>) -> Self {
         Self {
             data,
             diffuse_texture: None,
             normal_texture: None,
             lightmap_texture: None,
+            specular_texture: None,
+            roughness_texture: None,
             bones: Default::default(),
             color: Color::WHITE,
         }
@@ -1265,6 +1244,18 @@ impl SurfaceBuilder {
         self
     }
 
+    /// Sets desired specular texture.
+    pub fn with_specular_texture(mut self, tex: Texture) -> Self {
+        self.specular_texture = Some(tex);
+        self
+    }
+
+    /// Sets desired roughness texture.
+    pub fn with_roughness_texture(mut self, tex: Texture) -> Self {
+        self.roughness_texture = Some(tex);
+        self
+    }
+
     /// Sets desired color of surface.
     pub fn with_color(mut self, color: Color) -> Self {
         self.color = color;
@@ -1284,6 +1275,8 @@ impl SurfaceBuilder {
             diffuse_texture: self.diffuse_texture,
             normal_texture: self.normal_texture,
             lightmap_texture: self.lightmap_texture,
+            specular_texture: self.specular_texture,
+            roughness_texture: self.roughness_texture,
             vertex_weights: Default::default(),
             bones: self.bones,
             color: self.color,

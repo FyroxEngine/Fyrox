@@ -6,7 +6,7 @@
 //! Renderer based on OpenGL 3.3+ Core.
 
 #![warn(missing_docs)]
-#![deny(unsafe_code)]
+//#![deny(unsafe_code)]
 
 pub mod debug_renderer;
 pub mod error;
@@ -18,6 +18,7 @@ pub mod surface;
 #[allow(unsafe_code)]
 mod framework;
 
+mod batch;
 mod blur;
 mod deferred_light_renderer;
 mod flat_shader;
@@ -29,27 +30,30 @@ mod sprite_renderer;
 mod ssao;
 mod ui_renderer;
 
-use crate::resource::texture::TextureKind;
-use crate::scene::Scene;
+use crate::utils::log::{Log, MessageKind};
 use crate::{
     core::{
+        algebra::{Matrix4, Vector2, Vector3},
         color::Color,
-        math::{mat4::Mat4, vec2::Vec2, vec3::Vec3, Rect, TriangleDefinition},
+        math::{Rect, TriangleDefinition},
         pool::Handle,
         scope_profile,
     },
     engine::resource_manager::TimedEntry,
     gui::draw::DrawingContext,
     renderer::{
+        batch::{BatchStorage, InstanceData},
         debug_renderer::DebugRenderer,
-        deferred_light_renderer::{DeferredLightRenderer, DeferredRendererContext},
+        deferred_light_renderer::{
+            DeferredLightRenderer, DeferredRendererContext, LightingStatistics,
+        },
         error::RendererError,
         flat_shader::FlatShader,
         framework::{
             framebuffer::{BackBuffer, CullFace, DrawParameters, FrameBufferTrait},
             geometry_buffer::{
-                AttributeDefinition, AttributeKind, DrawCallStatistics, ElementKind,
-                GeometryBuffer, GeometryBufferKind,
+                AttributeDefinition, AttributeKind, BufferBuilder, DrawCallStatistics, ElementKind,
+                GeometryBuffer, GeometryBufferBuilder, GeometryBufferKind,
             },
             gl,
             gpu_program::UniformValue,
@@ -57,7 +61,7 @@ use crate::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind,
             },
-            state::State,
+            state::{PipelineState, PipelineStatistics},
         },
         gbuffer::{GBuffer, GBufferRenderContext},
         particle_system_renderer::{ParticleSystemRenderContext, ParticleSystemRenderer},
@@ -65,30 +69,63 @@ use crate::{
         surface::SurfaceSharedData,
         ui_renderer::{UiRenderContext, UiRenderer},
     },
-    resource::texture::{Texture, TextureState},
-    scene::{node::Node, SceneContainer},
+    resource::texture::{Texture, TextureKind, TextureState},
+    scene::{node::Node, Scene, SceneContainer},
 };
 use glutin::PossiblyCurrent;
 #[cfg(feature = "serde_integration")]
 use serde::{Deserialize, Serialize};
-use std::{cell::RefCell, collections::HashMap, ops::Deref, rc::Rc, time};
+use std::collections::hash_map::Entry;
+use std::{
+    cell::RefCell,
+    collections::HashMap,
+    fmt::{Display, Formatter},
+    ops::Deref,
+    rc::Rc,
+    time,
+};
 
 /// Renderer statistics for one frame, also includes current frames per second
 /// amount.
 #[derive(Copy, Clone)]
 pub struct Statistics {
-    /// Geometry statistics.
+    /// Shows how many pipeline state changes was made per frame.
+    pub pipeline: PipelineStatistics,
+    /// Shows how many lights and shadow maps were rendered.
+    pub lighting: LightingStatistics,
+    /// Shows how many draw calls was made and how many triangles were rendered.
     pub geometry: RenderPassStatistics,
-    /// Real time consumed to render frame.
+    /// Real time consumed to render frame. Time given in **seconds**.
     pub pure_frame_time: f32,
     /// Total time renderer took to process single frame, usually includes
-    /// time renderer spend to wait to buffers swap (can include vsync)
+    /// time renderer spend to wait to buffers swap (can include vsync).
+    /// Time given in **seconds**.
     pub capped_frame_time: f32,
     /// Total amount of frames been rendered in one second.
     pub frames_per_second: usize,
     frame_counter: usize,
     frame_start_time: time::Instant,
     last_fps_commit_time: time::Instant,
+}
+
+impl Display for Statistics {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "FPS: {}\n\
+            Pure Frame Time: {} ms\n\
+            Capped Frame Time: {} ms\n\
+            {}\n\
+            {}\n\
+            {}\n",
+            self.frames_per_second,
+            self.pure_frame_time * 1000.0,
+            self.capped_frame_time * 1000.0,
+            self.geometry,
+            self.lighting,
+            self.pipeline
+        )
+    }
 }
 
 /// GPU statistics for single frame.
@@ -98,6 +135,17 @@ pub struct RenderPassStatistics {
     pub draw_calls: usize,
     /// Amount of triangles per frame.
     pub triangles_rendered: usize,
+}
+
+impl Display for RenderPassStatistics {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Draw Calls: {}\n\
+            Triangles Rendered: {}",
+            self.draw_calls, self.triangles_rendered
+        )
+    }
 }
 
 impl Default for RenderPassStatistics {
@@ -129,6 +177,17 @@ impl std::ops::AddAssign<RenderPassStatistics> for Statistics {
     }
 }
 
+/// Shadow map precision allows you to select compromise between quality and performance.
+#[derive(Copy, Clone, Hash, PartialOrd, PartialEq, Eq, Ord)]
+pub enum ShadowMapPrecision {
+    /// Shadow map will use 2 times less memory by switching to 16bit pixel format,
+    /// but "shadow acne" may occur.
+    Half,
+    /// Shadow map will use 32bit pixel format. This option gives highest quality,
+    /// but could be less performant than `Half`.
+    Full,
+}
+
 /// Quality settings allows you to find optimal balance between performance and
 /// graphics quality.
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -143,6 +202,9 @@ pub struct QualitySettings {
     pub point_shadows_enabled: bool,
     /// Maximum distance from camera to draw shadows.
     pub point_shadows_distance: f32,
+    /// Point shadow map precision. Allows you to select compromise between
+    /// quality and performance.
+    pub point_shadow_map_precision: ShadowMapPrecision,
 
     /// Spot shadows
     /// Size of square shadow map texture in pixels
@@ -153,6 +215,9 @@ pub struct QualitySettings {
     pub spot_shadows_enabled: bool,
     /// Maximum distance from camera to draw shadows.
     pub spot_shadows_distance: f32,
+    /// Spot shadow map precision. Allows you to select compromise between
+    /// quality and performance.
+    pub spot_shadow_map_precision: ShadowMapPrecision,
 
     /// Whether to use screen space ambient occlusion or not.
     pub use_ssao: bool,
@@ -167,22 +232,7 @@ pub struct QualitySettings {
 
 impl Default for QualitySettings {
     fn default() -> Self {
-        Self {
-            point_shadow_map_size: 1024,
-            point_shadows_distance: 15.0,
-            point_shadows_enabled: true,
-            point_soft_shadows: true,
-
-            spot_shadow_map_size: 1024,
-            spot_shadows_distance: 15.0,
-            spot_shadows_enabled: true,
-            spot_soft_shadows: true,
-
-            use_ssao: true,
-            ssao_radius: 0.5,
-
-            light_scatter_enabled: true,
-        }
+        Self::high()
     }
 }
 
@@ -204,6 +254,9 @@ impl QualitySettings {
             ssao_radius: 0.5,
 
             light_scatter_enabled: true,
+
+            point_shadow_map_precision: ShadowMapPrecision::Full,
+            spot_shadow_map_precision: ShadowMapPrecision::Full,
         }
     }
 
@@ -224,6 +277,9 @@ impl QualitySettings {
             ssao_radius: 0.5,
 
             light_scatter_enabled: true,
+
+            point_shadow_map_precision: ShadowMapPrecision::Half,
+            spot_shadow_map_precision: ShadowMapPrecision::Half,
         }
     }
 
@@ -244,6 +300,9 @@ impl QualitySettings {
             ssao_radius: 0.5,
 
             light_scatter_enabled: false,
+
+            point_shadow_map_precision: ShadowMapPrecision::Half,
+            spot_shadow_map_precision: ShadowMapPrecision::Half,
         }
     }
 
@@ -264,6 +323,9 @@ impl QualitySettings {
             ssao_radius: 0.5,
 
             light_scatter_enabled: false,
+
+            point_shadow_map_precision: ShadowMapPrecision::Half,
+            spot_shadow_map_precision: ShadowMapPrecision::Half,
         }
     }
 }
@@ -273,6 +335,7 @@ impl Statistics {
     fn begin_frame(&mut self) {
         self.frame_start_time = time::Instant::now();
         self.geometry = Default::default();
+        self.lighting = Default::default();
     }
 
     /// Must be called before SwapBuffers but after all rendering is done.
@@ -306,7 +369,9 @@ impl Statistics {
 impl Default for Statistics {
     fn default() -> Self {
         Self {
-            geometry: RenderPassStatistics::default(),
+            pipeline: Default::default(),
+            lighting: Default::default(),
+            geometry: Default::default(),
             pure_frame_time: 0.0,
             capped_frame_time: 0.0,
             frames_per_second: 0,
@@ -319,7 +384,7 @@ impl Default for Statistics {
 
 /// See module docs.
 pub struct Renderer {
-    state: State,
+    state: PipelineState,
     backbuffer: BackBuffer,
     deferred_light_renderer: DeferredLightRenderer,
     flat_shader: FlatShader,
@@ -328,15 +393,20 @@ pub struct Renderer {
     /// Dummy white one pixel texture which will be used as stub when rendering
     /// something without texture specified.
     white_dummy: Rc<RefCell<GpuTexture>>,
+    black_dummy: Rc<RefCell<GpuTexture>>,
+    environment_dummy: Rc<RefCell<GpuTexture>>,
     /// Dummy one pixel texture with (0, 1, 0) vector is used as stub when rendering
     /// something without normal map.
     normal_dummy: Rc<RefCell<GpuTexture>>,
+    /// Dummy one pixel texture used as stub when rendering something without a
+    /// specular texture
+    specular_dummy: Rc<RefCell<GpuTexture>>,
     ui_renderer: UiRenderer,
     statistics: Statistics,
     quad: SurfaceSharedData,
     frame_size: (u32, u32),
     ambient_color: Color,
-    pub quality_settings: QualitySettings,
+    quality_settings: QualitySettings,
     /// Debug renderer instance can be used for debugging purposes
     pub debug_renderer: DebugRenderer,
     /// Camera to G-buffer mapping.
@@ -344,62 +414,116 @@ pub struct Renderer {
     backbuffer_clear_color: Color,
     texture_cache: TextureCache,
     geometry_cache: GeometryCache,
+    batch_storage: BatchStorage,
 }
 
 #[derive(Default)]
 pub(in crate) struct GeometryCache {
-    map: HashMap<usize, TimedEntry<GeometryBuffer<surface::Vertex>>>,
+    map: HashMap<usize, TimedEntry<GeometryBuffer>>,
 }
 
 impl GeometryCache {
-    fn get(
-        &mut self,
-        state: &mut State,
-        data: &SurfaceSharedData,
-    ) -> &mut GeometryBuffer<surface::Vertex> {
+    fn get(&mut self, state: &mut PipelineState, data: &SurfaceSharedData) -> &mut GeometryBuffer {
         scope_profile!();
 
         let key = (data as *const _) as usize;
 
         let geometry_buffer = self.map.entry(key).or_insert_with(|| {
-            let geometry_buffer =
-                GeometryBuffer::new(GeometryBufferKind::StaticDraw, ElementKind::Triangle);
-
-            geometry_buffer
-                .bind(state)
-                .describe_attributes(vec![
-                    AttributeDefinition {
+            let geometry_buffer = GeometryBufferBuilder::new(ElementKind::Triangle)
+                .with_buffer_builder(
+                    BufferBuilder::new(
+                        GeometryBufferKind::StaticDraw,
+                        Some(data.vertices.as_slice()),
+                    )
+                    .with_attribute(AttributeDefinition {
+                        location: 0,
+                        divisor: 0,
                         kind: AttributeKind::Float3,
                         normalized: false,
-                    },
-                    AttributeDefinition {
+                    })
+                    .with_attribute(AttributeDefinition {
+                        location: 1,
+                        divisor: 0,
                         kind: AttributeKind::Float2,
                         normalized: false,
-                    },
-                    AttributeDefinition {
+                    })
+                    .with_attribute(AttributeDefinition {
+                        location: 2,
+                        divisor: 0,
                         kind: AttributeKind::Float2,
                         normalized: false,
-                    },
-                    AttributeDefinition {
+                    })
+                    .with_attribute(AttributeDefinition {
+                        location: 3,
+                        divisor: 0,
                         kind: AttributeKind::Float3,
                         normalized: false,
-                    },
-                    AttributeDefinition {
+                    })
+                    .with_attribute(AttributeDefinition {
+                        location: 4,
+                        divisor: 0,
                         kind: AttributeKind::Float4,
                         normalized: false,
-                    },
-                    AttributeDefinition {
+                    })
+                    .with_attribute(AttributeDefinition {
+                        location: 5,
+                        divisor: 0,
                         kind: AttributeKind::Float4,
                         normalized: false,
-                    },
-                    AttributeDefinition {
+                    })
+                    .with_attribute(AttributeDefinition {
+                        location: 6,
+                        divisor: 0,
                         kind: AttributeKind::UnsignedByte4,
                         normalized: false,
-                    },
-                ])
-                .unwrap()
-                .set_vertices(data.vertices.as_slice())
-                .set_triangles(data.triangles());
+                    }),
+                )
+                // Buffer for world and world-view-projection matrices per instance.
+                .with_buffer_builder(
+                    BufferBuilder::new::<InstanceData>(GeometryBufferKind::DynamicDraw, None)
+                        .with_attribute(AttributeDefinition {
+                            location: 7,
+                            kind: AttributeKind::UnsignedByte4,
+                            normalized: true,
+                            divisor: 1,
+                        })
+                        // World Matrix
+                        .with_attribute(AttributeDefinition {
+                            location: 8,
+                            kind: AttributeKind::Float4,
+                            normalized: false,
+                            divisor: 1,
+                        })
+                        .with_attribute(AttributeDefinition {
+                            location: 9,
+                            kind: AttributeKind::Float4,
+                            normalized: false,
+                            divisor: 1,
+                        })
+                        .with_attribute(AttributeDefinition {
+                            location: 10,
+                            kind: AttributeKind::Float4,
+                            normalized: false,
+                            divisor: 1,
+                        })
+                        .with_attribute(AttributeDefinition {
+                            location: 11,
+                            kind: AttributeKind::Float4,
+                            normalized: false,
+                            divisor: 1,
+                        })
+                        // Depth offset.
+                        .with_attribute(AttributeDefinition {
+                            location: 12,
+                            kind: AttributeKind::Float,
+                            normalized: false,
+                            divisor: 1,
+                        }),
+                )
+                .build(state)
+                .unwrap();
+
+            geometry_buffer.bind(state).set_triangles(data.triangles());
 
             TimedEntry {
                 value: geometry_buffer,
@@ -431,30 +555,45 @@ pub(in crate) struct TextureCache {
 }
 
 impl TextureCache {
-    fn get(&mut self, state: &mut State, texture: Texture) -> Option<Rc<RefCell<GpuTexture>>> {
+    fn get(
+        &mut self,
+        state: &mut PipelineState,
+        texture: Texture,
+    ) -> Option<Rc<RefCell<GpuTexture>>> {
         scope_profile!();
 
         let key = texture.key();
         let texture = texture.state();
 
         if let TextureState::Ok(texture) = texture.deref() {
-            let gpu_texture = self.map.entry(key).or_insert_with(|| {
-                let gpu_texture = GpuTexture::new(
-                    state,
-                    texture.kind.into(),
-                    PixelKind::from(texture.pixel_kind),
-                    texture.minification_filter().into(),
-                    texture.magnification_filter().into(),
-                    texture.mip_count() as usize,
-                    Some(texture.bytes.as_slice()),
-                )
-                .unwrap();
+            let gpu_texture = match self.map.entry(key) {
+                Entry::Occupied(e) => e.into_mut(),
+                Entry::Vacant(e) => {
+                    let gpu_texture = match GpuTexture::new(
+                        state,
+                        texture.kind.into(),
+                        PixelKind::from(texture.pixel_kind),
+                        texture.minification_filter().into(),
+                        texture.magnification_filter().into(),
+                        texture.mip_count() as usize,
+                        Some(texture.bytes.as_slice()),
+                    ) {
+                        Ok(texture) => texture,
+                        Err(e) => {
+                            Log::writeln(
+                                MessageKind::Error,
+                                format!("Failed to create GPU texture. Reason: {:?}", e),
+                            );
+                            return None;
+                        }
+                    };
 
-                TimedEntry {
-                    value: Rc::new(RefCell::new(gpu_texture)),
-                    time_to_live: 20.0,
+                    e.insert(TimedEntry {
+                        value: Rc::new(RefCell::new(gpu_texture)),
+                        time_to_live: 20.0,
+                    })
                 }
-            });
+            };
 
             let new_mag_filter = texture.magnification_filter().into();
             if gpu_texture.borrow().magnification_filter() != new_mag_filter {
@@ -529,7 +668,7 @@ impl Renderer {
         gl::load_with(|symbol| context.get_proc_address(symbol) as *const _);
 
         let settings = QualitySettings::default();
-        let mut state = State::new();
+        let mut state = PipelineState::new();
 
         Ok(Self {
             backbuffer: BackBuffer,
@@ -548,7 +687,38 @@ impl Renderer {
                 MinificationFilter::Linear,
                 MagnificationFilter::Linear,
                 1,
-                Some(&[255, 255, 255, 255]),
+                Some(&[255u8, 255u8, 255u8, 255u8]),
+            )?)),
+            black_dummy: Rc::new(RefCell::new(GpuTexture::new(
+                &mut state,
+                GpuTextureKind::Rectangle {
+                    width: 1,
+                    height: 1,
+                },
+                PixelKind::RGBA8,
+                MinificationFilter::Linear,
+                MagnificationFilter::Linear,
+                1,
+                Some(&[0u8, 0u8, 0u8, 255u8]),
+            )?)),
+            environment_dummy: Rc::new(RefCell::new(GpuTexture::new(
+                &mut state,
+                GpuTextureKind::Cube {
+                    width: 1,
+                    height: 1,
+                },
+                PixelKind::RGBA8,
+                MinificationFilter::Linear,
+                MagnificationFilter::Linear,
+                1,
+                Some(&[
+                    0u8, 0u8, 0u8, 255u8, // pos-x
+                    0u8, 0u8, 0u8, 255u8, // neg-x
+                    0u8, 0u8, 0u8, 255u8, // pos-y
+                    0u8, 0u8, 0u8, 255u8, // neg-y
+                    0u8, 0u8, 0u8, 255u8, // pos-z
+                    0u8, 0u8, 0u8, 255u8, // neg-z
+                ]),
             )?)),
             normal_dummy: Rc::new(RefCell::new(GpuTexture::new(
                 &mut state,
@@ -560,7 +730,19 @@ impl Renderer {
                 MinificationFilter::Linear,
                 MagnificationFilter::Linear,
                 1,
-                Some(&[128, 128, 255, 255]),
+                Some(&[128u8, 128u8, 255u8, 255u8]),
+            )?)),
+            specular_dummy: Rc::new(RefCell::new(GpuTexture::new(
+                &mut state,
+                GpuTextureKind::Rectangle {
+                    width: 1,
+                    height: 1,
+                },
+                PixelKind::RGBA8,
+                MinificationFilter::Linear,
+                MagnificationFilter::Linear,
+                1,
+                Some(&[32u8, 32u8, 32u8, 32u8]),
             )?)),
             quad: SurfaceSharedData::make_unit_xy_quad(),
             ui_renderer: UiRenderer::new(&mut state)?,
@@ -573,6 +755,7 @@ impl Renderer {
             texture_cache: Default::default(),
             geometry_cache: Default::default(),
             state,
+            batch_storage: Default::default(),
         })
     }
 
@@ -618,8 +801,8 @@ impl Renderer {
     }
 
     /// Returns current bounds of back buffer.
-    pub fn get_frame_bounds(&self) -> Vec2 {
-        Vec2::new(self.frame_size.0 as f32, self.frame_size.1 as f32)
+    pub fn get_frame_bounds(&self) -> Vector2<f32> {
+        Vector2::new(self.frame_size.0 as f32, self.frame_size.1 as f32)
     }
 
     /// Sets new quality settings for renderer. Never call this method in a loop, otherwise
@@ -684,11 +867,11 @@ impl Renderer {
 
             let frame_size = scene.render_target.as_ref().map_or_else(
                 // Use either backbuffer size
-                || Vec2::new(backbuffer_width, backbuffer_height),
+                || Vector2::new(backbuffer_width, backbuffer_height),
                 // Or framebuffer size
                 |rt| {
                     if let TextureKind::Rectangle { width, height } = rt.data_ref().kind {
-                        Vec2::new(width as f32, height as f32)
+                        Vector2::new(width as f32, height as f32)
                     } else {
                         panic!("only rectangle textures can be used as render target!")
                     }
@@ -696,6 +879,17 @@ impl Renderer {
             );
 
             let state = &mut self.state;
+
+            self.batch_storage.generate_batches(
+                state,
+                graph,
+                self.black_dummy.clone(),
+                self.white_dummy.clone(),
+                self.normal_dummy.clone(),
+                self.specular_dummy.clone(),
+                &mut self.texture_cache,
+            );
+
             let gbuffer = self
                 .gbuffers
                 .entry(scene_handle)
@@ -742,27 +936,30 @@ impl Renderer {
 
                 self.statistics += gbuffer.fill(GBufferRenderContext {
                     state,
-                    graph,
                     camera,
-                    white_dummy: self.white_dummy.clone(),
-                    normal_dummy: self.normal_dummy.clone(),
-                    texture_cache: &mut self.texture_cache,
                     geom_cache: &mut self.geometry_cache,
+                    batch_storage: &self.batch_storage,
+                    texture_cache: &mut self.texture_cache,
+                    environment_dummy: self.environment_dummy.clone(),
                 });
 
-                self.statistics += self
-                    .deferred_light_renderer
-                    .render(DeferredRendererContext {
-                        state,
-                        scene,
-                        camera,
-                        gbuffer,
-                        white_dummy: self.white_dummy.clone(),
-                        ambient_color: self.ambient_color,
-                        settings: &self.quality_settings,
-                        textures: &mut self.texture_cache,
-                        geometry_cache: &mut self.geometry_cache,
-                    });
+                let (pass_stats, light_stats) =
+                    self.deferred_light_renderer
+                        .render(DeferredRendererContext {
+                            state,
+                            scene,
+                            camera,
+                            gbuffer,
+                            white_dummy: self.white_dummy.clone(),
+                            ambient_color: self.ambient_color,
+                            settings: &self.quality_settings,
+                            textures: &mut self.texture_cache,
+                            geometry_cache: &mut self.geometry_cache,
+                            batch_storage: &self.batch_storage,
+                        });
+
+                self.statistics.lighting += light_stats;
+                self.statistics.geometry += pass_stats;
 
                 let depth = gbuffer.depth();
 
@@ -807,7 +1004,7 @@ impl Renderer {
                         state,
                         viewport,
                         &self.flat_shader.program,
-                        DrawParameters {
+                        &DrawParameters {
                             cull_face: CullFace::Back,
                             culling: false,
                             color_write: Default::default(),
@@ -819,17 +1016,17 @@ impl Renderer {
                         &[
                             (
                                 self.flat_shader.wvp_matrix,
-                                UniformValue::Mat4({
-                                    Mat4::ortho(
+                                UniformValue::Matrix4({
+                                    Matrix4::new_orthographic(
                                         0.0,
-                                        viewport.w as f32,
-                                        viewport.h as f32,
+                                        viewport.w() as f32,
+                                        viewport.h() as f32,
                                         0.0,
                                         -1.0,
                                         1.0,
-                                    ) * Mat4::scale(Vec3::new(
-                                        viewport.w as f32,
-                                        viewport.h as f32,
+                                    ) * Matrix4::new_nonuniform_scaling(&Vector3::new(
+                                        viewport.w() as f32,
+                                        viewport.h() as f32,
                                         0.0,
                                     ))
                                 }),
@@ -869,14 +1066,12 @@ impl Renderer {
         context: &glutin::WindowedContext<PossiblyCurrent>,
         dt: f32,
     ) -> Result<(), RendererError> {
-        scope_profile!();
-
         self.render_frame(scenes, drawing_context, dt)?;
-
         self.statistics.end_frame();
         context.swap_buffers()?;
         check_gl_error!();
         self.statistics.finalize();
+        self.statistics.pipeline = self.state.pipeline_statistics();
         Ok(())
     }
 }

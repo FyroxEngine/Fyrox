@@ -1,10 +1,6 @@
 use crate::{
     brush::Brush,
-    core::{
-        color::Color,
-        math::{vec2::Vec2, Rect},
-        pool::Handle,
-    },
+    core::{algebra::Vector2, color::Color, math::Rect, pool::Handle},
     draw::{CommandKind, CommandTexture, DrawingContext},
     formatted_text::{FormattedText, FormattedTextBuilder},
     message::{
@@ -14,11 +10,11 @@ use crate::{
     ttf::SharedFont,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, HorizontalAlignment, UINode, UserInterface, VerticalAlignment,
+    BRUSH_DARKER, BRUSH_TEXT,
 };
-use std::cmp::Ordering;
 use std::{
     cell::RefCell,
-    cmp,
+    cmp::{self, Ordering},
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
     rc::Rc,
@@ -43,6 +39,24 @@ pub struct Position {
 
     // Offset from beginning of a line.
     offset: usize,
+}
+
+#[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Ord, Hash)]
+#[repr(u32)]
+pub enum TextCommitMode {
+    /// Text box will immediately send Text message after any change.
+    Immediate = 0,
+
+    /// Text box will send Text message only when it loses focus.
+    LostFocus = 1,
+
+    /// Text box will send Text message when it loses focus or if Enter
+    /// key was pressed. This is **default** behavior.
+    ///
+    /// # Notes
+    ///
+    /// In case of multiline text box hitting Enter key won't commit text!
+    LostFocusPlusEnter = 2,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
@@ -90,6 +104,8 @@ pub struct TextBox<M: MessageData, C: Control<M, C>> {
     caret_brush: Brush,
     selection_brush: Brush,
     filter: Option<Rc<RefCell<FilterCallback>>>,
+    commit_mode: TextCommitMode,
+    multiline: bool,
 }
 
 impl<M: MessageData, C: Control<M, C>> Debug for TextBox<M, C> {
@@ -101,27 +117,6 @@ impl<M: MessageData, C: Control<M, C>> Debug for TextBox<M, C> {
 crate::define_widget_deref!(TextBox<M, C>);
 
 impl<M: MessageData, C: Control<M, C>> TextBox<M, C> {
-    pub fn new(widget: Widget<M, C>) -> Self {
-        Self {
-            widget,
-            caret_position: Position::default(),
-            caret_visible: false,
-            blink_timer: 0.0,
-            blink_interval: 0.0,
-            formatted_text: RefCell::new(
-                FormattedTextBuilder::new()
-                    .with_font(crate::DEFAULT_FONT.clone())
-                    .build(),
-            ),
-            selection_range: None,
-            selecting: false,
-            has_focus: false,
-            caret_brush: Brush::Solid(Color::WHITE),
-            selection_brush: Brush::Solid(Color::opaque(65, 65, 90)),
-            filter: None,
-        }
-    }
-
     pub fn reset_blink(&mut self) {
         self.caret_visible = true;
         self.blink_timer = 0.0;
@@ -316,7 +311,7 @@ impl<M: MessageData, C: Control<M, C>> TextBox<M, C> {
         }
     }
 
-    pub fn screen_pos_to_text_pos(&self, screen_pos: Vec2) -> Option<Position> {
+    pub fn screen_pos_to_text_pos(&self, screen_pos: Vector2<f32>) -> Option<Position> {
         let caret_pos = self.widget.screen_position;
         if let Some(font) = self.formatted_text.borrow().get_font() {
             let font = font.0.lock().unwrap();
@@ -327,8 +322,8 @@ impl<M: MessageData, C: Control<M, C>> TextBox<M, C> {
                     line.width,
                     font.ascender(),
                 );
-                if line_bounds.contains(screen_pos.x, screen_pos.y) {
-                    let mut x = line_bounds.x;
+                if line_bounds.contains(screen_pos) {
+                    let mut x = line_bounds.x();
                     // Check each character in line.
                     for (offset, index) in (line.begin..line.end).enumerate() {
                         let symbol = self.formatted_text.borrow().get_raw_text()[index];
@@ -343,8 +338,8 @@ impl<M: MessageData, C: Control<M, C>> TextBox<M, C> {
                             let h = font.height();
                             (h, h, h)
                         };
-                        let char_bounds = Rect::new(x, line_bounds.y, width, height);
-                        if char_bounds.contains(screen_pos.x, screen_pos.y) {
+                        let char_bounds = Rect::new(x, line_bounds.y(), width, height);
+                        if char_bounds.contains(screen_pos) {
                             return Some(Position {
                                 line: line_index,
                                 offset,
@@ -356,27 +351,6 @@ impl<M: MessageData, C: Control<M, C>> TextBox<M, C> {
             }
         }
         None
-    }
-
-    pub fn set_text<P: AsRef<str>>(&mut self, text: P) -> &mut Self {
-        let mut equals = false;
-        for (&new, old) in self
-            .formatted_text
-            .borrow()
-            .get_raw_text()
-            .iter()
-            .zip(text.as_ref().chars())
-        {
-            if old as u32 != new {
-                equals = false;
-                break;
-            }
-        }
-        if !equals {
-            self.formatted_text.borrow_mut().set_text(text);
-            self.invalidate_layout();
-        }
-        self
     }
 
     pub fn text(&self) -> String {
@@ -425,7 +399,11 @@ impl<M: MessageData, C: Control<M, C>> TextBox<M, C> {
 }
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
-    fn measure_override(&self, _: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
+    fn measure_override(
+        &self,
+        _: &UserInterface<M, C>,
+        available_size: Vector2<f32>,
+    ) -> Vector2<f32> {
         self.formatted_text
             .borrow_mut()
             .set_constraint(available_size)
@@ -443,7 +421,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
 
         self.formatted_text
             .borrow_mut()
-            .set_constraint(Vec2::new(bounds.w, bounds.h))
+            .set_constraint(Vector2::new(bounds.w(), bounds.h()))
             .set_brush(self.widget.foreground())
             .build();
 
@@ -460,8 +438,8 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
                         ..(line.begin + selection_range.end.offset),
                 );
                 let bounds = Rect::new(
-                    bounds.x + line.x_offset + offset,
-                    bounds.y + line.y_offset,
+                    bounds.x() + line.x_offset + offset,
+                    bounds.y() + line.y_offset,
                     width,
                     line.height,
                 );
@@ -478,8 +456,8 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
                                 (line.begin + selection_range.begin.offset)..line.end,
                             );
                             Rect::new(
-                                bounds.x + line.x_offset + offset,
-                                bounds.y + line.y_offset,
+                                bounds.x() + line.x_offset + offset,
+                                bounds.y() + line.y_offset,
                                 width,
                                 line.height,
                             )
@@ -489,16 +467,16 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
                                 line.begin..(line.begin + selection_range.end.offset),
                             );
                             Rect::new(
-                                bounds.x + line.x_offset,
-                                bounds.y + line.y_offset,
+                                bounds.x() + line.x_offset,
+                                bounds.y() + line.y_offset,
                                 width,
                                 line.height,
                             )
                         } else {
                             // Everything between
                             Rect::new(
-                                bounds.x + line.x_offset,
-                                bounds.y + line.y_offset,
+                                bounds.x() + line.x_offset,
+                                bounds.y() + line.y_offset,
                                 line.width,
                                 line.height,
                             )
@@ -514,7 +492,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
             CommandTexture::None,
         );
 
-        let screen_position = Vec2::new(bounds.x, bounds.y);
+        let screen_position = bounds.position;
         drawing_context.draw_text(screen_position, &self.formatted_text.borrow());
 
         if self.caret_visible {
@@ -526,7 +504,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
                 let font = font.0.lock().unwrap();
                 if let Some(line) = text.get_lines().get(self.caret_position.line) {
                     let text = text.get_raw_text();
-                    caret_pos += Vec2::new(line.x_offset, line.y_offset);
+                    caret_pos += Vector2::new(line.x_offset, line.y_offset);
                     for (offset, char_index) in (line.begin..line.end).enumerate() {
                         if offset >= self.caret_position.offset {
                             break;
@@ -626,6 +604,18 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
                                 self.remove_char(HorizontalDirection::Right, ui);
                             }
                         }
+                        KeyCode::NumpadEnter | KeyCode::Return => {
+                            if self.multiline {
+                                self.insert_char('\n', ui);
+                            } else if self.commit_mode == TextCommitMode::LostFocusPlusEnter {
+                                ui.send_message(TextBoxMessage::text(
+                                    self.handle,
+                                    MessageDirection::FromWidget,
+                                    self.text(),
+                                ));
+                                self.has_focus = false;
+                            }
+                        }
                         KeyCode::Backspace => {
                             if let Some(range) = self.selection_range {
                                 self.remove_range(ui, range);
@@ -701,11 +691,22 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
                     WidgetMessage::LostFocus => {
                         self.selection_range = None;
                         self.has_focus = false;
+
+                        if self.commit_mode == TextCommitMode::LostFocus
+                            || self.commit_mode == TextCommitMode::LostFocusPlusEnter
+                        {
+                            ui.send_message(TextBoxMessage::text(
+                                self.handle,
+                                MessageDirection::FromWidget,
+                                self.text(),
+                            ));
+                        }
                     }
                     WidgetMessage::MouseDown { pos, button } => {
                         if *button == MouseButton::Left {
                             self.selection_range = None;
                             self.selecting = true;
+                            self.has_focus = true;
 
                             if let Some(position) = self.screen_pos_to_text_pos(*pos) {
                                 self.caret_position = position;
@@ -742,9 +743,31 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
                     }
                     _ => {}
                 },
-                UiMessageData::TextBox(msg) => {
+                UiMessageData::TextBox(msg)
+                    if message.direction() == MessageDirection::ToWidget =>
+                {
                     if let TextBoxMessage::Text(new_text) = msg {
-                        self.set_text(new_text);
+                        let mut equals = false;
+                        for (&new, old) in self
+                            .formatted_text
+                            .borrow()
+                            .get_raw_text()
+                            .iter()
+                            .zip(new_text.chars())
+                        {
+                            if old as u32 != new {
+                                equals = false;
+                                break;
+                            }
+                        }
+                        if !equals {
+                            self.formatted_text.borrow_mut().set_text(new_text);
+                            self.invalidate_layout();
+
+                            if self.commit_mode == TextCommitMode::Immediate {
+                                ui.send_message(message.reverse());
+                            }
+                        }
                     }
                 }
                 _ => {}
@@ -763,6 +786,8 @@ pub struct TextBoxBuilder<M: MessageData, C: Control<M, C>> {
     vertical_alignment: VerticalAlignment,
     horizontal_alignment: HorizontalAlignment,
     wrap: bool,
+    commit_mode: TextCommitMode,
+    multiline: bool,
 }
 
 impl<M: MessageData, C: Control<M, C>> TextBoxBuilder<M, C> {
@@ -777,6 +802,8 @@ impl<M: MessageData, C: Control<M, C>> TextBoxBuilder<M, C> {
             vertical_alignment: VerticalAlignment::Top,
             horizontal_alignment: HorizontalAlignment::Left,
             wrap: false,
+            commit_mode: TextCommitMode::LostFocusPlusEnter,
+            multiline: false,
         }
     }
 
@@ -820,12 +847,22 @@ impl<M: MessageData, C: Control<M, C>> TextBoxBuilder<M, C> {
         self
     }
 
+    pub fn with_text_commit_mode(mut self, mode: TextCommitMode) -> Self {
+        self.commit_mode = mode;
+        self
+    }
+
+    pub fn with_multiline(mut self, multiline: bool) -> Self {
+        self.multiline = multiline;
+        self
+    }
+
     pub fn build(mut self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
         if self.widget_builder.foreground.is_none() {
-            self.widget_builder.foreground = Some(Brush::Solid(Color::opaque(220, 220, 220)));
+            self.widget_builder.foreground = Some(BRUSH_TEXT);
         }
         if self.widget_builder.background.is_none() {
-            self.widget_builder.background = Some(Brush::Solid(Color::opaque(100, 100, 100)));
+            self.widget_builder.background = Some(BRUSH_DARKER);
         }
         if self.widget_builder.cursor.is_none() {
             self.widget_builder.cursor = Some(CursorIcon::Text);
@@ -852,6 +889,8 @@ impl<M: MessageData, C: Control<M, C>> TextBoxBuilder<M, C> {
             caret_brush: self.caret_brush,
             has_focus: false,
             filter: self.filter,
+            commit_mode: self.commit_mode,
+            multiline: self.multiline,
         };
 
         ctx.add_node(UINode::TextBox(text_box))

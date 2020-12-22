@@ -14,9 +14,12 @@
 //! Each camera forces engine to re-render same scene one more time, which may cause
 //! almost double load of your GPU.
 
+use crate::core::algebra::{Matrix4, Vector2, Vector3, Vector4};
+use crate::core::pool::Handle;
+use crate::scene::graph::Graph;
 use crate::{
     core::{
-        math::{mat4::Mat4, ray::Ray, vec2::Vec2, vec3::Vec3, vec4::Vec4, Rect},
+        math::{ray::Ray, Rect},
         visitor::{Visit, VisitResult, Visitor},
     },
     resource::texture::Texture,
@@ -26,6 +29,7 @@ use crate::{
         VisibilityCache,
     },
 };
+use rapier3d::na::Point3;
 use std::ops::{Deref, DerefMut};
 
 /// See module docs.
@@ -36,10 +40,11 @@ pub struct Camera {
     z_near: f32,
     z_far: f32,
     viewport: Rect<f32>,
-    view_matrix: Mat4,
-    projection_matrix: Mat4,
+    view_matrix: Matrix4<f32>,
+    projection_matrix: Matrix4<f32>,
     enabled: bool,
     skybox: Option<SkyBox>,
+    environment: Option<Texture>,
     /// Visibility cache allows you to quickly check if object is visible from the camera or not.
     pub visibility_cache: VisibilityCache,
 }
@@ -59,8 +64,8 @@ impl DerefMut for Camera {
 }
 
 impl Default for Camera {
-    fn default() -> Camera {
-        CameraBuilder::new(BaseBuilder::new()).build()
+    fn default() -> Self {
+        CameraBuilder::new(BaseBuilder::new()).build_camera()
     }
 }
 
@@ -74,6 +79,7 @@ impl Visit for Camera {
         self.base.visit("Base", visitor)?;
         self.enabled.visit("Enabled", visitor)?;
         let _ = self.skybox.visit("SkyBox", visitor);
+        let _ = self.environment.visit("Environment", visitor);
         // self.visibility_cache intentionally not serialized. It is valid only for one frame.
         visitor.leave_region()
     }
@@ -83,19 +89,17 @@ impl Camera {
     /// Explicitly calculates view and projection matrices. Normally, you should not call
     /// this method, it will be called automatically when new frame starts.
     #[inline]
-    pub fn calculate_matrices(&mut self, frame_size: Vec2) {
+    pub fn calculate_matrices(&mut self, frame_size: Vector2<f32>) {
         let pos = self.base.global_position();
         let look = self.base.look_vector();
         let up = self.base.up_vector();
 
-        if let Some(view_matrix) = Mat4::look_at(pos, pos + look, up) {
-            self.view_matrix = view_matrix;
-        } else {
-            self.view_matrix = Mat4::IDENTITY;
-        }
+        self.view_matrix = Matrix4::look_at_rh(&Point3::from(pos), &Point3::from(pos + look), &up);
+
         let viewport = self.viewport_pixels(frame_size);
-        let aspect = viewport.w as f32 / viewport.h as f32;
-        self.projection_matrix = Mat4::perspective(self.fov, aspect, self.z_near, self.z_far);
+        let aspect = viewport.w() as f32 / viewport.h() as f32;
+        self.projection_matrix =
+            Matrix4::new_perspective(aspect, self.fov, self.z_near, self.z_far);
     }
 
     /// Sets new viewport in resolution-independent format. In other words
@@ -113,37 +117,37 @@ impl Camera {
     /// Calculates viewport rectangle in pixels based on internal resolution-independent
     /// viewport. It is useful when you need to get real viewport rectangle in pixels.
     #[inline]
-    pub fn viewport_pixels(&self, frame_size: Vec2) -> Rect<i32> {
-        Rect {
-            x: (self.viewport.x * frame_size.x) as i32,
-            y: (self.viewport.y * frame_size.y) as i32,
-            w: (self.viewport.w * frame_size.x) as i32,
-            h: (self.viewport.h * frame_size.y) as i32,
-        }
+    pub fn viewport_pixels(&self, frame_size: Vector2<f32>) -> Rect<i32> {
+        Rect::new(
+            (self.viewport.x() * frame_size.x) as i32,
+            (self.viewport.y() * frame_size.y) as i32,
+            (self.viewport.w() * frame_size.x) as i32,
+            (self.viewport.h() * frame_size.y) as i32,
+        )
     }
 
     /// Returns current view-projection matrix.
     #[inline]
-    pub fn view_projection_matrix(&self) -> Mat4 {
+    pub fn view_projection_matrix(&self) -> Matrix4<f32> {
         self.projection_matrix * self.view_matrix
     }
 
     /// Returns current projection matrix.
     #[inline]
-    pub fn projection_matrix(&self) -> Mat4 {
+    pub fn projection_matrix(&self) -> Matrix4<f32> {
         self.projection_matrix
     }
 
     /// Returns current view matrix.
     #[inline]
-    pub fn view_matrix(&self) -> Mat4 {
+    pub fn view_matrix(&self) -> Matrix4<f32> {
         self.view_matrix
     }
 
     /// Returns inverse view matrix.
     #[inline]
-    pub fn inv_view_matrix(&self) -> Result<Mat4, ()> {
-        self.view_matrix.inverse()
+    pub fn inv_view_matrix(&self) -> Option<Matrix4<f32>> {
+        self.view_matrix.try_inverse()
     }
 
     /// Sets far projection plane.
@@ -211,37 +215,62 @@ impl Camera {
         self.skybox.as_mut()
     }
 
-    /// Return optional shared reference to current skybox.  
+    /// Return optional shared reference to current skybox.
     pub fn skybox_ref(&self) -> Option<&SkyBox> {
         self.skybox.as_ref()
     }
 
+    /// Sets new environment.
+    pub fn set_environment(&mut self, environment: Option<Texture>) -> &mut Self {
+        self.environment = environment;
+        self
+    }
+
+    /// Return optional mutable reference to current environment.
+    pub fn environment_mut(&mut self) -> Option<&mut Texture> {
+        self.environment.as_mut()
+    }
+
+    /// Return optional shared reference to current environment.
+    pub fn environment_ref(&self) -> Option<&Texture> {
+        self.environment.as_ref()
+    }
+
+    /// Return current environment map.
+    pub fn environment_map(&self) -> Option<Texture> {
+        self.environment.clone()
+    }
+
     /// Creates picking ray from given screen coordinates.
-    pub fn make_ray(&self, screen_coord: Vec2, screen_size: Vec2) -> Ray {
+    pub fn make_ray(&self, screen_coord: Vector2<f32>, screen_size: Vector2<f32>) -> Ray {
         let viewport = self.viewport_pixels(screen_size);
-        let nx = screen_coord.x / (viewport.w as f32) * 2.0 - 1.0;
+        let nx = screen_coord.x / (viewport.w() as f32) * 2.0 - 1.0;
         // Invert y here because OpenGL has origin at left bottom corner,
         // but window coordinates starts from left *upper* corner.
-        let ny = (viewport.h as f32 - screen_coord.y) / (viewport.h as f32) * 2.0 - 1.0;
-        let inv_view_proj = self.view_projection_matrix().inverse().unwrap_or_default();
-        let near = inv_view_proj.transform_vector4(Vec4::new(nx, ny, -1.0, 1.0));
-        let far = inv_view_proj.transform_vector4(Vec4::new(nx, ny, 1.0, 1.0));
+        let ny = (viewport.h() as f32 - screen_coord.y) / (viewport.h() as f32) * 2.0 - 1.0;
+        let inv_view_proj = self.view_projection_matrix().try_inverse().unwrap();
+        let near = inv_view_proj * Vector4::new(nx, ny, -1.0, 1.0);
+        let far = inv_view_proj * Vector4::new(nx, ny, 1.0, 1.0);
         let begin = near.xyz().scale(1.0 / near.w);
         let end = far.xyz().scale(1.0 / far.w);
         Ray::from_two_points(&begin, &end).unwrap_or_default()
     }
 
     /// Projects given world space point on screen plane.
-    pub fn project(&self, world_pos: Vec3, screen_size: Vec2) -> Option<Vec2> {
+    pub fn project(
+        &self,
+        world_pos: Vector3<f32>,
+        screen_size: Vector2<f32>,
+    ) -> Option<Vector2<f32>> {
         let viewport = self.viewport_pixels(screen_size);
-        let proj = self
-            .view_projection_matrix()
-            .transform_vector4(Vec4::from_vec3(world_pos, 1.0));
+        let proj = self.view_projection_matrix()
+            * Vector4::new(world_pos.x, world_pos.y, world_pos.z, 1.0);
         if proj.w != 0.0 {
             let k = (1.0 / proj.w) * 0.5;
-            Some(Vec2::new(
-                viewport.x as f32 + viewport.w as f32 * (proj.x * k + 0.5),
-                viewport.h as f32 - (viewport.y as f32 + viewport.h as f32 * (proj.y * k + 0.5)),
+            Some(Vector2::new(
+                viewport.x() as f32 + viewport.w() as f32 * (proj.x * k + 0.5),
+                viewport.h() as f32
+                    - (viewport.y() as f32 + viewport.h() as f32 * (proj.y * k + 0.5)),
             ))
         } else {
             None
@@ -260,6 +289,7 @@ impl Camera {
             projection_matrix: self.projection_matrix,
             enabled: self.enabled,
             skybox: self.skybox.clone(),
+            environment: self.environment.clone(),
             // No need to copy cache. It is valid only for one frame.
             visibility_cache: Default::default(),
         }
@@ -276,6 +306,7 @@ pub struct CameraBuilder {
     viewport: Rect<f32>,
     enabled: bool,
     skybox: Option<SkyBox>,
+    environment: Option<Texture>,
 }
 
 impl CameraBuilder {
@@ -287,13 +318,9 @@ impl CameraBuilder {
             fov: 75.0f32.to_radians(),
             z_near: 0.025,
             z_far: 2048.0,
-            viewport: Rect {
-                x: 0.0,
-                y: 0.0,
-                w: 1.0,
-                h: 1.0,
-            },
+            viewport: Rect::new(0.0, 0.0, 1.0, 1.0),
             skybox: None,
+            environment: None,
         }
     }
 
@@ -333,28 +360,39 @@ impl CameraBuilder {
         self
     }
 
-    /// Creates new instance of camera node. Do not forget to add node to scene,
-    /// otherwise it is useless.
-    pub fn build(self) -> Camera {
+    /// Sets desired environment map.
+    pub fn with_environment(mut self, environment: Texture) -> Self {
+        self.environment = Some(environment);
+        self
+    }
+
+    /// Creates new instance of camera.
+    pub fn build_camera(self) -> Camera {
         Camera {
             enabled: self.enabled,
-            base: self.base_builder.build(),
+            base: self.base_builder.build_base(),
             fov: self.fov,
             z_near: self.z_near,
             z_far: self.z_far,
             viewport: self.viewport,
             // No need to calculate these matrices - they'll be automatically
             // recalculated before rendering.
-            view_matrix: Mat4::IDENTITY,
-            projection_matrix: Mat4::IDENTITY,
+            view_matrix: Matrix4::identity(),
+            projection_matrix: Matrix4::identity(),
             visibility_cache: Default::default(),
             skybox: self.skybox,
+            environment: self.environment,
         }
     }
 
-    /// Creates new node instance.
+    /// Creates new instance of camera node.
     pub fn build_node(self) -> Node {
-        Node::Camera(self.build())
+        Node::Camera(self.build_camera())
+    }
+
+    /// Creates new instance of camera node and adds it to the graph.
+    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
+        graph.add_node(self.build_node())
     }
 }
 

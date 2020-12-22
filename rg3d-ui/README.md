@@ -41,7 +41,7 @@ Retained mode, general purpose, graphics API agnostic user interface library. In
 - [x] File selector
 - [x] Docking manager
 - [x] NumericUpDown
-- [x] Vec3 editor
+- [x] Vector3<f32> editor
 - [x] Menu
 - [x] Menu item
 - [x] Message box

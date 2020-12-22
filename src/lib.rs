@@ -1,6 +1,7 @@
 //! 3D Game Engine.
 
-extern crate byteorder;
+#![allow(clippy::too_many_arguments)]
+
 extern crate glutin;
 extern crate image;
 extern crate inflate;
@@ -10,6 +11,7 @@ extern crate serde;
 #[macro_use]
 extern crate lazy_static;
 extern crate ddsfile;
+extern crate rayon;
 
 #[cfg(test)]
 extern crate imageproc;
@@ -21,11 +23,11 @@ pub mod resource;
 pub mod scene;
 pub mod utils;
 
+pub use crate::core::rand;
 pub use glutin::*;
-pub use rand;
 
 pub use futures;
+pub use rapier3d as physics;
 pub use rg3d_core as core;
-pub use rg3d_physics as physics;
 pub use rg3d_sound as sound;
 pub use rg3d_ui as gui;

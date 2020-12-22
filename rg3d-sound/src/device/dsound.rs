@@ -194,21 +194,23 @@ impl Device for DirectSoundDevice {
         }
     }
 
-    fn feed(&mut self) {
-        self.mix();
+    fn run(&mut self) {
+        loop {
+            self.mix();
 
-        // Wait and send.
-        unsafe {
-            const WAIT_OBJECT_1: u32 = WAIT_OBJECT_0 + 1;
-            match WaitForMultipleObjects(2, self.notify_points.as_ptr(), 0, INFINITE) {
-                WAIT_OBJECT_0 => write(
-                    self.buffer,
-                    self.buffer_len_bytes,
-                    self.buffer_len_bytes,
-                    &self.out_data,
-                ),
-                WAIT_OBJECT_1 => write(self.buffer, 0, self.buffer_len_bytes, &self.out_data),
-                _ => panic!("Unknown buffer point!"),
+            // Wait and send.
+            unsafe {
+                const WAIT_OBJECT_1: u32 = WAIT_OBJECT_0 + 1;
+                match WaitForMultipleObjects(2, self.notify_points.as_ptr(), 0, INFINITE) {
+                    WAIT_OBJECT_0 => write(
+                        self.buffer,
+                        self.buffer_len_bytes,
+                        self.buffer_len_bytes,
+                        &self.out_data,
+                    ),
+                    WAIT_OBJECT_1 => write(self.buffer, 0, self.buffer_len_bytes, &self.out_data),
+                    _ => panic!("Unknown buffer point!"),
+                }
             }
         }
     }

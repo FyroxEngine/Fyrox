@@ -1,10 +1,7 @@
+use crate::core::algebra::Vector2;
 use crate::message::MessageData;
 use crate::{
-    core::{
-        math::{vec2::Vec2, Rect},
-        pool::Handle,
-        scope_profile,
-    },
+    core::{math::Rect, pool::Handle, scope_profile},
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Orientation, UINode, UserInterface,
@@ -40,10 +37,14 @@ impl<M: MessageData, C: Control<M, C>> StackPanel<M, C> {
 }
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for StackPanel<M, C> {
-    fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
+    fn measure_override(
+        &self,
+        ui: &UserInterface<M, C>,
+        available_size: Vector2<f32>,
+    ) -> Vector2<f32> {
         scope_profile!();
 
-        let mut child_constraint = Vec2::new(std::f32::INFINITY, std::f32::INFINITY);
+        let mut child_constraint = Vector2::new(std::f32::INFINITY, std::f32::INFINITY);
 
         match self.orientation {
             Orientation::Vertical => {
@@ -72,7 +73,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for StackPanel<M, C> {
             }
         }
 
-        let mut measured_size = Vec2::ZERO;
+        let mut measured_size = Vector2::default();
 
         for child_handle in self.widget.children() {
             ui.node(*child_handle).measure(ui, child_constraint);
@@ -98,7 +99,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for StackPanel<M, C> {
         measured_size
     }
 
-    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
+    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
 
         let mut width = final_size.x;
@@ -146,7 +147,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for StackPanel<M, C> {
             }
         }
 
-        Vec2::new(width, height)
+        Vector2::new(width, height)
     }
 
     fn handle_routed_message(

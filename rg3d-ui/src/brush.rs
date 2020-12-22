@@ -1,4 +1,5 @@
-use crate::core::{color::Color, math::vec2::Vec2};
+use crate::core::algebra::Vector2;
+use crate::core::color::Color;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct GradientPoint {
@@ -10,12 +11,12 @@ pub struct GradientPoint {
 pub enum Brush {
     Solid(Color),
     LinearGradient {
-        from: Vec2,
-        to: Vec2,
+        from: Vector2<f32>,
+        to: Vector2<f32>,
         stops: Vec<GradientPoint>,
     },
     RadialGradient {
-        center: Vec2,
+        center: Vector2<f32>,
         stops: Vec<GradientPoint>,
     },
 }

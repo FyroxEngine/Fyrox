@@ -1,9 +1,13 @@
+use crate::scene::graph::Graph;
+use crate::scene::light::DirectionalLightBuilder;
+use crate::scene::node::Node;
+use crate::utils::log::MessageKind;
 use crate::{
     core::{color::Color, pool::Handle},
     resource::fbx::document::{FbxNode, FbxNodeContainer},
     scene::{
         base::BaseBuilder,
-        light::{BaseLightBuilder, DirectionalLight, Light, PointLightBuilder, SpotLightBuilder},
+        light::{BaseLightBuilder, PointLightBuilder, SpotLightBuilder},
     },
     utils::log::Log,
 };
@@ -65,10 +69,13 @@ impl FbxLight {
                         3 => FbxLightType::Area,
                         4 => FbxLightType::Volume,
                         _ => {
-                            Log::writeln(format!(
-                                "FBX: Unknown light type {}, fallback to Point!",
-                                type_code
-                            ));
+                            Log::writeln(
+                                MessageKind::Warning,
+                                format!(
+                                    "FBX: Unknown light type {}, fallback to Point!",
+                                    type_code
+                                ),
+                            );
                             FbxLightType::Point
                         }
                     };
@@ -80,29 +87,27 @@ impl FbxLight {
         Ok(light)
     }
 
-    pub fn convert(&self) -> Light {
+    pub fn convert(&self, base: BaseBuilder, graph: &mut Graph) -> Handle<Node> {
         match self.actual_type {
-            FbxLightType::Point | FbxLightType::Area | FbxLightType::Volume => Light::Point(
+            FbxLightType::Point | FbxLightType::Area | FbxLightType::Volume => {
                 PointLightBuilder::new(
-                    BaseLightBuilder::new(BaseBuilder::new()).with_color(self.color.to_opaque()),
+                    BaseLightBuilder::new(base).with_color(self.color.to_opaque()),
                 )
                 .with_radius(self.radius)
-                .build(),
-            ),
-            FbxLightType::Spot => Light::Spot(
-                SpotLightBuilder::new(
-                    BaseLightBuilder::new(BaseBuilder::new()).with_color(self.color.to_opaque()),
-                )
-                .with_distance(self.radius)
-                .with_hotspot_cone_angle(self.hotspot_cone_angle)
-                .with_falloff_angle_delta(self.falloff_cone_angle_delta)
-                .build(),
-            ),
-            FbxLightType::Directional => Light::Directional(DirectionalLight::from(
-                BaseLightBuilder::new(BaseBuilder::new())
-                    .with_color(self.color.to_opaque())
-                    .build(),
-            )),
+                .build(graph)
+            }
+            FbxLightType::Spot => SpotLightBuilder::new(
+                BaseLightBuilder::new(base).with_color(self.color.to_opaque()),
+            )
+            .with_distance(self.radius)
+            .with_hotspot_cone_angle(self.hotspot_cone_angle)
+            .with_falloff_angle_delta(self.falloff_cone_angle_delta)
+            .build(graph),
+
+            FbxLightType::Directional => DirectionalLightBuilder::new(
+                BaseLightBuilder::new(base).with_color(self.color.to_opaque()),
+            )
+            .build(graph),
         }
     }
 }

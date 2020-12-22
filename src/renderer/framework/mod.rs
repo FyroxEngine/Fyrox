@@ -1,6 +1,6 @@
 use crate::{
     renderer::framework::gl::types::{GLchar, GLenum, GLsizei, GLuint},
-    utils::log::Log,
+    utils::log::{Log, MessageKind},
 };
 use std::ffi::CStr;
 
@@ -33,10 +33,13 @@ pub fn check_gl_error_internal(line: u32, file: &str) {
                 _ => "Unknown",
             };
 
-            Log::writeln(format!(
-                "{} error has occurred! At line {} in file {}, stability is not guaranteed!",
-                code, line, file
-            ));
+            Log::writeln(
+                MessageKind::Error,
+                format!(
+                    "{} error has occurred! At line {} in file {}, stability is not guaranteed!",
+                    code, line, file
+                ),
+            );
 
             if gl::GetDebugMessageLog::is_loaded() {
                 let mut max_message_length = 0;
@@ -78,6 +81,7 @@ pub fn check_gl_error_internal(line: u32, file: &str) {
 
                 if message_count == 0 {
                     Log::writeln(
+                        MessageKind::Warning,
                         "Debug info is not available - run with OpenGL debug flag!".to_owned(),
                     );
                 }
@@ -121,7 +125,8 @@ pub fn check_gl_error_internal(line: u32, file: &str) {
 
                     let str_msg = CStr::from_ptr(message);
 
-                    Log::writeln(format!("OpenGL message\nSource: {}\nType: {}\nId: {}\nSeverity: {}\nMessage: {:?}\n",
+                    Log::writeln(MessageKind::Information,
+                                 format!("OpenGL message\nSource: {}\nType: {}\nId: {}\nSeverity: {}\nMessage: {:?}\n",
                                          source_str,
                                          type_str,
                                          id,
@@ -132,6 +137,7 @@ pub fn check_gl_error_internal(line: u32, file: &str) {
                 }
             } else {
                 Log::writeln(
+                    MessageKind::Warning,
                     "Debug info is not available - glGetDebugMessageLog is not available!"
                         .to_owned(),
                 );

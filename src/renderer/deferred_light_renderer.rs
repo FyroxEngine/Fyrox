@@ -1,21 +1,20 @@
-use crate::core::math::vec2::Vec2;
-use crate::renderer::framework::framebuffer::DrawPartContext;
-use crate::renderer::surface::Vertex;
 use crate::{
     core::{
+        algebra::{Matrix4, Point3, Vector2, Vector3},
         color::Color,
-        math::{frustum::Frustum, mat4::Mat4, vec3::Vec3, Rect},
+        math::{frustum::Frustum, Matrix4Ext, Rect, TriangleDefinition},
         scope_profile,
     },
     renderer::{
+        batch::BatchStorage,
         error::RendererError,
         flat_shader::FlatShader,
         framework::{
-            framebuffer::{CullFace, DrawParameters, FrameBufferTrait},
+            framebuffer::{CullFace, DrawParameters, DrawPartContext, FrameBufferTrait},
             gl,
             gpu_program::{GpuProgram, UniformLocation, UniformValue},
             gpu_texture::GpuTexture,
-            state::{ColorMask, State, StencilFunc, StencilOp},
+            state::{ColorMask, PipelineState, StencilFunc, StencilOp},
         },
         gbuffer::GBuffer,
         light_volume::LightVolumeRenderer,
@@ -23,13 +22,17 @@ use crate::{
             PointShadowMapRenderContext, PointShadowMapRenderer, SpotShadowMapRenderer,
         },
         ssao::ScreenSpaceAmbientOcclusionRenderer,
-        surface::SurfaceSharedData,
+        surface::{SurfaceSharedData, Vertex},
         GeometryCache, QualitySettings, RenderPassStatistics, TextureCache,
     },
     scene::{camera::Camera, light::Light, node::Node, Scene},
 };
-use rg3d_core::math::TriangleDefinition;
-use std::{cell::RefCell, rc::Rc};
+use std::{
+    cell::RefCell,
+    fmt::{Display, Formatter},
+    ops::AddAssign,
+    rc::Rc,
+};
 
 struct AmbientLightShader {
     program: GpuProgram,
@@ -38,6 +41,44 @@ struct AmbientLightShader {
     ambient_color: UniformLocation,
     ao_sampler: UniformLocation,
     ambient_texture: UniformLocation,
+}
+
+#[derive(Copy, Clone, Default)]
+pub struct LightingStatistics {
+    pub point_lights_rendered: usize,
+    pub point_shadow_maps_rendered: usize,
+    pub spot_lights_rendered: usize,
+    pub spot_shadow_maps_rendered: usize,
+    pub directional_lights_rendered: usize,
+}
+
+impl AddAssign for LightingStatistics {
+    fn add_assign(&mut self, rhs: Self) {
+        self.point_lights_rendered += rhs.point_lights_rendered;
+        self.point_shadow_maps_rendered += rhs.point_shadow_maps_rendered;
+        self.spot_lights_rendered += rhs.spot_lights_rendered;
+        self.spot_shadow_maps_rendered += rhs.spot_shadow_maps_rendered;
+        self.directional_lights_rendered += rhs.directional_lights_rendered;
+    }
+}
+
+impl Display for LightingStatistics {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Lighting Statistics:\n\
+            \tPoint Lights: {}\n\
+            \tSpot Lights: {}\n\
+            \tDirectional Lights: {}\n\
+            \tPoint Shadow Maps: {}\n\
+            \tSpot Shadow Maps: {}",
+            self.point_lights_rendered,
+            self.spot_lights_rendered,
+            self.directional_lights_rendered,
+            self.point_shadow_maps_rendered,
+            self.spot_shadow_maps_rendered,
+        )
+    }
 }
 
 impl AmbientLightShader {
@@ -64,6 +105,8 @@ struct SpotLightShader {
     color_sampler: UniformLocation,
     normal_sampler: UniformLocation,
     spot_shadow_texture: UniformLocation,
+    cookie_enabled: UniformLocation,
+    cookie_texture: UniformLocation,
     light_view_proj_matrix: UniformLocation,
     shadows_enabled: UniformLocation,
     soft_shadows: UniformLocation,
@@ -91,6 +134,8 @@ impl SpotLightShader {
             color_sampler: program.uniform_location("colorTexture")?,
             normal_sampler: program.uniform_location("normalTexture")?,
             spot_shadow_texture: program.uniform_location("spotShadowTexture")?,
+            cookie_enabled: program.uniform_location("cookieEnabled")?,
+            cookie_texture: program.uniform_location("cookieTexture")?,
             light_view_proj_matrix: program.uniform_location("lightViewProjMatrix")?,
             shadows_enabled: program.uniform_location("shadowsEnabled")?,
             soft_shadows: program.uniform_location("softShadows")?,
@@ -201,7 +246,7 @@ pub struct DeferredLightRenderer {
 }
 
 pub(in crate) struct DeferredRendererContext<'a> {
-    pub state: &'a mut State,
+    pub state: &'a mut PipelineState,
     pub scene: &'a Scene,
     pub camera: &'a Camera,
     pub gbuffer: &'a mut GBuffer,
@@ -210,11 +255,12 @@ pub(in crate) struct DeferredRendererContext<'a> {
     pub settings: &'a QualitySettings,
     pub textures: &'a mut TextureCache,
     pub geometry_cache: &'a mut GeometryCache,
+    pub batch_storage: &'a BatchStorage,
 }
 
 impl DeferredLightRenderer {
     pub fn new(
-        state: &mut State,
+        state: &mut PipelineState,
         frame_size: (u32, u32),
         settings: &QualitySettings,
     ) -> Result<Self, RendererError> {
@@ -232,35 +278,35 @@ impl DeferredLightRenderer {
             skybox: SurfaceSharedData::new(
                 vec![
                     // Front
-                    Vertex::from_pos_uv(Vec3::new(-0.5, 0.5, -0.5), Vec2::new(0.0, 0.0)),
-                    Vertex::from_pos_uv(Vec3::new(0.5, 0.5, -0.5), Vec2::new(1.0, 0.0)),
-                    Vertex::from_pos_uv(Vec3::new(0.5, -0.5, -0.5), Vec2::new(1.0, 1.0)),
-                    Vertex::from_pos_uv(Vec3::new(-0.5, -0.5, -0.5), Vec2::new(0.0, 1.0)),
+                    Vertex::from_pos_uv(Vector3::new(-0.5, 0.5, -0.5), Vector2::new(0.0, 0.0)),
+                    Vertex::from_pos_uv(Vector3::new(0.5, 0.5, -0.5), Vector2::new(1.0, 0.0)),
+                    Vertex::from_pos_uv(Vector3::new(0.5, -0.5, -0.5), Vector2::new(1.0, 1.0)),
+                    Vertex::from_pos_uv(Vector3::new(-0.5, -0.5, -0.5), Vector2::new(0.0, 1.0)),
                     // Back
-                    Vertex::from_pos_uv(Vec3::new(0.5, 0.5, 0.5), Vec2::new(0.0, 0.0)),
-                    Vertex::from_pos_uv(Vec3::new(-0.5, 0.5, 0.5), Vec2::new(1.0, 0.0)),
-                    Vertex::from_pos_uv(Vec3::new(-0.5, -0.5, 0.5), Vec2::new(1.0, 1.0)),
-                    Vertex::from_pos_uv(Vec3::new(0.5, -0.5, 0.5), Vec2::new(0.0, 1.0)),
+                    Vertex::from_pos_uv(Vector3::new(0.5, 0.5, 0.5), Vector2::new(0.0, 0.0)),
+                    Vertex::from_pos_uv(Vector3::new(-0.5, 0.5, 0.5), Vector2::new(1.0, 0.0)),
+                    Vertex::from_pos_uv(Vector3::new(-0.5, -0.5, 0.5), Vector2::new(1.0, 1.0)),
+                    Vertex::from_pos_uv(Vector3::new(0.5, -0.5, 0.5), Vector2::new(0.0, 1.0)),
                     // Left
-                    Vertex::from_pos_uv(Vec3::new(0.5, 0.5, -0.5), Vec2::new(0.0, 0.0)),
-                    Vertex::from_pos_uv(Vec3::new(0.5, 0.5, 0.5), Vec2::new(1.0, 0.0)),
-                    Vertex::from_pos_uv(Vec3::new(0.5, -0.5, 0.5), Vec2::new(1.0, 1.0)),
-                    Vertex::from_pos_uv(Vec3::new(0.5, -0.5, -0.5), Vec2::new(0.0, 1.0)),
+                    Vertex::from_pos_uv(Vector3::new(0.5, 0.5, -0.5), Vector2::new(0.0, 0.0)),
+                    Vertex::from_pos_uv(Vector3::new(0.5, 0.5, 0.5), Vector2::new(1.0, 0.0)),
+                    Vertex::from_pos_uv(Vector3::new(0.5, -0.5, 0.5), Vector2::new(1.0, 1.0)),
+                    Vertex::from_pos_uv(Vector3::new(0.5, -0.5, -0.5), Vector2::new(0.0, 1.0)),
                     // Right
-                    Vertex::from_pos_uv(Vec3::new(-0.5, 0.5, 0.5), Vec2::new(0.0, 0.0)),
-                    Vertex::from_pos_uv(Vec3::new(-0.5, 0.5, -0.5), Vec2::new(1.0, 0.0)),
-                    Vertex::from_pos_uv(Vec3::new(-0.5, -0.5, -0.5), Vec2::new(1.0, 1.0)),
-                    Vertex::from_pos_uv(Vec3::new(-0.5, -0.5, 0.5), Vec2::new(0.0, 1.0)),
+                    Vertex::from_pos_uv(Vector3::new(-0.5, 0.5, 0.5), Vector2::new(0.0, 0.0)),
+                    Vertex::from_pos_uv(Vector3::new(-0.5, 0.5, -0.5), Vector2::new(1.0, 0.0)),
+                    Vertex::from_pos_uv(Vector3::new(-0.5, -0.5, -0.5), Vector2::new(1.0, 1.0)),
+                    Vertex::from_pos_uv(Vector3::new(-0.5, -0.5, 0.5), Vector2::new(0.0, 1.0)),
                     // Up
-                    Vertex::from_pos_uv(Vec3::new(-0.5, 0.5, 0.5), Vec2::new(0.0, 0.0)),
-                    Vertex::from_pos_uv(Vec3::new(0.5, 0.5, 0.5), Vec2::new(1.0, 0.0)),
-                    Vertex::from_pos_uv(Vec3::new(0.5, 0.5, -0.5), Vec2::new(1.0, 1.0)),
-                    Vertex::from_pos_uv(Vec3::new(-0.5, 0.5, -0.5), Vec2::new(0.0, 1.0)),
+                    Vertex::from_pos_uv(Vector3::new(-0.5, 0.5, 0.5), Vector2::new(0.0, 0.0)),
+                    Vertex::from_pos_uv(Vector3::new(0.5, 0.5, 0.5), Vector2::new(1.0, 0.0)),
+                    Vertex::from_pos_uv(Vector3::new(0.5, 0.5, -0.5), Vector2::new(1.0, 1.0)),
+                    Vertex::from_pos_uv(Vector3::new(-0.5, 0.5, -0.5), Vector2::new(0.0, 1.0)),
                     // Down
-                    Vertex::from_pos_uv(Vec3::new(-0.5, -0.5, 0.5), Vec2::new(0.0, 0.0)),
-                    Vertex::from_pos_uv(Vec3::new(0.5, -0.5, 0.5), Vec2::new(1.0, 0.0)),
-                    Vertex::from_pos_uv(Vec3::new(0.5, -0.5, -0.5), Vec2::new(1.0, 1.0)),
-                    Vertex::from_pos_uv(Vec3::new(-0.5, -0.5, -0.5), Vec2::new(0.0, 1.0)),
+                    Vertex::from_pos_uv(Vector3::new(-0.5, -0.5, 0.5), Vector2::new(0.0, 0.0)),
+                    Vertex::from_pos_uv(Vector3::new(0.5, -0.5, 0.5), Vector2::new(1.0, 0.0)),
+                    Vertex::from_pos_uv(Vector3::new(0.5, -0.5, -0.5), Vector2::new(1.0, 1.0)),
+                    Vertex::from_pos_uv(Vector3::new(-0.5, -0.5, -0.5), Vector2::new(0.0, 1.0)),
                 ],
                 vec![
                     TriangleDefinition([0, 1, 2]),
@@ -283,10 +329,12 @@ impl DeferredLightRenderer {
             spot_shadow_map_renderer: SpotShadowMapRenderer::new(
                 state,
                 settings.spot_shadow_map_size,
+                QualitySettings::default().spot_shadow_map_precision,
             )?,
             point_shadow_map_renderer: PointShadowMapRenderer::new(
                 state,
                 settings.point_shadow_map_size,
+                QualitySettings::default().point_shadow_map_precision,
             )?,
             light_volume: LightVolumeRenderer::new()?,
         })
@@ -294,16 +342,26 @@ impl DeferredLightRenderer {
 
     pub fn set_quality_settings(
         &mut self,
-        state: &mut State,
+        state: &mut PipelineState,
         settings: &QualitySettings,
     ) -> Result<(), RendererError> {
-        if settings.spot_shadow_map_size != self.spot_shadow_map_renderer.base_size() {
-            self.spot_shadow_map_renderer =
-                SpotShadowMapRenderer::new(state, settings.spot_shadow_map_size)?;
+        if settings.spot_shadow_map_size != self.spot_shadow_map_renderer.base_size()
+            || settings.spot_shadow_map_precision != self.spot_shadow_map_renderer.precision()
+        {
+            self.spot_shadow_map_renderer = SpotShadowMapRenderer::new(
+                state,
+                settings.spot_shadow_map_size,
+                settings.spot_shadow_map_precision,
+            )?;
         }
-        if settings.point_shadow_map_size != self.point_shadow_map_renderer.base_size() {
-            self.point_shadow_map_renderer =
-                PointShadowMapRenderer::new(state, settings.point_shadow_map_size)?;
+        if settings.point_shadow_map_size != self.point_shadow_map_renderer.base_size()
+            || settings.point_shadow_map_precision != self.point_shadow_map_renderer.precision()
+        {
+            self.point_shadow_map_renderer = PointShadowMapRenderer::new(
+                state,
+                settings.point_shadow_map_size,
+                settings.point_shadow_map_precision,
+            )?;
         }
         self.ssao_renderer.set_radius(settings.ssao_radius);
         Ok(())
@@ -311,7 +369,7 @@ impl DeferredLightRenderer {
 
     pub fn set_frame_size(
         &mut self,
-        state: &mut State,
+        state: &mut PipelineState,
         frame_size: (u32, u32),
     ) -> Result<(), RendererError> {
         self.ssao_renderer = ScreenSpaceAmbientOcclusionRenderer::new(
@@ -323,10 +381,14 @@ impl DeferredLightRenderer {
     }
 
     #[must_use]
-    pub(in crate) fn render(&mut self, args: DeferredRendererContext) -> RenderPassStatistics {
+    pub(in crate) fn render(
+        &mut self,
+        args: DeferredRendererContext,
+    ) -> (RenderPassStatistics, LightingStatistics) {
         scope_profile!();
 
-        let mut statistics = RenderPassStatistics::default();
+        let mut pass_stats = RenderPassStatistics::default();
+        let mut light_stats = LightingStatistics::default();
 
         let DeferredRendererContext {
             state,
@@ -338,21 +400,32 @@ impl DeferredLightRenderer {
             settings,
             textures,
             geometry_cache,
+            batch_storage,
         } = args;
 
         let viewport = Rect::new(0, 0, gbuffer.width, gbuffer.height);
         let frustum = Frustum::from(camera.view_projection_matrix()).unwrap();
 
-        let frame_matrix = Mat4::ortho(0.0, viewport.w as f32, viewport.h as f32, 0.0, -1.0, 1.0)
-            * Mat4::scale(Vec3::new(viewport.w as f32, viewport.h as f32, 0.0));
+        let frame_matrix = Matrix4::new_orthographic(
+            0.0,
+            viewport.w() as f32,
+            viewport.h() as f32,
+            0.0,
+            -1.0,
+            1.0,
+        ) * Matrix4::new_nonuniform_scaling(&Vector3::new(
+            viewport.w() as f32,
+            viewport.h() as f32,
+            0.0,
+        ));
 
         let projection_matrix = camera.projection_matrix();
         let view_projection = camera.view_projection_matrix();
-        let inv_view_projection = view_projection.inverse().unwrap_or_default();
+        let inv_view_projection = view_projection.try_inverse().unwrap_or_default();
 
         // Fill SSAO map.
         if settings.use_ssao {
-            statistics += self.ssao_renderer.render(
+            pass_stats += self.ssao_renderer.render(
                 state,
                 gbuffer,
                 geometry_cache,
@@ -372,8 +445,8 @@ impl DeferredLightRenderer {
         // Render skybox (if any).
         if let Some(skybox) = camera.skybox_ref() {
             let size = camera.z_far() / 2.0f32.sqrt();
-            let scale = Mat4::scale(Vec3::new(size, size, size));
-            let wvp = Mat4::translate(camera.global_position()) * scale;
+            let scale = Matrix4::new_nonuniform_scaling(&Vector3::new(size, size, size));
+            let wvp = Matrix4::new_translation(&camera.global_position()) * scale;
 
             // TODO: Ideally this should be drawn in a single draw call using cube map.
             // Cubemaps still not supported so we'll draw this as six separate planes for now.
@@ -384,7 +457,7 @@ impl DeferredLightRenderer {
                 .filter_map(|(face, tex)| tex.clone().map(|tex| (face, tex)))
             {
                 if let Some(gpu_texture) = textures.get(state, texture) {
-                    statistics += gbuffer
+                    pass_stats += gbuffer
                         .final_frame
                         .draw_part(DrawPartContext {
                             geometry: geometry_cache.get(state, &self.skybox),
@@ -410,7 +483,7 @@ impl DeferredLightRenderer {
                                 ),
                                 (
                                     self.flat_shader.wvp_matrix,
-                                    UniformValue::Mat4(view_projection * wvp),
+                                    UniformValue::Matrix4(view_projection * wvp),
                                 ),
                             ],
                             offset: face * 2,
@@ -430,7 +503,7 @@ impl DeferredLightRenderer {
             state,
             viewport,
             &self.ambient_light_shader.program,
-            DrawParameters {
+            &DrawParameters {
                 cull_face: CullFace::Back,
                 culling: false,
                 color_write: Default::default(),
@@ -442,7 +515,7 @@ impl DeferredLightRenderer {
             &[
                 (
                     self.ambient_light_shader.wvp_matrix,
-                    UniformValue::Mat4(frame_matrix),
+                    UniformValue::Matrix4(frame_matrix),
                 ),
                 (
                     self.ambient_light_shader.ambient_color,
@@ -496,17 +569,21 @@ impl DeferredLightRenderer {
             };
 
             let light_position = light.global_position();
-            let light_radius_scale = light.local_transform().scale().max_value();
+            let scl = light.local_transform().scale();
+            let light_radius_scale = scl.x.max(scl.y).max(scl.z);
             let light_radius = light_radius_scale * raw_radius;
             let light_r_inflate = 1.05 * light_radius;
-            let light_radius_vec = Vec3::new(light_r_inflate, light_r_inflate, light_r_inflate);
-            let emit_direction = light.up_vector().normalized().unwrap_or(Vec3::LOOK);
+            let light_radius_vec = Vector3::new(light_r_inflate, light_r_inflate, light_r_inflate);
+            let emit_direction = light
+                .up_vector()
+                .try_normalize(std::f32::EPSILON)
+                .unwrap_or_else(Vector3::z);
 
             if !frustum.is_intersects_sphere(light_position, light_radius) {
                 continue;
             }
 
-            let distance_to_camera = (light.global_position() - camera.global_position()).len();
+            let distance_to_camera = (light.global_position() - camera.global_position()).norm();
 
             let v = match light {
                 Light::Directional(_) => 0.0,
@@ -523,35 +600,45 @@ impl DeferredLightRenderer {
                 2
             };
 
-            let mut light_view_projection = Mat4::IDENTITY;
+            let mut light_view_projection = Matrix4::identity();
             let shadows_enabled = light.is_cast_shadows()
                 && match light {
                     Light::Spot(spot)
                         if distance_to_camera <= settings.spot_shadows_distance
                             && settings.spot_shadows_enabled =>
                     {
-                        let light_projection_matrix =
-                            Mat4::perspective(spot.full_cone_angle(), 1.0, 0.01, light_radius);
+                        let light_projection_matrix = Matrix4::new_perspective(
+                            1.0,
+                            spot.full_cone_angle(),
+                            0.01,
+                            light_radius,
+                        );
 
                         let light_look_at = light_position - emit_direction;
 
-                        let light_up_vec = light.look_vector().normalized().unwrap_or(Vec3::UP);
+                        let light_up_vec = light
+                            .look_vector()
+                            .try_normalize(std::f32::EPSILON)
+                            .unwrap_or_else(Vector3::y);
 
-                        let light_view_matrix =
-                            Mat4::look_at(light_position, light_look_at, light_up_vec)
-                                .unwrap_or_default();
+                        let light_view_matrix = Matrix4::look_at_rh(
+                            &Point3::from(light_position),
+                            &Point3::from(light_look_at),
+                            &light_up_vec,
+                        );
 
                         light_view_projection = light_projection_matrix * light_view_matrix;
 
-                        statistics += self.spot_shadow_map_renderer.render(
+                        pass_stats += self.spot_shadow_map_renderer.render(
                             state,
                             &scene.graph,
                             &light_view_projection,
-                            white_dummy.clone(),
-                            textures,
+                            batch_storage,
                             geometry_cache,
                             cascade_index,
                         );
+
+                        light_stats.spot_shadow_maps_rendered += 1;
 
                         true
                     }
@@ -559,18 +646,19 @@ impl DeferredLightRenderer {
                         if distance_to_camera <= settings.point_shadows_distance
                             && settings.point_shadows_enabled =>
                     {
-                        statistics +=
+                        pass_stats +=
                             self.point_shadow_map_renderer
                                 .render(PointShadowMapRenderContext {
                                     state,
                                     graph: &scene.graph,
-                                    white_dummy: white_dummy.clone(),
                                     light_pos: light_position,
                                     light_radius,
-                                    texture_cache: textures,
                                     geom_cache: geometry_cache,
                                     cascade: cascade_index,
+                                    batch_storage,
                                 });
+
+                        light_stats.point_shadow_maps_rendered += 1;
 
                         true
                     }
@@ -594,12 +682,12 @@ impl DeferredLightRenderer {
 
             let sphere = geometry_cache.get(state, &self.sphere);
 
-            statistics += gbuffer.final_frame.draw(
+            pass_stats += gbuffer.final_frame.draw(
                 sphere,
                 state,
                 viewport,
                 &self.flat_shader.program,
-                DrawParameters {
+                &DrawParameters {
                     cull_face: CullFace::Front,
                     culling: true,
                     color_write: ColorMask::all(false),
@@ -610,10 +698,10 @@ impl DeferredLightRenderer {
                 },
                 &[(
                     self.flat_shader.wvp_matrix,
-                    UniformValue::Mat4(
+                    UniformValue::Matrix4(
                         view_projection
-                            * Mat4::translate(light_position)
-                            * Mat4::scale(light_radius_vec),
+                            * Matrix4::new_translation(&light_position)
+                            * Matrix4::new_nonuniform_scaling(&light_radius_vec),
                     ),
                 )],
             );
@@ -627,12 +715,12 @@ impl DeferredLightRenderer {
                 ..Default::default()
             });
 
-            statistics += gbuffer.final_frame.draw(
+            pass_stats += gbuffer.final_frame.draw(
                 sphere,
                 state,
                 viewport,
                 &self.flat_shader.program,
-                DrawParameters {
+                &DrawParameters {
                     cull_face: CullFace::Back,
                     culling: true,
                     color_write: ColorMask::all(false),
@@ -643,10 +731,10 @@ impl DeferredLightRenderer {
                 },
                 &[(
                     self.flat_shader.wvp_matrix,
-                    UniformValue::Mat4(
+                    UniformValue::Matrix4(
                         view_projection
-                            * Mat4::translate(light_position)
-                            * Mat4::scale(light_radius_vec),
+                            * Matrix4::new_translation(&light_position)
+                            * Matrix4::new_nonuniform_scaling(&light_radius_vec),
                     ),
                 )],
             );
@@ -672,26 +760,36 @@ impl DeferredLightRenderer {
 
             let quad = geometry_cache.get(state, &self.quad);
 
-            statistics += match light {
+            pass_stats += match light {
                 Light::Spot(spot_light) => {
                     let shader = &self.spot_light_shader;
+
+                    let (cookie_enabled, cookie_texture) =
+                        if let Some(texture) = spot_light.cookie_texture() {
+                            (true, textures.get(state, texture.clone()).unwrap())
+                        } else {
+                            (false, white_dummy.clone())
+                        };
 
                     let uniforms = [
                         (shader.shadows_enabled, UniformValue::Bool(shadows_enabled)),
                         (
                             shader.light_view_proj_matrix,
-                            UniformValue::Mat4(light_view_projection),
+                            UniformValue::Matrix4(light_view_projection),
                         ),
                         (
                             shader.soft_shadows,
                             UniformValue::Bool(settings.spot_soft_shadows),
                         ),
-                        (shader.light_position, UniformValue::Vec3(light_position)),
-                        (shader.light_direction, UniformValue::Vec3(emit_direction)),
+                        (shader.light_position, UniformValue::Vector3(light_position)),
+                        (
+                            shader.light_direction,
+                            UniformValue::Vector3(emit_direction),
+                        ),
                         (shader.light_radius, UniformValue::Float(light_radius)),
                         (
                             shader.inv_view_proj_matrix,
-                            UniformValue::Mat4(inv_view_projection),
+                            UniformValue::Matrix4(inv_view_projection),
                         ),
                         (shader.light_color, UniformValue::Color(light.color())),
                         (
@@ -702,7 +800,7 @@ impl DeferredLightRenderer {
                             shader.half_cone_angle_cos,
                             UniformValue::Float((spot_light.full_cone_angle() * 0.5).cos()),
                         ),
-                        (shader.wvp_matrix, UniformValue::Mat4(frame_matrix)),
+                        (shader.wvp_matrix, UniformValue::Matrix4(frame_matrix)),
                         (
                             shader.shadow_map_inv_size,
                             UniformValue::Float(
@@ -712,7 +810,7 @@ impl DeferredLightRenderer {
                         ),
                         (
                             shader.camera_position,
-                            UniformValue::Vec3(camera.global_position()),
+                            UniformValue::Vector3(camera.global_position()),
                         ),
                         (
                             shader.depth_sampler,
@@ -744,18 +842,28 @@ impl DeferredLightRenderer {
                                     .cascade_texture(cascade_index),
                             },
                         ),
+                        (shader.cookie_enabled, UniformValue::Bool(cookie_enabled)),
+                        (
+                            shader.cookie_texture,
+                            UniformValue::Sampler {
+                                index: 4,
+                                texture: cookie_texture,
+                            },
+                        ),
                         (
                             shader.shadow_bias,
                             UniformValue::Float(spot_light.shadow_bias()),
                         ),
                     ];
 
+                    light_stats.spot_lights_rendered += 1;
+
                     gbuffer.final_frame.draw(
                         quad,
                         state,
                         viewport,
                         &shader.program,
-                        draw_params,
+                        &draw_params,
                         &uniforms,
                     )
                 }
@@ -768,17 +876,17 @@ impl DeferredLightRenderer {
                             shader.soft_shadows,
                             UniformValue::Bool(settings.point_soft_shadows),
                         ),
-                        (shader.light_position, UniformValue::Vec3(light_position)),
+                        (shader.light_position, UniformValue::Vector3(light_position)),
                         (shader.light_radius, UniformValue::Float(light_radius)),
                         (
                             shader.inv_view_proj_matrix,
-                            UniformValue::Mat4(inv_view_projection),
+                            UniformValue::Matrix4(inv_view_projection),
                         ),
                         (shader.light_color, UniformValue::Color(light.color())),
-                        (shader.wvp_matrix, UniformValue::Mat4(frame_matrix)),
+                        (shader.wvp_matrix, UniformValue::Matrix4(frame_matrix)),
                         (
                             shader.camera_position,
-                            UniformValue::Vec3(camera.global_position()),
+                            UniformValue::Vector3(camera.global_position()),
                         ),
                         (
                             shader.depth_sampler,
@@ -816,12 +924,14 @@ impl DeferredLightRenderer {
                         ),
                     ];
 
+                    light_stats.point_lights_rendered += 1;
+
                     gbuffer.final_frame.draw(
                         quad,
                         state,
                         viewport,
                         &shader.program,
-                        draw_params,
+                        &draw_params,
                         &uniforms,
                     )
                 }
@@ -829,16 +939,19 @@ impl DeferredLightRenderer {
                     let shader = &self.directional_light_shader;
 
                     let uniforms = [
-                        (shader.light_direction, UniformValue::Vec3(emit_direction)),
+                        (
+                            shader.light_direction,
+                            UniformValue::Vector3(emit_direction),
+                        ),
                         (
                             shader.inv_view_proj_matrix,
-                            UniformValue::Mat4(inv_view_projection),
+                            UniformValue::Matrix4(inv_view_projection),
                         ),
                         (shader.light_color, UniformValue::Color(light.color())),
-                        (shader.wvp_matrix, UniformValue::Mat4(frame_matrix)),
+                        (shader.wvp_matrix, UniformValue::Matrix4(frame_matrix)),
                         (
                             shader.camera_position,
-                            UniformValue::Vec3(camera.global_position()),
+                            UniformValue::Vector3(camera.global_position()),
                         ),
                         (
                             shader.depth_sampler,
@@ -863,12 +976,14 @@ impl DeferredLightRenderer {
                         ),
                     ];
 
+                    light_stats.directional_lights_rendered += 1;
+
                     gbuffer.final_frame.draw(
                         quad,
                         state,
                         viewport,
                         &shader.program,
-                        DrawParameters {
+                        &DrawParameters {
                             cull_face: CullFace::Back,
                             culling: false,
                             color_write: Default::default(),
@@ -883,20 +998,20 @@ impl DeferredLightRenderer {
             };
 
             if settings.light_scatter_enabled {
-                statistics += self.light_volume.render_volume(
+                pass_stats += self.light_volume.render_volume(
                     state,
                     light,
                     gbuffer,
                     &self.quad,
                     geometry_cache,
                     camera.view_matrix(),
-                    projection_matrix.inverse().unwrap_or_default(),
+                    projection_matrix.try_inverse().unwrap_or_default(),
                     camera.view_projection_matrix(),
                     viewport,
                 );
             }
         }
 
-        statistics
+        (pass_stats, light_stats)
     }
 }

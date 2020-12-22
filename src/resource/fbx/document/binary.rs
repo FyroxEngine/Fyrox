@@ -1,3 +1,4 @@
+use crate::core::byteorder::{LittleEndian, ReadBytesExt};
 use crate::{
     core::pool::{Handle, Pool},
     resource::fbx::{
@@ -5,7 +6,6 @@ use crate::{
         error::FbxError,
     },
 };
-use byteorder::{LittleEndian, ReadBytesExt};
 use std::io::{Cursor, Read, Seek, SeekFrom};
 
 fn read_attribute<R>(type_code: u8, file: &mut R) -> Result<FbxAttribute, FbxError>

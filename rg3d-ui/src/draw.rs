@@ -1,11 +1,12 @@
 // Don't know how to correctly fix this so lower priority for now.
 #![warn(clippy::vtable_address_comparisons)]
 
+use crate::core::algebra::Vector2;
 use crate::{
     brush::Brush,
     core::{
         color::Color,
-        math::{self, vec2::Vec2, Rect, TriangleDefinition},
+        math::{self, Rect, TriangleDefinition},
     },
     formatted_text::FormattedText,
     ttf::SharedFont,
@@ -15,13 +16,13 @@ use std::{any::Any, ops::Deref, ops::Range, sync::Arc};
 
 #[repr(C)]
 pub struct Vertex {
-    pos: Vec2,
-    tex_coord: Vec2,
+    pos: Vector2<f32>,
+    tex_coord: Vector2<f32>,
     color: Color,
 }
 
 impl Vertex {
-    fn new(pos: Vec2, tex_coord: Vec2) -> Vertex {
+    fn new(pos: Vector2<f32>, tex_coord: Vector2<f32>) -> Vertex {
         Vertex {
             pos,
             tex_coord,
@@ -62,21 +63,21 @@ pub enum CommandTexture {
 
 #[derive(Clone)]
 pub struct Bounds {
-    pub min: Vec2,
-    pub max: Vec2,
+    pub min: Vector2<f32>,
+    pub max: Vector2<f32>,
 }
 
 impl Default for Bounds {
     fn default() -> Self {
         Self {
-            min: Vec2::new(std::f32::MAX, std::f32::MAX),
-            max: Vec2::new(-std::f32::MAX, -std::f32::MAX),
+            min: Vector2::new(std::f32::MAX, std::f32::MAX),
+            max: Vector2::new(-std::f32::MAX, -std::f32::MAX),
         }
     }
 }
 
 impl Bounds {
-    pub fn push(&mut self, p: Vec2) {
+    pub fn push(&mut self, p: Vector2<f32>) {
         self.min.x = self.min.x.min(p.x);
         self.min.y = self.min.y.min(p.y);
 
@@ -93,6 +94,7 @@ pub struct Command {
     pub texture: CommandTexture,
     pub triangles: Range<usize>,
     pub nesting: u8,
+    pub opacity: f32,
 }
 
 pub struct DrawingContext {
@@ -100,15 +102,16 @@ pub struct DrawingContext {
     triangle_buffer: Vec<TriangleDefinition>,
     command_buffer: Vec<Command>,
     clip_cmd_stack: Vec<usize>,
+    opacity_stack: Vec<f32>,
     triangles_to_commit: usize,
     current_nesting: u8,
 }
 
-fn get_line_thickness_vector(a: Vec2, b: Vec2, thickness: f32) -> Vec2 {
-    if let Some(dir) = (b - a).normalized() {
-        dir.perpendicular().scale(thickness * 0.5)
+fn get_line_thickness_vector(a: Vector2<f32>, b: Vector2<f32>, thickness: f32) -> Vector2<f32> {
+    if let Some(dir) = (b - a).try_normalize(std::f32::EPSILON) {
+        Vector2::new(dir.y, -dir.x).scale(thickness * 0.5)
     } else {
-        Vec2::ZERO
+        Vector2::default()
     }
 }
 
@@ -127,6 +130,7 @@ impl DrawingContext {
             clip_cmd_stack: Vec::new(),
             triangles_to_commit: 0,
             current_nesting: 0,
+            opacity_stack: vec![1.0],
         }
     }
 
@@ -151,7 +155,7 @@ impl DrawingContext {
     }
 
     #[inline]
-    fn push_vertex(&mut self, pos: Vec2, tex_coord: Vec2) {
+    fn push_vertex(&mut self, pos: Vector2<f32>, tex_coord: Vector2<f32>) {
         self.vertex_buffer.push(Vertex::new(pos, tex_coord));
     }
 
@@ -171,6 +175,14 @@ impl DrawingContext {
         &self.command_buffer
     }
 
+    pub fn push_opacity(&mut self, opacity: f32) {
+        self.opacity_stack.push(opacity);
+    }
+
+    pub fn pop_opacity(&mut self) {
+        self.opacity_stack.pop().unwrap();
+    }
+
     pub fn triangle_points(
         &self,
         triangle: &TriangleDefinition,
@@ -181,7 +193,7 @@ impl DrawingContext {
         Some((a, b, c))
     }
 
-    pub fn is_command_contains_point(&self, command: &Command, pos: Vec2) -> bool {
+    pub fn is_command_contains_point(&self, command: &Command, pos: Vector2<f32>) -> bool {
         for i in command.triangles.clone() {
             if let Some(triangle) = self.triangle_buffer.get(i) {
                 if let Some((va, vb, vc)) = self.triangle_points(triangle) {
@@ -199,12 +211,12 @@ impl DrawingContext {
         self.vertex_buffer.len() as u32
     }
 
-    pub fn push_triangle_multicolor(&mut self, vertices: [(Vec2, Color); 3]) {
+    pub fn push_triangle_multicolor(&mut self, vertices: [(Vector2<f32>, Color); 3]) {
         let index = self.last_vertex_index();
         for &(pos, color) in &vertices {
             self.vertex_buffer.push(Vertex {
                 pos,
-                tex_coord: Vec2::new(0.0, 0.0),
+                tex_coord: Vector2::new(0.0, 0.0),
                 color,
             });
         }
@@ -212,13 +224,23 @@ impl DrawingContext {
         self.push_triangle(index, index + 1, index + 2);
     }
 
-    pub fn push_line(&mut self, a: Vec2, b: Vec2, thickness: f32) {
+    pub fn push_triangle_filled(&mut self, vertices: [Vector2<f32>; 3]) {
+        let index = self.last_vertex_index();
+
+        for &pos in &vertices {
+            self.push_vertex(pos, Default::default());
+        }
+
+        self.push_triangle(index, index + 1, index + 2);
+    }
+
+    pub fn push_line(&mut self, a: Vector2<f32>, b: Vector2<f32>, thickness: f32) {
         let index = self.last_vertex_index();
         let perp = get_line_thickness_vector(a, b, thickness);
-        self.push_vertex(a - perp, Vec2::new(0.0, 0.0));
-        self.push_vertex(b - perp, Vec2::new(1.0, 0.0));
-        self.push_vertex(a + perp, Vec2::new(1.0, 1.0));
-        self.push_vertex(b + perp, Vec2::new(0.0, 1.0));
+        self.push_vertex(a - perp, Vector2::new(0.0, 0.0));
+        self.push_vertex(b - perp, Vector2::new(1.0, 0.0));
+        self.push_vertex(a + perp, Vector2::new(1.0, 1.0));
+        self.push_vertex(b + perp, Vector2::new(0.0, 1.0));
 
         self.push_triangle(index, index + 1, index + 2);
         self.push_triangle(index + 2, index + 1, index + 3);
@@ -227,14 +249,17 @@ impl DrawingContext {
     pub fn push_rect(&mut self, rect: &Rect<f32>, thickness: f32) {
         let offset = thickness * 0.5;
 
-        let left_top = Vec2::new(rect.x + offset, rect.y + thickness);
-        let right_top = Vec2::new(rect.x + rect.w - offset, rect.y + thickness);
-        let right_bottom = Vec2::new(rect.x + rect.w - offset, rect.y + rect.h - thickness);
-        let left_bottom = Vec2::new(rect.x + offset, rect.y + rect.h - thickness);
-        let left_top_off = Vec2::new(rect.x, rect.y + offset);
-        let right_top_off = Vec2::new(rect.x + rect.w, rect.y + offset);
-        let right_bottom_off = Vec2::new(rect.x + rect.w, rect.y + rect.h - offset);
-        let left_bottom_off = Vec2::new(rect.x, rect.y + rect.h - offset);
+        let left_top = Vector2::new(rect.x() + offset, rect.y() + thickness);
+        let right_top = Vector2::new(rect.x() + rect.w() - offset, rect.y() + thickness);
+        let right_bottom = Vector2::new(
+            rect.x() + rect.w() - offset,
+            rect.y() + rect.h() - thickness,
+        );
+        let left_bottom = Vector2::new(rect.x() + offset, rect.y() + rect.h() - thickness);
+        let left_top_off = Vector2::new(rect.x(), rect.y() + offset);
+        let right_top_off = Vector2::new(rect.x() + rect.w(), rect.y() + offset);
+        let right_bottom_off = Vector2::new(rect.x() + rect.w(), rect.y() + rect.h() - offset);
+        let left_bottom_off = Vector2::new(rect.x(), rect.y() + rect.h() - offset);
 
         // Horizontal lines
         self.push_line(left_top_off, right_top_off, thickness);
@@ -246,23 +271,26 @@ impl DrawingContext {
     }
 
     pub fn push_rect_vary(&mut self, rect: &Rect<f32>, thickness: Thickness) {
-        let left_top = Vec2::new(rect.x + thickness.left * 0.5, rect.y + thickness.top);
-        let right_top = Vec2::new(
-            rect.x + rect.w - thickness.right * 0.5,
-            rect.y + thickness.top,
+        let left_top = Vector2::new(rect.x() + thickness.left * 0.5, rect.y() + thickness.top);
+        let right_top = Vector2::new(
+            rect.x() + rect.w() - thickness.right * 0.5,
+            rect.y() + thickness.top,
         );
-        let right_bottom = Vec2::new(
-            rect.x + rect.w - thickness.right * 0.5,
-            rect.y + rect.h - thickness.bottom,
+        let right_bottom = Vector2::new(
+            rect.x() + rect.w() - thickness.right * 0.5,
+            rect.y() + rect.h() - thickness.bottom,
         );
-        let left_bottom = Vec2::new(
-            rect.x + thickness.left * 0.5,
-            rect.y + rect.h - thickness.bottom,
+        let left_bottom = Vector2::new(
+            rect.x() + thickness.left * 0.5,
+            rect.y() + rect.h() - thickness.bottom,
         );
-        let left_top_off = Vec2::new(rect.x, rect.y + thickness.top * 0.5);
-        let right_top_off = Vec2::new(rect.x + rect.w, rect.y + thickness.top * 0.5);
-        let right_bottom_off = Vec2::new(rect.x + rect.w, rect.y + rect.h - thickness.bottom * 0.5);
-        let left_bottom_off = Vec2::new(rect.x, rect.y + rect.h - thickness.bottom * 0.5);
+        let left_top_off = Vector2::new(rect.x(), rect.y() + thickness.top * 0.5);
+        let right_top_off = Vector2::new(rect.x() + rect.w(), rect.y() + thickness.top * 0.5);
+        let right_bottom_off = Vector2::new(
+            rect.x() + rect.w(),
+            rect.y() + rect.h() - thickness.bottom * 0.5,
+        );
+        let left_bottom_off = Vector2::new(rect.x(), rect.y() + rect.h() - thickness.bottom * 0.5);
 
         // Horizontal lines
         self.push_line(left_top_off, right_top_off, thickness.top);
@@ -273,23 +301,23 @@ impl DrawingContext {
         self.push_line(left_bottom, left_top, thickness.left);
     }
 
-    pub fn push_rect_filled(&mut self, rect: &Rect<f32>, tex_coords: Option<&[Vec2; 4]>) {
+    pub fn push_rect_filled(&mut self, rect: &Rect<f32>, tex_coords: Option<&[Vector2<f32>; 4]>) {
         let index = self.last_vertex_index();
         self.push_vertex(
-            Vec2::new(rect.x, rect.y),
-            tex_coords.map_or(Vec2::new(0.0, 0.0), |t| t[0]),
+            Vector2::new(rect.x(), rect.y()),
+            tex_coords.map_or(Vector2::new(0.0, 0.0), |t| t[0]),
         );
         self.push_vertex(
-            Vec2::new(rect.x + rect.w, rect.y),
-            tex_coords.map_or(Vec2::new(1.0, 0.0), |t| t[1]),
+            Vector2::new(rect.x() + rect.w(), rect.y()),
+            tex_coords.map_or(Vector2::new(1.0, 0.0), |t| t[1]),
         );
         self.push_vertex(
-            Vec2::new(rect.x + rect.w, rect.y + rect.h),
-            tex_coords.map_or(Vec2::new(1.0, 1.0), |t| t[2]),
+            Vector2::new(rect.x() + rect.w(), rect.y() + rect.h()),
+            tex_coords.map_or(Vector2::new(1.0, 1.0), |t| t[2]),
         );
         self.push_vertex(
-            Vec2::new(rect.x, rect.y + rect.h),
-            tex_coords.map_or(Vec2::new(0.0, 1.0), |t| t[3]),
+            Vector2::new(rect.x(), rect.y() + rect.h()),
+            tex_coords.map_or(Vector2::new(0.0, 1.0), |t| t[3]),
         );
 
         self.push_triangle(index, index + 1, index + 2);
@@ -299,23 +327,23 @@ impl DrawingContext {
     pub fn push_rect_multicolor(&mut self, rect: &Rect<f32>, colors: [Color; 4]) {
         let index = self.last_vertex_index();
         self.vertex_buffer.push(Vertex {
-            pos: rect.left_top_corner().into(),
-            tex_coord: Vec2::new(0.0, 0.0),
+            pos: rect.left_top_corner(),
+            tex_coord: Vector2::new(0.0, 0.0),
             color: colors[0],
         });
         self.vertex_buffer.push(Vertex {
-            pos: rect.right_top_corner().into(),
-            tex_coord: Vec2::new(1.0, 0.0),
+            pos: rect.right_top_corner(),
+            tex_coord: Vector2::new(1.0, 0.0),
             color: colors[1],
         });
         self.vertex_buffer.push(Vertex {
-            pos: rect.right_bottom_corner().into(),
-            tex_coord: Vec2::new(1.0, 1.0),
+            pos: rect.right_bottom_corner(),
+            tex_coord: Vector2::new(1.0, 1.0),
             color: colors[2],
         });
         self.vertex_buffer.push(Vertex {
-            pos: rect.left_bottom_corner().into(),
-            tex_coord: Vec2::new(0.0, 1.0),
+            pos: rect.left_bottom_corner(),
+            tex_coord: Vector2::new(0.0, 1.0),
             color: colors[3],
         });
 
@@ -323,13 +351,19 @@ impl DrawingContext {
         self.push_triangle(index, index + 2, index + 3);
     }
 
-    pub fn push_circle(&mut self, origin: Vec2, radius: f32, segments: usize, color: Color) {
+    pub fn push_circle(
+        &mut self,
+        origin: Vector2<f32>,
+        radius: f32,
+        segments: usize,
+        color: Color,
+    ) {
         if segments >= 3 {
             let center_index = self.last_vertex_index();
 
             self.vertex_buffer.push(Vertex {
                 pos: origin,
-                tex_coord: Vec2::ZERO,
+                tex_coord: Vector2::default(),
                 color,
             });
 
@@ -340,8 +374,8 @@ impl DrawingContext {
                 let x = origin.x + radius * angle.cos();
                 let y = origin.y + radius * angle.sin();
                 self.vertex_buffer.push(Vertex {
-                    pos: Vec2::new(x, y),
-                    tex_coord: Vec2::ZERO,
+                    pos: Vector2::new(x, y),
+                    tex_coord: Vector2::default(),
                     color,
                 });
                 angle += delta_angle;
@@ -380,6 +414,7 @@ impl DrawingContext {
         if self.triangles_to_commit > 0 {
             let triangles = self.pending_range();
             let bounds = self.bounds_of(triangles.clone());
+            let opacity = *self.opacity_stack.last().unwrap();
             self.command_buffer.push(Command {
                 bounds,
                 kind,
@@ -387,12 +422,13 @@ impl DrawingContext {
                 texture,
                 triangles,
                 nesting: self.current_nesting,
+                opacity,
             });
             self.triangles_to_commit = 0;
         }
     }
 
-    pub fn draw_text(&mut self, position: Vec2, formatted_text: &FormattedText) {
+    pub fn draw_text(&mut self, position: Vector2<f32>, formatted_text: &FormattedText) {
         let font = if let Some(font) = formatted_text.get_font() {
             font
         } else {
@@ -404,10 +440,10 @@ impl DrawingContext {
             let bounds = element.get_bounds();
 
             let final_bounds = Rect::new(
-                position.x + bounds.x,
-                position.y + bounds.y,
-                bounds.w,
-                bounds.h,
+                position.x + bounds.x(),
+                position.y + bounds.y(),
+                bounds.w(),
+                bounds.h(),
             );
 
             self.push_rect_filled(&final_bounds, Some(element.get_tex_coords()));

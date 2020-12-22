@@ -1,8 +1,6 @@
+use crate::core::algebra::{Matrix4, Vector3};
 use crate::{
-    core::{
-        math::{mat4::Mat4, vec3::Vec3},
-        pool::{Handle, Pool, PoolPairIterator},
-    },
+    core::pool::{Handle, Pool, PoolPairIterator},
     resource::fbx::{
         document::{attribute::FbxAttribute, FbxDocument, FbxNode, FbxNodeContainer},
         error::FbxError,
@@ -229,7 +227,7 @@ const FBX_TIME_UNIT: f64 = 1.0 / 46_186_158_000.0;
 pub struct FbxSubDeformer {
     model: Handle<FbxComponent>,
     weights: Vec<(i32, f32)>,
-    transform: Mat4,
+    transform: Matrix4<f32>,
 }
 
 impl FbxSubDeformer {
@@ -262,9 +260,9 @@ impl FbxSubDeformer {
                 ));
             }
 
-            let mut transform = Mat4::IDENTITY;
+            let mut transform = Matrix4::identity();
             for i in 0..16 {
-                transform.f[i] = transform_node.get_attrib(i)?.as_f64()? as f32;
+                transform[i] = transform_node.get_attrib(i)?.as_f64()? as f32;
             }
 
             let mut sub_deformer = FbxSubDeformer {
@@ -494,15 +492,15 @@ pub fn make_vec3_container<P: AsRef<str>>(
     nodes: &FbxNodeContainer,
     container_node: Handle<FbxNode>,
     data_name: P,
-) -> Result<FbxContainer<Vec3>, FbxError> {
+) -> Result<FbxContainer<Vector3<f32>>, FbxError> {
     FbxContainer::new(nodes, container_node, data_name, |attributes| {
         let mut normals = Vec::with_capacity(attributes.len() / 3);
         for normal in attributes.chunks_exact(3) {
-            normals.push(Vec3 {
-                x: normal[0].as_f32()?,
-                y: normal[1].as_f32()?,
-                z: normal[2].as_f32()?,
-            });
+            normals.push(Vector3::new(
+                normal[0].as_f32()?,
+                normal[1].as_f32()?,
+                normal[2].as_f32()?,
+            ));
         }
         Ok(normals)
     })

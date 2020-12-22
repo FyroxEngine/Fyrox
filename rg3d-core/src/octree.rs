@@ -1,7 +1,9 @@
+use crate::algebra::Vector3;
 use crate::{
-    math::{aabb::AxisAlignedBoundingBox, ray::Ray, vec3::Vec3},
+    math::{aabb::AxisAlignedBoundingBox, ray::Ray},
     pool::{Handle, Pool},
 };
+use arrayvec::{Array, ArrayVec};
 
 #[derive(Clone, Debug)]
 pub enum OctreeNode {
@@ -22,7 +24,7 @@ pub struct Octree {
 }
 
 impl Octree {
-    pub fn new(triangles: &[[Vec3; 3]], split_threshold: usize) -> Self {
+    pub fn new(triangles: &[[Vector3<f32>; 3]], split_threshold: usize) -> Self {
         // Calculate bounds.
         let mut bounds = AxisAlignedBoundingBox::default();
         for triangle in triangles {
@@ -43,7 +45,7 @@ impl Octree {
         Self { nodes, root }
     }
 
-    pub fn sphere_query(&self, position: Vec3, radius: f32, buffer: &mut Vec<u32>) {
+    pub fn sphere_query(&self, position: Vector3<f32>, radius: f32, buffer: &mut Vec<u32>) {
         buffer.clear();
         self.sphere_recursive_query(self.root, position, radius, buffer);
     }
@@ -51,7 +53,7 @@ impl Octree {
     fn sphere_recursive_query(
         &self,
         node: Handle<OctreeNode>,
-        position: Vec3,
+        position: Vector3<f32>,
         radius: f32,
         buffer: &mut Vec<u32>,
     ) {
@@ -120,12 +122,53 @@ impl Octree {
         }
     }
 
-    pub fn point_query(&self, point: Vec3, buffer: &mut Vec<u32>) {
+    pub fn node(&self, handle: Handle<OctreeNode>) -> &OctreeNode {
+        &self.nodes[handle]
+    }
+
+    pub fn ray_query_static<T>(&self, ray: &Ray, buffer: &mut ArrayVec<T>)
+    where
+        T: Array<Item = Handle<OctreeNode>>,
+    {
+        buffer.clear();
+        self.ray_recursive_query_static(self.root, ray, buffer);
+    }
+
+    fn ray_recursive_query_static<T>(
+        &self,
+        node: Handle<OctreeNode>,
+        ray: &Ray,
+        buffer: &mut ArrayVec<T>,
+    ) where
+        T: Array<Item = Handle<OctreeNode>>,
+    {
+        match self.nodes.borrow(node) {
+            OctreeNode::Leaf { bounds, .. } => {
+                if ray.box_intersection(&bounds.min, &bounds.max).is_some() {
+                    buffer.push(node);
+                }
+            }
+            OctreeNode::Branch { bounds, leaves } => {
+                if ray.box_intersection(&bounds.min, &bounds.max).is_some() {
+                    for leaf in leaves {
+                        self.ray_recursive_query_static(*leaf, ray, buffer)
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn point_query(&self, point: Vector3<f32>, buffer: &mut Vec<u32>) {
         buffer.clear();
         self.point_recursive_query(self.root, point, buffer);
     }
 
-    fn point_recursive_query(&self, node: Handle<OctreeNode>, point: Vec3, buffer: &mut Vec<u32>) {
+    fn point_recursive_query(
+        &self,
+        node: Handle<OctreeNode>,
+        point: Vector3<f32>,
+        buffer: &mut Vec<u32>,
+    ) {
         match self.nodes.borrow(node) {
             OctreeNode::Leaf { indices, bounds } => {
                 if bounds.is_contains_point(point) {
@@ -145,7 +188,7 @@ impl Octree {
 
 fn build_recursive(
     nodes: &mut Pool<OctreeNode>,
-    triangles: &[[Vec3; 3]],
+    triangles: &[[Vector3<f32>; 3]],
     bounds: AxisAlignedBoundingBox,
     indices: Vec<u32>,
     split_threshold: usize,
@@ -189,36 +232,36 @@ fn split_bounds(bounds: AxisAlignedBoundingBox) -> [AxisAlignedBoundingBox; 8] {
     let max = &bounds.max;
     [
         AxisAlignedBoundingBox::from_min_max(
-            Vec3::new(min.x, min.y, min.z),
-            Vec3::new(center.x, center.y, center.z),
+            Vector3::new(min.x, min.y, min.z),
+            Vector3::new(center.x, center.y, center.z),
         ),
         AxisAlignedBoundingBox::from_min_max(
-            Vec3::new(center.x, min.y, min.z),
-            Vec3::new(max.x, center.y, center.z),
+            Vector3::new(center.x, min.y, min.z),
+            Vector3::new(max.x, center.y, center.z),
         ),
         AxisAlignedBoundingBox::from_min_max(
-            Vec3::new(min.x, min.y, center.z),
-            Vec3::new(center.x, center.y, max.z),
+            Vector3::new(min.x, min.y, center.z),
+            Vector3::new(center.x, center.y, max.z),
         ),
         AxisAlignedBoundingBox::from_min_max(
-            Vec3::new(center.x, min.y, center.z),
-            Vec3::new(max.x, center.y, max.z),
+            Vector3::new(center.x, min.y, center.z),
+            Vector3::new(max.x, center.y, max.z),
         ),
         AxisAlignedBoundingBox::from_min_max(
-            Vec3::new(min.x, center.y, min.z),
-            Vec3::new(center.x, max.y, center.z),
+            Vector3::new(min.x, center.y, min.z),
+            Vector3::new(center.x, max.y, center.z),
         ),
         AxisAlignedBoundingBox::from_min_max(
-            Vec3::new(center.x, center.y, min.z),
-            Vec3::new(max.x, max.y, center.z),
+            Vector3::new(center.x, center.y, min.z),
+            Vector3::new(max.x, max.y, center.z),
         ),
         AxisAlignedBoundingBox::from_min_max(
-            Vec3::new(min.x, center.y, center.z),
-            Vec3::new(center.x, max.y, max.z),
+            Vector3::new(min.x, center.y, center.z),
+            Vector3::new(center.x, max.y, max.z),
         ),
         AxisAlignedBoundingBox::from_min_max(
-            Vec3::new(center.x, center.y, center.z),
-            Vec3::new(max.x, max.y, max.z),
+            Vector3::new(center.x, center.y, center.z),
+            Vector3::new(max.x, max.y, max.z),
         ),
     ]
 }

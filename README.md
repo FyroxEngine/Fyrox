@@ -1,3 +1,10 @@
+[![Crates.io](https://img.shields.io/crates/l/rg3d)](https://github.com/mrDIMAS/rg3d/blob/master/LICENSE.md)
+[![Crates.io](https://img.shields.io/crates/v/rg3d)](https://crates.io/crates/rg3d)
+[![docs.rs](https://img.shields.io/badge/docs-website-blue)](https://docs.rs/rg3d/)
+[![Discord](https://img.shields.io/discord/756573453561102427)](https://discord.gg/xENF5Uh)
+[![Lines of code](https://tokei.rs/b1/github/mrDIMAS/rg3d)](https://github.com/mrDIMAS/rg3d)
+
+
 # RG3D
 
 3D game engine written in Rust. 
@@ -32,11 +39,13 @@ There are many examples covering various aspects of the engine. Also don't hesit
 
 ## [Editor](https://github.com/mrDIMAS/rusty-editor/)
 
-[![editor](https://raw.githubusercontent.com/mrDIMAS/rusty-editor/master/screenshots/1.png)](https://github.com/mrDIMAS/rusty-editor/)
+[![editor](https://raw.githubusercontent.com/mrDIMAS/rusty-editor/master/screenshots/latest.png)](https://github.com/mrDIMAS/rusty-editor/)
 
 ## Features
 
 - Deferred shading.
+	- Renderer based on OpenGL 3.3 Core (released in 2010) which means that your game will run on almost
+	  any relatively modern GPU. 
 	- Directional light.
 	- Point light + shadows.
 	- Spot light + shadows.
@@ -44,9 +53,12 @@ There are many examples covering various aspects of the engine. Also don't hesit
 	- Screen-Space Ambient Occlusion (SSAO).
 	- Soft shadows.
 	- Volumetric light (spot, point).
+	- Instancing - render lots of objects without any overhead.
 - Render in texture.
 - Sky box.
 - Multi-camera rendering.
+- Multiple scenes.
+- Lightmap generator.
 - Level-of-detail (LOD) support.
 - Scene graph with pivot, camera, mesh, light, particle system, sprite nodes.
 - Built-in save/load - save/load state of engine in one call.
@@ -63,20 +75,37 @@ There are many examples covering various aspects of the engine. Also don't hesit
 - Animation blending state machine - similar to Mecanim in Unity Engine.
 - Animation retargetting - allows you to remap animation from one model to another.
 - Async asset management (textures, models, sound buffers).
-- [Simple physics](https://github.com/mrDIMAS/rg3d/tree/master/rg3d-physics).
+- Advanced physics (thanks to [rapier](https://github.com/dimforge/rapier) physics engine)
+    - Rigid bodies.    
+    - Rich set of various colliders.
+    - Joints.
+    - Ray cast.
+    - Many other useful features.
 - [Core library](https://github.com/mrDIMAS/rg3d/tree/master/rg3d-core).
 - Fast iterative compilation 
 	- Debug: ~3 seconds
 	- Release: ~8 seconds
 - Lots of examples.
 
+## Frequently asked questions
+
+**Q:** Is rg3d using ECS?
+
+**A:** No. It is using more classic OOP approach. However, it uses lots of optimizations for efficient
+memory management such as generational pools.
+
+**Q:** Examples running too slow on my PC, FPS is too low, help!
+
+**A:** At first, make sure you run examples on discrete GPU, not on a built-in of your CPU. Built-in GPUs
+are very slow and not suitable for rg3d. Secondly, make sure your discrete GPU is powerful enough to run 
+modern games at decent frame rate. 
+
 ## Supported Operating Systems
 
 - Windows - **full support**
 - Linux - **full support**
-- macOS - **partial support**: currently there is no sound backend for macOS so there will be no sound on macOS. 
-Check [this issue](https://github.com/mrDIMAS/rg3d/issues/45) for more info.
-- WebAssembly - **not supported**
+- macOS - **full support**
+- WebAssembly - **not supported yet**: any help is appreciated.
 
 ## Compiler version
 

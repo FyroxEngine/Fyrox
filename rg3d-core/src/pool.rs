@@ -51,14 +51,23 @@ pub struct Handle<T> {
     type_marker: PhantomData<T>,
 }
 
+unsafe impl<T> Send for Handle<T> {}
+unsafe impl<T> Sync for Handle<T> {}
+
 /// Type-erased handle.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Ord, PartialOrd, PartialEq, Eq)]
 pub struct ErasedHandle {
     /// Index of object in pool.
     index: u32,
     /// Generation number, if it is same as generation of pool record at
     /// index of handle then this is valid handle.
     generation: u32,
+}
+
+impl Default for ErasedHandle {
+    fn default() -> Self {
+        Self::none()
+    }
 }
 
 impl<T> From<ErasedHandle> for Handle<T> {
@@ -71,11 +80,11 @@ impl<T> From<ErasedHandle> for Handle<T> {
     }
 }
 
-impl<T> Into<ErasedHandle> for Handle<T> {
-    fn into(self) -> ErasedHandle {
-        ErasedHandle {
-            index: self.index,
-            generation: self.generation,
+impl<T> From<Handle<T>> for ErasedHandle {
+    fn from(h: Handle<T>) -> Self {
+        Self {
+            index: h.index,
+            generation: h.generation,
         }
     }
 }
@@ -86,6 +95,26 @@ impl ErasedHandle {
             index: 0,
             generation: INVALID_GENERATION,
         }
+    }
+
+    #[inline(always)]
+    pub fn is_some(&self) -> bool {
+        self.generation != INVALID_GENERATION
+    }
+
+    #[inline(always)]
+    pub fn is_none(&self) -> bool {
+        !self.is_some()
+    }
+
+    #[inline(always)]
+    pub fn index(self) -> u32 {
+        self.index
+    }
+
+    #[inline(always)]
+    pub fn generation(self) -> u32 {
+        self.generation
     }
 }
 
@@ -211,7 +240,8 @@ impl<T> Handle<T> {
         self.generation
     }
 
-    fn make(index: u32, generation: u32) -> Self {
+    #[inline(always)]
+    pub fn new(index: u32, generation: u32) -> Self {
         Handle {
             index,
             generation,
@@ -627,7 +657,7 @@ impl<T> Pool<T> {
         let record = &mut self.records[ticket.index as usize];
         let old = record.payload.replace(value);
         assert!(old.is_none());
-        Handle::make(ticket.index, record.generation)
+        Handle::new(ticket.index, record.generation)
     }
 
     /// Forgets that value at ticket was reserved and makes it usable again.
@@ -675,7 +705,7 @@ impl<T> Pool<T> {
     pub fn handle_from_index(&self, n: usize) -> Handle<T> {
         if let Some(record) = self.records.get(n) {
             if record.generation != INVALID_GENERATION {
-                return Handle::make(n as u32, record.generation);
+                return Handle::new(n as u32, record.generation);
             }
         }
         Handle::NONE
@@ -747,9 +777,12 @@ impl<T> Pool<T> {
     /// ```
     #[must_use]
     pub fn iter(&self) -> PoolIterator<T> {
-        PoolIterator {
-            pool: self,
-            current: 0,
+        unsafe {
+            PoolIterator {
+                ptr: self.records.as_ptr(),
+                end: self.records.as_ptr().add(self.records.len()),
+                marker: PhantomData,
+            }
         }
     }
 
@@ -864,27 +897,26 @@ impl<T> IndexMut<Handle<T>> for Pool<T> {
 }
 
 pub struct PoolIterator<'a, T> {
-    pool: &'a Pool<T>,
-    current: usize,
+    ptr: *const PoolRecord<T>,
+    end: *const PoolRecord<T>,
+    marker: PhantomData<&'a T>,
 }
 
 impl<'a, T> Iterator for PoolIterator<'a, T> {
     type Item = &'a T;
 
-    fn next(&mut self) -> Option<&'a T> {
-        loop {
-            match self.pool.records.get(self.current) {
-                Some(record) => {
-                    if let Some(payload) = &record.payload {
-                        self.current += 1;
-                        return Some(payload);
-                    }
-                    self.current += 1;
+    fn next(&mut self) -> Option<Self::Item> {
+        unsafe {
+            while self.ptr != self.end {
+                let current = &*self.ptr;
+                if let Some(ref payload) = current.payload {
+                    self.ptr = self.ptr.offset(1);
+                    return Some(payload);
                 }
-                None => {
-                    return None;
-                }
+                self.ptr = self.ptr.offset(1);
             }
+
+            None
         }
     }
 }
@@ -954,7 +986,7 @@ impl<'a, T> Iterator for PoolPairIteratorMut<'a, T> {
             while self.ptr != self.end {
                 let current = &mut *self.ptr;
                 if let Some(ref mut payload) = current.payload {
-                    let handle = Handle::make(self.current as u32, current.generation);
+                    let handle = Handle::new(self.current as u32, current.generation);
                     self.ptr = self.ptr.offset(1);
                     self.current += 1;
                     return Some((handle, payload));

@@ -16,11 +16,14 @@
 //! these are common effects for modern games but still can significantly impact
 //! performance.
 
+use crate::core::algebra::Vector3;
+use crate::core::pool::Handle;
+use crate::resource::texture::Texture;
+use crate::scene::graph::Graph;
 use crate::{
     core::{
         color::Color,
         define_is_as,
-        math::vec3::Vec3,
         visitor::{Visit, VisitResult, Visitor},
     },
     scene::{
@@ -32,7 +35,15 @@ use std::ops::{Deref, DerefMut};
 
 /// Default amount of light scattering, it is set to 3% which is fairly
 /// significant value and you'll clearly see light volume with such settings.
-pub const DEFAULT_SCATTER: Vec3 = Vec3::new(0.03, 0.03, 0.03);
+pub const DEFAULT_SCATTER_R: f32 = 0.03;
+
+/// Default amount of light scattering, it is set to 3% which is fairly
+/// significant value and you'll clearly see light volume with such settings.
+pub const DEFAULT_SCATTER_G: f32 = 0.03;
+
+/// Default amount of light scattering, it is set to 3% which is fairly
+/// significant value and you'll clearly see light volume with such settings.
+pub const DEFAULT_SCATTER_B: f32 = 0.03;
 
 /// Spot light is can be imagined as flash light - it has direction and cone
 /// shape of light volume. It defined by two angles:
@@ -64,6 +75,7 @@ pub struct SpotLight {
     falloff_angle_delta: f32,
     shadow_bias: f32,
     distance: f32,
+    cookie_texture: Option<Texture>,
 }
 
 impl Deref for SpotLight {
@@ -88,6 +100,7 @@ impl Default for SpotLight {
             falloff_angle_delta: 5.0f32.to_radians(),
             shadow_bias: 0.00005,
             distance: 10.0,
+            cookie_texture: None,
         }
     }
 }
@@ -150,6 +163,21 @@ impl SpotLight {
         self.distance
     }
 
+    /// Set cookie texture. Also called gobo this texture gets projected
+    /// by the spot light.
+    #[inline]
+    pub fn set_cookie_texture(&mut self, texture: Texture) -> &mut Self {
+        self.cookie_texture = Some(texture);
+        self
+    }
+
+    /// Get cookie texture. Also called gobo this texture gets projected
+    /// by the spot light.
+    #[inline]
+    pub fn cookie_texture(&self) -> Option<&Texture> {
+        self.cookie_texture.as_ref()
+    }
+
     /// Creates a raw copy of a light node.
     pub fn raw_copy(&self) -> Self {
         Self {
@@ -158,6 +186,7 @@ impl SpotLight {
             falloff_angle_delta: self.falloff_angle_delta,
             shadow_bias: self.shadow_bias,
             distance: self.distance,
+            cookie_texture: self.cookie_texture.clone(),
         }
     }
 }
@@ -172,6 +201,7 @@ impl Visit for SpotLight {
             .visit("FalloffAngleDelta", visitor)?;
         self.distance.visit("Distance", visitor)?;
         let _ = self.shadow_bias.visit("ShadowBias", visitor);
+        let _ = self.cookie_texture.visit("CookieTexture", visitor);
 
         visitor.leave_region()
     }
@@ -184,6 +214,7 @@ pub struct SpotLightBuilder {
     falloff_angle_delta: f32,
     shadow_bias: f32,
     distance: f32,
+    cookie_texture: Option<Texture>,
 }
 
 impl SpotLightBuilder {
@@ -195,6 +226,7 @@ impl SpotLightBuilder {
             falloff_angle_delta: 5.0f32.to_radians(),
             shadow_bias: 0.00005,
             distance: 10.0,
+            cookie_texture: None,
         }
     }
 
@@ -222,20 +254,32 @@ impl SpotLightBuilder {
         self
     }
 
-    /// Builds new spot light instance.
-    pub fn build(self) -> SpotLight {
+    /// Sets the desired cookie/gobo texture.
+    pub fn with_cookie_texture(mut self, texture: Texture) -> Self {
+        self.cookie_texture = Some(texture);
+        self
+    }
+
+    /// Creates new spot light.
+    pub fn build_spot_light(self) -> SpotLight {
         SpotLight {
             base_light: self.base_light_builder.build(),
             hotspot_cone_angle: self.hotspot_cone_angle,
             falloff_angle_delta: self.falloff_angle_delta,
             shadow_bias: self.shadow_bias,
             distance: self.distance,
+            cookie_texture: self.cookie_texture,
         }
     }
 
-    /// Creates new node.
+    /// Creates new spot light node.
     pub fn build_node(self) -> Node {
-        Node::Light(Light::Spot(self.build()))
+        Node::Light(Light::Spot(self.build_spot_light()))
+    }
+
+    /// Creates new spot light instance and adds it to the graph.
+    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
+        graph.add_node(self.build_node())
     }
 }
 
@@ -365,7 +409,7 @@ impl PointLightBuilder {
     }
 
     /// Builds new instance of point light.
-    pub fn build(self) -> PointLight {
+    pub fn build_point_light(self) -> PointLight {
         PointLight {
             base_light: self.base_light_builder.build(),
             radius: self.radius,
@@ -373,9 +417,14 @@ impl PointLightBuilder {
         }
     }
 
-    /// Creates new scene node.
+    /// Builds new instance of point light node.
     pub fn build_node(self) -> Node {
-        Node::Light(Light::Point(self.build()))
+        Node::Light(Light::Point(self.build_point_light()))
+    }
+
+    /// Builds new instance of point light and adds it to the graph.
+    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
+        graph.add_node(self.build_node())
     }
 }
 
@@ -442,16 +491,21 @@ impl DirectionalLightBuilder {
         Self { base_light_builder }
     }
 
-    /// Builds new instance of directional light.
-    pub fn build(self) -> DirectionalLight {
+    /// Creates new instance of directional light.
+    pub fn build_directional_light(self) -> DirectionalLight {
         DirectionalLight {
             base_light: self.base_light_builder.build(),
         }
     }
 
-    /// Creates new scene node.
+    /// Creates new instance of directional light node.
     pub fn build_node(self) -> Node {
-        Node::Light(Light::Directional(self.build()))
+        Node::Light(Light::Directional(self.build_directional_light()))
+    }
+
+    /// Creates new instance of directional light and adds it to the graph.
+    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
+        graph.add_node(self.build_node())
     }
 }
 
@@ -556,7 +610,7 @@ pub struct BaseLight {
     base: Base,
     color: Color,
     cast_shadows: bool,
-    scatter: Vec3,
+    scatter: Vector3<f32>,
     scatter_enabled: bool,
 }
 
@@ -580,7 +634,7 @@ impl Default for BaseLight {
             base: Default::default(),
             color: Color::WHITE,
             cast_shadows: true,
-            scatter: DEFAULT_SCATTER,
+            scatter: Vector3::new(DEFAULT_SCATTER_R, DEFAULT_SCATTER_G, DEFAULT_SCATTER_B),
             scatter_enabled: true,
         }
     }
@@ -634,13 +688,13 @@ impl BaseLight {
     /// per color channel, higher values will cause too "heavy" light scattering
     /// as if you light source would be in fog.
     #[inline]
-    pub fn set_scatter(&mut self, f: Vec3) {
+    pub fn set_scatter(&mut self, f: Vector3<f32>) {
         self.scatter = f;
     }
 
     /// Returns current scatter factor.
     #[inline]
-    pub fn scatter(&self) -> Vec3 {
+    pub fn scatter(&self) -> Vector3<f32> {
         self.scatter
     }
 
@@ -674,7 +728,7 @@ pub struct BaseLightBuilder {
     base_builder: BaseBuilder,
     color: Color,
     cast_shadows: bool,
-    scatter_factor: Vec3,
+    scatter_factor: Vector3<f32>,
     scatter_enabled: bool,
 }
 
@@ -688,7 +742,7 @@ impl BaseLightBuilder {
             base_builder,
             color: Color::WHITE,
             cast_shadows: true,
-            scatter_factor: DEFAULT_SCATTER,
+            scatter_factor: Vector3::new(DEFAULT_SCATTER_R, DEFAULT_SCATTER_G, DEFAULT_SCATTER_B),
             scatter_enabled: true,
         }
     }
@@ -706,7 +760,7 @@ impl BaseLightBuilder {
     }
 
     /// Sets light scatter factor per color channel.
-    pub fn with_scatter_factor(mut self, f: Vec3) -> Self {
+    pub fn with_scatter_factor(mut self, f: Vector3<f32>) -> Self {
         self.scatter_factor = f;
         self
     }
@@ -717,12 +771,10 @@ impl BaseLightBuilder {
         self
     }
 
-    /// Creates new instance of light scene node. Warning: each scene node
-    /// must be added to scene, otherwise it won't have any effect and most
-    /// likely will be dropped as soon as it go out of scope.
+    /// Creates new instance of base light.
     pub fn build(self) -> BaseLight {
         BaseLight {
-            base: self.base_builder.build(),
+            base: self.base_builder.build_base(),
             color: self.color,
             cast_shadows: self.cast_shadows,
             scatter: self.scatter_factor,

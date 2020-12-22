@@ -1,8 +1,9 @@
+use crate::core::algebra::Vector3;
 use crate::message::{MessageData, MessageDirection};
 use crate::{
     border::BorderBuilder,
     brush::Brush,
-    core::{color::Color, math::vec3::Vec3, pool::Handle},
+    core::{color::Color, pool::Handle},
     grid::{Column, GridBuilder, Row},
     message::{NumericUpDownMessage, UiMessage, UiMessageData, Vec3EditorMessage},
     node::UINode,
@@ -19,7 +20,7 @@ pub struct Vec3Editor<M: MessageData, C: Control<M, C>> {
     x_field: Handle<UINode<M, C>>,
     y_field: Handle<UINode<M, C>>,
     z_field: Handle<UINode<M, C>>,
-    value: Vec3,
+    value: Vector3<f32>,
 }
 
 crate::define_widget_deref!(Vec3Editor<M, C>);
@@ -47,19 +48,19 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Vec3Editor<M, C> {
                         ui.send_message(Vec3EditorMessage::value(
                             self.handle(),
                             MessageDirection::ToWidget,
-                            Vec3::new(value, self.value.y, self.value.z),
+                            Vector3::new(value, self.value.y, self.value.z),
                         ));
                     } else if message.destination() == self.y_field {
                         ui.send_message(Vec3EditorMessage::value(
                             self.handle(),
                             MessageDirection::ToWidget,
-                            Vec3::new(self.value.x, value, self.value.z),
+                            Vector3::new(self.value.x, value, self.value.z),
                         ));
                     } else if message.destination() == self.z_field {
                         ui.send_message(Vec3EditorMessage::value(
                             self.handle(),
                             MessageDirection::ToWidget,
-                            Vec3::new(self.value.x, self.value.y, value),
+                            Vector3::new(self.value.x, self.value.y, value),
                         ));
                     }
                 }
@@ -106,7 +107,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Vec3Editor<M, C> {
 
 pub struct Vec3EditorBuilder<M: MessageData, C: Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
-    value: Vec3,
+    value: Vector3<f32>,
 }
 
 pub fn make_numeric_input<M: MessageData, C: Control<M, C>>(
@@ -157,7 +158,7 @@ impl<M: MessageData, C: Control<M, C>> Vec3EditorBuilder<M, C> {
         }
     }
 
-    pub fn with_value(mut self, value: Vec3) -> Self {
+    pub fn with_value(mut self, value: Vector3<f32>) -> Self {
         self.value = value;
         self
     }

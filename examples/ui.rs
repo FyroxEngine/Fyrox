@@ -14,8 +14,8 @@ use crate::shared::create_camera;
 use rg3d::{
     animation::Animation,
     core::{
+        algebra::{UnitQuaternion, Vector2, Vector3},
         color::Color,
-        math::{quat::Quat, vec2::Vec2, vec3::Vec3},
         pool::Handle,
     },
     engine::resource_manager::ResourceManager,
@@ -80,6 +80,7 @@ fn create_ui(engine: &mut GameEngine) -> Interface {
     let video_modes = engine
         .get_window()
         .primary_monitor()
+        .unwrap()
         .video_modes()
         .filter(|vm| {
             // Leave only modern video modes, we are not in 1998.
@@ -99,7 +100,7 @@ fn create_ui(engine: &mut GameEngine) -> Interface {
     WindowBuilder::new(
         WidgetBuilder::new()
             // We want the window to be anchored at right top corner at the beginning
-            .with_desired_position(Vec2::new(window_width - 300.0, 0.0))
+            .with_desired_position(Vector2::new(window_width - 300.0, 0.0))
             .with_width(300.0),
     )
     // Window can have any content you want, in this example it is Grid with other
@@ -207,7 +208,7 @@ fn create_ui(engine: &mut GameEngine) -> Interface {
     let resolutions;
     WindowBuilder::new(
         WidgetBuilder::new()
-            .with_desired_position(Vec2::new(window_width - 670.0, 0.0))
+            .with_desired_position(Vector2::new(window_width - 670.0, 0.0))
             .with_width(350.0),
     )
     .with_content(
@@ -282,9 +283,12 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     let mut scene = Scene::new();
 
     // Camera is our eyes in the world - you won't see anything without it.
-    let camera = create_camera(resource_manager.clone(), Vec3::new(0.0, 6.0, -12.0)).await;
-
-    scene.graph.add_node(Node::Camera(camera));
+    create_camera(
+        resource_manager.clone(),
+        Vector3::new(0.0, 6.0, -12.0),
+        &mut scene.graph,
+    )
+    .await;
 
     // Load model resource. Is does *not* adds anything to our scene - it just loads a
     // resource then can be used later on to instantiate models from it on scene. Why
@@ -332,7 +336,7 @@ fn main() {
         .with_title("Example - Model")
         .with_resizable(true);
 
-    let mut engine = GameEngine::new(window_builder, &event_loop).unwrap();
+    let mut engine = GameEngine::new(window_builder, &event_loop, true).unwrap();
 
     // Prepare resource manager - it must be notified where to search textures. When engine
     // loads model resource it automatically tries to load textures it uses. But since most
@@ -403,9 +407,9 @@ fn main() {
 
                     scene.graph[model_handle]
                         .local_transform_mut()
-                        .set_scale(Vec3::new(model_scale, model_scale, model_scale))
-                        .set_rotation(Quat::from_axis_angle(
-                            Vec3::new(0.0, 1.0, 0.0),
+                        .set_scale(Vector3::new(model_scale, model_scale, model_scale))
+                        .set_rotation(UnitQuaternion::from_axis_angle(
+                            &Vector3::y_axis(),
                             model_angle.to_radians(),
                         ));
 
@@ -496,7 +500,7 @@ fn main() {
                         // It is very important to handle Resized event from window, because
                         // renderer knows nothing about window size - it must be notified
                         // directly when window size has changed.
-                        engine.renderer.set_frame_size(dbg!(size.into()));
+                        engine.renderer.set_frame_size(size.into());
                     }
                     WindowEvent::KeyboardInput { input, .. } => {
                         if let Some(key_code) = input.virtual_keycode {

@@ -17,6 +17,7 @@
 //!
 //! Currently only FBX (common format in game industry for storing complex 3d models)
 //! and RGS (native rusty-editor format) formats are supported.
+use crate::utils::log::MessageKind;
 use crate::{
     animation::Animation,
     core::{
@@ -47,7 +48,7 @@ impl Model {
     pub fn instantiate_geometry(&self, dest_scene: &mut Scene) -> Handle<Node> {
         let data = self.data_ref();
 
-        let (root, _) = data.scene.graph.copy_node(
+        let (root, old_to_new) = data.scene.graph.copy_node(
             data.scene.graph.get_root(),
             &mut dest_scene.graph,
             &mut |_, _| true,
@@ -55,8 +56,7 @@ impl Model {
         dest_scene.graph[root].is_resource_instance = true;
 
         // Notify instantiated nodes about resource they were created from.
-        let mut stack = Vec::new();
-        stack.push(root);
+        let mut stack = vec![root];
         while let Some(node_handle) = stack.pop() {
             let node = &mut dest_scene.graph[node_handle];
 
@@ -65,6 +65,15 @@ impl Model {
             // Continue on children.
             stack.extend_from_slice(node.children());
         }
+
+        std::mem::drop(data);
+
+        dest_scene.physics.embed_resource(
+            &mut dest_scene.physics_binder,
+            &dest_scene.graph,
+            old_to_new,
+            self.clone(),
+        );
 
         root
     }
@@ -123,11 +132,14 @@ impl Model {
                 // Find instantiated node that corresponds to node in resource
                 let instance_node = dest_scene.graph.find_by_name(root, ref_node.name());
                 if instance_node.is_none() {
-                    Log::writeln(format!(
-                        "Failed to retarget animation {:?} for node {}",
-                        data.path(),
-                        ref_node.name()
-                    ));
+                    Log::writeln(
+                        MessageKind::Error,
+                        format!(
+                            "Failed to retarget animation {:?} for node {}",
+                            data.path(),
+                            ref_node.name()
+                        ),
+                    );
                 }
                 // One-to-one track mapping so there is [i] indexing.
                 anim_copy.get_tracks_mut()[i].set_node(instance_node);

@@ -10,12 +10,9 @@ pub mod shared;
 
 use crate::shared::create_camera;
 
+use rg3d::core::algebra::{UnitQuaternion, Vector3};
 use rg3d::{
-    core::{
-        color::Color,
-        math::{quat::Quat, vec3::Vec3},
-        pool::Handle,
-    },
+    core::{color::Color, pool::Handle},
     engine::resource_manager::ResourceManager,
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -26,10 +23,8 @@ use rg3d::{
         widget::WidgetBuilder,
     },
     scene::{
-        base::{BaseBuilder, LevelOfDetail, LodGroup},
-        camera::CameraBuilder,
+        base::{LevelOfDetail, LodGroup},
         node::Node,
-        transform::TransformBuilder,
         Scene,
     },
     utils::translate_event,
@@ -56,10 +51,15 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     let mut scene = Scene::new();
 
     // Camera is our eyes in the world - you won't see anything without it.
-    let mut camera = create_camera(resource_manager.clone(), Vec3::new(0.0, 1.5, -5.0)).await;
+    let camera = create_camera(
+        resource_manager.clone(),
+        Vector3::new(0.0, 1.5, -5.0),
+        &mut scene.graph,
+    )
+    .await;
+
     // Set small z far for the sake of example.
-    camera.set_z_far(32.0);
-    let camera = scene.graph.add_node(Node::Camera(camera));
+    scene.graph[camera].as_camera_mut().set_z_far(32.0);
 
     // Load model resource. Is does *not* adds anything to our scene - it just loads a
     // resource then can be used later on to instantiate models from it on scene. Why
@@ -125,7 +125,7 @@ fn main() {
         .with_title("Example 08 - Level of detail")
         .with_resizable(true);
 
-    let mut engine = GameEngine::new(window_builder, &event_loop).unwrap();
+    let mut engine = GameEngine::new(window_builder, &event_loop, true).unwrap();
 
     // Prepare resource manager - it must be notified where to search textures. When engine
     // loads model resource it automatically tries to load textures it uses. But since most
@@ -209,11 +209,11 @@ fn main() {
 
                     scene.graph[model_handle]
                         .local_transform_mut()
-                        .set_rotation(Quat::from_axis_angle(Vec3::new(0.0, 1.0, 0.0), model_angle));
+                        .set_rotation(UnitQuaternion::from_axis_angle(&Vector3::y_axis(), model_angle));
 
                     scene.graph[camera]
                         .local_transform_mut()
-                        .set_position(Vec3::new(0.0, 1.5, -distance));
+                        .set_position(Vector3::new(0.0, 1.5, -distance));
 
                     let fps = engine.renderer.get_statistics().frames_per_second;
                     let text = format!(

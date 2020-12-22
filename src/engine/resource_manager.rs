@@ -1,11 +1,16 @@
 //! Resource manager controls loading and lifetime of resource in the engine.
 
-use crate::resource::texture::TextureWrapMode;
+use crate::resource::texture::{TextureError, TextureWrapMode};
+use crate::resource::ResourceLoadError;
+use crate::utils::log::MessageKind;
 use crate::{
     core::visitor::{Visit, VisitResult, Visitor},
     resource::{
         model::{Model, ModelData},
-        texture::{Texture, TextureData, TextureMagnificationFilter, TextureMinificationFilter},
+        texture::{
+            Texture, TextureData, TextureMagnificationFilter, TextureMinificationFilter,
+            TextureState,
+        },
         Resource, ResourceData, ResourceState,
     },
     sound::buffer::{DataSource, SoundBuffer},
@@ -210,6 +215,23 @@ impl TextureImportOptions {
     }
 }
 
+/// An error that may occur during texture registration.
+#[derive(Debug)]
+pub enum TextureRegistrationError {
+    /// Texture saving has failed.
+    Texture(TextureError),
+    /// Texture was in invalid state (Pending, LoadErr)
+    InvalidState,
+    /// Texture is already registered.
+    AlreadyRegistered,
+}
+
+impl From<TextureError> for TextureRegistrationError {
+    fn from(e: TextureError) -> Self {
+        Self::Texture(e)
+    }
+}
+
 impl ResourceManager {
     pub(in crate) fn new() -> Self {
         Self {
@@ -231,11 +253,6 @@ impl ResourceManager {
     /// # Async/.await
     ///
     /// Each Texture implements Future trait and can be used in async contexts.
-    ///
-    /// # Performance
-    ///
-    /// Currently this method creates a thread which is responsible for actual texture loading, this is very
-    /// unoptimal and will be replaced with worker threads in the near future.
     ///
     /// # Supported formats
     ///
@@ -262,11 +279,10 @@ impl ResourceManager {
             let time = time::Instant::now();
             match TextureData::load_from_file(&path) {
                 Ok(mut raw_texture) => {
-                    Log::writeln(format!(
-                        "Texture {:?} is loaded in {:?}!",
-                        path,
-                        time.elapsed()
-                    ));
+                    Log::writeln(
+                        MessageKind::Information,
+                        format!("Texture {:?} is loaded in {:?}!", path, time.elapsed()),
+                    );
 
                     raw_texture.set_magnification_filter(options.magnification_filter);
                     raw_texture.set_minification_filter(options.minification_filter);
@@ -277,10 +293,10 @@ impl ResourceManager {
                     texture.state().commit(ResourceState::Ok(raw_texture));
                 }
                 Err(error) => {
-                    Log::writeln(format!(
-                        "Unable to load texture {:?}! Reason {:?}",
-                        &path, &error
-                    ));
+                    Log::writeln(
+                        MessageKind::Error,
+                        format!("Unable to load texture {:?}! Reason {:?}", &path, &error),
+                    );
 
                     texture.state().commit(ResourceState::LoadError {
                         path,
@@ -293,6 +309,37 @@ impl ResourceManager {
         result
     }
 
+    /// Saves given texture in the specified path and registers it in resource manager, so
+    /// it will be accessible through it later.
+    pub fn register_texture<P: AsRef<Path>>(
+        &self,
+        texture: Texture,
+        path: P,
+    ) -> Result<(), TextureRegistrationError> {
+        let mut state = self.state();
+        if state.find_texture(path.as_ref()).is_some() {
+            Err(TextureRegistrationError::AlreadyRegistered)
+        } else {
+            let mut texture_state = texture.state();
+            match &mut *texture_state {
+                TextureState::Ok(texture_data) => {
+                    texture_data.set_path(path);
+                    if let Err(e) = texture_data.save() {
+                        Err(TextureRegistrationError::Texture(e))
+                    } else {
+                        std::mem::drop(texture_state);
+                        state.textures.push(TimedEntry {
+                            value: texture,
+                            time_to_live: MAX_RESOURCE_TTL,
+                        });
+                        Ok(())
+                    }
+                }
+                _ => Err(TextureRegistrationError::InvalidState),
+            }
+        }
+    }
+
     /// Tries to load new model resource from given path or get instance of existing, if any.
     /// This method is asynchronous, it immediately returns a model which can be shared across
     /// multiple places, the loading may fail, but it is internal state of the model. If you need
@@ -302,11 +349,6 @@ impl ResourceManager {
     /// # Async/.await
     ///
     /// Each model implements Future trait and can be used in async contexts.
-    ///
-    /// # Performance
-    ///
-    /// Currently this method creates a thread which is responsible for actual model loading, this is very
-    /// unoptimal and will be replaced with worker threads in the near future.
     ///
     /// # Supported formats
     ///
@@ -332,15 +374,18 @@ impl ResourceManager {
         state.thread_pool.spawn_ok(async move {
             match ModelData::load(&path, resource_manager).await {
                 Ok(raw_model) => {
-                    Log::writeln(format!("Model {:?} is loaded!", path));
+                    Log::writeln(
+                        MessageKind::Information,
+                        format!("Model {:?} is loaded!", path),
+                    );
 
                     model.state().commit(ResourceState::Ok(raw_model));
                 }
                 Err(error) => {
-                    Log::writeln(format!(
-                        "Unable to load model from {:?}! Reason {:?}",
-                        path, error
-                    ));
+                    Log::writeln(
+                        MessageKind::Error,
+                        format!("Unable to load model from {:?}! Reason {:?}", path, error),
+                    );
 
                     model.state().commit(ResourceState::LoadError {
                         path,
@@ -360,8 +405,6 @@ impl ResourceManager {
     /// # Supported formats
     ///
     /// Currently only WAV (uncompressed) and OGG are supported.
-    ///
-    /// TODO: Make this asynchronous.
     pub fn request_sound_buffer<P: AsRef<Path>>(&self, path: P, stream: bool) -> SharedSoundBuffer {
         let mut state = self.state();
 
@@ -387,12 +430,18 @@ impl ResourceManager {
                     };
                     match buffer {
                         Ok(sound_buffer) => {
-                            Log::writeln(format!("Sound buffer {:?} is loaded!", path));
+                            Log::writeln(
+                                MessageKind::Information,
+                                format!("Sound buffer {:?} is loaded!", path),
+                            );
 
                             resource.state().commit(ResourceState::Ok(sound_buffer));
                         }
                         Err(_) => {
-                            Log::writeln(format!("Unable to load sound buffer from {:?}!", path));
+                            Log::writeln(
+                                MessageKind::Error,
+                                format!("Unable to load sound buffer from {:?}!", path),
+                            );
 
                             resource.state().commit(ResourceState::LoadError {
                                 path: path.clone(),
@@ -402,7 +451,7 @@ impl ResourceManager {
                     }
                 }
                 Err(e) => {
-                    Log::writeln(format!("Invalid data source: {:?}", e));
+                    Log::writeln(MessageKind::Error, format!("Invalid data source: {:?}", e));
 
                     resource.state().commit(ResourceState::LoadError {
                         path: path.clone(),
@@ -434,15 +483,18 @@ impl ResourceManager {
                 state.thread_pool.spawn_ok(async move {
                     match TextureData::load_from_file(&path) {
                         Ok(data) => {
-                            Log::writeln(format!("Texture {:?} successfully reloaded!", path,));
+                            Log::writeln(
+                                MessageKind::Information,
+                                format!("Texture {:?} successfully reloaded!", path,),
+                            );
 
                             resource.state().commit(ResourceState::Ok(data));
                         }
                         Err(e) => {
-                            Log::writeln(format!(
-                                "Unable to reload {:?} texture! Reason: {:?}",
-                                path, e
-                            ));
+                            Log::writeln(
+                                MessageKind::Error,
+                                format!("Unable to reload {:?} texture! Reason: {:?}", path, e),
+                            );
 
                             resource.state().commit(ResourceState::LoadError {
                                 path,
@@ -479,15 +531,18 @@ impl ResourceManager {
                 state.thread_pool.spawn_ok(async move {
                     match ModelData::load(&path, this).await {
                         Ok(data) => {
-                            Log::writeln(format!("Model {:?} successfully reloaded!", path,));
+                            Log::writeln(
+                                MessageKind::Information,
+                                format!("Model {:?} successfully reloaded!", path,),
+                            );
 
                             model.state().commit(ResourceState::Ok(data));
                         }
                         Err(e) => {
-                            Log::writeln(format!(
-                                "Unable to reload {:?} model! Reason: {:?}",
-                                path, e
-                            ));
+                            Log::writeln(
+                                MessageKind::Error,
+                                format!("Unable to reload {:?} model! Reason: {:?}", path, e),
+                            );
 
                             model.state().commit(ResourceState::LoadError {
                                 path,
@@ -503,7 +558,10 @@ impl ResourceManager {
 
         futures::future::join_all(models).await;
 
-        Log::write("All model resources reloaded!".to_owned());
+        Log::writeln(
+            MessageKind::Information,
+            "All model resources reloaded!".to_owned(),
+        );
     }
 
     /// Reloads every loaded sound buffer. This method is asynchronous, internally it uses thread pool
@@ -543,19 +601,22 @@ impl ResourceManager {
                             };
                             match new_sound_buffer {
                                 Ok(new_sound_buffer) => {
-                                    Log::writeln(format!(
-                                        "Sound buffer {:?} successfully reloaded!",
-                                        ext_path,
-                                    ));
+                                    Log::writeln(
+                                        MessageKind::Information,
+                                        format!(
+                                            "Sound buffer {:?} successfully reloaded!",
+                                            ext_path,
+                                        ),
+                                    );
 
                                     *inner_buffer.lock().unwrap() = new_sound_buffer;
                                     resource.state().commit(ResourceState::Ok(inner_buffer));
                                 }
                                 Err(_) => {
-                                    Log::writeln(format!(
-                                        "Unable to reload {:?} sound buffer!",
-                                        ext_path
-                                    ));
+                                    Log::writeln(
+                                        MessageKind::Error,
+                                        format!("Unable to reload {:?} sound buffer!", ext_path),
+                                    );
 
                                     resource.state().commit(ResourceState::LoadError {
                                         path: ext_path,
@@ -576,7 +637,7 @@ impl ResourceManager {
 
     /// Reloads all loaded resources. Normally it should never be called, because it is **very** heavy
     /// method! This method is asynchronous, it uses all available CPU power to reload resources as
-    /// fast as possible.     
+    /// fast as possible.
     pub async fn reload_resources(&self) {
         futures::join!(
             self.reload_textures(),
@@ -584,6 +645,37 @@ impl ResourceManager {
             self.reload_sound_buffers()
         );
     }
+}
+
+fn count_pending_resources<T, E>(resources: &[TimedEntry<Resource<T, E>>]) -> usize
+where
+    T: ResourceData,
+    E: ResourceLoadError,
+{
+    let mut count = 0;
+    for entry in resources.iter() {
+        if let ResourceState::Pending { .. } = *entry.value.state() {
+            count += 1;
+        }
+    }
+    count
+}
+
+fn count_loaded_resources<T, E>(resources: &[TimedEntry<Resource<T, E>>]) -> usize
+where
+    T: ResourceData,
+    E: ResourceLoadError,
+{
+    let mut count = 0;
+    for entry in resources.iter() {
+        match *entry.value.state() {
+            ResourceState::LoadError { .. } | ResourceState::Ok(_) => {
+                count += 1;
+            }
+            _ => {}
+        }
+    }
+    count
 }
 
 impl ResourceManagerState {
@@ -652,6 +744,68 @@ impl ResourceManagerState {
         None
     }
 
+    /// Returns total amount of textures in pending state.
+    pub fn count_pending_textures(&self) -> usize {
+        count_pending_resources(&self.textures)
+    }
+
+    /// Returns total amount of loaded textures (including textures, that failed to load).
+    pub fn count_loaded_textures(&self) -> usize {
+        count_loaded_resources(&self.textures)
+    }
+
+    /// Returns total amount of sound buffers in pending state.
+    pub fn count_pending_sound_buffers(&self) -> usize {
+        count_pending_resources(&self.sound_buffers)
+    }
+
+    /// Returns total amount of loaded sound buffers (including sound buffers, that failed to load).
+    pub fn count_loaded_sound_buffers(&self) -> usize {
+        count_loaded_resources(&self.sound_buffers)
+    }
+
+    /// Returns total amount of models in pending state.
+    pub fn count_pending_models(&self) -> usize {
+        count_pending_resources(&self.models)
+    }
+
+    /// Returns total amount of loaded models (including models, that failed to load).
+    pub fn count_loaded_models(&self) -> usize {
+        count_loaded_resources(&self.models)
+    }
+
+    /// Returns total amount of resources in pending state.
+    pub fn count_pending_resources(&self) -> usize {
+        self.count_pending_textures()
+            + self.count_pending_sound_buffers()
+            + self.count_pending_models()
+    }
+
+    /// Returns total amount of loaded resources.
+    pub fn count_loaded_resources(&self) -> usize {
+        self.count_loaded_textures()
+            + self.count_loaded_sound_buffers()
+            + self.count_loaded_models()
+    }
+
+    /// Returns total amount of registered resources.
+    pub fn count_registered_resources(&self) -> usize {
+        self.textures.len() + self.sound_buffers.len() + self.models.len()
+    }
+
+    /// Returns percentage of loading progress. This method is useful to show progress on
+    /// loading screen in your game. This method could be used alone if your game depends
+    /// only on external resources, or if your game doing some heavy calculations this value
+    /// can be combined with progress of your tasks.  
+    pub fn loading_progress(&self) -> usize {
+        let registered = self.count_registered_resources();
+        if registered > 0 {
+            self.count_loaded_resources() * 100 / registered
+        } else {
+            100
+        }
+    }
+
     /// Returns current path where to search texture when loading complex model resources.
     #[inline]
     pub fn textures_path(&self) -> &Path {
@@ -689,10 +843,13 @@ impl ResourceManagerState {
         self.textures.retain(|texture| {
             let retain = texture.time_to_live > 0.0;
             if !retain && texture.state().path().exists() {
-                Log::writeln(format!(
-                    "Texture resource {:?} destroyed because it not used anymore!",
-                    texture.state().path()
-                ));
+                Log::writeln(
+                    MessageKind::Information,
+                    format!(
+                        "Texture resource {:?} destroyed because it not used anymore!",
+                        texture.state().path()
+                    ),
+                );
             }
             retain
         });
@@ -708,10 +865,13 @@ impl ResourceManagerState {
         self.models.retain(|model| {
             let retain = model.time_to_live > 0.0;
             if !retain && model.state().path().exists() {
-                Log::writeln(format!(
-                    "Model resource {:?} destroyed because it not used anymore!",
-                    model.state().path()
-                ));
+                Log::writeln(
+                    MessageKind::Information,
+                    format!(
+                        "Model resource {:?} destroyed because it not used anymore!",
+                        model.state().path()
+                    ),
+                );
             }
             retain
         });
@@ -727,10 +887,13 @@ impl ResourceManagerState {
         self.sound_buffers.retain(|buffer| {
             let retain = buffer.time_to_live > 0.0;
             if !retain {
-                Log::writeln(format!(
-                    "Sound resource {:?} destroyed because it not used anymore!",
-                    buffer.state().path()
-                ));
+                Log::writeln(
+                    MessageKind::Information,
+                    format!(
+                        "Sound resource {:?} destroyed because it not used anymore!",
+                        buffer.state().path()
+                    ),
+                );
             }
             retain
         });

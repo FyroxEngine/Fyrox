@@ -1,22 +1,20 @@
-use crate::decorator::DecoratorBuilder;
 use crate::{
     border::BorderBuilder,
     brush::{Brush, GradientPoint},
     button::ButtonBuilder,
-    core::{
-        color::Color,
-        math::{vec2::Vec2, Rect},
-        pool::Handle,
-    },
+    core::{algebra::Vector2, color::Color, math::Rect, pool::Handle},
+    decorator::DecoratorBuilder,
     grid::{Column, GridBuilder, Row},
     message::{
         ButtonMessage, CursorIcon, MessageData, MessageDirection, TextMessage, UiMessage,
         UiMessageData, WidgetMessage, WindowMessage,
     },
     text::TextBuilder,
+    vector_image::{Primitive, VectorImageBuilder},
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, RestrictionEntry, Thickness,
-    UINode, UserInterface,
+    UINode, UserInterface, VerticalAlignment, BRUSH_BRIGHT, BRUSH_LIGHT, BRUSH_LIGHTER,
+    BRUSH_LIGHTEST, COLOR_DARK, COLOR_DARKEST,
 };
 use std::{
     cell::RefCell,
@@ -29,9 +27,9 @@ use std::{
 #[derive(Clone)]
 pub struct Window<M: MessageData, C: Control<M, C>> {
     widget: Widget<M, C>,
-    mouse_click_pos: Vec2,
-    initial_position: Vec2,
-    initial_size: Vec2,
+    mouse_click_pos: Vector2<f32>,
+    initial_position: Vector2<f32>,
+    initial_size: Vector2<f32>,
     is_dragging: bool,
     minimized: bool,
     can_minimize: bool,
@@ -40,7 +38,7 @@ pub struct Window<M: MessageData, C: Control<M, C>> {
     header: Handle<UINode<M, C>>,
     minimize_button: Handle<UINode<M, C>>,
     close_button: Handle<UINode<M, C>>,
-    drag_delta: Vec2,
+    drag_delta: Vector2<f32>,
     content: Handle<UINode<M, C>>,
     grips: RefCell<[Grip; 8]>,
     title: Handle<UINode<M, C>>,
@@ -93,62 +91,50 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Window<M, C> {
         node_map.resolve(&mut self.content);
     }
 
-    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
+    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
         let size = self.widget.arrange_override(ui, final_size);
 
         let mut grips = self.grips.borrow_mut();
 
         // Adjust grips.
-        grips[GripKind::Left as usize].bounds = Rect {
-            x: 0.0,
-            y: GRIP_SIZE,
-            w: GRIP_SIZE,
-            h: final_size.y - GRIP_SIZE * 2.0,
-        };
-        grips[GripKind::Top as usize].bounds = Rect {
-            x: GRIP_SIZE,
-            y: 0.0,
-            w: final_size.x - GRIP_SIZE * 2.0,
-            h: GRIP_SIZE,
-        };
-        grips[GripKind::Right as usize].bounds = Rect {
-            x: final_size.x - GRIP_SIZE,
-            y: GRIP_SIZE,
-            w: GRIP_SIZE,
-            h: final_size.y - GRIP_SIZE * 2.0,
-        };
-        grips[GripKind::Bottom as usize].bounds = Rect {
-            x: GRIP_SIZE,
-            y: final_size.y - GRIP_SIZE,
-            w: final_size.x - GRIP_SIZE * 2.0,
-            h: GRIP_SIZE,
-        };
+        grips[GripKind::Left as usize].bounds =
+            Rect::new(0.0, GRIP_SIZE, GRIP_SIZE, final_size.y - GRIP_SIZE * 2.0);
+        grips[GripKind::Top as usize].bounds =
+            Rect::new(GRIP_SIZE, 0.0, final_size.x - GRIP_SIZE * 2.0, GRIP_SIZE);
+        grips[GripKind::Right as usize].bounds = Rect::new(
+            final_size.x - GRIP_SIZE,
+            GRIP_SIZE,
+            GRIP_SIZE,
+            final_size.y - GRIP_SIZE * 2.0,
+        );
+        grips[GripKind::Bottom as usize].bounds = Rect::new(
+            GRIP_SIZE,
+            final_size.y - GRIP_SIZE,
+            final_size.x - GRIP_SIZE * 2.0,
+            GRIP_SIZE,
+        );
 
         // Corners have different size to improve usability.
-        grips[GripKind::LeftTopCorner as usize].bounds = Rect {
-            x: 0.0,
-            y: 0.0,
-            w: CORNER_GRIP_SIZE,
-            h: CORNER_GRIP_SIZE,
-        };
-        grips[GripKind::RightTopCorner as usize].bounds = Rect {
-            x: final_size.x - GRIP_SIZE,
-            y: 0.0,
-            w: CORNER_GRIP_SIZE,
-            h: CORNER_GRIP_SIZE,
-        };
-        grips[GripKind::RightBottomCorner as usize].bounds = Rect {
-            x: final_size.x - CORNER_GRIP_SIZE,
-            y: final_size.y - CORNER_GRIP_SIZE,
-            w: CORNER_GRIP_SIZE,
-            h: CORNER_GRIP_SIZE,
-        };
-        grips[GripKind::LeftBottomCorner as usize].bounds = Rect {
-            x: 0.0,
-            y: final_size.y - CORNER_GRIP_SIZE,
-            w: CORNER_GRIP_SIZE,
-            h: CORNER_GRIP_SIZE,
-        };
+        grips[GripKind::LeftTopCorner as usize].bounds =
+            Rect::new(0.0, 0.0, CORNER_GRIP_SIZE, CORNER_GRIP_SIZE);
+        grips[GripKind::RightTopCorner as usize].bounds = Rect::new(
+            final_size.x - GRIP_SIZE,
+            0.0,
+            CORNER_GRIP_SIZE,
+            CORNER_GRIP_SIZE,
+        );
+        grips[GripKind::RightBottomCorner as usize].bounds = Rect::new(
+            final_size.x - CORNER_GRIP_SIZE,
+            final_size.y - CORNER_GRIP_SIZE,
+            CORNER_GRIP_SIZE,
+            CORNER_GRIP_SIZE,
+        );
+        grips[GripKind::LeftBottomCorner as usize].bounds = Rect::new(
+            0.0,
+            final_size.y - CORNER_GRIP_SIZE,
+            CORNER_GRIP_SIZE,
+            CORNER_GRIP_SIZE,
+        );
 
         size
     }
@@ -174,8 +160,8 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Window<M, C> {
                             // Check grips.
                             for grip in self.grips.borrow_mut().iter_mut() {
                                 let offset = self.screen_position;
-                                let screen_bounds = grip.bounds.translate(offset.x, offset.y);
-                                if screen_bounds.contains(pos.x, pos.y) {
+                                let screen_bounds = grip.bounds.translate(offset);
+                                if screen_bounds.contains(pos) {
                                     grip.is_dragging = true;
                                     self.initial_position = self.actual_local_position();
                                     self.initial_size = self.actual_size();
@@ -199,8 +185,8 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Window<M, C> {
 
                             for grip in self.grips.borrow().iter() {
                                 let offset = self.screen_position;
-                                let screen_bounds = grip.bounds.translate(offset.x, offset.y);
-                                if screen_bounds.contains(pos.x, pos.y) {
+                                let screen_bounds = grip.bounds.translate(offset);
+                                if screen_bounds.contains(pos) {
                                     new_cursor = Some(grip.cursor);
                                 }
 
@@ -218,9 +204,9 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Window<M, C> {
                                     };
 
                                     let new_pos = self.initial_position
-                                        + Vec2::new(delta.x * dx, delta.y * dy);
-                                    let new_size =
-                                        self.initial_size + Vec2::new(delta.x * dw, delta.y * dh);
+                                        + Vector2::new(delta.x * dx, delta.y * dy);
+                                    let new_size = self.initial_size
+                                        + Vector2::new(delta.x * dw, delta.y * dh);
 
                                     if new_size.x > self.min_width()
                                         && new_size.x < self.max_width()
@@ -520,7 +506,7 @@ impl<M: MessageData, C: Control<M, C>> Window<M, C> {
         self.is_dragging
     }
 
-    pub fn drag_delta(&self) -> Vec2 {
+    pub fn drag_delta(&self) -> Vector2<f32> {
         self.drag_delta
     }
 
@@ -593,9 +579,57 @@ fn make_text_title<M: MessageData, C: Control<M, C>>(
     .build(ctx)
 }
 
+enum HeaderButton {
+    Close,
+    Minimize,
+}
+
+fn make_mark<M: MessageData, C: Control<M, C>>(
+    ctx: &mut BuildContext<M, C>,
+    button: HeaderButton,
+) -> Handle<UINode<M, C>> {
+    VectorImageBuilder::new(
+        WidgetBuilder::new()
+            .with_horizontal_alignment(HorizontalAlignment::Center)
+            .with_vertical_alignment(match button {
+                HeaderButton::Close => VerticalAlignment::Center,
+                HeaderButton::Minimize => VerticalAlignment::Bottom,
+            })
+            .with_margin(match button {
+                HeaderButton::Close => Thickness::uniform(0.0),
+                HeaderButton::Minimize => Thickness::bottom(3.0),
+            })
+            .with_foreground(BRUSH_BRIGHT),
+    )
+    .with_primitives(match button {
+        HeaderButton::Close => {
+            vec![
+                Primitive::Line {
+                    begin: Vector2::new(0.0, 0.0),
+                    end: Vector2::new(12.0, 12.0),
+                    thickness: 3.0,
+                },
+                Primitive::Line {
+                    begin: Vector2::new(12.0, 0.0),
+                    end: Vector2::new(0.0, 12.0),
+                    thickness: 3.0,
+                },
+            ]
+        }
+        HeaderButton::Minimize => {
+            vec![Primitive::Line {
+                begin: Vector2::new(0.0, 0.0),
+                end: Vector2::new(12.0, 0.0),
+                thickness: 3.0,
+            }]
+        }
+    })
+    .build(ctx)
+}
+
 fn make_header_button<M: MessageData, C: Control<M, C>>(
     ctx: &mut BuildContext<M, C>,
-    text: &str,
+    button: HeaderButton,
 ) -> Handle<UINode<M, C>> {
     ButtonBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(2.0)))
         .with_back(
@@ -604,11 +638,11 @@ fn make_header_button<M: MessageData, C: Control<M, C>>(
                     .with_stroke_thickness(Thickness::uniform(0.0)),
             )
             .with_normal_brush(Brush::Solid(Color::TRANSPARENT))
-            .with_hover_brush(Brush::Solid(Color::opaque(120, 120, 120)))
-            .with_pressed_brush(Brush::Solid(Color::opaque(100, 100, 100)))
+            .with_hover_brush(BRUSH_LIGHT)
+            .with_pressed_brush(BRUSH_LIGHTEST)
             .build(ctx),
         )
-        .with_text(text)
+        .with_content(make_mark(ctx, button))
         .build(ctx)
 }
 
@@ -684,20 +718,20 @@ impl<'a, M: MessageData, C: Control<M, C>> WindowBuilder<M, C> {
                 .with_horizontal_alignment(HorizontalAlignment::Stretch)
                 .with_height(30.0)
                 .with_background(Brush::LinearGradient {
-                    from: Vec2::new(0.5, 0.0),
-                    to: Vec2::new(0.5, 1.0),
+                    from: Vector2::new(0.5, 0.0),
+                    to: Vector2::new(0.5, 1.0),
                     stops: vec![
                         GradientPoint {
                             stop: 0.0,
-                            color: Color::opaque(85, 85, 85),
+                            color: COLOR_DARK,
                         },
                         GradientPoint {
-                            stop: 0.5,
-                            color: Color::opaque(65, 65, 65),
+                            stop: 0.85,
+                            color: COLOR_DARK,
                         },
                         GradientPoint {
                             stop: 1.0,
-                            color: Color::opaque(75, 75, 75),
+                            color: COLOR_DARKEST,
                         },
                     ],
                 })
@@ -715,9 +749,9 @@ impl<'a, M: MessageData, C: Control<M, C>> WindowBuilder<M, C> {
                                 title
                             })
                             .with_child({
-                                minimize_button = self
-                                    .minimize_button
-                                    .unwrap_or_else(|| make_header_button(ctx, "_"));
+                                minimize_button = self.minimize_button.unwrap_or_else(|| {
+                                    make_header_button(ctx, HeaderButton::Minimize)
+                                });
                                 ctx[minimize_button]
                                     .set_visibility(self.can_minimize)
                                     .set_width(30.0)
@@ -726,9 +760,9 @@ impl<'a, M: MessageData, C: Control<M, C>> WindowBuilder<M, C> {
                                 minimize_button
                             })
                             .with_child({
-                                close_button = self
-                                    .close_button
-                                    .unwrap_or_else(|| make_header_button(ctx, "X"));
+                                close_button = self.close_button.unwrap_or_else(|| {
+                                    make_header_button(ctx, HeaderButton::Close)
+                                });
                                 ctx[close_button]
                                     .set_width(30.0)
                                     .set_visibility(self.can_close)
@@ -757,23 +791,26 @@ impl<'a, M: MessageData, C: Control<M, C>> WindowBuilder<M, C> {
                 .with_visibility(self.open)
                 .with_child(
                     BorderBuilder::new(
-                        WidgetBuilder::new().with_child(
-                            GridBuilder::new(
-                                WidgetBuilder::new()
-                                    .with_child(self.content)
-                                    .with_child(header),
-                            )
-                            .add_column(Column::stretch())
-                            .add_row(Row::auto())
-                            .add_row(Row::stretch())
-                            .build(ctx),
-                        ),
+                        WidgetBuilder::new()
+                            .with_foreground(BRUSH_LIGHTER)
+                            .with_child(
+                                GridBuilder::new(
+                                    WidgetBuilder::new()
+                                        .with_child(self.content)
+                                        .with_child(header),
+                                )
+                                .add_column(Column::stretch())
+                                .add_row(Row::auto())
+                                .add_row(Row::stretch())
+                                .build(ctx),
+                            ),
                     )
+                    .with_stroke_thickness(Thickness::uniform(1.0))
                     .build(ctx),
                 )
                 .build(),
-            mouse_click_pos: Vec2::ZERO,
-            initial_position: Vec2::ZERO,
+            mouse_click_pos: Vector2::default(),
+            initial_position: Vector2::default(),
             initial_size: Default::default(),
             is_dragging: false,
             minimized: false,

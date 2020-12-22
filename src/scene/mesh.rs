@@ -8,10 +8,12 @@
 //! modelling software or just download some model you like and load it in engine. But since
 //! 3d model can contain multiple nodes, 3d model loading discussed in model resource section.
 
+use crate::core::algebra::{Matrix4, Point3, Vector3};
+use crate::core::pool::Handle;
 use crate::{
     core::{
         color::Color,
-        math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, mat4::Mat4, vec3::Vec3},
+        math::{aabb::AxisAlignedBoundingBox, frustum::Frustum},
         visitor::{Visit, VisitResult, Visitor},
     },
     renderer::surface::Surface,
@@ -33,6 +35,7 @@ pub struct Mesh {
     surfaces: Vec<Surface>,
     bounding_box: Cell<AxisAlignedBoundingBox>,
     bounding_box_dirty: Cell<bool>,
+    cast_shadows: bool,
 }
 
 impl Default for Mesh {
@@ -42,6 +45,7 @@ impl Default for Mesh {
             surfaces: Default::default(),
             bounding_box: Default::default(),
             bounding_box_dirty: Cell::new(true),
+            cast_shadows: true,
         }
     }
 }
@@ -65,6 +69,7 @@ impl Visit for Mesh {
         visitor.enter_region(name)?;
 
         self.base.visit("Common", visitor)?;
+        let _ = self.cast_shadows.visit("CastShadows", visitor);
 
         // Serialize surfaces, but keep in mind that surfaces from resources will be automatically
         // recreated on resolve stage! Serialization of surfaces needed for procedural surfaces.
@@ -109,6 +114,18 @@ impl Mesh {
         }
     }
 
+    /// Returns true if mesh should cast shadows, false - otherwise.
+    #[inline]
+    pub fn cast_shadows(&self) -> bool {
+        self.cast_shadows
+    }
+
+    /// Sets whether mesh should cast shadows or not.
+    #[inline]
+    pub fn set_cast_shadows(&mut self, cast_shadows: bool) {
+        self.cast_shadows = cast_shadows;
+    }
+
     /// Performs lazy bounding box evaluation. Bounding box presented in *local coordinates*
     /// WARNING: This method does *not* includes bounds of bones!
     pub fn bounding_box(&self) -> AxisAlignedBoundingBox {
@@ -116,7 +133,7 @@ impl Mesh {
             let mut bounding_box = AxisAlignedBoundingBox::default();
             for surface in self.surfaces.iter() {
                 let data = surface.data();
-                let data = data.lock().unwrap();
+                let data = data.read().unwrap();
                 for vertex in data.get_vertices() {
                     bounding_box.add_point(vertex.position);
                 }
@@ -133,9 +150,13 @@ impl Mesh {
         let mut bounding_box = AxisAlignedBoundingBox::default();
         for surface in self.surfaces.iter() {
             let data = surface.data();
-            let data = data.lock().unwrap();
+            let data = data.read().unwrap();
             for vertex in data.get_vertices() {
-                bounding_box.add_point(self.global_transform().transform_vector(vertex.position));
+                bounding_box.add_point(
+                    self.global_transform()
+                        .transform_point(&Point3::from(vertex.position))
+                        .coords,
+                );
             }
         }
         bounding_box
@@ -147,11 +168,14 @@ impl Mesh {
         let mut bounding_box = AxisAlignedBoundingBox::default();
         for surface in self.surfaces.iter() {
             let data = surface.data();
-            let data = data.lock().unwrap();
+            let data = data.read().unwrap();
             if surface.bones().is_empty() {
                 for vertex in data.get_vertices() {
-                    bounding_box
-                        .add_point(self.global_transform().transform_vector(vertex.position));
+                    bounding_box.add_point(
+                        self.global_transform()
+                            .transform_point(&Point3::from(vertex.position))
+                            .coords,
+                    );
                 }
             } else {
                 // Special case for skinned surface. Its actual bounds defined only by bones
@@ -165,15 +189,16 @@ impl Mesh {
                         let bone_node = &graph[b];
                         bone_node.global_transform() * bone_node.inv_bind_pose_transform()
                     })
-                    .collect::<Vec<Mat4>>();
+                    .collect::<Vec<Matrix4<f32>>>();
 
                 for vertex in data.get_vertices() {
-                    let mut position = Vec3::ZERO;
+                    let mut position = Vector3::default();
                     for (&bone_index, &weight) in
                         vertex.bone_indices.iter().zip(vertex.bone_weights.iter())
                     {
                         position += bone_matrices[bone_index as usize]
-                            .transform_vector(vertex.position)
+                            .transform_point(&Point3::from(vertex.position))
+                            .coords
                             .scale(weight);
                     }
 
@@ -188,7 +213,8 @@ impl Mesh {
     /// Mesh is considered visible if its bounding box visible by frustum, or if any bones
     /// position is inside frustum.
     pub fn is_intersect_frustum(&self, graph: &Graph, frustum: &Frustum) -> bool {
-        if frustum.is_intersects_aabb_transform(&self.bounding_box(), &self.global_transform) {
+        if frustum.is_intersects_aabb_transform(&self.bounding_box(), &self.global_transform.get())
+        {
             return true;
         }
 
@@ -210,6 +236,7 @@ impl Mesh {
             surfaces: self.surfaces.clone(),
             bounding_box: self.bounding_box.clone(),
             bounding_box_dirty: self.bounding_box_dirty.clone(),
+            cast_shadows: self.cast_shadows,
         }
     }
 }
@@ -218,6 +245,7 @@ impl Mesh {
 pub struct MeshBuilder {
     base_builder: BaseBuilder,
     surfaces: Vec<Surface>,
+    cast_shadows: bool,
 }
 
 impl MeshBuilder {
@@ -226,6 +254,7 @@ impl MeshBuilder {
         Self {
             base_builder,
             surfaces: Default::default(),
+            cast_shadows: true,
         }
     }
 
@@ -235,18 +264,25 @@ impl MeshBuilder {
         self
     }
 
+    /// Sets whether mesh should cast shadows or not.
+    pub fn with_cast_shadows(mut self, cast_shadows: bool) -> Self {
+        self.cast_shadows = cast_shadows;
+        self
+    }
+
     /// Creates new mesh.
-    pub fn build(self) -> Mesh {
-        Mesh {
-            base: self.base_builder.build(),
+    pub fn build_node(self) -> Node {
+        Node::Mesh(Mesh {
+            base: self.base_builder.build_base(),
+            cast_shadows: self.cast_shadows,
             surfaces: self.surfaces,
             bounding_box: Default::default(),
             bounding_box_dirty: Cell::new(true),
-        }
+        })
     }
 
-    /// Creates new node instance.
-    pub fn build_node(self) -> Node {
-        Node::Mesh(self.build())
+    /// Creates new mesh and adds it to the graph.
+    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
+        graph.add_node(self.build_node())
     }
 }

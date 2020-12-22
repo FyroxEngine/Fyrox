@@ -8,6 +8,8 @@
 //! Huge amount of sprites may cause performance issues, also uou should
 //! not use sprites to make particle systems, use ParticleSystem instead.
 
+use crate::core::pool::Handle;
+use crate::scene::graph::Graph;
 use crate::scene::node::Node;
 use crate::{
     core::{
@@ -45,7 +47,7 @@ impl DerefMut for Sprite {
 
 impl Default for Sprite {
     fn default() -> Self {
-        SpriteBuilder::new(BaseBuilder::new()).build()
+        SpriteBuilder::new(BaseBuilder::new()).build_sprite()
     }
 }
 
@@ -170,10 +172,9 @@ impl SpriteBuilder {
         self
     }
 
-    /// Creates new sprite instance.
-    pub fn build(self) -> Sprite {
+    fn build_sprite(self) -> Sprite {
         Sprite {
-            base: self.base_builder.build(),
+            base: self.base_builder.build_base(),
             texture: self.texture,
             color: self.color,
             size: self.size,
@@ -181,8 +182,13 @@ impl SpriteBuilder {
         }
     }
 
-    /// Creates new node instance.
+    /// Creates new sprite instance.
     pub fn build_node(self) -> Node {
-        Node::Sprite(self.build())
+        Node::Sprite(self.build_sprite())
+    }
+
+    /// Creates new sprite instance and adds it to the graph.
+    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
+        graph.add_node(self.build_node())
     }
 }

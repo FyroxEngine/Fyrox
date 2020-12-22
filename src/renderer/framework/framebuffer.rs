@@ -7,7 +7,7 @@ use crate::{
             gl::{self, types::GLuint},
             gpu_program::{GpuProgram, UniformLocation, UniformValue},
             gpu_texture::{CubeMapFace, GpuTexture, GpuTextureKind},
-            state::{ColorMask, State},
+            state::{ColorMask, PipelineState},
         },
     },
 };
@@ -114,7 +114,7 @@ unsafe fn set_attachment(gl_attachment_kind: u32, texture: &GpuTexture) {
 
 impl FrameBuffer {
     pub fn new(
-        state: &mut State,
+        state: &mut PipelineState,
         depth_attachment: Option<Attachment>,
         color_attachments: Vec<Attachment>,
     ) -> Result<Self, RendererError> {
@@ -174,7 +174,7 @@ impl FrameBuffer {
 
     pub fn set_cubemap_face(
         &mut self,
-        state: &mut State,
+        state: &mut PipelineState,
         attachment_index: usize,
         face: CubeMapFace,
     ) -> &mut Self {
@@ -197,15 +197,15 @@ impl FrameBuffer {
 
 fn pre_draw(
     fbo: GLuint,
-    state: &mut State,
+    state: &mut PipelineState,
     viewport: Rect<i32>,
     program: &GpuProgram,
-    params: DrawParameters,
+    params: &DrawParameters,
     uniforms: &[(UniformLocation, UniformValue<'_>)],
 ) {
     state.set_framebuffer(fbo);
     state.set_viewport(viewport);
-    state.apply_draw_parameters(&params);
+    state.apply_draw_parameters(params);
 
     program.bind(state);
     for (location, value) in uniforms {
@@ -213,10 +213,10 @@ fn pre_draw(
     }
 }
 
-pub struct DrawPartContext<'a, 'b, 'c, 'd, T> {
-    pub state: &'a mut State,
+pub struct DrawPartContext<'a, 'b, 'c, 'd> {
+    pub state: &'a mut PipelineState,
     pub viewport: Rect<i32>,
-    pub geometry: &'a mut GeometryBuffer<T>,
+    pub geometry: &'a mut GeometryBuffer,
     pub program: &'b mut GpuProgram,
     pub params: DrawParameters,
     pub uniforms: &'c [(UniformLocation, UniformValue<'d>)],
@@ -229,7 +229,7 @@ pub trait FrameBufferTrait {
 
     fn clear(
         &mut self,
-        state: &mut State,
+        state: &mut PipelineState,
         viewport: Rect<i32>,
         color: Option<Color>,
         depth: Option<f32>,
@@ -263,13 +263,13 @@ pub trait FrameBufferTrait {
         }
     }
 
-    fn draw<T>(
+    fn draw(
         &mut self,
-        geometry: &GeometryBuffer<T>,
-        state: &mut State,
+        geometry: &GeometryBuffer,
+        state: &mut PipelineState,
         viewport: Rect<i32>,
         program: &GpuProgram,
-        params: DrawParameters,
+        params: &DrawParameters,
         uniforms: &[(UniformLocation, UniformValue<'_>)],
     ) -> DrawCallStatistics {
         scope_profile!();
@@ -278,10 +278,23 @@ pub trait FrameBufferTrait {
         geometry.bind(state).draw()
     }
 
-    fn draw_part<T>(
+    fn draw_instances(
         &mut self,
-        args: DrawPartContext<T>,
-    ) -> Result<DrawCallStatistics, RendererError> {
+        count: usize,
+        geometry: &GeometryBuffer,
+        state: &mut PipelineState,
+        viewport: Rect<i32>,
+        program: &GpuProgram,
+        params: &DrawParameters,
+        uniforms: &[(UniformLocation, UniformValue<'_>)],
+    ) -> DrawCallStatistics {
+        scope_profile!();
+
+        pre_draw(self.id(), state, viewport, program, params, uniforms);
+        geometry.bind(state).draw_instances(count)
+    }
+
+    fn draw_part(&mut self, args: DrawPartContext) -> Result<DrawCallStatistics, RendererError> {
         scope_profile!();
 
         pre_draw(
@@ -289,7 +302,7 @@ pub trait FrameBufferTrait {
             args.state,
             args.viewport,
             args.program,
-            args.params,
+            &args.params,
             args.uniforms,
         );
         args.geometry

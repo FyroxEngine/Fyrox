@@ -11,11 +11,7 @@ pub mod shared;
 
 use rg3d::{
     animation::Animation,
-    core::{
-        color::Color,
-        math::{quat::Quat, vec2::Vec2, vec3::Vec3},
-        pool::Handle,
-    },
+    core::{color::Color, pool::Handle},
     engine::resource_manager::ResourceManager,
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -37,6 +33,7 @@ use std::{
 };
 
 use crate::shared::create_camera;
+use rg3d::core::algebra::{UnitQuaternion, Vector2, Vector3};
 
 // Create our own engine type aliases. These specializations are needed
 // because engine provides a way to extend UI with custom nodes and messages.
@@ -51,7 +48,7 @@ struct Interface {
     progress_text: Handle<UiNode>,
 }
 
-fn create_ui(ctx: &mut BuildContext, screen_size: Vec2) -> Interface {
+fn create_ui(ctx: &mut BuildContext, screen_size: Vector2<f32>) -> Interface {
     let debug_text;
     let progress_bar;
     let progress_text;
@@ -140,9 +137,12 @@ fn create_scene_async(resource_manager: ResourceManager) -> Arc<Mutex<SceneLoadC
                 .report_progress(0.0, "Creating camera...");
 
             // Camera is our eyes in the world - you won't see anything without it.
-            let camera = create_camera(resource_manager.clone(), Vec3::new(0.0, 6.0, -12.0)).await;
-
-            scene.graph.add_node(Node::Camera(camera));
+            create_camera(
+                resource_manager.clone(),
+                Vector3::new(0.0, 6.0, -12.0),
+                &mut scene.graph,
+            )
+            .await;
 
             context
                 .lock()
@@ -169,7 +169,7 @@ fn create_scene_async(resource_manager: ResourceManager) -> Arc<Mutex<SceneLoadC
             scene.graph[model_handle]
                 .local_transform_mut()
                 // Our model is too big, fix it by scale.
-                .set_scale(Vec3::new(0.05, 0.05, 0.05));
+                .set_scale(Vector3::new(0.05, 0.05, 0.05));
 
             context
                 .lock()
@@ -218,7 +218,7 @@ fn main() {
         .with_title("Example - Asynchronous Scene Loading")
         .with_resizable(true);
 
-    let mut engine = GameEngine::new(window_builder, &event_loop).unwrap();
+    let mut engine = GameEngine::new(window_builder, &event_loop, true).unwrap();
 
     // Prepare resource manager - it must be notified where to search textures. When engine
     // loads model resource it automatically tries to load textures it uses. But since most
@@ -234,7 +234,7 @@ fn main() {
     let screen_size = window.inner_size().to_logical(window.scale_factor());
     let interface = create_ui(
         &mut engine.user_interface.build_ctx(),
-        Vec2::new(screen_size.width, screen_size.height),
+        Vector2::new(screen_size.width, screen_size.height),
     );
 
     // Create scene asynchronously - this method immediately returns empty load context
@@ -328,7 +328,7 @@ fn main() {
 
                         scene.graph[model_handle]
                             .local_transform_mut()
-                            .set_rotation(Quat::from_axis_angle(Vec3::new(0.0, 1.0, 0.0), model_angle));
+                            .set_rotation(UnitQuaternion::from_axis_angle(&Vector3::y_axis(), model_angle));
                     }
 
                     // While scene is loading, we will update progress bar.

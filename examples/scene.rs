@@ -11,10 +11,11 @@ extern crate rg3d;
 pub mod shared;
 
 use crate::shared::create_camera;
+use rg3d::scene::base::BaseBuilder;
 use rg3d::{
     core::{
+        algebra::{UnitQuaternion, Vector3},
         color::Color,
-        math::{quat::Quat, vec3::Vec3},
         pool::Handle,
     },
     engine::resource_manager::ResourceManager,
@@ -43,27 +44,32 @@ fn create_ui(ctx: &mut BuildContext) -> Handle<UiNode> {
 
 struct GameScene {
     scene: Scene,
-    root: Handle<Node>,
+    pivot: Handle<Node>,
 }
 
 async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     let mut scene = Scene::new();
 
     // Camera is our eyes in the world - you won't see anything without it.
-    let camera = create_camera(resource_manager.clone(), Vec3::new(0.0, 4.0, -8.0)).await;
-
-    scene.graph.add_node(Node::Camera(camera));
+    let pivot = BaseBuilder::new()
+        .with_children(&[create_camera(
+            resource_manager.clone(),
+            Vector3::new(0.0, 4.0, -8.0),
+            &mut scene.graph,
+        )
+        .await])
+        .build(&mut scene.graph);
 
     // There is no difference between scene created in rusty-editor and any other
     // model file, so any scene can be used directly as resource.
-    let root = resource_manager
+    resource_manager
         .request_model("examples/data/test_scene.rgs")
         .await
         .unwrap()
         .instantiate(&mut scene)
         .root;
 
-    GameScene { scene, root }
+    GameScene { scene, pivot }
 }
 
 struct InputController {
@@ -78,7 +84,7 @@ fn main() {
         .with_title("Example - Scene")
         .with_resizable(true);
 
-    let mut engine = GameEngine::new(window_builder, &event_loop).unwrap();
+    let mut engine = GameEngine::new(window_builder, &event_loop, true).unwrap();
 
     // Prepare resource manager - it must be notified where to search textures. When engine
     // loads model resource it automatically tries to load textures it uses. But since most
@@ -93,7 +99,7 @@ fn main() {
     let debug_text = create_ui(&mut engine.user_interface.build_ctx());
 
     // Create test scene.
-    let GameScene { scene, root } =
+    let GameScene { scene, pivot } =
         rg3d::futures::executor::block_on(create_scene(engine.resource_manager.clone()));
 
     // Add scene to engine - engine will take ownership over scene and will return
@@ -102,14 +108,14 @@ fn main() {
     let scene_handle = engine.scenes.add(scene);
 
     // Set ambient light.
-    engine.renderer.set_ambient_color(Color::opaque(0, 0, 0));
+    engine.renderer.set_ambient_color(Color::opaque(80, 80, 80));
 
     let clock = Instant::now();
     let fixed_timestep = 1.0 / 60.0;
     let mut elapsed_time = 0.0;
 
     // We will rotate model using keyboard input.
-    let mut model_angle = 180.0f32.to_radians();
+    let mut model_angle = 0.0f32.to_radians();
 
     // Create input controller - it will hold information about needed actions.
     let mut input_controller = InputController {
@@ -146,13 +152,13 @@ fn main() {
                         model_angle += 5.0f32.to_radians();
                     }
 
-                    scene.graph[root]
-                        .local_transform_mut()
-                        .set_rotation(Quat::from_axis_angle(Vec3::new(0.0, 1.0, 0.0), model_angle));
+                    scene.graph[pivot].local_transform_mut().set_rotation(
+                        UnitQuaternion::from_axis_angle(&Vector3::y_axis(), model_angle),
+                    );
 
                     let fps = engine.renderer.get_statistics().frames_per_second;
                     let text = format!(
-                        "Example 05 - Scene\nUse [A][D] keys to rotate scene.\nFPS: {}",
+                        "Example 05 - Scene\nUse [A][D] keys to rotate camera.\nFPS: {}",
                         fps
                     );
                     engine.user_interface.send_message(TextMessage::text(

@@ -1,5 +1,5 @@
+use crate::rg3d_core::byteorder::{LittleEndian, ReadBytesExt};
 use crate::{buffer::DataSource, error::SoundError};
-use byteorder::{LittleEndian, ReadBytesExt};
 use std::io::{Read, Seek, SeekFrom};
 use std::time::Duration;
 

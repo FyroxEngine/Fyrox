@@ -3,12 +3,10 @@
 //! File selector is dialog window with file browser, it somewhat similar to standard
 //! OS file selector.
 
+use crate::core::algebra::Vector2;
 use crate::{
     button::ButtonBuilder,
-    core::{
-        math::{vec2::Vec2, Rect},
-        pool::Handle,
-    },
+    core::{math::Rect, pool::Handle},
     draw::DrawingContext,
     grid::{Column, GridBuilder, Row},
     message::{
@@ -163,7 +161,9 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileBrowser<M, C> {
                 }
             }
             UiMessageData::TextBox(msg) => {
-                if message.destination() == self.path_text {
+                if message.destination() == self.path_text
+                    && message.direction() == MessageDirection::FromWidget
+                {
                     if let TextBoxMessage::Text(txt) = msg {
                         self.path = txt.into();
                     }
@@ -516,7 +516,7 @@ impl<M: MessageData, C: Control<M, C>> FileBrowserBuilder<M, C> {
                         WidgetBuilder::new()
                             .on_row(0)
                             .on_column(0)
-                            .with_margin(Thickness::uniform(1.0)),
+                            .with_margin(Thickness::uniform(2.0)),
                     )
                     .with_vertical_text_alignment(VerticalAlignment::Center)
                     .with_text(self.path.to_string_lossy().as_ref())
@@ -577,11 +577,15 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileSelector<M, C> {
         node_map.resolve(&mut self.cancel);
     }
 
-    fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
+    fn measure_override(
+        &self,
+        ui: &UserInterface<M, C>,
+        available_size: Vector2<f32>,
+    ) -> Vector2<f32> {
         self.window.measure_override(ui, available_size)
     }
 
-    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
+    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
         self.window.arrange_override(ui, final_size)
     }
 
@@ -597,7 +601,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileSelector<M, C> {
         self.window.is_arrange_valid(ui)
     }
 
-    fn measure(&self, ui: &UserInterface<M, C>, available_size: Vec2) {
+    fn measure(&self, ui: &UserInterface<M, C>, available_size: Vector2<f32>) {
         self.window.measure(ui, available_size)
     }
 

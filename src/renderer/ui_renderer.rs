@@ -1,12 +1,11 @@
-use crate::resource::texture::{TextureData, TextureKind, TextureState};
 use crate::{
     core::{
+        algebra::{Matrix4, Vector2, Vector4},
         color::Color,
-        math::{mat4::Mat4, vec2::Vec2, vec4::Vec4, Rect},
+        math::Rect,
         scope_profile,
     },
     gui::{
-        self,
         brush::Brush,
         draw::{CommandKind, CommandTexture, DrawingContext, SharedTexture},
     },
@@ -17,16 +16,17 @@ use crate::{
                 BackBuffer, CullFace, DrawParameters, DrawPartContext, FrameBufferTrait,
             },
             geometry_buffer::{
-                AttributeDefinition, AttributeKind, ElementKind, GeometryBuffer, GeometryBufferKind,
+                AttributeDefinition, AttributeKind, BufferBuilder, ElementKind, GeometryBuffer,
+                GeometryBufferBuilder, GeometryBufferKind,
             },
             gl,
             gpu_program::{GpuProgram, UniformLocation, UniformValue},
             gpu_texture::GpuTexture,
-            state::{ColorMask, State, StencilFunc, StencilOp},
+            state::{ColorMask, PipelineState, StencilFunc, StencilOp},
         },
         RenderPassStatistics, TextureCache,
     },
-    resource::texture::{Texture, TexturePixelKind},
+    resource::texture::{Texture, TextureData, TextureKind, TexturePixelKind, TextureState},
 };
 use std::{
     cell::RefCell,
@@ -49,6 +49,7 @@ struct UiShader {
     resolution: UniformLocation,
     bounds_min: UniformLocation,
     bounds_max: UniformLocation,
+    opacity: UniformLocation,
 }
 
 impl UiShader {
@@ -70,6 +71,7 @@ impl UiShader {
             bounds_min: program.uniform_location("boundsMin")?,
             bounds_max: program.uniform_location("boundsMax")?,
             resolution: program.uniform_location("resolution")?,
+            opacity: program.uniform_location("opacity")?,
             program,
         })
     }
@@ -77,11 +79,11 @@ impl UiShader {
 
 pub struct UiRenderer {
     shader: UiShader,
-    geometry_buffer: GeometryBuffer<gui::draw::Vertex>,
+    geometry_buffer: GeometryBuffer,
 }
 
 pub(in crate) struct UiRenderContext<'a, 'b, 'c> {
-    pub state: &'a mut State,
+    pub state: &'a mut PipelineState,
     pub viewport: Rect<i32>,
     pub backbuffer: &'b mut BackBuffer,
     pub frame_width: f32,
@@ -92,24 +94,33 @@ pub(in crate) struct UiRenderContext<'a, 'b, 'c> {
 }
 
 impl UiRenderer {
-    pub(in crate::renderer) fn new(state: &mut State) -> Result<Self, RendererError> {
-        let geometry_buffer =
-            GeometryBuffer::new(GeometryBufferKind::DynamicDraw, ElementKind::Triangle);
-
-        geometry_buffer.bind(state).describe_attributes(vec![
-            AttributeDefinition {
-                kind: AttributeKind::Float2,
-                normalized: false,
-            },
-            AttributeDefinition {
-                kind: AttributeKind::Float2,
-                normalized: false,
-            },
-            AttributeDefinition {
-                kind: AttributeKind::UnsignedByte4,
-                normalized: true, // Make sure [0; 255] -> [0; 1]
-            },
-        ])?;
+    pub(in crate::renderer) fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
+        let geometry_buffer = GeometryBufferBuilder::new(ElementKind::Triangle)
+            .with_buffer_builder(
+                BufferBuilder::new::<crate::gui::draw::Vertex>(
+                    GeometryBufferKind::DynamicDraw,
+                    None,
+                )
+                .with_attribute(AttributeDefinition {
+                    location: 0,
+                    kind: AttributeKind::Float2,
+                    normalized: false,
+                    divisor: 0,
+                })
+                .with_attribute(AttributeDefinition {
+                    location: 1,
+                    kind: AttributeKind::Float2,
+                    normalized: false,
+                    divisor: 0,
+                })
+                .with_attribute(AttributeDefinition {
+                    location: 2,
+                    kind: AttributeKind::UnsignedByte4,
+                    normalized: true, // Make sure [0; 255] -> [0; 1]
+                    divisor: 0,
+                }),
+            )
+            .build(state)?;
 
         Ok(Self {
             geometry_buffer,
@@ -138,13 +149,13 @@ impl UiRenderer {
 
         state.set_blend_func(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
 
+        self.geometry_buffer
+            .set_buffer_data(state, 0, drawing_context.get_vertices());
+
         let geometry_buffer = self.geometry_buffer.bind(state);
+        geometry_buffer.set_triangles(drawing_context.get_triangles());
 
-        geometry_buffer
-            .set_triangles(drawing_context.get_triangles())
-            .set_vertices(drawing_context.get_vertices());
-
-        let ortho = Mat4::ortho(0.0, frame_width, frame_height, 0.0, -1.0, 1.0);
+        let ortho = Matrix4::new_orthographic(0.0, frame_width, frame_height, 0.0, -1.0, 1.0);
 
         for cmd in drawing_context.get_commands() {
             let mut diffuse_texture = white_dummy.clone();
@@ -227,7 +238,7 @@ impl UiRenderer {
             }
 
             let mut raw_stops = [0.0; 16];
-            let mut raw_colors = [Vec4::default(); 16];
+            let mut raw_colors = [Vector4::default(); 16];
 
             let uniforms = [
                 (
@@ -237,13 +248,19 @@ impl UiRenderer {
                         texture: diffuse_texture,
                     },
                 ),
-                (self.shader.wvp_matrix, UniformValue::Mat4(ortho)),
+                (self.shader.wvp_matrix, UniformValue::Matrix4(ortho)),
                 (
                     self.shader.resolution,
-                    UniformValue::Vec2(Vec2::new(frame_width, frame_height)),
+                    UniformValue::Vector2(Vector2::new(frame_width, frame_height)),
                 ),
-                (self.shader.bounds_min, UniformValue::Vec2(cmd.bounds.min)),
-                (self.shader.bounds_max, UniformValue::Vec2(cmd.bounds.max)),
+                (
+                    self.shader.bounds_min,
+                    UniformValue::Vector2(cmd.bounds.min),
+                ),
+                (
+                    self.shader.bounds_max,
+                    UniformValue::Vector2(cmd.bounds.max),
+                ),
                 (self.shader.is_font, UniformValue::Bool(is_font_texture)),
                 (
                     self.shader.brush_type,
@@ -266,9 +283,9 @@ impl UiRenderer {
                 ),
                 (
                     self.shader.gradient_origin,
-                    UniformValue::Vec2({
+                    UniformValue::Vector2({
                         match cmd.brush {
-                            Brush::Solid(_) => Vec2::ZERO,
+                            Brush::Solid(_) => Vector2::default(),
                             Brush::LinearGradient { from, .. } => from,
                             Brush::RadialGradient { center, .. } => center,
                         }
@@ -276,11 +293,11 @@ impl UiRenderer {
                 ),
                 (
                     self.shader.gradient_end,
-                    UniformValue::Vec2({
+                    UniformValue::Vector2({
                         match cmd.brush {
-                            Brush::Solid(_) => Vec2::ZERO,
+                            Brush::Solid(_) => Vector2::default(),
                             Brush::LinearGradient { to, .. } => to,
-                            Brush::RadialGradient { .. } => Vec2::ZERO,
+                            Brush::RadialGradient { .. } => Vector2::default(),
                         }
                     }),
                 ),
@@ -324,6 +341,7 @@ impl UiRenderer {
                         }
                     }),
                 ),
+                (self.shader.opacity, UniformValue::Float(cmd.opacity)),
             ];
 
             let params = DrawParameters {

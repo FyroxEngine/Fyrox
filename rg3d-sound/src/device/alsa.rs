@@ -122,18 +122,20 @@ impl Device for AlsaSoundDevice {
         }
     }
 
-    fn feed(&mut self) {
-        self.mix();
+    fn run(&mut self) {
+        loop {
+            self.mix();
 
-        unsafe {
-            let err = snd_pcm_writei(
-                self.playback_device,
-                self.out_data.as_ptr() as *const _,
-                self.frame_count.into(),
-            ) as i32;
-            if err == -32 {
-                // EPIPE error (buffer underrun)
-                snd_pcm_recover(self.playback_device, err, 0);
+            unsafe {
+                let err = snd_pcm_writei(
+                    self.playback_device,
+                    self.out_data.as_ptr() as *const _,
+                    self.frame_count.into(),
+                ) as i32;
+                if err == -32 {
+                    // EPIPE error (buffer underrun)
+                    snd_pcm_recover(self.playback_device, err, 0);
+                }
             }
         }
     }
