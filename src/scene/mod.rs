@@ -31,6 +31,9 @@ use crate::{
     utils::{lightmap::Lightmap, log::Log},
 };
 use rapier3d::na::Point3;
+use rg3d_sound::context::Context;
+use rg3d_sound::engine::SoundEngine;
+use std::sync::{Arc, Mutex};
 use std::{
     collections::HashMap,
     ops::{Index, IndexMut},
@@ -757,6 +760,9 @@ pub struct Scene {
     /// Drawing context for simple graphics.
     pub drawing_context: SceneDrawingContext,
 
+    /// A sound context that holds all sound sources, effects, etc. belonging to the scene.
+    pub sound_context: Context,
+
     lightmap: Option<Lightmap>,
 }
 
@@ -770,6 +776,7 @@ impl Default for Scene {
             render_target: None,
             lightmap: None,
             drawing_context: Default::default(),
+            sound_context: Default::default(),
         }
     }
 }
@@ -801,6 +808,7 @@ impl Scene {
             render_target: None,
             lightmap: None,
             drawing_context: Default::default(),
+            sound_context: Context::new(),
         }
     }
 
@@ -1079,6 +1087,7 @@ impl Scene {
                 render_target: Default::default(),
                 lightmap: self.lightmap.clone(),
                 drawing_context: self.drawing_context.clone(),
+                sound_context: self.sound_context.deep_clone(),
             },
             old_new_map,
         )
@@ -1093,18 +1102,24 @@ impl Visit for Scene {
         self.animations.visit("Animations", visitor)?;
         self.physics.visit("Physics", visitor)?;
         let _ = self.lightmap.visit("Lightmap", visitor);
+        let _ = self.sound_context.visit("SoundContext", visitor);
         visitor.leave_region()
     }
 }
 
-/// Container for scenes in the engine. It just a simple wrapper around Pool.
+/// Container for scenes in the engine.
+#[derive(Default)]
 pub struct SceneContainer {
     pool: Pool<Scene>,
+    sound_engine: Arc<Mutex<SoundEngine>>,
 }
 
 impl SceneContainer {
-    pub(in crate) fn new() -> Self {
-        Self { pool: Pool::new() }
+    pub(in crate) fn new(sound_engine: Arc<Mutex<SoundEngine>>) -> Self {
+        Self {
+            pool: Pool::new(),
+            sound_engine,
+        }
     }
 
     /// Returns pair iterator which yields (handle, scene_ref) pairs.
@@ -1127,6 +1142,10 @@ impl SceneContainer {
     /// Adds new scene into container.
     #[inline]
     pub fn add(&mut self, scene: Scene) -> Handle<Scene> {
+        self.sound_engine
+            .lock()
+            .unwrap()
+            .add_context(scene.sound_context.clone());
         self.pool.spawn(scene)
     }
 
@@ -1139,6 +1158,10 @@ impl SceneContainer {
     /// Removes given scene from container.
     #[inline]
     pub fn remove(&mut self, handle: Handle<Scene>) {
+        self.sound_engine
+            .lock()
+            .unwrap()
+            .remove_context(self.pool[handle].sound_context.clone());
         self.pool.free(handle);
     }
 }
@@ -1159,17 +1182,12 @@ impl IndexMut<Handle<Scene>> for SceneContainer {
     }
 }
 
-impl Default for SceneContainer {
-    fn default() -> Self {
-        Self { pool: Pool::new() }
-    }
-}
-
 impl Visit for SceneContainer {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
         self.pool.visit("Pool", visitor)?;
+        let _ = self.sound_engine.visit("SoundEngine", visitor);
 
         visitor.leave_region()
     }

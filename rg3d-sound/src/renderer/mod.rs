@@ -12,6 +12,7 @@ use crate::{
     renderer::hrtf::HrtfRenderer,
     source::{generic::GenericSource, SoundSource},
 };
+use rg3d_core::visitor::{Visit, VisitResult, Visitor};
 
 pub mod hrtf;
 
@@ -19,6 +20,7 @@ pub mod hrtf;
 // This "large size difference" is not a problem because renderer
 // can be only one at a time on context.
 #[allow(clippy::large_enum_variant)]
+#[derive(Debug, Clone)]
 pub enum Renderer {
     /// Stateless default renderer.
     Default,
@@ -26,6 +28,29 @@ pub enum Renderer {
     /// Can be used *only* with mono sounds, stereo sounds will be rendered through
     /// default renderer.
     HrtfRenderer(HrtfRenderer),
+}
+
+impl Renderer {
+    fn id(&self) -> u32 {
+        match self {
+            Renderer::Default => 0,
+            Renderer::HrtfRenderer(_) => 1,
+        }
+    }
+
+    fn from_id(id: u32) -> Result<Self, String> {
+        match id {
+            0 => Ok(Self::Default),
+            1 => Ok(Self::HrtfRenderer(HrtfRenderer::default())),
+            _ => Err(format!("Invalid renderer id {}!", id)),
+        }
+    }
+}
+
+impl Default for Renderer {
+    fn default() -> Self {
+        Self::Default
+    }
 }
 
 fn render_with_params(
@@ -78,5 +103,25 @@ pub(in crate) fn render_source_default(
             spatial.generic_mut().last_left_gain = Some(left_gain);
             spatial.generic_mut().last_right_gain = Some(right_gain);
         }
+    }
+}
+
+impl Visit for Renderer {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        let mut id = self.id();
+        id.visit("Id", visitor)?;
+        if visitor.is_reading() {
+            *self = Self::from_id(id)?;
+        }
+        match self {
+            Renderer::Default => {}
+            Renderer::HrtfRenderer(hrtf) => {
+                hrtf.visit("Hrtf", visitor)?;
+            }
+        }
+
+        visitor.leave_region()
     }
 }

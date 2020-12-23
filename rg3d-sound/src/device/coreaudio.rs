@@ -3,7 +3,9 @@ use crate::{
     error::SoundError,
 };
 use coreaudio_sys::*;
+use std::sync::Arc;
 use std::{ffi::c_void, mem::size_of};
+use winapi::_core::sync::atomic::AtomicBool;
 
 pub struct CoreaudioSoundDevice {
     /// Give fixed memory location
@@ -164,7 +166,8 @@ impl Device for CoreaudioSoundDevice {
         }
     }
 
-    fn run(&mut self) {
+    // TODO: Use stop token!
+    fn run(&mut self, _stop_token: Arc<AtomicBool>) {
         unsafe {
             CFRunLoopRun(); // blocking
         }

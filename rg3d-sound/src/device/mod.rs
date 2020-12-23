@@ -5,7 +5,8 @@
 //! Device is an abstraction over output device which provides unified way of communication with
 //! output device.
 
-use crate::error::SoundError;
+use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
 
 #[cfg(target_os = "windows")]
 mod dsound;
@@ -56,7 +57,7 @@ fn sample_to_i16(sample: f32) -> i16 {
 trait Device {
     fn get_mix_context(&mut self) -> MixContext;
 
-    fn run(&mut self);
+    fn run(&mut self, stop_token: Arc<AtomicBool>);
 
     fn mix(&mut self) {
         let context = self.get_mix_context();
@@ -84,7 +85,8 @@ trait Device {
 pub(in crate) fn run_device(
     buffer_len_bytes: u32,
     callback: Box<FeedCallback>,
-) -> Result<(), SoundError> {
+    stop_token: Arc<AtomicBool>,
+) {
     std::thread::spawn(move || {
         #[cfg(target_os = "windows")]
         let mut device = dsound::DirectSoundDevice::new(buffer_len_bytes, callback).unwrap();
@@ -94,7 +96,6 @@ pub(in crate) fn run_device(
         let mut device = coreaudio::CoreaudioSoundDevice::new(buffer_len_bytes, callback).unwrap();
         #[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))]
         let mut device = dummy::DummySoundDevice::new(buffer_len_bytes, callback).unwrap();
-        device.run()
+        device.run(stop_token)
     });
-    Ok(())
 }

@@ -3,6 +3,8 @@ use crate::{
     error::SoundError,
 };
 use std::mem::size_of;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 pub struct DummySoundDevice {
     callback: Box<FeedCallback>,
@@ -30,8 +32,12 @@ impl Device for DummySoundDevice {
         }
     }
 
-    fn run(&mut self) {
+    fn run(&mut self, stop_token: Arc<AtomicBool>) {
         loop {
+            if stop_token.load(Ordering::SeqCst) {
+                break;
+            }
+
             self.mix();
         }
     }

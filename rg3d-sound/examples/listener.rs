@@ -1,6 +1,7 @@
 use rg3d_core::algebra::Point3;
+use rg3d_sound::engine::SoundEngine;
 use rg3d_sound::{
-    algebra::{Matrix4, UnitQuaternion, Vector3},
+    algebra::{UnitQuaternion, Vector3},
     buffer::DataSource,
     buffer::SoundBuffer,
     context::Context,
@@ -12,8 +13,13 @@ use std::{
 };
 
 fn main() {
-    // Initialize new sound context with default output device.
-    let context = Context::new().unwrap();
+    // Initialize sound engine with default output device.
+    let engine = SoundEngine::new();
+
+    // Initialize new sound context.
+    let context = Context::new();
+
+    engine.lock().unwrap().add_context(context.clone());
 
     // Load sound buffer.
     let drop_buffer =
@@ -31,7 +37,7 @@ fn main() {
 
     // Each sound sound must be added to context, context takes ownership on source
     // and returns pool handle to it by which it can be accessed later on if needed.
-    context.lock().unwrap().add_source(source);
+    context.state().add_source(source);
 
     // Rotate listener for some time.
     let start_time = time::Instant::now();
@@ -40,7 +46,7 @@ fn main() {
         // Separate scope for update to make sure that mutex lock will be released before
         // thread::sleep will be called so context can actually work in background thread.
         {
-            let mut context = context.lock().unwrap();
+            let mut context = context.state();
 
             let listener = context.listener_mut();
 

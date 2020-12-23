@@ -15,15 +15,13 @@ use crate::{
     gui::{Control, UserInterface},
     renderer::{error::RendererError, Renderer},
     scene::SceneContainer,
-    sound::context::Context,
     window::{Window, WindowBuilder},
     Api, GlProfile, GlRequest, NotCurrent, PossiblyCurrent, WindowedContext,
 };
+use rg3d_sound::engine::SoundEngine;
 use rg3d_ui::message::MessageData;
-use std::{
-    sync::{Arc, Mutex},
-    time::{self, Duration},
-};
+use std::sync::{Arc, Mutex};
+use std::time::{self, Duration};
 
 /// See module docs.
 pub struct Engine<M: MessageData, C: Control<M, C>> {
@@ -37,7 +35,7 @@ pub struct Engine<M: MessageData, C: Control<M, C>> {
     /// Sound context control all sound sources in the engine. It is wrapped into Arc<Mutex<>>
     /// because internally sound engine spawns separate thread to mix and send data to sound
     /// device. For more info see docs for Context.
-    pub sound_context: Arc<Mutex<Context>>,
+    pub sound_engine: Arc<Mutex<SoundEngine>>,
     /// Current resource manager. Resource manager wrapped into Arc<Mutex<>> to be able to
     /// use resource manager from any thread, this is useful to load resources from multiple
     /// threads to decrease loading times of your game by utilizing all available power of
@@ -88,12 +86,13 @@ impl<M: MessageData, C: Control<M, C>> Engine<M, C> {
         };
 
         let client_size = context.window().inner_size();
+        let sound_engine = SoundEngine::new();
 
         Ok(Self {
             renderer: Renderer::new(&mut context, client_size.into())?,
             resource_manager: ResourceManager::new(),
-            sound_context: Context::new()?,
-            scenes: SceneContainer::new(),
+            scenes: SceneContainer::new(sound_engine.clone()),
+            sound_engine,
             user_interface: UserInterface::new(Vector2::new(
                 client_size.width as f32,
                 client_size.height as f32,
@@ -161,8 +160,8 @@ impl<M: MessageData, C: Control<M, C>> Visit for Engine<M, C> {
         }
 
         self.resource_manager.visit("ResourceManager", visitor)?;
+        self.sound_engine.visit("SoundEngine", visitor)?;
         self.scenes.visit("Scenes", visitor)?;
-        self.sound_context.lock()?.visit("SoundContext", visitor)?;
 
         if visitor.is_reading() {
             futures::executor::block_on(self.resource_manager.reload_resources());

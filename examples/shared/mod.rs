@@ -10,6 +10,7 @@ use rapier3d::na::{Isometry3, UnitQuaternion, Vector3};
 use rg3d::core::algebra::Vector2;
 use rg3d::scene::graph::Graph;
 use rg3d::scene::RigidBodyHandle;
+use rg3d::sound::effects::{BaseEffect, Effect};
 use rg3d::{
     animation::{
         machine::{Machine, Parameter, PoseNode, State, Transition},
@@ -37,6 +38,7 @@ use rg3d::{
         Scene,
     },
 };
+use std::time::Duration;
 use std::{
     path::Path,
     sync::{Arc, Mutex},
@@ -202,12 +204,14 @@ pub fn create_ui(ui: &mut BuildContext, screen_size: Vector2<f32>) -> Interface 
 pub struct SceneLoadResult {
     pub scene: Scene,
     pub player: Player,
+    pub reverb_effect: Handle<Effect>,
 }
 
 #[derive(Default)]
 pub struct GameScene {
     pub scene: Handle<Scene>,
     pub player: Player,
+    pub reverb_effect: Handle<Effect>,
 }
 
 pub struct SceneLoadContext {
@@ -738,6 +742,20 @@ pub fn create_scene_async(resource_manager: ResourceManager) -> Arc<Mutex<SceneL
         futures::executor::block_on(async move {
             let mut scene = Scene::new();
 
+            // Create reverb effect for more natural sound - our player walks in some sort of cathedral,
+            // so there will be pretty decent echo.
+            let mut base_effect = BaseEffect::default();
+            // Make sure it won't be too loud - rg3d-sound doesn't care about energy conservation law, it
+            // just makes requested calculation.
+            base_effect.set_gain(0.7);
+            let mut reverb = rg3d::sound::effects::reverb::Reverb::new(base_effect);
+            // Set reverb time to ~3 seconds - the more time the deeper the echo.
+            reverb.set_decay_time(Duration::from_secs_f32(3.0));
+            let reverb_effect = scene
+                .sound_context
+                .state()
+                .add_effect(rg3d::sound::effects::Effect::Reverb(reverb));
+
             context
                 .lock()
                 .unwrap()
@@ -768,7 +786,11 @@ pub fn create_scene_async(resource_manager: ResourceManager) -> Arc<Mutex<SceneL
 
             context.lock().unwrap().report_progress(1.0, "Done");
 
-            context.lock().unwrap().scene_data = Some(SceneLoadResult { scene, player });
+            context.lock().unwrap().scene_data = Some(SceneLoadResult {
+                scene,
+                player,
+                reverb_effect,
+            });
         })
     });
 

@@ -10,9 +10,16 @@ use rg3d_core::math::Matrix3Ext;
 use rg3d_core::visitor::{Visit, VisitResult, Visitor};
 
 /// See module docs.
+#[derive(Debug, Clone)]
 pub struct Listener {
     basis: Matrix3<f32>,
     position: Vector3<f32>,
+}
+
+impl Default for Listener {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Listener {

@@ -54,7 +54,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     let mut scene = Scene::new();
 
     // Camera is our eyes in the world - you won't see anything without it.
-    let camera = create_camera(
+    create_camera(
         resource_manager.clone(),
         Vector3::new(0.0, 6.0, -12.0),
         &mut scene.graph,

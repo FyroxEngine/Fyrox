@@ -75,8 +75,10 @@ extern crate rg3d_core;
 
 pub mod buffer;
 pub mod context;
+
 pub mod dsp;
 pub mod effects;
+pub mod engine;
 pub mod error;
 pub mod listener;
 pub mod renderer;

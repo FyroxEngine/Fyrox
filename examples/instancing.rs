@@ -123,7 +123,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
             scene
                 .animations
                 .get_mut(walk_animation)
-                .set_speed(rg3d::rand::thread_rng().gen_range(0.8, 1.2));
+                .set_speed(rg3d::rand::thread_rng().gen_range(0.8..1.2));
 
             animations.push(walk_animation);
         }

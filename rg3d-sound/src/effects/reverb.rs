@@ -41,7 +41,7 @@ use std::{
     time::Duration,
 };
 
-#[derive(Default)]
+#[derive(Default, Debug, Clone)]
 struct ChannelReverb {
     fc: f32,
     sample_rate: u32,
@@ -151,6 +151,7 @@ impl Visit for ChannelReverb {
 }
 
 /// See module docs.
+#[derive(Debug, Clone)]
 pub struct Reverb {
     base: BaseEffect,
     dry: f32,
