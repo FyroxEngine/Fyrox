@@ -6,7 +6,6 @@
 
 use crate::{context::Context, device};
 use rg3d_core::visitor::{Visit, VisitResult, Visitor};
-use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
 /// Internal state of sound engine.
@@ -14,7 +13,6 @@ use std::sync::{Arc, Mutex};
 pub struct SoundEngine {
     contexts: Vec<Context>,
     master_gain: f32,
-    token: Arc<AtomicBool>,
 }
 
 impl SoundEngine {
@@ -25,27 +23,22 @@ impl SoundEngine {
         let engine = Arc::new(Mutex::new(Self {
             contexts: Default::default(),
             master_gain: 1.0,
-            token: Arc::new(AtomicBool::new(false)),
         }));
 
         // Run the default output device. Internally it creates separate thread, so we have
         // to share sound engine instance with it, this is the only reason why it is wrapped
         // in Arc<Mutex<>>
-        device::run_device(
-            4 * Context::SAMPLES_PER_CHANNEL as u32,
-            {
-                let state = engine.clone();
-                Box::new(move |buf| {
-                    if let Ok(mut state) = state.lock() {
-                        let master_gain = state.master_gain;
-                        for context in state.contexts.iter_mut() {
-                            context.state().render(master_gain, buf);
-                        }
+        device::run_device(4 * Context::SAMPLES_PER_CHANNEL as u32, {
+            let state = engine.clone();
+            Box::new(move |buf| {
+                if let Ok(mut state) = state.lock() {
+                    let master_gain = state.master_gain;
+                    for context in state.contexts.iter_mut() {
+                        context.state().render(master_gain, buf);
                     }
-                })
-            },
-            engine.lock().unwrap().token.clone(),
-        );
+                }
+            })
+        });
 
         engine
     }

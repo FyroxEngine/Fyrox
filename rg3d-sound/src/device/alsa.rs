@@ -4,8 +4,6 @@ use crate::{
     error::SoundError,
 };
 use alsa_sys::*;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
 use std::{
     ffi::{CStr, CString},
     mem::size_of,
@@ -124,12 +122,8 @@ impl Device for AlsaSoundDevice {
         }
     }
 
-    fn run(&mut self, stop_token: Arc<AtomicBool>) {
+    fn run(&mut self) {
         loop {
-            if stop_token.load(Ordering::SeqCst) {
-                break;
-            }
-
             self.mix();
 
             unsafe {

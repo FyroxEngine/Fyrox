@@ -6,8 +6,6 @@ use crate::{
     error::SoundError,
 };
 use std::mem::size_of;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
 use winapi::{
     ctypes::c_void,
     shared::{
@@ -196,12 +194,8 @@ impl Device for DirectSoundDevice {
         }
     }
 
-    fn run(&mut self, stop_token: Arc<AtomicBool>) {
+    fn run(&mut self) {
         loop {
-            if stop_token.load(Ordering::SeqCst) {
-                break;
-            }
-
             self.mix();
 
             // Wait and send.

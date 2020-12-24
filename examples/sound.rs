@@ -20,12 +20,11 @@ use rg3d::{
     rand::Rng,
     renderer::QualitySettings,
     sound::{
-        effects::{BaseEffect, EffectInput},
+        effects::EffectInput,
         source::{generic::GenericSourceBuilder, spatial::SpatialSourceBuilder, Status},
     },
     utils::translate_event,
 };
-use std::time::Duration;
 
 const FOOTSTEP_SIGNAL: u64 = 1;
 
