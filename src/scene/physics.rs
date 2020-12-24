@@ -39,7 +39,7 @@ use rapier3d::{
 use rg3d_core::math::aabb::AxisAlignedBoundingBox;
 use std::collections::HashMap;
 use std::{
-    cell::{Cell, RefCell},
+    cell::RefCell,
     cmp::Ordering,
     fmt::{Debug, Formatter},
 };
@@ -118,36 +118,12 @@ pub struct Physics {
     pub narrow_phase: NarrowPhase,
 
     /// A set of rigid bodies.
-    ///
-    /// Do not add/remove anything from this set manually, use dedicated methods
-    /// (add/remove)_x. This is because of potential panic during the ray cast.
-    /// The problem is very simple: QueryPipeline require some sort of optimizing
-    /// data structure (BVH, octree, etc.) which holds handles to colliders, but
-    /// it is possible to nuke collider and QueryPipeline won't be notified about
-    /// this, and on attempt to do a ray cast it will panic at attempt to use
-    /// invalid handle. It is in public only to solve borrowing issues!
     pub bodies: RigidBodySet,
 
     /// A set of colliders.
-    ///
-    /// Do not add/remove anything from this set manually, use dedicated methods
-    /// (add/remove)_x. This is because of potential panic during the ray cast.
-    /// The problem is very simple: QueryPipeline require some sort of optimizing
-    /// data structure (BVH, octree, etc.) which holds handles to colliders, but
-    /// it is possible to nuke collider and QueryPipeline won't be notified about
-    /// this, and on attempt to do a ray cast it will panic at attempt to use
-    /// invalid handle. It is in public only to solve borrowing issues!
     pub colliders: ColliderSet,
 
     /// A set of joints.
-    ///
-    /// Do not add/remove anything from this set manually, use dedicated methods
-    /// (add/remove)_x. This is because of potential panic during the ray cast.
-    /// The problem is very simple: QueryPipeline require some sort of optimizing
-    /// data structure (BVH, octree, etc.) which holds handles to colliders, but
-    /// it is possible to nuke collider and QueryPipeline won't be notified about
-    /// this, and on attempt to do a ray cast it will panic at attempt to use
-    /// invalid handle. It is in public only to solve borrowing issues!
     pub joints: JointSet,
 
     /// Event handler collects info about contacts and proximity events.
@@ -166,7 +142,6 @@ pub struct Physics {
     /// instantiation process.
     pub embedded_resources: Vec<ResourceLink>,
 
-    query_updated: Cell<bool>,
     query: RefCell<QueryPipeline>,
 }
 
@@ -194,7 +169,6 @@ impl Physics {
             colliders: ColliderSet::new(),
             joints: JointSet::new(),
             event_handler: Box::new(()),
-            query_updated: Cell::new(false),
             query: Default::default(),
             desc: Default::default(),
             embedded_resources: Default::default(),
@@ -449,10 +423,12 @@ impl Physics {
     pub fn cast_ray(&self, opts: RayCastOptions, query_buffer: &mut Vec<Intersection>) {
         let mut query = self.query.borrow_mut();
 
-        if !self.query_updated.get() {
-            query.update(&self.bodies, &self.colliders);
-            self.query_updated.set(true);
-        }
+        // TODO: Ideally this must be called once per frame, but it seems to be impossible because
+        // a body can be deleted during the consecutive calls of this method which will most
+        // likely end up in panic because of invalid handle stored in internal acceleration
+        // structure. This could be fixed by delaying deleting of bodies/collider to the end
+        // of the frame.
+        query.update(&self.bodies, &self.colliders);
 
         query_buffer.clear();
         let ray = query::Ray::new(
@@ -638,49 +614,35 @@ impl Physics {
         );
     }
 
-    /// Adds new rigid body. This method must be used instead of bodies.insert(...) because
-    /// it raises internal flag that ensures that accelerating structure for ray casting in
-    /// actual state!
+    /// Adds new rigid body.
     pub fn add_body(&mut self, rigid_body: RigidBody) -> RigidBodyHandle {
-        self.query_updated.set(false);
         self.bodies.insert(rigid_body).into()
     }
 
-    /// Removes a rigid body. This method must be used instead of bodies.remove(...) because
-    /// it raises internal flag that ensures that accelerating structure for ray casting in
-    /// actual state!
+    /// Removes a rigid body.
     pub fn remove_body(&mut self, rigid_body: RigidBodyHandle) -> Option<RigidBody> {
-        self.query_updated.set(false);
         self.bodies
             .remove(rigid_body.into(), &mut self.colliders, &mut self.joints)
     }
 
-    /// Adds new collider. This method must be used instead of colliders.insert(...) because
-    /// it raises internal flag that ensures that accelerating structure for ray casting in
-    /// actual state!
+    /// Adds new collider.
     pub fn add_collider(
         &mut self,
         collider: Collider,
         rigid_body: RigidBodyHandle,
     ) -> ColliderHandle {
-        self.query_updated.set(false);
         self.colliders
             .insert(collider, rigid_body.into(), &mut self.bodies)
             .into()
     }
 
-    /// Removes a collider. This method must be used instead of colliders.remove(...) because
-    /// it raises internal flag that ensures that accelerating structure for ray casting in
-    /// actual state!
+    /// Removes a collider.
     pub fn remove_collider(&mut self, collider_handle: ColliderHandle) -> Option<Collider> {
-        self.query_updated.set(false);
         self.colliders
             .remove(collider_handle.into(), &mut self.bodies, true)
     }
 
-    /// Adds new joint. This method must be used instead of joints.insert(...) because
-    /// it raises internal flag that ensures that accelerating structure for ray casting in
-    /// actual state!
+    /// Adds new joint.
     pub fn add_joint<J>(
         &mut self,
         body1: RigidBodyHandle,
@@ -690,17 +652,13 @@ impl Physics {
     where
         J: Into<JointParams>,
     {
-        self.query_updated.set(false);
         self.joints
             .insert(&mut self.bodies, body1.into(), body2.into(), joint_params)
             .into()
     }
 
-    /// Removes a joint. This method must be used instead of joints.remove(...) because
-    /// it raises internal flag that ensures that accelerating structure for ray casting in
-    /// actual state!
+    /// Removes a joint.
     pub fn remove_joint(&mut self, joint_handle: JointHandle, wake_up: bool) -> Option<Joint> {
-        self.query_updated.set(false);
         self.joints
             .remove(joint_handle.into(), &mut self.bodies, wake_up)
     }
