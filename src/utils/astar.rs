@@ -8,6 +8,8 @@
 
 use crate::core::algebra::Vector3;
 use crate::core::math::{self, PositionProvider};
+use crate::core::visitor::Visit;
+use rg3d_core::visitor::{VisitResult, Visitor};
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 enum PathVertexState {
@@ -18,14 +20,40 @@ enum PathVertexState {
 
 /// Graph vertex that contains position in world and list of indices of neighbour
 /// vertices.
+#[derive(Clone, Debug)]
 pub struct PathVertex {
     /// Position in world.
-    position: Vector3<f32>,
+    pub position: Vector3<f32>,
     state: PathVertexState,
     g_score: f32,
     f_score: f32,
     parent: Option<usize>,
-    neighbours: Vec<usize>,
+    neighbours: Vec<u32>,
+}
+
+impl Default for PathVertex {
+    fn default() -> Self {
+        Self {
+            position: Default::default(),
+            parent: None,
+            g_score: std::f32::MAX,
+            f_score: std::f32::MAX,
+            state: PathVertexState::NonVisited,
+            neighbours: Default::default(),
+        }
+    }
+}
+
+impl Visit for PathVertex {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.position.visit("Position", visitor)?;
+        self.neighbours.visit("Neighbours", visitor)?;
+        // Rest of fields are runtime state and valid only while in a build method of pathfinder.
+
+        visitor.leave_region()
+    }
 }
 
 impl PathVertex {
@@ -42,7 +70,7 @@ impl PathVertex {
     }
 
     /// Returns reference to array of indices of neighbour vertices.
-    pub fn neighbours(&self) -> &[usize] {
+    pub fn neighbours(&self) -> &[u32] {
         &self.neighbours
     }
 
@@ -55,8 +83,19 @@ impl PathVertex {
 }
 
 /// See module docs.
+#[derive(Clone, Debug)]
 pub struct PathFinder {
     vertices: Vec<PathVertex>,
+}
+
+impl Visit for PathFinder {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.vertices.visit("Vertices", visitor)?;
+
+        visitor.leave_region()
+    }
 }
 
 /// Shows path status.
@@ -136,7 +175,7 @@ impl PathFinder {
     /// means that there is no direct link between `b` to `a`, only from `a` to `b`.
     pub fn link_unidirect(&mut self, a: usize, b: usize) {
         if let Some(vertex_a) = self.vertices.get_mut(a) {
-            vertex_a.neighbours.push(b);
+            vertex_a.neighbours.push(b as u32);
         }
     }
 
@@ -224,14 +263,14 @@ impl PathFinder {
 
             for neighbour_index in current_vertex.neighbours.iter() {
                 // Make sure that borrowing rules are not violated.
-                if *neighbour_index == current_index {
+                if *neighbour_index as usize == current_index {
                     return Err(PathError::CyclicReferenceFound(current_index));
                 }
 
                 // Safely get mutable reference to neighbour
                 let neighbour = unsafe_vertices
-                    .get_mut(*neighbour_index)
-                    .ok_or(PathError::InvalidIndex(*neighbour_index))?;
+                    .get_mut(*neighbour_index as usize)
+                    .ok_or(PathError::InvalidIndex(*neighbour_index as usize))?;
 
                 let g_score = current_vertex.g_score
                     + (current_vertex.position - neighbour.position).norm_squared();

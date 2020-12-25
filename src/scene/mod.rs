@@ -16,6 +16,7 @@ pub mod sprite;
 pub mod transform;
 
 use crate::utils::log::MessageKind;
+use crate::utils::navmesh::Navmesh;
 use crate::{
     animation::AnimationContainer,
     core::{
@@ -728,6 +729,44 @@ impl SceneDrawingContext {
     }
 }
 
+/// A container for navigational meshes.
+#[derive(Default, Clone, Debug)]
+pub struct NavMeshContainer {
+    pool: Pool<Navmesh>,
+}
+
+impl NavMeshContainer {
+    /// Adds new navigational mesh to the container and returns its handle.
+    pub fn add(&mut self, navmesh: Navmesh) -> Handle<Navmesh> {
+        self.pool.spawn(navmesh)
+    }
+
+    /// Removes navigational mesh by its handle.
+    pub fn remove(&mut self, handle: Handle<Navmesh>) -> Navmesh {
+        self.pool.free(handle)
+    }
+
+    /// Creates new immutable iterator.
+    pub fn iter(&self) -> impl Iterator<Item = &Navmesh> {
+        self.pool.iter()
+    }
+
+    /// Creates new immutable iterator.
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Navmesh> {
+        self.pool.iter_mut()
+    }
+}
+
+impl Visit for NavMeshContainer {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.pool.visit("Pool", visitor)?;
+
+        visitor.leave_region()
+    }
+}
+
 /// See module docs.
 #[derive(Debug)]
 pub struct Scene {
@@ -763,6 +802,10 @@ pub struct Scene {
     /// A sound context that holds all sound sources, effects, etc. belonging to the scene.
     pub sound_context: Context,
 
+    /// A container for navigational meshes.
+    pub navmeshes: NavMeshContainer,
+
+    /// Current lightmap.
     lightmap: Option<Lightmap>,
 }
 
@@ -777,6 +820,7 @@ impl Default for Scene {
             lightmap: None,
             drawing_context: Default::default(),
             sound_context: Default::default(),
+            navmeshes: Default::default(),
         }
     }
 }
@@ -809,6 +853,7 @@ impl Scene {
             lightmap: None,
             drawing_context: Default::default(),
             sound_context: Context::new(),
+            navmeshes: Default::default(),
         }
     }
 
@@ -1088,6 +1133,7 @@ impl Scene {
                 lightmap: self.lightmap.clone(),
                 drawing_context: self.drawing_context.clone(),
                 sound_context: self.sound_context.deep_clone(),
+                navmeshes: self.navmeshes.clone(),
             },
             old_new_map,
         )
@@ -1103,6 +1149,7 @@ impl Visit for Scene {
         self.physics.visit("Physics", visitor)?;
         let _ = self.lightmap.visit("Lightmap", visitor);
         let _ = self.sound_context.visit("SoundContext", visitor);
+        let _ = self.navmeshes.visit("NavMeshes", visitor);
         visitor.leave_region()
     }
 }

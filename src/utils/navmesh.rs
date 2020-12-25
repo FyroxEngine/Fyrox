@@ -12,6 +12,7 @@
 #![warn(missing_docs)]
 
 use crate::core::algebra::Vector3;
+use crate::core::visitor::Visit;
 use crate::utils::raw_mesh::RawVertex;
 use crate::{
     core::{
@@ -25,17 +26,48 @@ use crate::{
     },
 };
 use rapier3d::na::Point3;
+use rg3d_core::visitor::{VisitResult, Visitor};
 use std::{
     collections::HashSet,
     hash::{Hash, Hasher},
 };
 
 /// See module docs.
+#[derive(Clone, Debug)]
 pub struct Navmesh {
     octree: Octree,
     triangles: Vec<TriangleDefinition>,
     pathfinder: PathFinder,
     query_buffer: Vec<u32>,
+}
+
+impl Visit for Navmesh {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.pathfinder.visit("PathFinder", visitor)?;
+        self.triangles.visit("Triangles", visitor)?;
+
+        // No need to save octree, we can restore it on load.
+        if visitor.is_reading() {
+            let vertices = self.pathfinder.vertices();
+            let raw_triangles = self
+                .triangles
+                .iter()
+                .map(|t| {
+                    [
+                        vertices[t[0] as usize].position,
+                        vertices[t[1] as usize].position,
+                        vertices[t[2] as usize].position,
+                    ]
+                })
+                .collect::<Vec<[Vector3<f32>; 3]>>();
+
+            self.octree = Octree::new(&raw_triangles, 32);
+        }
+
+        visitor.leave_region()
+    }
 }
 
 #[derive(Copy, Clone)]
