@@ -9,7 +9,6 @@ pub use nalgebra as algebra;
 pub use rand;
 
 use std::{
-    ffi::OsString,
     path::{Path, PathBuf},
 };
 

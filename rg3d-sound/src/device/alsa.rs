@@ -77,6 +77,12 @@ impl AlsaSoundDevice {
                 hw_params,
                 2,
             ))?;
+            check(snd_pcm_hw_params_set_period_size(
+                playback_device,
+                hw_params,
+                frame_count as u64,
+                0,
+            ))?;
             let mut exact_size = (frame_count * 2) as u64;
             check(snd_pcm_hw_params_set_buffer_size_near(
                 playback_device,
@@ -126,15 +132,20 @@ impl Device for AlsaSoundDevice {
         loop {
             self.mix();
 
-            unsafe {
-                let err = snd_pcm_writei(
-                    self.playback_device,
-                    self.out_data.as_ptr() as *const _,
-                    self.frame_count.into(),
-                ) as i32;
-                if err == -32 {
-                    // EPIPE error (buffer underrun)
-                    snd_pcm_recover(self.playback_device, err, 0);
+            'try_loop: for _ in 0..10 {
+                unsafe {
+                    let err = snd_pcm_writei(
+                        self.playback_device,
+                        self.out_data.as_ptr() as *const _,
+                        self.frame_count.into(),
+                    ) as i32;
+
+                    if err < 0 {
+                        // Try to recover from any errors and re-send data.
+                        snd_pcm_recover(self.playback_device, err, 1);
+                    } else {
+                        break 'try_loop;
+                    }
                 }
             }
         }
