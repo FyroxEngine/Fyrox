@@ -1,9 +1,11 @@
+use crate::scene::{CommandGroup, MoveNavmeshVertexCommand};
 use crate::{
     gui::{BuildContext, UiMessage, UiNode},
     interaction::{InteractionModeTrait, MoveGizmo},
     scene::{AddNavmeshCommand, DeleteNavmeshCommand, EditorScene, SceneCommand},
     GameEngine, Message,
 };
+use rg3d::gui::message::WidgetMessage;
 use rg3d::scene::camera::Camera;
 use rg3d::{
     core::{
@@ -149,6 +151,12 @@ impl NavmeshPanel {
             MessageDirection::ToWidget,
             items,
         ));
+
+        engine.user_interface.send_message(WidgetMessage::enabled(
+            self.remove,
+            MessageDirection::ToWidget,
+            editor_scene.navmeshes.is_valid_handle(self.selected),
+        ));
     }
 
     pub fn handle_message(
@@ -189,6 +197,12 @@ impl NavmeshPanel {
                                 .node(item)
                                 .user_data_ref::<Handle<Navmesh>>();
                             edit_mode.navmesh = self.selected;
+
+                            engine.user_interface.send_message(WidgetMessage::enabled(
+                                self.remove,
+                                MessageDirection::ToWidget,
+                                editor_scene.navmeshes.is_valid_handle(self.selected),
+                            ));
                         }
                     }
                 }
@@ -200,7 +214,7 @@ impl NavmeshPanel {
 
 #[derive(Debug)]
 pub struct NavmeshVertex {
-    position: Vector3<f32>,
+    pub position: Vector3<f32>,
 }
 
 #[derive(Debug)]
@@ -218,8 +232,8 @@ impl Triangle {
 
 #[derive(Debug)]
 pub struct Navmesh {
-    vertices: Pool<NavmeshVertex>,
-    triangles: Pool<Triangle>,
+    pub vertices: Pool<NavmeshVertex>,
+    pub triangles: Pool<Triangle>,
 }
 
 impl Navmesh {
@@ -264,6 +278,7 @@ pub struct EditNavmeshMode {
     interacting: bool,
     message_sender: Sender<Message>,
     selection: NavmeshSelection,
+    initial_positions: Vec<Vector3<f32>>,
 }
 
 impl EditNavmeshMode {
@@ -278,6 +293,7 @@ impl EditNavmeshMode {
             interacting: false,
             message_sender,
             selection: Default::default(),
+            initial_positions: Default::default(),
         }
     }
 }
@@ -290,7 +306,7 @@ impl InteractionModeTrait for EditNavmeshMode {
         mouse_pos: Vector2<f32>,
         frame_size: Vector2<f32>,
     ) {
-        if self.navmesh.is_some() {
+        if editor_scene.navmeshes.is_valid_handle(self.navmesh) {
             let navmesh = &editor_scene.navmeshes[self.navmesh];
             let scene = &mut engine.scenes[editor_scene.scene];
             let camera: &Camera = &scene.graph[editor_scene.camera_controller.camera].as_camera();
@@ -323,18 +339,51 @@ impl InteractionModeTrait for EditNavmeshMode {
                         self.selection.vertices.push(handle);
                     }
                 }
+            } else {
+                self.initial_positions.clear();
+                for &v in self.selection.vertices.iter() {
+                    self.initial_positions.push(navmesh.vertices[v].position);
+                }
             }
         }
     }
 
     fn on_left_mouse_button_up(
         &mut self,
-        _editor_scene: &mut EditorScene,
+        editor_scene: &mut EditorScene,
         _engine: &mut GameEngine,
         _mouse_pos: Vector2<f32>,
         _frame_size: Vector2<f32>,
     ) {
-        self.interacting = false;
+        if editor_scene.navmeshes.is_valid_handle(self.navmesh) {
+            let navmesh = &editor_scene.navmeshes[self.navmesh];
+            if self.interacting {
+                let mut commands = Vec::new();
+                for (&vertex, &old_pos) in self
+                    .selection
+                    .vertices
+                    .iter()
+                    .zip(self.initial_positions.iter())
+                {
+                    commands.push(SceneCommand::MoveNavmeshVertex(
+                        MoveNavmeshVertexCommand::new(
+                            self.navmesh,
+                            vertex,
+                            old_pos,
+                            navmesh.vertices[vertex].position,
+                        ),
+                    ))
+                }
+
+                self.message_sender
+                    .send(Message::DoSceneCommand(SceneCommand::CommandGroup(
+                        CommandGroup::from(commands),
+                    )))
+                    .unwrap();
+
+                self.interacting = false;
+            }
+        }
     }
 
     fn on_mouse_move(
@@ -346,7 +395,7 @@ impl InteractionModeTrait for EditNavmeshMode {
         engine: &mut GameEngine,
         frame_size: Vector2<f32>,
     ) {
-        if self.navmesh.is_some() {
+        if editor_scene.navmeshes.is_valid_handle(self.navmesh) {
             if self.interacting {
                 let offset = self.move_gizmo.calculate_offset(
                     editor_scene,
@@ -373,7 +422,7 @@ impl InteractionModeTrait for EditNavmeshMode {
     ) {
         let scene = &mut engine.scenes[editor_scene.scene];
 
-        if self.navmesh.is_some() {
+        if editor_scene.navmeshes.is_valid_handle(self.navmesh) {
             let navmesh = &editor_scene.navmeshes[self.navmesh];
 
             for (handle, vertex) in navmesh.vertices.pair_iter() {

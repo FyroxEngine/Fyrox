@@ -1,3 +1,4 @@
+use crate::interaction::navmesh::NavmeshVertex;
 use crate::{
     camera::CameraController,
     command::Command,
@@ -213,6 +214,7 @@ pub enum SceneCommand {
     SetMeshCastShadows(SetMeshCastShadowsCommand),
     AddNavmesh(AddNavmeshCommand),
     DeleteNavmesh(DeleteNavmeshCommand),
+    MoveNavmeshVertex(MoveNavmeshVertexCommand),
 }
 
 pub struct SceneContext<'a> {
@@ -303,6 +305,7 @@ macro_rules! static_dispatch {
             SceneCommand::SetMeshCastShadows(v) => v.$func($($args),*),
             SceneCommand::AddNavmesh(v) => v.$func($($args),*),
             SceneCommand::DeleteNavmesh(v) => v.$func($($args),*),
+            SceneCommand::MoveNavmeshVertex(v) => v.$func($($args),*),
         }
     };
 }
@@ -777,6 +780,58 @@ impl<'a> Command<'a> for ChangeSelectionCommand {
                 .send(Message::SelectionChanged)
                 .unwrap();
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct MoveNavmeshVertexCommand {
+    navmesh: Handle<Navmesh>,
+    vertex: Handle<NavmeshVertex>,
+    old_position: Vector3<f32>,
+    new_position: Vector3<f32>,
+}
+
+impl MoveNavmeshVertexCommand {
+    pub fn new(
+        navmesh: Handle<Navmesh>,
+        vertex: Handle<NavmeshVertex>,
+        old_position: Vector3<f32>,
+        new_position: Vector3<f32>,
+    ) -> Self {
+        Self {
+            navmesh,
+            vertex,
+            old_position,
+            new_position,
+        }
+    }
+
+    fn swap(&mut self) -> Vector3<f32> {
+        let position = self.new_position;
+        std::mem::swap(&mut self.new_position, &mut self.old_position);
+        position
+    }
+
+    fn set_position(&self, navmesh: &mut Navmesh, position: Vector3<f32>) {
+        navmesh.vertices[self.vertex].position = position;
+    }
+}
+
+impl<'a> Command<'a> for MoveNavmeshVertexCommand {
+    type Context = SceneContext<'a>;
+
+    fn name(&mut self, _context: &Self::Context) -> String {
+        "Move Navmesh Vertex".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut Self::Context) {
+        let position = self.swap();
+        self.set_position(&mut context.editor_scene.navmeshes[self.navmesh], position);
+    }
+
+    fn revert(&mut self, context: &mut Self::Context) {
+        let position = self.swap();
+        self.set_position(&mut context.editor_scene.navmeshes[self.navmesh], position);
     }
 }
 
