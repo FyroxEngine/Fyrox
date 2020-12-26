@@ -292,7 +292,7 @@ impl ScenePreview {
                                             .with_texture(into_gui_texture(
                                                 engine
                                                     .resource_manager
-                                                    .request_texture("resources/scale_arrow.png"),
+                                                    .request_texture("resources/navmesh.png"),
                                             ))
                                             .build(ctx),
                                         )

@@ -180,14 +180,16 @@ impl NavmeshPanel {
             }
             UiMessageData::ListView(msg) => {
                 if let ListViewMessage::SelectionChanged(selection) = msg {
-                    if let &Some(selection) = selection {
-                        let navmeshes = engine.user_interface.node(self.navmeshes);
-                        let item = navmeshes.as_list_view().items()[selection];
-                        self.selected = *engine
-                            .user_interface
-                            .node(item)
-                            .user_data_ref::<Handle<Navmesh>>();
-                        edit_mode.navmesh = self.selected;
+                    if message.destination() == self.navmeshes {
+                        if let &Some(selection) = selection {
+                            let navmeshes = engine.user_interface.node(self.navmeshes);
+                            let item = navmeshes.as_list_view().items()[selection];
+                            self.selected = *engine
+                                .user_interface
+                                .node(item)
+                                .user_data_ref::<Handle<Navmesh>>();
+                            edit_mode.navmesh = self.selected;
+                        }
                     }
                 }
             }
