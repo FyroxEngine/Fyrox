@@ -1,6 +1,7 @@
 use crate::{
     camera::CameraController,
     command::Command,
+    interaction::navmesh::Navmesh,
     physics::{Collider, Joint, Physics, RigidBody},
     GameEngine, Message,
 };
@@ -10,7 +11,7 @@ use rg3d::{
         color::Color,
         math::Matrix4Ext,
         numeric_range::NumericRange,
-        pool::{Handle, Ticket},
+        pool::{ErasedHandle, Handle, Pool, Ticket},
         visitor::{Visit, Visitor},
     },
     engine::resource_manager::ResourceManager,
@@ -23,7 +24,6 @@ use rg3d::{
         physics::{ColliderShapeDesc, JointParamsDesc},
         Scene,
     },
-    sound::pool::ErasedHandle,
 };
 use std::{fmt::Write, path::PathBuf, sync::mpsc::Sender};
 
@@ -33,7 +33,7 @@ pub struct Clipboard {
 }
 
 impl Clipboard {
-    pub fn clone_selection(&mut self, selection: &Selection, graph: &Graph) {
+    pub fn clone_selection(&mut self, selection: &GraphSelection, graph: &Graph) {
         self.nodes.clear();
 
         for &handle in selection.nodes() {
@@ -55,10 +55,13 @@ pub struct EditorScene {
     pub scene: Handle<Scene>,
     // Handle to a root for all editor nodes.
     pub root: Handle<Node>,
-    pub selection: Selection,
+    pub selection: GraphSelection,
     pub clipboard: Clipboard,
     pub camera_controller: CameraController,
+    // Editor uses split data model - some parts of scene are editable directly,
+    // but some parts are not because of incompatible data model.
     pub physics: Physics,
+    pub navmeshes: Pool<Navmesh>,
 }
 
 impl EditorScene {
@@ -208,6 +211,8 @@ pub enum SceneCommand {
     SetSpriteTexture(SetSpriteTextureCommand),
     SetMeshTexture(SetMeshTextureCommand),
     SetMeshCastShadows(SetMeshCastShadowsCommand),
+    AddNavmesh(AddNavmeshCommand),
+    DeleteNavmesh(DeleteNavmeshCommand),
 }
 
 pub struct SceneContext<'a> {
@@ -296,6 +301,8 @@ macro_rules! static_dispatch {
             SceneCommand::SetSpriteTexture(v) => v.$func($($args),*),
             SceneCommand::SetMeshTexture(v) => v.$func($($args),*),
             SceneCommand::SetMeshCastShadows(v) => v.$func($($args),*),
+            SceneCommand::AddNavmesh(v) => v.$func($($args),*),
+            SceneCommand::DeleteNavmesh(v) => v.$func($($args),*),
         }
     };
 }
@@ -514,6 +521,105 @@ impl<'a> Command<'a> for DeleteEmitterCommand {
 }
 
 #[derive(Debug)]
+pub struct AddNavmeshCommand {
+    ticket: Option<Ticket<Navmesh>>,
+    handle: Handle<Navmesh>,
+    navmesh: Option<Navmesh>,
+}
+
+impl AddNavmeshCommand {
+    pub fn new(navmesh: Navmesh) -> Self {
+        Self {
+            ticket: None,
+            handle: Default::default(),
+            navmesh: Some(navmesh),
+        }
+    }
+}
+
+impl<'a> Command<'a> for AddNavmeshCommand {
+    type Context = SceneContext<'a>;
+
+    fn name(&mut self, _context: &Self::Context) -> String {
+        "Add Navmesh".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut Self::Context) {
+        match self.ticket.take() {
+            None => {
+                self.handle = context
+                    .editor_scene
+                    .navmeshes
+                    .spawn(self.navmesh.take().unwrap());
+            }
+            Some(ticket) => {
+                let handle = context
+                    .editor_scene
+                    .navmeshes
+                    .put_back(ticket, self.navmesh.take().unwrap());
+                assert_eq!(handle, self.handle);
+            }
+        }
+    }
+
+    fn revert(&mut self, context: &mut Self::Context) {
+        let (ticket, node) = context.editor_scene.navmeshes.take_reserve(self.handle);
+        self.ticket = Some(ticket);
+        self.navmesh = Some(node);
+    }
+
+    fn finalize(&mut self, context: &mut Self::Context) {
+        if let Some(ticket) = self.ticket.take() {
+            context.editor_scene.navmeshes.forget_ticket(ticket)
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct DeleteNavmeshCommand {
+    handle: Handle<Navmesh>,
+    ticket: Option<Ticket<Navmesh>>,
+    node: Option<Navmesh>,
+}
+
+impl DeleteNavmeshCommand {
+    pub fn new(handle: Handle<Navmesh>) -> Self {
+        Self {
+            handle,
+            ticket: None,
+            node: None,
+        }
+    }
+}
+
+impl<'a> Command<'a> for DeleteNavmeshCommand {
+    type Context = SceneContext<'a>;
+
+    fn name(&mut self, _context: &Self::Context) -> String {
+        "Delete Navmesh".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut Self::Context) {
+        let (ticket, node) = context.editor_scene.navmeshes.take_reserve(self.handle);
+        self.node = Some(node);
+        self.ticket = Some(ticket);
+    }
+
+    fn revert(&mut self, context: &mut Self::Context) {
+        self.handle = context
+            .editor_scene
+            .navmeshes
+            .put_back(self.ticket.take().unwrap(), self.node.take().unwrap());
+    }
+
+    fn finalize(&mut self, context: &mut Self::Context) {
+        if let Some(ticket) = self.ticket.take() {
+            context.editor_scene.navmeshes.forget_ticket(ticket)
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct AddJointCommand {
     ticket: Option<Ticket<Joint>>,
     handle: Handle<Joint>,
@@ -625,19 +731,19 @@ impl<'a> Command<'a> for DeleteJointCommand {
 
 #[derive(Debug)]
 pub struct ChangeSelectionCommand {
-    new_selection: Selection,
-    old_selection: Selection,
+    new_selection: GraphSelection,
+    old_selection: GraphSelection,
 }
 
 impl ChangeSelectionCommand {
-    pub fn new(new_selection: Selection, old_selection: Selection) -> Self {
+    pub fn new(new_selection: GraphSelection, old_selection: GraphSelection) -> Self {
         Self {
             new_selection,
             old_selection,
         }
     }
 
-    fn swap(&mut self) -> Selection {
+    fn swap(&mut self) -> GraphSelection {
         let selection = self.new_selection.clone();
         std::mem::swap(&mut self.new_selection, &mut self.old_selection);
         selection
@@ -1946,11 +2052,11 @@ define_emitter_variant_command!(SetBoxEmitterHalfDepthCommand("Set Box Emitter H
 });
 
 #[derive(Debug, Default, Clone, Eq)]
-pub struct Selection {
+pub struct GraphSelection {
     nodes: Vec<Handle<Node>>,
 }
 
-impl PartialEq for Selection {
+impl PartialEq for GraphSelection {
     fn eq(&self, other: &Self) -> bool {
         if self.nodes.is_empty() && !other.nodes.is_empty() {
             false
@@ -1974,7 +2080,7 @@ impl PartialEq for Selection {
     }
 }
 
-impl Selection {
+impl GraphSelection {
     pub fn from_list(nodes: Vec<Handle<Node>>) -> Self {
         Self {
             nodes: nodes.into_iter().filter(|h| h.is_some()).collect(),
@@ -2021,7 +2127,7 @@ impl Selection {
         self.nodes.is_empty()
     }
 
-    pub fn extend(&mut self, other: &Selection) {
+    pub fn extend(&mut self, other: &GraphSelection) {
         self.nodes.extend_from_slice(&other.nodes)
     }
 

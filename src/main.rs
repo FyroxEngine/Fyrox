@@ -21,6 +21,8 @@ pub mod settings;
 pub mod sidebar;
 pub mod world_outliner;
 
+use crate::interaction::navmesh::{EditNavmeshMode, NavmeshPanel};
+use crate::interaction::InteractionMode;
 use crate::scene::{make_delete_selection_command, SetParticleSystemTextureCommand};
 use crate::{
     asset::{AssetBrowser, AssetKind},
@@ -29,7 +31,7 @@ use crate::{
     configurator::Configurator,
     gui::{BuildContext, EditorUiMessage, EditorUiNode, UiMessage, UiNode},
     interaction::{
-        InteractionMode, InteractionModeKind, MoveInteractionMode, RotateInteractionMode,
+        InteractionModeKind, InteractionModeTrait, MoveInteractionMode, RotateInteractionMode,
         ScaleInteractionMode, SelectInteractionMode,
     },
     light::LightPanel,
@@ -125,6 +127,7 @@ pub struct ScenePreview {
     move_mode: Handle<UiNode>,
     rotate_mode: Handle<UiNode>,
     scale_mode: Handle<UiNode>,
+    navmesh_mode: Handle<UiNode>,
     sender: Sender<Message>,
 }
 
@@ -150,6 +153,7 @@ impl ScenePreview {
         let move_mode;
         let rotate_mode;
         let scale_mode;
+        let navmesh_mode;
         let selection_frame;
         let window = WindowBuilder::new(WidgetBuilder::new())
             .can_close(false)
@@ -273,6 +277,27 @@ impl ScenePreview {
                                         )
                                         .build(ctx);
                                         scale_mode
+                                    })
+                                    .with_child({
+                                        navmesh_mode = ButtonBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_margin(Thickness::uniform(1.0)),
+                                        )
+                                        .with_content(
+                                            ImageBuilder::new(
+                                                WidgetBuilder::new()
+                                                    .with_width(32.0)
+                                                    .with_height(32.0),
+                                            )
+                                            .with_texture(into_gui_texture(
+                                                engine
+                                                    .resource_manager
+                                                    .request_texture("resources/scale_arrow.png"),
+                                            ))
+                                            .build(ctx),
+                                        )
+                                        .build(ctx);
+                                        navmesh_mode
                                     }),
                             )
                             .build(ctx),
@@ -296,6 +321,7 @@ impl ScenePreview {
             scale_mode,
             selection_frame,
             select_mode,
+            navmesh_mode,
             click_mouse_pos: None,
         }
     }
@@ -320,6 +346,10 @@ impl ScenePreview {
                 } else if message.destination() == self.select_mode {
                     self.sender
                         .send(Message::SetInteractionMode(InteractionModeKind::Select))
+                        .unwrap();
+                } else if message.destination() == self.navmesh_mode {
+                    self.sender
+                        .send(Message::SetInteractionMode(InteractionModeKind::Navmesh))
                         .unwrap();
                 }
             }
@@ -376,7 +406,7 @@ struct Editor {
     command_stack: CommandStack<SceneCommand>,
     message_sender: Sender<Message>,
     message_receiver: Receiver<Message>,
-    interaction_modes: Vec<Box<dyn InteractionMode>>,
+    interaction_modes: Vec<InteractionMode>,
     current_interaction_mode: Option<InteractionModeKind>,
     world_outliner: WorldOutliner,
     root_grid: Handle<UiNode>,
@@ -391,6 +421,7 @@ struct Editor {
     log: Log,
     command_stack_viewer: CommandStackViewer,
     validation_message_box: Handle<UiNode>,
+    navmesh_panel: NavmeshPanel,
 }
 
 impl Editor {
@@ -420,6 +451,7 @@ impl Editor {
         let ctx = &mut engine.user_interface.build_ctx();
         let node_editor =
             SideBar::new(ctx, message_sender.clone(), engine.resource_manager.clone());
+        let navmesh_panel = NavmeshPanel::new(ctx, message_sender.clone());
         let world_outliner = WorldOutliner::new(ctx, message_sender.clone());
         let command_stack_viewer =
             CommandStackViewer::new(ctx, engine.resource_manager.clone(), message_sender.clone());
@@ -487,7 +519,21 @@ impl Editor {
                                                     })
                                                     .build(ctx),
                                                 TileBuilder::new(WidgetBuilder::new())
-                                                    .with_content(TileContent::Window(log.window))
+                                                    .with_content(TileContent::HorizontalTiles {
+                                                        splitter: 0.5,
+                                                        tiles: [
+                                                            TileBuilder::new(WidgetBuilder::new())
+                                                                .with_content(TileContent::Window(
+                                                                    log.window,
+                                                                ))
+                                                                .build(ctx),
+                                                            TileBuilder::new(WidgetBuilder::new())
+                                                                .with_content(TileContent::Window(
+                                                                    navmesh_panel.window,
+                                                                ))
+                                                                .build(ctx),
+                                                        ],
+                                                    })
                                                     .build(ctx),
                                             ],
                                         })
@@ -528,6 +574,7 @@ impl Editor {
         .build(ctx);
 
         let mut editor = Self {
+            navmesh_panel,
             sidebar: node_editor,
             preview,
             scene: None,
@@ -584,28 +631,34 @@ impl Editor {
             root,
             camera_controller,
             physics: Physics::new(&scene),
+            navmeshes: Default::default(),
             scene: engine.scenes.add(scene),
             selection: Default::default(),
             clipboard: Default::default(),
         };
 
         self.interaction_modes = vec![
-            Box::new(SelectInteractionMode::new(
+            InteractionMode::Select(SelectInteractionMode::new(
                 self.preview.frame,
                 self.preview.selection_frame,
                 self.message_sender.clone(),
             )),
-            Box::new(MoveInteractionMode::new(
+            InteractionMode::Move(MoveInteractionMode::new(
                 &editor_scene,
                 engine,
                 self.message_sender.clone(),
             )),
-            Box::new(ScaleInteractionMode::new(
+            InteractionMode::Scale(ScaleInteractionMode::new(
                 &editor_scene,
                 engine,
                 self.message_sender.clone(),
             )),
-            Box::new(RotateInteractionMode::new(
+            InteractionMode::Rotate(RotateInteractionMode::new(
+                &editor_scene,
+                engine,
+                self.message_sender.clone(),
+            )),
+            InteractionMode::Navmesh(EditNavmeshMode::new(
                 &editor_scene,
                 engine,
                 self.message_sender.clone(),
@@ -655,6 +708,19 @@ impl Editor {
         self.command_stack_viewer.handle_ui_message(message);
 
         if let Some(editor_scene) = self.scene.as_mut() {
+            self.navmesh_panel.handle_message(
+                message,
+                editor_scene,
+                engine,
+                if let InteractionMode::Navmesh(edit_mode) =
+                    &mut self.interaction_modes[InteractionModeKind::Navmesh as usize]
+                {
+                    edit_mode
+                } else {
+                    unreachable!()
+                },
+            );
+
             self.sidebar
                 .handle_ui_message(message, editor_scene, engine);
 
@@ -984,6 +1050,7 @@ impl Editor {
         if let Some(editor_scene) = self.scene.as_mut() {
             self.world_outliner.sync_to_model(editor_scene, engine);
             self.sidebar.sync_to_model(editor_scene, engine);
+            self.navmesh_panel.sync_to_model(editor_scene, engine);
             self.command_stack_viewer.sync_to_model(
                 &mut self.command_stack,
                 &SceneContext {

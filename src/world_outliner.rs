@@ -5,7 +5,7 @@ use crate::{
     },
     load_image,
     scene::{
-        ChangeSelectionCommand, EditorScene, LinkNodesCommand, SceneCommand, Selection,
+        ChangeSelectionCommand, EditorScene, GraphSelection, LinkNodesCommand, SceneCommand,
         SetVisibleCommand,
     },
     GameEngine, Message,
@@ -561,7 +561,7 @@ impl WorldOutliner {
             UiMessageData::TreeRoot(msg) => {
                 if message.destination() == self.root {
                     if let TreeRootMessage::Selected(selection) = msg {
-                        let new_selection = Selection::from_list(
+                        let new_selection = GraphSelection::from_list(
                             selection
                                 .iter()
                                 .map(|&h| self.map_tree_to_node(h, &engine.user_interface))

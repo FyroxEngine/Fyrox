@@ -1,12 +1,14 @@
+use crate::interaction::navmesh::EditNavmeshMode;
 use crate::{
     gui::UiNode,
     rg3d::core::math::Matrix4Ext,
     scene::{
-        ChangeSelectionCommand, CommandGroup, EditorScene, MoveNodeCommand, RotateNodeCommand,
-        ScaleNodeCommand, SceneCommand, Selection,
+        ChangeSelectionCommand, CommandGroup, EditorScene, GraphSelection, MoveNodeCommand,
+        RotateNodeCommand, ScaleNodeCommand, SceneCommand,
     },
     GameEngine, Message,
 };
+use rg3d::scene::transform::Transform;
 use rg3d::{
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
@@ -22,7 +24,9 @@ use rg3d::{
 };
 use std::sync::{mpsc::Sender, Arc, RwLock};
 
-pub trait InteractionMode {
+pub mod navmesh;
+
+pub trait InteractionModeTrait {
     fn on_left_mouse_button_down(
         &mut self,
         editor_scene: &mut EditorScene,
@@ -42,7 +46,7 @@ pub trait InteractionMode {
         mouse_offset: Vector2<f32>,
         mouse_position: Vector2<f32>,
         camera: Handle<Node>,
-        editor_scene: &EditorScene,
+        editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
         frame_size: Vector2<f32>,
     );
@@ -367,7 +371,16 @@ impl MoveGizmo {
         Vector3::default()
     }
 
-    pub fn sync_transform(&self, graph: &mut Graph, selection: &Selection, scale: Vector3<f32>) {
+    pub fn transform<'a>(&self, graph: &'a mut Graph) -> &'a mut Transform {
+        graph[self.origin].local_transform_mut()
+    }
+
+    pub fn sync_transform(
+        &self,
+        graph: &mut Graph,
+        selection: &GraphSelection,
+        scale: Vector3<f32>,
+    ) {
         if let Some((rotation, position)) = selection.global_rotation_position(graph) {
             graph[self.origin]
                 .set_visibility(true)
@@ -409,7 +422,7 @@ impl MoveInteractionMode {
     }
 }
 
-impl InteractionMode for MoveInteractionMode {
+impl InteractionModeTrait for MoveInteractionMode {
     fn on_left_mouse_button_down(
         &mut self,
         editor_scene: &mut EditorScene,
@@ -489,7 +502,7 @@ impl InteractionMode for MoveInteractionMode {
                     selection.insert_or_exclude(picked);
                     selection
                 } else {
-                    Selection::single_or_empty(picked)
+                    GraphSelection::single_or_empty(picked)
                 };
             if new_selection != editor_scene.selection {
                 self.message_sender
@@ -506,7 +519,7 @@ impl InteractionMode for MoveInteractionMode {
         mouse_offset: Vector2<f32>,
         mouse_position: Vector2<f32>,
         camera: Handle<Node>,
-        editor_scene: &EditorScene,
+        editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
         frame_size: Vector2<f32>,
     ) {
@@ -807,7 +820,12 @@ impl ScaleGizmo {
         Vector3::default()
     }
 
-    pub fn sync_transform(&self, graph: &mut Graph, selection: &Selection, scale: Vector3<f32>) {
+    pub fn sync_transform(
+        &self,
+        graph: &mut Graph,
+        selection: &GraphSelection,
+        scale: Vector3<f32>,
+    ) {
         if let Some((rotation, position)) = selection.global_rotation_position(graph) {
             graph[self.origin]
                 .set_visibility(true)
@@ -845,7 +863,7 @@ impl ScaleInteractionMode {
     }
 }
 
-impl InteractionMode for ScaleInteractionMode {
+impl InteractionModeTrait for ScaleInteractionMode {
     fn on_left_mouse_button_down(
         &mut self,
         editor_scene: &mut EditorScene,
@@ -927,7 +945,7 @@ impl InteractionMode for ScaleInteractionMode {
                     selection.insert_or_exclude(picked);
                     selection
                 } else {
-                    Selection::single_or_empty(picked)
+                    GraphSelection::single_or_empty(picked)
                 };
             if new_selection != editor_scene.selection {
                 self.message_sender
@@ -944,7 +962,7 @@ impl InteractionMode for ScaleInteractionMode {
         mouse_offset: Vector2<f32>,
         mouse_position: Vector2<f32>,
         camera: Handle<Node>,
-        editor_scene: &EditorScene,
+        editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
         frame_size: Vector2<f32>,
     ) {
@@ -1190,7 +1208,12 @@ impl RotationGizmo {
         UnitQuaternion::default()
     }
 
-    pub fn sync_transform(&self, graph: &mut Graph, selection: &Selection, scale: Vector3<f32>) {
+    pub fn sync_transform(
+        &self,
+        graph: &mut Graph,
+        selection: &GraphSelection,
+        scale: Vector3<f32>,
+    ) {
         if let Some((rotation, position)) = selection.global_rotation_position(graph) {
             graph[self.origin]
                 .set_visibility(true)
@@ -1228,7 +1251,7 @@ impl RotateInteractionMode {
     }
 }
 
-impl InteractionMode for RotateInteractionMode {
+impl InteractionModeTrait for RotateInteractionMode {
     fn on_left_mouse_button_down(
         &mut self,
         editor_scene: &mut EditorScene,
@@ -1312,7 +1335,7 @@ impl InteractionMode for RotateInteractionMode {
                     selection.insert_or_exclude(picked);
                     selection
                 } else {
-                    Selection::single_or_empty(picked)
+                    GraphSelection::single_or_empty(picked)
                 };
             if new_selection != editor_scene.selection {
                 self.message_sender
@@ -1329,7 +1352,7 @@ impl InteractionMode for RotateInteractionMode {
         mouse_offset: Vector2<f32>,
         mouse_position: Vector2<f32>,
         camera: Handle<Node>,
-        editor_scene: &EditorScene,
+        editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
         frame_size: Vector2<f32>,
     ) {
@@ -1402,7 +1425,7 @@ impl SelectInteractionMode {
     }
 }
 
-impl InteractionMode for SelectInteractionMode {
+impl InteractionModeTrait for SelectInteractionMode {
     fn on_left_mouse_button_down(
         &mut self,
         _editor_scene: &mut EditorScene,
@@ -1451,7 +1474,7 @@ impl InteractionMode for SelectInteractionMode {
         let relative_bounds = frame_screen_bounds.translate(-preview_screen_bounds.position);
         self.stack.clear();
         self.stack.push(scene.graph.get_root());
-        let mut selection = Selection::default();
+        let mut selection = GraphSelection::default();
         while let Some(handle) = self.stack.pop() {
             let node = &scene.graph[handle];
             if handle == editor_scene.root {
@@ -1504,7 +1527,7 @@ impl InteractionMode for SelectInteractionMode {
         _mouse_offset: Vector2<f32>,
         mouse_position: Vector2<f32>,
         _camera: Handle<Node>,
-        _editor_scene: &EditorScene,
+        _editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
         _frame_size: Vector2<f32>,
     ) {
@@ -1560,4 +1583,95 @@ pub enum InteractionModeKind {
     Move = 1,
     Scale = 2,
     Rotate = 3,
+    Navmesh = 4,
+}
+
+pub enum InteractionMode {
+    Select(SelectInteractionMode),
+    Move(MoveInteractionMode),
+    Scale(ScaleInteractionMode),
+    Rotate(RotateInteractionMode),
+    Navmesh(EditNavmeshMode),
+}
+
+macro_rules! static_dispatch {
+    ($self:ident, $func:ident, $($args:expr),*) => {
+        match $self {
+            InteractionMode::Select(v) => v.$func($($args),*),
+            InteractionMode::Move(v) => v.$func($($args),*),
+            InteractionMode::Scale(v) => v.$func($($args),*),
+            InteractionMode::Rotate(v) => v.$func($($args),*),
+            InteractionMode::Navmesh(v) => v.$func($($args),*),
+        }
+    }
+}
+
+impl InteractionModeTrait for InteractionMode {
+    fn on_left_mouse_button_down(
+        &mut self,
+        editor_scene: &mut EditorScene,
+        engine: &mut GameEngine,
+        mouse_pos: Vector2<f32>,
+        frame_size: Vector2<f32>,
+    ) {
+        static_dispatch!(
+            self,
+            on_left_mouse_button_down,
+            editor_scene,
+            engine,
+            mouse_pos,
+            frame_size
+        )
+    }
+
+    fn on_left_mouse_button_up(
+        &mut self,
+        editor_scene: &mut EditorScene,
+        engine: &mut GameEngine,
+        mouse_pos: Vector2<f32>,
+        frame_size: Vector2<f32>,
+    ) {
+        static_dispatch!(
+            self,
+            on_left_mouse_button_up,
+            editor_scene,
+            engine,
+            mouse_pos,
+            frame_size
+        )
+    }
+
+    fn on_mouse_move(
+        &mut self,
+        mouse_offset: Vector2<f32>,
+        mouse_position: Vector2<f32>,
+        camera: Handle<Node>,
+        editor_scene: &mut EditorScene,
+        engine: &mut GameEngine,
+        frame_size: Vector2<f32>,
+    ) {
+        static_dispatch!(
+            self,
+            on_mouse_move,
+            mouse_offset,
+            mouse_position,
+            camera,
+            editor_scene,
+            engine,
+            frame_size
+        )
+    }
+
+    fn update(
+        &mut self,
+        editor_scene: &EditorScene,
+        camera: Handle<Node>,
+        engine: &mut GameEngine,
+    ) {
+        static_dispatch!(self, update, editor_scene, camera, engine)
+    }
+
+    fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
+        static_dispatch!(self, deactivate, editor_scene, engine)
+    }
 }
