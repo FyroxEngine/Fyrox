@@ -8,9 +8,7 @@ pub use byteorder;
 pub use nalgebra as algebra;
 pub use rand;
 
-use std::{
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
 pub mod color;
 pub mod color_gradient;
@@ -66,7 +64,7 @@ pub fn replace_slashes<P: AsRef<Path>>(path: P) -> PathBuf {
         } else {
             // Replace all \ to /. This is needed because on macos or linux \ is a valid symbol in
             // file name, and not separator (except linux which understand both variants).
-            let mut os_str = OsString::new();
+            let mut os_str = std::ffi::OsString::new();
             let count = path.as_ref().components().count();
             for (i, component) in path.as_ref().components().enumerate() {
                 os_str.push(component.as_os_str());

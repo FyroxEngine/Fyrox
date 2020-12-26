@@ -42,12 +42,13 @@ pub fn check(err_code: c_int) -> Result<(), SoundError> {
 impl AlsaSoundDevice {
     pub fn new(buffer_len_bytes: u32, callback: Box<FeedCallback>) -> Result<Self, SoundError> {
         unsafe {
+            let name = CString::new("default").unwrap();
             // 16-bit stereo is 4 bytes, so frame count is bufferHalfSize / 4
             let frame_count = buffer_len_bytes / 4;
             let mut playback_device = std::ptr::null_mut();
             check(snd_pcm_open(
                 &mut playback_device,
-                CString::new("default").unwrap().as_ptr() as *const _,
+                name.as_ptr() as *const _,
                 SND_PCM_STREAM_PLAYBACK,
                 0,
             ))?;
