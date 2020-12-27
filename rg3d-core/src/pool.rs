@@ -19,6 +19,7 @@
 #![allow(clippy::unneeded_field_pattern)]
 
 use crate::visitor::{Visit, VisitResult, Visitor};
+use std::iter::FromIterator;
 use std::ops::{Index, IndexMut};
 use std::{
     fmt::{Debug, Formatter},
@@ -284,7 +285,15 @@ impl<T> Pool<T> {
     #[inline]
     pub fn new() -> Self {
         Pool {
-            records: Vec::<PoolRecord<T>>::new(),
+            records: Vec::new(),
+            free_stack: Vec::new(),
+        }
+    }
+
+    #[inline]
+    pub fn with_capacity(capacity: usize) -> Self {
+        Pool {
+            records: Vec::with_capacity(capacity),
             free_stack: Vec::new(),
         }
     }
@@ -879,6 +888,18 @@ impl<T> Pool<T> {
             }
         }
         Handle::NONE
+    }
+}
+
+impl<T> FromIterator<T> for Pool<T> {
+    fn from_iter<C: IntoIterator<Item = T>>(iter: C) -> Self {
+        let iter = iter.into_iter();
+        let (lower_bound, upper_bound) = iter.size_hint();
+        let mut pool = Self::with_capacity(upper_bound.unwrap_or(lower_bound));
+        for v in iter.into_iter() {
+            let _ = pool.spawn(v);
+        }
+        pool
     }
 }
 
