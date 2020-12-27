@@ -9,6 +9,7 @@ use crate::{
     physics::{Collider, Joint, Physics, RigidBody},
     GameEngine, Message,
 };
+use rg3d::sound::math::TriangleDefinition;
 use rg3d::{
     core::{
         algebra::{UnitQuaternion, Vector3},
@@ -29,6 +30,7 @@ use rg3d::{
         Scene,
     },
 };
+use std::collections::HashMap;
 use std::{fmt::Write, path::PathBuf, sync::mpsc::Sender};
 
 #[derive(Default)]
@@ -112,6 +114,37 @@ impl EditorScene {
                     // Particle system must not save generated vertices.
                     particle_system.clear_particles();
                 }
+            }
+
+            for navmesh in self.navmeshes.iter() {
+                // Sparse-to-dense mapping - handle to index.
+                let mut vertex_map = HashMap::new();
+
+                let vertices = navmesh
+                    .vertices
+                    .pair_iter()
+                    .enumerate()
+                    .map(|(i, (handle, vertex))| {
+                        vertex_map.insert(handle, i);
+                        vertex.position
+                    })
+                    .collect::<Vec<_>>();
+
+                let triangles = navmesh
+                    .triangles
+                    .iter()
+                    .map(|triangle| {
+                        TriangleDefinition([
+                            vertex_map[&triangle.a] as u32,
+                            vertex_map[&triangle.b] as u32,
+                            vertex_map[&triangle.c] as u32,
+                        ])
+                    })
+                    .collect::<Vec<_>>();
+
+                pure_scene
+                    .navmeshes
+                    .add(rg3d::utils::navmesh::Navmesh::new(&triangles, &vertices));
             }
 
             let (desc, binder) = self.physics.generate_engine_desc();

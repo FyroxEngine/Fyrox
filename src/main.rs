@@ -21,6 +21,7 @@ pub mod settings;
 pub mod sidebar;
 pub mod world_outliner;
 
+use crate::interaction::navmesh::data_model::{Navmesh, NavmeshTriangle, NavmeshVertex};
 use crate::interaction::navmesh::{EditNavmeshMode, NavmeshPanel};
 use crate::interaction::InteractionMode;
 use crate::scene::{make_delete_selection_command, SetParticleSystemTextureCommand};
@@ -45,6 +46,7 @@ use crate::{
     sidebar::SideBar,
     world_outliner::WorldOutliner,
 };
+use rg3d::core::pool::Pool;
 use rg3d::{
     core::{
         algebra::Vector2, color::Color, math::aabb::AxisAlignedBoundingBox, pool::Handle,
@@ -626,12 +628,35 @@ impl Editor {
         let graph = &mut scene.graph;
         let camera_controller = CameraController::new(graph, root);
 
+        let mut navmeshes = Pool::new();
+
+        for navmesh in scene.navmeshes.iter() {
+            navmeshes.spawn(Navmesh {
+                vertices: navmesh
+                    .vertices()
+                    .iter()
+                    .map(|vertex| NavmeshVertex {
+                        position: vertex.position,
+                    })
+                    .collect(),
+                triangles: navmesh
+                    .triangles()
+                    .iter()
+                    .map(|triangle| NavmeshTriangle {
+                        a: Handle::new(triangle[0], 1),
+                        b: Handle::new(triangle[1], 1),
+                        c: Handle::new(triangle[2], 1),
+                    })
+                    .collect(),
+            });
+        }
+
         let editor_scene = EditorScene {
             path,
             root,
             camera_controller,
             physics: Physics::new(&scene),
-            navmeshes: Default::default(),
+            navmeshes,
             scene: engine.scenes.add(scene),
             selection: Default::default(),
             clipboard: Default::default(),
