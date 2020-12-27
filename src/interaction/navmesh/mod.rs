@@ -498,11 +498,17 @@ impl InteractionModeTrait for EditNavmeshMode {
                 let oe = navmesh.vertices[drag_context.opposite_edge.end].position;
                 let ne = drag_context.vertices[1].position;
 
-                for &(begin, end) in &[(ob, oe), (ob, nb), (nb, oe), (oe, ne), (nb, ne)] {
+                scene.drawing_context.add_line(rg3d::scene::Line {
+                    begin: nb,
+                    end: ne,
+                    color: Color::RED,
+                });
+
+                for &(begin, end) in &[(ob, oe), (ob, nb), (nb, oe), (oe, ne)] {
                     scene.drawing_context.add_line(rg3d::scene::Line {
                         begin,
                         end,
-                        color: Color::RED,
+                        color: Color::GREEN,
                     });
                 }
             }
