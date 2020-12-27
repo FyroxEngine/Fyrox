@@ -757,6 +757,20 @@ impl NavMeshContainer {
     }
 }
 
+impl Index<Handle<Navmesh>> for NavMeshContainer {
+    type Output = Navmesh;
+
+    fn index(&self, index: Handle<Navmesh>) -> &Self::Output {
+        &self.pool[index]
+    }
+}
+
+impl IndexMut<Handle<Navmesh>> for NavMeshContainer {
+    fn index_mut(&mut self, index: Handle<Navmesh>) -> &mut Self::Output {
+        &mut self.pool[index]
+    }
+}
+
 impl Visit for NavMeshContainer {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
