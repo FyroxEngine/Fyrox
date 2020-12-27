@@ -1,9 +1,9 @@
-use crate::interaction::navmesh::data_model::Edge;
+use crate::interaction::navmesh::data_model::NavmeshEdge;
 use crate::interaction::navmesh::{NavmeshEntity, NavmeshVertex};
 use rg3d::core::pool::Handle;
 use std::collections::HashSet;
 
-#[derive(PartialEq, Default)]
+#[derive(PartialEq, Default, Clone, Debug)]
 pub struct NavmeshSelection {
     dirty: bool,
     entities: Vec<NavmeshEntity>,
@@ -26,10 +26,6 @@ impl NavmeshSelection {
         self.entities.first()
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.entities.is_empty()
-    }
-
     pub fn unique_vertices(&mut self) -> &HashSet<Handle<NavmeshVertex>> {
         if self.dirty {
             self.unique_vertices.clear();
@@ -49,7 +45,11 @@ impl NavmeshSelection {
         &self.unique_vertices
     }
 
-    pub fn contains_edge(&self, edge: Edge) -> bool {
+    pub fn entities(&self) -> &[NavmeshEntity] {
+        &self.entities
+    }
+
+    pub fn contains_edge(&self, edge: NavmeshEdge) -> bool {
         self.entities.contains(&NavmeshEntity::Edge(edge))
     }
 }

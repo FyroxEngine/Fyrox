@@ -1,40 +1,40 @@
 use rg3d::core::algebra::Vector3;
 use rg3d::core::pool::{Handle, Pool};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct NavmeshVertex {
     pub position: Vector3<f32>,
 }
 
-#[derive(Debug)]
-pub struct Triangle {
+#[derive(Debug, Clone)]
+pub struct NavmeshTriangle {
     pub a: Handle<NavmeshVertex>,
     pub b: Handle<NavmeshVertex>,
     pub c: Handle<NavmeshVertex>,
 }
 
-#[derive(PartialEq, Copy, Clone)]
-pub struct Edge {
+#[derive(PartialEq, Copy, Clone, Debug)]
+pub struct NavmeshEdge {
     pub begin: Handle<NavmeshVertex>,
     pub end: Handle<NavmeshVertex>,
 }
 
-impl Triangle {
+impl NavmeshTriangle {
     pub fn vertices(&self) -> [Handle<NavmeshVertex>; 3] {
         [self.a, self.b, self.c]
     }
 
-    pub fn edges(&self) -> [Edge; 3] {
+    pub fn edges(&self) -> [NavmeshEdge; 3] {
         [
-            Edge {
+            NavmeshEdge {
                 begin: self.a,
                 end: self.b,
             },
-            Edge {
+            NavmeshEdge {
                 begin: self.b,
                 end: self.c,
             },
-            Edge {
+            NavmeshEdge {
                 begin: self.c,
                 end: self.a,
             },
@@ -42,16 +42,16 @@ impl Triangle {
     }
 }
 
-#[derive(PartialEq, Copy, Clone)]
+#[derive(PartialEq, Copy, Clone, Debug)]
 pub enum NavmeshEntity {
     Vertex(Handle<NavmeshVertex>),
-    Edge(Edge),
+    Edge(NavmeshEdge),
 }
 
 #[derive(Debug)]
 pub struct Navmesh {
     pub vertices: Pool<NavmeshVertex>,
-    pub triangles: Pool<Triangle>,
+    pub triangles: Pool<NavmeshTriangle>,
 }
 
 impl Navmesh {
@@ -70,7 +70,7 @@ impl Navmesh {
 
         let mut triangles = Pool::new();
 
-        let _ = triangles.spawn(Triangle { a, b, c });
+        let _ = triangles.spawn(NavmeshTriangle { a, b, c });
 
         Self {
             vertices,

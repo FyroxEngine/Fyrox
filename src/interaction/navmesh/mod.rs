@@ -1,10 +1,9 @@
+use crate::interaction::navmesh::data_model::NavmeshEdge;
+use crate::scene::{AddNavmeshEdgeCommand, ChangeNavmeshSelectionCommand};
 use crate::{
     gui::{BuildContext, UiMessage, UiNode},
     interaction::{
-        navmesh::{
-            data_model::{Navmesh, NavmeshEntity, NavmeshVertex},
-            selection::NavmeshSelection,
-        },
+        navmesh::data_model::{Navmesh, NavmeshEntity, NavmeshVertex},
         InteractionModeTrait, MoveGizmo,
     },
     scene::{
@@ -35,7 +34,7 @@ use rg3d::{
 use std::{collections::HashMap, rc::Rc, sync::mpsc::Sender};
 
 pub mod data_model;
-mod selection;
+pub mod selection;
 
 const VERTEX_RADIUS: f32 = 0.2;
 
@@ -218,13 +217,18 @@ impl NavmeshPanel {
     }
 }
 
+struct DragEdgeContext {
+    vertices: [NavmeshVertex; 2],
+    opposite_edge: NavmeshEdge,
+}
+
 pub struct EditNavmeshMode {
     navmesh: Handle<Navmesh>,
     move_gizmo: MoveGizmo,
     interacting: bool,
     message_sender: Sender<Message>,
-    selection: NavmeshSelection,
     initial_positions: HashMap<Handle<NavmeshVertex>, Vector3<f32>>,
+    drag_edge_context: Option<DragEdgeContext>,
 }
 
 impl EditNavmeshMode {
@@ -238,8 +242,8 @@ impl EditNavmeshMode {
             move_gizmo: MoveGizmo::new(editor_scene, engine),
             interacting: false,
             message_sender,
-            selection: Default::default(),
             initial_positions: Default::default(),
+            drag_edge_context: None,
         }
     }
 }
@@ -274,15 +278,17 @@ impl InteractionModeTrait for EditNavmeshMode {
                 .handle_pick(editor_node, editor_scene, engine);
 
             if !self.interacting {
-                if !engine.user_interface.keyboard_modifiers().shift {
-                    self.selection.clear();
-                }
+                let mut selection = if engine.user_interface.keyboard_modifiers().shift {
+                    editor_scene.navmesh_selection.clone()
+                } else {
+                    Default::default()
+                };
                 for (handle, vertex) in navmesh.vertices.pair_iter() {
                     if ray
                         .sphere_intersection(&vertex.position, VERTEX_RADIUS)
                         .is_some()
                     {
-                        self.selection.add(NavmeshEntity::Vertex(handle));
+                        selection.add(NavmeshEntity::Vertex(handle));
                     }
                 }
 
@@ -299,10 +305,19 @@ impl InteractionModeTrait for EditNavmeshMode {
                             )
                             .is_some()
                         {
-                            self.selection.add(NavmeshEntity::Edge(*edge));
+                            selection.add(NavmeshEntity::Edge(*edge));
                         }
                     }
                 }
+
+                self.message_sender
+                    .send(Message::DoSceneCommand(
+                        SceneCommand::ChangeNavmeshSelection(ChangeNavmeshSelectionCommand::new(
+                            selection,
+                            editor_scene.navmesh_selection.clone(),
+                        )),
+                    ))
+                    .unwrap();
             } else {
                 self.initial_positions.clear();
                 for (handle, vertex) in navmesh.vertices.pair_iter() {
@@ -320,18 +335,31 @@ impl InteractionModeTrait for EditNavmeshMode {
         _frame_size: Vector2<f32>,
     ) {
         if editor_scene.navmeshes.is_valid_handle(self.navmesh) {
-            let navmesh = &editor_scene.navmeshes[self.navmesh];
+            let navmesh = &mut editor_scene.navmeshes[self.navmesh];
             if self.interacting {
                 let mut commands = Vec::new();
-                for vertex in self.selection.unique_vertices().iter() {
-                    commands.push(SceneCommand::MoveNavmeshVertex(
-                        MoveNavmeshVertexCommand::new(
-                            self.navmesh,
-                            *vertex,
-                            *self.initial_positions.get(vertex).unwrap(),
-                            navmesh.vertices[*vertex].position,
-                        ),
-                    ));
+
+                if let Some(drag_edge_context) = self.drag_edge_context.take() {
+                    let va = drag_edge_context.vertices[0].clone();
+                    let vb = drag_edge_context.vertices[1].clone();
+
+                    commands.push(SceneCommand::AddNavmeshEdge(AddNavmeshEdgeCommand::new(
+                        self.navmesh,
+                        (va, vb),
+                        drag_edge_context.opposite_edge,
+                        true,
+                    )));
+                } else {
+                    for vertex in editor_scene.navmesh_selection.unique_vertices().iter() {
+                        commands.push(SceneCommand::MoveNavmeshVertex(
+                            MoveNavmeshVertexCommand::new(
+                                self.navmesh,
+                                *vertex,
+                                *self.initial_positions.get(vertex).unwrap(),
+                                navmesh.vertices[*vertex].position,
+                            ),
+                        ));
+                    }
                 }
 
                 self.message_sender
@@ -366,8 +394,45 @@ impl InteractionModeTrait for EditNavmeshMode {
                 );
 
                 let navmesh = &mut editor_scene.navmeshes[self.navmesh];
-                for &vertex in self.selection.unique_vertices() {
-                    navmesh.vertices[vertex].position += offset;
+
+                if editor_scene.navmesh_selection.entities().len() == 1 {
+                    if let NavmeshEntity::Edge(edge) =
+                        editor_scene.navmesh_selection.entities().first().unwrap()
+                    {
+                        if engine.user_interface.keyboard_modifiers().shift
+                            && self.drag_edge_context.is_none()
+                        {
+                            let new_begin = navmesh.vertices[edge.begin].clone();
+                            let new_end = navmesh.vertices[edge.end].clone();
+
+                            self.drag_edge_context = Some(DragEdgeContext {
+                                vertices: [new_begin, new_end],
+                                opposite_edge: edge.clone(),
+                            });
+
+                            // Discard selection.
+                            self.message_sender
+                                .send(Message::DoSceneCommand(
+                                    SceneCommand::ChangeNavmeshSelection(
+                                        ChangeNavmeshSelectionCommand::new(
+                                            Default::default(),
+                                            editor_scene.navmesh_selection.clone(),
+                                        ),
+                                    ),
+                                ))
+                                .unwrap();
+                        }
+                    }
+                }
+
+                if let Some(drag_context) = self.drag_edge_context.as_mut() {
+                    for vertex in drag_context.vertices.iter_mut() {
+                        vertex.position += offset;
+                    }
+                } else {
+                    for &vertex in editor_scene.navmesh_selection.unique_vertices() {
+                        navmesh.vertices[vertex].position += offset;
+                    }
                 }
             }
         }
@@ -375,11 +440,12 @@ impl InteractionModeTrait for EditNavmeshMode {
 
     fn update(
         &mut self,
-        editor_scene: &EditorScene,
+        editor_scene: &mut EditorScene,
         _camera: Handle<Node>,
         engine: &mut GameEngine,
     ) {
         let scene = &mut engine.scenes[editor_scene.scene];
+        self.move_gizmo.set_visible(&mut scene.graph, false);
 
         if editor_scene.navmeshes.is_valid_handle(self.navmesh) {
             let navmesh = &editor_scene.navmeshes[self.navmesh];
@@ -390,7 +456,11 @@ impl InteractionModeTrait for EditNavmeshMode {
                     10,
                     10,
                     VERTEX_RADIUS,
-                    if self.selection.unique_vertices().contains(&handle) {
+                    if editor_scene
+                        .navmesh_selection
+                        .unique_vertices()
+                        .contains(&handle)
+                    {
                         Color::RED
                     } else {
                         Color::GREEN
@@ -403,7 +473,7 @@ impl InteractionModeTrait for EditNavmeshMode {
                     scene.drawing_context.add_line(rg3d::scene::Line {
                         begin: navmesh.vertices[edge.begin].position,
                         end: navmesh.vertices[edge.end].position,
-                        color: if self.selection.contains_edge(*edge) {
+                        color: if editor_scene.navmesh_selection.contains_edge(*edge) {
                             Color::RED
                         } else {
                             Color::GREEN
@@ -412,7 +482,32 @@ impl InteractionModeTrait for EditNavmeshMode {
                 }
             }
 
-            if let Some(first) = self.selection.first() {
+            if let Some(drag_context) = self.drag_edge_context.as_ref() {
+                for vertex in drag_context.vertices.iter() {
+                    scene.drawing_context.draw_sphere(
+                        vertex.position,
+                        10,
+                        10,
+                        VERTEX_RADIUS,
+                        Color::RED,
+                    );
+                }
+
+                let ob = navmesh.vertices[drag_context.opposite_edge.begin].position;
+                let nb = drag_context.vertices[0].position;
+                let oe = navmesh.vertices[drag_context.opposite_edge.end].position;
+                let ne = drag_context.vertices[1].position;
+
+                for &(begin, end) in &[(ob, oe), (ob, nb), (nb, oe), (oe, ne), (nb, ne)] {
+                    scene.drawing_context.add_line(rg3d::scene::Line {
+                        begin,
+                        end,
+                        color: Color::RED,
+                    });
+                }
+            }
+
+            if let Some(first) = editor_scene.navmesh_selection.first() {
                 self.move_gizmo.set_visible(&mut scene.graph, true);
 
                 let gizmo_position = match first {
@@ -428,8 +523,6 @@ impl InteractionModeTrait for EditNavmeshMode {
                     .transform(&mut scene.graph)
                     .set_position(gizmo_position);
             }
-        } else {
-            self.move_gizmo.set_visible(&mut scene.graph, false);
         }
     }
 

@@ -1,4 +1,7 @@
-use crate::interaction::navmesh::data_model::NavmeshVertex;
+use crate::interaction::navmesh::data_model::{
+    NavmeshEdge, NavmeshEntity, NavmeshTriangle, NavmeshVertex,
+};
+use crate::interaction::navmesh::selection::NavmeshSelection;
 use crate::{
     camera::CameraController,
     command::Command,
@@ -63,6 +66,7 @@ pub struct EditorScene {
     // but some parts are not because of incompatible data model.
     pub physics: Physics,
     pub navmeshes: Pool<Navmesh>,
+    pub navmesh_selection: NavmeshSelection,
 }
 
 impl EditorScene {
@@ -215,6 +219,10 @@ pub enum SceneCommand {
     AddNavmesh(AddNavmeshCommand),
     DeleteNavmesh(DeleteNavmeshCommand),
     MoveNavmeshVertex(MoveNavmeshVertexCommand),
+    AddNavmeshTriangle(AddNavmeshTriangleCommand),
+    AddNavmeshVertex(AddNavmeshVertexCommand),
+    AddNavmeshEdge(AddNavmeshEdgeCommand),
+    ChangeNavmeshSelection(ChangeNavmeshSelectionCommand),
 }
 
 pub struct SceneContext<'a> {
@@ -306,6 +314,10 @@ macro_rules! static_dispatch {
             SceneCommand::AddNavmesh(v) => v.$func($($args),*),
             SceneCommand::DeleteNavmesh(v) => v.$func($($args),*),
             SceneCommand::MoveNavmeshVertex(v) => v.$func($($args),*),
+            SceneCommand::AddNavmeshVertex(v) => v.$func($($args),*),
+            SceneCommand::AddNavmeshTriangle(v) => v.$func($($args),*),
+            SceneCommand::AddNavmeshEdge(v) => v.$func($($args),*),
+            SceneCommand::ChangeNavmeshSelection(v) => v.$func($($args),*),
         }
     };
 }
@@ -478,6 +490,161 @@ impl<'a> Command<'a> for AddParticleSystemEmitterCommand {
 }
 
 #[derive(Debug)]
+pub struct AddNavmeshEdgeCommand {
+    navmesh: Handle<Navmesh>,
+    opposite_edge: NavmeshEdge,
+    state: AddNavmeshEdgeCommandState,
+    select: bool,
+    new_selection: NavmeshSelection,
+}
+
+#[derive(Debug)]
+enum AddNavmeshEdgeCommandState {
+    Undefined,
+    NonExecuted {
+        edge: (NavmeshVertex, NavmeshVertex),
+    },
+    Executed {
+        triangles: [Handle<NavmeshTriangle>; 2],
+        vertices: [Handle<NavmeshVertex>; 2],
+    },
+    Reverted {
+        triangles: [(Ticket<NavmeshTriangle>, NavmeshTriangle); 2],
+        vertices: [(Ticket<NavmeshVertex>, NavmeshVertex); 2],
+    },
+}
+
+impl AddNavmeshEdgeCommand {
+    pub fn new(
+        navmesh: Handle<Navmesh>,
+        edge: (NavmeshVertex, NavmeshVertex),
+        opposite_edge: NavmeshEdge,
+        select: bool,
+    ) -> Self {
+        Self {
+            navmesh,
+            opposite_edge,
+            state: AddNavmeshEdgeCommandState::NonExecuted { edge },
+            select,
+            new_selection: Default::default(),
+        }
+    }
+}
+
+impl<'a> Command<'a> for AddNavmeshEdgeCommand {
+    type Context = SceneContext<'a>;
+
+    fn name(&mut self, _context: &Self::Context) -> String {
+        "Add Navmesh Edge".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut Self::Context) {
+        let navmesh = &mut context.editor_scene.navmeshes[self.navmesh];
+        match std::mem::replace(&mut self.state, AddNavmeshEdgeCommandState::Undefined) {
+            AddNavmeshEdgeCommandState::NonExecuted { edge } => {
+                let begin_handle = navmesh.vertices.spawn(edge.0);
+                let end_handle = navmesh.vertices.spawn(edge.1);
+                let triangle_a = navmesh.triangles.spawn(NavmeshTriangle {
+                    a: self.opposite_edge.begin,
+                    b: begin_handle,
+                    c: self.opposite_edge.end,
+                });
+                let triangle_b = navmesh.triangles.spawn(NavmeshTriangle {
+                    a: begin_handle,
+                    b: end_handle,
+                    c: self.opposite_edge.end,
+                });
+                self.state = AddNavmeshEdgeCommandState::Executed {
+                    triangles: [triangle_a, triangle_b],
+                    vertices: [begin_handle, end_handle],
+                };
+
+                self.new_selection.add(NavmeshEntity::Edge(NavmeshEdge {
+                    begin: begin_handle,
+                    end: end_handle,
+                }));
+            }
+            AddNavmeshEdgeCommandState::Reverted {
+                triangles,
+                vertices,
+            } => {
+                let [va, vb] = vertices;
+                let begin_handle = navmesh.vertices.put_back(va.0, va.1);
+                let end_handle = navmesh.vertices.put_back(vb.0, vb.1);
+
+                let [ta, tb] = triangles;
+                let triangle_a = navmesh.triangles.put_back(ta.0, ta.1);
+                let triangle_b = navmesh.triangles.put_back(tb.0, tb.1);
+
+                self.state = AddNavmeshEdgeCommandState::Executed {
+                    triangles: [triangle_a, triangle_b],
+                    vertices: [begin_handle, end_handle],
+                };
+            }
+            _ => unreachable!(),
+        }
+
+        if self.select {
+            std::mem::swap(
+                &mut context.editor_scene.navmesh_selection,
+                &mut self.new_selection,
+            );
+        }
+    }
+
+    fn revert(&mut self, context: &mut Self::Context) {
+        if self.select {
+            std::mem::swap(
+                &mut context.editor_scene.navmesh_selection,
+                &mut self.new_selection,
+            );
+        }
+
+        let navmesh = &mut context.editor_scene.navmeshes[self.navmesh];
+        match std::mem::replace(&mut self.state, AddNavmeshEdgeCommandState::Undefined) {
+            AddNavmeshEdgeCommandState::Executed {
+                triangles,
+                vertices,
+            } => {
+                self.state = AddNavmeshEdgeCommandState::Reverted {
+                    triangles: [
+                        navmesh.triangles.take_reserve(triangles[0]),
+                        navmesh.triangles.take_reserve(triangles[1]),
+                    ],
+                    vertices: [
+                        navmesh.vertices.take_reserve(vertices[0]),
+                        navmesh.vertices.take_reserve(vertices[1]),
+                    ],
+                };
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn finalize(&mut self, context: &mut Self::Context) {
+        match std::mem::replace(&mut self.state, AddNavmeshEdgeCommandState::Undefined) {
+            AddNavmeshEdgeCommandState::Reverted {
+                triangles,
+                vertices,
+            } => {
+                if let Some(navmesh) = context.editor_scene.navmeshes.try_borrow_mut(self.navmesh) {
+                    // Forget tickets.
+                    let [va, vb] = vertices;
+                    navmesh.vertices.forget_ticket(va.0);
+                    navmesh.vertices.forget_ticket(vb.0);
+
+                    let [ta, tb] = triangles;
+                    navmesh.triangles.forget_ticket(ta.0);
+                    navmesh.triangles.forget_ticket(tb.0);
+                }
+            }
+            // No actions needed.
+            _ => (),
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct DeleteEmitterCommand {
     particle_system: Handle<Node>,
     emitter: Option<Emitter>,
@@ -577,6 +744,75 @@ impl<'a> Command<'a> for AddNavmeshCommand {
         }
     }
 }
+
+macro_rules! define_pool_command {
+    ($name:ident, $inner_ty:ty, $human_readable_name:expr, $ctx:ident, $self:ident, $get_pool:block, $($field:ident:$type:ty),*) => {
+        #[derive(Debug)]
+        pub struct $name {
+            pub ticket: Option<Ticket<$inner_ty>>,
+            pub handle: Handle<$inner_ty>,
+            pub value: Option<$inner_ty>,
+            $(pub $field: $type,)*
+        }
+
+        impl<'a> Command<'a> for $name {
+            type Context = SceneContext<'a>;
+
+            fn name(&mut self, _context: &Self::Context) -> String {
+                $human_readable_name.to_owned()
+            }
+
+            fn execute(&mut $self, $ctx: &mut Self::Context) {
+               let pool = $get_pool;
+               match $self.ticket.take() {
+                    None => {
+                        $self.handle = pool.spawn($self.value.take().unwrap());
+                    }
+                    Some(ticket) => {
+                        let handle = pool.put_back(ticket, $self.value.take().unwrap());
+                        assert_eq!(handle, $self.handle);
+                    }
+                }
+            }
+
+            fn revert(&mut $self, $ctx: &mut Self::Context) {
+                let pool = $get_pool;
+
+                let (ticket, node) = pool.take_reserve($self.handle);
+                $self.ticket = Some(ticket);
+                $self.value = Some(node);
+            }
+
+            fn finalize(&mut $self, $ctx: &mut Self::Context) {
+                let pool = $get_pool;
+
+                if let Some(ticket) = $self.ticket.take() {
+                    pool.forget_ticket(ticket)
+                }
+            }
+        }
+    };
+}
+
+define_pool_command!(
+    AddNavmeshVertexCommand,
+    NavmeshVertex,
+    "Add Navmesh Vertex",
+    ctx,
+    self,
+    { &mut ctx.editor_scene.navmeshes[self.navmesh].vertices },
+    navmesh: Handle<Navmesh>
+);
+
+define_pool_command!(
+    AddNavmeshTriangleCommand,
+    NavmeshTriangle,
+    "Add Navmesh Triangle",
+    ctx,
+    self,
+    { &mut ctx.editor_scene.navmeshes[self.navmesh].triangles },
+    navmesh: Handle<Navmesh>
+);
 
 #[derive(Debug)]
 pub struct DeleteNavmeshCommand {
@@ -780,6 +1016,43 @@ impl<'a> Command<'a> for ChangeSelectionCommand {
                 .send(Message::SelectionChanged)
                 .unwrap();
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct ChangeNavmeshSelectionCommand {
+    new_selection: NavmeshSelection,
+    old_selection: NavmeshSelection,
+}
+
+impl ChangeNavmeshSelectionCommand {
+    pub fn new(new_selection: NavmeshSelection, old_selection: NavmeshSelection) -> Self {
+        Self {
+            new_selection,
+            old_selection,
+        }
+    }
+
+    fn swap(&mut self) -> NavmeshSelection {
+        let selection = self.new_selection.clone();
+        std::mem::swap(&mut self.new_selection, &mut self.old_selection);
+        selection
+    }
+}
+
+impl<'a> Command<'a> for ChangeNavmeshSelectionCommand {
+    type Context = SceneContext<'a>;
+
+    fn name(&mut self, _context: &Self::Context) -> String {
+        "Change Navmesh Selection".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut Self::Context) {
+        context.editor_scene.navmesh_selection = self.swap();
+    }
+
+    fn revert(&mut self, context: &mut Self::Context) {
+        context.editor_scene.navmesh_selection = self.swap();
     }
 }
 

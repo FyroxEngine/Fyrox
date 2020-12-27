@@ -50,7 +50,12 @@ pub trait InteractionModeTrait {
         engine: &mut GameEngine,
         frame_size: Vector2<f32>,
     );
-    fn update(&mut self, editor_scene: &EditorScene, camera: Handle<Node>, engine: &mut GameEngine);
+    fn update(
+        &mut self,
+        editor_scene: &mut EditorScene,
+        camera: Handle<Node>,
+        engine: &mut GameEngine,
+    );
     fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine);
 }
 
@@ -540,7 +545,7 @@ impl InteractionModeTrait for MoveInteractionMode {
 
     fn update(
         &mut self,
-        editor_scene: &EditorScene,
+        editor_scene: &mut EditorScene,
         camera: Handle<Node>,
         engine: &mut GameEngine,
     ) {
@@ -988,7 +993,7 @@ impl InteractionModeTrait for ScaleInteractionMode {
 
     fn update(
         &mut self,
-        editor_scene: &EditorScene,
+        editor_scene: &mut EditorScene,
         camera: Handle<Node>,
         engine: &mut GameEngine,
     ) {
@@ -1375,7 +1380,7 @@ impl InteractionModeTrait for RotateInteractionMode {
 
     fn update(
         &mut self,
-        editor_scene: &EditorScene,
+        editor_scene: &mut EditorScene,
         camera: Handle<Node>,
         engine: &mut GameEngine,
     ) {
@@ -1566,7 +1571,7 @@ impl InteractionModeTrait for SelectInteractionMode {
 
     fn update(
         &mut self,
-        _editor_scene: &EditorScene,
+        _editor_scene: &mut EditorScene,
         _camera: Handle<Node>,
         _engine: &mut GameEngine,
     ) {
@@ -1664,7 +1669,7 @@ impl InteractionModeTrait for InteractionMode {
 
     fn update(
         &mut self,
-        editor_scene: &EditorScene,
+        editor_scene: &mut EditorScene,
         camera: Handle<Node>,
         engine: &mut GameEngine,
     ) {

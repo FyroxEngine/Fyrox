@@ -635,6 +635,7 @@ impl Editor {
             scene: engine.scenes.add(scene),
             selection: Default::default(),
             clipboard: Default::default(),
+            navmesh_selection: Default::default(),
         };
 
         self.interaction_modes = vec![
