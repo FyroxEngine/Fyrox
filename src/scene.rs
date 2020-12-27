@@ -1,8 +1,8 @@
-use crate::interaction::navmesh::NavmeshVertex;
+use crate::interaction::navmesh::data_model::NavmeshVertex;
 use crate::{
     camera::CameraController,
     command::Command,
-    interaction::navmesh::Navmesh,
+    interaction::navmesh::data_model::Navmesh,
     physics::{Collider, Joint, Physics, RigidBody},
     GameEngine, Message,
 };

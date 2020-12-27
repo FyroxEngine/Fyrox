@@ -1,18 +1,21 @@
-use crate::scene::{CommandGroup, MoveNavmeshVertexCommand};
 use crate::{
     gui::{BuildContext, UiMessage, UiNode},
-    interaction::{InteractionModeTrait, MoveGizmo},
-    scene::{AddNavmeshCommand, DeleteNavmeshCommand, EditorScene, SceneCommand},
+    interaction::{
+        navmesh::{
+            data_model::{Navmesh, NavmeshEntity, NavmeshVertex},
+            selection::NavmeshSelection,
+        },
+        InteractionModeTrait, MoveGizmo,
+    },
+    scene::{
+        AddNavmeshCommand, CommandGroup, DeleteNavmeshCommand, EditorScene,
+        MoveNavmeshVertexCommand, SceneCommand,
+    },
     GameEngine, Message,
 };
-use rg3d::gui::message::WidgetMessage;
-use rg3d::scene::camera::Camera;
+use rg3d::sound::math::ray::CylinderKind;
 use rg3d::{
-    core::{
-        algebra::Vector3,
-        color::Color,
-        pool::{Handle, Pool},
-    },
+    core::{algebra::Vector3, color::Color, pool::Handle},
     gui::{
         border::BorderBuilder,
         button::ButtonBuilder,
@@ -20,16 +23,19 @@ use rg3d::{
         decorator::DecoratorBuilder,
         grid::{Column, GridBuilder, Row},
         list_view::ListViewBuilder,
-        message::{ButtonMessage, ListViewMessage, MessageDirection, UiMessageData},
+        message::{ButtonMessage, ListViewMessage, MessageDirection, UiMessageData, WidgetMessage},
         text::TextBuilder,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
         Thickness, VerticalAlignment,
     },
     physics::ncollide::na::Vector2,
-    scene::node::Node,
+    scene::{camera::Camera, node::Node},
 };
-use std::{rc::Rc, sync::mpsc::Sender};
+use std::{collections::HashMap, rc::Rc, sync::mpsc::Sender};
+
+pub mod data_model;
+mod selection;
 
 const VERTEX_RADIUS: f32 = 0.2;
 
@@ -212,73 +218,13 @@ impl NavmeshPanel {
     }
 }
 
-#[derive(Debug)]
-pub struct NavmeshVertex {
-    pub position: Vector3<f32>,
-}
-
-#[derive(Debug)]
-pub struct Triangle {
-    a: Handle<NavmeshVertex>,
-    b: Handle<NavmeshVertex>,
-    c: Handle<NavmeshVertex>,
-}
-
-impl Triangle {
-    pub fn vertices(&self) -> [Handle<NavmeshVertex>; 3] {
-        [self.a, self.b, self.c]
-    }
-}
-
-#[derive(Debug)]
-pub struct Navmesh {
-    pub vertices: Pool<NavmeshVertex>,
-    pub triangles: Pool<Triangle>,
-}
-
-impl Navmesh {
-    pub fn new() -> Self {
-        let mut vertices = Pool::new();
-
-        let a = vertices.spawn(NavmeshVertex {
-            position: Vector3::new(-1.0, 0.0, -1.0),
-        });
-        let b = vertices.spawn(NavmeshVertex {
-            position: Vector3::new(1.0, 0.0, -1.0),
-        });
-        let c = vertices.spawn(NavmeshVertex {
-            position: Vector3::new(0.0, 0.0, 1.0),
-        });
-
-        let mut triangles = Pool::new();
-
-        let _ = triangles.spawn(Triangle { a, b, c });
-
-        Self {
-            vertices,
-            triangles,
-        }
-    }
-}
-
-#[derive(PartialEq, Default)]
-pub struct NavmeshSelection {
-    vertices: Vec<Handle<NavmeshVertex>>,
-}
-
-impl NavmeshSelection {
-    pub fn is_empty(&self) -> bool {
-        self.vertices.is_empty()
-    }
-}
-
 pub struct EditNavmeshMode {
     navmesh: Handle<Navmesh>,
     move_gizmo: MoveGizmo,
     interacting: bool,
     message_sender: Sender<Message>,
     selection: NavmeshSelection,
-    initial_positions: Vec<Vector3<f32>>,
+    initial_positions: HashMap<Handle<NavmeshVertex>, Vector3<f32>>,
 }
 
 impl EditNavmeshMode {
@@ -329,20 +275,38 @@ impl InteractionModeTrait for EditNavmeshMode {
 
             if !self.interacting {
                 if !engine.user_interface.keyboard_modifiers().shift {
-                    self.selection.vertices.clear();
+                    self.selection.clear();
                 }
                 for (handle, vertex) in navmesh.vertices.pair_iter() {
                     if ray
                         .sphere_intersection(&vertex.position, VERTEX_RADIUS)
                         .is_some()
                     {
-                        self.selection.vertices.push(handle);
+                        self.selection.add(NavmeshEntity::Vertex(handle));
+                    }
+                }
+
+                for triangle in navmesh.triangles.iter() {
+                    for edge in &triangle.edges() {
+                        let begin = navmesh.vertices[edge.begin].position;
+                        let end = navmesh.vertices[edge.end].position;
+                        if ray
+                            .cylinder_intersection(
+                                &begin,
+                                &end,
+                                VERTEX_RADIUS,
+                                CylinderKind::Finite,
+                            )
+                            .is_some()
+                        {
+                            self.selection.add(NavmeshEntity::Edge(*edge));
+                        }
                     }
                 }
             } else {
                 self.initial_positions.clear();
-                for &v in self.selection.vertices.iter() {
-                    self.initial_positions.push(navmesh.vertices[v].position);
+                for (handle, vertex) in navmesh.vertices.pair_iter() {
+                    self.initial_positions.insert(handle, vertex.position);
                 }
             }
         }
@@ -359,20 +323,15 @@ impl InteractionModeTrait for EditNavmeshMode {
             let navmesh = &editor_scene.navmeshes[self.navmesh];
             if self.interacting {
                 let mut commands = Vec::new();
-                for (&vertex, &old_pos) in self
-                    .selection
-                    .vertices
-                    .iter()
-                    .zip(self.initial_positions.iter())
-                {
+                for vertex in self.selection.unique_vertices().iter() {
                     commands.push(SceneCommand::MoveNavmeshVertex(
                         MoveNavmeshVertexCommand::new(
                             self.navmesh,
-                            vertex,
-                            old_pos,
-                            navmesh.vertices[vertex].position,
+                            *vertex,
+                            *self.initial_positions.get(vertex).unwrap(),
+                            navmesh.vertices[*vertex].position,
                         ),
-                    ))
+                    ));
                 }
 
                 self.message_sender
@@ -407,7 +366,7 @@ impl InteractionModeTrait for EditNavmeshMode {
                 );
 
                 let navmesh = &mut editor_scene.navmeshes[self.navmesh];
-                for &vertex in self.selection.vertices.iter() {
+                for &vertex in self.selection.unique_vertices() {
                     navmesh.vertices[vertex].position += offset;
                 }
             }
@@ -431,7 +390,7 @@ impl InteractionModeTrait for EditNavmeshMode {
                     10,
                     10,
                     VERTEX_RADIUS,
-                    if self.selection.vertices.contains(&handle) {
+                    if self.selection.unique_vertices().contains(&handle) {
                         Color::RED
                     } else {
                         Color::GREEN
@@ -440,29 +399,34 @@ impl InteractionModeTrait for EditNavmeshMode {
             }
 
             for triangle in navmesh.triangles.iter() {
-                scene.drawing_context.add_line(rg3d::scene::Line {
-                    begin: navmesh.vertices[triangle.a].position,
-                    end: navmesh.vertices[triangle.b].position,
-                    color: Color::GREEN,
-                });
-                scene.drawing_context.add_line(rg3d::scene::Line {
-                    begin: navmesh.vertices[triangle.b].position,
-                    end: navmesh.vertices[triangle.c].position,
-                    color: Color::GREEN,
-                });
-                scene.drawing_context.add_line(rg3d::scene::Line {
-                    begin: navmesh.vertices[triangle.c].position,
-                    end: navmesh.vertices[triangle.a].position,
-                    color: Color::GREEN,
-                });
+                for edge in &triangle.edges() {
+                    scene.drawing_context.add_line(rg3d::scene::Line {
+                        begin: navmesh.vertices[edge.begin].position,
+                        end: navmesh.vertices[edge.end].position,
+                        color: if self.selection.contains_edge(*edge) {
+                            Color::RED
+                        } else {
+                            Color::GREEN
+                        },
+                    });
+                }
             }
 
-            if !self.selection.is_empty() {
+            if let Some(first) = self.selection.first() {
                 self.move_gizmo.set_visible(&mut scene.graph, true);
-                let first_vertex = *self.selection.vertices.first().unwrap();
+
+                let gizmo_position = match first {
+                    &NavmeshEntity::Vertex(v) => navmesh.vertices[v].position,
+                    &NavmeshEntity::Edge(edge) => {
+                        let a = navmesh.vertices[edge.begin].position;
+                        let b = navmesh.vertices[edge.end].position;
+                        (a + b).scale(0.5)
+                    }
+                };
+
                 self.move_gizmo
                     .transform(&mut scene.graph)
-                    .set_position(navmesh.vertices[first_vertex].position);
+                    .set_position(gizmo_position);
             }
         } else {
             self.move_gizmo.set_visible(&mut scene.graph, false);
