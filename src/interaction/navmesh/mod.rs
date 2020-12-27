@@ -1,20 +1,18 @@
-use crate::interaction::navmesh::data_model::NavmeshEdge;
-use crate::scene::{AddNavmeshEdgeCommand, ChangeNavmeshSelectionCommand};
 use crate::{
     gui::{BuildContext, UiMessage, UiNode},
     interaction::{
-        navmesh::data_model::{Navmesh, NavmeshEntity, NavmeshVertex},
+        navmesh::data_model::{Navmesh, NavmeshEdge, NavmeshEntity, NavmeshVertex},
         InteractionModeTrait, MoveGizmo,
     },
     scene::{
         AddNavmeshCommand, CommandGroup, DeleteNavmeshCommand, EditorScene,
         MoveNavmeshVertexCommand, SceneCommand,
     },
+    scene::{AddNavmeshEdgeCommand, ChangeNavmeshSelectionCommand},
     GameEngine, Message,
 };
-use rg3d::sound::math::ray::CylinderKind;
 use rg3d::{
-    core::{algebra::Vector3, color::Color, pool::Handle},
+    core::{algebra::Vector3, color::Color, math::ray::CylinderKind, pool::Handle},
     gui::{
         border::BorderBuilder,
         button::ButtonBuilder,
@@ -217,18 +215,27 @@ impl NavmeshPanel {
     }
 }
 
-struct DragEdgeContext {
-    vertices: [NavmeshVertex; 2],
-    opposite_edge: NavmeshEdge,
+enum DragContext {
+    MoveSelection {
+        initial_positions: HashMap<Handle<NavmeshVertex>, Vector3<f32>>,
+    },
+    EdgeDuplication {
+        vertices: [NavmeshVertex; 2],
+        opposite_edge: NavmeshEdge,
+    },
+}
+
+impl DragContext {
+    pub fn is_edge_duplication(&self) -> bool {
+        matches!(self, DragContext::EdgeDuplication { .. })
+    }
 }
 
 pub struct EditNavmeshMode {
     navmesh: Handle<Navmesh>,
     move_gizmo: MoveGizmo,
-    interacting: bool,
     message_sender: Sender<Message>,
-    initial_positions: HashMap<Handle<NavmeshVertex>, Vector3<f32>>,
-    drag_edge_context: Option<DragEdgeContext>,
+    drag_context: Option<DragContext>,
 }
 
 impl EditNavmeshMode {
@@ -240,10 +247,8 @@ impl EditNavmeshMode {
         Self {
             navmesh: Default::default(),
             move_gizmo: MoveGizmo::new(editor_scene, engine),
-            interacting: false,
             message_sender,
-            initial_positions: Default::default(),
-            drag_edge_context: None,
+            drag_context: None,
         }
     }
 }
@@ -273,39 +278,51 @@ impl InteractionModeTrait for EditNavmeshMode {
                 |handle, _| handle != camera && handle != camera_pivot,
             );
 
-            self.interacting = self
+            if self
                 .move_gizmo
-                .handle_pick(editor_node, editor_scene, engine);
-
-            if !self.interacting {
+                .handle_pick(editor_node, editor_scene, engine)
+            {
+                let mut initial_positions = HashMap::new();
+                for (handle, vertex) in navmesh.vertices.pair_iter() {
+                    initial_positions.insert(handle, vertex.position);
+                }
+                self.drag_context = Some(DragContext::MoveSelection { initial_positions });
+            } else {
                 let mut selection = if engine.user_interface.keyboard_modifiers().shift {
                     editor_scene.navmesh_selection.clone()
                 } else {
                     Default::default()
                 };
+
+                let mut picked = false;
                 for (handle, vertex) in navmesh.vertices.pair_iter() {
                     if ray
                         .sphere_intersection(&vertex.position, VERTEX_RADIUS)
                         .is_some()
                     {
                         selection.add(NavmeshEntity::Vertex(handle));
+                        picked = true;
+                        break;
                     }
                 }
 
-                for triangle in navmesh.triangles.iter() {
-                    for edge in &triangle.edges() {
-                        let begin = navmesh.vertices[edge.begin].position;
-                        let end = navmesh.vertices[edge.end].position;
-                        if ray
-                            .cylinder_intersection(
-                                &begin,
-                                &end,
-                                VERTEX_RADIUS,
-                                CylinderKind::Finite,
-                            )
-                            .is_some()
-                        {
-                            selection.add(NavmeshEntity::Edge(*edge));
+                if !picked {
+                    for triangle in navmesh.triangles.iter() {
+                        for edge in &triangle.edges() {
+                            let begin = navmesh.vertices[edge.begin].position;
+                            let end = navmesh.vertices[edge.end].position;
+                            if ray
+                                .cylinder_intersection(
+                                    &begin,
+                                    &end,
+                                    VERTEX_RADIUS,
+                                    CylinderKind::Finite,
+                                )
+                                .is_some()
+                            {
+                                selection.add(NavmeshEntity::Edge(*edge));
+                                break;
+                            }
                         }
                     }
                 }
@@ -318,11 +335,6 @@ impl InteractionModeTrait for EditNavmeshMode {
                         )),
                     ))
                     .unwrap();
-            } else {
-                self.initial_positions.clear();
-                for (handle, vertex) in navmesh.vertices.pair_iter() {
-                    self.initial_positions.insert(handle, vertex.position);
-                }
             }
         }
     }
@@ -336,29 +348,35 @@ impl InteractionModeTrait for EditNavmeshMode {
     ) {
         if editor_scene.navmeshes.is_valid_handle(self.navmesh) {
             let navmesh = &mut editor_scene.navmeshes[self.navmesh];
-            if self.interacting {
+            if let Some(drag_context) = self.drag_context.take() {
                 let mut commands = Vec::new();
 
-                if let Some(drag_edge_context) = self.drag_edge_context.take() {
-                    let va = drag_edge_context.vertices[0].clone();
-                    let vb = drag_edge_context.vertices[1].clone();
+                match drag_context {
+                    DragContext::MoveSelection { initial_positions } => {
+                        for vertex in editor_scene.navmesh_selection.unique_vertices().iter() {
+                            commands.push(SceneCommand::MoveNavmeshVertex(
+                                MoveNavmeshVertexCommand::new(
+                                    self.navmesh,
+                                    *vertex,
+                                    *initial_positions.get(vertex).unwrap(),
+                                    navmesh.vertices[*vertex].position,
+                                ),
+                            ));
+                        }
+                    }
+                    DragContext::EdgeDuplication {
+                        vertices,
+                        opposite_edge,
+                    } => {
+                        let va = vertices[0].clone();
+                        let vb = vertices[1].clone();
 
-                    commands.push(SceneCommand::AddNavmeshEdge(AddNavmeshEdgeCommand::new(
-                        self.navmesh,
-                        (va, vb),
-                        drag_edge_context.opposite_edge,
-                        true,
-                    )));
-                } else {
-                    for vertex in editor_scene.navmesh_selection.unique_vertices().iter() {
-                        commands.push(SceneCommand::MoveNavmeshVertex(
-                            MoveNavmeshVertexCommand::new(
-                                self.navmesh,
-                                *vertex,
-                                *self.initial_positions.get(vertex).unwrap(),
-                                navmesh.vertices[*vertex].position,
-                            ),
-                        ));
+                        commands.push(SceneCommand::AddNavmeshEdge(AddNavmeshEdgeCommand::new(
+                            self.navmesh,
+                            (va, vb),
+                            opposite_edge,
+                            true,
+                        )));
                     }
                 }
 
@@ -367,8 +385,6 @@ impl InteractionModeTrait for EditNavmeshMode {
                         CommandGroup::from(commands),
                     )))
                     .unwrap();
-
-                self.interacting = false;
             }
         }
     }
@@ -383,7 +399,7 @@ impl InteractionModeTrait for EditNavmeshMode {
         frame_size: Vector2<f32>,
     ) {
         if editor_scene.navmeshes.is_valid_handle(self.navmesh) {
-            if self.interacting {
+            if self.drag_context.is_some() {
                 let offset = self.move_gizmo.calculate_offset(
                     editor_scene,
                     camera,
@@ -395,17 +411,19 @@ impl InteractionModeTrait for EditNavmeshMode {
 
                 let navmesh = &mut editor_scene.navmeshes[self.navmesh];
 
+                // If we're dragging single edge it is possible to enter edge duplication mode by
+                // holding Shift key. This is the main navmesh construction mode.
                 if editor_scene.navmesh_selection.entities().len() == 1 {
                     if let NavmeshEntity::Edge(edge) =
                         editor_scene.navmesh_selection.entities().first().unwrap()
                     {
                         if engine.user_interface.keyboard_modifiers().shift
-                            && self.drag_edge_context.is_none()
+                            && !self.drag_context.as_ref().unwrap().is_edge_duplication()
                         {
                             let new_begin = navmesh.vertices[edge.begin].clone();
                             let new_end = navmesh.vertices[edge.end].clone();
 
-                            self.drag_edge_context = Some(DragEdgeContext {
+                            self.drag_context = Some(DragContext::EdgeDuplication {
                                 vertices: [new_begin, new_end],
                                 opposite_edge: edge.clone(),
                             });
@@ -425,13 +443,18 @@ impl InteractionModeTrait for EditNavmeshMode {
                     }
                 }
 
-                if let Some(drag_context) = self.drag_edge_context.as_mut() {
-                    for vertex in drag_context.vertices.iter_mut() {
-                        vertex.position += offset;
-                    }
-                } else {
-                    for &vertex in editor_scene.navmesh_selection.unique_vertices() {
-                        navmesh.vertices[vertex].position += offset;
+                if let Some(drag_context) = self.drag_context.as_mut() {
+                    match drag_context {
+                        DragContext::MoveSelection { .. } => {
+                            for &vertex in editor_scene.navmesh_selection.unique_vertices() {
+                                navmesh.vertices[vertex].position += offset;
+                            }
+                        }
+                        DragContext::EdgeDuplication { vertices, .. } => {
+                            for vertex in vertices.iter_mut() {
+                                vertex.position += offset;
+                            }
+                        }
                     }
                 }
             }
@@ -482,34 +505,40 @@ impl InteractionModeTrait for EditNavmeshMode {
                 }
             }
 
-            if let Some(drag_context) = self.drag_edge_context.as_ref() {
-                for vertex in drag_context.vertices.iter() {
-                    scene.drawing_context.draw_sphere(
-                        vertex.position,
-                        10,
-                        10,
-                        VERTEX_RADIUS,
-                        Color::RED,
-                    );
-                }
+            if let Some(drag_context) = self.drag_context.as_ref() {
+                if let DragContext::EdgeDuplication {
+                    vertices,
+                    opposite_edge,
+                } = drag_context
+                {
+                    for vertex in vertices.iter() {
+                        scene.drawing_context.draw_sphere(
+                            vertex.position,
+                            10,
+                            10,
+                            VERTEX_RADIUS,
+                            Color::RED,
+                        );
+                    }
 
-                let ob = navmesh.vertices[drag_context.opposite_edge.begin].position;
-                let nb = drag_context.vertices[0].position;
-                let oe = navmesh.vertices[drag_context.opposite_edge.end].position;
-                let ne = drag_context.vertices[1].position;
+                    let ob = navmesh.vertices[opposite_edge.begin].position;
+                    let nb = vertices[0].position;
+                    let oe = navmesh.vertices[opposite_edge.end].position;
+                    let ne = vertices[1].position;
 
-                scene.drawing_context.add_line(rg3d::scene::Line {
-                    begin: nb,
-                    end: ne,
-                    color: Color::RED,
-                });
-
-                for &(begin, end) in &[(ob, oe), (ob, nb), (nb, oe), (oe, ne)] {
                     scene.drawing_context.add_line(rg3d::scene::Line {
-                        begin,
-                        end,
-                        color: Color::GREEN,
+                        begin: nb,
+                        end: ne,
+                        color: Color::RED,
                     });
+
+                    for &(begin, end) in &[(ob, oe), (ob, nb), (nb, oe), (oe, ne)] {
+                        scene.drawing_context.add_line(rg3d::scene::Line {
+                            begin,
+                            end,
+                            color: Color::GREEN,
+                        });
+                    }
                 }
             }
 
