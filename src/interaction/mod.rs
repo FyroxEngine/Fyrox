@@ -59,6 +59,18 @@ pub trait InteractionModeTrait {
     fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine);
 }
 
+pub fn calculate_gizmo_distance_scaling(
+    graph: &Graph,
+    camera: Handle<Node>,
+    gizmo_origin: Handle<Node>,
+) -> Vector3<f32> {
+    let distance = distance_scale_factor(graph[camera].as_camera().fov())
+        * graph[gizmo_origin]
+            .global_position()
+            .metric_distance(&graph[camera].global_position());
+    Vector3::new(distance, distance, distance)
+}
+
 #[derive(Copy, Clone, Debug)]
 pub enum MoveGizmoMode {
     None,
@@ -551,11 +563,7 @@ impl InteractionModeTrait for MoveInteractionMode {
     ) {
         if !editor_scene.selection.is_empty() {
             let graph = &mut engine.scenes[editor_scene.scene].graph;
-            let distance = distance_scale_factor(graph[camera].as_camera().fov())
-                * graph[self.move_gizmo.origin]
-                    .global_position()
-                    .metric_distance(&graph[camera].global_position());
-            let scale = Vector3::new(distance, distance, distance);
+            let scale = calculate_gizmo_distance_scaling(graph, camera, self.move_gizmo.origin);
             self.move_gizmo
                 .sync_transform(graph, &editor_scene.selection, scale);
             self.move_gizmo.set_visible(graph, true);
@@ -999,11 +1007,7 @@ impl InteractionModeTrait for ScaleInteractionMode {
     ) {
         if !editor_scene.selection.is_empty() {
             let graph = &mut engine.scenes[editor_scene.scene].graph;
-            let distance = distance_scale_factor(graph[camera].as_camera().fov())
-                * graph[self.scale_gizmo.origin]
-                    .global_position()
-                    .metric_distance(&graph[camera].global_position());
-            let scale = Vector3::new(distance, distance, distance);
+            let scale = calculate_gizmo_distance_scaling(graph, camera, self.scale_gizmo.origin);
             self.scale_gizmo
                 .sync_transform(graph, &editor_scene.selection, scale);
             self.scale_gizmo.set_visible(graph, true);
@@ -1386,11 +1390,7 @@ impl InteractionModeTrait for RotateInteractionMode {
     ) {
         if !editor_scene.selection.is_empty() {
             let graph = &mut engine.scenes[editor_scene.scene].graph;
-            let distance = distance_scale_factor(graph[camera].as_camera().fov())
-                * graph[self.rotation_gizmo.origin]
-                    .global_position()
-                    .metric_distance(&graph[camera].global_position());
-            let scale = Vector3::new(distance, distance, distance);
+            let scale = calculate_gizmo_distance_scaling(graph, camera, self.rotation_gizmo.origin);
             self.rotation_gizmo
                 .sync_transform(graph, &editor_scene.selection, scale);
             self.rotation_gizmo.set_visible(graph, true);

@@ -1,3 +1,4 @@
+use crate::interaction::calculate_gizmo_distance_scaling;
 use crate::{
     gui::{BuildContext, UiMessage, UiNode},
     interaction::{
@@ -464,11 +465,13 @@ impl InteractionModeTrait for EditNavmeshMode {
     fn update(
         &mut self,
         editor_scene: &mut EditorScene,
-        _camera: Handle<Node>,
+        camera: Handle<Node>,
         engine: &mut GameEngine,
     ) {
         let scene = &mut engine.scenes[editor_scene.scene];
         self.move_gizmo.set_visible(&mut scene.graph, false);
+
+        let scale = calculate_gizmo_distance_scaling(&scene.graph, camera, self.move_gizmo.origin);
 
         if editor_scene.navmeshes.is_valid_handle(self.navmesh) {
             let navmesh = &editor_scene.navmeshes[self.navmesh];
@@ -539,6 +542,12 @@ impl InteractionModeTrait for EditNavmeshMode {
                             color: Color::GREEN,
                         });
                     }
+
+                    self.move_gizmo.set_visible(&mut scene.graph, true);
+                    self.move_gizmo
+                        .transform(&mut scene.graph)
+                        .set_scale(scale)
+                        .set_position((nb + ne).scale(0.5));
                 }
             }
 
@@ -556,6 +565,7 @@ impl InteractionModeTrait for EditNavmeshMode {
 
                 self.move_gizmo
                     .transform(&mut scene.graph)
+                    .set_scale(scale)
                     .set_position(gizmo_position);
             }
         }
