@@ -66,6 +66,13 @@ impl Model {
             stack.extend_from_slice(node.children());
         }
 
+        // Embed navmeshes.
+        // TODO: This also must provide a map which will make it possible to extract navmesh
+        // from resource later on.
+        for navmesh in data.scene.navmeshes.iter() {
+            dest_scene.navmeshes.add(navmesh.clone());
+        }
+
         std::mem::drop(data);
 
         dest_scene.physics.embed_resource(

@@ -755,6 +755,16 @@ impl NavMeshContainer {
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Navmesh> {
         self.pool.iter_mut()
     }
+
+    /// Creates a handle to navmesh from its index.
+    pub fn handle_from_index(&self, i: usize) -> Handle<Navmesh> {
+        self.pool.handle_from_index(i)
+    }
+
+    /// Destroys all navmeshes. All handles will become invalid.
+    pub fn clear(&mut self) {
+        self.pool.clear()
+    }
 }
 
 impl Index<Handle<Navmesh>> for NavMeshContainer {
