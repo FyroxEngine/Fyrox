@@ -65,12 +65,16 @@ impl Navmesh {
             position: Vector3::new(1.0, 0.0, -1.0),
         });
         let c = vertices.spawn(NavmeshVertex {
-            position: Vector3::new(0.0, 0.0, 1.0),
+            position: Vector3::new(1.0, 0.0, 1.0),
+        });
+        let d = vertices.spawn(NavmeshVertex {
+            position: Vector3::new(-1.0, 0.0, 1.0),
         });
 
         let mut triangles = Pool::new();
 
         let _ = triangles.spawn(NavmeshTriangle { a, b, c });
+        let _ = triangles.spawn(NavmeshTriangle { a: a, b: c, c: d });
 
         Self {
             vertices,
