@@ -56,6 +56,14 @@ impl SoundEngine {
         }
     }
 
+    /// Checks if a context is registered in the engine.
+    pub fn has_context(&self, context: &Context) -> bool {
+        self.contexts
+            .iter()
+            .position(|c| Arc::ptr_eq(c.state.as_ref().unwrap(), context.state.as_ref().unwrap()))
+            .is_some()
+    }
+
     /// Returns a reference to context container.
     pub fn contexts(&self) -> &[Context] {
         &self.contexts

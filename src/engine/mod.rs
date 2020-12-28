@@ -8,6 +8,7 @@ pub mod resource_manager;
 
 use crate::core::algebra::Vector2;
 use crate::resource::texture::TextureKind;
+use crate::utils::log::{Log, MessageKind};
 use crate::{
     core::visitor::{Visit, VisitResult, Visitor},
     engine::{error::EngineError, resource_manager::ResourceManager},
@@ -166,7 +167,16 @@ impl<M: MessageData, C: Control<M, C>> Visit for Engine<M, C> {
         if visitor.is_reading() {
             futures::executor::block_on(self.resource_manager.reload_resources());
 
+            let mut sound_engine = self.sound_engine.lock().unwrap();
             for scene in self.scenes.iter_mut() {
+                // Fix scenes with previous format.
+                if !sound_engine.has_context(&scene.sound_context) {
+                    Log::writeln(
+                        MessageKind::Warning,
+                        "Restoring sound context of the scene!".to_owned(),
+                    );
+                    sound_engine.add_context(scene.sound_context.clone());
+                }
                 scene.resolve();
             }
         }

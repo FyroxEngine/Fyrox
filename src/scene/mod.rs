@@ -1164,6 +1164,10 @@ impl Visit for Scene {
         let _ = self.lightmap.visit("Lightmap", visitor);
         let _ = self.sound_context.visit("SoundContext", visitor);
         let _ = self.navmeshes.visit("NavMeshes", visitor);
+        // Backward compatibility.
+        if self.sound_context.is_invalid() {
+            self.sound_context = Context::new();
+        }
         visitor.leave_region()
     }
 }

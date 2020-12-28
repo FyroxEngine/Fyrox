@@ -85,7 +85,7 @@ impl Default for DistanceModel {
 /// See module docs.
 #[derive(Clone, Default, Debug)]
 pub struct Context {
-    state: Option<Arc<Mutex<State>>>,
+    pub(in crate) state: Option<Arc<Mutex<State>>>,
 }
 
 impl PartialEq for Context {
@@ -307,6 +307,11 @@ impl Context {
         Context {
             state: Some(Arc::new(Mutex::new(self.state().clone()))),
         }
+    }
+
+    /// Returns true if context is corrupted.
+    pub fn is_invalid(&self) -> bool {
+        self.state.is_none()
     }
 }
 
