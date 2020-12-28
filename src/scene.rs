@@ -116,6 +116,8 @@ impl EditorScene {
                 }
             }
 
+            pure_scene.navmeshes.clear();
+
             for navmesh in self.navmeshes.iter() {
                 // Sparse-to-dense mapping - handle to index.
                 let mut vertex_map = HashMap::new();

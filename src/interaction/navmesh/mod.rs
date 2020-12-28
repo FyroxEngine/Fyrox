@@ -1,4 +1,5 @@
 use crate::interaction::calculate_gizmo_distance_scaling;
+use crate::interaction::navmesh::selection::NavmeshSelection;
 use crate::scene::DeleteNavmeshVertexCommand;
 use crate::{
     gui::{BuildContext, UiMessage, UiNode},
@@ -577,33 +578,58 @@ impl InteractionModeTrait for EditNavmeshMode {
         &mut self,
         key: KeyCode,
         editor_scene: &mut EditorScene,
-        _engine: &mut GameEngine,
+        engine: &mut GameEngine,
     ) {
-        if let KeyCode::Delete = key {
-            if editor_scene.navmeshes.is_valid_handle(self.navmesh) {
-                if !editor_scene.navmesh_selection.is_empty() {
-                    let mut commands = Vec::new();
+        match key {
+            KeyCode::Delete => {
+                if editor_scene.navmeshes.is_valid_handle(self.navmesh) {
+                    if !editor_scene.navmesh_selection.is_empty() {
+                        let mut commands = Vec::new();
 
-                    for &vertex in editor_scene.navmesh_selection.unique_vertices() {
-                        commands.push(SceneCommand::DeleteNavmeshVertex(
-                            DeleteNavmeshVertexCommand::new(self.navmesh, vertex),
+                        for &vertex in editor_scene.navmesh_selection.unique_vertices() {
+                            commands.push(SceneCommand::DeleteNavmeshVertex(
+                                DeleteNavmeshVertexCommand::new(self.navmesh, vertex),
+                            ));
+                        }
+
+                        commands.push(SceneCommand::ChangeNavmeshSelection(
+                            ChangeNavmeshSelectionCommand::new(
+                                Default::default(),
+                                editor_scene.navmesh_selection.clone(),
+                            ),
                         ));
+
+                        self.message_sender
+                            .send(Message::DoSceneCommand(SceneCommand::CommandGroup(
+                                CommandGroup::from(commands),
+                            )))
+                            .unwrap();
+                    }
+                }
+            }
+            KeyCode::A if engine.user_interface.keyboard_modifiers().control => {
+                if editor_scene.navmeshes.is_valid_handle(self.navmesh) {
+                    let navmesh = &editor_scene.navmeshes[self.navmesh];
+
+                    let mut selection = NavmeshSelection::default();
+
+                    for (handle, _) in navmesh.vertices.pair_iter() {
+                        selection.add(NavmeshEntity::Vertex(handle));
                     }
 
-                    commands.push(SceneCommand::ChangeNavmeshSelection(
-                        ChangeNavmeshSelectionCommand::new(
-                            Default::default(),
-                            editor_scene.navmesh_selection.clone(),
-                        ),
-                    ));
-
                     self.message_sender
-                        .send(Message::DoSceneCommand(SceneCommand::CommandGroup(
-                            CommandGroup::from(commands),
-                        )))
+                        .send(Message::DoSceneCommand(
+                            SceneCommand::ChangeNavmeshSelection(
+                                ChangeNavmeshSelectionCommand::new(
+                                    selection,
+                                    editor_scene.navmesh_selection.clone(),
+                                ),
+                            ),
+                        ))
                         .unwrap();
                 }
             }
+            _ => {}
         }
     }
 
