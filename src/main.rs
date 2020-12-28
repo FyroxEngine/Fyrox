@@ -631,7 +631,7 @@ impl Editor {
         let mut navmeshes = Pool::new();
 
         for navmesh in scene.navmeshes.iter() {
-            navmeshes.spawn(Navmesh {
+            let _ = navmeshes.spawn(Navmesh {
                 vertices: navmesh
                     .vertices()
                     .iter()
@@ -843,6 +843,15 @@ impl Editor {
                         }
                         WidgetMessage::KeyDown(key) => {
                             editor_scene.camera_controller.on_key_down(key);
+
+                            if let Some(current_im) = self.current_interaction_mode {
+                                self.interaction_modes[current_im as usize].on_key_down(
+                                    key,
+                                    editor_scene,
+                                    engine,
+                                );
+                            }
+
                             match key {
                                 KeyCode::Y => {
                                     if engine.user_interface.keyboard_modifiers().control {

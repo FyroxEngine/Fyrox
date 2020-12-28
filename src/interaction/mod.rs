@@ -8,6 +8,7 @@ use crate::{
     },
     GameEngine, Message,
 };
+use rg3d::gui::message::KeyCode;
 use rg3d::scene::transform::Transform;
 use rg3d::{
     core::{
@@ -57,6 +58,13 @@ pub trait InteractionModeTrait {
         engine: &mut GameEngine,
     );
     fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine);
+    fn on_key_down(
+        &mut self,
+        _key: KeyCode,
+        _editor_scene: &mut EditorScene,
+        _engine: &mut GameEngine,
+    ) {
+    }
 }
 
 pub fn calculate_gizmo_distance_scaling(
@@ -1678,5 +1686,14 @@ impl InteractionModeTrait for InteractionMode {
 
     fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
         static_dispatch!(self, deactivate, editor_scene, engine)
+    }
+
+    fn on_key_down(
+        &mut self,
+        key: KeyCode,
+        editor_scene: &mut EditorScene,
+        engine: &mut GameEngine,
+    ) {
+        static_dispatch!(self, on_key_down, key, editor_scene, engine)
     }
 }

@@ -26,6 +26,10 @@ impl NavmeshSelection {
         self.entities.first()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.entities.is_empty()
+    }
+
     pub fn unique_vertices(&mut self) -> &HashSet<Handle<NavmeshVertex>> {
         if self.dirty {
             self.unique_vertices.clear();

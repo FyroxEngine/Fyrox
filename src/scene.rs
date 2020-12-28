@@ -256,6 +256,7 @@ pub enum SceneCommand {
     AddNavmeshVertex(AddNavmeshVertexCommand),
     AddNavmeshEdge(AddNavmeshEdgeCommand),
     ChangeNavmeshSelection(ChangeNavmeshSelectionCommand),
+    DeleteNavmeshVertex(DeleteNavmeshVertexCommand),
 }
 
 pub struct SceneContext<'a> {
@@ -351,6 +352,7 @@ macro_rules! static_dispatch {
             SceneCommand::AddNavmeshTriangle(v) => v.$func($($args),*),
             SceneCommand::AddNavmeshEdge(v) => v.$func($($args),*),
             SceneCommand::ChangeNavmeshSelection(v) => v.$func($($args),*),
+            SceneCommand::DeleteNavmeshVertex(v) => v.$func($($args),*),
         }
     };
 }
@@ -887,6 +889,101 @@ impl<'a> Command<'a> for DeleteNavmeshCommand {
     fn finalize(&mut self, context: &mut Self::Context) {
         if let Some(ticket) = self.ticket.take() {
             context.editor_scene.navmeshes.forget_ticket(ticket)
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct DeleteNavmeshVertexCommand {
+    navmesh: Handle<Navmesh>,
+    state: DeleteNavmeshVertexCommandState,
+}
+
+#[derive(Debug)]
+pub enum DeleteNavmeshVertexCommandState {
+    Undefined,
+    NonExecuted {
+        vertex: Handle<NavmeshVertex>,
+    },
+    Executed {
+        vertex: (Ticket<NavmeshVertex>, NavmeshVertex),
+        triangles: Vec<(Ticket<NavmeshTriangle>, NavmeshTriangle)>,
+    },
+    Reverted {
+        vertex: Handle<NavmeshVertex>,
+    },
+}
+
+impl DeleteNavmeshVertexCommand {
+    pub fn new(navmesh: Handle<Navmesh>, vertex: Handle<NavmeshVertex>) -> Self {
+        Self {
+            navmesh,
+            state: DeleteNavmeshVertexCommandState::NonExecuted { vertex },
+        }
+    }
+}
+
+impl<'a> Command<'a> for DeleteNavmeshVertexCommand {
+    type Context = SceneContext<'a>;
+
+    fn name(&mut self, _context: &Self::Context) -> String {
+        "Delete Navmesh Vertex".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut Self::Context) {
+        let navmesh = &mut context.editor_scene.navmeshes[self.navmesh];
+
+        match std::mem::replace(&mut self.state, DeleteNavmeshVertexCommandState::Undefined) {
+            DeleteNavmeshVertexCommandState::NonExecuted { vertex }
+            | DeleteNavmeshVertexCommandState::Reverted { vertex } => {
+                // Find each triangle that shares the same vertex and move them out of pool.
+                let mut triangles = Vec::new();
+                for (handle, triangle) in navmesh.triangles.pair_iter() {
+                    if triangle.vertices().contains(&vertex) {
+                        triangles.push(handle);
+                    }
+                }
+
+                self.state = DeleteNavmeshVertexCommandState::Executed {
+                    vertex: navmesh.vertices.take_reserve(vertex),
+                    triangles: triangles
+                        .iter()
+                        .map(|&t| navmesh.triangles.take_reserve(t))
+                        .collect(),
+                };
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn revert(&mut self, context: &mut Self::Context) {
+        let navmesh = &mut context.editor_scene.navmeshes[self.navmesh];
+
+        match std::mem::replace(&mut self.state, DeleteNavmeshVertexCommandState::Undefined) {
+            DeleteNavmeshVertexCommandState::Executed { vertex, triangles } => {
+                let vertex = navmesh.vertices.put_back(vertex.0, vertex.1);
+                for (ticket, triangle) in triangles {
+                    navmesh.triangles.put_back(ticket, triangle);
+                }
+
+                self.state = DeleteNavmeshVertexCommandState::Reverted { vertex };
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn finalize(&mut self, context: &mut Self::Context) {
+        match std::mem::replace(&mut self.state, DeleteNavmeshVertexCommandState::Undefined) {
+            DeleteNavmeshVertexCommandState::Executed { vertex, triangles } => {
+                if let Some(navmesh) = context.editor_scene.navmeshes.try_borrow_mut(self.navmesh) {
+                    navmesh.vertices.forget_ticket(vertex.0);
+                    for (ticket, _) in triangles {
+                        navmesh.triangles.forget_ticket(ticket);
+                    }
+                }
+            }
+            // No action needed.
+            _ => (),
         }
     }
 }

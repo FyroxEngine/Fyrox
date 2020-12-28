@@ -1,4 +1,5 @@
 use crate::interaction::calculate_gizmo_distance_scaling;
+use crate::scene::DeleteNavmeshVertexCommand;
 use crate::{
     gui::{BuildContext, UiMessage, UiNode},
     interaction::{
@@ -12,6 +13,7 @@ use crate::{
     scene::{AddNavmeshEdgeCommand, ChangeNavmeshSelectionCommand},
     GameEngine, Message,
 };
+use rg3d::gui::message::KeyCode;
 use rg3d::{
     core::{algebra::Vector3, color::Color, math::ray::CylinderKind, pool::Handle},
     gui::{
@@ -567,6 +569,40 @@ impl InteractionModeTrait for EditNavmeshMode {
                     .transform(&mut scene.graph)
                     .set_scale(scale)
                     .set_position(gizmo_position);
+            }
+        }
+    }
+
+    fn on_key_down(
+        &mut self,
+        key: KeyCode,
+        editor_scene: &mut EditorScene,
+        _engine: &mut GameEngine,
+    ) {
+        if let KeyCode::Delete = key {
+            if editor_scene.navmeshes.is_valid_handle(self.navmesh) {
+                if !editor_scene.navmesh_selection.is_empty() {
+                    let mut commands = Vec::new();
+
+                    for &vertex in editor_scene.navmesh_selection.unique_vertices() {
+                        commands.push(SceneCommand::DeleteNavmeshVertex(
+                            DeleteNavmeshVertexCommand::new(self.navmesh, vertex),
+                        ));
+                    }
+
+                    commands.push(SceneCommand::ChangeNavmeshSelection(
+                        ChangeNavmeshSelectionCommand::new(
+                            Default::default(),
+                            editor_scene.navmesh_selection.clone(),
+                        ),
+                    ));
+
+                    self.message_sender
+                        .send(Message::DoSceneCommand(SceneCommand::CommandGroup(
+                            CommandGroup::from(commands),
+                        )))
+                        .unwrap();
+                }
             }
         }
     }
