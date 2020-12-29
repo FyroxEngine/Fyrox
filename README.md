@@ -1,13 +1,14 @@
+#[![RG3D](ping/logo2.svg)](https://rg3d.rs/)
+
+# Rust Game 3D
+
 [![Crates.io](https://img.shields.io/crates/l/rg3d)](https://github.com/mrDIMAS/rg3d/blob/master/LICENSE.md)
 [![Crates.io](https://img.shields.io/crates/v/rg3d)](https://crates.io/crates/rg3d)
 [![docs.rs](https://img.shields.io/badge/docs-website-blue)](https://docs.rs/rg3d/)
 [![Discord](https://img.shields.io/discord/756573453561102427)](https://discord.gg/xENF5Uh)
 [![Lines of code](https://tokei.rs/b1/github/mrDIMAS/rg3d)](https://github.com/mrDIMAS/rg3d)
 
-
-# RG3D
-
-3D game engine written in Rust. 
+A fully-featured 3D game engine written in Rust with a scene editor and a first person shooter prototype.
 
 ## Support
 
@@ -17,7 +18,8 @@ use my savings to drive development forward, I'm looking for any financial suppo
 [![Become a patron!](https://c5.patreon.com/external/logo/become_a_patron_button.png)](https://www.patreon.com/mrdimas)
 
 ## Community
-[Join the Discord channel](https://discord.gg/xENF5Uh)
+
+[Join the Discord server](https://discord.gg/xENF5Uh)
 
 ## Screenshots
 
@@ -35,7 +37,7 @@ These screenshots are from [rusty-shooter](https://github.com/mrDIMAS/rusty-shoo
 
 ## [Examples](https://github.com/mrDIMAS/rg3d/tree/master/examples)
 
-There are many examples covering various aspects of the engine. Also don't hesitate to create an issue if you need help!
+There are many examples covering various aspects of the engine. Also don't hesitate to create an issue or ask on Discord if you need help!
 
 ## [Editor](https://github.com/mrDIMAS/rusty-editor/)
 
@@ -61,7 +63,7 @@ There are many examples covering various aspects of the engine. Also don't hesit
 - Lightmap generator.
 - Level-of-detail (LOD) support.
 - Scene graph with pivot, camera, mesh, light, particle system, sprite nodes.
-- Built-in save/load - save/load state of engine in one call.
+- Built-in save/load - save/load the state of the engine in one call.
 - [High quality binaural sound with HRTF support](https://github.com/mrDIMAS/rg3d/tree/master/rg3d-sound).
 - Skinning.
 - Particle systems with soft particles.
@@ -75,8 +77,8 @@ There are many examples covering various aspects of the engine. Also don't hesit
 - Animation blending state machine - similar to Mecanim in Unity Engine.
 - Animation retargetting - allows you to remap animation from one model to another.
 - Async asset management (textures, models, sound buffers).
-- Advanced physics (thanks to [rapier](https://github.com/dimforge/rapier) physics engine)
-    - Rigid bodies.    
+- Advanced physics (thanks to the [rapier](https://github.com/dimforge/rapier) physics engine)
+    - Rigid bodies.
     - Rich set of various colliders.
     - Joints.
     - Ray cast.
@@ -89,16 +91,16 @@ There are many examples covering various aspects of the engine. Also don't hesit
 
 ## Frequently asked questions
 
-**Q:** Is rg3d using ECS?
+**Q:** Does rg3d use ECS?
 
-**A:** No. It is using more classic OOP approach. However, it uses lots of optimizations for efficient
-memory management such as generational pools.
+**A:** No. It uses generational pools (arenas) which are optimized for efficient
+memory management to retain more static type safety.
 
 **Q:** Examples running too slow on my PC, FPS is too low, help!
 
-**A:** At first, make sure you run examples on discrete GPU, not on a built-in of your CPU. Built-in GPUs
-are very slow and not suitable for rg3d. Secondly, make sure your discrete GPU is powerful enough to run 
-modern games at decent frame rate. 
+**A:** First, make sure you run examples on the discrete GPU, not on a built-in of your CPU. Built-in GPUs
+are very slow and not suitable for rg3d. Second, make sure your discrete GPU is powerful enough to run 
+modern games at a decent frame rate.
 
 ## Supported Operating Systems
 
@@ -109,11 +111,13 @@ modern games at decent frame rate.
 
 ## Compiler version
 
-rg3d require latest stable Rust compiler.
+rg3d requires the latest stable Rust compiler.
 
 ## Contributing
 
-Contributions are very welcome! Please check Issues to see how you can help project and feel free to create your own issue!
+Contributions are very welcome! Feel free to open Issues and Pull Requests.
+
+Check the [good first issue](https://github.com/mrDIMAS/rg3d/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) label to see where you can help.
 
 ## Limitations
 
