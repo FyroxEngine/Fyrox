@@ -117,7 +117,9 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ListView<M, C> {
         self.widget.handle_routed_message(ui, message);
 
         if let UiMessageData::ListView(msg) = &message.data() {
-            if message.destination() == self.handle() {
+            if message.destination() == self.handle()
+                && message.direction() == MessageDirection::ToWidget
+            {
                 match msg {
                     ListViewMessage::Items(items) => {
                         // Remove previous items.
@@ -156,25 +158,31 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ListView<M, C> {
                         self.items.push(item);
                     }
                     &ListViewMessage::SelectionChanged(selection) => {
-                        for (i, &container) in self.item_containers.iter().enumerate() {
-                            let select = selection.map_or(false, |k| k == i);
-                            if let UINode::ListViewItem(container) = ui.node(container) {
-                                let mut stack = container.children().to_vec();
-                                while let Some(handle) = stack.pop() {
-                                    let node = ui.node(handle);
-                                    match node {
-                                        UINode::ListView(_) => {}
-                                        UINode::Decorator(_) => {
-                                            ui.send_message(DecoratorMessage::select(
-                                                handle,
-                                                MessageDirection::ToWidget,
-                                                select,
-                                            ));
+                        if self.selected_index != selection {
+                            self.selected_index = selection;
+
+                            for (i, &container) in self.item_containers.iter().enumerate() {
+                                let select = selection.map_or(false, |k| k == i);
+                                if let UINode::ListViewItem(container) = ui.node(container) {
+                                    let mut stack = container.children().to_vec();
+                                    while let Some(handle) = stack.pop() {
+                                        let node = ui.node(handle);
+                                        match node {
+                                            UINode::ListView(_) => {}
+                                            UINode::Decorator(_) => {
+                                                ui.send_message(DecoratorMessage::select(
+                                                    handle,
+                                                    MessageDirection::ToWidget,
+                                                    select,
+                                                ));
+                                            }
+                                            _ => stack.extend_from_slice(node.children()),
                                         }
-                                        _ => stack.extend_from_slice(node.children()),
                                     }
                                 }
                             }
+
+                            ui.send_message(message.reverse());
                         }
                     }
                 }

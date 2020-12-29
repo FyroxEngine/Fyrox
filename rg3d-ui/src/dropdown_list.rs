@@ -140,15 +140,17 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for DropdownList<M, C> {
 
     fn preview_message(&self, ui: &UserInterface<M, C>, message: &mut UiMessage<M, C>) {
         if let UiMessageData::ListView(msg) = &message.data() {
-            if let ListViewMessage::SelectionChanged(selection) = msg {
-                if message.destination() == self.list_view && &self.selection != selection {
-                    // Post message again but from name of this drop-down list so user can catch
-                    // message and respond properly.
-                    ui.send_message(DropdownListMessage::selection(
-                        self.handle,
-                        MessageDirection::ToWidget,
-                        *selection,
-                    ));
+            if message.direction() == MessageDirection::FromWidget {
+                if let ListViewMessage::SelectionChanged(selection) = msg {
+                    if message.destination() == self.list_view && &self.selection != selection {
+                        // Post message again but from name of this drop-down list so user can catch
+                        // message and respond properly.
+                        ui.send_message(DropdownListMessage::selection(
+                            self.handle,
+                            MessageDirection::ToWidget,
+                            *selection,
+                        ));
+                    }
                 }
             }
         }

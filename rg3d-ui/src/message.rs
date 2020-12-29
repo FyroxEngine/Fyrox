@@ -39,7 +39,8 @@ macro_rules! define_constructor {
                 data: UiMessageData::$var($inner::$inner_var),
                 destination,
                 direction,
-                perform_layout: Cell::new($perform_layout)
+                perform_layout: Cell::new($perform_layout),
+                flags: 0
             }
         }
     };
@@ -51,7 +52,8 @@ macro_rules! define_constructor {
                 data: UiMessageData::$var($inner::$inner_var(value)),
                 destination,
                 direction,
-                perform_layout: Cell::new($perform_layout)
+                perform_layout: Cell::new($perform_layout),
+                flags: 0
             }
         }
     };
@@ -63,7 +65,8 @@ macro_rules! define_constructor {
                 data: UiMessageData::$var($inner::$inner_var { $($params),+ } ),
                 destination,
                 direction,
-                perform_layout: Cell::new($perform_layout)
+                perform_layout: Cell::new($perform_layout),
+                flags: 0
             }
         }
     }
@@ -77,7 +80,8 @@ macro_rules! define_constructor_unbound {
                 data: UiMessageData::$var($inner::$inner_var),
                 destination,
                 direction,
-                perform_layout: Cell::new($perform_layout)
+                perform_layout: Cell::new($perform_layout),
+                flags: 0
             }
         }
     };
@@ -89,7 +93,8 @@ macro_rules! define_constructor_unbound {
                 data: UiMessageData::$var($inner::$inner_var(value)),
                 destination,
                 direction,
-                perform_layout: Cell::new($perform_layout)
+                perform_layout: Cell::new($perform_layout),
+                flags: 0
             }
         }
     };
@@ -101,7 +106,8 @@ macro_rules! define_constructor_unbound {
                 data: UiMessageData::$var($inner::$inner_var { $($params),+ } ),
                 destination,
                 direction,
-                perform_layout: Cell::new($perform_layout)
+                perform_layout: Cell::new($perform_layout),
+                flags: 0
             }
         }
     }
@@ -582,6 +588,7 @@ impl<M: MessageData, C: Control<M, C>> TreeMessage<M, C> {
             destination,
             direction,
             perform_layout: Cell::new(false),
+            flags: 0,
         }
     }
 }
@@ -680,6 +687,7 @@ impl<M: MessageData, C: Control<M, C>> TileMessage<M, C> {
             destination,
             direction,
             perform_layout: Cell::new(false),
+            flags: 0,
         }
     }
 }
@@ -954,6 +962,9 @@ pub struct UiMessage<M: MessageData, C: Control<M, C>> {
     /// since layout pass is super heavy we should do it **only** when it is
     /// actually needed.
     perform_layout: Cell<bool>,
+
+    /// A custom user flags.
+    pub flags: u64,
 }
 
 impl<M: MessageData, C: Control<M, C>> UiMessage<M, C> {
@@ -974,6 +985,7 @@ impl<M: MessageData, C: Control<M, C>> UiMessage<M, C> {
             destination: self.destination,
             direction: self.direction.reverse(),
             perform_layout: self.perform_layout.clone(),
+            flags: self.flags,
         }
     }
 
@@ -1013,7 +1025,12 @@ impl<M: MessageData, C: Control<M, C>> UiMessage<M, C> {
             destination,
             direction,
             perform_layout: Cell::new(false),
+            flags: 0,
         }
+    }
+
+    pub fn has_flags(&self, flags: u64) -> bool {
+        self.flags & flags != 0
     }
 }
 

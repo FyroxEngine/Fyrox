@@ -388,7 +388,9 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TreeRoot<M, C> {
         self.widget.handle_routed_message(ui, message);
 
         if let UiMessageData::TreeRoot(msg) = &message.data() {
-            if message.destination() == self.handle() {
+            if message.destination() == self.handle()
+                && message.direction() == MessageDirection::ToWidget
+            {
                 match msg {
                     &TreeRootMessage::AddItem(item) => {
                         ui.send_message(WidgetMessage::link(
@@ -445,6 +447,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TreeRoot<M, C> {
                                 }
                             }
                             self.selected = selected.clone();
+                            ui.send_message(message.reverse());
                         }
                     }
                 }
