@@ -1,4 +1,5 @@
 use crate::interaction::navmesh::EditNavmeshMode;
+use crate::scene::Selection;
 use crate::{
     gui::UiNode,
     rg3d::core::math::Matrix4Ext,
@@ -474,8 +475,11 @@ impl InteractionModeTrait for MoveInteractionMode {
             .handle_pick(editor_node, editor_scene, engine)
         {
             let graph = &mut engine.scenes[editor_scene.scene].graph;
-            self.interacting = true;
-            self.initial_positions = editor_scene.selection.local_positions(graph);
+
+            if let Selection::Graph(selection) = &editor_scene.selection {
+                self.interacting = true;
+                self.initial_positions = selection.local_positions(graph);
+            }
         }
     }
 
@@ -489,27 +493,30 @@ impl InteractionModeTrait for MoveInteractionMode {
         let graph = &mut engine.scenes[editor_scene.scene].graph;
 
         if self.interacting {
-            if !editor_scene.selection.is_empty() {
-                self.interacting = false;
-                let current_positions = editor_scene.selection.local_positions(graph);
-                if current_positions != self.initial_positions {
-                    let commands = CommandGroup::from(
-                        editor_scene
-                            .selection
-                            .nodes()
-                            .iter()
-                            .zip(current_positions.iter().zip(self.initial_positions.iter()))
-                            .map(|(&node, (&new_pos, &old_pos))| {
-                                SceneCommand::MoveNode(MoveNodeCommand::new(node, old_pos, new_pos))
-                            })
-                            .collect::<Vec<SceneCommand>>(),
-                    );
-                    // Commit changes.
-                    self.message_sender
-                        .send(Message::DoSceneCommand(SceneCommand::CommandGroup(
-                            commands,
-                        )))
-                        .unwrap();
+            if let Selection::Graph(selection) = &editor_scene.selection {
+                if !selection.is_empty() {
+                    self.interacting = false;
+                    let current_positions = selection.local_positions(graph);
+                    if current_positions != self.initial_positions {
+                        let commands = CommandGroup::from(
+                            selection
+                                .nodes()
+                                .iter()
+                                .zip(current_positions.iter().zip(self.initial_positions.iter()))
+                                .map(|(&node, (&new_pos, &old_pos))| {
+                                    SceneCommand::MoveNode(MoveNodeCommand::new(
+                                        node, old_pos, new_pos,
+                                    ))
+                                })
+                                .collect::<Vec<SceneCommand>>(),
+                        );
+                        // Commit changes.
+                        self.message_sender
+                            .send(Message::DoSceneCommand(SceneCommand::CommandGroup(
+                                commands,
+                            )))
+                            .unwrap();
+                    }
                 }
             }
         } else {
@@ -521,13 +528,18 @@ impl InteractionModeTrait for MoveInteractionMode {
                 false,
                 |_, _| true,
             );
+
             let new_selection =
                 if engine.user_interface.keyboard_modifiers().control && picked.is_some() {
-                    let mut selection = editor_scene.selection.clone();
-                    selection.insert_or_exclude(picked);
-                    selection
+                    if let Selection::Graph(selection) = &editor_scene.selection {
+                        let mut selection = selection.clone();
+                        selection.insert_or_exclude(picked);
+                        Selection::Graph(selection)
+                    } else {
+                        Selection::Graph(GraphSelection::single_or_empty(picked))
+                    }
                 } else {
-                    GraphSelection::single_or_empty(picked)
+                    Selection::Graph(GraphSelection::single_or_empty(picked))
                 };
             if new_selection != editor_scene.selection {
                 self.message_sender
@@ -549,17 +561,18 @@ impl InteractionModeTrait for MoveInteractionMode {
         frame_size: Vector2<f32>,
     ) {
         if self.interacting {
-            let node_offset = self.move_gizmo.calculate_offset(
-                editor_scene,
-                camera,
-                mouse_offset,
-                mouse_position,
-                engine,
-                frame_size,
-            );
-            editor_scene
-                .selection
-                .offset(&mut engine.scenes[editor_scene.scene].graph, node_offset);
+            if let Selection::Graph(selection) = &editor_scene.selection {
+                let node_offset = self.move_gizmo.calculate_offset(
+                    editor_scene,
+                    camera,
+                    mouse_offset,
+                    mouse_position,
+                    engine,
+                    frame_size,
+                );
+
+                selection.offset(&mut engine.scenes[editor_scene.scene].graph, node_offset);
+            }
         }
     }
 
@@ -569,15 +582,16 @@ impl InteractionModeTrait for MoveInteractionMode {
         camera: Handle<Node>,
         engine: &mut GameEngine,
     ) {
-        if !editor_scene.selection.is_empty() {
-            let graph = &mut engine.scenes[editor_scene.scene].graph;
-            let scale = calculate_gizmo_distance_scaling(graph, camera, self.move_gizmo.origin);
-            self.move_gizmo
-                .sync_transform(graph, &editor_scene.selection, scale);
-            self.move_gizmo.set_visible(graph, true);
-        } else {
-            let graph = &mut engine.scenes[editor_scene.scene].graph;
-            self.move_gizmo.set_visible(graph, false);
+        if let Selection::Graph(selection) = &editor_scene.selection {
+            if !editor_scene.selection.is_empty() {
+                let graph = &mut engine.scenes[editor_scene.scene].graph;
+                let scale = calculate_gizmo_distance_scaling(graph, camera, self.move_gizmo.origin);
+                self.move_gizmo.sync_transform(graph, selection, scale);
+                self.move_gizmo.set_visible(graph, true);
+            } else {
+                let graph = &mut engine.scenes[editor_scene.scene].graph;
+                self.move_gizmo.set_visible(graph, false);
+            }
         }
     }
 
@@ -892,27 +906,29 @@ impl InteractionModeTrait for ScaleInteractionMode {
         mouse_pos: Vector2<f32>,
         frame_size: Vector2<f32>,
     ) {
-        let graph = &mut engine.scenes[editor_scene.scene].graph;
-
-        // Pick gizmo nodes.
-        let camera = editor_scene.camera_controller.camera;
-        let camera_pivot = editor_scene.camera_controller.pivot;
-        let editor_node = editor_scene.camera_controller.pick(
-            mouse_pos,
-            graph,
-            editor_scene.root,
-            frame_size,
-            true,
-            |handle, _| handle != camera && handle != camera_pivot,
-        );
-
-        if self
-            .scale_gizmo
-            .handle_pick(editor_node, editor_scene, engine)
-        {
+        if let Selection::Graph(selection) = &editor_scene.selection {
             let graph = &mut engine.scenes[editor_scene.scene].graph;
-            self.interacting = true;
-            self.initial_scales = editor_scene.selection.local_scales(graph);
+
+            // Pick gizmo nodes.
+            let camera = editor_scene.camera_controller.camera;
+            let camera_pivot = editor_scene.camera_controller.pivot;
+            let editor_node = editor_scene.camera_controller.pick(
+                mouse_pos,
+                graph,
+                editor_scene.root,
+                frame_size,
+                true,
+                |handle, _| handle != camera && handle != camera_pivot,
+            );
+
+            if self
+                .scale_gizmo
+                .handle_pick(editor_node, editor_scene, engine)
+            {
+                let graph = &mut engine.scenes[editor_scene.scene].graph;
+                self.interacting = true;
+                self.initial_scales = selection.local_scales(graph);
+            }
         }
     }
 
@@ -926,29 +942,30 @@ impl InteractionModeTrait for ScaleInteractionMode {
         let graph = &mut engine.scenes[editor_scene.scene].graph;
 
         if self.interacting {
-            if !editor_scene.selection.is_empty() {
-                self.interacting = false;
-                let current_scales = editor_scene.selection.local_scales(graph);
-                if current_scales != self.initial_scales {
-                    // Commit changes.
-                    let commands = CommandGroup::from(
-                        editor_scene
-                            .selection
-                            .nodes()
-                            .iter()
-                            .zip(self.initial_scales.iter().zip(current_scales.iter()))
-                            .map(|(&node, (&old_scale, &new_scale))| {
-                                SceneCommand::ScaleNode(ScaleNodeCommand::new(
-                                    node, old_scale, new_scale,
-                                ))
-                            })
-                            .collect::<Vec<SceneCommand>>(),
-                    );
-                    self.message_sender
-                        .send(Message::DoSceneCommand(SceneCommand::CommandGroup(
-                            commands,
-                        )))
-                        .unwrap();
+            if let Selection::Graph(selection) = &editor_scene.selection {
+                if !selection.is_empty() {
+                    self.interacting = false;
+                    let current_scales = selection.local_scales(graph);
+                    if current_scales != self.initial_scales {
+                        // Commit changes.
+                        let commands = CommandGroup::from(
+                            selection
+                                .nodes()
+                                .iter()
+                                .zip(self.initial_scales.iter().zip(current_scales.iter()))
+                                .map(|(&node, (&old_scale, &new_scale))| {
+                                    SceneCommand::ScaleNode(ScaleNodeCommand::new(
+                                        node, old_scale, new_scale,
+                                    ))
+                                })
+                                .collect::<Vec<SceneCommand>>(),
+                        );
+                        self.message_sender
+                            .send(Message::DoSceneCommand(SceneCommand::CommandGroup(
+                                commands,
+                            )))
+                            .unwrap();
+                    }
                 }
             }
         } else {
@@ -962,11 +979,15 @@ impl InteractionModeTrait for ScaleInteractionMode {
             );
             let new_selection =
                 if engine.user_interface.keyboard_modifiers().control && picked.is_some() {
-                    let mut selection = editor_scene.selection.clone();
-                    selection.insert_or_exclude(picked);
-                    selection
+                    if let Selection::Graph(selection) = &editor_scene.selection {
+                        let mut selection = selection.clone();
+                        selection.insert_or_exclude(picked);
+                        Selection::Graph(selection)
+                    } else {
+                        Selection::Graph(GraphSelection::single_or_empty(picked))
+                    }
                 } else {
-                    GraphSelection::single_or_empty(picked)
+                    Selection::Graph(GraphSelection::single_or_empty(picked))
                 };
             if new_selection != editor_scene.selection {
                 self.message_sender
@@ -987,22 +1008,25 @@ impl InteractionModeTrait for ScaleInteractionMode {
         engine: &mut GameEngine,
         frame_size: Vector2<f32>,
     ) {
-        if self.interacting {
-            let scale_delta = self.scale_gizmo.calculate_scale_delta(
-                editor_scene,
-                camera,
-                mouse_offset,
-                mouse_position,
-                engine,
-                frame_size,
-            );
-            for &node in editor_scene.selection.nodes().iter() {
-                let transform = engine.scenes[editor_scene.scene].graph[node].local_transform_mut();
-                let initial_scale = transform.scale();
-                let sx = (initial_scale.x * (1.0 + scale_delta.x)).max(std::f32::EPSILON);
-                let sy = (initial_scale.y * (1.0 + scale_delta.y)).max(std::f32::EPSILON);
-                let sz = (initial_scale.z * (1.0 + scale_delta.z)).max(std::f32::EPSILON);
-                transform.set_scale(Vector3::new(sx, sy, sz));
+        if let Selection::Graph(selection) = &editor_scene.selection {
+            if self.interacting {
+                let scale_delta = self.scale_gizmo.calculate_scale_delta(
+                    editor_scene,
+                    camera,
+                    mouse_offset,
+                    mouse_position,
+                    engine,
+                    frame_size,
+                );
+                for &node in selection.nodes().iter() {
+                    let transform =
+                        engine.scenes[editor_scene.scene].graph[node].local_transform_mut();
+                    let initial_scale = transform.scale();
+                    let sx = (initial_scale.x * (1.0 + scale_delta.x)).max(std::f32::EPSILON);
+                    let sy = (initial_scale.y * (1.0 + scale_delta.y)).max(std::f32::EPSILON);
+                    let sz = (initial_scale.z * (1.0 + scale_delta.z)).max(std::f32::EPSILON);
+                    transform.set_scale(Vector3::new(sx, sy, sz));
+                }
             }
         }
     }
@@ -1013,15 +1037,17 @@ impl InteractionModeTrait for ScaleInteractionMode {
         camera: Handle<Node>,
         engine: &mut GameEngine,
     ) {
-        if !editor_scene.selection.is_empty() {
-            let graph = &mut engine.scenes[editor_scene.scene].graph;
-            let scale = calculate_gizmo_distance_scaling(graph, camera, self.scale_gizmo.origin);
-            self.scale_gizmo
-                .sync_transform(graph, &editor_scene.selection, scale);
-            self.scale_gizmo.set_visible(graph, true);
-        } else {
-            let graph = &mut engine.scenes[editor_scene.scene].graph;
-            self.scale_gizmo.set_visible(graph, false);
+        if let Selection::Graph(selection) = &editor_scene.selection {
+            if !editor_scene.selection.is_empty() {
+                let graph = &mut engine.scenes[editor_scene.scene].graph;
+                let scale =
+                    calculate_gizmo_distance_scaling(graph, camera, self.scale_gizmo.origin);
+                self.scale_gizmo.sync_transform(graph, selection, scale);
+                self.scale_gizmo.set_visible(graph, true);
+            } else {
+                let graph = &mut engine.scenes[editor_scene.scene].graph;
+                self.scale_gizmo.set_visible(graph, false);
+            }
         }
     }
 
@@ -1295,8 +1321,10 @@ impl InteractionModeTrait for RotateInteractionMode {
             .handle_pick(editor_node, editor_scene, engine)
         {
             let graph = &mut engine.scenes[editor_scene.scene].graph;
-            self.interacting = true;
-            self.initial_rotations = editor_scene.selection.local_rotations(graph);
+            if let Selection::Graph(selection) = &editor_scene.selection {
+                self.interacting = true;
+                self.initial_rotations = selection.local_rotations(graph);
+            }
         }
     }
 
@@ -1310,31 +1338,32 @@ impl InteractionModeTrait for RotateInteractionMode {
         let graph = &mut engine.scenes[editor_scene.scene].graph;
 
         if self.interacting {
-            if !editor_scene.selection.is_empty() {
-                self.interacting = false;
-                let current_rotation = editor_scene.selection.local_rotations(graph);
-                if current_rotation != self.initial_rotations {
-                    let commands = CommandGroup::from(
-                        editor_scene
-                            .selection
-                            .nodes()
-                            .iter()
-                            .zip(self.initial_rotations.iter().zip(current_rotation.iter()))
-                            .map(|(&node, (&old_rotation, &new_rotation))| {
-                                SceneCommand::RotateNode(RotateNodeCommand::new(
-                                    node,
-                                    old_rotation,
-                                    new_rotation,
-                                ))
-                            })
-                            .collect::<Vec<SceneCommand>>(),
-                    );
-                    // Commit changes.
-                    self.message_sender
-                        .send(Message::DoSceneCommand(SceneCommand::CommandGroup(
-                            commands,
-                        )))
-                        .unwrap();
+            if let Selection::Graph(selection) = &editor_scene.selection {
+                if !selection.is_empty() {
+                    self.interacting = false;
+                    let current_rotation = selection.local_rotations(graph);
+                    if current_rotation != self.initial_rotations {
+                        let commands = CommandGroup::from(
+                            selection
+                                .nodes()
+                                .iter()
+                                .zip(self.initial_rotations.iter().zip(current_rotation.iter()))
+                                .map(|(&node, (&old_rotation, &new_rotation))| {
+                                    SceneCommand::RotateNode(RotateNodeCommand::new(
+                                        node,
+                                        old_rotation,
+                                        new_rotation,
+                                    ))
+                                })
+                                .collect::<Vec<SceneCommand>>(),
+                        );
+                        // Commit changes.
+                        self.message_sender
+                            .send(Message::DoSceneCommand(SceneCommand::CommandGroup(
+                                commands,
+                            )))
+                            .unwrap();
+                    }
                 }
             }
         } else {
@@ -1348,11 +1377,15 @@ impl InteractionModeTrait for RotateInteractionMode {
             );
             let new_selection =
                 if engine.user_interface.keyboard_modifiers().control && picked.is_some() {
-                    let mut selection = editor_scene.selection.clone();
-                    selection.insert_or_exclude(picked);
-                    selection
+                    if let Selection::Graph(selection) = &editor_scene.selection {
+                        let mut selection = selection.clone();
+                        selection.insert_or_exclude(picked);
+                        Selection::Graph(selection)
+                    } else {
+                        Selection::Graph(GraphSelection::single_or_empty(picked))
+                    }
                 } else {
-                    GraphSelection::single_or_empty(picked)
+                    Selection::Graph(GraphSelection::single_or_empty(picked))
                 };
             if new_selection != editor_scene.selection {
                 self.message_sender
@@ -1373,19 +1406,22 @@ impl InteractionModeTrait for RotateInteractionMode {
         engine: &mut GameEngine,
         frame_size: Vector2<f32>,
     ) {
-        if self.interacting {
-            let rotation_delta = self.rotation_gizmo.calculate_rotation_delta(
-                editor_scene,
-                camera,
-                mouse_offset,
-                mouse_position,
-                engine,
-                frame_size,
-            );
-            for &node in editor_scene.selection.nodes().iter() {
-                let transform = engine.scenes[editor_scene.scene].graph[node].local_transform_mut();
-                let rotation = transform.rotation();
-                transform.set_rotation(rotation * rotation_delta);
+        if let Selection::Graph(selection) = &editor_scene.selection {
+            if self.interacting {
+                let rotation_delta = self.rotation_gizmo.calculate_rotation_delta(
+                    editor_scene,
+                    camera,
+                    mouse_offset,
+                    mouse_position,
+                    engine,
+                    frame_size,
+                );
+                for &node in selection.nodes().iter() {
+                    let transform =
+                        engine.scenes[editor_scene.scene].graph[node].local_transform_mut();
+                    let rotation = transform.rotation();
+                    transform.set_rotation(rotation * rotation_delta);
+                }
             }
         }
     }
@@ -1396,15 +1432,17 @@ impl InteractionModeTrait for RotateInteractionMode {
         camera: Handle<Node>,
         engine: &mut GameEngine,
     ) {
-        if !editor_scene.selection.is_empty() {
-            let graph = &mut engine.scenes[editor_scene.scene].graph;
-            let scale = calculate_gizmo_distance_scaling(graph, camera, self.rotation_gizmo.origin);
-            self.rotation_gizmo
-                .sync_transform(graph, &editor_scene.selection, scale);
-            self.rotation_gizmo.set_visible(graph, true);
-        } else {
-            let graph = &mut engine.scenes[editor_scene.scene].graph;
-            self.rotation_gizmo.set_visible(graph, false);
+        if let Selection::Graph(selection) = &editor_scene.selection {
+            if !editor_scene.selection.is_empty() {
+                let graph = &mut engine.scenes[editor_scene.scene].graph;
+                let scale =
+                    calculate_gizmo_distance_scaling(graph, camera, self.rotation_gizmo.origin);
+                self.rotation_gizmo.sync_transform(graph, selection, scale);
+                self.rotation_gizmo.set_visible(graph, true);
+            } else {
+                let graph = &mut engine.scenes[editor_scene.scene].graph;
+                self.rotation_gizmo.set_visible(graph, false);
+            }
         }
     }
 
@@ -1487,7 +1525,7 @@ impl InteractionModeTrait for SelectInteractionMode {
         let relative_bounds = frame_screen_bounds.translate(-preview_screen_bounds.position);
         self.stack.clear();
         self.stack.push(scene.graph.get_root());
-        let mut selection = GraphSelection::default();
+        let mut graph_selection = GraphSelection::default();
         while let Some(handle) = self.stack.pop() {
             let node = &scene.graph[handle];
             if handle == editor_scene.root {
@@ -1512,17 +1550,20 @@ impl InteractionModeTrait for SelectInteractionMode {
                 .filter_map(|&p| camera.project(p + node.global_position(), frame_size))
             {
                 if relative_bounds.contains(screen_corner) {
-                    selection.insert_or_exclude(handle);
+                    graph_selection.insert_or_exclude(handle);
                     break;
                 }
             }
 
             self.stack.extend_from_slice(node.children());
         }
-        if !selection.is_empty() && selection != editor_scene.selection {
+
+        let new_selection = Selection::Graph(graph_selection);
+
+        if !new_selection.is_empty() && new_selection != editor_scene.selection {
             self.message_sender
                 .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
-                    ChangeSelectionCommand::new(selection, editor_scene.selection.clone()),
+                    ChangeSelectionCommand::new(new_selection, editor_scene.selection.clone()),
                 )))
                 .unwrap();
         }

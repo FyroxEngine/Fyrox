@@ -13,7 +13,7 @@ pub struct NavmeshTriangle {
     pub c: Handle<NavmeshVertex>,
 }
 
-#[derive(PartialEq, Copy, Clone, Debug)]
+#[derive(PartialEq, Copy, Clone, Debug, Eq)]
 pub struct NavmeshEdge {
     pub begin: Handle<NavmeshVertex>,
     pub end: Handle<NavmeshVertex>,
@@ -42,7 +42,7 @@ impl NavmeshTriangle {
     }
 }
 
-#[derive(PartialEq, Copy, Clone, Debug)]
+#[derive(PartialEq, Copy, Clone, Debug, Eq)]
 pub enum NavmeshEntity {
     Vertex(Handle<NavmeshVertex>),
     Edge(NavmeshEdge),

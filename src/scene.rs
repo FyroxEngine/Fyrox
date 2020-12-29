@@ -61,14 +61,13 @@ pub struct EditorScene {
     pub scene: Handle<Scene>,
     // Handle to a root for all editor nodes.
     pub root: Handle<Node>,
-    pub selection: GraphSelection,
+    pub selection: Selection,
     pub clipboard: Clipboard,
     pub camera_controller: CameraController,
     // Editor uses split data model - some parts of scene are editable directly,
     // but some parts are not because of incompatible data model.
     pub physics: Physics,
     pub navmeshes: Pool<Navmesh>,
-    pub navmesh_selection: NavmeshSelection,
 }
 
 impl EditorScene {
@@ -257,7 +256,6 @@ pub enum SceneCommand {
     AddNavmeshTriangle(AddNavmeshTriangleCommand),
     AddNavmeshVertex(AddNavmeshVertexCommand),
     AddNavmeshEdge(AddNavmeshEdgeCommand),
-    ChangeNavmeshSelection(ChangeNavmeshSelectionCommand),
     DeleteNavmeshVertex(DeleteNavmeshVertexCommand),
 }
 
@@ -353,7 +351,6 @@ macro_rules! static_dispatch {
             SceneCommand::AddNavmeshVertex(v) => v.$func($($args),*),
             SceneCommand::AddNavmeshTriangle(v) => v.$func($($args),*),
             SceneCommand::AddNavmeshEdge(v) => v.$func($($args),*),
-            SceneCommand::ChangeNavmeshSelection(v) => v.$func($($args),*),
             SceneCommand::DeleteNavmeshVertex(v) => v.$func($($args),*),
         }
     };
@@ -532,7 +529,7 @@ pub struct AddNavmeshEdgeCommand {
     opposite_edge: NavmeshEdge,
     state: AddNavmeshEdgeCommandState,
     select: bool,
-    new_selection: NavmeshSelection,
+    new_selection: Selection,
 }
 
 #[derive(Debug)]
@@ -596,10 +593,15 @@ impl<'a> Command<'a> for AddNavmeshEdgeCommand {
                     vertices: [begin_handle, end_handle],
                 };
 
-                self.new_selection.add(NavmeshEntity::Edge(NavmeshEdge {
-                    begin: begin_handle,
-                    end: end_handle,
-                }));
+                let navmesh_selection = NavmeshSelection::new(
+                    self.navmesh,
+                    vec![NavmeshEntity::Edge(NavmeshEdge {
+                        begin: begin_handle,
+                        end: end_handle,
+                    })],
+                );
+
+                self.new_selection = Selection::Navmesh(navmesh_selection);
             }
             AddNavmeshEdgeCommandState::Reverted {
                 triangles,
@@ -622,19 +624,13 @@ impl<'a> Command<'a> for AddNavmeshEdgeCommand {
         }
 
         if self.select {
-            std::mem::swap(
-                &mut context.editor_scene.navmesh_selection,
-                &mut self.new_selection,
-            );
+            std::mem::swap(&mut context.editor_scene.selection, &mut self.new_selection);
         }
     }
 
     fn revert(&mut self, context: &mut Self::Context) {
         if self.select {
-            std::mem::swap(
-                &mut context.editor_scene.navmesh_selection,
-                &mut self.new_selection,
-            );
+            std::mem::swap(&mut context.editor_scene.selection, &mut self.new_selection);
         }
 
         let navmesh = &mut context.editor_scene.navmeshes[self.navmesh];
@@ -1102,19 +1098,19 @@ impl<'a> Command<'a> for DeleteJointCommand {
 
 #[derive(Debug)]
 pub struct ChangeSelectionCommand {
-    new_selection: GraphSelection,
-    old_selection: GraphSelection,
+    new_selection: Selection,
+    old_selection: Selection,
 }
 
 impl ChangeSelectionCommand {
-    pub fn new(new_selection: GraphSelection, old_selection: GraphSelection) -> Self {
+    pub fn new(new_selection: Selection, old_selection: Selection) -> Self {
         Self {
             new_selection,
             old_selection,
         }
     }
 
-    fn swap(&mut self) -> GraphSelection {
+    fn swap(&mut self) -> Selection {
         let selection = self.new_selection.clone();
         std::mem::swap(&mut self.new_selection, &mut self.old_selection);
         selection
@@ -1148,43 +1144,6 @@ impl<'a> Command<'a> for ChangeSelectionCommand {
                 .send(Message::SelectionChanged)
                 .unwrap();
         }
-    }
-}
-
-#[derive(Debug)]
-pub struct ChangeNavmeshSelectionCommand {
-    new_selection: NavmeshSelection,
-    old_selection: NavmeshSelection,
-}
-
-impl ChangeNavmeshSelectionCommand {
-    pub fn new(new_selection: NavmeshSelection, old_selection: NavmeshSelection) -> Self {
-        Self {
-            new_selection,
-            old_selection,
-        }
-    }
-
-    fn swap(&mut self) -> NavmeshSelection {
-        let selection = self.new_selection.clone();
-        std::mem::swap(&mut self.new_selection, &mut self.old_selection);
-        selection
-    }
-}
-
-impl<'a> Command<'a> for ChangeNavmeshSelectionCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _context: &Self::Context) -> String {
-        "Change Navmesh Selection".to_owned()
-    }
-
-    fn execute(&mut self, context: &mut Self::Context) {
-        context.editor_scene.navmesh_selection = self.swap();
-    }
-
-    fn revert(&mut self, context: &mut Self::Context) {
-        context.editor_scene.navmesh_selection = self.swap();
     }
 }
 
@@ -2511,6 +2470,29 @@ define_emitter_variant_command!(SetBoxEmitterHalfDepthCommand("Set Box Emitter H
     get_set_swap!(self, box_emitter, half_depth, set_half_depth);
 });
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Selection {
+    None,
+    Graph(GraphSelection),
+    Navmesh(NavmeshSelection),
+}
+
+impl Default for Selection {
+    fn default() -> Self {
+        Self::None
+    }
+}
+
+impl Selection {
+    pub fn is_empty(&self) -> bool {
+        match self {
+            Selection::None => true,
+            Selection::Graph(graph) => graph.is_empty(),
+            Selection::Navmesh(navmesh) => navmesh.is_empty(),
+        }
+    }
+}
+
 #[derive(Debug, Default, Clone, Eq)]
 pub struct GraphSelection {
     nodes: Vec<Handle<Node>>,
@@ -2698,14 +2680,18 @@ pub fn make_delete_selection_command(
     let graph = &engine.scenes[editor_scene.scene].graph;
 
     // Graph's root is non-deletable.
-    let mut selection = editor_scene.selection.clone();
+    let mut selection = if let Selection::Graph(selection) = &editor_scene.selection {
+        selection.clone()
+    } else {
+        Default::default()
+    };
     if let Some(root_position) = selection.nodes.iter().position(|&n| n == graph.get_root()) {
         selection.nodes.remove(root_position);
     }
 
     // Change selection first.
     let mut command_group = CommandGroup::from(vec![SceneCommand::ChangeSelection(
-        ChangeSelectionCommand::new(Default::default(), selection.clone()),
+        ChangeSelectionCommand::new(Default::default(), Selection::Graph(selection.clone())),
     )]);
 
     // Find sub-graphs to delete - we need to do this because we can end up in situation like this:

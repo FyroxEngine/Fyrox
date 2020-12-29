@@ -325,7 +325,9 @@ impl Configurator {
                 }
             }
             UiMessageData::ListView(msg) => {
-                if message.destination() == self.lv_history {
+                if message.destination() == self.lv_history
+                    && message.direction() == MessageDirection::FromWidget
+                {
                     if let &ListViewMessage::SelectionChanged(selection) = msg {
                         if let Some(index) = selection {
                             let entry = &self.history[index];

@@ -1,18 +1,18 @@
 use crate::interaction::calculate_gizmo_distance_scaling;
 use crate::interaction::navmesh::selection::NavmeshSelection;
-use crate::scene::DeleteNavmeshVertexCommand;
+use crate::scene::{ChangeSelectionCommand, DeleteNavmeshVertexCommand, Selection};
 use crate::{
     gui::{BuildContext, UiMessage, UiNode},
     interaction::{
         navmesh::data_model::{Navmesh, NavmeshEdge, NavmeshEntity, NavmeshVertex},
         InteractionModeTrait, MoveGizmo,
     },
+    scene::AddNavmeshEdgeCommand,
     scene::{
         AddNavmeshCommand, CommandGroup, DeleteNavmeshCommand, EditorScene,
         MoveNavmeshVertexCommand, SceneCommand,
     },
-    scene::{AddNavmeshEdgeCommand, ChangeNavmeshSelectionCommand},
-    GameEngine, Message,
+    GameEngine, Message, MSG_SYNC_FLAG,
 };
 use rg3d::gui::message::KeyCode;
 use rg3d::{
@@ -153,6 +153,20 @@ impl NavmeshPanel {
             })
             .collect::<Vec<_>>();
 
+        let new_selection = if let Selection::Navmesh(selection) = &editor_scene.selection {
+            editor_scene
+                .navmeshes
+                .pair_iter()
+                .position(|(i, _)| i == selection.navmesh())
+        } else {
+            None
+        };
+
+        let mut message =
+            ListViewMessage::selection(self.navmeshes, MessageDirection::ToWidget, new_selection);
+        message.flags = MSG_SYNC_FLAG;
+        engine.user_interface.send_message(message);
+
         engine.user_interface.send_message(ListViewMessage::items(
             self.navmeshes,
             MessageDirection::ToWidget,
@@ -195,14 +209,22 @@ impl NavmeshPanel {
             }
             UiMessageData::ListView(msg) => {
                 if let ListViewMessage::SelectionChanged(selection) = msg {
-                    if message.destination() == self.navmeshes {
-                        if let &Some(selection) = selection {
+                    if message.destination() == self.navmeshes
+                        && message.direction() == MessageDirection::FromWidget
+                    {
+                        let new_selection = if let &Some(selection) = selection {
                             let navmeshes = engine.user_interface.node(self.navmeshes);
                             let item = navmeshes.as_list_view().items()[selection];
-                            self.selected = *engine
+                            *engine
                                 .user_interface
                                 .node(item)
-                                .user_data_ref::<Handle<Navmesh>>();
+                                .user_data_ref::<Handle<Navmesh>>()
+                        } else {
+                            Default::default()
+                        };
+
+                        if self.selected != new_selection {
+                            self.selected = new_selection;
                             edit_mode.navmesh = self.selected;
 
                             engine.user_interface.send_message(WidgetMessage::enabled(
@@ -210,6 +232,24 @@ impl NavmeshPanel {
                                 MessageDirection::ToWidget,
                                 editor_scene.navmeshes.is_valid_handle(self.selected),
                             ));
+
+                            if !message.has_flags(MSG_SYNC_FLAG) {
+                                let new_selection =
+                                    Selection::Navmesh(NavmeshSelection::empty(self.selected));
+
+                                if new_selection != editor_scene.selection {
+                                    self.sender
+                                        .send(Message::DoSceneCommand(
+                                            SceneCommand::ChangeSelection(
+                                                ChangeSelectionCommand::new(
+                                                    new_selection,
+                                                    editor_scene.selection.clone(),
+                                                ),
+                                            ),
+                                        ))
+                                        .unwrap();
+                                }
+                            }
                         }
                     }
                 }
@@ -292,10 +332,14 @@ impl InteractionModeTrait for EditNavmeshMode {
                 }
                 self.drag_context = Some(DragContext::MoveSelection { initial_positions });
             } else {
-                let mut selection = if engine.user_interface.keyboard_modifiers().shift {
-                    editor_scene.navmesh_selection.clone()
+                let mut new_selection = if engine.user_interface.keyboard_modifiers().shift {
+                    if let Selection::Navmesh(navmesh_selection) = &editor_scene.selection {
+                        navmesh_selection.clone()
+                    } else {
+                        NavmeshSelection::empty(self.navmesh)
+                    }
                 } else {
-                    Default::default()
+                    NavmeshSelection::empty(self.navmesh)
                 };
 
                 let mut picked = false;
@@ -304,7 +348,7 @@ impl InteractionModeTrait for EditNavmeshMode {
                         .sphere_intersection(&vertex.position, VERTEX_RADIUS)
                         .is_some()
                     {
-                        selection.add(NavmeshEntity::Vertex(handle));
+                        new_selection.add(NavmeshEntity::Vertex(handle));
                         picked = true;
                         break;
                     }
@@ -324,21 +368,25 @@ impl InteractionModeTrait for EditNavmeshMode {
                                 )
                                 .is_some()
                             {
-                                selection.add(NavmeshEntity::Edge(*edge));
+                                new_selection.add(NavmeshEntity::Edge(*edge));
                                 break;
                             }
                         }
                     }
                 }
 
-                self.message_sender
-                    .send(Message::DoSceneCommand(
-                        SceneCommand::ChangeNavmeshSelection(ChangeNavmeshSelectionCommand::new(
-                            selection,
-                            editor_scene.navmesh_selection.clone(),
-                        )),
-                    ))
-                    .unwrap();
+                let new_selection = Selection::Navmesh(new_selection);
+
+                if new_selection != editor_scene.selection {
+                    self.message_sender
+                        .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
+                            ChangeSelectionCommand::new(
+                                new_selection,
+                                editor_scene.selection.clone(),
+                            ),
+                        )))
+                        .unwrap();
+                }
             }
         }
     }
@@ -357,15 +405,17 @@ impl InteractionModeTrait for EditNavmeshMode {
 
                 match drag_context {
                     DragContext::MoveSelection { initial_positions } => {
-                        for vertex in editor_scene.navmesh_selection.unique_vertices().iter() {
-                            commands.push(SceneCommand::MoveNavmeshVertex(
-                                MoveNavmeshVertexCommand::new(
-                                    self.navmesh,
-                                    *vertex,
-                                    *initial_positions.get(vertex).unwrap(),
-                                    navmesh.vertices[*vertex].position,
-                                ),
-                            ));
+                        if let Selection::Navmesh(navmesh_selection) = &mut editor_scene.selection {
+                            for vertex in navmesh_selection.unique_vertices().iter() {
+                                commands.push(SceneCommand::MoveNavmeshVertex(
+                                    MoveNavmeshVertexCommand::new(
+                                        self.navmesh,
+                                        *vertex,
+                                        *initial_positions.get(vertex).unwrap(),
+                                        navmesh.vertices[*vertex].position,
+                                    ),
+                                ));
+                            }
                         }
                     }
                     DragContext::EdgeDuplication {
@@ -417,32 +467,32 @@ impl InteractionModeTrait for EditNavmeshMode {
 
                 // If we're dragging single edge it is possible to enter edge duplication mode by
                 // holding Shift key. This is the main navmesh construction mode.
-                if editor_scene.navmesh_selection.entities().len() == 1 {
-                    if let NavmeshEntity::Edge(edge) =
-                        editor_scene.navmesh_selection.entities().first().unwrap()
-                    {
-                        if engine.user_interface.keyboard_modifiers().shift
-                            && !self.drag_context.as_ref().unwrap().is_edge_duplication()
+                if let Selection::Navmesh(navmesh_selection) = &editor_scene.selection {
+                    if navmesh_selection.entities().len() == 1 {
+                        if let NavmeshEntity::Edge(edge) =
+                            navmesh_selection.entities().first().unwrap()
                         {
-                            let new_begin = navmesh.vertices[edge.begin].clone();
-                            let new_end = navmesh.vertices[edge.end].clone();
+                            if engine.user_interface.keyboard_modifiers().shift
+                                && !self.drag_context.as_ref().unwrap().is_edge_duplication()
+                            {
+                                let new_begin = navmesh.vertices[edge.begin].clone();
+                                let new_end = navmesh.vertices[edge.end].clone();
 
-                            self.drag_context = Some(DragContext::EdgeDuplication {
-                                vertices: [new_begin, new_end],
-                                opposite_edge: edge.clone(),
-                            });
+                                self.drag_context = Some(DragContext::EdgeDuplication {
+                                    vertices: [new_begin, new_end],
+                                    opposite_edge: edge.clone(),
+                                });
 
-                            // Discard selection.
-                            self.message_sender
-                                .send(Message::DoSceneCommand(
-                                    SceneCommand::ChangeNavmeshSelection(
-                                        ChangeNavmeshSelectionCommand::new(
+                                // Discard selection.
+                                self.message_sender
+                                    .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
+                                        ChangeSelectionCommand::new(
                                             Default::default(),
-                                            editor_scene.navmesh_selection.clone(),
+                                            editor_scene.selection.clone(),
                                         ),
-                                    ),
-                                ))
-                                .unwrap();
+                                    )))
+                                    .unwrap();
+                            }
                         }
                     }
                 }
@@ -450,8 +500,12 @@ impl InteractionModeTrait for EditNavmeshMode {
                 if let Some(drag_context) = self.drag_context.as_mut() {
                     match drag_context {
                         DragContext::MoveSelection { .. } => {
-                            for &vertex in editor_scene.navmesh_selection.unique_vertices() {
-                                navmesh.vertices[vertex].position += offset;
+                            if let Selection::Navmesh(navmesh_selection) =
+                                &mut editor_scene.selection
+                            {
+                                for &vertex in navmesh_selection.unique_vertices() {
+                                    navmesh.vertices[vertex].position += offset;
+                                }
                             }
                         }
                         DragContext::EdgeDuplication { vertices, .. } => {
@@ -479,35 +533,33 @@ impl InteractionModeTrait for EditNavmeshMode {
         if editor_scene.navmeshes.is_valid_handle(self.navmesh) {
             let navmesh = &editor_scene.navmeshes[self.navmesh];
 
-            for (handle, vertex) in navmesh.vertices.pair_iter() {
-                scene.drawing_context.draw_sphere(
-                    vertex.position,
-                    10,
-                    10,
-                    VERTEX_RADIUS,
-                    if editor_scene
-                        .navmesh_selection
-                        .unique_vertices()
-                        .contains(&handle)
-                    {
-                        Color::RED
-                    } else {
-                        Color::GREEN
-                    },
-                );
-            }
-
-            for triangle in navmesh.triangles.iter() {
-                for edge in &triangle.edges() {
-                    scene.drawing_context.add_line(rg3d::scene::Line {
-                        begin: navmesh.vertices[edge.begin].position,
-                        end: navmesh.vertices[edge.end].position,
-                        color: if editor_scene.navmesh_selection.contains_edge(*edge) {
+            if let Selection::Navmesh(navmesh_selection) = &mut editor_scene.selection {
+                for (handle, vertex) in navmesh.vertices.pair_iter() {
+                    scene.drawing_context.draw_sphere(
+                        vertex.position,
+                        10,
+                        10,
+                        VERTEX_RADIUS,
+                        if navmesh_selection.unique_vertices().contains(&handle) {
                             Color::RED
                         } else {
                             Color::GREEN
                         },
-                    });
+                    );
+                }
+
+                for triangle in navmesh.triangles.iter() {
+                    for edge in &triangle.edges() {
+                        scene.drawing_context.add_line(rg3d::scene::Line {
+                            begin: navmesh.vertices[edge.begin].position,
+                            end: navmesh.vertices[edge.end].position,
+                            color: if navmesh_selection.contains_edge(*edge) {
+                                Color::RED
+                            } else {
+                                Color::GREEN
+                            },
+                        });
+                    }
                 }
             }
 
@@ -554,24 +606,31 @@ impl InteractionModeTrait for EditNavmeshMode {
                 }
             }
 
-            if let Some(first) = editor_scene.navmesh_selection.first() {
-                self.move_gizmo.set_visible(&mut scene.graph, true);
+            if let Selection::Navmesh(navmesh_selection) = &editor_scene.selection {
+                if let Some(first) = navmesh_selection.first() {
+                    self.move_gizmo.set_visible(&mut scene.graph, true);
 
-                let gizmo_position = match first {
-                    &NavmeshEntity::Vertex(v) => navmesh.vertices[v].position,
-                    &NavmeshEntity::Edge(edge) => {
-                        let a = navmesh.vertices[edge.begin].position;
-                        let b = navmesh.vertices[edge.end].position;
-                        (a + b).scale(0.5)
-                    }
-                };
+                    let gizmo_position = match first {
+                        &NavmeshEntity::Vertex(v) => navmesh.vertices[v].position,
+                        &NavmeshEntity::Edge(edge) => {
+                            let a = navmesh.vertices[edge.begin].position;
+                            let b = navmesh.vertices[edge.end].position;
+                            (a + b).scale(0.5)
+                        }
+                    };
 
-                self.move_gizmo
-                    .transform(&mut scene.graph)
-                    .set_scale(scale)
-                    .set_position(gizmo_position);
+                    self.move_gizmo
+                        .transform(&mut scene.graph)
+                        .set_scale(scale)
+                        .set_position(gizmo_position);
+                }
             }
         }
+    }
+
+    fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
+        let scene = &mut engine.scenes[editor_scene.scene];
+        self.move_gizmo.set_visible(&mut scene.graph, false);
     }
 
     fn on_key_down(
@@ -583,27 +642,29 @@ impl InteractionModeTrait for EditNavmeshMode {
         match key {
             KeyCode::Delete => {
                 if editor_scene.navmeshes.is_valid_handle(self.navmesh) {
-                    if !editor_scene.navmesh_selection.is_empty() {
-                        let mut commands = Vec::new();
+                    if let Selection::Navmesh(navmesh_selection) = &mut editor_scene.selection {
+                        if !navmesh_selection.is_empty() {
+                            let mut commands = Vec::new();
 
-                        for &vertex in editor_scene.navmesh_selection.unique_vertices() {
-                            commands.push(SceneCommand::DeleteNavmeshVertex(
-                                DeleteNavmeshVertexCommand::new(self.navmesh, vertex),
+                            for &vertex in navmesh_selection.unique_vertices() {
+                                commands.push(SceneCommand::DeleteNavmeshVertex(
+                                    DeleteNavmeshVertexCommand::new(self.navmesh, vertex),
+                                ));
+                            }
+
+                            commands.push(SceneCommand::ChangeSelection(
+                                ChangeSelectionCommand::new(
+                                    Default::default(),
+                                    editor_scene.selection.clone(),
+                                ),
                             ));
+
+                            self.message_sender
+                                .send(Message::DoSceneCommand(SceneCommand::CommandGroup(
+                                    CommandGroup::from(commands),
+                                )))
+                                .unwrap();
                         }
-
-                        commands.push(SceneCommand::ChangeNavmeshSelection(
-                            ChangeNavmeshSelectionCommand::new(
-                                Default::default(),
-                                editor_scene.navmesh_selection.clone(),
-                            ),
-                        ));
-
-                        self.message_sender
-                            .send(Message::DoSceneCommand(SceneCommand::CommandGroup(
-                                CommandGroup::from(commands),
-                            )))
-                            .unwrap();
                     }
                 }
             }
@@ -611,30 +672,26 @@ impl InteractionModeTrait for EditNavmeshMode {
                 if editor_scene.navmeshes.is_valid_handle(self.navmesh) {
                     let navmesh = &editor_scene.navmeshes[self.navmesh];
 
-                    let mut selection = NavmeshSelection::default();
-
-                    for (handle, _) in navmesh.vertices.pair_iter() {
-                        selection.add(NavmeshEntity::Vertex(handle));
-                    }
+                    let selection = NavmeshSelection::new(
+                        self.navmesh,
+                        navmesh
+                            .vertices
+                            .pair_iter()
+                            .map(|(handle, _)| NavmeshEntity::Vertex(handle))
+                            .collect(),
+                    );
 
                     self.message_sender
-                        .send(Message::DoSceneCommand(
-                            SceneCommand::ChangeNavmeshSelection(
-                                ChangeNavmeshSelectionCommand::new(
-                                    selection,
-                                    editor_scene.navmesh_selection.clone(),
-                                ),
+                        .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
+                            ChangeSelectionCommand::new(
+                                Selection::Navmesh(selection),
+                                editor_scene.selection.clone(),
                             ),
-                        ))
+                        )))
                         .unwrap();
                 }
             }
             _ => {}
         }
-    }
-
-    fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
-        let scene = &mut engine.scenes[editor_scene.scene];
-        self.move_gizmo.set_visible(&mut scene.graph, false);
     }
 }

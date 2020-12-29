@@ -1,3 +1,4 @@
+use crate::scene::Selection;
 use crate::{
     gui::{
         BuildContext, CustomWidget, EditorUiMessage, EditorUiNode, SceneItemMessage, Ui, UiMessage,
@@ -468,8 +469,10 @@ impl WorldOutliner {
                                         MessageDirection::ToWidget,
                                         tree,
                                     ));
-                                    if editor_scene.selection.contains(child_handle) {
-                                        selected_items.push(tree);
+                                    if let Selection::Graph(selection) = &editor_scene.selection {
+                                        if selection.contains(child_handle) {
+                                            selected_items.push(tree);
+                                        }
                                     }
                                     self.stack.push((tree, child_handle));
                                 }
@@ -559,23 +562,27 @@ impl WorldOutliner {
     ) {
         match &message.data() {
             UiMessageData::TreeRoot(msg) => {
-                if message.destination() == self.root {
+                if message.destination() == self.root
+                    && message.direction() == MessageDirection::FromWidget
+                {
                     if let TreeRootMessage::Selected(selection) = msg {
-                        let new_selection = GraphSelection::from_list(
-                            selection
-                                .iter()
-                                .map(|&h| self.map_tree_to_node(h, &engine.user_interface))
-                                .collect(),
-                        );
-                        if new_selection != editor_scene.selection {
-                            self.sender
-                                .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
-                                    ChangeSelectionCommand::new(
-                                        new_selection,
-                                        editor_scene.selection.clone(),
-                                    ),
-                                )))
-                                .unwrap();
+                        if !selection.is_empty() {
+                            let new_selection = Selection::Graph(GraphSelection::from_list(
+                                selection
+                                    .iter()
+                                    .map(|&h| self.map_tree_to_node(h, &engine.user_interface))
+                                    .collect(),
+                            ));
+                            if new_selection != editor_scene.selection {
+                                self.sender
+                                    .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
+                                        ChangeSelectionCommand::new(
+                                            new_selection,
+                                            editor_scene.selection.clone(),
+                                        ),
+                                    )))
+                                    .unwrap();
+                            }
                         }
                     }
                 }
@@ -625,12 +632,15 @@ impl WorldOutliner {
         if self.sync_selection {
             let ui = &engine.user_interface;
 
-            let trees = editor_scene
-                .selection
-                .nodes()
-                .iter()
-                .map(|&n| self.map_node_to_tree(ui, n))
-                .collect();
+            let trees = if let Selection::Graph(selection) = &editor_scene.selection {
+                selection
+                    .nodes()
+                    .iter()
+                    .map(|&n| self.map_node_to_tree(ui, n))
+                    .collect()
+            } else {
+                Default::default()
+            };
 
             ui.send_message(TreeRootMessage::select(
                 self.root,

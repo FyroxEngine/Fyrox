@@ -1,3 +1,4 @@
+use crate::scene::Selection;
 use crate::{
     gui::{Ui, UiMessage, UiNode},
     make_save_file_selector, make_scene_file_filter,
@@ -662,10 +663,12 @@ impl Menu {
                         self.message_sender.send(Message::CloseScene).unwrap();
                     } else if message.destination() == self.copy {
                         if let Some(editor_scene) = ctx.editor_scene {
-                            editor_scene.clipboard.clone_selection(
-                                &editor_scene.selection,
-                                &ctx.engine.scenes[editor_scene.scene].graph,
-                            );
+                            if let Selection::Graph(selection) = &editor_scene.selection {
+                                editor_scene.clipboard.clone_selection(
+                                    selection,
+                                    &ctx.engine.scenes[editor_scene.scene].graph,
+                                );
+                            }
                         }
                     } else if message.destination() == self.paste {
                         if let Some(editor_scene) = ctx.editor_scene {

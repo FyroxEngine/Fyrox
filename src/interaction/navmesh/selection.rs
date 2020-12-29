@@ -1,16 +1,39 @@
-use crate::interaction::navmesh::data_model::NavmeshEdge;
+use crate::interaction::navmesh::data_model::{Navmesh, NavmeshEdge};
 use crate::interaction::navmesh::{NavmeshEntity, NavmeshVertex};
 use rg3d::core::pool::Handle;
 use std::collections::HashSet;
 
-#[derive(PartialEq, Default, Clone, Debug)]
+#[derive(PartialEq, Clone, Debug, Eq)]
 pub struct NavmeshSelection {
     dirty: bool,
+    navmesh: Handle<Navmesh>,
     entities: Vec<NavmeshEntity>,
     unique_vertices: HashSet<Handle<NavmeshVertex>>,
 }
 
 impl NavmeshSelection {
+    pub fn empty(navmesh: Handle<Navmesh>) -> Self {
+        Self {
+            dirty: false,
+            navmesh,
+            entities: vec![],
+            unique_vertices: Default::default(),
+        }
+    }
+
+    pub fn new(navmesh: Handle<Navmesh>, entities: Vec<NavmeshEntity>) -> Self {
+        Self {
+            dirty: true,
+            navmesh,
+            entities,
+            unique_vertices: Default::default(),
+        }
+    }
+
+    pub fn navmesh(&self) -> Handle<Navmesh> {
+        self.navmesh
+    }
+
     pub fn add(&mut self, entity: NavmeshEntity) {
         self.entities.push(entity);
         self.dirty = true;

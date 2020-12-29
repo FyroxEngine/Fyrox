@@ -1,3 +1,4 @@
+use crate::scene::Selection;
 use crate::sidebar::mesh::MeshSection;
 use crate::{
     gui::{BuildContext, UiMessage, UiNode},
@@ -240,61 +241,64 @@ impl SideBar {
     }
 
     pub fn sync_to_model(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
-        let scene = &engine.scenes[editor_scene.scene];
-        engine
-            .user_interface
-            .send_message(WidgetMessage::visibility(
-                self.scroll_viewer,
-                MessageDirection::ToWidget,
-                editor_scene.selection.is_single_selection(),
-            ));
-        if editor_scene.selection.is_single_selection() {
-            let node_handle = editor_scene.selection.nodes()[0];
-            if scene.graph.is_valid_handle(node_handle) {
-                let node = &scene.graph[node_handle];
-
-                let ui = &mut engine.user_interface;
-
-                ui.send_message(TextBoxMessage::text(
-                    self.node_name,
+        // For now only nodes are editable through side bar.
+        if let Selection::Graph(selection) = &editor_scene.selection {
+            let scene = &engine.scenes[editor_scene.scene];
+            engine
+                .user_interface
+                .send_message(WidgetMessage::visibility(
+                    self.scroll_viewer,
                     MessageDirection::ToWidget,
-                    node.name().to_owned(),
+                    selection.is_single_selection(),
                 ));
+            if selection.is_single_selection() {
+                let node_handle = selection.nodes()[0];
+                if scene.graph.is_valid_handle(node_handle) {
+                    let node = &scene.graph[node_handle];
 
-                ui.send_message(Vec3EditorMessage::value(
-                    self.position,
-                    MessageDirection::ToWidget,
-                    node.local_transform().position(),
-                ));
+                    let ui = &mut engine.user_interface;
 
-                let euler = node.local_transform().rotation().to_euler();
-                let euler_degrees = Vector3::new(
-                    euler.x.to_degrees(),
-                    euler.y.to_degrees(),
-                    euler.z.to_degrees(),
-                );
-                ui.send_message(Vec3EditorMessage::value(
-                    self.rotation,
-                    MessageDirection::ToWidget,
-                    euler_degrees,
-                ));
+                    ui.send_message(TextBoxMessage::text(
+                        self.node_name,
+                        MessageDirection::ToWidget,
+                        node.name().to_owned(),
+                    ));
 
-                ui.send_message(Vec3EditorMessage::value(
-                    self.scale,
-                    MessageDirection::ToWidget,
-                    node.local_transform().scale(),
-                ));
+                    ui.send_message(Vec3EditorMessage::value(
+                        self.position,
+                        MessageDirection::ToWidget,
+                        node.local_transform().position(),
+                    ));
 
-                self.light_section.sync_to_model(node, ui);
-                self.camera_section.sync_to_model(node, ui);
-                self.particle_system_section.sync_to_model(
-                    node,
-                    ui,
-                    engine.resource_manager.clone(),
-                );
-                self.sprite_section.sync_to_model(node, ui);
-                self.mesh_section.sync_to_model(node, ui);
-                self.physics_section.sync_to_model(editor_scene, engine);
+                    let euler = node.local_transform().rotation().to_euler();
+                    let euler_degrees = Vector3::new(
+                        euler.x.to_degrees(),
+                        euler.y.to_degrees(),
+                        euler.z.to_degrees(),
+                    );
+                    ui.send_message(Vec3EditorMessage::value(
+                        self.rotation,
+                        MessageDirection::ToWidget,
+                        euler_degrees,
+                    ));
+
+                    ui.send_message(Vec3EditorMessage::value(
+                        self.scale,
+                        MessageDirection::ToWidget,
+                        node.local_transform().scale(),
+                    ));
+
+                    self.light_section.sync_to_model(node, ui);
+                    self.camera_section.sync_to_model(node, ui);
+                    self.particle_system_section.sync_to_model(
+                        node,
+                        ui,
+                        engine.resource_manager.clone(),
+                    );
+                    self.sprite_section.sync_to_model(node, ui);
+                    self.mesh_section.sync_to_model(node, ui);
+                    self.physics_section.sync_to_model(editor_scene, engine);
+                }
             }
         }
     }
@@ -305,91 +309,105 @@ impl SideBar {
         editor_scene: &EditorScene,
         engine: &GameEngine,
     ) {
-        let scene = &engine.scenes[editor_scene.scene];
-        let graph = &scene.graph;
+        // For now only nodes are editable through side bar.
+        if let Selection::Graph(selection) = &editor_scene.selection {
+            let scene = &engine.scenes[editor_scene.scene];
+            let graph = &scene.graph;
 
-        if editor_scene.selection.is_single_selection()
-            && message.direction() == MessageDirection::FromWidget
-        {
-            let node_handle = editor_scene.selection.nodes()[0];
-            let node = &graph[node_handle];
+            if selection.is_single_selection()
+                && message.direction() == MessageDirection::FromWidget
+            {
+                let node_handle = selection.nodes()[0];
+                let node = &graph[node_handle];
 
-            if message.direction() == MessageDirection::FromWidget {
-                self.light_section
-                    .handle_message(message, node, node_handle);
-                self.camera_section
-                    .handle_message(message, node, node_handle);
-                self.particle_system_section.handle_message(
-                    message,
-                    node,
-                    node_handle,
-                    &engine.user_interface,
-                );
-                self.sprite_section
-                    .handle_message(message, node, node_handle);
-                self.mesh_section.handle_message(message, node, node_handle);
-                self.physics_section
-                    .handle_ui_message(message, editor_scene, engine);
+                if message.direction() == MessageDirection::FromWidget {
+                    self.light_section
+                        .handle_message(message, node, node_handle);
+                    self.camera_section
+                        .handle_message(message, node, node_handle);
+                    self.particle_system_section.handle_message(
+                        message,
+                        node,
+                        node_handle,
+                        &engine.user_interface,
+                    );
+                    self.sprite_section
+                        .handle_message(message, node, node_handle);
+                    self.mesh_section.handle_message(message, node, node_handle);
+                    self.physics_section
+                        .handle_ui_message(message, editor_scene, engine);
 
-                match &message.data() {
-                    UiMessageData::Vec3Editor(msg) => {
-                        if let Vec3EditorMessage::Value(value) = *msg {
-                            let transform = graph[node_handle].local_transform();
-                            if message.destination() == self.rotation {
-                                let old_rotation = transform.rotation();
-                                let euler = Vector3::new(
-                                    value.x.to_radians(),
-                                    value.y.to_radians(),
-                                    value.z.to_radians(),
-                                );
-                                let new_rotation = quat_from_euler(euler, RotationOrder::XYZ);
-                                if !old_rotation.approx_eq(&new_rotation, 0.00001) {
-                                    self.sender
-                                        .send(Message::DoSceneCommand(SceneCommand::RotateNode(
-                                            RotateNodeCommand::new(
-                                                node_handle,
-                                                old_rotation,
-                                                new_rotation,
-                                            ),
-                                        )))
-                                        .unwrap();
-                                }
-                            } else if message.destination() == self.position {
-                                let old_position = transform.position();
-                                if old_position != value {
-                                    self.sender
-                                        .send(Message::DoSceneCommand(SceneCommand::MoveNode(
-                                            MoveNodeCommand::new(node_handle, old_position, value),
-                                        )))
-                                        .unwrap();
-                                }
-                            } else if message.destination() == self.scale {
-                                let old_scale = transform.scale();
-                                if old_scale != value {
-                                    self.sender
-                                        .send(Message::DoSceneCommand(SceneCommand::ScaleNode(
-                                            ScaleNodeCommand::new(node_handle, old_scale, value),
-                                        )))
-                                        .unwrap();
+                    match &message.data() {
+                        UiMessageData::Vec3Editor(msg) => {
+                            if let Vec3EditorMessage::Value(value) = *msg {
+                                let transform = graph[node_handle].local_transform();
+                                if message.destination() == self.rotation {
+                                    let old_rotation = transform.rotation();
+                                    let euler = Vector3::new(
+                                        value.x.to_radians(),
+                                        value.y.to_radians(),
+                                        value.z.to_radians(),
+                                    );
+                                    let new_rotation = quat_from_euler(euler, RotationOrder::XYZ);
+                                    if !old_rotation.approx_eq(&new_rotation, 0.00001) {
+                                        self.sender
+                                            .send(Message::DoSceneCommand(
+                                                SceneCommand::RotateNode(RotateNodeCommand::new(
+                                                    node_handle,
+                                                    old_rotation,
+                                                    new_rotation,
+                                                )),
+                                            ))
+                                            .unwrap();
+                                    }
+                                } else if message.destination() == self.position {
+                                    let old_position = transform.position();
+                                    if old_position != value {
+                                        self.sender
+                                            .send(Message::DoSceneCommand(SceneCommand::MoveNode(
+                                                MoveNodeCommand::new(
+                                                    node_handle,
+                                                    old_position,
+                                                    value,
+                                                ),
+                                            )))
+                                            .unwrap();
+                                    }
+                                } else if message.destination() == self.scale {
+                                    let old_scale = transform.scale();
+                                    if old_scale != value {
+                                        self.sender
+                                            .send(Message::DoSceneCommand(SceneCommand::ScaleNode(
+                                                ScaleNodeCommand::new(
+                                                    node_handle,
+                                                    old_scale,
+                                                    value,
+                                                ),
+                                            )))
+                                            .unwrap();
+                                    }
                                 }
                             }
                         }
-                    }
-                    UiMessageData::TextBox(msg) => {
-                        if message.destination() == self.node_name {
-                            if let TextBoxMessage::Text(new_name) = msg {
-                                let old_name = graph[node_handle].name();
-                                if old_name != new_name {
-                                    self.sender
-                                        .send(Message::DoSceneCommand(SceneCommand::SetName(
-                                            SetNameCommand::new(node_handle, new_name.to_owned()),
-                                        )))
-                                        .unwrap();
+                        UiMessageData::TextBox(msg) => {
+                            if message.destination() == self.node_name {
+                                if let TextBoxMessage::Text(new_name) = msg {
+                                    let old_name = graph[node_handle].name();
+                                    if old_name != new_name {
+                                        self.sender
+                                            .send(Message::DoSceneCommand(SceneCommand::SetName(
+                                                SetNameCommand::new(
+                                                    node_handle,
+                                                    new_name.to_owned(),
+                                                ),
+                                            )))
+                                            .unwrap();
+                                    }
                                 }
                             }
                         }
+                        _ => (),
                     }
-                    _ => (),
                 }
             }
         }

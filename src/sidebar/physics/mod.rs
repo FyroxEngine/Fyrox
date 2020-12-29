@@ -1,5 +1,5 @@
 use crate::physics::Joint;
-use crate::scene::{AddJointCommand, DeleteJointCommand};
+use crate::scene::{AddJointCommand, DeleteJointCommand, Selection};
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::{Collider, RigidBody},
@@ -197,150 +197,152 @@ impl PhysicsSection {
     }
 
     pub fn sync_to_model(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
-        let scene = &engine.scenes[editor_scene.scene];
+        if let Selection::Graph(selection) = &editor_scene.selection {
+            let scene = &engine.scenes[editor_scene.scene];
 
-        if editor_scene.selection.is_single_selection() {
-            let node_handle = editor_scene.selection.nodes()[0];
-            if scene.graph.is_valid_handle(node_handle) {
-                let ui = &mut engine.user_interface;
+            if selection.is_single_selection() {
+                let node_handle = selection.nodes()[0];
+                if scene.graph.is_valid_handle(node_handle) {
+                    let ui = &mut engine.user_interface;
 
-                // Sync physical body info.
-                let mut body_index = 0;
-                let mut joint = Handle::NONE;
-                if let Some(&body_handle) = editor_scene.physics.binder.get(&node_handle) {
-                    let body = &editor_scene.physics.bodies[body_handle];
-                    body_index = match body.status {
-                        BodyStatusDesc::Dynamic => 1,
-                        BodyStatusDesc::Static => 2,
-                        BodyStatusDesc::Kinematic => 3,
-                    };
-                    for (h, j) in editor_scene.physics.joints.pair_iter() {
-                        if j.body1 == body_handle.into() {
-                            joint = h;
-                            break;
+                    // Sync physical body info.
+                    let mut body_index = 0;
+                    let mut joint = Handle::NONE;
+                    if let Some(&body_handle) = editor_scene.physics.binder.get(&node_handle) {
+                        let body = &editor_scene.physics.bodies[body_handle];
+                        body_index = match body.status {
+                            BodyStatusDesc::Dynamic => 1,
+                            BodyStatusDesc::Static => 2,
+                            BodyStatusDesc::Kinematic => 3,
+                        };
+                        for (h, j) in editor_scene.physics.joints.pair_iter() {
+                            if j.body1 == body_handle.into() {
+                                joint = h;
+                                break;
+                            }
                         }
                     }
-                }
 
-                ui.send_message(DropdownListMessage::selection(
-                    self.body,
-                    MessageDirection::ToWidget,
-                    Some(body_index),
-                ));
-
-                fn toggle_visibility(ui: &mut Ui, destination: Handle<UiNode>, value: bool) {
-                    ui.send_message(WidgetMessage::visibility(
-                        destination,
+                    ui.send_message(DropdownListMessage::selection(
+                        self.body,
                         MessageDirection::ToWidget,
-                        value,
+                        Some(body_index),
                     ));
-                };
 
-                toggle_visibility(ui, self.collider, body_index != 0);
-                toggle_visibility(ui, self.collider_text, body_index != 0);
-                toggle_visibility(ui, self.joint_text, body_index != 0);
-                toggle_visibility(ui, self.joint, body_index != 0);
-                toggle_visibility(ui, self.joint_section.section, joint.is_some());
-                toggle_visibility(ui, self.collider_section.section, false);
-                toggle_visibility(ui, self.cylinder_section.section, false);
-                toggle_visibility(ui, self.cone_section.section, false);
-                toggle_visibility(ui, self.cuboid_section.section, false);
-                toggle_visibility(ui, self.capsule_section.section, false);
-                toggle_visibility(ui, self.ball_section.section, false);
-                toggle_visibility(ui, self.body_section.section, false);
-
-                if joint.is_some() {
-                    let joint = &editor_scene.physics.joints[joint];
-
-                    self.joint_section.sync_to_model(
-                        joint,
-                        &scene.graph,
-                        &editor_scene.physics.binder,
-                        ui,
-                    );
-
-                    let joint_index = match joint.params {
-                        JointParamsDesc::BallJoint(_) => 1,
-                        JointParamsDesc::FixedJoint(_) => 2,
-                        JointParamsDesc::PrismaticJoint(_) => 3,
-                        JointParamsDesc::RevoluteJoint(_) => 4,
+                    fn toggle_visibility(ui: &mut Ui, destination: Handle<UiNode>, value: bool) {
+                        ui.send_message(WidgetMessage::visibility(
+                            destination,
+                            MessageDirection::ToWidget,
+                            value,
+                        ));
                     };
-                    ui.send_message(DropdownListMessage::selection(
-                        self.joint,
-                        MessageDirection::ToWidget,
-                        Some(joint_index),
-                    ));
-                } else {
-                    ui.send_message(DropdownListMessage::selection(
-                        self.joint,
-                        MessageDirection::ToWidget,
-                        Some(0),
-                    ));
-                }
 
-                if let Some(&body_handle) = editor_scene.physics.binder.get(&node_handle) {
-                    let body = &editor_scene.physics.bodies[body_handle];
+                    toggle_visibility(ui, self.collider, body_index != 0);
+                    toggle_visibility(ui, self.collider_text, body_index != 0);
+                    toggle_visibility(ui, self.joint_text, body_index != 0);
+                    toggle_visibility(ui, self.joint, body_index != 0);
+                    toggle_visibility(ui, self.joint_section.section, joint.is_some());
+                    toggle_visibility(ui, self.collider_section.section, false);
+                    toggle_visibility(ui, self.cylinder_section.section, false);
+                    toggle_visibility(ui, self.cone_section.section, false);
+                    toggle_visibility(ui, self.cuboid_section.section, false);
+                    toggle_visibility(ui, self.capsule_section.section, false);
+                    toggle_visibility(ui, self.ball_section.section, false);
+                    toggle_visibility(ui, self.body_section.section, false);
 
-                    if let Some(&collider_handle) = body.colliders.first() {
-                        let collider = &editor_scene.physics.colliders[collider_handle.into()];
-                        toggle_visibility(ui, self.collider_section.section, true);
-                        self.collider_section.sync_to_model(collider, ui);
+                    if joint.is_some() {
+                        let joint = &editor_scene.physics.joints[joint];
+
+                        self.joint_section.sync_to_model(
+                            joint,
+                            &scene.graph,
+                            &editor_scene.physics.binder,
+                            ui,
+                        );
+
+                        let joint_index = match joint.params {
+                            JointParamsDesc::BallJoint(_) => 1,
+                            JointParamsDesc::FixedJoint(_) => 2,
+                            JointParamsDesc::PrismaticJoint(_) => 3,
+                            JointParamsDesc::RevoluteJoint(_) => 4,
+                        };
+                        ui.send_message(DropdownListMessage::selection(
+                            self.joint,
+                            MessageDirection::ToWidget,
+                            Some(joint_index),
+                        ));
+                    } else {
+                        ui.send_message(DropdownListMessage::selection(
+                            self.joint,
+                            MessageDirection::ToWidget,
+                            Some(0),
+                        ));
                     }
 
-                    self.body_section.sync_to_model(body, ui);
-                    toggle_visibility(ui, self.body_section.section, true);
+                    if let Some(&body_handle) = editor_scene.physics.binder.get(&node_handle) {
+                        let body = &editor_scene.physics.bodies[body_handle];
 
-                    if let Some(&collider) = body.colliders.get(0) {
-                        let collider_index =
-                            match &editor_scene.physics.colliders[collider.into()].shape {
-                                ColliderShapeDesc::Ball(ball) => {
-                                    toggle_visibility(ui, self.ball_section.section, true);
-                                    self.ball_section.sync_to_model(ball, ui);
-                                    0
-                                }
-                                ColliderShapeDesc::Cylinder(cylinder) => {
-                                    toggle_visibility(ui, self.cylinder_section.section, true);
-                                    self.cylinder_section.sync_to_model(cylinder, ui);
-                                    1
-                                }
-                                ColliderShapeDesc::RoundCylinder(_) => 2,
-                                ColliderShapeDesc::Cone(cone) => {
-                                    toggle_visibility(ui, self.cone_section.section, true);
-                                    self.cone_section.sync_to_model(cone, ui);
-                                    3
-                                }
-                                ColliderShapeDesc::Cuboid(cuboid) => {
-                                    toggle_visibility(ui, self.cuboid_section.section, true);
-                                    self.cuboid_section.sync_to_model(cuboid, ui);
-                                    4
-                                }
-                                ColliderShapeDesc::Capsule(capsule) => {
-                                    toggle_visibility(ui, self.capsule_section.section, true);
-                                    self.capsule_section.sync_to_model(capsule, ui);
-                                    5
-                                }
-                                ColliderShapeDesc::Segment(_) => {
-                                    // TODO
-                                    6
-                                }
-                                ColliderShapeDesc::Triangle(_) => {
-                                    // TODO
-                                    7
-                                }
-                                ColliderShapeDesc::Trimesh(_) => {
-                                    // Nothing to edit.
-                                    8
-                                }
-                                ColliderShapeDesc::Heightfield(_) => {
-                                    // TODO
-                                    9
-                                }
-                            };
-                        ui.send_message(DropdownListMessage::selection(
-                            self.collider,
-                            MessageDirection::ToWidget,
-                            Some(collider_index),
-                        ));
+                        if let Some(&collider_handle) = body.colliders.first() {
+                            let collider = &editor_scene.physics.colliders[collider_handle.into()];
+                            toggle_visibility(ui, self.collider_section.section, true);
+                            self.collider_section.sync_to_model(collider, ui);
+                        }
+
+                        self.body_section.sync_to_model(body, ui);
+                        toggle_visibility(ui, self.body_section.section, true);
+
+                        if let Some(&collider) = body.colliders.get(0) {
+                            let collider_index =
+                                match &editor_scene.physics.colliders[collider.into()].shape {
+                                    ColliderShapeDesc::Ball(ball) => {
+                                        toggle_visibility(ui, self.ball_section.section, true);
+                                        self.ball_section.sync_to_model(ball, ui);
+                                        0
+                                    }
+                                    ColliderShapeDesc::Cylinder(cylinder) => {
+                                        toggle_visibility(ui, self.cylinder_section.section, true);
+                                        self.cylinder_section.sync_to_model(cylinder, ui);
+                                        1
+                                    }
+                                    ColliderShapeDesc::RoundCylinder(_) => 2,
+                                    ColliderShapeDesc::Cone(cone) => {
+                                        toggle_visibility(ui, self.cone_section.section, true);
+                                        self.cone_section.sync_to_model(cone, ui);
+                                        3
+                                    }
+                                    ColliderShapeDesc::Cuboid(cuboid) => {
+                                        toggle_visibility(ui, self.cuboid_section.section, true);
+                                        self.cuboid_section.sync_to_model(cuboid, ui);
+                                        4
+                                    }
+                                    ColliderShapeDesc::Capsule(capsule) => {
+                                        toggle_visibility(ui, self.capsule_section.section, true);
+                                        self.capsule_section.sync_to_model(capsule, ui);
+                                        5
+                                    }
+                                    ColliderShapeDesc::Segment(_) => {
+                                        // TODO
+                                        6
+                                    }
+                                    ColliderShapeDesc::Triangle(_) => {
+                                        // TODO
+                                        7
+                                    }
+                                    ColliderShapeDesc::Trimesh(_) => {
+                                        // Nothing to edit.
+                                        8
+                                    }
+                                    ColliderShapeDesc::Heightfield(_) => {
+                                        // TODO
+                                        9
+                                    }
+                                };
+                            ui.send_message(DropdownListMessage::selection(
+                                self.collider,
+                                MessageDirection::ToWidget,
+                                Some(collider_index),
+                            ));
+                        }
                     }
                 }
             }
@@ -353,153 +355,110 @@ impl PhysicsSection {
         editor_scene: &EditorScene,
         engine: &GameEngine,
     ) {
-        let scene = &engine.scenes[editor_scene.scene];
-        let graph = &scene.graph;
+        if let Selection::Graph(selection) = &editor_scene.selection {
+            let scene = &engine.scenes[editor_scene.scene];
+            let graph = &scene.graph;
 
-        if editor_scene.selection.is_single_selection()
-            && message.direction() == MessageDirection::FromWidget
-        {
-            let node_handle = editor_scene.selection.nodes()[0];
+            if selection.is_single_selection()
+                && message.direction() == MessageDirection::FromWidget
+            {
+                let node_handle = selection.nodes()[0];
 
-            if let Some(&body_handle) = editor_scene.physics.binder.get(&node_handle) {
-                let body = &editor_scene.physics.bodies[body_handle];
-                self.body_section.handle_message(message, body, body_handle);
+                if let Some(&body_handle) = editor_scene.physics.binder.get(&node_handle) {
+                    let body = &editor_scene.physics.bodies[body_handle];
+                    self.body_section.handle_message(message, body, body_handle);
 
-                if let Some(&collider_handle) = body.colliders.first() {
-                    let collider = &editor_scene.physics.colliders[collider_handle.into()];
-                    self.collider_section
-                        .handle_message(message, collider, collider_handle.into());
-                }
+                    if let Some(&collider_handle) = body.colliders.first() {
+                        let collider = &editor_scene.physics.colliders[collider_handle.into()];
+                        self.collider_section.handle_message(
+                            message,
+                            collider,
+                            collider_handle.into(),
+                        );
+                    }
 
-                if let Some(&collider) = body.colliders.get(0) {
-                    match &editor_scene.physics.colliders[collider.into()].shape {
-                        ColliderShapeDesc::Ball(ball) => {
-                            self.ball_section
-                                .handle_message(message, ball, collider.into());
-                        }
-                        ColliderShapeDesc::Cylinder(cylinder) => {
-                            self.cylinder_section.handle_message(
-                                message,
-                                cylinder,
-                                collider.into(),
-                            );
-                        }
-                        ColliderShapeDesc::RoundCylinder(_) => {
-                            // TODO
-                        }
-                        ColliderShapeDesc::Cone(cone) => {
-                            self.cone_section
-                                .handle_message(message, cone, collider.into());
-                        }
-                        ColliderShapeDesc::Cuboid(cuboid) => {
-                            self.cuboid_section
-                                .handle_message(message, cuboid, collider.into());
-                        }
-                        ColliderShapeDesc::Capsule(capsule) => {
-                            self.capsule_section
-                                .handle_message(message, capsule, collider.into());
-                        }
-                        ColliderShapeDesc::Segment(_) => {
-                            // TODO
-                        }
-                        ColliderShapeDesc::Triangle(_) => {
-                            // TODO
-                        }
-                        ColliderShapeDesc::Trimesh(_) => {
-                            // Nothing to edit.
-                        }
-                        ColliderShapeDesc::Heightfield(_) => {
-                            // TODO
-                        }
-                    };
-                }
+                    if let Some(&collider) = body.colliders.get(0) {
+                        match &editor_scene.physics.colliders[collider.into()].shape {
+                            ColliderShapeDesc::Ball(ball) => {
+                                self.ball_section
+                                    .handle_message(message, ball, collider.into());
+                            }
+                            ColliderShapeDesc::Cylinder(cylinder) => {
+                                self.cylinder_section.handle_message(
+                                    message,
+                                    cylinder,
+                                    collider.into(),
+                                );
+                            }
+                            ColliderShapeDesc::RoundCylinder(_) => {
+                                // TODO
+                            }
+                            ColliderShapeDesc::Cone(cone) => {
+                                self.cone_section
+                                    .handle_message(message, cone, collider.into());
+                            }
+                            ColliderShapeDesc::Cuboid(cuboid) => {
+                                self.cuboid_section.handle_message(
+                                    message,
+                                    cuboid,
+                                    collider.into(),
+                                );
+                            }
+                            ColliderShapeDesc::Capsule(capsule) => {
+                                self.capsule_section.handle_message(
+                                    message,
+                                    capsule,
+                                    collider.into(),
+                                );
+                            }
+                            ColliderShapeDesc::Segment(_) => {
+                                // TODO
+                            }
+                            ColliderShapeDesc::Triangle(_) => {
+                                // TODO
+                            }
+                            ColliderShapeDesc::Trimesh(_) => {
+                                // Nothing to edit.
+                            }
+                            ColliderShapeDesc::Heightfield(_) => {
+                                // TODO
+                            }
+                        };
+                    }
 
-                let mut joint = Handle::NONE;
-                for (h, j) in editor_scene.physics.joints.pair_iter() {
-                    if j.body1 == body_handle.into() {
-                        joint = h;
-                        break;
+                    let mut joint = Handle::NONE;
+                    for (h, j) in editor_scene.physics.joints.pair_iter() {
+                        if j.body1 == body_handle.into() {
+                            joint = h;
+                            break;
+                        }
+                    }
+
+                    if joint.is_some() {
+                        self.joint_section.handle_message(
+                            message,
+                            &editor_scene.physics.joints[joint],
+                            joint,
+                        );
                     }
                 }
 
-                if joint.is_some() {
-                    self.joint_section.handle_message(
-                        message,
-                        &editor_scene.physics.joints[joint],
-                        joint,
-                    );
-                }
-            }
-
-            if let UiMessageData::DropdownList(msg) = &message.data() {
-                if let DropdownListMessage::SelectionChanged(index) = msg {
-                    if let Some(index) = index {
-                        if message.destination() == self.body {
-                            match index {
-                                0 => {
-                                    // Remove body.
-                                    if let Some(&body_handle) =
-                                        editor_scene.physics.binder.get(&node_handle)
-                                    {
-                                        let mut commands = Vec::new();
-
-                                        for &collider in editor_scene.physics.bodies[body_handle]
-                                            .colliders
-                                            .iter()
-                                        {
-                                            commands.push(SceneCommand::DeleteCollider(
-                                                DeleteColliderCommand::new(collider.into()),
-                                            ))
-                                        }
-
-                                        commands.push(SceneCommand::DeleteBody(
-                                            DeleteBodyCommand::new(body_handle),
-                                        ));
-
-                                        self.sender
-                                            .send(Message::DoSceneCommand(
-                                                SceneCommand::CommandGroup(CommandGroup::from(
-                                                    commands,
-                                                )),
-                                            ))
-                                            .unwrap();
-                                    }
-                                }
-                                1 | 2 | 3 => {
-                                    let mut current_status = 0;
-                                    if let Some(&body) =
-                                        editor_scene.physics.binder.get(&node_handle)
-                                    {
-                                        current_status =
-                                            match editor_scene.physics.bodies[body].status {
-                                                BodyStatusDesc::Dynamic => 1,
-                                                BodyStatusDesc::Static => 2,
-                                                BodyStatusDesc::Kinematic => 3,
-                                            };
-                                    }
-
-                                    if *index != current_status {
-                                        // Create body.
-                                        let node = &graph[node_handle];
-                                        let body = RigidBody {
-                                            position: node.global_position(),
-                                            rotation: node.local_transform().rotation(),
-                                            status: match index {
-                                                1 => BodyStatusDesc::Dynamic,
-                                                2 => BodyStatusDesc::Static,
-                                                3 => BodyStatusDesc::Kinematic,
-                                                _ => unreachable!(),
-                                            },
-                                            ..Default::default()
-                                        };
-
-                                        let mut commands = Vec::new();
-
-                                        if let Some(&body) =
+                if let UiMessageData::DropdownList(msg) = &message.data() {
+                    if let DropdownListMessage::SelectionChanged(index) = msg {
+                        if let Some(index) = index {
+                            if message.destination() == self.body {
+                                match index {
+                                    0 => {
+                                        // Remove body.
+                                        if let Some(&body_handle) =
                                             editor_scene.physics.binder.get(&node_handle)
                                         {
-                                            for &collider in
-                                                editor_scene.physics.bodies[body].colliders.iter()
+                                            let mut commands = Vec::new();
+
+                                            for &collider in editor_scene.physics.bodies
+                                                [body_handle]
+                                                .colliders
+                                                .iter()
                                             {
                                                 commands.push(SceneCommand::DeleteCollider(
                                                     DeleteColliderCommand::new(collider.into()),
@@ -507,15 +466,178 @@ impl PhysicsSection {
                                             }
 
                                             commands.push(SceneCommand::DeleteBody(
-                                                DeleteBodyCommand::new(body),
+                                                DeleteBodyCommand::new(body_handle),
                                             ));
+
+                                            self.sender
+                                                .send(Message::DoSceneCommand(
+                                                    SceneCommand::CommandGroup(CommandGroup::from(
+                                                        commands,
+                                                    )),
+                                                ))
+                                                .unwrap();
+                                        }
+                                    }
+                                    1 | 2 | 3 => {
+                                        let mut current_status = 0;
+                                        if let Some(&body) =
+                                            editor_scene.physics.binder.get(&node_handle)
+                                        {
+                                            current_status =
+                                                match editor_scene.physics.bodies[body].status {
+                                                    BodyStatusDesc::Dynamic => 1,
+                                                    BodyStatusDesc::Static => 2,
+                                                    BodyStatusDesc::Kinematic => 3,
+                                                };
                                         }
 
-                                        commands.push(SceneCommand::SetBody(SetBodyCommand::new(
-                                            node_handle,
-                                            body,
-                                        )));
+                                        if *index != current_status {
+                                            // Create body.
+                                            let node = &graph[node_handle];
+                                            let body = RigidBody {
+                                                position: node.global_position(),
+                                                rotation: node.local_transform().rotation(),
+                                                status: match index {
+                                                    1 => BodyStatusDesc::Dynamic,
+                                                    2 => BodyStatusDesc::Static,
+                                                    3 => BodyStatusDesc::Kinematic,
+                                                    _ => unreachable!(),
+                                                },
+                                                ..Default::default()
+                                            };
 
+                                            let mut commands = Vec::new();
+
+                                            if let Some(&body) =
+                                                editor_scene.physics.binder.get(&node_handle)
+                                            {
+                                                for &collider in editor_scene.physics.bodies[body]
+                                                    .colliders
+                                                    .iter()
+                                                {
+                                                    commands.push(SceneCommand::DeleteCollider(
+                                                        DeleteColliderCommand::new(collider.into()),
+                                                    ))
+                                                }
+
+                                                commands.push(SceneCommand::DeleteBody(
+                                                    DeleteBodyCommand::new(body),
+                                                ));
+                                            }
+
+                                            commands.push(SceneCommand::SetBody(
+                                                SetBodyCommand::new(node_handle, body),
+                                            ));
+
+                                            self.sender
+                                                .send(Message::DoSceneCommand(
+                                                    SceneCommand::CommandGroup(CommandGroup::from(
+                                                        commands,
+                                                    )),
+                                                ))
+                                                .unwrap();
+                                        }
+                                    }
+                                    _ => unreachable!(),
+                                };
+                            } else if message.destination() == self.collider {
+                                if let Some(&body) = editor_scene.physics.binder.get(&node_handle) {
+                                    let mut current_index = 0;
+                                    if let Some(&first_collider) =
+                                        editor_scene.physics.bodies[body].colliders.first()
+                                    {
+                                        current_index = editor_scene.physics.colliders
+                                            [first_collider.into()]
+                                        .shape
+                                        .id();
+                                    }
+
+                                    if current_index != *index as u32 {
+                                        let collider = match index {
+                                            0 => Collider {
+                                                shape: ColliderShapeDesc::Ball(BallDesc {
+                                                    radius: 0.5,
+                                                }),
+                                                ..Default::default()
+                                            },
+                                            1 => Collider {
+                                                shape: ColliderShapeDesc::Cylinder(CylinderDesc {
+                                                    half_height: 0.5,
+                                                    radius: 0.5,
+                                                }),
+                                                ..Default::default()
+                                            },
+                                            2 => Collider {
+                                                shape: ColliderShapeDesc::RoundCylinder(
+                                                    RoundCylinderDesc {
+                                                        half_height: 0.5,
+                                                        radius: 0.5,
+                                                        border_radius: 0.1,
+                                                    },
+                                                ),
+                                                ..Default::default()
+                                            },
+                                            3 => Collider {
+                                                shape: ColliderShapeDesc::Cone(ConeDesc {
+                                                    half_height: 0.5,
+                                                    radius: 0.5,
+                                                }),
+                                                ..Default::default()
+                                            },
+                                            4 => Collider {
+                                                shape: ColliderShapeDesc::Cuboid(CuboidDesc {
+                                                    half_extents: Vector3::new(0.5, 0.5, 0.5),
+                                                }),
+                                                ..Default::default()
+                                            },
+                                            5 => Collider {
+                                                shape: ColliderShapeDesc::Capsule(CapsuleDesc {
+                                                    begin: Vector3::new(0.0, 0.0, 0.0),
+                                                    end: Vector3::new(0.0, 1.0, 0.0),
+                                                    radius: 0.5,
+                                                }),
+                                                ..Default::default()
+                                            },
+                                            6 => Collider {
+                                                shape: ColliderShapeDesc::Segment(SegmentDesc {
+                                                    begin: Vector3::new(0.0, 0.0, 0.0),
+                                                    end: Vector3::new(1.0, 0.0, 0.0),
+                                                }),
+                                                ..Default::default()
+                                            },
+                                            7 => Collider {
+                                                shape: ColliderShapeDesc::Triangle(TriangleDesc {
+                                                    a: Vector3::new(0.0, 0.0, 0.0),
+                                                    b: Vector3::new(1.0, 0.0, 0.0),
+                                                    c: Vector3::new(1.0, 0.0, 1.0),
+                                                }),
+                                                ..Default::default()
+                                            },
+                                            8 => Collider {
+                                                shape: ColliderShapeDesc::Trimesh(TrimeshDesc),
+                                                ..Default::default()
+                                            },
+                                            9 => Collider {
+                                                shape: ColliderShapeDesc::Heightfield(
+                                                    HeightfieldDesc,
+                                                ),
+                                                ..Default::default()
+                                            },
+                                            _ => unreachable!(),
+                                        };
+                                        let mut commands = Vec::new();
+                                        // For now only one collider per body is supported.
+                                        // It is easy to add more.
+                                        if let Some(&first_collider) =
+                                            editor_scene.physics.bodies[body].colliders.first()
+                                        {
+                                            commands.push(SceneCommand::DeleteCollider(
+                                                DeleteColliderCommand::new(first_collider.into()),
+                                            ))
+                                        }
+                                        commands.push(SceneCommand::SetCollider(
+                                            SetColliderCommand::new(body, collider),
+                                        ));
                                         self.sender
                                             .send(Message::DoSceneCommand(
                                                 SceneCommand::CommandGroup(CommandGroup::from(
@@ -525,210 +647,112 @@ impl PhysicsSection {
                                             .unwrap();
                                     }
                                 }
-                                _ => unreachable!(),
-                            };
-                        } else if message.destination() == self.collider {
-                            if let Some(&body) = editor_scene.physics.binder.get(&node_handle) {
-                                let mut current_index = 0;
-                                if let Some(&first_collider) =
-                                    editor_scene.physics.bodies[body].colliders.first()
+                            } else if message.destination() == self.joint {
+                                if let Some(&body_handle) =
+                                    editor_scene.physics.binder.get(&node_handle)
                                 {
-                                    current_index = editor_scene.physics.colliders
-                                        [first_collider.into()]
-                                    .shape
-                                    .id();
-                                }
-
-                                if current_index != *index as u32 {
-                                    let collider = match index {
-                                        0 => Collider {
-                                            shape: ColliderShapeDesc::Ball(BallDesc {
-                                                radius: 0.5,
-                                            }),
-                                            ..Default::default()
-                                        },
-                                        1 => Collider {
-                                            shape: ColliderShapeDesc::Cylinder(CylinderDesc {
-                                                half_height: 0.5,
-                                                radius: 0.5,
-                                            }),
-                                            ..Default::default()
-                                        },
-                                        2 => Collider {
-                                            shape: ColliderShapeDesc::RoundCylinder(
-                                                RoundCylinderDesc {
-                                                    half_height: 0.5,
-                                                    radius: 0.5,
-                                                    border_radius: 0.1,
-                                                },
-                                            ),
-                                            ..Default::default()
-                                        },
-                                        3 => Collider {
-                                            shape: ColliderShapeDesc::Cone(ConeDesc {
-                                                half_height: 0.5,
-                                                radius: 0.5,
-                                            }),
-                                            ..Default::default()
-                                        },
-                                        4 => Collider {
-                                            shape: ColliderShapeDesc::Cuboid(CuboidDesc {
-                                                half_extents: Vector3::new(0.5, 0.5, 0.5),
-                                            }),
-                                            ..Default::default()
-                                        },
-                                        5 => Collider {
-                                            shape: ColliderShapeDesc::Capsule(CapsuleDesc {
-                                                begin: Vector3::new(0.0, 0.0, 0.0),
-                                                end: Vector3::new(0.0, 1.0, 0.0),
-                                                radius: 0.5,
-                                            }),
-                                            ..Default::default()
-                                        },
-                                        6 => Collider {
-                                            shape: ColliderShapeDesc::Segment(SegmentDesc {
-                                                begin: Vector3::new(0.0, 0.0, 0.0),
-                                                end: Vector3::new(1.0, 0.0, 0.0),
-                                            }),
-                                            ..Default::default()
-                                        },
-                                        7 => Collider {
-                                            shape: ColliderShapeDesc::Triangle(TriangleDesc {
-                                                a: Vector3::new(0.0, 0.0, 0.0),
-                                                b: Vector3::new(1.0, 0.0, 0.0),
-                                                c: Vector3::new(1.0, 0.0, 1.0),
-                                            }),
-                                            ..Default::default()
-                                        },
-                                        8 => Collider {
-                                            shape: ColliderShapeDesc::Trimesh(TrimeshDesc),
-                                            ..Default::default()
-                                        },
-                                        9 => Collider {
-                                            shape: ColliderShapeDesc::Heightfield(HeightfieldDesc),
-                                            ..Default::default()
-                                        },
-                                        _ => unreachable!(),
-                                    };
-                                    let mut commands = Vec::new();
-                                    // For now only one collider per body is supported.
-                                    // It is easy to add more.
-                                    if let Some(&first_collider) =
-                                        editor_scene.physics.bodies[body].colliders.first()
-                                    {
-                                        commands.push(SceneCommand::DeleteCollider(
-                                            DeleteColliderCommand::new(first_collider.into()),
-                                        ))
-                                    }
-                                    commands.push(SceneCommand::SetCollider(
-                                        SetColliderCommand::new(body, collider),
-                                    ));
-                                    self.sender
-                                        .send(Message::DoSceneCommand(SceneCommand::CommandGroup(
-                                            CommandGroup::from(commands),
-                                        )))
-                                        .unwrap();
-                                }
-                            }
-                        } else if message.destination() == self.joint {
-                            if let Some(&body_handle) =
-                                editor_scene.physics.binder.get(&node_handle)
-                            {
-                                let mut joint = Handle::NONE;
-                                for (h, j) in editor_scene.physics.joints.pair_iter() {
-                                    if j.body1 == body_handle.into() {
-                                        joint = h;
-                                        break;
-                                    }
-                                }
-
-                                let current_value = if joint.is_some() {
-                                    let joint = &editor_scene.physics.joints[joint];
-                                    match joint.params {
-                                        JointParamsDesc::BallJoint(_) => 1,
-                                        JointParamsDesc::FixedJoint(_) => 2,
-                                        JointParamsDesc::PrismaticJoint(_) => 3,
-                                        JointParamsDesc::RevoluteJoint(_) => 4,
-                                    }
-                                } else {
-                                    0
-                                };
-
-                                if current_value != *index {
-                                    let mut commands = Vec::new();
-
-                                    if joint.is_some() {
-                                        commands.push(SceneCommand::DeleteJoint(
-                                            DeleteJointCommand::new(joint),
-                                        ));
-                                    }
-
-                                    match *index {
-                                        0 => {
-                                            // Do nothing
+                                    let mut joint = Handle::NONE;
+                                    for (h, j) in editor_scene.physics.joints.pair_iter() {
+                                        if j.body1 == body_handle.into() {
+                                            joint = h;
+                                            break;
                                         }
-                                        1 => commands.push(SceneCommand::AddJoint(
-                                            AddJointCommand::new(Joint {
-                                                body1: body_handle.into(),
-                                                body2: Default::default(),
-                                                params: JointParamsDesc::BallJoint(BallJointDesc {
-                                                    local_anchor1: Default::default(),
-                                                    local_anchor2: Default::default(),
-                                                }),
-                                            }),
-                                        )),
-                                        2 => commands.push(SceneCommand::AddJoint(
-                                            AddJointCommand::new(Joint {
-                                                body1: body_handle.into(),
-                                                body2: Default::default(),
-                                                params: JointParamsDesc::FixedJoint(
-                                                    FixedJointDesc {
-                                                        local_anchor1_translation: Default::default(
-                                                        ),
-                                                        local_anchor1_rotation: Default::default(),
-                                                        local_anchor2_translation: Default::default(
-                                                        ),
-                                                        local_anchor2_rotation: Default::default(),
-                                                    },
-                                                ),
-                                            }),
-                                        )),
-                                        3 => commands.push(SceneCommand::AddJoint(
-                                            AddJointCommand::new(Joint {
-                                                body1: body_handle.into(),
-                                                body2: Default::default(),
-                                                params: JointParamsDesc::PrismaticJoint(
-                                                    PrismaticJointDesc {
-                                                        local_anchor1: Default::default(),
-                                                        local_axis1: Vector3::y(),
-                                                        local_anchor2: Default::default(),
-                                                        local_axis2: Vector3::x(),
-                                                    },
-                                                ),
-                                            }),
-                                        )),
-                                        4 => commands.push(SceneCommand::AddJoint(
-                                            AddJointCommand::new(Joint {
-                                                body1: body_handle.into(),
-                                                body2: Default::default(),
-                                                params: JointParamsDesc::RevoluteJoint(
-                                                    RevoluteJointDesc {
-                                                        local_anchor1: Default::default(),
-                                                        local_axis1: Vector3::y(),
-                                                        local_anchor2: Default::default(),
-                                                        local_axis2: Vector3::x(),
-                                                    },
-                                                ),
-                                            }),
-                                        )),
-                                        _ => unreachable!(),
+                                    }
+
+                                    let current_value = if joint.is_some() {
+                                        let joint = &editor_scene.physics.joints[joint];
+                                        match joint.params {
+                                            JointParamsDesc::BallJoint(_) => 1,
+                                            JointParamsDesc::FixedJoint(_) => 2,
+                                            JointParamsDesc::PrismaticJoint(_) => 3,
+                                            JointParamsDesc::RevoluteJoint(_) => 4,
+                                        }
+                                    } else {
+                                        0
                                     };
 
-                                    self.sender
-                                        .send(Message::DoSceneCommand(SceneCommand::CommandGroup(
-                                            CommandGroup::from(commands),
-                                        )))
-                                        .unwrap();
+                                    if current_value != *index {
+                                        let mut commands = Vec::new();
+
+                                        if joint.is_some() {
+                                            commands.push(SceneCommand::DeleteJoint(
+                                                DeleteJointCommand::new(joint),
+                                            ));
+                                        }
+
+                                        match *index {
+                                            0 => {
+                                                // Do nothing
+                                            }
+                                            1 => commands.push(SceneCommand::AddJoint(
+                                                AddJointCommand::new(Joint {
+                                                    body1: body_handle.into(),
+                                                    body2: Default::default(),
+                                                    params: JointParamsDesc::BallJoint(
+                                                        BallJointDesc {
+                                                            local_anchor1: Default::default(),
+                                                            local_anchor2: Default::default(),
+                                                        },
+                                                    ),
+                                                }),
+                                            )),
+                                            2 => commands.push(SceneCommand::AddJoint(
+                                                AddJointCommand::new(Joint {
+                                                    body1: body_handle.into(),
+                                                    body2: Default::default(),
+                                                    params: JointParamsDesc::FixedJoint(
+                                                        FixedJointDesc {
+                                                            local_anchor1_translation:
+                                                                Default::default(),
+                                                            local_anchor1_rotation:
+                                                                Default::default(),
+                                                            local_anchor2_translation:
+                                                                Default::default(),
+                                                            local_anchor2_rotation:
+                                                                Default::default(),
+                                                        },
+                                                    ),
+                                                }),
+                                            )),
+                                            3 => commands.push(SceneCommand::AddJoint(
+                                                AddJointCommand::new(Joint {
+                                                    body1: body_handle.into(),
+                                                    body2: Default::default(),
+                                                    params: JointParamsDesc::PrismaticJoint(
+                                                        PrismaticJointDesc {
+                                                            local_anchor1: Default::default(),
+                                                            local_axis1: Vector3::y(),
+                                                            local_anchor2: Default::default(),
+                                                            local_axis2: Vector3::x(),
+                                                        },
+                                                    ),
+                                                }),
+                                            )),
+                                            4 => commands.push(SceneCommand::AddJoint(
+                                                AddJointCommand::new(Joint {
+                                                    body1: body_handle.into(),
+                                                    body2: Default::default(),
+                                                    params: JointParamsDesc::RevoluteJoint(
+                                                        RevoluteJointDesc {
+                                                            local_anchor1: Default::default(),
+                                                            local_axis1: Vector3::y(),
+                                                            local_anchor2: Default::default(),
+                                                            local_axis2: Vector3::x(),
+                                                        },
+                                                    ),
+                                                }),
+                                            )),
+                                            _ => unreachable!(),
+                                        };
+
+                                        self.sender
+                                            .send(Message::DoSceneCommand(
+                                                SceneCommand::CommandGroup(CommandGroup::from(
+                                                    commands,
+                                                )),
+                                            ))
+                                            .unwrap();
+                                    }
                                 }
                             }
                         }

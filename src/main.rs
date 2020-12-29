@@ -24,7 +24,7 @@ pub mod world_outliner;
 use crate::interaction::navmesh::data_model::{Navmesh, NavmeshTriangle, NavmeshVertex};
 use crate::interaction::navmesh::{EditNavmeshMode, NavmeshPanel};
 use crate::interaction::InteractionMode;
-use crate::scene::{make_delete_selection_command, SetParticleSystemTextureCommand};
+use crate::scene::{make_delete_selection_command, Selection, SetParticleSystemTextureCommand};
 use crate::{
     asset::{AssetBrowser, AssetKind},
     camera::CameraController,
@@ -90,6 +90,8 @@ use std::{
     },
     time::Instant,
 };
+
+pub const MSG_SYNC_FLAG: u64 = 1;
 
 type GameEngine = rg3d::engine::Engine<EditorUiMessage, EditorUiNode>;
 
@@ -660,7 +662,6 @@ impl Editor {
             scene: engine.scenes.add(scene),
             selection: Default::default(),
             clipboard: Default::default(),
-            navmesh_selection: Default::default(),
         };
 
         self.interaction_modes = vec![
@@ -888,10 +889,14 @@ impl Editor {
                                 KeyCode::C
                                     if engine.user_interface.keyboard_modifiers().control =>
                                 {
-                                    editor_scene.clipboard.clone_selection(
-                                        &editor_scene.selection,
-                                        &engine.scenes[editor_scene.scene].graph,
-                                    );
+                                    if let Selection::Graph(graph_selection) =
+                                        &editor_scene.selection
+                                    {
+                                        editor_scene.clipboard.clone_selection(
+                                            graph_selection,
+                                            &engine.scenes[editor_scene.scene].graph,
+                                        );
+                                    }
                                 }
                                 KeyCode::V
                                     if engine.user_interface.keyboard_modifiers().control =>
@@ -1297,19 +1302,21 @@ impl Editor {
                 }
             }
 
-            for &node in editor_scene.selection.nodes() {
-                let node = &scene.graph[node];
-                let aabb = match node {
-                    Node::Base(_) => AxisAlignedBoundingBox::unit(),
-                    Node::Light(_) => AxisAlignedBoundingBox::unit(),
-                    Node::Camera(_) => AxisAlignedBoundingBox::unit(),
-                    Node::Mesh(ref mesh) => mesh.bounding_box(),
-                    Node::Sprite(_) => AxisAlignedBoundingBox::unit(),
-                    Node::ParticleSystem(_) => AxisAlignedBoundingBox::unit(),
-                };
-                scene
-                    .drawing_context
-                    .draw_oob(&aabb, node.global_transform(), Color::GREEN);
+            if let Selection::Graph(selection) = &editor_scene.selection {
+                for &node in selection.nodes() {
+                    let node = &scene.graph[node];
+                    let aabb = match node {
+                        Node::Base(_) => AxisAlignedBoundingBox::unit(),
+                        Node::Light(_) => AxisAlignedBoundingBox::unit(),
+                        Node::Camera(_) => AxisAlignedBoundingBox::unit(),
+                        Node::Mesh(ref mesh) => mesh.bounding_box(),
+                        Node::Sprite(_) => AxisAlignedBoundingBox::unit(),
+                        Node::ParticleSystem(_) => AxisAlignedBoundingBox::unit(),
+                    };
+                    scene
+                        .drawing_context
+                        .draw_oob(&aabb, node.global_transform(), Color::GREEN);
+                }
             }
 
             fn draw_recursively(
