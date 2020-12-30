@@ -2,7 +2,7 @@
 
 Sound library for games and interactive applications written in Rust.
 
-**WARNING:** even this crate has `rg3d` prefix in its name, it could be used separately without any issues.
+**NOTE:** even though this crate has `rg3d` prefix in its name, it can be used separately without any issues.
 
 ## Key features
 
@@ -26,11 +26,11 @@ Examples can be found in `./examples`. Make sure you run examples with `--releas
 
 ## HRTF
 
-Library has full HRTF support, it uses HRIR spheres generated using [IRCAM](http://recherche.ircam.fr/equipes/salles/listen/) HRIR database. HRIR spheres are produced using small tool written in C++ - [hrir_sphere_builder](https://github.com/mrDIMAS/hrir_sphere_builder ). It is very important to find HRTF that suits you because they're very individual and overall perception fully defined by use of correct HRTF.
+This library has full HRTF support, it uses HRIR spheres generated using [IRCAM](http://recherche.ircam.fr/equipes/salles/listen/) HRIR database. HRIR spheres are produced using a small tool written in C++ - [hrir_sphere_builder](https://github.com/mrDIMAS/hrir_sphere_builder ). It is very important to find HRTF that suits you because they're very individual and the overall perception is fully defined by the use of correct HRTF.
 
 ## Contributions
 
-Any contributions are very appreciated! Check `Issues` page to see how can you help project. 
+Any contributions are very appreciated! Check the `Issues` page to see how can you help the project. 
 
 ## License
 
