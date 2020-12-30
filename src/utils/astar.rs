@@ -362,11 +362,11 @@ mod test {
         let mut paths_count = 0;
 
         for _ in 0..1000 {
-            let sx = rand::thread_rng().gen_range(0, size - 1);
-            let sy = rand::thread_rng().gen_range(0, size - 1);
+            let sx = rand::thread_rng().gen_range(0..(size - 1));
+            let sy = rand::thread_rng().gen_range(0..(size - 1));
 
-            let tx = rand::thread_rng().gen_range(0, size - 1);
-            let ty = rand::thread_rng().gen_range(0, size - 1);
+            let tx = rand::thread_rng().gen_range(0..(size - 1));
+            let ty = rand::thread_rng().gen_range(0..(size - 1));
 
             let from = sy * size + sx;
             let to = ty * size + tx;
