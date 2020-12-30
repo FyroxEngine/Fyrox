@@ -9,7 +9,7 @@ use crate::{
         ChangeSelectionCommand, EditorScene, GraphSelection, LinkNodesCommand, SceneCommand,
         SetVisibleCommand,
     },
-    GameEngine, Message,
+    GameEngine, Message, MSG_SYNC_FLAG,
 };
 use rg3d::gui::message::TextMessage;
 use rg3d::{
@@ -509,11 +509,10 @@ impl WorldOutliner {
         }
 
         if !selected_items.is_empty() {
-            ui.send_message(TreeRootMessage::select(
-                self.root,
-                MessageDirection::ToWidget,
-                selected_items,
-            ));
+            let mut message =
+                TreeRootMessage::select(self.root, MessageDirection::ToWidget, selected_items);
+            message.flags = MSG_SYNC_FLAG;
+            ui.send_message(message);
         }
 
         // Sync items data.
@@ -564,25 +563,24 @@ impl WorldOutliner {
             UiMessageData::TreeRoot(msg) => {
                 if message.destination() == self.root
                     && message.direction() == MessageDirection::FromWidget
+                    && !message.has_flags(MSG_SYNC_FLAG)
                 {
                     if let TreeRootMessage::Selected(selection) = msg {
-                        if !selection.is_empty() {
-                            let new_selection = Selection::Graph(GraphSelection::from_list(
-                                selection
-                                    .iter()
-                                    .map(|&h| self.map_tree_to_node(h, &engine.user_interface))
-                                    .collect(),
-                            ));
-                            if new_selection != editor_scene.selection {
-                                self.sender
-                                    .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
-                                        ChangeSelectionCommand::new(
-                                            new_selection,
-                                            editor_scene.selection.clone(),
-                                        ),
-                                    )))
-                                    .unwrap();
-                            }
+                        let new_selection = Selection::Graph(GraphSelection::from_list(
+                            selection
+                                .iter()
+                                .map(|&h| self.map_tree_to_node(h, &engine.user_interface))
+                                .collect(),
+                        ));
+                        if new_selection != editor_scene.selection {
+                            self.sender
+                                .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
+                                    ChangeSelectionCommand::new(
+                                        new_selection,
+                                        editor_scene.selection.clone(),
+                                    ),
+                                )))
+                                .unwrap();
                         }
                     }
                 }
@@ -642,11 +640,9 @@ impl WorldOutliner {
                 Default::default()
             };
 
-            ui.send_message(TreeRootMessage::select(
-                self.root,
-                MessageDirection::ToWidget,
-                trees,
-            ));
+            let mut message = TreeRootMessage::select(self.root, MessageDirection::ToWidget, trees);
+            message.flags = MSG_SYNC_FLAG;
+            ui.send_message(message);
 
             self.sync_selection = false;
         }

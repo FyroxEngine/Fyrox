@@ -1100,11 +1100,18 @@ impl<'a> Command<'a> for DeleteJointCommand {
 pub struct ChangeSelectionCommand {
     new_selection: Selection,
     old_selection: Selection,
+    cached_name: String,
 }
 
 impl ChangeSelectionCommand {
     pub fn new(new_selection: Selection, old_selection: Selection) -> Self {
         Self {
+            cached_name: match new_selection {
+                Selection::None => "Change Selection: None",
+                Selection::Graph(_) => "Change Selection: Graph",
+                Selection::Navmesh(_) => "Change Selection: Navmesh",
+            }
+            .to_owned(),
             new_selection,
             old_selection,
         }
@@ -1121,7 +1128,7 @@ impl<'a> Command<'a> for ChangeSelectionCommand {
     type Context = SceneContext<'a>;
 
     fn name(&mut self, _context: &Self::Context) -> String {
-        "Change Selection".to_owned()
+        self.cached_name.clone()
     }
 
     fn execute(&mut self, context: &mut Self::Context) {
