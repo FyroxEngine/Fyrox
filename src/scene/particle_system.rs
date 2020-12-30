@@ -39,7 +39,7 @@
 //! use rg3d::resource::texture::TexturePixelKind;
 //!
 //! fn create_smoke(graph: &mut Graph, resource_manager: &mut ResourceManager, pos: Vector3<f32>) {
-//!     graph.add_node(Node::ParticleSystem(ParticleSystemBuilder::new(BaseBuilder::new()
+//!      ParticleSystemBuilder::new(BaseBuilder::new()
 //!         .with_lifetime(5.0)
 //!         .with_local_transform(TransformBuilder::new()
 //!             .with_local_position(pos)
@@ -64,7 +64,7 @@
 //!                 .build()
 //!         ])
 //!         .with_texture(resource_manager.request_texture(Path::new("data/particles/smoke_04.tga")))
-//!         .build()));
+//!         .build(graph);
 //! }
 //! ```
 
