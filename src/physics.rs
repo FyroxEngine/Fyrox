@@ -42,9 +42,6 @@ pub struct Physics {
 
 impl Physics {
     pub fn new(scene: &Scene) -> Self {
-        dbg!(scene.physics.bodies.len());
-        dbg!(scene.physics.colliders.len());
-
         let mut bodies: Pool<RigidBody> = Default::default();
         let mut body_map = HashMap::new();
 
@@ -111,11 +108,6 @@ impl Physics {
         for (&node, body) in scene.physics_binder.node_rigid_body_map.iter() {
             binder.insert(node, *body_map.get(&body.0).unwrap());
         }
-
-        dbg!(&bodies);
-        dbg!(&colliders);
-        dbg!(&joints);
-        dbg!(&binder);
 
         Self {
             bodies,
