@@ -1,6 +1,6 @@
 [![RG3D](pics/logo2.svg)](https://rg3d.rs/)
 
-# Rust Game 3D
+# Rust Game engine 3D
 
 [![Crates.io](https://img.shields.io/crates/l/rg3d)](https://github.com/mrDIMAS/rg3d/blob/master/LICENSE.md)
 [![Crates.io](https://img.shields.io/crates/v/rg3d)](https://crates.io/crates/rg3d)
