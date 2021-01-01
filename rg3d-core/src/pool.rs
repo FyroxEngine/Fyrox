@@ -734,7 +734,7 @@ impl<T> Pool<T> {
     #[inline]
     #[must_use]
     pub fn alive_count(&self) -> usize {
-        self.records.iter().count()
+        self.iter().count()
     }
 
     #[inline]

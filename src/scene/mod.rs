@@ -765,6 +765,11 @@ impl NavMeshContainer {
     pub fn clear(&mut self) {
         self.pool.clear()
     }
+
+    /// Checks if given handle is valid.
+    pub fn is_valid_handle(&self, handle: Handle<Navmesh>) -> bool {
+        self.pool.is_valid_handle(handle)
+    }
 }
 
 impl Index<Handle<Navmesh>> for NavMeshContainer {
