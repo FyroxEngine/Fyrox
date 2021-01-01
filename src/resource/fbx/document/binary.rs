@@ -72,22 +72,43 @@ where
     Ok(FbxAttribute::String(string))
 }
 
+const VERSION_7500: i32 = 7500;
+const VERSION_7500_NULLREC_SIZE: usize = 25; // in bytes
+const NORMAL_NULLREC_SIZE: usize = 13; // in bytes
+
 /// Read binary FBX DOM using this specification:
 /// https://code.blender.org/2013/08/fbx-binary-file-format-specification/
 /// In case of success returns Ok(valid_handle), in case if no more nodes
 /// are present returns Ok(none_handle), in case of error returns some FbxError.
-fn read_binary_node<R>(file: &mut R, pool: &mut Pool<FbxNode>) -> Result<Handle<FbxNode>, FbxError>
+fn read_binary_node<R>(
+    file: &mut R,
+    pool: &mut Pool<FbxNode>,
+    version: i32,
+) -> Result<Handle<FbxNode>, FbxError>
 where
     R: Read + Seek,
 {
-    let end_offset = u64::from(file.read_u32::<LittleEndian>()?);
+    let end_offset = if version < VERSION_7500 {
+        u64::from(file.read_u32::<LittleEndian>()?)
+    } else {
+        file.read_u64::<LittleEndian>()?
+    };
     if end_offset == 0 {
         // Footer found. We're done.
         return Ok(Handle::NONE);
     }
 
-    let num_attrib = file.read_u32::<LittleEndian>()? as usize;
-    let _attrib_list_len = file.read_u32::<LittleEndian>()?;
+    let num_attrib = if version < VERSION_7500 {
+        file.read_u32::<LittleEndian>()? as usize
+    } else {
+        file.read_u64::<LittleEndian>()? as usize
+    };
+
+    let _attrib_list_len = if version < VERSION_7500 {
+        file.read_u32::<LittleEndian>()? as u64
+    } else {
+        file.read_u64::<LittleEndian>()?
+    };
 
     // Read name.
     let name_len = file.read_u8()? as usize;
@@ -130,9 +151,15 @@ where
     }
 
     if file.seek(SeekFrom::Current(0))? < end_offset {
-        let null_record_position = end_offset - 13;
+        let nullrec_size = if version < VERSION_7500 {
+            NORMAL_NULLREC_SIZE
+        } else {
+            VERSION_7500_NULLREC_SIZE
+        };
+
+        let null_record_position = end_offset - nullrec_size as u64;
         while file.seek(SeekFrom::Current(0))? < null_record_position {
-            let child_handle = read_binary_node(file, pool)?;
+            let child_handle = read_binary_node(file, pool, version)?;
             if child_handle.is_none() {
                 return Ok(child_handle);
             }
@@ -141,10 +168,18 @@ where
         }
 
         // Check if we have a null-record
-        let mut null_record = [0; 13];
-        file.read_exact(&mut null_record)?;
-        if !null_record.iter().all(|i| *i == 0) {
-            return Err(FbxError::InvalidNullRecord);
+        if version < VERSION_7500 {
+            let mut null_record = [0; NORMAL_NULLREC_SIZE];
+            file.read_exact(&mut null_record)?;
+            if !null_record.iter().all(|i| *i == 0) {
+                return Err(FbxError::InvalidNullRecord);
+            }
+        } else {
+            let mut null_record = [0; VERSION_7500_NULLREC_SIZE];
+            file.read_exact(&mut null_record)?;
+            if !null_record.iter().all(|i| *i == 0) {
+                return Err(FbxError::InvalidNullRecord);
+            }
         }
     }
 
@@ -164,7 +199,7 @@ where
 
     // Verify version.
     let version = file.read_u32::<LittleEndian>()? as i32;
-    if version < 7100 || version > 7400 {
+    if version < 7100 || version > 7500 {
         return Err(FbxError::UnsupportedVersion(version));
     }
 
@@ -176,7 +211,7 @@ where
     // FBX document can have multiple root nodes, so we must read the file
     // until the end.
     while file.seek(SeekFrom::Current(0))? < total_length {
-        let root_child = read_binary_node(file, &mut nodes)?;
+        let root_child = read_binary_node(file, &mut nodes, version)?;
         if root_child.is_none() {
             break;
         }
