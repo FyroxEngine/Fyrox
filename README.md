@@ -1,4 +1,4 @@
-[![RG3D](pics/logo2.svg)](https://rg3d.rs/)
+[![RG3D](pics/logo.png)](https://rg3d.rs/)
 
 # Rust Game engine 3D
 
