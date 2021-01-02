@@ -1690,7 +1690,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
 mod test {
     use crate::{
         border::BorderBuilder,
-        core::math::vec2::Vector2,
+        core::algebra::Vector2,
         message::{MessageDirection, WidgetMessage},
         node::StubNode,
         widget::WidgetBuilder,

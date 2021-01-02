@@ -273,7 +273,7 @@ impl<M: MessageData, C: Control<M, C>> CheckBoxBuilder<M, C> {
 mod test {
     use crate::{
         check_box::CheckBoxBuilder,
-        core::math::vec2::Vector2,
+        core::algebra::Vector2,
         message::{CheckBoxMessage, MessageDirection},
         node::StubNode,
         widget::WidgetBuilder,

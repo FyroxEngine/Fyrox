@@ -265,14 +265,3 @@ fn split_bounds(bounds: AxisAlignedBoundingBox) -> [AxisAlignedBoundingBox; 8] {
         ),
     ]
 }
-
-#[cfg(test)]
-mod test {
-    use crate::octree::Octree;
-
-    #[test]
-    fn octree() {
-        // TODO
-        // It works fine in rusty-shooter game.
-    }
-}
