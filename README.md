@@ -118,7 +118,3 @@ rg3d requires the latest stable Rust compiler.
 Contributions are very welcome! Feel free to open Issues and Pull Requests.
 
 Check the [good first issue](https://github.com/mrDIMAS/rg3d/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) label to see where you can help.
-
-## Limitations
-
-- FBX loader supports versions 7100 - 7400. Binary 7500 is not supported yet, but ASCII is.
