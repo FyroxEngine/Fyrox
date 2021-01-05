@@ -16,9 +16,9 @@ use std::{any::Any, ops::Deref, ops::Range, sync::Arc};
 
 #[repr(C)]
 pub struct Vertex {
-    pos: Vector2<f32>,
-    tex_coord: Vector2<f32>,
-    color: Color,
+    pub pos: Vector2<f32>,
+    pub tex_coord: Vector2<f32>,
+    pub color: Color,
 }
 
 impl Vertex {
