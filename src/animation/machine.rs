@@ -682,9 +682,8 @@ impl Machine {
         state
     }
 
-    pub fn add_transition(&mut self, transition: Transition) -> &mut Self {
-        let _ = self.transitions.spawn(transition);
-        self
+    pub fn add_transition(&mut self, transition: Transition) -> Handle<Transition> {
+        self.transitions.spawn(transition)
     }
 
     pub fn get_state(&self, state: Handle<State>) -> &State {

@@ -362,6 +362,18 @@ impl AnimationPose {
             }
         }
     }
+
+    /// Calls given callback function for each node and allows you to apply pose with your own
+    /// rules. This could be useful if you need to ignore transform some part of pose for a node.
+    pub fn apply_with<C: FnMut(&mut Node, &LocalPose)>(&self, graph: &mut Graph, mut callback: C) {
+        for (node, local_pose) in self.local_poses.iter() {
+            if node.is_none() {
+                Log::writeln(MessageKind::Error, "Invalid node handle found for animation pose, most likely it means that animation retargetting failed!".to_owned());
+            } else {
+                callback(&mut graph[*node], local_pose);
+            }
+        }
+    }
 }
 
 impl Clone for Animation {
