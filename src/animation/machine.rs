@@ -488,6 +488,10 @@ impl State {
             .eval_pose(nodes, params, animations)
             .clone_into(&mut self.pose);
     }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
 }
 
 impl Visit for State {
