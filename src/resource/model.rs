@@ -234,6 +234,10 @@ impl ModelData {
         let scene = match extension.as_ref() {
             "fbx" => {
                 let mut scene = Scene::new();
+                if let Some(filename) = path.as_ref().file_name() {
+                    let root = scene.graph.get_root();
+                    scene.graph[root].set_name(filename.to_string_lossy().to_string());
+                }
                 fbx::load_to_scene(&mut scene, resource_manager, path.as_ref())?;
                 scene
             }

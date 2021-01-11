@@ -10,23 +10,13 @@ mod document;
 pub mod error;
 mod scene;
 
-use std::{
-    collections::{HashMap, HashSet},
-    path::Path,
-    sync::Arc,
-    time::Instant,
-};
-
-use crate::core::algebra::{Matrix4, UnitQuaternion, Vector2, Vector3, Vector4};
-use crate::core::math;
-use crate::core::math::RotationOrder;
-use crate::scene::base::BaseBuilder;
-use crate::scene::mesh::MeshBuilder;
-use crate::scene::transform::TransformBuilder;
-use crate::utils::log::MessageKind;
 use crate::{
     animation::{Animation, AnimationContainer, KeyFrame, Track},
-    core::{math::triangulator::triangulate, pool::Handle},
+    core::{
+        algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3, Vector4},
+        math::{self, triangulator::triangulate, RotationOrder},
+        pool::Handle,
+    },
     engine::resource_manager::ResourceManager,
     renderer::surface::{Surface, SurfaceSharedData, Vertex, VertexWeightSet},
     resource::fbx::{
@@ -37,12 +27,22 @@ use crate::{
             FbxComponent, FbxMapping, FbxScene,
         },
     },
-    scene::{base::Base, graph::Graph, node::Node, Scene},
-    utils::{log::Log, raw_mesh::RawMeshBuilder},
+    scene::{
+        base::BaseBuilder, graph::Graph, mesh::MeshBuilder, node::Node,
+        transform::TransformBuilder, Scene,
+    },
+    utils::{
+        log::{Log, MessageKind},
+        raw_mesh::RawMeshBuilder,
+    },
 };
-use rapier3d::na::Point3;
-use std::cmp::Ordering;
-use std::sync::RwLock;
+use std::{
+    cmp::Ordering,
+    collections::{HashMap, HashSet},
+    path::Path,
+    sync::{Arc, RwLock},
+    time::Instant,
+};
 
 /// Input angles in degrees
 fn quat_from_euler(euler: Vector3<f32>) -> UnitQuaternion<f32> {
@@ -462,8 +462,8 @@ fn convert(
     fbx_scene: &FbxScene,
     resource_manager: ResourceManager,
     scene: &mut Scene,
-) -> Result<Handle<Node>, FbxError> {
-    let root = scene.graph.add_node(Node::Base(Base::default()));
+) -> Result<(), FbxError> {
+    let root = scene.graph.get_root();
     let animation_handle = scene.animations.add(Animation::default());
     let mut fbx_model_to_node_map = HashMap::new();
     for (component_handle, component) in fbx_scene.pair_iter() {
@@ -533,7 +533,7 @@ fn convert(
         }
     }
 
-    Ok(root)
+    Ok(())
 }
 
 /// Tries to load and convert FBX from given path.
@@ -543,7 +543,7 @@ pub fn load_to_scene<P: AsRef<Path>>(
     scene: &mut Scene,
     resource_manager: ResourceManager,
     path: P,
-) -> Result<Handle<Node>, FbxError> {
+) -> Result<(), FbxError> {
     let start_time = Instant::now();
 
     Log::writeln(
@@ -560,12 +560,12 @@ pub fn load_to_scene<P: AsRef<Path>>(
     let dom_prepare_time = now.elapsed().as_millis();
 
     let now = Instant::now();
-    let result = convert(&fbx_scene, resource_manager, scene);
+    convert(&fbx_scene, resource_manager, scene)?;
     let conversion_time = now.elapsed().as_millis();
 
     Log::writeln(MessageKind::Information,
                  format!("FBX {:?} loaded in {} ms\n\t- Parsing - {} ms\n\t- DOM Prepare - {} ms\n\t- Conversion - {} ms",
                          path.as_ref(), start_time.elapsed().as_millis(), parsing_time, dom_prepare_time, conversion_time));
 
-    result
+    Ok(())
 }
