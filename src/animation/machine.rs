@@ -219,8 +219,8 @@ impl PoseWeight {
 
     fn id(&self) -> i32 {
         match self {
-            Self::Constant(_) => 0,
-            Self::Parameter(_) => 1,
+            Self::Parameter(_) => 0,
+            Self::Constant(_) => 1,
         }
     }
 }
