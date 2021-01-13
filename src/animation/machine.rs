@@ -694,6 +694,10 @@ impl Machine {
         &self.states[state]
     }
 
+    pub fn get_transition(&self, transition: Handle<Transition>) -> &Transition {
+        &self.transitions[transition]
+    }
+
     pub fn pop_event(&mut self) -> Option<Event> {
         self.events.pop()
     }

@@ -421,6 +421,10 @@ impl Animation {
         self.set_time_position(0.0)
     }
 
+    pub fn length(&self) -> f32 {
+        self.length
+    }
+
     fn tick(&mut self, dt: f32) {
         self.update_pose();
 

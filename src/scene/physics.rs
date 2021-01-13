@@ -85,7 +85,7 @@ pub struct RayCastOptions {
 #[derive(Default, Clone)]
 pub struct ResourceLink {
     model: Model,
-    // HandleInInstance -> HandleInResource mappings
+    // HandleInResource->HandleInInstance mappings
     bodies: HashMap<RigidBodyHandle, RigidBodyHandle>,
     colliders: HashMap<ColliderHandle, ColliderHandle>,
     joints: HashMap<JointHandle, JointHandle>,
@@ -539,7 +539,7 @@ impl Physics {
             let new_handle = self.bodies.insert(desc.convert_to_body());
 
             link.bodies
-                .insert(new_handle.into(), resource_handle.into());
+                .insert(resource_handle.into(), new_handle.into());
         }
 
         // Bind instantiated nodes with their respective rigid bodies from resource.
@@ -584,7 +584,7 @@ impl Physics {
                     self.colliders
                         .insert(new_collider, remapped_parent.into(), &mut self.bodies);
                 link.colliders
-                    .insert(new_handle.into(), resource_handle.into());
+                    .insert(resource_handle.into(), new_handle.into());
             }
         }
 
@@ -600,7 +600,7 @@ impl Physics {
                 desc.params,
             );
             link.joints
-                .insert(new_handle.into(), resource_handle.into());
+                .insert(resource_handle.into(), new_handle.into());
         }
 
         self.embedded_resources.push(link);
