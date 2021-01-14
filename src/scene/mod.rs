@@ -1010,7 +1010,8 @@ impl Scene {
         }
     }
 
-    /// Removes node from scene with all associated entities, like animations etc.
+    /// Removes node from scene with all associated entities, like animations etc. This method
+    /// should be used all times instead of [Graph::remove_node](crate::scene::graph::Graph::remove_node),     
     ///
     /// # Panics
     ///
@@ -1026,6 +1027,12 @@ impl Scene {
                 }
                 true
             });
+
+            // Remove all associated physical bodies.
+            if let Some(body) = self.physics_binder.body_of(descendant) {
+                self.physics.remove_body(body);
+                self.physics_binder.unbind(descendant);
+            }
         }
 
         self.graph.remove_node(handle)

@@ -139,6 +139,12 @@ impl Graph {
     }
 
     /// Destroys node and its children recursively.
+    ///
+    /// # Notes
+    ///
+    /// This method does not remove references to the node in other places like animations,
+    /// physics, etc. You should prefer to use [Scene::remove_node](crate::scene::Scene::remove_node) -
+    /// it automatically breaks all associations between nodes.
     #[inline]
     pub fn remove_node(&mut self, node_handle: Handle<Node>) {
         self.unlink_internal(node_handle);
@@ -267,6 +273,62 @@ impl Graph {
         // Iterate over instantiated nodes and remap bones handles.
         for (_, &new_node_handle) in old_new_mapping.iter() {
             if let Node::Mesh(mesh) = &mut dest_graph.pool[new_node_handle] {
+                for surface in mesh.surfaces_mut() {
+                    for bone_handle in surface.bones.iter_mut() {
+                        if let Some(entry) = old_new_mapping.get(bone_handle) {
+                            *bone_handle = *entry;
+                        }
+                    }
+                }
+            }
+        }
+
+        (root_handle, old_new_mapping)
+    }
+
+    pub fn copy_node_inplace<F>(
+        &mut self,
+        node_handle: Handle<Node>,
+        filter: &mut F,
+    ) -> (Handle<Node>, HashMap<Handle<Node>, Handle<Node>>)
+    where
+        F: FnMut(Handle<Node>, &Node) -> bool,
+    {
+        let mut old_new_mapping = HashMap::new();
+
+        let to_copy = self
+            .traverse_handle_iter(node_handle)
+            .map(|node| (node, self.pool[node].children.clone()))
+            .collect::<Vec<_>>();
+
+        let mut root_handle = Handle::NONE;
+
+        for (parent, children) in to_copy.iter() {
+            // Copy parent first.
+            let mut parent_copy = self.pool[*parent].raw_copy();
+            parent_copy.original = *parent;
+            let parent_copy_handle = self.add_node(parent_copy);
+            old_new_mapping.insert(*parent, parent_copy_handle);
+
+            if root_handle.is_none() {
+                root_handle = parent_copy_handle;
+            }
+
+            // Copy children and link to new parent.
+            for &child in children {
+                if filter(child, &self.pool[child]) {
+                    let mut child_copy = self.pool[child].raw_copy();
+                    child_copy.original = child;
+                    let child_copy_handle = self.add_node(child_copy);
+                    old_new_mapping.insert(child, child_copy_handle);
+                    self.link_nodes(child_copy_handle, parent_copy_handle);
+                }
+            }
+        }
+
+        // Iterate over instantiated nodes and remap bones handles.
+        for (_, &new_node_handle) in old_new_mapping.iter() {
+            if let Node::Mesh(mesh) = &mut self.pool[new_node_handle] {
                 for surface in mesh.surfaces_mut() {
                     for bone_handle in surface.bones.iter_mut() {
                         if let Some(entry) = old_new_mapping.get(bone_handle) {
