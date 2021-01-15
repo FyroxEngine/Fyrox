@@ -286,6 +286,29 @@ impl Graph {
         (root_handle, old_new_mapping)
     }
 
+    /// Creates deep copy of node with all children. This is relatively heavy operation!
+    /// In case if any error happened it returns `Handle::NONE`. This method can be used
+    /// to create exact copy of given node hierarchy. For example you can prepare rocket
+    /// model: case of rocket will be mesh, and fire from nozzle will be particle system,
+    /// and when you fire from rocket launcher you just need to create a copy of such
+    /// "prefab".
+    ///
+    /// # Notes
+    ///
+    /// This method has exactly the same functionality as `copy_node`, but copies not in-place.
+    /// This method does *not* copy any animations! You have to copy them manually. In most
+    /// cases it is fine to retarget animation from a resource you want, it will create
+    /// animation copy from resource that will work with your nodes hierarchy.
+    ///
+    /// # Implementation notes
+    ///
+    /// This method automatically remaps bones for copied surfaces.
+    ///
+    /// Returns tuple where first element is handle to copy of node, and second element -
+    /// old-to-new hash map, which can be used to easily find copy of node by its original.
+    ///
+    /// Filter allows to exclude some nodes from copied hierarchy. It must return false for
+    /// odd nodes. Filtering applied only to descendant nodes.
     pub fn copy_node_inplace<F>(
         &mut self,
         node_handle: Handle<Node>,
@@ -694,7 +717,11 @@ impl Graph {
         }
 
         let (ticket, node) = sub_graph.root;
-        self.put_back(ticket, node)
+        let root_handle = self.put_back(ticket, node);
+
+        self.link_nodes(root_handle, self.root);
+
+        root_handle
     }
 
     /// Forgets entire sub-graph making handles to nodes invalid.
