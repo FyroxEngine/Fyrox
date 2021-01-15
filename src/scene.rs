@@ -1,15 +1,13 @@
-use crate::interaction::navmesh::data_model::{
-    NavmeshEdge, NavmeshEntity, NavmeshTriangle, NavmeshVertex,
-};
-use crate::interaction::navmesh::selection::NavmeshSelection;
 use crate::{
     camera::CameraController,
     command::Command,
-    interaction::navmesh::data_model::Navmesh,
+    interaction::navmesh::{
+        data_model::{Navmesh, NavmeshEdge, NavmeshEntity, NavmeshTriangle, NavmeshVertex},
+        selection::NavmeshSelection,
+    },
     physics::{Collider, Joint, Physics, RigidBody},
     GameEngine, Message,
 };
-use rg3d::sound::math::TriangleDefinition;
 use rg3d::{
     core::{
         algebra::{UnitQuaternion, Vector3},
@@ -29,30 +27,132 @@ use rg3d::{
         physics::{ColliderShapeDesc, JointParamsDesc},
         Scene,
     },
+    sound::math::TriangleDefinition,
 };
-use std::collections::HashMap;
-use std::{fmt::Write, path::PathBuf, sync::mpsc::Sender};
+use std::{collections::HashMap, fmt::Write, path::PathBuf, sync::mpsc::Sender};
 
 #[derive(Default)]
 pub struct Clipboard {
-    nodes: Vec<Node>,
+    graph: Graph,
+    physics: Physics,
+    empty: bool,
 }
 
-impl Clipboard {
-    pub fn clone_selection(&mut self, selection: &GraphSelection, graph: &Graph) {
-        self.nodes.clear();
+#[derive(Default, Debug)]
+pub struct DeepCloneResult {
+    root_nodes: Vec<Handle<Node>>,
+    colliders: Vec<Handle<Collider>>,
+    bodies: Vec<Handle<RigidBody>>,
+    joints: Vec<Handle<Joint>>,
+    binder: HashMap<Handle<Node>, Handle<RigidBody>>,
+}
 
-        for &handle in selection.nodes() {
-            self.nodes.push(graph.copy_single_node(handle));
+fn deep_clone_nodes(
+    root_nodes: &[Handle<Node>],
+    source_graph: &Graph,
+    source_physics: &Physics,
+    dest_graph: &mut Graph,
+    dest_physics: &mut Physics,
+) -> DeepCloneResult {
+    let mut result = DeepCloneResult::default();
+
+    let mut old_new_mapping = HashMap::new();
+
+    for &root_node in root_nodes.iter() {
+        let (_, old_to_new) = source_graph.copy_node(root_node, dest_graph, &mut |_, _| true);
+        // Merge mappings.
+        for (old, new) in old_to_new {
+            old_new_mapping.insert(old, new);
         }
     }
 
-    pub fn clear(&mut self) {
-        self.nodes.clear()
+    result.root_nodes = root_nodes
+        .iter()
+        .map(|n| *old_new_mapping.get(n).unwrap())
+        .collect::<Vec<_>>();
+
+    // Copy associated bodies, colliders, joints.
+    for &root_node in root_nodes.iter() {
+        for descendant in source_graph.traverse_handle_iter(root_node) {
+            // Copy body too if we have any.
+            if let Some(&body) = source_physics.binder.get(&descendant) {
+                let body = &source_physics.bodies[body];
+                let mut body_clone = body.clone();
+                body_clone.colliders.clear();
+                let body_clone_handle = dest_physics.bodies.spawn(body_clone);
+
+                result.bodies.push(body_clone_handle);
+
+                // Also copy colliders.
+                for &collider in body.colliders.iter() {
+                    let mut collider_clone = source_physics.colliders[collider.into()].clone();
+                    collider_clone.parent = body_clone_handle.into();
+                    let collider_clone_handle = dest_physics.colliders.spawn(collider_clone);
+                    dest_physics.bodies[body_clone_handle]
+                        .colliders
+                        .push(collider_clone_handle.into());
+
+                    result.colliders.push(collider_clone_handle);
+                }
+
+                let new_node = *old_new_mapping.get(&descendant).unwrap();
+                result.binder.insert(new_node, body_clone_handle);
+                dest_physics.binder.insert(new_node, body_clone_handle);
+            }
+        }
     }
 
-    pub fn nodes(&self) -> &[Node] {
-        &self.nodes
+    // TODO: Add joints.
+    // Joint will be copied only if both of its associated bodies are copied too.
+
+    result
+}
+
+impl Clipboard {
+    pub fn fill_from_selection(
+        &mut self,
+        selection: &GraphSelection,
+        scene_handle: Handle<Scene>,
+        physics: &Physics,
+        engine: &GameEngine,
+    ) {
+        self.clear();
+
+        let scene = &engine.scenes[scene_handle];
+
+        let root_nodes = selection.root_nodes(&scene.graph);
+
+        deep_clone_nodes(
+            &root_nodes,
+            &scene.graph,
+            physics,
+            &mut self.graph,
+            &mut self.physics,
+        );
+
+        self.empty = false;
+    }
+
+    pub fn paste(&mut self, dest_graph: &mut Graph, dest_physics: &mut Physics) -> DeepCloneResult {
+        assert_ne!(self.empty, true);
+
+        deep_clone_nodes(
+            self.graph[self.graph.get_root()].children(),
+            &self.graph,
+            &self.physics,
+            dest_graph,
+            dest_physics,
+        )
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.empty
+    }
+
+    pub fn clear(&mut self) {
+        self.empty = true;
+        self.graph = Graph::new();
+        self.physics = Default::default();
     }
 }
 
@@ -175,6 +275,7 @@ impl EditorScene {
 #[derive(Debug)]
 pub enum SceneCommand {
     CommandGroup(CommandGroup),
+    Paste(PasteCommand),
     AddNode(AddNodeCommand),
     DeleteNode(DeleteNodeCommand),
     DeleteSubGraph(DeleteSubGraphCommand),
@@ -270,6 +371,7 @@ macro_rules! static_dispatch {
     ($self:ident, $func:ident, $($args:expr),*) => {
         match $self {
             SceneCommand::CommandGroup(v) => v.$func($($args),*),
+            SceneCommand::Paste(v) => v.$func($($args),*),
             SceneCommand::AddNode(v) => v.$func($($args),*),
             SceneCommand::DeleteNode(v) => v.$func($($args),*),
             SceneCommand::ChangeSelection(v) => v.$func($($args),*),
@@ -1150,6 +1252,177 @@ impl<'a> Command<'a> for ChangeSelectionCommand {
                 .message_sender
                 .send(Message::SelectionChanged)
                 .unwrap();
+        }
+    }
+}
+
+#[derive(Debug)]
+enum PasteCommandState {
+    Undefined,
+    NonExecuted,
+    Reverted {
+        subgraphs: Vec<SubGraph>,
+        bodies: Vec<(Ticket<RigidBody>, RigidBody)>,
+        colliders: Vec<(Ticket<Collider>, Collider)>,
+        joints: Vec<(Ticket<Joint>, Joint)>,
+        binder: HashMap<Handle<Node>, Handle<RigidBody>>,
+    },
+    Executed {
+        paste_result: DeepCloneResult,
+    },
+}
+
+#[derive(Debug)]
+pub struct PasteCommand {
+    state: PasteCommandState,
+}
+
+impl PasteCommand {
+    pub fn new() -> Self {
+        Self {
+            state: PasteCommandState::NonExecuted,
+        }
+    }
+}
+
+impl<'a> Command<'a> for PasteCommand {
+    type Context = SceneContext<'a>;
+
+    fn name(&mut self, _context: &Self::Context) -> String {
+        "Paste".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut Self::Context) {
+        match std::mem::replace(&mut self.state, PasteCommandState::Undefined) {
+            PasteCommandState::NonExecuted => {
+                self.state = PasteCommandState::Executed {
+                    paste_result: context
+                        .editor_scene
+                        .clipboard
+                        .paste(&mut context.scene.graph, &mut context.editor_scene.physics),
+                };
+            }
+            PasteCommandState::Reverted {
+                subgraphs,
+                bodies,
+                colliders,
+                joints,
+                binder,
+            } => {
+                let mut paste_result = DeepCloneResult {
+                    binder,
+                    ..Default::default()
+                };
+
+                for subgraph in subgraphs {
+                    paste_result
+                        .root_nodes
+                        .push(context.scene.graph.put_sub_graph_back(subgraph));
+                }
+
+                for (ticket, body) in bodies {
+                    paste_result
+                        .bodies
+                        .push(context.editor_scene.physics.bodies.put_back(ticket, body));
+                }
+
+                for (ticket, collider) in colliders {
+                    paste_result.colliders.push(
+                        context
+                            .editor_scene
+                            .physics
+                            .colliders
+                            .put_back(ticket, collider),
+                    );
+                }
+
+                for (ticket, joint) in joints {
+                    paste_result
+                        .joints
+                        .push(context.editor_scene.physics.joints.put_back(ticket, joint));
+                }
+
+                for (&node, &body) in paste_result.binder.iter() {
+                    context.editor_scene.physics.binder.insert(node, body);
+                }
+
+                self.state = PasteCommandState::Executed { paste_result };
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn revert(&mut self, context: &mut Self::Context) {
+        match std::mem::replace(&mut self.state, PasteCommandState::Undefined) {
+            PasteCommandState::Executed { paste_result } => {
+                let mut subgraphs = Vec::new();
+                for root_node in paste_result.root_nodes {
+                    subgraphs.push(context.scene.graph.take_reserve_sub_graph(root_node));
+                }
+
+                let mut bodies = Vec::new();
+                for body in paste_result.bodies {
+                    bodies.push(context.editor_scene.physics.bodies.take_reserve(body));
+                }
+
+                let mut colliders = Vec::new();
+                for collider in paste_result.colliders {
+                    colliders.push(
+                        context
+                            .editor_scene
+                            .physics
+                            .colliders
+                            .take_reserve(collider),
+                    );
+                }
+
+                let mut joints = Vec::new();
+                for joint in paste_result.joints {
+                    joints.push(context.editor_scene.physics.joints.take_reserve(joint));
+                }
+
+                for (node, _) in paste_result.binder.iter() {
+                    context.editor_scene.physics.binder.remove(node);
+                }
+
+                self.state = PasteCommandState::Reverted {
+                    subgraphs,
+                    bodies,
+                    colliders,
+                    joints,
+                    binder: paste_result.binder,
+                };
+            }
+            _ => (),
+        }
+    }
+
+    fn finalize(&mut self, context: &mut Self::Context) {
+        match std::mem::replace(&mut self.state, PasteCommandState::Undefined) {
+            PasteCommandState::Reverted {
+                subgraphs,
+                bodies,
+                colliders,
+                joints,
+                ..
+            } => {
+                for subgraph in subgraphs {
+                    context.scene.graph.forget_sub_graph(subgraph);
+                }
+
+                for (ticket, _) in bodies {
+                    context.editor_scene.physics.bodies.forget_ticket(ticket);
+                }
+
+                for (ticket, _) in colliders {
+                    context.editor_scene.physics.colliders.forget_ticket(ticket)
+                }
+
+                for (ticket, _) in joints {
+                    context.editor_scene.physics.joints.forget_ticket(ticket);
+                }
+            }
+            _ => (),
         }
     }
 }
@@ -2580,6 +2853,38 @@ impl GraphSelection {
         self.nodes.extend_from_slice(&other.nodes)
     }
 
+    pub fn root_nodes(&self, graph: &Graph) -> Vec<Handle<Node>> {
+        // Helper function.
+        fn is_descendant_of(handle: Handle<Node>, other: Handle<Node>, graph: &Graph) -> bool {
+            for &child in graph[other].children() {
+                if child == handle {
+                    return true;
+                }
+
+                let inner = is_descendant_of(handle, child, graph);
+                if inner {
+                    return true;
+                }
+            }
+            false
+        }
+
+        let mut root_nodes = Vec::new();
+        for &node in self.nodes().iter() {
+            let mut descendant = false;
+            for &other_node in self.nodes().iter() {
+                if is_descendant_of(node, other_node, graph) {
+                    descendant = true;
+                    break;
+                }
+            }
+            if !descendant {
+                root_nodes.push(node);
+            }
+        }
+        root_nodes
+    }
+
     pub fn global_rotation_position(
         &self,
         graph: &Graph,
@@ -2663,20 +2968,6 @@ impl GraphSelection {
     }
 }
 
-fn is_descendant_of(handle: Handle<Node>, other: Handle<Node>, graph: &Graph) -> bool {
-    for &child in graph[other].children() {
-        if child == handle {
-            return true;
-        }
-
-        let inner = is_descendant_of(handle, child, graph);
-        if inner {
-            return true;
-        }
-    }
-    false
-}
-
 /// Creates scene command (command group) which removes current selection in editor's scene.
 /// This is **not** trivial because each node has multiple connections inside engine and
 /// in editor's data model, so we have to thoroughly build command using simple commands.
@@ -2712,19 +3003,7 @@ pub fn make_delete_selection_command(
     // by engine's design when we delete a node, we also delete all its children. So we have to keep
     // this behaviour in editor too.
 
-    let mut root_nodes = Vec::new();
-    for &node in selection.nodes().iter() {
-        let mut descendant = false;
-        for &other_node in selection.nodes().iter() {
-            if is_descendant_of(node, other_node, graph) {
-                descendant = true;
-                break;
-            }
-        }
-        if !descendant {
-            root_nodes.push(node);
-        }
-    }
+    let root_nodes = selection.root_nodes(graph);
 
     // Delete all associated physics entities in the whole hierarchy starting from root nodes
     // found above.

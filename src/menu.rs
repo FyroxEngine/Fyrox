@@ -1,13 +1,10 @@
-use crate::scene::Selection;
 use crate::{
     gui::{Ui, UiMessage, UiNode},
     make_save_file_selector, make_scene_file_filter,
-    scene::{AddNodeCommand, CommandGroup, EditorScene, SceneCommand},
+    scene::{AddNodeCommand, EditorScene, PasteCommand, SceneCommand, Selection},
     settings::Settings,
     GameEngine, Message,
 };
-use rg3d::gui::message::WidgetMessage;
-use rg3d::scene::light::DirectionalLightBuilder;
 use rg3d::{
     core::{
         algebra::{Matrix4, Vector2},
@@ -18,7 +15,7 @@ use rg3d::{
         menu::{MenuBuilder, MenuItemBuilder, MenuItemContent},
         message::{
             FileSelectorMessage, MenuItemMessage, MessageBoxMessage, MessageDirection,
-            UiMessageData, WindowMessage,
+            UiMessageData, WidgetMessage, WindowMessage,
         },
         messagebox::{MessageBoxBuilder, MessageBoxButtons},
         widget::WidgetBuilder,
@@ -29,7 +26,7 @@ use rg3d::{
     scene::{
         base::BaseBuilder,
         camera::CameraBuilder,
-        light::{BaseLightBuilder, PointLightBuilder, SpotLightBuilder},
+        light::{BaseLightBuilder, DirectionalLightBuilder, PointLightBuilder, SpotLightBuilder},
         mesh::{Mesh, MeshBuilder},
         node::Node,
         particle_system::{BaseEmitterBuilder, ParticleSystemBuilder, SphereEmitterBuilder},
@@ -664,28 +661,20 @@ impl Menu {
                     } else if message.destination() == self.copy {
                         if let Some(editor_scene) = ctx.editor_scene {
                             if let Selection::Graph(selection) = &editor_scene.selection {
-                                editor_scene.clipboard.clone_selection(
+                                editor_scene.clipboard.fill_from_selection(
                                     selection,
-                                    &ctx.engine.scenes[editor_scene.scene].graph,
+                                    editor_scene.scene,
+                                    &editor_scene.physics,
+                                    ctx.engine,
                                 );
                             }
                         }
                     } else if message.destination() == self.paste {
                         if let Some(editor_scene) = ctx.editor_scene {
-                            let commands = CommandGroup::from(
-                                editor_scene
-                                    .clipboard
-                                    .nodes()
-                                    .iter()
-                                    .map(|node| {
-                                        SceneCommand::AddNode(AddNodeCommand::new(node.raw_copy()))
-                                    })
-                                    .collect::<Vec<SceneCommand>>(),
-                            );
-                            if !commands.is_empty() {
+                            if !editor_scene.clipboard.is_empty() {
                                 self.message_sender
-                                    .send(Message::DoSceneCommand(SceneCommand::CommandGroup(
-                                        commands,
+                                    .send(Message::DoSceneCommand(SceneCommand::Paste(
+                                        PasteCommand::new(),
                                     )))
                                     .unwrap();
                             }

@@ -21,10 +21,6 @@ pub mod settings;
 pub mod sidebar;
 pub mod world_outliner;
 
-use crate::interaction::navmesh::data_model::{Navmesh, NavmeshTriangle, NavmeshVertex};
-use crate::interaction::navmesh::{EditNavmeshMode, NavmeshPanel};
-use crate::interaction::InteractionMode;
-use crate::scene::{make_delete_selection_command, Selection, SetParticleSystemTextureCommand};
 use crate::{
     asset::{AssetBrowser, AssetKind},
     camera::CameraController,
@@ -32,24 +28,31 @@ use crate::{
     configurator::Configurator,
     gui::{BuildContext, EditorUiMessage, EditorUiNode, UiMessage, UiNode},
     interaction::{
-        InteractionModeKind, InteractionModeTrait, MoveInteractionMode, RotateInteractionMode,
-        ScaleInteractionMode, SelectInteractionMode,
+        navmesh::{
+            data_model::{Navmesh, NavmeshTriangle, NavmeshVertex},
+            EditNavmeshMode, NavmeshPanel,
+        },
+        InteractionMode, InteractionModeKind, InteractionModeTrait, MoveInteractionMode,
+        RotateInteractionMode, ScaleInteractionMode, SelectInteractionMode,
     },
     light::LightPanel,
     log::Log,
     menu::{Menu, MenuContext},
     physics::Physics,
     scene::{
-        AddNodeCommand, CommandGroup, EditorScene, LoadModelCommand, SceneCommand, SceneContext,
-        SetMeshTextureCommand, SetSpriteTextureCommand,
+        make_delete_selection_command, EditorScene, LoadModelCommand, PasteCommand, SceneCommand,
+        SceneContext, Selection, SetMeshTextureCommand, SetParticleSystemTextureCommand,
+        SetSpriteTextureCommand,
     },
     sidebar::SideBar,
     world_outliner::WorldOutliner,
 };
-use rg3d::core::pool::Pool;
 use rg3d::{
     core::{
-        algebra::Vector2, color::Color, math::aabb::AxisAlignedBoundingBox, pool::Handle,
+        algebra::Vector2,
+        color::Color,
+        math::aabb::AxisAlignedBoundingBox,
+        pool::{Handle, Pool},
         scope_profile,
     },
     engine::resource_manager::ResourceManager,
@@ -892,32 +895,22 @@ impl Editor {
                                     if let Selection::Graph(graph_selection) =
                                         &editor_scene.selection
                                     {
-                                        editor_scene.clipboard.clone_selection(
+                                        editor_scene.clipboard.fill_from_selection(
                                             graph_selection,
-                                            &engine.scenes[editor_scene.scene].graph,
+                                            editor_scene.scene,
+                                            &editor_scene.physics,
+                                            engine,
                                         );
                                     }
                                 }
                                 KeyCode::V
                                     if engine.user_interface.keyboard_modifiers().control =>
                                 {
-                                    let commands: CommandGroup = CommandGroup::from(
-                                        editor_scene
-                                            .clipboard
-                                            .nodes()
-                                            .iter()
-                                            .map(|node| {
-                                                SceneCommand::AddNode(AddNodeCommand::new(
-                                                    node.raw_copy(),
-                                                ))
-                                            })
-                                            .collect::<Vec<SceneCommand>>(),
-                                    );
-                                    if !commands.is_empty() {
+                                    if !editor_scene.clipboard.is_empty() {
                                         self.message_sender
-                                            .send(Message::DoSceneCommand(
-                                                SceneCommand::CommandGroup(commands),
-                                            ))
+                                            .send(Message::DoSceneCommand(SceneCommand::Paste(
+                                                PasteCommand::new(),
+                                            )))
                                             .unwrap();
                                     }
                                 }
