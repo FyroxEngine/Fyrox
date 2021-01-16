@@ -382,8 +382,7 @@ impl SurfaceSharedData {
         ];
 
         for v in vertices.iter_mut() {
-            v.position =
-                Vector3::from_homogeneous(transform * v.position.to_homogeneous()).unwrap();
+            v.position = transform.transform_point(&Point3::from(v.position)).coords;
         }
 
         let indices = vec![TriangleDefinition([0, 1, 2]), TriangleDefinition([0, 2, 3])];
