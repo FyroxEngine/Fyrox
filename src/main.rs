@@ -657,7 +657,7 @@ impl Editor {
         }
 
         let editor_scene = EditorScene {
-            path,
+            path: path.clone(),
             root,
             camera_controller,
             physics: Physics::new(&scene),
@@ -700,6 +700,15 @@ impl Editor {
 
         self.set_interaction_mode(Some(InteractionModeKind::Move), engine);
         self.sync_to_model(engine);
+
+        engine.user_interface.send_message(WindowMessage::title(
+            self.preview.window,
+            MessageDirection::ToWidget,
+            WindowTitle::Text(format!(
+                "Scene Preview - {}",
+                path.unwrap_or_default().display()
+            )),
+        ));
 
         engine.renderer.flush();
     }
