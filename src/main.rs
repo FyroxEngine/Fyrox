@@ -706,7 +706,9 @@ impl Editor {
             MessageDirection::ToWidget,
             WindowTitle::Text(format!(
                 "Scene Preview - {}",
-                path.unwrap_or_default().display()
+                path.map_or("Unnamed Scene".to_string(), |p| p
+                    .to_string_lossy()
+                    .to_string())
             )),
         ));
 
@@ -1167,8 +1169,17 @@ impl Editor {
                 }
                 Message::SaveScene(path) => {
                     if let Some(editor_scene) = self.scene.as_mut() {
-                        match editor_scene.save(path, engine) {
+                        match editor_scene.save(path.clone(), engine) {
                             Ok(message) => {
+                                engine.user_interface.send_message(WindowMessage::title(
+                                    self.preview.window,
+                                    MessageDirection::ToWidget,
+                                    WindowTitle::Text(format!(
+                                        "Scene Preview - {}",
+                                        path.display()
+                                    )),
+                                ));
+
                                 self.message_sender.send(Message::Log(message)).unwrap();
                             }
                             Err(message) => {
