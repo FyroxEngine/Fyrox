@@ -2909,20 +2909,30 @@ impl GraphSelection {
 
     pub fn offset(&self, graph: &mut Graph, offset: Vector3<f32>) {
         for &handle in self.nodes.iter() {
-            let global_scale = graph.global_scale(handle);
+            let mut chain_scale = Vector3::new(1.0, 1.0, 1.0);
+            let mut parent_handle = graph[handle].parent();
+            while parent_handle.is_some() {
+                let parent = &graph[parent_handle];
+                let parent_scale = parent.local_transform().scale();
+                chain_scale.x *= parent_scale.x;
+                chain_scale.y *= parent_scale.y;
+                chain_scale.z *= parent_scale.z;
+                parent_handle = parent.parent();
+            }
+
             let offset = Vector3::new(
-                if global_scale.x.abs() > 0.0 {
-                    offset.x / global_scale.x
+                if chain_scale.x.abs() > 0.0 {
+                    offset.x / chain_scale.x
                 } else {
                     offset.x
                 },
-                if global_scale.y.abs() > 0.0 {
-                    offset.y / global_scale.y
+                if chain_scale.y.abs() > 0.0 {
+                    offset.y / chain_scale.y
                 } else {
                     offset.y
                 },
-                if global_scale.z.abs() > 0.0 {
-                    offset.z / global_scale.z
+                if chain_scale.z.abs() > 0.0 {
+                    offset.z / chain_scale.z
                 } else {
                     offset.z
                 },

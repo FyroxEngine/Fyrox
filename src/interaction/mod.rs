@@ -338,7 +338,9 @@ impl MoveGizmo {
 
         if let Node::Camera(camera) = &graph[camera] {
             let dlook = node_global_transform.position() - camera.global_position();
-            let inv_node_transform = node_global_transform.try_inverse().unwrap_or_default();
+            let inv_node_transform = node_global_transform
+                .try_inverse()
+                .unwrap_or_else(|| Matrix4::identity());
 
             // Create two rays in object space.
             let initial_ray = camera
