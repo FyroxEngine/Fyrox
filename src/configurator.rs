@@ -126,6 +126,12 @@ impl Configurator {
             history.visit("History", &mut visitor).unwrap();
         }
 
+        // Remove entries with invalid paths.
+        history = history
+            .into_iter()
+            .filter(|e| e.textures_path.exists() && e.work_dir.exists())
+            .collect::<Vec<_>>();
+
         let message = "Please select a working directory of a project your will\
          work on and a path to the textures. Textures directory must be under working\
           directory!";
