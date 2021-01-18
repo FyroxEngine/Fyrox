@@ -53,6 +53,7 @@ pub struct PipelineState {
     clear_color: Color,
     clear_stencil: i32,
     clear_depth: f32,
+    scissor_test: bool,
 
     framebuffer: GLuint,
     viewport: Rect<i32>,
@@ -173,6 +174,7 @@ impl PipelineState {
             clear_color: Color::from_rgba(0, 0, 0, 0),
             clear_stencil: 0,
             clear_depth: 1.0,
+            scissor_test: false,
             framebuffer: 0,
             viewport: Rect::new(0, 0, 1, 1),
             blend_src_factor: gl::ONE,
@@ -432,6 +434,26 @@ impl PipelineState {
             unsafe {
                 gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
             }
+        }
+    }
+
+    pub fn set_scissor_test(&mut self, state: bool) {
+        if self.scissor_test != state {
+            self.scissor_test = state;
+
+            unsafe {
+                if state {
+                    gl::Enable(gl::SCISSOR_TEST);
+                } else {
+                    gl::Disable(gl::SCISSOR_TEST);
+                }
+            }
+        }
+    }
+
+    pub fn set_scissor_box(&mut self, x: i32, y: i32, w: i32, h: i32) {
+        unsafe {
+            gl::Scissor(x, y, w, h);
         }
     }
 

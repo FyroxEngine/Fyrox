@@ -230,6 +230,11 @@ pub enum WidgetMessage<M: MessageData, C: Control<M, C>> {
     /// Direction: **From/To UI**.
     LinkWith(Handle<UINode<M, C>>),
 
+    /// A request to link initiator with specified widget and put it in front of children list.
+    ///
+    /// Direction: **From/To UI**.
+    LinkWithReverse(Handle<UINode<M, C>>),
+
     /// A request to change background brush of a widget. Background brushes are used to fill volume of widgets.
     ///
     /// Direction: **From/To UI**
@@ -356,6 +361,7 @@ impl<M: MessageData, C: Control<M, C>> WidgetMessage<M, C> {
     define_constructor!(Widget(WidgetMessage:Remove) => fn remove(), layout: false);
     define_constructor!(Widget(WidgetMessage:Unlink) => fn unlink(), layout: false);
     define_constructor!(Widget(WidgetMessage:LinkWith) => fn link(Handle<UINode<M, C>>), layout: false);
+    define_constructor!(Widget(WidgetMessage:LinkWithReverse) => fn link_reverse(Handle<UINode<M, C>>), layout: false);
     define_constructor!(Widget(WidgetMessage:Background) => fn background(Brush), layout: false);
     define_constructor!(Widget(WidgetMessage:Foreground) => fn foreground(Brush), layout: false);
     define_constructor!(Widget(WidgetMessage:Visibility) => fn visibility(bool), layout: false);

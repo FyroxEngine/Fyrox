@@ -225,9 +225,13 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
     }
 
     #[inline]
-    pub(in crate) fn add_child(&mut self, child: Handle<UINode<M, C>>) {
+    pub(in crate) fn add_child(&mut self, child: Handle<UINode<M, C>>, in_front: bool) {
         self.invalidate_layout();
-        self.children.push(child)
+        if in_front && !self.children.is_empty() {
+            self.children.insert(0, child)
+        } else {
+            self.children.push(child)
+        }
     }
 
     #[inline]

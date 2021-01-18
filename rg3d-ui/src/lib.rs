@@ -507,7 +507,7 @@ impl<'a, M: MessageData, C: Control<M, C>> BuildContext<'a, M, C> {
     }
 
     pub fn link(&mut self, child: Handle<UINode<M, C>>, parent: Handle<UINode<M, C>>) {
-        self.ui.link_nodes_internal(child, parent)
+        self.ui.link_nodes_internal(child, parent, false)
     }
 
     pub fn copy(&mut self, node: Handle<UINode<M, C>>) -> Handle<UINode<M, C>> {
@@ -1151,7 +1151,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         if parent.is_some() {
             let parent = &mut self.nodes[parent];
             parent.remove_child(node);
-            parent.add_child(node);
+            parent.add_child(node, false);
         }
     }
 
@@ -1229,7 +1229,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
                                 let parent = self.nodes.borrow_mut(parent);
                                 parent.clear_children();
                                 for child in self.stack.iter() {
-                                    parent.add_child(*child);
+                                    parent.add_child(*child, false);
                                 }
                             }
                         }
@@ -1253,7 +1253,12 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
                         }
                         &WidgetMessage::LinkWith(parent) => {
                             if message.destination().is_some() {
-                                self.link_nodes_internal(message.destination(), parent);
+                                self.link_nodes_internal(message.destination(), parent, false);
+                            }
+                        }
+                        &WidgetMessage::LinkWithReverse(parent) => {
+                            if message.destination().is_some() {
+                                self.link_nodes_internal(message.destination(), parent, true);
                             }
                         }
                         WidgetMessage::Remove => {
@@ -1540,10 +1545,10 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         node.clear_children();
         let node_handle = self.nodes.spawn(node);
         if self.root_canvas.is_some() {
-            self.link_nodes_internal(node_handle, self.root_canvas);
+            self.link_nodes_internal(node_handle, self.root_canvas, false);
         }
         for child in children {
-            self.link_nodes_internal(child, node_handle)
+            self.link_nodes_internal(child, node_handle, false)
         }
         let node = self.nodes[node_handle].deref_mut();
         node.handle = node_handle;
@@ -1618,11 +1623,12 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         &mut self,
         child_handle: Handle<UINode<M, C>>,
         parent_handle: Handle<UINode<M, C>>,
+        in_front: bool,
     ) {
         assert_ne!(child_handle, parent_handle);
         self.unlink_node_internal(child_handle);
         self.nodes[child_handle].set_parent(parent_handle);
-        self.nodes[parent_handle].add_child(child_handle);
+        self.nodes[parent_handle].add_child(child_handle, in_front);
     }
 
     /// Unlinks specified node from its parent, so node will become root.
@@ -1646,7 +1652,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
     #[inline]
     fn unlink_node(&mut self, node_handle: Handle<UINode<M, C>>) {
         self.unlink_node_internal(node_handle);
-        self.link_nodes_internal(node_handle, self.root_canvas);
+        self.link_nodes_internal(node_handle, self.root_canvas, false);
     }
 
     #[inline]
