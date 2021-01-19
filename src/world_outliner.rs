@@ -1,4 +1,3 @@
-use crate::scene::Selection;
 use crate::{
     gui::{
         BuildContext, CustomWidget, EditorUiMessage, EditorUiNode, SceneItemMessage, Ui, UiMessage,
@@ -7,13 +6,10 @@ use crate::{
     load_image,
     scene::{
         ChangeSelectionCommand, EditorScene, GraphSelection, LinkNodesCommand, SceneCommand,
-        SetVisibleCommand,
+        Selection, SetVisibleCommand,
     },
     GameEngine, Message, MSG_SYNC_FLAG,
 };
-use rg3d::gui::message::TextMessage;
-use rg3d::gui::stack_panel::StackPanelBuilder;
-use rg3d::gui::Orientation;
 use rg3d::{
     core::{algebra::Vector2, math::Rect, pool::Handle},
     engine::resource_manager::ResourceManager,
@@ -25,19 +21,21 @@ use rg3d::{
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
         message::{
-            ButtonMessage, OsEvent, TreeMessage, TreeRootMessage, UiMessageData, WidgetMessage,
+            ButtonMessage, DecoratorMessage, MessageDirection, OsEvent, TextMessage, TreeMessage,
+            TreeRootMessage, UiMessageData, WidgetMessage,
         },
-        message::{DecoratorMessage, MessageDirection},
         node::UINode,
         scroll_viewer::ScrollViewerBuilder,
+        stack_panel::StackPanelBuilder,
         text::TextBuilder,
         tree::{Tree, TreeBuilder, TreeRootBuilder},
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
-        Control, HorizontalAlignment, NodeHandleMapping, Thickness, VerticalAlignment,
+        Control, HorizontalAlignment, NodeHandleMapping, Orientation, Thickness, VerticalAlignment,
     },
     scene::node::Node,
 };
+use std::collections::HashMap;
 use std::{
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
@@ -54,6 +52,7 @@ pub struct WorldOutliner {
     /// this moment UI is completely built and we can do syncing.
     pub sync_selection: bool,
     node_path: Handle<UiNode>,
+    breadcrumbs: HashMap<Handle<UiNode>, Handle<Node>>,
 }
 
 #[derive(Clone)]
@@ -422,6 +421,7 @@ impl WorldOutliner {
             node_path,
             stack: Default::default(),
             sync_selection: false,
+            breadcrumbs: Default::default(),
         }
     }
 
@@ -539,10 +539,11 @@ impl WorldOutliner {
             ui.send_message(message);
         }
 
+        // Update breadcrumbs.
+        self.breadcrumbs.clear();
         for &child in ui.node(self.node_path).children() {
             ui.send_message(WidgetMessage::remove(child, MessageDirection::ToWidget));
         }
-
         if let Selection::Graph(selection) = &editor_scene.selection {
             if let Some(&first_selected) = selection.nodes().first() {
                 let mut item = first_selected;
@@ -560,6 +561,8 @@ impl WorldOutliner {
                         MessageDirection::ToWidget,
                         self.node_path,
                     ));
+
+                    self.breadcrumbs.insert(element, item);
 
                     item = node.parent();
                 }
@@ -669,6 +672,20 @@ impl WorldOutliner {
                                     .unwrap();
                             }
                         }
+                    }
+                }
+            }
+            UiMessageData::Button(msg) => {
+                if let ButtonMessage::Click = msg {
+                    if let Some(&node) = self.breadcrumbs.get(&message.destination()) {
+                        self.sender
+                            .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
+                                ChangeSelectionCommand::new(
+                                    Selection::Graph(GraphSelection::single_or_empty(node)),
+                                    editor_scene.selection.clone(),
+                                ),
+                            )))
+                            .unwrap();
                     }
                 }
             }
