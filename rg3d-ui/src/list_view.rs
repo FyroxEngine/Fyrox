@@ -1,8 +1,9 @@
 use crate::border::BorderBuilder;
+use crate::draw::Draw;
 use crate::{
     brush::Brush,
     core::{color::Color, pool::Handle},
-    draw::{CommandKind, CommandTexture, DrawingContext},
+    draw::{CommandTexture, DrawingContext},
     message::{
         DecoratorMessage, ListViewMessage, MessageData, MessageDirection, UiMessage, UiMessageData,
         WidgetMessage,
@@ -69,9 +70,10 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ListViewItem<M, C> {
         // Emit transparent geometry so item container can be picked by hit test.
         drawing_context.push_rect_filled(&self.widget.screen_bounds(), None);
         drawing_context.commit(
-            CommandKind::Geometry,
+            self.clip_bounds(),
             Brush::Solid(Color::TRANSPARENT),
             CommandTexture::None,
+            None,
         );
     }
 

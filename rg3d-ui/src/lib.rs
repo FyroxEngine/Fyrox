@@ -53,6 +53,7 @@ pub mod window;
 pub mod wrap_panel;
 
 use crate::core::algebra::Vector2;
+use crate::draw::Draw;
 use crate::{
     brush::Brush,
     canvas::Canvas,
@@ -62,7 +63,7 @@ use crate::{
         pool::{Handle, Pool},
         scope_profile,
     },
-    draw::{CommandKind, CommandTexture, DrawingContext},
+    draw::{CommandTexture, DrawingContext},
     message::{
         ButtonState, CursorIcon, KeyboardModifiers, MessageData, MessageDirection, MouseButton,
         OsEvent, UiMessage, UiMessageData, WidgetMessage,
@@ -580,7 +581,6 @@ fn draw_node<M: MessageData, C: Control<M, C>>(
     nodes: &Pool<UINode<M, C>>,
     node_handle: Handle<UINode<M, C>>,
     drawing_context: &mut DrawingContext,
-    nesting: u8,
 ) {
     scope_profile!();
 
@@ -604,8 +604,7 @@ fn draw_node<M: MessageData, C: Control<M, C>>(
     }
 
     let start_index = drawing_context.get_commands().len();
-    drawing_context.set_nesting(nesting);
-    drawing_context.commit_clip_rect(&bounds.inflate(0.9, 0.9));
+
     drawing_context.push_opacity(if is_node_enabled(nodes, node_handle) {
         1.0
     } else {
@@ -623,12 +622,11 @@ fn draw_node<M: MessageData, C: Control<M, C>>(
     for &child_node in node.children().iter() {
         // Do not continue render of top-most nodes - they'll be rendered in separate pass.
         if !nodes[child_node].is_draw_on_top() {
-            draw_node(nodes, child_node, drawing_context, nesting + 1);
+            draw_node(nodes, child_node, drawing_context);
         }
     }
 
     drawing_context.pop_opacity();
-    drawing_context.revert_clip_geom();
 }
 
 fn is_node_enabled<M: MessageData, C: Control<M, C>>(
@@ -802,6 +800,10 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
     pub fn draw(&mut self) -> &DrawingContext {
         scope_profile!();
 
+        self.calculate_clip_bounds(
+            self.root_canvas,
+            Rect::new(0.0, 0.0, self.screen_size.x, self.screen_size.y),
+        );
         self.drawing_context.clear();
 
         for node in self.nodes.iter_mut() {
@@ -809,7 +811,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         }
 
         // Draw everything except top-most nodes.
-        draw_node(&self.nodes, self.root_canvas, &mut self.drawing_context, 1);
+        draw_node(&self.nodes, self.root_canvas, &mut self.drawing_context);
 
         // Render top-most nodes in separate pass.
         // TODO: This may give weird results because of invalid nesting.
@@ -818,7 +820,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         while let Some(node_handle) = self.stack.pop() {
             let node = &self.nodes[node_handle];
             if node.is_draw_on_top() {
-                draw_node(&self.nodes, node_handle, &mut self.drawing_context, 1);
+                draw_node(&self.nodes, node_handle, &mut self.drawing_context);
             }
             for &child in node.children() {
                 self.stack.push(child);
@@ -827,15 +829,14 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
 
         // Debug info rendered on top of other.
         if self.visual_debug {
-            self.drawing_context.set_nesting(0);
-
             if self.picked_node.is_some() {
                 let bounds = self.nodes.borrow(self.picked_node).screen_bounds();
                 self.drawing_context.push_rect(&bounds, 1.0);
                 self.drawing_context.commit(
-                    CommandKind::Geometry,
+                    bounds,
                     Brush::Solid(Color::WHITE),
                     CommandTexture::None,
+                    None,
                 );
             }
 
@@ -843,9 +844,10 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
                 let bounds = self.nodes.borrow(self.keyboard_focus_node).screen_bounds();
                 self.drawing_context.push_rect(&bounds, 1.0);
                 self.drawing_context.commit(
-                    CommandKind::Geometry,
+                    bounds,
                     Brush::Solid(Color::GREEN),
                     CommandTexture::None,
+                    None,
                 );
             }
         }
@@ -859,24 +861,27 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         let mut clipped = true;
 
         let widget = self.nodes.borrow(node_handle);
-        if !widget.is_globally_visible() {
-            return clipped;
-        }
 
-        for command_index in widget.command_indices.borrow().iter() {
-            if let Some(command) = self.drawing_context.get_commands().get(*command_index) {
-                if command.kind == CommandKind::Clip
-                    && self.drawing_context.is_command_contains_point(command, pt)
-                {
-                    clipped = false;
-                    break;
+        if widget.is_globally_visible() {
+            clipped = !widget.screen_bounds().contains(pt);
+
+            if !clipped {
+                for command_index in widget.command_indices.borrow().iter() {
+                    if let Some(command) = self.drawing_context.get_commands().get(*command_index) {
+                        if let Some(geometry) = command.clipping_geometry.as_ref() {
+                            if geometry.is_contains_point(pt) {
+                                clipped = false;
+                                break;
+                            }
+                        }
+                    }
                 }
             }
-        }
 
-        // Point can be clipped by parent's clipping geometry.
-        if !widget.parent().is_none() && !clipped {
-            clipped |= self.is_node_clipped(widget.parent(), pt);
+            // Point can be clipped by parent's clipping geometry.
+            if !widget.parent().is_none() && !clipped {
+                clipped |= self.is_node_clipped(widget.parent(), pt);
+            }
         }
 
         clipped
@@ -894,9 +899,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         if !self.is_node_clipped(node_handle, pt) {
             for command_index in widget.command_indices.borrow().iter() {
                 if let Some(command) = self.drawing_context.get_commands().get(*command_index) {
-                    if command.kind == CommandKind::Geometry
-                        && self.drawing_context.is_command_contains_point(command, pt)
-                    {
+                    if self.drawing_context.is_command_contains_point(command, pt) {
                         return true;
                     }
                 }
@@ -1033,6 +1036,16 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         self.nodes
             .borrow(root_handle)
             .has_descendant(node_handle, self)
+    }
+
+    /// Recursively calculates clipping bounds for every node.
+    fn calculate_clip_bounds(&self, node: Handle<UINode<M, C>>, parent_bounds: Rect<f32>) {
+        let node = &self.nodes[node];
+        node.clip_bounds
+            .set(node.screen_bounds().clip_by(parent_bounds));
+        for &child in node.children() {
+            self.calculate_clip_bounds(child, node.clip_bounds.get());
+        }
     }
 
     /// Checks if specified node is a direct child of some other node on `root_handle`.

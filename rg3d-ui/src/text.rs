@@ -39,7 +39,11 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Text<M, C> {
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.widget.screen_bounds();
-        drawing_context.draw_text(bounds.position, &self.formatted_text.borrow());
+        drawing_context.draw_text(
+            self.clip_bounds(),
+            bounds.position,
+            &self.formatted_text.borrow(),
+        );
     }
 
     fn handle_routed_message(

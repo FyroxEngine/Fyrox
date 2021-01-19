@@ -1,3 +1,4 @@
+use crate::draw::Draw;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -7,7 +8,7 @@ use crate::{
         math::Rect,
         pool::Handle,
     },
-    draw::{CommandKind, CommandTexture, DrawingContext},
+    draw::{CommandTexture, DrawingContext},
     grid::{Column, GridBuilder, Row},
     message::{
         AlphaBarMessage, ColorFieldMessage, ColorPickerMessage, HueBarMessage, MessageData,
@@ -143,9 +144,10 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for AlphaBar<M, C> {
             }
         }
         drawing_context.commit(
-            CommandKind::Geometry,
+            self.clip_bounds(),
             Brush::Solid(Color::WHITE),
             CommandTexture::None,
+            None,
         );
 
         // Then draw alpha gradient.
@@ -178,9 +180,10 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for AlphaBar<M, C> {
         }
 
         drawing_context.commit(
-            CommandKind::Geometry,
+            self.clip_bounds(),
             Brush::Solid(Color::WHITE),
             CommandTexture::None,
+            None,
         );
     }
 
@@ -329,9 +332,10 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for HueBar<M, C> {
         }
 
         drawing_context.commit(
-            CommandKind::Geometry,
+            self.clip_bounds(),
             Brush::Solid(Color::WHITE),
             CommandTexture::None,
+            None,
         );
     }
 
@@ -483,9 +487,10 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for SaturationBrightnessFie
             ],
         );
         drawing_context.commit(
-            CommandKind::Geometry,
+            self.clip_bounds(),
             Brush::Solid(Color::WHITE),
             CommandTexture::None,
+            None,
         );
 
         // Indicator must be drawn separately, otherwise it may be drawn incorrectly.
@@ -500,9 +505,10 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for SaturationBrightnessFie
             Color::from(Hsv::new(360.0 - self.hue, 100.0, 100.0)),
         );
         drawing_context.commit(
-            CommandKind::Geometry,
+            self.clip_bounds(),
             Brush::Solid(Color::WHITE),
             CommandTexture::None,
+            None,
         );
     }
 
@@ -1097,9 +1103,10 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ColorField<M, C> {
 
         drawing_context.push_rect_filled(&bounds, None);
         drawing_context.commit(
-            CommandKind::Geometry,
+            self.clip_bounds(),
             Brush::Solid(self.color),
             CommandTexture::None,
+            None,
         );
     }
 

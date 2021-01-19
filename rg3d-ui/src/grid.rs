@@ -1,6 +1,7 @@
+use crate::draw::Draw;
 use crate::{
     core::{algebra::Vector2, math::Rect, pool::Handle, scope_profile},
-    draw::{CommandKind, CommandTexture, DrawingContext},
+    draw::{CommandTexture, DrawingContext},
     message::MessageData,
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
@@ -236,9 +237,10 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Grid<M, C> {
             }
 
             drawing_context.commit(
-                CommandKind::Geometry,
+                self.clip_bounds(),
                 self.widget.foreground(),
                 CommandTexture::None,
+                None,
             );
         }
     }

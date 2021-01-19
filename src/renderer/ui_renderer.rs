@@ -7,7 +7,7 @@ use crate::{
     },
     gui::{
         brush::Brush,
-        draw::{CommandKind, CommandTexture, DrawingContext, SharedTexture},
+        draw::{CommandTexture, DrawingContext, SharedTexture},
     },
     renderer::{
         error::RendererError,
@@ -80,6 +80,7 @@ impl UiShader {
 pub struct UiRenderer {
     shader: UiShader,
     geometry_buffer: GeometryBuffer,
+    clipping_geometry_buffer: GeometryBuffer,
 }
 
 pub(in crate) struct UiRenderContext<'a, 'b, 'c> {
@@ -122,8 +123,25 @@ impl UiRenderer {
             )
             .build(state)?;
 
+        let clipping_geometry_buffer = GeometryBufferBuilder::new(ElementKind::Triangle)
+            .with_buffer_builder(
+                BufferBuilder::new::<crate::gui::draw::Vertex>(
+                    GeometryBufferKind::DynamicDraw,
+                    None,
+                )
+                // We're interested only in position. Fragment shader won't run for clipping geometry anyway.
+                .with_attribute(AttributeDefinition {
+                    location: 0,
+                    kind: AttributeKind::Float2,
+                    normalized: false,
+                    divisor: 0,
+                }),
+            )
+            .build(state)?;
+
         Ok(Self {
             geometry_buffer,
+            clipping_geometry_buffer,
             shader: UiShader::new()?,
         })
     }
@@ -157,84 +175,122 @@ impl UiRenderer {
 
         let ortho = Matrix4::new_orthographic(0.0, frame_width, frame_height, 0.0, -1.0, 1.0);
 
+        state.set_scissor_test(true);
+
         for cmd in drawing_context.get_commands() {
             let mut diffuse_texture = white_dummy.clone();
             let mut is_font_texture = false;
-            let mut color_write = true;
 
-            match cmd.kind {
-                CommandKind::Clip => {
-                    if cmd.nesting == 1 {
-                        backbuffer.clear(state, viewport, None, None, Some(0));
-                    }
-                    state.set_stencil_op(StencilOp {
-                        zpass: gl::INCR,
-                        ..Default::default()
-                    });
-                    // Make sure that clipping rect will be drawn at previous nesting level only (clip to parent)
-                    state.set_stencil_func(StencilFunc {
-                        func: gl::EQUAL,
-                        ref_value: i32::from(cmd.nesting - 1),
-                        ..Default::default()
-                    });
-                    // Draw clipping geometry to stencil buffers
-                    state.set_stencil_mask(0xFF);
-                    color_write = false;
-                }
-                CommandKind::Geometry => {
-                    // Make sure to draw geometry only on clipping geometry with current nesting level
-                    state.set_stencil_func(StencilFunc {
-                        func: gl::EQUAL,
-                        ref_value: i32::from(cmd.nesting),
-                        ..Default::default()
-                    });
+            let mut clip_bounds = cmd.clip_bounds;
+            clip_bounds.position.x = clip_bounds.position.x.floor();
+            clip_bounds.position.y = clip_bounds.position.y.floor();
+            clip_bounds.size.x = clip_bounds.size.x.ceil();
+            clip_bounds.size.y = clip_bounds.size.y.ceil();
 
-                    match &cmd.texture {
-                        CommandTexture::Font(font_arc) => {
-                            let mut font = font_arc.0.lock().unwrap();
-                            if font.texture.is_none() {
-                                let size = font.atlas_size() as u32;
-                                if let Ok(details) = TextureData::from_bytes(
-                                    TextureKind::Rectangle {
-                                        width: size,
-                                        height: size,
-                                    },
-                                    TexturePixelKind::R8,
-                                    font.atlas_pixels().to_vec(),
-                                ) {
-                                    font.texture = Some(SharedTexture(Arc::new(Mutex::new(
-                                        TextureState::Ok(details),
-                                    ))));
-                                }
-                            }
-                            let tex = font
-                                .texture
-                                .clone()
-                                .unwrap()
-                                .0
-                                .downcast::<Mutex<TextureState>>()
-                                .unwrap();
-                            if let Some(texture) = texture_cache.get(state, Texture::from(tex)) {
-                                diffuse_texture = texture;
-                            }
-                            is_font_texture = true;
+            state.set_scissor_box(
+                clip_bounds.position.x as i32,
+                // Because OpenGL is was designed for mathematicians, it has origin at lower left corner.
+                viewport.size.y - (clip_bounds.position.y + clip_bounds.size.y) as i32,
+                clip_bounds.size.x as i32,
+                clip_bounds.size.y as i32,
+            );
+
+            let mut stencil_test = false;
+
+            // Draw clipping geometry first if we have any. This is optional, because complex
+            // clipping is very rare and in most cases scissor test will do the job.
+            if let Some(clipping_geometry) = cmd.clipping_geometry.as_ref() {
+                backbuffer.clear(state, viewport, None, None, Some(0));
+
+                state.set_stencil_op(StencilOp {
+                    zpass: gl::INCR,
+                    ..Default::default()
+                });
+
+                state.set_stencil_func(StencilFunc {
+                    func: gl::ALWAYS,
+                    ..Default::default()
+                });
+
+                state.set_stencil_mask(0xFF);
+
+                self.clipping_geometry_buffer.set_buffer_data(
+                    state,
+                    0,
+                    &clipping_geometry.vertex_buffer,
+                );
+                self.clipping_geometry_buffer
+                    .bind(state)
+                    .set_triangles(&clipping_geometry.triangle_buffer);
+
+                // Draw
+                statistics += backbuffer.draw(
+                    &self.clipping_geometry_buffer,
+                    state,
+                    viewport,
+                    &self.shader.program,
+                    &DrawParameters {
+                        cull_face: CullFace::Back,
+                        culling: false,
+                        color_write: ColorMask::all(false),
+                        depth_write: false,
+                        stencil_test: false,
+                        depth_test: false,
+                        blend: false,
+                    },
+                    &[(self.shader.wvp_matrix, UniformValue::Matrix4(ortho))],
+                );
+
+                // Make sure main geometry will be drawn only on marked pixels.
+                state.set_stencil_func(StencilFunc {
+                    func: gl::EQUAL,
+                    ref_value: 1,
+                    ..Default::default()
+                });
+
+                state.set_stencil_mask(0);
+
+                stencil_test = true;
+            }
+
+            match &cmd.texture {
+                CommandTexture::Font(font_arc) => {
+                    let mut font = font_arc.0.lock().unwrap();
+                    if font.texture.is_none() {
+                        let size = font.atlas_size() as u32;
+                        if let Ok(details) = TextureData::from_bytes(
+                            TextureKind::Rectangle {
+                                width: size,
+                                height: size,
+                            },
+                            TexturePixelKind::R8,
+                            font.atlas_pixels().to_vec(),
+                        ) {
+                            font.texture = Some(SharedTexture(Arc::new(Mutex::new(
+                                TextureState::Ok(details),
+                            ))));
                         }
-                        CommandTexture::Texture(texture) => {
-                            if let Ok(texture) = texture.clone().0.downcast::<Mutex<TextureState>>()
-                            {
-                                if let Some(texture) =
-                                    texture_cache.get(state, Texture::from(texture))
-                                {
-                                    diffuse_texture = texture;
-                                }
-                            }
-                        }
-                        _ => (),
                     }
-
-                    // Do not draw geometry to stencil buffer
-                    state.set_stencil_mask(0);
+                    let tex = font
+                        .texture
+                        .clone()
+                        .unwrap()
+                        .0
+                        .downcast::<Mutex<TextureState>>()
+                        .unwrap();
+                    if let Some(texture) = texture_cache.get(state, Texture::from(tex)) {
+                        diffuse_texture = texture;
+                    }
+                    is_font_texture = true;
                 }
+                CommandTexture::Texture(texture) => {
+                    if let Ok(texture) = texture.clone().0.downcast::<Mutex<TextureState>>() {
+                        if let Some(texture) = texture_cache.get(state, Texture::from(texture)) {
+                            diffuse_texture = texture;
+                        }
+                    }
+                }
+                _ => (),
             }
 
             let mut raw_stops = [0.0; 16];
@@ -255,11 +311,11 @@ impl UiRenderer {
                 ),
                 (
                     self.shader.bounds_min,
-                    UniformValue::Vector2(cmd.bounds.min),
+                    UniformValue::Vector2(cmd.bounds.position),
                 ),
                 (
                     self.shader.bounds_max,
-                    UniformValue::Vector2(cmd.bounds.max),
+                    UniformValue::Vector2(cmd.bounds.right_bottom_corner()),
                 ),
                 (self.shader.is_font, UniformValue::Bool(is_font_texture)),
                 (
@@ -347,9 +403,9 @@ impl UiRenderer {
             let params = DrawParameters {
                 cull_face: CullFace::Back,
                 culling: false,
-                color_write: ColorMask::all(color_write),
+                color_write: ColorMask::all(true),
                 depth_write: false,
-                stencil_test: cmd.nesting != 0,
+                stencil_test,
                 depth_test: false,
                 blend: true,
             };
@@ -365,6 +421,9 @@ impl UiRenderer {
                 count: cmd.triangles.end - cmd.triangles.start,
             })?;
         }
+
+        state.set_scissor_test(false);
+
         Ok(statistics)
     }
 }

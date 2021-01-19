@@ -1,7 +1,8 @@
+use crate::draw::Draw;
 use crate::{
     brush::Brush,
     core::{algebra::Vector2, color::Color, math::Rect, pool::Handle, scope_profile},
-    draw::{CommandKind, CommandTexture, DrawingContext},
+    draw::{CommandTexture, DrawingContext},
     message::{MessageData, MessageDirection, ScrollPanelMessage, UiMessage, UiMessageData},
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UINode, UserInterface,
@@ -79,9 +80,10 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollPanel<M, C> {
         // Emit transparent geometry so panel will receive mouse events.
         drawing_context.push_rect_filled(&self.widget.screen_bounds(), None);
         drawing_context.commit(
-            CommandKind::Geometry,
+            self.clip_bounds(),
             Brush::Solid(Color::TRANSPARENT),
             CommandTexture::None,
+            None,
         );
     }
 

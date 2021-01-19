@@ -71,6 +71,7 @@ pub struct Widget<M: MessageData, C: Control<M, C>> {
     /// Actual size of the node after Arrange pass.
     pub(in crate) actual_size: Cell<Vector2<f32>>,
     pub(in crate) prev_global_visibility: bool,
+    pub(in crate) clip_bounds: Cell<Rect<f32>>,
 }
 
 impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
@@ -583,6 +584,10 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
             .downcast_ref::<T>()
             .unwrap()
     }
+
+    pub fn clip_bounds(&self) -> Rect<f32> {
+        self.clip_bounds.get()
+    }
 }
 
 #[macro_export]
@@ -836,6 +841,7 @@ impl<M: MessageData, C: Control<M, C>> WidgetBuilder<M, C> {
             marker: PhantomData,
             enabled: self.enabled,
             cursor: self.cursor,
+            clip_bounds: Cell::new(Default::default()),
         }
     }
 }

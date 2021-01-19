@@ -7,8 +7,10 @@ pub mod plane;
 pub mod ray;
 pub mod triangulator;
 
-use crate::algebra::{Matrix3, Scalar, UnitQuaternion, Vector2, Vector3, U3};
-use crate::visitor::{Visit, VisitResult, Visitor};
+use crate::{
+    algebra::{Matrix3, Scalar, UnitQuaternion, Vector2, Vector3, U3},
+    visitor::{Visit, VisitResult, Visitor},
+};
 use nalgebra::Matrix4;
 use std::ops::{Add, Index, IndexMut, Mul, Sub};
 
@@ -59,6 +61,70 @@ where
             && pt.x <= self.position.x + self.size.x
             && pt.y >= self.position.y
             && pt.y <= self.position.y + self.size.y
+    }
+
+    /// Extends rect to contain given point.
+    ///
+    /// # Notes
+    ///
+    /// To build bounding rectangle you should correctly initialize initial rectangle:
+    ///
+    /// ```
+    /// # use rg3d_core::algebra::Vector2;
+    /// # use rg3d_core::math::Rect;
+    ///
+    /// let vertices = [Vector2::new(1.0, 2.0), Vector2::new(-3.0, 5.0)];
+    ///
+    /// // This is important part, it must have "invalid" state to correctly
+    /// // calculate bounding rect. Rect::default will give invalid result!
+    /// let mut bounding_rect = Rect::new(f32::MAX, f32::MAX, 0.0, 0.0);
+    ///
+    /// for &v in &vertices {
+    ///     bounding_rect.push(v);
+    /// }
+    /// ```
+    pub fn push(&mut self, p: Vector2<T>) {
+        if p.x < self.position.x {
+            self.position.x = p.x;
+        }
+        if p.y < self.position.y {
+            self.position.y = p.y;
+        }
+
+        let right_bottom = self.right_bottom_corner();
+
+        if p.x > right_bottom.x {
+            self.size.x = p.x - self.position.x;
+        }
+        if p.y > right_bottom.y {
+            self.size.y = p.y - self.position.y;
+        }
+    }
+
+    #[must_use = "this method creates new instance of rect"]
+    pub fn clip_by(&self, other: Rect<T>) -> Rect<T> {
+        let mut clipped = *self;
+
+        if clipped.position.x < other.position.x {
+            clipped.position.x = other.position.x;
+            clipped.size.x = clipped.size.x - (other.position.x - clipped.position.x);
+        }
+        if clipped.position.y < other.position.y {
+            clipped.position.y = other.position.y;
+            clipped.size.y = clipped.size.y - (other.position.y - clipped.position.y);
+        }
+
+        let clipped_right_bottom = clipped.right_bottom_corner();
+        let other_right_bottom = other.right_bottom_corner();
+
+        if clipped_right_bottom.x > other_right_bottom.x {
+            clipped.size.x = clipped.size.x - (clipped_right_bottom.x - other_right_bottom.x);
+        }
+        if clipped_right_bottom.y > other_right_bottom.y {
+            clipped.size.y = clipped.size.y - (clipped_right_bottom.y - other_right_bottom.y);
+        }
+
+        clipped
     }
 
     pub fn intersects(&self, other: Rect<T>) -> bool {
