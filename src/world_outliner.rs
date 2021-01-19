@@ -12,6 +12,8 @@ use crate::{
     GameEngine, Message, MSG_SYNC_FLAG,
 };
 use rg3d::gui::message::TextMessage;
+use rg3d::gui::stack_panel::StackPanelBuilder;
+use rg3d::gui::Orientation;
 use rg3d::{
     core::{algebra::Vector2, math::Rect, pool::Handle},
     engine::resource_manager::ResourceManager,
@@ -51,6 +53,7 @@ pub struct WorldOutliner {
     /// did sync_to_model, instead we defer selection syncing to post_update() - at
     /// this moment UI is completely built and we can do syncing.
     pub sync_selection: bool,
+    node_path: Handle<UiNode>,
 }
 
 #[derive(Clone)]
@@ -379,23 +382,44 @@ fn colorize(tree: Handle<UiNode>, ui: &Ui, index: &mut usize) {
 impl WorldOutliner {
     pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
         let root;
+        let node_path;
         let window = WindowBuilder::new(WidgetBuilder::new())
             .can_minimize(false)
             .with_title(WindowTitle::text("World Outliner"))
-            .with_content({
-                ScrollViewerBuilder::new(WidgetBuilder::new())
-                    .with_content({
-                        root = TreeRootBuilder::new(WidgetBuilder::new()).build(ctx);
-                        root
-                    })
-                    .build(ctx)
-            })
+            .with_content(
+                GridBuilder::new(
+                    WidgetBuilder::new()
+                        .with_child(
+                            ScrollViewerBuilder::new(WidgetBuilder::new().on_row(0))
+                                .with_content({
+                                    node_path = StackPanelBuilder::new(WidgetBuilder::new())
+                                        .with_orientation(Orientation::Horizontal)
+                                        .build(ctx);
+                                    node_path
+                                })
+                                .build(ctx),
+                        )
+                        .with_child(
+                            ScrollViewerBuilder::new(WidgetBuilder::new().on_row(1))
+                                .with_content({
+                                    root = TreeRootBuilder::new(WidgetBuilder::new()).build(ctx);
+                                    root
+                                })
+                                .build(ctx),
+                        ),
+                )
+                .add_column(Column::stretch())
+                .add_row(Row::strict(24.0))
+                .add_row(Row::stretch())
+                .build(ctx),
+            )
             .build(ctx);
 
         Self {
             window,
             sender,
             root,
+            node_path,
             stack: Default::default(),
             sync_selection: false,
         }
@@ -513,6 +537,33 @@ impl WorldOutliner {
                 TreeRootMessage::select(self.root, MessageDirection::ToWidget, selected_items);
             message.flags = MSG_SYNC_FLAG;
             ui.send_message(message);
+        }
+
+        for &child in ui.node(self.node_path).children() {
+            ui.send_message(WidgetMessage::remove(child, MessageDirection::ToWidget));
+        }
+
+        if let Selection::Graph(selection) = &editor_scene.selection {
+            if let Some(&first_selected) = selection.nodes().first() {
+                let mut item = first_selected;
+                while item.is_some() {
+                    let node = &graph[item];
+
+                    let element = ButtonBuilder::new(
+                        WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
+                    )
+                    .with_text(node.name())
+                    .build(&mut ui.build_ctx());
+
+                    ui.send_message(WidgetMessage::link_reverse(
+                        element,
+                        MessageDirection::ToWidget,
+                        self.node_path,
+                    ));
+
+                    item = node.parent();
+                }
+            }
         }
 
         // Sync items data.

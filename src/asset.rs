@@ -7,6 +7,7 @@ use crate::{
     preview::PreviewPanel,
     GameEngine,
 };
+use rg3d::gui::draw::Draw;
 use rg3d::gui::{VerticalAlignment, BRUSH_DARK};
 use rg3d::{
     core::{color::Color, pool::Handle},
@@ -14,7 +15,7 @@ use rg3d::{
     gui::{
         border::BorderBuilder,
         brush::Brush,
-        draw::{CommandKind, CommandTexture, DrawingContext},
+        draw::{CommandTexture, DrawingContext},
         file_browser::FileBrowserBuilder,
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
@@ -71,11 +72,7 @@ impl Control<EditorUiMessage, EditorUiNode> for AssetItem {
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.screen_bounds();
         drawing_context.push_rect(&bounds, 1.0);
-        drawing_context.commit(
-            CommandKind::Geometry,
-            self.foreground(),
-            CommandTexture::None,
-        );
+        drawing_context.commit(bounds, self.foreground(), CommandTexture::None, None);
     }
 
     fn handle_routed_message(&mut self, ui: &mut Ui, message: &mut UiMessage) {
