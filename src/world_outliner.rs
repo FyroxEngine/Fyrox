@@ -389,6 +389,18 @@ impl WorldOutliner {
                 GridBuilder::new(
                     WidgetBuilder::new()
                         .with_child(
+                            TextBuilder::new(
+                                WidgetBuilder::new()
+                                    .on_row(0)
+                                    .on_column(0)
+                                    .with_opacity(0.4),
+                            )
+                            .with_text("Breadcrumbs")
+                            .with_vertical_text_alignment(VerticalAlignment::Center)
+                            .with_horizontal_text_alignment(HorizontalAlignment::Center)
+                            .build(ctx),
+                        )
+                        .with_child(
                             ScrollViewerBuilder::new(WidgetBuilder::new().on_row(0))
                                 .with_content({
                                     node_path = StackPanelBuilder::new(WidgetBuilder::new())
