@@ -355,6 +355,11 @@ pub enum WidgetMessage<M: MessageData, C: Control<M, C>> {
     ///
     /// Direction: **From/To UI**
     Cursor(Option<CursorIcon>),
+
+    /// A request to set new opacity for widget.
+    ///
+    /// Direction: **From/To UI**
+    Opacity(f32),
 }
 
 impl<M: MessageData, C: Control<M, C>> WidgetMessage<M, C> {
@@ -382,6 +387,7 @@ impl<M: MessageData, C: Control<M, C>> WidgetMessage<M, C> {
     define_constructor!(Widget(WidgetMessage:MaxSize) => fn max_size(Vector2<f32>), layout: false);
     define_constructor!(Widget(WidgetMessage:HorizontalAlignment) => fn horizontal_alignment(HorizontalAlignment), layout: false);
     define_constructor!(Widget(WidgetMessage:VerticalAlignment) => fn vertical_alignment(VerticalAlignment), layout: false);
+    define_constructor!(Widget(WidgetMessage:Opacity) => fn opacity(f32), layout: false);
 
     // Internal messages. Do not use.
     define_constructor!(Widget(WidgetMessage:GotFocus) => fn got_focus(), layout: false);

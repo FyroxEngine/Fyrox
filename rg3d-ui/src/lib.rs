@@ -606,7 +606,7 @@ fn draw_node<M: MessageData, C: Control<M, C>>(
     let start_index = drawing_context.get_commands().len();
 
     drawing_context.push_opacity(if is_node_enabled(nodes, node_handle) {
-        1.0
+        node.opacity()
     } else {
         0.4
     });

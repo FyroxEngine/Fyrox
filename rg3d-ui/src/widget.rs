@@ -57,6 +57,7 @@ pub struct Widget<M: MessageData, C: Control<M, C>> {
     marker: PhantomData<M>,
     enabled: bool,
     cursor: Option<CursorIcon>,
+    opacity: f32,
 
     /// Layout. Interior mutability is a must here because layout performed in
     /// a series of recursive calls.
@@ -353,6 +354,7 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
         if msg.destination() == self.handle() && msg.direction() == MessageDirection::ToWidget {
             if let UiMessageData::Widget(msg) = &msg.data() {
                 match msg {
+                    &WidgetMessage::Opacity(opacity) => self.opacity = opacity,
                     WidgetMessage::Background(background) => self.background = background.clone(),
                     WidgetMessage::Foreground(foreground) => self.foreground = foreground.clone(),
                     WidgetMessage::Name(name) => self.name = name.clone(),
@@ -588,6 +590,10 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
     pub fn clip_bounds(&self) -> Rect<f32> {
         self.clip_bounds.get()
     }
+
+    pub fn opacity(&self) -> f32 {
+        self.opacity
+    }
 }
 
 #[macro_export]
@@ -633,6 +639,7 @@ pub struct WidgetBuilder<M: MessageData, C: Control<M, C>> {
     pub draw_on_top: bool,
     pub enabled: bool,
     pub cursor: Option<CursorIcon>,
+    pub opacity: f32,
 }
 
 impl<M: MessageData, C: Control<M, C>> Default for WidgetBuilder<M, C> {
@@ -667,6 +674,7 @@ impl<M: MessageData, C: Control<M, C>> WidgetBuilder<M, C> {
             draw_on_top: false,
             enabled: true,
             cursor: None,
+            opacity: 1.0,
         }
     }
 
@@ -799,6 +807,11 @@ impl<M: MessageData, C: Control<M, C>> WidgetBuilder<M, C> {
         self
     }
 
+    pub fn with_opacity(mut self, opacity: f32) -> Self {
+        self.opacity = opacity;
+        self
+    }
+
     pub fn build(self) -> Widget<M, C> {
         Widget {
             handle: Default::default(),
@@ -842,6 +855,7 @@ impl<M: MessageData, C: Control<M, C>> WidgetBuilder<M, C> {
             enabled: self.enabled,
             cursor: self.cursor,
             clip_bounds: Cell::new(Default::default()),
+            opacity: self.opacity,
         }
     }
 }
