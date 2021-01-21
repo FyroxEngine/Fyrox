@@ -78,6 +78,12 @@ impl CameraController {
         if self.rotate {
             self.yaw -= delta.x as f32 * 0.01;
             self.pitch += delta.y as f32 * 0.01;
+            if self.pitch > 90.0f32.to_radians() {
+                self.pitch = 90.0f32.to_radians();
+            }
+            if self.pitch < -90.0f32.to_radians() {
+                self.pitch = -90.0f32.to_radians();
+            }
         }
     }
 
