@@ -342,6 +342,12 @@ impl PhysicsSection {
                                 MessageDirection::ToWidget,
                                 Some(collider_index),
                             ));
+                        } else {
+                            ui.send_message(DropdownListMessage::selection(
+                                self.collider,
+                                MessageDirection::ToWidget,
+                                None,
+                            ));
                         }
                     }
                 }
