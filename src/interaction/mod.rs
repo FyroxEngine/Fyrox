@@ -337,7 +337,6 @@ impl MoveGizmo {
         let node_local_transform = graph[self.origin].local_transform().matrix();
 
         if let Node::Camera(camera) = &graph[camera] {
-            let dlook = node_global_transform.position() - camera.global_position();
             let inv_node_transform = node_global_transform
                 .try_inverse()
                 .unwrap_or_else(|| Matrix4::identity());
@@ -349,6 +348,9 @@ impl MoveGizmo {
             let offset_ray = camera
                 .make_ray(mouse_position + mouse_offset, frame_size)
                 .transform(inv_node_transform);
+
+            let dlook = inv_node_transform
+                .transform_vector(&(node_global_transform.position() - camera.global_position()));
 
             // Select plane by current active mode.
             let plane = match self.mode {
@@ -803,7 +805,6 @@ impl ScaleGizmo {
         let node_global_transform = graph[self.origin].global_transform();
 
         if let Node::Camera(camera) = &graph[camera] {
-            let dlook = node_global_transform.position() - camera.global_position();
             let inv_node_transform = node_global_transform.try_inverse().unwrap_or_default();
 
             // Create two rays in object space.
@@ -813,6 +814,9 @@ impl ScaleGizmo {
             let offset_ray = camera
                 .make_ray(mouse_position + mouse_offset, frame_size)
                 .transform(inv_node_transform);
+
+            let dlook = inv_node_transform
+                .transform_vector(&(node_global_transform.position() - camera.global_position()));
 
             // Select plane by current active mode.
             let plane = match self.mode {
