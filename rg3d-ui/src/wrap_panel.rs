@@ -77,10 +77,9 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for WrapPanel<M, C> {
                         measured_size.y = measured_size.y.max(line_size.y);
                         measured_size.x += line_size.x;
                         line_size = Vector2::default();
-                    } else {
-                        line_size.x = line_size.x.max(desired.x);
-                        line_size.y += desired.y;
                     }
+                    line_size.x = line_size.x.max(desired.x);
+                    line_size.y += desired.y;
                 }
                 Orientation::Horizontal => {
                     if line_size.x + desired.x > available_size.x {
@@ -88,10 +87,9 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for WrapPanel<M, C> {
                         measured_size.x = measured_size.x.max(line_size.x);
                         measured_size.y += line_size.y;
                         line_size = Vector2::default();
-                    } else {
-                        line_size.x += desired.x;
-                        line_size.y = line_size.y.max(desired.y);
                     }
+                    line_size.x += desired.x;
+                    line_size.y = line_size.y.max(desired.y);
                 }
             }
         }

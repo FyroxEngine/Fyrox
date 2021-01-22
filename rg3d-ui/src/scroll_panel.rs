@@ -62,11 +62,26 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollPanel<M, C> {
     fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
 
+        let mut children_size = Vector2::<f32>::default();
+        for child_handle in self.widget.children() {
+            let desired_size = ui.node(*child_handle).desired_size();
+            children_size.x = children_size.x.max(desired_size.x);
+            children_size.y = children_size.y.max(desired_size.y);
+        }
+
         let child_rect = Rect::new(
             -self.scroll.x,
             -self.scroll.y,
-            final_size.x + self.scroll.x,
-            final_size.y + self.scroll.y,
+            if self.horizontal_scroll_allowed {
+                children_size.x.max(final_size.x)
+            } else {
+                final_size.x
+            },
+            if self.vertical_scroll_allowed {
+                children_size.y.max(final_size.y)
+            } else {
+                final_size.y
+            },
         );
 
         for child_handle in self.widget.children() {
