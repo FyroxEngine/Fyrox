@@ -525,7 +525,7 @@ impl<M: MessageData, C: Control<M, C>> FileBrowserBuilder<M, C> {
                 })
                 .with_child(scroll_viewer),
         )
-        .add_column(Column::auto())
+        .add_column(Column::stretch())
         .add_row(Row::strict(30.0))
         .add_row(Row::stretch())
         .build(ctx);
@@ -769,7 +769,7 @@ impl<M: MessageData, C: Control<M, C>> FileSelectorBuilder<M, C> {
                             .build(ctx),
                         ),
                 )
-                .add_column(Column::auto())
+                .add_column(Column::stretch())
                 .add_row(Row::stretch())
                 .add_row(Row::auto())
                 .build(ctx),
