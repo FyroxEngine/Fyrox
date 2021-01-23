@@ -314,6 +314,18 @@ impl LocalPose {
         self.rotation = self.rotation.nlerp(&other.rotation, weight);
         // TODO: Implement scale blending
     }
+
+    pub fn position(&self) -> Vector3<f32> {
+        self.position
+    }
+
+    pub fn scale(&self) -> Vector3<f32> {
+        self.scale
+    }
+
+    pub fn rotation(&self) -> UnitQuaternion<f32> {
+        self.rotation
+    }
 }
 
 #[derive(Default, Debug)]
