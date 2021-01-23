@@ -147,14 +147,12 @@ impl LightVolumeRenderer {
 
         match light {
             Light::Spot(spot) => {
-                let direction = view
-                    .transform_point(&Point3::from(
-                        -light
-                            .up_vector()
-                            .try_normalize(std::f32::EPSILON)
-                            .unwrap_or_else(Vector3::z),
-                    ))
-                    .coords;
+                let direction = view.transform_vector(
+                    &(-light
+                        .up_vector()
+                        .try_normalize(std::f32::EPSILON)
+                        .unwrap_or_else(Vector3::z)),
+                );
 
                 // Draw cone into stencil buffer - it will mark pixels for further volumetric light
                 // calculations, it will significantly reduce amount of pixels for far lights thus
