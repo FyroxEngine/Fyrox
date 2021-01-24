@@ -60,8 +60,7 @@ impl SoundEngine {
     pub fn has_context(&self, context: &Context) -> bool {
         self.contexts
             .iter()
-            .position(|c| Arc::ptr_eq(c.state.as_ref().unwrap(), context.state.as_ref().unwrap()))
-            .is_some()
+            .any(|c| Arc::ptr_eq(c.state.as_ref().unwrap(), context.state.as_ref().unwrap()))
     }
 
     /// Returns a reference to context container.

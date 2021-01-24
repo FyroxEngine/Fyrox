@@ -228,7 +228,13 @@ impl<M: MessageData, C: Control<M, C>> DropdownListBuilder<M, C> {
         let arrow = make_arrow(ctx, ArrowDirection::Bottom, 10.0);
         ctx[arrow].set_column(1);
 
-        let main_grid;
+        let main_grid =
+            GridBuilder::new(WidgetBuilder::new().with_child(current).with_child(arrow))
+                .add_row(Row::stretch())
+                .add_column(Column::stretch())
+                .add_column(Column::strict(20.0))
+                .build(ctx);
+
         let dropdown_list = UINode::DropdownList(DropdownList {
             widget: self
                 .widget_builder
@@ -236,16 +242,7 @@ impl<M: MessageData, C: Control<M, C>> DropdownListBuilder<M, C> {
                     BorderBuilder::new(
                         WidgetBuilder::new()
                             .with_foreground(BRUSH_LIGHT)
-                            .with_child({
-                                main_grid = GridBuilder::new(
-                                    WidgetBuilder::new().with_child(current).with_child(arrow),
-                                )
-                                .add_row(Row::stretch())
-                                .add_column(Column::stretch())
-                                .add_column(Column::strict(20.0))
-                                .build(ctx);
-                                main_grid
-                            }),
+                            .with_child(main_grid),
                     )
                     .build(ctx),
                 )

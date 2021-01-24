@@ -241,7 +241,7 @@ impl Ray {
 
     pub fn plane_intersection_point(&self, plane: &Plane) -> Option<Vector3<f32>> {
         let t = self.plane_intersection(plane);
-        if t < 0.0 || t > 1.0 {
+        if !(0.0..=1.0).contains(&t) {
             None
         } else {
             Some(self.get_point(t))
@@ -251,7 +251,7 @@ impl Ray {
     pub fn triangle_intersection(&self, vertices: &[Vector3<f32>; 3]) -> Option<Vector3<f32>> {
         let ba = vertices[1] - vertices[0];
         let ca = vertices[2] - vertices[0];
-        let plane = Plane::from_normal_and_point(&ba.cross(&ca), &vertices[0]).ok()?;
+        let plane = Plane::from_normal_and_point(&ba.cross(&ca), &vertices[0])?;
 
         if let Some(point) = self.plane_intersection_point(&plane) {
             if is_point_inside_triangle(&point, vertices) {

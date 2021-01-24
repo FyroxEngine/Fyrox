@@ -725,7 +725,7 @@ impl Into<BodyStatus> for BodyStatusDesc {
     }
 }
 
-#[derive(Default, Clone, Debug)]
+#[derive(Clone, Debug)]
 #[doc(hidden)]
 pub struct RigidBodyDesc<C> {
     pub position: Vector3<f32>,
@@ -736,6 +736,21 @@ pub struct RigidBodyDesc<C> {
     pub status: BodyStatusDesc,
     pub colliders: Vec<C>,
     pub mass: f32,
+}
+
+impl<C> Default for RigidBodyDesc<C> {
+    fn default() -> Self {
+        Self {
+            position: Default::default(),
+            rotation: Default::default(),
+            linvel: Default::default(),
+            angvel: Default::default(),
+            sleeping: false,
+            status: Default::default(),
+            colliders: vec![],
+            mass: 1.0,
+        }
+    }
 }
 
 impl<C: From<Index>> RigidBodyDesc<C> {

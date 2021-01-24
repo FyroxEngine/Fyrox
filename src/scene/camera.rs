@@ -43,7 +43,7 @@ pub struct Camera {
     view_matrix: Matrix4<f32>,
     projection_matrix: Matrix4<f32>,
     enabled: bool,
-    skybox: Option<SkyBox>,
+    skybox: Option<Box<SkyBox>>,
     environment: Option<Texture>,
     /// Visibility cache allows you to quickly check if object is visible from the camera or not.
     pub visibility_cache: VisibilityCache,
@@ -206,18 +206,18 @@ impl Camera {
 
     /// Sets new skybox. Could be None if no skybox needed.
     pub fn set_skybox(&mut self, skybox: Option<SkyBox>) -> &mut Self {
-        self.skybox = skybox;
+        self.skybox = skybox.map(Box::new);
         self
     }
 
     /// Return optional mutable reference to current skybox.
     pub fn skybox_mut(&mut self) -> Option<&mut SkyBox> {
-        self.skybox.as_mut()
+        self.skybox.as_deref_mut()
     }
 
     /// Return optional shared reference to current skybox.
     pub fn skybox_ref(&self) -> Option<&SkyBox> {
-        self.skybox.as_ref()
+        self.skybox.as_deref()
     }
 
     /// Sets new environment.
@@ -380,7 +380,7 @@ impl CameraBuilder {
             view_matrix: Matrix4::identity(),
             projection_matrix: Matrix4::identity(),
             visibility_cache: Default::default(),
-            skybox: self.skybox,
+            skybox: self.skybox.map(Box::new),
             environment: self.environment,
         }
     }

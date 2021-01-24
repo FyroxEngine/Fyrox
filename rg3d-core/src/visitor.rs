@@ -15,6 +15,7 @@ use crate::{
 };
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use nalgebra::Quaternion;
+use std::ops::DerefMut;
 use std::sync::RwLock;
 use std::{
     any::Any,
@@ -98,28 +99,33 @@ impl FieldKind {
     }
 }
 
-pub trait FieldData {
-    fn read(&mut self, kind: &FieldKind) -> VisitResult;
-    fn write(&self) -> FieldKind;
-}
-
-macro_rules! impl_field_data (($type_name:ty, $($kind:tt)*) => {
-    impl FieldData for $type_name {
-        fn read(& mut self, kind: &FieldKind) -> VisitResult {
-            match kind {
-                $($kind)*(data) => {
-                    *self = data.clone();
+macro_rules! impl_field_data {
+    ($type_name:ty, $($kind:tt)*) => {
+        impl Visit for $type_name {
+            fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+                if visitor.reading {
+                    if let Some(field) = visitor.find_field(name) {
+                        match field.kind {
+                            $($kind)*(data) => {
+                                *self = data.clone();
+                                Ok(())
+                            },
+                            _ => Err(VisitError::FieldTypeDoesNotMatch)
+                        }
+                    } else {
+                        Err(VisitError::FieldDoesNotExist(name.to_owned()))
+                    }
+                } else if visitor.find_field(name).is_some() {
+                    Err(VisitError::FieldAlreadyExists(name.to_owned()))
+                } else {
+                    let node = visitor.current_node();
+                    node.fields.push(Field::new(name, $($kind)*(self.clone())));
                     Ok(())
-                },
-                _ => Err(VisitError::FieldTypeDoesNotMatch)
+                }
             }
         }
-
-        fn write(&self) -> FieldKind {
-             $($kind)*(self.clone())
-        }
-    }
-});
+    };
+}
 
 /// Proxy struct for plain data, we can't use Vec<u8> directly,
 /// because it will serialize each byte as separate node.
@@ -144,27 +150,6 @@ impl_field_data!(bool, FieldKind::Bool);
 impl_field_data!(Matrix3<f32>, FieldKind::Matrix3);
 impl_field_data!(Vector2<f32>, FieldKind::Vector2);
 impl_field_data!(Vector4<f32>, FieldKind::Vector4);
-
-impl<T> Visit for T
-where
-    T: FieldData + 'static,
-{
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        if visitor.reading {
-            if let Some(field) = visitor.find_field(name) {
-                self.read(&field.kind)
-            } else {
-                Err(VisitError::FieldDoesNotExist(name.to_owned()))
-            }
-        } else if visitor.find_field(name).is_some() {
-            Err(VisitError::FieldAlreadyExists(name.to_owned()))
-        } else {
-            let node = visitor.current_node();
-            node.fields.push(Field::new(name, self.write()));
-            Ok(())
-        }
-    }
-}
 
 impl<'a> Visit for Data<'a> {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
@@ -241,6 +226,12 @@ impl Display for VisitError {
 
 impl<'a, T> From<std::sync::PoisonError<std::sync::MutexGuard<'a, T>>> for VisitError {
     fn from(_: std::sync::PoisonError<std::sync::MutexGuard<'a, T>>) -> Self {
+        Self::PoisonedMutex
+    }
+}
+
+impl<'a, T> From<std::sync::PoisonError<&mut T>> for VisitError {
+    fn from(_: std::sync::PoisonError<&mut T>) -> Self {
         Self::PoisonedMutex
     }
 }
@@ -635,8 +626,10 @@ impl Visitor {
         unsafe { raw_name.set_len(name_len) };
         file.read_exact(raw_name.as_mut_slice())?;
 
-        let mut node = Node::default();
-        node.name = String::from_utf8(raw_name)?;
+        let mut node = Node {
+            name: String::from_utf8(raw_name)?,
+            ..Node::default()
+        };
 
         let field_count = file.read_u32::<LittleEndian>()? as usize;
         for _ in 0..field_count {
@@ -874,7 +867,16 @@ where
     T: Default + Visit + Send,
 {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        self.lock()?.visit(name, visitor)
+        self.get_mut()?.visit(name, visitor)
+    }
+}
+
+impl<T> Visit for Box<T>
+where
+    T: Visit,
+{
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        self.deref_mut().visit(name, visitor)
     }
 }
 

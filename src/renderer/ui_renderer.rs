@@ -258,7 +258,7 @@ impl UiRenderer {
                     let mut font = font_arc.0.lock().unwrap();
                     if font.texture.is_none() {
                         let size = font.atlas_size() as u32;
-                        if let Ok(details) = TextureData::from_bytes(
+                        if let Some(details) = TextureData::from_bytes(
                             TextureKind::Rectangle {
                                 width: size,
                                 height: size,

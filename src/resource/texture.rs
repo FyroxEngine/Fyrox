@@ -613,7 +613,7 @@ impl TextureData {
         kind: TextureKind,
         pixel_kind: TexturePixelKind,
         bytes: Vec<u8>,
-    ) -> Result<Self, ()> {
+    ) -> Option<Self> {
         let pixel_count = match kind {
             TextureKind::Line { length } => length,
             TextureKind::Rectangle { width, height } => width * height,
@@ -662,9 +662,9 @@ impl TextureData {
             }
         };
         if required_bytes != bytes.len() as u32 {
-            Err(())
+            None
         } else {
-            Ok(Self {
+            Some(Self {
                 path: Default::default(),
                 kind,
                 bytes,

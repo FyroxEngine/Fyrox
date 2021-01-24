@@ -24,8 +24,8 @@ impl Default for Frustum {
 }
 
 impl Frustum {
-    pub fn from(m: Matrix4<f32>) -> Result<Self, ()> {
-        Ok(Self {
+    pub fn from(m: Matrix4<f32>) -> Option<Self> {
+        Some(Self {
             planes: [
                 Plane::from_abcd(m[3] + m[0], m[7] + m[4], m[11] + m[8], m[15] + m[12])?,
                 Plane::from_abcd(m[3] - m[0], m[7] - m[4], m[11] - m[8], m[15] - m[12])?,

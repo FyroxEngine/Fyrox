@@ -20,28 +20,28 @@ impl Plane {
     /// Creates plane from a point and normal vector at that point.
     /// May fail if normal is degenerated vector.
     #[inline]
-    pub fn from_normal_and_point(normal: &Vector3<f32>, point: &Vector3<f32>) -> Result<Self, ()> {
+    pub fn from_normal_and_point(normal: &Vector3<f32>, point: &Vector3<f32>) -> Option<Self> {
         if let Some(normalized_normal) = normal.try_normalize(std::f32::EPSILON) {
-            Ok(Self {
+            Some(Self {
                 normal: normalized_normal,
                 d: -point.dot(&normalized_normal),
             })
         } else {
-            Err(())
+            None
         }
     }
 
     /// Creates plane using coefficients of plane equation Ax + By + Cz + D = 0
     /// May fail if length of normal vector is zero (normal is degenerated vector).
     #[inline]
-    pub fn from_abcd(a: f32, b: f32, c: f32, d: f32) -> Result<Self, ()> {
+    pub fn from_abcd(a: f32, b: f32, c: f32, d: f32) -> Option<Self> {
         let normal = Vector3::new(a, b, c);
         let len = normal.norm();
         if len == 0.0 {
-            Err(())
+            None
         } else {
             let coeff = 1.0 / len;
-            Ok(Self {
+            Some(Self {
                 normal: normal.scale(coeff),
                 d: d * coeff,
             })

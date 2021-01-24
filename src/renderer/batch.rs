@@ -17,7 +17,6 @@ use std::{
     cell::RefCell,
     collections::HashMap,
     fmt::{Debug, Formatter},
-    iter::FromIterator,
     rc::Rc,
     sync::Arc,
 };
@@ -160,10 +159,14 @@ impl BatchStorage {
 
                 batch.instances.push(SurfaceInstance {
                     world_transform: world,
-                    bone_matrices: ArrayVec::from_iter(surface.bones.iter().map(|&bone_handle| {
-                        let bone_node = &graph[bone_handle];
-                        bone_node.global_transform() * bone_node.inv_bind_pose_transform()
-                    })),
+                    bone_matrices: surface
+                        .bones
+                        .iter()
+                        .map(|&bone_handle| {
+                            let bone_node = &graph[bone_handle];
+                            bone_node.global_transform() * bone_node.inv_bind_pose_transform()
+                        })
+                        .collect(),
                     color: surface.color(),
                     owner: handle,
                     depth_offset: mesh.depth_offset_factor(),

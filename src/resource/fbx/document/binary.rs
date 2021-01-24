@@ -116,8 +116,11 @@ where
     unsafe { raw_name.set_len(name_len) };
     file.read_exact(raw_name.as_mut_slice())?;
 
-    let mut node = FbxNode::default();
-    node.name = String::from_utf8(raw_name)?;
+    let node = FbxNode {
+        name: String::from_utf8(raw_name)?,
+        ..FbxNode::default()
+    };
+
     let node_handle = pool.spawn(node);
 
     // Read attributes.
@@ -129,10 +132,13 @@ where
                 node.attributes.push(read_attribute(type_code, file)?);
             }
             b'f' | b'd' | b'l' | b'i' | b'b' => {
-                let mut a = FbxNode::default();
-                a.name = String::from("a");
-                a.attributes = read_array(type_code, file)?;
-                a.parent = node_handle;
+                let a = FbxNode {
+                    name: String::from("a"),
+                    attributes: read_array(type_code, file)?,
+                    parent: node_handle,
+                    ..FbxNode::default()
+                };
+
                 let a_handle = pool.spawn(a);
                 let node = pool.borrow_mut(node_handle);
                 node.children.push(a_handle);
@@ -199,13 +205,17 @@ where
 
     // Verify version.
     let version = file.read_u32::<LittleEndian>()? as i32;
-    if version < 7100 || version > 7500 {
+
+    // Anything else should be supported.
+    if version < 7100 {
         return Err(FbxError::UnsupportedVersion(version));
     }
 
     let mut nodes = Pool::new();
-    let mut root = FbxNode::default();
-    root.name = String::from("__ROOT__");
+    let root = FbxNode {
+        name: String::from("__ROOT__"),
+        ..FbxNode::default()
+    };
     let root_handle = nodes.spawn(root);
 
     // FBX document can have multiple root nodes, so we must read the file
