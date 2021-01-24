@@ -296,6 +296,7 @@ pub enum SceneCommand {
     SetColliderRestitution(SetColliderRestitutionCommand),
     SetColliderPosition(SetColliderPositionCommand),
     SetColliderRotation(SetColliderRotationCommand),
+    SetColliderIsSensor(SetColliderIsSensorCommand),
     SetCylinderHalfHeight(SetCylinderHalfHeightCommand),
     SetCylinderRadius(SetCylinderRadiusCommand),
     SetCapsuleRadius(SetCapsuleRadiusCommand),
@@ -392,6 +393,7 @@ macro_rules! static_dispatch {
             SceneCommand::SetColliderRestitution(v) => v.$func($($args),*),
             SceneCommand::SetColliderPosition(v) => v.$func($($args),*),
             SceneCommand::SetColliderRotation(v) => v.$func($($args),*),
+            SceneCommand::SetColliderIsSensor(v) => v.$func($($args),*),
             SceneCommand::SetCylinderHalfHeight(v) => v.$func($($args),*),
             SceneCommand::SetCylinderRadius(v) => v.$func($($args),*),
             SceneCommand::SetCapsuleRadius(v) => v.$func($($args),*),
@@ -2624,6 +2626,10 @@ define_collider_command!(SetColliderPositionCommand("Set Collider Position", Vec
 
 define_collider_command!(SetColliderRotationCommand("Set Collider Rotation", UnitQuaternion<f32>) where fn swap(self, physics, collider) {
     std::mem::swap(&mut collider.rotation, &mut self.value);
+});
+
+define_collider_command!(SetColliderIsSensorCommand("Set Collider Is Sensor", bool) where fn swap(self, physics, collider) {
+    std::mem::swap(&mut collider.is_sensor, &mut self.value);
 });
 
 define_collider_variant_command!(SetCylinderHalfHeightCommand("Set Cylinder Half Height", f32) where fn swap(self, physics, Cylinder, cylinder) {

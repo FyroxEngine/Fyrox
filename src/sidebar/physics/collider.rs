@@ -1,5 +1,7 @@
-use crate::scene::{SetColliderPositionCommand, SetColliderRotationCommand};
-use crate::sidebar::make_vec3_input_field;
+use crate::scene::{
+    SetColliderIsSensorCommand, SetColliderPositionCommand, SetColliderRotationCommand,
+};
+use crate::sidebar::{make_bool_input_field, make_vec3_input_field};
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::Collider,
@@ -8,7 +10,7 @@ use crate::{
     Message,
 };
 use rg3d::core::math::{quat_from_euler, RotationOrder, UnitQuaternionExt};
-use rg3d::gui::message::Vec3EditorMessage;
+use rg3d::gui::message::{CheckBoxMessage, Vec3EditorMessage};
 use rg3d::{
     core::algebra::Vector3,
     core::pool::Handle,
@@ -26,6 +28,7 @@ pub struct ColliderSection {
     restitution: Handle<UiNode>,
     position: Handle<UiNode>,
     rotation: Handle<UiNode>,
+    is_sensor: Handle<UiNode>,
     sender: Sender<Message>,
 }
 
@@ -35,6 +38,7 @@ impl ColliderSection {
         let restitution;
         let position;
         let rotation;
+        let is_sensor;
         let section = GridBuilder::new(
             WidgetBuilder::new()
                 .with_child(make_text_mark(ctx, "Friction", 0))
@@ -56,10 +60,16 @@ impl ColliderSection {
                 .with_child({
                     rotation = make_vec3_input_field(ctx, 3);
                     rotation
+                })
+                .with_child(make_text_mark(ctx, "Is Sensor", 4))
+                .with_child({
+                    is_sensor = make_bool_input_field(ctx, 4);
+                    is_sensor
                 }),
         )
         .add_column(Column::strict(COLUMN_WIDTH))
         .add_column(Column::stretch())
+        .add_row(Row::strict(ROW_HEIGHT))
         .add_row(Row::strict(ROW_HEIGHT))
         .add_row(Row::strict(ROW_HEIGHT))
         .add_row(Row::strict(ROW_HEIGHT))
@@ -73,6 +83,7 @@ impl ColliderSection {
             restitution,
             position,
             rotation,
+            is_sensor,
         }
     }
 
@@ -105,6 +116,12 @@ impl ColliderSection {
             self.rotation,
             MessageDirection::ToWidget,
             euler_degrees,
+        ));
+
+        ui.send_message(CheckBoxMessage::checked(
+            self.is_sensor,
+            MessageDirection::ToWidget,
+            Some(collider.is_sensor),
         ));
     }
 
@@ -159,6 +176,22 @@ impl ColliderSection {
                                     .send(Message::DoSceneCommand(
                                         SceneCommand::SetColliderRotation(
                                             SetColliderRotationCommand::new(handle, new_rotation),
+                                        ),
+                                    ))
+                                    .unwrap();
+                            }
+                        }
+                    }
+                }
+                UiMessageData::CheckBox(msg) => {
+                    if let CheckBoxMessage::Check(checked) = msg {
+                        if message.destination() == self.is_sensor {
+                            let value = checked.unwrap_or_default();
+                            if value != collider.is_sensor {
+                                self.sender
+                                    .send(Message::DoSceneCommand(
+                                        SceneCommand::SetColliderIsSensor(
+                                            SetColliderIsSensorCommand::new(handle, value),
                                         ),
                                     ))
                                     .unwrap();
