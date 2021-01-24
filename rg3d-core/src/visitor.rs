@@ -890,19 +890,11 @@ where
 }
 
 fn arc_to_raw<T>(arc: Arc<T>) -> *mut T {
-    let raw = Arc::into_raw(arc) as *const T as *mut T;
-    unsafe {
-        Arc::from_raw(raw);
-    };
-    raw
+    &*arc as *const T as *mut T
 }
 
-fn rc_to_raw<T>(arc: Rc<T>) -> *mut T {
-    let raw = Rc::into_raw(arc) as *const T as *mut T;
-    unsafe {
-        Rc::from_raw(raw);
-    };
-    raw
+fn rc_to_raw<T>(rc: Rc<T>) -> *mut T {
+    &*rc as *const T as *mut T
 }
 
 impl<T> Visit for Arc<T>
