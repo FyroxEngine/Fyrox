@@ -26,46 +26,23 @@ out vec4 FragColor;
 
 void main()
 {
+    vec4 normalSpecular = texture(normalTexture, texCoord);
+
     TBlinnPhongContext ctx;
     ctx.lightPosition = lightPos;
     ctx.lightRadius = lightRadius;
-    ctx.fragmentNormal = normalize(texture(normalTexture, texCoord).xyz * 2.0 - 1.0);
+    ctx.fragmentNormal = normalize(normalSpecular.xyz * 2.0 - 1.0);
     ctx.fragmentPosition = S_UnProject(vec3(texCoord, texture(depthTexture, texCoord).r), invViewProj);
     ctx.cameraPosition = cameraPosition;
-    ctx.specularPower = 255.0 * texture(normalTexture, texCoord).w;
+    ctx.specularPower = 80.0;
     TBlinnPhong lighting = S_BlinnPhong(ctx);
 
     float spotAngleCos = dot(lightDirection, lighting.direction);
     float coneFactor = smoothstep(halfConeAngleCos, halfHotspotConeAngleCos, spotAngleCos);
 
-    float shadow = 1.0;
-    if (shadowsEnabled)
-    {
-        vec3 lightSpacePosition = S_Project(ctx.fragmentPosition, lightViewProjMatrix);
-        if (softShadows)
-        {
-            for (float y = -1.5; y <= 1.5; y += 0.5)
-            {
-                for (float x = -1.5; x <= 1.5; x += 0.5)
-                {
-                    vec2 fetchTexCoord = lightSpacePosition.xy + vec2(x, y) * shadowMapInvSize;
-                    if (lightSpacePosition.z - shadowBias > texture(spotShadowTexture, fetchTexCoord).r)
-                    {
-                        shadow += 1.0;
-                    }
-                }
-            }
-
-            shadow = clamp(1.0 - shadow / 9.0, 0.0, 1.0);
-        }
-        else
-        {
-            if (lightSpacePosition.z - shadowBias > texture(spotShadowTexture, lightSpacePosition.xy).r)
-            {
-                shadow = 0.0;
-            }
-        }
-    }
+    float shadow = S_SpotShadowFactor(
+        shadowsEnabled, softShadows, shadowBias, ctx.fragmentPosition,
+            lightViewProjMatrix, shadowMapInvSize, spotShadowTexture);
 
     vec4 cookieAttenuation = vec4(1.0);
     if (cookieEnabled) {
@@ -73,7 +50,6 @@ void main()
         cookieAttenuation = texture(cookieTexture, texCoords);
     }
 
-    FragColor = texture(colorTexture, texCoord);
-    FragColor.rgb += 0.4 * lighting.specular;
-    FragColor *= cookieAttenuation * coneFactor * shadow * lighting.attenuation * lightColor;
+    FragColor = cookieAttenuation * coneFactor * lighting.attenuation * shadow *
+        (lightColor * lighting.specular * normalSpecular.w + lightColor * texture(colorTexture, texCoord));
 }

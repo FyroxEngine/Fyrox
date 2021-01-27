@@ -8,15 +8,12 @@
 //! types and some of basic structures of the crate. Main criteria of what could be the field and what
 //! not is the ability to be represented as set of bytes without any aliasing issues.
 
-use crate::algebra::{Matrix3, Matrix4, UnitQuaternion, Vector2, Vector3, Vector4};
 use crate::{
+    algebra::{Matrix3, Matrix4, Quaternion, UnitQuaternion, Vector2, Vector3, Vector4},
     pool::{Handle, Pool},
     replace_slashes,
 };
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-use nalgebra::Quaternion;
-use std::ops::DerefMut;
-use std::sync::RwLock;
 use std::{
     any::Any,
     cell::{Cell, RefCell},
@@ -25,10 +22,11 @@ use std::{
     fs::File,
     hash::Hash,
     io::{BufReader, BufWriter, Read, Write},
+    ops::DerefMut,
     path::{Path, PathBuf},
     rc::Rc,
     string::FromUtf8Error,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, RwLock},
 };
 
 pub enum FieldKind {

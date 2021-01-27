@@ -1,4 +1,5 @@
 use crate::core::arrayvec::ArrayVec;
+use crate::scene::mesh::RenderPath;
 use crate::{
     core::{algebra::Matrix4, color::Color, pool::Handle},
     renderer::{
@@ -49,6 +50,7 @@ pub struct Batch {
     pub roughness_texture: Rc<RefCell<GpuTexture>>,
     pub lightmap_texture: Rc<RefCell<GpuTexture>>,
     pub is_skinned: bool,
+    pub render_path: RenderPath,
 }
 
 impl Debug for Batch {
@@ -146,6 +148,7 @@ impl BatchStorage {
                         roughness_texture: roughness_texture.clone(),
                         lightmap_texture: lightmap_texture.clone(),
                         is_skinned: !surface.bones.is_empty(),
+                        render_path: mesh.render_path(),
                     });
                     self.batches.last_mut().unwrap()
                 };

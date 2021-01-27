@@ -1158,7 +1158,9 @@ impl Surface {
         self.lightmap_texture.clone()
     }
 
-    /// Sets color of surface.
+    /// Sets color of surface. Keep in mind that alpha component is **not** compatible
+    /// with deferred render path. You have to use forward render path if you need
+    /// transparent surfaces.
     #[inline]
     pub fn set_color(&mut self, color: Color) {
         self.color = color;

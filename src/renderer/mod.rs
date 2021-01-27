@@ -22,6 +22,7 @@ mod batch;
 mod blur;
 mod deferred_light_renderer;
 mod flat_shader;
+mod forward_renderer;
 mod gbuffer;
 mod light_volume;
 mod particle_system_renderer;
@@ -30,6 +31,7 @@ mod sprite_renderer;
 mod ssao;
 mod ui_renderer;
 
+use crate::renderer::forward_renderer::{ForwardRenderContext, ForwardRenderer};
 use crate::utils::log::{Log, MessageKind};
 use crate::{
     core::{
@@ -412,6 +414,7 @@ pub struct Renderer {
     texture_cache: TextureCache,
     geometry_cache: GeometryCache,
     batch_storage: BatchStorage,
+    forward_renderer: ForwardRenderer,
 }
 
 #[derive(Default)]
@@ -753,6 +756,7 @@ impl Renderer {
             geometry_cache: Default::default(),
             state,
             batch_storage: Default::default(),
+            forward_renderer: ForwardRenderer::new()?,
         })
     }
 
@@ -984,6 +988,15 @@ impl Renderer {
                     viewport,
                     textures: &mut self.texture_cache,
                     geom_map: &mut self.geometry_cache,
+                });
+
+                self.statistics += self.forward_renderer.render(ForwardRenderContext {
+                    state,
+                    camera,
+                    geom_cache: &mut self.geometry_cache,
+                    batch_storage: &self.batch_storage,
+                    framebuffer: &mut gbuffer.final_frame, // TODO: GBuffer **must not** containt final frame.
+                    viewport,
                 });
 
                 self.statistics += self.debug_renderer.render(
