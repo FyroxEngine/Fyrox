@@ -5,6 +5,7 @@
 //! of RawMeshBuilder.
 
 use crate::core::math::TriangleDefinition;
+use crate::utils::hash_as_bytes;
 use rapier3d::na::Vector3;
 use std::{
     collections::HashSet,
@@ -54,12 +55,7 @@ impl RawVertex {
 impl Hash for RawVertex {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.validate();
-        unsafe {
-            state.write(std::slice::from_raw_parts(
-                self as *const Self as *const _,
-                std::mem::size_of::<Self>(),
-            ))
-        }
+        hash_as_bytes(self, state);
     }
 }
 
