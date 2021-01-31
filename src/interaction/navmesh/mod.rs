@@ -1,22 +1,25 @@
-use crate::interaction::calculate_gizmo_distance_scaling;
-use crate::interaction::navmesh::selection::NavmeshSelection;
-use crate::scene::{ChangeSelectionCommand, DeleteNavmeshVertexCommand, Selection};
 use crate::{
     gui::{BuildContext, UiMessage, UiNode},
     interaction::{
+        calculate_gizmo_distance_scaling,
         navmesh::data_model::{Navmesh, NavmeshEdge, NavmeshEntity, NavmeshVertex},
+        navmesh::selection::NavmeshSelection,
         InteractionModeTrait, MoveGizmo,
     },
-    scene::AddNavmeshEdgeCommand,
     scene::{
-        AddNavmeshCommand, CommandGroup, DeleteNavmeshCommand, EditorScene,
-        MoveNavmeshVertexCommand, SceneCommand,
+        AddNavmeshCommand, AddNavmeshEdgeCommand, ChangeSelectionCommand, CommandGroup,
+        DeleteNavmeshCommand, DeleteNavmeshVertexCommand, EditorScene, MoveNavmeshVertexCommand,
+        SceneCommand, Selection,
     },
     GameEngine, Message, MSG_SYNC_FLAG,
 };
-use rg3d::gui::message::KeyCode;
 use rg3d::{
-    core::{algebra::Vector3, color::Color, math::ray::CylinderKind, pool::Handle},
+    core::{
+        algebra::{Vector2, Vector3},
+        color::Color,
+        math::ray::CylinderKind,
+        pool::Handle,
+    },
     gui::{
         border::BorderBuilder,
         button::ButtonBuilder,
@@ -24,13 +27,14 @@ use rg3d::{
         decorator::DecoratorBuilder,
         grid::{Column, GridBuilder, Row},
         list_view::ListViewBuilder,
-        message::{ButtonMessage, ListViewMessage, MessageDirection, UiMessageData, WidgetMessage},
+        message::{
+            ButtonMessage, KeyCode, ListViewMessage, MessageDirection, UiMessageData, WidgetMessage,
+        },
         text::TextBuilder,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
         Thickness, VerticalAlignment,
     },
-    physics::ncollide::na::Vector2,
     scene::{camera::Camera, node::Node},
 };
 use std::{collections::HashMap, rc::Rc, sync::mpsc::Sender};
