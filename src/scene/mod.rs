@@ -15,12 +15,10 @@ pub mod physics;
 pub mod sprite;
 pub mod transform;
 
-use crate::utils::log::MessageKind;
-use crate::utils::navmesh::Navmesh;
 use crate::{
     animation::AnimationContainer,
     core::{
-        algebra::{Matrix4, Vector2, Vector3},
+        algebra::{Matrix4, Point3, Vector2, Vector3},
         color::Color,
         math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, Matrix4Ext},
         pool::{Handle, Pool, PoolIterator, PoolIteratorMut},
@@ -29,81 +27,107 @@ use crate::{
     engine::resource_manager::ResourceManager,
     resource::texture::Texture,
     scene::{graph::Graph, node::Node, physics::Physics},
+    utils::log::MessageKind,
+    utils::navmesh::Navmesh,
     utils::{lightmap::Lightmap, log::Log},
 };
-use rapier3d::na::Point3;
-use rg3d_sound::context::Context;
-use rg3d_sound::engine::SoundEngine;
-use std::sync::{Arc, Mutex};
+use rg3d_sound::{context::Context, engine::SoundEngine};
 use std::{
     collections::HashMap,
     ops::{Index, IndexMut},
     path::Path,
+    sync::{Arc, Mutex},
 };
 
-/// Wrap to new type to be able to implement Visit.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct RapierHandle(pub rapier3d::data::arena::Index);
+macro_rules! define_rapier_handle {
+    ($(#[$meta:meta])*, $type_name:ident, $dep_type:ty) => {
+        $(#[$meta])*
+        #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+        #[repr(transparent)]
+        pub struct $type_name(pub rapier3d::data::arena::Index);
 
-/// A type alias for a rigid body handle.
-pub type RigidBodyHandle = RapierHandle;
-
-/// A type alias for a collider handle.
-pub type ColliderHandle = RapierHandle;
-
-/// A type alias for a joint handle.
-pub type JointHandle = RapierHandle;
-
-impl From<rapier3d::data::arena::Index> for RapierHandle {
-    fn from(inner: rapier3d::data::arena::Index) -> Self {
-        Self(inner)
-    }
-}
-
-impl Into<rapier3d::data::arena::Index> for RapierHandle {
-    fn into(self) -> rapier3d::data::arena::Index {
-        self.0
-    }
-}
-
-impl Default for RapierHandle {
-    fn default() -> Self {
-        Self(rapier3d::data::arena::Index::from_raw_parts(
-            usize::max_value(),
-            u64::max_value(),
-        ))
-    }
-}
-
-impl RapierHandle {
-    /// Checks if handle is invalid.
-    pub fn is_none(&self) -> bool {
-        *self == Default::default()
-    }
-
-    /// Checks if handle is valid.
-    pub fn is_some(&self) -> bool {
-        !self.is_none()
-    }
-}
-
-impl Visit for RapierHandle {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        let (index, mut generation) = self.0.into_raw_parts();
-        let mut index = index as u64;
-
-        index.visit("Index", visitor)?;
-        generation.visit("Generation", visitor)?;
-
-        if visitor.is_reading() {
-            self.0 = rapier3d::data::arena::Index::from_raw_parts(index as usize, generation);
+        impl From<$dep_type> for $type_name {
+            fn from(inner: $dep_type) -> Self {
+                let (index, generation) = inner.into_raw_parts();
+                Self(rapier3d::data::arena::Index::from_raw_parts(
+                    index, generation,
+                ))
+            }
         }
 
-        visitor.leave_region()
-    }
+        impl From<rapier3d::data::arena::Index> for $type_name {
+            fn from(inner: rapier3d::data::arena::Index) -> Self {
+                Self(inner)
+            }
+        }
+
+        impl Into<$dep_type> for $type_name {
+            fn into(self) -> $dep_type {
+                let (index, generation) = self.0.into_raw_parts();
+                <$dep_type>::from_raw_parts(index, generation)
+            }
+        }
+
+        impl Into<rapier3d::data::arena::Index> for $type_name {
+            fn into(self) -> rapier3d::data::arena::Index {
+                let (index, generation) = self.0.into_raw_parts();
+                rapier3d::data::arena::Index::from_raw_parts(index, generation)
+            }
+        }
+
+        impl Default for $type_name {
+            fn default() -> Self {
+                Self(rapier3d::data::arena::Index::from_raw_parts(
+                    usize::max_value(),
+                    u64::max_value(),
+                ))
+            }
+        }
+
+        impl $type_name {
+            /// Checks if handle is invalid.
+            pub fn is_none(&self) -> bool {
+                *self == Default::default()
+            }
+
+            /// Checks if handle is valid.
+            pub fn is_some(&self) -> bool {
+                !self.is_none()
+            }
+        }
+
+        impl Visit for $type_name {
+            fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+                visitor.enter_region(name)?;
+
+                let (index, mut generation) = self.0.into_raw_parts();
+                let mut index = index as u64;
+
+                index.visit("Index", visitor)?;
+                generation.visit("Generation", visitor)?;
+
+                if visitor.is_reading() {
+                    self.0 =
+                        rapier3d::data::arena::Index::from_raw_parts(index as usize, generation);
+                }
+
+                visitor.leave_region()
+            }
+        }
+    };
 }
+
+define_rapier_handle!(
+    #[doc="Rigid body handle wrapper."],
+    RigidBodyHandle, rapier3d::dynamics::RigidBodyHandle);
+
+define_rapier_handle!(
+    #[doc="Collider handle wrapper."],
+    ColliderHandle, rapier3d::geometry::ColliderHandle);
+
+define_rapier_handle!(
+    #[doc="Joint handle wrapper."],
+    JointHandle, rapier3d::dynamics::JointHandle);
 
 /// Physics binder is used to link graph nodes with rigid bodies. Scene will
 /// sync transform of node with its associated rigid body.

@@ -19,21 +19,20 @@ use crate::{
         raw_mesh::{RawMeshBuilder, RawVertex},
     },
 };
+use rapier3d::parry::shape::{FeatureId, SharedShape, TriMesh};
 use rapier3d::{
-    data::arena::Index,
     dynamics::{
         BallJoint, BodyStatus, FixedJoint, IntegrationParameters, Joint, JointParams, JointSet,
         PrismaticJoint, RevoluteJoint, RigidBody, RigidBodyBuilder, RigidBodySet,
     },
     geometry::{
-        BroadPhase, Collider, ColliderBuilder, ColliderSet, ColliderShape, InteractionGroups,
-        NarrowPhase, Segment, Shape, Trimesh,
+        BroadPhase, Collider, ColliderBuilder, ColliderSet, InteractionGroups, NarrowPhase,
+        Segment, Shape,
     },
     na::{
         DMatrix, Dynamic, Isometry3, Point3, Translation, Translation3, Unit, UnitQuaternion,
         VecStorage, Vector3,
     },
-    ncollide::{query, shape::FeatureId},
     pipeline::{EventHandler, PhysicsPipeline, QueryPipeline},
 };
 use rg3d_core::math::aabb::AxisAlignedBoundingBox;
@@ -195,7 +194,7 @@ impl Physics {
             let body = self.bodies.get(collider.parent()).unwrap();
             let transform = body.position().to_homogeneous();
             if let Some(trimesh) = collider.shape().as_trimesh() {
-                let trimesh: &Trimesh = trimesh;
+                let trimesh: &TriMesh = trimesh;
                 for triangle in trimesh.triangles() {
                     let a = transform.transform_point(&triangle.a);
                     let b = transform.transform_point(&triangle.b);
@@ -243,8 +242,8 @@ impl Physics {
             } else if let Some(round_cylinder) = collider.shape().as_round_cylinder() {
                 context.draw_cylinder(
                     10,
-                    round_cylinder.cylinder.radius,
-                    round_cylinder.cylinder.half_height * 2.0,
+                    round_cylinder.base_shape.radius,
+                    round_cylinder.base_shape.half_height * 2.0,
                     false,
                     transform,
                     Color::opaque(200, 200, 200),
@@ -320,7 +319,7 @@ impl Physics {
 
     /// Creates new trimesh collider shape from given mesh node. It also bakes scale into
     /// vertices of trimesh because rapier does not support collider scaling yet.
-    pub fn make_trimesh(root: Handle<Node>, graph: &Graph) -> ColliderShape {
+    pub fn make_trimesh(root: Handle<Node>, graph: &Graph) -> SharedShape {
         let mut mesh_builder = RawMeshBuilder::new(0, 0);
 
         // Create inverse transform that will discard rotation and translation, but leave scaling and
@@ -388,10 +387,10 @@ impl Physics {
         let indices = raw_mesh
             .triangles
             .into_iter()
-            .map(|t| Point3::new(t.0[0], t.0[1], t.0[2]))
-            .collect();
+            .map(|t| [t.0[0], t.0[1], t.0[2]])
+            .collect::<Vec<_>>();
 
-        ColliderShape::trimesh(vertices, indices)
+        SharedShape::trimesh(vertices, indices)
     }
 
     /// Small helper that creates static physics geometry from given mesh.
@@ -431,17 +430,18 @@ impl Physics {
         query.update(&self.bodies, &self.colliders);
 
         query_buffer.clear();
-        let ray = query::Ray::new(
+        let ray = rapier3d::geometry::Ray::new(
             Point3::from(opts.ray.origin),
             opts.ray
                 .dir
                 .try_normalize(std::f32::EPSILON)
                 .unwrap_or_default(),
         );
-        query.interferences_with_ray(
+        query.intersections_with_ray(
             &self.colliders,
             &ray,
             opts.max_len,
+            true,
             opts.groups,
             |handle, _, intersection| {
                 query_buffer.push(Intersection {
@@ -480,7 +480,7 @@ impl Physics {
         }
 
         for desc in phys_desc.colliders.drain(..) {
-            if let ColliderShapeDesc::Trimesh(_) = desc.shape {
+            if let SharedShapeDesc::Trimesh(_) = desc.shape {
                 // Trimeshes are special: we never store data for them, but only getting correct
                 // one from associated mesh in the scene.
                 if let Some(associated_node) = binder.node_of(desc.parent) {
@@ -554,7 +554,7 @@ impl Physics {
             let desc = ColliderDesc::from_collider(collider);
             // Remap handle from resource to one that was created above.
             let remapped_parent = *link.bodies.get(&desc.parent).unwrap();
-            if let (ColliderShapeDesc::Trimesh(_), Some(associated_node)) =
+            if let (SharedShapeDesc::Trimesh(_), Some(associated_node)) =
                 (desc.shape, target_binder.node_of(remapped_parent))
             {
                 if target_graph.is_valid_handle(associated_node) {
@@ -753,7 +753,7 @@ impl<C> Default for RigidBodyDesc<C> {
     }
 }
 
-impl<C: From<Index>> RigidBodyDesc<C> {
+impl<C: From<rapier3d::geometry::ColliderHandle>> RigidBodyDesc<C> {
     #[doc(hidden)]
     pub fn from_body(body: &RigidBody) -> Self {
         Self {
@@ -776,7 +776,7 @@ impl<C: From<Index>> RigidBodyDesc<C> {
                 },
                 rotation: self.rotation,
             })
-            .mass(self.mass, true)
+            .mass(self.mass)
             .linvel(self.linvel.x, self.linvel.y, self.linvel.z)
             .angvel(AngVector::new(self.angvel.x, self.angvel.y, self.angvel.z))
             .build();
@@ -989,7 +989,7 @@ impl Visit for HeightfieldDesc {
 
 #[derive(Copy, Clone, Debug)]
 #[doc(hidden)]
-pub enum ColliderShapeDesc {
+pub enum SharedShapeDesc {
     Ball(BallDesc),
     Cylinder(CylinderDesc),
     RoundCylinder(RoundCylinderDesc),
@@ -1002,41 +1002,41 @@ pub enum ColliderShapeDesc {
     Heightfield(HeightfieldDesc),
 }
 
-impl Default for ColliderShapeDesc {
+impl Default for SharedShapeDesc {
     fn default() -> Self {
         Self::Ball(Default::default())
     }
 }
 
-impl ColliderShapeDesc {
+impl SharedShapeDesc {
     #[doc(hidden)]
     pub fn id(&self) -> u32 {
         match self {
-            ColliderShapeDesc::Ball(_) => 0,
-            ColliderShapeDesc::Cylinder(_) => 1,
-            ColliderShapeDesc::RoundCylinder(_) => 2,
-            ColliderShapeDesc::Cone(_) => 3,
-            ColliderShapeDesc::Cuboid(_) => 4,
-            ColliderShapeDesc::Capsule(_) => 5,
-            ColliderShapeDesc::Segment(_) => 6,
-            ColliderShapeDesc::Triangle(_) => 7,
-            ColliderShapeDesc::Trimesh(_) => 8,
-            ColliderShapeDesc::Heightfield(_) => 9,
+            SharedShapeDesc::Ball(_) => 0,
+            SharedShapeDesc::Cylinder(_) => 1,
+            SharedShapeDesc::RoundCylinder(_) => 2,
+            SharedShapeDesc::Cone(_) => 3,
+            SharedShapeDesc::Cuboid(_) => 4,
+            SharedShapeDesc::Capsule(_) => 5,
+            SharedShapeDesc::Segment(_) => 6,
+            SharedShapeDesc::Triangle(_) => 7,
+            SharedShapeDesc::Trimesh(_) => 8,
+            SharedShapeDesc::Heightfield(_) => 9,
         }
     }
 
     fn from_id(id: u32) -> Result<Self, String> {
         match id {
-            0 => Ok(ColliderShapeDesc::Ball(Default::default())),
-            1 => Ok(ColliderShapeDesc::Cylinder(Default::default())),
-            2 => Ok(ColliderShapeDesc::RoundCylinder(Default::default())),
-            3 => Ok(ColliderShapeDesc::Cone(Default::default())),
-            4 => Ok(ColliderShapeDesc::Cuboid(Default::default())),
-            5 => Ok(ColliderShapeDesc::Capsule(Default::default())),
-            6 => Ok(ColliderShapeDesc::Segment(Default::default())),
-            7 => Ok(ColliderShapeDesc::Triangle(Default::default())),
-            8 => Ok(ColliderShapeDesc::Trimesh(Default::default())),
-            9 => Ok(ColliderShapeDesc::Heightfield(Default::default())),
+            0 => Ok(SharedShapeDesc::Ball(Default::default())),
+            1 => Ok(SharedShapeDesc::Cylinder(Default::default())),
+            2 => Ok(SharedShapeDesc::RoundCylinder(Default::default())),
+            3 => Ok(SharedShapeDesc::Cone(Default::default())),
+            4 => Ok(SharedShapeDesc::Cuboid(Default::default())),
+            5 => Ok(SharedShapeDesc::Capsule(Default::default())),
+            6 => Ok(SharedShapeDesc::Segment(Default::default())),
+            7 => Ok(SharedShapeDesc::Triangle(Default::default())),
+            8 => Ok(SharedShapeDesc::Trimesh(Default::default())),
+            9 => Ok(SharedShapeDesc::Heightfield(Default::default())),
             _ => Err(format!("Invalid collider shape desc id {}!", id)),
         }
     }
@@ -1044,89 +1044,93 @@ impl ColliderShapeDesc {
     #[doc(hidden)]
     pub fn from_collider_shape(shape: &dyn Shape) -> Self {
         if let Some(ball) = shape.as_ball() {
-            ColliderShapeDesc::Ball(BallDesc {
+            SharedShapeDesc::Ball(BallDesc {
                 radius: ball.radius,
             })
         } else if let Some(cylinder) = shape.as_cylinder() {
-            ColliderShapeDesc::Cylinder(CylinderDesc {
+            SharedShapeDesc::Cylinder(CylinderDesc {
                 half_height: cylinder.half_height,
                 radius: cylinder.radius,
             })
         } else if let Some(round_cylinder) = shape.as_round_cylinder() {
-            ColliderShapeDesc::RoundCylinder(RoundCylinderDesc {
-                half_height: round_cylinder.cylinder.half_height,
-                radius: round_cylinder.cylinder.radius,
+            SharedShapeDesc::RoundCylinder(RoundCylinderDesc {
+                half_height: round_cylinder.base_shape.half_height,
+                radius: round_cylinder.base_shape.radius,
                 border_radius: round_cylinder.border_radius,
             })
         } else if let Some(cone) = shape.as_cone() {
-            ColliderShapeDesc::Cone(ConeDesc {
+            SharedShapeDesc::Cone(ConeDesc {
                 half_height: cone.half_height,
                 radius: cone.radius,
             })
         } else if let Some(cuboid) = shape.as_cuboid() {
-            ColliderShapeDesc::Cuboid(CuboidDesc {
+            SharedShapeDesc::Cuboid(CuboidDesc {
                 half_extents: cuboid.half_extents,
             })
         } else if let Some(capsule) = shape.as_capsule() {
-            ColliderShapeDesc::Capsule(CapsuleDesc {
+            SharedShapeDesc::Capsule(CapsuleDesc {
                 begin: capsule.segment.a.coords,
                 end: capsule.segment.b.coords,
                 radius: capsule.radius,
             })
         } else if let Some(segment) = shape.downcast_ref::<Segment>() {
-            ColliderShapeDesc::Segment(SegmentDesc {
+            SharedShapeDesc::Segment(SegmentDesc {
                 begin: segment.a.coords,
                 end: segment.b.coords,
             })
         } else if let Some(triangle) = shape.as_triangle() {
-            ColliderShapeDesc::Triangle(TriangleDesc {
+            SharedShapeDesc::Triangle(TriangleDesc {
                 a: triangle.a.coords,
                 b: triangle.b.coords,
                 c: triangle.c.coords,
             })
         } else if shape.as_trimesh().is_some() {
-            ColliderShapeDesc::Trimesh(TrimeshDesc)
+            SharedShapeDesc::Trimesh(TrimeshDesc)
         } else if shape.as_heightfield().is_some() {
-            ColliderShapeDesc::Heightfield(HeightfieldDesc)
+            SharedShapeDesc::Heightfield(HeightfieldDesc)
         } else {
             unreachable!()
         }
     }
 
-    fn into_collider_shape(self) -> ColliderShape {
+    fn into_collider_shape(self) -> SharedShape {
         match self {
-            ColliderShapeDesc::Ball(ball) => ColliderShape::ball(ball.radius),
-            ColliderShapeDesc::Cylinder(cylinder) => {
-                ColliderShape::cylinder(cylinder.half_height, cylinder.radius)
+            SharedShapeDesc::Ball(ball) => SharedShape::ball(ball.radius),
+            SharedShapeDesc::Cylinder(cylinder) => {
+                SharedShape::cylinder(cylinder.half_height, cylinder.radius)
             }
-            ColliderShapeDesc::RoundCylinder(rcylinder) => ColliderShape::round_cylinder(
+            SharedShapeDesc::RoundCylinder(rcylinder) => SharedShape::round_cylinder(
                 rcylinder.half_height,
                 rcylinder.radius,
                 rcylinder.border_radius,
             ),
-            ColliderShapeDesc::Cone(cone) => ColliderShape::cone(cone.half_height, cone.radius),
-            ColliderShapeDesc::Cuboid(cuboid) => ColliderShape::cuboid(cuboid.half_extents),
-            ColliderShapeDesc::Capsule(capsule) => ColliderShape::capsule(
+            SharedShapeDesc::Cone(cone) => SharedShape::cone(cone.half_height, cone.radius),
+            SharedShapeDesc::Cuboid(cuboid) => SharedShape::cuboid(
+                cuboid.half_extents.x,
+                cuboid.half_extents.y,
+                cuboid.half_extents.z,
+            ),
+            SharedShapeDesc::Capsule(capsule) => SharedShape::capsule(
                 Point3::from(capsule.begin),
                 Point3::from(capsule.end),
                 capsule.radius,
             ),
-            ColliderShapeDesc::Segment(segment) => {
-                ColliderShape::segment(Point3::from(segment.begin), Point3::from(segment.end))
+            SharedShapeDesc::Segment(segment) => {
+                SharedShape::segment(Point3::from(segment.begin), Point3::from(segment.end))
             }
-            ColliderShapeDesc::Triangle(triangle) => ColliderShape::triangle(
+            SharedShapeDesc::Triangle(triangle) => SharedShape::triangle(
                 Point3::from(triangle.a),
                 Point3::from(triangle.b),
                 Point3::from(triangle.c),
             ),
-            ColliderShapeDesc::Trimesh(_) => {
+            SharedShapeDesc::Trimesh(_) => {
                 // Create fake trimesh. It will be filled with actual data on resolve stage later on.
                 let a = Point3::new(0.0, 0.0, 1.0);
                 let b = Point3::new(1.0, 0.0, 1.0);
                 let c = Point3::new(1.0, 0.0, 0.0);
-                ColliderShape::trimesh(vec![a, b, c], vec![Point3::new(0, 1, 2)])
+                SharedShape::trimesh(vec![a, b, c], vec![[0, 1, 2]])
             }
-            ColliderShapeDesc::Heightfield(_) => ColliderShape::heightfield(
+            SharedShapeDesc::Heightfield(_) => SharedShape::heightfield(
                 DMatrix::from_data(VecStorage::new(
                     Dynamic::new(2),
                     Dynamic::new(2),
@@ -1138,7 +1142,7 @@ impl ColliderShapeDesc {
     }
 }
 
-impl Visit for ColliderShapeDesc {
+impl Visit for SharedShapeDesc {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
@@ -1148,16 +1152,16 @@ impl Visit for ColliderShapeDesc {
             *self = Self::from_id(id)?;
         }
         match self {
-            ColliderShapeDesc::Ball(v) => v.visit(name, visitor)?,
-            ColliderShapeDesc::Cylinder(v) => v.visit(name, visitor)?,
-            ColliderShapeDesc::RoundCylinder(v) => v.visit(name, visitor)?,
-            ColliderShapeDesc::Cone(v) => v.visit(name, visitor)?,
-            ColliderShapeDesc::Cuboid(v) => v.visit(name, visitor)?,
-            ColliderShapeDesc::Capsule(v) => v.visit(name, visitor)?,
-            ColliderShapeDesc::Segment(v) => v.visit(name, visitor)?,
-            ColliderShapeDesc::Triangle(v) => v.visit(name, visitor)?,
-            ColliderShapeDesc::Trimesh(v) => v.visit(name, visitor)?,
-            ColliderShapeDesc::Heightfield(v) => v.visit(name, visitor)?,
+            SharedShapeDesc::Ball(v) => v.visit(name, visitor)?,
+            SharedShapeDesc::Cylinder(v) => v.visit(name, visitor)?,
+            SharedShapeDesc::RoundCylinder(v) => v.visit(name, visitor)?,
+            SharedShapeDesc::Cone(v) => v.visit(name, visitor)?,
+            SharedShapeDesc::Cuboid(v) => v.visit(name, visitor)?,
+            SharedShapeDesc::Capsule(v) => v.visit(name, visitor)?,
+            SharedShapeDesc::Segment(v) => v.visit(name, visitor)?,
+            SharedShapeDesc::Triangle(v) => v.visit(name, visitor)?,
+            SharedShapeDesc::Trimesh(v) => v.visit(name, visitor)?,
+            SharedShapeDesc::Heightfield(v) => v.visit(name, visitor)?,
         }
 
         visitor.leave_region()
@@ -1167,7 +1171,7 @@ impl Visit for ColliderShapeDesc {
 #[derive(Clone, Debug)]
 #[doc(hidden)]
 pub struct ColliderDesc<R> {
-    pub shape: ColliderShapeDesc,
+    pub shape: SharedShapeDesc,
     pub parent: R,
     pub friction: f32,
     pub density: f32,
@@ -1196,10 +1200,10 @@ impl<R: Default> Default for ColliderDesc<R> {
     }
 }
 
-impl<R: From<Index>> ColliderDesc<R> {
+impl<R: From<rapier3d::dynamics::RigidBodyHandle>> ColliderDesc<R> {
     fn from_collider(collider: &Collider) -> Self {
         Self {
-            shape: ColliderShapeDesc::from_collider_shape(collider.shape()),
+            shape: SharedShapeDesc::from_collider_shape(collider.shape()),
             parent: R::from(collider.parent()),
             friction: collider.friction,
             density: collider.density(),
@@ -1304,7 +1308,7 @@ pub struct IntegrationParametersDesc {
 impl From<IntegrationParameters> for IntegrationParametersDesc {
     fn from(params: IntegrationParameters) -> Self {
         Self {
-            dt: params.dt(),
+            dt: params.dt,
             return_after_ccd_substep: params.return_after_ccd_substep,
             erp: params.erp,
             joint_erp: params.joint_erp,
@@ -1330,26 +1334,28 @@ impl From<IntegrationParameters> for IntegrationParametersDesc {
 
 impl Into<IntegrationParameters> for IntegrationParametersDesc {
     fn into(self) -> IntegrationParameters {
-        IntegrationParameters::new(
-            self.dt,
-            self.erp,
-            self.joint_erp,
-            self.warmstart_coeff,
-            self.restitution_velocity_threshold,
-            self.allowed_linear_error,
-            self.allowed_angular_error,
-            self.max_linear_correction,
-            self.max_angular_correction,
-            self.prediction_distance,
-            self.max_stabilization_multiplier,
-            self.max_velocity_iterations as usize,
-            self.max_position_iterations as usize,
-            self.max_ccd_position_iterations as usize,
-            self.max_ccd_substeps as usize,
-            self.return_after_ccd_substep,
-            self.multiple_ccd_substep_sensor_events_enabled,
-            self.ccd_on_penetration_enabled,
-        )
+        IntegrationParameters {
+            dt: self.dt,
+            erp: self.erp,
+            joint_erp: self.joint_erp,
+            warmstart_coeff: self.warmstart_coeff,
+            restitution_velocity_threshold: self.restitution_velocity_threshold,
+            allowed_linear_error: self.allowed_linear_error,
+            allowed_angular_error: self.allowed_angular_error,
+            max_linear_correction: self.max_linear_correction,
+            max_angular_correction: self.max_angular_correction,
+            prediction_distance: self.prediction_distance,
+            max_stabilization_multiplier: self.max_stabilization_multiplier,
+            max_velocity_iterations: self.max_velocity_iterations as usize,
+            max_position_iterations: self.max_position_iterations as usize,
+            max_ccd_position_iterations: self.max_ccd_position_iterations as usize,
+            max_ccd_substeps: self.max_ccd_substeps as usize,
+            return_after_ccd_substep: self.return_after_ccd_substep,
+            multiple_ccd_substep_sensor_events_enabled: self
+                .multiple_ccd_substep_sensor_events_enabled,
+            ccd_on_penetration_enabled: self.ccd_on_penetration_enabled,
+            ..Default::default()
+        }
     }
 }
 
@@ -1622,7 +1628,7 @@ pub struct JointDesc<R> {
     pub params: JointParamsDesc,
 }
 
-impl<R: From<Index>> JointDesc<R> {
+impl<R: From<rapier3d::dynamics::RigidBodyHandle>> JointDesc<R> {
     #[doc(hidden)]
     pub fn from_joint(joint: &Joint) -> Self {
         Self {
