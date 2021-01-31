@@ -480,7 +480,7 @@ impl Physics {
         }
 
         for desc in phys_desc.colliders.drain(..) {
-            if let SharedShapeDesc::Trimesh(_) = desc.shape {
+            if let ColliderShapeDesc::Trimesh(_) = desc.shape {
                 // Trimeshes are special: we never store data for them, but only getting correct
                 // one from associated mesh in the scene.
                 if let Some(associated_node) = binder.node_of(desc.parent) {
@@ -554,7 +554,7 @@ impl Physics {
             let desc = ColliderDesc::from_collider(collider);
             // Remap handle from resource to one that was created above.
             let remapped_parent = *link.bodies.get(&desc.parent).unwrap();
-            if let (SharedShapeDesc::Trimesh(_), Some(associated_node)) =
+            if let (ColliderShapeDesc::Trimesh(_), Some(associated_node)) =
                 (desc.shape, target_binder.node_of(remapped_parent))
             {
                 if target_graph.is_valid_handle(associated_node) {
@@ -989,7 +989,7 @@ impl Visit for HeightfieldDesc {
 
 #[derive(Copy, Clone, Debug)]
 #[doc(hidden)]
-pub enum SharedShapeDesc {
+pub enum ColliderShapeDesc {
     Ball(BallDesc),
     Cylinder(CylinderDesc),
     RoundCylinder(RoundCylinderDesc),
@@ -1002,41 +1002,41 @@ pub enum SharedShapeDesc {
     Heightfield(HeightfieldDesc),
 }
 
-impl Default for SharedShapeDesc {
+impl Default for ColliderShapeDesc {
     fn default() -> Self {
         Self::Ball(Default::default())
     }
 }
 
-impl SharedShapeDesc {
+impl ColliderShapeDesc {
     #[doc(hidden)]
     pub fn id(&self) -> u32 {
         match self {
-            SharedShapeDesc::Ball(_) => 0,
-            SharedShapeDesc::Cylinder(_) => 1,
-            SharedShapeDesc::RoundCylinder(_) => 2,
-            SharedShapeDesc::Cone(_) => 3,
-            SharedShapeDesc::Cuboid(_) => 4,
-            SharedShapeDesc::Capsule(_) => 5,
-            SharedShapeDesc::Segment(_) => 6,
-            SharedShapeDesc::Triangle(_) => 7,
-            SharedShapeDesc::Trimesh(_) => 8,
-            SharedShapeDesc::Heightfield(_) => 9,
+            ColliderShapeDesc::Ball(_) => 0,
+            ColliderShapeDesc::Cylinder(_) => 1,
+            ColliderShapeDesc::RoundCylinder(_) => 2,
+            ColliderShapeDesc::Cone(_) => 3,
+            ColliderShapeDesc::Cuboid(_) => 4,
+            ColliderShapeDesc::Capsule(_) => 5,
+            ColliderShapeDesc::Segment(_) => 6,
+            ColliderShapeDesc::Triangle(_) => 7,
+            ColliderShapeDesc::Trimesh(_) => 8,
+            ColliderShapeDesc::Heightfield(_) => 9,
         }
     }
 
     fn from_id(id: u32) -> Result<Self, String> {
         match id {
-            0 => Ok(SharedShapeDesc::Ball(Default::default())),
-            1 => Ok(SharedShapeDesc::Cylinder(Default::default())),
-            2 => Ok(SharedShapeDesc::RoundCylinder(Default::default())),
-            3 => Ok(SharedShapeDesc::Cone(Default::default())),
-            4 => Ok(SharedShapeDesc::Cuboid(Default::default())),
-            5 => Ok(SharedShapeDesc::Capsule(Default::default())),
-            6 => Ok(SharedShapeDesc::Segment(Default::default())),
-            7 => Ok(SharedShapeDesc::Triangle(Default::default())),
-            8 => Ok(SharedShapeDesc::Trimesh(Default::default())),
-            9 => Ok(SharedShapeDesc::Heightfield(Default::default())),
+            0 => Ok(ColliderShapeDesc::Ball(Default::default())),
+            1 => Ok(ColliderShapeDesc::Cylinder(Default::default())),
+            2 => Ok(ColliderShapeDesc::RoundCylinder(Default::default())),
+            3 => Ok(ColliderShapeDesc::Cone(Default::default())),
+            4 => Ok(ColliderShapeDesc::Cuboid(Default::default())),
+            5 => Ok(ColliderShapeDesc::Capsule(Default::default())),
+            6 => Ok(ColliderShapeDesc::Segment(Default::default())),
+            7 => Ok(ColliderShapeDesc::Triangle(Default::default())),
+            8 => Ok(ColliderShapeDesc::Trimesh(Default::default())),
+            9 => Ok(ColliderShapeDesc::Heightfield(Default::default())),
             _ => Err(format!("Invalid collider shape desc id {}!", id)),
         }
     }
@@ -1044,50 +1044,50 @@ impl SharedShapeDesc {
     #[doc(hidden)]
     pub fn from_collider_shape(shape: &dyn Shape) -> Self {
         if let Some(ball) = shape.as_ball() {
-            SharedShapeDesc::Ball(BallDesc {
+            ColliderShapeDesc::Ball(BallDesc {
                 radius: ball.radius,
             })
         } else if let Some(cylinder) = shape.as_cylinder() {
-            SharedShapeDesc::Cylinder(CylinderDesc {
+            ColliderShapeDesc::Cylinder(CylinderDesc {
                 half_height: cylinder.half_height,
                 radius: cylinder.radius,
             })
         } else if let Some(round_cylinder) = shape.as_round_cylinder() {
-            SharedShapeDesc::RoundCylinder(RoundCylinderDesc {
+            ColliderShapeDesc::RoundCylinder(RoundCylinderDesc {
                 half_height: round_cylinder.base_shape.half_height,
                 radius: round_cylinder.base_shape.radius,
                 border_radius: round_cylinder.border_radius,
             })
         } else if let Some(cone) = shape.as_cone() {
-            SharedShapeDesc::Cone(ConeDesc {
+            ColliderShapeDesc::Cone(ConeDesc {
                 half_height: cone.half_height,
                 radius: cone.radius,
             })
         } else if let Some(cuboid) = shape.as_cuboid() {
-            SharedShapeDesc::Cuboid(CuboidDesc {
+            ColliderShapeDesc::Cuboid(CuboidDesc {
                 half_extents: cuboid.half_extents,
             })
         } else if let Some(capsule) = shape.as_capsule() {
-            SharedShapeDesc::Capsule(CapsuleDesc {
+            ColliderShapeDesc::Capsule(CapsuleDesc {
                 begin: capsule.segment.a.coords,
                 end: capsule.segment.b.coords,
                 radius: capsule.radius,
             })
         } else if let Some(segment) = shape.downcast_ref::<Segment>() {
-            SharedShapeDesc::Segment(SegmentDesc {
+            ColliderShapeDesc::Segment(SegmentDesc {
                 begin: segment.a.coords,
                 end: segment.b.coords,
             })
         } else if let Some(triangle) = shape.as_triangle() {
-            SharedShapeDesc::Triangle(TriangleDesc {
+            ColliderShapeDesc::Triangle(TriangleDesc {
                 a: triangle.a.coords,
                 b: triangle.b.coords,
                 c: triangle.c.coords,
             })
         } else if shape.as_trimesh().is_some() {
-            SharedShapeDesc::Trimesh(TrimeshDesc)
+            ColliderShapeDesc::Trimesh(TrimeshDesc)
         } else if shape.as_heightfield().is_some() {
-            SharedShapeDesc::Heightfield(HeightfieldDesc)
+            ColliderShapeDesc::Heightfield(HeightfieldDesc)
         } else {
             unreachable!()
         }
@@ -1095,42 +1095,42 @@ impl SharedShapeDesc {
 
     fn into_collider_shape(self) -> SharedShape {
         match self {
-            SharedShapeDesc::Ball(ball) => SharedShape::ball(ball.radius),
-            SharedShapeDesc::Cylinder(cylinder) => {
+            ColliderShapeDesc::Ball(ball) => SharedShape::ball(ball.radius),
+            ColliderShapeDesc::Cylinder(cylinder) => {
                 SharedShape::cylinder(cylinder.half_height, cylinder.radius)
             }
-            SharedShapeDesc::RoundCylinder(rcylinder) => SharedShape::round_cylinder(
+            ColliderShapeDesc::RoundCylinder(rcylinder) => SharedShape::round_cylinder(
                 rcylinder.half_height,
                 rcylinder.radius,
                 rcylinder.border_radius,
             ),
-            SharedShapeDesc::Cone(cone) => SharedShape::cone(cone.half_height, cone.radius),
-            SharedShapeDesc::Cuboid(cuboid) => SharedShape::cuboid(
+            ColliderShapeDesc::Cone(cone) => SharedShape::cone(cone.half_height, cone.radius),
+            ColliderShapeDesc::Cuboid(cuboid) => SharedShape::cuboid(
                 cuboid.half_extents.x,
                 cuboid.half_extents.y,
                 cuboid.half_extents.z,
             ),
-            SharedShapeDesc::Capsule(capsule) => SharedShape::capsule(
+            ColliderShapeDesc::Capsule(capsule) => SharedShape::capsule(
                 Point3::from(capsule.begin),
                 Point3::from(capsule.end),
                 capsule.radius,
             ),
-            SharedShapeDesc::Segment(segment) => {
+            ColliderShapeDesc::Segment(segment) => {
                 SharedShape::segment(Point3::from(segment.begin), Point3::from(segment.end))
             }
-            SharedShapeDesc::Triangle(triangle) => SharedShape::triangle(
+            ColliderShapeDesc::Triangle(triangle) => SharedShape::triangle(
                 Point3::from(triangle.a),
                 Point3::from(triangle.b),
                 Point3::from(triangle.c),
             ),
-            SharedShapeDesc::Trimesh(_) => {
+            ColliderShapeDesc::Trimesh(_) => {
                 // Create fake trimesh. It will be filled with actual data on resolve stage later on.
                 let a = Point3::new(0.0, 0.0, 1.0);
                 let b = Point3::new(1.0, 0.0, 1.0);
                 let c = Point3::new(1.0, 0.0, 0.0);
                 SharedShape::trimesh(vec![a, b, c], vec![[0, 1, 2]])
             }
-            SharedShapeDesc::Heightfield(_) => SharedShape::heightfield(
+            ColliderShapeDesc::Heightfield(_) => SharedShape::heightfield(
                 DMatrix::from_data(VecStorage::new(
                     Dynamic::new(2),
                     Dynamic::new(2),
@@ -1142,7 +1142,7 @@ impl SharedShapeDesc {
     }
 }
 
-impl Visit for SharedShapeDesc {
+impl Visit for ColliderShapeDesc {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
@@ -1152,16 +1152,16 @@ impl Visit for SharedShapeDesc {
             *self = Self::from_id(id)?;
         }
         match self {
-            SharedShapeDesc::Ball(v) => v.visit(name, visitor)?,
-            SharedShapeDesc::Cylinder(v) => v.visit(name, visitor)?,
-            SharedShapeDesc::RoundCylinder(v) => v.visit(name, visitor)?,
-            SharedShapeDesc::Cone(v) => v.visit(name, visitor)?,
-            SharedShapeDesc::Cuboid(v) => v.visit(name, visitor)?,
-            SharedShapeDesc::Capsule(v) => v.visit(name, visitor)?,
-            SharedShapeDesc::Segment(v) => v.visit(name, visitor)?,
-            SharedShapeDesc::Triangle(v) => v.visit(name, visitor)?,
-            SharedShapeDesc::Trimesh(v) => v.visit(name, visitor)?,
-            SharedShapeDesc::Heightfield(v) => v.visit(name, visitor)?,
+            ColliderShapeDesc::Ball(v) => v.visit(name, visitor)?,
+            ColliderShapeDesc::Cylinder(v) => v.visit(name, visitor)?,
+            ColliderShapeDesc::RoundCylinder(v) => v.visit(name, visitor)?,
+            ColliderShapeDesc::Cone(v) => v.visit(name, visitor)?,
+            ColliderShapeDesc::Cuboid(v) => v.visit(name, visitor)?,
+            ColliderShapeDesc::Capsule(v) => v.visit(name, visitor)?,
+            ColliderShapeDesc::Segment(v) => v.visit(name, visitor)?,
+            ColliderShapeDesc::Triangle(v) => v.visit(name, visitor)?,
+            ColliderShapeDesc::Trimesh(v) => v.visit(name, visitor)?,
+            ColliderShapeDesc::Heightfield(v) => v.visit(name, visitor)?,
         }
 
         visitor.leave_region()
@@ -1171,7 +1171,7 @@ impl Visit for SharedShapeDesc {
 #[derive(Clone, Debug)]
 #[doc(hidden)]
 pub struct ColliderDesc<R> {
-    pub shape: SharedShapeDesc,
+    pub shape: ColliderShapeDesc,
     pub parent: R,
     pub friction: f32,
     pub density: f32,
@@ -1203,7 +1203,7 @@ impl<R: Default> Default for ColliderDesc<R> {
 impl<R: From<rapier3d::dynamics::RigidBodyHandle>> ColliderDesc<R> {
     fn from_collider(collider: &Collider) -> Self {
         Self {
-            shape: SharedShapeDesc::from_collider_shape(collider.shape()),
+            shape: ColliderShapeDesc::from_collider_shape(collider.shape()),
             parent: R::from(collider.parent()),
             friction: collider.friction,
             density: collider.density(),
