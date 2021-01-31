@@ -444,7 +444,11 @@ impl Animation {
         let new_time_position = current_time_position + dt * self.get_speed();
 
         for signal in self.signals.iter_mut() {
-            if current_time_position < signal.time && new_time_position >= signal.time {
+            if self.speed >= 0.0
+                && (current_time_position < signal.time && new_time_position >= signal.time)
+                || self.speed < 0.0
+                    && (current_time_position > signal.time && new_time_position <= signal.time)
+            {
                 // TODO: Make this configurable.
                 if self.events.len() < 32 {
                     self.events.push_back(AnimationEvent {
