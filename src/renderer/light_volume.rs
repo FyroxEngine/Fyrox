@@ -1,7 +1,8 @@
 use crate::{
     core::{
-        algebra::{Matrix4, Vector3},
+        algebra::{Matrix4, Point3, Vector3},
         math::Rect,
+        pool::Handle,
         scope_profile,
     },
     renderer::{
@@ -17,9 +18,8 @@ use crate::{
         surface::SurfaceSharedData,
         GeometryCache, RenderPassStatistics,
     },
-    scene::light::Light,
+    scene::{graph::Graph, light::Light, node::Node},
 };
-use rapier3d::na::Point3;
 
 struct SpotLightShader {
     program: GpuProgram,
@@ -112,6 +112,7 @@ impl LightVolumeRenderer {
         &mut self,
         state: &mut PipelineState,
         light: &Light,
+        light_handle: Handle<Node>,
         gbuffer: &mut GBuffer,
         quad: &SurfaceSharedData,
         geom_cache: &mut GeometryCache,
@@ -119,6 +120,7 @@ impl LightVolumeRenderer {
         inv_proj: Matrix4<f32>,
         view_proj: Matrix4<f32>,
         viewport: Rect<i32>,
+        graph: &Graph,
     ) -> RenderPassStatistics {
         scope_profile!();
 
@@ -160,9 +162,9 @@ impl LightVolumeRenderer {
 
                 // Angle bias is used to to slightly increase cone radius to add small margin
                 // for fadeout effect.
-                let bias = 0.05;
-                let k = ((0.5 + bias) * spot.full_cone_angle()).sin() * spot.distance();
-                let light_shape_matrix = light.global_transform()
+                let bias = 4.0f32.to_radians();
+                let k = (2.0 * (spot.full_cone_angle() + bias)).tan() * spot.distance();
+                let light_shape_matrix = graph.global_transform_no_scale(light_handle)
                     * Matrix4::new_nonuniform_scaling(&Vector3::new(k, spot.distance(), k));
                 let mvp = view_proj * light_shape_matrix;
 
