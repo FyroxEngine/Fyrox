@@ -1,22 +1,23 @@
 pub mod machine;
 
-use crate::core::algebra::{UnitQuaternion, Vector3};
-use crate::core::pool::Ticket;
-use crate::utils::log::MessageKind;
 use crate::{
     core::{
+        algebra::{UnitQuaternion, Vector3},
         math::{clampf, wrapf},
         pool::{
             Handle, Pool, PoolIterator, PoolIteratorMut, PoolPairIterator, PoolPairIteratorMut,
+            Ticket,
         },
         visitor::{Visit, VisitResult, Visitor},
     },
-    resource::model::Model,
-    resource::ResourceState,
+    resource::{model::Model, ResourceState},
     scene::{graph::Graph, node::Node},
-    utils::log::Log,
+    utils::log::{Log, MessageKind},
 };
-use std::collections::{HashMap, VecDeque};
+use std::{
+    collections::{HashMap, VecDeque},
+    ops::{Index, IndexMut},
+};
 
 #[derive(Copy, Clone, Debug)]
 pub struct KeyFrame {
@@ -784,5 +785,19 @@ impl Visit for AnimationContainer {
         self.pool.visit("Pool", visitor)?;
 
         visitor.leave_region()
+    }
+}
+
+impl Index<Handle<Animation>> for AnimationContainer {
+    type Output = Animation;
+
+    fn index(&self, index: Handle<Animation>) -> &Self::Output {
+        &self.pool[index]
+    }
+}
+
+impl IndexMut<Handle<Animation>> for AnimationContainer {
+    fn index_mut(&mut self, index: Handle<Animation>) -> &mut Self::Output {
+        &mut self.pool[index]
     }
 }
