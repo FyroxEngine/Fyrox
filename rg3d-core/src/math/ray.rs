@@ -81,16 +81,15 @@ pub enum CylinderKind {
 impl Ray {
     /// Creates ray from two points. May fail if begin == end.
     #[inline]
-    pub fn from_two_points(begin: &Vector3<f32>, end: &Vector3<f32>) -> Option<Ray> {
-        let dir = end - begin;
-        if dir.norm() >= std::f32::EPSILON {
-            Some(Ray {
-                origin: *begin,
-                dir,
-            })
-        } else {
-            None
+    pub fn from_two_points(begin: Vector3<f32>, end: Vector3<f32>) -> Self {
+        Ray {
+            origin: begin,
+            dir: end - begin,
         }
+    }
+
+    pub fn new(origin: Vector3<f32>, dir: Vector3<f32>) -> Self {
+        Self { origin, dir }
     }
 
     /// Checks intersection with sphere. Returns two intersection points or none

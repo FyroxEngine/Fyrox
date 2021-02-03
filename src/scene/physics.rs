@@ -1,25 +1,24 @@
 //! Contains all structures and methods to operate with physics world.
 
-use crate::core::pool::Handle;
-use crate::resource::model::Model;
-use crate::utils::log::MessageKind;
+use crate::core::arrayvec::{Array, ArrayVec};
 use crate::{
     core::{
         color::Color,
-        math::ray::Ray,
+        math::{aabb::AxisAlignedBoundingBox, ray::Ray},
+        pool::Handle,
         visitor::{Visit, VisitResult, Visitor},
     },
     physics::math::AngVector,
+    resource::model::Model,
     scene::{
         graph::Graph, node::Node, ColliderHandle, JointHandle, PhysicsBinder, RigidBodyHandle,
         SceneDrawingContext,
     },
     utils::{
-        log::Log,
+        log::{Log, MessageKind},
         raw_mesh::{RawMeshBuilder, RawVertex},
     },
 };
-use rapier3d::parry::shape::{FeatureId, SharedShape, TriMesh};
 use rapier3d::{
     dynamics::{
         BallJoint, BodyStatus, FixedJoint, IntegrationParameters, Joint, JointParams, JointSet,
@@ -33,13 +32,13 @@ use rapier3d::{
         DMatrix, Dynamic, Isometry3, Point3, Translation, Translation3, Unit, UnitQuaternion,
         VecStorage, Vector3,
     },
+    parry::shape::{FeatureId, SharedShape, TriMesh},
     pipeline::{EventHandler, PhysicsPipeline, QueryPipeline},
 };
-use rg3d_core::math::aabb::AxisAlignedBoundingBox;
-use std::collections::HashMap;
 use std::{
     cell::RefCell,
     cmp::Ordering,
+    collections::HashMap,
     fmt::{Debug, Formatter},
 };
 
@@ -153,6 +152,59 @@ impl Debug for Physics {
 impl Default for Physics {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// A trait for ray cast results storage. It has two implementations: Vec and ArrayVec.
+/// Latter is needed for the cases where you need to avoid runtime memory allocations
+/// and do everything on stack.
+pub trait QueryResultsStorage {
+    /// Pushes new intersection in the storage. Returns true if intersection was
+    /// successfully inserted, false otherwise.
+    fn push(&mut self, intersection: Intersection) -> bool;
+
+    /// Clears the storage.
+    fn clear(&mut self);
+
+    /// Sorts intersections by given compare function.
+    fn sort_intersections_by<C: FnMut(&Intersection, &Intersection) -> Ordering>(&mut self, cmp: C);
+}
+
+impl QueryResultsStorage for Vec<Intersection> {
+    fn push(&mut self, intersection: Intersection) -> bool {
+        self.push(intersection);
+        true
+    }
+
+    fn clear(&mut self) {
+        self.clear()
+    }
+
+    fn sort_intersections_by<C>(&mut self, cmp: C)
+    where
+        C: FnMut(&Intersection, &Intersection) -> Ordering,
+    {
+        self.sort_by(cmp);
+    }
+}
+
+impl<A: Array<Item = Intersection>> QueryResultsStorage for ArrayVec<A> {
+    fn push(&mut self, intersection: Intersection) -> bool {
+        match self.try_push(intersection) {
+            Ok(_) => true,
+            Err(_) => false,
+        }
+    }
+
+    fn clear(&mut self) {
+        self.clear()
+    }
+
+    fn sort_intersections_by<C>(&mut self, cmp: C)
+    where
+        C: FnMut(&Intersection, &Intersection) -> Ordering,
+    {
+        self.sort_by(cmp);
     }
 }
 
@@ -419,7 +471,7 @@ impl Physics {
     }
 
     /// Casts a ray with given options.
-    pub fn cast_ray(&self, opts: RayCastOptions, query_buffer: &mut Vec<Intersection>) {
+    pub fn cast_ray<S: QueryResultsStorage>(&self, opts: RayCastOptions, query_buffer: &mut S) {
         let mut query = self.query.borrow_mut();
 
         // TODO: Ideally this must be called once per frame, but it seems to be impossible because
@@ -450,12 +502,11 @@ impl Physics {
                     position: ray.point_at(intersection.toi),
                     feature: intersection.feature,
                     toi: intersection.toi,
-                });
-                true
+                })
             },
         );
         if opts.sort_results {
-            query_buffer.sort_by(|a, b| {
+            query_buffer.sort_intersections_by(|a, b| {
                 if a.toi > b.toi {
                     Ordering::Greater
                 } else if a.toi < b.toi {

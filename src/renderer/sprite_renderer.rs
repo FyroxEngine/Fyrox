@@ -97,13 +97,17 @@ impl SpriteRenderer {
         let camera_up = inv_view.up();
         let camera_side = inv_view.side();
 
-        for node in graph.linear_iter() {
-            let sprite = if let Node::Sprite(sprite) = node {
-                sprite
-            } else {
-                continue;
-            };
+        for sprite in graph.linear_iter().filter_map(|node| {
+            if !node.global_visibility() {
+                return None;
+            }
 
+            if let Node::Sprite(sprite) = node {
+                Some(sprite)
+            } else {
+                None
+            }
+        }) {
             let diffuse_texture = if let Some(texture) = sprite.texture() {
                 if let Some(texture) = textures.get(state, texture) {
                     texture
@@ -142,7 +146,7 @@ impl SpriteRenderer {
                     ),
                     (
                         self.shader.world_matrix,
-                        UniformValue::Matrix4(node.global_transform()),
+                        UniformValue::Matrix4(sprite.global_transform()),
                     ),
                     (
                         self.shader.camera_up_vector,

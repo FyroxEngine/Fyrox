@@ -253,7 +253,7 @@ impl Camera {
         let far = inv_view_proj * Vector4::new(nx, ny, 1.0, 1.0);
         let begin = near.xyz().scale(1.0 / near.w);
         let end = far.xyz().scale(1.0 / far.w);
-        Ray::from_two_points(&begin, &end).unwrap_or_default()
+        Ray::from_two_points(begin, end)
     }
 
     /// Projects given world space point on screen plane.

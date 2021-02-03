@@ -715,39 +715,38 @@ fn generate_lightmap(
                     if attenuation >= 0.01 {
                         let mut query_buffer = ArrayVec::<[Handle<OctreeNode>; 64]>::new();
                         let shadow_bias = 0.01;
-                        if let Some(ray) = Ray::from_two_points(&light_position, &world_position) {
-                            'outer_loop: for other_instance in other_instances {
-                                other_instance
-                                    .data()
-                                    .octree
-                                    .ray_query_static(&ray, &mut query_buffer);
-                                for &node in query_buffer.iter() {
-                                    match other_instance.data().octree.node(node) {
-                                        OctreeNode::Leaf { indices, .. } => {
-                                            let other_data = other_instance.data();
-                                            for &triangle_index in indices {
-                                                let triangle =
-                                                    &other_data.triangles[triangle_index as usize];
-                                                let va = other_data.vertices[triangle[0] as usize]
-                                                    .world_position;
-                                                let vb = other_data.vertices[triangle[1] as usize]
-                                                    .world_position;
-                                                let vc = other_data.vertices[triangle[2] as usize]
-                                                    .world_position;
-                                                if let Some(pt) =
-                                                    ray.triangle_intersection(&[va, vb, vc])
+                        let ray = Ray::from_two_points(light_position, world_position);
+                        'outer_loop: for other_instance in other_instances {
+                            other_instance
+                                .data()
+                                .octree
+                                .ray_query_static(&ray, &mut query_buffer);
+                            for &node in query_buffer.iter() {
+                                match other_instance.data().octree.node(node) {
+                                    OctreeNode::Leaf { indices, .. } => {
+                                        let other_data = other_instance.data();
+                                        for &triangle_index in indices {
+                                            let triangle =
+                                                &other_data.triangles[triangle_index as usize];
+                                            let va = other_data.vertices[triangle[0] as usize]
+                                                .world_position;
+                                            let vb = other_data.vertices[triangle[1] as usize]
+                                                .world_position;
+                                            let vc = other_data.vertices[triangle[2] as usize]
+                                                .world_position;
+                                            if let Some(pt) =
+                                                ray.triangle_intersection(&[va, vb, vc])
+                                            {
+                                                if ray.origin.metric_distance(&pt) + shadow_bias
+                                                    < ray.dir.norm()
                                                 {
-                                                    if ray.origin.metric_distance(&pt) + shadow_bias
-                                                        < ray.dir.norm()
-                                                    {
-                                                        attenuation = 0.0;
-                                                        break 'outer_loop;
-                                                    }
+                                                    attenuation = 0.0;
+                                                    break 'outer_loop;
                                                 }
                                             }
                                         }
-                                        OctreeNode::Branch { .. } => unreachable!(),
                                     }
+                                    OctreeNode::Branch { .. } => unreachable!(),
                                 }
                             }
                         }
