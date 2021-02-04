@@ -635,7 +635,13 @@ impl SmoothAngle {
     }
 
     pub fn distance(&self) -> f32 {
-        self.target - self.angle
+        let diff = (self.target - self.angle + std::f32::consts::PI) % std::f32::consts::TAU
+            - std::f32::consts::PI;
+        if diff < -std::f32::consts::PI {
+            diff + std::f32::consts::TAU
+        } else {
+            diff
+        }
     }
 
     fn turn_direction(&self) -> f32 {
