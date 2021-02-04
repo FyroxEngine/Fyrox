@@ -31,7 +31,10 @@ mod sprite_renderer;
 mod ssao;
 mod ui_renderer;
 
+use crate::gui::message::MessageData;
+use crate::gui::{Control, UserInterface};
 use crate::renderer::forward_renderer::{ForwardRenderContext, ForwardRenderer};
+use crate::renderer::framework::framebuffer::{Attachment, AttachmentKind, FrameBuffer};
 use crate::utils::log::{Log, MessageKind};
 use crate::{
     core::{
@@ -408,13 +411,16 @@ pub struct Renderer {
     quality_settings: QualitySettings,
     /// Debug renderer instance can be used for debugging purposes
     pub debug_renderer: DebugRenderer,
-    /// Camera to G-buffer mapping.
-    gbuffers: HashMap<Handle<Scene>, GBuffer>,
+    /// Scene -> G-buffer mapping.
+    scene_to_gbuffer_map: HashMap<Handle<Scene>, GBuffer>,
     backbuffer_clear_color: Color,
     texture_cache: TextureCache,
     geometry_cache: GeometryCache,
     batch_storage: BatchStorage,
     forward_renderer: ForwardRenderer,
+    /// TextureId -> FrameBuffer mapping. This mapping is used for temporal frame buffers
+    /// like ones used to render UI instances.
+    ui_frame_buffers: HashMap<usize, FrameBuffer>,
 }
 
 #[derive(Default)]
@@ -658,6 +664,53 @@ impl TextureCache {
     fn clear(&mut self) {
         self.map.clear();
     }
+
+    fn unload(&mut self, texture: Texture) {
+        self.map.remove(&texture.key());
+    }
+}
+
+fn make_ui_frame_buffer(
+    frame_size: Vector2<f32>,
+    state: &mut PipelineState,
+) -> Result<FrameBuffer, RendererError> {
+    let color_texture = Rc::new(RefCell::new(GpuTexture::new(
+        state,
+        GpuTextureKind::Rectangle {
+            width: frame_size.x as usize,
+            height: frame_size.y as usize,
+        },
+        PixelKind::RGBA8,
+        MinificationFilter::Linear,
+        MagnificationFilter::Linear,
+        1,
+        None,
+    )?));
+
+    let depth_stencil = Rc::new(RefCell::new(GpuTexture::new(
+        state,
+        GpuTextureKind::Rectangle {
+            width: frame_size.x as usize,
+            height: frame_size.y as usize,
+        },
+        PixelKind::D24S8,
+        MinificationFilter::Nearest,
+        MagnificationFilter::Nearest,
+        1,
+        None,
+    )?));
+
+    FrameBuffer::new(
+        state,
+        Some(Attachment {
+            kind: AttachmentKind::DepthStencil,
+            texture: depth_stencil,
+        }),
+        vec![Attachment {
+            kind: AttachmentKind::Color,
+            texture: color_texture,
+        }],
+    )
 }
 
 impl Renderer {
@@ -750,13 +803,14 @@ impl Renderer {
             ambient_color: Color::opaque(100, 100, 100),
             quality_settings: settings,
             debug_renderer: DebugRenderer::new(&mut state)?,
-            gbuffers: Default::default(),
+            scene_to_gbuffer_map: Default::default(),
             backbuffer_clear_color: Color::from_rgba(0, 0, 0, 0),
             texture_cache: Default::default(),
             geometry_cache: Default::default(),
             state,
             batch_storage: Default::default(),
             forward_renderer: ForwardRenderer::new()?,
+            ui_frame_buffers: Default::default(),
         })
     }
 
@@ -773,6 +827,11 @@ impl Renderer {
     /// Returns statistics for last frame.
     pub fn get_statistics(&self) -> Statistics {
         self.statistics
+    }
+
+    /// Unloads texture from GPU memory.
+    pub fn unload_texture(&mut self, texture: Texture) {
+        self.texture_cache.unload(texture)
     }
 
     /// Sets color which will be used to fill screen when there is nothing to render.
@@ -793,7 +852,7 @@ impl Renderer {
         self.frame_size.0 = new_size.0.max(1);
         self.frame_size.1 = new_size.1.max(1);
         // Invalidate all g-buffers.
-        self.gbuffers.clear();
+        self.scene_to_gbuffer_map.clear();
     }
 
     /// Returns current (width, height) pair of back buffer size.
@@ -829,6 +888,75 @@ impl Renderer {
     pub fn flush(&mut self) {
         self.texture_cache.clear();
         self.geometry_cache.clear();
+    }
+
+    /// Renders given UI into specified render target. This method is especially useful if you need
+    /// to have off-screen UIs (like interactive touch-screen in Doom 3, Dead Space, etc).
+    pub fn render_ui_to_texture<M: MessageData, C: Control<M, C>>(
+        &mut self,
+        render_target: Texture,
+        ui: &mut UserInterface<M, C>,
+    ) -> Result<(), RendererError> {
+        let new_width = ui.screen_size().x as usize;
+        let new_height = ui.screen_size().y as usize;
+
+        // Create or reuse existing frame buffer.
+        let frame_buffer = match self.ui_frame_buffers.entry(render_target.key()) {
+            Entry::Occupied(entry) => {
+                let frame_buffer = entry.into_mut();
+                let frame = frame_buffer.color_attachments().first().unwrap();
+                let color_texture_kind = frame.texture.borrow().kind();
+                if let GpuTextureKind::Rectangle { width, height } = color_texture_kind {
+                    if width != new_width || height != new_height {
+                        *frame_buffer = make_ui_frame_buffer(ui.screen_size(), &mut self.state)?;
+                    }
+                } else {
+                    panic!("ui can be rendered only in rectangle texture!")
+                }
+                frame_buffer
+            }
+            Entry::Vacant(entry) => {
+                entry.insert(make_ui_frame_buffer(ui.screen_size(), &mut self.state)?)
+            }
+        };
+
+        let viewport = Rect::new(0, 0, new_width as i32, new_height as i32);
+
+        frame_buffer.clear(
+            &mut self.state,
+            viewport,
+            Some(Color::TRANSPARENT),
+            Some(0.0),
+            Some(0),
+        );
+
+        self.statistics += self.ui_renderer.render(UiRenderContext {
+            state: &mut self.state,
+            viewport,
+            frame_buffer,
+            frame_width: ui.screen_size().x,
+            frame_height: ui.screen_size().y,
+            drawing_context: &ui.draw(),
+            white_dummy: self.white_dummy.clone(),
+            texture_cache: &mut self.texture_cache,
+        })?;
+
+        // Finally register texture in the cache so it will become available as texture in deferred/forward
+        // renderer.
+        self.texture_cache.map.insert(
+            render_target.key(),
+            TimedEntry {
+                value: frame_buffer
+                    .color_attachments()
+                    .first()
+                    .unwrap()
+                    .texture
+                    .clone(),
+                time_to_live: f32::INFINITY,
+            },
+        );
+
+        Ok(())
     }
 
     fn render_frame(
@@ -892,7 +1020,7 @@ impl Renderer {
             );
 
             let gbuffer = self
-                .gbuffers
+                .scene_to_gbuffer_map
                 .entry(scene_handle)
                 .and_modify(|buf| {
                     if buf.width != frame_size.x as i32 || buf.height != frame_size.y as i32 {
@@ -1058,7 +1186,7 @@ impl Renderer {
         self.statistics += self.ui_renderer.render(UiRenderContext {
             state: &mut self.state,
             viewport: window_viewport,
-            backbuffer: &mut self.backbuffer,
+            frame_buffer: &mut self.backbuffer,
             frame_width: backbuffer_width,
             frame_height: backbuffer_height,
             drawing_context,

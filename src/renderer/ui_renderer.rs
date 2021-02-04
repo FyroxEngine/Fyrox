@@ -12,9 +12,7 @@ use crate::{
     renderer::{
         error::RendererError,
         framework::{
-            framebuffer::{
-                BackBuffer, CullFace, DrawParameters, DrawPartContext, FrameBufferTrait,
-            },
+            framebuffer::{CullFace, DrawParameters, DrawPartContext, FrameBufferTrait},
             geometry_buffer::{
                 AttributeDefinition, AttributeKind, BufferBuilder, ElementKind, GeometryBuffer,
                 GeometryBufferBuilder, GeometryBufferKind,
@@ -86,7 +84,7 @@ pub struct UiRenderer {
 pub(in crate) struct UiRenderContext<'a, 'b, 'c> {
     pub state: &'a mut PipelineState,
     pub viewport: Rect<i32>,
-    pub backbuffer: &'b mut BackBuffer,
+    pub frame_buffer: &'b mut dyn FrameBufferTrait,
     pub frame_width: f32,
     pub frame_height: f32,
     pub drawing_context: &'c DrawingContext,
@@ -155,7 +153,7 @@ impl UiRenderer {
         let UiRenderContext {
             state,
             viewport,
-            backbuffer,
+            frame_buffer: backbuffer,
             frame_width,
             frame_height,
             drawing_context,
