@@ -172,7 +172,9 @@ fn create_quad_plane(
     .with_cast_shadows(false)
     .with_surfaces(vec![{
         SurfaceBuilder::new(Arc::new(RwLock::new(SurfaceSharedData::make_quad(
-            transform,
+            transform
+                * UnitQuaternion::from_axis_angle(&Vector3::x_axis(), 90.0f32.to_radians())
+                    .to_homogeneous(),
         ))))
         .with_color(color)
         .build()
