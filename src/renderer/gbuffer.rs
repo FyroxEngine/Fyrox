@@ -219,8 +219,8 @@ impl GBuffer {
             state,
             GpuTextureKind::Rectangle { width, height },
             PixelKind::RGBA8,
-            MinificationFilter::Nearest,
-            MagnificationFilter::Nearest,
+            MinificationFilter::Linear,
+            MagnificationFilter::Linear,
             1,
             None,
         )?;

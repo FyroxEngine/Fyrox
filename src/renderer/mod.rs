@@ -23,6 +23,7 @@ mod blur;
 mod deferred_light_renderer;
 mod flat_shader;
 mod forward_renderer;
+mod fxaa;
 mod gbuffer;
 mod light_volume;
 mod particle_system_renderer;
@@ -31,11 +32,7 @@ mod sprite_renderer;
 mod ssao;
 mod ui_renderer;
 
-use crate::gui::message::MessageData;
-use crate::gui::{Control, UserInterface};
-use crate::renderer::forward_renderer::{ForwardRenderContext, ForwardRenderer};
-use crate::renderer::framework::framebuffer::{Attachment, AttachmentKind, FrameBuffer};
-use crate::utils::log::{Log, MessageKind};
+use crate::renderer::fxaa::FxaaRenderer;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector3},
@@ -45,7 +42,7 @@ use crate::{
         scope_profile,
     },
     engine::resource_manager::TimedEntry,
-    gui::draw::DrawingContext,
+    gui::{draw::DrawingContext, message::MessageData, Control, UserInterface},
     renderer::{
         batch::{BatchStorage, InstanceData},
         debug_renderer::DebugRenderer,
@@ -54,8 +51,12 @@ use crate::{
         },
         error::RendererError,
         flat_shader::FlatShader,
+        forward_renderer::{ForwardRenderContext, ForwardRenderer},
         framework::{
-            framebuffer::{BackBuffer, CullFace, DrawParameters, FrameBufferTrait},
+            framebuffer::{
+                Attachment, AttachmentKind, BackBuffer, CullFace, DrawParameters, FrameBuffer,
+                FrameBufferTrait,
+            },
             geometry_buffer::{
                 AttributeDefinition, AttributeKind, BufferBuilder, DrawCallStatistics, ElementKind,
                 GeometryBuffer, GeometryBufferBuilder, GeometryBufferKind,
@@ -76,12 +77,12 @@ use crate::{
     },
     resource::texture::{Texture, TextureKind, TextureState},
     scene::{node::Node, Scene, SceneContainer},
+    utils::log::{Log, MessageKind},
 };
 use glutin::PossiblyCurrent;
-use std::collections::hash_map::Entry;
 use std::{
     cell::RefCell,
-    collections::HashMap,
+    collections::{hash_map::Entry, HashMap},
     fmt::{Display, Formatter},
     ops::Deref,
     rc::Rc,
@@ -230,6 +231,9 @@ pub struct QualitySettings {
     /// Global switch to enable or disable light scattering. Each light can have
     /// its own scatter switch, but this one is able to globally disable scatter.
     pub light_scatter_enabled: bool,
+
+    /// Whether to use Fast Approximate AntiAliasing or not.
+    pub fxaa: bool,
 }
 
 impl Default for QualitySettings {
@@ -259,6 +263,8 @@ impl QualitySettings {
 
             point_shadow_map_precision: ShadowMapPrecision::Full,
             spot_shadow_map_precision: ShadowMapPrecision::Full,
+
+            fxaa: true,
         }
     }
 
@@ -282,6 +288,8 @@ impl QualitySettings {
 
             point_shadow_map_precision: ShadowMapPrecision::Half,
             spot_shadow_map_precision: ShadowMapPrecision::Half,
+
+            fxaa: true,
         }
     }
 
@@ -305,6 +313,8 @@ impl QualitySettings {
 
             point_shadow_map_precision: ShadowMapPrecision::Half,
             spot_shadow_map_precision: ShadowMapPrecision::Half,
+
+            fxaa: true,
         }
     }
 
@@ -328,6 +338,8 @@ impl QualitySettings {
 
             point_shadow_map_precision: ShadowMapPrecision::Half,
             spot_shadow_map_precision: ShadowMapPrecision::Half,
+
+            fxaa: false,
         }
     }
 }
@@ -418,6 +430,7 @@ pub struct Renderer {
     geometry_cache: GeometryCache,
     batch_storage: BatchStorage,
     forward_renderer: ForwardRenderer,
+    fxaa_renderer: FxaaRenderer,
     /// TextureId -> FrameBuffer mapping. This mapping is used for temporal frame buffers
     /// like ones used to render UI instances.
     ui_frame_buffers: HashMap<usize, FrameBuffer>,
@@ -811,6 +824,7 @@ impl Renderer {
             batch_storage: Default::default(),
             forward_renderer: ForwardRenderer::new()?,
             ui_frame_buffers: Default::default(),
+            fxaa_renderer: FxaaRenderer::new()?,
         })
     }
 
@@ -1137,47 +1151,57 @@ impl Renderer {
 
                 // Finally render everything into back buffer.
                 if scene.render_target.is_none() {
-                    self.statistics.geometry += self.backbuffer.draw(
-                        self.geometry_cache.get(state, &self.quad),
-                        state,
-                        viewport,
-                        &self.flat_shader.program,
-                        &DrawParameters {
-                            cull_face: CullFace::Back,
-                            culling: false,
-                            color_write: Default::default(),
-                            depth_write: true,
-                            stencil_test: false,
-                            depth_test: false,
-                            blend: false,
-                        },
-                        &[
-                            (
-                                self.flat_shader.wvp_matrix,
-                                UniformValue::Matrix4({
-                                    Matrix4::new_orthographic(
-                                        0.0,
-                                        viewport.w() as f32,
-                                        viewport.h() as f32,
-                                        0.0,
-                                        -1.0,
-                                        1.0,
-                                    ) * Matrix4::new_nonuniform_scaling(&Vector3::new(
-                                        viewport.w() as f32,
-                                        viewport.h() as f32,
-                                        0.0,
-                                    ))
-                                }),
-                            ),
-                            (
-                                self.flat_shader.diffuse_texture,
-                                UniformValue::Sampler {
-                                    index: 0,
-                                    texture: gbuffer.frame_texture(),
-                                },
-                            ),
-                        ],
-                    );
+                    if self.quality_settings.fxaa {
+                        self.statistics.geometry += self.fxaa_renderer.render(
+                            state,
+                            viewport,
+                            gbuffer.frame_texture(),
+                            &mut self.backbuffer,
+                            &mut self.geometry_cache,
+                        );
+                    } else {
+                        self.statistics.geometry += self.backbuffer.draw(
+                            self.geometry_cache.get(state, &self.quad),
+                            state,
+                            viewport,
+                            &self.flat_shader.program,
+                            &DrawParameters {
+                                cull_face: CullFace::Back,
+                                culling: false,
+                                color_write: Default::default(),
+                                depth_write: true,
+                                stencil_test: false,
+                                depth_test: false,
+                                blend: false,
+                            },
+                            &[
+                                (
+                                    self.flat_shader.wvp_matrix,
+                                    UniformValue::Matrix4({
+                                        Matrix4::new_orthographic(
+                                            0.0,
+                                            viewport.w() as f32,
+                                            viewport.h() as f32,
+                                            0.0,
+                                            -1.0,
+                                            1.0,
+                                        ) * Matrix4::new_nonuniform_scaling(&Vector3::new(
+                                            viewport.w() as f32,
+                                            viewport.h() as f32,
+                                            0.0,
+                                        ))
+                                    }),
+                                ),
+                                (
+                                    self.flat_shader.diffuse_texture,
+                                    UniformValue::Sampler {
+                                        index: 0,
+                                        texture: gbuffer.frame_texture(),
+                                    },
+                                ),
+                            ],
+                        );
+                    }
                 }
             }
         }
