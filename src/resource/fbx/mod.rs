@@ -567,5 +567,27 @@ pub fn load_to_scene<P: AsRef<Path>>(
                  format!("FBX {:?} loaded in {} ms\n\t- Parsing - {} ms\n\t- DOM Prepare - {} ms\n\t- Conversion - {} ms",
                          path.as_ref(), start_time.elapsed().as_millis(), parsing_time, dom_prepare_time, conversion_time));
 
+    // Check for multiple nodes with same name and throw a warning if any.
+    // It seems that FBX was designed using ass, not brains. It has no unique **persistent**
+    // IDs for entities, so the only way to find an entity is to use its name, but FBX also
+    // allows to have multiple entities with the same name. facepalm.jpg
+    let mut hash_set = HashSet::<String>::new();
+    for node in scene.graph.linear_iter() {
+        if hash_set.contains(node.name()) {
+            Log::writeln(
+                MessageKind::Error,
+                format!(
+                    "A node with existing name {} was found during the load of {} resource! \
+                    Do **NOT IGNORE** this message, please fix names in your model, otherwise \
+                    engine won't be able to correctly restore data from your resource!",
+                    node.name(),
+                    path.as_ref().display()
+                ),
+            );
+        } else {
+            hash_set.insert(node.name_owned());
+        }
+    }
+
     Ok(())
 }
