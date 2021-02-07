@@ -56,6 +56,7 @@ There are many examples covering various aspects of the engine. Also don't hesit
 	- Soft shadows.
 	- Volumetric light (spot, point).
 	- Instancing - render lots of objects without any overhead.
+	- FXAA
 - Render in texture.
 - Sky box.
 - Multi-camera rendering.
