@@ -190,10 +190,7 @@ impl QueryResultsStorage for Vec<Intersection> {
 
 impl<A: Array<Item = Intersection>> QueryResultsStorage for ArrayVec<A> {
     fn push(&mut self, intersection: Intersection) -> bool {
-        match self.try_push(intersection) {
-            Ok(_) => true,
-            Err(_) => false,
-        }
+        self.try_push(intersection).is_ok()
     }
 
     fn clear(&mut self) {
