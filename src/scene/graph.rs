@@ -22,13 +22,11 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
-use crate::core::algebra::{Matrix4, UnitQuaternion, Vector2, Vector3};
-use crate::core::math::Matrix4Ext;
-use crate::scene::transform::TransformBuilder;
-use crate::utils::log::MessageKind;
+use crate::resource::model::NodeMapping;
 use crate::{
     core::{
-        math::frustum::Frustum,
+        algebra::{Matrix4, Rotation3, UnitQuaternion, Vector2, Vector3},
+        math::{frustum::Frustum, Matrix4Ext},
         pool::{
             Handle, Pool, PoolIterator, PoolIteratorMut, PoolPairIterator, PoolPairIteratorMut,
             Ticket,
@@ -36,10 +34,9 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
     },
     resource::ResourceState,
-    scene::{node::Node, VisibilityCache},
-    utils::log::Log,
+    scene::{node::Node, transform::TransformBuilder, VisibilityCache},
+    utils::log::{Log, MessageKind},
 };
-use rapier3d::na::Rotation3;
 use std::{
     collections::HashMap,
     ops::{Index, IndexMut},
@@ -423,7 +420,7 @@ impl Graph {
                 return model_root_handle;
             }
 
-            if model_node.is_resource_instance() {
+            if model_node.is_resource_instance_root() {
                 return model_root_handle;
             }
 
@@ -439,21 +436,99 @@ impl Graph {
         self.update_hierarchical_data();
 
         // Resolve original handles. Original handle is a handle to a node in resource from which
-        // a node was instantiated from. We can resolve it only by names of nodes, but this is not
-        // reliable way of doing this, because some editors allow nodes to have same names for
-        // objects, but here we'll assume that modellers will not create models with duplicated
-        // names.
+        // a node was instantiated from.
         for node in self.pool.iter_mut() {
             if let Some(model) = node.resource() {
                 let model = model.state();
                 match *model {
                     ResourceState::Ok(ref data) => {
-                        for (handle, resource_node) in data.get_scene().graph.pair_iter() {
-                            if resource_node.name() == node.name() {
-                                node.original = handle;
-                                node.inv_bind_pose_transform =
-                                    resource_node.inv_bind_pose_transform();
-                                break;
+                        let resource_graph = &data.get_scene().graph;
+
+                        let resource_node = match data.mapping {
+                            NodeMapping::UseNames => {
+                                // For some models we can resolve it only by names of nodes, but this is not
+                                // reliable way of doing this, because some editors allow nodes to have same
+                                // names for objects, but here we'll assume that modellers will not create
+                                // models with duplicated names and user of the engine reads log messages.
+                                resource_graph
+                                    .pair_iter()
+                                    .find_map(|(handle, resource_node)| {
+                                        if resource_node.name() == node.name() {
+                                            Some((resource_node, handle))
+                                        } else {
+                                            None
+                                        }
+                                    })
+                            }
+                            NodeMapping::UseHandles => {
+                                // Use original handle directly.
+                                resource_graph
+                                    .pool
+                                    .try_borrow(node.original)
+                                    .map(|resource_node| (resource_node, node.original))
+                            }
+                        };
+
+                        if let Some((resource_node, original)) = resource_node {
+                            node.original = original;
+                            node.inv_bind_pose_transform = resource_node.inv_bind_pose_transform();
+
+                            // Check if we can sync transform of the nodes with resource.
+                            let resource_local_transform = resource_node.local_transform();
+                            let local_transform = node.local_transform_mut();
+
+                            // Position.
+                            if !local_transform.position().is_custom() {
+                                local_transform.set_position(**resource_local_transform.position());
+                            }
+
+                            // Rotation.
+                            if !local_transform.rotation().is_custom() {
+                                local_transform.set_rotation(**resource_local_transform.rotation());
+                            }
+
+                            // Scale.
+                            if !local_transform.scale().is_custom() {
+                                local_transform.set_scale(**resource_local_transform.scale());
+                            }
+
+                            // Pre-Rotation.
+                            if !local_transform.pre_rotation().is_custom() {
+                                local_transform
+                                    .set_pre_rotation(**resource_local_transform.pre_rotation());
+                            }
+
+                            // Post-Rotation.
+                            if !local_transform.post_rotation().is_custom() {
+                                local_transform
+                                    .set_post_rotation(**resource_local_transform.post_rotation());
+                            }
+
+                            // Rotation Offset.
+                            if !local_transform.rotation_offset().is_custom() {
+                                local_transform.set_rotation_offset(
+                                    **resource_local_transform.rotation_offset(),
+                                );
+                            }
+
+                            // Rotation Pivot.
+                            if !local_transform.rotation_pivot().is_custom() {
+                                local_transform.set_rotation_pivot(
+                                    **resource_local_transform.rotation_pivot(),
+                                );
+                            }
+
+                            // Scaling Offset.
+                            if !local_transform.scaling_offset().is_custom() {
+                                local_transform.set_scaling_offset(
+                                    **resource_local_transform.scaling_offset(),
+                                );
+                            }
+
+                            // Scaling Pivot.
+                            if !local_transform.scaling_pivot().is_custom() {
+                                local_transform
+                                    .set_scaling_pivot(**resource_local_transform.scaling_pivot());
                             }
                         }
                     }
@@ -468,6 +543,114 @@ impl Graph {
         Log::writeln(
             MessageKind::Information,
             "Original handles resolved!".to_owned(),
+        );
+
+        Log::writeln(MessageKind::Information, "Checking integrity...".to_owned());
+
+        // Check integrity - if a node was added in resource, it must be also added in the graph.
+        // However if a node was deleted in resource, we must leave it the graph because there
+        // might be some other nodes that were attached to the one that was deleted in resource or
+        // a node might be referenced somewhere in user code.
+        let instances = self
+            .pool
+            .pair_iter()
+            .filter_map(|(h, n)| {
+                if n.is_resource_instance_root {
+                    Some((h, n.resource().clone().unwrap()))
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+
+        let instance_count = instances.len();
+        let mut restored_count = 0;
+
+        for (instance, resource) in instances {
+            let model = resource.state();
+            if let ResourceState::Ok(ref data) = *model {
+                let resource_graph = &data.get_scene().graph;
+
+                let original = self.pool[instance].original;
+
+                if original.is_none() {
+                    let instance = &self.pool[instance];
+                    Log::writeln(
+                        MessageKind::Warning,
+                        format!(
+                            "There is an instance of resource {} \
+                    but original node {} cannot be found!",
+                            data.path.display(),
+                            instance.name()
+                        ),
+                    );
+
+                    continue;
+                }
+
+                let mut traverse_stack = vec![original];
+                while let Some(resource_node_handle) = traverse_stack.pop() {
+                    let resource_node = &resource_graph[resource_node_handle];
+
+                    // Root of the resource is not belongs to resource, it is just a convenient way of
+                    // consolidation all descendants under a single node.
+                    if resource_node_handle != resource_graph.root {
+                        if self.find_by_name(instance, resource_node.name()).is_none() {
+                            Log::writeln(
+                                MessageKind::Warning,
+                                format!(
+                                    "Instance of node {} is missing. Restoring integrity...",
+                                    resource_node.name()
+                                ),
+                            );
+
+                            // Instantiate missing node.
+                            let (copy, mapping) = resource_graph.copy_node(
+                                resource_node_handle,
+                                self,
+                                &mut |_, _| true,
+                            );
+
+                            restored_count += mapping.len();
+
+                            let mut stack = vec![copy];
+                            while let Some(node_handle) = stack.pop() {
+                                let node = &mut self.pool[node_handle];
+                                node.resource = Some(resource.clone());
+                                stack.extend_from_slice(node.children());
+                            }
+
+                            // Link it with existing node.
+                            if resource_node.parent().is_some() {
+                                let parent = self.find_by_name(
+                                    instance,
+                                    resource_graph[resource_node.parent()].name(),
+                                );
+
+                                if parent.is_some() {
+                                    self.link_nodes(copy, parent);
+                                } else {
+                                    // Fail-safe route - link with root of instance.
+                                    self.link_nodes(copy, instance);
+                                }
+                            } else {
+                                // Fail-safe route - link with root of instance.
+                                self.link_nodes(copy, instance);
+                            }
+                        }
+                    }
+
+                    traverse_stack.extend_from_slice(resource_node.children());
+                }
+            }
+        }
+
+        Log::writeln(
+            MessageKind::Information,
+            format!(
+                "Integrity restored for {} instances! {} new nodes were added!",
+                instance_count, restored_count
+            ),
         );
 
         // Taking second reference to self is safe here because we need it only
@@ -492,22 +675,34 @@ impl Graph {
                     match *model {
                         ResourceState::Ok(ref data) => {
                             let resource_node_handle = data.find_node_by_name(node_name.as_str());
-                            if let Node::Mesh(resource_mesh) =
-                                &data.get_scene().graph[resource_node_handle]
-                            {
-                                // Copy surfaces from resource and assign to meshes.
-                                mesh.clear_surfaces();
-                                for resource_surface in resource_mesh.surfaces() {
-                                    mesh.add_surface(resource_surface.clone());
-                                }
+                            if resource_node_handle.is_some() {
+                                if let Node::Mesh(resource_mesh) =
+                                    &data.get_scene().graph[resource_node_handle]
+                                {
+                                    // Copy surfaces from resource and assign to meshes.
+                                    mesh.clear_surfaces();
+                                    for resource_surface in resource_mesh.surfaces() {
+                                        mesh.add_surface(resource_surface.clone());
+                                    }
 
-                                // Remap bones
-                                for surface in mesh.surfaces_mut() {
-                                    for bone_handle in surface.bones.iter_mut() {
-                                        *bone_handle =
-                                            graph.find_copy_of(root_handle, *bone_handle);
+                                    // Remap bones
+                                    for surface in mesh.surfaces_mut() {
+                                        for bone_handle in surface.bones.iter_mut() {
+                                            *bone_handle =
+                                                graph.find_copy_of(root_handle, *bone_handle);
+                                        }
                                     }
                                 }
+                            } else {
+                                Log::writeln(
+                                    MessageKind::Warning,
+                                    format!(
+                                        "Unable to restore mesh info from node \
+                                {} because it is missing in the resource {}!",
+                                        node_name,
+                                        model.path().display()
+                                    ),
+                                );
                             }
                         }
                         ResourceState::Pending { .. } => {
@@ -798,8 +993,8 @@ impl Graph {
     pub fn isometric_local_transform(&self, node: Handle<Node>) -> Matrix4<f32> {
         let transform = self[node].local_transform();
         TransformBuilder::new()
-            .with_local_position(transform.position())
-            .with_local_rotation(transform.rotation())
+            .with_local_position(**transform.position())
+            .with_local_rotation(**transform.rotation())
             .build()
             .matrix()
     }

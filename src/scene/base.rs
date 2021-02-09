@@ -201,7 +201,7 @@ pub struct Base {
     /// When `true` it means that this node is instance of `resource`.
     /// More precisely - this node is root of whole descendant nodes
     /// hierarchy which was instantiated from resource.
-    pub(in crate) is_resource_instance: bool,
+    pub(in crate) is_resource_instance_root: bool,
     /// Maximum amount of Some(time) that node will "live" or None
     /// if node has undefined lifetime.
     pub(in crate) lifetime: Option<f32>,
@@ -291,8 +291,8 @@ impl Base {
     }
 
     /// Returns true if this node is model resource instance root node.
-    pub fn is_resource_instance(&self) -> bool {
-        self.is_resource_instance
+    pub fn is_resource_instance_root(&self) -> bool {
+        self.is_resource_instance_root
     }
 
     /// Returns resource from which this node was instantiated from.
@@ -395,7 +395,7 @@ impl Base {
             global_visibility: self.global_visibility.clone(),
             inv_bind_pose_transform: self.inv_bind_pose_transform,
             resource: self.resource.clone(),
-            is_resource_instance: self.is_resource_instance,
+            is_resource_instance_root: self.is_resource_instance_root,
             lifetime: self.lifetime,
             mobility: self.mobility,
             // Rest of data is *not* copied!
@@ -420,12 +420,13 @@ impl Visit for Base {
         self.parent.visit("Parent", visitor)?;
         self.children.visit("Children", visitor)?;
         self.resource.visit("Resource", visitor)?;
-        self.is_resource_instance
+        self.is_resource_instance_root
             .visit("IsResourceInstance", visitor)?;
         self.lifetime.visit("Lifetime", visitor)?;
         self.depth_offset.visit("DepthOffset", visitor)?;
         let _ = self.lod_group.visit("LodGroup", visitor);
         let _ = self.mobility.visit("Mobility", visitor);
+        let _ = self.original.visit("Original", visitor);
 
         visitor.leave_region()
     }
@@ -540,7 +541,7 @@ impl BaseBuilder {
             inv_bind_pose_transform: self.inv_bind_pose_transform,
             resource: None,
             original: Handle::NONE,
-            is_resource_instance: false,
+            is_resource_instance_root: false,
             depth_offset: self.depth_offset,
             lod_group: self.lod_group,
             mobility: self.mobility,

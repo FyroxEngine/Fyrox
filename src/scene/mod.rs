@@ -32,6 +32,7 @@ use crate::{
     utils::{lightmap::Lightmap, log::Log},
 };
 use rg3d_sound::{context::Context, engine::SoundEngine};
+use std::ops::Deref;
 use std::{
     collections::HashMap,
     ops::{Index, IndexMut},
@@ -1374,5 +1375,108 @@ impl VisibilityCache {
     /// Checks if given node is visible or not.
     pub fn is_visible(&self, node: Handle<Node>) -> bool {
         self.map.get(&node).cloned().unwrap_or(false)
+    }
+}
+
+/// A wrapper for a variable that hold additional flag that tells that
+/// initial value was changed in runtime.
+#[derive(Debug)]
+pub struct TemplateVariable<T> {
+    /// Actual value.
+    value: T,
+
+    /// A marker that tells that initial value was changed.
+    custom: bool,
+}
+
+impl<T: Clone> Clone for TemplateVariable<T> {
+    fn clone(&self) -> Self {
+        Self {
+            value: self.value.clone(),
+            custom: self.custom,
+        }
+    }
+}
+
+impl<T: PartialEq> PartialEq for TemplateVariable<T> {
+    fn eq(&self, other: &Self) -> bool {
+        // `custom` flag intentionally ignored!
+        self.value.eq(&other.value)
+    }
+}
+
+impl<T: Eq> Eq for TemplateVariable<T> {}
+
+impl<T: Copy> Copy for TemplateVariable<T> {}
+
+impl<T: Default> Default for TemplateVariable<T> {
+    fn default() -> Self {
+        Self {
+            value: T::default(),
+            custom: false,
+        }
+    }
+}
+
+impl<T: Clone> TemplateVariable<T> {
+    /// Clones wrapped value.
+    pub fn clone_inner(&self) -> T {
+        self.value.clone()
+    }
+}
+
+impl<T> TemplateVariable<T> {
+    /// Creates new non-custom variable from given value.
+    pub fn new(value: T) -> Self {
+        Self {
+            value,
+            custom: false,
+        }
+    }
+
+    /// Creates new custom variable from given value.
+    pub fn new_custom(value: T) -> Self {
+        Self {
+            value,
+            custom: true,
+        }
+    }
+
+    /// Replaces value and also raises the `custom` flag.
+    pub fn set(&mut self, value: T) -> T {
+        self.custom = true;
+        std::mem::replace(&mut self.value, value)
+    }
+
+    /// Returns a reference to wrapped value.
+    pub fn get(&self) -> &T {
+        &self.value
+    }
+
+    /// Returns true if value has changed.
+    pub fn is_custom(&self) -> bool {
+        self.custom
+    }
+}
+
+impl<T> Deref for TemplateVariable<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.value
+    }
+}
+
+impl<T> Visit for TemplateVariable<T>
+where
+    T: Visit,
+{
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.value.visit("Value", visitor)?;
+        self.custom.visit("IsCustom", visitor)?;
+
+        visitor.leave_region()
     }
 }

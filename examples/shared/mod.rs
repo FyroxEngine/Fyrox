@@ -546,7 +546,7 @@ impl Player {
             .try_normalize(std::f32::EPSILON)
             .unwrap_or(Vector3::x());
 
-        let position = pivot.local_transform().position();
+        let position = **pivot.local_transform().position();
 
         let mut velocity = Vector3::default();
 
