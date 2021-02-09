@@ -502,7 +502,7 @@ impl PhysicsSection {
                                             let node = &graph[node_handle];
                                             let body = RigidBody {
                                                 position: node.global_position(),
-                                                rotation: node.local_transform().rotation(),
+                                                rotation: **node.local_transform().rotation(),
                                                 status: match index {
                                                     1 => BodyStatusDesc::Dynamic,
                                                     2 => BodyStatusDesc::Static,

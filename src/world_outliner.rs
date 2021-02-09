@@ -243,6 +243,7 @@ impl SceneItemBuilder {
         ctx: &mut BuildContext,
         sender: Sender<Message>,
         resource_manager: ResourceManager,
+        node: &Node,
     ) -> Handle<UiNode> {
         let visible_texture = load_image("resources/visible.png", resource_manager.clone());
 
@@ -271,6 +272,11 @@ impl SceneItemBuilder {
                     .with_child({
                         text_name = TextBuilder::new(
                             WidgetBuilder::new()
+                                .with_foreground(if node.resource().is_some() {
+                                    Brush::Solid(Color::opaque(160, 160, 200))
+                                } else {
+                                    Brush::Solid(rg3d::gui::COLOR_FOREGROUND)
+                                })
                                 .with_margin(Thickness::uniform(1.0))
                                 .on_column(1)
                                 .with_vertical_alignment(VerticalAlignment::Center),
@@ -340,7 +346,7 @@ fn make_tree(
         .with_node(handle)
         .with_visibility(node.visibility())
         .with_icon(icon)
-        .build(ctx, sender, resource_manager)
+        .build(ctx, sender, resource_manager, node)
 }
 
 fn tree_node(ui: &Ui, tree: Handle<UiNode>) -> Handle<Node> {

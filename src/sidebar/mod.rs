@@ -13,6 +13,7 @@ use crate::{
     GameEngine, Message,
 };
 use rg3d::engine::resource_manager::ResourceManager;
+use rg3d::gui::message::TextMessage;
 use rg3d::{
     core::{
         algebra::Vector3,
@@ -58,6 +59,7 @@ pub struct SideBar {
     position: Handle<UiNode>,
     rotation: Handle<UiNode>,
     scale: Handle<UiNode>,
+    resource: Handle<UiNode>,
     sender: Sender<Message>,
     light_section: LightSection,
     camera_section: CameraSection,
@@ -153,6 +155,7 @@ impl SideBar {
         let position;
         let rotation;
         let scale;
+        let resource;
 
         let light_section = LightSection::new(ctx, sender.clone());
         let camera_section = CameraSection::new(ctx, sender.clone());
@@ -197,10 +200,19 @@ impl SideBar {
                                             .with_child({
                                                 scale = make_vec3_input_field(ctx, 3);
                                                 scale
+                                            })
+                                            .with_child(make_text_mark(ctx, "Resource", 4))
+                                            .with_child({
+                                                resource = TextBuilder::new(
+                                                    WidgetBuilder::new().on_column(1).on_row(4),
+                                                )
+                                                .build(ctx);
+                                                resource
                                             }),
                                     )
                                     .add_column(Column::strict(COLUMN_WIDTH))
                                     .add_column(Column::stretch())
+                                    .add_row(Row::strict(ROW_HEIGHT))
                                     .add_row(Row::strict(ROW_HEIGHT))
                                     .add_row(Row::strict(ROW_HEIGHT))
                                     .add_row(Row::strict(ROW_HEIGHT))
@@ -231,6 +243,7 @@ impl SideBar {
             rotation,
             sender,
             scale,
+            resource,
             light_section,
             camera_section,
             particle_system_section,
@@ -264,10 +277,30 @@ impl SideBar {
                         node.name().to_owned(),
                     ));
 
+                    // Prevent edit names of nodes that were created from resource.
+                    // This is strictly necessary because resolving depends on node
+                    // names.
+                    ui.send_message(WidgetMessage::enabled(
+                        self.node_name,
+                        MessageDirection::ToWidget,
+                        node.resource().is_none() || node.is_resource_instance_root(),
+                    ));
+
+                    ui.send_message(TextMessage::text(
+                        self.resource,
+                        MessageDirection::ToWidget,
+                        if let Some(resource) = node.resource() {
+                            let state = resource.state();
+                            state.path().to_string_lossy().into_owned()
+                        } else {
+                            "None".to_owned()
+                        },
+                    ));
+
                     ui.send_message(Vec3EditorMessage::value(
                         self.position,
                         MessageDirection::ToWidget,
-                        node.local_transform().position(),
+                        **node.local_transform().position(),
                     ));
 
                     let euler = node.local_transform().rotation().to_euler();
@@ -285,7 +318,7 @@ impl SideBar {
                     ui.send_message(Vec3EditorMessage::value(
                         self.scale,
                         MessageDirection::ToWidget,
-                        node.local_transform().scale(),
+                        **node.local_transform().scale(),
                     ));
 
                     self.light_section.sync_to_model(node, ui);
@@ -342,7 +375,7 @@ impl SideBar {
                             if let Vec3EditorMessage::Value(value) = *msg {
                                 let transform = graph[node_handle].local_transform();
                                 if message.destination() == self.rotation {
-                                    let old_rotation = transform.rotation();
+                                    let old_rotation = **transform.rotation();
                                     let euler = Vector3::new(
                                         value.x.to_radians(),
                                         value.y.to_radians(),
@@ -361,7 +394,7 @@ impl SideBar {
                                             .unwrap();
                                     }
                                 } else if message.destination() == self.position {
-                                    let old_position = transform.position();
+                                    let old_position = **transform.position();
                                     if old_position != value {
                                         self.sender
                                             .send(Message::DoSceneCommand(SceneCommand::MoveNode(
@@ -374,7 +407,7 @@ impl SideBar {
                                             .unwrap();
                                     }
                                 } else if message.destination() == self.scale {
-                                    let old_scale = transform.scale();
+                                    let old_scale = **transform.scale();
                                     if old_scale != value {
                                         self.sender
                                             .send(Message::DoSceneCommand(SceneCommand::ScaleNode(
