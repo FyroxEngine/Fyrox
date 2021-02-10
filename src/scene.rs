@@ -8,6 +8,7 @@ use crate::{
     physics::{Collider, Joint, Physics, RigidBody},
     GameEngine, Message,
 };
+use rg3d::animation::Animation;
 use rg3d::{
     core::{
         algebra::{UnitQuaternion, Vector3},
@@ -1881,7 +1882,9 @@ impl<'a> Command<'a> for SetColliderCommand {
 pub struct LoadModelCommand {
     path: PathBuf,
     model: Handle<Node>,
+    animations: Vec<Handle<Animation>>,
     sub_graph: Option<SubGraph>,
+    animations_container: Vec<(Ticket<Animation>, Animation)>,
 }
 
 impl LoadModelCommand {
@@ -1889,7 +1892,9 @@ impl LoadModelCommand {
         Self {
             path,
             model: Default::default(),
+            animations: Default::default(),
             sub_graph: None,
+            animations_container: Default::default(),
         }
     }
 }
@@ -1907,7 +1912,14 @@ impl<'a> Command<'a> for LoadModelCommand {
             if let Ok(model) = rg3d::futures::executor::block_on(
                 context.resource_manager.request_model(&self.path),
             ) {
-                self.model = model.instantiate(context.scene).root;
+                let instance = model.instantiate(context.scene);
+                self.model = instance.root;
+                self.animations = instance.animations;
+
+                /// Enable instantiated animations.
+                for &animation in self.animations.iter() {
+                    context.scene.animations[animation].set_enabled(true);
+                }
             }
         } else {
             // A model was loaded, but change was reverted and here we must put all nodes
@@ -1916,16 +1928,27 @@ impl<'a> Command<'a> for LoadModelCommand {
                 .scene
                 .graph
                 .put_sub_graph_back(self.sub_graph.take().unwrap());
+            for (ticket, animation) in self.animations_container.drain(..) {
+                context.scene.animations.put_back(ticket, animation);
+            }
         }
     }
 
     fn revert(&mut self, context: &mut Self::Context) {
         self.sub_graph = Some(context.scene.graph.take_reserve_sub_graph(self.model));
+        self.animations_container = self
+            .animations
+            .iter()
+            .map(|&anim| context.scene.animations.take_reserve(anim))
+            .collect();
     }
 
     fn finalize(&mut self, context: &mut Self::Context) {
         if let Some(sub_graph) = self.sub_graph.take() {
             context.scene.graph.forget_sub_graph(sub_graph)
+        }
+        for (ticket, _) in self.animations_container.drain(..) {
+            context.scene.animations.forget_ticket(ticket);
         }
     }
 }
