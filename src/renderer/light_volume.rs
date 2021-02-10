@@ -162,8 +162,7 @@ impl LightVolumeRenderer {
 
                 // Angle bias is used to to slightly increase cone radius to add small margin
                 // for fadeout effect.
-                let bias = 4.0f32.to_radians();
-                let k = (2.0 * (spot.full_cone_angle() + bias)).tan() * spot.distance();
+                let k = 2.25 * spot.full_cone_angle().sin() * spot.distance();
                 let light_shape_matrix = graph.global_transform_no_scale(light_handle)
                     * Matrix4::new_nonuniform_scaling(&Vector3::new(k, spot.distance(), k));
                 let mvp = view_proj * light_shape_matrix;
