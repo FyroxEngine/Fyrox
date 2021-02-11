@@ -208,16 +208,19 @@ impl Graph {
         Handle::NONE
     }
 
-    /// Searches node with specified name starting from specified node. If nothing was found,
-    /// [`Handle::NONE`] is returned.
-    pub fn find_by_name(&self, root_node: Handle<Node>, name: &str) -> Handle<Node> {
+    /// Searches node using specified compare closure starting from specified node. If nothing
+    /// was found [`Handle::NONE`] is returned.
+    pub fn find<C>(&self, root_node: Handle<Node>, cmp: &mut C) -> Handle<Node>
+    where
+        C: FnMut(&Node) -> bool,
+    {
         let root = &self.pool[root_node];
-        if root.name() == name {
+        if cmp(root) {
             root_node
         } else {
             let mut result: Handle<Node> = Handle::NONE;
             for child in root.children() {
-                let child_handle = self.find_by_name(*child, name);
+                let child_handle = self.find(*child, cmp);
                 if !child_handle.is_none() {
                     result = child_handle;
                     break;
@@ -227,10 +230,25 @@ impl Graph {
         }
     }
 
+    /// Searches node with specified name starting from specified node. If nothing was found,
+    /// [`Handle::NONE`] is returned.
+    pub fn find_by_name(&self, root_node: Handle<Node>, name: &str) -> Handle<Node> {
+        self.find(root_node, &mut |node| node.name() == name)
+    }
+
     /// Searches node with specified name starting from root. If nothing was found, `Handle::NONE`
     /// is returned.
     pub fn find_by_name_from_root(&self, name: &str) -> Handle<Node> {
         self.find_by_name(self.root, name)
+    }
+
+    /// Searches node using specified compare closure starting from root. If nothing was found,
+    /// `Handle::NONE` is returned.
+    pub fn find_from_root<C>(&self, cmp: &mut C) -> Handle<Node>
+    where
+        C: FnMut(&Node) -> bool,
+    {
+        self.find(self.root, cmp)
     }
 
     /// Creates deep copy of node with all children. This is relatively heavy operation!

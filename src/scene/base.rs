@@ -208,6 +208,7 @@ pub struct Base {
     depth_offset: f32,
     lod_group: Option<LodGroup>,
     mobility: Mobility,
+    tag: String,
 }
 
 impl Base {
@@ -384,6 +385,21 @@ impl Base {
         self.lod_group.as_mut()
     }
 
+    /// Returns node tag.
+    pub fn tag(&self) -> &str {
+        &self.tag
+    }
+
+    /// Returns a copy of node tag.
+    pub fn tag_owned(&self) -> String {
+        self.tag.clone()
+    }
+
+    /// Sets new tag.
+    pub fn set_tag(&mut self, tag: String) {
+        self.tag = tag;
+    }
+
     /// Shallow copy of node data. You should never use this directly, shallow copy
     /// will produce invalid node in most cases!
     pub fn raw_copy(&self) -> Self {
@@ -398,6 +414,7 @@ impl Base {
             is_resource_instance_root: self.is_resource_instance_root,
             lifetime: self.lifetime,
             mobility: self.mobility,
+            tag: self.tag.clone(),
             // Rest of data is *not* copied!
             ..Default::default()
         }
@@ -427,6 +444,7 @@ impl Visit for Base {
         let _ = self.lod_group.visit("LodGroup", visitor);
         let _ = self.mobility.visit("Mobility", visitor);
         let _ = self.original.visit("Original", visitor);
+        let _ = self.tag.visit("Tag", visitor);
 
         visitor.leave_region()
     }
@@ -443,6 +461,7 @@ pub struct BaseBuilder {
     lod_group: Option<LodGroup>,
     mobility: Mobility,
     inv_bind_pose_transform: Matrix4<f32>,
+    tag: String,
 }
 
 impl Default for BaseBuilder {
@@ -464,6 +483,7 @@ impl BaseBuilder {
             lod_group: None,
             mobility: Mobility::Dynamic,
             inv_bind_pose_transform: Matrix4::identity(),
+            tag: Default::default(),
         }
     }
 
@@ -528,6 +548,12 @@ impl BaseBuilder {
         self
     }
 
+    /// Sets desired tag.
+    pub fn with_tag(mut self, tag: String) -> Self {
+        self.tag = tag;
+        self
+    }
+
     pub(in crate) fn build_base(self) -> Base {
         Base {
             name: self.name,
@@ -545,6 +571,7 @@ impl BaseBuilder {
             depth_offset: self.depth_offset,
             lod_group: self.lod_group,
             mobility: self.mobility,
+            tag: self.tag,
         }
     }
 
