@@ -1,4 +1,4 @@
-use crate::scene::Selection;
+use crate::scene::{Selection, SetTagCommand};
 use crate::sidebar::mesh::MeshSection;
 use crate::{
     gui::{BuildContext, UiMessage, UiNode},
@@ -60,6 +60,7 @@ pub struct SideBar {
     rotation: Handle<UiNode>,
     scale: Handle<UiNode>,
     resource: Handle<UiNode>,
+    tag: Handle<UiNode>,
     sender: Sender<Message>,
     light_section: LightSection,
     camera_section: CameraSection,
@@ -156,6 +157,7 @@ impl SideBar {
         let rotation;
         let scale;
         let resource;
+        let tag;
 
         let light_section = LightSection::new(ctx, sender.clone());
         let camera_section = CameraSection::new(ctx, sender.clone());
@@ -208,10 +210,19 @@ impl SideBar {
                                                 )
                                                 .build(ctx);
                                                 resource
+                                            })
+                                            .with_child(make_text_mark(ctx, "Tag", 5))
+                                            .with_child({
+                                                tag = TextBoxBuilder::new(
+                                                    WidgetBuilder::new().on_column(1).on_row(5),
+                                                )
+                                                .build(ctx);
+                                                tag
                                             }),
                                     )
                                     .add_column(Column::strict(COLUMN_WIDTH))
                                     .add_column(Column::stretch())
+                                    .add_row(Row::strict(ROW_HEIGHT))
                                     .add_row(Row::strict(ROW_HEIGHT))
                                     .add_row(Row::strict(ROW_HEIGHT))
                                     .add_row(Row::strict(ROW_HEIGHT))
@@ -244,6 +255,7 @@ impl SideBar {
             sender,
             scale,
             resource,
+            tag,
             light_section,
             camera_section,
             particle_system_section,
@@ -295,6 +307,12 @@ impl SideBar {
                         } else {
                             "None".to_owned()
                         },
+                    ));
+
+                    ui.send_message(TextBoxMessage::text(
+                        self.tag,
+                        MessageDirection::ToWidget,
+                        node.tag().to_owned(),
                     ));
 
                     ui.send_message(Vec3EditorMessage::value(
@@ -423,16 +441,22 @@ impl SideBar {
                             }
                         }
                         UiMessageData::TextBox(msg) => {
-                            if message.destination() == self.node_name {
-                                if let TextBoxMessage::Text(new_name) = msg {
+                            if let TextBoxMessage::Text(value) = msg {
+                                if message.destination() == self.node_name {
                                     let old_name = graph[node_handle].name();
-                                    if old_name != new_name {
+                                    if old_name != value {
                                         self.sender
                                             .send(Message::DoSceneCommand(SceneCommand::SetName(
-                                                SetNameCommand::new(
-                                                    node_handle,
-                                                    new_name.to_owned(),
-                                                ),
+                                                SetNameCommand::new(node_handle, value.to_owned()),
+                                            )))
+                                            .unwrap();
+                                    }
+                                } else if message.destination() == self.tag {
+                                    let old_tag = graph[node_handle].tag();
+                                    if old_tag != value {
+                                        self.sender
+                                            .send(Message::DoSceneCommand(SceneCommand::SetTag(
+                                                SetTagCommand::new(node_handle, value.to_owned()),
                                             )))
                                             .unwrap();
                                     }

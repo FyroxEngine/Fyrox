@@ -287,6 +287,7 @@ pub enum SceneCommand {
     LinkNodes(LinkNodesCommand),
     SetVisible(SetVisibleCommand),
     SetName(SetNameCommand),
+    SetTag(SetTagCommand),
     AddJoint(AddJointCommand),
     DeleteJoint(DeleteJointCommand),
     SetJointConnectedBody(SetJointConnectedBodyCommand),
@@ -383,6 +384,7 @@ macro_rules! static_dispatch {
             SceneCommand::LinkNodes(v) => v.$func($($args),*),
             SceneCommand::SetVisible(v) => v.$func($($args),*),
             SceneCommand::SetName(v) => v.$func($($args),*),
+            SceneCommand::SetTag(v) => v.$func($($args),*),
             SceneCommand::SetBody(v) => v.$func($($args),*),
             SceneCommand::AddJoint(v) => v.$func($($args),*),
             SceneCommand::SetJointConnectedBody(v) => v.$func($($args),*),
@@ -1916,7 +1918,7 @@ impl<'a> Command<'a> for LoadModelCommand {
                 self.model = instance.root;
                 self.animations = instance.animations;
 
-                /// Enable instantiated animations.
+                // Enable instantiated animations.
                 for &animation in self.animations.iter() {
                     context.scene.animations[animation].set_enabled(true);
                 }
@@ -2585,6 +2587,10 @@ define_node_command!(SetLightColorCommand("Set Light Color", Color) where fn swa
 
 define_node_command!(SetNameCommand("Set Name", String) where fn swap(self, node) {
     get_set_swap!(self, node, name_owned, set_name);
+});
+
+define_node_command!(SetTagCommand("Set Tag", String) where fn swap(self, node) {
+    get_set_swap!(self, node, tag_owned, set_tag);
 });
 
 define_node_command!(SetVisibleCommand("Set Visible", bool) where fn swap(self, node) {
