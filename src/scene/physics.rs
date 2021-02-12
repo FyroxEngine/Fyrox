@@ -439,7 +439,19 @@ impl Physics {
             .map(|t| [t.0[0], t.0[1], t.0[2]])
             .collect::<Vec<_>>();
 
-        SharedShape::trimesh(vertices, indices)
+        if indices.is_empty() {
+            Log::writeln(
+                MessageKind::Warning,
+                format!(
+                    "Failed to create triangle mesh collider for {}, it has no vertices!",
+                    graph[root].name()
+                ),
+            );
+
+            SharedShape::trimesh(vec![Point3::new(0.0, 0.0, 0.0)], vec![[0, 0, 0]])
+        } else {
+            SharedShape::trimesh(vertices, indices)
+        }
     }
 
     /// Small helper that creates static physics geometry from given mesh.
