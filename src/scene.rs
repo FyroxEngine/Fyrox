@@ -8,8 +8,8 @@ use crate::{
     physics::{Collider, Joint, Physics, RigidBody},
     GameEngine, Message,
 };
-use rg3d::animation::Animation;
 use rg3d::{
+    animation::Animation,
     core::{
         algebra::{UnitQuaternion, Vector3},
         color::Color,
@@ -32,11 +32,20 @@ use rg3d::{
 };
 use std::{collections::HashMap, fmt::Write, path::PathBuf, sync::mpsc::Sender};
 
-#[derive(Default)]
 pub struct Clipboard {
     graph: Graph,
     physics: Physics,
     empty: bool,
+}
+
+impl Default for Clipboard {
+    fn default() -> Self {
+        Self {
+            graph: Graph::new(),
+            physics: Default::default(),
+            empty: true,
+        }
+    }
 }
 
 #[derive(Default, Debug)]
