@@ -1,11 +1,10 @@
-use crate::physics::Joint;
-use crate::scene::{AddJointCommand, DeleteJointCommand, Selection};
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
-    physics::{Collider, RigidBody},
+    physics::{Collider, Joint, RigidBody},
     scene::{
-        CommandGroup, DeleteBodyCommand, DeleteColliderCommand, EditorScene, SceneCommand,
-        SetBodyCommand, SetColliderCommand,
+        AddJointCommand, CommandGroup, DeleteBodyCommand, DeleteColliderCommand,
+        DeleteJointCommand, EditorScene, SceneCommand, Selection, SetBodyCommand,
+        SetColliderCommand,
     },
     sidebar::{
         make_dropdown_list_option, make_text_mark,
@@ -18,11 +17,8 @@ use crate::{
     },
     GameEngine, Message,
 };
-use rg3d::scene::physics::{
-    BallJointDesc, FixedJointDesc, JointParamsDesc, PrismaticJointDesc, RevoluteJointDesc,
-};
 use rg3d::{
-    core::{algebra::Vector3, pool::Handle},
+    core::{algebra::Vector3, pool::Handle, scope_profile},
     gui::{
         dropdown_list::DropdownListBuilder,
         grid::{Column, GridBuilder, Row},
@@ -32,8 +28,10 @@ use rg3d::{
         Orientation, Thickness,
     },
     scene::physics::{
-        BallDesc, BodyStatusDesc, CapsuleDesc, ColliderShapeDesc, ConeDesc, CuboidDesc,
-        CylinderDesc, HeightfieldDesc, RoundCylinderDesc, SegmentDesc, TriangleDesc, TrimeshDesc,
+        BallDesc, BallJointDesc, BodyStatusDesc, CapsuleDesc, ColliderShapeDesc, ConeDesc,
+        CuboidDesc, CylinderDesc, FixedJointDesc, HeightfieldDesc, JointParamsDesc,
+        PrismaticJointDesc, RevoluteJointDesc, RoundCylinderDesc, SegmentDesc, TriangleDesc,
+        TrimeshDesc,
     },
 };
 use std::sync::mpsc::Sender;
@@ -361,6 +359,8 @@ impl PhysicsSection {
         editor_scene: &EditorScene,
         engine: &GameEngine,
     ) {
+        scope_profile!();
+
         if let Selection::Graph(selection) = &editor_scene.selection {
             let scene = &engine.scenes[editor_scene.scene];
             let graph = &scene.graph;

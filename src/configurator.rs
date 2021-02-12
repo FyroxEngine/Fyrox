@@ -3,6 +3,7 @@ use crate::{
     GameEngine, Message, STARTUP_WORKING_DIR,
 };
 use rg3d::core::algebra::Vector2;
+use rg3d::core::scope_profile;
 use rg3d::core::visitor::{Visit, VisitResult, Visitor};
 use rg3d::gui::border::BorderBuilder;
 use rg3d::gui::decorator::DecoratorBuilder;
@@ -317,6 +318,8 @@ impl Configurator {
     }
 
     pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut GameEngine) {
+        scope_profile!();
+
         match message.data() {
             UiMessageData::Window(msg) => {
                 if message.destination() == self.window {

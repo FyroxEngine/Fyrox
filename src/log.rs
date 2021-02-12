@@ -2,6 +2,7 @@ use crate::{
     gui::{BuildContext, UiMessage, UiNode},
     GameEngine, Message,
 };
+use rg3d::core::scope_profile;
 use rg3d::gui::{HorizontalAlignment, VerticalAlignment, BRUSH_BRIGHT};
 use rg3d::{
     core::{algebra::Vector2, pool::Handle},
@@ -91,6 +92,8 @@ impl Log {
     }
 
     pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut GameEngine) {
+        scope_profile!();
+
         if let UiMessageData::Button(msg) = message.data() {
             if let ButtonMessage::Click = msg {
                 if message.destination() == self.clear {

@@ -1,11 +1,13 @@
-use crate::scene::DeleteEmitterCommand;
 use crate::{
     gui::{
         BuildContext, DeletableItemBuilder, DeletableItemMessage, EditorUiMessage, EditorUiNode,
         Ui, UiMessage, UiNode,
     },
     load_image,
-    scene::{AddParticleSystemEmitterCommand, SceneCommand, SetParticleSystemAccelerationCommand},
+    scene::{
+        AddParticleSystemEmitterCommand, DeleteEmitterCommand, SceneCommand,
+        SetParticleSystemAccelerationCommand,
+    },
     sidebar::{
         make_text_mark, make_vec3_input_field, particle::emitter::EmitterSection, COLUMN_WIDTH,
         ROW_HEIGHT,
@@ -13,7 +15,7 @@ use crate::{
     Message,
 };
 use rg3d::{
-    core::pool::Handle,
+    core::{pool::Handle, scope_profile},
     engine::resource_manager::ResourceManager,
     gui::{
         button::ButtonBuilder,
@@ -256,6 +258,8 @@ impl ParticleSystemSection {
         handle: Handle<Node>,
         ui: &Ui,
     ) {
+        scope_profile!();
+
         if let Node::ParticleSystem(particle_system) = node {
             if let Some(emitter_index) = self.emitter_index {
                 self.emitter_section.handle_message(

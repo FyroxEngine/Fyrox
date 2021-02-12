@@ -3,6 +3,7 @@ use crate::{
     GameEngine,
 };
 use rg3d::core::color::Color;
+use rg3d::core::scope_profile;
 use rg3d::scene::Line;
 use rg3d::{
     core::{
@@ -204,6 +205,8 @@ impl PreviewPanel {
     }
 
     pub fn handle_message(&mut self, message: &UiMessage, engine: &mut GameEngine) {
+        scope_profile!();
+
         let scene = &mut engine.scenes[self.scene];
 
         match message.data() {

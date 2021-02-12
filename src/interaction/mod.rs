@@ -1,27 +1,28 @@
-use crate::interaction::navmesh::EditNavmeshMode;
-use crate::scene::Selection;
 use crate::{
     gui::UiNode,
-    rg3d::core::math::Matrix4Ext,
+    interaction::navmesh::EditNavmeshMode,
     scene::{
         ChangeSelectionCommand, CommandGroup, EditorScene, GraphSelection, MoveNodeCommand,
-        RotateNodeCommand, ScaleNodeCommand, SceneCommand,
+        RotateNodeCommand, ScaleNodeCommand, SceneCommand, Selection,
     },
     GameEngine, Message,
 };
-use rg3d::gui::message::KeyCode;
-use rg3d::scene::transform::Transform;
 use rg3d::{
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
         color::Color,
-        math::{aabb::AxisAlignedBoundingBox, plane::Plane},
+        math::{aabb::AxisAlignedBoundingBox, plane::Plane, Matrix4Ext},
         pool::Handle,
+        scope_profile,
     },
-    gui::message::{MessageDirection, WidgetMessage},
+    gui::message::{KeyCode, MessageDirection, WidgetMessage},
     renderer::surface::{SurfaceBuilder, SurfaceSharedData},
     scene::{
-        base::BaseBuilder, graph::Graph, mesh::MeshBuilder, node::Node, transform::TransformBuilder,
+        base::BaseBuilder,
+        graph::Graph,
+        mesh::MeshBuilder,
+        node::Node,
+        transform::{Transform, TransformBuilder},
     },
 };
 use std::sync::{mpsc::Sender, Arc, RwLock};
@@ -1676,6 +1677,8 @@ impl InteractionModeTrait for InteractionMode {
         mouse_pos: Vector2<f32>,
         frame_size: Vector2<f32>,
     ) {
+        scope_profile!();
+
         static_dispatch!(
             self,
             on_left_mouse_button_down,
@@ -1693,6 +1696,8 @@ impl InteractionModeTrait for InteractionMode {
         mouse_pos: Vector2<f32>,
         frame_size: Vector2<f32>,
     ) {
+        scope_profile!();
+
         static_dispatch!(
             self,
             on_left_mouse_button_up,
@@ -1712,6 +1717,8 @@ impl InteractionModeTrait for InteractionMode {
         engine: &mut GameEngine,
         frame_size: Vector2<f32>,
     ) {
+        scope_profile!();
+
         static_dispatch!(
             self,
             on_mouse_move,
@@ -1730,10 +1737,14 @@ impl InteractionModeTrait for InteractionMode {
         camera: Handle<Node>,
         engine: &mut GameEngine,
     ) {
+        scope_profile!();
+
         static_dispatch!(self, update, editor_scene, camera, engine)
     }
 
     fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
+        scope_profile!();
+
         static_dispatch!(self, deactivate, editor_scene, engine)
     }
 
@@ -1743,6 +1754,8 @@ impl InteractionModeTrait for InteractionMode {
         editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
     ) {
+        scope_profile!();
+
         static_dispatch!(self, on_key_down, key, editor_scene, engine)
     }
 }

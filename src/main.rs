@@ -336,6 +336,8 @@ impl ScenePreview {
 
 impl ScenePreview {
     fn handle_ui_message(&mut self, message: &UiMessage) {
+        scope_profile!();
+
         if let UiMessageData::Button(msg) = &message.data() {
             if let ButtonMessage::Click = msg {
                 if message.destination() == self.scale_mode {
@@ -729,6 +731,8 @@ impl Editor {
     }
 
     pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut GameEngine) {
+        scope_profile!();
+
         self.configurator.handle_ui_message(message, engine);
         self.menu.handle_ui_message(
             message,
@@ -1088,6 +1092,8 @@ impl Editor {
     }
 
     fn sync_to_model(&mut self, engine: &mut GameEngine) {
+        scope_profile!();
+
         self.menu
             .sync_to_model(self.scene.as_ref(), &mut engine.user_interface);
 

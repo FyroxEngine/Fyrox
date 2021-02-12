@@ -6,6 +6,7 @@ use crate::{
     },
     Message,
 };
+use rg3d::core::scope_profile;
 use rg3d::{
     core::pool::Handle,
     gui::{
@@ -95,6 +96,8 @@ impl SpriteSection {
     }
 
     pub fn handle_message(&mut self, message: &UiMessage, node: &Node, handle: Handle<Node>) {
+        scope_profile!();
+
         if let Node::Sprite(sprite) = node {
             match &message.data() {
                 UiMessageData::NumericUpDown(msg) => {

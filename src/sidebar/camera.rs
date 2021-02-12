@@ -5,7 +5,7 @@ use crate::{
     Message,
 };
 use rg3d::{
-    core::pool::Handle,
+    core::{pool::Handle, scope_profile},
     gui::{
         grid::{Column, GridBuilder, Row},
         message::{MessageDirection, NumericUpDownMessage, UiMessageData, WidgetMessage},
@@ -91,6 +91,8 @@ impl CameraSection {
     }
 
     pub fn handle_message(&mut self, message: &UiMessage, node: &Node, handle: Handle<Node>) {
+        scope_profile!();
+
         if let Node::Camera(camera) = node {
             if let UiMessageData::NumericUpDown(msg) = &message.data() {
                 if let NumericUpDownMessage::Value(value) = *msg {

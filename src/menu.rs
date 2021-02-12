@@ -5,6 +5,7 @@ use crate::{
     settings::Settings,
     GameEngine, Message,
 };
+use rg3d::core::scope_profile;
 use rg3d::{
     core::{
         algebra::{Matrix4, Vector2},
@@ -447,6 +448,8 @@ impl Menu {
     }
 
     pub fn sync_to_model(&mut self, editor_scene: Option<&EditorScene>, ui: &mut Ui) {
+        scope_profile!();
+
         for &widget in [
             self.close_scene,
             self.save,
@@ -465,6 +468,8 @@ impl Menu {
     }
 
     pub fn handle_ui_message(&mut self, message: &UiMessage, ctx: MenuContext) {
+        scope_profile!();
+
         self.settings.handle_message(message, ctx.engine);
 
         match &message.data() {

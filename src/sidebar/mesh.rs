@@ -5,7 +5,7 @@ use crate::{
     Message,
 };
 use rg3d::{
-    core::pool::Handle,
+    core::{pool::Handle, scope_profile},
     gui::{
         grid::{Column, GridBuilder, Row},
         message::{CheckBoxMessage, MessageDirection, UiMessageData, WidgetMessage},
@@ -61,6 +61,8 @@ impl MeshSection {
     }
 
     pub fn handle_message(&mut self, message: &UiMessage, node: &Node, handle: Handle<Node>) {
+        scope_profile!();
+
         if let Node::Mesh(mesh) = node {
             if let UiMessageData::CheckBox(msg) = &message.data() {
                 if let CheckBoxMessage::Check(value) = *msg {

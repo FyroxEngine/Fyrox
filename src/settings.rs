@@ -2,6 +2,7 @@ use crate::{
     gui::{BuildContext, UiMessage, UiNode},
     GameEngine, Message,
 };
+use rg3d::core::scope_profile;
 use rg3d::{
     core::pool::Handle,
     gui::{
@@ -173,6 +174,8 @@ impl Settings {
     }
 
     pub fn handle_message(&mut self, message: &UiMessage, engine: &mut GameEngine) {
+        scope_profile!();
+
         let mut settings = engine.renderer.get_quality_settings();
 
         match message.data() {

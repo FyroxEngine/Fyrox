@@ -11,7 +11,7 @@ use crate::{
     GameEngine, Message, MSG_SYNC_FLAG,
 };
 use rg3d::{
-    core::{algebra::Vector2, math::Rect, pool::Handle},
+    core::{algebra::Vector2, math::Rect, pool::Handle, scope_profile},
     engine::resource_manager::ResourceManager,
     gui::{
         brush::Brush,
@@ -35,8 +35,8 @@ use rg3d::{
     },
     scene::node::Node,
 };
-use std::collections::HashMap;
 use std::{
+    collections::HashMap,
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
@@ -444,6 +444,8 @@ impl WorldOutliner {
     }
 
     pub fn sync_to_model(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
+        scope_profile!();
+
         let scene = &mut engine.scenes[editor_scene.scene];
         let graph = &mut scene.graph;
         let ui = &mut engine.user_interface;
@@ -631,6 +633,8 @@ impl WorldOutliner {
         editor_scene: &EditorScene,
         engine: &GameEngine,
     ) {
+        scope_profile!();
+
         match &message.data() {
             UiMessageData::TreeRoot(msg) => {
                 if message.destination() == self.root

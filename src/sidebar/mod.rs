@@ -1,25 +1,23 @@
-use crate::scene::{Selection, SetTagCommand};
-use crate::sidebar::mesh::MeshSection;
 use crate::{
     gui::{BuildContext, UiMessage, UiNode},
     scene::{
-        EditorScene, MoveNodeCommand, RotateNodeCommand, ScaleNodeCommand, SceneCommand,
-        SetNameCommand,
+        EditorScene, MoveNodeCommand, RotateNodeCommand, ScaleNodeCommand, SceneCommand, Selection,
+        SetNameCommand, SetTagCommand,
     },
     sidebar::{
-        camera::CameraSection, light::LightSection, particle::ParticleSystemSection,
-        physics::PhysicsSection, sprite::SpriteSection,
+        camera::CameraSection, light::LightSection, mesh::MeshSection,
+        particle::ParticleSystemSection, physics::PhysicsSection, sprite::SpriteSection,
     },
     GameEngine, Message,
 };
-use rg3d::engine::resource_manager::ResourceManager;
-use rg3d::gui::message::TextMessage;
 use rg3d::{
+    core::scope_profile,
     core::{
         algebra::Vector3,
         math::{quat_from_euler, RotationOrder, UnitQuaternionExt},
         pool::Handle,
     },
+    engine::resource_manager::ResourceManager,
     gui::{
         border::BorderBuilder,
         check_box::CheckBoxBuilder,
@@ -27,7 +25,8 @@ use rg3d::{
         decorator::DecoratorBuilder,
         grid::{Column, GridBuilder, Row},
         message::{
-            MessageDirection, TextBoxMessage, UiMessageData, Vec3EditorMessage, WidgetMessage,
+            MessageDirection, TextBoxMessage, TextMessage, UiMessageData, Vec3EditorMessage,
+            WidgetMessage,
         },
         numeric::NumericUpDownBuilder,
         scroll_viewer::ScrollViewerBuilder,
@@ -266,6 +265,8 @@ impl SideBar {
     }
 
     pub fn sync_to_model(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
+        scope_profile!();
+
         // For now only nodes are editable through side bar.
         if let Selection::Graph(selection) = &editor_scene.selection {
             let scene = &engine.scenes[editor_scene.scene];
@@ -360,6 +361,8 @@ impl SideBar {
         editor_scene: &EditorScene,
         engine: &GameEngine,
     ) {
+        scope_profile!();
+
         // For now only nodes are editable through side bar.
         if let Selection::Graph(selection) = &editor_scene.selection {
             let scene = &engine.scenes[editor_scene.scene];

@@ -3,6 +3,7 @@ use crate::{
     scene::EditorScene,
     GameEngine,
 };
+use rg3d::core::scope_profile;
 use rg3d::{
     core::pool::Handle,
     gui::{
@@ -130,6 +131,8 @@ impl LightPanel {
         editor_scene: &EditorScene,
         engine: &mut GameEngine,
     ) {
+        scope_profile!();
+
         match message.data() {
             UiMessageData::Button(msg) => {
                 if let ButtonMessage::Click = msg {

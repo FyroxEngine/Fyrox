@@ -13,6 +13,7 @@ use crate::{
     },
     GameEngine, Message, MSG_SYNC_FLAG,
 };
+use rg3d::core::scope_profile;
 use rg3d::{
     core::{
         algebra::{Vector2, Vector3},
@@ -136,6 +137,8 @@ impl NavmeshPanel {
     }
 
     pub fn sync_to_model(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
+        scope_profile!();
+
         let ctx = &mut engine.user_interface.build_ctx();
 
         let items = editor_scene
@@ -191,6 +194,8 @@ impl NavmeshPanel {
         engine: &GameEngine,
         edit_mode: &mut EditNavmeshMode,
     ) {
+        scope_profile!();
+
         match message.data() {
             UiMessageData::Button(msg) => {
                 if let ButtonMessage::Click = msg {

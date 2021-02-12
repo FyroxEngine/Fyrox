@@ -10,6 +10,7 @@ use crate::{
     },
     Message,
 };
+use rg3d::core::scope_profile;
 use rg3d::gui::stack_panel::StackPanelBuilder;
 use rg3d::{
     core::pool::Handle,
@@ -135,6 +136,8 @@ impl LightSection {
     }
 
     pub fn handle_message(&mut self, message: &UiMessage, node: &Node, handle: Handle<Node>) {
+        scope_profile!();
+
         if let Node::Light(light) = node {
             match &message.data() {
                 UiMessageData::Vec3Editor(msg) => {

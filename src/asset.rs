@@ -7,6 +7,7 @@ use crate::{
     preview::PreviewPanel,
     GameEngine,
 };
+use rg3d::core::scope_profile;
 use rg3d::gui::draw::Draw;
 use rg3d::gui::{VerticalAlignment, BRUSH_DARK};
 use rg3d::{
@@ -294,6 +295,8 @@ impl AssetBrowser {
     }
 
     pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut GameEngine) {
+        scope_profile!();
+
         self.preview.handle_message(message, engine);
         let ui = &mut engine.user_interface;
 

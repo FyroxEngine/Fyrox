@@ -2,6 +2,7 @@ use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     load_image, Message,
 };
+use rg3d::core::scope_profile;
 use rg3d::{
     core::{color::Color, pool::Handle},
     engine::resource_manager::ResourceManager,
@@ -232,6 +233,8 @@ impl CommandStackViewer {
     }
 
     pub fn handle_ui_message(&self, message: &UiMessage) {
+        scope_profile!();
+
         if let UiMessageData::Button(msg) = message.data() {
             if let ButtonMessage::Click = msg {
                 if message.destination() == self.undo {
@@ -251,6 +254,8 @@ impl CommandStackViewer {
     ) where
         C: Command<'a, Context = Ctx> + Debug,
     {
+        scope_profile!();
+
         let top = command_stack.top;
         let items = command_stack
             .commands
