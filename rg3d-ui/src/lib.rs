@@ -444,6 +444,11 @@ where
     /// this we use `preview_message`. This method is much more restrictive - it does not allow you to
     /// modify a node and ui, you can either *request* changes by sending a message or use internal
     /// mutability (`Cell`, `RefCell`, etc).
+    ///
+    /// ## Important notes
+    ///
+    /// The order of execution of this method is undefined! There is no guarantee that it will be called
+    /// hierarchically as widgets connected.
     fn preview_message(&self, _ui: &UserInterface<M, C>, _message: &mut UiMessage<M, C>) {
         // This method is optional.
     }
@@ -718,15 +723,20 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         self.stack.clear();
         self.stack.push(self.root_canvas);
         while let Some(node_handle) = self.stack.pop() {
-            let widget = self.nodes.borrow(node_handle);
+            let (widget, parent) = self
+                .nodes
+                .try_borrow_dependant_mut(node_handle, |n| n.parent());
+
+            let widget = widget.unwrap();
+
             self.stack.extend_from_slice(widget.children());
-            let parent_visibility = if widget.parent().is_some() {
-                self.node(widget.parent()).is_globally_visible()
+
+            let visibility = if let Some(parent) = parent {
+                widget.visibility() && parent.is_globally_visible()
             } else {
-                true
+                widget.visibility()
             };
-            let widget = self.nodes.borrow_mut(node_handle);
-            let visibility = widget.visibility() && parent_visibility;
+
             widget.set_global_visibility(visibility);
         }
     }
@@ -737,17 +747,23 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         self.stack.clear();
         self.stack.push(self.root_canvas);
         while let Some(node_handle) = self.stack.pop() {
-            let widget = self.nodes.borrow(node_handle);
-            for child_handle in widget.children() {
-                self.stack.push(*child_handle);
+            let (widget, parent) = self
+                .nodes
+                .try_borrow_dependant_mut(node_handle, |n| n.parent());
+
+            let widget = widget.unwrap();
+
+            if widget.is_globally_visible() {
+                self.stack.extend_from_slice(widget.children());
+
+                let screen_position = if let Some(parent) = parent {
+                    widget.actual_local_position() + parent.screen_position()
+                } else {
+                    widget.actual_local_position()
+                };
+
+                widget.screen_position = screen_position;
             }
-            let screen_position = if widget.parent().is_some() {
-                widget.actual_local_position()
-                    + self.nodes.borrow(widget.parent()).screen_position()
-            } else {
-                widget.actual_local_position()
-            };
-            self.nodes.borrow_mut(node_handle).screen_position = screen_position;
         }
     }
 
@@ -1169,19 +1185,18 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
     }
 
     fn preview_message(&mut self, message: &mut UiMessage<M, C>) {
+        scope_profile!();
+
         // Fire preview handler first. This will allow controls to do some actions before
-        // message will begin bubble routing. Preview routing does not care about destination
-        // node of message, it always starts from root and descend to leaf nodes.
-        self.stack.clear();
-        self.stack.push(self.root());
-        while let Some(handle) = self.stack.pop() {
-            let node = &self.nodes[handle];
-            self.stack.extend_from_slice(node.children());
+        // message will begin bubble routing.
+        for node in self.nodes.iter() {
             node.preview_message(self, message);
         }
     }
 
     fn bubble_message(&mut self, message: &mut UiMessage<M, C>) {
+        scope_profile!();
+
         // Dispatch event using bubble strategy. Bubble routing means that message will go
         // from specified destination up on tree to tree root.
         // Gather chain of nodes from source to root.

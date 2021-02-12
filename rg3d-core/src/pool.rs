@@ -561,6 +561,27 @@ impl<T> Pool<T> {
         }
     }
 
+    /// Tries to borrow two objects when a handle to the second object stored in the first object.
+    pub fn try_borrow_dependant_mut<F>(
+        &mut self,
+        handle: Handle<T>,
+        func: F,
+    ) -> (Option<&mut T>, Option<&mut T>)
+    where
+        F: FnOnce(&T) -> Handle<T>,
+    {
+        let this = unsafe { &mut *(self as *const _ as *mut Pool<T>) };
+        let first = self.try_borrow_mut(handle);
+        if let Some(first_object) = first.as_ref() {
+            let second_handle = func(first_object);
+            if second_handle != handle {
+                return (first, this.try_borrow_mut(second_handle));
+            }
+        }
+
+        (first, None)
+    }
+
     /// Moves object out of pool using given handle. All handles to the object will become invalid.
     ///
     /// # Panics
