@@ -104,12 +104,8 @@ impl EvaluatePose for BlendAnimations {
             let weight = match blend_pose.weight {
                 PoseWeight::Constant(value) => value,
                 PoseWeight::Parameter(ref param_id) => {
-                    if let Some(param) = params.get(param_id) {
-                        if let Parameter::Weight(weight) = param {
-                            *weight
-                        } else {
-                            0.0
-                        }
+                    if let Some(Parameter::Weight(weight)) = params.get(param_id) {
+                        *weight
                     } else {
                         0.0
                     }
@@ -187,49 +183,46 @@ impl EvaluatePose for BlendAnimationsByIndex {
     ) -> Ref<AnimationPose> {
         self.output_pose.borrow_mut().reset();
 
-        if let Some(current_index) = params.get(&self.index_parameter) {
-            if let &Parameter::Index(current_index) = current_index {
-                let mut applied = false;
+        if let Some(&Parameter::Index(current_index)) = params.get(&self.index_parameter) {
+            let mut applied = false;
 
-                if let Some(prev_index) = self.prev_index.get() {
-                    if prev_index != current_index {
-                        let prev_input = &self.inputs[prev_index as usize];
-                        let current_input = &self.inputs[current_index as usize];
+            if let Some(prev_index) = self.prev_index.get() {
+                if prev_index != current_index {
+                    let prev_input = &self.inputs[prev_index as usize];
+                    let current_input = &self.inputs[current_index as usize];
 
-                        self.blend_time
-                            .set((self.blend_time.get() + dt).min(current_input.blend_time));
+                    self.blend_time
+                        .set((self.blend_time.get() + dt).min(current_input.blend_time));
 
-                        let interpolator = self.blend_time.get() / current_input.blend_time;
+                    let interpolator = self.blend_time.get() / current_input.blend_time;
 
-                        self.output_pose.borrow_mut().blend_with(
-                            &nodes[prev_input.pose_source].eval_pose(nodes, params, animations, dt),
-                            1.0 - interpolator,
-                        );
-                        self.output_pose.borrow_mut().blend_with(
-                            &nodes[current_input.pose_source]
-                                .eval_pose(nodes, params, animations, dt),
-                            interpolator,
-                        );
+                    self.output_pose.borrow_mut().blend_with(
+                        &nodes[prev_input.pose_source].eval_pose(nodes, params, animations, dt),
+                        1.0 - interpolator,
+                    );
+                    self.output_pose.borrow_mut().blend_with(
+                        &nodes[current_input.pose_source].eval_pose(nodes, params, animations, dt),
+                        interpolator,
+                    );
 
-                        if interpolator >= 1.0 {
-                            self.prev_index.set(Some(current_index));
-                            self.blend_time.set(0.0);
-                        }
-
-                        applied = true;
+                    if interpolator >= 1.0 {
+                        self.prev_index.set(Some(current_index));
+                        self.blend_time.set(0.0);
                     }
-                } else {
-                    self.prev_index.set(Some(current_index));
-                }
 
-                if !applied {
-                    // Immediately jump to target pose.
-                    self.blend_time.set(0.0);
-
-                    nodes[self.inputs[current_index as usize].pose_source]
-                        .eval_pose(nodes, params, animations, dt)
-                        .clone_into(&mut *self.output_pose.borrow_mut());
+                    applied = true;
                 }
+            } else {
+                self.prev_index.set(Some(current_index));
+            }
+
+            if !applied {
+                // Immediately jump to target pose.
+                self.blend_time.set(0.0);
+
+                nodes[self.inputs[current_index as usize].pose_source]
+                    .eval_pose(nodes, params, animations, dt)
+                    .clone_into(&mut *self.output_pose.borrow_mut());
             }
         }
 

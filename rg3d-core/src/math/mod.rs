@@ -302,7 +302,7 @@ pub fn is_point_inside_2d_triangle(
     let dot_02 = ca.dot(&vp);
     let dot_12 = ba.dot(&vp);
 
-    let inv_denom = 1.0 / (ca_dot_ca * ba_dot_ba - ca_dot_ba * ca_dot_ba);
+    let inv_denom = 1.0 / (ca_dot_ca * ba_dot_ba - ca_dot_ba.powi(2));
 
     // calculate barycentric coordinates
     let u = (ba_dot_ba * dot_02 - ca_dot_ba * dot_12) * inv_denom;
@@ -389,7 +389,7 @@ pub fn get_barycentric_coords(
     let d11 = v1.dot(&v1);
     let d20 = v2.dot(&v0);
     let d21 = v2.dot(&v1);
-    let denom = d00 * d11 - d01 * d01;
+    let denom = d00 * d11 - d01.powi(2);
 
     let v = (d11 * d20 - d01 * d21) / denom;
     let w = (d00 * d21 - d01 * d20) / denom;
@@ -413,7 +413,7 @@ pub fn get_barycentric_coords_2d(
     let d11 = v1.dot(&v1);
     let d20 = v2.dot(&v0);
     let d21 = v2.dot(&v1);
-    let inv_denom = 1.0 / (d00 * d11 - d01 * d01);
+    let inv_denom = 1.0 / (d00 * d11 - d01.powi(2));
 
     let v = (d11 * d20 - d01 * d21) * inv_denom;
     let w = (d00 * d21 - d01 * d20) * inv_denom;
@@ -447,7 +447,7 @@ pub fn is_point_inside_triangle(p: &Vector3<f32>, vertices: &[Vector3<f32>; 3]) 
     let dot02 = ca.dot(&vp);
     let dot12 = ba.dot(&vp);
 
-    let inv_denom = 1.0 / (ca_dot_ca * ba_dot_ba - ca_dot_ba * ca_dot_ba);
+    let inv_denom = 1.0 / (ca_dot_ca * ba_dot_ba - ca_dot_ba.powi(2));
 
     // Calculate barycentric coordinates
     let u = (ba_dot_ba * dot02 - ca_dot_ba * dot12) * inv_denom;

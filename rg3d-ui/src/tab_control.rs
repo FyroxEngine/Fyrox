@@ -40,22 +40,20 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TabControl<M, C> {
     ) {
         self.widget.handle_routed_message(ui, message);
 
-        if let UiMessageData::Button(msg) = &message.data() {
-            if let ButtonMessage::Click = msg {
-                for (i, tab) in self.tabs.iter().enumerate() {
-                    if message.destination() == tab.header_button
-                        && tab.header_button.is_some()
-                        && tab.content.is_some()
-                    {
-                        for (j, other_tab) in self.tabs.iter().enumerate() {
-                            ui.send_message(WidgetMessage::visibility(
-                                other_tab.content,
-                                MessageDirection::ToWidget,
-                                j == i,
-                            ));
-                        }
-                        break;
+        if let UiMessageData::Button(ButtonMessage::Click) = &message.data() {
+            for (i, tab) in self.tabs.iter().enumerate() {
+                if message.destination() == tab.header_button
+                    && tab.header_button.is_some()
+                    && tab.content.is_some()
+                {
+                    for (j, other_tab) in self.tabs.iter().enumerate() {
+                        ui.send_message(WidgetMessage::visibility(
+                            other_tab.content,
+                            MessageDirection::ToWidget,
+                            j == i,
+                        ));
                     }
+                    break;
                 }
             }
         }

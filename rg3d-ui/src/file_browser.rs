@@ -621,25 +621,23 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileSelector<M, C> {
         self.window.handle_routed_message(ui, message);
 
         match &message.data() {
-            UiMessageData::Button(msg) => {
-                if let ButtonMessage::Click = msg {
-                    if message.destination() == self.ok {
-                        let path = if let UINode::FileBrowser(browser) = ui.node(self.browser) {
-                            &browser.path
-                        } else {
-                            unreachable!();
-                        };
-                        ui.send_message(FileSelectorMessage::commit(
-                            self.handle,
-                            MessageDirection::ToWidget,
-                            path.clone(),
-                        ));
-                    } else if message.destination() == self.cancel {
-                        ui.send_message(FileSelectorMessage::cancel(
-                            self.handle,
-                            MessageDirection::ToWidget,
-                        ))
-                    }
+            UiMessageData::Button(ButtonMessage::Click) => {
+                if message.destination() == self.ok {
+                    let path = if let UINode::FileBrowser(browser) = ui.node(self.browser) {
+                        &browser.path
+                    } else {
+                        unreachable!();
+                    };
+                    ui.send_message(FileSelectorMessage::commit(
+                        self.handle,
+                        MessageDirection::ToWidget,
+                        path.clone(),
+                    ));
+                } else if message.destination() == self.cancel {
+                    ui.send_message(FileSelectorMessage::cancel(
+                        self.handle,
+                        MessageDirection::ToWidget,
+                    ))
                 }
             }
             UiMessageData::FileSelector(msg) => {

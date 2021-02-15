@@ -130,21 +130,19 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollBar<M, C> {
         self.widget.handle_routed_message(ui, message);
 
         match &message.data() {
-            UiMessageData::Button(msg) => {
-                if let ButtonMessage::Click = msg {
-                    if message.destination() == self.increase {
-                        ui.send_message(ScrollBarMessage::value(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                            self.value + self.step,
-                        ));
-                    } else if message.destination() == self.decrease {
-                        ui.send_message(ScrollBarMessage::value(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                            self.value - self.step,
-                        ));
-                    }
+            UiMessageData::Button(ButtonMessage::Click) => {
+                if message.destination() == self.increase {
+                    ui.send_message(ScrollBarMessage::value(
+                        self.handle(),
+                        MessageDirection::ToWidget,
+                        self.value + self.step,
+                    ));
+                } else if message.destination() == self.decrease {
+                    ui.send_message(ScrollBarMessage::value(
+                        self.handle(),
+                        MessageDirection::ToWidget,
+                        self.value - self.step,
+                    ));
                 }
             }
             UiMessageData::ScrollBar(msg)

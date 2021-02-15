@@ -570,7 +570,7 @@ impl<T> Pool<T> {
     where
         F: FnOnce(&T) -> Handle<T>,
     {
-        let this = unsafe { &mut *(self as *const _ as *mut Pool<T>) };
+        let this = unsafe { &mut *(self as *mut Pool<T>) };
         let first = self.try_borrow_mut(handle);
         if let Some(first_object) = first.as_ref() {
             let second_handle = func(first_object);

@@ -50,25 +50,23 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for DropdownList<M, C> {
         self.widget.handle_routed_message(ui, message);
 
         match &message.data() {
-            UiMessageData::Widget(msg) => {
-                if let WidgetMessage::MouseDown { .. } = msg {
-                    if message.destination() == self.handle()
-                        || self.widget.has_descendant(message.destination(), ui)
-                    {
-                        ui.send_message(WidgetMessage::width(
-                            self.popup,
-                            MessageDirection::ToWidget,
-                            self.actual_size().x,
-                        ));
-                        let placement_position = self.widget.screen_position
-                            + Vector2::new(0.0, self.widget.actual_size().y);
-                        ui.send_message(PopupMessage::placement(
-                            self.popup,
-                            MessageDirection::ToWidget,
-                            Placement::Position(placement_position),
-                        ));
-                        ui.send_message(PopupMessage::open(self.popup, MessageDirection::ToWidget));
-                    }
+            UiMessageData::Widget(WidgetMessage::MouseDown { .. }) => {
+                if message.destination() == self.handle()
+                    || self.widget.has_descendant(message.destination(), ui)
+                {
+                    ui.send_message(WidgetMessage::width(
+                        self.popup,
+                        MessageDirection::ToWidget,
+                        self.actual_size().x,
+                    ));
+                    let placement_position = self.widget.screen_position
+                        + Vector2::new(0.0, self.widget.actual_size().y);
+                    ui.send_message(PopupMessage::placement(
+                        self.popup,
+                        MessageDirection::ToWidget,
+                        Placement::Position(placement_position),
+                    ));
+                    ui.send_message(PopupMessage::open(self.popup, MessageDirection::ToWidget));
                 }
             }
             UiMessageData::DropdownList(msg)

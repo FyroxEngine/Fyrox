@@ -95,21 +95,19 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollViewer<M, C> {
         self.widget.handle_routed_message(ui, message);
 
         match &message.data() {
-            UiMessageData::Widget(msg) => {
-                if let WidgetMessage::MouseWheel { amount, .. } = msg {
-                    if self.v_scroll_bar.is_some() && !message.handled() {
-                        if let UINode::ScrollBar(v_scroll_bar) = ui.node(self.v_scroll_bar) {
-                            let old_value = v_scroll_bar.value();
-                            let new_value = old_value - amount * 17.0;
-                            if (old_value - new_value).abs() > std::f32::EPSILON {
-                                message.set_handled(true);
-                            }
-                            ui.send_message(ScrollBarMessage::value(
-                                self.v_scroll_bar,
-                                MessageDirection::ToWidget,
-                                new_value,
-                            ));
+            UiMessageData::Widget(WidgetMessage::MouseWheel { amount, .. }) => {
+                if self.v_scroll_bar.is_some() && !message.handled() {
+                    if let UINode::ScrollBar(v_scroll_bar) = ui.node(self.v_scroll_bar) {
+                        let old_value = v_scroll_bar.value();
+                        let new_value = old_value - amount * 17.0;
+                        if (old_value - new_value).abs() > std::f32::EPSILON {
+                            message.set_handled(true);
                         }
+                        ui.send_message(ScrollBarMessage::value(
+                            self.v_scroll_bar,
+                            MessageDirection::ToWidget,
+                            new_value,
+                        ));
                     }
                 }
             }

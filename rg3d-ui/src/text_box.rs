@@ -747,30 +747,28 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
                     }
                     _ => {}
                 },
-                UiMessageData::TextBox(msg)
+                UiMessageData::TextBox(TextBoxMessage::Text(new_text))
                     if message.direction() == MessageDirection::ToWidget =>
                 {
-                    if let TextBoxMessage::Text(new_text) = msg {
-                        let mut equals = false;
-                        for (&new, old) in self
-                            .formatted_text
-                            .borrow()
-                            .get_raw_text()
-                            .iter()
-                            .zip(new_text.chars())
-                        {
-                            if old as u32 != new {
-                                equals = false;
-                                break;
-                            }
+                    let mut equals = false;
+                    for (&new, old) in self
+                        .formatted_text
+                        .borrow()
+                        .get_raw_text()
+                        .iter()
+                        .zip(new_text.chars())
+                    {
+                        if old as u32 != new {
+                            equals = false;
+                            break;
                         }
-                        if !equals {
-                            self.formatted_text.borrow_mut().set_text(new_text);
-                            self.invalidate_layout();
+                    }
+                    if !equals {
+                        self.formatted_text.borrow_mut().set_text(new_text);
+                        self.invalidate_layout();
 
-                            if self.commit_mode == TextCommitMode::Immediate {
-                                ui.send_message(message.reverse());
-                            }
+                        if self.commit_mode == TextCommitMode::Immediate {
+                            ui.send_message(message.reverse());
                         }
                     }
                 }

@@ -60,8 +60,8 @@ impl FbxScene {
                     )));
                 }
                 "Material" => {
-                    component_handle = components
-                        .spawn(FbxComponent::Material(FbxMaterial::read(*object_handle)?));
+                    component_handle =
+                        components.spawn(FbxComponent::Material(FbxMaterial::read(*object_handle)));
                 }
                 "Texture" => {
                     component_handle = components.spawn(FbxComponent::Texture(FbxTexture::read(
@@ -93,7 +93,7 @@ impl FbxScene {
                     }
                     "Skin" => {
                         component_handle = components.spawn(FbxComponent::Deformer(
-                            FbxDeformer::read(*object_handle, nodes)?,
+                            FbxDeformer::read(*object_handle, nodes),
                         ));
                     }
                     _ => (),
@@ -294,10 +294,10 @@ pub struct FbxMaterial {
 }
 
 impl FbxMaterial {
-    fn read(_material_node_handle: Handle<FbxNode>) -> Result<FbxMaterial, String> {
-        Ok(FbxMaterial {
+    fn read(_material_node_handle: Handle<FbxNode>) -> FbxMaterial {
+        FbxMaterial {
             textures: Default::default(),
-        })
+        }
     }
 }
 
@@ -306,13 +306,10 @@ pub struct FbxDeformer {
 }
 
 impl FbxDeformer {
-    fn read(
-        _sub_deformer_handle: Handle<FbxNode>,
-        _nodes: &FbxNodeContainer,
-    ) -> Result<Self, String> {
-        Ok(FbxDeformer {
+    fn read(_sub_deformer_handle: Handle<FbxNode>, _nodes: &FbxNodeContainer) -> Self {
+        FbxDeformer {
             sub_deformers: Vec::new(),
-        })
+        }
     }
 }
 

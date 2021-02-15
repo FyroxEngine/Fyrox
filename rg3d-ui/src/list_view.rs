@@ -87,18 +87,16 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ListViewItem<M, C> {
         let items_control =
             self.find_by_criteria_up(ui, |node| matches!(node, UINode::ListView(_)));
 
-        if let UiMessageData::Widget(msg) = &message.data() {
-            if let WidgetMessage::MouseUp { .. } = msg {
-                if !message.handled() {
-                    // Explicitly set selection on parent items control. This will send
-                    // SelectionChanged message and all items will react.
-                    ui.send_message(ListViewMessage::selection(
-                        items_control,
-                        MessageDirection::ToWidget,
-                        Some(self.index),
-                    ));
-                    message.set_handled(true);
-                }
+        if let UiMessageData::Widget(WidgetMessage::MouseUp { .. }) = &message.data() {
+            if !message.handled() {
+                // Explicitly set selection on parent items control. This will send
+                // SelectionChanged message and all items will react.
+                ui.send_message(ListViewMessage::selection(
+                    items_control,
+                    MessageDirection::ToWidget,
+                    Some(self.index),
+                ));
+                message.set_handled(true);
             }
         }
     }

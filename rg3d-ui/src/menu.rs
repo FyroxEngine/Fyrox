@@ -278,32 +278,30 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for MenuItem<M, C> {
         // We need to check if some new menu item opened and then close other not in
         // direct chain of menu items until to menu.
         if message.destination() != self.handle() {
-            if let UiMessageData::MenuItem(msg) = &message.data() {
-                if let MenuItemMessage::Open = msg {
-                    let mut found = false;
-                    let mut handle = message.destination();
-                    while handle.is_some() {
-                        if handle == self.handle() {
-                            found = true;
-                            break;
+            if let UiMessageData::MenuItem(MenuItemMessage::Open) = &message.data() {
+                let mut found = false;
+                let mut handle = message.destination();
+                while handle.is_some() {
+                    if handle == self.handle() {
+                        found = true;
+                        break;
+                    } else {
+                        let node = ui.node(handle);
+                        if let UINode::Popup(popup) = node {
+                            // Once we found popup in chain, we must extract handle
+                            // of parent menu item to continue search.
+                            handle = *popup.user_data_ref::<Handle<UINode<M, C>>>();
                         } else {
-                            let node = ui.node(handle);
-                            if let UINode::Popup(popup) = node {
-                                // Once we found popup in chain, we must extract handle
-                                // of parent menu item to continue search.
-                                handle = *popup.user_data_ref::<Handle<UINode<M, C>>>();
-                            } else {
-                                handle = node.parent();
-                            }
+                            handle = node.parent();
                         }
                     }
+                }
 
-                    if !found {
-                        ui.send_message(MenuItemMessage::close(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                        ));
-                    }
+                if !found {
+                    ui.send_message(MenuItemMessage::close(
+                        self.handle(),
+                        MessageDirection::ToWidget,
+                    ));
                 }
             }
         }

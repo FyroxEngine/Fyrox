@@ -574,7 +574,7 @@ impl Graph {
             .pair_iter()
             .filter_map(|(h, n)| {
                 if n.is_resource_instance_root {
-                    Some((h, n.resource().clone().unwrap()))
+                    Some((h, n.resource().unwrap()))
                 } else {
                     None
                 }
@@ -612,49 +612,46 @@ impl Graph {
 
                     // Root of the resource is not belongs to resource, it is just a convenient way of
                     // consolidation all descendants under a single node.
-                    if resource_node_handle != resource_graph.root {
-                        if self.find_by_name(instance, resource_node.name()).is_none() {
-                            Log::writeln(
-                                MessageKind::Warning,
-                                format!(
-                                    "Instance of node {} is missing. Restoring integrity...",
-                                    resource_node.name()
-                                ),
+                    if resource_node_handle != resource_graph.root
+                        && self.find_by_name(instance, resource_node.name()).is_none()
+                    {
+                        Log::writeln(
+                            MessageKind::Warning,
+                            format!(
+                                "Instance of node {} is missing. Restoring integrity...",
+                                resource_node.name()
+                            ),
+                        );
+
+                        // Instantiate missing node.
+                        let (copy, mapping) =
+                            resource_graph.copy_node(resource_node_handle, self, &mut |_, _| true);
+
+                        restored_count += mapping.len();
+
+                        let mut stack = vec![copy];
+                        while let Some(node_handle) = stack.pop() {
+                            let node = &mut self.pool[node_handle];
+                            node.resource = Some(resource.clone());
+                            stack.extend_from_slice(node.children());
+                        }
+
+                        // Link it with existing node.
+                        if resource_node.parent().is_some() {
+                            let parent = self.find_by_name(
+                                instance,
+                                resource_graph[resource_node.parent()].name(),
                             );
 
-                            // Instantiate missing node.
-                            let (copy, mapping) = resource_graph.copy_node(
-                                resource_node_handle,
-                                self,
-                                &mut |_, _| true,
-                            );
-
-                            restored_count += mapping.len();
-
-                            let mut stack = vec![copy];
-                            while let Some(node_handle) = stack.pop() {
-                                let node = &mut self.pool[node_handle];
-                                node.resource = Some(resource.clone());
-                                stack.extend_from_slice(node.children());
-                            }
-
-                            // Link it with existing node.
-                            if resource_node.parent().is_some() {
-                                let parent = self.find_by_name(
-                                    instance,
-                                    resource_graph[resource_node.parent()].name(),
-                                );
-
-                                if parent.is_some() {
-                                    self.link_nodes(copy, parent);
-                                } else {
-                                    // Fail-safe route - link with root of instance.
-                                    self.link_nodes(copy, instance);
-                                }
+                            if parent.is_some() {
+                                self.link_nodes(copy, parent);
                             } else {
                                 // Fail-safe route - link with root of instance.
                                 self.link_nodes(copy, instance);
                             }
+                        } else {
+                            // Fail-safe route - link with root of instance.
+                            self.link_nodes(copy, instance);
                         }
                     }
 

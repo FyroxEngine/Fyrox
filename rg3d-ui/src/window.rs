@@ -284,20 +284,18 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Window<M, C> {
                     }
                 }
             }
-            UiMessageData::Button(msg) => {
-                if let ButtonMessage::Click = msg {
-                    if message.destination() == self.minimize_button {
-                        ui.send_message(WindowMessage::minimize(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                            !self.minimized,
-                        ));
-                    } else if message.destination() == self.close_button {
-                        ui.send_message(WindowMessage::close(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                        ));
-                    }
+            UiMessageData::Button(ButtonMessage::Click) => {
+                if message.destination() == self.minimize_button {
+                    ui.send_message(WindowMessage::minimize(
+                        self.handle(),
+                        MessageDirection::ToWidget,
+                        !self.minimized,
+                    ));
+                } else if message.destination() == self.close_button {
+                    ui.send_message(WindowMessage::close(
+                        self.handle(),
+                        MessageDirection::ToWidget,
+                    ));
                 }
             }
             UiMessageData::Window(msg) => {

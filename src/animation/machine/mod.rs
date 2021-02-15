@@ -576,11 +576,16 @@ impl Machine {
         self.nodes.spawn(node)
     }
 
-    pub fn set_parameter(&mut self, id: &str, parameter: Parameter) -> &mut Self {
-        self.parameters
-            .entry(id.to_owned())
-            .and_modify(|p| *p = parameter)
-            .or_insert(parameter);
+    pub fn set_parameter(&mut self, id: &str, new_value: Parameter) -> &mut Self {
+        match self.parameters.get_mut(id) {
+            Some(parameter) => {
+                *parameter = new_value;
+            }
+            None => {
+                self.parameters.insert(id.to_owned(), new_value);
+            }
+        }
+
         self
     }
 
@@ -658,36 +663,34 @@ impl Machine {
                     {
                         continue;
                     }
-                    if let Some(rule) = self.parameters.get(&transition.rule) {
-                        if let Parameter::Rule(active) = rule {
-                            if *active {
-                                self.events.push(Event::StateLeave(self.active_state));
-                                if self.debug {
-                                    Log::writeln(
-                                        MessageKind::Information,
-                                        format!(
-                                            "Leaving state: {}",
-                                            self.states[self.active_state].name
-                                        ),
-                                    );
-                                }
-
-                                self.events.push(Event::StateEnter(transition.source));
-                                if self.debug {
-                                    Log::writeln(
-                                        MessageKind::Information,
-                                        format!(
-                                            "Entering state: {}",
-                                            self.states[transition.source].name
-                                        ),
-                                    );
-                                }
-
-                                self.active_state = Handle::NONE;
-                                self.active_transition = handle;
-
-                                break;
+                    if let Some(Parameter::Rule(active)) = self.parameters.get(&transition.rule) {
+                        if *active {
+                            self.events.push(Event::StateLeave(self.active_state));
+                            if self.debug {
+                                Log::writeln(
+                                    MessageKind::Information,
+                                    format!(
+                                        "Leaving state: {}",
+                                        self.states[self.active_state].name
+                                    ),
+                                );
                             }
+
+                            self.events.push(Event::StateEnter(transition.source));
+                            if self.debug {
+                                Log::writeln(
+                                    MessageKind::Information,
+                                    format!(
+                                        "Entering state: {}",
+                                        self.states[transition.source].name
+                                    ),
+                                );
+                            }
+
+                            self.active_state = Handle::NONE;
+                            self.active_transition = handle;
+
+                            break;
                         }
                     }
                 }

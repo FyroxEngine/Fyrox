@@ -111,32 +111,30 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for MessageBox<M, C> {
         self.window.handle_routed_message(ui, message);
 
         match &message.data() {
-            UiMessageData::Button(msg) => {
-                if let ButtonMessage::Click = msg {
-                    if message.destination() == self.ok_yes {
-                        let result = match self.buttons {
-                            MessageBoxButtons::Ok => MessageBoxResult::Ok,
-                            MessageBoxButtons::YesNo => MessageBoxResult::Yes,
-                            MessageBoxButtons::YesNoCancel => MessageBoxResult::Yes,
-                        };
-                        ui.send_message(MessageBoxMessage::close(
-                            self.handle,
-                            MessageDirection::ToWidget,
-                            result,
-                        ));
-                    } else if message.destination() == self.cancel {
-                        ui.send_message(MessageBoxMessage::close(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                            MessageBoxResult::Cancel,
-                        ));
-                    } else if message.destination() == self.no {
-                        ui.send_message(MessageBoxMessage::close(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                            MessageBoxResult::No,
-                        ));
-                    }
+            UiMessageData::Button(ButtonMessage::Click) => {
+                if message.destination() == self.ok_yes {
+                    let result = match self.buttons {
+                        MessageBoxButtons::Ok => MessageBoxResult::Ok,
+                        MessageBoxButtons::YesNo => MessageBoxResult::Yes,
+                        MessageBoxButtons::YesNoCancel => MessageBoxResult::Yes,
+                    };
+                    ui.send_message(MessageBoxMessage::close(
+                        self.handle,
+                        MessageDirection::ToWidget,
+                        result,
+                    ));
+                } else if message.destination() == self.cancel {
+                    ui.send_message(MessageBoxMessage::close(
+                        self.handle(),
+                        MessageDirection::ToWidget,
+                        MessageBoxResult::Cancel,
+                    ));
+                } else if message.destination() == self.no {
+                    ui.send_message(MessageBoxMessage::close(
+                        self.handle(),
+                        MessageDirection::ToWidget,
+                        MessageBoxResult::No,
+                    ));
                 }
             }
             UiMessageData::MessageBox(msg) => {

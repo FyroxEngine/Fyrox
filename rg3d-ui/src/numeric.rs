@@ -71,10 +71,8 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for NumericUpDown<M, C> {
                         WidgetMessage::LostFocus => {
                             self.try_parse_value(ui);
                         }
-                        WidgetMessage::KeyDown(key) => {
-                            if let KeyCode::Return = key {
-                                self.try_parse_value(ui);
-                            }
+                        WidgetMessage::KeyDown(KeyCode::Return) => {
+                            self.try_parse_value(ui);
                         }
                         _ => {}
                     }
@@ -106,27 +104,25 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for NumericUpDown<M, C> {
                     }
                 }
             }
-            UiMessageData::Button(msg) => {
-                if let ButtonMessage::Click = msg {
-                    if message.destination() == self.decrease {
-                        let value = (self.value - self.step)
-                            .min(self.max_value)
-                            .max(self.min_value);
-                        ui.send_message(NumericUpDownMessage::value(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                            value,
-                        ));
-                    } else if message.destination() == self.increase {
-                        let value = (self.value + self.step)
-                            .min(self.max_value)
-                            .max(self.min_value);
-                        ui.send_message(NumericUpDownMessage::value(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                            value,
-                        ));
-                    }
+            UiMessageData::Button(ButtonMessage::Click) => {
+                if message.destination() == self.decrease {
+                    let value = (self.value - self.step)
+                        .min(self.max_value)
+                        .max(self.min_value);
+                    ui.send_message(NumericUpDownMessage::value(
+                        self.handle(),
+                        MessageDirection::ToWidget,
+                        value,
+                    ));
+                } else if message.destination() == self.increase {
+                    let value = (self.value + self.step)
+                        .min(self.max_value)
+                        .max(self.min_value);
+                    ui.send_message(NumericUpDownMessage::value(
+                        self.handle(),
+                        MessageDirection::ToWidget,
+                        value,
+                    ));
                 }
             }
             _ => {}

@@ -32,10 +32,10 @@ impl Iterator for OggDecoder {
             Some(sample)
         } else {
             if let Some(reader) = self.reader.as_mut() {
-                if let Ok(samples) = reader.read_dec_packet_generic::<InterleavedSamples<f32>>() {
-                    if let Some(samples) = samples {
-                        self.samples = samples.samples.into_iter();
-                    }
+                if let Ok(Some(samples)) =
+                    reader.read_dec_packet_generic::<InterleavedSamples<f32>>()
+                {
+                    self.samples = samples.samples.into_iter();
                 }
             }
             self.samples.next()
@@ -58,16 +58,13 @@ impl OggDecoder {
         if is_vorbis_ogg(&mut source) {
             let mut reader = OggStreamReader::new(source).unwrap();
 
-            let samples =
-                if let Ok(samples) = reader.read_dec_packet_generic::<InterleavedSamples<f32>>() {
-                    if let Some(samples) = samples {
-                        samples.samples.into_iter()
-                    } else {
-                        Vec::new().into_iter()
-                    }
-                } else {
-                    Vec::new().into_iter()
-                };
+            let samples = if let Ok(Some(samples)) =
+                reader.read_dec_packet_generic::<InterleavedSamples<f32>>()
+            {
+                samples.samples.into_iter()
+            } else {
+                Vec::new().into_iter()
+            };
 
             Ok(Self {
                 samples,

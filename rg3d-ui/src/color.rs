@@ -1169,15 +1169,13 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ColorField<M, C> {
     // handle_routed_message won't trigger because of it.
     fn preview_message(&self, ui: &UserInterface<M, C>, message: &mut UiMessage<M, C>) {
         match message.data() {
-            UiMessageData::Popup(msg) if message.destination() == self.popup => {
-                if let PopupMessage::Close = msg {
-                    let picker = ui.node(self.picker).as_color_picker();
-                    ui.send_message(ColorFieldMessage::color(
-                        self.handle,
-                        MessageDirection::ToWidget,
-                        picker.color,
-                    ));
-                }
+            UiMessageData::Popup(PopupMessage::Close) if message.destination() == self.popup => {
+                let picker = ui.node(self.picker).as_color_picker();
+                ui.send_message(ColorFieldMessage::color(
+                    self.handle,
+                    MessageDirection::ToWidget,
+                    picker.color,
+                ));
             }
             _ => (),
         }

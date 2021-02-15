@@ -64,47 +64,42 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tree<M, C> {
         self.widget.handle_routed_message(ui, message);
 
         match &message.data() {
-            UiMessageData::Button(msg) => {
-                if let ButtonMessage::Click = msg {
-                    if message.destination() == self.expander {
-                        ui.send_message(TreeMessage::expand(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                            !self.is_expanded,
-                        ));
-                    }
+            UiMessageData::Button(ButtonMessage::Click) => {
+                if message.destination() == self.expander {
+                    ui.send_message(TreeMessage::expand(
+                        self.handle(),
+                        MessageDirection::ToWidget,
+                        !self.is_expanded,
+                    ));
                 }
             }
-            UiMessageData::Widget(msg) => {
-                if let WidgetMessage::MouseDown { .. } = msg {
-                    if !message.handled() {
-                        let root = ui.find_by_criteria_up(self.parent(), |n| {
-                            matches!(n, UINode::TreeRoot(_))
-                        });
-                        if root.is_some() {
-                            if let UINode::TreeRoot(tree_root) = ui.node(root) {
-                                let selection = if ui.keyboard_modifiers().control {
-                                    let mut selection = tree_root.selected.clone();
-                                    if let Some(existing) =
-                                        selection.iter().position(|&h| h == self.handle)
-                                    {
-                                        selection.remove(existing);
-                                    } else {
-                                        selection.push(self.handle);
-                                    }
-                                    selection
+            UiMessageData::Widget(WidgetMessage::MouseDown { .. }) => {
+                if !message.handled() {
+                    let root =
+                        ui.find_by_criteria_up(self.parent(), |n| matches!(n, UINode::TreeRoot(_)));
+                    if root.is_some() {
+                        if let UINode::TreeRoot(tree_root) = ui.node(root) {
+                            let selection = if ui.keyboard_modifiers().control {
+                                let mut selection = tree_root.selected.clone();
+                                if let Some(existing) =
+                                    selection.iter().position(|&h| h == self.handle)
+                                {
+                                    selection.remove(existing);
                                 } else {
-                                    vec![self.handle()]
-                                };
-                                ui.send_message(TreeRootMessage::select(
-                                    root,
-                                    MessageDirection::ToWidget,
-                                    selection,
-                                ));
-                                message.set_handled(true);
+                                    selection.push(self.handle);
+                                }
+                                selection
                             } else {
-                                unreachable!();
-                            }
+                                vec![self.handle()]
+                            };
+                            ui.send_message(TreeRootMessage::select(
+                                root,
+                                MessageDirection::ToWidget,
+                                selection,
+                            ));
+                            message.set_handled(true);
+                        } else {
+                            unreachable!();
                         }
                     }
                 }
