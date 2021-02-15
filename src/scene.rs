@@ -370,6 +370,7 @@ pub enum SceneCommand {
     AddNavmeshVertex(AddNavmeshVertexCommand),
     AddNavmeshEdge(AddNavmeshEdgeCommand),
     DeleteNavmeshVertex(DeleteNavmeshVertexCommand),
+    ConnectNavmeshEdges(ConnectNavmeshEdgesCommand),
 }
 
 pub struct SceneContext<'a> {
@@ -468,6 +469,7 @@ macro_rules! static_dispatch {
             SceneCommand::AddNavmeshTriangle(v) => v.$func($($args),*),
             SceneCommand::AddNavmeshEdge(v) => v.$func($($args),*),
             SceneCommand::DeleteNavmeshVertex(v) => v.$func($($args),*),
+            SceneCommand::ConnectNavmeshEdges(v) => v.$func($($args),*),
         }
     };
 }
@@ -788,6 +790,105 @@ impl<'a> Command<'a> for AddNavmeshEdgeCommand {
                 }
             }
             // No actions needed.
+            _ => (),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum ConnectNavmeshEdgesCommandState {
+    Undefined,
+    NonExecuted {
+        edges: [NavmeshEdge; 2],
+    },
+    Executed {
+        triangles: [Handle<NavmeshTriangle>; 2],
+    },
+    Reverted {
+        triangles: [(Ticket<NavmeshTriangle>, NavmeshTriangle); 2],
+    },
+}
+
+#[derive(Debug)]
+pub struct ConnectNavmeshEdgesCommand {
+    navmesh: Handle<Navmesh>,
+    state: ConnectNavmeshEdgesCommandState,
+}
+
+impl ConnectNavmeshEdgesCommand {
+    pub fn new(navmesh: Handle<Navmesh>, edges: [NavmeshEdge; 2]) -> Self {
+        Self {
+            navmesh,
+            state: ConnectNavmeshEdgesCommandState::NonExecuted { edges },
+        }
+    }
+}
+
+impl<'a> Command<'a> for ConnectNavmeshEdgesCommand {
+    type Context = SceneContext<'a>;
+
+    fn name(&mut self, _context: &Self::Context) -> String {
+        "Connect Navmesh Edges".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut Self::Context) {
+        let navmesh = &mut context.editor_scene.navmeshes[self.navmesh];
+
+        match std::mem::replace(&mut self.state, ConnectNavmeshEdgesCommandState::Undefined) {
+            ConnectNavmeshEdgesCommandState::NonExecuted { edges } => {
+                let ta = navmesh.triangles.spawn(NavmeshTriangle {
+                    a: edges[0].begin,
+                    b: edges[0].end,
+                    c: edges[1].begin,
+                });
+                let tb = navmesh.triangles.spawn(NavmeshTriangle {
+                    a: edges[1].begin,
+                    b: edges[1].end,
+                    c: edges[0].begin,
+                });
+
+                self.state = ConnectNavmeshEdgesCommandState::Executed {
+                    triangles: [ta, tb],
+                };
+            }
+            ConnectNavmeshEdgesCommandState::Reverted { triangles } => {
+                let [a, b] = triangles;
+                let ta = navmesh.triangles.put_back(a.0, a.1);
+                let tb = navmesh.triangles.put_back(b.0, b.1);
+
+                self.state = ConnectNavmeshEdgesCommandState::Executed {
+                    triangles: [ta, tb],
+                }
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn revert(&mut self, context: &mut Self::Context) {
+        let navmesh = &mut context.editor_scene.navmeshes[self.navmesh];
+
+        match std::mem::replace(&mut self.state, ConnectNavmeshEdgesCommandState::Undefined) {
+            ConnectNavmeshEdgesCommandState::Executed { triangles } => {
+                self.state = ConnectNavmeshEdgesCommandState::Reverted {
+                    triangles: [
+                        navmesh.triangles.take_reserve(triangles[0]),
+                        navmesh.triangles.take_reserve(triangles[1]),
+                    ],
+                }
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn finalize(&mut self, context: &mut Self::Context) {
+        let navmesh = &mut context.editor_scene.navmeshes[self.navmesh];
+
+        match std::mem::replace(&mut self.state, ConnectNavmeshEdgesCommandState::Undefined) {
+            ConnectNavmeshEdgesCommandState::Reverted { triangles } => {
+                let [a, b] = triangles;
+                navmesh.triangles.forget_ticket(a.0);
+                navmesh.triangles.forget_ticket(b.0);
+            }
             _ => (),
         }
     }

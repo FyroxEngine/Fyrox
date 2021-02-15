@@ -1,3 +1,4 @@
+use crate::scene::ConnectNavmeshEdgesCommand;
 use crate::{
     gui::{BuildContext, UiMessage, UiNode},
     interaction::{
@@ -14,6 +15,8 @@ use crate::{
     GameEngine, Message, MSG_SYNC_FLAG,
 };
 use rg3d::core::scope_profile;
+use rg3d::gui::stack_panel::StackPanelBuilder;
+use rg3d::gui::Orientation;
 use rg3d::{
     core::{
         algebra::{Vector2, Vector3},
@@ -49,6 +52,7 @@ pub struct NavmeshPanel {
     pub window: Handle<UiNode>,
     navmeshes: Handle<UiNode>,
     add: Handle<UiNode>,
+    connect: Handle<UiNode>,
     remove: Handle<UiNode>,
     sender: Sender<Message>,
     selected: Handle<Navmesh>,
@@ -59,27 +63,46 @@ impl NavmeshPanel {
         let add;
         let remove;
         let navmeshes;
+        let connect;
         let window = WindowBuilder::new(WidgetBuilder::new())
             .with_title(WindowTitle::text("Navmesh"))
             .with_content(
                 GridBuilder::new(
                     WidgetBuilder::new()
                         .with_child(
-                            CheckBoxBuilder::new(
+                            StackPanelBuilder::new(
                                 WidgetBuilder::new()
-                                    .with_margin(Thickness::uniform(1.0))
-                                    .on_row(0),
+                                    .with_child(
+                                        CheckBoxBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_margin(Thickness::uniform(1.0))
+                                                .on_row(0),
+                                        )
+                                        .with_content(
+                                            TextBuilder::new(
+                                                WidgetBuilder::new()
+                                                    .with_margin(Thickness::uniform(1.0))
+                                                    .with_vertical_alignment(
+                                                        VerticalAlignment::Center,
+                                                    ),
+                                            )
+                                            .with_text("Show")
+                                            .build(ctx),
+                                        )
+                                        .checked(Some(true))
+                                        .build(ctx),
+                                    )
+                                    .with_child({
+                                        connect = ButtonBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_margin(Thickness::uniform(1.0)),
+                                        )
+                                        .with_text("Connect")
+                                        .build(ctx);
+                                        connect
+                                    }),
                             )
-                            .with_content(
-                                TextBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_margin(Thickness::uniform(1.0))
-                                        .with_vertical_alignment(VerticalAlignment::Center),
-                                )
-                                .with_text("Show")
-                                .build(ctx),
-                            )
-                            .checked(Some(true))
+                            .with_orientation(Orientation::Horizontal)
                             .build(ctx),
                         )
                         .with_child({
@@ -132,6 +155,7 @@ impl NavmeshPanel {
             add,
             remove,
             navmeshes,
+            connect,
             selected: Default::default(),
         }
     }
@@ -161,11 +185,29 @@ impl NavmeshPanel {
             .collect::<Vec<_>>();
 
         let new_selection = if let Selection::Navmesh(selection) = &editor_scene.selection {
+            let selected_vertex_count = selection
+                .entities()
+                .iter()
+                .filter(|entity| matches!(entity, NavmeshEntity::Edge(_)))
+                .count();
+
+            engine.user_interface.send_message(WidgetMessage::enabled(
+                self.connect,
+                MessageDirection::ToWidget,
+                selected_vertex_count == 2,
+            ));
+
             editor_scene
                 .navmeshes
                 .pair_iter()
                 .position(|(i, _)| i == selection.navmesh())
         } else {
+            engine.user_interface.send_message(WidgetMessage::enabled(
+                self.connect,
+                MessageDirection::ToWidget,
+                false,
+            ));
+
             None
         };
 
@@ -197,22 +239,43 @@ impl NavmeshPanel {
         scope_profile!();
 
         match message.data() {
-            UiMessageData::Button(msg) => {
-                if let ButtonMessage::Click = msg {
-                    if message.destination() == self.add {
+            UiMessageData::Button(ButtonMessage::Click) => {
+                if message.destination() == self.add {
+                    self.sender
+                        .send(Message::DoSceneCommand(SceneCommand::AddNavmesh(
+                            AddNavmeshCommand::new(Navmesh::new()),
+                        )))
+                        .unwrap();
+                } else if message.destination() == self.remove {
+                    if editor_scene.navmeshes.is_valid_handle(self.selected) {
                         self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::AddNavmesh(
-                                AddNavmeshCommand::new(Navmesh::new()),
+                            .send(Message::DoSceneCommand(SceneCommand::DeleteNavmesh(
+                                DeleteNavmeshCommand::new(self.selected),
                             )))
                             .unwrap();
-                    } else if message.destination() == self.remove {
-                        if editor_scene.navmeshes.is_valid_handle(self.selected) {
-                            self.sender
-                                .send(Message::DoSceneCommand(SceneCommand::DeleteNavmesh(
-                                    DeleteNavmeshCommand::new(self.selected),
-                                )))
-                                .unwrap();
-                        }
+                    }
+                } else if message.destination() == self.connect {
+                    if let Selection::Navmesh(selection) = &editor_scene.selection {
+                        let vertices = selection
+                            .entities()
+                            .iter()
+                            .filter_map(|entity| {
+                                if let &NavmeshEntity::Edge(v) = entity {
+                                    Some(v)
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect::<Vec<_>>();
+
+                        self.sender
+                            .send(Message::DoSceneCommand(SceneCommand::ConnectNavmeshEdges(
+                                ConnectNavmeshEdgesCommand::new(
+                                    self.selected,
+                                    [vertices[0], vertices[1]],
+                                ),
+                            )))
+                            .unwrap();
                     }
                 }
             }
