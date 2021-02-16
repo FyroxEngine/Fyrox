@@ -509,22 +509,26 @@ impl SideBar {
                         UiMessageData::DropdownList(DropdownListMessage::SelectionChanged(
                             Some(index),
                         )) => {
-                            let id = match node.physics_binding() {
-                                PhysicsBinding::NodeWithBody => 0,
-                                PhysicsBinding::BodyWithNode => 1,
-                            };
-
-                            if id != *index {
-                                let value = match *index {
-                                    0 => PhysicsBinding::NodeWithBody,
-                                    1 => PhysicsBinding::BodyWithNode,
-                                    _ => unreachable!(),
+                            if message.destination() == self.physics_binding {
+                                let id = match node.physics_binding() {
+                                    PhysicsBinding::NodeWithBody => 0,
+                                    PhysicsBinding::BodyWithNode => 1,
                                 };
-                                self.sender
-                                    .send(Message::DoSceneCommand(SceneCommand::SetPhysicsBinding(
-                                        SetPhysicsBindingCommand::new(node_handle, value),
-                                    )))
-                                    .unwrap();
+
+                                if id != *index {
+                                    let value = match *index {
+                                        0 => PhysicsBinding::NodeWithBody,
+                                        1 => PhysicsBinding::BodyWithNode,
+                                        _ => unreachable!(),
+                                    };
+                                    self.sender
+                                        .send(Message::DoSceneCommand(
+                                            SceneCommand::SetPhysicsBinding(
+                                                SetPhysicsBindingCommand::new(node_handle, value),
+                                            ),
+                                        ))
+                                        .unwrap();
+                                }
                             }
                         }
 
