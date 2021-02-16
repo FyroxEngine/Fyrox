@@ -8,6 +8,7 @@ use crate::{
     physics::{Collider, Joint, Physics, RigidBody},
     GameEngine, Message,
 };
+use rg3d::scene::base::PhysicsBinding;
 use rg3d::{
     animation::Animation,
     core::{
@@ -261,7 +262,7 @@ impl EditorScene {
             let (desc, binder) = self.physics.generate_engine_desc();
             pure_scene.physics.desc = Some(desc);
             pure_scene.physics_binder.enabled = true;
-            pure_scene.physics_binder.node_rigid_body_map.clear();
+            pure_scene.physics_binder.clear();
             for (node, body) in binder {
                 pure_scene
                     .physics_binder
@@ -371,6 +372,7 @@ pub enum SceneCommand {
     AddNavmeshEdge(AddNavmeshEdgeCommand),
     DeleteNavmeshVertex(DeleteNavmeshVertexCommand),
     ConnectNavmeshEdges(ConnectNavmeshEdgesCommand),
+    SetPhysicsBinding(SetPhysicsBindingCommand),
 }
 
 pub struct SceneContext<'a> {
@@ -470,6 +472,7 @@ macro_rules! static_dispatch {
             SceneCommand::AddNavmeshEdge(v) => v.$func($($args),*),
             SceneCommand::DeleteNavmeshVertex(v) => v.$func($($args),*),
             SceneCommand::ConnectNavmeshEdges(v) => v.$func($($args),*),
+            SceneCommand::SetPhysicsBinding(v) => v.$func($($args),*),
         }
     };
 }
@@ -2697,6 +2700,10 @@ define_node_command!(SetLightColorCommand("Set Light Color", Color) where fn swa
 
 define_node_command!(SetNameCommand("Set Name", String) where fn swap(self, node) {
     get_set_swap!(self, node, name_owned, set_name);
+});
+
+define_node_command!(SetPhysicsBindingCommand("Set Physics Binding", PhysicsBinding) where fn swap(self, node) {
+    get_set_swap!(self, node, physics_binding, set_physics_binding);
 });
 
 define_node_command!(SetTagCommand("Set Tag", String) where fn swap(self, node) {

@@ -1,3 +1,4 @@
+use crate::scene::SetPhysicsBindingCommand;
 use crate::{
     gui::{BuildContext, UiMessage, UiNode},
     scene::{
@@ -10,6 +11,9 @@ use crate::{
     },
     GameEngine, Message,
 };
+use rg3d::gui::dropdown_list::DropdownListBuilder;
+use rg3d::gui::message::DropdownListMessage;
+use rg3d::scene::base::PhysicsBinding;
 use rg3d::{
     core::scope_profile,
     core::{
@@ -60,6 +64,7 @@ pub struct SideBar {
     scale: Handle<UiNode>,
     resource: Handle<UiNode>,
     tag: Handle<UiNode>,
+    physics_binding: Handle<UiNode>,
     sender: Sender<Message>,
     light_section: LightSection,
     camera_section: CameraSection,
@@ -157,6 +162,7 @@ impl SideBar {
         let scale;
         let resource;
         let tag;
+        let physics_binding;
 
         let light_section = LightSection::new(ctx, sender.clone());
         let camera_section = CameraSection::new(ctx, sender.clone());
@@ -217,10 +223,33 @@ impl SideBar {
                                                 )
                                                 .build(ctx);
                                                 tag
+                                            })
+                                            .with_child(make_text_mark(ctx, "Physics Binding", 6))
+                                            .with_child({
+                                                physics_binding = DropdownListBuilder::new(
+                                                    WidgetBuilder::new()
+                                                        .on_row(6)
+                                                        .on_column(1)
+                                                        .with_margin(Thickness::uniform(1.0)),
+                                                )
+                                                .with_close_on_selection(true)
+                                                .with_items(vec![
+                                                    make_dropdown_list_option(
+                                                        ctx,
+                                                        "Node With Body",
+                                                    ),
+                                                    make_dropdown_list_option(
+                                                        ctx,
+                                                        "Body With Node",
+                                                    ),
+                                                ])
+                                                .build(ctx);
+                                                physics_binding
                                             }),
                                     )
                                     .add_column(Column::strict(COLUMN_WIDTH))
                                     .add_column(Column::stretch())
+                                    .add_row(Row::strict(ROW_HEIGHT))
                                     .add_row(Row::strict(ROW_HEIGHT))
                                     .add_row(Row::strict(ROW_HEIGHT))
                                     .add_row(Row::strict(ROW_HEIGHT))
@@ -261,6 +290,7 @@ impl SideBar {
             sprite_section,
             mesh_section,
             physics_section,
+            physics_binding,
         }
     }
 
@@ -338,6 +368,16 @@ impl SideBar {
                         self.scale,
                         MessageDirection::ToWidget,
                         **node.local_transform().scale(),
+                    ));
+
+                    let id = match node.physics_binding() {
+                        PhysicsBinding::NodeWithBody => 0,
+                        PhysicsBinding::BodyWithNode => 1,
+                    };
+                    ui.send_message(DropdownListMessage::selection(
+                        self.physics_binding,
+                        MessageDirection::ToWidget,
+                        Some(id),
                     ));
 
                     self.light_section.sync_to_model(node, ui);
@@ -466,6 +506,28 @@ impl SideBar {
                                 }
                             }
                         }
+                        UiMessageData::DropdownList(DropdownListMessage::SelectionChanged(
+                            Some(index),
+                        )) => {
+                            let id = match node.physics_binding() {
+                                PhysicsBinding::NodeWithBody => 0,
+                                PhysicsBinding::BodyWithNode => 1,
+                            };
+
+                            if id != *index {
+                                let value = match *index {
+                                    0 => PhysicsBinding::NodeWithBody,
+                                    1 => PhysicsBinding::BodyWithNode,
+                                    _ => unreachable!(),
+                                };
+                                self.sender
+                                    .send(Message::DoSceneCommand(SceneCommand::SetPhysicsBinding(
+                                        SetPhysicsBindingCommand::new(node_handle, value),
+                                    )))
+                                    .unwrap();
+                            }
+                        }
+
                         _ => (),
                     }
                 }

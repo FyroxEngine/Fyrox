@@ -105,7 +105,7 @@ impl Physics {
 
         let mut binder = HashMap::new();
 
-        for (&node, &body) in scene.physics_binder.node_rigid_body_map.iter() {
+        for (&node, &body) in scene.physics_binder.forward_map().iter() {
             let body_handle: rg3d::physics::dynamics::RigidBodyHandle = body.into();
             binder.insert(node, *body_map.get(&body_handle).unwrap());
         }
