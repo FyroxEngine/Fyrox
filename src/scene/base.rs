@@ -6,7 +6,6 @@
 //! block for all complex node hierarchies - it contains list of children and handle to
 //! parent node.
 
-use crate::scene::graph::Graph;
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
@@ -15,9 +14,51 @@ use crate::{
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
     resource::model::Model,
-    scene::{node::Node, transform::Transform},
+    scene::{graph::Graph, node::Node, transform::Transform},
 };
 use std::cell::Cell;
+
+/// Defines a kind of binding between rigid body and a scene node. Check variants
+/// for more info.
+#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
+#[repr(u32)]
+pub enum PhysicsBinding {
+    /// Forces engine to sync transform of a node with its associated rigid body.
+    /// This is default binding.
+    NodeWithBody = 0,
+
+    /// Forces engine to sync transform of a rigid body with its associated node.
+    /// This could be useful for specific situations like add "hit boxes"
+    /// to a character.
+    BodyWithNode = 1,
+}
+
+impl Default for PhysicsBinding {
+    fn default() -> Self {
+        Self::NodeWithBody
+    }
+}
+
+impl PhysicsBinding {
+    fn from_id(id: u32) -> Result<Self, String> {
+        match id {
+            0 => Ok(Self::NodeWithBody),
+            1 => Ok(Self::BodyWithNode),
+            _ => Err(format!("Invalid physics binding id {}!", id)),
+        }
+    }
+}
+
+impl Visit for PhysicsBinding {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        let mut id = *self as u32;
+        id.visit(name, visitor)?;
+        if visitor.is_reading() {
+            *self = Self::from_id(id)?;
+        }
+        Ok(())
+    }
+}
 
 /// Level of detail is a collection of objects for given normalized distance range.
 /// Objects will be rendered **only** if they're in specified range.
@@ -209,6 +250,7 @@ pub struct Base {
     lod_group: Option<LodGroup>,
     mobility: Mobility,
     tag: String,
+    pub(in crate) physics_binding: PhysicsBinding,
 }
 
 impl Base {
@@ -400,6 +442,16 @@ impl Base {
         self.tag = tag;
     }
 
+    /// Returns current physics binding kind.
+    pub fn physics_binding(&self) -> PhysicsBinding {
+        self.physics_binding
+    }
+
+    /// Sets new kind of physics binding.
+    pub fn set_physics_binding(&mut self, binding: PhysicsBinding) {
+        self.physics_binding = binding;
+    }
+
     /// Shallow copy of node data. You should never use this directly, shallow copy
     /// will produce invalid node in most cases!
     pub fn raw_copy(&self) -> Self {
@@ -445,6 +497,7 @@ impl Visit for Base {
         let _ = self.mobility.visit("Mobility", visitor);
         let _ = self.original.visit("Original", visitor);
         let _ = self.tag.visit("Tag", visitor);
+        let _ = self.physics_binding.visit("PhysicsBinding", visitor);
 
         visitor.leave_region()
     }
@@ -572,6 +625,7 @@ impl BaseBuilder {
             lod_group: self.lod_group,
             mobility: self.mobility,
             tag: self.tag,
+            physics_binding: PhysicsBinding::NodeWithBody,
         }
     }
 

@@ -603,7 +603,7 @@ impl Physics {
         }
 
         // Bind instantiated nodes with their respective rigid bodies from resource.
-        for (handle, body) in resource_binder.node_rigid_body_map.iter() {
+        for (handle, body) in resource_binder.forward_map.iter() {
             let new_handle = *old_to_new.get(handle).unwrap();
             let new_body = *link.bodies.get(body).unwrap();
             target_binder.bind(new_handle, new_body);

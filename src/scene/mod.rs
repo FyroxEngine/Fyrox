@@ -15,6 +15,8 @@ pub mod physics;
 pub mod sprite;
 pub mod transform;
 
+use crate::core::algebra::{Isometry3, Translation};
+use crate::scene::base::PhysicsBinding;
 use crate::{
     animation::AnimationContainer,
     core::{
@@ -135,7 +137,9 @@ define_rapier_handle!(
 #[derive(Clone, Debug)]
 pub struct PhysicsBinder {
     /// Mapping Node -> RigidBody.
-    pub node_rigid_body_map: HashMap<Handle<Node>, RigidBodyHandle>,
+    forward_map: HashMap<Handle<Node>, RigidBodyHandle>,
+
+    backward_map: HashMap<RigidBodyHandle, Handle<Node>>,
 
     /// Whether binder is enabled or not. If binder is disabled, it won't synchronize
     /// node's transform with body's transform.
@@ -145,69 +149,70 @@ pub struct PhysicsBinder {
 impl Default for PhysicsBinder {
     fn default() -> Self {
         Self {
-            node_rigid_body_map: Default::default(),
+            forward_map: Default::default(),
+            backward_map: Default::default(),
             enabled: true,
         }
     }
 }
 
 impl PhysicsBinder {
-    /// Links given graph node with specified rigid body.
+    /// Links given graph node with specified rigid body. Returns old linked body.
     pub fn bind(
         &mut self,
         node: Handle<Node>,
         rigid_body: RigidBodyHandle,
     ) -> Option<RigidBodyHandle> {
-        self.node_rigid_body_map.insert(node, rigid_body)
+        let old_body = self.forward_map.insert(node, rigid_body);
+        self.backward_map.insert(rigid_body, node);
+        old_body
     }
 
     /// Unlinks given graph node from its associated rigid body (if any).
     pub fn unbind(&mut self, node: Handle<Node>) -> Option<RigidBodyHandle> {
-        self.node_rigid_body_map.remove(&node)
+        if let Some(body_handle) = self.forward_map.remove(&node) {
+            self.backward_map.remove(&body_handle);
+            Some(body_handle)
+        } else {
+            None
+        }
     }
 
     /// Unlinks given body from a node that is linked with the body.
-    ///
-    /// # Performance
-    ///
-    /// This method is slow because of two reasons:
-    ///
-    /// 1) Search is linear
-    /// 2) Additional memory is allocated
-    ///
-    /// So it is not advised to call it in performance critical places.
     pub fn unbind_by_body(&mut self, body: RigidBodyHandle) -> Handle<Node> {
-        let mut node = Handle::NONE;
-        self.node_rigid_body_map = self
-            .node_rigid_body_map
-            .clone()
-            .into_iter()
-            .filter(|&(n, b)| {
-                if b == body {
-                    node = n;
-                    false
-                } else {
-                    true
-                }
-            })
-            .collect();
-        node
+        if let Some(node) = self.backward_map.get(&body) {
+            self.forward_map.remove(node);
+            *node
+        } else {
+            Handle::NONE
+        }
     }
 
     /// Returns handle of rigid body associated with given node. It will return
     /// Handle::NONE if given node isn't linked to a rigid body.
     pub fn body_of(&self, node: Handle<Node>) -> Option<RigidBodyHandle> {
-        self.node_rigid_body_map.get(&node).copied()
+        self.forward_map.get(&node).copied()
     }
 
     /// Tries to find a node for a given rigid body.
     pub fn node_of(&self, body: RigidBodyHandle) -> Option<Handle<Node>> {
-        for (&node, &other_body) in self.node_rigid_body_map.iter() {
-            if body == other_body {
-                return Some(node);
-            }
-        }
-        None
+        self.backward_map.get(&body).copied()
+    }
+
+    /// Removes all bindings.
+    pub fn clear(&mut self) {
+        self.forward_map.clear();
+        self.backward_map.clear();
+    }
+
+    /// Returns a shared reference to inner forward mapping.
+    pub fn forward_map(&self) -> &HashMap<Handle<Node>, RigidBodyHandle> {
+        &self.forward_map
+    }
+
+    /// Returns a shared reference to inner backward mapping.
+    pub fn backward_map(&self) -> &HashMap<RigidBodyHandle, Handle<Node>> {
+        &self.backward_map
     }
 }
 
@@ -215,7 +220,12 @@ impl Visit for PhysicsBinder {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
-        self.node_rigid_body_map.visit("Map", visitor)?;
+        self.forward_map.visit("Map", visitor)?;
+        if self.backward_map.visit("RevMap", visitor).is_err() {
+            for (&n, &b) in self.forward_map.iter() {
+                self.backward_map.insert(b, n);
+            }
+        }
         let _ = self.enabled.visit("Enabled", visitor);
 
         visitor.leave_region()
@@ -1015,22 +1025,34 @@ impl Scene {
         self.physics.step();
 
         // Keep pair when node and body are both alive.
-        let graph = &self.graph;
-        let physics = &self.physics;
-        self.physics_binder
-            .node_rigid_body_map
-            .retain(|node, body| {
-                graph.is_valid_handle(*node) && physics.bodies.contains(body.clone().into())
-            });
+        let graph = &mut self.graph;
+        let physics = &mut self.physics;
+        self.physics_binder.forward_map.retain(|node, body| {
+            graph.is_valid_handle(*node) && physics.bodies.contains(body.clone().into())
+        });
 
         // Sync node positions with assigned physics bodies
         if self.physics_binder.enabled {
-            for (&node, &body) in self.physics_binder.node_rigid_body_map.iter() {
-                let body = physics.bodies.get(body.into()).unwrap();
-                self.graph[node]
-                    .local_transform_mut()
-                    .set_position(body.position().translation.vector)
-                    .set_rotation(body.position().rotation);
+            for (&node_handle, &body) in self.physics_binder.forward_map.iter() {
+                let body = physics.bodies.get_mut(body.into()).unwrap();
+                let node = &mut self.graph[node_handle];
+                match node.physics_binding {
+                    PhysicsBinding::NodeWithBody => {
+                        node.local_transform_mut()
+                            .set_position(body.position().translation.vector)
+                            .set_rotation(body.position().rotation);
+                    }
+                    PhysicsBinding::BodyWithNode => {
+                        let (r, p) = self.graph.isometric_global_rotation_position(node_handle);
+                        body.set_position(
+                            Isometry3 {
+                                rotation: r,
+                                translation: Translation { vector: p },
+                            },
+                            true,
+                        );
+                    }
+                }
             }
         }
     }
@@ -1174,7 +1196,7 @@ impl Scene {
         // It is ok to use old binder here, because handles maps one-to-one.
         let physics = self.physics.deep_copy(&self.physics_binder, &graph);
         let mut physics_binder = PhysicsBinder::default();
-        for (node, &body) in self.physics_binder.node_rigid_body_map.iter() {
+        for (node, &body) in self.physics_binder.forward_map.iter() {
             // Make sure we bind existing node with new physical body.
             if let Some(&new_node) = old_new_map.get(node) {
                 // Re-use of body handle is fine here because physics copy bodies
