@@ -15,12 +15,10 @@ pub mod physics;
 pub mod sprite;
 pub mod transform;
 
-use crate::core::algebra::{Isometry3, Translation};
-use crate::scene::base::PhysicsBinding;
 use crate::{
     animation::AnimationContainer,
     core::{
-        algebra::{Matrix4, Point3, Vector2, Vector3},
+        algebra::{Isometry3, Matrix4, Point3, Translation, Vector2, Vector3},
         color::Color,
         math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, Matrix4Ext},
         pool::{Handle, Pool, PoolIterator, PoolIteratorMut},
@@ -28,16 +26,13 @@ use crate::{
     },
     engine::resource_manager::ResourceManager,
     resource::texture::Texture,
-    scene::{graph::Graph, node::Node, physics::Physics},
-    utils::log::MessageKind,
-    utils::navmesh::Navmesh,
-    utils::{lightmap::Lightmap, log::Log},
+    scene::{base::PhysicsBinding, graph::Graph, node::Node, physics::Physics},
+    sound::{context::Context, engine::SoundEngine},
+    utils::{lightmap::Lightmap, log::Log, log::MessageKind, navmesh::Navmesh},
 };
-use rg3d_sound::{context::Context, engine::SoundEngine};
-use std::ops::Deref;
 use std::{
     collections::HashMap,
-    ops::{Index, IndexMut},
+    ops::{Deref, Index, IndexMut, Range},
     path::Path,
     sync::{Arc, Mutex},
 };
@@ -614,6 +609,74 @@ impl SceneDrawingContext {
         }
     }
 
+    /// Draws a wire sphere with given parameters.
+    pub fn draw_sphere_section(
+        &mut self,
+        radius: f32,
+        theta_range: Range<f32>,
+        theta_steps: usize,
+        phi_range: Range<f32>,
+        phi_steps: usize,
+        transform: Matrix4<f32>,
+        color: Color,
+    ) {
+        assert!(theta_range.start < theta_range.end);
+        assert!(phi_range.start < phi_range.end);
+
+        assert_ne!(phi_steps, 0);
+        assert_ne!(theta_steps, 0);
+
+        let theta_step = (theta_range.end - theta_range.start) / theta_steps as f32;
+        let phi_step = (phi_range.end - phi_range.start) / phi_steps as f32;
+
+        let mut theta = theta_range.start;
+        let mut phi = phi_range.start;
+
+        while theta < theta_range.end {
+            while phi < phi_range.end {
+                let k0 = radius * theta.sin();
+                let k1 = phi.cos();
+                let k2 = phi.sin();
+                let k3 = radius * theta.cos();
+
+                let k4 = radius * (theta + theta_step).sin();
+                let k5 = (phi + phi_step).cos();
+                let k6 = (phi + phi_step).sin();
+                let k7 = radius * (theta + theta_step).cos();
+
+                self.draw_triangle(
+                    transform
+                        .transform_point(&Point3::new(k0 * k1, k0 * k2, k3))
+                        .coords,
+                    transform
+                        .transform_point(&Point3::new(k4 * k1, k4 * k2, k7))
+                        .coords,
+                    transform
+                        .transform_point(&Point3::new(k4 * k5, k4 * k6, k7))
+                        .coords,
+                    color,
+                );
+
+                self.draw_triangle(
+                    transform
+                        .transform_point(&Point3::new(k4 * k5, k4 * k6, k7))
+                        .coords,
+                    transform
+                        .transform_point(&Point3::new(k0 * k5, k0 * k6, k3))
+                        .coords,
+                    transform
+                        .transform_point(&Point3::new(k0 * k1, k0 * k2, k3))
+                        .coords,
+                    color,
+                );
+
+                phi += phi_step;
+            }
+
+            theta += theta_step;
+        }
+    }
+
     /// Draws a wire cone with given parameters.
     pub fn draw_cone(
         &mut self,
@@ -750,6 +813,38 @@ impl SceneDrawingContext {
                 color,
             );
         }
+    }
+
+    pub fn draw_capsule(
+        &mut self,
+        radius: f32,
+        height: f32,
+        transform: Matrix4<f32>,
+        color: Color,
+    ) {
+        // Top cap
+        self.draw_sphere_section(
+            radius,
+            0.0..std::f32::consts::FRAC_PI_2,
+            10,
+            0.0..std::f32::consts::TAU,
+            10,
+            Matrix4::new_translation(&Vector3::new(0.0, 0.0, height * 0.5)) * transform,
+            color,
+        );
+
+        // Bottom cap
+        self.draw_sphere_section(
+            radius,
+            std::f32::consts::PI..std::f32::consts::PI * 1.5,
+            10,
+            0.0..std::f32::consts::TAU,
+            10,
+            Matrix4::new_translation(&Vector3::new(0.0, 0.0, -height * 0.5)) * transform,
+            color,
+        );
+
+        self.draw_cylinder(10, radius, height, false, transform, color);
     }
 
     /// Adds single line into internal buffer.
