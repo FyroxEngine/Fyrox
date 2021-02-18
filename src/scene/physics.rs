@@ -305,19 +305,13 @@ impl Physics {
                     Color::opaque(200, 200, 200),
                 );
             } else if let Some(capsule) = collider.shape().as_capsule() {
-                // TODO: Draw as it should be.
-                context.draw_sphere(
-                    transform.transform_point(&capsule.segment.a).coords,
-                    10,
-                    10,
+                context.draw_segment_capsule(
+                    capsule.segment.a.coords,
+                    capsule.segment.b.coords,
                     capsule.radius,
-                    Color::opaque(200, 200, 200),
-                );
-                context.draw_sphere(
-                    transform.transform_point(&capsule.segment.b).coords,
                     10,
                     10,
-                    capsule.radius,
+                    transform,
                     Color::opaque(200, 200, 200),
                 );
             }
