@@ -467,6 +467,7 @@ impl Base {
             lifetime: self.lifetime,
             mobility: self.mobility,
             tag: self.tag.clone(),
+            physics_binding: self.physics_binding,
             // Rest of data is *not* copied!
             ..Default::default()
         }
