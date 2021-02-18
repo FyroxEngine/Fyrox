@@ -8,6 +8,8 @@ pub use byteorder;
 pub use nalgebra as algebra;
 pub use rand;
 
+use std::collections::HashMap;
+use std::hash::Hash;
 use std::path::{Path, PathBuf};
 
 pub mod color;
@@ -79,5 +81,62 @@ pub fn replace_slashes<P: AsRef<Path>>(path: P) -> PathBuf {
     #[cfg(not(target_os = "windows"))]
     {
         path.as_ref().to_owned()
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct BiDirHashMap<K, V> {
+    forward_map: HashMap<K, V>,
+    backward_map: HashMap<V, K>,
+}
+
+impl<K: Hash + Eq + Clone, V: Hash + Eq + Clone> BiDirHashMap<K, V> {
+    pub fn insert(&mut self, key: K, value: V) -> Option<V> {
+        let existing = self.forward_map.insert(key.clone(), value.clone());
+        self.backward_map.insert(value, key);
+        existing
+    }
+
+    pub fn remove_by_key(&mut self, key: &K) -> Option<V> {
+        if let Some(value) = self.forward_map.remove(key) {
+            self.backward_map.remove(&value);
+            Some(value)
+        } else {
+            None
+        }
+    }
+
+    pub fn remove_by_value(&mut self, value: &V) -> Option<K> {
+        if let Some(key) = self.backward_map.remove(value) {
+            self.forward_map.remove(&key);
+            Some(key)
+        } else {
+            None
+        }
+    }
+
+    pub fn value_of(&self, node: &K) -> Option<&V> {
+        self.forward_map.get(&node)
+    }
+
+    pub fn key_of(&self, value: &V) -> Option<&K> {
+        self.backward_map.get(&value)
+    }
+
+    pub fn clear(&mut self) {
+        self.forward_map.clear();
+        self.backward_map.clear();
+    }
+
+    pub fn forward_map(&self) -> &HashMap<K, V> {
+        &self.forward_map
+    }
+
+    pub fn backward_map(&self) -> &HashMap<V, K> {
+        &self.backward_map
+    }
+
+    pub fn into_inner(self) -> (HashMap<K, V>, HashMap<V, K>) {
+        (self.forward_map, self.backward_map)
     }
 }

@@ -241,7 +241,8 @@ impl Physics {
 
         for (_, collider) in self.colliders.iter() {
             let body = self.bodies.get(collider.parent()).unwrap();
-            let transform = body.position().to_homogeneous();
+            let collider_local_tranform = collider.position_wrt_parent().to_homogeneous();
+            let transform = body.position().to_homogeneous() * collider_local_tranform;
             if let Some(trimesh) = collider.shape().as_trimesh() {
                 let trimesh: &TriMesh = trimesh;
                 for triangle in trimesh.triangles() {

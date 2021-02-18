@@ -1010,6 +1010,8 @@ impl Graph {
         TransformBuilder::new()
             .with_local_position(**transform.position())
             .with_local_rotation(**transform.rotation())
+            .with_pre_rotation(**transform.pre_rotation())
+            .with_post_rotation(**transform.post_rotation())
             .build()
             .matrix()
     }
