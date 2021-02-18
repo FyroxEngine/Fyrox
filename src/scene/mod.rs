@@ -813,6 +813,7 @@ impl SceneDrawingContext {
         }
     }
 
+    /// Draws vertical capsule with given radius and height and then applies given transform.
     pub fn draw_capsule(
         &mut self,
         radius: f32,
@@ -846,6 +847,113 @@ impl SceneDrawingContext {
 
         if cylinder_height > 0.0 {
             self.draw_cylinder(10, radius, cylinder_height, false, transform, color);
+        }
+    }
+
+    /// Draws capsule between two points with given tesselation and then applies given transform to all points.
+    pub fn draw_segment_capsule(
+        &mut self,
+        begin: Vector3<f32>,
+        end: Vector3<f32>,
+        radius: f32,
+        v_segments: usize,
+        h_segments: usize,
+        transform: Matrix4<f32>,
+        color: Color,
+    ) {
+        let axis = end - begin;
+        let length = axis.norm();
+
+        let z_axis = axis
+            .try_normalize(std::f32::EPSILON)
+            .unwrap_or_else(Vector3::z);
+
+        let y_axis = z_axis
+            .cross(
+                &(if z_axis.y != 0.0 || z_axis.z != 0.0 {
+                    Vector3::x()
+                } else {
+                    Vector3::y()
+                }),
+            )
+            .try_normalize(std::f32::EPSILON)
+            .unwrap_or_else(Vector3::y);
+
+        let x_axis = z_axis
+            .cross(&y_axis)
+            .try_normalize(std::f32::EPSILON)
+            .unwrap_or_else(Vector3::x); // CHECK
+
+        let shaft_point = |u: f32, v: f32| -> Vector3<f32> {
+            begin
+                + x_axis.scale((std::f32::consts::TAU * u).cos() * radius)
+                + y_axis.scale((std::f32::consts::TAU * u).sin() * radius)
+                + z_axis.scale(v * length)
+        };
+
+        let start_hemisphere_point = |u: f32, v: f32| -> Vector3<f32> {
+            let latitude = std::f32::consts::FRAC_PI_2 * (v - 1.0);
+            transform
+                .transform_point(&Point3::from(
+                    begin
+                        + x_axis.scale((std::f32::consts::TAU * u).cos() * latitude.cos() * radius)
+                        + y_axis.scale((std::f32::consts::TAU * u).sin() * latitude.cos() * radius)
+                        + z_axis.scale(latitude.sin() * radius),
+                ))
+                .coords
+        };
+
+        let end_hemisphere_point = |u: f32, v: f32| -> Vector3<f32> {
+            let latitude = std::f32::consts::FRAC_PI_2 * v;
+            transform
+                .transform_point(&Point3::from(
+                    end + x_axis.scale((std::f32::consts::TAU * u).cos() * latitude.cos() * radius)
+                        + y_axis.scale((std::f32::consts::TAU * u).sin() * latitude.cos() * radius)
+                        + z_axis.scale(latitude.sin() * radius),
+                ))
+                .coords
+        };
+
+        let dv = 1.0 / h_segments as f32;
+        let du = 1.0 / v_segments as f32;
+
+        let mut u = 0.0;
+        while u < 1.0 {
+            let a = shaft_point(u, 0.0);
+            let b = shaft_point(u, 1.0);
+            let c = shaft_point(u + du, 1.0);
+            let d = shaft_point(u + du, 0.0);
+
+            self.draw_triangle(a, b, c, color);
+            self.draw_triangle(a, c, d, color);
+
+            u += du;
+        }
+
+        u = 0.0;
+        while u < 1.0 {
+            let mut v = 0.0;
+            while v < 1.0 {
+                let sa = start_hemisphere_point(u, v);
+                let sb = start_hemisphere_point(u, v + dv);
+                let sc = start_hemisphere_point(u + du, v + dv);
+                let sd = start_hemisphere_point(u + du, v);
+
+                self.draw_triangle(sa, sb, sc, color);
+                self.draw_triangle(sa, sc, sd, color);
+
+                let ea = end_hemisphere_point(u, v);
+                let eb = end_hemisphere_point(u, v + dv);
+                let ec = end_hemisphere_point(u + du, v + dv);
+                let ed = end_hemisphere_point(u + du, v);
+
+                self.draw_triangle(ea, eb, ec, color);
+                self.draw_triangle(ea, ec, ed, color);
+
+                v += dv;
+            }
+
+            u += du;
         }
     }
 
