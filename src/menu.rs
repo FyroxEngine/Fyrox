@@ -473,178 +473,158 @@ impl Menu {
         self.settings.handle_message(message, ctx.engine);
 
         match &message.data() {
-            UiMessageData::FileSelector(msg) => {
-                if let FileSelectorMessage::Commit(path) = msg {
-                    if message.destination() == self.save_file_selector {
-                        self.message_sender
-                            .send(Message::SaveScene(path.to_owned()))
-                            .unwrap();
-                    } else if message.destination() == self.load_file_selector {
-                        self.message_sender
-                            .send(Message::LoadScene(path.to_owned()))
-                            .unwrap();
-                    }
+            UiMessageData::FileSelector(FileSelectorMessage::Commit(path)) => {
+                if message.destination() == self.save_file_selector {
+                    self.message_sender
+                        .send(Message::SaveScene(path.to_owned()))
+                        .unwrap();
+                } else if message.destination() == self.load_file_selector {
+                    self.message_sender
+                        .send(Message::LoadScene(path.to_owned()))
+                        .unwrap();
                 }
             }
-            UiMessageData::MenuItem(msg) => {
-                if let MenuItemMessage::Click = msg {
-                    if message.destination() == self.create_cube {
-                        let mut mesh = Mesh::default();
-                        mesh.set_name("Cube");
-                        mesh.add_surface(Surface::new(Arc::new(RwLock::new(
-                            SurfaceSharedData::make_cube(Matrix4::identity()),
-                        ))));
-                        let node = Node::Mesh(mesh);
-                        self.message_sender
-                            .send(Message::DoSceneCommand(SceneCommand::AddNode(
-                                AddNodeCommand::new(node),
-                            )))
-                            .unwrap();
-                    } else if message.destination() == self.create_spot_light {
-                        let node = SpotLightBuilder::new(BaseLightBuilder::new(
-                            BaseBuilder::new().with_name("SpotLight"),
-                        ))
-                        .with_distance(10.0)
-                        .with_hotspot_cone_angle(45.0f32.to_radians())
-                        .with_falloff_angle_delta(2.0f32.to_radians())
+            UiMessageData::MenuItem(MenuItemMessage::Click) => {
+                if message.destination() == self.create_cube {
+                    let mut mesh = Mesh::default();
+                    mesh.set_name("Cube");
+                    mesh.add_surface(Surface::new(Arc::new(RwLock::new(
+                        SurfaceSharedData::make_cube(Matrix4::identity()),
+                    ))));
+                    let node = Node::Mesh(mesh);
+                    self.message_sender
+                        .send(Message::DoSceneCommand(SceneCommand::AddNode(
+                            AddNodeCommand::new(node),
+                        )))
+                        .unwrap();
+                } else if message.destination() == self.create_spot_light {
+                    let node = SpotLightBuilder::new(BaseLightBuilder::new(
+                        BaseBuilder::new().with_name("SpotLight"),
+                    ))
+                    .with_distance(10.0)
+                    .with_hotspot_cone_angle(45.0f32.to_radians())
+                    .with_falloff_angle_delta(2.0f32.to_radians())
+                    .build_node();
+
+                    self.message_sender
+                        .send(Message::DoSceneCommand(SceneCommand::AddNode(
+                            AddNodeCommand::new(node),
+                        )))
+                        .unwrap();
+                } else if message.destination() == self.create_pivot {
+                    let node = BaseBuilder::new().with_name("Pivot").build_node();
+
+                    self.message_sender
+                        .send(Message::DoSceneCommand(SceneCommand::AddNode(
+                            AddNodeCommand::new(node),
+                        )))
+                        .unwrap();
+                } else if message.destination() == self.create_point_light {
+                    let node = PointLightBuilder::new(BaseLightBuilder::new(
+                        BaseBuilder::new().with_name("PointLight"),
+                    ))
+                    .with_radius(10.0)
+                    .build_node();
+
+                    self.message_sender
+                        .send(Message::DoSceneCommand(SceneCommand::AddNode(
+                            AddNodeCommand::new(node),
+                        )))
+                        .unwrap();
+                } else if message.destination() == self.create_directional_light {
+                    let node = DirectionalLightBuilder::new(BaseLightBuilder::new(
+                        BaseBuilder::new().with_name("DirectionalLight"),
+                    ))
+                    .build_node();
+
+                    self.message_sender
+                        .send(Message::DoSceneCommand(SceneCommand::AddNode(
+                            AddNodeCommand::new(node),
+                        )))
+                        .unwrap();
+                } else if message.destination() == self.create_cone {
+                    let mesh = MeshBuilder::new(BaseBuilder::new().with_name("Cone"))
+                        .with_surfaces(vec![Surface::new(Arc::new(RwLock::new(
+                            SurfaceSharedData::make_cone(16, 0.5, 1.0, Matrix4::identity()),
+                        )))])
                         .build_node();
-
-                        self.message_sender
-                            .send(Message::DoSceneCommand(SceneCommand::AddNode(
-                                AddNodeCommand::new(node),
-                            )))
-                            .unwrap();
-                    } else if message.destination() == self.create_pivot {
-                        let node = BaseBuilder::new().with_name("Pivot").build_node();
-
-                        self.message_sender
-                            .send(Message::DoSceneCommand(SceneCommand::AddNode(
-                                AddNodeCommand::new(node),
-                            )))
-                            .unwrap();
-                    } else if message.destination() == self.create_point_light {
-                        let node = PointLightBuilder::new(BaseLightBuilder::new(
-                            BaseBuilder::new().with_name("PointLight"),
-                        ))
-                        .with_radius(10.0)
+                    self.message_sender
+                        .send(Message::DoSceneCommand(SceneCommand::AddNode(
+                            AddNodeCommand::new(mesh),
+                        )))
+                        .unwrap();
+                } else if message.destination() == self.create_cylinder {
+                    let mesh = MeshBuilder::new(BaseBuilder::new().with_name("Cylinder"))
+                        .with_surfaces(vec![Surface::new(Arc::new(RwLock::new(
+                            SurfaceSharedData::make_cylinder(
+                                16,
+                                0.5,
+                                1.0,
+                                true,
+                                Matrix4::identity(),
+                            ),
+                        )))])
                         .build_node();
-
-                        self.message_sender
-                            .send(Message::DoSceneCommand(SceneCommand::AddNode(
-                                AddNodeCommand::new(node),
-                            )))
-                            .unwrap();
-                    } else if message.destination() == self.create_directional_light {
-                        let node = DirectionalLightBuilder::new(BaseLightBuilder::new(
-                            BaseBuilder::new().with_name("DirectionalLight"),
-                        ))
+                    self.message_sender
+                        .send(Message::DoSceneCommand(SceneCommand::AddNode(
+                            AddNodeCommand::new(mesh),
+                        )))
+                        .unwrap();
+                } else if message.destination() == self.create_sphere {
+                    let mesh = MeshBuilder::new(BaseBuilder::new().with_name("Sphere"))
+                        .with_surfaces(vec![Surface::new(Arc::new(RwLock::new(
+                            SurfaceSharedData::make_sphere(16, 16, 0.5),
+                        )))])
                         .build_node();
+                    self.message_sender
+                        .send(Message::DoSceneCommand(SceneCommand::AddNode(
+                            AddNodeCommand::new(mesh),
+                        )))
+                        .unwrap();
+                } else if message.destination() == self.create_camera {
+                    let node =
+                        CameraBuilder::new(BaseBuilder::new().with_name("Camera")).build_node();
 
-                        self.message_sender
-                            .send(Message::DoSceneCommand(SceneCommand::AddNode(
-                                AddNodeCommand::new(node),
-                            )))
-                            .unwrap();
-                    } else if message.destination() == self.create_cone {
-                        let mesh = MeshBuilder::new(BaseBuilder::new().with_name("Cone"))
-                            .with_surfaces(vec![Surface::new(Arc::new(RwLock::new(
-                                SurfaceSharedData::make_cone(16, 0.5, 1.0, Matrix4::identity()),
-                            )))])
+                    self.message_sender
+                        .send(Message::DoSceneCommand(SceneCommand::AddNode(
+                            AddNodeCommand::new(node),
+                        )))
+                        .unwrap();
+                } else if message.destination() == self.create_sprite {
+                    let node =
+                        SpriteBuilder::new(BaseBuilder::new().with_name("Sprite")).build_node();
+
+                    self.message_sender
+                        .send(Message::DoSceneCommand(SceneCommand::AddNode(
+                            AddNodeCommand::new(node),
+                        )))
+                        .unwrap();
+                } else if message.destination() == self.create_particle_system {
+                    let node =
+                        ParticleSystemBuilder::new(BaseBuilder::new().with_name("ParticleSystem"))
+                            .with_emitters(vec![SphereEmitterBuilder::new(
+                                BaseEmitterBuilder::new()
+                                    .with_max_particles(100)
+                                    .resurrect_particles(true),
+                            )
+                            .with_radius(1.0)
+                            .build()])
                             .build_node();
-                        self.message_sender
-                            .send(Message::DoSceneCommand(SceneCommand::AddNode(
-                                AddNodeCommand::new(mesh),
-                            )))
-                            .unwrap();
-                    } else if message.destination() == self.create_cylinder {
-                        let mesh = MeshBuilder::new(BaseBuilder::new().with_name("Cylinder"))
-                            .with_surfaces(vec![Surface::new(Arc::new(RwLock::new(
-                                SurfaceSharedData::make_cylinder(
-                                    16,
-                                    0.5,
-                                    1.0,
-                                    true,
-                                    Matrix4::identity(),
-                                ),
-                            )))])
-                            .build_node();
-                        self.message_sender
-                            .send(Message::DoSceneCommand(SceneCommand::AddNode(
-                                AddNodeCommand::new(mesh),
-                            )))
-                            .unwrap();
-                    } else if message.destination() == self.create_sphere {
-                        let mesh = MeshBuilder::new(BaseBuilder::new().with_name("Sphere"))
-                            .with_surfaces(vec![Surface::new(Arc::new(RwLock::new(
-                                SurfaceSharedData::make_sphere(16, 16, 0.5),
-                            )))])
-                            .build_node();
-                        self.message_sender
-                            .send(Message::DoSceneCommand(SceneCommand::AddNode(
-                                AddNodeCommand::new(mesh),
-                            )))
-                            .unwrap();
-                    } else if message.destination() == self.create_camera {
-                        let node =
-                            CameraBuilder::new(BaseBuilder::new().with_name("Camera")).build_node();
 
+                    self.message_sender
+                        .send(Message::DoSceneCommand(SceneCommand::AddNode(
+                            AddNodeCommand::new(node),
+                        )))
+                        .unwrap();
+                } else if message.destination() == self.save {
+                    if let Some(scene_path) =
+                        ctx.editor_scene.as_ref().map(|s| s.path.as_ref()).flatten()
+                    {
                         self.message_sender
-                            .send(Message::DoSceneCommand(SceneCommand::AddNode(
-                                AddNodeCommand::new(node),
-                            )))
+                            .send(Message::SaveScene(scene_path.clone()))
                             .unwrap();
-                    } else if message.destination() == self.create_sprite {
-                        let node =
-                            SpriteBuilder::new(BaseBuilder::new().with_name("Sprite")).build_node();
-
-                        self.message_sender
-                            .send(Message::DoSceneCommand(SceneCommand::AddNode(
-                                AddNodeCommand::new(node),
-                            )))
-                            .unwrap();
-                    } else if message.destination() == self.create_particle_system {
-                        let node = ParticleSystemBuilder::new(
-                            BaseBuilder::new().with_name("ParticleSystem"),
-                        )
-                        .with_emitters(vec![SphereEmitterBuilder::new(
-                            BaseEmitterBuilder::new()
-                                .with_max_particles(100)
-                                .resurrect_particles(true),
-                        )
-                        .with_radius(1.0)
-                        .build()])
-                        .build_node();
-
-                        self.message_sender
-                            .send(Message::DoSceneCommand(SceneCommand::AddNode(
-                                AddNodeCommand::new(node),
-                            )))
-                            .unwrap();
-                    } else if message.destination() == self.save {
-                        if let Some(scene_path) =
-                            ctx.editor_scene.as_ref().map(|s| s.path.as_ref()).flatten()
-                        {
-                            self.message_sender
-                                .send(Message::SaveScene(scene_path.clone()))
-                                .unwrap();
-                        } else {
-                            // If scene wasn't saved yet - open Save As window.
-                            ctx.engine
-                                .user_interface
-                                .send_message(WindowMessage::open_modal(
-                                    self.save_file_selector,
-                                    MessageDirection::ToWidget,
-                                    true,
-                                ));
-                            ctx.engine
-                                .user_interface
-                                .send_message(FileSelectorMessage::path(
-                                    self.save_file_selector,
-                                    MessageDirection::ToWidget,
-                                    std::env::current_dir().unwrap(),
-                                ));
-                        }
-                    } else if message.destination() == self.save_as {
+                    } else {
+                        // If scene wasn't saved yet - open Save As window.
                         ctx.engine
                             .user_interface
                             .send_message(WindowMessage::open_modal(
@@ -659,90 +639,97 @@ impl Menu {
                                 MessageDirection::ToWidget,
                                 std::env::current_dir().unwrap(),
                             ));
-                    } else if message.destination() == self.load {
-                        self.open_load_file_selector(&mut ctx.engine.user_interface);
-                    } else if message.destination() == self.close_scene {
-                        self.message_sender.send(Message::CloseScene).unwrap();
-                    } else if message.destination() == self.copy {
-                        if let Some(editor_scene) = ctx.editor_scene {
-                            if let Selection::Graph(selection) = &editor_scene.selection {
-                                editor_scene.clipboard.fill_from_selection(
-                                    selection,
-                                    editor_scene.scene,
-                                    &editor_scene.physics,
-                                    ctx.engine,
-                                );
-                            }
+                    }
+                } else if message.destination() == self.save_as {
+                    ctx.engine
+                        .user_interface
+                        .send_message(WindowMessage::open_modal(
+                            self.save_file_selector,
+                            MessageDirection::ToWidget,
+                            true,
+                        ));
+                    ctx.engine
+                        .user_interface
+                        .send_message(FileSelectorMessage::path(
+                            self.save_file_selector,
+                            MessageDirection::ToWidget,
+                            std::env::current_dir().unwrap(),
+                        ));
+                } else if message.destination() == self.load {
+                    self.open_load_file_selector(&mut ctx.engine.user_interface);
+                } else if message.destination() == self.close_scene {
+                    self.message_sender.send(Message::CloseScene).unwrap();
+                } else if message.destination() == self.copy {
+                    if let Some(editor_scene) = ctx.editor_scene {
+                        if let Selection::Graph(selection) = &editor_scene.selection {
+                            editor_scene.clipboard.fill_from_selection(
+                                selection,
+                                editor_scene.scene,
+                                &editor_scene.physics,
+                                ctx.engine,
+                            );
                         }
-                    } else if message.destination() == self.paste {
-                        if let Some(editor_scene) = ctx.editor_scene {
-                            if !editor_scene.clipboard.is_empty() {
-                                self.message_sender
-                                    .send(Message::DoSceneCommand(SceneCommand::Paste(
-                                        PasteCommand::new(),
-                                    )))
-                                    .unwrap();
-                            }
+                    }
+                } else if message.destination() == self.paste {
+                    if let Some(editor_scene) = ctx.editor_scene {
+                        if !editor_scene.clipboard.is_empty() {
+                            self.message_sender
+                                .send(Message::DoSceneCommand(SceneCommand::Paste(
+                                    PasteCommand::new(),
+                                )))
+                                .unwrap();
                         }
-                    } else if message.destination() == self.undo {
-                        self.message_sender.send(Message::UndoSceneCommand).unwrap();
-                    } else if message.destination() == self.redo {
-                        self.message_sender.send(Message::RedoSceneCommand).unwrap();
-                    } else if message.destination() == self.exit {
-                        self.message_sender
-                            .send(Message::Exit { force: false })
-                            .unwrap();
-                    } else if message.destination() == self.new_scene {
-                        self.message_sender.send(Message::NewScene).unwrap();
-                    } else if message.destination() == self.asset_browser {
-                        switch_window_state(
-                            ctx.asset_window,
-                            &mut ctx.engine.user_interface,
-                            false,
-                        );
-                    } else if message.destination() == self.light_panel {
-                        switch_window_state(ctx.light_panel, &mut ctx.engine.user_interface, true);
-                    } else if message.destination() == self.world_outliner {
-                        switch_window_state(
-                            ctx.world_outliner_window,
-                            &mut ctx.engine.user_interface,
-                            false,
-                        );
-                    } else if message.destination() == self.sidebar {
-                        switch_window_state(
-                            ctx.sidebar_window,
-                            &mut ctx.engine.user_interface,
-                            false,
-                        );
-                    } else if message.destination() == self.log_panel {
-                        switch_window_state(ctx.log_panel, &mut ctx.engine.user_interface, false);
-                    } else if message.destination() == self.open_settings {
+                    }
+                } else if message.destination() == self.undo {
+                    self.message_sender.send(Message::UndoSceneCommand).unwrap();
+                } else if message.destination() == self.redo {
+                    self.message_sender.send(Message::RedoSceneCommand).unwrap();
+                } else if message.destination() == self.exit {
+                    self.message_sender
+                        .send(Message::Exit { force: false })
+                        .unwrap();
+                } else if message.destination() == self.new_scene {
+                    self.message_sender.send(Message::NewScene).unwrap();
+                } else if message.destination() == self.asset_browser {
+                    switch_window_state(ctx.asset_window, &mut ctx.engine.user_interface, false);
+                } else if message.destination() == self.light_panel {
+                    switch_window_state(ctx.light_panel, &mut ctx.engine.user_interface, true);
+                } else if message.destination() == self.world_outliner {
+                    switch_window_state(
+                        ctx.world_outliner_window,
+                        &mut ctx.engine.user_interface,
+                        false,
+                    );
+                } else if message.destination() == self.sidebar {
+                    switch_window_state(ctx.sidebar_window, &mut ctx.engine.user_interface, false);
+                } else if message.destination() == self.log_panel {
+                    switch_window_state(ctx.log_panel, &mut ctx.engine.user_interface, false);
+                } else if message.destination() == self.open_settings {
+                    ctx.engine
+                        .user_interface
+                        .send_message(WindowMessage::open_modal(
+                            self.settings.window,
+                            MessageDirection::ToWidget,
+                            true,
+                        ));
+                } else if message.destination() == self.configure {
+                    if ctx.editor_scene.is_none() {
                         ctx.engine
                             .user_interface
                             .send_message(WindowMessage::open_modal(
-                                self.settings.window,
+                                ctx.configurator_window,
                                 MessageDirection::ToWidget,
                                 true,
                             ));
-                    } else if message.destination() == self.configure {
-                        if ctx.editor_scene.is_none() {
-                            ctx.engine
-                                .user_interface
-                                .send_message(WindowMessage::open_modal(
-                                    ctx.configurator_window,
-                                    MessageDirection::ToWidget,
-                                    true,
-                                ));
-                        } else {
-                            ctx.engine
-                                .user_interface
-                                .send_message(MessageBoxMessage::open(
-                                    self.configure_message,
-                                    MessageDirection::ToWidget,
-                                    None,
-                                    None,
-                                ));
-                        }
+                    } else {
+                        ctx.engine
+                            .user_interface
+                            .send_message(MessageBoxMessage::open(
+                                self.configure_message,
+                                MessageDirection::ToWidget,
+                                None,
+                                None,
+                            ));
                     }
                 }
             }

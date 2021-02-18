@@ -108,50 +108,47 @@ impl PrismaticJointSection {
         prismatic: &PrismaticJointDesc,
         handle: Handle<Joint>,
     ) {
-        if let UiMessageData::Vec3Editor(msg) = message.data() {
-            if let &Vec3EditorMessage::Value(value) = msg {
-                if message.direction() == MessageDirection::FromWidget {
-                    if message.destination() == self.joint_anchor
-                        && prismatic.local_anchor1.ne(&value)
-                    {
-                        self.sender
-                            .send(Message::DoSceneCommand(
-                                SceneCommand::SetPrismaticJointAnchor1(
-                                    SetPrismaticJointAnchor1Command::new(handle, value),
-                                ),
-                            ))
-                            .unwrap();
-                    } else if message.destination() == self.joint_axis
-                        && prismatic.local_axis1.ne(&value)
-                    {
-                        self.sender
-                            .send(Message::DoSceneCommand(
-                                SceneCommand::SetPrismaticJointAxis1(
-                                    SetPrismaticJointAxis1Command::new(handle, value),
-                                ),
-                            ))
-                            .unwrap();
-                    } else if message.destination() == self.connected_anchor
-                        && prismatic.local_anchor2.ne(&value)
-                    {
-                        self.sender
-                            .send(Message::DoSceneCommand(
-                                SceneCommand::SetPrismaticJointAnchor2(
-                                    SetPrismaticJointAnchor2Command::new(handle, value),
-                                ),
-                            ))
-                            .unwrap();
-                    } else if message.destination() == self.connected_axis
-                        && prismatic.local_axis2.ne(&value)
-                    {
-                        self.sender
-                            .send(Message::DoSceneCommand(
-                                SceneCommand::SetPrismaticJointAxis2(
-                                    SetPrismaticJointAxis2Command::new(handle, value),
-                                ),
-                            ))
-                            .unwrap();
-                    }
+        if let UiMessageData::Vec3Editor(Vec3EditorMessage::Value(value)) = *message.data() {
+            if message.direction() == MessageDirection::FromWidget {
+                if message.destination() == self.joint_anchor && prismatic.local_anchor1.ne(&value)
+                {
+                    self.sender
+                        .send(Message::DoSceneCommand(
+                            SceneCommand::SetPrismaticJointAnchor1(
+                                SetPrismaticJointAnchor1Command::new(handle, value),
+                            ),
+                        ))
+                        .unwrap();
+                } else if message.destination() == self.joint_axis
+                    && prismatic.local_axis1.ne(&value)
+                {
+                    self.sender
+                        .send(Message::DoSceneCommand(
+                            SceneCommand::SetPrismaticJointAxis1(
+                                SetPrismaticJointAxis1Command::new(handle, value),
+                            ),
+                        ))
+                        .unwrap();
+                } else if message.destination() == self.connected_anchor
+                    && prismatic.local_anchor2.ne(&value)
+                {
+                    self.sender
+                        .send(Message::DoSceneCommand(
+                            SceneCommand::SetPrismaticJointAnchor2(
+                                SetPrismaticJointAnchor2Command::new(handle, value),
+                            ),
+                        ))
+                        .unwrap();
+                } else if message.destination() == self.connected_axis
+                    && prismatic.local_axis2.ne(&value)
+                {
+                    self.sender
+                        .send(Message::DoSceneCommand(
+                            SceneCommand::SetPrismaticJointAxis2(
+                                SetPrismaticJointAxis2Command::new(handle, value),
+                            ),
+                        ))
+                        .unwrap();
                 }
             }
         }

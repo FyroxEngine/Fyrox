@@ -483,29 +483,28 @@ impl SideBar {
                                 }
                             }
                         }
-                        UiMessageData::TextBox(msg) => {
-                            if let TextBoxMessage::Text(value) = msg {
-                                if message.destination() == self.node_name {
-                                    let old_name = graph[node_handle].name();
-                                    if old_name != value {
-                                        self.sender
-                                            .send(Message::DoSceneCommand(SceneCommand::SetName(
-                                                SetNameCommand::new(node_handle, value.to_owned()),
-                                            )))
-                                            .unwrap();
-                                    }
-                                } else if message.destination() == self.tag {
-                                    let old_tag = graph[node_handle].tag();
-                                    if old_tag != value {
-                                        self.sender
-                                            .send(Message::DoSceneCommand(SceneCommand::SetTag(
-                                                SetTagCommand::new(node_handle, value.to_owned()),
-                                            )))
-                                            .unwrap();
-                                    }
+                        UiMessageData::TextBox(TextBoxMessage::Text(value)) => {
+                            if message.destination() == self.node_name {
+                                let old_name = graph[node_handle].name();
+                                if old_name != value {
+                                    self.sender
+                                        .send(Message::DoSceneCommand(SceneCommand::SetName(
+                                            SetNameCommand::new(node_handle, value.to_owned()),
+                                        )))
+                                        .unwrap();
+                                }
+                            } else if message.destination() == self.tag {
+                                let old_tag = graph[node_handle].tag();
+                                if old_tag != value {
+                                    self.sender
+                                        .send(Message::DoSceneCommand(SceneCommand::SetTag(
+                                            SetTagCommand::new(node_handle, value.to_owned()),
+                                        )))
+                                        .unwrap();
                                 }
                             }
                         }
+
                         UiMessageData::DropdownList(DropdownListMessage::SelectionChanged(
                             Some(index),
                         )) => {

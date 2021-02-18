@@ -92,34 +92,31 @@ impl CapsuleSection {
         handle: Handle<Collider>,
     ) {
         match message.data() {
-            UiMessageData::NumericUpDown(msg) => {
-                if let &NumericUpDownMessage::Value(value) = msg {
-                    if message.direction() == MessageDirection::FromWidget {
-                        if message.destination() == self.radius && capsule.radius.ne(&value) {
-                            self.sender
-                                .send(Message::DoSceneCommand(SceneCommand::SetCapsuleRadius(
-                                    SetCapsuleRadiusCommand::new(handle, value),
-                                )))
-                                .unwrap();
-                        }
-                    }
+            &UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) => {
+                if message.direction() == MessageDirection::FromWidget
+                    && message.destination() == self.radius
+                    && capsule.radius.ne(&value)
+                {
+                    self.sender
+                        .send(Message::DoSceneCommand(SceneCommand::SetCapsuleRadius(
+                            SetCapsuleRadiusCommand::new(handle, value),
+                        )))
+                        .unwrap();
                 }
             }
-            UiMessageData::Vec3Editor(msg) => {
-                if let Vec3EditorMessage::Value(value) = msg {
-                    if message.destination() == self.begin && capsule.begin.ne(value) {
-                        self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::SetCapsuleBegin(
-                                SetCapsuleBeginCommand::new(handle, *value),
-                            )))
-                            .unwrap();
-                    } else if message.destination() == self.end && capsule.end.ne(value) {
-                        self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::SetCapsuleEnd(
-                                SetCapsuleEndCommand::new(handle, *value),
-                            )))
-                            .unwrap();
-                    }
+            UiMessageData::Vec3Editor(Vec3EditorMessage::Value(value)) => {
+                if message.destination() == self.begin && capsule.begin.ne(value) {
+                    self.sender
+                        .send(Message::DoSceneCommand(SceneCommand::SetCapsuleBegin(
+                            SetCapsuleBeginCommand::new(handle, *value),
+                        )))
+                        .unwrap();
+                } else if message.destination() == self.end && capsule.end.ne(value) {
+                    self.sender
+                        .send(Message::DoSceneCommand(SceneCommand::SetCapsuleEnd(
+                            SetCapsuleEndCommand::new(handle, *value),
+                        )))
+                        .unwrap();
                 }
             }
             _ => {}

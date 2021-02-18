@@ -59,23 +59,20 @@ impl SphereSection {
         handle: Handle<Node>,
         emitter_index: usize,
     ) {
-        if let UiMessageData::NumericUpDown(msg) = message.data() {
-            if let &NumericUpDownMessage::Value(value) = msg {
-                if message.direction() == MessageDirection::FromWidget {
-                    if message.destination() == self.radius && sphere.radius().ne(&value) {
-                        self.sender
-                            .send(Message::DoSceneCommand(
-                                SceneCommand::SetSphereEmitterRadius(
-                                    SetSphereEmitterRadiusCommand::new(
-                                        handle,
-                                        emitter_index,
-                                        value,
-                                    ),
-                                ),
-                            ))
-                            .unwrap();
-                    }
-                }
+        if let UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) = *message.data() {
+            if message.direction() == MessageDirection::FromWidget
+                && message.destination() == self.radius
+                && sphere.radius().ne(&value)
+            {
+                self.sender
+                    .send(Message::DoSceneCommand(
+                        SceneCommand::SetSphereEmitterRadius(SetSphereEmitterRadiusCommand::new(
+                            handle,
+                            emitter_index,
+                            value,
+                        )),
+                    ))
+                    .unwrap();
             }
         }
     }

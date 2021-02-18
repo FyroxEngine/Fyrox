@@ -131,58 +131,49 @@ impl Control<EditorUiMessage, EditorUiNode> for SceneItem {
                     }
                 }
             }
-            UiMessageData::User(msg) => {
-                if let EditorUiMessage::SceneItem(item) = msg {
-                    match item {
-                        &SceneItemMessage::NodeVisibility(visibility) => {
-                            if self.visibility != visibility
-                                && message.destination() == self.handle()
-                            {
-                                self.visibility = visibility;
+            UiMessageData::User(EditorUiMessage::SceneItem(item)) => match item {
+                &SceneItemMessage::NodeVisibility(visibility) => {
+                    if self.visibility != visibility && message.destination() == self.handle() {
+                        self.visibility = visibility;
 
-                                let path = if visibility {
-                                    "resources/visible.png"
-                                } else {
-                                    "resources/invisible.png"
-                                };
-                                let image = ImageBuilder::new(WidgetBuilder::new())
-                                    .with_opt_texture(load_image(
-                                        path,
-                                        self.resource_manager.clone(),
-                                    ))
-                                    .build(&mut ui.build_ctx());
-                                ui.send_message(ButtonMessage::content(
-                                    self.visibility_toggle,
-                                    MessageDirection::ToWidget,
-                                    image,
-                                ));
-                            }
-                        }
-                        &SceneItemMessage::Order(order) => {
-                            if message.destination() == self.handle() {
-                                ui.send_message(DecoratorMessage::normal_brush(
-                                    self.tree.back(),
-                                    MessageDirection::ToWidget,
-                                    Brush::Solid(if order {
-                                        Color::opaque(50, 50, 50)
-                                    } else {
-                                        Color::opaque(60, 60, 60)
-                                    }),
-                                ));
-                            }
-                        }
-                        SceneItemMessage::Name(name) => {
-                            if message.destination() == self.handle() {
-                                ui.send_message(TextMessage::text(
-                                    self.text_name,
-                                    MessageDirection::ToWidget,
-                                    name.clone(),
-                                ));
-                            }
-                        }
+                        let path = if visibility {
+                            "resources/visible.png"
+                        } else {
+                            "resources/invisible.png"
+                        };
+                        let image = ImageBuilder::new(WidgetBuilder::new())
+                            .with_opt_texture(load_image(path, self.resource_manager.clone()))
+                            .build(&mut ui.build_ctx());
+                        ui.send_message(ButtonMessage::content(
+                            self.visibility_toggle,
+                            MessageDirection::ToWidget,
+                            image,
+                        ));
                     }
                 }
-            }
+                &SceneItemMessage::Order(order) => {
+                    if message.destination() == self.handle() {
+                        ui.send_message(DecoratorMessage::normal_brush(
+                            self.tree.back(),
+                            MessageDirection::ToWidget,
+                            Brush::Solid(if order {
+                                Color::opaque(50, 50, 50)
+                            } else {
+                                Color::opaque(60, 60, 60)
+                            }),
+                        ));
+                    }
+                }
+                SceneItemMessage::Name(name) => {
+                    if message.destination() == self.handle() {
+                        ui.send_message(TextMessage::text(
+                            self.text_name,
+                            MessageDirection::ToWidget,
+                            name.clone(),
+                        ));
+                    }
+                }
+            },
             _ => {}
         }
     }
@@ -350,29 +341,25 @@ fn make_tree(
 }
 
 fn tree_node(ui: &Ui, tree: Handle<UiNode>) -> Handle<Node> {
-    if let UiNode::User(usr) = ui.node(tree) {
-        if let EditorUiNode::SceneItem(item) = usr {
-            return item.node;
-        }
+    if let UiNode::User(EditorUiNode::SceneItem(item)) = ui.node(tree) {
+        return item.node;
     }
     unreachable!()
 }
 
 fn colorize(tree: Handle<UiNode>, ui: &Ui, index: &mut usize) {
     match ui.node(tree) {
-        UINode::User(u) => {
-            if let EditorUiNode::SceneItem(i) = u {
-                ui.send_message(UiMessage::user(
-                    tree,
-                    MessageDirection::ToWidget,
-                    EditorUiMessage::SceneItem(SceneItemMessage::Order(*index % 2 == 0)),
-                ));
+        UINode::User(EditorUiNode::SceneItem(i)) => {
+            ui.send_message(UiMessage::user(
+                tree,
+                MessageDirection::ToWidget,
+                EditorUiMessage::SceneItem(SceneItemMessage::Order(*index % 2 == 0)),
+            ));
 
-                *index += 1;
+            *index += 1;
 
-                for &item in i.tree.items() {
-                    colorize(item, ui, index);
-                }
+            for &item in i.tree.items() {
+                colorize(item, ui, index);
             }
         }
         UINode::TreeRoot(root) => {
@@ -697,18 +684,16 @@ impl WorldOutliner {
                     }
                 }
             }
-            UiMessageData::Button(msg) => {
-                if let ButtonMessage::Click = msg {
-                    if let Some(&node) = self.breadcrumbs.get(&message.destination()) {
-                        self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
-                                ChangeSelectionCommand::new(
-                                    Selection::Graph(GraphSelection::single_or_empty(node)),
-                                    editor_scene.selection.clone(),
-                                ),
-                            )))
-                            .unwrap();
-                    }
+            UiMessageData::Button(ButtonMessage::Click) => {
+                if let Some(&node) = self.breadcrumbs.get(&message.destination()) {
+                    self.sender
+                        .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
+                            ChangeSelectionCommand::new(
+                                Selection::Graph(GraphSelection::single_or_empty(node)),
+                                editor_scene.selection.clone(),
+                            ),
+                        )))
+                        .unwrap();
                 }
             }
             _ => {}

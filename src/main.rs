@@ -338,29 +338,27 @@ impl ScenePreview {
     fn handle_ui_message(&mut self, message: &UiMessage) {
         scope_profile!();
 
-        if let UiMessageData::Button(msg) = &message.data() {
-            if let ButtonMessage::Click = msg {
-                if message.destination() == self.scale_mode {
-                    self.sender
-                        .send(Message::SetInteractionMode(InteractionModeKind::Scale))
-                        .unwrap();
-                } else if message.destination() == self.rotate_mode {
-                    self.sender
-                        .send(Message::SetInteractionMode(InteractionModeKind::Rotate))
-                        .unwrap();
-                } else if message.destination() == self.move_mode {
-                    self.sender
-                        .send(Message::SetInteractionMode(InteractionModeKind::Move))
-                        .unwrap();
-                } else if message.destination() == self.select_mode {
-                    self.sender
-                        .send(Message::SetInteractionMode(InteractionModeKind::Select))
-                        .unwrap();
-                } else if message.destination() == self.navmesh_mode {
-                    self.sender
-                        .send(Message::SetInteractionMode(InteractionModeKind::Navmesh))
-                        .unwrap();
-                }
+        if let UiMessageData::Button(ButtonMessage::Click) = &message.data() {
+            if message.destination() == self.scale_mode {
+                self.sender
+                    .send(Message::SetInteractionMode(InteractionModeKind::Scale))
+                    .unwrap();
+            } else if message.destination() == self.rotate_mode {
+                self.sender
+                    .send(Message::SetInteractionMode(InteractionModeKind::Rotate))
+                    .unwrap();
+            } else if message.destination() == self.move_mode {
+                self.sender
+                    .send(Message::SetInteractionMode(InteractionModeKind::Move))
+                    .unwrap();
+            } else if message.destination() == self.select_mode {
+                self.sender
+                    .send(Message::SetInteractionMode(InteractionModeKind::Select))
+                    .unwrap();
+            } else if message.destination() == self.navmesh_mode {
+                self.sender
+                    .send(Message::SetInteractionMode(InteractionModeKind::Navmesh))
+                    .unwrap();
             }
         }
     }
@@ -943,64 +941,64 @@ impl Editor {
                         }
                         WidgetMessage::Drop(handle) => {
                             if handle.is_some() {
-                                if let UiNode::User(u) = engine.user_interface.node(handle) {
-                                    if let EditorUiNode::AssetItem(item) = u {
-                                        // Make sure all resources loaded with relative paths only.
-                                        // This will make scenes portable.
-                                        let relative_path = make_relative_path(&item.path);
+                                if let UiNode::User(EditorUiNode::AssetItem(item)) =
+                                    engine.user_interface.node(handle)
+                                {
+                                    // Make sure all resources loaded with relative paths only.
+                                    // This will make scenes portable.
+                                    let relative_path = make_relative_path(&item.path);
 
-                                        match item.kind {
-                                            AssetKind::Model => {
-                                                // Import model.
-                                                self.message_sender
-                                                    .send(Message::DoSceneCommand(
-                                                        SceneCommand::LoadModel(
-                                                            LoadModelCommand::new(relative_path),
-                                                        ),
-                                                    ))
-                                                    .unwrap();
-                                            }
-                                            AssetKind::Texture => {
-                                                let cursor_pos =
-                                                    engine.user_interface.cursor_position();
-                                                let screen_bounds = engine
-                                                    .user_interface
-                                                    .node(self.preview.frame)
-                                                    .screen_bounds();
-                                                let rel_pos = cursor_pos - screen_bounds.position;
-                                                let graph =
-                                                    &engine.scenes[editor_scene.scene].graph;
-                                                let handle = editor_scene.camera_controller.pick(
-                                                    rel_pos,
-                                                    graph,
-                                                    editor_scene.root,
-                                                    frame_size,
-                                                    false,
-                                                    |_, _| true,
-                                                );
-                                                if handle.is_some() {
-                                                    let tex = engine
-                                                        .resource_manager
-                                                        .request_texture(&relative_path);
-                                                    let texture = tex.clone();
-                                                    let texture = texture.state();
-                                                    if let TextureState::Ok(_) = *texture {
-                                                        match &mut engine.scenes[editor_scene.scene]
-                                                            .graph[handle]
-                                                        {
-                                                            Node::Mesh(_) => {
-                                                                self.message_sender
-                                                                        .send(Message::DoSceneCommand(
-                                                                            SceneCommand::SetMeshTexture(
-                                                                                SetMeshTextureCommand::new(
-                                                                                    handle, tex,
-                                                                                ),
-                                                                            ),
-                                                                        ))
-                                                                        .unwrap();
-                                                            }
-                                                            Node::Sprite(_) => {
-                                                                self.message_sender
+                                    match item.kind {
+                                        AssetKind::Model => {
+                                            // Import model.
+                                            self.message_sender
+                                                .send(Message::DoSceneCommand(
+                                                    SceneCommand::LoadModel(LoadModelCommand::new(
+                                                        relative_path,
+                                                    )),
+                                                ))
+                                                .unwrap();
+                                        }
+                                        AssetKind::Texture => {
+                                            let cursor_pos =
+                                                engine.user_interface.cursor_position();
+                                            let screen_bounds = engine
+                                                .user_interface
+                                                .node(self.preview.frame)
+                                                .screen_bounds();
+                                            let rel_pos = cursor_pos - screen_bounds.position;
+                                            let graph = &engine.scenes[editor_scene.scene].graph;
+                                            let handle = editor_scene.camera_controller.pick(
+                                                rel_pos,
+                                                graph,
+                                                editor_scene.root,
+                                                frame_size,
+                                                false,
+                                                |_, _| true,
+                                            );
+                                            if handle.is_some() {
+                                                let tex = engine
+                                                    .resource_manager
+                                                    .request_texture(&relative_path);
+                                                let texture = tex.clone();
+                                                let texture = texture.state();
+                                                if let TextureState::Ok(_) = *texture {
+                                                    match &mut engine.scenes[editor_scene.scene]
+                                                        .graph[handle]
+                                                    {
+                                                        Node::Mesh(_) => {
+                                                            self.message_sender
+                                                                .send(Message::DoSceneCommand(
+                                                                    SceneCommand::SetMeshTexture(
+                                                                        SetMeshTextureCommand::new(
+                                                                            handle, tex,
+                                                                        ),
+                                                                    ),
+                                                                ))
+                                                                .unwrap();
+                                                        }
+                                                        Node::Sprite(_) => {
+                                                            self.message_sender
                                                                         .send(Message::DoSceneCommand(
                                                                             SceneCommand::SetSpriteTexture(
                                                                                 SetSpriteTextureCommand::new(
@@ -1009,9 +1007,9 @@ impl Editor {
                                                                             ),
                                                                         ))
                                                                         .unwrap();
-                                                            }
-                                                            Node::ParticleSystem(_) => {
-                                                                self.message_sender
+                                                        }
+                                                        Node::ParticleSystem(_) => {
+                                                            self.message_sender
                                                                     .send(Message::DoSceneCommand(
                                                                         SceneCommand::SetParticleSystemTexture(
                                                                             SetParticleSystemTextureCommand::new(
@@ -1020,14 +1018,13 @@ impl Editor {
                                                                         ),
                                                                     ))
                                                                     .unwrap();
-                                                            }
-                                                            _ => {}
                                                         }
+                                                        _ => {}
                                                     }
                                                 }
                                             }
-                                            _ => {}
                                         }
+                                        _ => {}
                                     }
                                 }
                             }
@@ -1038,52 +1035,48 @@ impl Editor {
             }
 
             match &message.data() {
-                UiMessageData::MessageBox(msg)
+                UiMessageData::MessageBox(MessageBoxMessage::Close(result))
                     if message.destination() == self.exit_message_box =>
                 {
-                    if let MessageBoxMessage::Close(result) = msg {
-                        match result {
-                            MessageBoxResult::No => {
-                                self.message_sender
-                                    .send(Message::Exit { force: true })
-                                    .unwrap();
-                            }
-                            MessageBoxResult::Yes => {
-                                if let Some(scene) = self.scene.as_ref() {
-                                    if let Some(path) = scene.path.as_ref() {
-                                        self.message_sender
-                                            .send(Message::SaveScene(path.clone()))
-                                            .unwrap();
-                                        self.message_sender
-                                            .send(Message::Exit { force: true })
-                                            .unwrap();
-                                    } else {
-                                        // Scene wasn't saved yet, open Save As dialog.
-                                        engine.user_interface.send_message(
-                                            WindowMessage::open_modal(
-                                                self.save_file_selector,
-                                                MessageDirection::ToWidget,
-                                                true,
-                                            ),
-                                        );
-                                    }
+                    match result {
+                        MessageBoxResult::No => {
+                            self.message_sender
+                                .send(Message::Exit { force: true })
+                                .unwrap();
+                        }
+                        MessageBoxResult::Yes => {
+                            if let Some(scene) = self.scene.as_ref() {
+                                if let Some(path) = scene.path.as_ref() {
+                                    self.message_sender
+                                        .send(Message::SaveScene(path.clone()))
+                                        .unwrap();
+                                    self.message_sender
+                                        .send(Message::Exit { force: true })
+                                        .unwrap();
+                                } else {
+                                    // Scene wasn't saved yet, open Save As dialog.
+                                    engine
+                                        .user_interface
+                                        .send_message(WindowMessage::open_modal(
+                                            self.save_file_selector,
+                                            MessageDirection::ToWidget,
+                                            true,
+                                        ));
                                 }
                             }
-                            _ => {}
                         }
+                        _ => {}
                     }
                 }
-                UiMessageData::FileSelector(msg)
+                UiMessageData::FileSelector(FileSelectorMessage::Commit(path))
                     if message.destination() == self.save_file_selector =>
                 {
-                    if let FileSelectorMessage::Commit(path) = msg {
-                        self.message_sender
-                            .send(Message::SaveScene(path.clone()))
-                            .unwrap();
-                        self.message_sender
-                            .send(Message::Exit { force: true })
-                            .unwrap();
-                    }
+                    self.message_sender
+                        .send(Message::SaveScene(path.clone()))
+                        .unwrap();
+                    self.message_sender
+                        .send(Message::Exit { force: true })
+                        .unwrap();
                 }
 
                 _ => (),

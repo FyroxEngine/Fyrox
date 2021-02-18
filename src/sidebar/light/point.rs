@@ -46,18 +46,14 @@ impl PointLightSection {
     }
 
     pub fn sync_to_model(&mut self, node: &Node, ui: &mut Ui) {
-        let visible = if let Node::Light(light) = node {
-            if let Light::Point(point) = light {
-                ui.send_message(NumericUpDownMessage::value(
-                    self.radius,
-                    MessageDirection::ToWidget,
-                    point.radius(),
-                ));
+        let visible = if let Node::Light(Light::Point(point)) = node {
+            ui.send_message(NumericUpDownMessage::value(
+                self.radius,
+                MessageDirection::ToWidget,
+                point.radius(),
+            ));
 
-                true
-            } else {
-                false
-            }
+            true
         } else {
             false
         };
@@ -69,17 +65,15 @@ impl PointLightSection {
     }
 
     pub fn handle_message(&mut self, message: &UiMessage, node: &Node, handle: Handle<Node>) {
-        if let Node::Light(light) = node {
-            if let Light::Point(point) = light {
-                if let UiMessageData::NumericUpDown(msg) = &message.data() {
-                    if let NumericUpDownMessage::Value(value) = *msg {
-                        if message.destination() == self.radius && point.radius().ne(&value) {
-                            self.sender
-                                .send(Message::DoSceneCommand(SceneCommand::SetPointLightRadius(
-                                    SetPointLightRadiusCommand::new(handle, value),
-                                )))
-                                .unwrap();
-                        }
+        if let Node::Light(Light::Point(point)) = node {
+            if let UiMessageData::NumericUpDown(msg) = &message.data() {
+                if let NumericUpDownMessage::Value(value) = *msg {
+                    if message.destination() == self.radius && point.radius().ne(&value) {
+                        self.sender
+                            .send(Message::DoSceneCommand(SceneCommand::SetPointLightRadius(
+                                SetPointLightRadiusCommand::new(handle, value),
+                            )))
+                            .unwrap();
                     }
                 }
             }

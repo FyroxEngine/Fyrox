@@ -108,15 +108,13 @@ impl<D: Clone + 'static> Control<EditorUiMessage, EditorUiNode> for DeletableIte
     fn handle_routed_message(&mut self, ui: &mut Ui, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if let UiMessageData::Button(msg) = message.data() {
-            if let ButtonMessage::Click = msg {
-                if message.destination() == self.delete {
-                    ui.send_message(UiMessage::user(
-                        self.handle(),
-                        MessageDirection::FromWidget,
-                        EditorUiMessage::DeletableItem(DeletableItemMessage::Delete),
-                    ));
-                }
+        if let UiMessageData::Button(ButtonMessage::Click) = message.data() {
+            if message.destination() == self.delete {
+                ui.send_message(UiMessage::user(
+                    self.handle(),
+                    MessageDirection::FromWidget,
+                    EditorUiMessage::DeletableItem(DeletableItemMessage::Delete),
+                ));
             }
         }
     }
@@ -152,7 +150,22 @@ impl<D: Clone + 'static> DeletableItemBuilder<D> {
         ctx: &mut BuildContext,
         resource_manager: ResourceManager,
     ) -> DeletableItem<D> {
-        let delete;
+        let delete = ButtonBuilder::new(WidgetBuilder::new().on_column(1))
+            .with_content(
+                ButtonBuilder::new(
+                    WidgetBuilder::new()
+                        .with_width(16.0)
+                        .with_height(16.0)
+                        .with_margin(Thickness::uniform(1.0)),
+                )
+                .with_content(
+                    ImageBuilder::new(WidgetBuilder::new())
+                        .with_opt_texture(load_image("resources/cross.png", resource_manager))
+                        .build(ctx),
+                )
+                .build(ctx),
+            )
+            .build(ctx);
         DeletableItem {
             widget: self
                 .widget_builder
@@ -160,28 +173,9 @@ impl<D: Clone + 'static> DeletableItemBuilder<D> {
                     DecoratorBuilder::new(BorderBuilder::new(
                         WidgetBuilder::new().with_child(
                             GridBuilder::new(
-                                WidgetBuilder::new().with_child(self.content).with_child({
-                                    delete = ButtonBuilder::new(WidgetBuilder::new().on_column(1))
-                                        .with_content(
-                                            ButtonBuilder::new(
-                                                WidgetBuilder::new()
-                                                    .with_width(16.0)
-                                                    .with_height(16.0)
-                                                    .with_margin(Thickness::uniform(1.0)),
-                                            )
-                                            .with_content(
-                                                ImageBuilder::new(WidgetBuilder::new())
-                                                    .with_opt_texture(load_image(
-                                                        "resources/cross.png",
-                                                        resource_manager,
-                                                    ))
-                                                    .build(ctx),
-                                            )
-                                            .build(ctx),
-                                        )
-                                        .build(ctx);
-                                    delete
-                                }),
+                                WidgetBuilder::new()
+                                    .with_child(self.content)
+                                    .with_child(delete),
                             )
                             .add_column(Column::stretch())
                             .add_column(Column::strict(16.0))

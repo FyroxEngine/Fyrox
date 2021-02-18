@@ -260,7 +260,7 @@ impl NavmeshPanel {
                             .entities()
                             .iter()
                             .filter_map(|entity| {
-                                if let &NavmeshEntity::Edge(v) = entity {
+                                if let NavmeshEntity::Edge(v) = *entity {
                                     Some(v)
                                 } else {
                                     None
@@ -279,48 +279,44 @@ impl NavmeshPanel {
                     }
                 }
             }
-            UiMessageData::ListView(msg) => {
-                if let ListViewMessage::SelectionChanged(selection) = msg {
-                    if message.destination() == self.navmeshes
-                        && message.direction() == MessageDirection::FromWidget
-                    {
-                        let new_selection = if let &Some(selection) = selection {
-                            let navmeshes = engine.user_interface.node(self.navmeshes);
-                            let item = navmeshes.as_list_view().items()[selection];
-                            *engine
-                                .user_interface
-                                .node(item)
-                                .user_data_ref::<Handle<Navmesh>>()
-                        } else {
-                            Default::default()
-                        };
+            UiMessageData::ListView(ListViewMessage::SelectionChanged(selection)) => {
+                if message.destination() == self.navmeshes
+                    && message.direction() == MessageDirection::FromWidget
+                {
+                    let new_selection = if let Some(selection) = *selection {
+                        let navmeshes = engine.user_interface.node(self.navmeshes);
+                        let item = navmeshes.as_list_view().items()[selection];
+                        *engine
+                            .user_interface
+                            .node(item)
+                            .user_data_ref::<Handle<Navmesh>>()
+                    } else {
+                        Default::default()
+                    };
 
-                        if self.selected != new_selection {
-                            self.selected = new_selection;
-                            edit_mode.navmesh = self.selected;
+                    if self.selected != new_selection {
+                        self.selected = new_selection;
+                        edit_mode.navmesh = self.selected;
 
-                            engine.user_interface.send_message(WidgetMessage::enabled(
-                                self.remove,
-                                MessageDirection::ToWidget,
-                                editor_scene.navmeshes.is_valid_handle(self.selected),
-                            ));
+                        engine.user_interface.send_message(WidgetMessage::enabled(
+                            self.remove,
+                            MessageDirection::ToWidget,
+                            editor_scene.navmeshes.is_valid_handle(self.selected),
+                        ));
 
-                            if !message.has_flags(MSG_SYNC_FLAG) {
-                                let new_selection =
-                                    Selection::Navmesh(NavmeshSelection::empty(self.selected));
+                        if !message.has_flags(MSG_SYNC_FLAG) {
+                            let new_selection =
+                                Selection::Navmesh(NavmeshSelection::empty(self.selected));
 
-                                if new_selection != editor_scene.selection {
-                                    self.sender
-                                        .send(Message::DoSceneCommand(
-                                            SceneCommand::ChangeSelection(
-                                                ChangeSelectionCommand::new(
-                                                    new_selection,
-                                                    editor_scene.selection.clone(),
-                                                ),
-                                            ),
-                                        ))
-                                        .unwrap();
-                                }
+                            if new_selection != editor_scene.selection {
+                                self.sender
+                                    .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
+                                        ChangeSelectionCommand::new(
+                                            new_selection,
+                                            editor_scene.selection.clone(),
+                                        ),
+                                    )))
+                                    .unwrap();
                             }
                         }
                     }
@@ -387,7 +383,7 @@ impl InteractionModeTrait for EditNavmeshMode {
             let camera_pivot = editor_scene.camera_controller.pivot;
             let editor_node = editor_scene.camera_controller.pick(
                 mouse_pos,
-                &mut scene.graph,
+                &scene.graph,
                 editor_scene.root,
                 frame_size,
                 true,
@@ -524,68 +520,61 @@ impl InteractionModeTrait for EditNavmeshMode {
         engine: &mut GameEngine,
         frame_size: Vector2<f32>,
     ) {
-        if editor_scene.navmeshes.is_valid_handle(self.navmesh) {
-            if self.drag_context.is_some() {
-                let offset = self.move_gizmo.calculate_offset(
-                    editor_scene,
-                    camera,
-                    mouse_offset,
-                    mouse_position,
-                    engine,
-                    frame_size,
-                );
+        if editor_scene.navmeshes.is_valid_handle(self.navmesh) && self.drag_context.is_some() {
+            let offset = self.move_gizmo.calculate_offset(
+                editor_scene,
+                camera,
+                mouse_offset,
+                mouse_position,
+                engine,
+                frame_size,
+            );
 
-                let navmesh = &mut editor_scene.navmeshes[self.navmesh];
+            let navmesh = &mut editor_scene.navmeshes[self.navmesh];
 
-                // If we're dragging single edge it is possible to enter edge duplication mode by
-                // holding Shift key. This is the main navmesh construction mode.
-                if let Selection::Navmesh(navmesh_selection) = &editor_scene.selection {
-                    if navmesh_selection.entities().len() == 1 {
-                        if let NavmeshEntity::Edge(edge) =
-                            navmesh_selection.entities().first().unwrap()
+            // If we're dragging single edge it is possible to enter edge duplication mode by
+            // holding Shift key. This is the main navmesh construction mode.
+            if let Selection::Navmesh(navmesh_selection) = &editor_scene.selection {
+                if navmesh_selection.entities().len() == 1 {
+                    if let NavmeshEntity::Edge(edge) = navmesh_selection.entities().first().unwrap()
+                    {
+                        if engine.user_interface.keyboard_modifiers().shift
+                            && !self.drag_context.as_ref().unwrap().is_edge_duplication()
                         {
-                            if engine.user_interface.keyboard_modifiers().shift
-                                && !self.drag_context.as_ref().unwrap().is_edge_duplication()
-                            {
-                                let new_begin = navmesh.vertices[edge.begin].clone();
-                                let new_end = navmesh.vertices[edge.end].clone();
+                            let new_begin = navmesh.vertices[edge.begin].clone();
+                            let new_end = navmesh.vertices[edge.end].clone();
 
-                                self.drag_context = Some(DragContext::EdgeDuplication {
-                                    vertices: [new_begin, new_end],
-                                    opposite_edge: edge.clone(),
-                                });
+                            self.drag_context = Some(DragContext::EdgeDuplication {
+                                vertices: [new_begin, new_end],
+                                opposite_edge: *edge,
+                            });
 
-                                // Discard selection.
-                                self.message_sender
-                                    .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
-                                        ChangeSelectionCommand::new(
-                                            Selection::Navmesh(NavmeshSelection::empty(
-                                                self.navmesh,
-                                            )),
-                                            editor_scene.selection.clone(),
-                                        ),
-                                    )))
-                                    .unwrap();
-                            }
+                            // Discard selection.
+                            self.message_sender
+                                .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
+                                    ChangeSelectionCommand::new(
+                                        Selection::Navmesh(NavmeshSelection::empty(self.navmesh)),
+                                        editor_scene.selection.clone(),
+                                    ),
+                                )))
+                                .unwrap();
                         }
                     }
                 }
+            }
 
-                if let Some(drag_context) = self.drag_context.as_mut() {
-                    match drag_context {
-                        DragContext::MoveSelection { .. } => {
-                            if let Selection::Navmesh(navmesh_selection) =
-                                &mut editor_scene.selection
-                            {
-                                for &vertex in navmesh_selection.unique_vertices() {
-                                    navmesh.vertices[vertex].position += offset;
-                                }
+            if let Some(drag_context) = self.drag_context.as_mut() {
+                match drag_context {
+                    DragContext::MoveSelection { .. } => {
+                        if let Selection::Navmesh(navmesh_selection) = &mut editor_scene.selection {
+                            for &vertex in navmesh_selection.unique_vertices() {
+                                navmesh.vertices[vertex].position += offset;
                             }
                         }
-                        DragContext::EdgeDuplication { vertices, .. } => {
-                            for vertex in vertices.iter_mut() {
-                                vertex.position += offset;
-                            }
+                    }
+                    DragContext::EdgeDuplication { vertices, .. } => {
+                        for vertex in vertices.iter_mut() {
+                            vertex.position += offset;
                         }
                     }
                 }
@@ -637,56 +626,54 @@ impl InteractionModeTrait for EditNavmeshMode {
                 }
             }
 
-            if let Some(drag_context) = self.drag_context.as_ref() {
-                if let DragContext::EdgeDuplication {
-                    vertices,
-                    opposite_edge,
-                } = drag_context
-                {
-                    for vertex in vertices.iter() {
-                        scene.drawing_context.draw_sphere(
-                            vertex.position,
-                            10,
-                            10,
-                            VERTEX_RADIUS,
-                            Color::RED,
-                        );
-                    }
-
-                    let ob = navmesh.vertices[opposite_edge.begin].position;
-                    let nb = vertices[0].position;
-                    let oe = navmesh.vertices[opposite_edge.end].position;
-                    let ne = vertices[1].position;
-
-                    scene.drawing_context.add_line(rg3d::scene::Line {
-                        begin: nb,
-                        end: ne,
-                        color: Color::RED,
-                    });
-
-                    for &(begin, end) in &[(ob, oe), (ob, nb), (nb, oe), (oe, ne)] {
-                        scene.drawing_context.add_line(rg3d::scene::Line {
-                            begin,
-                            end,
-                            color: Color::GREEN,
-                        });
-                    }
-
-                    self.move_gizmo.set_visible(&mut scene.graph, true);
-                    self.move_gizmo
-                        .transform(&mut scene.graph)
-                        .set_scale(scale)
-                        .set_position((nb + ne).scale(0.5));
+            if let Some(DragContext::EdgeDuplication {
+                vertices,
+                opposite_edge,
+            }) = self.drag_context.as_ref()
+            {
+                for vertex in vertices.iter() {
+                    scene.drawing_context.draw_sphere(
+                        vertex.position,
+                        10,
+                        10,
+                        VERTEX_RADIUS,
+                        Color::RED,
+                    );
                 }
+
+                let ob = navmesh.vertices[opposite_edge.begin].position;
+                let nb = vertices[0].position;
+                let oe = navmesh.vertices[opposite_edge.end].position;
+                let ne = vertices[1].position;
+
+                scene.drawing_context.add_line(rg3d::scene::Line {
+                    begin: nb,
+                    end: ne,
+                    color: Color::RED,
+                });
+
+                for &(begin, end) in &[(ob, oe), (ob, nb), (nb, oe), (oe, ne)] {
+                    scene.drawing_context.add_line(rg3d::scene::Line {
+                        begin,
+                        end,
+                        color: Color::GREEN,
+                    });
+                }
+
+                self.move_gizmo.set_visible(&mut scene.graph, true);
+                self.move_gizmo
+                    .transform(&mut scene.graph)
+                    .set_scale(scale)
+                    .set_position((nb + ne).scale(0.5));
             }
 
             if let Selection::Navmesh(navmesh_selection) = &editor_scene.selection {
                 if let Some(first) = navmesh_selection.first() {
                     self.move_gizmo.set_visible(&mut scene.graph, true);
 
-                    let gizmo_position = match first {
-                        &NavmeshEntity::Vertex(v) => navmesh.vertices[v].position,
-                        &NavmeshEntity::Edge(edge) => {
+                    let gizmo_position = match *first {
+                        NavmeshEntity::Vertex(v) => navmesh.vertices[v].position,
+                        NavmeshEntity::Edge(edge) => {
                             let a = navmesh.vertices[edge.begin].position;
                             let b = navmesh.vertices[edge.end].position;
                             (a + b).scale(0.5)

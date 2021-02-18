@@ -48,7 +48,7 @@ pub enum NavmeshEntity {
     Edge(NavmeshEdge),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Navmesh {
     pub vertices: Pool<NavmeshVertex>,
     pub triangles: Pool<NavmeshTriangle>,
@@ -74,7 +74,7 @@ impl Navmesh {
         let mut triangles = Pool::new();
 
         let _ = triangles.spawn(NavmeshTriangle { a, b, c });
-        let _ = triangles.spawn(NavmeshTriangle { a: a, b: c, c: d });
+        let _ = triangles.spawn(NavmeshTriangle { a, b: c, c: d });
 
         Self {
             vertices,

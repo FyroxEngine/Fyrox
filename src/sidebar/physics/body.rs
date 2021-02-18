@@ -58,17 +58,16 @@ impl BodySection {
         body: &RigidBody,
         handle: Handle<RigidBody>,
     ) {
-        if let UiMessageData::NumericUpDown(msg) = message.data() {
-            if let &NumericUpDownMessage::Value(value) = msg {
-                if message.direction() == MessageDirection::FromWidget {
-                    if message.destination() == self.mass && body.mass.ne(&value) {
-                        self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::SetBodyMass(
-                                SetBodyMassCommand::new(handle, value),
-                            )))
-                            .unwrap();
-                    }
-                }
+        if let UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) = *message.data() {
+            if message.direction() == MessageDirection::FromWidget
+                && message.destination() == self.mass
+                && body.mass.ne(&value)
+            {
+                self.sender
+                    .send(Message::DoSceneCommand(SceneCommand::SetBodyMass(
+                        SetBodyMassCommand::new(handle, value),
+                    )))
+                    .unwrap();
             }
         }
     }

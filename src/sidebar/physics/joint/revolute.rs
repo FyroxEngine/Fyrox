@@ -108,50 +108,46 @@ impl RevoluteJointSection {
         revolute: &RevoluteJointDesc,
         handle: Handle<Joint>,
     ) {
-        if let UiMessageData::Vec3Editor(msg) = message.data() {
-            if let &Vec3EditorMessage::Value(value) = msg {
-                if message.direction() == MessageDirection::FromWidget {
-                    if message.destination() == self.joint_anchor
-                        && revolute.local_anchor1.ne(&value)
-                    {
-                        self.sender
-                            .send(Message::DoSceneCommand(
-                                SceneCommand::SetRevoluteJointAnchor1(
-                                    SetRevoluteJointAnchor1Command::new(handle, value),
-                                ),
-                            ))
-                            .unwrap();
-                    } else if message.destination() == self.joint_axis
-                        && revolute.local_axis1.ne(&value)
-                    {
-                        self.sender
-                            .send(Message::DoSceneCommand(
-                                SceneCommand::SetRevoluteJointAxis1(
-                                    SetRevoluteJointAxis1Command::new(handle, value),
-                                ),
-                            ))
-                            .unwrap();
-                    } else if message.destination() == self.connected_anchor
-                        && revolute.local_anchor2.ne(&value)
-                    {
-                        self.sender
-                            .send(Message::DoSceneCommand(
-                                SceneCommand::SetRevoluteJointAnchor2(
-                                    SetRevoluteJointAnchor2Command::new(handle, value),
-                                ),
-                            ))
-                            .unwrap();
-                    } else if message.destination() == self.connected_axis
-                        && revolute.local_axis2.ne(&value)
-                    {
-                        self.sender
-                            .send(Message::DoSceneCommand(
-                                SceneCommand::SetRevoluteJointAxis2(
-                                    SetRevoluteJointAxis2Command::new(handle, value),
-                                ),
-                            ))
-                            .unwrap();
-                    }
+        if let UiMessageData::Vec3Editor(Vec3EditorMessage::Value(value)) = *message.data() {
+            if message.direction() == MessageDirection::FromWidget {
+                if message.destination() == self.joint_anchor && revolute.local_anchor1.ne(&value) {
+                    self.sender
+                        .send(Message::DoSceneCommand(
+                            SceneCommand::SetRevoluteJointAnchor1(
+                                SetRevoluteJointAnchor1Command::new(handle, value),
+                            ),
+                        ))
+                        .unwrap();
+                } else if message.destination() == self.joint_axis
+                    && revolute.local_axis1.ne(&value)
+                {
+                    self.sender
+                        .send(Message::DoSceneCommand(
+                            SceneCommand::SetRevoluteJointAxis1(SetRevoluteJointAxis1Command::new(
+                                handle, value,
+                            )),
+                        ))
+                        .unwrap();
+                } else if message.destination() == self.connected_anchor
+                    && revolute.local_anchor2.ne(&value)
+                {
+                    self.sender
+                        .send(Message::DoSceneCommand(
+                            SceneCommand::SetRevoluteJointAnchor2(
+                                SetRevoluteJointAnchor2Command::new(handle, value),
+                            ),
+                        ))
+                        .unwrap();
+                } else if message.destination() == self.connected_axis
+                    && revolute.local_axis2.ne(&value)
+                {
+                    self.sender
+                        .send(Message::DoSceneCommand(
+                            SceneCommand::SetRevoluteJointAxis2(SetRevoluteJointAxis2Command::new(
+                                handle, value,
+                            )),
+                        ))
+                        .unwrap();
                 }
             }
         }

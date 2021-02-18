@@ -210,23 +210,22 @@ impl JointSection {
             }
         }
 
-        if let UiMessageData::DropdownList(msg) = message.data() {
-            if let &DropdownListMessage::SelectionChanged(value) = msg {
-                if let Some(index) = value {
-                    if message.direction() == MessageDirection::FromWidget {
-                        if message.destination() == self.connected_body {
-                            let body = self.available_bodies[index];
-                            if joint.body2.ne(&body.into()) {
-                                self.sender
-                                    .send(Message::DoSceneCommand(
-                                        SceneCommand::SetJointConnectedBody(
-                                            SetJointConnectedBodyCommand::new(handle, body.into()),
-                                        ),
-                                    ))
-                                    .unwrap();
-                            }
-                        }
-                    }
+        if let UiMessageData::DropdownList(DropdownListMessage::SelectionChanged(Some(index))) =
+            *message.data()
+        {
+            if message.direction() == MessageDirection::FromWidget
+                && message.destination() == self.connected_body
+            {
+                let body = self.available_bodies[index];
+                if joint.body2.ne(&body.into()) {
+                    self.sender
+                        .send(Message::DoSceneCommand(
+                            SceneCommand::SetJointConnectedBody(SetJointConnectedBodyCommand::new(
+                                handle,
+                                body.into(),
+                            )),
+                        ))
+                        .unwrap();
                 }
             }
         }

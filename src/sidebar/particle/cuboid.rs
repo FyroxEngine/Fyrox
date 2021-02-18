@@ -93,52 +93,36 @@ impl BoxSection {
         handle: Handle<Node>,
         emitter_index: usize,
     ) {
-        if let UiMessageData::NumericUpDown(msg) = message.data() {
-            if let &NumericUpDownMessage::Value(value) = msg {
-                if message.direction() == MessageDirection::FromWidget {
-                    if message.destination() == self.half_width
-                        && box_emitter.half_width().ne(&value)
-                    {
-                        self.sender
-                            .send(Message::DoSceneCommand(
-                                SceneCommand::SetBoxEmitterHalfWidth(
-                                    SetBoxEmitterHalfWidthCommand::new(
-                                        handle,
-                                        emitter_index,
-                                        value,
-                                    ),
-                                ),
-                            ))
-                            .unwrap();
-                    } else if message.destination() == self.half_height
-                        && box_emitter.half_height().ne(&value)
-                    {
-                        self.sender
-                            .send(Message::DoSceneCommand(
-                                SceneCommand::SetBoxEmitterHalfHeight(
-                                    SetBoxEmitterHalfHeightCommand::new(
-                                        handle,
-                                        emitter_index,
-                                        value,
-                                    ),
-                                ),
-                            ))
-                            .unwrap();
-                    } else if message.destination() == self.half_depth
-                        && box_emitter.half_depth().ne(&value)
-                    {
-                        self.sender
-                            .send(Message::DoSceneCommand(
-                                SceneCommand::SetBoxEmitterHalfDepth(
-                                    SetBoxEmitterHalfDepthCommand::new(
-                                        handle,
-                                        emitter_index,
-                                        value,
-                                    ),
-                                ),
-                            ))
-                            .unwrap();
-                    }
+        if let UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) = *message.data() {
+            if message.direction() == MessageDirection::FromWidget {
+                if message.destination() == self.half_width && box_emitter.half_width().ne(&value) {
+                    self.sender
+                        .send(Message::DoSceneCommand(
+                            SceneCommand::SetBoxEmitterHalfWidth(
+                                SetBoxEmitterHalfWidthCommand::new(handle, emitter_index, value),
+                            ),
+                        ))
+                        .unwrap();
+                } else if message.destination() == self.half_height
+                    && box_emitter.half_height().ne(&value)
+                {
+                    self.sender
+                        .send(Message::DoSceneCommand(
+                            SceneCommand::SetBoxEmitterHalfHeight(
+                                SetBoxEmitterHalfHeightCommand::new(handle, emitter_index, value),
+                            ),
+                        ))
+                        .unwrap();
+                } else if message.destination() == self.half_depth
+                    && box_emitter.half_depth().ne(&value)
+                {
+                    self.sender
+                        .send(Message::DoSceneCommand(
+                            SceneCommand::SetBoxEmitterHalfDepth(
+                                SetBoxEmitterHalfDepthCommand::new(handle, emitter_index, value),
+                            ),
+                        ))
+                        .unwrap();
                 }
             }
         }

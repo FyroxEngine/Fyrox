@@ -134,29 +134,27 @@ impl LightPanel {
         scope_profile!();
 
         match message.data() {
-            UiMessageData::Button(msg) => {
-                if let ButtonMessage::Click = msg {
-                    if message.destination() == self.generate {
-                        let scene = &mut engine.scenes[editor_scene.scene];
+            UiMessageData::Button(ButtonMessage::Click) => {
+                if message.destination() == self.generate {
+                    let scene = &mut engine.scenes[editor_scene.scene];
 
-                        for node in scene.graph.linear_iter() {
-                            if let Node::Mesh(mesh) = node {
-                                uvgen::generate_uvs_mesh(mesh, self.spacing);
-                            }
+                    for node in scene.graph.linear_iter() {
+                        if let Node::Mesh(mesh) = node {
+                            uvgen::generate_uvs_mesh(mesh, self.spacing);
                         }
-
-                        let lightmap = Lightmap::new(
-                            scene,
-                            self.texels_per_unit,
-                            Default::default(),
-                            Default::default(),
-                        )
-                        .unwrap();
-                        lightmap
-                            .save("./", engine.resource_manager.clone())
-                            .unwrap();
-                        scene.set_lightmap(lightmap).unwrap();
                     }
+
+                    let lightmap = Lightmap::new(
+                        scene,
+                        self.texels_per_unit,
+                        Default::default(),
+                        Default::default(),
+                    )
+                    .unwrap();
+                    lightmap
+                        .save("./", engine.resource_manager.clone())
+                        .unwrap();
+                    scene.set_lightmap(lightmap).unwrap();
                 }
             }
             UiMessageData::NumericUpDown(msg)

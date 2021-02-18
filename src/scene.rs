@@ -776,24 +776,21 @@ impl<'a> Command<'a> for AddNavmeshEdgeCommand {
     }
 
     fn finalize(&mut self, context: &mut Self::Context) {
-        match std::mem::replace(&mut self.state, AddNavmeshEdgeCommandState::Undefined) {
-            AddNavmeshEdgeCommandState::Reverted {
-                triangles,
-                vertices,
-            } => {
-                if let Some(navmesh) = context.editor_scene.navmeshes.try_borrow_mut(self.navmesh) {
-                    // Forget tickets.
-                    let [va, vb] = vertices;
-                    navmesh.vertices.forget_ticket(va.0);
-                    navmesh.vertices.forget_ticket(vb.0);
+        if let AddNavmeshEdgeCommandState::Reverted {
+            triangles,
+            vertices,
+        } = std::mem::replace(&mut self.state, AddNavmeshEdgeCommandState::Undefined)
+        {
+            if let Some(navmesh) = context.editor_scene.navmeshes.try_borrow_mut(self.navmesh) {
+                // Forget tickets.
+                let [va, vb] = vertices;
+                navmesh.vertices.forget_ticket(va.0);
+                navmesh.vertices.forget_ticket(vb.0);
 
-                    let [ta, tb] = triangles;
-                    navmesh.triangles.forget_ticket(ta.0);
-                    navmesh.triangles.forget_ticket(tb.0);
-                }
+                let [ta, tb] = triangles;
+                navmesh.triangles.forget_ticket(ta.0);
+                navmesh.triangles.forget_ticket(tb.0);
             }
-            // No actions needed.
-            _ => (),
         }
     }
 }
@@ -886,13 +883,12 @@ impl<'a> Command<'a> for ConnectNavmeshEdgesCommand {
     fn finalize(&mut self, context: &mut Self::Context) {
         let navmesh = &mut context.editor_scene.navmeshes[self.navmesh];
 
-        match std::mem::replace(&mut self.state, ConnectNavmeshEdgesCommandState::Undefined) {
-            ConnectNavmeshEdgesCommandState::Reverted { triangles } => {
-                let [a, b] = triangles;
-                navmesh.triangles.forget_ticket(a.0);
-                navmesh.triangles.forget_ticket(b.0);
-            }
-            _ => (),
+        if let ConnectNavmeshEdgesCommandState::Reverted { triangles } =
+            std::mem::replace(&mut self.state, ConnectNavmeshEdgesCommandState::Undefined)
+        {
+            let [a, b] = triangles;
+            navmesh.triangles.forget_ticket(a.0);
+            navmesh.triangles.forget_ticket(b.0);
         }
     }
 }
@@ -1191,17 +1187,15 @@ impl<'a> Command<'a> for DeleteNavmeshVertexCommand {
     }
 
     fn finalize(&mut self, context: &mut Self::Context) {
-        match std::mem::replace(&mut self.state, DeleteNavmeshVertexCommandState::Undefined) {
-            DeleteNavmeshVertexCommandState::Executed { vertex, triangles } => {
-                if let Some(navmesh) = context.editor_scene.navmeshes.try_borrow_mut(self.navmesh) {
-                    navmesh.vertices.forget_ticket(vertex.0);
-                    for (ticket, _) in triangles {
-                        navmesh.triangles.forget_ticket(ticket);
-                    }
+        if let DeleteNavmeshVertexCommandState::Executed { vertex, triangles } =
+            std::mem::replace(&mut self.state, DeleteNavmeshVertexCommandState::Undefined)
+        {
+            if let Some(navmesh) = context.editor_scene.navmeshes.try_borrow_mut(self.navmesh) {
+                navmesh.vertices.forget_ticket(vertex.0);
+                for (ticket, _) in triangles {
+                    navmesh.triangles.forget_ticket(ticket);
                 }
             }
-            // No action needed.
-            _ => (),
         }
     }
 }
@@ -1395,6 +1389,12 @@ pub struct PasteCommand {
     state: PasteCommandState,
 }
 
+impl Default for PasteCommand {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PasteCommand {
     pub fn new() -> Self {
         Self {
@@ -1471,76 +1471,73 @@ impl<'a> Command<'a> for PasteCommand {
     }
 
     fn revert(&mut self, context: &mut Self::Context) {
-        match std::mem::replace(&mut self.state, PasteCommandState::Undefined) {
-            PasteCommandState::Executed { paste_result } => {
-                let mut subgraphs = Vec::new();
-                for root_node in paste_result.root_nodes {
-                    subgraphs.push(context.scene.graph.take_reserve_sub_graph(root_node));
-                }
-
-                let mut bodies = Vec::new();
-                for body in paste_result.bodies {
-                    bodies.push(context.editor_scene.physics.bodies.take_reserve(body));
-                }
-
-                let mut colliders = Vec::new();
-                for collider in paste_result.colliders {
-                    colliders.push(
-                        context
-                            .editor_scene
-                            .physics
-                            .colliders
-                            .take_reserve(collider),
-                    );
-                }
-
-                let mut joints = Vec::new();
-                for joint in paste_result.joints {
-                    joints.push(context.editor_scene.physics.joints.take_reserve(joint));
-                }
-
-                for (node, _) in paste_result.binder.iter() {
-                    context.editor_scene.physics.binder.remove_by_key(node);
-                }
-
-                self.state = PasteCommandState::Reverted {
-                    subgraphs,
-                    bodies,
-                    colliders,
-                    joints,
-                    binder: paste_result.binder,
-                };
+        if let PasteCommandState::Executed { paste_result } =
+            std::mem::replace(&mut self.state, PasteCommandState::Undefined)
+        {
+            let mut subgraphs = Vec::new();
+            for root_node in paste_result.root_nodes {
+                subgraphs.push(context.scene.graph.take_reserve_sub_graph(root_node));
             }
-            _ => (),
-        }
-    }
 
-    fn finalize(&mut self, context: &mut Self::Context) {
-        match std::mem::replace(&mut self.state, PasteCommandState::Undefined) {
-            PasteCommandState::Reverted {
+            let mut bodies = Vec::new();
+            for body in paste_result.bodies {
+                bodies.push(context.editor_scene.physics.bodies.take_reserve(body));
+            }
+
+            let mut colliders = Vec::new();
+            for collider in paste_result.colliders {
+                colliders.push(
+                    context
+                        .editor_scene
+                        .physics
+                        .colliders
+                        .take_reserve(collider),
+                );
+            }
+
+            let mut joints = Vec::new();
+            for joint in paste_result.joints {
+                joints.push(context.editor_scene.physics.joints.take_reserve(joint));
+            }
+
+            for (node, _) in paste_result.binder.iter() {
+                context.editor_scene.physics.binder.remove_by_key(node);
+            }
+
+            self.state = PasteCommandState::Reverted {
                 subgraphs,
                 bodies,
                 colliders,
                 joints,
-                ..
-            } => {
-                for subgraph in subgraphs {
-                    context.scene.graph.forget_sub_graph(subgraph);
-                }
+                binder: paste_result.binder,
+            };
+        }
+    }
 
-                for (ticket, _) in bodies {
-                    context.editor_scene.physics.bodies.forget_ticket(ticket);
-                }
-
-                for (ticket, _) in colliders {
-                    context.editor_scene.physics.colliders.forget_ticket(ticket)
-                }
-
-                for (ticket, _) in joints {
-                    context.editor_scene.physics.joints.forget_ticket(ticket);
-                }
+    fn finalize(&mut self, context: &mut Self::Context) {
+        if let PasteCommandState::Reverted {
+            subgraphs,
+            bodies,
+            colliders,
+            joints,
+            ..
+        } = std::mem::replace(&mut self.state, PasteCommandState::Undefined)
+        {
+            for subgraph in subgraphs {
+                context.scene.graph.forget_sub_graph(subgraph);
             }
-            _ => (),
+
+            for (ticket, _) in bodies {
+                context.editor_scene.physics.bodies.forget_ticket(ticket);
+            }
+
+            for (ticket, _) in colliders {
+                context.editor_scene.physics.colliders.forget_ticket(ticket)
+            }
+
+            for (ticket, _) in joints {
+                context.editor_scene.physics.joints.forget_ticket(ticket);
+            }
         }
     }
 }

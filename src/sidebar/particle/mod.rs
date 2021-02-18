@@ -137,7 +137,7 @@ impl ParticleSystemSection {
                                                     .with_child({
                                                         add_cylinder_emitter = make_button_image(
                                                             ctx,
-                                                            resource_manager.clone(),
+                                                            resource_manager,
                                                             "resources/add_cylinder_emitter.png",
                                                         );
                                                         add_cylinder_emitter
@@ -286,84 +286,70 @@ impl ParticleSystemSection {
                         }
                     }
                 }
-                UiMessageData::Button(msg) => {
-                    if let ButtonMessage::Click = msg {
-                        if message.destination() == self.add_box_emitter {
-                            self.sender
-                                .send(Message::DoSceneCommand(
-                                    SceneCommand::AddParticleSystemEmitter(
-                                        AddParticleSystemEmitterCommand::new(
-                                            handle,
-                                            BoxEmitterBuilder::new(BaseEmitterBuilder::new())
-                                                .build(),
-                                        ),
+                UiMessageData::Button(ButtonMessage::Click) => {
+                    if message.destination() == self.add_box_emitter {
+                        self.sender
+                            .send(Message::DoSceneCommand(
+                                SceneCommand::AddParticleSystemEmitter(
+                                    AddParticleSystemEmitterCommand::new(
+                                        handle,
+                                        BoxEmitterBuilder::new(BaseEmitterBuilder::new()).build(),
                                     ),
-                                ))
-                                .unwrap();
-                        } else if message.destination() == self.add_sphere_emitter {
-                            self.sender
-                                .send(Message::DoSceneCommand(
-                                    SceneCommand::AddParticleSystemEmitter(
-                                        AddParticleSystemEmitterCommand::new(
-                                            handle,
-                                            SphereEmitterBuilder::new(BaseEmitterBuilder::new())
-                                                .build(),
-                                        ),
+                                ),
+                            ))
+                            .unwrap();
+                    } else if message.destination() == self.add_sphere_emitter {
+                        self.sender
+                            .send(Message::DoSceneCommand(
+                                SceneCommand::AddParticleSystemEmitter(
+                                    AddParticleSystemEmitterCommand::new(
+                                        handle,
+                                        SphereEmitterBuilder::new(BaseEmitterBuilder::new())
+                                            .build(),
                                     ),
-                                ))
-                                .unwrap();
-                        } else if message.destination() == self.add_cylinder_emitter {
-                            self.sender
-                                .send(Message::DoSceneCommand(
-                                    SceneCommand::AddParticleSystemEmitter(
-                                        AddParticleSystemEmitterCommand::new(
-                                            handle,
-                                            CylinderEmitterBuilder::new(BaseEmitterBuilder::new())
-                                                .build(),
-                                        ),
+                                ),
+                            ))
+                            .unwrap();
+                    } else if message.destination() == self.add_cylinder_emitter {
+                        self.sender
+                            .send(Message::DoSceneCommand(
+                                SceneCommand::AddParticleSystemEmitter(
+                                    AddParticleSystemEmitterCommand::new(
+                                        handle,
+                                        CylinderEmitterBuilder::new(BaseEmitterBuilder::new())
+                                            .build(),
                                     ),
-                                ))
+                                ),
+                            ))
+                            .unwrap();
+                    }
+                }
+                UiMessageData::User(EditorUiMessage::DeletableItem(
+                    DeletableItemMessage::Delete,
+                )) => {
+                    if ui
+                        .node(self.emitters)
+                        .as_dropdown_list()
+                        .items()
+                        .contains(&message.destination())
+                    {
+                        if let UiNode::User(EditorUiNode::EmitterItem(ei)) =
+                            ui.node(message.destination())
+                        {
+                            self.sender
+                                .send(Message::DoSceneCommand(SceneCommand::DeleteEmitter(
+                                    DeleteEmitterCommand::new(handle, ei.data.unwrap()),
+                                )))
                                 .unwrap();
+                        } else {
+                            unreachable!()
                         }
                     }
                 }
-                UiMessageData::User(msg) => {
-                    if let EditorUiMessage::DeletableItem(msg) = msg {
-                        if let DeletableItemMessage::Delete = msg {
-                            if ui
-                                .node(self.emitters)
-                                .as_dropdown_list()
-                                .items()
-                                .contains(&message.destination())
-                            {
-                                if let UiNode::User(u) = ui.node(message.destination()) {
-                                    if let EditorUiNode::EmitterItem(ei) = u {
-                                        self.sender
-                                            .send(Message::DoSceneCommand(
-                                                SceneCommand::DeleteEmitter(
-                                                    DeleteEmitterCommand::new(
-                                                        handle,
-                                                        ei.data.unwrap(),
-                                                    ),
-                                                ),
-                                            ))
-                                            .unwrap();
-                                    } else {
-                                        unreachable!()
-                                    }
-                                } else {
-                                    unreachable!()
-                                }
-                            }
-                        }
-                    }
-                }
-                UiMessageData::DropdownList(msg) => {
-                    if let DropdownListMessage::SelectionChanged(selection) = msg {
-                        if message.destination() == self.emitters {
-                            self.emitter_index = *selection;
-                            self.sender.send(Message::SyncToModel).unwrap();
-                        }
+                UiMessageData::DropdownList(DropdownListMessage::SelectionChanged(selection)) => {
+                    if message.destination() == self.emitters {
+                        self.emitter_index = *selection;
+                        self.sender.send(Message::SyncToModel).unwrap();
                     }
                 }
                 _ => {}

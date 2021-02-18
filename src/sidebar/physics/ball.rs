@@ -59,17 +59,16 @@ impl BallSection {
         ball: &BallDesc,
         handle: Handle<Collider>,
     ) {
-        if let UiMessageData::NumericUpDown(msg) = message.data() {
-            if let &NumericUpDownMessage::Value(value) = msg {
-                if message.direction() == MessageDirection::FromWidget {
-                    if message.destination() == self.radius && ball.radius.ne(&value) {
-                        self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::SetBallRadius(
-                                SetBallRadiusCommand::new(handle, value),
-                            )))
-                            .unwrap();
-                    }
-                }
+        if let UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) = *message.data() {
+            if message.direction() == MessageDirection::FromWidget
+                && message.destination() == self.radius
+                && ball.radius.ne(&value)
+            {
+                self.sender
+                    .send(Message::DoSceneCommand(SceneCommand::SetBallRadius(
+                        SetBallRadiusCommand::new(handle, value),
+                    )))
+                    .unwrap();
             }
         }
     }

@@ -99,8 +99,8 @@ impl Physics {
 
         for (_, j) in scene.physics.joints.iter() {
             let _ = joints.spawn(JointDesc {
-                body1: ErasedHandle::from(*body_map.get(&j.body1.into()).unwrap()),
-                body2: ErasedHandle::from(*body_map.get(&j.body2.into()).unwrap()),
+                body1: ErasedHandle::from(*body_map.get(&j.body1).unwrap()),
+                body2: ErasedHandle::from(*body_map.get(&j.body2).unwrap()),
                 params: JointParamsDesc::from_params(&j.params),
             });
         }
@@ -160,7 +160,7 @@ impl Physics {
                 let dense_handle = ColliderHandle::from(Index::from_raw_parts(i, 0));
                 collider_map.insert(h, dense_handle);
                 ColliderDesc {
-                    shape: c.shape.clone(),
+                    shape: c.shape,
                     // Remap from sparse handle to dense.
                     parent: *body_map.get(&c.parent.into()).unwrap(),
                     friction: c.friction,

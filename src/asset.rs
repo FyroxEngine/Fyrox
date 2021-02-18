@@ -79,31 +79,25 @@ impl Control<EditorUiMessage, EditorUiNode> for AssetItem {
     fn handle_routed_message(&mut self, ui: &mut Ui, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        match &message.data() {
-            UiMessageData::Widget(msg) => {
-                if let WidgetMessage::MouseDown { .. } = msg {
-                    if !message.handled() {
-                        message.set_handled(true);
-                        ui.send_message(AssetItemMessage::select(self.handle(), true));
-                    }
+        match *message.data() {
+            UiMessageData::Widget(WidgetMessage::MouseDown { .. }) => {
+                if !message.handled() {
+                    message.set_handled(true);
+                    ui.send_message(AssetItemMessage::select(self.handle(), true));
                 }
             }
-            UiMessageData::User(msg) => {
-                if let EditorUiMessage::AssetItem(msg) = msg {
-                    if let AssetItemMessage::Select(select) = *msg {
-                        if self.selected != select && message.destination() == self.handle() {
-                            self.selected = select;
-                            ui.send_message(WidgetMessage::foreground(
-                                self.handle(),
-                                MessageDirection::ToWidget,
-                                if select {
-                                    Brush::Solid(Color::RED)
-                                } else {
-                                    Brush::Solid(Color::TRANSPARENT)
-                                },
-                            ));
-                        }
-                    }
+            UiMessageData::User(EditorUiMessage::AssetItem(AssetItemMessage::Select(select))) => {
+                if self.selected != select && message.destination() == self.handle() {
+                    self.selected = select;
+                    ui.send_message(WidgetMessage::foreground(
+                        self.handle(),
+                        MessageDirection::ToWidget,
+                        if select {
+                            Brush::Solid(Color::RED)
+                        } else {
+                            Brush::Solid(Color::TRANSPARENT)
+                        },
+                    ));
                 }
             }
             _ => {}
@@ -301,69 +295,64 @@ impl AssetBrowser {
         let ui = &mut engine.user_interface;
 
         match &message.data() {
-            UiMessageData::User(msg) => {
-                if let EditorUiMessage::AssetItem(msg) = msg {
-                    if let AssetItemMessage::Select(select) = *msg {
-                        if select {
-                            for &item in self.items.iter() {
-                                if item != message.destination() {
-                                    ui.send_message(UiMessage::user(
-                                        item,
-                                        MessageDirection::ToWidget,
-                                        EditorUiMessage::AssetItem(AssetItemMessage::Select(false)),
-                                    ))
-                                }
+            UiMessageData::User(EditorUiMessage::AssetItem(msg)) => {
+                if let AssetItemMessage::Select(select) = *msg {
+                    if select {
+                        for &item in self.items.iter() {
+                            if item != message.destination() {
+                                ui.send_message(UiMessage::user(
+                                    item,
+                                    MessageDirection::ToWidget,
+                                    EditorUiMessage::AssetItem(AssetItemMessage::Select(false)),
+                                ))
                             }
+                        }
 
-                            if let EditorUiNode::AssetItem(item) =
-                                ui.node(message.destination()).as_user()
-                            {
-                                if item.kind == AssetKind::Model {
-                                    let path = item.path.clone();
-                                    rg3d::futures::executor::block_on(
-                                        self.preview.set_model(&path, engine),
-                                    );
-                                }
+                        if let EditorUiNode::AssetItem(item) =
+                            ui.node(message.destination()).as_user()
+                        {
+                            if item.kind == AssetKind::Model {
+                                let path = item.path.clone();
+                                rg3d::futures::executor::block_on(
+                                    self.preview.set_model(&path, engine),
+                                );
                             }
                         }
                     }
                 }
             }
-            UiMessageData::FileBrowser(msg) if message.destination() == self.folder_browser => {
-                if let FileBrowserMessage::Path(path) = msg {
-                    // Clean content panel first.
-                    for child in self.items.drain(..) {
-                        ui.send_message(WidgetMessage::remove(child, MessageDirection::ToWidget));
-                    }
-                    // Get all supported assets from folder and generate previews for them.
-                    if let Ok(dir_iter) = std::fs::read_dir(path) {
-                        for p in dir_iter {
-                            if let Ok(entry) = p {
-                                fn check_ext(ext: &OsStr) -> bool {
-                                    let ext = ext.to_string_lossy().to_lowercase();
-                                    matches!(
-                                        ext.as_str(),
-                                        "rgs" | "fbx" | "jpg" | "tga" | "png" | "bmp"
-                                    )
-                                };
+            UiMessageData::FileBrowser(FileBrowserMessage::Path(path))
+                if message.destination() == self.folder_browser =>
+            {
+                // Clean content panel first.
+                for child in self.items.drain(..) {
+                    ui.send_message(WidgetMessage::remove(child, MessageDirection::ToWidget));
+                }
+                // Get all supported assets from folder and generate previews for them.
+                if let Ok(dir_iter) = std::fs::read_dir(path) {
+                    for p in dir_iter {
+                        if let Ok(entry) = p {
+                            fn check_ext(ext: &OsStr) -> bool {
+                                let ext = ext.to_string_lossy().to_lowercase();
+                                matches!(
+                                    ext.as_str(),
+                                    "rgs" | "fbx" | "jpg" | "tga" | "png" | "bmp"
+                                )
+                            };
 
-                                let entry_path = entry.path();
-                                if !entry_path.is_dir()
-                                    && entry_path.extension().map_or(false, check_ext)
-                                {
-                                    let content = AssetItemBuilder::new(WidgetBuilder::new())
-                                        .with_path(entry_path)
-                                        .build(
-                                            &mut ui.build_ctx(),
-                                            engine.resource_manager.clone(),
-                                        );
-                                    self.items.push(content);
-                                    ui.send_message(WidgetMessage::link(
-                                        content,
-                                        MessageDirection::ToWidget,
-                                        self.content_panel,
-                                    ));
-                                }
+                            let entry_path = entry.path();
+                            if !entry_path.is_dir()
+                                && entry_path.extension().map_or(false, check_ext)
+                            {
+                                let content = AssetItemBuilder::new(WidgetBuilder::new())
+                                    .with_path(entry_path)
+                                    .build(&mut ui.build_ctx(), engine.resource_manager.clone());
+                                self.items.push(content);
+                                ui.send_message(WidgetMessage::link(
+                                    content,
+                                    MessageDirection::ToWidget,
+                                    self.content_panel,
+                                ));
                             }
                         }
                     }

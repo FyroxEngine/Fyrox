@@ -235,13 +235,11 @@ impl CommandStackViewer {
     pub fn handle_ui_message(&self, message: &UiMessage) {
         scope_profile!();
 
-        if let UiMessageData::Button(msg) = message.data() {
-            if let ButtonMessage::Click = msg {
-                if message.destination() == self.undo {
-                    self.sender.send(Message::UndoSceneCommand).unwrap();
-                } else if message.destination() == self.redo {
-                    self.sender.send(Message::RedoSceneCommand).unwrap();
-                }
+        if let UiMessageData::Button(ButtonMessage::Click) = message.data() {
+            if message.destination() == self.undo {
+                self.sender.send(Message::UndoSceneCommand).unwrap();
+            } else if message.destination() == self.redo {
+                self.sender.send(Message::RedoSceneCommand).unwrap();
             }
         }
     }

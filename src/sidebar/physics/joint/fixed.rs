@@ -121,69 +121,61 @@ impl FixedJointSection {
         fixed: &FixedJointDesc,
         handle: Handle<Joint>,
     ) {
-        if let UiMessageData::Vec3Editor(msg) = message.data() {
-            if let &Vec3EditorMessage::Value(value) = msg {
-                if message.direction() == MessageDirection::FromWidget {
-                    if message.destination() == self.joint_anchor_translation
-                        && fixed.local_anchor1_translation.ne(&value)
-                    {
+        if let UiMessageData::Vec3Editor(Vec3EditorMessage::Value(value)) = *message.data() {
+            if message.direction() == MessageDirection::FromWidget {
+                if message.destination() == self.joint_anchor_translation
+                    && fixed.local_anchor1_translation.ne(&value)
+                {
+                    self.sender
+                        .send(Message::DoSceneCommand(
+                            SceneCommand::SetFixedJointAnchor1Translation(
+                                SetFixedJointAnchor1TranslationCommand::new(handle, value),
+                            ),
+                        ))
+                        .unwrap();
+                } else if message.destination() == self.joint_anchor_rotation {
+                    let old_rotation = fixed.local_anchor1_rotation;
+                    let euler = Vector3::new(
+                        value.x.to_radians(),
+                        value.y.to_radians(),
+                        value.z.to_radians(),
+                    );
+                    let new_rotation = quat_from_euler(euler, RotationOrder::XYZ);
+                    if !old_rotation.approx_eq(&new_rotation, 0.00001) {
                         self.sender
                             .send(Message::DoSceneCommand(
-                                SceneCommand::SetFixedJointAnchor1Translation(
-                                    SetFixedJointAnchor1TranslationCommand::new(handle, value),
+                                SceneCommand::SetFixedJointAnchor1Rotation(
+                                    SetFixedJointAnchor1RotationCommand::new(handle, new_rotation),
                                 ),
                             ))
                             .unwrap();
-                    } else if message.destination() == self.joint_anchor_rotation {
-                        let old_rotation = fixed.local_anchor1_rotation;
-                        let euler = Vector3::new(
-                            value.x.to_radians(),
-                            value.y.to_radians(),
-                            value.z.to_radians(),
-                        );
-                        let new_rotation = quat_from_euler(euler, RotationOrder::XYZ);
-                        if !old_rotation.approx_eq(&new_rotation, 0.00001) {
-                            self.sender
-                                .send(Message::DoSceneCommand(
-                                    SceneCommand::SetFixedJointAnchor1Rotation(
-                                        SetFixedJointAnchor1RotationCommand::new(
-                                            handle,
-                                            new_rotation,
-                                        ),
-                                    ),
-                                ))
-                                .unwrap();
-                        }
-                    } else if message.destination() == self.connected_anchor_translation
-                        && fixed.local_anchor2_translation.ne(&value)
-                    {
+                    }
+                } else if message.destination() == self.connected_anchor_translation
+                    && fixed.local_anchor2_translation.ne(&value)
+                {
+                    self.sender
+                        .send(Message::DoSceneCommand(
+                            SceneCommand::SetFixedJointAnchor2Translation(
+                                SetFixedJointAnchor2TranslationCommand::new(handle, value),
+                            ),
+                        ))
+                        .unwrap();
+                } else if message.destination() == self.connected_anchor_rotation {
+                    let old_rotation = fixed.local_anchor2_rotation;
+                    let euler = Vector3::new(
+                        value.x.to_radians(),
+                        value.y.to_radians(),
+                        value.z.to_radians(),
+                    );
+                    let new_rotation = quat_from_euler(euler, RotationOrder::XYZ);
+                    if !old_rotation.approx_eq(&new_rotation, 0.00001) {
                         self.sender
                             .send(Message::DoSceneCommand(
-                                SceneCommand::SetFixedJointAnchor2Translation(
-                                    SetFixedJointAnchor2TranslationCommand::new(handle, value),
+                                SceneCommand::SetFixedJointAnchor2Rotation(
+                                    SetFixedJointAnchor2RotationCommand::new(handle, new_rotation),
                                 ),
                             ))
                             .unwrap();
-                    } else if message.destination() == self.connected_anchor_rotation {
-                        let old_rotation = fixed.local_anchor2_rotation;
-                        let euler = Vector3::new(
-                            value.x.to_radians(),
-                            value.y.to_radians(),
-                            value.z.to_radians(),
-                        );
-                        let new_rotation = quat_from_euler(euler, RotationOrder::XYZ);
-                        if !old_rotation.approx_eq(&new_rotation, 0.00001) {
-                            self.sender
-                                .send(Message::DoSceneCommand(
-                                    SceneCommand::SetFixedJointAnchor2Rotation(
-                                        SetFixedJointAnchor2RotationCommand::new(
-                                            handle,
-                                            new_rotation,
-                                        ),
-                                    ),
-                                ))
-                                .unwrap();
-                        }
                     }
                 }
             }

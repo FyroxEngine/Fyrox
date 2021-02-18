@@ -210,10 +210,8 @@ impl PreviewPanel {
         let scene = &mut engine.scenes[self.scene];
 
         match message.data() {
-            UiMessageData::Button(msg) if message.destination() == self.fit => {
-                if let ButtonMessage::Click = msg {
-                    self.fit_to_model(scene);
-                }
+            UiMessageData::Button(ButtonMessage::Click) if message.destination() == self.fit => {
+                self.fit_to_model(scene);
             }
             _ => (),
         }

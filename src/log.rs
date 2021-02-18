@@ -94,15 +94,13 @@ impl Log {
     pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut GameEngine) {
         scope_profile!();
 
-        if let UiMessageData::Button(msg) = message.data() {
-            if let ButtonMessage::Click = msg {
-                if message.destination() == self.clear {
-                    engine.user_interface.send_message(ListViewMessage::items(
-                        self.messages,
-                        MessageDirection::ToWidget,
-                        vec![],
-                    ));
-                }
+        if let UiMessageData::Button(ButtonMessage::Click) = message.data() {
+            if message.destination() == self.clear {
+                engine.user_interface.send_message(ListViewMessage::items(
+                    self.messages,
+                    MessageDirection::ToWidget,
+                    vec![],
+                ));
             }
         }
     }

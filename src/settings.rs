@@ -179,18 +179,16 @@ impl Settings {
         let mut settings = engine.renderer.get_quality_settings();
 
         match message.data() {
-            UiMessageData::CheckBox(msg) => {
-                if let CheckBoxMessage::Check(check) = msg {
-                    let value = check.unwrap_or(false);
-                    if message.destination() == self.ssao {
-                        settings.use_ssao = value;
-                    } else if message.destination() == self.point_shadows {
-                        settings.point_shadows_enabled = value;
-                    } else if message.destination() == self.spot_shadows {
-                        settings.spot_shadows_enabled = value;
-                    } else if message.destination() == self.light_scatter {
-                        settings.light_scatter_enabled = value;
-                    }
+            UiMessageData::CheckBox(CheckBoxMessage::Check(check)) => {
+                let value = check.unwrap_or(false);
+                if message.destination() == self.ssao {
+                    settings.use_ssao = value;
+                } else if message.destination() == self.point_shadows {
+                    settings.point_shadows_enabled = value;
+                } else if message.destination() == self.spot_shadows {
+                    settings.spot_shadows_enabled = value;
+                } else if message.destination() == self.light_scatter {
+                    settings.light_scatter_enabled = value;
                 }
             }
             UiMessageData::ColorField(msg)
@@ -202,29 +200,27 @@ impl Settings {
                     }
                 }
             }
-            UiMessageData::Button(msg) => {
-                if let ButtonMessage::Click = msg {
-                    if message.destination() == self.ok {
-                        engine.user_interface.send_message(WindowMessage::close(
-                            self.window,
+            UiMessageData::Button(ButtonMessage::Click) => {
+                if message.destination() == self.ok {
+                    engine.user_interface.send_message(WindowMessage::close(
+                        self.window,
+                        MessageDirection::ToWidget,
+                    ));
+                } else if message.destination() == self.default {
+                    settings = Default::default();
+
+                    let sync_check_box = |handle: Handle<UiNode>, value: bool| {
+                        engine.user_interface.send_message(CheckBoxMessage::checked(
+                            handle,
                             MessageDirection::ToWidget,
+                            Some(value),
                         ));
-                    } else if message.destination() == self.default {
-                        settings = Default::default();
+                    };
 
-                        let sync_check_box = |handle: Handle<UiNode>, value: bool| {
-                            engine.user_interface.send_message(CheckBoxMessage::checked(
-                                handle,
-                                MessageDirection::ToWidget,
-                                Some(value),
-                            ));
-                        };
-
-                        sync_check_box(self.ssao, settings.use_ssao);
-                        sync_check_box(self.point_shadows, settings.point_shadows_enabled);
-                        sync_check_box(self.spot_shadows, settings.spot_shadows_enabled);
-                        sync_check_box(self.light_scatter, settings.light_scatter_enabled);
-                    }
+                    sync_check_box(self.ssao, settings.use_ssao);
+                    sync_check_box(self.point_shadows, settings.point_shadows_enabled);
+                    sync_check_box(self.spot_shadows, settings.spot_shadows_enabled);
+                    sync_check_box(self.light_scatter, settings.light_scatter_enabled);
                 }
             }
             _ => {}

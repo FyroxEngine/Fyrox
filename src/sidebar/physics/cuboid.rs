@@ -87,54 +87,39 @@ impl CuboidSection {
         cuboid: &CuboidDesc,
         handle: Handle<Collider>,
     ) {
-        if let UiMessageData::NumericUpDown(msg) = message.data() {
-            if let &NumericUpDownMessage::Value(value) = msg {
-                if message.direction() == MessageDirection::FromWidget {
-                    if message.destination() == self.half_width && cuboid.half_extents.x.ne(&value)
-                    {
-                        self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::SetCuboidHalfExtents(
-                                SetCuboidHalfExtentsCommand::new(
-                                    handle,
-                                    Vector3::new(
-                                        value,
-                                        cuboid.half_extents.y,
-                                        cuboid.half_extents.z,
-                                    ),
-                                ),
-                            )))
-                            .unwrap();
-                    } else if message.destination() == self.half_height
-                        && cuboid.half_extents.y.ne(&value)
-                    {
-                        self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::SetCuboidHalfExtents(
-                                SetCuboidHalfExtentsCommand::new(
-                                    handle,
-                                    Vector3::new(
-                                        cuboid.half_extents.x,
-                                        value,
-                                        cuboid.half_extents.z,
-                                    ),
-                                ),
-                            )))
-                            .unwrap();
-                    } else if message.destination() == self.half_depth
-                        && cuboid.half_extents.z.ne(&value)
-                    {
-                        self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::SetCuboidHalfExtents(
-                                SetCuboidHalfExtentsCommand::new(
-                                    handle,
-                                    Vector3::new(
-                                        cuboid.half_extents.x,
-                                        cuboid.half_extents.y,
-                                        value,
-                                    ),
-                                ),
-                            )))
-                            .unwrap();
-                    }
+        if let UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) = *message.data() {
+            if message.direction() == MessageDirection::FromWidget {
+                if message.destination() == self.half_width && cuboid.half_extents.x.ne(&value) {
+                    self.sender
+                        .send(Message::DoSceneCommand(SceneCommand::SetCuboidHalfExtents(
+                            SetCuboidHalfExtentsCommand::new(
+                                handle,
+                                Vector3::new(value, cuboid.half_extents.y, cuboid.half_extents.z),
+                            ),
+                        )))
+                        .unwrap();
+                } else if message.destination() == self.half_height
+                    && cuboid.half_extents.y.ne(&value)
+                {
+                    self.sender
+                        .send(Message::DoSceneCommand(SceneCommand::SetCuboidHalfExtents(
+                            SetCuboidHalfExtentsCommand::new(
+                                handle,
+                                Vector3::new(cuboid.half_extents.x, value, cuboid.half_extents.z),
+                            ),
+                        )))
+                        .unwrap();
+                } else if message.destination() == self.half_depth
+                    && cuboid.half_extents.z.ne(&value)
+                {
+                    self.sender
+                        .send(Message::DoSceneCommand(SceneCommand::SetCuboidHalfExtents(
+                            SetCuboidHalfExtentsCommand::new(
+                                handle,
+                                Vector3::new(cuboid.half_extents.x, cuboid.half_extents.y, value),
+                            ),
+                        )))
+                        .unwrap();
                 }
             }
         }

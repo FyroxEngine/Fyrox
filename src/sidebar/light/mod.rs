@@ -151,29 +151,27 @@ impl LightSection {
                         }
                     }
                 }
-                UiMessageData::CheckBox(msg) => {
-                    if let CheckBoxMessage::Check(value) = msg {
-                        let value = value.unwrap_or(false);
+                UiMessageData::CheckBox(CheckBoxMessage::Check(value)) => {
+                    let value = value.unwrap_or(false);
 
-                        if message.destination() == self.enable_scatter
-                            && light.is_scatter_enabled() != value
-                        {
-                            self.sender
-                                .send(Message::DoSceneCommand(
-                                    SceneCommand::SetLightScatterEnabled(
-                                        SetLightScatterEnabledCommand::new(handle, value),
-                                    ),
-                                ))
-                                .unwrap();
-                        } else if message.destination() == self.cast_shadows
-                            && light.is_cast_shadows() != value
-                        {
-                            self.sender
-                                .send(Message::DoSceneCommand(SceneCommand::SetLightCastShadows(
-                                    SetLightCastShadowsCommand::new(handle, value),
-                                )))
-                                .unwrap();
-                        }
+                    if message.destination() == self.enable_scatter
+                        && light.is_scatter_enabled() != value
+                    {
+                        self.sender
+                            .send(Message::DoSceneCommand(
+                                SceneCommand::SetLightScatterEnabled(
+                                    SetLightScatterEnabledCommand::new(handle, value),
+                                ),
+                            ))
+                            .unwrap();
+                    } else if message.destination() == self.cast_shadows
+                        && light.is_cast_shadows() != value
+                    {
+                        self.sender
+                            .send(Message::DoSceneCommand(SceneCommand::SetLightCastShadows(
+                                SetLightCastShadowsCommand::new(handle, value),
+                            )))
+                            .unwrap();
                     }
                 }
                 UiMessageData::ColorField(msg) => {

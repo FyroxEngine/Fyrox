@@ -133,69 +133,58 @@ impl ColliderSection {
     ) {
         if message.direction() == MessageDirection::FromWidget {
             match message.data() {
-                UiMessageData::NumericUpDown(msg) => {
-                    if let &NumericUpDownMessage::Value(value) = msg {
-                        if message.destination() == self.friction && collider.friction.ne(&value) {
+                &UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) => {
+                    if message.destination() == self.friction && collider.friction.ne(&value) {
+                        self.sender
+                            .send(Message::DoSceneCommand(SceneCommand::SetColliderFriction(
+                                SetColliderFrictionCommand::new(handle, value),
+                            )))
+                            .unwrap();
+                    } else if message.destination() == self.restitution
+                        && collider.restitution.ne(&value)
+                    {
+                        self.sender
+                            .send(Message::DoSceneCommand(
+                                SceneCommand::SetColliderRestitution(
+                                    SetColliderRestitutionCommand::new(handle, value),
+                                ),
+                            ))
+                            .unwrap();
+                    }
+                }
+                UiMessageData::Vec3Editor(Vec3EditorMessage::Value(value)) => {
+                    if message.destination() == self.position && collider.translation.ne(value) {
+                        self.sender
+                            .send(Message::DoSceneCommand(SceneCommand::SetColliderPosition(
+                                SetColliderPositionCommand::new(handle, *value),
+                            )))
+                            .unwrap();
+                    } else if message.destination() == self.rotation {
+                        let old_rotation = collider.rotation;
+                        let euler = Vector3::new(
+                            value.x.to_radians(),
+                            value.y.to_radians(),
+                            value.z.to_radians(),
+                        );
+                        let new_rotation = quat_from_euler(euler, RotationOrder::XYZ);
+                        if !old_rotation.approx_eq(&new_rotation, 0.00001) {
                             self.sender
-                                .send(Message::DoSceneCommand(SceneCommand::SetColliderFriction(
-                                    SetColliderFrictionCommand::new(handle, value),
+                                .send(Message::DoSceneCommand(SceneCommand::SetColliderRotation(
+                                    SetColliderRotationCommand::new(handle, new_rotation),
                                 )))
-                                .unwrap();
-                        } else if message.destination() == self.restitution
-                            && collider.restitution.ne(&value)
-                        {
-                            self.sender
-                                .send(Message::DoSceneCommand(
-                                    SceneCommand::SetColliderRestitution(
-                                        SetColliderRestitutionCommand::new(handle, value),
-                                    ),
-                                ))
                                 .unwrap();
                         }
                     }
                 }
-                UiMessageData::Vec3Editor(msg) => {
-                    if let Vec3EditorMessage::Value(value) = msg {
-                        if message.destination() == self.position && collider.translation.ne(value)
-                        {
+                UiMessageData::CheckBox(CheckBoxMessage::Check(checked)) => {
+                    if message.destination() == self.is_sensor {
+                        let value = checked.unwrap_or_default();
+                        if value != collider.is_sensor {
                             self.sender
-                                .send(Message::DoSceneCommand(SceneCommand::SetColliderPosition(
-                                    SetColliderPositionCommand::new(handle, *value),
+                                .send(Message::DoSceneCommand(SceneCommand::SetColliderIsSensor(
+                                    SetColliderIsSensorCommand::new(handle, value),
                                 )))
                                 .unwrap();
-                        } else if message.destination() == self.rotation {
-                            let old_rotation = collider.rotation;
-                            let euler = Vector3::new(
-                                value.x.to_radians(),
-                                value.y.to_radians(),
-                                value.z.to_radians(),
-                            );
-                            let new_rotation = quat_from_euler(euler, RotationOrder::XYZ);
-                            if !old_rotation.approx_eq(&new_rotation, 0.00001) {
-                                self.sender
-                                    .send(Message::DoSceneCommand(
-                                        SceneCommand::SetColliderRotation(
-                                            SetColliderRotationCommand::new(handle, new_rotation),
-                                        ),
-                                    ))
-                                    .unwrap();
-                            }
-                        }
-                    }
-                }
-                UiMessageData::CheckBox(msg) => {
-                    if let CheckBoxMessage::Check(checked) = msg {
-                        if message.destination() == self.is_sensor {
-                            let value = checked.unwrap_or_default();
-                            if value != collider.is_sensor {
-                                self.sender
-                                    .send(Message::DoSceneCommand(
-                                        SceneCommand::SetColliderIsSensor(
-                                            SetColliderIsSensorCommand::new(handle, value),
-                                        ),
-                                    ))
-                                    .unwrap();
-                            }
                         }
                     }
                 }

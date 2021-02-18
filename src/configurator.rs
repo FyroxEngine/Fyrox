@@ -51,7 +51,7 @@ impl Visit for HistoryEntry {
     }
 }
 
-pub const HISTORY_PATH: &'static str = "history.bin";
+pub const HISTORY_PATH: &str = "history.bin";
 
 pub struct Configurator {
     pub window: Handle<UiNode>,
@@ -337,131 +337,125 @@ impl Configurator {
                 if message.destination() == self.lv_history
                     && message.direction() == MessageDirection::FromWidget
                 {
-                    if let &ListViewMessage::SelectionChanged(selection) = msg {
-                        if let Some(index) = selection {
-                            let entry = &self.history[index];
-                            self.textures_path = entry.textures_path.clone();
-                            self.work_dir = entry.work_dir.clone();
+                    if let ListViewMessage::SelectionChanged(Some(index)) = *msg {
+                        let entry = &self.history[index];
+                        self.textures_path = entry.textures_path.clone();
+                        self.work_dir = entry.work_dir.clone();
 
-                            engine.user_interface.send_message(TextBoxMessage::text(
-                                self.tb_textures_path,
-                                MessageDirection::ToWidget,
-                                self.textures_path.to_string_lossy().to_string(),
-                            ));
-                            engine.user_interface.send_message(TextBoxMessage::text(
-                                self.tb_work_dir,
-                                MessageDirection::ToWidget,
-                                self.work_dir.to_string_lossy().to_string(),
-                            ));
-
-                            self.validate(engine);
-                        }
-                    }
-                }
-            }
-            UiMessageData::FileSelector(msg) => {
-                if let FileSelectorMessage::Commit(path) = msg {
-                    if message.destination() == self.textures_dir_browser {
-                        if let Ok(textures_path) = path.clone().canonicalize() {
-                            self.textures_path = textures_path;
-                            engine.user_interface.send_message(TextBoxMessage::text(
-                                self.tb_textures_path,
-                                MessageDirection::ToWidget,
-                                self.textures_path.to_string_lossy().to_string(),
-                            ));
-
-                            self.validate(engine);
-                        }
-                    } else if message.destination() == self.work_dir_browser {
-                        if let Ok(work_dir) = path.clone().canonicalize() {
-                            self.work_dir = work_dir;
-                            self.textures_path = self.work_dir.clone();
-                            engine.user_interface.send_message(TextBoxMessage::text(
-                                self.tb_work_dir,
-                                MessageDirection::ToWidget,
-                                self.work_dir.to_string_lossy().to_string(),
-                            ));
-                            engine
-                                .user_interface
-                                .send_message(FileSelectorMessage::root(
-                                    self.textures_dir_browser,
-                                    MessageDirection::ToWidget,
-                                    Some(self.textures_path.clone()),
-                                ));
-                            engine.user_interface.send_message(TextBoxMessage::text(
-                                self.tb_textures_path,
-                                MessageDirection::ToWidget,
-                                self.textures_path.to_string_lossy().to_string(),
-                            ));
-
-                            self.validate(engine);
-                        }
-                    }
-                }
-            }
-            UiMessageData::Button(msg) => {
-                if let ButtonMessage::Click = msg {
-                    if message.destination() == self.ok {
-                        self.sender
-                            .send(Message::Configure {
-                                working_directory: self.work_dir.clone(),
-                                textures_path: self.textures_path.clone(),
-                            })
-                            .unwrap();
-
-                        let new_entry = HistoryEntry {
-                            work_dir: self.work_dir.clone(),
-                            textures_path: self.textures_path.clone(),
-                        };
-                        if self.history.iter().position(|e| e == &new_entry).is_none() {
-                            self.history.push(new_entry);
-
-                            let widget = make_history_entry_widget(
-                                &mut engine.user_interface.build_ctx(),
-                                self.history.last().unwrap(),
-                            );
-
-                            engine
-                                .user_interface
-                                .send_message(ListViewMessage::add_item(
-                                    self.lv_history,
-                                    MessageDirection::ToWidget,
-                                    widget,
-                                ));
-                        }
-
-                        engine.user_interface.send_message(WindowMessage::close(
-                            self.window,
+                        engine.user_interface.send_message(TextBoxMessage::text(
+                            self.tb_textures_path,
                             MessageDirection::ToWidget,
+                            self.textures_path.to_string_lossy().to_string(),
                         ));
-                    } else if message.destination() == self.select_textures_dir {
+                        engine.user_interface.send_message(TextBoxMessage::text(
+                            self.tb_work_dir,
+                            MessageDirection::ToWidget,
+                            self.work_dir.to_string_lossy().to_string(),
+                        ));
+
+                        self.validate(engine);
+                    }
+                }
+            }
+            UiMessageData::FileSelector(FileSelectorMessage::Commit(path)) => {
+                if message.destination() == self.textures_dir_browser {
+                    if let Ok(textures_path) = path.clone().canonicalize() {
+                        self.textures_path = textures_path;
+                        engine.user_interface.send_message(TextBoxMessage::text(
+                            self.tb_textures_path,
+                            MessageDirection::ToWidget,
+                            self.textures_path.to_string_lossy().to_string(),
+                        ));
+
+                        self.validate(engine);
+                    }
+                } else if message.destination() == self.work_dir_browser {
+                    if let Ok(work_dir) = path.clone().canonicalize() {
+                        self.work_dir = work_dir;
+                        self.textures_path = self.work_dir.clone();
+                        engine.user_interface.send_message(TextBoxMessage::text(
+                            self.tb_work_dir,
+                            MessageDirection::ToWidget,
+                            self.work_dir.to_string_lossy().to_string(),
+                        ));
                         engine
                             .user_interface
-                            .send_message(WindowMessage::open_modal(
+                            .send_message(FileSelectorMessage::root(
                                 self.textures_dir_browser,
                                 MessageDirection::ToWidget,
-                                true,
+                                Some(self.textures_path.clone()),
                             ));
-                        if self.work_dir.exists() {
-                            // Once working directory was selected we can reduce amount of clicks
-                            // for user by setting initial path of scene selector to working dir.
-                            engine
-                                .user_interface
-                                .send_message(FileSelectorMessage::path(
-                                    self.textures_dir_browser,
-                                    MessageDirection::ToWidget,
-                                    self.work_dir.clone(),
-                                ));
-                        }
-                    } else if message.destination() == self.select_work_dir {
+                        engine.user_interface.send_message(TextBoxMessage::text(
+                            self.tb_textures_path,
+                            MessageDirection::ToWidget,
+                            self.textures_path.to_string_lossy().to_string(),
+                        ));
+
+                        self.validate(engine);
+                    }
+                }
+            }
+            UiMessageData::Button(ButtonMessage::Click) => {
+                if message.destination() == self.ok {
+                    self.sender
+                        .send(Message::Configure {
+                            working_directory: self.work_dir.clone(),
+                            textures_path: self.textures_path.clone(),
+                        })
+                        .unwrap();
+
+                    let new_entry = HistoryEntry {
+                        work_dir: self.work_dir.clone(),
+                        textures_path: self.textures_path.clone(),
+                    };
+                    if self.history.iter().position(|e| e == &new_entry).is_none() {
+                        self.history.push(new_entry);
+
+                        let widget = make_history_entry_widget(
+                            &mut engine.user_interface.build_ctx(),
+                            self.history.last().unwrap(),
+                        );
+
                         engine
                             .user_interface
-                            .send_message(WindowMessage::open_modal(
-                                self.work_dir_browser,
+                            .send_message(ListViewMessage::add_item(
+                                self.lv_history,
                                 MessageDirection::ToWidget,
-                                true,
+                                widget,
                             ));
                     }
+
+                    engine.user_interface.send_message(WindowMessage::close(
+                        self.window,
+                        MessageDirection::ToWidget,
+                    ));
+                } else if message.destination() == self.select_textures_dir {
+                    engine
+                        .user_interface
+                        .send_message(WindowMessage::open_modal(
+                            self.textures_dir_browser,
+                            MessageDirection::ToWidget,
+                            true,
+                        ));
+                    if self.work_dir.exists() {
+                        // Once working directory was selected we can reduce amount of clicks
+                        // for user by setting initial path of scene selector to working dir.
+                        engine
+                            .user_interface
+                            .send_message(FileSelectorMessage::path(
+                                self.textures_dir_browser,
+                                MessageDirection::ToWidget,
+                                self.work_dir.clone(),
+                            ));
+                    }
+                } else if message.destination() == self.select_work_dir {
+                    engine
+                        .user_interface
+                        .send_message(WindowMessage::open_modal(
+                            self.work_dir_browser,
+                            MessageDirection::ToWidget,
+                            true,
+                        ));
                 }
             }
             _ => {}
