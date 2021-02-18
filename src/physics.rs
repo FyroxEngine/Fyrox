@@ -1,8 +1,6 @@
-use rg3d::core::algebra::Vector3;
-use rg3d::scene::physics::{JointDesc, JointParamsDesc};
 use rg3d::{
     core::{
-        algebra::{Isometry3, Point3, Translation3},
+        algebra::{Isometry3, Point3, Translation3, Vector3},
         color::Color,
         math::aabb::AxisAlignedBoundingBox,
         pool::{ErasedHandle, Handle, Pool},
@@ -11,7 +9,9 @@ use rg3d::{
     scene::{
         graph::Graph,
         node::Node,
-        physics::{ColliderDesc, ColliderShapeDesc, PhysicsDesc, RigidBodyDesc},
+        physics::{
+            ColliderDesc, ColliderShapeDesc, JointDesc, JointParamsDesc, PhysicsDesc, RigidBodyDesc,
+        },
         ColliderHandle, Line, RigidBodyHandle, Scene, SceneDrawingContext,
     },
 };
@@ -307,16 +307,20 @@ impl Physics {
                         color,
                     );
                 }
-                ColliderShapeDesc::Capsule(capsule) => {
-                    // TODO: Draw as it should be.
-                    context.draw_sphere(capsule.begin, 10, 10, capsule.radius, color);
-                    context.draw_sphere(capsule.end, 10, 10, capsule.radius, color);
-                }
+                ColliderShapeDesc::Capsule(capsule) => context.draw_segment_capsule(
+                    capsule.begin,
+                    capsule.end,
+                    capsule.radius,
+                    10,
+                    10,
+                    transform,
+                    color,
+                ),
                 ColliderShapeDesc::Segment(segment) => {
                     context.add_line(Line {
                         begin: segment.begin,
                         end: segment.end,
-                        color: color,
+                        color,
                     });
                 }
                 ColliderShapeDesc::Triangle(triangle) => {
