@@ -629,50 +629,48 @@ impl SceneDrawingContext {
         let theta_step = (theta_range.end - theta_range.start) / theta_steps as f32;
         let phi_step = (phi_range.end - phi_range.start) / phi_steps as f32;
 
+        fn spherical_to_cartesian(radius: f32, theta: f32, phi: f32) -> Vector3<f32> {
+            Vector3::new(
+                radius * theta.sin() * phi.cos(),
+                radius * theta.cos(),
+                radius * theta.sin() * phi.sin(),
+            )
+        }
+
         let mut theta = theta_range.start;
-        let mut phi = phi_range.start;
-
         while theta < theta_range.end {
+            let mut phi = phi_range.start;
             while phi < phi_range.end {
-                let k0 = radius * theta.sin();
-                let k1 = phi.cos();
-                let k2 = phi.sin();
-                let k3 = radius * theta.cos();
+                let p0 = transform
+                    .transform_point(&Point3::from(spherical_to_cartesian(radius, theta, phi)))
+                    .coords;
+                let p1 = transform
+                    .transform_point(&Point3::from(spherical_to_cartesian(
+                        radius,
+                        theta,
+                        phi + phi_step,
+                    )))
+                    .coords;
+                let p2 = transform
+                    .transform_point(&Point3::from(spherical_to_cartesian(
+                        radius,
+                        theta + theta_step,
+                        phi + phi_step,
+                    )))
+                    .coords;
+                let p3 = transform
+                    .transform_point(&Point3::from(spherical_to_cartesian(
+                        radius,
+                        theta + theta_step,
+                        phi,
+                    )))
+                    .coords;
 
-                let k4 = radius * (theta + theta_step).sin();
-                let k5 = (phi + phi_step).cos();
-                let k6 = (phi + phi_step).sin();
-                let k7 = radius * (theta + theta_step).cos();
-
-                self.draw_triangle(
-                    transform
-                        .transform_point(&Point3::new(k0 * k1, k0 * k2, k3))
-                        .coords,
-                    transform
-                        .transform_point(&Point3::new(k4 * k1, k4 * k2, k7))
-                        .coords,
-                    transform
-                        .transform_point(&Point3::new(k4 * k5, k4 * k6, k7))
-                        .coords,
-                    color,
-                );
-
-                self.draw_triangle(
-                    transform
-                        .transform_point(&Point3::new(k4 * k5, k4 * k6, k7))
-                        .coords,
-                    transform
-                        .transform_point(&Point3::new(k0 * k5, k0 * k6, k3))
-                        .coords,
-                    transform
-                        .transform_point(&Point3::new(k0 * k1, k0 * k2, k3))
-                        .coords,
-                    color,
-                );
+                self.draw_triangle(p0, p1, p2, color);
+                self.draw_triangle(p0, p2, p3, color);
 
                 phi += phi_step;
             }
-
             theta += theta_step;
         }
     }
@@ -829,7 +827,7 @@ impl SceneDrawingContext {
             10,
             0.0..std::f32::consts::TAU,
             10,
-            Matrix4::new_translation(&Vector3::new(0.0, 0.0, height * 0.5)) * transform,
+            transform * Matrix4::new_translation(&Vector3::new(0.0, height * 0.5 - radius, 0.0)),
             color,
         );
 
@@ -840,11 +838,15 @@ impl SceneDrawingContext {
             10,
             0.0..std::f32::consts::TAU,
             10,
-            Matrix4::new_translation(&Vector3::new(0.0, 0.0, -height * 0.5)) * transform,
+            transform * Matrix4::new_translation(&Vector3::new(0.0, -height * 0.5 + radius, 0.0)),
             color,
         );
 
-        self.draw_cylinder(10, radius, height, false, transform, color);
+        let cylinder_height = height - 2.0 * radius;
+
+        if cylinder_height > 0.0 {
+            self.draw_cylinder(10, radius, cylinder_height, false, transform, color);
+        }
     }
 
     /// Adds single line into internal buffer.
