@@ -1,3 +1,5 @@
+use rg3d::core::algebra::Translation;
+use rg3d::core::BiDirHashMap;
 use rg3d::{
     core::{
         algebra::{Isometry3, Point3, Translation3, Vector3},
@@ -37,7 +39,7 @@ pub struct Physics {
     pub bodies: Pool<RigidBody>,
     pub colliders: Pool<Collider>,
     pub joints: Pool<Joint>,
-    pub binder: HashMap<Handle<Node>, Handle<RigidBody>>,
+    pub binder: BiDirHashMap<Handle<Node>, Handle<RigidBody>>,
 }
 
 impl Physics {
@@ -103,7 +105,7 @@ impl Physics {
             });
         }
 
-        let mut binder = HashMap::new();
+        let mut binder = BiDirHashMap::default();
 
         for (&node, &body) in scene.physics_binder.forward_map().iter() {
             let body_handle: rg3d::physics::dynamics::RigidBodyHandle = body.into();
@@ -119,21 +121,7 @@ impl Physics {
     }
 
     pub fn unbind_by_body(&mut self, body: Handle<RigidBody>) -> Handle<Node> {
-        let mut node = Handle::NONE;
-        self.binder = self
-            .binder
-            .clone()
-            .into_iter()
-            .filter(|&(n, b)| {
-                if b == body {
-                    node = n;
-                    false
-                } else {
-                    true
-                }
-            })
-            .collect();
-        node
+        self.binder.remove_by_value(&body).unwrap_or_default()
     }
 
     pub fn generate_engine_desc(&self) -> (PhysicsDesc, HashMap<Handle<Node>, RigidBodyHandle>) {
@@ -199,7 +187,7 @@ impl Physics {
 
         let mut binder = HashMap::new();
 
-        for (&node, body) in self.binder.iter() {
+        for (&node, body) in self.binder.forward_map().iter() {
             binder.insert(node, *body_map.get(body).unwrap());
         }
 
@@ -269,7 +257,17 @@ impl Physics {
             }
             .to_homogeneous();
 
-            let transform = body_global_transform * collider_local_tranform;
+            let transform = if let Some(&node) = self.binder.key_of(&parent) {
+                let (rotation, position) = graph.isometric_global_rotation_position(node);
+                Isometry3 {
+                    rotation,
+                    translation: Translation { vector: position },
+                }
+                .to_homogeneous()
+                    * collider_local_tranform
+            } else {
+                body_global_transform * collider_local_tranform
+            };
 
             match &collider.shape {
                 ColliderShapeDesc::Ball(ball) => {
@@ -328,7 +326,7 @@ impl Physics {
                 }
                 ColliderShapeDesc::Trimesh(_) => {
                     let mut node = Handle::NONE;
-                    for (&n, &b) in self.binder.iter() {
+                    for (&n, &b) in self.binder.forward_map().iter() {
                         if b == parent {
                             node = n;
                             break;

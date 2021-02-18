@@ -12,6 +12,7 @@ use crate::{
     },
     Message,
 };
+use rg3d::core::BiDirHashMap;
 use rg3d::{
     core::{color::Color, pool::Handle},
     gui::{
@@ -28,7 +29,7 @@ use rg3d::{
     },
     scene::{graph::Graph, node::Node, physics::JointParamsDesc},
 };
-use std::{collections::HashMap, sync::mpsc::Sender};
+use std::sync::mpsc::Sender;
 
 mod ball;
 mod fixed;
@@ -99,7 +100,7 @@ impl JointSection {
         &mut self,
         joint: &Joint,
         graph: &Graph,
-        binder: &HashMap<Handle<Node>, Handle<RigidBody>>,
+        binder: &BiDirHashMap<Handle<Node>, Handle<RigidBody>>,
         ui: &mut Ui,
     ) {
         fn toggle_visibility(ui: &mut Ui, destination: Handle<UiNode>, value: bool) {
@@ -139,7 +140,7 @@ impl JointSection {
         let ctx = &mut ui.build_ctx();
         let mut connected_index = None;
         for (handle, node) in graph.pair_iter() {
-            if let Some(&body) = binder.get(&handle) {
+            if let Some(&body) = binder.value_of(&handle) {
                 if body != joint.body1.into() {
                     let item = DecoratorBuilder::new(BorderBuilder::new(
                         WidgetBuilder::new().with_height(26.0).with_child(

@@ -86,7 +86,7 @@ fn deep_clone_nodes(
     for &root_node in root_nodes.iter() {
         for descendant in source_graph.traverse_handle_iter(root_node) {
             // Copy body too if we have any.
-            if let Some(&body) = source_physics.binder.get(&descendant) {
+            if let Some(&body) = source_physics.binder.value_of(&descendant) {
                 let body = &source_physics.bodies[body];
                 let mut body_clone = body.clone();
                 body_clone.colliders.clear();
@@ -192,7 +192,7 @@ impl EditorScene {
         for joint in self.physics.joints.iter() {
             if joint.body1.is_none() || joint.body2.is_none() {
                 let mut associated_node = Handle::NONE;
-                for (&node, &body) in self.physics.binder.iter() {
+                for (&node, &body) in self.physics.binder.forward_map().iter() {
                     if body == joint.body1.into() {
                         associated_node = node;
                         break;
@@ -1500,7 +1500,7 @@ impl<'a> Command<'a> for PasteCommand {
                 }
 
                 for (node, _) in paste_result.binder.iter() {
-                    context.editor_scene.physics.binder.remove(node);
+                    context.editor_scene.physics.binder.remove_by_key(node);
                 }
 
                 self.state = PasteCommandState::Reverted {
@@ -1623,7 +1623,7 @@ impl MoveNodeCommand {
         graph[self.node]
             .local_transform_mut()
             .set_position(position);
-        if let Some(&body) = physics.binder.get(&self.node) {
+        if let Some(&body) = physics.binder.value_of(&self.node) {
             physics.bodies[body].position = position;
         }
     }
@@ -1735,7 +1735,7 @@ impl RotateNodeCommand {
         graph[self.node]
             .local_transform_mut()
             .set_rotation(rotation);
-        if let Some(&body) = physics.binder.get(&self.node) {
+        if let Some(&body) = physics.binder.value_of(&self.node) {
             physics.bodies[body].rotation = rotation;
         }
     }
@@ -1907,13 +1907,21 @@ impl<'a> Command<'a> for SetBodyCommand {
             .take_reserve(self.handle);
         self.ticket = Some(ticket);
         self.body = Some(node);
-        context.editor_scene.physics.binder.remove(&self.node);
+        context
+            .editor_scene
+            .physics
+            .binder
+            .remove_by_key(&self.node);
     }
 
     fn finalize(&mut self, context: &mut Self::Context) {
         if let Some(ticket) = self.ticket.take() {
             context.editor_scene.physics.bodies.forget_ticket(ticket);
-            context.editor_scene.physics.binder.remove(&self.node);
+            context
+                .editor_scene
+                .physics
+                .binder
+                .remove_by_key(&self.node);
         }
     }
 }
@@ -3171,7 +3179,7 @@ pub fn make_delete_selection_command(
     // found above.
     let mut stack = root_nodes.clone();
     while let Some(node) = stack.pop() {
-        if let Some(&body) = editor_scene.physics.binder.get(&node) {
+        if let Some(&body) = editor_scene.physics.binder.value_of(&node) {
             for &collider in editor_scene.physics.bodies[body].colliders.iter() {
                 command_group.push(SceneCommand::DeleteCollider(DeleteColliderCommand::new(
                     collider.into(),
