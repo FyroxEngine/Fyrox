@@ -885,10 +885,14 @@ impl SceneDrawingContext {
             .unwrap_or_else(Vector3::x); // CHECK
 
         let shaft_point = |u: f32, v: f32| -> Vector3<f32> {
-            begin
-                + x_axis.scale((std::f32::consts::TAU * u).cos() * radius)
-                + y_axis.scale((std::f32::consts::TAU * u).sin() * radius)
-                + z_axis.scale(v * length)
+            transform
+                .transform_point(&Point3::from(
+                    begin
+                        + x_axis.scale((std::f32::consts::TAU * u).cos() * radius)
+                        + y_axis.scale((std::f32::consts::TAU * u).sin() * radius)
+                        + z_axis.scale(v * length),
+                ))
+                .coords
         };
 
         let start_hemisphere_point = |u: f32, v: f32| -> Vector3<f32> {
