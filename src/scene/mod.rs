@@ -923,13 +923,13 @@ impl SceneDrawingContext {
 
         let mut u = 0.0;
         while u < 1.0 {
-            let a = shaft_point(u, 0.0);
-            let b = shaft_point(u, 1.0);
-            let c = shaft_point(u + du, 1.0);
-            let d = shaft_point(u + du, 0.0);
+            let sa = shaft_point(u, 0.0);
+            let sb = shaft_point(u, 1.0);
+            let sc = shaft_point(u + du, 1.0);
+            let sd = shaft_point(u + du, 0.0);
 
-            self.draw_triangle(a, b, c, color);
-            self.draw_triangle(a, c, d, color);
+            self.draw_triangle(sa, sb, sc, color);
+            self.draw_triangle(sa, sc, sd, color);
 
             u += du;
         }
