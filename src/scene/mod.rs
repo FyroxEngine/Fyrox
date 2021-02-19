@@ -30,6 +30,7 @@ use crate::{
     sound::{context::Context, engine::SoundEngine},
     utils::{lightmap::Lightmap, log::Log, log::MessageKind, navmesh::Navmesh},
 };
+use std::fmt::{Display, Formatter};
 use std::{
     collections::HashMap,
     ops::{Deref, Index, IndexMut, Range},
@@ -1080,6 +1081,9 @@ pub struct Scene {
 
     /// Current lightmap.
     lightmap: Option<Lightmap>,
+
+    /// Performance statistics from last `update` call.
+    pub performance_statistics: PerformanceStatistics,
 }
 
 impl Default for Scene {
@@ -1094,6 +1098,7 @@ impl Default for Scene {
             drawing_context: Default::default(),
             sound_context: Default::default(),
             navmeshes: Default::default(),
+            performance_statistics: Default::default(),
         }
     }
 }
@@ -1104,6 +1109,31 @@ fn map_texture(tex: Option<Texture>, rm: ResourceManager) -> Option<Texture> {
         Some(rm.request_texture(shallow_texture.path()))
     } else {
         None
+    }
+}
+
+/// A structure that holds times that specific update step took.
+#[derive(Copy, Clone, Default, Debug)]
+pub struct PerformanceStatistics {
+    /// A time (in seconds) which was required to update physics.
+    pub physics_time: f32,
+
+    /// A time (in seconds) which was required to update graph.
+    pub graph_update_time: f32,
+
+    /// A time (in seconds) which was required to update animations.
+    pub animations_update_time: f32,
+}
+
+impl Display for PerformanceStatistics {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Physics: {} ms\nGraph: {} ms\nAnimations: {} ms",
+            self.physics_time * 1000.0,
+            self.graph_update_time * 1000.0,
+            self.animations_update_time * 1000.0
+        )
     }
 }
 
@@ -1127,6 +1157,7 @@ impl Scene {
             drawing_context: Default::default(),
             sound_context: Context::new(),
             navmeshes: Default::default(),
+            performance_statistics: Default::default(),
         }
     }
 
@@ -1381,9 +1412,19 @@ impl Scene {
     /// it updates physics, animations, and each graph node. In most cases there is
     /// no need to call it directly, engine automatically updates all available scenes.
     pub fn update(&mut self, frame_size: Vector2<f32>, dt: f32) {
+        let last = std::time::Instant::now();
         self.update_physics();
+        self.performance_statistics.physics_time = (std::time::Instant::now() - last).as_secs_f32();
+
+        let last = std::time::Instant::now();
         self.animations.update_animations(dt);
+        self.performance_statistics.animations_update_time =
+            (std::time::Instant::now() - last).as_secs_f32();
+
+        let last = std::time::Instant::now();
         self.graph.update_nodes(frame_size, dt);
+        self.performance_statistics.graph_update_time =
+            (std::time::Instant::now() - last).as_secs_f32();
     }
 
     /// Creates deep copy of a scene, filter predicate allows you to filter out nodes
@@ -1426,6 +1467,7 @@ impl Scene {
                 drawing_context: self.drawing_context.clone(),
                 sound_context: self.sound_context.deep_clone(),
                 navmeshes: self.navmeshes.clone(),
+                performance_statistics: Default::default(),
             },
             old_new_map,
         )
