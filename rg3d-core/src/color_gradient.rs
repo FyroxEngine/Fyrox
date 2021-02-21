@@ -97,7 +97,6 @@ impl ColorGradient {
             return self.points.first().unwrap().color;
         } else if self.points.len() == 2 {
             // special case for two points (much faster than generic)
-            // "unsafe" is safe here because we already checked bounds
             let pt_a = self.points.get(0).unwrap();
             let pt_b = self.points.get(1).unwrap();
             if location >= pt_a.location && location <= pt_b.location {
@@ -142,5 +141,34 @@ impl ColorGradient {
 
     pub fn clear(&mut self) {
         self.points.clear()
+    }
+}
+
+pub struct ColorGradientBuilder {
+    points: Vec<GradientPoint>,
+}
+
+impl ColorGradientBuilder {
+    pub fn new() -> Self {
+        Self {
+            points: Default::default(),
+        }
+    }
+
+    pub fn with_point(mut self, point: GradientPoint) -> Self {
+        self.points.push(point);
+        self
+    }
+
+    pub fn build(mut self) -> ColorGradient {
+        self.points.sort_by(|a, b| {
+            a.location
+                .partial_cmp(&b.location)
+                .unwrap_or(Ordering::Equal)
+        });
+
+        ColorGradient {
+            points: self.points,
+        }
     }
 }
