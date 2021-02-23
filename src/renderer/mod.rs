@@ -865,8 +865,6 @@ impl Renderer {
             .unwrap();
         self.frame_size.0 = new_size.0.max(1);
         self.frame_size.1 = new_size.1.max(1);
-        // Invalidate all g-buffers.
-        self.scene_to_gbuffer_map.clear();
     }
 
     /// Returns current (width, height) pair of back buffer size.

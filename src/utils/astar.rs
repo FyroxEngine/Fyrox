@@ -130,13 +130,15 @@ impl PositionProvider for PathVertex {
 
 /// Path search can be interrupted by errors, this enum stores all possible
 /// kinds of errors.
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub enum PathError {
     /// Out-of-bounds vertex index has found, it can be either index of begin/end
     /// points, or some index of neighbour vertices in list of neighbours in vertex.
     InvalidIndex(usize),
     /// There is a vertex that has itself as neighbour.
     CyclicReferenceFound(usize),
+    /// User-defined error.
+    Custom(String),
 }
 
 impl PathFinder {

@@ -11,32 +11,56 @@
 
 #![warn(missing_docs)]
 
-use crate::core::algebra::Vector3;
-use crate::core::visitor::Visit;
-use crate::utils::raw_mesh::RawVertex;
 use crate::{
     core::{
-        math::{self, TriangleDefinition},
-        octree::Octree,
+        algebra::{Point3, Vector3},
+        arrayvec::ArrayVec,
+        math::{self, ray::Ray, TriangleDefinition},
+        octree::{Octree, OctreeNode},
+        pool::Handle,
+        visitor::{Visit, VisitResult, Visitor},
     },
     scene::mesh::Mesh,
     utils::{
         astar::{PathError, PathFinder, PathKind, PathVertex},
-        raw_mesh::RawMeshBuilder,
+        raw_mesh::{RawMeshBuilder, RawVertex},
     },
 };
-use rapier3d::na::Point3;
-use rg3d_core::visitor::{VisitResult, Visitor};
+use std::ops::Deref;
 use std::{
     collections::HashSet,
     hash::{Hash, Hasher},
 };
 
+/// A navmesh triangle, contains indices of vertices forming the triangle and a list
+/// of adjacent triangles (indices).
+#[derive(Default, Clone, Debug)]
+pub struct NavmeshTriangle {
+    triangle: TriangleDefinition,
+    /// Indices of adjacent triangles.
+    adjacent_triangles: ArrayVec<[usize; 3]>,
+}
+
+impl Deref for NavmeshTriangle {
+    type Target = TriangleDefinition;
+
+    fn deref(&self) -> &Self::Target {
+        &self.triangle
+    }
+}
+
+impl Visit for NavmeshTriangle {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        // Don't visit adjacent triangles, it will be restored on load anyway.
+        self.triangle.visit(name, visitor)
+    }
+}
+
 /// See module docs.
 #[derive(Clone, Debug)]
 pub struct Navmesh {
     octree: Octree,
-    triangles: Vec<TriangleDefinition>,
+    triangles: Vec<NavmeshTriangle>,
     pathfinder: PathFinder,
     query_buffer: Vec<u32>,
 }
@@ -56,14 +80,17 @@ impl Visit for Navmesh {
                 .iter()
                 .map(|t| {
                     [
-                        vertices[t[0] as usize].position,
-                        vertices[t[1] as usize].position,
-                        vertices[t[2] as usize].position,
+                        vertices[t.triangle[0] as usize].position,
+                        vertices[t.triangle[1] as usize].position,
+                        vertices[t.triangle[2] as usize].position,
                     ]
                 })
                 .collect::<Vec<[Vector3<f32>; 3]>>();
 
             self.octree = Octree::new(&raw_triangles, 32);
+
+            // Restore adjacency info.
+            self.calculate_adjacency();
         }
 
         visitor.leave_region()
@@ -144,12 +171,23 @@ impl Navmesh {
             pathfinder.link_bidirect(edge.a as usize, edge.b as usize);
         }
 
-        Self {
-            triangles: triangles.to_vec(),
+        let mut navmesh = Self {
+            triangles: triangles
+                .iter()
+                .map(|t| NavmeshTriangle {
+                    triangle: t.clone(),
+                    // Adjacency will be calculated below!
+                    adjacent_triangles: Default::default(),
+                })
+                .collect(),
             octree: Octree::new(&raw_triangles, 32),
             pathfinder,
             query_buffer: Default::default(),
-        }
+        };
+
+        navmesh.calculate_adjacency();
+
+        navmesh
     }
 
     /// Creates new navigation mesh (navmesh) from given mesh. It is most simple way to create complex
@@ -198,6 +236,7 @@ impl Navmesh {
         }
 
         let mesh = builder.build();
+
         Navmesh::new(
             &mesh.triangles,
             &mesh
@@ -227,7 +266,7 @@ impl Navmesh {
     }
 
     /// Returns reference to array of triangles.
-    pub fn triangles(&self) -> &[TriangleDefinition] {
+    pub fn triangles(&self) -> &[NavmeshTriangle] {
         &self.triangles
     }
 
@@ -261,5 +300,214 @@ impl Navmesh {
         path: &mut Vec<Vector3<f32>>,
     ) -> Result<PathKind, PathError> {
         self.pathfinder.build(from, to, path)
+    }
+
+    /// Tries to pick a triangle by given ray.
+    pub fn ray_cast(&self, ray: Ray) -> Option<(Vector3<f32>, usize, NavmeshTriangle)> {
+        let mut buffer = ArrayVec::<[Handle<OctreeNode>; 128]>::new();
+
+        self.octree.ray_query_static(&ray, &mut buffer);
+
+        for node in buffer.into_iter() {
+            if let OctreeNode::Leaf { indices, .. } = self.octree.node(node) {
+                for &index in indices {
+                    let triangle = self.triangles[index as usize].clone();
+                    let a = self.pathfinder.vertices()[triangle.triangle[0] as usize].position;
+                    let b = self.pathfinder.vertices()[triangle.triangle[1] as usize].position;
+                    let c = self.pathfinder.vertices()[triangle.triangle[2] as usize].position;
+
+                    if let Some(intersection) = ray.triangle_intersection(&[a, b, c]) {
+                        return Some((intersection, index as usize, triangle));
+                    }
+                }
+            } else {
+                unreachable!()
+            }
+        }
+
+        None
+    }
+
+    fn calculate_adjacency(&mut self) {
+        // Brute-force. May be slow for large navmeshes.
+        let triangles = unsafe { &*(&self.triangles as *const Vec<NavmeshTriangle>) };
+        for triangle in self.triangles.iter_mut() {
+            for (other_triangle_index, other_triangle) in triangles.iter().enumerate() {
+                if !std::ptr::eq(triangle, other_triangle) {
+                    'edge_loop: for edge in &triangle.triangle.edges() {
+                        for other_edge in &other_triangle.triangle.edges() {
+                            if edge == other_edge {
+                                triangle.adjacent_triangles.push(other_triangle_index);
+                                continue 'edge_loop;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Navmesh agent is a "pathfinding unit" that performs navigation on a mesh. It is designed to
+/// cover most of simple use cases when you need to build and follow some path from point A to point B.
+pub struct NavmeshAgent {
+    path: Vec<Vector3<f32>>,
+    current: u32,
+    position: Vector3<f32>,
+    interpolator: f32,
+    last_target_position: Vector3<f32>,
+    recalculation_threshold: f32,
+    speed: f32,
+}
+
+impl Default for NavmeshAgent {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl NavmeshAgent {
+    /// Creates new navigation mesh agent.
+    pub fn new() -> Self {
+        Self {
+            path: vec![],
+            current: 0,
+            position: Default::default(),
+            interpolator: 0.0,
+            last_target_position: Default::default(),
+            recalculation_threshold: 0.25,
+            speed: 6.0,
+        }
+    }
+
+    /// Returns agent's position.
+    pub fn position(&self) -> Vector3<f32> {
+        self.position
+    }
+
+    /// Returns agent's path that will be followed.
+    pub fn path(&self) -> &[Vector3<f32>] {
+        &self.path
+    }
+}
+
+fn closest_point_index_in_triangle_and_adjacent(
+    triangle: NavmeshTriangle,
+    navmesh: &Navmesh,
+    to: Vector3<f32>,
+) -> Option<usize> {
+    let mut triangles = ArrayVec::<[NavmeshTriangle; 4]>::new();
+    triangles.push(triangle.clone());
+
+    /*
+    TODO
+
+        for &adjacent in triangle.adjacent_triangles.iter() {
+            triangles.push(navmesh.triangles[adjacent].clone())
+        }
+    */
+
+    math::get_closest_point_triangle_set(&navmesh.pathfinder.vertices(), &triangles, to)
+}
+
+impl NavmeshAgent {
+    /// Calculates path from point A to point B. In most cases there is no need to use this method
+    /// directly, because `update` will call it anyway if target position has moved.
+    pub fn calculate_path(
+        &mut self,
+        navmesh: &mut Navmesh,
+        from: Vector3<f32>,
+        to: Vector3<f32>,
+    ) -> Result<PathKind, PathError> {
+        self.path.clear();
+
+        self.last_target_position = to;
+        self.current = 0;
+        self.interpolator = 0.0;
+
+        let (n_from, begin, from_triangle) = if let Some((point, index, triangle)) = navmesh
+            .ray_cast(Ray::new(
+                from + Vector3::new(0.0, 1.0, 0.0),
+                Vector3::new(0.0, -10.0, 0.0),
+            )) {
+            (
+                closest_point_index_in_triangle_and_adjacent(triangle, navmesh, to),
+                Some(point),
+                Some(index),
+            )
+        } else {
+            (navmesh.query_closest(from), None, None)
+        };
+
+        let (n_to, end, to_triangle) = if let Some((point, index, triangle)) =
+            navmesh.ray_cast(Ray::new(
+                to + Vector3::new(0.0, 1.0, 0.0),
+                Vector3::new(0.0, -10.0, 0.0),
+            )) {
+            (
+                closest_point_index_in_triangle_and_adjacent(triangle, navmesh, from),
+                Some(point),
+                Some(index),
+            )
+        } else {
+            (navmesh.query_closest(to), None, None)
+        };
+
+        if let (Some(from_triangle), Some(to_triangle)) = (from_triangle, to_triangle) {
+            if from_triangle == to_triangle {
+                self.path.push(from);
+                self.path.push(to);
+
+                return Ok(PathKind::Full);
+            }
+        }
+
+        if let (Some(n_from), Some(n_to)) = (n_from, n_to) {
+            let result = navmesh.build_path(n_from, n_to, &mut self.path);
+
+            if let Some(end) = end {
+                if self.path.is_empty() {
+                    self.path.push(end);
+                } else {
+                    self.path.insert(0, end)
+                }
+            }
+
+            if let Some(begin) = begin {
+                self.path.push(begin);
+            }
+
+            self.path.reverse();
+
+            result
+        } else {
+            Err(PathError::Custom("Empty navmesh!".to_owned()))
+        }
+    }
+
+    /// Performs single update tick that moves agent to the target.
+    pub fn update(
+        &mut self,
+        dt: f32,
+        navmesh: &mut Navmesh,
+        target: Vector3<f32>,
+    ) -> Result<PathKind, PathError> {
+        if target.metric_distance(&self.last_target_position) >= self.recalculation_threshold {
+            self.calculate_path(navmesh, self.position, target)?;
+        }
+
+        if let Some(source) = self.path.get(self.current as usize) {
+            if let Some(destination) = self.path.get((self.current + 1) as usize) {
+                let distance = destination.metric_distance(source);
+                self.interpolator = (self.interpolator + (self.speed * dt) / distance).min(1.0);
+                self.position = source.lerp(destination, self.interpolator);
+                if self.interpolator >= 1.0 {
+                    self.current += 1;
+                    self.interpolator = 0.0;
+                }
+            }
+        }
+
+        Ok(PathKind::Full)
     }
 }

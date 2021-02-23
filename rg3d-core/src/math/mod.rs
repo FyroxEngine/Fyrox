@@ -12,7 +12,7 @@ use crate::{
     visitor::{Visit, VisitResult, Visitor},
 };
 use nalgebra::Matrix4;
-use std::ops::{Add, Index, IndexMut, Mul, Sub};
+use std::ops::{Add, Deref, Index, IndexMut, Mul, Sub};
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Rect<T: Scalar> {
@@ -483,6 +483,21 @@ pub fn spherical_to_cartesian(azimuth: f32, elevation: f32, radius: f32) -> Vect
     Vector3::new(x, y, z)
 }
 
+#[derive(Clone, Debug, Default)]
+#[repr(C)]
+pub struct TriangleEdge {
+    a: u32,
+    b: u32,
+}
+
+impl PartialEq for TriangleEdge {
+    fn eq(&self, other: &Self) -> bool {
+        self.a == other.a && self.b == other.b || self.a == other.b && self.b == other.a
+    }
+}
+
+impl Eq for TriangleEdge {}
+
 #[derive(Clone, PartialEq, Eq, Debug, Default)]
 #[repr(C)]
 pub struct TriangleDefinition(pub [u32; 3]);
@@ -494,6 +509,23 @@ impl TriangleDefinition {
 
     pub fn indices_mut(&mut self) -> &mut [u32] {
         self.as_mut()
+    }
+
+    pub fn edges(&self) -> [TriangleEdge; 3] {
+        [
+            TriangleEdge {
+                a: self.0[0],
+                b: self.0[1],
+            },
+            TriangleEdge {
+                a: self.0[1],
+                b: self.0[2],
+            },
+            TriangleEdge {
+                a: self.0[2],
+                b: self.0[0],
+            },
+        ]
     }
 }
 
@@ -563,9 +595,9 @@ pub fn get_closest_point<P: PositionProvider>(points: &[P], point: Vector3<f32>)
     closest_index
 }
 
-pub fn get_closest_point_triangles<P: PositionProvider>(
+pub fn get_closest_point_triangles<P: PositionProvider, T: Deref<Target = TriangleDefinition>>(
     points: &[P],
-    triangles: &[TriangleDefinition],
+    triangles: &[T],
     triangle_indices: &[u32],
     point: Vector3<f32>,
 ) -> Option<usize> {
@@ -573,6 +605,29 @@ pub fn get_closest_point_triangles<P: PositionProvider>(
     let mut closest_index = None;
     for triangle_index in triangle_indices {
         let triangle = triangles.get(*triangle_index as usize).unwrap();
+        for point_index in triangle.0.iter() {
+            let vertex = points.get(*point_index as usize).unwrap();
+            let sqr_distance = (vertex.position() - point).norm_squared();
+            if sqr_distance < closest_sqr_distance {
+                closest_sqr_distance = sqr_distance;
+                closest_index = Some(*point_index as usize);
+            }
+        }
+    }
+    closest_index
+}
+
+pub fn get_closest_point_triangle_set<
+    P: PositionProvider,
+    T: Deref<Target = TriangleDefinition>,
+>(
+    points: &[P],
+    triangles: &[T],
+    point: Vector3<f32>,
+) -> Option<usize> {
+    let mut closest_sqr_distance = std::f32::MAX;
+    let mut closest_index = None;
+    for triangle in triangles {
         for point_index in triangle.0.iter() {
             let vertex = points.get(*point_index as usize).unwrap();
             let sqr_distance = (vertex.position() - point).norm_squared();
