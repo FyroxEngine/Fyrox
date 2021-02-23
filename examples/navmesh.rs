@@ -10,16 +10,14 @@ pub mod shared;
 
 use crate::shared::create_camera;
 use rg3d::core::arrayvec::ArrayVec;
-use rg3d::core::math::ray::Ray;
 use rg3d::core::math::PositionProvider;
 use rg3d::dpi::LogicalPosition;
 use rg3d::scene::physics::{Intersection, RayCastOptions};
 use rg3d::scene::Line;
 use rg3d::utils::navmesh::NavmeshAgent;
 use rg3d::{
-    animation::Animation,
     core::{
-        algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
+        algebra::{UnitQuaternion, Vector2, Vector3},
         color::Color,
         pool::Handle,
     },
@@ -53,7 +51,6 @@ fn create_ui(ctx: &mut BuildContext) -> Handle<UiNode> {
 
 struct GameScene {
     scene: Scene,
-    model_handle: Handle<Node>,
     agent: Handle<Node>,
     cursor: Handle<Node>,
     camera: Handle<Node>,
@@ -77,7 +74,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
             90.0f32.to_radians(),
         ));
 
-    let model_handle = resource_manager
+    resource_manager
         .request_model("examples/data/navmesh_scene.rgs")
         .await
         .unwrap()
@@ -107,7 +104,6 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
 
     GameScene {
         scene,
-        model_handle,
         cursor,
         agent,
         camera,
@@ -143,7 +139,6 @@ fn main() {
     // Create test scene.
     let GameScene {
         scene,
-        model_handle,
         agent,
         cursor,
         camera,
@@ -222,7 +217,7 @@ fn main() {
 
                     let navmesh = scene.navmeshes.iter_mut().next().unwrap();
 
-                    navmesh_agent.update(dt, navmesh, target_position);
+                    let _ = navmesh_agent.update(fixed_timestep, navmesh, target_position);
 
                     scene.graph[agent]
                         .local_transform_mut()

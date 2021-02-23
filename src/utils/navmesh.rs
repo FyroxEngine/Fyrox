@@ -26,10 +26,10 @@ use crate::{
         raw_mesh::{RawMeshBuilder, RawVertex},
     },
 };
-use std::ops::Deref;
 use std::{
     collections::HashSet,
     hash::{Hash, Hasher},
+    ops::Deref,
 };
 
 /// A navmesh triangle, contains indices of vertices forming the triangle and a list
@@ -357,6 +357,7 @@ pub struct NavmeshAgent {
     interpolator: f32,
     last_target_position: Vector3<f32>,
     recalculation_threshold: f32,
+    prev_first_index: usize,
     speed: f32,
 }
 
@@ -376,7 +377,8 @@ impl NavmeshAgent {
             interpolator: 0.0,
             last_target_position: Default::default(),
             recalculation_threshold: 0.25,
-            speed: 6.0,
+            prev_first_index: std::usize::MAX,
+            speed: 3.0,
         }
     }
 
@@ -423,7 +425,6 @@ impl NavmeshAgent {
 
         self.last_target_position = to;
         self.current = 0;
-        self.interpolator = 0.0;
 
         let (n_from, begin, from_triangle) = if let Some((point, index, triangle)) = navmesh
             .ray_cast(Ray::new(
@@ -478,6 +479,12 @@ impl NavmeshAgent {
             }
 
             self.path.reverse();
+
+            if self.prev_first_index != n_from {
+                self.interpolator = 0.0;
+            }
+
+            self.prev_first_index = n_from;
 
             result
         } else {
