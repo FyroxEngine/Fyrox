@@ -144,6 +144,7 @@ impl ColorGradient {
     }
 }
 
+#[derive(Default)]
 pub struct ColorGradientBuilder {
     points: Vec<GradientPoint>,
 }

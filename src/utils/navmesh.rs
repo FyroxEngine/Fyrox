@@ -399,7 +399,7 @@ fn closest_point_index_in_triangle_and_adjacent(
     to: Vector3<f32>,
 ) -> Option<usize> {
     let mut triangles = ArrayVec::<[NavmeshTriangle; 4]>::new();
-    triangles.push(triangle.clone());
+    triangles.push(triangle);
 
     /*
     TODO
