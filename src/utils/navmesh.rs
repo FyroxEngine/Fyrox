@@ -354,10 +354,8 @@ pub struct NavmeshAgent {
     path: Vec<Vector3<f32>>,
     current: u32,
     position: Vector3<f32>,
-    interpolator: f32,
     last_target_position: Vector3<f32>,
     recalculation_threshold: f32,
-    prev_first_index: usize,
     speed: f32,
 }
 
@@ -374,11 +372,9 @@ impl NavmeshAgent {
             path: vec![],
             current: 0,
             position: Default::default(),
-            interpolator: 0.0,
             last_target_position: Default::default(),
             recalculation_threshold: 0.25,
-            prev_first_index: std::usize::MAX,
-            speed: 3.0,
+            speed: 1.5,
         }
     }
 
@@ -480,12 +476,6 @@ impl NavmeshAgent {
 
             self.path.reverse();
 
-            if self.prev_first_index != n_from {
-                self.interpolator = 0.0;
-            }
-
-            self.prev_first_index = n_from;
-
             result
         } else {
             Err(PathError::Custom("Empty navmesh!".to_owned()))
@@ -505,12 +495,11 @@ impl NavmeshAgent {
 
         if let Some(source) = self.path.get(self.current as usize) {
             if let Some(destination) = self.path.get((self.current + 1) as usize) {
-                let distance = destination.metric_distance(source);
-                self.interpolator = (self.interpolator + (self.speed * dt) / distance).min(1.0);
-                self.position = source.lerp(destination, self.interpolator);
-                if self.interpolator >= 1.0 {
+                let ray = Ray::from_two_points(*source, *destination);
+                let d = ray.dir.try_normalize(std::f32::EPSILON).unwrap_or_default();
+                self.position += d.scale(self.speed * dt);
+                if ray.project_point(&self.position) >= 1.0 {
                     self.current += 1;
-                    self.interpolator = 0.0;
                 }
             }
         }
