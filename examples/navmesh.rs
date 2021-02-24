@@ -119,7 +119,7 @@ fn main() {
     let event_loop = EventLoop::new();
 
     let window_builder = rg3d::window::WindowBuilder::new()
-        .with_title("Example - Model")
+        .with_title("Example 12 - Navigation Mesh")
         .with_resizable(true);
 
     let mut engine = GameEngine::new(window_builder, &event_loop, true).unwrap();
@@ -217,7 +217,9 @@ fn main() {
 
                     let navmesh = scene.navmeshes.iter_mut().next().unwrap();
 
+                    let last = std::time::Instant::now();
                     let _ = navmesh_agent.update(fixed_timestep, navmesh, target_position);
+                    let agent_time = std::time::Instant::now() - last;
 
                     scene.graph[agent]
                         .local_transform_mut()
@@ -245,8 +247,8 @@ fn main() {
 
                     let fps = engine.renderer.get_statistics().frames_per_second;
                     let text = format!(
-                        "Example 01 - Simple Scene\nUse [A][D] keys to rotate model.\nFPS: {}",
-                        fps
+                        "Example 12 - Navigation Mesh\nFPS: {}\nAgent time: {:?}",
+                        fps, agent_time
                     );
                     engine.user_interface.send_message(TextMessage::text(
                         debug_text,

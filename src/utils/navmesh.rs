@@ -359,6 +359,23 @@ pub struct NavmeshAgent {
     speed: f32,
 }
 
+impl Visit for NavmeshAgent {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.path.visit("Path", visitor)?;
+        self.current.visit("Current", visitor)?;
+        self.position.visit("Position", visitor)?;
+        self.last_target_position
+            .visit("LastTargetPosition", visitor)?;
+        self.recalculation_threshold
+            .visit("RecalculationThreshold", visitor)?;
+        self.speed.visit("Speed", visitor)?;
+
+        visitor.leave_region()
+    }
+}
+
 impl Default for NavmeshAgent {
     fn default() -> Self {
         Self::new()
@@ -387,6 +404,16 @@ impl NavmeshAgent {
     pub fn path(&self) -> &[Vector3<f32>] {
         &self.path
     }
+
+    /// Sets new speed of agent's movement.
+    pub fn set_speed(&mut self, speed: f32) {
+        self.speed = speed;
+    }
+
+    /// Returns current agent's movement speed.
+    pub fn speed(&self) -> f32 {
+        self.speed
+    }
 }
 
 fn closest_point_index_in_triangle_and_adjacent(
@@ -406,6 +433,20 @@ fn closest_point_index_in_triangle_and_adjacent(
     */
 
     math::get_closest_point_triangle_set(&navmesh.pathfinder.vertices(), &triangles, to)
+}
+
+/// Projects a point on a plane and returns a projection and distance from the point to the plane.
+fn project(
+    point: Vector3<f32>,
+    plane_point: Vector3<f32>,
+    plane_normal: Vector3<f32>,
+) -> (Vector3<f32>, f32) {
+    if let Some(normal) = plane_normal.try_normalize(std::f32::EPSILON) {
+        let distance = (point - plane_point).dot(&normal);
+        (point - normal.scale(distance), distance)
+    } else {
+        (point, 0.0)
+    }
 }
 
 impl NavmeshAgent {
@@ -476,13 +517,45 @@ impl NavmeshAgent {
 
             self.path.reverse();
 
+            // Refine path.
+            // TODO: Optimize.
+            for _ in 0..2 {
+                let mut i = 0;
+                while i < self.path.len().saturating_sub(2) {
+                    let center = (self.path[i] + self.path[i + 2]).scale(0.5);
+
+                    for triangle in navmesh.triangles.iter() {
+                        let a =
+                            navmesh.pathfinder.vertices()[triangle.triangle[0] as usize].position;
+                        let b =
+                            navmesh.pathfinder.vertices()[triangle.triangle[1] as usize].position;
+                        let c =
+                            navmesh.pathfinder.vertices()[triangle.triangle[2] as usize].position;
+
+                        let normal = (c - a).cross(&(b - a));
+
+                        let (projection, distance) = project(center, a, normal);
+
+                        if distance.abs() < 0.01
+                            && math::is_point_inside_triangle(&projection, &[a, b, c])
+                        {
+                            self.path[i + 1] = projection;
+                            break;
+                        }
+                    }
+
+                    i += 1;
+                }
+            }
+
             result
         } else {
             Err(PathError::Custom("Empty navmesh!".to_owned()))
         }
     }
 
-    /// Performs single update tick that moves agent to the target.
+    /// Performs single update tick that moves agent to the target along the path (which is automatically
+    /// recalculated if target's position has changed).
     pub fn update(
         &mut self,
         dt: f32,
