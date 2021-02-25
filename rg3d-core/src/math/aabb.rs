@@ -55,6 +55,11 @@ impl AxisAlignedBoundingBox {
         }
     }
 
+    pub fn inflate(&mut self, delta: Vector3<f32>) {
+        self.min -= delta.scale(0.5);
+        self.max += delta.scale(0.5);
+    }
+
     pub fn add_box(&mut self, other: Self) {
         self.add_point(other.min);
         self.add_point(other.max);

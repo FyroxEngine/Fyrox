@@ -33,6 +33,11 @@ impl Octree {
             }
         }
 
+        // Inflate initial bounds by very low value to fix floating-point calculation
+        // issues when splitting and checking intersection later on.
+        let inflation = 2.0 * std::f32::EPSILON;
+        bounds.inflate(Vector3::new(inflation, inflation, inflation));
+
         // Get initial list of indices.
         let mut indices = Vec::new();
         for i in 0..triangles.len() {
@@ -124,6 +129,10 @@ impl Octree {
 
     pub fn node(&self, handle: Handle<OctreeNode>) -> &OctreeNode {
         &self.nodes[handle]
+    }
+
+    pub fn nodes(&self) -> &Pool<OctreeNode> {
+        &self.nodes
     }
 
     pub fn ray_query_static<T>(&self, ray: &Ray, buffer: &mut ArrayVec<T>)

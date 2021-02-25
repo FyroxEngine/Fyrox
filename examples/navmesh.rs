@@ -9,18 +9,15 @@ extern crate rg3d;
 pub mod shared;
 
 use crate::shared::create_camera;
-use rg3d::core::arrayvec::ArrayVec;
-use rg3d::core::math::PositionProvider;
-use rg3d::dpi::LogicalPosition;
-use rg3d::scene::physics::{Intersection, RayCastOptions};
-use rg3d::scene::Line;
-use rg3d::utils::navmesh::NavmeshAgent;
 use rg3d::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
+        arrayvec::ArrayVec,
         color::Color,
+        math::PositionProvider,
         pool::Handle,
     },
+    dpi::LogicalPosition,
     engine::resource_manager::ResourceManager,
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -31,8 +28,15 @@ use rg3d::{
         widget::WidgetBuilder,
     },
     renderer::surface::{SurfaceBuilder, SurfaceSharedData},
-    scene::{base::BaseBuilder, mesh::MeshBuilder, node::Node, transform::TransformBuilder, Scene},
-    utils::translate_event,
+    scene::{
+        base::BaseBuilder,
+        mesh::MeshBuilder,
+        node::Node,
+        physics::{Intersection, RayCastOptions},
+        transform::TransformBuilder,
+        Line, Scene,
+    },
+    utils::{navmesh::NavmeshAgent, translate_event},
 };
 use std::{
     sync::{Arc, RwLock},
@@ -62,7 +66,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     // Camera is our eyes in the world - you won't see anything without it.
     let camera = create_camera(
         resource_manager.clone(),
-        Vector3::new(0.0, 6.0, 0.0),
+        Vector3::new(4.0, 8.0, 0.0),
         &mut scene.graph,
     )
     .await;

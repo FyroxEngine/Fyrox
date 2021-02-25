@@ -201,7 +201,7 @@ impl Ray {
         if tzmax < tmax {
             tmax = tzmax;
         }
-        if tmin < 1.0 && tmax > 0.0 {
+        if tmin <= 1.0 && tmax >= 0.0 {
             Some(IntersectionResult {
                 min: tmin,
                 max: tmax,

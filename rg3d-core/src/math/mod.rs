@@ -8,11 +8,10 @@ pub mod ray;
 pub mod triangulator;
 
 use crate::{
-    algebra::{Matrix3, Scalar, UnitQuaternion, Vector2, Vector3, U3},
+    algebra::{Matrix3, Matrix4, Scalar, UnitQuaternion, Vector2, Vector3, U3},
     visitor::{Visit, VisitResult, Visitor},
 };
-use nalgebra::Matrix4;
-use std::ops::{Add, Deref, Index, IndexMut, Mul, Sub};
+use std::ops::{Add, Index, IndexMut, Mul, Sub};
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Rect<T: Scalar> {
@@ -595,9 +594,9 @@ pub fn get_closest_point<P: PositionProvider>(points: &[P], point: Vector3<f32>)
     closest_index
 }
 
-pub fn get_closest_point_triangles<P: PositionProvider, T: Deref<Target = TriangleDefinition>>(
+pub fn get_closest_point_triangles<P: PositionProvider>(
     points: &[P],
-    triangles: &[T],
+    triangles: &[TriangleDefinition],
     triangle_indices: &[u32],
     point: Vector3<f32>,
 ) -> Option<usize> {
@@ -617,12 +616,9 @@ pub fn get_closest_point_triangles<P: PositionProvider, T: Deref<Target = Triang
     closest_index
 }
 
-pub fn get_closest_point_triangle_set<
-    P: PositionProvider,
-    T: Deref<Target = TriangleDefinition>,
->(
+pub fn get_closest_point_triangle_set<P: PositionProvider>(
     points: &[P],
-    triangles: &[T],
+    triangles: &[TriangleDefinition],
     point: Vector3<f32>,
 ) -> Option<usize> {
     let mut closest_sqr_distance = std::f32::MAX;

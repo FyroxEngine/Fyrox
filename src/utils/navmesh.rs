@@ -29,38 +29,13 @@ use crate::{
 use std::{
     collections::HashSet,
     hash::{Hash, Hasher},
-    ops::Deref,
 };
-
-/// A navmesh triangle, contains indices of vertices forming the triangle and a list
-/// of adjacent triangles (indices).
-#[derive(Default, Clone, Debug)]
-pub struct NavmeshTriangle {
-    triangle: TriangleDefinition,
-    /// Indices of adjacent triangles.
-    adjacent_triangles: ArrayVec<[usize; 3]>,
-}
-
-impl Deref for NavmeshTriangle {
-    type Target = TriangleDefinition;
-
-    fn deref(&self) -> &Self::Target {
-        &self.triangle
-    }
-}
-
-impl Visit for NavmeshTriangle {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        // Don't visit adjacent triangles, it will be restored on load anyway.
-        self.triangle.visit(name, visitor)
-    }
-}
 
 /// See module docs.
 #[derive(Clone, Debug)]
 pub struct Navmesh {
     octree: Octree,
-    triangles: Vec<NavmeshTriangle>,
+    triangles: Vec<TriangleDefinition>,
     pathfinder: PathFinder,
     query_buffer: Vec<u32>,
 }
@@ -80,17 +55,14 @@ impl Visit for Navmesh {
                 .iter()
                 .map(|t| {
                     [
-                        vertices[t.triangle[0] as usize].position,
-                        vertices[t.triangle[1] as usize].position,
-                        vertices[t.triangle[2] as usize].position,
+                        vertices[t[0] as usize].position,
+                        vertices[t[1] as usize].position,
+                        vertices[t[2] as usize].position,
                     ]
                 })
                 .collect::<Vec<[Vector3<f32>; 3]>>();
 
             self.octree = Octree::new(&raw_triangles, 32);
-
-            // Restore adjacency info.
-            self.calculate_adjacency();
         }
 
         visitor.leave_region()
@@ -171,23 +143,12 @@ impl Navmesh {
             pathfinder.link_bidirect(edge.a as usize, edge.b as usize);
         }
 
-        let mut navmesh = Self {
-            triangles: triangles
-                .iter()
-                .map(|t| NavmeshTriangle {
-                    triangle: t.clone(),
-                    // Adjacency will be calculated below!
-                    adjacent_triangles: Default::default(),
-                })
-                .collect(),
+        Self {
+            triangles: triangles.to_vec(),
             octree: Octree::new(&raw_triangles, 32),
             pathfinder,
             query_buffer: Default::default(),
-        };
-
-        navmesh.calculate_adjacency();
-
-        navmesh
+        }
     }
 
     /// Creates new navigation mesh (navmesh) from given mesh. It is most simple way to create complex
@@ -266,13 +227,18 @@ impl Navmesh {
     }
 
     /// Returns reference to array of triangles.
-    pub fn triangles(&self) -> &[NavmeshTriangle] {
+    pub fn triangles(&self) -> &[TriangleDefinition] {
         &self.triangles
     }
 
     /// Returns reference to array of vertices.
     pub fn vertices(&self) -> &[PathVertex] {
         self.pathfinder.vertices()
+    }
+
+    /// Returns shared reference to inner octree.
+    pub fn octree(&self) -> &Octree {
+        &self.octree
     }
 
     /// Tries to build path using indices of begin and end points.
@@ -303,7 +269,7 @@ impl Navmesh {
     }
 
     /// Tries to pick a triangle by given ray.
-    pub fn ray_cast(&self, ray: Ray) -> Option<(Vector3<f32>, usize, NavmeshTriangle)> {
+    pub fn ray_cast(&self, ray: Ray) -> Option<(Vector3<f32>, usize, TriangleDefinition)> {
         let mut buffer = ArrayVec::<[Handle<OctreeNode>; 128]>::new();
 
         self.octree.ray_query_static(&ray, &mut buffer);
@@ -312,9 +278,9 @@ impl Navmesh {
             if let OctreeNode::Leaf { indices, .. } = self.octree.node(node) {
                 for &index in indices {
                     let triangle = self.triangles[index as usize].clone();
-                    let a = self.pathfinder.vertices()[triangle.triangle[0] as usize].position;
-                    let b = self.pathfinder.vertices()[triangle.triangle[1] as usize].position;
-                    let c = self.pathfinder.vertices()[triangle.triangle[2] as usize].position;
+                    let a = self.pathfinder.vertices()[triangle[0] as usize].position;
+                    let b = self.pathfinder.vertices()[triangle[1] as usize].position;
+                    let c = self.pathfinder.vertices()[triangle[2] as usize].position;
 
                     if let Some(intersection) = ray.triangle_intersection(&[a, b, c]) {
                         return Some((intersection, index as usize, triangle));
@@ -326,25 +292,6 @@ impl Navmesh {
         }
 
         None
-    }
-
-    fn calculate_adjacency(&mut self) {
-        // Brute-force. May be slow for large navmeshes.
-        let triangles = unsafe { &*(&self.triangles as *const Vec<NavmeshTriangle>) };
-        for triangle in self.triangles.iter_mut() {
-            for (other_triangle_index, other_triangle) in triangles.iter().enumerate() {
-                if !std::ptr::eq(triangle, other_triangle) {
-                    'edge_loop: for edge in &triangle.triangle.edges() {
-                        for other_edge in &other_triangle.triangle.edges() {
-                            if edge == other_edge {
-                                triangle.adjacent_triangles.push(other_triangle_index);
-                                continue 'edge_loop;
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
 }
 
@@ -417,21 +364,12 @@ impl NavmeshAgent {
 }
 
 fn closest_point_index_in_triangle_and_adjacent(
-    triangle: NavmeshTriangle,
+    triangle: TriangleDefinition,
     navmesh: &Navmesh,
     to: Vector3<f32>,
 ) -> Option<usize> {
-    let mut triangles = ArrayVec::<[NavmeshTriangle; 4]>::new();
+    let mut triangles = ArrayVec::<[TriangleDefinition; 4]>::new();
     triangles.push(triangle);
-
-    /*
-    TODO
-
-        for &adjacent in triangle.adjacent_triangles.iter() {
-            triangles.push(navmesh.triangles[adjacent].clone())
-        }
-    */
-
     math::get_closest_point_triangle_set(&navmesh.pathfinder.vertices(), &triangles, to)
 }
 
@@ -522,21 +460,23 @@ impl NavmeshAgent {
             for _ in 0..2 {
                 let mut i = 0;
                 while i < self.path.len().saturating_sub(2) {
-                    let center = (self.path[i] + self.path[i + 2]).scale(0.5);
+                    let begin = self.path[i];
+                    let end = self.path[i + 2];
+                    let center = (begin + end).scale(0.5);
+                    let delta = end - begin;
+
+                    let max_delta = delta.x.max(delta.y).max(delta.z);
 
                     for triangle in navmesh.triangles.iter() {
-                        let a =
-                            navmesh.pathfinder.vertices()[triangle.triangle[0] as usize].position;
-                        let b =
-                            navmesh.pathfinder.vertices()[triangle.triangle[1] as usize].position;
-                        let c =
-                            navmesh.pathfinder.vertices()[triangle.triangle[2] as usize].position;
+                        let a = navmesh.pathfinder.vertices()[triangle[0] as usize].position;
+                        let b = navmesh.pathfinder.vertices()[triangle[1] as usize].position;
+                        let c = navmesh.pathfinder.vertices()[triangle[2] as usize].position;
 
                         let normal = (c - a).cross(&(b - a));
 
                         let (projection, distance) = project(center, a, normal);
 
-                        if distance.abs() < 0.01
+                        if distance.abs() <= max_delta
                             && math::is_point_inside_triangle(&projection, &[a, b, c])
                         {
                             self.path[i + 1] = projection;
