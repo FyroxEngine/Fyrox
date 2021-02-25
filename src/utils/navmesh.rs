@@ -373,20 +373,6 @@ fn closest_point_index_in_triangle_and_adjacent(
     math::get_closest_point_triangle_set(&navmesh.pathfinder.vertices(), &triangles, to)
 }
 
-/// Projects a point on a plane and returns a projection and distance from the point to the plane.
-fn project(
-    point: Vector3<f32>,
-    plane_point: Vector3<f32>,
-    plane_normal: Vector3<f32>,
-) -> (Vector3<f32>, f32) {
-    if let Some(normal) = plane_normal.try_normalize(std::f32::EPSILON) {
-        let distance = (point - plane_point).dot(&normal);
-        (point - normal.scale(distance), distance)
-    } else {
-        (point, 0.0)
-    }
-}
-
 impl NavmeshAgent {
     /// Calculates path from point A to point B. In most cases there is no need to use this method
     /// directly, because `update` will call it anyway if target position has moved.
@@ -455,42 +441,65 @@ impl NavmeshAgent {
 
             self.path.reverse();
 
-            // Refine path.
-            // TODO: Optimize.
+            // Perform few smoothing passes to straighten computed path.
             for _ in 0..2 {
-                let mut i = 0;
-                while i < self.path.len().saturating_sub(2) {
-                    let begin = self.path[i];
-                    let end = self.path[i + 2];
-                    let center = (begin + end).scale(0.5);
-                    let delta = end - begin;
-
-                    let max_delta = (delta.x.max(delta.y).max(delta.z)).abs();
-
-                    for triangle in navmesh.triangles.iter() {
-                        let a = navmesh.pathfinder.vertices()[triangle[0] as usize].position;
-                        let b = navmesh.pathfinder.vertices()[triangle[1] as usize].position;
-                        let c = navmesh.pathfinder.vertices()[triangle[2] as usize].position;
-
-                        let normal = (c - a).cross(&(b - a));
-
-                        let (projection, distance) = project(center, a, normal);
-
-                        if distance.abs() <= max_delta
-                            && math::is_point_inside_triangle(&projection, &[a, b, c])
-                        {
-                            self.path[i + 1] = projection;
-                            break;
-                        }
-                    }
-
-                    i += 1;
-                }
+                self.smooth_path(navmesh);
             }
 
             result
         } else {
             Err(PathError::Custom("Empty navmesh!".to_owned()))
+        }
+    }
+
+    fn smooth_path(&mut self, navmesh: &Navmesh) {
+        let vertices = navmesh.vertices();
+
+        let mut i = 0;
+        while i < self.path.len().saturating_sub(2) {
+            let begin = self.path[i];
+            let end = self.path[i + 2];
+            let delta = end - begin;
+
+            let max_delta = (delta.x.max(delta.y).max(delta.z)).abs();
+
+            // Calculate center point between end points of each path edge.
+            //     i+1
+            //      ^
+            //     / \
+            //    /   \
+            //   /     \
+            //  /-  *  -\
+            // i    C   i+2
+            let center = (begin + end).scale(0.5);
+
+            // And check if center is lying on navmesh or not. If so - replace i+1 vertex
+            // with its projection on the triangle it belongs to.
+            for triangle in navmesh.triangles.iter() {
+                let a = vertices[triangle[0] as usize].position;
+                let b = vertices[triangle[1] as usize].position;
+                let c = vertices[triangle[2] as usize].position;
+
+                // Ignore degenerated triangles.
+                if let Some(normal) = (c - a).cross(&(b - a)).try_normalize(std::f32::EPSILON) {
+                    // Calculate signed distance between triangle and segment's center.
+                    let signed_distance = (center - a).dot(&normal);
+
+                    // And check "slope": If center is too far from triangle, check next triangle.
+                    if signed_distance.abs() <= max_delta {
+                        // Project center on the triangle.
+                        let center_projection = center - normal.scale(signed_distance);
+
+                        // And check if the projection lies inside the triangle.
+                        if math::is_point_inside_triangle(&center_projection, &[a, b, c]) {
+                            self.path[i + 1] = center_projection;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            i += 1;
         }
     }
 
@@ -518,5 +527,60 @@ impl NavmeshAgent {
         }
 
         Ok(PathKind::Full)
+    }
+
+    /// Returns current steering target which in most cases next path point from which
+    /// agent is close to.
+    pub fn steering_target(&self) -> Option<Vector3<f32>> {
+        self.path
+            .get(self.current as usize + 1)
+            .or_else(|| self.path.last())
+            .cloned()
+    }
+}
+
+/// Allows you to build agent in declarative manner.
+pub struct NavmeshAgentBuilder {
+    position: Vector3<f32>,
+    recalculation_threshold: f32,
+    speed: f32,
+}
+
+impl NavmeshAgentBuilder {
+    /// Creates new builder instance.
+    pub fn new() -> Self {
+        Self {
+            position: Default::default(),
+            recalculation_threshold: 0.25,
+            speed: 1.5,
+        }
+    }
+
+    /// Sets new desired position of the agent being built.
+    pub fn with_position(mut self, position: Vector3<f32>) -> Self {
+        self.position = position;
+        self
+    }
+
+    /// Sets new desired recalculation threshold (in meters) of the agent being built.
+    pub fn with_recalculation_threshold(mut self, threshold: f32) -> Self {
+        self.recalculation_threshold = threshold;
+        self
+    }
+
+    /// Sets new desired movement speed of the agent being built.
+    pub fn with_speed(mut self, speed: f32) -> Self {
+        self.speed = speed;
+        self
+    }
+
+    /// Build the agent.
+    pub fn build(self) -> NavmeshAgent {
+        NavmeshAgent {
+            position: self.position,
+            recalculation_threshold: self.recalculation_threshold,
+            speed: self.speed,
+            ..Default::default()
+        }
     }
 }
