@@ -465,7 +465,7 @@ impl NavmeshAgent {
                     let center = (begin + end).scale(0.5);
                     let delta = end - begin;
 
-                    let max_delta = delta.x.max(delta.y).max(delta.z);
+                    let max_delta = (delta.x.max(delta.y).max(delta.z)).abs();
 
                     for triangle in navmesh.triangles.iter() {
                         let a = navmesh.pathfinder.vertices()[triangle[0] as usize].position;
