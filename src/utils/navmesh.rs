@@ -301,9 +301,12 @@ pub struct NavmeshAgent {
     path: Vec<Vector3<f32>>,
     current: u32,
     position: Vector3<f32>,
+    last_warp_position: Vector3<f32>,
+    target: Vector3<f32>,
     last_target_position: Vector3<f32>,
     recalculation_threshold: f32,
     speed: f32,
+    path_dirty: bool,
 }
 
 impl Visit for NavmeshAgent {
@@ -313,11 +316,14 @@ impl Visit for NavmeshAgent {
         self.path.visit("Path", visitor)?;
         self.current.visit("Current", visitor)?;
         self.position.visit("Position", visitor)?;
+        self.last_warp_position.visit("LastWarpPosition", visitor)?;
+        self.target.visit("Target", visitor)?;
         self.last_target_position
             .visit("LastTargetPosition", visitor)?;
         self.recalculation_threshold
             .visit("RecalculationThreshold", visitor)?;
         self.speed.visit("Speed", visitor)?;
+        self.path_dirty.visit("PathDirty", visitor)?;
 
         visitor.leave_region()
     }
@@ -336,9 +342,12 @@ impl NavmeshAgent {
             path: vec![],
             current: 0,
             position: Default::default(),
+            last_warp_position: Default::default(),
+            target: Default::default(),
             last_target_position: Default::default(),
             recalculation_threshold: 0.25,
             speed: 1.5,
+            path_dirty: true,
         }
     }
 
@@ -384,7 +393,6 @@ impl NavmeshAgent {
     ) -> Result<PathKind, PathError> {
         self.path.clear();
 
-        self.last_target_position = to;
         self.current = 0;
 
         let (n_from, begin, from_triangle) = if let Some((point, index, triangle)) = navmesh
@@ -505,14 +513,10 @@ impl NavmeshAgent {
 
     /// Performs single update tick that moves agent to the target along the path (which is automatically
     /// recalculated if target's position has changed).
-    pub fn update(
-        &mut self,
-        dt: f32,
-        navmesh: &mut Navmesh,
-        target: Vector3<f32>,
-    ) -> Result<PathKind, PathError> {
-        if target.metric_distance(&self.last_target_position) >= self.recalculation_threshold {
-            self.calculate_path(navmesh, self.position, target)?;
+    pub fn update(&mut self, dt: f32, navmesh: &mut Navmesh) -> Result<PathKind, PathError> {
+        if self.path_dirty {
+            self.calculate_path(navmesh, self.position, self.target)?;
+            self.path_dirty = false;
         }
 
         if let Some(source) = self.path.get(self.current as usize) {
@@ -537,11 +541,32 @@ impl NavmeshAgent {
             .or_else(|| self.path.last())
             .cloned()
     }
+
+    /// Sets new target for the agent.
+    pub fn set_target(&mut self, new_target: Vector3<f32>) {
+        if new_target.metric_distance(&self.last_target_position) >= self.recalculation_threshold {
+            self.path_dirty = true;
+            self.last_target_position = new_target;
+        }
+
+        self.target = new_target;
+    }
+
+    /// Warps agent to a new position.
+    pub fn warp(&mut self, new_position: Vector3<f32>) {
+        if new_position.metric_distance(&self.last_warp_position) >= self.recalculation_threshold {
+            self.path_dirty = true;
+            self.last_warp_position = new_position;
+        }
+
+        self.position = new_position;
+    }
 }
 
 /// Allows you to build agent in declarative manner.
 pub struct NavmeshAgentBuilder {
     position: Vector3<f32>,
+    target: Vector3<f32>,
     recalculation_threshold: f32,
     speed: f32,
 }
@@ -551,6 +576,7 @@ impl NavmeshAgentBuilder {
     pub fn new() -> Self {
         Self {
             position: Default::default(),
+            target: Default::default(),
             recalculation_threshold: 0.25,
             speed: 1.5,
         }
@@ -559,6 +585,12 @@ impl NavmeshAgentBuilder {
     /// Sets new desired position of the agent being built.
     pub fn with_position(mut self, position: Vector3<f32>) -> Self {
         self.position = position;
+        self
+    }
+
+    /// Sets new desired target of the agent being built.
+    pub fn with_target(mut self, position: Vector3<f32>) -> Self {
+        self.target = position;
         self
     }
 
@@ -578,6 +610,9 @@ impl NavmeshAgentBuilder {
     pub fn build(self) -> NavmeshAgent {
         NavmeshAgent {
             position: self.position,
+            last_warp_position: self.position,
+            target: self.target,
+            last_target_position: self.target,
             recalculation_threshold: self.recalculation_threshold,
             speed: self.speed,
             ..Default::default()

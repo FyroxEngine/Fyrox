@@ -222,7 +222,8 @@ fn main() {
                     let navmesh = scene.navmeshes.iter_mut().next().unwrap();
 
                     let last = std::time::Instant::now();
-                    let _ = navmesh_agent.update(fixed_timestep, navmesh, target_position);
+                    navmesh_agent.set_target(target_position);
+                    let _ = navmesh_agent.update(fixed_timestep, navmesh);
                     let agent_time = std::time::Instant::now() - last;
 
                     scene.graph[agent]
