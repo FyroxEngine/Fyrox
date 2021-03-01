@@ -121,6 +121,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollPanel<M, C> {
                         self.invalidate_layout();
                     }
                     ScrollPanelMessage::BringIntoView(handle) => {
+                        let size = ui.node(handle).actual_size();
                         let mut parent = handle;
                         let mut relative_position = Vector2::default();
                         while parent.is_some() && parent != self.handle {
@@ -134,6 +135,8 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollPanel<M, C> {
                             || relative_position.y < 0.0
                             || relative_position.x > self.actual_size().x
                             || relative_position.y > self.actual_size().y
+                            || (relative_position.x + size.x) > self.actual_size().x
+                            || (relative_position.y + size.y) > self.actual_size().y
                         {
                             relative_position += self.scroll;
                             // This check is needed because it possible that given handle is not in
