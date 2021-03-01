@@ -7,6 +7,7 @@ pub mod plane;
 pub mod ray;
 pub mod triangulator;
 
+use crate::math::ray::IntersectionResult;
 use crate::{
     algebra::{Matrix3, Matrix4, Scalar, UnitQuaternion, Vector2, Vector3, U3},
     visitor::{Visit, VisitResult, Visitor},
@@ -482,6 +483,45 @@ pub fn spherical_to_cartesian(azimuth: f32, elevation: f32, radius: f32) -> Vect
     Vector3::new(x, y, z)
 }
 
+pub fn ray_rect_intersection(
+    rect: Rect<f32>,
+    origin: Vector2<f32>,
+    dir: Vector2<f32>,
+) -> Option<IntersectionResult> {
+    let min = rect.left_top_corner();
+    let max = rect.right_bottom_corner();
+
+    let (mut tmin, mut tmax) = if dir.x >= 0.0 {
+        ((min.x - origin.x) / dir.x, (max.x - origin.x) / dir.x)
+    } else {
+        ((max.x - origin.x) / dir.x, (min.x - origin.x) / dir.x)
+    };
+
+    let (tymin, tymax) = if dir.y >= 0.0 {
+        ((min.y - origin.y) / dir.y, (max.y - origin.y) / dir.y)
+    } else {
+        ((max.y - origin.y) / dir.y, (min.y - origin.y) / dir.y)
+    };
+
+    if tmin > tymax || tymin > tmax {
+        return None;
+    }
+    if tymin > tmin {
+        tmin = tymin;
+    }
+    if tymax < tmax {
+        tmax = tymax;
+    }
+    if tmin <= 1.0 && tmax >= 0.0 {
+        Some(IntersectionResult {
+            min: tmin,
+            max: tmax,
+        })
+    } else {
+        None
+    }
+}
+
 #[derive(Clone, Debug, Default)]
 #[repr(C)]
 pub struct TriangleEdge {
@@ -734,24 +774,6 @@ impl Visit for SmoothAngle {
     }
 }
 
-#[cfg(test)]
-mod test {
-    use crate::math::SmoothAngle;
-
-    #[test]
-    fn smooth_angle() {
-        let mut angle = SmoothAngle {
-            angle: 290.0f32.to_radians(),
-            target: 90.0f32.to_radians(),
-            speed: 100.0f32.to_radians(),
-        };
-
-        while !angle.at_target() {
-            println!("{}", angle.update(1.0).angle().to_degrees());
-        }
-    }
-}
-
 #[derive(Copy, Clone, Hash, PartialOrd, PartialEq, Ord, Eq)]
 pub enum RotationOrder {
     XYZ,
@@ -906,5 +928,46 @@ impl Vector2Ext for Vector2<f32> {
 
     fn per_component_max(&self, other: &Self) -> Self {
         Self::new(self.x.max(other.x), self.y.max(other.y))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::algebra::Vector2;
+    use crate::math::Rect;
+    use crate::math::SmoothAngle;
+
+    #[test]
+    fn ray_rect_intersection() {
+        let rect = Rect::new(0.0, 0.0, 10.0, 10.0);
+
+        // Edge-case: Horizontal ray.
+        assert!(super::ray_rect_intersection(
+            rect,
+            Vector2::new(-1.0, 5.0),
+            Vector2::new(1.0, 0.0)
+        )
+        .is_some());
+
+        // Edge-case: Vertical ray.
+        assert!(super::ray_rect_intersection(
+            rect,
+            Vector2::new(5.0, -1.0),
+            Vector2::new(0.0, 1.0)
+        )
+        .is_some());
+    }
+
+    #[test]
+    fn smooth_angle() {
+        let mut angle = SmoothAngle {
+            angle: 290.0f32.to_radians(),
+            target: 90.0f32.to_radians(),
+            speed: 100.0f32.to_radians(),
+        };
+
+        while !angle.at_target() {
+            println!("{}", angle.update(1.0).angle().to_degrees());
+        }
     }
 }

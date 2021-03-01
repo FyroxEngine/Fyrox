@@ -47,8 +47,8 @@
 //! ```no_run
 //! use rg3d::{
 //!     animation::machine::{
-//!         Machine, State, Transition, PoseNode, BlendPose,
-//!         Parameter, PlayAnimation, PoseWeight, BlendAnimations
+//!         Machine, State, Transition, PoseNode, blend_nodes::BlendPose,
+//!         Parameter, PlayAnimation, PoseWeight, blend_nodes::BlendAnimations
 //!     },
 //!     core::pool::Handle
 //! };

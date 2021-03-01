@@ -56,12 +56,11 @@ impl Listener {
     ///
     /// ```
     /// use rg3d_sound::listener::Listener;
-    /// use rg3d_sound::math::mat3::Matrix3;
-    /// use rg3d_sound::math::vec3::Vector3;
-    /// use rg3d_sound::math::quat::UnitQuaternion;
+    /// use rg3d_sound::algebra::{Matrix3, UnitQuaternion, Vector3};
+    /// use rg3d_sound::math::{Matrix4Ext};
     ///
     /// fn orient_listener(listener: &mut Listener) {
-    ///     let basis = Matrix3::from_quat(UnitQuaternion::from_axis_angle(Vector3::new(0.0, 1.0, 0.0), 45.0f32.to_radians()));
+    ///     let basis = UnitQuaternion::from_axis_angle(&Vector3::y_axis(), 45.0f32.to_radians()).to_homogeneous().basis();
     ///     listener.set_basis(basis);
     /// }
     /// ```

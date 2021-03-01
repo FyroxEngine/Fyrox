@@ -22,7 +22,7 @@
 //!        .with_status(Status::Playing)
 //!        .build_source()
 //!        .unwrap();
-//!     context.add_source(source)
+//!     context.state().add_source(source)
 //! }
 //!
 //! ```

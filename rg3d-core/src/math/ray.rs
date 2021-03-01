@@ -21,7 +21,7 @@ impl Default for Ray {
 }
 
 /// Pair of ray equation parameters.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Copy)]
 pub struct IntersectionResult {
     pub min: f32,
     pub max: f32,
@@ -414,9 +414,7 @@ mod test {
             Vector3::new(-0.5, -0.5, 0.0),
             Vector3::new(0.5, -0.5, 0.0),
         ];
-        let ray =
-            Ray::from_two_points(&Vector3::new(0.0, 0.0, -2.0), &Vector3::new(0.0, 0.0, -1.0))
-                .unwrap();
+        let ray = Ray::from_two_points(Vector3::new(0.0, 0.0, -2.0), Vector3::new(0.0, 0.0, -1.0));
         assert!(ray.triangle_intersection(&triangle).is_none());
     }
 }

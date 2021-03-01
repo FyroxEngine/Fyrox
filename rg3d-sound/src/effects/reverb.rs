@@ -16,7 +16,7 @@
 //! fn set_reverberator(context: &mut Context) {
 //!     let mut reverb = Reverb::new(BaseEffect::default());
 //!     reverb.set_decay_time(Duration::from_secs_f32(10.0));
-//!     context.add_effect(Effect::Reverb(reverb));
+//!     context.state().add_effect(Effect::Reverb(reverb));
 //! }
 //! ```
 //!

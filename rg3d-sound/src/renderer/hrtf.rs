@@ -30,7 +30,7 @@
 //!     // from base mentioned above.
 //!     let hrir_sphere = HrirSphere::from_file("examples/data/IRC_1002_C.bin", context::SAMPLE_RATE).unwrap();
 //!
-//!     context.set_renderer(Renderer::HrtfRenderer(HrtfRenderer::new(hrir_sphere)));
+//!     context.state().set_renderer(Renderer::HrtfRenderer(HrtfRenderer::new(hrir_sphere)));
 //! }
 //! ```
 //!

@@ -86,7 +86,7 @@ fn plane_sanity_tests() {
     // Computation test
     let plane =
         Plane::from_normal_and_point(&Vector3::new(0.0, 10.0, 0.0), &Vector3::new(0.0, 3.0, 0.0));
-    assert!(plane.is_ok());
+    assert!(plane.is_some());
     let plane = plane.unwrap();
     assert_eq!(plane.normal.x, 0.0);
     assert_eq!(plane.normal.y, 1.0);
@@ -96,8 +96,8 @@ fn plane_sanity_tests() {
     // Degenerated normal case
     let plane =
         Plane::from_normal_and_point(&Vector3::new(0.0, 0.0, 0.0), &Vector3::new(0.0, 0.0, 0.0));
-    assert!(plane.is_err());
+    assert!(plane.is_none());
 
     let plane = Plane::from_abcd(0.0, 0.0, 0.0, 0.0);
-    assert!(plane.is_err())
+    assert!(plane.is_none())
 }

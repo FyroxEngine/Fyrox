@@ -22,7 +22,7 @@
 //!         .build()
 //!         .unwrap())
 //!         .build_source();
-//!     context.add_source(source)
+//!     context.state().add_source(source)
 //! }
 //! ```
 

@@ -30,7 +30,7 @@
 //!     },
 //! };
 //!
-//!  let context = Context::new().unwrap();
+//!  let context = Context::new();
 //!
 //!  let sound_buffer = SoundBuffer::new_generic(DataSource::from_file("sound.wav").unwrap()).unwrap();
 //!
@@ -39,8 +39,7 @@
 //!     .build_source()
 //!     .unwrap();
 //!
-//!  context.lock()
-//!     .unwrap()
+//!  context.state()
 //!     .add_source(source);
 //!
 //!  thread::sleep(Duration::from_secs(3));
