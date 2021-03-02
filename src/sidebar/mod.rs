@@ -115,6 +115,26 @@ fn make_f32_input_field(
     .build(ctx)
 }
 
+fn make_int_input_field(
+    ctx: &mut BuildContext,
+    row: usize,
+    min: i32,
+    max: i32,
+    step: i32,
+) -> Handle<UiNode> {
+    NumericUpDownBuilder::new(
+        WidgetBuilder::new()
+            .on_row(row)
+            .with_margin(Thickness::uniform(1.0))
+            .on_column(1),
+    )
+    .with_min_value(min as f32)
+    .with_max_value(max as f32)
+    .with_step(step as f32)
+    .with_precision(0)
+    .build(ctx)
+}
+
 fn make_color_input_field(ctx: &mut BuildContext, row: usize) -> Handle<UiNode> {
     ColorFieldBuilder::new(
         WidgetBuilder::new()

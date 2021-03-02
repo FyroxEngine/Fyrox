@@ -1,7 +1,8 @@
 use crate::scene::{
-    SetColliderIsSensorCommand, SetColliderPositionCommand, SetColliderRotationCommand,
+    SetColliderCollisionGroupsCommand, SetColliderIsSensorCommand, SetColliderPositionCommand,
+    SetColliderRotationCommand,
 };
-use crate::sidebar::{make_bool_input_field, make_vec3_input_field};
+use crate::sidebar::{make_bool_input_field, make_int_input_field, make_vec3_input_field};
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::Collider,
@@ -28,6 +29,8 @@ pub struct ColliderSection {
     restitution: Handle<UiNode>,
     position: Handle<UiNode>,
     rotation: Handle<UiNode>,
+    collision_groups: Handle<UiNode>,
+    collision_mask: Handle<UiNode>,
     is_sensor: Handle<UiNode>,
     sender: Sender<Message>,
 }
@@ -38,6 +41,8 @@ impl ColliderSection {
         let restitution;
         let position;
         let rotation;
+        let collision_groups;
+        let collision_mask;
         let is_sensor;
         let section = GridBuilder::new(
             WidgetBuilder::new()
@@ -61,14 +66,26 @@ impl ColliderSection {
                     rotation = make_vec3_input_field(ctx, 3);
                     rotation
                 })
-                .with_child(make_text_mark(ctx, "Is Sensor", 4))
+                .with_child(make_text_mark(ctx, "Collision Groups", 4))
                 .with_child({
-                    is_sensor = make_bool_input_field(ctx, 4);
+                    collision_groups = make_int_input_field(ctx, 4, 0, u16::MAX as i32, 1);
+                    collision_groups
+                })
+                .with_child(make_text_mark(ctx, "Collision Mask", 5))
+                .with_child({
+                    collision_mask = make_int_input_field(ctx, 5, 0, u16::MAX as i32, 1);
+                    collision_mask
+                })
+                .with_child(make_text_mark(ctx, "Is Sensor", 6))
+                .with_child({
+                    is_sensor = make_bool_input_field(ctx, 6);
                     is_sensor
                 }),
         )
         .add_column(Column::strict(COLUMN_WIDTH))
         .add_column(Column::stretch())
+        .add_row(Row::strict(ROW_HEIGHT))
+        .add_row(Row::strict(ROW_HEIGHT))
         .add_row(Row::strict(ROW_HEIGHT))
         .add_row(Row::strict(ROW_HEIGHT))
         .add_row(Row::strict(ROW_HEIGHT))
@@ -84,6 +101,8 @@ impl ColliderSection {
             position,
             rotation,
             is_sensor,
+            collision_mask,
+            collision_groups,
         }
     }
 
@@ -123,6 +142,18 @@ impl ColliderSection {
             MessageDirection::ToWidget,
             Some(collider.is_sensor),
         ));
+
+        ui.send_message(NumericUpDownMessage::value(
+            self.collision_groups,
+            MessageDirection::ToWidget,
+            (collider.collision_groups >> 16) as f32,
+        ));
+
+        ui.send_message(NumericUpDownMessage::value(
+            self.collision_mask,
+            MessageDirection::ToWidget,
+            (collider.collision_groups & 0x0000FFFF) as f32,
+        ));
     }
 
     pub fn handle_message(
@@ -147,6 +178,25 @@ impl ColliderSection {
                             .send(Message::DoSceneCommand(
                                 SceneCommand::SetColliderRestitution(
                                     SetColliderRestitutionCommand::new(handle, value),
+                                ),
+                            ))
+                            .unwrap();
+                    } else if message.destination() == self.collision_mask {
+                        let mask = (collider.collision_groups & 0xFFFF0000) | value as u32;
+                        self.sender
+                            .send(Message::DoSceneCommand(
+                                SceneCommand::SetColliderCollisionGroups(
+                                    SetColliderCollisionGroupsCommand::new(handle, mask),
+                                ),
+                            ))
+                            .unwrap();
+                    } else if message.destination() == self.collision_groups {
+                        let groups =
+                            (collider.collision_groups & 0x0000FFFF) | ((value as u32) << 16);
+                        self.sender
+                            .send(Message::DoSceneCommand(
+                                SceneCommand::SetColliderCollisionGroups(
+                                    SetColliderCollisionGroupsCommand::new(handle, groups),
                                 ),
                             ))
                             .unwrap();
