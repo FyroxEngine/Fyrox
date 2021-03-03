@@ -49,7 +49,9 @@ instance) or a hardware (OpenGL, DirectX, Vulkan, Metal, etc.).
 
 ### Sound
 
-rg3d uses software sound engine [rg3d-sound](https://github.com/mrDIMAS/rg3d/tree/master/rg3d-sound)
+rg3d uses software sound engine [rg3d-sound](https://github.com/mrDIMAS/rg3d/tree/master/rg3d-sound).
+The sound engine provides support for binaural sound rendering using HRTF, which gives excellent sound 
+spatialization. 
 
 ## Code Map
 
@@ -169,35 +171,83 @@ The module contains Brush structure which describes a way of drawing graphics pr
 
 #### button.rs
 
+The module contains Button widget and its builder.
+
 #### canvas.rs
+
+The module contains Canvas widget and its builder. Canvas is a simple container for child widgets,
+it allows setting position of children widgets directly. 
 
 #### check_box.rs
 
+The module contains CheckBox widget and its builder. CheckBox is a three-state (checked, unchecked,
+undefined) switch.
+
 #### color.rs
+
+The module contains widgets to work with colors and their builders. There are separate widgets to change
+hue, saturation, brightness and compound color selector widget.
 
 #### decorator.rs
 
+The module contains Decorator widget and its builder. Decorator is a simple container for child widgets,
+it has built-in behaviour for most common actions: it changes appearance when mouse enters or leaves bounds,
+when user clicks on it, etc. 
+
 #### dock.rs
+
+The module contains DockingManager and Tile widgets and their builders. Docking manager is able to combine
+multiple Window widgets in its tiles, each tile can be resized, docked or undocked. This is the must-have
+widget for any kind of editor.
 
 #### draw.rs
 
+The module is responsible for "drawing". It is in quotes, because it does not actually draw anything, it just 
+emits drawing commands in a queue for later interpretation. 
+
 #### dropdown_list.rs
+
+The module contains DropdownList widget and its builder. DropdownList is a small field that shows selected
+item and a "popup" that contains list of items.
 
 #### expander.rs
 
+The module contains Expander widget and its builder. Expander is a collapsable container for child widgets
+with a field that describes a content. 
+
 #### file_browser.rs
+
+The module contains a set of widgets that displays file system. FileBrowser widget is a simple file system
+tree, FileSelector is a window with FileBrowser and few buttons. 
 
 #### formatted_text.rs
 
+The module is responsible for text formatting and "rendering". The latter is in quotes, because the library 
+just uses glyph info from a font to layout each glyph in a line of text with word wrapping and other 
+useful features (like text size calculation, etc).
+
 #### grid.rs
+
+The module contains Grid widget and its builder. Grid is a powerful layout widget, it allows arranging child
+widgets in a series of rows and columns.
 
 #### image.rs
 
+The module contains Image widget and its builder. Image is a simple rectangle with a texture.
+
 #### list_view.rs
+
+The module contains ListView widget and its builder. ListView is a container for items which arranged 
+as a stack. ListView supports item selection.
 
 #### menu.rs
 
+The module contains menu widgets. Menu here means a classic menu which is a strip with root items and a 
+set of child sub-menus.
+
 #### message.rs
+
+The module contains all supported messages for every widget in the library. 
 
 #### messagebox.rs
 
