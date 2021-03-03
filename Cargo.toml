@@ -5,7 +5,7 @@ authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 edition = "2018"
 
 [dependencies]
-rg3d = { version = "0.16.0", path = "../rg3d" }
+rg3d = { path = "../rg3d" }
 lazy_static = "1.4.0"
 
 [profile.dev.package."*"]
@@ -13,7 +13,6 @@ opt-level = 3
 
 [profile.release]
 opt-level = 3
-lto = true
 
 [features]
 enable_profiler = ["rg3d/enable_profiler"]
