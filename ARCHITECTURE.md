@@ -318,3 +318,14 @@ provides support for binaural sound rendering using HRTF, which gives excellent 
 
 The engine itself. It has: a renderer, resource manager, animations, scenes, and various utilities like 
 lightmapper, uv-mapper, navigation mesh, logger, pathfinder.
+
+#### animation/mod.rs
+#### animation/machine/mod.rs
+#### animation/machine/blend_nodes.rs
+#### engine/mod.rs
+#### engine/error.rs
+#### engine/resource_manager.rs
+#### renderer/mod.rs
+#### renderer/framework/mod.rs
+#### renderer/framework/framebuffer.rs
+#### renderer/framework/geometry_buffer.rs
