@@ -375,6 +375,7 @@ pub enum Message {
     DoSceneCommand(SceneCommand),
     UndoSceneCommand,
     RedoSceneCommand,
+    ClearSceneCommandStack,
     SelectionChanged,
     SyncToModel,
     SaveScene(PathBuf),
@@ -1163,6 +1164,17 @@ impl Editor {
                 Message::RedoSceneCommand => {
                     if let Some(editor_scene) = self.scene.as_mut() {
                         self.command_stack.redo(SceneContext {
+                            scene: &mut engine.scenes[editor_scene.scene],
+                            message_sender: self.message_sender.clone(),
+                            editor_scene,
+                            resource_manager: engine.resource_manager.clone(),
+                        });
+                        needs_sync = true;
+                    }
+                }
+                Message::ClearSceneCommandStack => {
+                    if let Some(editor_scene) = self.scene.as_mut() {
+                        self.command_stack.clear(SceneContext {
                             scene: &mut engine.scenes[editor_scene.scene],
                             message_sender: self.message_sender.clone(),
                             editor_scene,

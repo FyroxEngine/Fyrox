@@ -130,6 +130,18 @@ impl<C> CommandStack<C> {
             }
         }
     }
+
+    pub fn clear<'a, Ctx>(&mut self, mut context: Ctx)
+    where
+        C: Command<'a, Context = Ctx> + Debug,
+    {
+        for mut dropped_command in self.commands.drain(..) {
+            if self.debug {
+                println!("Finalizing command {:?}", dropped_command);
+            }
+            dropped_command.finalize(&mut context);
+        }
+    }
 }
 
 pub struct CommandStackViewer {
@@ -138,6 +150,7 @@ pub struct CommandStackViewer {
     sender: Sender<Message>,
     undo: Handle<UiNode>,
     redo: Handle<UiNode>,
+    clear: Handle<UiNode>,
 }
 
 impl CommandStackViewer {
@@ -149,6 +162,7 @@ impl CommandStackViewer {
         let list;
         let undo;
         let redo;
+        let clear;
         let window = WindowBuilder::new(WidgetBuilder::new())
             .with_title(WindowTitle::Text("Command Stack".to_owned()))
             .with_content(
@@ -192,12 +206,30 @@ impl CommandStackViewer {
                                             )
                                             .with_opt_texture(load_image(
                                                 "resources/redo.png",
-                                                resource_manager,
+                                                resource_manager.clone(),
                                             ))
                                             .build(ctx),
                                         )
                                         .build(ctx);
                                         redo
+                                    })
+                                    .with_child({
+                                        clear = ButtonBuilder::new(WidgetBuilder::new())
+                                            .with_content(
+                                                ImageBuilder::new(
+                                                    WidgetBuilder::new()
+                                                        .with_margin(Thickness::uniform(1.0))
+                                                        .with_height(28.0)
+                                                        .with_width(28.0),
+                                                )
+                                                .with_opt_texture(load_image(
+                                                    "resources/clear.png",
+                                                    resource_manager,
+                                                ))
+                                                .build(ctx),
+                                            )
+                                            .build(ctx);
+                                        clear
                                     }),
                             )
                             .with_orientation(Orientation::Horizontal)
@@ -229,6 +261,7 @@ impl CommandStackViewer {
             sender,
             undo,
             redo,
+            clear,
         }
     }
 
@@ -240,6 +273,8 @@ impl CommandStackViewer {
                 self.sender.send(Message::UndoSceneCommand).unwrap();
             } else if message.destination() == self.redo {
                 self.sender.send(Message::RedoSceneCommand).unwrap();
+            } else if message.destination() == self.clear {
+                self.sender.send(Message::ClearSceneCommandStack).unwrap();
             }
         }
     }
