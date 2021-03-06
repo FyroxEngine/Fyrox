@@ -10,6 +10,7 @@ use crate::{
         DeleteJointCommand, EditorScene, SceneCommand, Selection, SetBodyCommand,
         SetColliderCommand,
     },
+    send_sync_message,
     sidebar::{
         make_dropdown_list_option, make_text_mark,
         physics::{
@@ -243,18 +244,24 @@ impl PhysicsSection {
                         }
                     }
 
-                    ui.send_message(DropdownListMessage::selection(
-                        self.body,
-                        MessageDirection::ToWidget,
-                        Some(body_index),
-                    ));
+                    send_sync_message(
+                        ui,
+                        DropdownListMessage::selection(
+                            self.body,
+                            MessageDirection::ToWidget,
+                            Some(body_index),
+                        ),
+                    );
 
                     fn toggle_visibility(ui: &mut Ui, destination: Handle<UiNode>, value: bool) {
-                        ui.send_message(WidgetMessage::visibility(
-                            destination,
-                            MessageDirection::ToWidget,
-                            value,
-                        ));
+                        send_sync_message(
+                            ui,
+                            WidgetMessage::visibility(
+                                destination,
+                                MessageDirection::ToWidget,
+                                value,
+                            ),
+                        );
                     };
 
                     toggle_visibility(ui, self.collider, body_index != 0);
@@ -287,17 +294,23 @@ impl PhysicsSection {
                             JointParamsDesc::PrismaticJoint(_) => 3,
                             JointParamsDesc::RevoluteJoint(_) => 4,
                         };
-                        ui.send_message(DropdownListMessage::selection(
-                            self.joint,
-                            MessageDirection::ToWidget,
-                            Some(joint_index),
-                        ));
+                        send_sync_message(
+                            ui,
+                            DropdownListMessage::selection(
+                                self.joint,
+                                MessageDirection::ToWidget,
+                                Some(joint_index),
+                            ),
+                        );
                     } else {
-                        ui.send_message(DropdownListMessage::selection(
-                            self.joint,
-                            MessageDirection::ToWidget,
-                            Some(0),
-                        ));
+                        send_sync_message(
+                            ui,
+                            DropdownListMessage::selection(
+                                self.joint,
+                                MessageDirection::ToWidget,
+                                Some(0),
+                            ),
+                        );
                     }
 
                     if let Some(&body_handle) = editor_scene.physics.binder.value_of(&node_handle) {
@@ -359,17 +372,23 @@ impl PhysicsSection {
                                         9
                                     }
                                 };
-                            ui.send_message(DropdownListMessage::selection(
-                                self.collider,
-                                MessageDirection::ToWidget,
-                                Some(collider_index),
-                            ));
+                            send_sync_message(
+                                ui,
+                                DropdownListMessage::selection(
+                                    self.collider,
+                                    MessageDirection::ToWidget,
+                                    Some(collider_index),
+                                ),
+                            );
                         } else {
-                            ui.send_message(DropdownListMessage::selection(
-                                self.collider,
-                                MessageDirection::ToWidget,
-                                None,
-                            ));
+                            send_sync_message(
+                                ui,
+                                DropdownListMessage::selection(
+                                    self.collider,
+                                    MessageDirection::ToWidget,
+                                    None,
+                                ),
+                            );
                         }
                     }
                 }

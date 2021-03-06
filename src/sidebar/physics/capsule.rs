@@ -2,6 +2,7 @@ use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::Collider,
     scene::{SceneCommand, SetCapsuleBeginCommand, SetCapsuleEndCommand, SetCapsuleRadiusCommand},
+    send_sync_message,
     sidebar::{
         make_f32_input_field, make_text_mark, make_vec3_input_field, COLUMN_WIDTH, ROW_HEIGHT,
     },
@@ -66,23 +67,20 @@ impl CapsuleSection {
     }
 
     pub fn sync_to_model(&mut self, capsule: &CapsuleDesc, ui: &mut Ui) {
-        ui.send_message(Vec3EditorMessage::value(
-            self.begin,
-            MessageDirection::ToWidget,
-            capsule.begin,
-        ));
+        send_sync_message(
+            ui,
+            Vec3EditorMessage::value(self.begin, MessageDirection::ToWidget, capsule.begin),
+        );
 
-        ui.send_message(Vec3EditorMessage::value(
-            self.end,
-            MessageDirection::ToWidget,
-            capsule.end,
-        ));
+        send_sync_message(
+            ui,
+            Vec3EditorMessage::value(self.end, MessageDirection::ToWidget, capsule.end),
+        );
 
-        ui.send_message(NumericUpDownMessage::value(
-            self.radius,
-            MessageDirection::ToWidget,
-            capsule.radius,
-        ));
+        send_sync_message(
+            ui,
+            NumericUpDownMessage::value(self.radius, MessageDirection::ToWidget, capsule.radius),
+        );
     }
 
     pub fn handle_message(

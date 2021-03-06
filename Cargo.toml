@@ -1,6 +1,6 @@
 [package]
 name = "rusty-editor"
-version = "0.6.0"
+version = "0.7.0"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 edition = "2018"
 
@@ -13,6 +13,7 @@ opt-level = 3
 
 [profile.release]
 opt-level = 3
+lto = true
 
 [features]
 enable_profiler = ["rg3d/enable_profiler"]

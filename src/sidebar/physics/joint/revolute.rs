@@ -6,6 +6,7 @@ use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::Joint,
     scene::SceneCommand,
+    send_sync_message,
     sidebar::{make_text_mark, make_vec3_input_field, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
 };
@@ -77,29 +78,41 @@ impl RevoluteJointSection {
     }
 
     pub fn sync_to_model(&mut self, revolute: &RevoluteJointDesc, ui: &mut Ui) {
-        ui.send_message(Vec3EditorMessage::value(
-            self.joint_anchor,
-            MessageDirection::ToWidget,
-            revolute.local_anchor1,
-        ));
+        send_sync_message(
+            ui,
+            Vec3EditorMessage::value(
+                self.joint_anchor,
+                MessageDirection::ToWidget,
+                revolute.local_anchor1,
+            ),
+        );
 
-        ui.send_message(Vec3EditorMessage::value(
-            self.joint_axis,
-            MessageDirection::ToWidget,
-            revolute.local_axis1,
-        ));
+        send_sync_message(
+            ui,
+            Vec3EditorMessage::value(
+                self.joint_axis,
+                MessageDirection::ToWidget,
+                revolute.local_axis1,
+            ),
+        );
 
-        ui.send_message(Vec3EditorMessage::value(
-            self.connected_anchor,
-            MessageDirection::ToWidget,
-            revolute.local_anchor2,
-        ));
+        send_sync_message(
+            ui,
+            Vec3EditorMessage::value(
+                self.connected_anchor,
+                MessageDirection::ToWidget,
+                revolute.local_anchor2,
+            ),
+        );
 
-        ui.send_message(Vec3EditorMessage::value(
-            self.connected_axis,
-            MessageDirection::ToWidget,
-            revolute.local_axis2,
-        ));
+        send_sync_message(
+            ui,
+            Vec3EditorMessage::value(
+                self.connected_axis,
+                MessageDirection::ToWidget,
+                revolute.local_axis2,
+            ),
+        );
     }
 
     pub fn handle_message(

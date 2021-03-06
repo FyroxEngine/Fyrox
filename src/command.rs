@@ -1,6 +1,6 @@
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
-    load_image, Message,
+    load_image, send_sync_message, Message,
 };
 use rg3d::core::scope_profile;
 use rg3d::{
@@ -277,10 +277,9 @@ impl CommandStackViewer {
             })
             .collect();
 
-        ui.send_message(ListViewMessage::items(
-            self.list,
-            MessageDirection::ToWidget,
-            items,
-        ));
+        send_sync_message(
+            ui,
+            ListViewMessage::items(self.list, MessageDirection::ToWidget, items),
+        );
     }
 }

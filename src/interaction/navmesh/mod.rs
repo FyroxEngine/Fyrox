@@ -12,7 +12,7 @@ use crate::{
         DeleteNavmeshCommand, DeleteNavmeshVertexCommand, EditorScene, MoveNavmeshVertexCommand,
         SceneCommand, Selection,
     },
-    GameEngine, Message, MSG_SYNC_FLAG,
+    send_sync_message, GameEngine, Message, MSG_SYNC_FLAG,
 };
 use rg3d::core::scope_profile;
 use rg3d::gui::stack_panel::StackPanelBuilder;
@@ -184,6 +184,8 @@ impl NavmeshPanel {
             })
             .collect::<Vec<_>>();
 
+        let ui = &mut engine.user_interface;
+
         let new_selection = if let Selection::Navmesh(selection) = &editor_scene.selection {
             let selected_vertex_count = selection
                 .entities()
@@ -191,22 +193,24 @@ impl NavmeshPanel {
                 .filter(|entity| matches!(entity, NavmeshEntity::Edge(_)))
                 .count();
 
-            engine.user_interface.send_message(WidgetMessage::enabled(
-                self.connect,
-                MessageDirection::ToWidget,
-                selected_vertex_count == 2,
-            ));
+            send_sync_message(
+                ui,
+                WidgetMessage::enabled(
+                    self.connect,
+                    MessageDirection::ToWidget,
+                    selected_vertex_count == 2,
+                ),
+            );
 
             editor_scene
                 .navmeshes
                 .pair_iter()
                 .position(|(i, _)| i == selection.navmesh())
         } else {
-            engine.user_interface.send_message(WidgetMessage::enabled(
-                self.connect,
-                MessageDirection::ToWidget,
-                false,
-            ));
+            send_sync_message(
+                ui,
+                WidgetMessage::enabled(self.connect, MessageDirection::ToWidget, false),
+            );
 
             None
         };

@@ -7,6 +7,7 @@ use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::Collider,
     scene::{SceneCommand, SetColliderFrictionCommand, SetColliderRestitutionCommand},
+    send_sync_message,
     sidebar::{make_f32_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
 };
@@ -107,23 +108,32 @@ impl ColliderSection {
     }
 
     pub fn sync_to_model(&mut self, collider: &Collider, ui: &mut Ui) {
-        ui.send_message(NumericUpDownMessage::value(
-            self.friction,
-            MessageDirection::ToWidget,
-            collider.friction,
-        ));
+        send_sync_message(
+            ui,
+            NumericUpDownMessage::value(
+                self.friction,
+                MessageDirection::ToWidget,
+                collider.friction,
+            ),
+        );
 
-        ui.send_message(NumericUpDownMessage::value(
-            self.restitution,
-            MessageDirection::ToWidget,
-            collider.restitution,
-        ));
+        send_sync_message(
+            ui,
+            NumericUpDownMessage::value(
+                self.restitution,
+                MessageDirection::ToWidget,
+                collider.restitution,
+            ),
+        );
 
-        ui.send_message(Vec3EditorMessage::value(
-            self.position,
-            MessageDirection::ToWidget,
-            collider.translation,
-        ));
+        send_sync_message(
+            ui,
+            Vec3EditorMessage::value(
+                self.position,
+                MessageDirection::ToWidget,
+                collider.translation,
+            ),
+        );
 
         let euler = collider.rotation.to_euler();
         let euler_degrees = Vector3::new(
@@ -131,29 +141,37 @@ impl ColliderSection {
             euler.y.to_degrees(),
             euler.z.to_degrees(),
         );
-        ui.send_message(Vec3EditorMessage::value(
-            self.rotation,
-            MessageDirection::ToWidget,
-            euler_degrees,
-        ));
+        send_sync_message(
+            ui,
+            Vec3EditorMessage::value(self.rotation, MessageDirection::ToWidget, euler_degrees),
+        );
 
-        ui.send_message(CheckBoxMessage::checked(
-            self.is_sensor,
-            MessageDirection::ToWidget,
-            Some(collider.is_sensor),
-        ));
+        send_sync_message(
+            ui,
+            CheckBoxMessage::checked(
+                self.is_sensor,
+                MessageDirection::ToWidget,
+                Some(collider.is_sensor),
+            ),
+        );
 
-        ui.send_message(NumericUpDownMessage::value(
-            self.collision_groups,
-            MessageDirection::ToWidget,
-            (collider.collision_groups >> 16) as f32,
-        ));
+        send_sync_message(
+            ui,
+            NumericUpDownMessage::value(
+                self.collision_groups,
+                MessageDirection::ToWidget,
+                (collider.collision_groups >> 16) as f32,
+            ),
+        );
 
-        ui.send_message(NumericUpDownMessage::value(
-            self.collision_mask,
-            MessageDirection::ToWidget,
-            (collider.collision_groups & 0x0000FFFF) as f32,
-        ));
+        send_sync_message(
+            ui,
+            NumericUpDownMessage::value(
+                self.collision_mask,
+                MessageDirection::ToWidget,
+                (collider.collision_groups & 0x0000FFFF) as f32,
+            ),
+        );
     }
 
     pub fn handle_message(

@@ -3,6 +3,7 @@ use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::{Joint, RigidBody},
     scene::{SceneCommand, SetJointConnectedBodyCommand},
+    send_sync_message,
     sidebar::{
         make_text_mark,
         physics::joint::{
@@ -104,11 +105,10 @@ impl JointSection {
         ui: &mut Ui,
     ) {
         fn toggle_visibility(ui: &mut Ui, destination: Handle<UiNode>, value: bool) {
-            ui.send_message(WidgetMessage::visibility(
-                destination,
-                MessageDirection::ToWidget,
-                value,
-            ));
+            send_sync_message(
+                ui,
+                WidgetMessage::visibility(destination, MessageDirection::ToWidget, value),
+            );
         };
 
         toggle_visibility(ui, self.ball_section.section, false);
@@ -162,17 +162,19 @@ impl JointSection {
             }
         }
 
-        ui.send_message(DropdownListMessage::items(
-            self.connected_body,
-            MessageDirection::ToWidget,
-            items,
-        ));
+        send_sync_message(
+            ui,
+            DropdownListMessage::items(self.connected_body, MessageDirection::ToWidget, items),
+        );
 
-        ui.send_message(DropdownListMessage::selection(
-            self.connected_body,
-            MessageDirection::ToWidget,
-            connected_index,
-        ));
+        send_sync_message(
+            ui,
+            DropdownListMessage::selection(
+                self.connected_body,
+                MessageDirection::ToWidget,
+                connected_index,
+            ),
+        );
 
         let brush = if ui
             .node(self.connected_body)
@@ -185,11 +187,10 @@ impl JointSection {
             Brush::Solid(Color::RED)
         };
 
-        ui.send_message(WidgetMessage::foreground(
-            self.connected_body_text,
-            MessageDirection::ToWidget,
-            brush,
-        ));
+        send_sync_message(
+            ui,
+            WidgetMessage::foreground(self.connected_body_text, MessageDirection::ToWidget, brush),
+        );
     }
 
     pub fn handle_message(&mut self, message: &UiMessage, joint: &Joint, handle: Handle<Joint>) {

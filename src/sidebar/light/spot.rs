@@ -4,6 +4,7 @@ use crate::{
         SceneCommand, SetSpotLightDistanceCommand, SetSpotLightFalloffAngleDeltaCommand,
         SetSpotLightHotspotCommand,
     },
+    send_sync_message,
     sidebar::{make_f32_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
 };
@@ -69,33 +70,41 @@ impl SpotLightSection {
 
     pub fn sync_to_model(&mut self, node: &Node, ui: &mut Ui) {
         let visible = if let Node::Light(Light::Spot(spot)) = node {
-            ui.send_message(NumericUpDownMessage::value(
-                self.hotspot,
-                MessageDirection::ToWidget,
-                spot.hotspot_cone_angle(),
-            ));
+            send_sync_message(
+                ui,
+                NumericUpDownMessage::value(
+                    self.hotspot,
+                    MessageDirection::ToWidget,
+                    spot.hotspot_cone_angle(),
+                ),
+            );
 
-            ui.send_message(NumericUpDownMessage::value(
-                self.falloff_delta,
-                MessageDirection::ToWidget,
-                spot.falloff_angle_delta(),
-            ));
+            send_sync_message(
+                ui,
+                NumericUpDownMessage::value(
+                    self.falloff_delta,
+                    MessageDirection::ToWidget,
+                    spot.falloff_angle_delta(),
+                ),
+            );
 
-            ui.send_message(NumericUpDownMessage::value(
-                self.distance,
-                MessageDirection::ToWidget,
-                spot.distance(),
-            ));
+            send_sync_message(
+                ui,
+                NumericUpDownMessage::value(
+                    self.distance,
+                    MessageDirection::ToWidget,
+                    spot.distance(),
+                ),
+            );
 
             true
         } else {
             false
         };
-        ui.send_message(WidgetMessage::visibility(
-            self.section,
-            MessageDirection::ToWidget,
-            visible,
-        ));
+        send_sync_message(
+            ui,
+            WidgetMessage::visibility(self.section, MessageDirection::ToWidget, visible),
+        );
     }
 
     pub fn handle_message(&mut self, message: &UiMessage, node: &Node, handle: Handle<Node>) {

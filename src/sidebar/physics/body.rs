@@ -2,6 +2,7 @@ use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::RigidBody,
     scene::{SceneCommand, SetBodyMassCommand},
+    send_sync_message,
     sidebar::{make_f32_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
 };
@@ -45,11 +46,10 @@ impl BodySection {
     }
 
     pub fn sync_to_model(&mut self, body: &RigidBody, ui: &mut Ui) {
-        ui.send_message(NumericUpDownMessage::value(
-            self.mass,
-            MessageDirection::ToWidget,
-            body.mass,
-        ));
+        send_sync_message(
+            ui,
+            NumericUpDownMessage::value(self.mass, MessageDirection::ToWidget, body.mass),
+        );
     }
 
     pub fn handle_message(

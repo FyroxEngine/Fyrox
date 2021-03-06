@@ -1,6 +1,7 @@
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     scene::{SceneCommand, SetMeshCastShadowsCommand},
+    send_sync_message,
     sidebar::{make_bool_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
 };
@@ -45,18 +46,20 @@ impl MeshSection {
     }
 
     pub fn sync_to_model(&mut self, node: &Node, ui: &mut Ui) {
-        ui.send_message(WidgetMessage::visibility(
-            self.section,
-            MessageDirection::ToWidget,
-            node.is_mesh(),
-        ));
+        send_sync_message(
+            ui,
+            WidgetMessage::visibility(self.section, MessageDirection::ToWidget, node.is_mesh()),
+        );
 
         if let Node::Mesh(mesh) = node {
-            ui.send_message(CheckBoxMessage::checked(
-                self.cast_shadows,
-                MessageDirection::ToWidget,
-                Some(mesh.cast_shadows()),
-            ));
+            send_sync_message(
+                ui,
+                CheckBoxMessage::checked(
+                    self.cast_shadows,
+                    MessageDirection::ToWidget,
+                    Some(mesh.cast_shadows()),
+                ),
+            );
         }
     }
 

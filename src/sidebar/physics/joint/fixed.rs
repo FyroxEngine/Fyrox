@@ -5,6 +5,7 @@ use crate::{
         SceneCommand, SetFixedJointAnchor1RotationCommand, SetFixedJointAnchor1TranslationCommand,
         SetFixedJointAnchor2RotationCommand, SetFixedJointAnchor2TranslationCommand,
     },
+    send_sync_message,
     sidebar::{make_text_mark, make_vec3_input_field, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
 };
@@ -80,39 +81,51 @@ impl FixedJointSection {
     }
 
     pub fn sync_to_model(&mut self, fixed: &FixedJointDesc, ui: &mut Ui) {
-        ui.send_message(Vec3EditorMessage::value(
-            self.joint_anchor_translation,
-            MessageDirection::ToWidget,
-            fixed.local_anchor1_translation,
-        ));
+        send_sync_message(
+            ui,
+            Vec3EditorMessage::value(
+                self.joint_anchor_translation,
+                MessageDirection::ToWidget,
+                fixed.local_anchor1_translation,
+            ),
+        );
 
         let euler = fixed.local_anchor1_rotation.to_euler();
-        ui.send_message(Vec3EditorMessage::value(
-            self.joint_anchor_rotation,
-            MessageDirection::ToWidget,
-            Vector3::new(
-                euler.x.to_degrees(),
-                euler.y.to_degrees(),
-                euler.z.to_degrees(),
+        send_sync_message(
+            ui,
+            Vec3EditorMessage::value(
+                self.joint_anchor_rotation,
+                MessageDirection::ToWidget,
+                Vector3::new(
+                    euler.x.to_degrees(),
+                    euler.y.to_degrees(),
+                    euler.z.to_degrees(),
+                ),
             ),
-        ));
+        );
 
-        ui.send_message(Vec3EditorMessage::value(
-            self.connected_anchor_translation,
-            MessageDirection::ToWidget,
-            fixed.local_anchor2_translation,
-        ));
+        send_sync_message(
+            ui,
+            Vec3EditorMessage::value(
+                self.connected_anchor_translation,
+                MessageDirection::ToWidget,
+                fixed.local_anchor2_translation,
+            ),
+        );
 
         let euler = fixed.local_anchor2_rotation.to_euler();
-        ui.send_message(Vec3EditorMessage::value(
-            self.connected_anchor_rotation,
-            MessageDirection::ToWidget,
-            Vector3::new(
-                euler.x.to_degrees(),
-                euler.y.to_degrees(),
-                euler.z.to_degrees(),
+        send_sync_message(
+            ui,
+            Vec3EditorMessage::value(
+                self.connected_anchor_rotation,
+                MessageDirection::ToWidget,
+                Vector3::new(
+                    euler.x.to_degrees(),
+                    euler.y.to_degrees(),
+                    euler.z.to_degrees(),
+                ),
             ),
-        ));
+        );
     }
 
     pub fn handle_message(

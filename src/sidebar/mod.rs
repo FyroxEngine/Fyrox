@@ -5,6 +5,7 @@ use crate::{
         EditorScene, MoveNodeCommand, RotateNodeCommand, ScaleNodeCommand, SceneCommand, Selection,
         SetNameCommand, SetTagCommand,
     },
+    send_sync_message,
     sidebar::{
         camera::CameraSection, light::LightSection, mesh::MeshSection,
         particle::ParticleSystemSection, physics::PhysicsSection, sprite::SpriteSection,
@@ -320,13 +321,14 @@ impl SideBar {
         // For now only nodes are editable through side bar.
         if let Selection::Graph(selection) = &editor_scene.selection {
             let scene = &engine.scenes[editor_scene.scene];
-            engine
-                .user_interface
-                .send_message(WidgetMessage::visibility(
+            send_sync_message(
+                &mut engine.user_interface,
+                WidgetMessage::visibility(
                     self.scroll_viewer,
                     MessageDirection::ToWidget,
                     selection.is_single_selection(),
-                ));
+                ),
+            );
             if selection.is_single_selection() {
                 let node_handle = selection.nodes()[0];
                 if scene.graph.is_valid_handle(node_handle) {
@@ -334,43 +336,58 @@ impl SideBar {
 
                     let ui = &mut engine.user_interface;
 
-                    ui.send_message(TextBoxMessage::text(
-                        self.node_name,
-                        MessageDirection::ToWidget,
-                        node.name().to_owned(),
-                    ));
+                    send_sync_message(
+                        ui,
+                        TextBoxMessage::text(
+                            self.node_name,
+                            MessageDirection::ToWidget,
+                            node.name().to_owned(),
+                        ),
+                    );
 
                     // Prevent edit names of nodes that were created from resource.
                     // This is strictly necessary because resolving depends on node
                     // names.
-                    ui.send_message(WidgetMessage::enabled(
-                        self.node_name,
-                        MessageDirection::ToWidget,
-                        node.resource().is_none() || node.is_resource_instance_root(),
-                    ));
+                    send_sync_message(
+                        ui,
+                        WidgetMessage::enabled(
+                            self.node_name,
+                            MessageDirection::ToWidget,
+                            node.resource().is_none() || node.is_resource_instance_root(),
+                        ),
+                    );
 
-                    ui.send_message(TextMessage::text(
-                        self.resource,
-                        MessageDirection::ToWidget,
-                        if let Some(resource) = node.resource() {
-                            let state = resource.state();
-                            state.path().to_string_lossy().into_owned()
-                        } else {
-                            "None".to_owned()
-                        },
-                    ));
+                    send_sync_message(
+                        ui,
+                        TextMessage::text(
+                            self.resource,
+                            MessageDirection::ToWidget,
+                            if let Some(resource) = node.resource() {
+                                let state = resource.state();
+                                state.path().to_string_lossy().into_owned()
+                            } else {
+                                "None".to_owned()
+                            },
+                        ),
+                    );
 
-                    ui.send_message(TextBoxMessage::text(
-                        self.tag,
-                        MessageDirection::ToWidget,
-                        node.tag().to_owned(),
-                    ));
+                    send_sync_message(
+                        ui,
+                        TextBoxMessage::text(
+                            self.tag,
+                            MessageDirection::ToWidget,
+                            node.tag().to_owned(),
+                        ),
+                    );
 
-                    ui.send_message(Vec3EditorMessage::value(
-                        self.position,
-                        MessageDirection::ToWidget,
-                        **node.local_transform().position(),
-                    ));
+                    send_sync_message(
+                        ui,
+                        Vec3EditorMessage::value(
+                            self.position,
+                            MessageDirection::ToWidget,
+                            **node.local_transform().position(),
+                        ),
+                    );
 
                     let euler = node.local_transform().rotation().to_euler();
                     let euler_degrees = Vector3::new(
@@ -378,27 +395,36 @@ impl SideBar {
                         euler.y.to_degrees(),
                         euler.z.to_degrees(),
                     );
-                    ui.send_message(Vec3EditorMessage::value(
-                        self.rotation,
-                        MessageDirection::ToWidget,
-                        euler_degrees,
-                    ));
+                    send_sync_message(
+                        ui,
+                        Vec3EditorMessage::value(
+                            self.rotation,
+                            MessageDirection::ToWidget,
+                            euler_degrees,
+                        ),
+                    );
 
-                    ui.send_message(Vec3EditorMessage::value(
-                        self.scale,
-                        MessageDirection::ToWidget,
-                        **node.local_transform().scale(),
-                    ));
+                    send_sync_message(
+                        ui,
+                        Vec3EditorMessage::value(
+                            self.scale,
+                            MessageDirection::ToWidget,
+                            **node.local_transform().scale(),
+                        ),
+                    );
 
                     let id = match node.physics_binding() {
                         PhysicsBinding::NodeWithBody => 0,
                         PhysicsBinding::BodyWithNode => 1,
                     };
-                    ui.send_message(DropdownListMessage::selection(
-                        self.physics_binding,
-                        MessageDirection::ToWidget,
-                        Some(id),
-                    ));
+                    send_sync_message(
+                        ui,
+                        DropdownListMessage::selection(
+                            self.physics_binding,
+                            MessageDirection::ToWidget,
+                            Some(id),
+                        ),
+                    );
 
                     self.light_section.sync_to_model(node, ui);
                     self.camera_section.sync_to_model(node, ui);

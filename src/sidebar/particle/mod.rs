@@ -8,6 +8,7 @@ use crate::{
         AddParticleSystemEmitterCommand, DeleteEmitterCommand, SceneCommand,
         SetParticleSystemAccelerationCommand,
     },
+    send_sync_message,
     sidebar::{
         make_text_mark, make_vec3_input_field, particle::emitter::EmitterSection, COLUMN_WIDTH,
         ROW_HEIGHT,
@@ -185,18 +186,24 @@ impl ParticleSystemSection {
     }
 
     pub fn sync_to_model(&mut self, node: &Node, ui: &mut Ui, resource_manager: ResourceManager) {
-        ui.send_message(WidgetMessage::visibility(
-            self.section,
-            MessageDirection::ToWidget,
-            node.is_particle_system(),
-        ));
+        send_sync_message(
+            ui,
+            WidgetMessage::visibility(
+                self.section,
+                MessageDirection::ToWidget,
+                node.is_particle_system(),
+            ),
+        );
 
         if let Node::ParticleSystem(particle_system) = node {
-            ui.send_message(Vec3EditorMessage::value(
-                self.acceleration,
-                MessageDirection::ToWidget,
-                particle_system.acceleration(),
-            ));
+            send_sync_message(
+                ui,
+                Vec3EditorMessage::value(
+                    self.acceleration,
+                    MessageDirection::ToWidget,
+                    particle_system.acceleration(),
+                ),
+            );
 
             let ctx = &mut ui.build_ctx();
             let emitters = particle_system
@@ -232,17 +239,19 @@ impl ParticleSystemSection {
                 self.emitter_index = Some(0);
             }
 
-            ui.send_message(DropdownListMessage::items(
-                self.emitters,
-                MessageDirection::ToWidget,
-                emitters,
-            ));
+            send_sync_message(
+                ui,
+                DropdownListMessage::items(self.emitters, MessageDirection::ToWidget, emitters),
+            );
 
-            ui.send_message(DropdownListMessage::selection(
-                self.emitters,
-                MessageDirection::ToWidget,
-                self.emitter_index,
-            ));
+            send_sync_message(
+                ui,
+                DropdownListMessage::selection(
+                    self.emitters,
+                    MessageDirection::ToWidget,
+                    self.emitter_index,
+                ),
+            );
 
             if let Some(emitter_index) = self.emitter_index {
                 self.emitter_section

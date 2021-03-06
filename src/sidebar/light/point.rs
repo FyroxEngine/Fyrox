@@ -1,6 +1,7 @@
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     scene::{SceneCommand, SetPointLightRadiusCommand},
+    send_sync_message,
     sidebar::{make_f32_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
 };
@@ -47,21 +48,23 @@ impl PointLightSection {
 
     pub fn sync_to_model(&mut self, node: &Node, ui: &mut Ui) {
         let visible = if let Node::Light(Light::Point(point)) = node {
-            ui.send_message(NumericUpDownMessage::value(
-                self.radius,
-                MessageDirection::ToWidget,
-                point.radius(),
-            ));
+            send_sync_message(
+                ui,
+                NumericUpDownMessage::value(
+                    self.radius,
+                    MessageDirection::ToWidget,
+                    point.radius(),
+                ),
+            );
 
             true
         } else {
             false
         };
-        ui.send_message(WidgetMessage::visibility(
-            self.section,
-            MessageDirection::ToWidget,
-            visible,
-        ));
+        send_sync_message(
+            ui,
+            WidgetMessage::visibility(self.section, MessageDirection::ToWidget, visible),
+        );
     }
 
     pub fn handle_message(&mut self, message: &UiMessage, node: &Node, handle: Handle<Node>) {

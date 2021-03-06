@@ -4,6 +4,7 @@ use crate::{
         SceneCommand, SetLightCastShadowsCommand, SetLightColorCommand, SetLightScatterCommand,
         SetLightScatterEnabledCommand,
     },
+    send_sync_message,
     sidebar::{
         light::point::PointLightSection, light::spot::SpotLightSection, make_bool_input_field,
         make_text_mark, make_vec3_input_field, COLUMN_WIDTH, ROW_HEIGHT,
@@ -102,35 +103,42 @@ impl LightSection {
 
     pub fn sync_to_model(&mut self, node: &Node, ui: &mut Ui) {
         if let Node::Light(light) = node {
-            ui.send_message(Vec3EditorMessage::value(
-                self.light_scatter,
-                MessageDirection::ToWidget,
-                light.scatter(),
-            ));
+            send_sync_message(
+                ui,
+                Vec3EditorMessage::value(
+                    self.light_scatter,
+                    MessageDirection::ToWidget,
+                    light.scatter(),
+                ),
+            );
 
-            ui.send_message(ColorFieldMessage::color(
-                self.color,
-                MessageDirection::ToWidget,
-                light.color(),
-            ));
+            send_sync_message(
+                ui,
+                ColorFieldMessage::color(self.color, MessageDirection::ToWidget, light.color()),
+            );
 
-            ui.send_message(CheckBoxMessage::checked(
-                self.cast_shadows,
-                MessageDirection::ToWidget,
-                Some(light.is_cast_shadows()),
-            ));
+            send_sync_message(
+                ui,
+                CheckBoxMessage::checked(
+                    self.cast_shadows,
+                    MessageDirection::ToWidget,
+                    Some(light.is_cast_shadows()),
+                ),
+            );
 
-            ui.send_message(CheckBoxMessage::checked(
-                self.enable_scatter,
-                MessageDirection::ToWidget,
-                Some(light.is_scatter_enabled()),
-            ));
+            send_sync_message(
+                ui,
+                CheckBoxMessage::checked(
+                    self.enable_scatter,
+                    MessageDirection::ToWidget,
+                    Some(light.is_scatter_enabled()),
+                ),
+            );
         }
-        ui.send_message(WidgetMessage::visibility(
-            self.section,
-            MessageDirection::ToWidget,
-            node.is_light(),
-        ));
+        send_sync_message(
+            ui,
+            WidgetMessage::visibility(self.section, MessageDirection::ToWidget, node.is_light()),
+        );
         self.point_light_section.sync_to_model(node, ui);
         self.spot_light_section.sync_to_model(node, ui);
     }

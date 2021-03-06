@@ -2,6 +2,7 @@ use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::Collider,
     scene::{SceneCommand, SetCuboidHalfExtentsCommand},
+    send_sync_message,
     sidebar::{make_f32_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
 };
@@ -64,21 +65,30 @@ impl CuboidSection {
     }
 
     pub fn sync_to_model(&mut self, cuboid: &CuboidDesc, ui: &mut Ui) {
-        ui.send_message(NumericUpDownMessage::value(
-            self.half_width,
-            MessageDirection::ToWidget,
-            cuboid.half_extents.x,
-        ));
-        ui.send_message(NumericUpDownMessage::value(
-            self.half_height,
-            MessageDirection::ToWidget,
-            cuboid.half_extents.y,
-        ));
-        ui.send_message(NumericUpDownMessage::value(
-            self.half_depth,
-            MessageDirection::ToWidget,
-            cuboid.half_extents.z,
-        ));
+        send_sync_message(
+            ui,
+            NumericUpDownMessage::value(
+                self.half_width,
+                MessageDirection::ToWidget,
+                cuboid.half_extents.x,
+            ),
+        );
+        send_sync_message(
+            ui,
+            NumericUpDownMessage::value(
+                self.half_height,
+                MessageDirection::ToWidget,
+                cuboid.half_extents.y,
+            ),
+        );
+        send_sync_message(
+            ui,
+            NumericUpDownMessage::value(
+                self.half_depth,
+                MessageDirection::ToWidget,
+                cuboid.half_extents.z,
+            ),
+        );
     }
 
     pub fn handle_message(

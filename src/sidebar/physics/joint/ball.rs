@@ -2,6 +2,7 @@ use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::Joint,
     scene::{SceneCommand, SetBallJointAnchor1Command, SetBallJointAnchor2Command},
+    send_sync_message,
     sidebar::{make_text_mark, make_vec3_input_field, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
 };
@@ -55,17 +56,23 @@ impl BallJointSection {
     }
 
     pub fn sync_to_model(&mut self, ball: &BallJointDesc, ui: &mut Ui) {
-        ui.send_message(Vec3EditorMessage::value(
-            self.joint_anchor,
-            MessageDirection::ToWidget,
-            ball.local_anchor1,
-        ));
+        send_sync_message(
+            ui,
+            Vec3EditorMessage::value(
+                self.joint_anchor,
+                MessageDirection::ToWidget,
+                ball.local_anchor1,
+            ),
+        );
 
-        ui.send_message(Vec3EditorMessage::value(
-            self.connected_anchor,
-            MessageDirection::ToWidget,
-            ball.local_anchor2,
-        ));
+        send_sync_message(
+            ui,
+            Vec3EditorMessage::value(
+                self.connected_anchor,
+                MessageDirection::ToWidget,
+                ball.local_anchor2,
+            ),
+        );
     }
 
     pub fn handle_message(

@@ -1,6 +1,7 @@
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     scene::{SceneCommand, SetSpriteColorCommand, SetSpriteRotationCommand, SetSpriteSizeCommand},
+    send_sync_message,
     sidebar::{
         make_color_input_field, make_f32_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT,
     },
@@ -68,30 +69,30 @@ impl SpriteSection {
     }
 
     pub fn sync_to_model(&mut self, node: &Node, ui: &mut Ui) {
-        ui.send_message(WidgetMessage::visibility(
-            self.section,
-            MessageDirection::ToWidget,
-            node.is_sprite(),
-        ));
+        send_sync_message(
+            ui,
+            WidgetMessage::visibility(self.section, MessageDirection::ToWidget, node.is_sprite()),
+        );
 
         if let Node::Sprite(sprite) = node {
-            ui.send_message(NumericUpDownMessage::value(
-                self.size,
-                MessageDirection::ToWidget,
-                sprite.size(),
-            ));
+            send_sync_message(
+                ui,
+                NumericUpDownMessage::value(self.size, MessageDirection::ToWidget, sprite.size()),
+            );
 
-            ui.send_message(NumericUpDownMessage::value(
-                self.rotation,
-                MessageDirection::ToWidget,
-                sprite.rotation(),
-            ));
+            send_sync_message(
+                ui,
+                NumericUpDownMessage::value(
+                    self.rotation,
+                    MessageDirection::ToWidget,
+                    sprite.rotation(),
+                ),
+            );
 
-            ui.send_message(ColorFieldMessage::color(
-                self.color,
-                MessageDirection::ToWidget,
-                sprite.color(),
-            ));
+            send_sync_message(
+                ui,
+                ColorFieldMessage::color(self.color, MessageDirection::ToWidget, sprite.color()),
+            );
         }
     }
 

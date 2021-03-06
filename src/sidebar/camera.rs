@@ -1,6 +1,7 @@
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     scene::{SceneCommand, SetFovCommand, SetZFarCommand, SetZNearCommand},
+    send_sync_message,
     sidebar::{make_f32_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
 };
@@ -63,30 +64,30 @@ impl CameraSection {
     }
 
     pub fn sync_to_model(&mut self, node: &Node, ui: &mut Ui) {
-        ui.send_message(WidgetMessage::visibility(
-            self.section,
-            MessageDirection::ToWidget,
-            node.is_camera(),
-        ));
+        send_sync_message(
+            ui,
+            WidgetMessage::visibility(self.section, MessageDirection::ToWidget, node.is_camera()),
+        );
 
         if let Node::Camera(camera) = node {
-            ui.send_message(NumericUpDownMessage::value(
-                self.fov,
-                MessageDirection::ToWidget,
-                camera.fov(),
-            ));
+            send_sync_message(
+                ui,
+                NumericUpDownMessage::value(self.fov, MessageDirection::ToWidget, camera.fov()),
+            );
 
-            ui.send_message(NumericUpDownMessage::value(
-                self.z_near,
-                MessageDirection::ToWidget,
-                camera.z_near(),
-            ));
+            send_sync_message(
+                ui,
+                NumericUpDownMessage::value(
+                    self.z_near,
+                    MessageDirection::ToWidget,
+                    camera.z_near(),
+                ),
+            );
 
-            ui.send_message(NumericUpDownMessage::value(
-                self.z_far,
-                MessageDirection::ToWidget,
-                camera.z_far(),
-            ));
+            send_sync_message(
+                ui,
+                NumericUpDownMessage::value(self.z_far, MessageDirection::ToWidget, camera.z_far()),
+            );
         }
     }
 

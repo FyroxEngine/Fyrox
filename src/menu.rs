@@ -2,6 +2,7 @@ use crate::{
     gui::{Ui, UiMessage, UiNode},
     make_save_file_selector, make_scene_file_filter,
     scene::{AddNodeCommand, EditorScene, PasteCommand, SceneCommand, Selection},
+    send_sync_message,
     settings::Settings,
     GameEngine, Message,
 };
@@ -459,11 +460,10 @@ impl Menu {
         ]
         .iter()
         {
-            ui.send_message(WidgetMessage::enabled(
-                widget,
-                MessageDirection::ToWidget,
-                editor_scene.is_some(),
-            ));
+            send_sync_message(
+                ui,
+                WidgetMessage::enabled(widget, MessageDirection::ToWidget, editor_scene.is_some()),
+            );
         }
     }
 

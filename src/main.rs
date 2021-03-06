@@ -21,6 +21,7 @@ pub mod settings;
 pub mod sidebar;
 pub mod world_outliner;
 
+use crate::gui::Ui;
 use crate::{
     asset::{AssetBrowser, AssetKind},
     camera::CameraController,
@@ -95,6 +96,11 @@ use std::{
 };
 
 pub const MSG_SYNC_FLAG: u64 = 1;
+
+pub fn send_sync_message(ui: &Ui, mut msg: UiMessage) {
+    msg.flags = MSG_SYNC_FLAG;
+    ui.send_message(msg);
+}
 
 type GameEngine = rg3d::engine::Engine<EditorUiMessage, EditorUiNode>;
 
@@ -730,6 +736,11 @@ impl Editor {
 
     pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut GameEngine) {
         scope_profile!();
+
+        // Prevent infinite message loops.
+        if message.has_flags(MSG_SYNC_FLAG) {
+            return;
+        }
 
         self.configurator.handle_ui_message(message, engine);
         self.menu.handle_ui_message(

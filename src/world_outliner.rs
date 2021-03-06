@@ -8,7 +8,7 @@ use crate::{
         ChangeSelectionCommand, EditorScene, GraphSelection, LinkNodesCommand, SceneCommand,
         Selection, SetVisibleCommand,
     },
-    GameEngine, Message, MSG_SYNC_FLAG,
+    send_sync_message, GameEngine, Message,
 };
 use rg3d::{
     core::{algebra::Vector2, math::Rect, pool::Handle, scope_profile},
@@ -463,11 +463,14 @@ impl WorldOutliner {
                             for &item in items.iter() {
                                 let child_node = tree_node(ui, item);
                                 if !node.children().contains(&child_node) {
-                                    ui.send_message(TreeMessage::remove_item(
-                                        tree_handle,
-                                        MessageDirection::ToWidget,
-                                        item,
-                                    ));
+                                    send_sync_message(
+                                        ui,
+                                        TreeMessage::remove_item(
+                                            tree_handle,
+                                            MessageDirection::ToWidget,
+                                            item,
+                                        ),
+                                    );
                                 } else {
                                     self.stack.push((item, child_node));
                                 }
@@ -495,11 +498,14 @@ impl WorldOutliner {
                                         self.sender.clone(),
                                         engine.resource_manager.clone(),
                                     );
-                                    ui.send_message(TreeMessage::add_item(
-                                        tree_handle,
-                                        MessageDirection::ToWidget,
-                                        tree,
-                                    ));
+                                    send_sync_message(
+                                        ui,
+                                        TreeMessage::add_item(
+                                            tree_handle,
+                                            MessageDirection::ToWidget,
+                                            tree,
+                                        ),
+                                    );
                                     if let Selection::Graph(selection) = &editor_scene.selection {
                                         if selection.contains(child_handle) {
                                             selected_items.push(tree);
@@ -525,11 +531,14 @@ impl WorldOutliner {
                             self.sender.clone(),
                             engine.resource_manager.clone(),
                         );
-                        ui.send_message(TreeRootMessage::add_item(
-                            tree_handle,
-                            MessageDirection::ToWidget,
-                            tree,
-                        ));
+                        send_sync_message(
+                            ui,
+                            TreeRootMessage::add_item(
+                                tree_handle,
+                                MessageDirection::ToWidget,
+                                tree,
+                            ),
+                        );
                         self.stack.push((tree, node_handle));
                     } else {
                         self.stack.push((root.items()[0], node_handle));
@@ -540,16 +549,16 @@ impl WorldOutliner {
         }
 
         if !selected_items.is_empty() {
-            let mut message =
-                TreeRootMessage::select(self.root, MessageDirection::ToWidget, selected_items);
-            message.flags = MSG_SYNC_FLAG;
-            ui.send_message(message);
+            send_sync_message(
+                ui,
+                TreeRootMessage::select(self.root, MessageDirection::ToWidget, selected_items),
+            );
         }
 
         // Update breadcrumbs.
         self.breadcrumbs.clear();
         for &child in ui.node(self.node_path).children() {
-            ui.send_message(WidgetMessage::remove(child, MessageDirection::ToWidget));
+            send_sync_message(ui, WidgetMessage::remove(child, MessageDirection::ToWidget));
         }
         if let Selection::Graph(selection) = &editor_scene.selection {
             if let Some(&first_selected) = selection.nodes().first() {
@@ -563,11 +572,14 @@ impl WorldOutliner {
                     .with_text(node.name())
                     .build(&mut ui.build_ctx());
 
-                    ui.send_message(WidgetMessage::link_reverse(
-                        element,
-                        MessageDirection::ToWidget,
-                        self.node_path,
-                    ));
+                    send_sync_message(
+                        ui,
+                        WidgetMessage::link_reverse(
+                            element,
+                            MessageDirection::ToWidget,
+                            self.node_path,
+                        ),
+                    );
 
                     self.breadcrumbs.insert(element, item);
 
@@ -584,11 +596,14 @@ impl WorldOutliner {
                     if let EditorUiNode::SceneItem(item) = usr {
                         if graph.is_valid_handle(item.node) {
                             let node = &graph[item.node];
-                            ui.send_message(SceneItemMessage::node_visibility(
-                                handle,
-                                node.visibility(),
-                            ));
-                            ui.send_message(SceneItemMessage::name(handle, node.name().to_owned()));
+                            send_sync_message(
+                                ui,
+                                SceneItemMessage::node_visibility(handle, node.visibility()),
+                            );
+                            send_sync_message(
+                                ui,
+                                SceneItemMessage::name(handle, node.name().to_owned()),
+                            );
                             stack.extend_from_slice(item.tree.items());
                         }
                     }
@@ -626,7 +641,6 @@ impl WorldOutliner {
             UiMessageData::TreeRoot(msg) => {
                 if message.destination() == self.root
                     && message.direction() == MessageDirection::FromWidget
-                    && !message.has_flags(MSG_SYNC_FLAG)
                 {
                     if let TreeRootMessage::Selected(selection) = msg {
                         let new_selection = Selection::Graph(GraphSelection::from_list(
@@ -715,9 +729,10 @@ impl WorldOutliner {
                 Default::default()
             };
 
-            let mut message = TreeRootMessage::select(self.root, MessageDirection::ToWidget, trees);
-            message.flags = MSG_SYNC_FLAG;
-            ui.send_message(message);
+            send_sync_message(
+                ui,
+                TreeRootMessage::select(self.root, MessageDirection::ToWidget, trees),
+            );
 
             self.sync_selection = false;
         }

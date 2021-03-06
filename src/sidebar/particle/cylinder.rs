@@ -2,6 +2,7 @@ use crate::scene::{SetCylinderEmitterHeightCommand, SetCylinderEmitterRadiusComm
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     scene::SceneCommand,
+    send_sync_message,
     sidebar::{make_f32_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
 };
@@ -56,17 +57,15 @@ impl CylinderSection {
     }
 
     pub fn sync_to_model(&mut self, cylinder: &CylinderEmitter, ui: &mut Ui) {
-        ui.send_message(NumericUpDownMessage::value(
-            self.radius,
-            MessageDirection::ToWidget,
-            cylinder.radius(),
-        ));
+        send_sync_message(
+            ui,
+            NumericUpDownMessage::value(self.radius, MessageDirection::ToWidget, cylinder.radius()),
+        );
 
-        ui.send_message(NumericUpDownMessage::value(
-            self.height,
-            MessageDirection::ToWidget,
-            cylinder.height(),
-        ));
+        send_sync_message(
+            ui,
+            NumericUpDownMessage::value(self.height, MessageDirection::ToWidget, cylinder.height()),
+        );
     }
 
     pub fn handle_message(

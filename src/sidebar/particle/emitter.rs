@@ -4,6 +4,7 @@ use crate::sidebar::particle::cylinder::CylinderSection;
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     scene::{EmitterNumericParameter, SceneCommand, SetEmitterNumericParameterCommand},
+    send_sync_message,
     sidebar::{
         make_bool_input_field, make_f32_input_field, make_text_mark, make_vec3_input_field,
         particle::sphere::SphereSection, COLUMN_WIDTH, ROW_HEIGHT,
@@ -256,18 +257,20 @@ impl EmitterSection {
     }
 
     pub fn sync_to_model(&mut self, emitter: &Emitter, ui: &mut Ui) {
-        ui.send_message(Vec3EditorMessage::value(
-            self.position,
-            MessageDirection::ToWidget,
-            emitter.position(),
-        ));
+        send_sync_message(
+            ui,
+            Vec3EditorMessage::value(
+                self.position,
+                MessageDirection::ToWidget,
+                emitter.position(),
+            ),
+        );
 
         let sync_f32 = |destination: Handle<UiNode>, value: f32| {
-            ui.send_message(NumericUpDownMessage::value(
-                destination,
-                MessageDirection::ToWidget,
-                value,
-            ));
+            send_sync_message(
+                ui,
+                NumericUpDownMessage::value(destination, MessageDirection::ToWidget, value),
+            );
         };
 
         sync_f32(
@@ -305,18 +308,20 @@ impl EmitterSection {
         sync_f32(self.min_rotation, emitter.rotation_range().bounds[0]);
         sync_f32(self.max_rotation, emitter.rotation_range().bounds[1]);
 
-        ui.send_message(CheckBoxMessage::checked(
-            self.resurrect_particles,
-            MessageDirection::ToWidget,
-            Some(emitter.is_particles_resurrects()),
-        ));
+        send_sync_message(
+            ui,
+            CheckBoxMessage::checked(
+                self.resurrect_particles,
+                MessageDirection::ToWidget,
+                Some(emitter.is_particles_resurrects()),
+            ),
+        );
 
         fn toggle_visibility(ui: &mut Ui, destination: Handle<UiNode>, value: bool) {
-            ui.send_message(WidgetMessage::visibility(
-                destination,
-                MessageDirection::ToWidget,
-                value,
-            ));
+            send_sync_message(
+                ui,
+                WidgetMessage::visibility(destination, MessageDirection::ToWidget, value),
+            );
         };
 
         toggle_visibility(ui, self.sphere_section.section, false);

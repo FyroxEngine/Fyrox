@@ -2,6 +2,7 @@ use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::Collider,
     scene::{SceneCommand, SetCylinderHalfHeightCommand, SetCylinderRadiusCommand},
+    send_sync_message,
     sidebar::{make_f32_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
 };
@@ -55,17 +56,19 @@ impl CylinderSection {
     }
 
     pub fn sync_to_model(&mut self, cylinder: &CylinderDesc, ui: &mut Ui) {
-        ui.send_message(NumericUpDownMessage::value(
-            self.half_height,
-            MessageDirection::ToWidget,
-            cylinder.half_height,
-        ));
+        send_sync_message(
+            ui,
+            NumericUpDownMessage::value(
+                self.half_height,
+                MessageDirection::ToWidget,
+                cylinder.half_height,
+            ),
+        );
 
-        ui.send_message(NumericUpDownMessage::value(
-            self.radius,
-            MessageDirection::ToWidget,
-            cylinder.radius,
-        ));
+        send_sync_message(
+            ui,
+            NumericUpDownMessage::value(self.radius, MessageDirection::ToWidget, cylinder.radius),
+        );
     }
 
     pub fn handle_message(

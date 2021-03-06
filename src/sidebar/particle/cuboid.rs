@@ -4,6 +4,7 @@ use crate::scene::{
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     scene::SceneCommand,
+    send_sync_message,
     sidebar::{make_f32_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
 };
@@ -67,23 +68,32 @@ impl BoxSection {
     }
 
     pub fn sync_to_model(&mut self, box_emitter: &BoxEmitter, ui: &mut Ui) {
-        ui.send_message(NumericUpDownMessage::value(
-            self.half_width,
-            MessageDirection::ToWidget,
-            box_emitter.half_width(),
-        ));
+        send_sync_message(
+            ui,
+            NumericUpDownMessage::value(
+                self.half_width,
+                MessageDirection::ToWidget,
+                box_emitter.half_width(),
+            ),
+        );
 
-        ui.send_message(NumericUpDownMessage::value(
-            self.half_height,
-            MessageDirection::ToWidget,
-            box_emitter.half_height(),
-        ));
+        send_sync_message(
+            ui,
+            NumericUpDownMessage::value(
+                self.half_height,
+                MessageDirection::ToWidget,
+                box_emitter.half_height(),
+            ),
+        );
 
-        ui.send_message(NumericUpDownMessage::value(
-            self.half_depth,
-            MessageDirection::ToWidget,
-            box_emitter.half_depth(),
-        ));
+        send_sync_message(
+            ui,
+            NumericUpDownMessage::value(
+                self.half_depth,
+                MessageDirection::ToWidget,
+                box_emitter.half_depth(),
+            ),
+        );
     }
 
     pub fn handle_message(
