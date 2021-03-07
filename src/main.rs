@@ -48,6 +48,7 @@ use crate::{
     sidebar::SideBar,
     world_outliner::WorldOutliner,
 };
+use rg3d::dpi::LogicalSize;
 use rg3d::{
     core::{
         algebra::Vector2,
@@ -1443,11 +1444,14 @@ fn update(
 fn main() {
     let event_loop = EventLoop::new();
 
-    let primary_monitor = event_loop.primary_monitor().unwrap();
-    let mut monitor_dimensions = primary_monitor.size();
-    monitor_dimensions.height = (monitor_dimensions.height as f32 * 0.7) as u32;
-    monitor_dimensions.width = (monitor_dimensions.width as f32 * 0.7) as u32;
-    let inner_size = monitor_dimensions.to_logical::<f32>(primary_monitor.scale_factor());
+    let inner_size = if let Some(primary_monitor) = event_loop.primary_monitor() {
+        let mut monitor_dimensions = primary_monitor.size();
+        monitor_dimensions.height = (monitor_dimensions.height as f32 * 0.7) as u32;
+        monitor_dimensions.width = (monitor_dimensions.width as f32 * 0.7) as u32;
+        monitor_dimensions.to_logical::<f32>(primary_monitor.scale_factor())
+    } else {
+        LogicalSize::new(1024.0, 768.0)
+    };
 
     let window_builder = rg3d::window::WindowBuilder::new()
         .with_inner_size(inner_size)
