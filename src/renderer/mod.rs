@@ -817,7 +817,7 @@ impl Renderer {
             quality_settings: settings,
             debug_renderer: DebugRenderer::new(&mut state)?,
             scene_to_gbuffer_map: Default::default(),
-            backbuffer_clear_color: Color::from_rgba(0, 0, 0, 0),
+            backbuffer_clear_color: Color::BLACK,
             texture_cache: Default::default(),
             geometry_cache: Default::default(),
             state,
