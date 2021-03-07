@@ -8,7 +8,7 @@
 [![Discord](https://img.shields.io/discord/756573453561102427)](https://discord.gg/xENF5Uh)
 [![Lines of code](https://tokei.rs/b1/github/mrDIMAS/rg3d)](https://github.com/mrDIMAS/rg3d)
 
-A feature-rich 3D game engine written in Rust with a scene editor and a first person shooter prototype.
+A feature-rich 3D game engine written in Rust with a scene editor. Most powerful game engine written in Rust so far.
 
 ## Support
 
@@ -21,13 +21,21 @@ use my savings to drive development forward, I'm looking for any financial suppo
 
 [Join the Discord server](https://discord.gg/xENF5Uh)
 
+## Tutorials
+
+Writing a 3D Shooter using rg3d:
+- [Character controller](https://rg3d.rs/tutorials/2021/03/05/tutorial1.html)
+
 ## Screenshots
 
-These screenshots are from [rusty-shooter](https://github.com/mrDIMAS/rusty-shooter) which is a big demo for the engine.
+These screenshots are from [Station Iapetus](https://github.com/mrDIMAS/StationIapetus) which is a commercial project
+made with the engine.
 
 ![1](pics/1.jpg?raw=true "Game 1")
 
 ![2](pics/2.jpg?raw=true "Game 2")
+
+These screenshots are from [rusty-shooter](https://github.com/mrDIMAS/rusty-shooter) which is a big demo for the engine.
 
 ![3](pics/3.jpg?raw=true "Game 3")
 
