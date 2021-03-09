@@ -13,7 +13,7 @@ readme = "README.md"
 
 [dependencies]
 rg3d-core = { path = "../rg3d-core", version = "0.12.0" }
-lewton = "0.10.1"
+lewton = "0.10.2"
 hrtf = "0.6.0"
 
 [target.'cfg(target_os = "windows")'.dependencies]

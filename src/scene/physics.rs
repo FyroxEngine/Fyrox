@@ -1,8 +1,8 @@
 //! Contains all structures and methods to operate with physics world.
 
-use crate::core::arrayvec::{Array, ArrayVec};
 use crate::{
     core::{
+        arrayvec::{Array, ArrayVec},
         color::Color,
         math::{aabb::AxisAlignedBoundingBox, ray::Ray},
         pool::Handle,
@@ -328,8 +328,7 @@ impl Physics {
             &mut self.bodies,
             &mut self.colliders,
             &mut self.joints,
-            None,
-            None,
+            &(),
             &*self.event_handler,
         );
     }
@@ -1344,7 +1343,6 @@ pub struct IntegrationParametersDesc {
     pub erp: f32,
     pub joint_erp: f32,
     pub warmstart_coeff: f32,
-    pub restitution_velocity_threshold: f32,
     pub allowed_linear_error: f32,
     pub prediction_distance: f32,
     pub allowed_angular_error: f32,
@@ -1368,7 +1366,6 @@ impl From<IntegrationParameters> for IntegrationParametersDesc {
             erp: params.erp,
             joint_erp: params.joint_erp,
             warmstart_coeff: params.warmstart_coeff,
-            restitution_velocity_threshold: params.restitution_velocity_threshold,
             allowed_linear_error: params.allowed_linear_error,
             prediction_distance: params.prediction_distance,
             allowed_angular_error: params.allowed_angular_error,
@@ -1394,7 +1391,6 @@ impl Into<IntegrationParameters> for IntegrationParametersDesc {
             erp: self.erp,
             joint_erp: self.joint_erp,
             warmstart_coeff: self.warmstart_coeff,
-            restitution_velocity_threshold: self.restitution_velocity_threshold,
             allowed_linear_error: self.allowed_linear_error,
             allowed_angular_error: self.allowed_angular_error,
             max_linear_correction: self.max_linear_correction,
@@ -1424,8 +1420,6 @@ impl Visit for IntegrationParametersDesc {
         self.erp.visit("Erp", visitor)?;
         self.joint_erp.visit("JointErp", visitor)?;
         self.warmstart_coeff.visit("WarmstartCoeff", visitor)?;
-        self.restitution_velocity_threshold
-            .visit("RestitutionVelocityThreshold", visitor)?;
         self.allowed_linear_error
             .visit("AllowedLinearError", visitor)?;
         self.max_linear_correction

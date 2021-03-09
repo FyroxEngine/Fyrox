@@ -10,12 +10,12 @@ include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md"]
 readme = "README.md"
 
 [dependencies]
-base64 = "0.12.0"
-byteorder = "1.3.4"
-rand = "0.8.0"
-memoffset = "0.5.3"
+base64 = "0.13.0"
+byteorder = "1.4.2"
+rand = "0.8.3"
+memoffset = "0.6.1"
 lazy_static = "1.4.0"
-nalgebra = "0.24.0"
+nalgebra = "0.25.3"
 arrayvec = "0.5.2"
 
 [features]
