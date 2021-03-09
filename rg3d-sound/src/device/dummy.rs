@@ -33,6 +33,8 @@ impl Device for DummySoundDevice {
     fn run(&mut self) {
         loop {
             self.mix();
+
+            std::thread::sleep(std::time::Duration::from_millis(100));
         }
     }
 }
