@@ -8,7 +8,6 @@ use crate::{
     physics::{Collider, Joint, Physics, RigidBody},
     GameEngine, Message,
 };
-use rg3d::scene::base::PhysicsBinding;
 use rg3d::{
     animation::Animation,
     core::{
@@ -22,8 +21,9 @@ use rg3d::{
     engine::resource_manager::ResourceManager,
     resource::texture::Texture,
     scene::{
+        base::PhysicsBinding,
         graph::{Graph, SubGraph},
-        mesh::Mesh,
+        mesh::{Mesh, RenderPath},
         node::Node,
         particle_system::{Emitter, ParticleLimit, ParticleSystem},
         physics::{ColliderShapeDesc, JointParamsDesc},
@@ -365,6 +365,7 @@ pub enum SceneCommand {
     SetSpriteTexture(SetSpriteTextureCommand),
     SetMeshTexture(SetMeshTextureCommand),
     SetMeshCastShadows(SetMeshCastShadowsCommand),
+    SetMeshRenderPath(SetMeshRenderPathCommand),
     AddNavmesh(AddNavmeshCommand),
     DeleteNavmesh(DeleteNavmeshCommand),
     MoveNavmeshVertex(MoveNavmeshVertexCommand),
@@ -466,6 +467,7 @@ macro_rules! static_dispatch {
             SceneCommand::SetSpriteTexture(v) => v.$func($($args),*),
             SceneCommand::SetMeshTexture(v) => v.$func($($args),*),
             SceneCommand::SetMeshCastShadows(v) => v.$func($($args),*),
+            SceneCommand::SetMeshRenderPath(v) => v.$func($($args),*),
             SceneCommand::AddNavmesh(v) => v.$func($($args),*),
             SceneCommand::DeleteNavmesh(v) => v.$func($($args),*),
             SceneCommand::MoveNavmeshVertex(v) => v.$func($($args),*),
@@ -2759,6 +2761,10 @@ define_node_command!(SetParticleSystemTextureCommand("Set Particle System Textur
 
 define_node_command!(SetMeshCastShadowsCommand("Set Mesh Cast Shadows", bool) where fn swap(self, node) {
     get_set_swap!(self, node.as_mesh_mut(), cast_shadows, set_cast_shadows);
+});
+
+define_node_command!(SetMeshRenderPathCommand("Set Mesh Render Path", RenderPath) where fn swap(self, node) {
+    get_set_swap!(self, node.as_mesh_mut(), render_path, set_render_path);
 });
 
 define_body_command!(SetBodyMassCommand("Set Body Mass", f32) where fn swap(self, physics, body) {
