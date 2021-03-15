@@ -102,7 +102,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
         ],
     };
 
-    scene.graph[model_handle].set_lod_group(lod_group);
+    scene.graph[model_handle].set_lod_group(Some(lod_group));
 
     GameScene {
         scene,

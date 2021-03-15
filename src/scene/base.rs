@@ -65,7 +65,7 @@ impl Visit for PhysicsBinding {
 /// Normalized distance is a distance in (0; 1) range where 0 - closest to camera,
 /// 1 - farthest. Real distance can be obtained by multiplying normalized distance
 /// with z_far of current projection matrix.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct LevelOfDetail {
     begin: f32,
     end: f32,
@@ -141,7 +141,7 @@ impl Visit for LevelOfDetail {
 /// Lod group must contain non-overlapping cascades, each cascade with its own set of objects
 /// that belongs to level of detail. Engine does not care if you create overlapping cascades,
 /// it is your responsibility to create non-overlapping cascades.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct LodGroup {
     /// Set of cascades.
     pub levels: Vec<LevelOfDetail>,
@@ -413,8 +413,13 @@ impl Base {
     }
 
     /// Sets new lod group.
-    pub fn set_lod_group(&mut self, lod_group: LodGroup) -> Option<LodGroup> {
-        self.lod_group.replace(lod_group)
+    pub fn set_lod_group(&mut self, lod_group: Option<LodGroup>) -> Option<LodGroup> {
+        std::mem::replace(&mut self.lod_group, lod_group)
+    }
+
+    /// Extracts lod group, leaving None in the node.
+    pub fn take_lod_group(&mut self) -> Option<LodGroup> {
+        std::mem::take(&mut self.lod_group)
     }
 
     /// Returns shared reference to current lod group.
