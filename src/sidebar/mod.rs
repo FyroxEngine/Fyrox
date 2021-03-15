@@ -1,9 +1,9 @@
-use crate::scene::SetPhysicsBindingCommand;
 use crate::{
-    gui::{BuildContext, UiMessage, UiNode},
+    gui::{BuildContext, EditorUiMessage, EditorUiNode, Ui, UiMessage, UiNode},
     scene::{
-        EditorScene, MoveNodeCommand, RotateNodeCommand, ScaleNodeCommand, SceneCommand, Selection,
-        SetNameCommand, SetTagCommand,
+        AddLodGroupLevelCommand, EditorScene, MoveNodeCommand, RemoveLodGroupLevelCommand,
+        RotateNodeCommand, ScaleNodeCommand, SceneCommand, Selection, SetLodGroupCommand,
+        SetNameCommand, SetPhysicsBindingCommand, SetTagCommand,
     },
     send_sync_message,
     sidebar::{
@@ -12,27 +12,29 @@ use crate::{
     },
     GameEngine, Message,
 };
-use rg3d::gui::dropdown_list::DropdownListBuilder;
-use rg3d::gui::message::DropdownListMessage;
-use rg3d::scene::base::PhysicsBinding;
+use rg3d::gui::Orientation;
 use rg3d::{
-    core::scope_profile,
     core::{
-        algebra::Vector3,
+        algebra::{Vector2, Vector3},
         math::{quat_from_euler, RotationOrder, UnitQuaternionExt},
         pool::Handle,
+        scope_profile,
     },
     engine::resource_manager::ResourceManager,
     gui::{
         border::BorderBuilder,
+        button::ButtonBuilder,
         check_box::CheckBoxBuilder,
         color::ColorFieldBuilder,
         decorator::DecoratorBuilder,
+        dropdown_list::DropdownListBuilder,
         grid::{Column, GridBuilder, Row},
+        list_view::ListViewBuilder,
         message::{
-            MessageDirection, TextBoxMessage, TextMessage, UiMessageData, Vec3EditorMessage,
-            WidgetMessage,
+            ButtonMessage, DropdownListMessage, MessageDirection, TextBoxMessage, TextMessage,
+            UiMessageData, Vec3EditorMessage, WidgetMessage,
         },
+        message::{ListViewMessage, NumericUpDownMessage, WindowMessage},
         numeric::NumericUpDownBuilder,
         scroll_viewer::ScrollViewerBuilder,
         stack_panel::StackPanelBuilder,
@@ -43,7 +45,9 @@ use rg3d::{
         window::{WindowBuilder, WindowTitle},
         HorizontalAlignment, Thickness, VerticalAlignment,
     },
+    scene::{base::PhysicsBinding, node::Node, Scene},
 };
+use std::rc::Rc;
 use std::sync::mpsc::Sender;
 
 mod camera;
@@ -65,6 +69,10 @@ pub struct SideBar {
     scale: Handle<UiNode>,
     resource: Handle<UiNode>,
     tag: Handle<UiNode>,
+    create_lod_group: Handle<UiNode>,
+    remove_lod_group: Handle<UiNode>,
+    edit_lod_group: Handle<UiNode>,
+    lod_editor: LodGroupEditor,
     physics_binding: Handle<UiNode>,
     sender: Sender<Message>,
     light_section: LightSection,
@@ -170,6 +178,367 @@ fn make_dropdown_list_option(ctx: &mut BuildContext, name: &str) -> Handle<UiNod
     .build(ctx)
 }
 
+struct ChildSelector {
+    window: Handle<UiNode>,
+    list: Handle<UiNode>,
+    ok: Handle<UiNode>,
+    cancel: Handle<UiNode>,
+}
+
+impl ChildSelector {
+    pub fn new(ctx: &mut BuildContext) -> Self {
+        let list;
+        let ok;
+        let cancel;
+        Self {
+            window: WindowBuilder::new(
+                WidgetBuilder::new().with_min_size(Vector2::new(140.0, 200.0)),
+            )
+            .with_title(WindowTitle::text("Select Child Object"))
+            .open(false)
+            .with_content(
+                GridBuilder::new(
+                    WidgetBuilder::new()
+                        .with_child({
+                            list = ListViewBuilder::new(WidgetBuilder::new().on_row(0)).build(ctx);
+                            list
+                        })
+                        .with_child(
+                            StackPanelBuilder::new(
+                                WidgetBuilder::new()
+                                    .on_row(1)
+                                    .with_horizontal_alignment(HorizontalAlignment::Right)
+                                    .with_child({
+                                        ok = ButtonBuilder::new(
+                                            WidgetBuilder::new().with_width(60.0),
+                                        )
+                                        .with_text("Ok")
+                                        .build(ctx);
+                                        ok
+                                    })
+                                    .with_child({
+                                        cancel = ButtonBuilder::new(
+                                            WidgetBuilder::new().with_width(60.0),
+                                        )
+                                        .with_text("Cancel")
+                                        .build(ctx);
+                                        cancel
+                                    }),
+                            )
+                            .with_orientation(Orientation::Horizontal)
+                            .build(ctx),
+                        ),
+                )
+                .add_row(Row::stretch())
+                .add_row(Row::strict(30.0))
+                .add_column(Column::stretch())
+                .build(ctx),
+            )
+            .build(ctx),
+            list,
+            ok,
+            cancel,
+        }
+    }
+}
+
+struct LodGroupEditor {
+    window: Handle<UiNode>,
+    lod_levels: Handle<UiNode>,
+    add_lod_level: Handle<UiNode>,
+    remove_lod_level: Handle<UiNode>,
+    current_lod_level: Option<usize>,
+    lod_begin: Handle<UiNode>,
+    lod_end: Handle<UiNode>,
+    objects: Handle<UiNode>,
+    add_object: Handle<UiNode>,
+    remove_object: Handle<UiNode>,
+    sender: Sender<Message>,
+    child_selector: ChildSelector,
+}
+
+impl LodGroupEditor {
+    pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
+        let lod_levels;
+        let add_lod_level;
+        let lod_begin;
+        let lod_end;
+        let remove_lod_level;
+        let objects;
+        let add_object;
+        let remove_object;
+        let window =
+            WindowBuilder::new(WidgetBuilder::new().with_min_size(Vector2::new(300.0, 300.0)))
+                .open(false)
+                .with_title(WindowTitle::text("Edit LOD Group"))
+                .with_content(
+                    GridBuilder::new(
+                        WidgetBuilder::new()
+                            .with_margin(Thickness::uniform(1.0))
+                            .with_child(
+                                GridBuilder::new(
+                                    WidgetBuilder::new()
+                                        .on_column(0)
+                                        .with_child(
+                                            GridBuilder::new(
+                                                WidgetBuilder::new()
+                                                    .on_row(0)
+                                                    .with_child({
+                                                        add_lod_level = ButtonBuilder::new(
+                                                            WidgetBuilder::new()
+                                                                .with_margin(Thickness::uniform(
+                                                                    1.0,
+                                                                ))
+                                                                .on_column(0),
+                                                        )
+                                                        .with_text("Add Level")
+                                                        .build(ctx);
+                                                        add_lod_level
+                                                    })
+                                                    .with_child({
+                                                        remove_lod_level = ButtonBuilder::new(
+                                                            WidgetBuilder::new()
+                                                                .with_margin(Thickness::uniform(
+                                                                    1.0,
+                                                                ))
+                                                                .on_column(1),
+                                                        )
+                                                        .with_text("Remove Level")
+                                                        .build(ctx);
+                                                        remove_lod_level
+                                                    }),
+                                            )
+                                            .add_column(Column::stretch())
+                                            .add_column(Column::stretch())
+                                            .add_row(Row::stretch())
+                                            .build(ctx),
+                                        )
+                                        .with_child({
+                                            lod_levels = ListViewBuilder::new(
+                                                WidgetBuilder::new().on_row(1),
+                                            )
+                                            .build(ctx);
+                                            lod_levels
+                                        }),
+                                )
+                                .add_row(Row::strict(ROW_HEIGHT))
+                                .add_row(Row::stretch())
+                                .add_column(Column::stretch())
+                                .build(ctx),
+                            )
+                            .with_child(
+                                GridBuilder::new(
+                                    WidgetBuilder::new()
+                                        .on_column(1)
+                                        .with_child(make_text_mark(ctx, "Begin", 0))
+                                        .with_child({
+                                            lod_begin = NumericUpDownBuilder::new(
+                                                WidgetBuilder::new().on_row(0).on_column(1),
+                                            )
+                                            .build(ctx);
+                                            lod_begin
+                                        })
+                                        .with_child(make_text_mark(ctx, "End", 1))
+                                        .with_child({
+                                            lod_end = NumericUpDownBuilder::new(
+                                                WidgetBuilder::new().on_row(1).on_column(1),
+                                            )
+                                            .build(ctx);
+                                            lod_end
+                                        })
+                                        .with_child(
+                                            GridBuilder::new(
+                                                WidgetBuilder::new()
+                                                    .on_row(2)
+                                                    .on_column(1)
+                                                    .with_child({
+                                                        add_object = ButtonBuilder::new(
+                                                            WidgetBuilder::new().on_column(0),
+                                                        )
+                                                        .with_text("Add Object...")
+                                                        .build(ctx);
+                                                        add_object
+                                                    })
+                                                    .with_child({
+                                                        remove_object = ButtonBuilder::new(
+                                                            WidgetBuilder::new().on_column(1),
+                                                        )
+                                                        .with_text("Remove Object")
+                                                        .build(ctx);
+                                                        remove_object
+                                                    }),
+                                            )
+                                            .add_column(Column::stretch())
+                                            .add_column(Column::stretch())
+                                            .add_row(Row::stretch())
+                                            .build(ctx),
+                                        )
+                                        .with_child(make_text_mark(ctx, "Objects", 3))
+                                        .with_child({
+                                            objects = ListViewBuilder::new(
+                                                WidgetBuilder::new().on_row(3).on_column(1),
+                                            )
+                                            .build(ctx);
+                                            objects
+                                        }),
+                                )
+                                .add_column(Column::strict(70.0))
+                                .add_column(Column::stretch())
+                                .add_row(Row::strict(ROW_HEIGHT))
+                                .add_row(Row::strict(ROW_HEIGHT))
+                                .add_row(Row::strict(ROW_HEIGHT))
+                                .add_row(Row::stretch())
+                                .build(ctx),
+                            ),
+                    )
+                    .add_row(Row::stretch())
+                    .add_column(Column::stretch())
+                    .add_column(Column::stretch())
+                    .build(ctx),
+                )
+                .build(ctx);
+
+        Self {
+            window,
+            lod_levels,
+            add_lod_level,
+            remove_lod_level,
+            lod_begin,
+            lod_end,
+            objects,
+            current_lod_level: None,
+            sender,
+            add_object,
+            remove_object,
+            child_selector: ChildSelector::new(ctx),
+        }
+    }
+
+    pub fn sync_to_model(&mut self, node: &Node, scene: &Scene, ui: &mut Ui) {
+        if let Some(lod_levels) = node.lod_group() {
+            let ctx = &mut ui.build_ctx();
+            let levels = lod_levels
+                .levels
+                .iter()
+                .map(|lod| {
+                    make_dropdown_list_option(
+                        ctx,
+                        &format!("{:.0} .. {:.0}%", lod.begin() * 100.0, lod.end() * 100.0),
+                    )
+                })
+                .collect::<Vec<_>>();
+
+            send_sync_message(
+                ui,
+                ListViewMessage::items(self.lod_levels, MessageDirection::ToWidget, levels),
+            );
+            if let Some(level) = self.current_lod_level.as_mut() {
+                if *level >= lod_levels.levels.len() {
+                    if lod_levels.levels.is_empty() {
+                        self.current_lod_level = None;
+                    } else {
+                        *level = 0;
+                    }
+                }
+            }
+
+            if let Some(level) = self.current_lod_level {
+                let level = &lod_levels.levels[level];
+
+                send_sync_message(
+                    ui,
+                    NumericUpDownMessage::value(
+                        self.lod_begin,
+                        MessageDirection::ToWidget,
+                        level.begin(),
+                    ),
+                );
+
+                send_sync_message(
+                    ui,
+                    NumericUpDownMessage::value(
+                        self.lod_end,
+                        MessageDirection::ToWidget,
+                        level.end(),
+                    ),
+                );
+
+                let objects = level
+                    .objects
+                    .iter()
+                    .map(|&object| {
+                        TextBuilder::new(WidgetBuilder::new())
+                            .with_text(scene.graph[object].name())
+                            .build(&mut ui.build_ctx())
+                    })
+                    .collect::<Vec<_>>();
+                ListViewMessage::items(self.objects, MessageDirection::ToWidget, objects);
+            }
+        } else {
+            self.current_lod_level = None;
+        }
+
+        send_sync_message(
+            ui,
+            ListViewMessage::selection(
+                self.lod_levels,
+                MessageDirection::ToWidget,
+                self.current_lod_level,
+            ),
+        );
+    }
+
+    pub fn handle_ui_message(
+        &mut self,
+        message: &UiMessage,
+        node_handle: Handle<Node>,
+        node: &Node,
+        scene: &Scene,
+        ui: &mut Ui,
+    ) {
+        match &message.data() {
+            UiMessageData::Button(ButtonMessage::Click) => {
+                if message.destination() == self.add_lod_level {
+                    self.sender
+                        .send(Message::DoSceneCommand(SceneCommand::AddLodGroupLevel(
+                            AddLodGroupLevelCommand::new(node_handle, Default::default()),
+                        )))
+                        .unwrap();
+                } else if message.destination() == self.remove_lod_level {
+                    self.sender
+                        .send(Message::DoSceneCommand(SceneCommand::RemoveLodGroupLevel(
+                            RemoveLodGroupLevelCommand::new(node_handle, 0),
+                        )))
+                        .unwrap();
+                } else if message.destination() == self.add_object {
+                    ui.send_message(WindowMessage::open_modal(
+                        self.child_selector.window,
+                        MessageDirection::ToWidget,
+                        true,
+                    ));
+
+                    let items = node
+                        .children()
+                        .iter()
+                        .map(|n| {
+                            TextBuilder::new(WidgetBuilder::new().with_user_data(Rc::new(*n)))
+                                .with_text(scene.graph[*n].name())
+                                .build(&mut ui.build_ctx())
+                        })
+                        .collect::<Vec<_>>();
+
+                    ui.send_message(ListViewMessage::items(
+                        self.child_selector.list,
+                        MessageDirection::ToWidget,
+                        items,
+                    ));
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
 impl SideBar {
     pub fn new(
         ctx: &mut BuildContext,
@@ -184,6 +553,10 @@ impl SideBar {
         let resource;
         let tag;
         let physics_binding;
+        let create_lod_group;
+        let remove_lod_group;
+        let edit_lod_group;
+        let lod_editor = LodGroupEditor::new(ctx, sender.clone());
 
         let light_section = LightSection::new(ctx, sender.clone());
         let camera_section = CameraSection::new(ctx, sender.clone());
@@ -266,10 +639,62 @@ impl SideBar {
                                                 ])
                                                 .build(ctx);
                                                 physics_binding
-                                            }),
+                                            })
+                                            .with_child(make_text_mark(ctx, "LOD Group", 7))
+                                            .with_child(
+                                                GridBuilder::new(
+                                                    WidgetBuilder::new()
+                                                        .on_row(7)
+                                                        .on_column(1)
+                                                        .with_child({
+                                                            create_lod_group = ButtonBuilder::new(
+                                                                WidgetBuilder::new()
+                                                                    .with_margin(
+                                                                        Thickness::uniform(1.0),
+                                                                    )
+                                                                    .on_column(0),
+                                                            )
+                                                            .with_text("Create Group")
+                                                            .build(ctx);
+                                                            create_lod_group
+                                                        })
+                                                        .with_child({
+                                                            remove_lod_group = ButtonBuilder::new(
+                                                                WidgetBuilder::new()
+                                                                    .with_enabled(false)
+                                                                    .with_margin(
+                                                                        Thickness::uniform(1.0),
+                                                                    )
+                                                                    .on_column(1),
+                                                            )
+                                                            .with_text("Remove Group")
+                                                            .build(ctx);
+                                                            remove_lod_group
+                                                        })
+                                                        .with_child({
+                                                            edit_lod_group = ButtonBuilder::new(
+                                                                WidgetBuilder::new()
+                                                                    .with_enabled(false)
+                                                                    .with_margin(
+                                                                        Thickness::uniform(1.0),
+                                                                    )
+                                                                    .on_column(2),
+                                                            )
+                                                            .with_text("Edit Group...")
+                                                            .build(ctx);
+                                                            edit_lod_group
+                                                        }),
+                                                )
+                                                .add_row(Row::stretch())
+                                                .add_column(Column::stretch())
+                                                .add_column(Column::stretch())
+                                                .add_column(Column::stretch())
+                                                .build(ctx),
+                                            ),
                                     )
                                     .add_column(Column::strict(COLUMN_WIDTH))
                                     .add_column(Column::stretch())
+                                    .add_row(Row::strict(ROW_HEIGHT))
                                     .add_row(Row::strict(ROW_HEIGHT))
                                     .add_row(Row::strict(ROW_HEIGHT))
                                     .add_row(Row::strict(ROW_HEIGHT))
@@ -305,6 +730,7 @@ impl SideBar {
             scale,
             resource,
             tag,
+            lod_editor,
             light_section,
             camera_section,
             particle_system_section,
@@ -312,6 +738,9 @@ impl SideBar {
             mesh_section,
             physics_section,
             physics_binding,
+            create_lod_group,
+            remove_lod_group,
+            edit_lod_group,
         }
     }
 
@@ -426,6 +855,32 @@ impl SideBar {
                         ),
                     );
 
+                    send_sync_message(
+                        ui,
+                        WidgetMessage::enabled(
+                            self.create_lod_group,
+                            MessageDirection::ToWidget,
+                            node.lod_group().is_none(),
+                        ),
+                    );
+                    send_sync_message(
+                        ui,
+                        WidgetMessage::enabled(
+                            self.remove_lod_group,
+                            MessageDirection::ToWidget,
+                            node.lod_group().is_some(),
+                        ),
+                    );
+                    send_sync_message(
+                        ui,
+                        WidgetMessage::enabled(
+                            self.edit_lod_group,
+                            MessageDirection::ToWidget,
+                            node.lod_group().is_some(),
+                        ),
+                    );
+
+                    self.lod_editor.sync_to_model(node, scene, ui);
                     self.light_section.sync_to_model(node, ui);
                     self.camera_section.sync_to_model(node, ui);
                     self.particle_system_section.sync_to_model(
@@ -445,7 +900,7 @@ impl SideBar {
         &mut self,
         message: &UiMessage,
         editor_scene: &EditorScene,
-        engine: &GameEngine,
+        engine: &mut GameEngine,
     ) {
         scope_profile!();
 
@@ -476,8 +931,41 @@ impl SideBar {
                     self.mesh_section.handle_message(message, node, node_handle);
                     self.physics_section
                         .handle_ui_message(message, editor_scene, engine);
+                    self.lod_editor.handle_ui_message(
+                        message,
+                        node_handle,
+                        node,
+                        scene,
+                        &mut engine.user_interface,
+                    );
 
                     match &message.data() {
+                        UiMessageData::Button(ButtonMessage::Click) => {
+                            if message.destination() == self.create_lod_group {
+                                self.sender
+                                    .send(Message::DoSceneCommand(SceneCommand::SetLodGroup(
+                                        SetLodGroupCommand::new(
+                                            node_handle,
+                                            Some(Default::default()),
+                                        ),
+                                    )))
+                                    .unwrap();
+                            } else if message.destination() == self.remove_lod_group {
+                                self.sender
+                                    .send(Message::DoSceneCommand(SceneCommand::SetLodGroup(
+                                        SetLodGroupCommand::new(node_handle, None),
+                                    )))
+                                    .unwrap();
+                            } else if message.destination() == self.edit_lod_group {
+                                engine
+                                    .user_interface
+                                    .send_message(WindowMessage::open_modal(
+                                        self.lod_editor.window,
+                                        MessageDirection::ToWidget,
+                                        true,
+                                    ));
+                            }
+                        }
                         UiMessageData::Vec3Editor(msg) => {
                             if let Vec3EditorMessage::Value(value) = *msg {
                                 let transform = graph[node_handle].local_transform();

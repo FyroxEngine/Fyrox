@@ -8,6 +8,7 @@ use crate::{
     physics::{Collider, Joint, Physics, RigidBody},
     GameEngine, Message,
 };
+use rg3d::scene::base::{LevelOfDetail, LodGroup};
 use rg3d::{
     animation::Animation,
     core::{
@@ -297,6 +298,9 @@ pub enum SceneCommand {
     LinkNodes(LinkNodesCommand),
     SetVisible(SetVisibleCommand),
     SetName(SetNameCommand),
+    SetLodGroup(SetLodGroupCommand),
+    AddLodGroupLevel(AddLodGroupLevelCommand),
+    RemoveLodGroupLevel(RemoveLodGroupLevelCommand),
     SetTag(SetTagCommand),
     AddJoint(AddJointCommand),
     DeleteJoint(DeleteJointCommand),
@@ -398,6 +402,9 @@ macro_rules! static_dispatch {
             SceneCommand::LinkNodes(v) => v.$func($($args),*),
             SceneCommand::SetVisible(v) => v.$func($($args),*),
             SceneCommand::SetName(v) => v.$func($($args),*),
+            SceneCommand::SetLodGroup(v) => v.$func($($args),*),
+            SceneCommand::AddLodGroupLevel(v) => v.$func($($args),*),
+            SceneCommand::RemoveLodGroupLevel(v) => v.$func($($args),*),
             SceneCommand::SetTag(v) => v.$func($($args),*),
             SceneCommand::SetBody(v) => v.$func($($args),*),
             SceneCommand::AddJoint(v) => v.$func($($args),*),
@@ -2250,6 +2257,87 @@ impl<'a> Command<'a> for DeleteColliderCommand {
 }
 
 #[derive(Debug)]
+pub struct AddLodGroupLevelCommand {
+    handle: Handle<Node>,
+    level: LevelOfDetail,
+}
+
+impl AddLodGroupLevelCommand {
+    pub fn new(handle: Handle<Node>, level: LevelOfDetail) -> Self {
+        Self { handle, level }
+    }
+}
+
+impl<'a> Command<'a> for AddLodGroupLevelCommand {
+    type Context = SceneContext<'a>;
+
+    fn name(&mut self, _context: &Self::Context) -> String {
+        "Add Lod Group Level".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut Self::Context) {
+        context.scene.graph[self.handle]
+            .lod_group_mut()
+            .unwrap()
+            .levels
+            .push(self.level.clone());
+    }
+
+    fn revert(&mut self, context: &mut Self::Context) {
+        context.scene.graph[self.handle]
+            .lod_group_mut()
+            .unwrap()
+            .levels
+            .pop();
+    }
+}
+
+#[derive(Debug)]
+pub struct RemoveLodGroupLevelCommand {
+    handle: Handle<Node>,
+    level: Option<LevelOfDetail>,
+    index: usize,
+}
+
+impl RemoveLodGroupLevelCommand {
+    pub fn new(handle: Handle<Node>, index: usize) -> Self {
+        Self {
+            handle,
+            level: None,
+            index,
+        }
+    }
+}
+
+impl<'a> Command<'a> for RemoveLodGroupLevelCommand {
+    type Context = SceneContext<'a>;
+
+    fn name(&mut self, _context: &Self::Context) -> String {
+        "Remove Lod Group Level".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut Self::Context) {
+        self.level = Some(
+            context.scene.graph[self.handle]
+                .lod_group_mut()
+                .unwrap()
+                .levels
+                .remove(self.index),
+        );
+    }
+
+    fn revert(&mut self, context: &mut Self::Context) {
+        let group = context.scene.graph[self.handle].lod_group_mut().unwrap();
+        let level = self.level.take().unwrap();
+        if group.levels.is_empty() {
+            group.levels.push(level);
+        } else {
+            group.levels.insert(self.index, level)
+        }
+    }
+}
+
+#[derive(Debug)]
 enum TextureSet {
     Single(Texture),
     Multiple(Vec<Option<Texture>>),
@@ -2709,6 +2797,10 @@ define_node_command!(SetLightColorCommand("Set Light Color", Color) where fn swa
 
 define_node_command!(SetNameCommand("Set Name", String) where fn swap(self, node) {
     get_set_swap!(self, node, name_owned, set_name);
+});
+
+define_node_command!(SetLodGroupCommand("Set Lod Group", Option<LodGroup>) where fn swap(self, node) {
+    get_set_swap!(self, node, take_lod_group, set_lod_group);
 });
 
 define_node_command!(SetPhysicsBindingCommand("Set Physics Binding", PhysicsBinding) where fn swap(self, node) {
