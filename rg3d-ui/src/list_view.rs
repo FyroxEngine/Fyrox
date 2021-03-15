@@ -49,6 +49,31 @@ impl<M: MessageData, C: Control<M, C>> ListView<M, C> {
     pub fn items(&self) -> &[Handle<UINode<M, C>>] {
         &self.items
     }
+
+    fn sync_decorators(&self, ui: &UserInterface<M, C>) {
+        if let Some(selected_index) = self.selected_index {
+            for (i, &container) in self.item_containers.iter().enumerate() {
+                let select = i == selected_index;
+                if let UINode::ListViewItem(container) = ui.node(container) {
+                    let mut stack = container.children().to_vec();
+                    while let Some(handle) = stack.pop() {
+                        let node = ui.node(handle);
+                        match node {
+                            UINode::ListView(_) => {}
+                            UINode::Decorator(_) => {
+                                ui.send_message(DecoratorMessage::select(
+                                    handle,
+                                    MessageDirection::ToWidget,
+                                    select,
+                                ));
+                            }
+                            _ => stack.extend_from_slice(node.children()),
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -143,6 +168,25 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ListView<M, C> {
 
                         self.item_containers = item_containers;
                         self.items = items.clone();
+
+                        // Check if current selection is out-of-bounds.
+                        if let Some(selected_index) = self.selected_index {
+                            if selected_index >= self.items.len() {
+                                let new_selection = if self.items.is_empty() {
+                                    None
+                                } else {
+                                    Some(self.items.len() - 1)
+                                };
+
+                                ui.send_message(ListViewMessage::selection(
+                                    self.handle,
+                                    MessageDirection::ToWidget,
+                                    new_selection,
+                                ));
+                            }
+                        }
+
+                        self.sync_decorators(ui);
                     }
                     &ListViewMessage::AddItem(item) => {
                         let item_container =
@@ -160,28 +204,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ListView<M, C> {
                     &ListViewMessage::SelectionChanged(selection) => {
                         if self.selected_index != selection {
                             self.selected_index = selection;
-
-                            for (i, &container) in self.item_containers.iter().enumerate() {
-                                let select = selection.map_or(false, |k| k == i);
-                                if let UINode::ListViewItem(container) = ui.node(container) {
-                                    let mut stack = container.children().to_vec();
-                                    while let Some(handle) = stack.pop() {
-                                        let node = ui.node(handle);
-                                        match node {
-                                            UINode::ListView(_) => {}
-                                            UINode::Decorator(_) => {
-                                                ui.send_message(DecoratorMessage::select(
-                                                    handle,
-                                                    MessageDirection::ToWidget,
-                                                    select,
-                                                ));
-                                            }
-                                            _ => stack.extend_from_slice(node.children()),
-                                        }
-                                    }
-                                }
-                            }
-
+                            self.sync_decorators(ui);
                             ui.send_message(message.reverse());
                         }
                     }
