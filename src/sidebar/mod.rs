@@ -1,7 +1,9 @@
+use crate::scene::RemoveLodObjectCommand;
 use crate::{
-    gui::{BuildContext, EditorUiMessage, EditorUiNode, Ui, UiMessage, UiNode},
+    gui::{BuildContext, Ui, UiMessage, UiNode},
     scene::{
-        AddLodGroupLevelCommand, EditorScene, MoveNodeCommand, RemoveLodGroupLevelCommand,
+        AddLodGroupLevelCommand, AddLodObjectCommand, ChangeLodRangeBeginCommand,
+        ChangeLodRangeEndCommand, EditorScene, MoveNodeCommand, RemoveLodGroupLevelCommand,
         RotateNodeCommand, ScaleNodeCommand, SceneCommand, Selection, SetLodGroupCommand,
         SetNameCommand, SetPhysicsBindingCommand, SetTagCommand,
     },
@@ -12,10 +14,9 @@ use crate::{
     },
     GameEngine, Message,
 };
-use rg3d::gui::Orientation;
 use rg3d::{
     core::{
-        algebra::{Vector2, Vector3},
+        algebra::Vector3,
         math::{quat_from_euler, RotationOrder, UnitQuaternionExt},
         pool::Handle,
         scope_profile,
@@ -43,11 +44,10 @@ use rg3d::{
         vec::Vec3EditorBuilder,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
-        HorizontalAlignment, Thickness, VerticalAlignment,
+        HorizontalAlignment, Orientation, Thickness, VerticalAlignment,
     },
     scene::{base::PhysicsBinding, node::Node, Scene},
 };
-use std::rc::Rc;
 use std::sync::mpsc::Sender;
 
 mod camera;
@@ -183,61 +183,150 @@ struct ChildSelector {
     list: Handle<UiNode>,
     ok: Handle<UiNode>,
     cancel: Handle<UiNode>,
+    sender: Sender<Message>,
+    selection: Option<Handle<Node>>,
 }
 
 impl ChildSelector {
-    pub fn new(ctx: &mut BuildContext) -> Self {
+    pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
         let list;
         let ok;
         let cancel;
         Self {
-            window: WindowBuilder::new(
-                WidgetBuilder::new().with_min_size(Vector2::new(140.0, 200.0)),
-            )
-            .with_title(WindowTitle::text("Select Child Object"))
-            .open(false)
-            .with_content(
-                GridBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child({
-                            list = ListViewBuilder::new(WidgetBuilder::new().on_row(0)).build(ctx);
-                            list
-                        })
-                        .with_child(
-                            StackPanelBuilder::new(
-                                WidgetBuilder::new()
-                                    .on_row(1)
-                                    .with_horizontal_alignment(HorizontalAlignment::Right)
-                                    .with_child({
-                                        ok = ButtonBuilder::new(
-                                            WidgetBuilder::new().with_width(60.0),
-                                        )
-                                        .with_text("Ok")
-                                        .build(ctx);
-                                        ok
-                                    })
-                                    .with_child({
-                                        cancel = ButtonBuilder::new(
-                                            WidgetBuilder::new().with_width(60.0),
-                                        )
-                                        .with_text("Cancel")
-                                        .build(ctx);
-                                        cancel
-                                    }),
-                            )
-                            .with_orientation(Orientation::Horizontal)
-                            .build(ctx),
-                        ),
+            window: WindowBuilder::new(WidgetBuilder::new().with_width(140.0).with_height(200.0))
+                .with_title(WindowTitle::text("Select Child Object"))
+                .open(false)
+                .with_content(
+                    GridBuilder::new(
+                        WidgetBuilder::new()
+                            .with_child({
+                                list =
+                                    ListViewBuilder::new(WidgetBuilder::new().on_row(0)).build(ctx);
+                                list
+                            })
+                            .with_child(
+                                StackPanelBuilder::new(
+                                    WidgetBuilder::new()
+                                        .on_row(1)
+                                        .with_horizontal_alignment(HorizontalAlignment::Right)
+                                        .with_child({
+                                            ok = ButtonBuilder::new(
+                                                WidgetBuilder::new().with_width(60.0),
+                                            )
+                                            .with_text("OK")
+                                            .build(ctx);
+                                            ok
+                                        })
+                                        .with_child({
+                                            cancel = ButtonBuilder::new(
+                                                WidgetBuilder::new().with_width(60.0),
+                                            )
+                                            .with_text("Cancel")
+                                            .build(ctx);
+                                            cancel
+                                        }),
+                                )
+                                .with_orientation(Orientation::Horizontal)
+                                .build(ctx),
+                            ),
+                    )
+                    .add_row(Row::stretch())
+                    .add_row(Row::strict(30.0))
+                    .add_column(Column::stretch())
+                    .build(ctx),
                 )
-                .add_row(Row::stretch())
-                .add_row(Row::strict(30.0))
-                .add_column(Column::stretch())
                 .build(ctx),
-            )
-            .build(ctx),
             list,
             ok,
             cancel,
+            sender,
+            selection: None,
+        }
+    }
+
+    fn open(&mut self, ui: &mut Ui, node: &Node, scene: &Scene) {
+        ui.send_message(WindowMessage::open_modal(
+            self.window,
+            MessageDirection::ToWidget,
+            true,
+        ));
+
+        let items = node
+            .children()
+            .iter()
+            .map(|n| {
+                DecoratorBuilder::new(BorderBuilder::new(
+                    WidgetBuilder::new().with_child(
+                        TextBuilder::new(WidgetBuilder::new())
+                            .with_text(format!(
+                                "{}({}:{})",
+                                scene.graph[*n].name(),
+                                n.index(),
+                                n.generation()
+                            ))
+                            .build(&mut ui.build_ctx()),
+                    ),
+                ))
+                .build(&mut ui.build_ctx())
+            })
+            .collect::<Vec<_>>();
+
+        ui.send_message(ListViewMessage::items(
+            self.list,
+            MessageDirection::ToWidget,
+            items,
+        ));
+
+        ui.send_message(WidgetMessage::enabled(
+            self.ok,
+            MessageDirection::ToWidget,
+            false,
+        ));
+
+        self.selection = None;
+    }
+
+    fn handle_ui_message(
+        &mut self,
+        message: &UiMessage,
+        node_handle: Handle<Node>,
+        node: &Node,
+        lod_index: usize,
+        ui: &mut Ui,
+    ) {
+        match &message.data() {
+            UiMessageData::Button(ButtonMessage::Click) => {
+                if message.destination() == self.ok {
+                    if let Some(selection) = self.selection {
+                        self.sender
+                            .send(Message::DoSceneCommand(SceneCommand::AddLodObject(
+                                AddLodObjectCommand::new(node_handle, lod_index, selection),
+                            )))
+                            .unwrap();
+
+                        ui.send_message(WindowMessage::close(
+                            self.window,
+                            MessageDirection::ToWidget,
+                        ));
+                    }
+                } else if message.destination() == self.cancel {
+                    ui.send_message(WindowMessage::close(
+                        self.window,
+                        MessageDirection::ToWidget,
+                    ));
+                }
+            }
+            UiMessageData::ListView(ListViewMessage::SelectionChanged(Some(index))) => {
+                if message.destination() == self.list {
+                    self.selection = Some(node.children()[*index]);
+                    ui.send_message(WidgetMessage::enabled(
+                        self.ok,
+                        MessageDirection::ToWidget,
+                        true,
+                    ));
+                }
+            }
+            _ => (),
         }
     }
 }
@@ -255,6 +344,7 @@ struct LodGroupEditor {
     remove_object: Handle<UiNode>,
     sender: Sender<Message>,
     child_selector: ChildSelector,
+    selected_object: Option<usize>,
 }
 
 impl LodGroupEditor {
@@ -267,136 +357,134 @@ impl LodGroupEditor {
         let objects;
         let add_object;
         let remove_object;
-        let window =
-            WindowBuilder::new(WidgetBuilder::new().with_min_size(Vector2::new(300.0, 300.0)))
-                .open(false)
-                .with_title(WindowTitle::text("Edit LOD Group"))
-                .with_content(
-                    GridBuilder::new(
-                        WidgetBuilder::new()
-                            .with_margin(Thickness::uniform(1.0))
-                            .with_child(
-                                GridBuilder::new(
-                                    WidgetBuilder::new()
-                                        .on_column(0)
-                                        .with_child(
-                                            GridBuilder::new(
-                                                WidgetBuilder::new()
-                                                    .on_row(0)
-                                                    .with_child({
-                                                        add_lod_level = ButtonBuilder::new(
-                                                            WidgetBuilder::new()
-                                                                .with_margin(Thickness::uniform(
-                                                                    1.0,
-                                                                ))
-                                                                .on_column(0),
-                                                        )
-                                                        .with_text("Add Level")
-                                                        .build(ctx);
-                                                        add_lod_level
-                                                    })
-                                                    .with_child({
-                                                        remove_lod_level = ButtonBuilder::new(
-                                                            WidgetBuilder::new()
-                                                                .with_margin(Thickness::uniform(
-                                                                    1.0,
-                                                                ))
-                                                                .on_column(1),
-                                                        )
-                                                        .with_text("Remove Level")
-                                                        .build(ctx);
-                                                        remove_lod_level
-                                                    }),
-                                            )
-                                            .add_column(Column::stretch())
-                                            .add_column(Column::stretch())
-                                            .add_row(Row::stretch())
-                                            .build(ctx),
+        let window = WindowBuilder::new(WidgetBuilder::new().with_width(500.0).with_height(300.0))
+            .open(false)
+            .with_title(WindowTitle::text("Edit LOD Group"))
+            .with_content(
+                GridBuilder::new(
+                    WidgetBuilder::new()
+                        .with_margin(Thickness::uniform(1.0))
+                        .with_child(
+                            GridBuilder::new(
+                                WidgetBuilder::new()
+                                    .on_column(0)
+                                    .with_child(
+                                        GridBuilder::new(
+                                            WidgetBuilder::new()
+                                                .on_row(0)
+                                                .with_child({
+                                                    add_lod_level = ButtonBuilder::new(
+                                                        WidgetBuilder::new()
+                                                            .with_margin(Thickness::uniform(1.0))
+                                                            .on_column(0),
+                                                    )
+                                                    .with_text("Add Level")
+                                                    .build(ctx);
+                                                    add_lod_level
+                                                })
+                                                .with_child({
+                                                    remove_lod_level = ButtonBuilder::new(
+                                                        WidgetBuilder::new()
+                                                            .with_margin(Thickness::uniform(1.0))
+                                                            .on_column(1),
+                                                    )
+                                                    .with_text("Remove Level")
+                                                    .build(ctx);
+                                                    remove_lod_level
+                                                }),
                                         )
-                                        .with_child({
-                                            lod_levels = ListViewBuilder::new(
-                                                WidgetBuilder::new().on_row(1),
-                                            )
-                                            .build(ctx);
-                                            lod_levels
-                                        }),
-                                )
-                                .add_row(Row::strict(ROW_HEIGHT))
-                                .add_row(Row::stretch())
-                                .add_column(Column::stretch())
-                                .build(ctx),
+                                        .add_column(Column::stretch())
+                                        .add_column(Column::stretch())
+                                        .add_row(Row::stretch())
+                                        .build(ctx),
+                                    )
+                                    .with_child({
+                                        lod_levels =
+                                            ListViewBuilder::new(WidgetBuilder::new().on_row(1))
+                                                .build(ctx);
+                                        lod_levels
+                                    }),
                             )
-                            .with_child(
-                                GridBuilder::new(
-                                    WidgetBuilder::new()
-                                        .on_column(1)
-                                        .with_child(make_text_mark(ctx, "Begin", 0))
-                                        .with_child({
-                                            lod_begin = NumericUpDownBuilder::new(
-                                                WidgetBuilder::new().on_row(0).on_column(1),
-                                            )
-                                            .build(ctx);
-                                            lod_begin
-                                        })
-                                        .with_child(make_text_mark(ctx, "End", 1))
-                                        .with_child({
-                                            lod_end = NumericUpDownBuilder::new(
-                                                WidgetBuilder::new().on_row(1).on_column(1),
-                                            )
-                                            .build(ctx);
-                                            lod_end
-                                        })
-                                        .with_child(
-                                            GridBuilder::new(
-                                                WidgetBuilder::new()
-                                                    .on_row(2)
-                                                    .on_column(1)
-                                                    .with_child({
-                                                        add_object = ButtonBuilder::new(
-                                                            WidgetBuilder::new().on_column(0),
-                                                        )
-                                                        .with_text("Add Object...")
-                                                        .build(ctx);
-                                                        add_object
-                                                    })
-                                                    .with_child({
-                                                        remove_object = ButtonBuilder::new(
-                                                            WidgetBuilder::new().on_column(1),
-                                                        )
-                                                        .with_text("Remove Object")
-                                                        .build(ctx);
-                                                        remove_object
-                                                    }),
-                                            )
-                                            .add_column(Column::stretch())
-                                            .add_column(Column::stretch())
-                                            .add_row(Row::stretch())
-                                            .build(ctx),
+                            .add_row(Row::strict(ROW_HEIGHT))
+                            .add_row(Row::stretch())
+                            .add_column(Column::stretch())
+                            .build(ctx),
+                        )
+                        .with_child(
+                            GridBuilder::new(
+                                WidgetBuilder::new()
+                                    .on_column(1)
+                                    .with_child(make_text_mark(ctx, "Begin", 0))
+                                    .with_child({
+                                        lod_begin = NumericUpDownBuilder::new(
+                                            WidgetBuilder::new().on_row(0).on_column(1),
                                         )
-                                        .with_child(make_text_mark(ctx, "Objects", 3))
-                                        .with_child({
-                                            objects = ListViewBuilder::new(
-                                                WidgetBuilder::new().on_row(3).on_column(1),
-                                            )
-                                            .build(ctx);
-                                            objects
-                                        }),
-                                )
-                                .add_column(Column::strict(70.0))
-                                .add_column(Column::stretch())
-                                .add_row(Row::strict(ROW_HEIGHT))
-                                .add_row(Row::strict(ROW_HEIGHT))
-                                .add_row(Row::strict(ROW_HEIGHT))
-                                .add_row(Row::stretch())
-                                .build(ctx),
-                            ),
-                    )
-                    .add_row(Row::stretch())
-                    .add_column(Column::stretch())
-                    .add_column(Column::stretch())
-                    .build(ctx),
+                                        .with_min_value(0.0)
+                                        .with_max_value(1.0)
+                                        .build(ctx);
+                                        lod_begin
+                                    })
+                                    .with_child(make_text_mark(ctx, "End", 1))
+                                    .with_child({
+                                        lod_end = NumericUpDownBuilder::new(
+                                            WidgetBuilder::new().on_row(1).on_column(1),
+                                        )
+                                        .with_min_value(0.0)
+                                        .with_max_value(1.0)
+                                        .build(ctx);
+                                        lod_end
+                                    })
+                                    .with_child(
+                                        GridBuilder::new(
+                                            WidgetBuilder::new()
+                                                .on_row(2)
+                                                .on_column(1)
+                                                .with_child({
+                                                    add_object = ButtonBuilder::new(
+                                                        WidgetBuilder::new().on_column(0),
+                                                    )
+                                                    .with_text("Add...")
+                                                    .build(ctx);
+                                                    add_object
+                                                })
+                                                .with_child({
+                                                    remove_object = ButtonBuilder::new(
+                                                        WidgetBuilder::new().on_column(1),
+                                                    )
+                                                    .with_text("Remove")
+                                                    .build(ctx);
+                                                    remove_object
+                                                }),
+                                        )
+                                        .add_column(Column::stretch())
+                                        .add_column(Column::stretch())
+                                        .add_row(Row::stretch())
+                                        .build(ctx),
+                                    )
+                                    .with_child(make_text_mark(ctx, "Objects", 3))
+                                    .with_child({
+                                        objects = ListViewBuilder::new(
+                                            WidgetBuilder::new().on_row(3).on_column(1),
+                                        )
+                                        .build(ctx);
+                                        objects
+                                    }),
+                            )
+                            .add_column(Column::strict(70.0))
+                            .add_column(Column::stretch())
+                            .add_row(Row::strict(ROW_HEIGHT))
+                            .add_row(Row::strict(ROW_HEIGHT))
+                            .add_row(Row::strict(ROW_HEIGHT))
+                            .add_row(Row::stretch())
+                            .build(ctx),
+                        ),
                 )
-                .build(ctx);
+                .add_row(Row::stretch())
+                .add_column(Column::stretch())
+                .add_column(Column::stretch())
+                .build(ctx),
+            )
+            .build(ctx);
 
         Self {
             window,
@@ -406,11 +494,12 @@ impl LodGroupEditor {
             lod_begin,
             lod_end,
             objects,
+            selected_object: None,
             current_lod_level: None,
+            child_selector: ChildSelector::new(ctx, sender.clone()),
             sender,
             add_object,
             remove_object,
-            child_selector: ChildSelector::new(ctx),
         }
     }
 
@@ -432,47 +521,52 @@ impl LodGroupEditor {
                 ui,
                 ListViewMessage::items(self.lod_levels, MessageDirection::ToWidget, levels),
             );
-            if let Some(level) = self.current_lod_level.as_mut() {
-                if *level >= lod_levels.levels.len() {
-                    if lod_levels.levels.is_empty() {
-                        self.current_lod_level = None;
-                    } else {
-                        *level = 0;
-                    }
-                }
-            }
 
             if let Some(level) = self.current_lod_level {
-                let level = &lod_levels.levels[level];
+                if let Some(level) = lod_levels.levels.get(level) {
+                    send_sync_message(
+                        ui,
+                        NumericUpDownMessage::value(
+                            self.lod_begin,
+                            MessageDirection::ToWidget,
+                            level.begin(),
+                        ),
+                    );
 
-                send_sync_message(
-                    ui,
-                    NumericUpDownMessage::value(
-                        self.lod_begin,
-                        MessageDirection::ToWidget,
-                        level.begin(),
-                    ),
-                );
+                    send_sync_message(
+                        ui,
+                        NumericUpDownMessage::value(
+                            self.lod_end,
+                            MessageDirection::ToWidget,
+                            level.end(),
+                        ),
+                    );
 
-                send_sync_message(
-                    ui,
-                    NumericUpDownMessage::value(
-                        self.lod_end,
-                        MessageDirection::ToWidget,
-                        level.end(),
-                    ),
-                );
-
-                let objects = level
-                    .objects
-                    .iter()
-                    .map(|&object| {
-                        TextBuilder::new(WidgetBuilder::new())
-                            .with_text(scene.graph[object].name())
+                    let objects = level
+                        .objects
+                        .iter()
+                        .map(|&object| {
+                            DecoratorBuilder::new(BorderBuilder::new(
+                                WidgetBuilder::new().with_child(
+                                    TextBuilder::new(WidgetBuilder::new())
+                                        .with_text(format!(
+                                            "{}({}:{})",
+                                            scene.graph[object].name(),
+                                            object.index(),
+                                            object.generation()
+                                        ))
+                                        .build(&mut ui.build_ctx()),
+                                ),
+                            ))
                             .build(&mut ui.build_ctx())
-                    })
-                    .collect::<Vec<_>>();
-                ListViewMessage::items(self.objects, MessageDirection::ToWidget, objects);
+                        })
+                        .collect::<Vec<_>>();
+
+                    send_sync_message(
+                        ui,
+                        ListViewMessage::items(self.objects, MessageDirection::ToWidget, objects),
+                    );
+                }
             }
         } else {
             self.current_lod_level = None;
@@ -496,6 +590,11 @@ impl LodGroupEditor {
         scene: &Scene,
         ui: &mut Ui,
     ) {
+        if let Some(lod_index) = self.current_lod_level {
+            self.child_selector
+                .handle_ui_message(message, node_handle, node, lod_index, ui);
+        }
+
         match &message.data() {
             UiMessageData::Button(ButtonMessage::Click) => {
                 if message.destination() == self.add_lod_level {
@@ -505,33 +604,78 @@ impl LodGroupEditor {
                         )))
                         .unwrap();
                 } else if message.destination() == self.remove_lod_level {
-                    self.sender
-                        .send(Message::DoSceneCommand(SceneCommand::RemoveLodGroupLevel(
-                            RemoveLodGroupLevelCommand::new(node_handle, 0),
-                        )))
-                        .unwrap();
+                    if let Some(current_lod_level) = self.current_lod_level {
+                        self.sender
+                            .send(Message::DoSceneCommand(SceneCommand::RemoveLodGroupLevel(
+                                RemoveLodGroupLevelCommand::new(node_handle, current_lod_level),
+                            )))
+                            .unwrap();
+                    }
                 } else if message.destination() == self.add_object {
-                    ui.send_message(WindowMessage::open_modal(
-                        self.child_selector.window,
-                        MessageDirection::ToWidget,
-                        true,
-                    ));
+                    self.child_selector.open(ui, node, scene)
+                } else if message.destination() == self.remove_object {
+                    if let Some(current_lod_level) = self.current_lod_level {
+                        if let Some(selected_object) = self.selected_object {
+                            self.sender
+                                .send(Message::DoSceneCommand(SceneCommand::RemoveLodObject(
+                                    RemoveLodObjectCommand::new(
+                                        node_handle,
+                                        current_lod_level,
+                                        selected_object,
+                                    ),
+                                )))
+                                .unwrap();
+                        }
+                    }
+                }
+            }
+            UiMessageData::ListView(ListViewMessage::SelectionChanged(index)) => {
+                if message.destination() == self.lod_levels {
+                    self.current_lod_level = *index;
+                    self.selected_object = None;
+                    // Force sync.
+                    self.sender.send(Message::SyncToModel).unwrap();
 
-                    let items = node
-                        .children()
-                        .iter()
-                        .map(|n| {
-                            TextBuilder::new(WidgetBuilder::new().with_user_data(Rc::new(*n)))
-                                .with_text(scene.graph[*n].name())
-                                .build(&mut ui.build_ctx())
-                        })
-                        .collect::<Vec<_>>();
-
-                    ui.send_message(ListViewMessage::items(
-                        self.child_selector.list,
+                    ui.send_message(WidgetMessage::enabled(
+                        self.remove_object,
                         MessageDirection::ToWidget,
-                        items,
+                        index.is_some(),
                     ));
+                } else if message.destination() == self.objects {
+                    self.selected_object = *index;
+                    // Force sync.
+                    self.sender.send(Message::SyncToModel).unwrap();
+
+                    ui.send_message(WidgetMessage::enabled(
+                        self.remove_object,
+                        MessageDirection::ToWidget,
+                        index.is_some(),
+                    ));
+                }
+            }
+            UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) => {
+                if let Some(current_lod_level) = self.current_lod_level {
+                    if message.destination() == self.lod_begin {
+                        self.sender
+                            .send(Message::DoSceneCommand(SceneCommand::ChangeLodRangeBegin(
+                                ChangeLodRangeBeginCommand::new(
+                                    node_handle,
+                                    current_lod_level,
+                                    *value,
+                                ),
+                            )))
+                            .unwrap();
+                    } else if message.destination() == self.lod_end {
+                        self.sender
+                            .send(Message::DoSceneCommand(SceneCommand::ChangeLodRangeEnd(
+                                ChangeLodRangeEndCommand::new(
+                                    node_handle,
+                                    current_lod_level,
+                                    *value,
+                                ),
+                            )))
+                            .unwrap();
+                    }
                 }
             }
             _ => {}

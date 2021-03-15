@@ -301,6 +301,10 @@ pub enum SceneCommand {
     SetLodGroup(SetLodGroupCommand),
     AddLodGroupLevel(AddLodGroupLevelCommand),
     RemoveLodGroupLevel(RemoveLodGroupLevelCommand),
+    AddLodObject(AddLodObjectCommand),
+    RemoveLodObject(RemoveLodObjectCommand),
+    ChangeLodRangeEnd(ChangeLodRangeEndCommand),
+    ChangeLodRangeBegin(ChangeLodRangeBeginCommand),
     SetTag(SetTagCommand),
     AddJoint(AddJointCommand),
     DeleteJoint(DeleteJointCommand),
@@ -405,6 +409,10 @@ macro_rules! static_dispatch {
             SceneCommand::SetLodGroup(v) => v.$func($($args),*),
             SceneCommand::AddLodGroupLevel(v) => v.$func($($args),*),
             SceneCommand::RemoveLodGroupLevel(v) => v.$func($($args),*),
+            SceneCommand::AddLodObject(v) => v.$func($($args),*),
+            SceneCommand::RemoveLodObject(v) => v.$func($($args),*),
+            SceneCommand::ChangeLodRangeEnd(v) => v.$func($($args),*),
+            SceneCommand::ChangeLodRangeBegin(v) => v.$func($($args),*),
             SceneCommand::SetTag(v) => v.$func($($args),*),
             SceneCommand::SetBody(v) => v.$func($($args),*),
             SceneCommand::AddJoint(v) => v.$func($($args),*),
@@ -2334,6 +2342,187 @@ impl<'a> Command<'a> for RemoveLodGroupLevelCommand {
         } else {
             group.levels.insert(self.index, level)
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct AddLodObjectCommand {
+    handle: Handle<Node>,
+    lod_index: usize,
+    object: Handle<Node>,
+    object_index: usize,
+}
+
+impl AddLodObjectCommand {
+    pub fn new(handle: Handle<Node>, lod_index: usize, object: Handle<Node>) -> Self {
+        Self {
+            handle,
+            lod_index,
+            object,
+            object_index: 0,
+        }
+    }
+}
+
+impl<'a> Command<'a> for AddLodObjectCommand {
+    type Context = SceneContext<'a>;
+
+    fn name(&mut self, _context: &Self::Context) -> String {
+        "Add Lod Object".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut Self::Context) {
+        let objects = &mut context.scene.graph[self.handle]
+            .lod_group_mut()
+            .unwrap()
+            .levels[self.lod_index]
+            .objects;
+        self.object_index = objects.len();
+        objects.push(self.object);
+    }
+
+    fn revert(&mut self, context: &mut Self::Context) {
+        context.scene.graph[self.handle]
+            .lod_group_mut()
+            .unwrap()
+            .levels[self.lod_index]
+            .objects
+            .remove(self.object_index);
+    }
+}
+
+#[derive(Debug)]
+pub struct RemoveLodObjectCommand {
+    handle: Handle<Node>,
+    lod_index: usize,
+    object: Handle<Node>,
+    object_index: usize,
+}
+
+impl RemoveLodObjectCommand {
+    pub fn new(handle: Handle<Node>, lod_index: usize, object_index: usize) -> Self {
+        Self {
+            handle,
+            lod_index,
+            object: Default::default(),
+            object_index,
+        }
+    }
+}
+
+impl<'a> Command<'a> for RemoveLodObjectCommand {
+    type Context = SceneContext<'a>;
+
+    fn name(&mut self, _context: &Self::Context) -> String {
+        "Remove Lod Object".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut Self::Context) {
+        self.object = context.scene.graph[self.handle]
+            .lod_group_mut()
+            .unwrap()
+            .levels[self.lod_index]
+            .objects
+            .remove(self.object_index);
+    }
+
+    fn revert(&mut self, context: &mut Self::Context) {
+        let objects = &mut context.scene.graph[self.handle]
+            .lod_group_mut()
+            .unwrap()
+            .levels[self.lod_index]
+            .objects;
+        if objects.is_empty() {
+            objects.push(self.object);
+        } else {
+            objects.insert(self.object_index, self.object);
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct ChangeLodRangeBeginCommand {
+    handle: Handle<Node>,
+    lod_index: usize,
+    new_value: f32,
+}
+
+impl ChangeLodRangeBeginCommand {
+    pub fn new(handle: Handle<Node>, lod_index: usize, new_value: f32) -> Self {
+        Self {
+            handle,
+            lod_index,
+            new_value,
+        }
+    }
+
+    fn swap(&mut self, context: &mut SceneContext) {
+        let level = &mut context.scene.graph[self.handle]
+            .lod_group_mut()
+            .unwrap()
+            .levels[self.lod_index];
+        let old = level.begin();
+        level.set_begin(self.new_value);
+        self.new_value = old;
+    }
+}
+
+impl<'a> Command<'a> for ChangeLodRangeBeginCommand {
+    type Context = SceneContext<'a>;
+
+    fn name(&mut self, _context: &Self::Context) -> String {
+        "Change Lod Range Begin".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut Self::Context) {
+        self.swap(context);
+    }
+
+    fn revert(&mut self, context: &mut Self::Context) {
+        self.swap(context);
+    }
+}
+
+#[derive(Debug)]
+pub struct ChangeLodRangeEndCommand {
+    handle: Handle<Node>,
+    lod_index: usize,
+    new_value: f32,
+}
+
+impl ChangeLodRangeEndCommand {
+    pub fn new(handle: Handle<Node>, lod_index: usize, new_value: f32) -> Self {
+        Self {
+            handle,
+            lod_index,
+            new_value,
+        }
+    }
+
+    fn swap(&mut self, context: &mut SceneContext) {
+        let level = &mut context.scene.graph[self.handle]
+            .lod_group_mut()
+            .unwrap()
+            .levels[self.lod_index];
+        let old = level.end();
+        level.set_end(self.new_value);
+        self.new_value = old;
+    }
+}
+
+impl<'a> Command<'a> for ChangeLodRangeEndCommand {
+    type Context = SceneContext<'a>;
+
+    fn name(&mut self, _context: &Self::Context) -> String {
+        "Change Lod Range End".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut Self::Context) {
+        self.swap(context);
+    }
+
+    fn revert(&mut self, context: &mut Self::Context) {
+        self.swap(context);
     }
 }
 
