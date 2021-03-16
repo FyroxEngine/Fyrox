@@ -22,7 +22,6 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
-use crate::resource::model::NodeMapping;
 use crate::{
     core::{
         algebra::{Matrix4, Rotation3, UnitQuaternion, Vector2, Vector3},
@@ -32,8 +31,9 @@ use crate::{
             Ticket,
         },
         visitor::{Visit, VisitResult, Visitor},
+        VecExtensions,
     },
-    resource::ResourceState,
+    resource::{model::NodeMapping, ResourceState},
     scene::{node::Node, transform::TransformBuilder, VisibilityCache},
     utils::log::{Log, MessageKind},
 };
@@ -73,6 +73,39 @@ pub struct SubGraph {
 
     /// A set of descendant nodes with their tickets.
     pub descendants: Vec<(Ticket<Node>, Node)>,
+}
+
+fn remap_handles(old_new_mapping: &HashMap<Handle<Node>, Handle<Node>>, dest_graph: &mut Graph) {
+    // Iterate over instantiated nodes and remap handles.
+    for (_, &new_node_handle) in old_new_mapping.iter() {
+        let new_node = &mut dest_graph.pool[new_node_handle];
+
+        if let Node::Mesh(mesh) = new_node {
+            for surface in mesh.surfaces_mut() {
+                for bone_handle in surface.bones.iter_mut() {
+                    if let Some(entry) = old_new_mapping.get(bone_handle) {
+                        *bone_handle = *entry;
+                    }
+                }
+            }
+        }
+
+        // LODs also have handles that must be remapped too.
+        if let Some(lod_group) = new_node.lod_group_mut() {
+            for level in lod_group.levels.iter_mut() {
+                level.objects.retain_mut(|object| {
+                    if let Some(entry) = old_new_mapping.get(object) {
+                        // Replace to mapped.
+                        *object = *entry;
+                        true
+                    } else {
+                        // Discard invalid handles.
+                        false
+                    }
+                });
+            }
+        }
+    }
 }
 
 impl Graph {
@@ -285,18 +318,7 @@ impl Graph {
         let mut old_new_mapping = HashMap::new();
         let root_handle = self.copy_node_raw(node_handle, dest_graph, &mut old_new_mapping, filter);
 
-        // Iterate over instantiated nodes and remap bones handles.
-        for (_, &new_node_handle) in old_new_mapping.iter() {
-            if let Node::Mesh(mesh) = &mut dest_graph.pool[new_node_handle] {
-                for surface in mesh.surfaces_mut() {
-                    for bone_handle in surface.bones.iter_mut() {
-                        if let Some(entry) = old_new_mapping.get(bone_handle) {
-                            *bone_handle = *entry;
-                        }
-                    }
-                }
-            }
-        }
+        remap_handles(&old_new_mapping, dest_graph);
 
         (root_handle, old_new_mapping)
     }
@@ -364,18 +386,7 @@ impl Graph {
             }
         }
 
-        // Iterate over instantiated nodes and remap bones handles.
-        for (_, &new_node_handle) in old_new_mapping.iter() {
-            if let Node::Mesh(mesh) = &mut self.pool[new_node_handle] {
-                for surface in mesh.surfaces_mut() {
-                    for bone_handle in surface.bones.iter_mut() {
-                        if let Some(entry) = old_new_mapping.get(bone_handle) {
-                            *bone_handle = *entry;
-                        }
-                    }
-                }
-            }
-        }
+        remap_handles(&old_new_mapping, self);
 
         (root_handle, old_new_mapping)
     }
@@ -792,10 +803,11 @@ impl Graph {
                             let old_cache = camera.visibility_cache.invalidate();
                             let mut new_cache = VisibilityCache::from(old_cache);
                             let view_matrix = camera.view_matrix();
+                            let z_near = camera.z_near();
                             let z_far = camera.z_far();
                             let frustum =
                                 Frustum::from(camera.view_projection_matrix()).unwrap_or_default();
-                            new_cache.update(self, view_matrix, z_far, Some(&frustum));
+                            new_cache.update(self, view_matrix, z_near, z_far, Some(&frustum));
                             // We have to re-borrow camera again because borrow check cannot proof that
                             // camera reference is still valid after passing `self` to `new_cache.update(...)`
                             // This is ok since there are only few camera per level and there performance

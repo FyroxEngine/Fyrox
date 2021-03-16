@@ -1604,6 +1604,7 @@ impl VisibilityCache {
         &mut self,
         graph: &Graph,
         view_matrix: Matrix4<f32>,
+        z_near: f32,
         z_far: f32,
         frustum: Option<&Frustum>,
     ) {
@@ -1616,8 +1617,10 @@ impl VisibilityCache {
             if let Some(lod_group) = node.lod_group() {
                 for level in lod_group.levels.iter() {
                     for &object in level.objects.iter() {
-                        let normalized_distance =
-                            view_position.metric_distance(&graph[object].global_position()) / z_far;
+                        let distance =
+                            view_position.metric_distance(&graph[object].global_position());
+                        let z_range = z_far - z_near;
+                        let normalized_distance = (distance - z_near) / z_range;
                         let visible = normalized_distance >= level.begin()
                             && normalized_distance <= level.end();
                         self.map.insert(object, visible);
