@@ -94,12 +94,14 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for NumericUpDown<M, C> {
                             format!("{:.1$}", self.value, self.precision),
                         ));
 
-                        let msg = NumericUpDownMessage::value(
+                        let mut msg = NumericUpDownMessage::value(
                             self.handle,
                             MessageDirection::FromWidget,
                             self.value,
                         );
-                        msg.set_handled(message.handled()); // We must maintain flag
+                        // We must maintain flags
+                        msg.set_handled(message.handled());
+                        msg.flags = message.flags;
                         ui.send_message(msg);
                     }
                 }
