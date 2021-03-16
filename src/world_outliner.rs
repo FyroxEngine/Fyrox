@@ -166,10 +166,17 @@ impl Control<EditorUiMessage, EditorUiNode> for SceneItem {
                 }
                 SceneItemMessage::Name(name) => {
                     if message.destination() == self.handle() {
+                        let name = format!(
+                            "{} ({}:{})",
+                            name,
+                            self.node.index(),
+                            self.node.generation()
+                        );
+
                         ui.send_message(TextMessage::text(
                             self.text_name,
                             MessageDirection::ToWidget,
-                            name.clone(),
+                            name,
                         ));
                     }
                 }
@@ -272,7 +279,12 @@ impl SceneItemBuilder {
                                 .on_column(1)
                                 .with_vertical_alignment(VerticalAlignment::Center),
                         )
-                        .with_text(self.name)
+                        .with_text(format!(
+                            "{} ({}:{})",
+                            self.name,
+                            self.node.index(),
+                            self.node.generation()
+                        ))
                         .build(ctx);
                         text_name
                     })

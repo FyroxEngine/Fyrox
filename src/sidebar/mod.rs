@@ -1,11 +1,11 @@
-use crate::scene::RemoveLodObjectCommand;
+use crate::scene::CommandGroup;
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     scene::{
         AddLodGroupLevelCommand, AddLodObjectCommand, ChangeLodRangeBeginCommand,
         ChangeLodRangeEndCommand, EditorScene, MoveNodeCommand, RemoveLodGroupLevelCommand,
-        RotateNodeCommand, ScaleNodeCommand, SceneCommand, Selection, SetLodGroupCommand,
-        SetNameCommand, SetPhysicsBindingCommand, SetTagCommand,
+        RemoveLodObjectCommand, RotateNodeCommand, ScaleNodeCommand, SceneCommand, Selection,
+        SetLodGroupCommand, SetNameCommand, SetPhysicsBindingCommand, SetTagCommand,
     },
     send_sync_message,
     sidebar::{
@@ -14,6 +14,9 @@ use crate::{
     },
     GameEngine, Message,
 };
+use rg3d::gui::message::{TreeMessage, TreeRootMessage};
+use rg3d::gui::tree::{TreeBuilder, TreeRootBuilder};
+use rg3d::scene::graph::Graph;
 use rg3d::{
     core::{
         algebra::Vector3,
@@ -48,6 +51,7 @@ use rg3d::{
     },
     scene::{base::PhysicsBinding, node::Node, Scene},
 };
+use std::rc::Rc;
 use std::sync::mpsc::Sender;
 
 mod camera;
@@ -180,29 +184,59 @@ fn make_dropdown_list_option(ctx: &mut BuildContext, name: &str) -> Handle<UiNod
 
 struct ChildSelector {
     window: Handle<UiNode>,
-    list: Handle<UiNode>,
+    tree: Handle<UiNode>,
     ok: Handle<UiNode>,
     cancel: Handle<UiNode>,
     sender: Sender<Message>,
-    selection: Option<Handle<Node>>,
+    selection: Vec<Handle<Node>>,
+}
+
+fn make_tree(node: &Node, handle: Handle<Node>, graph: &Graph, ui: &mut Ui) -> Handle<UiNode> {
+    let tree = TreeBuilder::new(WidgetBuilder::new().with_user_data(Rc::new(handle)))
+        .with_content(
+            TextBuilder::new(WidgetBuilder::new())
+                .with_text(format!(
+                    "{}({}:{})",
+                    graph[handle].name(),
+                    handle.index(),
+                    handle.generation()
+                ))
+                .build(&mut ui.build_ctx()),
+        )
+        .build(&mut ui.build_ctx());
+
+    for &child_handle in node.children() {
+        let child = &graph[child_handle];
+
+        let sub_tree = make_tree(child, child_handle, graph, ui);
+
+        ui.send_message(TreeMessage::add_item(
+            tree,
+            MessageDirection::ToWidget,
+            sub_tree,
+        ));
+    }
+
+    tree
 }
 
 impl ChildSelector {
     pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
-        let list;
+        let tree;
         let ok;
         let cancel;
         Self {
             window: WindowBuilder::new(WidgetBuilder::new().with_width(140.0).with_height(200.0))
                 .with_title(WindowTitle::text("Select Child Object"))
                 .open(false)
+                .can_minimize(false)
                 .with_content(
                     GridBuilder::new(
                         WidgetBuilder::new()
                             .with_child({
-                                list =
-                                    ListViewBuilder::new(WidgetBuilder::new().on_row(0)).build(ctx);
-                                list
+                                tree =
+                                    TreeRootBuilder::new(WidgetBuilder::new().on_row(0)).build(ctx);
+                                tree
                             })
                             .with_child(
                                 StackPanelBuilder::new(
@@ -236,11 +270,11 @@ impl ChildSelector {
                     .build(ctx),
                 )
                 .build(ctx),
-            list,
+            tree,
             ok,
             cancel,
             sender,
-            selection: None,
+            selection: Default::default(),
         }
     }
 
@@ -251,30 +285,22 @@ impl ChildSelector {
             true,
         ));
 
-        let items = node
+        let roots = node
             .children()
             .iter()
-            .map(|n| {
-                DecoratorBuilder::new(BorderBuilder::new(
-                    WidgetBuilder::new().with_child(
-                        TextBuilder::new(WidgetBuilder::new())
-                            .with_text(format!(
-                                "{}({}:{})",
-                                scene.graph[*n].name(),
-                                n.index(),
-                                n.generation()
-                            ))
-                            .build(&mut ui.build_ctx()),
-                    ),
-                ))
-                .build(&mut ui.build_ctx())
-            })
+            .map(|&c| make_tree(&scene.graph[c], c, &scene.graph, ui))
             .collect::<Vec<_>>();
 
-        ui.send_message(ListViewMessage::items(
-            self.list,
+        ui.send_message(TreeRootMessage::items(
+            self.tree,
             MessageDirection::ToWidget,
-            items,
+            roots,
+        ));
+
+        ui.send_message(TreeRootMessage::select(
+            self.tree,
+            MessageDirection::ToWidget,
+            vec![],
         ));
 
         ui.send_message(WidgetMessage::enabled(
@@ -283,24 +309,36 @@ impl ChildSelector {
             false,
         ));
 
-        self.selection = None;
+        self.selection.clear();
     }
 
     fn handle_ui_message(
         &mut self,
         message: &UiMessage,
         node_handle: Handle<Node>,
-        node: &Node,
+        graph: &Graph,
         lod_index: usize,
         ui: &mut Ui,
     ) {
         match &message.data() {
             UiMessageData::Button(ButtonMessage::Click) => {
                 if message.destination() == self.ok {
-                    if let Some(selection) = self.selection {
+                    let commands = self
+                        .selection
+                        .iter()
+                        .map(|&h| {
+                            SceneCommand::AddLodObject(AddLodObjectCommand::new(
+                                node_handle,
+                                lod_index,
+                                h,
+                            ))
+                        })
+                        .collect::<Vec<_>>();
+
+                    if !commands.is_empty() {
                         self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::AddLodObject(
-                                AddLodObjectCommand::new(node_handle, lod_index, selection),
+                            .send(Message::DoSceneCommand(SceneCommand::CommandGroup(
+                                CommandGroup::from(commands),
                             )))
                             .unwrap();
 
@@ -316,14 +354,25 @@ impl ChildSelector {
                     ));
                 }
             }
-            UiMessageData::ListView(ListViewMessage::SelectionChanged(Some(index))) => {
-                if message.destination() == self.list {
-                    self.selection = Some(node.children()[*index]);
-                    ui.send_message(WidgetMessage::enabled(
-                        self.ok,
-                        MessageDirection::ToWidget,
-                        true,
-                    ));
+            UiMessageData::TreeRoot(TreeRootMessage::Selected(selection)) => {
+                if message.destination() == self.tree {
+                    self.selection.clear();
+
+                    for &item in selection {
+                        let node = *ui.node(item).user_data_ref::<Handle<Node>>();
+
+                        for descendant in graph.traverse_handle_iter(node) {
+                            self.selection.push(descendant);
+                        }
+                    }
+
+                    if !self.selection.is_empty() {
+                        ui.send_message(WidgetMessage::enabled(
+                            self.ok,
+                            MessageDirection::ToWidget,
+                            true,
+                        ))
+                    }
                 }
             }
             _ => (),
@@ -345,6 +394,7 @@ struct LodGroupEditor {
     sender: Sender<Message>,
     child_selector: ChildSelector,
     selected_object: Option<usize>,
+    lod_section: Handle<UiNode>,
 }
 
 impl LodGroupEditor {
@@ -357,9 +407,11 @@ impl LodGroupEditor {
         let objects;
         let add_object;
         let remove_object;
+        let lod_section;
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(500.0).with_height(300.0))
             .open(false)
             .with_title(WindowTitle::text("Edit LOD Group"))
+            .can_minimize(false)
             .with_content(
                 GridBuilder::new(
                     WidgetBuilder::new()
@@ -410,9 +462,10 @@ impl LodGroupEditor {
                             .add_column(Column::stretch())
                             .build(ctx),
                         )
-                        .with_child(
-                            GridBuilder::new(
+                        .with_child({
+                            lod_section = GridBuilder::new(
                                 WidgetBuilder::new()
+                                    .with_enabled(false)
                                     .on_column(1)
                                     .with_child(make_text_mark(ctx, "Begin", 0))
                                     .with_child({
@@ -476,8 +529,9 @@ impl LodGroupEditor {
                             .add_row(Row::strict(ROW_HEIGHT))
                             .add_row(Row::strict(ROW_HEIGHT))
                             .add_row(Row::stretch())
-                            .build(ctx),
-                        ),
+                            .build(ctx);
+                            lod_section
+                        }),
                 )
                 .add_row(Row::stretch())
                 .add_column(Column::stretch())
@@ -500,6 +554,7 @@ impl LodGroupEditor {
             sender,
             add_object,
             remove_object,
+            lod_section,
         }
     }
 
@@ -509,10 +564,16 @@ impl LodGroupEditor {
             let levels = lod_levels
                 .levels
                 .iter()
-                .map(|lod| {
+                .enumerate()
+                .map(|(i, lod)| {
                     make_dropdown_list_option(
                         ctx,
-                        &format!("{:.0} .. {:.0}%", lod.begin() * 100.0, lod.end() * 100.0),
+                        &format!(
+                            "LOD {}: {:.1} .. {:.1}%",
+                            i,
+                            lod.begin() * 100.0,
+                            lod.end() * 100.0
+                        ),
                     )
                 })
                 .collect::<Vec<_>>();
@@ -582,6 +643,32 @@ impl LodGroupEditor {
         );
     }
 
+    fn open(&mut self, ui: &mut Ui) {
+        ui.send_message(WindowMessage::open_modal(
+            self.window,
+            MessageDirection::ToWidget,
+            true,
+        ));
+
+        self.selected_object = None;
+        self.current_lod_level = None;
+
+        ui.send_message(WidgetMessage::enabled(
+            self.lod_section,
+            MessageDirection::ToWidget,
+            false,
+        ));
+
+        ui.send_message(WidgetMessage::enabled(
+            self.remove_object,
+            MessageDirection::ToWidget,
+            false,
+        ));
+
+        // Force-sync.
+        self.sender.send(Message::SyncToModel).unwrap();
+    }
+
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
@@ -591,8 +678,13 @@ impl LodGroupEditor {
         ui: &mut Ui,
     ) {
         if let Some(lod_index) = self.current_lod_level {
-            self.child_selector
-                .handle_ui_message(message, node_handle, node, lod_index, ui);
+            self.child_selector.handle_ui_message(
+                message,
+                node_handle,
+                &scene.graph,
+                lod_index,
+                ui,
+            );
         }
 
         match &message.data() {
@@ -638,6 +730,12 @@ impl LodGroupEditor {
 
                     ui.send_message(WidgetMessage::enabled(
                         self.remove_object,
+                        MessageDirection::ToWidget,
+                        index.is_some(),
+                    ));
+
+                    ui.send_message(WidgetMessage::enabled(
+                        self.lod_section,
                         MessageDirection::ToWidget,
                         index.is_some(),
                     ));
@@ -1101,13 +1199,7 @@ impl SideBar {
                                     )))
                                     .unwrap();
                             } else if message.destination() == self.edit_lod_group {
-                                engine
-                                    .user_interface
-                                    .send_message(WindowMessage::open_modal(
-                                        self.lod_editor.window,
-                                        MessageDirection::ToWidget,
-                                        true,
-                                    ));
+                                self.lod_editor.open(&mut engine.user_interface);
                             }
                         }
                         UiMessageData::Vec3Editor(msg) => {

@@ -44,8 +44,9 @@ impl CameraController {
         let camera;
         let pivot = BaseBuilder::new()
             .with_children(&[{
-                camera =
-                    CameraBuilder::new(BaseBuilder::new().with_name("EditorCamera")).build(graph);
+                camera = CameraBuilder::new(BaseBuilder::new().with_name("EditorCamera"))
+                    .with_z_far(512.0)
+                    .build(graph);
                 camera
             }])
             .with_name("EditorCameraPivot")

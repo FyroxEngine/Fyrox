@@ -6,11 +6,11 @@ use crate::{
     settings::Settings,
     GameEngine, Message,
 };
-use rg3d::core::scope_profile;
 use rg3d::{
     core::{
         algebra::{Matrix4, Vector2},
         pool::Handle,
+        scope_profile,
     },
     gui::{
         file_browser::FileSelectorBuilder,
@@ -470,7 +470,9 @@ impl Menu {
     pub fn handle_ui_message(&mut self, message: &UiMessage, ctx: MenuContext) {
         scope_profile!();
 
-        self.settings.handle_message(message, ctx.engine);
+        if let Some(scene) = ctx.editor_scene.as_ref() {
+            self.settings.handle_message(message, scene, ctx.engine);
+        }
 
         match &message.data() {
             UiMessageData::FileSelector(FileSelectorMessage::Commit(path)) => {
@@ -705,13 +707,13 @@ impl Menu {
                 } else if message.destination() == self.log_panel {
                     switch_window_state(ctx.log_panel, &mut ctx.engine.user_interface, false);
                 } else if message.destination() == self.open_settings {
-                    ctx.engine
-                        .user_interface
-                        .send_message(WindowMessage::open_modal(
-                            self.settings.window,
-                            MessageDirection::ToWidget,
-                            true,
-                        ));
+                    if let Some(scene) = ctx.editor_scene.as_ref() {
+                        let camera = ctx.engine.scenes[scene.scene].graph
+                            [scene.camera_controller.camera]
+                            .as_camera();
+
+                        self.settings.open(&ctx.engine.user_interface, camera);
+                    }
                 } else if message.destination() == self.configure {
                     if ctx.editor_scene.is_none() {
                         ctx.engine
