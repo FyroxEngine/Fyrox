@@ -1151,11 +1151,12 @@ impl SideBar {
             let scene = &engine.scenes[editor_scene.scene];
             let graph = &scene.graph;
 
-            if selection.is_single_selection()
-                && message.direction() == MessageDirection::FromWidget
-            {
+            if selection.is_single_selection() {
                 let node_handle = selection.nodes()[0];
                 let node = &graph[node_handle];
+
+                self.physics_section
+                    .handle_ui_message(message, editor_scene, engine);
 
                 if message.direction() == MessageDirection::FromWidget {
                     self.light_section
@@ -1171,8 +1172,7 @@ impl SideBar {
                     self.sprite_section
                         .handle_message(message, node, node_handle);
                     self.mesh_section.handle_message(message, node, node_handle);
-                    self.physics_section
-                        .handle_ui_message(message, editor_scene, engine);
+
                     self.lod_editor.handle_ui_message(
                         message,
                         node_handle,
