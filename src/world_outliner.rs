@@ -10,6 +10,7 @@ use crate::{
     },
     send_sync_message, GameEngine, Message,
 };
+use rg3d::gui::message::{ScrollViewerMessage, TreeExpansionStrategy};
 use rg3d::{
     core::{algebra::Vector2, math::Rect, pool::Handle, scope_profile},
     engine::resource_manager::ResourceManager,
@@ -53,6 +54,10 @@ pub struct WorldOutliner {
     pub sync_selection: bool,
     node_path: Handle<UiNode>,
     breadcrumbs: HashMap<Handle<UiNode>, Handle<Node>>,
+    collapse_all: Handle<UiNode>,
+    expand_all: Handle<UiNode>,
+    locate_selection: Handle<UiNode>,
+    scroll_view: Handle<UiNode>,
 }
 
 #[derive(Clone)]
@@ -387,6 +392,10 @@ impl WorldOutliner {
     pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
         let root;
         let node_path;
+        let collapse_all;
+        let expand_all;
+        let locate_selection;
+        let scroll_view;
         let window = WindowBuilder::new(WidgetBuilder::new())
             .can_minimize(false)
             .with_title(WindowTitle::text("World Outliner"))
@@ -394,9 +403,45 @@ impl WorldOutliner {
                 GridBuilder::new(
                     WidgetBuilder::new()
                         .with_child(
+                            StackPanelBuilder::new(
+                                WidgetBuilder::new()
+                                    .with_margin(Thickness::uniform(1.0))
+                                    .on_row(0)
+                                    .with_child({
+                                        collapse_all = ButtonBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_margin(Thickness::uniform(1.0)),
+                                        )
+                                        .with_text("Collapse All")
+                                        .build(ctx);
+                                        collapse_all
+                                    })
+                                    .with_child({
+                                        expand_all = ButtonBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_margin(Thickness::uniform(1.0)),
+                                        )
+                                        .with_text("Expand All")
+                                        .build(ctx);
+                                        expand_all
+                                    })
+                                    .with_child({
+                                        locate_selection = ButtonBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_margin(Thickness::uniform(1.0)),
+                                        )
+                                        .with_text("Locate Selection")
+                                        .build(ctx);
+                                        locate_selection
+                                    }),
+                            )
+                            .with_orientation(Orientation::Horizontal)
+                            .build(ctx),
+                        )
+                        .with_child(
                             TextBuilder::new(
                                 WidgetBuilder::new()
-                                    .on_row(0)
+                                    .on_row(1)
                                     .on_column(0)
                                     .with_opacity(0.4),
                             )
@@ -406,7 +451,7 @@ impl WorldOutliner {
                             .build(ctx),
                         )
                         .with_child(
-                            ScrollViewerBuilder::new(WidgetBuilder::new().on_row(0))
+                            ScrollViewerBuilder::new(WidgetBuilder::new().on_row(1))
                                 .with_content({
                                     node_path = StackPanelBuilder::new(WidgetBuilder::new())
                                         .with_orientation(Orientation::Horizontal)
@@ -415,16 +460,18 @@ impl WorldOutliner {
                                 })
                                 .build(ctx),
                         )
-                        .with_child(
-                            ScrollViewerBuilder::new(WidgetBuilder::new().on_row(1))
+                        .with_child({
+                            scroll_view = ScrollViewerBuilder::new(WidgetBuilder::new().on_row(2))
                                 .with_content({
                                     root = TreeRootBuilder::new(WidgetBuilder::new()).build(ctx);
                                     root
                                 })
-                                .build(ctx),
-                        ),
+                                .build(ctx);
+                            scroll_view
+                        }),
                 )
                 .add_column(Column::stretch())
+                .add_row(Row::strict(24.0))
                 .add_row(Row::strict(24.0))
                 .add_row(Row::stretch())
                 .build(ctx),
@@ -439,6 +486,10 @@ impl WorldOutliner {
             stack: Default::default(),
             sync_selection: false,
             breadcrumbs: Default::default(),
+            locate_selection,
+            collapse_all,
+            expand_all,
+            scroll_view,
         }
     }
 
@@ -720,6 +771,41 @@ impl WorldOutliner {
                             ),
                         )))
                         .unwrap();
+                } else if message.destination() == self.collapse_all {
+                    engine
+                        .user_interface
+                        .send_message(TreeRootMessage::collapse_all(
+                            self.root,
+                            MessageDirection::ToWidget,
+                        ));
+                } else if message.destination() == self.expand_all {
+                    engine
+                        .user_interface
+                        .send_message(TreeRootMessage::expand_all(
+                            self.root,
+                            MessageDirection::ToWidget,
+                        ));
+                } else if message.destination() == self.locate_selection {
+                    if let Selection::Graph(ref selection) = editor_scene.selection {
+                        if let Some(&first) = selection.nodes().first() {
+                            let tree = self.map_node_to_tree(&engine.user_interface, first);
+
+                            engine.user_interface.send_message(TreeMessage::expand(
+                                tree,
+                                MessageDirection::ToWidget,
+                                true,
+                                TreeExpansionStrategy::RecursiveAncestors,
+                            ));
+
+                            engine.user_interface.send_message(
+                                ScrollViewerMessage::bring_into_view(
+                                    self.scroll_view,
+                                    MessageDirection::ToWidget,
+                                    tree,
+                                ),
+                            );
+                        }
+                    }
                 }
             }
             _ => {}
