@@ -170,7 +170,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileBrowser<M, C> {
                 }
             }
             UiMessageData::Tree(msg) => {
-                if let TreeMessage::Expand(expand) = *msg {
+                if let TreeMessage::Expand { expand, .. } = *msg {
                     if expand {
                         // Look into internals of directory and build tree items.
                         let parent_path = ui

@@ -1599,18 +1599,16 @@ impl VisibilityCache {
     }
 
     /// Updates visibility cache - checks visibility for each node in given graph, also performs
-    /// frustum culling if frustum specified.
+    /// frustum culling if frustum set is specified.
     pub fn update(
         &mut self,
         graph: &Graph,
-        view_matrix: Matrix4<f32>,
+        observer_position: Vector3<f32>,
         z_near: f32,
         z_far: f32,
-        frustum: Option<&Frustum>,
+        frustums: Option<&[&Frustum]>,
     ) {
         self.map.clear();
-
-        let view_position = view_matrix.position();
 
         // Check LODs first, it has priority over other visibility settings.
         for node in graph.linear_iter() {
@@ -1618,7 +1616,7 @@ impl VisibilityCache {
                 for level in lod_group.levels.iter() {
                     for &object in level.objects.iter() {
                         let distance =
-                            view_position.metric_distance(&graph[object].global_position());
+                            observer_position.metric_distance(&graph[object].global_position());
                         let z_range = z_far - z_near;
                         let normalized_distance = (distance - z_near) / z_range;
                         let visible = normalized_distance >= level.begin()
@@ -1629,7 +1627,7 @@ impl VisibilityCache {
             }
         }
 
-        // Fill rest of data from global visibility flag of nodes.
+        // Fill rest of data from global visibility flag of nodes and check frustums (if any).
         for (handle, node) in graph.pair_iter() {
             // We care only about meshes.
             if let Node::Mesh(mesh) = node {
@@ -1638,8 +1636,16 @@ impl VisibilityCache {
                 self.map.entry(handle).or_insert_with(|| {
                     let mut visibility = node.global_visibility();
                     if visibility {
-                        if let Some(frustum) = frustum {
-                            visibility = mesh.is_intersect_frustum(graph, frustum);
+                        // If a mesh globally visible, check it with each frustum (if any).
+                        if let Some(frustums) = frustums {
+                            let mut visible_by_any_frustum = false;
+                            for frustum in frustums {
+                                if mesh.is_intersect_frustum(graph, frustum) {
+                                    visible_by_any_frustum = true;
+                                    break;
+                                }
+                            }
+                            visibility = visible_by_any_frustum;
                         }
                     }
                     visibility

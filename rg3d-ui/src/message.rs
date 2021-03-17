@@ -570,12 +570,25 @@ impl FileSelectorMessage {
     define_constructor_unbound!(FileSelector(FileSelectorMessage:Cancel) => fn cancel(), layout: false);
 }
 
+#[derive(Copy, Clone, PartialOrd, PartialEq, Ord, Eq, Hash, Debug)]
+pub enum TreeExpansionStrategy {
+    /// Expand a single item.
+    Direct,
+    /// Expand an item and its descendants.
+    RecursiveDescendants,
+    /// Expand an item and its ancestors (chain of parent trees).
+    RecursiveAncestors,
+}
+
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct SelectionState(pub(in crate) bool);
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TreeMessage<M: MessageData, C: Control<M, C>> {
-    Expand(bool),
+    Expand {
+        expand: bool,
+        expansion_strategy: TreeExpansionStrategy,
+    },
     AddItem(Handle<UINode<M, C>>),
     RemoveItem(Handle<UINode<M, C>>),
     SetItems(Vec<Handle<UINode<M, C>>>),
@@ -587,7 +600,7 @@ impl<M: MessageData, C: Control<M, C>> TreeMessage<M, C> {
     define_constructor!(Tree(TreeMessage:AddItem) => fn add_item(Handle<UINode<M, C>>), layout: false);
     define_constructor!(Tree(TreeMessage:RemoveItem) => fn remove_item(Handle<UINode<M, C>>), layout: false);
     define_constructor!(Tree(TreeMessage:SetItems) => fn set_items(Vec<Handle<UINode<M, C>>>), layout: false);
-    define_constructor!(Tree(TreeMessage:Expand) => fn expand(bool), layout: false);
+    define_constructor!(Tree(TreeMessage:Expand) => fn expand(expand: bool, expansion_strategy: TreeExpansionStrategy), layout: false);
 
     pub(in crate) fn select(
         destination: Handle<UINode<M, C>>,
@@ -611,6 +624,8 @@ pub enum TreeRootMessage<M: MessageData, C: Control<M, C>> {
     RemoveItem(Handle<UINode<M, C>>),
     Items(Vec<Handle<UINode<M, C>>>),
     Selected(Vec<Handle<UINode<M, C>>>),
+    ExpandAll,
+    CollapseAll,
 }
 
 impl<M: MessageData, C: Control<M, C>> TreeRootMessage<M, C> {
@@ -618,6 +633,8 @@ impl<M: MessageData, C: Control<M, C>> TreeRootMessage<M, C> {
     define_constructor!(TreeRoot(TreeRootMessage:RemoveItem) => fn remove_item(Handle<UINode<M, C>>), layout: false);
     define_constructor!(TreeRoot(TreeRootMessage:Items) => fn items(Vec<Handle<UINode<M, C>>>), layout: false);
     define_constructor!(TreeRoot(TreeRootMessage:Selected) => fn select(Vec<Handle<UINode<M, C>>>), layout: false);
+    define_constructor!(TreeRoot(TreeRootMessage:ExpandAll) => fn expand_all(), layout: false);
+    define_constructor!(TreeRoot(TreeRootMessage:CollapseAll) => fn collapse_all(), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq)]

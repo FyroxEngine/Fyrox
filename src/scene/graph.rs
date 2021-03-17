@@ -802,12 +802,18 @@ impl Graph {
 
                             let old_cache = camera.visibility_cache.invalidate();
                             let mut new_cache = VisibilityCache::from(old_cache);
-                            let view_matrix = camera.view_matrix();
+                            let observer_position = camera.global_position();
                             let z_near = camera.z_near();
                             let z_far = camera.z_far();
                             let frustum =
                                 Frustum::from(camera.view_projection_matrix()).unwrap_or_default();
-                            new_cache.update(self, view_matrix, z_near, z_far, Some(&frustum));
+                            new_cache.update(
+                                self,
+                                observer_position,
+                                z_near,
+                                z_far,
+                                Some(&[&frustum]),
+                            );
                             // We have to re-borrow camera again because borrow check cannot proof that
                             // camera reference is still valid after passing `self` to `new_cache.update(...)`
                             // This is ok since there are only few camera per level and there performance
