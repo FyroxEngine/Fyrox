@@ -204,17 +204,15 @@ impl CameraController {
 
                 let node = &graph[handle];
 
+                self.stack.extend_from_slice(node.children());
+
                 if !node.global_visibility() || !filter(handle, node) {
                     continue;
                 }
 
                 let (aabb, surfaces) = match node {
-                    Node::Base(_) => (AxisAlignedBoundingBox::default(), None), // Non-pickable. TODO: Maybe better filter out such nodes?
-                    Node::Light(_) => (AxisAlignedBoundingBox::unit(), None),
-                    Node::Camera(_) => (AxisAlignedBoundingBox::unit(), None),
                     Node::Mesh(mesh) => (mesh.bounding_box(), Some(mesh.surfaces())),
-                    Node::Sprite(_) => (AxisAlignedBoundingBox::unit(), None),
-                    Node::ParticleSystem(_) => (AxisAlignedBoundingBox::unit(), None),
+                    _ => (AxisAlignedBoundingBox::unit(), None),
                 };
 
                 if handle != graph.get_root() {
@@ -232,10 +230,6 @@ impl CameraController {
                         let closest_distance = da.min(db);
                         context.pick_list.push((handle, closest_distance));
                     }
-                }
-
-                for &child in node.children() {
-                    self.stack.push(child);
                 }
             }
 

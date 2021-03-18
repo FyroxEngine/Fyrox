@@ -474,7 +474,9 @@ impl InteractionModeTrait for MoveInteractionMode {
             editor_scene.root,
             frame_size,
             true,
-            |handle, _| handle != camera && handle != camera_pivot,
+            |handle, _| {
+                handle != camera && handle != camera_pivot && handle != self.move_gizmo.origin
+            },
         );
 
         if self
@@ -927,7 +929,9 @@ impl InteractionModeTrait for ScaleInteractionMode {
                 editor_scene.root,
                 frame_size,
                 true,
-                |handle, _| handle != camera && handle != camera_pivot,
+                |handle, _| {
+                    handle != camera && handle != camera_pivot && handle != self.scale_gizmo.origin
+                },
             );
 
             if self
@@ -1322,7 +1326,9 @@ impl InteractionModeTrait for RotateInteractionMode {
             editor_scene.root,
             frame_size,
             true,
-            |handle, _| handle != camera && handle != camera_pivot,
+            |handle, _| {
+                handle != camera && handle != camera_pivot && handle != self.rotation_gizmo.origin
+            },
         );
 
         if self
