@@ -397,7 +397,7 @@ impl Ray {
     pub fn transform(&self, mat: Matrix4<f32>) -> Self {
         Self {
             origin: mat.transform_point(&Point3::from(self.origin)).coords,
-            dir: mat.transform_point(&Point3::from(self.dir)).coords,
+            dir: mat.transform_vector(&self.dir),
         }
     }
 }

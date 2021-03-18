@@ -248,7 +248,10 @@ impl Camera {
         // Invert y here because OpenGL has origin at left bottom corner,
         // but window coordinates starts from left *upper* corner.
         let ny = (viewport.h() as f32 - screen_coord.y) / (viewport.h() as f32) * 2.0 - 1.0;
-        let inv_view_proj = self.view_projection_matrix().try_inverse().unwrap();
+        let inv_view_proj = self
+            .view_projection_matrix()
+            .try_inverse()
+            .unwrap_or_default();
         let near = inv_view_proj * Vector4::new(nx, ny, -1.0, 1.0);
         let far = inv_view_proj * Vector4::new(nx, ny, 1.0, 1.0);
         let begin = near.xyz().scale(1.0 / near.w);
