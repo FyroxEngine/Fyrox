@@ -198,7 +198,7 @@ impl CameraController {
 
             while let Some(handle) = self.stack.pop() {
                 // Ignore editor nodes if we picking scene stuff only.
-                if !editor_only {
+                if !editor_only && handle == root {
                     continue;
                 }
 
@@ -206,7 +206,7 @@ impl CameraController {
 
                 self.stack.extend_from_slice(node.children());
 
-                if !node.global_visibility() || !filter(handle, node) || handle == root {
+                if !node.global_visibility() || !filter(handle, node) {
                     continue;
                 }
 
