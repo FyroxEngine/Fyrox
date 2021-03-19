@@ -125,19 +125,19 @@ impl MeshSection {
                 UiMessageData::DropdownList(DropdownListMessage::SelectionChanged(Some(
                     selection,
                 ))) => {
-                    let new_render_path = match *selection {
-                        0 => RenderPath::Deferred,
-                        1 => RenderPath::Forward,
-                        _ => unreachable!(),
-                    };
-                    if message.destination() == self.render_path
-                        && new_render_path != mesh.render_path()
-                    {
-                        self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::SetMeshRenderPath(
-                                SetMeshRenderPathCommand::new(handle, new_render_path),
-                            )))
-                            .unwrap();
+                    if message.destination() == self.render_path {
+                        let new_render_path = match *selection {
+                            0 => RenderPath::Deferred,
+                            1 => RenderPath::Forward,
+                            _ => unreachable!(),
+                        };
+                        if new_render_path != mesh.render_path() {
+                            self.sender
+                                .send(Message::DoSceneCommand(SceneCommand::SetMeshRenderPath(
+                                    SetMeshRenderPathCommand::new(handle, new_render_path),
+                                )))
+                                .unwrap();
+                        }
                     }
                 }
                 _ => {}
