@@ -929,9 +929,7 @@ impl InteractionModeTrait for ScaleInteractionMode {
                 editor_scene.root,
                 frame_size,
                 true,
-                |handle, _| {
-                    handle != camera && handle != camera_pivot && handle != self.scale_gizmo.origin
-                },
+                |handle, _| handle != camera && handle != camera_pivot,
             );
 
             if self
