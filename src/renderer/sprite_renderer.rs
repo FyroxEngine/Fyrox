@@ -92,6 +92,8 @@ impl SpriteRenderer {
 
         state.set_blend_func(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
 
+        let initial_view_projection = camera.view_projection_matrix();
+
         let inv_view = camera.inv_view_matrix().unwrap();
 
         let camera_up = inv_view.up();
@@ -108,6 +110,14 @@ impl SpriteRenderer {
                 None
             }
         }) {
+            let view_projection = if sprite.depth_offset_factor() != 0.0 {
+                let mut projection = camera.projection_matrix();
+                projection[14] -= sprite.depth_offset_factor();
+                projection * camera.view_matrix()
+            } else {
+                initial_view_projection
+            };
+
             let diffuse_texture = if let Some(texture) = sprite.texture() {
                 if let Some(texture) = textures.get(state, texture) {
                     texture
@@ -142,7 +152,7 @@ impl SpriteRenderer {
                     ),
                     (
                         self.shader.view_projection_matrix,
-                        UniformValue::Matrix4(camera.view_projection_matrix()),
+                        UniformValue::Matrix4(view_projection),
                     ),
                     (
                         self.shader.world_matrix,
