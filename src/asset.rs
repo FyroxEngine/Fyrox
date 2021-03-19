@@ -7,16 +7,14 @@ use crate::{
     preview::PreviewPanel,
     GameEngine,
 };
-use rg3d::core::scope_profile;
-use rg3d::gui::draw::Draw;
-use rg3d::gui::{VerticalAlignment, BRUSH_DARK};
+use rg3d::gui::message::TextMessage;
 use rg3d::{
-    core::{color::Color, pool::Handle},
+    core::{color::Color, pool::Handle, scope_profile},
     engine::resource_manager::ResourceManager,
     gui::{
         border::BorderBuilder,
         brush::Brush,
-        draw::{CommandTexture, DrawingContext},
+        draw::{CommandTexture, Draw, DrawingContext},
         file_browser::FileBrowserBuilder,
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
@@ -26,7 +24,7 @@ use rg3d::{
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
         wrap_panel::WrapPanelBuilder,
-        Control, HorizontalAlignment, Orientation, Thickness,
+        Control, HorizontalAlignment, Orientation, Thickness, VerticalAlignment, BRUSH_DARK,
     },
     utils::into_gui_texture,
 };
@@ -72,6 +70,8 @@ impl DerefMut for AssetItem {
 impl Control<EditorUiMessage, EditorUiNode> for AssetItem {
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.screen_bounds();
+        drawing_context.push_rect_filled(&bounds, None);
+        drawing_context.commit(bounds, self.background(), CommandTexture::None, None);
         drawing_context.push_rect(&bounds, 1.0);
         drawing_context.commit(bounds, self.foreground(), CommandTexture::None, None);
     }
@@ -93,7 +93,16 @@ impl Control<EditorUiMessage, EditorUiNode> for AssetItem {
                         self.handle(),
                         MessageDirection::ToWidget,
                         if select {
-                            Brush::Solid(Color::RED)
+                            Brush::Solid(Color::opaque(200, 220, 240))
+                        } else {
+                            Brush::Solid(Color::TRANSPARENT)
+                        },
+                    ));
+                    ui.send_message(WidgetMessage::background(
+                        self.handle(),
+                        MessageDirection::ToWidget,
+                        if select {
+                            Brush::Solid(Color::opaque(100, 100, 100))
                         } else {
                             Brush::Solid(Color::TRANSPARENT)
                         },
@@ -141,6 +150,10 @@ impl AssetItemBuilder {
                     kind = AssetKind::Model;
                     load_image("resources/model.png", resource_manager.clone())
                 }
+                "ogg" | "wav" => {
+                    kind = AssetKind::Sound;
+                    load_image("resources/sound.png", resource_manager.clone())
+                }
                 _ => None,
             })
             .flatten();
@@ -148,8 +161,8 @@ impl AssetItemBuilder {
         let preview = ImageBuilder::new(
             WidgetBuilder::new()
                 .with_margin(Thickness::uniform(2.0))
-                .with_width(64.0)
-                .with_height(64.0),
+                .with_width(60.0)
+                .with_height(60.0),
         )
         .with_opt_texture(texture)
         .build(ctx);
@@ -200,6 +213,7 @@ pub struct AssetBrowser {
     pub window: Handle<UiNode>,
     content_panel: Handle<UiNode>,
     folder_browser: Handle<UiNode>,
+    selected_properties: Handle<UiNode>,
     preview: PreviewPanel,
     items: Vec<Handle<UiNode>>,
 }
@@ -211,6 +225,7 @@ impl AssetBrowser {
 
         let content_panel;
         let folder_browser;
+        let selected_properties;
 
         let window = WindowBuilder::new(WidgetBuilder::new())
             .can_minimize(false)
@@ -233,20 +248,41 @@ impl AssetBrowser {
                             )
                             .build(&mut ctx),
                         )
-                        .with_child({
-                            ScrollViewerBuilder::new(WidgetBuilder::new().on_column(1))
-                                .with_content({
-                                    content_panel = WrapPanelBuilder::new(
-                                        WidgetBuilder::new()
-                                            .with_horizontal_alignment(HorizontalAlignment::Left)
-                                            .with_vertical_alignment(VerticalAlignment::Top),
-                                    )
-                                    .with_orientation(Orientation::Horizontal)
-                                    .build(&mut ctx);
-                                    content_panel
-                                })
-                                .build(&mut ctx)
-                        })
+                        .with_child(
+                            GridBuilder::new(
+                                WidgetBuilder::new()
+                                    .on_column(1)
+                                    .with_child({
+                                        selected_properties =
+                                            TextBuilder::new(WidgetBuilder::new().on_row(0))
+                                                .with_text("Ololo")
+                                                .build(&mut ctx);
+                                        selected_properties
+                                    })
+                                    .with_child({
+                                        ScrollViewerBuilder::new(WidgetBuilder::new().on_row(1))
+                                            .with_content({
+                                                content_panel = WrapPanelBuilder::new(
+                                                    WidgetBuilder::new()
+                                                        .with_horizontal_alignment(
+                                                            HorizontalAlignment::Left,
+                                                        )
+                                                        .with_vertical_alignment(
+                                                            VerticalAlignment::Top,
+                                                        ),
+                                                )
+                                                .with_orientation(Orientation::Horizontal)
+                                                .build(&mut ctx);
+                                                content_panel
+                                            })
+                                            .build(&mut ctx)
+                                    }),
+                            )
+                            .add_row(Row::strict(20.0))
+                            .add_row(Row::stretch())
+                            .add_column(Column::stretch())
+                            .build(&mut ctx),
+                        )
                         .with_child(
                             BorderBuilder::new(
                                 WidgetBuilder::new()
@@ -270,6 +306,7 @@ impl AssetBrowser {
             content_panel,
             folder_browser,
             preview,
+            selected_properties,
             items: Default::default(),
         }
     }
@@ -295,30 +332,29 @@ impl AssetBrowser {
         let ui = &mut engine.user_interface;
 
         match &message.data() {
-            UiMessageData::User(EditorUiMessage::AssetItem(msg)) => {
-                if let AssetItemMessage::Select(select) = *msg {
-                    if select {
-                        for &item in self.items.iter() {
-                            if item != message.destination() {
-                                ui.send_message(UiMessage::user(
-                                    item,
-                                    MessageDirection::ToWidget,
-                                    EditorUiMessage::AssetItem(AssetItemMessage::Select(false)),
-                                ))
-                            }
-                        }
+            UiMessageData::User(EditorUiMessage::AssetItem(AssetItemMessage::Select(true))) => {
+                // Deselect other items.
+                for &item in self.items.iter().filter(|i| **i != message.destination()) {
+                    ui.send_message(UiMessage::user(
+                        item,
+                        MessageDirection::ToWidget,
+                        EditorUiMessage::AssetItem(AssetItemMessage::Select(false)),
+                    ))
+                }
 
-                        if let EditorUiNode::AssetItem(item) =
-                            ui.node(message.destination()).as_user()
-                        {
-                            if item.kind == AssetKind::Model {
-                                let path = item.path.clone();
-                                rg3d::futures::executor::block_on(
-                                    self.preview.set_model(&path, engine),
-                                );
-                            }
-                        }
+                if let EditorUiNode::AssetItem(item) = ui.node(message.destination()).as_user() {
+                    ui.send_message(TextMessage::text(
+                        self.selected_properties,
+                        MessageDirection::ToWidget,
+                        format!("Path: {:?}", item.path),
+                    ));
+
+                    if item.kind == AssetKind::Model {
+                        let path = item.path.clone();
+                        rg3d::futures::executor::block_on(self.preview.set_model(&path, engine));
                     }
+                } else {
+                    unreachable!()
                 }
             }
             UiMessageData::FileBrowser(FileBrowserMessage::Path(path))
@@ -336,7 +372,7 @@ impl AssetBrowser {
                                 let ext = ext.to_string_lossy().to_lowercase();
                                 matches!(
                                     ext.as_str(),
-                                    "rgs" | "fbx" | "jpg" | "tga" | "png" | "bmp"
+                                    "rgs" | "fbx" | "jpg" | "tga" | "png" | "bmp" | "ogg" | "wav"
                                 )
                             };
 

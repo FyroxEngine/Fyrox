@@ -1,14 +1,11 @@
-use crate::scene::{
-    SetBallRadiusCommand, SetColliderPositionCommand, SetColliderRotationCommand,
-    SetCuboidHalfExtentsCommand, SetCylinderHalfHeightCommand, SetCylinderRadiusCommand,
-};
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::{Collider, Joint, RigidBody},
     scene::{
         AddJointCommand, CommandGroup, DeleteBodyCommand, DeleteColliderCommand,
-        DeleteJointCommand, EditorScene, SceneCommand, Selection, SetBodyCommand,
-        SetColliderCommand,
+        DeleteJointCommand, EditorScene, SceneCommand, Selection, SetBallRadiusCommand,
+        SetBodyCommand, SetColliderCommand, SetColliderPositionCommand,
+        SetCuboidHalfExtentsCommand, SetCylinderHalfHeightCommand, SetCylinderRadiusCommand,
     },
     send_sync_message,
     sidebar::{
@@ -22,27 +19,31 @@ use crate::{
     },
     GameEngine, Message,
 };
-use rg3d::core::algebra::Matrix4;
-use rg3d::core::math::aabb::AxisAlignedBoundingBox;
-use rg3d::gui::button::ButtonBuilder;
-use rg3d::gui::message::ButtonMessage;
-use rg3d::scene::graph::Graph;
-use rg3d::scene::node::Node;
 use rg3d::{
-    core::{algebra::Vector3, pool::Handle, scope_profile},
+    core::{
+        algebra::Matrix4, algebra::Vector3, math::aabb::AxisAlignedBoundingBox, pool::Handle,
+        scope_profile,
+    },
     gui::{
+        button::ButtonBuilder,
         dropdown_list::DropdownListBuilder,
         grid::{Column, GridBuilder, Row},
-        message::{DropdownListMessage, MessageDirection, UiMessageData, WidgetMessage},
+        message::{
+            ButtonMessage, DropdownListMessage, MessageDirection, UiMessageData, WidgetMessage,
+        },
         stack_panel::StackPanelBuilder,
         widget::WidgetBuilder,
         Orientation, Thickness,
     },
-    scene::physics::{
-        BallDesc, BallJointDesc, BodyStatusDesc, CapsuleDesc, ColliderShapeDesc, ConeDesc,
-        CuboidDesc, CylinderDesc, FixedJointDesc, HeightfieldDesc, JointParamsDesc,
-        PrismaticJointDesc, RevoluteJointDesc, RoundCylinderDesc, SegmentDesc, TriangleDesc,
-        TrimeshDesc,
+    scene::{
+        graph::Graph,
+        node::Node,
+        physics::{
+            BallDesc, BallJointDesc, BodyStatusDesc, CapsuleDesc, ColliderShapeDesc, ConeDesc,
+            CuboidDesc, CylinderDesc, FixedJointDesc, HeightfieldDesc, JointParamsDesc,
+            PrismaticJointDesc, RevoluteJointDesc, RoundCylinderDesc, SegmentDesc, TriangleDesc,
+            TrimeshDesc,
+        },
     },
 };
 use std::sync::mpsc::Sender;

@@ -13,7 +13,7 @@ opt-level = 3
 
 [profile.release]
 opt-level = 3
-lto = true
+# lto = true
 
 [features]
 enable_profiler = ["rg3d/enable_profiler"]

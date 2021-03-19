@@ -993,7 +993,7 @@ impl SideBar {
         if let Selection::Graph(selection) = &editor_scene.selection {
             let scene = &engine.scenes[editor_scene.scene];
             send_sync_message(
-                &mut engine.user_interface,
+                &engine.user_interface,
                 WidgetMessage::visibility(
                     self.scroll_viewer,
                     MessageDirection::ToWidget,
