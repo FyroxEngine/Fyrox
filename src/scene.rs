@@ -1397,9 +1397,11 @@ enum PasteCommandState {
         colliders: Vec<(Ticket<Collider>, Collider)>,
         joints: Vec<(Ticket<Joint>, Joint)>,
         binder: HashMap<Handle<Node>, Handle<RigidBody>>,
+        selection: Selection,
     },
     Executed {
         paste_result: DeepCloneResult,
+        last_selection: Selection,
     },
 }
 
@@ -1432,11 +1434,18 @@ impl<'a> Command<'a> for PasteCommand {
     fn execute(&mut self, context: &mut Self::Context) {
         match std::mem::replace(&mut self.state, PasteCommandState::Undefined) {
             PasteCommandState::NonExecuted => {
+                let paste_result = context
+                    .editor_scene
+                    .clipboard
+                    .paste(&mut context.scene.graph, &mut context.editor_scene.physics);
+
+                let mut selection =
+                    Selection::Graph(GraphSelection::from_list(paste_result.root_nodes.clone()));
+                std::mem::swap(&mut context.editor_scene.selection, &mut selection);
+
                 self.state = PasteCommandState::Executed {
-                    paste_result: context
-                        .editor_scene
-                        .clipboard
-                        .paste(&mut context.scene.graph, &mut context.editor_scene.physics),
+                    paste_result,
+                    last_selection: selection,
                 };
             }
             PasteCommandState::Reverted {
@@ -1445,6 +1454,7 @@ impl<'a> Command<'a> for PasteCommand {
                 colliders,
                 joints,
                 binder,
+                mut selection,
             } => {
                 let mut paste_result = DeepCloneResult {
                     binder,
@@ -1483,15 +1493,21 @@ impl<'a> Command<'a> for PasteCommand {
                     context.editor_scene.physics.binder.insert(node, body);
                 }
 
-                self.state = PasteCommandState::Executed { paste_result };
+                std::mem::swap(&mut context.editor_scene.selection, &mut selection);
+                self.state = PasteCommandState::Executed {
+                    paste_result,
+                    last_selection: selection,
+                };
             }
             _ => unreachable!(),
         }
     }
 
     fn revert(&mut self, context: &mut Self::Context) {
-        if let PasteCommandState::Executed { paste_result } =
-            std::mem::replace(&mut self.state, PasteCommandState::Undefined)
+        if let PasteCommandState::Executed {
+            paste_result,
+            mut last_selection,
+        } = std::mem::replace(&mut self.state, PasteCommandState::Undefined)
         {
             let mut subgraphs = Vec::new();
             for root_node in paste_result.root_nodes {
@@ -1523,12 +1539,15 @@ impl<'a> Command<'a> for PasteCommand {
                 context.editor_scene.physics.binder.remove_by_key(node);
             }
 
+            std::mem::swap(&mut context.editor_scene.selection, &mut last_selection);
+
             self.state = PasteCommandState::Reverted {
                 subgraphs,
                 bodies,
                 colliders,
                 joints,
                 binder: paste_result.binder,
+                selection: last_selection,
             };
         }
     }
