@@ -129,6 +129,9 @@ fn create_scene_async(resource_manager: ResourceManager) -> Arc<Mutex<SceneLoadC
         futures::executor::block_on(async move {
             let mut scene = Scene::new();
 
+            // Set ambient light.
+            scene.ambient_lighting_color = Color::opaque(200, 200, 200);
+
             // It is important to lock context for short period of time so other thread can
             // read data from it as soon as possible - not when everything was loaded.
             context
@@ -245,11 +248,6 @@ fn main() {
     let mut scene_handle = Handle::NONE;
     let mut model_handle = Handle::NONE;
     let mut walk_animation = Handle::NONE;
-
-    // Set ambient light.
-    engine
-        .renderer
-        .set_ambient_color(Color::opaque(200, 200, 200));
 
     let clock = Instant::now();
     let fixed_timestep = 1.0 / 60.0;

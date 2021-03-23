@@ -126,9 +126,6 @@ impl Game {
             .state()
             .set_textures_path("examples/data");
 
-        // Set ambient light.
-        engine.renderer.set_ambient_color(Color::opaque(80, 80, 80));
-
         engine
             .renderer
             .set_quality_settings(&fix_shadows_distance(QualitySettings::high()))
@@ -740,6 +737,9 @@ pub fn create_scene_async(resource_manager: ResourceManager) -> Arc<Mutex<SceneL
     std::thread::spawn(move || {
         futures::executor::block_on(async move {
             let mut scene = Scene::new();
+
+            // Set ambient light.
+            scene.ambient_lighting_color = Color::opaque(80, 80, 80);
 
             // Create reverb effect for more natural sound - our player walks in some sort of cathedral,
             // so there will be pretty decent echo.

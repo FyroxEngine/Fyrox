@@ -419,7 +419,6 @@ pub struct Renderer {
     statistics: Statistics,
     quad: SurfaceSharedData,
     frame_size: (u32, u32),
-    ambient_color: Color,
     quality_settings: QualitySettings,
     /// Debug renderer instance can be used for debugging purposes
     pub debug_renderer: DebugRenderer,
@@ -813,7 +812,6 @@ impl Renderer {
             quad: SurfaceSharedData::make_unit_xy_quad(),
             ui_renderer: UiRenderer::new(&mut state)?,
             particle_system_renderer: ParticleSystemRenderer::new(&mut state)?,
-            ambient_color: Color::opaque(100, 100, 100),
             quality_settings: settings,
             debug_renderer: DebugRenderer::new(&mut state)?,
             scene_to_gbuffer_map: Default::default(),
@@ -826,16 +824,6 @@ impl Renderer {
             ui_frame_buffers: Default::default(),
             fxaa_renderer: FxaaRenderer::new()?,
         })
-    }
-
-    /// Sets new ambient color. Ambient color is used to imitate ambient lighting.
-    pub fn set_ambient_color(&mut self, color: Color) {
-        self.ambient_color = color;
-    }
-
-    /// Returns current ambient color.
-    pub fn get_ambient_color(&self) -> Color {
-        self.ambient_color
     }
 
     /// Returns statistics for last frame.
@@ -1003,7 +991,7 @@ impl Renderer {
         let backbuffer_width = self.frame_size.0 as f32;
         let backbuffer_height = self.frame_size.1 as f32;
 
-        for (scene_handle, scene) in scenes.pair_iter() {
+        for (scene_handle, scene) in scenes.pair_iter().filter(|(_, s)| s.enabled) {
             let graph = &scene.graph;
 
             let frame_size = scene.render_target.as_ref().map_or_else(
@@ -1092,7 +1080,7 @@ impl Renderer {
                             camera,
                             gbuffer,
                             white_dummy: self.white_dummy.clone(),
-                            ambient_color: self.ambient_color,
+                            ambient_color: scene.ambient_lighting_color,
                             settings: &self.quality_settings,
                             textures: &mut self.texture_cache,
                             geometry_cache: &mut self.geometry_cache,

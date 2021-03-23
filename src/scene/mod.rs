@@ -15,6 +15,7 @@ pub mod physics;
 pub mod sprite;
 pub mod transform;
 
+use crate::core::pool::Ticket;
 use crate::{
     animation::AnimationContainer,
     core::{
@@ -1084,6 +1085,18 @@ pub struct Scene {
 
     /// Performance statistics from last `update` call.
     pub performance_statistics: PerformanceStatistics,
+
+    /// Color of ambient lighting.
+    pub ambient_lighting_color: Color,
+
+    /// Whether the scene will be updated and rendered or not. Default is true.
+    /// This flags is allows you to build a scene manager for your game. For example,
+    /// you may have a scene for menu and one per level. Menu's scene is persistent,
+    /// however you don't want it to be updated and renderer while you have a level
+    /// loaded and playing a game. When you're start playing, just set `enabled` flag
+    /// to false for menu's scene and when you need to open a menu - set it to true and
+    /// set `enabled` flag to false for level's scene.
+    pub enabled: bool,
 }
 
 impl Default for Scene {
@@ -1099,6 +1112,8 @@ impl Default for Scene {
             sound_context: Default::default(),
             navmeshes: Default::default(),
             performance_statistics: Default::default(),
+            ambient_lighting_color: Color::opaque(100, 100, 100),
+            enabled: true,
         }
     }
 }
@@ -1158,6 +1173,8 @@ impl Scene {
             sound_context: Context::new(),
             navmeshes: Default::default(),
             performance_statistics: Default::default(),
+            ambient_lighting_color: Color::opaque(100, 100, 100),
+            enabled: true,
         }
     }
 
@@ -1468,6 +1485,8 @@ impl Scene {
                 sound_context: self.sound_context.deep_clone(),
                 navmeshes: self.navmeshes.clone(),
                 performance_statistics: Default::default(),
+                ambient_lighting_color: self.ambient_lighting_color,
+                enabled: self.enabled,
             },
             old_new_map,
         )
@@ -1484,6 +1503,10 @@ impl Visit for Scene {
         let _ = self.lightmap.visit("Lightmap", visitor);
         let _ = self.sound_context.visit("SoundContext", visitor);
         let _ = self.navmeshes.visit("NavMeshes", visitor);
+        let _ = self
+            .ambient_lighting_color
+            .visit("AmbientLightingColor", visitor);
+        let _ = self.enabled.visit("Enabled", visitor);
         // Backward compatibility.
         if self.sound_context.is_invalid() {
             self.sound_context = Context::new();
@@ -1548,6 +1571,23 @@ impl SceneContainer {
             .unwrap()
             .remove_context(self.pool[handle].sound_context.clone());
         self.pool.free(handle);
+    }
+
+    /// Takes scene from the container and transfers ownership to caller. You must either
+    /// put scene back using ticket or call `forget_ticket` to make memory used by scene
+    /// vacant again.
+    pub fn take_reserve(&mut self, handle: Handle<Scene>) -> (Ticket<Scene>, Scene) {
+        self.pool.take_reserve(handle)
+    }
+
+    /// Puts scene back using its ticket.
+    pub fn put_back(&mut self, ticket: Ticket<Scene>, scene: Scene) -> Handle<Scene> {
+        self.pool.put_back(ticket, scene)
+    }
+
+    /// Forgets ticket of a scene, making place at which ticket points, vacant again.
+    pub fn forget_ticket(&mut self, ticket: Ticket<Scene>) {
+        self.pool.forget_ticket(ticket)
     }
 }
 
