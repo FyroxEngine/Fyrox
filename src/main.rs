@@ -1273,7 +1273,11 @@ impl Editor {
                     }
                 }
                 Message::NewScene => {
-                    self.set_scene(engine, Scene::new(), None);
+                    let mut scene = Scene::new();
+
+                    scene.ambient_lighting_color = Color::opaque(200, 200, 200);
+
+                    self.set_scene(engine, scene, None);
                 }
                 Message::Configure {
                     working_directory,
@@ -1461,11 +1465,6 @@ fn main() {
     let mut engine = GameEngine::new(window_builder, &event_loop, true).unwrap();
 
     engine.resource_manager.state().set_textures_path("data");
-
-    // Set ambient light.
-    engine
-        .renderer
-        .set_ambient_color(Color::opaque(200, 200, 200));
 
     let mut editor = Editor::new(&mut engine);
     let clock = Instant::now();

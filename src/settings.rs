@@ -274,7 +274,7 @@ impl Settings {
             {
                 if message.destination() == self.ambient_color {
                     if let ColorFieldMessage::Color(color) = *msg {
-                        engine.renderer.set_ambient_color(color);
+                        engine.scenes[editor_scene.scene].ambient_lighting_color = color;
                     }
                 }
             }

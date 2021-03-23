@@ -10,7 +10,6 @@ use crate::{
     },
     send_sync_message, GameEngine, Message,
 };
-use rg3d::gui::message::{ScrollViewerMessage, TreeExpansionStrategy};
 use rg3d::{
     core::{algebra::Vector2, math::Rect, pool::Handle, scope_profile},
     engine::resource_manager::ResourceManager,
@@ -22,8 +21,9 @@ use rg3d::{
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
         message::{
-            ButtonMessage, DecoratorMessage, MessageDirection, OsEvent, TextMessage, TreeMessage,
-            TreeRootMessage, UiMessageData, WidgetMessage,
+            ButtonMessage, DecoratorMessage, MessageDirection, OsEvent, ScrollViewerMessage,
+            TextMessage, TreeExpansionStrategy, TreeMessage, TreeRootMessage, UiMessageData,
+            WidgetMessage,
         },
         node::UINode,
         scroll_viewer::ScrollViewerBuilder,
