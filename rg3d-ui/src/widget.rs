@@ -58,6 +58,8 @@ pub struct Widget<M: MessageData, C: Control<M, C>> {
     enabled: bool,
     cursor: Option<CursorIcon>,
     opacity: f32,
+    tooltip: Handle<UINode<M, C>>,
+    tooltip_time: f32,
 
     /// Layout. Interior mutability is a must here because layout performed in
     /// a series of recursive calls.
@@ -594,6 +596,26 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
     pub fn opacity(&self) -> f32 {
         self.opacity
     }
+
+    #[inline]
+    pub fn tooltip(&self) -> Handle<UINode<M, C>> {
+        self.tooltip
+    }
+
+    #[inline]
+    pub fn set_tooltip(&mut self, tooltip: Handle<UINode<M, C>>) {
+        self.tooltip = tooltip;
+    }
+
+    #[inline]
+    pub fn tooltip_time(&self) -> f32 {
+        self.tooltip_time
+    }
+
+    #[inline]
+    pub fn set_tooltip_time(&mut self, tooltip_time: f32) {
+        self.tooltip_time = tooltip_time;
+    }
 }
 
 #[macro_export]
@@ -640,6 +662,8 @@ pub struct WidgetBuilder<M: MessageData, C: Control<M, C>> {
     pub enabled: bool,
     pub cursor: Option<CursorIcon>,
     pub opacity: f32,
+    pub tooltip: Handle<UINode<M, C>>,
+    pub tooltip_time: f32,
 }
 
 impl<M: MessageData, C: Control<M, C>> Default for WidgetBuilder<M, C> {
@@ -675,6 +699,8 @@ impl<M: MessageData, C: Control<M, C>> WidgetBuilder<M, C> {
             enabled: true,
             cursor: None,
             opacity: 1.0,
+            tooltip: Handle::default(),
+            tooltip_time: 1.0,
         }
     }
 
@@ -812,6 +838,18 @@ impl<M: MessageData, C: Control<M, C>> WidgetBuilder<M, C> {
         self
     }
 
+    pub fn with_tooltip(mut self, tooltip: Handle<UINode<M, C>>) -> Self {
+        if tooltip.is_some() {
+            self.tooltip = tooltip;
+        }
+        self
+    }
+
+    pub fn with_tooltip_time(mut self, tooltip_time: f32) -> Self {
+        self.tooltip_time = tooltip_time;
+        self
+    }
+
     pub fn build(self) -> Widget<M, C> {
         Widget {
             handle: Default::default(),
@@ -856,6 +894,8 @@ impl<M: MessageData, C: Control<M, C>> WidgetBuilder<M, C> {
             cursor: self.cursor,
             clip_bounds: Cell::new(Default::default()),
             opacity: self.opacity,
+            tooltip: self.tooltip,
+            tooltip_time: self.tooltip_time,
         }
     }
 }

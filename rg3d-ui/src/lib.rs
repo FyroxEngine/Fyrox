@@ -73,6 +73,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
 };
 use rg3d_core::math::clampf;
+use rg3d_core::VecExtensions;
 use std::{
     cell::Cell,
     collections::{HashMap, VecDeque},
@@ -552,6 +553,34 @@ pub struct RestrictionEntry<M: MessageData, C: Control<M, C>> {
     pub stop: bool,
 }
 
+struct TooltipEntry<M: MessageData, C: Control<M, C>> {
+    tooltip: Handle<UINode<M, C>>,
+    /// Time remaining until this entry should disappear (in seconds).
+    time: f32,
+    /// Maximum time that it should be kept for
+    /// This is stored here as well, because when hovering
+    /// over the tooltip, we don't know the time it should stay for and
+    /// so we use this to refresh the timer.
+    max_time: f32,
+}
+impl<M: MessageData, C: Control<M, C>> TooltipEntry<M, C> {
+    fn new(tooltip: Handle<UINode<M, C>>, time: f32) -> TooltipEntry<M, C> {
+        Self {
+            tooltip,
+            time,
+            max_time: time,
+        }
+    }
+
+    fn decrease(&mut self, amount: f32) {
+        self.time -= amount;
+    }
+
+    fn should_display(&self) -> bool {
+        self.time > 0.0
+    }
+}
+
 pub struct UserInterface<M: MessageData, C: Control<M, C>> {
     screen_size: Vector2<f32>,
     nodes: Pool<UINode<M, C>>,
@@ -572,6 +601,7 @@ pub struct UserInterface<M: MessageData, C: Control<M, C>> {
     mouse_state: MouseState,
     keyboard_modifiers: KeyboardModifiers,
     cursor_icon: CursorIcon,
+    visible_tooltips: Vec<TooltipEntry<M, C>>,
 }
 
 lazy_static! {
@@ -675,6 +705,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
             mouse_state: Default::default(),
             keyboard_modifiers: Default::default(),
             cursor_icon: Default::default(),
+            visible_tooltips: Default::default(),
         };
         ui.root_canvas = ui.add_node(UINode::Canvas(Canvas::new(WidgetBuilder::new().build())));
         ui
@@ -792,6 +823,8 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         for node in self.nodes.iter_mut() {
             node.update(dt)
         }
+
+        self.update_tooltips(dt);
 
         if !self.drag_context.is_dragging {
             // Try to fetch new cursor icon starting from current picked node. Traverse
@@ -1326,6 +1359,93 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
                 TryRecvError::Empty => None,
                 TryRecvError::Disconnected => unreachable!(),
             },
+        }
+    }
+
+    /// Adds a tooltip if it doesn't already exist.
+    /// If it already exists then it refreshes the timer to `time`
+    /// Returns the instance that was added or already existed
+    fn add_tooltip(&mut self, tooltip: Handle<UINode<M, C>>, time: f32) -> &mut TooltipEntry<M, C> {
+        let index = if let Some(index) = self
+            .visible_tooltips
+            .iter()
+            .position(|e| e.tooltip == tooltip)
+        {
+            self.visible_tooltips[index].time = time;
+            index
+        } else {
+            self.send_message(WidgetMessage::visibility(
+                tooltip,
+                MessageDirection::ToWidget,
+                true,
+            ));
+            self.send_message(WidgetMessage::topmost(tooltip, MessageDirection::ToWidget));
+            self.send_message(WidgetMessage::desired_position(
+                tooltip,
+                MessageDirection::ToWidget,
+                self.cursor_position(),
+            ));
+            self.visible_tooltips.push(TooltipEntry::new(tooltip, time));
+
+            // Index of the entry we just added
+            self.visible_tooltips.len() - 1
+        };
+
+        &mut self.visible_tooltips[index]
+    }
+
+    /// Find any tooltips that are being hovered and activate them.
+    /// As well, update their time.
+    fn update_tooltips(&mut self, dt: f32) {
+        // Decrease all tooltip times, removing those which have had their timer run out
+        let sender = &self.sender;
+        self.visible_tooltips
+            .retain_mut(|entry: &mut TooltipEntry<M, C>| {
+                entry.decrease(dt);
+                if entry.should_display() {
+                    true
+                } else {
+                    // This uses sender directly since we're currently mutably borrowing
+                    // visible_tooltips
+                    sender
+                        .send(WidgetMessage::visibility(
+                            entry.tooltip,
+                            MessageDirection::ToWidget,
+                            false,
+                        ))
+                        .unwrap();
+                    false
+                }
+            });
+
+        // Check for hovering over a widget with a tooltip, or hovering over a tooltip.
+        let mut handle = self.picked_node;
+        while let Some(node) = self.nodes.try_borrow(handle) {
+            // Get the parent to avoid the problem with having a immutable access here and a
+            // mutable access later
+            let parent = node.parent();
+
+            if node.tooltip().is_some() {
+                // They have a tooltip, we stop here and use that.
+                let tooltip = node.tooltip();
+                let tooltip_time = node.tooltip_time();
+                let entry = self.add_tooltip(tooltip, tooltip_time);
+                // Update max time, just in case it was changed.
+                // We can't do this in the case where we're hovering over the tooltip, though.
+                entry.max_time = tooltip_time;
+                break;
+            } else if let Some(entry) = self
+                .visible_tooltips
+                .iter_mut()
+                .find(|e| e.tooltip == handle)
+            {
+                // The current node was a tooltip.
+                // We refresh the timer back to the stored max time.
+                entry.time = entry.max_time;
+                break;
+            }
+
+            handle = parent;
         }
     }
 
