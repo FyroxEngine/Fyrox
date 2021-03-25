@@ -118,7 +118,7 @@ modern games at a decent frame rate.
 - Windows - **full support**
 - Linux - **full support**
 - macOS - **full support**
-- WebAssembly - **not supported yet**: any help is appreciated.
+- WebAssembly - **not supported yet**: any help is appreciated ([tracking issue](https://github.com/mrDIMAS/rg3d/issues/85)).
 
 ## Compiler version
 
