@@ -571,6 +571,12 @@ pub struct NavmeshAgentBuilder {
     speed: f32,
 }
 
+impl Default for NavmeshAgentBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NavmeshAgentBuilder {
     /// Creates new builder instance.
     pub fn new() -> Self {

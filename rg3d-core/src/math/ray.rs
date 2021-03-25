@@ -42,7 +42,7 @@ impl IntersectionResult {
         let mut result = None;
         for v in results {
             match result {
-                None => result = v.clone(),
+                None => result = *v,
                 Some(ref mut result) => {
                     if let Some(v) = v {
                         result.merge(v.min);
