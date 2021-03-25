@@ -82,7 +82,6 @@ use crate::{
 use glutin::PossiblyCurrent;
 #[cfg(feature = "serde_integration")]
 use serde::{Deserialize, Serialize};
-use std::collections::hash_map::Entry;
 use std::{
     cell::RefCell,
     collections::{hash_map::Entry, HashMap},
@@ -185,7 +184,7 @@ impl std::ops::AddAssign<RenderPassStatistics> for Statistics {
 }
 
 /// Shadow map precision allows you to select compromise between quality and performance.
-#[derive(Copy, Clone, Hash, PartialOrd, PartialEq, Eq, Ord)]
+#[derive(Copy, Clone, Hash, PartialOrd, PartialEq, Eq, Ord, Debug)]
 pub enum ShadowMapPrecision {
     /// Shadow map will use 2 times less memory by switching to 16bit pixel format,
     /// but "shadow acne" may occur.
