@@ -1,6 +1,7 @@
+use crate::draw::Draw;
 use crate::{
     core::{algebra::Vector2, color::Color, math::Vector2Ext, pool::Handle},
-    draw::{CommandKind, CommandTexture, DrawingContext},
+    draw::{CommandTexture, DrawingContext},
     message::{MessageData, UiMessage},
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UINode, UserInterface,
@@ -134,9 +135,10 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for VectorImage<M, C> {
             }
         }
         drawing_context.commit(
-            CommandKind::Geometry,
+            self.clip_bounds(),
             self.widget.foreground(),
             CommandTexture::None,
+            None,
         );
     }
 

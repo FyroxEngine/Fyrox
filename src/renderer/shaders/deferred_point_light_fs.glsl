@@ -19,56 +19,19 @@ out vec4 FragColor;
 
 void main()
 {
+    vec4 normalSpecular = texture(normalTexture, texCoord);
     TBlinnPhongContext ctx;
     ctx.lightPosition = lightPos;
     ctx.lightRadius = lightRadius;
-    ctx.fragmentNormal = normalize(texture(normalTexture, texCoord).xyz * 2.0 - 1.0);
+    ctx.fragmentNormal = normalize(normalSpecular.xyz * 2.0 - 1.0);
     ctx.fragmentPosition = S_UnProject(vec3(texCoord, texture(depthTexture, texCoord).r), invViewProj);
     ctx.cameraPosition = cameraPosition;
-    ctx.specularPower = 255.0 * texture(normalTexture, texCoord).w;
+    ctx.specularPower = 80.0;
     TBlinnPhong lighting = S_BlinnPhong(ctx);
 
-    float shadow = 1.0;
+    float shadow = S_PointShadow(
+        shadowsEnabled, softShadows, lighting.distance, shadowBias, lighting.direction, pointShadowTexture);
 
-    if (shadowsEnabled)
-    {
-        if (softShadows)
-        {
-            const int samples = 20;
-
-            const vec3 directions[samples] = vec3[samples] (
-            vec3(1, 1, 1), vec3(1, -1, 1), vec3(-1, -1, 1), vec3(-1, 1, 1),
-            vec3(1, 1, -1), vec3(1, -1, -1), vec3(-1, -1, -1), vec3(-1, 1, -1),
-            vec3(1, 1, 0), vec3(1, -1, 0), vec3(-1, -1, 0), vec3(-1, 1, 0),
-            vec3(1, 0, 1), vec3(-1, 0, 1), vec3(1, 0, -1), vec3(-1, 0, -1),
-            vec3(0, 1, 1), vec3(0, -1, 1), vec3(0, -1, -1), vec3(0, 1, -1)
-            );
-
-            const float diskRadius = 0.0025;
-
-            for (int i = 0; i < samples; ++i)
-            {
-                vec3 fetchDirection = -lighting.direction + directions[i] * diskRadius;
-                float shadowDistanceToLight = texture(pointShadowTexture, fetchDirection).r;
-                if (lighting.distance - shadowBias > shadowDistanceToLight)
-                {
-                    shadow += 1.0;
-                }
-            }
-
-            shadow = clamp(1.0 - shadow / float(samples), 0.0, 1.0);
-        }
-        else
-        {
-            float shadowDistanceToLight = texture(pointShadowTexture, -lighting.direction).r;
-            if (lighting.distance - shadowBias > shadowDistanceToLight)
-            {
-                shadow = 0.0;
-            }
-        }
-    }
-
-    FragColor = texture(colorTexture, texCoord);
-    FragColor.xyz += 0.4 * lighting.specular;
-    FragColor *= lighting.attenuation * shadow * lightColor;
+    FragColor = lighting.attenuation * shadow *
+            (lightColor * lighting.specular * normalSpecular.w + lightColor * texture(colorTexture, texCoord));
 }

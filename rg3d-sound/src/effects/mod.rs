@@ -21,7 +21,7 @@ use std::ops::{Deref, DerefMut};
 pub mod reverb;
 
 /// Stub effect that does nothing.
-#[derive(Default)]
+#[derive(Default, Debug, Clone)]
 pub struct StubEffect {
     base: BaseEffect,
 }
@@ -62,6 +62,7 @@ impl DerefMut for StubEffect {
 }
 
 /// See module docs.
+#[derive(Debug, Clone)]
 pub enum Effect {
     /// Stub effect that does nothing.
     Stub(StubEffect),
@@ -98,7 +99,9 @@ impl Visit for Effect {
 
         let mut id = self.id();
         id.visit("Id", visitor)?;
-        *self = Self::from_id(id)?;
+        if visitor.is_reading() {
+            *self = Self::from_id(id)?;
+        }
 
         match self {
             Effect::Stub(v) => v.visit("Data", visitor)?,
@@ -121,6 +124,7 @@ pub(in crate) trait EffectRenderTrait {
 
 /// Base effect for all other kinds of effects. It contains set of inputs (direct
 /// or filtered), provides some basic methods to control them.
+#[derive(Debug, Clone)]
 pub struct BaseEffect {
     gain: f32,
     filters: Pool<InputFilter>,
@@ -249,6 +253,7 @@ impl Visit for BaseEffect {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
+        self.gain.visit("Gain", visitor)?;
         self.filters.visit("Filters", visitor)?;
         self.inputs.visit("Inputs", visitor)?;
 
@@ -258,7 +263,7 @@ impl Visit for BaseEffect {
 
 /// Input filter is used to transform samples in desired manner, it is based
 /// on generic second order biquad filter. See docs for Biquad filter.
-#[derive(Default)]
+#[derive(Default, Debug, Clone)]
 pub struct InputFilter {
     left: Biquad,
     right: Biquad,
@@ -294,7 +299,7 @@ impl Visit for InputFilter {
 /// Input is a "reference" to a sound source. Samples of sound source will be
 /// either passed directly to effect or will be transformed by filter if one
 /// is set.
-#[derive(Default)]
+#[derive(Default, Debug, Clone)]
 pub struct EffectInput {
     /// Handle of source from which effect will take samples each render frame.
     source: Handle<SoundSource>,

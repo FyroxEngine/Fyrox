@@ -31,30 +31,29 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Expander<M, C> {
     ) {
         match message.data() {
             UiMessageData::Expander(msg) => {
-                if let &ExpanderMessage::Expand(expand) = msg {
+                if let ExpanderMessage::Expand(expand) = *msg {
                     if message.destination() == self.handle()
                         && message.direction() == MessageDirection::ToWidget
+                        && self.is_expanded != expand
                     {
-                        if self.is_expanded != expand {
-                            // Switch state of expander.
-                            ui.send_message(CheckBoxMessage::checked(
-                                self.expander,
-                                MessageDirection::ToWidget,
-                                Some(expand),
-                            ));
-                            // Show or hide content.
-                            ui.send_message(WidgetMessage::visibility(
-                                self.content,
-                                MessageDirection::ToWidget,
-                                expand,
-                            ));
-                            self.is_expanded = expand;
-                        }
+                        // Switch state of expander.
+                        ui.send_message(CheckBoxMessage::checked(
+                            self.expander,
+                            MessageDirection::ToWidget,
+                            Some(expand),
+                        ));
+                        // Show or hide content.
+                        ui.send_message(WidgetMessage::visibility(
+                            self.content,
+                            MessageDirection::ToWidget,
+                            expand,
+                        ));
+                        self.is_expanded = expand;
                     }
                 }
             }
             UiMessageData::CheckBox(msg) => {
-                if let &CheckBoxMessage::Check(value) = msg {
+                if let CheckBoxMessage::Check(value) = *msg {
                     if message.destination() == self.expander
                         && message.direction() == MessageDirection::FromWidget
                     {

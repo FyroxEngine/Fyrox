@@ -15,11 +15,11 @@ pub mod physics;
 pub mod sprite;
 pub mod transform;
 
-use crate::utils::log::MessageKind;
+use crate::core::pool::Ticket;
 use crate::{
     animation::AnimationContainer,
     core::{
-        algebra::{Matrix4, Vector2, Vector3},
+        algebra::{Isometry3, Matrix4, Point3, Translation, Vector2, Vector3},
         color::Color,
         math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, Matrix4Ext},
         pool::{Handle, Pool, PoolIterator, PoolIteratorMut},
@@ -27,86 +27,116 @@ use crate::{
     },
     engine::resource_manager::ResourceManager,
     resource::texture::Texture,
-    scene::{graph::Graph, node::Node, physics::Physics},
-    utils::{lightmap::Lightmap, log::Log},
+    scene::{base::PhysicsBinding, graph::Graph, node::Node, physics::Physics},
+    sound::{context::Context, engine::SoundEngine},
+    utils::{lightmap::Lightmap, log::Log, log::MessageKind, navmesh::Navmesh},
 };
-use rapier3d::na::Point3;
+use std::fmt::{Display, Formatter};
 use std::{
     collections::HashMap,
-    ops::{Index, IndexMut},
+    ops::{Deref, Index, IndexMut, Range},
     path::Path,
+    sync::{Arc, Mutex},
 };
 
-/// Wrap to new type to be able to implement Visit.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct RapierHandle(pub rapier3d::data::arena::Index);
+macro_rules! define_rapier_handle {
+    ($(#[$meta:meta])*, $type_name:ident, $dep_type:ty) => {
+        $(#[$meta])*
+        #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+        #[repr(transparent)]
+        pub struct $type_name(pub rapier3d::data::arena::Index);
 
-/// A type alias for a rigid body handle.
-pub type RigidBodyHandle = RapierHandle;
-
-/// A type alias for a collider handle.
-pub type ColliderHandle = RapierHandle;
-
-/// A type alias for a joint handle.
-pub type JointHandle = RapierHandle;
-
-impl From<rapier3d::data::arena::Index> for RapierHandle {
-    fn from(inner: rapier3d::data::arena::Index) -> Self {
-        Self(inner)
-    }
-}
-
-impl Into<rapier3d::data::arena::Index> for RapierHandle {
-    fn into(self) -> rapier3d::data::arena::Index {
-        self.0
-    }
-}
-
-impl Default for RapierHandle {
-    fn default() -> Self {
-        Self(rapier3d::data::arena::Index::from_raw_parts(
-            usize::max_value(),
-            u64::max_value(),
-        ))
-    }
-}
-
-impl RapierHandle {
-    /// Checks if handle is invalid.
-    pub fn is_none(&self) -> bool {
-        *self == Default::default()
-    }
-
-    /// Checks if handle is valid.
-    pub fn is_some(&self) -> bool {
-        !self.is_none()
-    }
-}
-
-impl Visit for RapierHandle {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        let (index, mut generation) = self.0.into_raw_parts();
-        let mut index = index as u64;
-
-        index.visit("Index", visitor)?;
-        generation.visit("Generation", visitor)?;
-
-        if visitor.is_reading() {
-            self.0 = rapier3d::data::arena::Index::from_raw_parts(index as usize, generation);
+        impl From<$dep_type> for $type_name {
+            fn from(inner: $dep_type) -> Self {
+                let (index, generation) = inner.into_raw_parts();
+                Self(rapier3d::data::arena::Index::from_raw_parts(
+                    index, generation,
+                ))
+            }
         }
 
-        visitor.leave_region()
-    }
+        impl From<rapier3d::data::arena::Index> for $type_name {
+            fn from(inner: rapier3d::data::arena::Index) -> Self {
+                Self(inner)
+            }
+        }
+
+        impl Into<$dep_type> for $type_name {
+            fn into(self) -> $dep_type {
+                let (index, generation) = self.0.into_raw_parts();
+                <$dep_type>::from_raw_parts(index, generation)
+            }
+        }
+
+        impl Into<rapier3d::data::arena::Index> for $type_name {
+            fn into(self) -> rapier3d::data::arena::Index {
+                let (index, generation) = self.0.into_raw_parts();
+                rapier3d::data::arena::Index::from_raw_parts(index, generation)
+            }
+        }
+
+        impl Default for $type_name {
+            fn default() -> Self {
+                Self(rapier3d::data::arena::Index::from_raw_parts(
+                    usize::max_value(),
+                    u64::max_value(),
+                ))
+            }
+        }
+
+        impl $type_name {
+            /// Checks if handle is invalid.
+            pub fn is_none(&self) -> bool {
+                *self == Default::default()
+            }
+
+            /// Checks if handle is valid.
+            pub fn is_some(&self) -> bool {
+                !self.is_none()
+            }
+        }
+
+        impl Visit for $type_name {
+            fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+                visitor.enter_region(name)?;
+
+                let (index, mut generation) = self.0.into_raw_parts();
+                let mut index = index as u64;
+
+                index.visit("Index", visitor)?;
+                generation.visit("Generation", visitor)?;
+
+                if visitor.is_reading() {
+                    self.0 =
+                        rapier3d::data::arena::Index::from_raw_parts(index as usize, generation);
+                }
+
+                visitor.leave_region()
+            }
+        }
+    };
 }
+
+define_rapier_handle!(
+    #[doc="Rigid body handle wrapper."],
+    RigidBodyHandle, rapier3d::dynamics::RigidBodyHandle);
+
+define_rapier_handle!(
+    #[doc="Collider handle wrapper."],
+    ColliderHandle, rapier3d::geometry::ColliderHandle);
+
+define_rapier_handle!(
+    #[doc="Joint handle wrapper."],
+    JointHandle, rapier3d::dynamics::JointHandle);
 
 /// Physics binder is used to link graph nodes with rigid bodies. Scene will
 /// sync transform of node with its associated rigid body.
 #[derive(Clone, Debug)]
 pub struct PhysicsBinder {
     /// Mapping Node -> RigidBody.
-    pub node_rigid_body_map: HashMap<Handle<Node>, RigidBodyHandle>,
+    forward_map: HashMap<Handle<Node>, RigidBodyHandle>,
+
+    backward_map: HashMap<RigidBodyHandle, Handle<Node>>,
 
     /// Whether binder is enabled or not. If binder is disabled, it won't synchronize
     /// node's transform with body's transform.
@@ -116,69 +146,70 @@ pub struct PhysicsBinder {
 impl Default for PhysicsBinder {
     fn default() -> Self {
         Self {
-            node_rigid_body_map: Default::default(),
+            forward_map: Default::default(),
+            backward_map: Default::default(),
             enabled: true,
         }
     }
 }
 
 impl PhysicsBinder {
-    /// Links given graph node with specified rigid body.
+    /// Links given graph node with specified rigid body. Returns old linked body.
     pub fn bind(
         &mut self,
         node: Handle<Node>,
         rigid_body: RigidBodyHandle,
     ) -> Option<RigidBodyHandle> {
-        self.node_rigid_body_map.insert(node, rigid_body)
+        let old_body = self.forward_map.insert(node, rigid_body);
+        self.backward_map.insert(rigid_body, node);
+        old_body
     }
 
     /// Unlinks given graph node from its associated rigid body (if any).
     pub fn unbind(&mut self, node: Handle<Node>) -> Option<RigidBodyHandle> {
-        self.node_rigid_body_map.remove(&node)
+        if let Some(body_handle) = self.forward_map.remove(&node) {
+            self.backward_map.remove(&body_handle);
+            Some(body_handle)
+        } else {
+            None
+        }
     }
 
     /// Unlinks given body from a node that is linked with the body.
-    ///
-    /// # Performance
-    ///
-    /// This method is slow because of two reasons:
-    ///
-    /// 1) Search is linear
-    /// 2) Additional memory is allocated
-    ///
-    /// So it is not advised to call it in performance critical places.
     pub fn unbind_by_body(&mut self, body: RigidBodyHandle) -> Handle<Node> {
-        let mut node = Handle::NONE;
-        self.node_rigid_body_map = self
-            .node_rigid_body_map
-            .clone()
-            .into_iter()
-            .filter(|&(n, b)| {
-                if b == body {
-                    node = n;
-                    false
-                } else {
-                    true
-                }
-            })
-            .collect();
-        node
+        if let Some(node) = self.backward_map.get(&body) {
+            self.forward_map.remove(node);
+            *node
+        } else {
+            Handle::NONE
+        }
     }
 
     /// Returns handle of rigid body associated with given node. It will return
     /// Handle::NONE if given node isn't linked to a rigid body.
     pub fn body_of(&self, node: Handle<Node>) -> Option<RigidBodyHandle> {
-        self.node_rigid_body_map.get(&node).copied()
+        self.forward_map.get(&node).copied()
     }
 
     /// Tries to find a node for a given rigid body.
     pub fn node_of(&self, body: RigidBodyHandle) -> Option<Handle<Node>> {
-        for (&node, &other_body) in self.node_rigid_body_map.iter() {
-            if body == other_body {
-                return Some(node);
-            }
-        }
-        None
+        self.backward_map.get(&body).copied()
+    }
+
+    /// Removes all bindings.
+    pub fn clear(&mut self) {
+        self.forward_map.clear();
+        self.backward_map.clear();
+    }
+
+    /// Returns a shared reference to inner forward mapping.
+    pub fn forward_map(&self) -> &HashMap<Handle<Node>, RigidBodyHandle> {
+        &self.forward_map
+    }
+
+    /// Returns a shared reference to inner backward mapping.
+    pub fn backward_map(&self) -> &HashMap<RigidBodyHandle, Handle<Node>> {
+        &self.backward_map
     }
 }
 
@@ -186,7 +217,12 @@ impl Visit for PhysicsBinder {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
-        self.node_rigid_body_map.visit("Map", visitor)?;
+        self.forward_map.visit("Map", visitor)?;
+        if self.backward_map.visit("RevMap", visitor).is_err() {
+            for (&n, &b) in self.forward_map.iter() {
+                self.backward_map.insert(b, n);
+            }
+        }
         let _ = self.enabled.visit("Enabled", visitor);
 
         visitor.leave_region()
@@ -575,6 +611,72 @@ impl SceneDrawingContext {
         }
     }
 
+    /// Draws a wire sphere with given parameters.
+    pub fn draw_sphere_section(
+        &mut self,
+        radius: f32,
+        theta_range: Range<f32>,
+        theta_steps: usize,
+        phi_range: Range<f32>,
+        phi_steps: usize,
+        transform: Matrix4<f32>,
+        color: Color,
+    ) {
+        assert!(theta_range.start < theta_range.end);
+        assert!(phi_range.start < phi_range.end);
+
+        assert_ne!(phi_steps, 0);
+        assert_ne!(theta_steps, 0);
+
+        let theta_step = (theta_range.end - theta_range.start) / theta_steps as f32;
+        let phi_step = (phi_range.end - phi_range.start) / phi_steps as f32;
+
+        fn spherical_to_cartesian(radius: f32, theta: f32, phi: f32) -> Vector3<f32> {
+            Vector3::new(
+                radius * theta.sin() * phi.cos(),
+                radius * theta.cos(),
+                radius * theta.sin() * phi.sin(),
+            )
+        }
+
+        let mut theta = theta_range.start;
+        while theta < theta_range.end {
+            let mut phi = phi_range.start;
+            while phi < phi_range.end {
+                let p0 = transform
+                    .transform_point(&Point3::from(spherical_to_cartesian(radius, theta, phi)))
+                    .coords;
+                let p1 = transform
+                    .transform_point(&Point3::from(spherical_to_cartesian(
+                        radius,
+                        theta,
+                        phi + phi_step,
+                    )))
+                    .coords;
+                let p2 = transform
+                    .transform_point(&Point3::from(spherical_to_cartesian(
+                        radius,
+                        theta + theta_step,
+                        phi + phi_step,
+                    )))
+                    .coords;
+                let p3 = transform
+                    .transform_point(&Point3::from(spherical_to_cartesian(
+                        radius,
+                        theta + theta_step,
+                        phi,
+                    )))
+                    .coords;
+
+                self.draw_triangle(p0, p1, p2, color);
+                self.draw_triangle(p0, p2, p3, color);
+
+                phi += phi_step;
+            }
+            theta += theta_step;
+        }
+    }
+
     /// Draws a wire cone with given parameters.
     pub fn draw_cone(
         &mut self,
@@ -713,6 +815,154 @@ impl SceneDrawingContext {
         }
     }
 
+    /// Draws vertical capsule with given radius and height and then applies given transform.
+    pub fn draw_capsule(
+        &mut self,
+        radius: f32,
+        height: f32,
+        transform: Matrix4<f32>,
+        color: Color,
+    ) {
+        // Top cap
+        self.draw_sphere_section(
+            radius,
+            0.0..std::f32::consts::FRAC_PI_2,
+            10,
+            0.0..std::f32::consts::TAU,
+            10,
+            transform * Matrix4::new_translation(&Vector3::new(0.0, height * 0.5 - radius, 0.0)),
+            color,
+        );
+
+        // Bottom cap
+        self.draw_sphere_section(
+            radius,
+            std::f32::consts::PI..std::f32::consts::PI * 1.5,
+            10,
+            0.0..std::f32::consts::TAU,
+            10,
+            transform * Matrix4::new_translation(&Vector3::new(0.0, -height * 0.5 + radius, 0.0)),
+            color,
+        );
+
+        let cylinder_height = height - 2.0 * radius;
+
+        if cylinder_height > 0.0 {
+            self.draw_cylinder(10, radius, cylinder_height, false, transform, color);
+        }
+    }
+
+    /// Draws capsule between two points with given tesselation and then applies given transform to all points.
+    pub fn draw_segment_capsule(
+        &mut self,
+        begin: Vector3<f32>,
+        end: Vector3<f32>,
+        radius: f32,
+        v_segments: usize,
+        h_segments: usize,
+        transform: Matrix4<f32>,
+        color: Color,
+    ) {
+        let axis = end - begin;
+        let length = axis.norm();
+
+        let z_axis = axis
+            .try_normalize(std::f32::EPSILON)
+            .unwrap_or_else(Vector3::z);
+
+        let y_axis = z_axis
+            .cross(
+                &(if z_axis.y != 0.0 || z_axis.z != 0.0 {
+                    Vector3::x()
+                } else {
+                    Vector3::y()
+                }),
+            )
+            .try_normalize(std::f32::EPSILON)
+            .unwrap_or_else(Vector3::y);
+
+        let x_axis = z_axis
+            .cross(&y_axis)
+            .try_normalize(std::f32::EPSILON)
+            .unwrap_or_else(Vector3::x); // CHECK
+
+        let shaft_point = |u: f32, v: f32| -> Vector3<f32> {
+            transform
+                .transform_point(&Point3::from(
+                    begin
+                        + x_axis.scale((std::f32::consts::TAU * u).cos() * radius)
+                        + y_axis.scale((std::f32::consts::TAU * u).sin() * radius)
+                        + z_axis.scale(v * length),
+                ))
+                .coords
+        };
+
+        let start_hemisphere_point = |u: f32, v: f32| -> Vector3<f32> {
+            let latitude = std::f32::consts::FRAC_PI_2 * (v - 1.0);
+            transform
+                .transform_point(&Point3::from(
+                    begin
+                        + x_axis.scale((std::f32::consts::TAU * u).cos() * latitude.cos() * radius)
+                        + y_axis.scale((std::f32::consts::TAU * u).sin() * latitude.cos() * radius)
+                        + z_axis.scale(latitude.sin() * radius),
+                ))
+                .coords
+        };
+
+        let end_hemisphere_point = |u: f32, v: f32| -> Vector3<f32> {
+            let latitude = std::f32::consts::FRAC_PI_2 * v;
+            transform
+                .transform_point(&Point3::from(
+                    end + x_axis.scale((std::f32::consts::TAU * u).cos() * latitude.cos() * radius)
+                        + y_axis.scale((std::f32::consts::TAU * u).sin() * latitude.cos() * radius)
+                        + z_axis.scale(latitude.sin() * radius),
+                ))
+                .coords
+        };
+
+        let dv = 1.0 / h_segments as f32;
+        let du = 1.0 / v_segments as f32;
+
+        let mut u = 0.0;
+        while u < 1.0 {
+            let sa = shaft_point(u, 0.0);
+            let sb = shaft_point(u, 1.0);
+            let sc = shaft_point(u + du, 1.0);
+            let sd = shaft_point(u + du, 0.0);
+
+            self.draw_triangle(sa, sb, sc, color);
+            self.draw_triangle(sa, sc, sd, color);
+
+            u += du;
+        }
+
+        u = 0.0;
+        while u < 1.0 {
+            let mut v = 0.0;
+            while v < 1.0 {
+                let sa = start_hemisphere_point(u, v);
+                let sb = start_hemisphere_point(u, v + dv);
+                let sc = start_hemisphere_point(u + du, v + dv);
+                let sd = start_hemisphere_point(u + du, v);
+
+                self.draw_triangle(sa, sb, sc, color);
+                self.draw_triangle(sa, sc, sd, color);
+
+                let ea = end_hemisphere_point(u, v);
+                let eb = end_hemisphere_point(u, v + dv);
+                let ec = end_hemisphere_point(u + du, v + dv);
+                let ed = end_hemisphere_point(u + du, v);
+
+                self.draw_triangle(ea, eb, ec, color);
+                self.draw_triangle(ea, ec, ed, color);
+
+                v += dv;
+            }
+
+            u += du;
+        }
+    }
+
     /// Adds single line into internal buffer.
     pub fn add_line(&mut self, line: Line) {
         self.lines.push(line);
@@ -722,6 +972,73 @@ impl SceneDrawingContext {
     /// every update tick of your application.
     pub fn clear_lines(&mut self) {
         self.lines.clear()
+    }
+}
+
+/// A container for navigational meshes.
+#[derive(Default, Clone, Debug)]
+pub struct NavMeshContainer {
+    pool: Pool<Navmesh>,
+}
+
+impl NavMeshContainer {
+    /// Adds new navigational mesh to the container and returns its handle.
+    pub fn add(&mut self, navmesh: Navmesh) -> Handle<Navmesh> {
+        self.pool.spawn(navmesh)
+    }
+
+    /// Removes navigational mesh by its handle.
+    pub fn remove(&mut self, handle: Handle<Navmesh>) -> Navmesh {
+        self.pool.free(handle)
+    }
+
+    /// Creates new immutable iterator.
+    pub fn iter(&self) -> impl Iterator<Item = &Navmesh> {
+        self.pool.iter()
+    }
+
+    /// Creates new immutable iterator.
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Navmesh> {
+        self.pool.iter_mut()
+    }
+
+    /// Creates a handle to navmesh from its index.
+    pub fn handle_from_index(&self, i: usize) -> Handle<Navmesh> {
+        self.pool.handle_from_index(i)
+    }
+
+    /// Destroys all navmeshes. All handles will become invalid.
+    pub fn clear(&mut self) {
+        self.pool.clear()
+    }
+
+    /// Checks if given handle is valid.
+    pub fn is_valid_handle(&self, handle: Handle<Navmesh>) -> bool {
+        self.pool.is_valid_handle(handle)
+    }
+}
+
+impl Index<Handle<Navmesh>> for NavMeshContainer {
+    type Output = Navmesh;
+
+    fn index(&self, index: Handle<Navmesh>) -> &Self::Output {
+        &self.pool[index]
+    }
+}
+
+impl IndexMut<Handle<Navmesh>> for NavMeshContainer {
+    fn index_mut(&mut self, index: Handle<Navmesh>) -> &mut Self::Output {
+        &mut self.pool[index]
+    }
+}
+
+impl Visit for NavMeshContainer {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.pool.visit("Pool", visitor)?;
+
+        visitor.leave_region()
     }
 }
 
@@ -757,7 +1074,29 @@ pub struct Scene {
     /// Drawing context for simple graphics.
     pub drawing_context: SceneDrawingContext,
 
+    /// A sound context that holds all sound sources, effects, etc. belonging to the scene.
+    pub sound_context: Context,
+
+    /// A container for navigational meshes.
+    pub navmeshes: NavMeshContainer,
+
+    /// Current lightmap.
     lightmap: Option<Lightmap>,
+
+    /// Performance statistics from last `update` call.
+    pub performance_statistics: PerformanceStatistics,
+
+    /// Color of ambient lighting.
+    pub ambient_lighting_color: Color,
+
+    /// Whether the scene will be updated and rendered or not. Default is true.
+    /// This flags is allows you to build a scene manager for your game. For example,
+    /// you may have a scene for menu and one per level. Menu's scene is persistent,
+    /// however you don't want it to be updated and renderer while you have a level
+    /// loaded and playing a game. When you're start playing, just set `enabled` flag
+    /// to false for menu's scene and when you need to open a menu - set it to true and
+    /// set `enabled` flag to false for level's scene.
+    pub enabled: bool,
 }
 
 impl Default for Scene {
@@ -770,6 +1109,11 @@ impl Default for Scene {
             render_target: None,
             lightmap: None,
             drawing_context: Default::default(),
+            sound_context: Default::default(),
+            navmeshes: Default::default(),
+            performance_statistics: Default::default(),
+            ambient_lighting_color: Color::opaque(100, 100, 100),
+            enabled: true,
         }
     }
 }
@@ -780,6 +1124,35 @@ fn map_texture(tex: Option<Texture>, rm: ResourceManager) -> Option<Texture> {
         Some(rm.request_texture(shallow_texture.path()))
     } else {
         None
+    }
+}
+
+/// A structure that holds times that specific update step took.
+#[derive(Copy, Clone, Default, Debug)]
+pub struct PerformanceStatistics {
+    /// A time (in seconds) which was required to update physics.
+    pub physics_time: f32,
+
+    /// A time (in seconds) which was required to update graph.
+    pub graph_update_time: f32,
+
+    /// A time (in seconds) which was required to update animations.
+    pub animations_update_time: f32,
+
+    /// A time (in seconds) which was required to render sounds.
+    pub sound_update_time: f32,
+}
+
+impl Display for PerformanceStatistics {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Physics: {} ms\nGraph: {} ms\nAnimations: {} ms\nSounds: {} ms",
+            self.physics_time * 1000.0,
+            self.graph_update_time * 1000.0,
+            self.animations_update_time * 1000.0,
+            self.sound_update_time * 1000.0
+        )
     }
 }
 
@@ -801,6 +1174,11 @@ impl Scene {
             render_target: None,
             lightmap: None,
             drawing_context: Default::default(),
+            sound_context: Context::new(),
+            navmeshes: Default::default(),
+            performance_statistics: Default::default(),
+            ambient_lighting_color: Color::opaque(100, 100, 100),
+            enabled: true,
         }
     }
 
@@ -908,27 +1286,40 @@ impl Scene {
         self.physics.step();
 
         // Keep pair when node and body are both alive.
-        let graph = &self.graph;
-        let physics = &self.physics;
-        self.physics_binder
-            .node_rigid_body_map
-            .retain(|node, body| {
-                graph.is_valid_handle(*node) && physics.bodies.contains(body.clone().into())
-            });
+        let graph = &mut self.graph;
+        let physics = &mut self.physics;
+        self.physics_binder.forward_map.retain(|node, body| {
+            graph.is_valid_handle(*node) && physics.bodies.contains(body.clone().into())
+        });
 
         // Sync node positions with assigned physics bodies
         if self.physics_binder.enabled {
-            for (&node, &body) in self.physics_binder.node_rigid_body_map.iter() {
-                let body = physics.bodies.get(body.into()).unwrap();
-                self.graph[node]
-                    .local_transform_mut()
-                    .set_position(body.position().translation.vector)
-                    .set_rotation(body.position().rotation);
+            for (&node_handle, &body) in self.physics_binder.forward_map.iter() {
+                let body = physics.bodies.get_mut(body.into()).unwrap();
+                let node = &mut self.graph[node_handle];
+                match node.physics_binding {
+                    PhysicsBinding::NodeWithBody => {
+                        node.local_transform_mut()
+                            .set_position(body.position().translation.vector)
+                            .set_rotation(body.position().rotation);
+                    }
+                    PhysicsBinding::BodyWithNode => {
+                        let (r, p) = self.graph.isometric_global_rotation_position(node_handle);
+                        body.set_position(
+                            Isometry3 {
+                                rotation: r,
+                                translation: Translation { vector: p },
+                            },
+                            true,
+                        );
+                    }
+                }
             }
         }
     }
 
-    /// Removes node from scene with all associated entities, like animations etc.
+    /// Removes node from scene with all associated entities, like animations etc. This method
+    /// should be used all times instead of [Graph::remove_node](crate::scene::graph::Graph::remove_node),     
     ///
     /// # Panics
     ///
@@ -944,6 +1335,12 @@ impl Scene {
                 }
                 true
             });
+
+            // Remove all associated physical bodies.
+            if let Some(body) = self.physics_binder.body_of(descendant) {
+                self.physics.remove_body(body);
+                self.physics_binder.unbind(descendant);
+            }
         }
 
         self.graph.remove_node(handle)
@@ -1036,9 +1433,25 @@ impl Scene {
     /// it updates physics, animations, and each graph node. In most cases there is
     /// no need to call it directly, engine automatically updates all available scenes.
     pub fn update(&mut self, frame_size: Vector2<f32>, dt: f32) {
+        let last = std::time::Instant::now();
         self.update_physics();
+        self.performance_statistics.physics_time = (std::time::Instant::now() - last).as_secs_f32();
+
+        let last = std::time::Instant::now();
         self.animations.update_animations(dt);
+        self.performance_statistics.animations_update_time =
+            (std::time::Instant::now() - last).as_secs_f32();
+
+        let last = std::time::Instant::now();
         self.graph.update_nodes(frame_size, dt);
+        self.performance_statistics.graph_update_time =
+            (std::time::Instant::now() - last).as_secs_f32();
+
+        self.performance_statistics.sound_update_time = self
+            .sound_context
+            .state()
+            .full_render_duration()
+            .as_secs_f32();
     }
 
     /// Creates deep copy of a scene, filter predicate allows you to filter out nodes
@@ -1060,7 +1473,7 @@ impl Scene {
         // It is ok to use old binder here, because handles maps one-to-one.
         let physics = self.physics.deep_copy(&self.physics_binder, &graph);
         let mut physics_binder = PhysicsBinder::default();
-        for (node, &body) in self.physics_binder.node_rigid_body_map.iter() {
+        for (node, &body) in self.physics_binder.forward_map.iter() {
             // Make sure we bind existing node with new physical body.
             if let Some(&new_node) = old_new_map.get(node) {
                 // Re-use of body handle is fine here because physics copy bodies
@@ -1079,6 +1492,11 @@ impl Scene {
                 render_target: Default::default(),
                 lightmap: self.lightmap.clone(),
                 drawing_context: self.drawing_context.clone(),
+                sound_context: self.sound_context.deep_clone(),
+                navmeshes: self.navmeshes.clone(),
+                performance_statistics: Default::default(),
+                ambient_lighting_color: self.ambient_lighting_color,
+                enabled: self.enabled,
             },
             old_new_map,
         )
@@ -1093,18 +1511,33 @@ impl Visit for Scene {
         self.animations.visit("Animations", visitor)?;
         self.physics.visit("Physics", visitor)?;
         let _ = self.lightmap.visit("Lightmap", visitor);
+        let _ = self.sound_context.visit("SoundContext", visitor);
+        let _ = self.navmeshes.visit("NavMeshes", visitor);
+        let _ = self
+            .ambient_lighting_color
+            .visit("AmbientLightingColor", visitor);
+        let _ = self.enabled.visit("Enabled", visitor);
+        // Backward compatibility.
+        if self.sound_context.is_invalid() {
+            self.sound_context = Context::new();
+        }
         visitor.leave_region()
     }
 }
 
-/// Container for scenes in the engine. It just a simple wrapper around Pool.
+/// Container for scenes in the engine.
+#[derive(Default)]
 pub struct SceneContainer {
     pool: Pool<Scene>,
+    sound_engine: Arc<Mutex<SoundEngine>>,
 }
 
 impl SceneContainer {
-    pub(in crate) fn new() -> Self {
-        Self { pool: Pool::new() }
+    pub(in crate) fn new(sound_engine: Arc<Mutex<SoundEngine>>) -> Self {
+        Self {
+            pool: Pool::new(),
+            sound_engine,
+        }
     }
 
     /// Returns pair iterator which yields (handle, scene_ref) pairs.
@@ -1127,6 +1560,10 @@ impl SceneContainer {
     /// Adds new scene into container.
     #[inline]
     pub fn add(&mut self, scene: Scene) -> Handle<Scene> {
+        self.sound_engine
+            .lock()
+            .unwrap()
+            .add_context(scene.sound_context.clone());
         self.pool.spawn(scene)
     }
 
@@ -1139,7 +1576,28 @@ impl SceneContainer {
     /// Removes given scene from container.
     #[inline]
     pub fn remove(&mut self, handle: Handle<Scene>) {
+        self.sound_engine
+            .lock()
+            .unwrap()
+            .remove_context(self.pool[handle].sound_context.clone());
         self.pool.free(handle);
+    }
+
+    /// Takes scene from the container and transfers ownership to caller. You must either
+    /// put scene back using ticket or call `forget_ticket` to make memory used by scene
+    /// vacant again.
+    pub fn take_reserve(&mut self, handle: Handle<Scene>) -> (Ticket<Scene>, Scene) {
+        self.pool.take_reserve(handle)
+    }
+
+    /// Puts scene back using its ticket.
+    pub fn put_back(&mut self, ticket: Ticket<Scene>, scene: Scene) -> Handle<Scene> {
+        self.pool.put_back(ticket, scene)
+    }
+
+    /// Forgets ticket of a scene, making place at which ticket points, vacant again.
+    pub fn forget_ticket(&mut self, ticket: Ticket<Scene>) {
+        self.pool.forget_ticket(ticket)
     }
 }
 
@@ -1159,17 +1617,12 @@ impl IndexMut<Handle<Scene>> for SceneContainer {
     }
 }
 
-impl Default for SceneContainer {
-    fn default() -> Self {
-        Self { pool: Pool::new() }
-    }
-}
-
 impl Visit for SceneContainer {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
         self.pool.visit("Pool", visitor)?;
+        let _ = self.sound_engine.visit("SoundEngine", visitor);
 
         visitor.leave_region()
     }
@@ -1196,25 +1649,26 @@ impl VisibilityCache {
     }
 
     /// Updates visibility cache - checks visibility for each node in given graph, also performs
-    /// frustum culling if frustum specified.
+    /// frustum culling if frustum set is specified.
     pub fn update(
         &mut self,
         graph: &Graph,
-        view_matrix: Matrix4<f32>,
+        observer_position: Vector3<f32>,
+        z_near: f32,
         z_far: f32,
-        frustum: Option<&Frustum>,
+        frustums: Option<&[&Frustum]>,
     ) {
         self.map.clear();
-
-        let view_position = view_matrix.position();
 
         // Check LODs first, it has priority over other visibility settings.
         for node in graph.linear_iter() {
             if let Some(lod_group) = node.lod_group() {
                 for level in lod_group.levels.iter() {
                     for &object in level.objects.iter() {
-                        let normalized_distance =
-                            view_position.metric_distance(&graph[object].global_position()) / z_far;
+                        let distance =
+                            observer_position.metric_distance(&graph[object].global_position());
+                        let z_range = z_far - z_near;
+                        let normalized_distance = (distance - z_near) / z_range;
                         let visible = normalized_distance >= level.begin()
                             && normalized_distance <= level.end();
                         self.map.insert(object, visible);
@@ -1223,7 +1677,7 @@ impl VisibilityCache {
             }
         }
 
-        // Fill rest of data from global visibility flag of nodes.
+        // Fill rest of data from global visibility flag of nodes and check frustums (if any).
         for (handle, node) in graph.pair_iter() {
             // We care only about meshes.
             if let Node::Mesh(mesh) = node {
@@ -1232,8 +1686,16 @@ impl VisibilityCache {
                 self.map.entry(handle).or_insert_with(|| {
                     let mut visibility = node.global_visibility();
                     if visibility {
-                        if let Some(frustum) = frustum {
-                            visibility = mesh.is_intersect_frustum(graph, frustum);
+                        // If a mesh globally visible, check it with each frustum (if any).
+                        if let Some(frustums) = frustums {
+                            let mut visible_by_any_frustum = false;
+                            for frustum in frustums {
+                                if mesh.is_intersect_frustum(graph, frustum) {
+                                    visible_by_any_frustum = true;
+                                    break;
+                                }
+                            }
+                            visibility = visible_by_any_frustum;
                         }
                     }
                     visibility
@@ -1245,5 +1707,108 @@ impl VisibilityCache {
     /// Checks if given node is visible or not.
     pub fn is_visible(&self, node: Handle<Node>) -> bool {
         self.map.get(&node).cloned().unwrap_or(false)
+    }
+}
+
+/// A wrapper for a variable that hold additional flag that tells that
+/// initial value was changed in runtime.
+#[derive(Debug)]
+pub struct TemplateVariable<T> {
+    /// Actual value.
+    value: T,
+
+    /// A marker that tells that initial value was changed.
+    custom: bool,
+}
+
+impl<T: Clone> Clone for TemplateVariable<T> {
+    fn clone(&self) -> Self {
+        Self {
+            value: self.value.clone(),
+            custom: self.custom,
+        }
+    }
+}
+
+impl<T: PartialEq> PartialEq for TemplateVariable<T> {
+    fn eq(&self, other: &Self) -> bool {
+        // `custom` flag intentionally ignored!
+        self.value.eq(&other.value)
+    }
+}
+
+impl<T: Eq> Eq for TemplateVariable<T> {}
+
+impl<T: Copy> Copy for TemplateVariable<T> {}
+
+impl<T: Default> Default for TemplateVariable<T> {
+    fn default() -> Self {
+        Self {
+            value: T::default(),
+            custom: false,
+        }
+    }
+}
+
+impl<T: Clone> TemplateVariable<T> {
+    /// Clones wrapped value.
+    pub fn clone_inner(&self) -> T {
+        self.value.clone()
+    }
+}
+
+impl<T> TemplateVariable<T> {
+    /// Creates new non-custom variable from given value.
+    pub fn new(value: T) -> Self {
+        Self {
+            value,
+            custom: false,
+        }
+    }
+
+    /// Creates new custom variable from given value.
+    pub fn new_custom(value: T) -> Self {
+        Self {
+            value,
+            custom: true,
+        }
+    }
+
+    /// Replaces value and also raises the `custom` flag.
+    pub fn set(&mut self, value: T) -> T {
+        self.custom = true;
+        std::mem::replace(&mut self.value, value)
+    }
+
+    /// Returns a reference to wrapped value.
+    pub fn get(&self) -> &T {
+        &self.value
+    }
+
+    /// Returns true if value has changed.
+    pub fn is_custom(&self) -> bool {
+        self.custom
+    }
+}
+
+impl<T> Deref for TemplateVariable<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.value
+    }
+}
+
+impl<T> Visit for TemplateVariable<T>
+where
+    T: Visit,
+{
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.value.visit("Value", visitor)?;
+        self.custom.visit("IsCustom", visitor)?;
+
+        visitor.leave_region()
     }
 }

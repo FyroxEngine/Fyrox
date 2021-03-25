@@ -330,7 +330,8 @@ impl FormattedText {
             cursor.y += font.ascender();
         }
 
-        let mut full_size = Vector2::new(0.0, total_height);
+        // Minus here is because descender has negative value.
+        let mut full_size = Vector2::new(0.0, total_height - font.descender());
         for line in self.lines.iter() {
             full_size.x = line.width.max(full_size.x);
         }

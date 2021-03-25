@@ -21,7 +21,7 @@ impl Default for Ray {
 }
 
 /// Pair of ray equation parameters.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Copy)]
 pub struct IntersectionResult {
     pub min: f32,
     pub max: f32,
@@ -42,7 +42,7 @@ impl IntersectionResult {
         let mut result = None;
         for v in results {
             match result {
-                None => result = v.clone(),
+                None => result = *v,
                 Some(ref mut result) => {
                     if let Some(v) = v {
                         result.merge(v.min);
@@ -81,16 +81,15 @@ pub enum CylinderKind {
 impl Ray {
     /// Creates ray from two points. May fail if begin == end.
     #[inline]
-    pub fn from_two_points(begin: &Vector3<f32>, end: &Vector3<f32>) -> Option<Ray> {
-        let dir = end - begin;
-        if dir.norm() >= std::f32::EPSILON {
-            Some(Ray {
-                origin: *begin,
-                dir,
-            })
-        } else {
-            None
+    pub fn from_two_points(begin: Vector3<f32>, end: Vector3<f32>) -> Self {
+        Ray {
+            origin: begin,
+            dir: end - begin,
         }
+    }
+
+    pub fn new(origin: Vector3<f32>, dir: Vector3<f32>) -> Self {
+        Self { origin, dir }
     }
 
     /// Checks intersection with sphere. Returns two intersection points or none
@@ -202,7 +201,7 @@ impl Ray {
         if tzmax < tmax {
             tmax = tzmax;
         }
-        if tmin < 1.0 && tmax > 0.0 {
+        if tmin <= 1.0 && tmax >= 0.0 {
             Some(IntersectionResult {
                 min: tmin,
                 max: tmax,
@@ -241,7 +240,7 @@ impl Ray {
 
     pub fn plane_intersection_point(&self, plane: &Plane) -> Option<Vector3<f32>> {
         let t = self.plane_intersection(plane);
-        if t < 0.0 || t > 1.0 {
+        if !(0.0..=1.0).contains(&t) {
             None
         } else {
             Some(self.get_point(t))
@@ -251,7 +250,7 @@ impl Ray {
     pub fn triangle_intersection(&self, vertices: &[Vector3<f32>; 3]) -> Option<Vector3<f32>> {
         let ba = vertices[1] - vertices[0];
         let ca = vertices[2] - vertices[0];
-        let plane = Plane::from_normal_and_point(&ba.cross(&ca), &vertices[0]).ok()?;
+        let plane = Plane::from_normal_and_point(&ba.cross(&ca), &vertices[0])?;
 
         if let Some(point) = self.plane_intersection_point(&plane) {
             if is_point_inside_triangle(&point, vertices) {
@@ -398,7 +397,7 @@ impl Ray {
     pub fn transform(&self, mat: Matrix4<f32>) -> Self {
         Self {
             origin: mat.transform_point(&Point3::from(self.origin)).coords,
-            dir: mat.transform_point(&Point3::from(self.dir)).coords,
+            dir: mat.transform_vector(&self.dir),
         }
     }
 }
@@ -415,9 +414,7 @@ mod test {
             Vector3::new(-0.5, -0.5, 0.0),
             Vector3::new(0.5, -0.5, 0.0),
         ];
-        let ray =
-            Ray::from_two_points(&Vector3::new(0.0, 0.0, -2.0), &Vector3::new(0.0, 0.0, -1.0))
-                .unwrap();
+        let ray = Ray::from_two_points(Vector3::new(0.0, 0.0, -2.0), Vector3::new(0.0, 0.0, -1.0));
         assert!(ray.triangle_intersection(&triangle).is_none());
     }
 }

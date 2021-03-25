@@ -17,7 +17,6 @@
 //!
 //! Currently only FBX (common format in game industry for storing complex 3d models)
 //! and RGS (native rusty-editor format) formats are supported.
-use crate::utils::log::MessageKind;
 use crate::{
     animation::Animation,
     core::{
@@ -25,17 +24,30 @@ use crate::{
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
-    resource::{fbx, fbx::error::FbxError, Resource, ResourceData},
+    resource::{
+        fbx::{self, error::FbxError},
+        Resource, ResourceData,
+    },
     scene::{node::Node, Scene},
-    utils::log::Log,
+    utils::log::{Log, MessageKind},
 };
-use std::borrow::Cow;
-use std::path::{Path, PathBuf};
+use std::{
+    borrow::Cow,
+    path::{Path, PathBuf},
+};
+
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+#[repr(u32)]
+pub(in crate) enum NodeMapping {
+    UseNames = 0,
+    UseHandles = 1,
+}
 
 /// See module docs.
 #[derive(Debug)]
 pub struct ModelData {
     pub(in crate) path: PathBuf,
+    pub(in crate) mapping: NodeMapping,
     scene: Scene,
 }
 
@@ -53,7 +65,7 @@ impl Model {
             &mut dest_scene.graph,
             &mut |_, _| true,
         );
-        dest_scene.graph[root].is_resource_instance = true;
+        dest_scene.graph[root].is_resource_instance_root = true;
 
         // Notify instantiated nodes about resource they were created from.
         let mut stack = vec![root];
@@ -64,6 +76,13 @@ impl Model {
 
             // Continue on children.
             stack.extend_from_slice(node.children());
+        }
+
+        // Embed navmeshes.
+        // TODO: This also must provide a map which will make it possible to extract navmesh
+        // from resource later on.
+        for navmesh in data.scene.navmeshes.iter() {
+            dest_scene.navmeshes.add(navmesh.clone());
         }
 
         std::mem::drop(data);
@@ -162,6 +181,7 @@ impl Default for ModelData {
     fn default() -> Self {
         Self {
             path: PathBuf::new(),
+            mapping: NodeMapping::UseNames,
             scene: Scene::new(),
         }
     }
@@ -224,15 +244,24 @@ impl ModelData {
             .to_string_lossy()
             .as_ref()
             .to_lowercase();
-        let scene = match extension.as_ref() {
+        let (scene, mapping) = match extension.as_ref() {
             "fbx" => {
                 let mut scene = Scene::new();
+                if let Some(filename) = path.as_ref().file_name() {
+                    let root = scene.graph.get_root();
+                    scene.graph[root].set_name(filename.to_string_lossy().to_string());
+                }
                 fbx::load_to_scene(&mut scene, resource_manager, path.as_ref())?;
-                scene
+                // Set NodeMapping::UseNames as mapping here because FBX does not have
+                // any persistent unique ids, and we have to use names.
+                (scene, NodeMapping::UseNames)
             }
             // Scene can be used directly as model resource. Such scenes can be created from
             // rusty-editor (https://github.com/mrDIMAS/rusty-editor) for example.
-            "rgs" => Scene::from_file(path.as_ref(), resource_manager).await?,
+            "rgs" => (
+                Scene::from_file(path.as_ref(), resource_manager).await?,
+                NodeMapping::UseHandles,
+            ),
             // TODO: Add more formats.
             _ => {
                 return Err(ModelLoadError::NotSupported(format!(
@@ -245,6 +274,7 @@ impl ModelData {
         Ok(Self {
             path: path.as_ref().to_owned(),
             scene,
+            mapping,
         })
     }
 

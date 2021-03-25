@@ -1,46 +1,44 @@
 //! Contains all structures and methods to operate with physics world.
 
-use crate::core::pool::Handle;
-use crate::resource::model::Model;
-use crate::utils::log::MessageKind;
 use crate::{
     core::{
+        arrayvec::{Array, ArrayVec},
         color::Color,
-        math::ray::Ray,
+        math::{aabb::AxisAlignedBoundingBox, ray::Ray},
+        pool::Handle,
         visitor::{Visit, VisitResult, Visitor},
     },
     physics::math::AngVector,
+    resource::model::Model,
     scene::{
         graph::Graph, node::Node, ColliderHandle, JointHandle, PhysicsBinder, RigidBodyHandle,
         SceneDrawingContext,
     },
     utils::{
-        log::Log,
+        log::{Log, MessageKind},
         raw_mesh::{RawMeshBuilder, RawVertex},
     },
 };
 use rapier3d::{
-    data::arena::Index,
     dynamics::{
         BallJoint, BodyStatus, FixedJoint, IntegrationParameters, Joint, JointParams, JointSet,
         PrismaticJoint, RevoluteJoint, RigidBody, RigidBodyBuilder, RigidBodySet,
     },
     geometry::{
-        BroadPhase, Collider, ColliderBuilder, ColliderSet, ColliderShape, InteractionGroups,
-        NarrowPhase, Segment, Shape, Trimesh,
+        BroadPhase, Collider, ColliderBuilder, ColliderSet, InteractionGroups, NarrowPhase,
+        Segment, Shape,
     },
     na::{
         DMatrix, Dynamic, Isometry3, Point3, Translation, Translation3, Unit, UnitQuaternion,
         VecStorage, Vector3,
     },
-    ncollide::{query, shape::FeatureId},
+    parry::shape::{FeatureId, SharedShape, TriMesh},
     pipeline::{EventHandler, PhysicsPipeline, QueryPipeline},
 };
-use rg3d_core::math::aabb::AxisAlignedBoundingBox;
-use std::collections::HashMap;
 use std::{
-    cell::{Cell, RefCell},
+    cell::RefCell,
     cmp::Ordering,
+    collections::HashMap,
     fmt::{Debug, Formatter},
 };
 
@@ -85,7 +83,7 @@ pub struct RayCastOptions {
 #[derive(Default, Clone)]
 pub struct ResourceLink {
     model: Model,
-    // HandleInInstance -> HandleInResource mappings
+    // HandleInResource->HandleInInstance mappings
     bodies: HashMap<RigidBodyHandle, RigidBodyHandle>,
     colliders: HashMap<ColliderHandle, ColliderHandle>,
     joints: HashMap<JointHandle, JointHandle>,
@@ -118,36 +116,12 @@ pub struct Physics {
     pub narrow_phase: NarrowPhase,
 
     /// A set of rigid bodies.
-    ///
-    /// Do not add/remove anything from this set manually, use dedicated methods
-    /// (add/remove)_x. This is because of potential panic during the ray cast.
-    /// The problem is very simple: QueryPipeline require some sort of optimizing
-    /// data structure (BVH, octree, etc.) which holds handles to colliders, but
-    /// it is possible to nuke collider and QueryPipeline won't be notified about
-    /// this, and on attempt to do a ray cast it will panic at attempt to use
-    /// invalid handle. It is in public only to solve borrowing issues!
     pub bodies: RigidBodySet,
 
     /// A set of colliders.
-    ///
-    /// Do not add/remove anything from this set manually, use dedicated methods
-    /// (add/remove)_x. This is because of potential panic during the ray cast.
-    /// The problem is very simple: QueryPipeline require some sort of optimizing
-    /// data structure (BVH, octree, etc.) which holds handles to colliders, but
-    /// it is possible to nuke collider and QueryPipeline won't be notified about
-    /// this, and on attempt to do a ray cast it will panic at attempt to use
-    /// invalid handle. It is in public only to solve borrowing issues!
     pub colliders: ColliderSet,
 
     /// A set of joints.
-    ///
-    /// Do not add/remove anything from this set manually, use dedicated methods
-    /// (add/remove)_x. This is because of potential panic during the ray cast.
-    /// The problem is very simple: QueryPipeline require some sort of optimizing
-    /// data structure (BVH, octree, etc.) which holds handles to colliders, but
-    /// it is possible to nuke collider and QueryPipeline won't be notified about
-    /// this, and on attempt to do a ray cast it will panic at attempt to use
-    /// invalid handle. It is in public only to solve borrowing issues!
     pub joints: JointSet,
 
     /// Event handler collects info about contacts and proximity events.
@@ -166,7 +140,6 @@ pub struct Physics {
     /// instantiation process.
     pub embedded_resources: Vec<ResourceLink>,
 
-    query_updated: Cell<bool>,
     query: RefCell<QueryPipeline>,
 }
 
@@ -182,6 +155,56 @@ impl Default for Physics {
     }
 }
 
+/// A trait for ray cast results storage. It has two implementations: Vec and ArrayVec.
+/// Latter is needed for the cases where you need to avoid runtime memory allocations
+/// and do everything on stack.
+pub trait QueryResultsStorage {
+    /// Pushes new intersection in the storage. Returns true if intersection was
+    /// successfully inserted, false otherwise.
+    fn push(&mut self, intersection: Intersection) -> bool;
+
+    /// Clears the storage.
+    fn clear(&mut self);
+
+    /// Sorts intersections by given compare function.
+    fn sort_intersections_by<C: FnMut(&Intersection, &Intersection) -> Ordering>(&mut self, cmp: C);
+}
+
+impl QueryResultsStorage for Vec<Intersection> {
+    fn push(&mut self, intersection: Intersection) -> bool {
+        self.push(intersection);
+        true
+    }
+
+    fn clear(&mut self) {
+        self.clear()
+    }
+
+    fn sort_intersections_by<C>(&mut self, cmp: C)
+    where
+        C: FnMut(&Intersection, &Intersection) -> Ordering,
+    {
+        self.sort_by(cmp);
+    }
+}
+
+impl<A: Array<Item = Intersection>> QueryResultsStorage for ArrayVec<A> {
+    fn push(&mut self, intersection: Intersection) -> bool {
+        self.try_push(intersection).is_ok()
+    }
+
+    fn clear(&mut self) {
+        self.clear()
+    }
+
+    fn sort_intersections_by<C>(&mut self, cmp: C)
+    where
+        C: FnMut(&Intersection, &Intersection) -> Ordering,
+    {
+        self.sort_by(cmp);
+    }
+}
+
 impl Physics {
     pub(in crate) fn new() -> Self {
         Self {
@@ -194,7 +217,6 @@ impl Physics {
             colliders: ColliderSet::new(),
             joints: JointSet::new(),
             event_handler: Box::new(()),
-            query_updated: Cell::new(false),
             query: Default::default(),
             desc: Default::default(),
             embedded_resources: Default::default(),
@@ -219,9 +241,10 @@ impl Physics {
 
         for (_, collider) in self.colliders.iter() {
             let body = self.bodies.get(collider.parent()).unwrap();
-            let transform = body.position().to_homogeneous();
+            let collider_local_tranform = collider.position_wrt_parent().to_homogeneous();
+            let transform = body.position().to_homogeneous() * collider_local_tranform;
             if let Some(trimesh) = collider.shape().as_trimesh() {
-                let trimesh: &Trimesh = trimesh;
+                let trimesh: &TriMesh = trimesh;
                 for triangle in trimesh.triangles() {
                     let a = transform.transform_point(&triangle.a);
                     let b = transform.transform_point(&triangle.b);
@@ -269,8 +292,8 @@ impl Physics {
             } else if let Some(round_cylinder) = collider.shape().as_round_cylinder() {
                 context.draw_cylinder(
                     10,
-                    round_cylinder.cylinder.radius,
-                    round_cylinder.cylinder.half_height * 2.0,
+                    round_cylinder.base_shape.radius,
+                    round_cylinder.base_shape.half_height * 2.0,
                     false,
                     transform,
                     Color::opaque(200, 200, 200),
@@ -283,19 +306,13 @@ impl Physics {
                     Color::opaque(200, 200, 200),
                 );
             } else if let Some(capsule) = collider.shape().as_capsule() {
-                // TODO: Draw as it should be.
-                context.draw_sphere(
+                context.draw_segment_capsule(
                     capsule.segment.a.coords,
-                    10,
-                    10,
-                    capsule.radius,
-                    Color::opaque(200, 200, 200),
-                );
-                context.draw_sphere(
                     capsule.segment.b.coords,
-                    10,
-                    10,
                     capsule.radius,
+                    10,
+                    10,
+                    transform,
                     Color::opaque(200, 200, 200),
                 );
             }
@@ -311,8 +328,7 @@ impl Physics {
             &mut self.bodies,
             &mut self.colliders,
             &mut self.joints,
-            None,
-            None,
+            &(),
             &*self.event_handler,
         );
     }
@@ -346,7 +362,7 @@ impl Physics {
 
     /// Creates new trimesh collider shape from given mesh node. It also bakes scale into
     /// vertices of trimesh because rapier does not support collider scaling yet.
-    pub fn make_trimesh(root: Handle<Node>, graph: &Graph) -> ColliderShape {
+    pub fn make_trimesh(root: Handle<Node>, graph: &Graph) -> SharedShape {
         let mut mesh_builder = RawMeshBuilder::new(0, 0);
 
         // Create inverse transform that will discard rotation and translation, but leave scaling and
@@ -414,10 +430,22 @@ impl Physics {
         let indices = raw_mesh
             .triangles
             .into_iter()
-            .map(|t| Point3::new(t.0[0], t.0[1], t.0[2]))
-            .collect();
+            .map(|t| [t.0[0], t.0[1], t.0[2]])
+            .collect::<Vec<_>>();
 
-        ColliderShape::trimesh(vertices, indices)
+        if indices.is_empty() {
+            Log::writeln(
+                MessageKind::Warning,
+                format!(
+                    "Failed to create triangle mesh collider for {}, it has no vertices!",
+                    graph[root].name()
+                ),
+            );
+
+            SharedShape::trimesh(vec![Point3::new(0.0, 0.0, 0.0)], vec![[0, 0, 0]])
+        } else {
+            SharedShape::trimesh(vertices, indices)
+        }
     }
 
     /// Small helper that creates static physics geometry from given mesh.
@@ -446,26 +474,29 @@ impl Physics {
     }
 
     /// Casts a ray with given options.
-    pub fn cast_ray(&self, opts: RayCastOptions, query_buffer: &mut Vec<Intersection>) {
+    pub fn cast_ray<S: QueryResultsStorage>(&self, opts: RayCastOptions, query_buffer: &mut S) {
         let mut query = self.query.borrow_mut();
 
-        if !self.query_updated.get() {
-            query.update(&self.bodies, &self.colliders);
-            self.query_updated.set(true);
-        }
+        // TODO: Ideally this must be called once per frame, but it seems to be impossible because
+        // a body can be deleted during the consecutive calls of this method which will most
+        // likely end up in panic because of invalid handle stored in internal acceleration
+        // structure. This could be fixed by delaying deleting of bodies/collider to the end
+        // of the frame.
+        query.update(&self.bodies, &self.colliders);
 
         query_buffer.clear();
-        let ray = query::Ray::new(
+        let ray = rapier3d::geometry::Ray::new(
             Point3::from(opts.ray.origin),
             opts.ray
                 .dir
                 .try_normalize(std::f32::EPSILON)
                 .unwrap_or_default(),
         );
-        query.interferences_with_ray(
+        query.intersections_with_ray(
             &self.colliders,
             &ray,
             opts.max_len,
+            true,
             opts.groups,
             |handle, _, intersection| {
                 query_buffer.push(Intersection {
@@ -474,12 +505,11 @@ impl Physics {
                     position: ray.point_at(intersection.toi),
                     feature: intersection.feature,
                     toi: intersection.toi,
-                });
-                true
+                })
             },
         );
         if opts.sort_results {
-            query_buffer.sort_by(|a, b| {
+            query_buffer.sort_intersections_by(|a, b| {
                 if a.toi > b.toi {
                     Ordering::Greater
                 } else if a.toi < b.toi {
@@ -563,11 +593,11 @@ impl Physics {
             let new_handle = self.bodies.insert(desc.convert_to_body());
 
             link.bodies
-                .insert(new_handle.into(), resource_handle.into());
+                .insert(resource_handle.into(), new_handle.into());
         }
 
         // Bind instantiated nodes with their respective rigid bodies from resource.
-        for (handle, body) in resource_binder.node_rigid_body_map.iter() {
+        for (handle, body) in resource_binder.forward_map.iter() {
             let new_handle = *old_to_new.get(handle).unwrap();
             let new_body = *link.bodies.get(body).unwrap();
             target_binder.bind(new_handle, new_body);
@@ -608,7 +638,7 @@ impl Physics {
                     self.colliders
                         .insert(new_collider, remapped_parent.into(), &mut self.bodies);
                 link.colliders
-                    .insert(new_handle.into(), resource_handle.into());
+                    .insert(resource_handle.into(), new_handle.into());
             }
         }
 
@@ -624,7 +654,7 @@ impl Physics {
                 desc.params,
             );
             link.joints
-                .insert(new_handle.into(), resource_handle.into());
+                .insert(resource_handle.into(), new_handle.into());
         }
 
         self.embedded_resources.push(link);
@@ -638,49 +668,35 @@ impl Physics {
         );
     }
 
-    /// Adds new rigid body. This method must be used instead of bodies.insert(...) because
-    /// it raises internal flag that ensures that accelerating structure for ray casting in
-    /// actual state!
+    /// Adds new rigid body.
     pub fn add_body(&mut self, rigid_body: RigidBody) -> RigidBodyHandle {
-        self.query_updated.set(false);
         self.bodies.insert(rigid_body).into()
     }
 
-    /// Removes a rigid body. This method must be used instead of bodies.remove(...) because
-    /// it raises internal flag that ensures that accelerating structure for ray casting in
-    /// actual state!
+    /// Removes a rigid body.
     pub fn remove_body(&mut self, rigid_body: RigidBodyHandle) -> Option<RigidBody> {
-        self.query_updated.set(false);
         self.bodies
             .remove(rigid_body.into(), &mut self.colliders, &mut self.joints)
     }
 
-    /// Adds new collider. This method must be used instead of colliders.insert(...) because
-    /// it raises internal flag that ensures that accelerating structure for ray casting in
-    /// actual state!
+    /// Adds new collider.
     pub fn add_collider(
         &mut self,
         collider: Collider,
         rigid_body: RigidBodyHandle,
     ) -> ColliderHandle {
-        self.query_updated.set(false);
         self.colliders
             .insert(collider, rigid_body.into(), &mut self.bodies)
             .into()
     }
 
-    /// Removes a collider. This method must be used instead of colliders.remove(...) because
-    /// it raises internal flag that ensures that accelerating structure for ray casting in
-    /// actual state!
+    /// Removes a collider.
     pub fn remove_collider(&mut self, collider_handle: ColliderHandle) -> Option<Collider> {
-        self.query_updated.set(false);
         self.colliders
             .remove(collider_handle.into(), &mut self.bodies, true)
     }
 
-    /// Adds new joint. This method must be used instead of joints.insert(...) because
-    /// it raises internal flag that ensures that accelerating structure for ray casting in
-    /// actual state!
+    /// Adds new joint.
     pub fn add_joint<J>(
         &mut self,
         body1: RigidBodyHandle,
@@ -690,17 +706,13 @@ impl Physics {
     where
         J: Into<JointParams>,
     {
-        self.query_updated.set(false);
         self.joints
             .insert(&mut self.bodies, body1.into(), body2.into(), joint_params)
             .into()
     }
 
-    /// Removes a joint. This method must be used instead of joints.remove(...) because
-    /// it raises internal flag that ensures that accelerating structure for ray casting in
-    /// actual state!
+    /// Removes a joint.
     pub fn remove_joint(&mut self, joint_handle: JointHandle, wake_up: bool) -> Option<Joint> {
-        self.query_updated.set(false);
         self.joints
             .remove(joint_handle.into(), &mut self.bodies, wake_up)
     }
@@ -767,7 +779,7 @@ impl Into<BodyStatus> for BodyStatusDesc {
     }
 }
 
-#[derive(Default, Clone, Debug)]
+#[derive(Clone, Debug)]
 #[doc(hidden)]
 pub struct RigidBodyDesc<C> {
     pub position: Vector3<f32>,
@@ -780,7 +792,22 @@ pub struct RigidBodyDesc<C> {
     pub mass: f32,
 }
 
-impl<C: From<Index>> RigidBodyDesc<C> {
+impl<C> Default for RigidBodyDesc<C> {
+    fn default() -> Self {
+        Self {
+            position: Default::default(),
+            rotation: Default::default(),
+            linvel: Default::default(),
+            angvel: Default::default(),
+            sleeping: false,
+            status: Default::default(),
+            colliders: vec![],
+            mass: 1.0,
+        }
+    }
+}
+
+impl<C: From<rapier3d::geometry::ColliderHandle>> RigidBodyDesc<C> {
     #[doc(hidden)]
     pub fn from_body(body: &RigidBody) -> Self {
         Self {
@@ -803,7 +830,7 @@ impl<C: From<Index>> RigidBodyDesc<C> {
                 },
                 rotation: self.rotation,
             })
-            .mass(self.mass, true)
+            .mass(self.mass)
             .linvel(self.linvel.x, self.linvel.y, self.linvel.z)
             .angvel(AngVector::new(self.angvel.x, self.angvel.y, self.angvel.z))
             .build();
@@ -1081,8 +1108,8 @@ impl ColliderShapeDesc {
             })
         } else if let Some(round_cylinder) = shape.as_round_cylinder() {
             ColliderShapeDesc::RoundCylinder(RoundCylinderDesc {
-                half_height: round_cylinder.cylinder.half_height,
-                radius: round_cylinder.cylinder.radius,
+                half_height: round_cylinder.base_shape.half_height,
+                radius: round_cylinder.base_shape.radius,
                 border_radius: round_cylinder.border_radius,
             })
         } else if let Some(cone) = shape.as_cone() {
@@ -1120,28 +1147,32 @@ impl ColliderShapeDesc {
         }
     }
 
-    fn into_collider_shape(self) -> ColliderShape {
+    fn into_collider_shape(self) -> SharedShape {
         match self {
-            ColliderShapeDesc::Ball(ball) => ColliderShape::ball(ball.radius),
+            ColliderShapeDesc::Ball(ball) => SharedShape::ball(ball.radius),
             ColliderShapeDesc::Cylinder(cylinder) => {
-                ColliderShape::cylinder(cylinder.half_height, cylinder.radius)
+                SharedShape::cylinder(cylinder.half_height, cylinder.radius)
             }
-            ColliderShapeDesc::RoundCylinder(rcylinder) => ColliderShape::round_cylinder(
+            ColliderShapeDesc::RoundCylinder(rcylinder) => SharedShape::round_cylinder(
                 rcylinder.half_height,
                 rcylinder.radius,
                 rcylinder.border_radius,
             ),
-            ColliderShapeDesc::Cone(cone) => ColliderShape::cone(cone.half_height, cone.radius),
-            ColliderShapeDesc::Cuboid(cuboid) => ColliderShape::cuboid(cuboid.half_extents),
-            ColliderShapeDesc::Capsule(capsule) => ColliderShape::capsule(
+            ColliderShapeDesc::Cone(cone) => SharedShape::cone(cone.half_height, cone.radius),
+            ColliderShapeDesc::Cuboid(cuboid) => SharedShape::cuboid(
+                cuboid.half_extents.x,
+                cuboid.half_extents.y,
+                cuboid.half_extents.z,
+            ),
+            ColliderShapeDesc::Capsule(capsule) => SharedShape::capsule(
                 Point3::from(capsule.begin),
                 Point3::from(capsule.end),
                 capsule.radius,
             ),
             ColliderShapeDesc::Segment(segment) => {
-                ColliderShape::segment(Point3::from(segment.begin), Point3::from(segment.end))
+                SharedShape::segment(Point3::from(segment.begin), Point3::from(segment.end))
             }
-            ColliderShapeDesc::Triangle(triangle) => ColliderShape::triangle(
+            ColliderShapeDesc::Triangle(triangle) => SharedShape::triangle(
                 Point3::from(triangle.a),
                 Point3::from(triangle.b),
                 Point3::from(triangle.c),
@@ -1151,9 +1182,9 @@ impl ColliderShapeDesc {
                 let a = Point3::new(0.0, 0.0, 1.0);
                 let b = Point3::new(1.0, 0.0, 1.0);
                 let c = Point3::new(1.0, 0.0, 0.0);
-                ColliderShape::trimesh(vec![a, b, c], vec![Point3::new(0, 1, 2)])
+                SharedShape::trimesh(vec![a, b, c], vec![[0, 1, 2]])
             }
-            ColliderShapeDesc::Heightfield(_) => ColliderShape::heightfield(
+            ColliderShapeDesc::Heightfield(_) => SharedShape::heightfield(
                 DMatrix::from_data(VecStorage::new(
                     Dynamic::new(2),
                     Dynamic::new(2),
@@ -1223,7 +1254,7 @@ impl<R: Default> Default for ColliderDesc<R> {
     }
 }
 
-impl<R: From<Index>> ColliderDesc<R> {
+impl<R: From<rapier3d::dynamics::RigidBodyHandle>> ColliderDesc<R> {
     fn from_collider(collider: &Collider) -> Self {
         Self {
             shape: ColliderShapeDesc::from_collider_shape(collider.shape()),
@@ -1312,7 +1343,6 @@ pub struct IntegrationParametersDesc {
     pub erp: f32,
     pub joint_erp: f32,
     pub warmstart_coeff: f32,
-    pub restitution_velocity_threshold: f32,
     pub allowed_linear_error: f32,
     pub prediction_distance: f32,
     pub allowed_angular_error: f32,
@@ -1331,12 +1361,11 @@ pub struct IntegrationParametersDesc {
 impl From<IntegrationParameters> for IntegrationParametersDesc {
     fn from(params: IntegrationParameters) -> Self {
         Self {
-            dt: params.dt(),
+            dt: params.dt,
             return_after_ccd_substep: params.return_after_ccd_substep,
             erp: params.erp,
             joint_erp: params.joint_erp,
             warmstart_coeff: params.warmstart_coeff,
-            restitution_velocity_threshold: params.restitution_velocity_threshold,
             allowed_linear_error: params.allowed_linear_error,
             prediction_distance: params.prediction_distance,
             allowed_angular_error: params.allowed_angular_error,
@@ -1357,26 +1386,27 @@ impl From<IntegrationParameters> for IntegrationParametersDesc {
 
 impl Into<IntegrationParameters> for IntegrationParametersDesc {
     fn into(self) -> IntegrationParameters {
-        IntegrationParameters::new(
-            self.dt,
-            self.erp,
-            self.joint_erp,
-            self.warmstart_coeff,
-            self.restitution_velocity_threshold,
-            self.allowed_linear_error,
-            self.allowed_angular_error,
-            self.max_linear_correction,
-            self.max_angular_correction,
-            self.prediction_distance,
-            self.max_stabilization_multiplier,
-            self.max_velocity_iterations as usize,
-            self.max_position_iterations as usize,
-            self.max_ccd_position_iterations as usize,
-            self.max_ccd_substeps as usize,
-            self.return_after_ccd_substep,
-            self.multiple_ccd_substep_sensor_events_enabled,
-            self.ccd_on_penetration_enabled,
-        )
+        IntegrationParameters {
+            dt: self.dt,
+            erp: self.erp,
+            joint_erp: self.joint_erp,
+            warmstart_coeff: self.warmstart_coeff,
+            allowed_linear_error: self.allowed_linear_error,
+            allowed_angular_error: self.allowed_angular_error,
+            max_linear_correction: self.max_linear_correction,
+            max_angular_correction: self.max_angular_correction,
+            prediction_distance: self.prediction_distance,
+            max_stabilization_multiplier: self.max_stabilization_multiplier,
+            max_velocity_iterations: self.max_velocity_iterations as usize,
+            max_position_iterations: self.max_position_iterations as usize,
+            max_ccd_position_iterations: self.max_ccd_position_iterations as usize,
+            max_ccd_substeps: self.max_ccd_substeps as usize,
+            return_after_ccd_substep: self.return_after_ccd_substep,
+            multiple_ccd_substep_sensor_events_enabled: self
+                .multiple_ccd_substep_sensor_events_enabled,
+            ccd_on_penetration_enabled: self.ccd_on_penetration_enabled,
+            ..Default::default()
+        }
     }
 }
 
@@ -1390,8 +1420,6 @@ impl Visit for IntegrationParametersDesc {
         self.erp.visit("Erp", visitor)?;
         self.joint_erp.visit("JointErp", visitor)?;
         self.warmstart_coeff.visit("WarmstartCoeff", visitor)?;
-        self.restitution_velocity_threshold
-            .visit("RestitutionVelocityThreshold", visitor)?;
         self.allowed_linear_error
             .visit("AllowedLinearError", visitor)?;
         self.max_linear_correction
@@ -1649,7 +1677,7 @@ pub struct JointDesc<R> {
     pub params: JointParamsDesc,
 }
 
-impl<R: From<Index>> JointDesc<R> {
+impl<R: From<rapier3d::dynamics::RigidBodyHandle>> JointDesc<R> {
     #[doc(hidden)]
     pub fn from_joint(joint: &Joint) -> Self {
         Self {

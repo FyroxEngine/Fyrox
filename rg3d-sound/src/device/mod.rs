@@ -5,8 +5,6 @@
 //! Device is an abstraction over output device which provides unified way of communication with
 //! output device.
 
-use crate::error::SoundError;
-
 #[cfg(target_os = "windows")]
 mod dsound;
 
@@ -81,10 +79,7 @@ trait Device {
 
 /// Transfer ownership of device to separate mixer thread. It will
 /// call the callback with a specified rate to get data to send to a physical device.
-pub(in crate) fn run_device(
-    buffer_len_bytes: u32,
-    callback: Box<FeedCallback>,
-) -> Result<(), SoundError> {
+pub(in crate) fn run_device(buffer_len_bytes: u32, callback: Box<FeedCallback>) {
     std::thread::spawn(move || {
         #[cfg(target_os = "windows")]
         let mut device = dsound::DirectSoundDevice::new(buffer_len_bytes, callback).unwrap();
@@ -96,5 +91,4 @@ pub(in crate) fn run_device(
         let mut device = dummy::DummySoundDevice::new(buffer_len_bytes, callback).unwrap();
         device.run()
     });
-    Ok(())
 }

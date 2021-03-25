@@ -22,7 +22,7 @@
 //!        .with_status(Status::Playing)
 //!        .build_source()
 //!        .unwrap();
-//!     context.add_source(source)
+//!     context.state().add_source(source)
 //! }
 //!
 //! ```
@@ -39,6 +39,7 @@ use std::{
 };
 
 /// See module info.
+#[derive(Debug, Clone)]
 pub struct GenericSource {
     buffer: Option<Arc<Mutex<SoundBuffer>>>,
     // Read position in the buffer. Differs from `playback_pos` if buffer is streaming.

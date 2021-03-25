@@ -17,7 +17,7 @@ pub fn print() {
 
 #[cfg(not(feature = "enable_profiler"))]
 pub fn print() {
-    println!("Performance profiling results are not available, because feature 'enable_profiler' wan't defined!")
+    println!("Performance profiling results are not available, because feature 'enable_profiler' wasn't defined!")
 }
 
 #[cfg(feature = "enable_profiler")]
@@ -27,7 +27,7 @@ pub fn print_hot_path() {
 
 #[cfg(not(feature = "enable_profiler"))]
 pub fn print_hot_path() {
-    println!("Performance profiling results are not available, because feature 'enable_profiler' wan't defined!")
+    println!("Performance profiling results are not available, because feature 'enable_profiler' wasn't defined!")
 }
 
 struct Sample {

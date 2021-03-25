@@ -22,7 +22,7 @@
 //!         .build()
 //!         .unwrap())
 //!         .build_source();
-//!     context.add_source(source)
+//!     context.state().add_source(source)
 //! }
 //! ```
 
@@ -36,6 +36,7 @@ use rg3d_core::visitor::{Visit, VisitResult, Visitor};
 use std::ops::{Deref, DerefMut};
 
 /// See module docs.
+#[derive(Debug, Clone)]
 pub struct SpatialSource {
     pub(in crate) generic: GenericSource,
     radius: f32,

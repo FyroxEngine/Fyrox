@@ -170,7 +170,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileBrowser<M, C> {
                 }
             }
             UiMessageData::Tree(msg) => {
-                if let TreeMessage::Expand(expand) = *msg {
+                if let TreeMessage::Expand { expand, .. } = *msg {
                     if expand {
                         // Look into internals of directory and build tree items.
                         let parent_path = ui
@@ -525,7 +525,7 @@ impl<M: MessageData, C: Control<M, C>> FileBrowserBuilder<M, C> {
                 })
                 .with_child(scroll_viewer),
         )
-        .add_column(Column::auto())
+        .add_column(Column::stretch())
         .add_row(Row::strict(30.0))
         .add_row(Row::stretch())
         .build(ctx);
@@ -621,25 +621,23 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileSelector<M, C> {
         self.window.handle_routed_message(ui, message);
 
         match &message.data() {
-            UiMessageData::Button(msg) => {
-                if let ButtonMessage::Click = msg {
-                    if message.destination() == self.ok {
-                        let path = if let UINode::FileBrowser(browser) = ui.node(self.browser) {
-                            &browser.path
-                        } else {
-                            unreachable!();
-                        };
-                        ui.send_message(FileSelectorMessage::commit(
-                            self.handle,
-                            MessageDirection::ToWidget,
-                            path.clone(),
-                        ));
-                    } else if message.destination() == self.cancel {
-                        ui.send_message(FileSelectorMessage::cancel(
-                            self.handle,
-                            MessageDirection::ToWidget,
-                        ))
-                    }
+            UiMessageData::Button(ButtonMessage::Click) => {
+                if message.destination() == self.ok {
+                    let path = if let UINode::FileBrowser(browser) = ui.node(self.browser) {
+                        &browser.path
+                    } else {
+                        unreachable!();
+                    };
+                    ui.send_message(FileSelectorMessage::commit(
+                        self.handle,
+                        MessageDirection::ToWidget,
+                        path.clone(),
+                    ));
+                } else if message.destination() == self.cancel {
+                    ui.send_message(FileSelectorMessage::cancel(
+                        self.handle,
+                        MessageDirection::ToWidget,
+                    ))
                 }
             }
             UiMessageData::FileSelector(msg) => {
@@ -769,7 +767,7 @@ impl<M: MessageData, C: Control<M, C>> FileSelectorBuilder<M, C> {
                             .build(ctx),
                         ),
                 )
-                .add_column(Column::auto())
+                .add_column(Column::stretch())
                 .add_row(Row::stretch())
                 .add_row(Row::auto())
                 .build(ctx),

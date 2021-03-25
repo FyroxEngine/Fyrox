@@ -16,7 +16,7 @@
 //! fn set_reverberator(context: &mut Context) {
 //!     let mut reverb = Reverb::new(BaseEffect::default());
 //!     reverb.set_decay_time(Duration::from_secs_f32(10.0));
-//!     context.add_effect(Effect::Reverb(reverb));
+//!     context.state().add_effect(Effect::Reverb(reverb));
 //! }
 //! ```
 //!
@@ -41,7 +41,7 @@ use std::{
     time::Duration,
 };
 
-#[derive(Default)]
+#[derive(Default, Debug, Clone)]
 struct ChannelReverb {
     fc: f32,
     sample_rate: u32,
@@ -151,6 +151,7 @@ impl Visit for ChannelReverb {
 }
 
 /// See module docs.
+#[derive(Debug, Clone)]
 pub struct Reverb {
     base: BaseEffect,
     dry: f32,

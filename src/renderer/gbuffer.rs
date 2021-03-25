@@ -1,4 +1,5 @@
 use crate::renderer::TextureCache;
+use crate::scene::mesh::RenderPath;
 use crate::{
     core::{
         algebra::{Matrix4, Vector4},
@@ -218,8 +219,8 @@ impl GBuffer {
             state,
             GpuTextureKind::Rectangle { width, height },
             PixelKind::RGBA8,
-            MinificationFilter::Nearest,
-            MagnificationFilter::Nearest,
+            MinificationFilter::Linear,
+            MagnificationFilter::Linear,
             1,
             None,
         )?;
@@ -305,7 +306,11 @@ impl GBuffer {
 
         let initial_view_projection = camera.view_projection_matrix();
 
-        for batch in batch_storage.batches.iter() {
+        for batch in batch_storage
+            .batches
+            .iter()
+            .filter(|b| b.render_path == RenderPath::Deferred)
+        {
             let data = batch.data.read().unwrap();
             let geometry = geom_cache.get(state, &data);
 

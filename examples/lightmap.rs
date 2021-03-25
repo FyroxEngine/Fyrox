@@ -230,6 +230,9 @@ fn create_scene_async(
             if generate_lightmap {
                 let mut scene = Scene::new();
 
+                // Set ambient light.
+                scene.ambient_lighting_color = Color::opaque(80, 80, 80);
+
                 // Camera is our eyes in the world - you won't see anything without it.
                 create_camera(
                     resource_manager.clone(),
@@ -335,9 +338,6 @@ fn main() {
     // Initially these handles are None, once scene is loaded they'll be assigned.
     let mut scene_handle = Handle::NONE;
     let mut model_handle = Handle::NONE;
-
-    // Set ambient light.
-    engine.renderer.set_ambient_color(Color::opaque(80, 80, 80));
 
     let clock = Instant::now();
     let fixed_timestep = 1.0 / 60.0;

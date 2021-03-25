@@ -42,12 +42,13 @@ pub fn check(err_code: c_int) -> Result<(), SoundError> {
 impl AlsaSoundDevice {
     pub fn new(buffer_len_bytes: u32, callback: Box<FeedCallback>) -> Result<Self, SoundError> {
         unsafe {
+            let name = CString::new("default").unwrap();
             // 16-bit stereo is 4 bytes, so frame count is bufferHalfSize / 4
             let frame_count = buffer_len_bytes / 4;
             let mut playback_device = std::ptr::null_mut();
             check(snd_pcm_open(
                 &mut playback_device,
-                CString::new("default").unwrap().as_ptr() as *const _,
+                name.as_ptr() as *const _,
                 SND_PCM_STREAM_PLAYBACK,
                 0,
             ))?;
@@ -76,6 +77,12 @@ impl AlsaSoundDevice {
                 playback_device,
                 hw_params,
                 2,
+            ))?;
+            check(snd_pcm_hw_params_set_period_size(
+                playback_device,
+                hw_params,
+                frame_count as u64,
+                0,
             ))?;
             let mut exact_size = (frame_count * 2) as u64;
             check(snd_pcm_hw_params_set_buffer_size_near(
@@ -126,15 +133,20 @@ impl Device for AlsaSoundDevice {
         loop {
             self.mix();
 
-            unsafe {
-                let err = snd_pcm_writei(
-                    self.playback_device,
-                    self.out_data.as_ptr() as *const _,
-                    self.frame_count.into(),
-                ) as i32;
-                if err == -32 {
-                    // EPIPE error (buffer underrun)
-                    snd_pcm_recover(self.playback_device, err, 0);
+            'try_loop: for _ in 0..10 {
+                unsafe {
+                    let err = snd_pcm_writei(
+                        self.playback_device,
+                        self.out_data.as_ptr() as *const _,
+                        self.frame_count.into(),
+                    ) as i32;
+
+                    if err < 0 {
+                        // Try to recover from any errors and re-send data.
+                        snd_pcm_recover(self.playback_device, err, 1);
+                    } else {
+                        break 'try_loop;
+                    }
                 }
             }
         }

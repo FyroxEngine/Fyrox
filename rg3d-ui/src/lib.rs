@@ -53,6 +53,7 @@ pub mod window;
 pub mod wrap_panel;
 
 use crate::core::algebra::Vector2;
+use crate::draw::Draw;
 use crate::{
     brush::Brush,
     canvas::Canvas,
@@ -62,7 +63,7 @@ use crate::{
         pool::{Handle, Pool},
         scope_profile,
     },
-    draw::{CommandKind, CommandTexture, DrawingContext},
+    draw::{CommandTexture, DrawingContext},
     message::{
         ButtonState, CursorIcon, KeyboardModifiers, MessageData, MessageDirection, MouseButton,
         OsEvent, UiMessage, UiMessageData, WidgetMessage,
@@ -72,6 +73,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
 };
 use rg3d_core::math::clampf;
+use rg3d_core::VecExtensions;
 use std::{
     cell::Cell,
     collections::{HashMap, VecDeque},
@@ -443,6 +445,11 @@ where
     /// this we use `preview_message`. This method is much more restrictive - it does not allow you to
     /// modify a node and ui, you can either *request* changes by sending a message or use internal
     /// mutability (`Cell`, `RefCell`, etc).
+    ///
+    /// ## Important notes
+    ///
+    /// The order of execution of this method is undefined! There is no guarantee that it will be called
+    /// hierarchically as widgets connected.
     fn preview_message(&self, _ui: &UserInterface<M, C>, _message: &mut UiMessage<M, C>) {
         // This method is optional.
     }
@@ -507,7 +514,7 @@ impl<'a, M: MessageData, C: Control<M, C>> BuildContext<'a, M, C> {
     }
 
     pub fn link(&mut self, child: Handle<UINode<M, C>>, parent: Handle<UINode<M, C>>) {
-        self.ui.link_nodes_internal(child, parent)
+        self.ui.link_nodes_internal(child, parent, false)
     }
 
     pub fn copy(&mut self, node: Handle<UINode<M, C>>) -> Handle<UINode<M, C>> {
@@ -546,6 +553,34 @@ pub struct RestrictionEntry<M: MessageData, C: Control<M, C>> {
     pub stop: bool,
 }
 
+struct TooltipEntry<M: MessageData, C: Control<M, C>> {
+    tooltip: Handle<UINode<M, C>>,
+    /// Time remaining until this entry should disappear (in seconds).
+    time: f32,
+    /// Maximum time that it should be kept for
+    /// This is stored here as well, because when hovering
+    /// over the tooltip, we don't know the time it should stay for and
+    /// so we use this to refresh the timer.
+    max_time: f32,
+}
+impl<M: MessageData, C: Control<M, C>> TooltipEntry<M, C> {
+    fn new(tooltip: Handle<UINode<M, C>>, time: f32) -> TooltipEntry<M, C> {
+        Self {
+            tooltip,
+            time,
+            max_time: time,
+        }
+    }
+
+    fn decrease(&mut self, amount: f32) {
+        self.time -= amount;
+    }
+
+    fn should_display(&self) -> bool {
+        self.time > 0.0
+    }
+}
+
 pub struct UserInterface<M: MessageData, C: Control<M, C>> {
     screen_size: Vector2<f32>,
     nodes: Pool<UINode<M, C>>,
@@ -566,6 +601,7 @@ pub struct UserInterface<M: MessageData, C: Control<M, C>> {
     mouse_state: MouseState,
     keyboard_modifiers: KeyboardModifiers,
     cursor_icon: CursorIcon,
+    visible_tooltips: Vec<TooltipEntry<M, C>>,
 }
 
 lazy_static! {
@@ -580,7 +616,6 @@ fn draw_node<M: MessageData, C: Control<M, C>>(
     nodes: &Pool<UINode<M, C>>,
     node_handle: Handle<UINode<M, C>>,
     drawing_context: &mut DrawingContext,
-    nesting: u8,
 ) {
     scope_profile!();
 
@@ -604,10 +639,9 @@ fn draw_node<M: MessageData, C: Control<M, C>>(
     }
 
     let start_index = drawing_context.get_commands().len();
-    drawing_context.set_nesting(nesting);
-    drawing_context.commit_clip_rect(&bounds.inflate(0.9, 0.9));
+
     drawing_context.push_opacity(if is_node_enabled(nodes, node_handle) {
-        1.0
+        node.opacity()
     } else {
         0.4
     });
@@ -623,12 +657,11 @@ fn draw_node<M: MessageData, C: Control<M, C>>(
     for &child_node in node.children().iter() {
         // Do not continue render of top-most nodes - they'll be rendered in separate pass.
         if !nodes[child_node].is_draw_on_top() {
-            draw_node(nodes, child_node, drawing_context, nesting + 1);
+            draw_node(nodes, child_node, drawing_context);
         }
     }
 
     drawing_context.pop_opacity();
-    drawing_context.revert_clip_geom();
 }
 
 fn is_node_enabled<M: MessageData, C: Control<M, C>>(
@@ -672,6 +705,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
             mouse_state: Default::default(),
             keyboard_modifiers: Default::default(),
             cursor_icon: Default::default(),
+            visible_tooltips: Default::default(),
         };
         ui.root_canvas = ui.add_node(UINode::Canvas(Canvas::new(WidgetBuilder::new().build())));
         ui
@@ -720,15 +754,20 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         self.stack.clear();
         self.stack.push(self.root_canvas);
         while let Some(node_handle) = self.stack.pop() {
-            let widget = self.nodes.borrow(node_handle);
+            let (widget, parent) = self
+                .nodes
+                .try_borrow_dependant_mut(node_handle, |n| n.parent());
+
+            let widget = widget.unwrap();
+
             self.stack.extend_from_slice(widget.children());
-            let parent_visibility = if widget.parent().is_some() {
-                self.node(widget.parent()).is_globally_visible()
+
+            let visibility = if let Some(parent) = parent {
+                widget.visibility() && parent.is_globally_visible()
             } else {
-                true
+                widget.visibility()
             };
-            let widget = self.nodes.borrow_mut(node_handle);
-            let visibility = widget.visibility() && parent_visibility;
+
             widget.set_global_visibility(visibility);
         }
     }
@@ -739,17 +778,23 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         self.stack.clear();
         self.stack.push(self.root_canvas);
         while let Some(node_handle) = self.stack.pop() {
-            let widget = self.nodes.borrow(node_handle);
-            for child_handle in widget.children() {
-                self.stack.push(*child_handle);
+            let (widget, parent) = self
+                .nodes
+                .try_borrow_dependant_mut(node_handle, |n| n.parent());
+
+            let widget = widget.unwrap();
+
+            if widget.is_globally_visible() {
+                self.stack.extend_from_slice(widget.children());
+
+                let screen_position = if let Some(parent) = parent {
+                    widget.actual_local_position() + parent.screen_position()
+                } else {
+                    widget.actual_local_position()
+                };
+
+                widget.screen_position = screen_position;
             }
-            let screen_position = if widget.parent().is_some() {
-                widget.actual_local_position()
-                    + self.nodes.borrow(widget.parent()).screen_position()
-            } else {
-                widget.actual_local_position()
-            };
-            self.nodes.borrow_mut(node_handle).screen_position = screen_position;
         }
     }
 
@@ -779,6 +824,8 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
             node.update(dt)
         }
 
+        self.update_tooltips(dt);
+
         if !self.drag_context.is_dragging {
             // Try to fetch new cursor icon starting from current picked node. Traverse
             // tree up until cursor with different value is found.
@@ -802,6 +849,10 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
     pub fn draw(&mut self) -> &DrawingContext {
         scope_profile!();
 
+        self.calculate_clip_bounds(
+            self.root_canvas,
+            Rect::new(0.0, 0.0, self.screen_size.x, self.screen_size.y),
+        );
         self.drawing_context.clear();
 
         for node in self.nodes.iter_mut() {
@@ -809,7 +860,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         }
 
         // Draw everything except top-most nodes.
-        draw_node(&self.nodes, self.root_canvas, &mut self.drawing_context, 1);
+        draw_node(&self.nodes, self.root_canvas, &mut self.drawing_context);
 
         // Render top-most nodes in separate pass.
         // TODO: This may give weird results because of invalid nesting.
@@ -818,7 +869,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         while let Some(node_handle) = self.stack.pop() {
             let node = &self.nodes[node_handle];
             if node.is_draw_on_top() {
-                draw_node(&self.nodes, node_handle, &mut self.drawing_context, 1);
+                draw_node(&self.nodes, node_handle, &mut self.drawing_context);
             }
             for &child in node.children() {
                 self.stack.push(child);
@@ -827,15 +878,14 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
 
         // Debug info rendered on top of other.
         if self.visual_debug {
-            self.drawing_context.set_nesting(0);
-
             if self.picked_node.is_some() {
                 let bounds = self.nodes.borrow(self.picked_node).screen_bounds();
                 self.drawing_context.push_rect(&bounds, 1.0);
                 self.drawing_context.commit(
-                    CommandKind::Geometry,
+                    bounds,
                     Brush::Solid(Color::WHITE),
                     CommandTexture::None,
+                    None,
                 );
             }
 
@@ -843,9 +893,10 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
                 let bounds = self.nodes.borrow(self.keyboard_focus_node).screen_bounds();
                 self.drawing_context.push_rect(&bounds, 1.0);
                 self.drawing_context.commit(
-                    CommandKind::Geometry,
+                    bounds,
                     Brush::Solid(Color::GREEN),
                     CommandTexture::None,
+                    None,
                 );
             }
         }
@@ -859,24 +910,27 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         let mut clipped = true;
 
         let widget = self.nodes.borrow(node_handle);
-        if !widget.is_globally_visible() {
-            return clipped;
-        }
 
-        for command_index in widget.command_indices.borrow().iter() {
-            if let Some(command) = self.drawing_context.get_commands().get(*command_index) {
-                if command.kind == CommandKind::Clip
-                    && self.drawing_context.is_command_contains_point(command, pt)
-                {
-                    clipped = false;
-                    break;
+        if widget.is_globally_visible() {
+            clipped = !widget.screen_bounds().contains(pt);
+
+            if !clipped {
+                for command_index in widget.command_indices.borrow().iter() {
+                    if let Some(command) = self.drawing_context.get_commands().get(*command_index) {
+                        if let Some(geometry) = command.clipping_geometry.as_ref() {
+                            if geometry.is_contains_point(pt) {
+                                clipped = false;
+                                break;
+                            }
+                        }
+                    }
                 }
             }
-        }
 
-        // Point can be clipped by parent's clipping geometry.
-        if !widget.parent().is_none() && !clipped {
-            clipped |= self.is_node_clipped(widget.parent(), pt);
+            // Point can be clipped by parent's clipping geometry.
+            if !widget.parent().is_none() && !clipped {
+                clipped |= self.is_node_clipped(widget.parent(), pt);
+            }
         }
 
         clipped
@@ -894,9 +948,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         if !self.is_node_clipped(node_handle, pt) {
             for command_index in widget.command_indices.borrow().iter() {
                 if let Some(command) = self.drawing_context.get_commands().get(*command_index) {
-                    if command.kind == CommandKind::Geometry
-                        && self.drawing_context.is_command_contains_point(command, pt)
-                    {
+                    if self.drawing_context.is_command_contains_point(command, pt) {
                         return true;
                     }
                 }
@@ -1035,6 +1087,16 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
             .has_descendant(node_handle, self)
     }
 
+    /// Recursively calculates clipping bounds for every node.
+    fn calculate_clip_bounds(&self, node: Handle<UINode<M, C>>, parent_bounds: Rect<f32>) {
+        let node = &self.nodes[node];
+        node.clip_bounds
+            .set(node.screen_bounds().clip_by(parent_bounds));
+        for &child in node.children() {
+            self.calculate_clip_bounds(child, node.clip_bounds.get());
+        }
+    }
+
     /// Checks if specified node is a direct child of some other node on `root_handle`.
     pub fn is_node_direct_child_of(
         &self,
@@ -1151,24 +1213,23 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         if parent.is_some() {
             let parent = &mut self.nodes[parent];
             parent.remove_child(node);
-            parent.add_child(node);
+            parent.add_child(node, false);
         }
     }
 
     fn preview_message(&mut self, message: &mut UiMessage<M, C>) {
+        scope_profile!();
+
         // Fire preview handler first. This will allow controls to do some actions before
-        // message will begin bubble routing. Preview routing does not care about destination
-        // node of message, it always starts from root and descend to leaf nodes.
-        self.stack.clear();
-        self.stack.push(self.root());
-        while let Some(handle) = self.stack.pop() {
-            let node = &self.nodes[handle];
-            self.stack.extend_from_slice(node.children());
+        // message will begin bubble routing.
+        for node in self.nodes.iter() {
             node.preview_message(self, message);
         }
     }
 
     fn bubble_message(&mut self, message: &mut UiMessage<M, C>) {
+        scope_profile!();
+
         // Dispatch event using bubble strategy. Bubble routing means that message will go
         // from specified destination up on tree to tree root.
         // Gather chain of nodes from source to root.
@@ -1229,7 +1290,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
                                 let parent = self.nodes.borrow_mut(parent);
                                 parent.clear_children();
                                 for child in self.stack.iter() {
-                                    parent.add_child(*child);
+                                    parent.add_child(*child, false);
                                 }
                             }
                         }
@@ -1253,7 +1314,12 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
                         }
                         &WidgetMessage::LinkWith(parent) => {
                             if message.destination().is_some() {
-                                self.link_nodes_internal(message.destination(), parent);
+                                self.link_nodes_internal(message.destination(), parent, false);
+                            }
+                        }
+                        &WidgetMessage::LinkWithReverse(parent) => {
+                            if message.destination().is_some() {
+                                self.link_nodes_internal(message.destination(), parent, true);
                             }
                         }
                         WidgetMessage::Remove => {
@@ -1293,6 +1359,93 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
                 TryRecvError::Empty => None,
                 TryRecvError::Disconnected => unreachable!(),
             },
+        }
+    }
+
+    /// Adds a tooltip if it doesn't already exist.
+    /// If it already exists then it refreshes the timer to `time`
+    /// Returns the instance that was added or already existed
+    fn add_tooltip(&mut self, tooltip: Handle<UINode<M, C>>, time: f32) -> &mut TooltipEntry<M, C> {
+        let index = if let Some(index) = self
+            .visible_tooltips
+            .iter()
+            .position(|e| e.tooltip == tooltip)
+        {
+            self.visible_tooltips[index].time = time;
+            index
+        } else {
+            self.send_message(WidgetMessage::visibility(
+                tooltip,
+                MessageDirection::ToWidget,
+                true,
+            ));
+            self.send_message(WidgetMessage::topmost(tooltip, MessageDirection::ToWidget));
+            self.send_message(WidgetMessage::desired_position(
+                tooltip,
+                MessageDirection::ToWidget,
+                self.cursor_position(),
+            ));
+            self.visible_tooltips.push(TooltipEntry::new(tooltip, time));
+
+            // Index of the entry we just added
+            self.visible_tooltips.len() - 1
+        };
+
+        &mut self.visible_tooltips[index]
+    }
+
+    /// Find any tooltips that are being hovered and activate them.
+    /// As well, update their time.
+    fn update_tooltips(&mut self, dt: f32) {
+        // Decrease all tooltip times, removing those which have had their timer run out
+        let sender = &self.sender;
+        self.visible_tooltips
+            .retain_mut(|entry: &mut TooltipEntry<M, C>| {
+                entry.decrease(dt);
+                if entry.should_display() {
+                    true
+                } else {
+                    // This uses sender directly since we're currently mutably borrowing
+                    // visible_tooltips
+                    sender
+                        .send(WidgetMessage::visibility(
+                            entry.tooltip,
+                            MessageDirection::ToWidget,
+                            false,
+                        ))
+                        .unwrap();
+                    false
+                }
+            });
+
+        // Check for hovering over a widget with a tooltip, or hovering over a tooltip.
+        let mut handle = self.picked_node;
+        while let Some(node) = self.nodes.try_borrow(handle) {
+            // Get the parent to avoid the problem with having a immutable access here and a
+            // mutable access later
+            let parent = node.parent();
+
+            if node.tooltip().is_some() {
+                // They have a tooltip, we stop here and use that.
+                let tooltip = node.tooltip();
+                let tooltip_time = node.tooltip_time();
+                let entry = self.add_tooltip(tooltip, tooltip_time);
+                // Update max time, just in case it was changed.
+                // We can't do this in the case where we're hovering over the tooltip, though.
+                entry.max_time = tooltip_time;
+                break;
+            } else if let Some(entry) = self
+                .visible_tooltips
+                .iter_mut()
+                .find(|e| e.tooltip == handle)
+            {
+                // The current node was a tooltip.
+                // We refresh the timer back to the stored max time.
+                entry.time = entry.max_time;
+                break;
+            }
+
+            handle = parent;
         }
     }
 
@@ -1540,10 +1693,10 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         node.clear_children();
         let node_handle = self.nodes.spawn(node);
         if self.root_canvas.is_some() {
-            self.link_nodes_internal(node_handle, self.root_canvas);
+            self.link_nodes_internal(node_handle, self.root_canvas, false);
         }
         for child in children {
-            self.link_nodes_internal(child, node_handle)
+            self.link_nodes_internal(child, node_handle, false)
         }
         let node = self.nodes[node_handle].deref_mut();
         node.handle = node_handle;
@@ -1618,11 +1771,12 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         &mut self,
         child_handle: Handle<UINode<M, C>>,
         parent_handle: Handle<UINode<M, C>>,
+        in_front: bool,
     ) {
         assert_ne!(child_handle, parent_handle);
         self.unlink_node_internal(child_handle);
         self.nodes[child_handle].set_parent(parent_handle);
-        self.nodes[parent_handle].add_child(child_handle);
+        self.nodes[parent_handle].add_child(child_handle, in_front);
     }
 
     /// Unlinks specified node from its parent, so node will become root.
@@ -1646,7 +1800,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
     #[inline]
     fn unlink_node(&mut self, node_handle: Handle<UINode<M, C>>) {
         self.unlink_node_internal(node_handle);
-        self.link_nodes_internal(node_handle, self.root_canvas);
+        self.link_nodes_internal(node_handle, self.root_canvas, false);
     }
 
     #[inline]
@@ -1690,7 +1844,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
 mod test {
     use crate::{
         border::BorderBuilder,
-        core::math::vec2::Vector2,
+        core::algebra::Vector2,
         message::{MessageDirection, WidgetMessage},
         node::StubNode,
         widget::WidgetBuilder,

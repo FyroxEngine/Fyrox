@@ -1,6 +1,7 @@
+use crate::draw::Draw;
 use crate::{
     core::{algebra::Vector2, math::Rect, pool::Handle, scope_profile},
-    draw::{CommandKind, CommandTexture, DrawingContext},
+    draw::{CommandTexture, DrawingContext},
     message::{MessageData, UiMessage},
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Thickness, UINode, UserInterface, BRUSH_PRIMARY,
@@ -66,18 +67,20 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Border<M, C> {
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.widget.screen_bounds();
-        drawing_context.push_rect_filled(&bounds, None);
+        DrawingContext::push_rect_filled(drawing_context, &bounds, None);
         drawing_context.commit(
-            CommandKind::Geometry,
+            self.clip_bounds(),
             self.widget.background(),
             CommandTexture::None,
+            None,
         );
 
         drawing_context.push_rect_vary(&bounds, self.stroke_thickness);
         drawing_context.commit(
-            CommandKind::Geometry,
+            self.clip_bounds(),
             self.widget.foreground(),
             CommandTexture::None,
+            None,
         );
     }
 

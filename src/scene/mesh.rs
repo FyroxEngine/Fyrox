@@ -8,12 +8,12 @@
 //! modelling software or just download some model you like and load it in engine. But since
 //! 3d model can contain multiple nodes, 3d model loading discussed in model resource section.
 
-use crate::core::algebra::{Matrix4, Point3, Vector3};
-use crate::core::pool::Handle;
 use crate::{
     core::{
+        algebra::{Matrix4, Point3, Vector3},
         color::Color,
         math::{aabb::AxisAlignedBoundingBox, frustum::Frustum},
+        pool::Handle,
         visitor::{Visit, VisitResult, Visitor},
     },
     renderer::surface::Surface,
@@ -28,6 +28,36 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+/// Defines a path that should be used to render a mesh.
+#[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Ord, Hash, Debug)]
+#[repr(u32)]
+pub enum RenderPath {
+    /// Deferred rendering has much better performance than Forward, but it does not support transparent
+    /// objects and there is no way to change blending. Deferred rendering is default rendering path.
+    Deferred = 0,
+
+    /// Forward rendering path supports translucency and custom blending. However current support
+    /// of forward rendering is very little. It is ideal for transparent objects like glass.
+    Forward = 1,
+}
+
+impl Default for RenderPath {
+    fn default() -> Self {
+        Self::Deferred
+    }
+}
+
+impl RenderPath {
+    /// Creates render path instance from its id.
+    pub fn from_id(id: u32) -> Result<Self, String> {
+        match id {
+            0 => Ok(Self::Deferred),
+            1 => Ok(Self::Forward),
+            _ => Err(format!("Invalid render path id {}!", id)),
+        }
+    }
+}
+
 /// See module docs.
 #[derive(Debug)]
 pub struct Mesh {
@@ -36,6 +66,7 @@ pub struct Mesh {
     bounding_box: Cell<AxisAlignedBoundingBox>,
     bounding_box_dirty: Cell<bool>,
     cast_shadows: bool,
+    render_path: RenderPath,
 }
 
 impl Default for Mesh {
@@ -46,6 +77,7 @@ impl Default for Mesh {
             bounding_box: Default::default(),
             bounding_box_dirty: Cell::new(true),
             cast_shadows: true,
+            render_path: RenderPath::Deferred,
         }
     }
 }
@@ -70,6 +102,12 @@ impl Visit for Mesh {
 
         self.base.visit("Common", visitor)?;
         let _ = self.cast_shadows.visit("CastShadows", visitor);
+
+        let mut render_path = self.render_path as u32;
+        let _ = render_path.visit("RenderPath", visitor);
+        if visitor.is_reading() {
+            self.render_path = RenderPath::from_id(render_path)?;
+        }
 
         // Serialize surfaces, but keep in mind that surfaces from resources will be automatically
         // recreated on resolve stage! Serialization of surfaces needed for procedural surfaces.
@@ -142,6 +180,16 @@ impl Mesh {
             self.bounding_box_dirty.set(false);
         }
         self.bounding_box.get()
+    }
+
+    /// Sets new render path for the mesh.
+    pub fn set_render_path(&mut self, render_path: RenderPath) {
+        self.render_path = render_path;
+    }
+
+    /// Returns current render path of the mesh.
+    pub fn render_path(&self) -> RenderPath {
+        self.render_path
     }
 
     /// Calculate bounding box in *world coordinates*. This method is very heavy and not
@@ -237,6 +285,7 @@ impl Mesh {
             bounding_box: self.bounding_box.clone(),
             bounding_box_dirty: self.bounding_box_dirty.clone(),
             cast_shadows: self.cast_shadows,
+            render_path: self.render_path,
         }
     }
 }
@@ -246,6 +295,7 @@ pub struct MeshBuilder {
     base_builder: BaseBuilder,
     surfaces: Vec<Surface>,
     cast_shadows: bool,
+    render_path: RenderPath,
 }
 
 impl MeshBuilder {
@@ -255,6 +305,7 @@ impl MeshBuilder {
             base_builder,
             surfaces: Default::default(),
             cast_shadows: true,
+            render_path: RenderPath::Deferred,
         }
     }
 
@@ -270,6 +321,13 @@ impl MeshBuilder {
         self
     }
 
+    /// Sets desired render path. Keep in mind that RenderPath::Forward is not fully
+    /// implemented and only used to render transparent objects!
+    pub fn with_render_path(mut self, render_path: RenderPath) -> Self {
+        self.render_path = render_path;
+        self
+    }
+
     /// Creates new mesh.
     pub fn build_node(self) -> Node {
         Node::Mesh(Mesh {
@@ -278,6 +336,7 @@ impl MeshBuilder {
             surfaces: self.surfaces,
             bounding_box: Default::default(),
             bounding_box_dirty: Cell::new(true),
+            render_path: self.render_path,
         })
     }
 

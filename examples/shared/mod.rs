@@ -10,6 +10,7 @@ use rapier3d::na::{Isometry3, UnitQuaternion, Vector3};
 use rg3d::core::algebra::Vector2;
 use rg3d::scene::graph::Graph;
 use rg3d::scene::RigidBodyHandle;
+use rg3d::sound::effects::{BaseEffect, Effect};
 use rg3d::{
     animation::{
         machine::{Machine, Parameter, PoseNode, State, Transition},
@@ -37,6 +38,7 @@ use rg3d::{
         Scene,
     },
 };
+use std::time::Duration;
 use std::{
     path::Path,
     sync::{Arc, Mutex},
@@ -124,9 +126,6 @@ impl Game {
             .state()
             .set_textures_path("examples/data");
 
-        // Set ambient light.
-        engine.renderer.set_ambient_color(Color::opaque(80, 80, 80));
-
         engine
             .renderer
             .set_quality_settings(&fix_shadows_distance(QualitySettings::high()))
@@ -202,12 +201,14 @@ pub fn create_ui(ui: &mut BuildContext, screen_size: Vector2<f32>) -> Interface 
 pub struct SceneLoadResult {
     pub scene: Scene,
     pub player: Player,
+    pub reverb_effect: Handle<Effect>,
 }
 
 #[derive(Default)]
 pub struct GameScene {
     pub scene: Handle<Scene>,
     pub player: Player,
+    pub reverb_effect: Handle<Effect>,
 }
 
 pub struct SceneLoadContext {
@@ -338,42 +339,41 @@ impl LocomotionMachine {
 
         // Add transitions between states. This is the "heart" of animation blending state machine
         // it defines how it will respond to input parameters.
-        machine
-            .add_transition(Transition::new(
-                "Walk->Idle",
-                walk_state,
-                idle_state,
-                0.30,
-                Self::WALK_TO_IDLE,
-            ))
-            .add_transition(Transition::new(
-                "Walk->Jump",
-                walk_state,
-                jump_state,
-                0.20,
-                Self::WALK_TO_JUMP,
-            ))
-            .add_transition(Transition::new(
-                "Idle->Walk",
-                idle_state,
-                walk_state,
-                0.30,
-                Self::IDLE_TO_WALK,
-            ))
-            .add_transition(Transition::new(
-                "Idle->Jump",
-                idle_state,
-                jump_state,
-                0.25,
-                Self::IDLE_TO_JUMP,
-            ))
-            .add_transition(Transition::new(
-                "Jump->Idle",
-                jump_state,
-                idle_state,
-                0.30,
-                Self::JUMP_TO_IDLE,
-            ));
+        machine.add_transition(Transition::new(
+            "Walk->Idle",
+            walk_state,
+            idle_state,
+            0.30,
+            Self::WALK_TO_IDLE,
+        ));
+        machine.add_transition(Transition::new(
+            "Walk->Jump",
+            walk_state,
+            jump_state,
+            0.20,
+            Self::WALK_TO_JUMP,
+        ));
+        machine.add_transition(Transition::new(
+            "Idle->Walk",
+            idle_state,
+            walk_state,
+            0.30,
+            Self::IDLE_TO_WALK,
+        ));
+        machine.add_transition(Transition::new(
+            "Idle->Jump",
+            idle_state,
+            jump_state,
+            0.25,
+            Self::IDLE_TO_JUMP,
+        ));
+        machine.add_transition(Transition::new(
+            "Jump->Idle",
+            jump_state,
+            idle_state,
+            0.30,
+            Self::JUMP_TO_IDLE,
+        ));
 
         Self {
             machine,
@@ -543,7 +543,7 @@ impl Player {
             .try_normalize(std::f32::EPSILON)
             .unwrap_or(Vector3::x());
 
-        let position = pivot.local_transform().position();
+        let position = **pivot.local_transform().position();
 
         let mut velocity = Vector3::default();
 
@@ -738,6 +738,23 @@ pub fn create_scene_async(resource_manager: ResourceManager) -> Arc<Mutex<SceneL
         futures::executor::block_on(async move {
             let mut scene = Scene::new();
 
+            // Set ambient light.
+            scene.ambient_lighting_color = Color::opaque(80, 80, 80);
+
+            // Create reverb effect for more natural sound - our player walks in some sort of cathedral,
+            // so there will be pretty decent echo.
+            let mut base_effect = BaseEffect::default();
+            // Make sure it won't be too loud - rg3d-sound doesn't care about energy conservation law, it
+            // just makes requested calculation.
+            base_effect.set_gain(0.7);
+            let mut reverb = rg3d::sound::effects::reverb::Reverb::new(base_effect);
+            // Set reverb time to ~3 seconds - the more time the deeper the echo.
+            reverb.set_decay_time(Duration::from_secs_f32(3.0));
+            let reverb_effect = scene
+                .sound_context
+                .state()
+                .add_effect(rg3d::sound::effects::Effect::Reverb(reverb));
+
             context
                 .lock()
                 .unwrap()
@@ -768,7 +785,11 @@ pub fn create_scene_async(resource_manager: ResourceManager) -> Arc<Mutex<SceneL
 
             context.lock().unwrap().report_progress(1.0, "Done");
 
-            context.lock().unwrap().scene_data = Some(SceneLoadResult { scene, player });
+            context.lock().unwrap().scene_data = Some(SceneLoadResult {
+                scene,
+                player,
+                reverb_effect,
+            });
         })
     });
 

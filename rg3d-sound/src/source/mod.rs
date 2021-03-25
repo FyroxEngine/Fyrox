@@ -29,6 +29,7 @@ pub enum Status {
 }
 
 /// See module docs.
+#[derive(Debug, Clone)]
 pub enum SoundSource {
     /// See `generic` module docs.
     Generic(GenericSource),

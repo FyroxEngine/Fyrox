@@ -1,7 +1,8 @@
+use crate::draw::Draw;
 use crate::{
     brush::Brush,
     core::{algebra::Vector2, color::Color, pool::Handle},
-    draw::{CommandKind, CommandTexture, DrawingContext, SharedTexture},
+    draw::{CommandTexture, DrawingContext, SharedTexture},
     message::{ImageMessage, MessageData, UiMessage, UiMessageData},
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UINode, UserInterface,
@@ -49,7 +50,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Image<M, C> {
             .texture
             .as_ref()
             .map_or(CommandTexture::None, |t| CommandTexture::Texture(t.clone()));
-        drawing_context.commit(CommandKind::Geometry, self.widget.background(), texture);
+        drawing_context.commit(self.clip_bounds(), self.widget.background(), texture, None);
     }
 
     fn handle_routed_message(

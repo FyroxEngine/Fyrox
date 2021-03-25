@@ -1,7 +1,8 @@
+use crate::draw::Draw;
 use crate::{
     brush::Brush,
     core::{algebra::Vector2, color::Color, math::Rect, pool::Handle},
-    draw::{CommandKind, CommandTexture, DrawingContext},
+    draw::{CommandTexture, DrawingContext},
     formatted_text::{FormattedText, FormattedTextBuilder},
     message::{
         CursorIcon, KeyCode, MessageData, MessageDirection, MouseButton, TextBoxMessage, UiMessage,
@@ -414,9 +415,10 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
         let bounds = self.widget.screen_bounds();
         drawing_context.push_rect_filled(&bounds, None);
         drawing_context.commit(
-            CommandKind::Geometry,
+            self.clip_bounds(),
             self.widget.background(),
             CommandTexture::None,
+            None,
         );
 
         self.formatted_text
@@ -487,13 +489,14 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
             }
         }
         drawing_context.commit(
-            CommandKind::Geometry,
+            self.clip_bounds(),
             self.selection_brush.clone(),
             CommandTexture::None,
+            None,
         );
 
         let screen_position = bounds.position;
-        drawing_context.draw_text(screen_position, &self.formatted_text.borrow());
+        drawing_context.draw_text(bounds, screen_position, &self.formatted_text.borrow());
 
         if self.caret_visible {
             let text = self.formatted_text.borrow();
@@ -520,9 +523,10 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
                 let caret_bounds = Rect::new(caret_pos.x, caret_pos.y, 2.0, font.height());
                 drawing_context.push_rect_filled(&caret_bounds, None);
                 drawing_context.commit(
-                    CommandKind::Geometry,
+                    self.clip_bounds(),
                     self.caret_brush.clone(),
                     CommandTexture::None,
+                    None,
                 );
             }
         }
@@ -743,30 +747,28 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
                     }
                     _ => {}
                 },
-                UiMessageData::TextBox(msg)
+                UiMessageData::TextBox(TextBoxMessage::Text(new_text))
                     if message.direction() == MessageDirection::ToWidget =>
                 {
-                    if let TextBoxMessage::Text(new_text) = msg {
-                        let mut equals = false;
-                        for (&new, old) in self
-                            .formatted_text
-                            .borrow()
-                            .get_raw_text()
-                            .iter()
-                            .zip(new_text.chars())
-                        {
-                            if old as u32 != new {
-                                equals = false;
-                                break;
-                            }
+                    let mut equals = false;
+                    for (&new, old) in self
+                        .formatted_text
+                        .borrow()
+                        .get_raw_text()
+                        .iter()
+                        .zip(new_text.chars())
+                    {
+                        if old as u32 != new {
+                            equals = false;
+                            break;
                         }
-                        if !equals {
-                            self.formatted_text.borrow_mut().set_text(new_text);
-                            self.invalidate_layout();
+                    }
+                    if !equals {
+                        self.formatted_text.borrow_mut().set_text(new_text);
+                        self.invalidate_layout();
 
-                            if self.commit_mode == TextCommitMode::Immediate {
-                                ui.send_message(message.reverse());
-                            }
+                        if self.commit_mode == TextCommitMode::Immediate {
+                            ui.send_message(message.reverse());
                         }
                     }
                 }

@@ -1,22 +1,23 @@
 pub mod machine;
 
-use crate::core::algebra::{UnitQuaternion, Vector3};
-use crate::core::pool::Ticket;
-use crate::utils::log::MessageKind;
 use crate::{
     core::{
+        algebra::{UnitQuaternion, Vector3},
         math::{clampf, wrapf},
         pool::{
             Handle, Pool, PoolIterator, PoolIteratorMut, PoolPairIterator, PoolPairIteratorMut,
+            Ticket,
         },
         visitor::{Visit, VisitResult, Visitor},
     },
-    resource::model::Model,
-    resource::ResourceState,
+    resource::{model::Model, ResourceState},
     scene::{graph::Graph, node::Node},
-    utils::log::Log,
+    utils::log::{Log, MessageKind},
 };
-use std::collections::{HashMap, VecDeque};
+use std::{
+    collections::{HashMap, VecDeque},
+    ops::{Index, IndexMut},
+};
 
 #[derive(Copy, Clone, Debug)]
 pub struct KeyFrame {
@@ -66,6 +67,25 @@ impl Visit for KeyFrame {
     }
 }
 
+#[derive(Default, Copy, Clone, Debug)]
+pub struct PoseEvaluationFlags {
+    pub ignore_position: bool,
+    pub ignore_rotation: bool,
+    pub ignore_scale: bool,
+}
+
+impl Visit for PoseEvaluationFlags {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.ignore_position.visit("IgnorePosition", visitor)?;
+        self.ignore_rotation.visit("IgnoreRotation", visitor)?;
+        self.ignore_scale.visit("IgnoreScale", visitor)?;
+
+        visitor.leave_region()
+    }
+}
+
 #[derive(Debug)]
 pub struct Track {
     // Frames are not serialized, because it makes no sense to store them in save file,
@@ -74,6 +94,7 @@ pub struct Track {
     enabled: bool,
     max_time: f32,
     node: Handle<Node>,
+    flags: PoseEvaluationFlags,
 }
 
 impl Clone for Track {
@@ -83,6 +104,7 @@ impl Clone for Track {
             enabled: self.enabled,
             max_time: self.max_time,
             node: self.node,
+            flags: self.flags,
         }
     }
 }
@@ -94,6 +116,7 @@ impl Default for Track {
             enabled: true,
             max_time: 0.0,
             node: Default::default(),
+            flags: Default::default(),
         }
     }
 }
@@ -105,6 +128,7 @@ impl Visit for Track {
         self.enabled.visit("Enabled", visitor)?;
         self.max_time.visit("MaxTime", visitor)?;
         self.node.visit("Node", visitor)?;
+        let _ = self.flags.visit("Flags", visitor);
 
         visitor.leave_region()
     }
@@ -203,11 +227,31 @@ impl Track {
 
             Some(LocalPose {
                 node: self.node,
-                position: left.position.lerp(&right.position, interpolator),
-                scale: left.scale.lerp(&right.scale, interpolator),
-                rotation: left.rotation.nlerp(&right.rotation, interpolator),
+                position: if self.flags.ignore_position {
+                    Vector3::new(0.0, 0.0, 0.0)
+                } else {
+                    left.position.lerp(&right.position, interpolator)
+                },
+                scale: if self.flags.ignore_scale {
+                    Vector3::new(1.0, 1.0, 1.0)
+                } else {
+                    left.scale.lerp(&right.scale, interpolator)
+                },
+                rotation: if self.flags.ignore_rotation {
+                    UnitQuaternion::default()
+                } else {
+                    left.rotation.nlerp(&right.rotation, interpolator)
+                },
             })
         }
+    }
+
+    pub fn flags(&self) -> PoseEvaluationFlags {
+        self.flags
+    }
+
+    pub fn set_flags(&mut self, flags: PoseEvaluationFlags) {
+        self.flags = flags;
     }
 }
 
@@ -314,6 +358,18 @@ impl LocalPose {
         self.rotation = self.rotation.nlerp(&other.rotation, weight);
         // TODO: Implement scale blending
     }
+
+    pub fn position(&self) -> Vector3<f32> {
+        self.position
+    }
+
+    pub fn scale(&self) -> Vector3<f32> {
+        self.scale
+    }
+
+    pub fn rotation(&self) -> UnitQuaternion<f32> {
+        self.rotation
+    }
 }
 
 #[derive(Default, Debug)]
@@ -359,6 +415,21 @@ impl AnimationPose {
                     .set_position(local_pose.position)
                     .set_rotation(local_pose.rotation)
                     .set_scale(local_pose.scale);
+            }
+        }
+    }
+
+    /// Calls given callback function for each node and allows you to apply pose with your own
+    /// rules. This could be useful if you need to ignore transform some part of pose for a node.
+    pub fn apply_with<C>(&self, graph: &mut Graph, mut callback: C)
+    where
+        C: FnMut(&mut Node, Handle<Node>, &LocalPose),
+    {
+        for (node, local_pose) in self.local_poses.iter() {
+            if node.is_none() {
+                Log::writeln(MessageKind::Error, "Invalid node handle found for animation pose, most likely it means that animation retargetting failed!".to_owned());
+            } else {
+                callback(&mut graph[*node], *node, local_pose);
             }
         }
     }
@@ -409,6 +480,10 @@ impl Animation {
         self.set_time_position(0.0)
     }
 
+    pub fn length(&self) -> f32 {
+        self.length
+    }
+
     fn tick(&mut self, dt: f32) {
         self.update_pose();
 
@@ -416,7 +491,11 @@ impl Animation {
         let new_time_position = current_time_position + dt * self.get_speed();
 
         for signal in self.signals.iter_mut() {
-            if current_time_position < signal.time && new_time_position >= signal.time {
+            if self.speed >= 0.0
+                && (current_time_position < signal.time && new_time_position >= signal.time)
+                || self.speed < 0.0
+                    && (current_time_position > signal.time && new_time_position <= signal.time)
+            {
                 // TODO: Make this configurable.
                 if self.events.len() < 32 {
                     self.events.push_back(AnimationEvent {
@@ -527,6 +606,24 @@ impl Animation {
                 track.enabled = enabled;
             }
         }
+    }
+
+    pub fn track_of(&self, handle: Handle<Node>) -> Option<&Track> {
+        for track in self.tracks.iter() {
+            if track.node == handle {
+                return Some(track);
+            }
+        }
+        None
+    }
+
+    pub fn track_of_mut(&mut self, handle: Handle<Node>) -> Option<&mut Track> {
+        for track in self.tracks.iter_mut() {
+            if track.node == handle {
+                return Some(track);
+            }
+        }
+        None
     }
 
     pub(in crate) fn resolve(&mut self, graph: &Graph) {
@@ -752,5 +849,19 @@ impl Visit for AnimationContainer {
         self.pool.visit("Pool", visitor)?;
 
         visitor.leave_region()
+    }
+}
+
+impl Index<Handle<Animation>> for AnimationContainer {
+    type Output = Animation;
+
+    fn index(&self, index: Handle<Animation>) -> &Self::Output {
+        &self.pool[index]
+    }
+}
+
+impl IndexMut<Handle<Animation>> for AnimationContainer {
+    fn index_mut(&mut self, index: Handle<Animation>) -> &mut Self::Output {
+        &mut self.pool[index]
     }
 }

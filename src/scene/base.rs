@@ -6,7 +6,6 @@
 //! block for all complex node hierarchies - it contains list of children and handle to
 //! parent node.
 
-use crate::scene::graph::Graph;
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
@@ -15,16 +14,58 @@ use crate::{
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
     resource::model::Model,
-    scene::{node::Node, transform::Transform},
+    scene::{graph::Graph, node::Node, transform::Transform},
 };
 use std::cell::Cell;
+
+/// Defines a kind of binding between rigid body and a scene node. Check variants
+/// for more info.
+#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
+#[repr(u32)]
+pub enum PhysicsBinding {
+    /// Forces engine to sync transform of a node with its associated rigid body.
+    /// This is default binding.
+    NodeWithBody = 0,
+
+    /// Forces engine to sync transform of a rigid body with its associated node.
+    /// This could be useful for specific situations like add "hit boxes"
+    /// to a character.
+    BodyWithNode = 1,
+}
+
+impl Default for PhysicsBinding {
+    fn default() -> Self {
+        Self::NodeWithBody
+    }
+}
+
+impl PhysicsBinding {
+    fn from_id(id: u32) -> Result<Self, String> {
+        match id {
+            0 => Ok(Self::NodeWithBody),
+            1 => Ok(Self::BodyWithNode),
+            _ => Err(format!("Invalid physics binding id {}!", id)),
+        }
+    }
+}
+
+impl Visit for PhysicsBinding {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        let mut id = *self as u32;
+        id.visit(name, visitor)?;
+        if visitor.is_reading() {
+            *self = Self::from_id(id)?;
+        }
+        Ok(())
+    }
+}
 
 /// Level of detail is a collection of objects for given normalized distance range.
 /// Objects will be rendered **only** if they're in specified range.
 /// Normalized distance is a distance in (0; 1) range where 0 - closest to camera,
 /// 1 - farthest. Real distance can be obtained by multiplying normalized distance
 /// with z_far of current projection matrix.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct LevelOfDetail {
     begin: f32,
     end: f32,
@@ -100,7 +141,7 @@ impl Visit for LevelOfDetail {
 /// Lod group must contain non-overlapping cascades, each cascade with its own set of objects
 /// that belongs to level of detail. Engine does not care if you create overlapping cascades,
 /// it is your responsibility to create non-overlapping cascades.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct LodGroup {
     /// Set of cascades.
     pub levels: Vec<LevelOfDetail>,
@@ -201,13 +242,15 @@ pub struct Base {
     /// When `true` it means that this node is instance of `resource`.
     /// More precisely - this node is root of whole descendant nodes
     /// hierarchy which was instantiated from resource.
-    pub(in crate) is_resource_instance: bool,
+    pub(in crate) is_resource_instance_root: bool,
     /// Maximum amount of Some(time) that node will "live" or None
     /// if node has undefined lifetime.
     pub(in crate) lifetime: Option<f32>,
     depth_offset: f32,
     lod_group: Option<LodGroup>,
     mobility: Mobility,
+    tag: String,
+    pub(in crate) physics_binding: PhysicsBinding,
 }
 
 impl Base {
@@ -291,8 +334,8 @@ impl Base {
     }
 
     /// Returns true if this node is model resource instance root node.
-    pub fn is_resource_instance(&self) -> bool {
-        self.is_resource_instance
+    pub fn is_resource_instance_root(&self) -> bool {
+        self.is_resource_instance_root
     }
 
     /// Returns resource from which this node was instantiated from.
@@ -370,8 +413,13 @@ impl Base {
     }
 
     /// Sets new lod group.
-    pub fn set_lod_group(&mut self, lod_group: LodGroup) -> Option<LodGroup> {
-        self.lod_group.replace(lod_group)
+    pub fn set_lod_group(&mut self, lod_group: Option<LodGroup>) -> Option<LodGroup> {
+        std::mem::replace(&mut self.lod_group, lod_group)
+    }
+
+    /// Extracts lod group, leaving None in the node.
+    pub fn take_lod_group(&mut self) -> Option<LodGroup> {
+        std::mem::take(&mut self.lod_group)
     }
 
     /// Returns shared reference to current lod group.
@@ -382,6 +430,31 @@ impl Base {
     /// Returns mutable reference to current lod group.
     pub fn lod_group_mut(&mut self) -> Option<&mut LodGroup> {
         self.lod_group.as_mut()
+    }
+
+    /// Returns node tag.
+    pub fn tag(&self) -> &str {
+        &self.tag
+    }
+
+    /// Returns a copy of node tag.
+    pub fn tag_owned(&self) -> String {
+        self.tag.clone()
+    }
+
+    /// Sets new tag.
+    pub fn set_tag(&mut self, tag: String) {
+        self.tag = tag;
+    }
+
+    /// Returns current physics binding kind.
+    pub fn physics_binding(&self) -> PhysicsBinding {
+        self.physics_binding
+    }
+
+    /// Sets new kind of physics binding.
+    pub fn set_physics_binding(&mut self, binding: PhysicsBinding) {
+        self.physics_binding = binding;
     }
 
     /// Shallow copy of node data. You should never use this directly, shallow copy
@@ -395,9 +468,12 @@ impl Base {
             global_visibility: self.global_visibility.clone(),
             inv_bind_pose_transform: self.inv_bind_pose_transform,
             resource: self.resource.clone(),
-            is_resource_instance: self.is_resource_instance,
+            is_resource_instance_root: self.is_resource_instance_root,
             lifetime: self.lifetime,
             mobility: self.mobility,
+            tag: self.tag.clone(),
+            physics_binding: self.physics_binding,
+            lod_group: self.lod_group.clone(),
             // Rest of data is *not* copied!
             ..Default::default()
         }
@@ -420,12 +496,15 @@ impl Visit for Base {
         self.parent.visit("Parent", visitor)?;
         self.children.visit("Children", visitor)?;
         self.resource.visit("Resource", visitor)?;
-        self.is_resource_instance
+        self.is_resource_instance_root
             .visit("IsResourceInstance", visitor)?;
         self.lifetime.visit("Lifetime", visitor)?;
         self.depth_offset.visit("DepthOffset", visitor)?;
         let _ = self.lod_group.visit("LodGroup", visitor);
         let _ = self.mobility.visit("Mobility", visitor);
+        let _ = self.original.visit("Original", visitor);
+        let _ = self.tag.visit("Tag", visitor);
+        let _ = self.physics_binding.visit("PhysicsBinding", visitor);
 
         visitor.leave_region()
     }
@@ -442,6 +521,7 @@ pub struct BaseBuilder {
     lod_group: Option<LodGroup>,
     mobility: Mobility,
     inv_bind_pose_transform: Matrix4<f32>,
+    tag: String,
 }
 
 impl Default for BaseBuilder {
@@ -463,6 +543,7 @@ impl BaseBuilder {
             lod_group: None,
             mobility: Mobility::Dynamic,
             inv_bind_pose_transform: Matrix4::identity(),
+            tag: Default::default(),
         }
     }
 
@@ -527,6 +608,12 @@ impl BaseBuilder {
         self
     }
 
+    /// Sets desired tag.
+    pub fn with_tag(mut self, tag: String) -> Self {
+        self.tag = tag;
+        self
+    }
+
     pub(in crate) fn build_base(self) -> Base {
         Base {
             name: self.name,
@@ -540,10 +627,12 @@ impl BaseBuilder {
             inv_bind_pose_transform: self.inv_bind_pose_transform,
             resource: None,
             original: Handle::NONE,
-            is_resource_instance: false,
+            is_resource_instance_root: false,
             depth_offset: self.depth_offset,
             lod_group: self.lod_group,
             mobility: self.mobility,
+            tag: self.tag,
+            physics_binding: PhysicsBinding::NodeWithBody,
         }
     }
 

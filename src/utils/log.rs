@@ -1,5 +1,6 @@
 //! Simple logger, it writes in file and in console at the same time.
 
+use crate::lazy_static::lazy_static;
 use std::{
     fs::File,
     io::{self, Write},

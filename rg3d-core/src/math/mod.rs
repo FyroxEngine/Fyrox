@@ -7,9 +7,11 @@ pub mod plane;
 pub mod ray;
 pub mod triangulator;
 
-use crate::algebra::{Matrix3, Scalar, UnitQuaternion, Vector2, Vector3, U3};
-use crate::visitor::{Visit, VisitResult, Visitor};
-use nalgebra::Matrix4;
+use crate::math::ray::IntersectionResult;
+use crate::{
+    algebra::{Matrix3, Matrix4, Scalar, UnitQuaternion, Vector2, Vector3, U3},
+    visitor::{Visit, VisitResult, Visitor},
+};
 use std::ops::{Add, Index, IndexMut, Mul, Sub};
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -59,6 +61,70 @@ where
             && pt.x <= self.position.x + self.size.x
             && pt.y >= self.position.y
             && pt.y <= self.position.y + self.size.y
+    }
+
+    /// Extends rect to contain given point.
+    ///
+    /// # Notes
+    ///
+    /// To build bounding rectangle you should correctly initialize initial rectangle:
+    ///
+    /// ```
+    /// # use rg3d_core::algebra::Vector2;
+    /// # use rg3d_core::math::Rect;
+    ///
+    /// let vertices = [Vector2::new(1.0, 2.0), Vector2::new(-3.0, 5.0)];
+    ///
+    /// // This is important part, it must have "invalid" state to correctly
+    /// // calculate bounding rect. Rect::default will give invalid result!
+    /// let mut bounding_rect = Rect::new(f32::MAX, f32::MAX, 0.0, 0.0);
+    ///
+    /// for &v in &vertices {
+    ///     bounding_rect.push(v);
+    /// }
+    /// ```
+    pub fn push(&mut self, p: Vector2<T>) {
+        if p.x < self.position.x {
+            self.position.x = p.x;
+        }
+        if p.y < self.position.y {
+            self.position.y = p.y;
+        }
+
+        let right_bottom = self.right_bottom_corner();
+
+        if p.x > right_bottom.x {
+            self.size.x = p.x - self.position.x;
+        }
+        if p.y > right_bottom.y {
+            self.size.y = p.y - self.position.y;
+        }
+    }
+
+    #[must_use = "this method creates new instance of rect"]
+    pub fn clip_by(&self, other: Rect<T>) -> Rect<T> {
+        let mut clipped = *self;
+
+        if clipped.position.x < other.position.x {
+            clipped.position.x = other.position.x;
+            clipped.size.x = clipped.size.x - (other.position.x - clipped.position.x);
+        }
+        if clipped.position.y < other.position.y {
+            clipped.position.y = other.position.y;
+            clipped.size.y = clipped.size.y - (other.position.y - clipped.position.y);
+        }
+
+        let clipped_right_bottom = clipped.right_bottom_corner();
+        let other_right_bottom = other.right_bottom_corner();
+
+        if clipped_right_bottom.x > other_right_bottom.x {
+            clipped.size.x = clipped.size.x - (clipped_right_bottom.x - other_right_bottom.x);
+        }
+        if clipped_right_bottom.y > other_right_bottom.y {
+            clipped.size.y = clipped.size.y - (clipped_right_bottom.y - other_right_bottom.y);
+        }
+
+        clipped
     }
 
     pub fn intersects(&self, other: Rect<T>) -> bool {
@@ -236,7 +302,7 @@ pub fn is_point_inside_2d_triangle(
     let dot_02 = ca.dot(&vp);
     let dot_12 = ba.dot(&vp);
 
-    let inv_denom = 1.0 / (ca_dot_ca * ba_dot_ba - ca_dot_ba * ca_dot_ba);
+    let inv_denom = 1.0 / (ca_dot_ca * ba_dot_ba - ca_dot_ba.powi(2));
 
     // calculate barycentric coordinates
     let u = (ba_dot_ba * dot_02 - ca_dot_ba * dot_12) * inv_denom;
@@ -323,7 +389,7 @@ pub fn get_barycentric_coords(
     let d11 = v1.dot(&v1);
     let d20 = v2.dot(&v0);
     let d21 = v2.dot(&v1);
-    let denom = d00 * d11 - d01 * d01;
+    let denom = d00 * d11 - d01.powi(2);
 
     let v = (d11 * d20 - d01 * d21) / denom;
     let w = (d00 * d21 - d01 * d20) / denom;
@@ -347,7 +413,7 @@ pub fn get_barycentric_coords_2d(
     let d11 = v1.dot(&v1);
     let d20 = v2.dot(&v0);
     let d21 = v2.dot(&v1);
-    let inv_denom = 1.0 / (d00 * d11 - d01 * d01);
+    let inv_denom = 1.0 / (d00 * d11 - d01.powi(2));
 
     let v = (d11 * d20 - d01 * d21) * inv_denom;
     let w = (d00 * d21 - d01 * d20) * inv_denom;
@@ -381,7 +447,7 @@ pub fn is_point_inside_triangle(p: &Vector3<f32>, vertices: &[Vector3<f32>; 3]) 
     let dot02 = ca.dot(&vp);
     let dot12 = ba.dot(&vp);
 
-    let inv_denom = 1.0 / (ca_dot_ca * ba_dot_ba - ca_dot_ba * ca_dot_ba);
+    let inv_denom = 1.0 / (ca_dot_ca * ba_dot_ba - ca_dot_ba.powi(2));
 
     // Calculate barycentric coordinates
     let u = (ba_dot_ba * dot02 - ca_dot_ba * dot12) * inv_denom;
@@ -417,6 +483,60 @@ pub fn spherical_to_cartesian(azimuth: f32, elevation: f32, radius: f32) -> Vect
     Vector3::new(x, y, z)
 }
 
+pub fn ray_rect_intersection(
+    rect: Rect<f32>,
+    origin: Vector2<f32>,
+    dir: Vector2<f32>,
+) -> Option<IntersectionResult> {
+    let min = rect.left_top_corner();
+    let max = rect.right_bottom_corner();
+
+    let (mut tmin, mut tmax) = if dir.x >= 0.0 {
+        ((min.x - origin.x) / dir.x, (max.x - origin.x) / dir.x)
+    } else {
+        ((max.x - origin.x) / dir.x, (min.x - origin.x) / dir.x)
+    };
+
+    let (tymin, tymax) = if dir.y >= 0.0 {
+        ((min.y - origin.y) / dir.y, (max.y - origin.y) / dir.y)
+    } else {
+        ((max.y - origin.y) / dir.y, (min.y - origin.y) / dir.y)
+    };
+
+    if tmin > tymax || tymin > tmax {
+        return None;
+    }
+    if tymin > tmin {
+        tmin = tymin;
+    }
+    if tymax < tmax {
+        tmax = tymax;
+    }
+    if tmin <= 1.0 && tmax >= 0.0 {
+        Some(IntersectionResult {
+            min: tmin,
+            max: tmax,
+        })
+    } else {
+        None
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+#[repr(C)]
+pub struct TriangleEdge {
+    a: u32,
+    b: u32,
+}
+
+impl PartialEq for TriangleEdge {
+    fn eq(&self, other: &Self) -> bool {
+        self.a == other.a && self.b == other.b || self.a == other.b && self.b == other.a
+    }
+}
+
+impl Eq for TriangleEdge {}
+
 #[derive(Clone, PartialEq, Eq, Debug, Default)]
 #[repr(C)]
 pub struct TriangleDefinition(pub [u32; 3]);
@@ -428,6 +548,23 @@ impl TriangleDefinition {
 
     pub fn indices_mut(&mut self) -> &mut [u32] {
         self.as_mut()
+    }
+
+    pub fn edges(&self) -> [TriangleEdge; 3] {
+        [
+            TriangleEdge {
+                a: self.0[0],
+                b: self.0[1],
+            },
+            TriangleEdge {
+                a: self.0[1],
+                b: self.0[2],
+            },
+            TriangleEdge {
+                a: self.0[2],
+                b: self.0[0],
+            },
+        ]
     }
 }
 
@@ -519,6 +656,26 @@ pub fn get_closest_point_triangles<P: PositionProvider>(
     closest_index
 }
 
+pub fn get_closest_point_triangle_set<P: PositionProvider>(
+    points: &[P],
+    triangles: &[TriangleDefinition],
+    point: Vector3<f32>,
+) -> Option<usize> {
+    let mut closest_sqr_distance = std::f32::MAX;
+    let mut closest_index = None;
+    for triangle in triangles {
+        for point_index in triangle.0.iter() {
+            let vertex = points.get(*point_index as usize).unwrap();
+            let sqr_distance = (vertex.position() - point).norm_squared();
+            if sqr_distance < closest_sqr_distance {
+                closest_sqr_distance = sqr_distance;
+                closest_index = Some(*point_index as usize);
+            }
+        }
+    }
+    closest_index
+}
+
 pub struct SmoothAngle {
     /// Current angle in radians.
     pub angle: f32,
@@ -569,7 +726,13 @@ impl SmoothAngle {
     }
 
     pub fn distance(&self) -> f32 {
-        self.target - self.angle
+        let diff = (self.target - self.angle + std::f32::consts::PI) % std::f32::consts::TAU
+            - std::f32::consts::PI;
+        if diff < -std::f32::consts::PI {
+            diff + std::f32::consts::TAU
+        } else {
+            diff
+        }
     }
 
     fn turn_direction(&self) -> f32 {
@@ -608,24 +771,6 @@ impl Visit for SmoothAngle {
         self.speed.visit("Speed", visitor)?;
 
         visitor.leave_region()
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use crate::math::SmoothAngle;
-
-    #[test]
-    fn smooth_angle() {
-        let mut angle = SmoothAngle {
-            angle: 290.0f32.to_radians(),
-            target: 90.0f32.to_radians(),
-            speed: 100.0f32.to_radians(),
-        };
-
-        while !angle.at_target() {
-            println!("{}", angle.update(1.0).angle().to_degrees());
-        }
     }
 }
 
@@ -783,5 +928,46 @@ impl Vector2Ext for Vector2<f32> {
 
     fn per_component_max(&self, other: &Self) -> Self {
         Self::new(self.x.max(other.x), self.y.max(other.y))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::algebra::Vector2;
+    use crate::math::Rect;
+    use crate::math::SmoothAngle;
+
+    #[test]
+    fn ray_rect_intersection() {
+        let rect = Rect::new(0.0, 0.0, 10.0, 10.0);
+
+        // Edge-case: Horizontal ray.
+        assert!(super::ray_rect_intersection(
+            rect,
+            Vector2::new(-1.0, 5.0),
+            Vector2::new(1.0, 0.0)
+        )
+        .is_some());
+
+        // Edge-case: Vertical ray.
+        assert!(super::ray_rect_intersection(
+            rect,
+            Vector2::new(5.0, -1.0),
+            Vector2::new(0.0, 1.0)
+        )
+        .is_some());
+    }
+
+    #[test]
+    fn smooth_angle() {
+        let mut angle = SmoothAngle {
+            angle: 290.0f32.to_radians(),
+            target: 90.0f32.to_radians(),
+            speed: 100.0f32.to_radians(),
+        };
+
+        while !angle.at_target() {
+            println!("{}", angle.update(1.0).angle().to_degrees());
+        }
     }
 }

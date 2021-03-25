@@ -551,9 +551,9 @@ impl DeferredLightRenderer {
 
         state.set_blend_func(gl::ONE, gl::ONE);
 
-        for light in scene.graph.linear_iter().filter_map(|node| {
+        for (light_handle, light) in scene.graph.pair_iter().filter_map(|(handle, node)| {
             if let Node::Light(light) = node {
-                Some(light)
+                Some((handle, light))
             } else {
                 None
             }
@@ -1001,6 +1001,7 @@ impl DeferredLightRenderer {
                 pass_stats += self.light_volume.render_volume(
                     state,
                     light,
+                    light_handle,
                     gbuffer,
                     &self.quad,
                     geometry_cache,
@@ -1008,6 +1009,7 @@ impl DeferredLightRenderer {
                     projection_matrix.try_inverse().unwrap_or_default(),
                     camera.view_projection_matrix(),
                     viewport,
+                    &scene.graph,
                 );
             }
         }

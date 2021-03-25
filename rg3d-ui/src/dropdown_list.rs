@@ -50,25 +50,23 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for DropdownList<M, C> {
         self.widget.handle_routed_message(ui, message);
 
         match &message.data() {
-            UiMessageData::Widget(msg) => {
-                if let WidgetMessage::MouseDown { .. } = msg {
-                    if message.destination() == self.handle()
-                        || self.widget.has_descendant(message.destination(), ui)
-                    {
-                        ui.send_message(WidgetMessage::width(
-                            self.popup,
-                            MessageDirection::ToWidget,
-                            self.actual_size().x,
-                        ));
-                        let placement_position = self.widget.screen_position
-                            + Vector2::new(0.0, self.widget.actual_size().y);
-                        ui.send_message(PopupMessage::placement(
-                            self.popup,
-                            MessageDirection::ToWidget,
-                            Placement::Position(placement_position),
-                        ));
-                        ui.send_message(PopupMessage::open(self.popup, MessageDirection::ToWidget));
-                    }
+            UiMessageData::Widget(WidgetMessage::MouseDown { .. }) => {
+                if message.destination() == self.handle()
+                    || self.widget.has_descendant(message.destination(), ui)
+                {
+                    ui.send_message(WidgetMessage::width(
+                        self.popup,
+                        MessageDirection::ToWidget,
+                        self.actual_size().x,
+                    ));
+                    let placement_position = self.widget.screen_position
+                        + Vector2::new(0.0, self.widget.actual_size().y);
+                    ui.send_message(PopupMessage::placement(
+                        self.popup,
+                        MessageDirection::ToWidget,
+                        Placement::Position(placement_position),
+                    ));
+                    ui.send_message(PopupMessage::open(self.popup, MessageDirection::ToWidget));
                 }
             }
             UiMessageData::DropdownList(msg)
@@ -140,15 +138,17 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for DropdownList<M, C> {
 
     fn preview_message(&self, ui: &UserInterface<M, C>, message: &mut UiMessage<M, C>) {
         if let UiMessageData::ListView(msg) = &message.data() {
-            if let ListViewMessage::SelectionChanged(selection) = msg {
-                if message.destination() == self.list_view && &self.selection != selection {
-                    // Post message again but from name of this drop-down list so user can catch
-                    // message and respond properly.
-                    ui.send_message(DropdownListMessage::selection(
-                        self.handle,
-                        MessageDirection::ToWidget,
-                        *selection,
-                    ));
+            if message.direction() == MessageDirection::FromWidget {
+                if let ListViewMessage::SelectionChanged(selection) = msg {
+                    if message.destination() == self.list_view && &self.selection != selection {
+                        // Post message again but from name of this drop-down list so user can catch
+                        // message and respond properly.
+                        ui.send_message(DropdownListMessage::selection(
+                            self.handle,
+                            MessageDirection::ToWidget,
+                            *selection,
+                        ));
+                    }
                 }
             }
         }
@@ -226,7 +226,13 @@ impl<M: MessageData, C: Control<M, C>> DropdownListBuilder<M, C> {
         let arrow = make_arrow(ctx, ArrowDirection::Bottom, 10.0);
         ctx[arrow].set_column(1);
 
-        let main_grid;
+        let main_grid =
+            GridBuilder::new(WidgetBuilder::new().with_child(current).with_child(arrow))
+                .add_row(Row::stretch())
+                .add_column(Column::stretch())
+                .add_column(Column::strict(20.0))
+                .build(ctx);
+
         let dropdown_list = UINode::DropdownList(DropdownList {
             widget: self
                 .widget_builder
@@ -234,16 +240,7 @@ impl<M: MessageData, C: Control<M, C>> DropdownListBuilder<M, C> {
                     BorderBuilder::new(
                         WidgetBuilder::new()
                             .with_foreground(BRUSH_LIGHT)
-                            .with_child({
-                                main_grid = GridBuilder::new(
-                                    WidgetBuilder::new().with_child(current).with_child(arrow),
-                                )
-                                .add_row(Row::stretch())
-                                .add_column(Column::stretch())
-                                .add_column(Column::strict(20.0))
-                                .build(ctx);
-                                main_grid
-                            }),
+                            .with_child(main_grid),
                     )
                     .build(ctx),
                 )

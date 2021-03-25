@@ -1,3 +1,4 @@
+use rg3d_sound::engine::SoundEngine;
 use rg3d_sound::{
     buffer::{DataSource, SoundBuffer},
     context::Context,
@@ -6,8 +7,13 @@ use rg3d_sound::{
 use std::{thread, time::Duration};
 
 fn main() {
-    // Initialize new sound context with default output device.
-    let context = Context::new().unwrap();
+    // Initialize sound engine with default output device.
+    let engine = SoundEngine::new();
+
+    // Initialize new sound context.
+    let context = Context::new();
+
+    engine.lock().unwrap().add_context(context.clone());
 
     // Create sine wave.
     let sample_rate = 44100;
@@ -36,7 +42,7 @@ fn main() {
         .build_source()
         .unwrap();
 
-    context.lock().unwrap().add_source(source);
+    context.state().add_source(source);
 
     // Play sound for some time.
     thread::sleep(Duration::from_secs(10));

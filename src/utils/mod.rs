@@ -18,6 +18,7 @@ use crate::{
     },
     resource::texture::Texture,
 };
+use std::hash::Hasher;
 use std::{any::Any, sync::Arc};
 
 /// Translated key code to rg3d-ui key code.
@@ -475,4 +476,14 @@ pub fn into_any_arc<T: Any + Send + Sync>(
 /// Converts engine's optional texture "pointer" to rg3d-ui's.
 pub fn into_gui_texture(this: Texture) -> draw::SharedTexture {
     draw::SharedTexture(this.into_inner())
+}
+
+/// Performs hashing of a sized value by interpreting it as raw memory.
+pub fn hash_as_bytes<T: Sized, H: Hasher>(value: &T, hasher: &mut H) {
+    unsafe {
+        hasher.write(std::slice::from_raw_parts(
+            value as *const T as *const u8,
+            std::mem::size_of::<T>(),
+        ))
+    }
 }

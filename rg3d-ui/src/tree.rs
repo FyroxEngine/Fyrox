@@ -1,4 +1,5 @@
 use crate::core::algebra::Vector2;
+use crate::message::TreeExpansionStrategy;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -64,47 +65,43 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tree<M, C> {
         self.widget.handle_routed_message(ui, message);
 
         match &message.data() {
-            UiMessageData::Button(msg) => {
-                if let ButtonMessage::Click = msg {
-                    if message.destination() == self.expander {
-                        ui.send_message(TreeMessage::expand(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                            !self.is_expanded,
-                        ));
-                    }
+            UiMessageData::Button(ButtonMessage::Click) => {
+                if message.destination() == self.expander {
+                    ui.send_message(TreeMessage::expand(
+                        self.handle(),
+                        MessageDirection::ToWidget,
+                        !self.is_expanded,
+                        TreeExpansionStrategy::Direct,
+                    ));
                 }
             }
-            UiMessageData::Widget(msg) => {
-                if let WidgetMessage::MouseDown { .. } = msg {
-                    if !message.handled() {
-                        let root = ui.find_by_criteria_up(self.parent(), |n| {
-                            matches!(n, UINode::TreeRoot(_))
-                        });
-                        if root.is_some() {
-                            if let UINode::TreeRoot(tree_root) = ui.node(root) {
-                                let selection = if ui.keyboard_modifiers().control {
-                                    let mut selection = tree_root.selected.clone();
-                                    if let Some(existing) =
-                                        selection.iter().position(|&h| h == self.handle)
-                                    {
-                                        selection.remove(existing);
-                                    } else {
-                                        selection.push(self.handle);
-                                    }
-                                    selection
+            UiMessageData::Widget(WidgetMessage::MouseDown { .. }) => {
+                if !message.handled() {
+                    let root =
+                        ui.find_by_criteria_up(self.parent(), |n| matches!(n, UINode::TreeRoot(_)));
+                    if root.is_some() {
+                        if let UINode::TreeRoot(tree_root) = ui.node(root) {
+                            let selection = if ui.keyboard_modifiers().control {
+                                let mut selection = tree_root.selected.clone();
+                                if let Some(existing) =
+                                    selection.iter().position(|&h| h == self.handle)
+                                {
+                                    selection.remove(existing);
                                 } else {
-                                    vec![self.handle()]
-                                };
-                                ui.send_message(TreeRootMessage::select(
-                                    root,
-                                    MessageDirection::ToWidget,
-                                    selection,
-                                ));
-                                message.set_handled(true);
+                                    selection.push(self.handle);
+                                }
+                                selection
                             } else {
-                                unreachable!();
-                            }
+                                vec![self.handle()]
+                            };
+                            ui.send_message(TreeRootMessage::select(
+                                root,
+                                MessageDirection::ToWidget,
+                                selection,
+                            ));
+                            message.set_handled(true);
+                        } else {
+                            unreachable!();
                         }
                     }
                 }
@@ -112,7 +109,10 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tree<M, C> {
             UiMessageData::Tree(msg) => {
                 if message.destination() == self.handle() {
                     match msg {
-                        &TreeMessage::Expand(expand) => {
+                        &TreeMessage::Expand {
+                            expand,
+                            expansion_strategy,
+                        } => {
                             self.is_expanded = expand;
                             ui.send_message(WidgetMessage::visibility(
                                 self.panel,
@@ -127,6 +127,39 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tree<M, C> {
                                     MessageDirection::ToWidget,
                                     text.to_owned(),
                                 ));
+                            }
+
+                            match expansion_strategy {
+                                TreeExpansionStrategy::RecursiveDescendants => {
+                                    for &item in self.items() {
+                                        ui.send_message(TreeMessage::expand(
+                                            item,
+                                            MessageDirection::ToWidget,
+                                            expand,
+                                            expansion_strategy,
+                                        ));
+                                    }
+                                }
+                                TreeExpansionStrategy::RecursiveAncestors => {
+                                    // CAVEAT: This may lead to potential false expansions when there are
+                                    // trees inside trees (this is insane, but possible) because we're searching
+                                    // up on visual tree and don't care about search bounds, ideally we should
+                                    // stop search if we're found TreeRoot.
+                                    let parent_tree = self
+                                        .find_by_criteria_up(ui, |n| matches!(n, UINode::Tree(_)));
+                                    if parent_tree.is_some() {
+                                        ui.send_message(TreeMessage::expand(
+                                            parent_tree,
+                                            MessageDirection::ToWidget,
+                                            expand,
+                                            expansion_strategy,
+                                        ));
+                                    }
+                                }
+                                TreeExpansionStrategy::Direct => {
+                                    // Handle this variant too instead of using _ => (),
+                                    // to force compiler to notify if new strategy is added.
+                                }
                             }
                         }
                         &TreeMessage::AddItem(item) => {
@@ -388,7 +421,9 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TreeRoot<M, C> {
         self.widget.handle_routed_message(ui, message);
 
         if let UiMessageData::TreeRoot(msg) = &message.data() {
-            if message.destination() == self.handle() {
+            if message.destination() == self.handle()
+                && message.direction() == MessageDirection::ToWidget
+            {
                 match msg {
                     &TreeRootMessage::AddItem(item) => {
                         ui.send_message(WidgetMessage::link(
@@ -445,7 +480,14 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TreeRoot<M, C> {
                                 }
                             }
                             self.selected = selected.clone();
+                            ui.send_message(message.reverse());
                         }
+                    }
+                    TreeRootMessage::CollapseAll => {
+                        self.expand_all(ui, false);
+                    }
+                    TreeRootMessage::ExpandAll => {
+                        self.expand_all(ui, true);
                     }
                 }
             }
@@ -465,6 +507,17 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TreeRoot<M, C> {
 impl<M: MessageData, C: Control<M, C>> TreeRoot<M, C> {
     pub fn items(&self) -> &[Handle<UINode<M, C>>] {
         &self.items
+    }
+
+    fn expand_all(&self, ui: &UserInterface<M, C>, expand: bool) {
+        for &item in self.items.iter() {
+            ui.send_message(TreeMessage::expand(
+                item,
+                MessageDirection::ToWidget,
+                expand,
+                TreeExpansionStrategy::RecursiveDescendants,
+            ));
+        }
     }
 }
 

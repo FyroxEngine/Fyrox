@@ -8,10 +8,9 @@ pub use byteorder;
 pub use nalgebra as algebra;
 pub use rand;
 
-use std::{
-    ffi::OsString,
-    path::{Path, PathBuf},
-};
+use std::collections::HashMap;
+use std::hash::Hash;
+use std::path::{Path, PathBuf};
 
 pub mod color;
 pub mod color_gradient;
@@ -67,7 +66,7 @@ pub fn replace_slashes<P: AsRef<Path>>(path: P) -> PathBuf {
         } else {
             // Replace all \ to /. This is needed because on macos or linux \ is a valid symbol in
             // file name, and not separator (except linux which understand both variants).
-            let mut os_str = OsString::new();
+            let mut os_str = std::ffi::OsString::new();
             let count = path.as_ref().components().count();
             for (i, component) in path.as_ref().components().enumerate() {
                 os_str.push(component.as_os_str());
@@ -82,5 +81,102 @@ pub fn replace_slashes<P: AsRef<Path>>(path: P) -> PathBuf {
     #[cfg(not(target_os = "windows"))]
     {
         path.as_ref().to_owned()
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct BiDirHashMap<K, V> {
+    forward_map: HashMap<K, V>,
+    backward_map: HashMap<V, K>,
+}
+
+impl<K: Hash + Eq + Clone, V: Hash + Eq + Clone> BiDirHashMap<K, V> {
+    pub fn insert(&mut self, key: K, value: V) -> Option<V> {
+        let existing = self.forward_map.insert(key.clone(), value.clone());
+        self.backward_map.insert(value, key);
+        existing
+    }
+
+    pub fn remove_by_key(&mut self, key: &K) -> Option<V> {
+        if let Some(value) = self.forward_map.remove(key) {
+            self.backward_map.remove(&value);
+            Some(value)
+        } else {
+            None
+        }
+    }
+
+    pub fn remove_by_value(&mut self, value: &V) -> Option<K> {
+        if let Some(key) = self.backward_map.remove(value) {
+            self.forward_map.remove(&key);
+            Some(key)
+        } else {
+            None
+        }
+    }
+
+    pub fn value_of(&self, node: &K) -> Option<&V> {
+        self.forward_map.get(&node)
+    }
+
+    pub fn key_of(&self, value: &V) -> Option<&K> {
+        self.backward_map.get(&value)
+    }
+
+    pub fn clear(&mut self) {
+        self.forward_map.clear();
+        self.backward_map.clear();
+    }
+
+    pub fn forward_map(&self) -> &HashMap<K, V> {
+        &self.forward_map
+    }
+
+    pub fn backward_map(&self) -> &HashMap<V, K> {
+        &self.backward_map
+    }
+
+    pub fn into_inner(self) -> (HashMap<K, V>, HashMap<V, K>) {
+        (self.forward_map, self.backward_map)
+    }
+}
+
+pub trait VecExtensions<T> {
+    /// Retains only the elements specified by the predicate.
+    ///
+    /// In other words, remove all elements `e` such that `f(&mut e)` returns `false`.
+    /// This method operates in place, visiting each element exactly once in the
+    /// original order, and preserves the order of the retained elements.
+    ///
+    /// # Notes
+    ///
+    /// This method is the copy of `retain` method of Vec, but with ability to
+    /// modify each element.
+    fn retain_mut<F>(&mut self, f: F)
+    where
+        F: FnMut(&mut T) -> bool;
+}
+
+impl<T> VecExtensions<T> for Vec<T> {
+    fn retain_mut<F>(&mut self, mut f: F)
+    where
+        F: FnMut(&mut T) -> bool,
+    {
+        let len = self.len();
+        let mut del = 0;
+        {
+            let v = &mut **self;
+
+            for i in 0..len {
+                if !f(&mut v[i]) {
+                    del += 1;
+                } else if del > 0 {
+                    v.swap(i - del, i);
+                }
+            }
+        }
+        if del > 0 {
+            self.truncate(len - del);
+        }
     }
 }

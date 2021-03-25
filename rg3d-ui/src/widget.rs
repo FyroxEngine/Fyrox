@@ -57,6 +57,9 @@ pub struct Widget<M: MessageData, C: Control<M, C>> {
     marker: PhantomData<M>,
     enabled: bool,
     cursor: Option<CursorIcon>,
+    opacity: f32,
+    tooltip: Handle<UINode<M, C>>,
+    tooltip_time: f32,
 
     /// Layout. Interior mutability is a must here because layout performed in
     /// a series of recursive calls.
@@ -71,6 +74,7 @@ pub struct Widget<M: MessageData, C: Control<M, C>> {
     /// Actual size of the node after Arrange pass.
     pub(in crate) actual_size: Cell<Vector2<f32>>,
     pub(in crate) prev_global_visibility: bool,
+    pub(in crate) clip_bounds: Cell<Rect<f32>>,
 }
 
 impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
@@ -225,9 +229,13 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
     }
 
     #[inline]
-    pub(in crate) fn add_child(&mut self, child: Handle<UINode<M, C>>) {
+    pub(in crate) fn add_child(&mut self, child: Handle<UINode<M, C>>, in_front: bool) {
         self.invalidate_layout();
-        self.children.push(child)
+        if in_front && !self.children.is_empty() {
+            self.children.insert(0, child)
+        } else {
+            self.children.push(child)
+        }
     }
 
     #[inline]
@@ -348,6 +356,7 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
         if msg.destination() == self.handle() && msg.direction() == MessageDirection::ToWidget {
             if let UiMessageData::Widget(msg) = &msg.data() {
                 match msg {
+                    &WidgetMessage::Opacity(opacity) => self.opacity = opacity,
                     WidgetMessage::Background(background) => self.background = background.clone(),
                     WidgetMessage::Foreground(foreground) => self.foreground = foreground.clone(),
                     WidgetMessage::Name(name) => self.name = name.clone(),
@@ -579,6 +588,34 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
             .downcast_ref::<T>()
             .unwrap()
     }
+
+    pub fn clip_bounds(&self) -> Rect<f32> {
+        self.clip_bounds.get()
+    }
+
+    pub fn opacity(&self) -> f32 {
+        self.opacity
+    }
+
+    #[inline]
+    pub fn tooltip(&self) -> Handle<UINode<M, C>> {
+        self.tooltip
+    }
+
+    #[inline]
+    pub fn set_tooltip(&mut self, tooltip: Handle<UINode<M, C>>) {
+        self.tooltip = tooltip;
+    }
+
+    #[inline]
+    pub fn tooltip_time(&self) -> f32 {
+        self.tooltip_time
+    }
+
+    #[inline]
+    pub fn set_tooltip_time(&mut self, tooltip_time: f32) {
+        self.tooltip_time = tooltip_time;
+    }
 }
 
 #[macro_export]
@@ -624,6 +661,9 @@ pub struct WidgetBuilder<M: MessageData, C: Control<M, C>> {
     pub draw_on_top: bool,
     pub enabled: bool,
     pub cursor: Option<CursorIcon>,
+    pub opacity: f32,
+    pub tooltip: Handle<UINode<M, C>>,
+    pub tooltip_time: f32,
 }
 
 impl<M: MessageData, C: Control<M, C>> Default for WidgetBuilder<M, C> {
@@ -658,6 +698,9 @@ impl<M: MessageData, C: Control<M, C>> WidgetBuilder<M, C> {
             draw_on_top: false,
             enabled: true,
             cursor: None,
+            opacity: 1.0,
+            tooltip: Handle::default(),
+            tooltip_time: 1.0,
         }
     }
 
@@ -790,6 +833,23 @@ impl<M: MessageData, C: Control<M, C>> WidgetBuilder<M, C> {
         self
     }
 
+    pub fn with_opacity(mut self, opacity: f32) -> Self {
+        self.opacity = opacity;
+        self
+    }
+
+    pub fn with_tooltip(mut self, tooltip: Handle<UINode<M, C>>) -> Self {
+        if tooltip.is_some() {
+            self.tooltip = tooltip;
+        }
+        self
+    }
+
+    pub fn with_tooltip_time(mut self, tooltip_time: f32) -> Self {
+        self.tooltip_time = tooltip_time;
+        self
+    }
+
     pub fn build(self) -> Widget<M, C> {
         Widget {
             handle: Default::default(),
@@ -832,6 +892,10 @@ impl<M: MessageData, C: Control<M, C>> WidgetBuilder<M, C> {
             marker: PhantomData,
             enabled: self.enabled,
             cursor: self.cursor,
+            clip_bounds: Cell::new(Default::default()),
+            opacity: self.opacity,
+            tooltip: self.tooltip,
+            tooltip_time: self.tooltip_time,
         }
     }
 }

@@ -115,25 +115,29 @@ impl FbxAnimationCurveNode {
     }
 
     pub fn eval_vec3(&self, scene: &FbxScene, time: f32) -> Vector3<f32> {
-        let x = if let FbxComponent::AnimationCurve(curve) = scene.get(self.curves[0]) {
-            curve.eval(time)
+        if self.curves.is_empty() {
+            Default::default()
         } else {
-            0.0
-        };
+            let x = if let FbxComponent::AnimationCurve(curve) = scene.get(self.curves[0]) {
+                curve.eval(time)
+            } else {
+                0.0
+            };
 
-        let y = if let FbxComponent::AnimationCurve(curve) = scene.get(self.curves[1]) {
-            curve.eval(time)
-        } else {
-            0.0
-        };
+            let y = if let FbxComponent::AnimationCurve(curve) = scene.get(self.curves[1]) {
+                curve.eval(time)
+            } else {
+                0.0
+            };
 
-        let z = if let FbxComponent::AnimationCurve(curve) = scene.get(self.curves[2]) {
-            curve.eval(time)
-        } else {
-            0.0
-        };
+            let z = if let FbxComponent::AnimationCurve(curve) = scene.get(self.curves[2]) {
+                curve.eval(time)
+            } else {
+                0.0
+            };
 
-        Vector3::new(x, y, z)
+            Vector3::new(x, y, z)
+        }
     }
 
     pub fn eval_quat(&self, scene: &FbxScene, time: f32) -> UnitQuaternion<f32> {

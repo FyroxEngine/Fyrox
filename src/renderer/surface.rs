@@ -340,20 +340,11 @@ impl SurfaceSharedData {
         Self::new(vertices, indices, true)
     }
 
-    /// Creates new quad at oXZ plane with given transform.
+    /// Creates new quad at oXY plane with given transform.
     pub fn make_quad(transform: Matrix4<f32>) -> Self {
         let mut vertices = vec![
             Vertex {
-                position: Vector3::new(-0.5, 0.0, 0.5),
-                normal: Vector3::z(),
-                tex_coord: Vector2::y(),
-                tangent: Vector4::default(),
-                bone_weights: [0.0; 4],
-                bone_indices: [0; 4],
-                second_tex_coord: Default::default(),
-            },
-            Vertex {
-                position: Vector3::new(0.5, 0.0, 0.5),
+                position: Vector3::new(-0.5, 0.5, 0.0),
                 normal: Vector3::z(),
                 tex_coord: Vector2::new(1.0, 1.0),
                 tangent: Vector4::default(),
@@ -362,18 +353,27 @@ impl SurfaceSharedData {
                 second_tex_coord: Default::default(),
             },
             Vertex {
-                position: Vector3::new(0.5, 0.0, -0.5),
+                position: Vector3::new(0.5, 0.5, 0.0),
                 normal: Vector3::z(),
-                tex_coord: Vector2::x(),
+                tex_coord: Vector2::new(0.0, 1.0),
                 tangent: Vector4::default(),
                 bone_weights: [0.0; 4],
                 bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
-                position: Vector3::new(-0.5, 0.0, -0.5),
+                position: Vector3::new(0.5, -0.5, 0.0),
                 normal: Vector3::z(),
-                tex_coord: Vector2::default(),
+                tex_coord: Vector2::new(0.0, 0.0),
+                tangent: Vector4::default(),
+                bone_weights: [0.0; 4],
+                bone_indices: [0; 4],
+                second_tex_coord: Default::default(),
+            },
+            Vertex {
+                position: Vector3::new(-0.5, -0.5, 0.0),
+                normal: Vector3::z(),
+                tex_coord: Vector2::new(1.0, 0.0),
                 tangent: Vector4::default(),
                 bone_weights: [0.0; 4],
                 bone_indices: [0; 4],
@@ -382,8 +382,7 @@ impl SurfaceSharedData {
         ];
 
         for v in vertices.iter_mut() {
-            v.position =
-                Vector3::from_homogeneous(transform * v.position.to_homogeneous()).unwrap();
+            v.position = transform.transform_point(&Point3::from(v.position)).coords;
         }
 
         let indices = vec![TriangleDefinition([0, 1, 2]), TriangleDefinition([0, 2, 3])];
@@ -1159,7 +1158,9 @@ impl Surface {
         self.lightmap_texture.clone()
     }
 
-    /// Sets color of surface.
+    /// Sets color of surface. Keep in mind that alpha component is **not** compatible
+    /// with deferred render path. You have to use forward render path if you need
+    /// transparent surfaces.
     #[inline]
     pub fn set_color(&mut self, color: Color) {
         self.color = color;

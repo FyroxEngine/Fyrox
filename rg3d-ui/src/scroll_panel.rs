@@ -1,7 +1,8 @@
+use crate::draw::Draw;
 use crate::{
     brush::Brush,
     core::{algebra::Vector2, color::Color, math::Rect, pool::Handle, scope_profile},
-    draw::{CommandKind, CommandTexture, DrawingContext},
+    draw::{CommandTexture, DrawingContext},
     message::{MessageData, MessageDirection, ScrollPanelMessage, UiMessage, UiMessageData},
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UINode, UserInterface,
@@ -61,11 +62,26 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollPanel<M, C> {
     fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
 
+        let mut children_size = Vector2::<f32>::default();
+        for child_handle in self.widget.children() {
+            let desired_size = ui.node(*child_handle).desired_size();
+            children_size.x = children_size.x.max(desired_size.x);
+            children_size.y = children_size.y.max(desired_size.y);
+        }
+
         let child_rect = Rect::new(
             -self.scroll.x,
             -self.scroll.y,
-            final_size.x + self.scroll.x,
-            final_size.y + self.scroll.y,
+            if self.horizontal_scroll_allowed {
+                children_size.x.max(final_size.x)
+            } else {
+                final_size.x
+            },
+            if self.vertical_scroll_allowed {
+                children_size.y.max(final_size.y)
+            } else {
+                final_size.y
+            },
         );
 
         for child_handle in self.widget.children() {
@@ -79,9 +95,10 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollPanel<M, C> {
         // Emit transparent geometry so panel will receive mouse events.
         drawing_context.push_rect_filled(&self.widget.screen_bounds(), None);
         drawing_context.commit(
-            CommandKind::Geometry,
+            self.clip_bounds(),
             Brush::Solid(Color::TRANSPARENT),
             CommandTexture::None,
+            None,
         );
     }
 
@@ -104,6 +121,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollPanel<M, C> {
                         self.invalidate_layout();
                     }
                     ScrollPanelMessage::BringIntoView(handle) => {
+                        let size = ui.node(handle).actual_size();
                         let mut parent = handle;
                         let mut relative_position = Vector2::default();
                         while parent.is_some() && parent != self.handle {
@@ -117,6 +135,8 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollPanel<M, C> {
                             || relative_position.y < 0.0
                             || relative_position.x > self.actual_size().x
                             || relative_position.y > self.actual_size().y
+                            || (relative_position.x + size.x) > self.actual_size().x
+                            || (relative_position.y + size.y) > self.actual_size().y
                         {
                             relative_position += self.scroll;
                             // This check is needed because it possible that given handle is not in

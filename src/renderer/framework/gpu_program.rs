@@ -24,7 +24,7 @@ pub struct GpuProgram {
     thread_mark: PhantomData<*const u8>,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct UniformLocation {
     id: GLint,
     // Force compiler to not implement Send and Sync, because OpenGL is not thread-safe.

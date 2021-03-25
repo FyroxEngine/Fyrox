@@ -30,7 +30,7 @@
 //!     // from base mentioned above.
 //!     let hrir_sphere = HrirSphere::from_file("examples/data/IRC_1002_C.bin", context::SAMPLE_RATE).unwrap();
 //!
-//!     context.set_renderer(Renderer::HrtfRenderer(HrtfRenderer::new(hrir_sphere)));
+//!     context.state().set_renderer(Renderer::HrtfRenderer(HrtfRenderer::new(hrir_sphere)));
 //! }
 //! ```
 //!
@@ -52,26 +52,58 @@
 //! Clicks can be reproduced by using clean sine wave of 440 Hz on some source moving around listener.
 
 use crate::{
+    context,
     context::{Context, DistanceModel},
     listener::Listener,
     renderer::render_source_default,
     source::SoundSource,
 };
+use hrtf::HrirSphere;
+use rg3d_core::visitor::{Visit, VisitResult, Visitor};
+use std::fmt::Debug;
 
 /// See module docs.
+#[derive(Clone, Debug, Default)]
 pub struct HrtfRenderer {
-    processor: hrtf::HrtfProcessor,
+    processor: Option<hrtf::HrtfProcessor>,
+}
+
+impl Visit for HrtfRenderer {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        let mut resource_path = if visitor.is_reading() {
+            Default::default()
+        } else {
+            self.processor
+                .as_ref()
+                .unwrap()
+                .hrtf_sphere()
+                .source()
+                .to_owned()
+        };
+        resource_path.visit("ResourcePath", visitor)?;
+        if visitor.is_reading() {
+            self.processor = Some(hrtf::HrtfProcessor::new(
+                HrirSphere::from_file(resource_path, context::SAMPLE_RATE).unwrap(),
+                Context::HRTF_INTERPOLATION_STEPS,
+                Context::HRTF_BLOCK_LEN,
+            ));
+        }
+
+        visitor.leave_region()
+    }
 }
 
 impl HrtfRenderer {
     /// Creates new HRTF renderer using specified HRTF sphere. See module docs for more info.
     pub fn new(hrir_sphere: hrtf::HrirSphere) -> Self {
         Self {
-            processor: hrtf::HrtfProcessor::new(
+            processor: Some(hrtf::HrtfProcessor::new(
                 hrir_sphere,
                 Context::HRTF_INTERPOLATION_STEPS,
                 Context::HRTF_BLOCK_LEN,
-            ),
+            )),
         }
     }
 
@@ -90,24 +122,27 @@ impl HrtfRenderer {
                 let new_distance_gain = spatial.get_distance_gain(listener, distance_model);
                 let new_sampling_vector = spatial.get_sampling_vector(listener);
 
-                self.processor.process_samples(hrtf::HrtfContext {
-                    source: &spatial.generic.frame_samples,
-                    output: out_buf,
-                    new_sample_vector: hrtf::Vec3::new(
-                        new_sampling_vector.x,
-                        new_sampling_vector.y,
-                        new_sampling_vector.z,
-                    ),
-                    prev_sample_vector: hrtf::Vec3::new(
-                        spatial.prev_sampling_vector.x,
-                        spatial.prev_sampling_vector.y,
-                        spatial.prev_sampling_vector.z,
-                    ),
-                    prev_left_samples: &mut spatial.prev_left_samples,
-                    prev_right_samples: &mut spatial.prev_right_samples,
-                    prev_distance_gain: spatial.prev_distance_gain.unwrap_or(new_distance_gain),
-                    new_distance_gain,
-                });
+                self.processor
+                    .as_mut()
+                    .unwrap()
+                    .process_samples(hrtf::HrtfContext {
+                        source: &spatial.generic.frame_samples,
+                        output: out_buf,
+                        new_sample_vector: hrtf::Vec3::new(
+                            new_sampling_vector.x,
+                            new_sampling_vector.y,
+                            new_sampling_vector.z,
+                        ),
+                        prev_sample_vector: hrtf::Vec3::new(
+                            spatial.prev_sampling_vector.x,
+                            spatial.prev_sampling_vector.y,
+                            spatial.prev_sampling_vector.z,
+                        ),
+                        prev_left_samples: &mut spatial.prev_left_samples,
+                        prev_right_samples: &mut spatial.prev_right_samples,
+                        prev_distance_gain: spatial.prev_distance_gain.unwrap_or(new_distance_gain),
+                        new_distance_gain,
+                    });
 
                 spatial.prev_sampling_vector = new_sampling_vector;
                 spatial.prev_distance_gain = Some(new_distance_gain);

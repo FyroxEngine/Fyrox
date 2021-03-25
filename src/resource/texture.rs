@@ -227,8 +227,8 @@ impl Texture {
             kind: TextureKind::Rectangle { width, height },
             bytes: Vec::new(),
             pixel_kind: TexturePixelKind::RGBA8,
-            minification_filter: TextureMinificationFilter::Nearest,
-            magnification_filter: TextureMagnificationFilter::Nearest,
+            minification_filter: TextureMinificationFilter::Linear,
+            magnification_filter: TextureMagnificationFilter::Linear,
             s_wrap_mode: TextureWrapMode::Repeat,
             t_wrap_mode: TextureWrapMode::Repeat,
             mip_count: 1,
@@ -613,7 +613,7 @@ impl TextureData {
         kind: TextureKind,
         pixel_kind: TexturePixelKind,
         bytes: Vec<u8>,
-    ) -> Result<Self, ()> {
+    ) -> Option<Self> {
         let pixel_count = match kind {
             TextureKind::Line { length } => length,
             TextureKind::Rectangle { width, height } => width * height,
@@ -662,9 +662,9 @@ impl TextureData {
             }
         };
         if required_bytes != bytes.len() as u32 {
-            Err(())
+            None
         } else {
-            Ok(Self {
+            Some(Self {
                 path: Default::default(),
                 kind,
                 bytes,

@@ -150,3 +150,99 @@ bool S_RaySphereIntersection(vec3 origin, vec3 dir, vec3 center, float radius, o
     float c = dot(d, d) - radius * radius;
     return S_SolveQuadraticEq(a, b, c, minT, maxT);
 }
+
+// Calculates point shadow factor.
+float S_PointShadow(
+    bool shadowsEnabled,
+    bool softShadows,
+    float fragmentDistance,
+    float shadowBias,
+    vec3 toLight,
+    in samplerCube shadowMap)
+{
+    float shadow = 1.0;
+
+    if (shadowsEnabled)
+    {
+        if (softShadows)
+        {
+            const int samples = 20;
+
+            const vec3 directions[samples] = vec3[samples] (
+            vec3(1, 1, 1), vec3(1, -1, 1), vec3(-1, -1, 1), vec3(-1, 1, 1),
+            vec3(1, 1, -1), vec3(1, -1, -1), vec3(-1, -1, -1), vec3(-1, 1, -1),
+            vec3(1, 1, 0), vec3(1, -1, 0), vec3(-1, -1, 0), vec3(-1, 1, 0),
+            vec3(1, 0, 1), vec3(-1, 0, 1), vec3(1, 0, -1), vec3(-1, 0, -1),
+            vec3(0, 1, 1), vec3(0, -1, 1), vec3(0, -1, -1), vec3(0, 1, -1)
+            );
+
+            const float diskRadius = 0.0025;
+
+            for (int i = 0; i < samples; ++i)
+            {
+                vec3 fetchDirection = -toLight + directions[i] * diskRadius;
+                float shadowDistanceToLight = texture(shadowMap, fetchDirection).r;
+                if (fragmentDistance - shadowBias > shadowDistanceToLight)
+                {
+                    shadow += 1.0;
+                }
+            }
+
+            shadow = clamp(1.0 - shadow / float(samples), 0.0, 1.0);
+        }
+        else
+        {
+            float shadowDistanceToLight = texture(shadowMap, -toLight).r;
+            if (fragmentDistance - shadowBias > shadowDistanceToLight)
+            {
+                shadow = 0.0;
+            }
+        }
+    }
+
+    return shadow;
+}
+
+// Calculates spot light shadow factor.
+float S_SpotShadowFactor(
+    bool shadowsEnabled,
+    bool softShadows,
+    float shadowBias,
+    vec3 fragmentPosition,
+    mat4 lightViewProjMatrix,
+    float shadowMapInvSize,
+    in sampler2D spotShadowTexture)
+{
+    float shadow = 1.0;
+
+    if (shadowsEnabled)
+    {
+        vec3 lightSpacePosition = S_Project(fragmentPosition, lightViewProjMatrix);
+
+        if (softShadows)
+        {
+            for (float y = -1.5; y <= 1.5; y += 0.5)
+            {
+                for (float x = -1.5; x <= 1.5; x += 0.5)
+                {
+                    vec2 fetchTexCoord = lightSpacePosition.xy + vec2(x, y) * shadowMapInvSize;
+                    if (lightSpacePosition.z - shadowBias > texture(spotShadowTexture, fetchTexCoord).r)
+                    {
+                        shadow += 1.0;
+                    }
+                }
+            }
+
+            shadow = clamp(1.0 - shadow / 9.0, 0.0, 1.0);
+        }
+        else
+        {
+            if (lightSpacePosition.z - shadowBias > texture(spotShadowTexture, lightSpacePosition.xy).r)
+            {
+                shadow = 0.0;
+            }
+        }
+    }
+
+    return shadow;
+}

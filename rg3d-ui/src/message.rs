@@ -39,7 +39,8 @@ macro_rules! define_constructor {
                 data: UiMessageData::$var($inner::$inner_var),
                 destination,
                 direction,
-                perform_layout: Cell::new($perform_layout)
+                perform_layout: Cell::new($perform_layout),
+                flags: 0
             }
         }
     };
@@ -51,7 +52,8 @@ macro_rules! define_constructor {
                 data: UiMessageData::$var($inner::$inner_var(value)),
                 destination,
                 direction,
-                perform_layout: Cell::new($perform_layout)
+                perform_layout: Cell::new($perform_layout),
+                flags: 0
             }
         }
     };
@@ -63,7 +65,8 @@ macro_rules! define_constructor {
                 data: UiMessageData::$var($inner::$inner_var { $($params),+ } ),
                 destination,
                 direction,
-                perform_layout: Cell::new($perform_layout)
+                perform_layout: Cell::new($perform_layout),
+                flags: 0
             }
         }
     }
@@ -77,7 +80,8 @@ macro_rules! define_constructor_unbound {
                 data: UiMessageData::$var($inner::$inner_var),
                 destination,
                 direction,
-                perform_layout: Cell::new($perform_layout)
+                perform_layout: Cell::new($perform_layout),
+                flags: 0
             }
         }
     };
@@ -89,7 +93,8 @@ macro_rules! define_constructor_unbound {
                 data: UiMessageData::$var($inner::$inner_var(value)),
                 destination,
                 direction,
-                perform_layout: Cell::new($perform_layout)
+                perform_layout: Cell::new($perform_layout),
+                flags: 0
             }
         }
     };
@@ -101,7 +106,8 @@ macro_rules! define_constructor_unbound {
                 data: UiMessageData::$var($inner::$inner_var { $($params),+ } ),
                 destination,
                 direction,
-                perform_layout: Cell::new($perform_layout)
+                perform_layout: Cell::new($perform_layout),
+                flags: 0
             }
         }
     }
@@ -224,6 +230,11 @@ pub enum WidgetMessage<M: MessageData, C: Control<M, C>> {
     /// Direction: **From/To UI**.
     LinkWith(Handle<UINode<M, C>>),
 
+    /// A request to link initiator with specified widget and put it in front of children list.
+    ///
+    /// Direction: **From/To UI**.
+    LinkWithReverse(Handle<UINode<M, C>>),
+
     /// A request to change background brush of a widget. Background brushes are used to fill volume of widgets.
     ///
     /// Direction: **From/To UI**
@@ -344,12 +355,18 @@ pub enum WidgetMessage<M: MessageData, C: Control<M, C>> {
     ///
     /// Direction: **From/To UI**
     Cursor(Option<CursorIcon>),
+
+    /// A request to set new opacity for widget.
+    ///
+    /// Direction: **From/To UI**
+    Opacity(f32),
 }
 
 impl<M: MessageData, C: Control<M, C>> WidgetMessage<M, C> {
     define_constructor!(Widget(WidgetMessage:Remove) => fn remove(), layout: false);
     define_constructor!(Widget(WidgetMessage:Unlink) => fn unlink(), layout: false);
     define_constructor!(Widget(WidgetMessage:LinkWith) => fn link(Handle<UINode<M, C>>), layout: false);
+    define_constructor!(Widget(WidgetMessage:LinkWithReverse) => fn link_reverse(Handle<UINode<M, C>>), layout: false);
     define_constructor!(Widget(WidgetMessage:Background) => fn background(Brush), layout: false);
     define_constructor!(Widget(WidgetMessage:Foreground) => fn foreground(Brush), layout: false);
     define_constructor!(Widget(WidgetMessage:Visibility) => fn visibility(bool), layout: false);
@@ -370,6 +387,7 @@ impl<M: MessageData, C: Control<M, C>> WidgetMessage<M, C> {
     define_constructor!(Widget(WidgetMessage:MaxSize) => fn max_size(Vector2<f32>), layout: false);
     define_constructor!(Widget(WidgetMessage:HorizontalAlignment) => fn horizontal_alignment(HorizontalAlignment), layout: false);
     define_constructor!(Widget(WidgetMessage:VerticalAlignment) => fn vertical_alignment(VerticalAlignment), layout: false);
+    define_constructor!(Widget(WidgetMessage:Opacity) => fn opacity(f32), layout: false);
 
     // Internal messages. Do not use.
     define_constructor!(Widget(WidgetMessage:GotFocus) => fn got_focus(), layout: false);
@@ -552,12 +570,25 @@ impl FileSelectorMessage {
     define_constructor_unbound!(FileSelector(FileSelectorMessage:Cancel) => fn cancel(), layout: false);
 }
 
+#[derive(Copy, Clone, PartialOrd, PartialEq, Ord, Eq, Hash, Debug)]
+pub enum TreeExpansionStrategy {
+    /// Expand a single item.
+    Direct,
+    /// Expand an item and its descendants.
+    RecursiveDescendants,
+    /// Expand an item and its ancestors (chain of parent trees).
+    RecursiveAncestors,
+}
+
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct SelectionState(pub(in crate) bool);
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TreeMessage<M: MessageData, C: Control<M, C>> {
-    Expand(bool),
+    Expand {
+        expand: bool,
+        expansion_strategy: TreeExpansionStrategy,
+    },
     AddItem(Handle<UINode<M, C>>),
     RemoveItem(Handle<UINode<M, C>>),
     SetItems(Vec<Handle<UINode<M, C>>>),
@@ -569,7 +600,7 @@ impl<M: MessageData, C: Control<M, C>> TreeMessage<M, C> {
     define_constructor!(Tree(TreeMessage:AddItem) => fn add_item(Handle<UINode<M, C>>), layout: false);
     define_constructor!(Tree(TreeMessage:RemoveItem) => fn remove_item(Handle<UINode<M, C>>), layout: false);
     define_constructor!(Tree(TreeMessage:SetItems) => fn set_items(Vec<Handle<UINode<M, C>>>), layout: false);
-    define_constructor!(Tree(TreeMessage:Expand) => fn expand(bool), layout: false);
+    define_constructor!(Tree(TreeMessage:Expand) => fn expand(expand: bool, expansion_strategy: TreeExpansionStrategy), layout: false);
 
     pub(in crate) fn select(
         destination: Handle<UINode<M, C>>,
@@ -582,6 +613,7 @@ impl<M: MessageData, C: Control<M, C>> TreeMessage<M, C> {
             destination,
             direction,
             perform_layout: Cell::new(false),
+            flags: 0,
         }
     }
 }
@@ -592,6 +624,8 @@ pub enum TreeRootMessage<M: MessageData, C: Control<M, C>> {
     RemoveItem(Handle<UINode<M, C>>),
     Items(Vec<Handle<UINode<M, C>>>),
     Selected(Vec<Handle<UINode<M, C>>>),
+    ExpandAll,
+    CollapseAll,
 }
 
 impl<M: MessageData, C: Control<M, C>> TreeRootMessage<M, C> {
@@ -599,6 +633,8 @@ impl<M: MessageData, C: Control<M, C>> TreeRootMessage<M, C> {
     define_constructor!(TreeRoot(TreeRootMessage:RemoveItem) => fn remove_item(Handle<UINode<M, C>>), layout: false);
     define_constructor!(TreeRoot(TreeRootMessage:Items) => fn items(Vec<Handle<UINode<M, C>>>), layout: false);
     define_constructor!(TreeRoot(TreeRootMessage:Selected) => fn select(Vec<Handle<UINode<M, C>>>), layout: false);
+    define_constructor!(TreeRoot(TreeRootMessage:ExpandAll) => fn expand_all(), layout: false);
+    define_constructor!(TreeRoot(TreeRootMessage:CollapseAll) => fn collapse_all(), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -680,6 +716,7 @@ impl<M: MessageData, C: Control<M, C>> TileMessage<M, C> {
             destination,
             direction,
             perform_layout: Cell::new(false),
+            flags: 0,
         }
     }
 }
@@ -954,6 +991,9 @@ pub struct UiMessage<M: MessageData, C: Control<M, C>> {
     /// since layout pass is super heavy we should do it **only** when it is
     /// actually needed.
     perform_layout: Cell<bool>,
+
+    /// A custom user flags.
+    pub flags: u64,
 }
 
 impl<M: MessageData, C: Control<M, C>> UiMessage<M, C> {
@@ -974,6 +1014,7 @@ impl<M: MessageData, C: Control<M, C>> UiMessage<M, C> {
             destination: self.destination,
             direction: self.direction.reverse(),
             perform_layout: self.perform_layout.clone(),
+            flags: self.flags,
         }
     }
 
@@ -1013,7 +1054,12 @@ impl<M: MessageData, C: Control<M, C>> UiMessage<M, C> {
             destination,
             direction,
             perform_layout: Cell::new(false),
+            flags: 0,
         }
+    }
+
+    pub fn has_flags(&self, flags: u64) -> bool {
+        self.flags & flags != 0
     }
 }
 
@@ -1028,7 +1074,7 @@ pub enum MouseButton {
     Left,
     Right,
     Middle,
-    Other(u8),
+    Other(u16),
 }
 
 pub enum OsEvent {

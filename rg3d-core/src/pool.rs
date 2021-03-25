@@ -19,6 +19,7 @@
 #![allow(clippy::unneeded_field_pattern)]
 
 use crate::visitor::{Visit, VisitResult, Visitor};
+use std::iter::FromIterator;
 use std::ops::{Index, IndexMut};
 use std::{
     fmt::{Debug, Formatter},
@@ -284,7 +285,15 @@ impl<T> Pool<T> {
     #[inline]
     pub fn new() -> Self {
         Pool {
-            records: Vec::<PoolRecord<T>>::new(),
+            records: Vec::new(),
+            free_stack: Vec::new(),
+        }
+    }
+
+    #[inline]
+    pub fn with_capacity(capacity: usize) -> Self {
+        Pool {
+            records: Vec::with_capacity(capacity),
             free_stack: Vec::new(),
         }
     }
@@ -552,6 +561,27 @@ impl<T> Pool<T> {
         }
     }
 
+    /// Tries to borrow two objects when a handle to the second object stored in the first object.
+    pub fn try_borrow_dependant_mut<F>(
+        &mut self,
+        handle: Handle<T>,
+        func: F,
+    ) -> (Option<&mut T>, Option<&mut T>)
+    where
+        F: FnOnce(&T) -> Handle<T>,
+    {
+        let this = unsafe { &mut *(self as *mut Pool<T>) };
+        let first = self.try_borrow_mut(handle);
+        if let Some(first_object) = first.as_ref() {
+            let second_handle = func(first_object);
+            if second_handle != handle {
+                return (first, this.try_borrow_mut(second_handle));
+            }
+        }
+
+        (first, None)
+    }
+
     /// Moves object out of pool using given handle. All handles to the object will become invalid.
     ///
     /// # Panics
@@ -627,9 +657,9 @@ impl<T> Pool<T> {
         }
     }
 
-    /// Does same as take_reserve but returns result, instead of panic.
+    /// Does same as take_reserve but returns option, instead of panic.
     #[inline]
-    pub fn try_take_reserve(&mut self, handle: Handle<T>) -> Result<(Ticket<T>, T), ()> {
+    pub fn try_take_reserve(&mut self, handle: Handle<T>) -> Option<(Ticket<T>, T)> {
         if let Some(record) = self.records.get_mut(handle.index as usize) {
             if record.generation == handle.generation {
                 if let Some(payload) = record.payload.take() {
@@ -637,15 +667,15 @@ impl<T> Pool<T> {
                         index: handle.index,
                         marker: PhantomData,
                     };
-                    Ok((ticket, payload))
+                    Some((ticket, payload))
                 } else {
-                    Err(())
+                    None
                 }
             } else {
-                Err(())
+                None
             }
         } else {
-            Err(())
+            None
         }
     }
     /// Returns value back into pool using given ticket.
@@ -725,7 +755,7 @@ impl<T> Pool<T> {
     #[inline]
     #[must_use]
     pub fn alive_count(&self) -> usize {
-        self.records.iter().count()
+        self.iter().count()
     }
 
     #[inline]
@@ -879,6 +909,18 @@ impl<T> Pool<T> {
             }
         }
         Handle::NONE
+    }
+}
+
+impl<T> FromIterator<T> for Pool<T> {
+    fn from_iter<C: IntoIterator<Item = T>>(iter: C) -> Self {
+        let iter = iter.into_iter();
+        let (lower_bound, upper_bound) = iter.size_hint();
+        let mut pool = Self::with_capacity(upper_bound.unwrap_or(lower_bound));
+        for v in iter.into_iter() {
+            let _ = pool.spawn(v);
+        }
+        pool
     }
 }
 

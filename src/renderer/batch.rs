@@ -1,4 +1,5 @@
 use crate::core::arrayvec::ArrayVec;
+use crate::scene::mesh::RenderPath;
 use crate::{
     core::{algebra::Matrix4, color::Color, pool::Handle},
     renderer::{
@@ -17,7 +18,6 @@ use std::{
     cell::RefCell,
     collections::HashMap,
     fmt::{Debug, Formatter},
-    iter::FromIterator,
     rc::Rc,
     sync::Arc,
 };
@@ -50,6 +50,7 @@ pub struct Batch {
     pub roughness_texture: Rc<RefCell<GpuTexture>>,
     pub lightmap_texture: Rc<RefCell<GpuTexture>>,
     pub is_skinned: bool,
+    pub render_path: RenderPath,
 }
 
 impl Debug for Batch {
@@ -147,6 +148,7 @@ impl BatchStorage {
                         roughness_texture: roughness_texture.clone(),
                         lightmap_texture: lightmap_texture.clone(),
                         is_skinned: !surface.bones.is_empty(),
+                        render_path: mesh.render_path(),
                     });
                     self.batches.last_mut().unwrap()
                 };
@@ -160,10 +162,14 @@ impl BatchStorage {
 
                 batch.instances.push(SurfaceInstance {
                     world_transform: world,
-                    bone_matrices: ArrayVec::from_iter(surface.bones.iter().map(|&bone_handle| {
-                        let bone_node = &graph[bone_handle];
-                        bone_node.global_transform() * bone_node.inv_bind_pose_transform()
-                    })),
+                    bone_matrices: surface
+                        .bones
+                        .iter()
+                        .map(|&bone_handle| {
+                            let bone_node = &graph[bone_handle];
+                            bone_node.global_transform() * bone_node.inv_bind_pose_transform()
+                        })
+                        .collect(),
                     color: surface.color(),
                     owner: handle,
                     depth_offset: mesh.depth_offset_factor(),

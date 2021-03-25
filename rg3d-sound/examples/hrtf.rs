@@ -1,6 +1,7 @@
 use rg3d_core::algebra::Point3;
+use rg3d_sound::engine::SoundEngine;
 use rg3d_sound::{
-    algebra::{Matrix4, UnitQuaternion, Vector3},
+    algebra::{UnitQuaternion, Vector3},
     buffer::{DataSource, SoundBuffer},
     context::{self, Context},
     hrtf::HrirSphere,
@@ -13,16 +14,20 @@ use std::{
 };
 
 fn main() {
+    // Initialize sound engine with default output device.
+    let engine = SoundEngine::new();
+
     let hrir_sphere =
         HrirSphere::from_file("examples/data/IRC_1002_C.bin", context::SAMPLE_RATE).unwrap();
 
     // Initialize new sound context with default output device.
-    let context = Context::new().unwrap();
+    let context = Context::new();
+
+    engine.lock().unwrap().add_context(context.clone());
 
     // Set HRTF renderer instead of default.
     context
-        .lock()
-        .unwrap()
+        .state()
         .set_renderer(Renderer::HrtfRenderer(HrtfRenderer::new(hrir_sphere)));
 
     // Create some sounds.
@@ -36,7 +41,7 @@ fn main() {
             .unwrap(),
     )
     .build_source();
-    context.lock().unwrap().add_source(source);
+    context.state().add_source(source);
 
     let sound_buffer =
         SoundBuffer::new_generic(DataSource::from_file("examples/data/helicopter.wav").unwrap())
@@ -49,7 +54,7 @@ fn main() {
             .unwrap(),
     )
     .build_source();
-    let source_handle = context.lock().unwrap().add_source(source);
+    let source_handle = context.state().add_source(source);
 
     // Move source sound around listener for some time.
     let start_time = time::Instant::now();
@@ -58,9 +63,7 @@ fn main() {
         // Separate scope for update to make sure that mutex lock will be released before
         // thread::sleep will be called so context can actually work in background thread.
         {
-            let mut context = context.lock().unwrap();
-            let sound = context.source_mut(source_handle);
-            if let SoundSource::Spatial(spatial) = sound {
+            if let SoundSource::Spatial(spatial) = context.state().source_mut(source_handle) {
                 let axis = Vector3::y_axis();
                 let rotation_matrix =
                     UnitQuaternion::from_axis_angle(&axis, angle.to_radians()).to_homogeneous();
@@ -73,7 +76,10 @@ fn main() {
 
             angle += 1.6;
 
-            println!("Sound render time {:?}", context.full_render_duration());
+            println!(
+                "Sound render time {:?}",
+                context.state().full_render_duration()
+            );
         }
 
         // Limit rate of updates.

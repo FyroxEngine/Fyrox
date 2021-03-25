@@ -2,6 +2,7 @@
 
 #![allow(clippy::too_many_arguments)]
 
+extern crate ddsfile;
 extern crate glutin;
 extern crate image;
 extern crate inflate;
@@ -25,6 +26,7 @@ pub mod utils;
 
 pub use crate::core::rand;
 pub use glutin::*;
+pub use lazy_static;
 
 pub use futures;
 pub use rapier3d as physics;

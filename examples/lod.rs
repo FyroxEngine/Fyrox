@@ -50,6 +50,9 @@ struct GameScene {
 async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     let mut scene = Scene::new();
 
+    // Set ambient light.
+    scene.ambient_lighting_color = Color::opaque(200, 200, 200);
+
     // Camera is our eyes in the world - you won't see anything without it.
     let camera = create_camera(
         resource_manager.clone(),
@@ -102,7 +105,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
         ],
     };
 
-    scene.graph[model_handle].set_lod_group(lod_group);
+    scene.graph[model_handle].set_lod_group(Some(lod_group));
 
     GameScene {
         scene,
@@ -150,11 +153,6 @@ fn main() {
     // you a handle to scene which can be used later on to borrow it and do some
     // actions you need.
     let scene_handle = engine.scenes.add(scene);
-
-    // Set ambient light.
-    engine
-        .renderer
-        .set_ambient_color(Color::opaque(200, 200, 200));
 
     let clock = Instant::now();
     let fixed_timestep = 1.0 / 60.0;

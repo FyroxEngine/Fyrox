@@ -57,7 +57,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollBar<M, C> {
         let size = self.widget.arrange_override(ui, final_size);
 
         // Adjust indicator position according to current value
-        let percent = (self.value - self.min) / (self.max - 2.0 * self.min);
+        let percent = (self.value - self.min) / (self.max - self.min);
 
         let field_size = ui.node(self.field).actual_size();
 
@@ -130,21 +130,19 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollBar<M, C> {
         self.widget.handle_routed_message(ui, message);
 
         match &message.data() {
-            UiMessageData::Button(msg) => {
-                if let ButtonMessage::Click = msg {
-                    if message.destination() == self.increase {
-                        ui.send_message(ScrollBarMessage::value(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                            self.value + self.step,
-                        ));
-                    } else if message.destination() == self.decrease {
-                        ui.send_message(ScrollBarMessage::value(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                            self.value - self.step,
-                        ));
-                    }
+            UiMessageData::Button(ButtonMessage::Click) => {
+                if message.destination() == self.increase {
+                    ui.send_message(ScrollBarMessage::value(
+                        self.handle(),
+                        MessageDirection::ToWidget,
+                        self.value + self.step,
+                    ));
+                } else if message.destination() == self.decrease {
+                    ui.send_message(ScrollBarMessage::value(
+                        self.handle(),
+                        MessageDirection::ToWidget,
+                        self.value - self.step,
+                    ));
                 }
             }
             UiMessageData::ScrollBar(msg)
@@ -278,7 +276,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollBar<M, C> {
                                     ui.send_message(ScrollBarMessage::value(
                                         self.handle(),
                                         MessageDirection::ToWidget,
-                                        percent * (self.max - self.min),
+                                        self.min + percent * (self.max - self.min),
                                     ));
                                     message.set_handled(true);
                                 }

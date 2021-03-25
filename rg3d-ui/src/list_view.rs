@@ -1,8 +1,9 @@
 use crate::border::BorderBuilder;
+use crate::draw::Draw;
 use crate::{
     brush::Brush,
     core::{color::Color, pool::Handle},
-    draw::{CommandKind, CommandTexture, DrawingContext},
+    draw::{CommandTexture, DrawingContext},
     message::{
         DecoratorMessage, ListViewMessage, MessageData, MessageDirection, UiMessage, UiMessageData,
         WidgetMessage,
@@ -48,6 +49,31 @@ impl<M: MessageData, C: Control<M, C>> ListView<M, C> {
     pub fn items(&self) -> &[Handle<UINode<M, C>>] {
         &self.items
     }
+
+    fn sync_decorators(&self, ui: &UserInterface<M, C>) {
+        if let Some(selected_index) = self.selected_index {
+            for (i, &container) in self.item_containers.iter().enumerate() {
+                let select = i == selected_index;
+                if let UINode::ListViewItem(container) = ui.node(container) {
+                    let mut stack = container.children().to_vec();
+                    while let Some(handle) = stack.pop() {
+                        let node = ui.node(handle);
+                        match node {
+                            UINode::ListView(_) => {}
+                            UINode::Decorator(_) => {
+                                ui.send_message(DecoratorMessage::select(
+                                    handle,
+                                    MessageDirection::ToWidget,
+                                    select,
+                                ));
+                            }
+                            _ => stack.extend_from_slice(node.children()),
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -69,9 +95,10 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ListViewItem<M, C> {
         // Emit transparent geometry so item container can be picked by hit test.
         drawing_context.push_rect_filled(&self.widget.screen_bounds(), None);
         drawing_context.commit(
-            CommandKind::Geometry,
+            self.clip_bounds(),
             Brush::Solid(Color::TRANSPARENT),
             CommandTexture::None,
+            None,
         );
     }
 
@@ -85,18 +112,16 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ListViewItem<M, C> {
         let items_control =
             self.find_by_criteria_up(ui, |node| matches!(node, UINode::ListView(_)));
 
-        if let UiMessageData::Widget(msg) = &message.data() {
-            if let WidgetMessage::MouseUp { .. } = msg {
-                if !message.handled() {
-                    // Explicitly set selection on parent items control. This will send
-                    // SelectionChanged message and all items will react.
-                    ui.send_message(ListViewMessage::selection(
-                        items_control,
-                        MessageDirection::ToWidget,
-                        Some(self.index),
-                    ));
-                    message.set_handled(true);
-                }
+        if let UiMessageData::Widget(WidgetMessage::MouseUp { .. }) = &message.data() {
+            if !message.handled() {
+                // Explicitly set selection on parent items control. This will send
+                // SelectionChanged message and all items will react.
+                ui.send_message(ListViewMessage::selection(
+                    items_control,
+                    MessageDirection::ToWidget,
+                    Some(self.index),
+                ));
+                message.set_handled(true);
             }
         }
     }
@@ -117,7 +142,9 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ListView<M, C> {
         self.widget.handle_routed_message(ui, message);
 
         if let UiMessageData::ListView(msg) = &message.data() {
-            if message.destination() == self.handle() {
+            if message.destination() == self.handle()
+                && message.direction() == MessageDirection::ToWidget
+            {
                 match msg {
                     ListViewMessage::Items(items) => {
                         // Remove previous items.
@@ -141,6 +168,25 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ListView<M, C> {
 
                         self.item_containers = item_containers;
                         self.items = items.clone();
+
+                        // Check if current selection is out-of-bounds.
+                        if let Some(selected_index) = self.selected_index {
+                            if selected_index >= self.items.len() {
+                                let new_selection = if self.items.is_empty() {
+                                    None
+                                } else {
+                                    Some(self.items.len() - 1)
+                                };
+
+                                ui.send_message(ListViewMessage::selection(
+                                    self.handle,
+                                    MessageDirection::ToWidget,
+                                    new_selection,
+                                ));
+                            }
+                        }
+
+                        self.sync_decorators(ui);
                     }
                     &ListViewMessage::AddItem(item) => {
                         let item_container =
@@ -156,25 +202,10 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ListView<M, C> {
                         self.items.push(item);
                     }
                     &ListViewMessage::SelectionChanged(selection) => {
-                        for (i, &container) in self.item_containers.iter().enumerate() {
-                            let select = selection.map_or(false, |k| k == i);
-                            if let UINode::ListViewItem(container) = ui.node(container) {
-                                let mut stack = container.children().to_vec();
-                                while let Some(handle) = stack.pop() {
-                                    let node = ui.node(handle);
-                                    match node {
-                                        UINode::ListView(_) => {}
-                                        UINode::Decorator(_) => {
-                                            ui.send_message(DecoratorMessage::select(
-                                                handle,
-                                                MessageDirection::ToWidget,
-                                                select,
-                                            ));
-                                        }
-                                        _ => stack.extend_from_slice(node.children()),
-                                    }
-                                }
-                            }
+                        if self.selected_index != selection {
+                            self.selected_index = selection;
+                            self.sync_decorators(ui);
+                            ui.send_message(message.reverse());
                         }
                     }
                 }

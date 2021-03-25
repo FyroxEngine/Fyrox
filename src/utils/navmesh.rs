@@ -11,31 +11,62 @@
 
 #![warn(missing_docs)]
 
-use crate::core::algebra::Vector3;
-use crate::utils::raw_mesh::RawVertex;
 use crate::{
     core::{
-        math::{self, TriangleDefinition},
-        octree::Octree,
+        algebra::{Point3, Vector3},
+        arrayvec::ArrayVec,
+        math::{self, ray::Ray, TriangleDefinition},
+        octree::{Octree, OctreeNode},
+        pool::Handle,
+        visitor::{Visit, VisitResult, Visitor},
     },
     scene::mesh::Mesh,
     utils::{
         astar::{PathError, PathFinder, PathKind, PathVertex},
-        raw_mesh::RawMeshBuilder,
+        raw_mesh::{RawMeshBuilder, RawVertex},
     },
 };
-use rapier3d::na::Point3;
 use std::{
     collections::HashSet,
     hash::{Hash, Hasher},
 };
 
 /// See module docs.
+#[derive(Clone, Debug)]
 pub struct Navmesh {
     octree: Octree,
     triangles: Vec<TriangleDefinition>,
     pathfinder: PathFinder,
     query_buffer: Vec<u32>,
+}
+
+impl Visit for Navmesh {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.pathfinder.visit("PathFinder", visitor)?;
+        self.triangles.visit("Triangles", visitor)?;
+
+        // No need to save octree, we can restore it on load.
+        if visitor.is_reading() {
+            let vertices = self.pathfinder.vertices();
+            let raw_triangles = self
+                .triangles
+                .iter()
+                .map(|t| {
+                    [
+                        vertices[t[0] as usize].position,
+                        vertices[t[1] as usize].position,
+                        vertices[t[2] as usize].position,
+                    ]
+                })
+                .collect::<Vec<[Vector3<f32>; 3]>>();
+
+            self.octree = Octree::new(&raw_triangles, 32);
+        }
+
+        visitor.leave_region()
+    }
 }
 
 #[derive(Copy, Clone)]
@@ -166,6 +197,7 @@ impl Navmesh {
         }
 
         let mesh = builder.build();
+
         Navmesh::new(
             &mesh.triangles,
             &mesh
@@ -204,6 +236,11 @@ impl Navmesh {
         self.pathfinder.vertices()
     }
 
+    /// Returns shared reference to inner octree.
+    pub fn octree(&self) -> &Octree {
+        &self.octree
+    }
+
     /// Tries to build path using indices of begin and end points.
     ///
     /// Example:
@@ -229,5 +266,362 @@ impl Navmesh {
         path: &mut Vec<Vector3<f32>>,
     ) -> Result<PathKind, PathError> {
         self.pathfinder.build(from, to, path)
+    }
+
+    /// Tries to pick a triangle by given ray.
+    pub fn ray_cast(&self, ray: Ray) -> Option<(Vector3<f32>, usize, TriangleDefinition)> {
+        let mut buffer = ArrayVec::<[Handle<OctreeNode>; 128]>::new();
+
+        self.octree.ray_query_static(&ray, &mut buffer);
+
+        for node in buffer.into_iter() {
+            if let OctreeNode::Leaf { indices, .. } = self.octree.node(node) {
+                for &index in indices {
+                    let triangle = self.triangles[index as usize].clone();
+                    let a = self.pathfinder.vertices()[triangle[0] as usize].position;
+                    let b = self.pathfinder.vertices()[triangle[1] as usize].position;
+                    let c = self.pathfinder.vertices()[triangle[2] as usize].position;
+
+                    if let Some(intersection) = ray.triangle_intersection(&[a, b, c]) {
+                        return Some((intersection, index as usize, triangle));
+                    }
+                }
+            } else {
+                unreachable!()
+            }
+        }
+
+        None
+    }
+}
+
+/// Navmesh agent is a "pathfinding unit" that performs navigation on a mesh. It is designed to
+/// cover most of simple use cases when you need to build and follow some path from point A to point B.
+pub struct NavmeshAgent {
+    path: Vec<Vector3<f32>>,
+    current: u32,
+    position: Vector3<f32>,
+    last_warp_position: Vector3<f32>,
+    target: Vector3<f32>,
+    last_target_position: Vector3<f32>,
+    recalculation_threshold: f32,
+    speed: f32,
+    path_dirty: bool,
+}
+
+impl Visit for NavmeshAgent {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.path.visit("Path", visitor)?;
+        self.current.visit("Current", visitor)?;
+        self.position.visit("Position", visitor)?;
+        self.last_warp_position.visit("LastWarpPosition", visitor)?;
+        self.target.visit("Target", visitor)?;
+        self.last_target_position
+            .visit("LastTargetPosition", visitor)?;
+        self.recalculation_threshold
+            .visit("RecalculationThreshold", visitor)?;
+        self.speed.visit("Speed", visitor)?;
+        self.path_dirty.visit("PathDirty", visitor)?;
+
+        visitor.leave_region()
+    }
+}
+
+impl Default for NavmeshAgent {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl NavmeshAgent {
+    /// Creates new navigation mesh agent.
+    pub fn new() -> Self {
+        Self {
+            path: vec![],
+            current: 0,
+            position: Default::default(),
+            last_warp_position: Default::default(),
+            target: Default::default(),
+            last_target_position: Default::default(),
+            recalculation_threshold: 0.25,
+            speed: 1.5,
+            path_dirty: true,
+        }
+    }
+
+    /// Returns agent's position.
+    pub fn position(&self) -> Vector3<f32> {
+        self.position
+    }
+
+    /// Returns agent's path that will be followed.
+    pub fn path(&self) -> &[Vector3<f32>] {
+        &self.path
+    }
+
+    /// Sets new speed of agent's movement.
+    pub fn set_speed(&mut self, speed: f32) {
+        self.speed = speed;
+    }
+
+    /// Returns current agent's movement speed.
+    pub fn speed(&self) -> f32 {
+        self.speed
+    }
+}
+
+fn closest_point_index_in_triangle_and_adjacent(
+    triangle: TriangleDefinition,
+    navmesh: &Navmesh,
+    to: Vector3<f32>,
+) -> Option<usize> {
+    let mut triangles = ArrayVec::<[TriangleDefinition; 4]>::new();
+    triangles.push(triangle);
+    math::get_closest_point_triangle_set(&navmesh.pathfinder.vertices(), &triangles, to)
+}
+
+impl NavmeshAgent {
+    /// Calculates path from point A to point B. In most cases there is no need to use this method
+    /// directly, because `update` will call it anyway if target position has moved.
+    pub fn calculate_path(
+        &mut self,
+        navmesh: &mut Navmesh,
+        from: Vector3<f32>,
+        to: Vector3<f32>,
+    ) -> Result<PathKind, PathError> {
+        self.path.clear();
+
+        self.current = 0;
+
+        let (n_from, begin, from_triangle) = if let Some((point, index, triangle)) = navmesh
+            .ray_cast(Ray::new(
+                from + Vector3::new(0.0, 1.0, 0.0),
+                Vector3::new(0.0, -10.0, 0.0),
+            )) {
+            (
+                closest_point_index_in_triangle_and_adjacent(triangle, navmesh, to),
+                Some(point),
+                Some(index),
+            )
+        } else {
+            (navmesh.query_closest(from), None, None)
+        };
+
+        let (n_to, end, to_triangle) = if let Some((point, index, triangle)) =
+            navmesh.ray_cast(Ray::new(
+                to + Vector3::new(0.0, 1.0, 0.0),
+                Vector3::new(0.0, -10.0, 0.0),
+            )) {
+            (
+                closest_point_index_in_triangle_and_adjacent(triangle, navmesh, from),
+                Some(point),
+                Some(index),
+            )
+        } else {
+            (navmesh.query_closest(to), None, None)
+        };
+
+        if let (Some(from_triangle), Some(to_triangle)) = (from_triangle, to_triangle) {
+            if from_triangle == to_triangle {
+                self.path.push(from);
+                self.path.push(to);
+
+                return Ok(PathKind::Full);
+            }
+        }
+
+        if let (Some(n_from), Some(n_to)) = (n_from, n_to) {
+            let result = navmesh.build_path(n_from, n_to, &mut self.path);
+
+            if let Some(end) = end {
+                if self.path.is_empty() {
+                    self.path.push(end);
+                } else {
+                    self.path.insert(0, end)
+                }
+            }
+
+            if let Some(begin) = begin {
+                self.path.push(begin);
+            }
+
+            self.path.reverse();
+
+            // Perform few smoothing passes to straighten computed path.
+            for _ in 0..2 {
+                self.smooth_path(navmesh);
+            }
+
+            result
+        } else {
+            Err(PathError::Custom("Empty navmesh!".to_owned()))
+        }
+    }
+
+    fn smooth_path(&mut self, navmesh: &Navmesh) {
+        let vertices = navmesh.vertices();
+
+        let mut i = 0;
+        while i < self.path.len().saturating_sub(2) {
+            let begin = self.path[i];
+            let end = self.path[i + 2];
+            let delta = end - begin;
+
+            let max_delta = (delta.x.max(delta.y).max(delta.z)).abs();
+
+            // Calculate center point between end points of each path edge.
+            //     i+1
+            //      ^
+            //     / \
+            //    /   \
+            //   /     \
+            //  /-  *  -\
+            // i    C   i+2
+            let center = (begin + end).scale(0.5);
+
+            // And check if center is lying on navmesh or not. If so - replace i+1 vertex
+            // with its projection on the triangle it belongs to.
+            for triangle in navmesh.triangles.iter() {
+                let a = vertices[triangle[0] as usize].position;
+                let b = vertices[triangle[1] as usize].position;
+                let c = vertices[triangle[2] as usize].position;
+
+                // Ignore degenerated triangles.
+                if let Some(normal) = (c - a).cross(&(b - a)).try_normalize(std::f32::EPSILON) {
+                    // Calculate signed distance between triangle and segment's center.
+                    let signed_distance = (center - a).dot(&normal);
+
+                    // And check "slope": If center is too far from triangle, check next triangle.
+                    if signed_distance.abs() <= max_delta {
+                        // Project center on the triangle.
+                        let center_projection = center - normal.scale(signed_distance);
+
+                        // And check if the projection lies inside the triangle.
+                        if math::is_point_inside_triangle(&center_projection, &[a, b, c]) {
+                            self.path[i + 1] = center_projection;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            i += 1;
+        }
+    }
+
+    /// Performs single update tick that moves agent to the target along the path (which is automatically
+    /// recalculated if target's position has changed).
+    pub fn update(&mut self, dt: f32, navmesh: &mut Navmesh) -> Result<PathKind, PathError> {
+        if self.path_dirty {
+            self.calculate_path(navmesh, self.position, self.target)?;
+            self.path_dirty = false;
+        }
+
+        if let Some(source) = self.path.get(self.current as usize) {
+            if let Some(destination) = self.path.get((self.current + 1) as usize) {
+                let ray = Ray::from_two_points(*source, *destination);
+                let d = ray.dir.try_normalize(std::f32::EPSILON).unwrap_or_default();
+                self.position += d.scale(self.speed * dt);
+                if ray.project_point(&self.position) >= 1.0 {
+                    self.current += 1;
+                }
+            }
+        }
+
+        Ok(PathKind::Full)
+    }
+
+    /// Returns current steering target which in most cases next path point from which
+    /// agent is close to.
+    pub fn steering_target(&self) -> Option<Vector3<f32>> {
+        self.path
+            .get(self.current as usize + 1)
+            .or_else(|| self.path.last())
+            .cloned()
+    }
+
+    /// Sets new target for the agent.
+    pub fn set_target(&mut self, new_target: Vector3<f32>) {
+        if new_target.metric_distance(&self.last_target_position) >= self.recalculation_threshold {
+            self.path_dirty = true;
+            self.last_target_position = new_target;
+        }
+
+        self.target = new_target;
+    }
+
+    /// Warps agent to a new position.
+    pub fn warp(&mut self, new_position: Vector3<f32>) {
+        if new_position.metric_distance(&self.last_warp_position) >= self.recalculation_threshold {
+            self.path_dirty = true;
+            self.last_warp_position = new_position;
+        }
+
+        self.position = new_position;
+    }
+}
+
+/// Allows you to build agent in declarative manner.
+pub struct NavmeshAgentBuilder {
+    position: Vector3<f32>,
+    target: Vector3<f32>,
+    recalculation_threshold: f32,
+    speed: f32,
+}
+
+impl Default for NavmeshAgentBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl NavmeshAgentBuilder {
+    /// Creates new builder instance.
+    pub fn new() -> Self {
+        Self {
+            position: Default::default(),
+            target: Default::default(),
+            recalculation_threshold: 0.25,
+            speed: 1.5,
+        }
+    }
+
+    /// Sets new desired position of the agent being built.
+    pub fn with_position(mut self, position: Vector3<f32>) -> Self {
+        self.position = position;
+        self
+    }
+
+    /// Sets new desired target of the agent being built.
+    pub fn with_target(mut self, position: Vector3<f32>) -> Self {
+        self.target = position;
+        self
+    }
+
+    /// Sets new desired recalculation threshold (in meters) of the agent being built.
+    pub fn with_recalculation_threshold(mut self, threshold: f32) -> Self {
+        self.recalculation_threshold = threshold;
+        self
+    }
+
+    /// Sets new desired movement speed of the agent being built.
+    pub fn with_speed(mut self, speed: f32) -> Self {
+        self.speed = speed;
+        self
+    }
+
+    /// Build the agent.
+    pub fn build(self) -> NavmeshAgent {
+        NavmeshAgent {
+            position: self.position,
+            last_warp_position: self.position,
+            target: self.target,
+            last_target_position: self.target,
+            recalculation_threshold: self.recalculation_threshold,
+            speed: self.speed,
+            ..Default::default()
+        }
     }
 }

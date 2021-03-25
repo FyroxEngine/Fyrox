@@ -20,33 +20,16 @@ use rg3d::{
     rand::Rng,
     renderer::QualitySettings,
     sound::{
-        effects::{BaseEffect, EffectInput},
+        effects::EffectInput,
         source::{generic::GenericSourceBuilder, spatial::SpatialSourceBuilder, Status},
     },
     utils::translate_event,
 };
-use std::time::Duration;
 
 const FOOTSTEP_SIGNAL: u64 = 1;
 
 fn main() {
     let (mut game, event_loop) = Game::new("Example 07 - Sound");
-
-    // Create reverb effect for more natural sound - our player walks in some sort of cathedral,
-    // so there will be pretty decent echo.
-    let mut base_effect = BaseEffect::default();
-    // Make sure it won't be too loud - rg3d-sound doesn't care about energy conservation law, it
-    // just makes requested calculation.
-    base_effect.set_gain(0.7);
-    let mut reverb = rg3d::sound::effects::reverb::Reverb::new(base_effect);
-    // Set reverb time to ~3 seconds - the more time the deeper the echo.
-    reverb.set_decay_time(Duration::from_secs_f32(3.0));
-    let reverb_effect = game
-        .engine
-        .sound_context
-        .lock()
-        .unwrap()
-        .add_effect(rg3d::sound::effects::Effect::Reverb(reverb));
 
     // Create simple user interface that will show some useful info.
     let window = game.engine.get_window();
@@ -117,6 +100,7 @@ fn main() {
                             game.game_scene = Some(GameScene {
                                 scene: game.engine.scenes.add(load_result.scene),
                                 player: load_result.player,
+                                reverb_effect: load_result.reverb_effect
                             });
 
                             // Once scene is loaded, we should hide progress bar and text.
@@ -162,11 +146,7 @@ fn main() {
                         let scene = &mut game.engine.scenes[game_scene.scene];
                         game_scene.player.update(scene, fixed_timestep);
 
-                        let mut ctx = game
-                            .engine
-                            .sound_context
-                            .lock()
-                            .unwrap();
+                        let mut ctx = scene.sound_context.state();
 
                         while let Some(event) = scene.animations.get_mut(game_scene.player.locomotion_machine.walk_animation).pop_event() {
                             // We must play sound only if it was foot step signal and player was in walking state.
@@ -179,7 +159,7 @@ fn main() {
                             let mut position = scene.graph[game_scene.player.pivot].global_position();
                             position.y -= 0.5;
 
-                            let foot_step = footstep_buffers[rg3d::rand::thread_rng().gen_range(0, footstep_buffers.len())].clone();
+                            let foot_step = footstep_buffers[rg3d::rand::thread_rng().gen_range(0.. footstep_buffers.len())].clone();
 
                             // Create new temporary foot step sound source.
                             let source = ctx
@@ -198,7 +178,7 @@ fn main() {
                             // Once foot step sound source was created, it must be attached to reverb effect, otherwise no reverb
                             // will be added to the source.
                             ctx
-                                .effect_mut(reverb_effect)
+                                .effect_mut(game_scene.reverb_effect)
                                 .add_input(EffectInput::direct(source));
                         }
 

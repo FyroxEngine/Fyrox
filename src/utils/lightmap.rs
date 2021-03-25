@@ -715,39 +715,38 @@ fn generate_lightmap(
                     if attenuation >= 0.01 {
                         let mut query_buffer = ArrayVec::<[Handle<OctreeNode>; 64]>::new();
                         let shadow_bias = 0.01;
-                        if let Some(ray) = Ray::from_two_points(&light_position, &world_position) {
-                            'outer_loop: for other_instance in other_instances {
-                                other_instance
-                                    .data()
-                                    .octree
-                                    .ray_query_static(&ray, &mut query_buffer);
-                                for &node in query_buffer.iter() {
-                                    match other_instance.data().octree.node(node) {
-                                        OctreeNode::Leaf { indices, .. } => {
-                                            let other_data = other_instance.data();
-                                            for &triangle_index in indices {
-                                                let triangle =
-                                                    &other_data.triangles[triangle_index as usize];
-                                                let va = other_data.vertices[triangle[0] as usize]
-                                                    .world_position;
-                                                let vb = other_data.vertices[triangle[1] as usize]
-                                                    .world_position;
-                                                let vc = other_data.vertices[triangle[2] as usize]
-                                                    .world_position;
-                                                if let Some(pt) =
-                                                    ray.triangle_intersection(&[va, vb, vc])
+                        let ray = Ray::from_two_points(light_position, world_position);
+                        'outer_loop: for other_instance in other_instances {
+                            other_instance
+                                .data()
+                                .octree
+                                .ray_query_static(&ray, &mut query_buffer);
+                            for &node in query_buffer.iter() {
+                                match other_instance.data().octree.node(node) {
+                                    OctreeNode::Leaf { indices, .. } => {
+                                        let other_data = other_instance.data();
+                                        for &triangle_index in indices {
+                                            let triangle =
+                                                &other_data.triangles[triangle_index as usize];
+                                            let va = other_data.vertices[triangle[0] as usize]
+                                                .world_position;
+                                            let vb = other_data.vertices[triangle[1] as usize]
+                                                .world_position;
+                                            let vc = other_data.vertices[triangle[2] as usize]
+                                                .world_position;
+                                            if let Some(pt) =
+                                                ray.triangle_intersection(&[va, vb, vc])
+                                            {
+                                                if ray.origin.metric_distance(&pt) + shadow_bias
+                                                    < ray.dir.norm()
                                                 {
-                                                    if ray.origin.metric_distance(&pt) + shadow_bias
-                                                        < ray.dir.norm()
-                                                    {
-                                                        attenuation = 0.0;
-                                                        break 'outer_loop;
-                                                    }
+                                                    attenuation = 0.0;
+                                                    break 'outer_loop;
                                                 }
                                             }
                                         }
-                                        OctreeNode::Branch { .. } => unreachable!(),
                                     }
+                                    OctreeNode::Branch { .. } => unreachable!(),
                                 }
                             }
                         }
@@ -862,44 +861,57 @@ fn generate_lightmap(
 
 #[cfg(test)]
 mod test {
+    use crate::renderer::surface::SurfaceBuilder;
+    use crate::scene::base::BaseBuilder;
+    use crate::scene::light::{BaseLightBuilder, PointLightBuilder};
+    use crate::scene::mesh::MeshBuilder;
+    use crate::scene::transform::TransformBuilder;
+    use crate::scene::Scene;
+    use crate::utils::lightmap::Lightmap;
     use crate::{
-        core::{
-            algebra::{Matrix4, Vector3},
-            color::Color,
-        },
+        core::algebra::{Matrix4, Vector3},
         renderer::surface::SurfaceSharedData,
-        resource::texture::TextureKind,
-        utils::{
-            lightmap::{generate_lightmap, LightDefinition, PointLightDefinition},
-            uvgen::generate_uvs,
-        },
     };
-    use image::RgbaImage;
+    use std::sync::{Arc, RwLock};
 
     #[test]
     fn test_generate_lightmap() {
-        //let mut data = SurfaceSharedData::make_sphere(20, 20, 1.0);
-        let mut data = SurfaceSharedData::make_cone(
+        let mut scene = Scene::new();
+
+        let data = SurfaceSharedData::make_cone(
             16,
             1.0,
             1.0,
             Matrix4::new_nonuniform_scaling(&Vector3::new(1.0, 1.1, 1.0)),
         );
-        let lights = [LightDefinition::Point(PointLightDefinition {
-            intensity: 3.0,
-            position: Vector3::new(0.0, 2.0, 0.0),
-            color: Color::WHITE.as_frgb(),
-            radius: 4.0,
-        })];
-        let lightmap = generate_lightmap(&mut data, &Matrix4::identity(), &lights, 128, true);
 
-        let (w, h) = if let TextureKind::Rectangle { width, height } = lightmap.kind {
-            (width, height)
-        } else {
-            unreachable!();
-        };
+        MeshBuilder::new(BaseBuilder::new())
+            .with_surfaces(vec![
+                SurfaceBuilder::new(Arc::new(RwLock::new(data))).build()
+            ])
+            .build(&mut scene.graph);
 
-        let image = RgbaImage::from_raw(w, h, lightmap.bytes).unwrap();
-        image.save("lightmap.png").unwrap();
+        PointLightBuilder::new(BaseLightBuilder::new(
+            BaseBuilder::new().with_local_transform(
+                TransformBuilder::new()
+                    .with_local_position(Vector3::new(0.0, 2.0, 0.0))
+                    .build(),
+            ),
+        ))
+        .with_radius(4.0)
+        .build(&mut scene.graph);
+
+        let lightmap =
+            Lightmap::new(&mut scene, 64, Default::default(), Default::default()).unwrap();
+
+        let mut counter = 0;
+        for entry_set in lightmap.map.values() {
+            for entry in entry_set {
+                let mut data = entry.texture.as_ref().unwrap().data_ref();
+                data.set_path(format!("{}.png", counter));
+                data.save().unwrap();
+                counter += 1;
+            }
+        }
     }
 }
