@@ -80,6 +80,9 @@ use crate::{
     utils::log::{Log, MessageKind},
 };
 use glutin::PossiblyCurrent;
+#[cfg(feature = "serde_integration")]
+use serde::{Deserialize, Serialize};
+use std::collections::hash_map::Entry;
 use std::{
     cell::RefCell,
     collections::{hash_map::Entry, HashMap},
@@ -194,7 +197,8 @@ pub enum ShadowMapPrecision {
 
 /// Quality settings allows you to find optimal balance between performance and
 /// graphics quality.
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
+#[cfg_attr(feature = "serde_integration", derive(Serialize, Deserialize))]
 pub struct QualitySettings {
     /// Point shadows
     /// Size of cube map face of shadow map texture in pixels.

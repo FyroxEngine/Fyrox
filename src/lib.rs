@@ -7,6 +7,11 @@ extern crate glutin;
 extern crate image;
 extern crate inflate;
 extern crate lexical;
+#[cfg(feature = "serde_integration")]
+extern crate serde;
+#[macro_use]
+extern crate lazy_static;
+extern crate ddsfile;
 extern crate rayon;
 
 #[cfg(test)]

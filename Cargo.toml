@@ -27,6 +27,8 @@ glutin = "0.26.0"
 image = { version = "0.23.12", default-features = false, features = ["gif", "jpeg", "png", "tga", "tiff", "bmp"] }
 lexical = "5.2.0"
 inflate = "0.4.5"
+rand = "0.7.3"
+serde = { version = "^1.0.0", features = ["derive"], optional = true }
 lazy_static = "1.4.0"
 futures = {version = "0.3.13", features = ["thread-pool"] }
 ddsfile = "0.4.0"
@@ -38,3 +40,4 @@ imageproc = "0.21.0"
 
 [features]
 enable_profiler = ["rg3d-core/enable_profiler"]
+serde_integration = ["glutin/serde", "serde"]
