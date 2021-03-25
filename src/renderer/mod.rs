@@ -185,6 +185,7 @@ impl std::ops::AddAssign<RenderPassStatistics> for Statistics {
 
 /// Shadow map precision allows you to select compromise between quality and performance.
 #[derive(Copy, Clone, Hash, PartialOrd, PartialEq, Eq, Ord, Debug)]
+#[cfg_attr(feature = "serde_integration", derive(Serialize, Deserialize))]
 pub enum ShadowMapPrecision {
     /// Shadow map will use 2 times less memory by switching to 16bit pixel format,
     /// but "shadow acne" may occur.
