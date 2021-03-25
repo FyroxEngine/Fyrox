@@ -1138,16 +1138,20 @@ pub struct PerformanceStatistics {
 
     /// A time (in seconds) which was required to update animations.
     pub animations_update_time: f32,
+
+    /// A time (in seconds) which was required to render sounds.
+    pub sound_update_time: f32,
 }
 
 impl Display for PerformanceStatistics {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Physics: {} ms\nGraph: {} ms\nAnimations: {} ms",
+            "Physics: {} ms\nGraph: {} ms\nAnimations: {} ms\nSounds: {} ms",
             self.physics_time * 1000.0,
             self.graph_update_time * 1000.0,
-            self.animations_update_time * 1000.0
+            self.animations_update_time * 1000.0,
+            self.sound_update_time * 1000.0
         )
     }
 }
@@ -1442,6 +1446,12 @@ impl Scene {
         self.graph.update_nodes(frame_size, dt);
         self.performance_statistics.graph_update_time =
             (std::time::Instant::now() - last).as_secs_f32();
+
+        self.performance_statistics.sound_update_time = self
+            .sound_context
+            .state()
+            .full_render_duration()
+            .as_secs_f32();
     }
 
     /// Creates deep copy of a scene, filter predicate allows you to filter out nodes
