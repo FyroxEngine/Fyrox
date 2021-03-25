@@ -225,51 +225,51 @@ impl ChildSelector {
         let tree;
         let ok;
         let cancel;
-        Self {
-            window: WindowBuilder::new(WidgetBuilder::new().with_width(140.0).with_height(200.0))
-                .with_title(WindowTitle::text("Select Child Object"))
-                .open(false)
-                .can_minimize(false)
-                .with_content(
-                    GridBuilder::new(
-                        WidgetBuilder::new()
-                            .with_child({
-                                tree =
-                                    TreeRootBuilder::new(WidgetBuilder::new().on_row(0)).build(ctx);
-                                tree
-                            })
-                            .with_child(
-                                StackPanelBuilder::new(
-                                    WidgetBuilder::new()
-                                        .on_row(1)
-                                        .with_horizontal_alignment(HorizontalAlignment::Right)
-                                        .with_child({
-                                            ok = ButtonBuilder::new(
-                                                WidgetBuilder::new().with_width(60.0),
-                                            )
-                                            .with_text("OK")
-                                            .build(ctx);
-                                            ok
-                                        })
-                                        .with_child({
-                                            cancel = ButtonBuilder::new(
-                                                WidgetBuilder::new().with_width(60.0),
-                                            )
-                                            .with_text("Cancel")
-                                            .build(ctx);
-                                            cancel
-                                        }),
-                                )
-                                .with_orientation(Orientation::Horizontal)
-                                .build(ctx),
-                            ),
-                    )
-                    .add_row(Row::stretch())
-                    .add_row(Row::strict(30.0))
-                    .add_column(Column::stretch())
-                    .build(ctx),
+        let window = WindowBuilder::new(WidgetBuilder::new().with_width(140.0).with_height(200.0))
+            .with_title(WindowTitle::text("Select Child Object"))
+            .open(false)
+            .can_minimize(false)
+            .with_content(
+                GridBuilder::new(
+                    WidgetBuilder::new()
+                        .with_child({
+                            tree = TreeRootBuilder::new(WidgetBuilder::new().on_row(0)).build(ctx);
+                            tree
+                        })
+                        .with_child(
+                            StackPanelBuilder::new(
+                                WidgetBuilder::new()
+                                    .on_row(1)
+                                    .with_horizontal_alignment(HorizontalAlignment::Right)
+                                    .with_child({
+                                        ok = ButtonBuilder::new(
+                                            WidgetBuilder::new().with_width(60.0),
+                                        )
+                                        .with_text("OK")
+                                        .build(ctx);
+                                        ok
+                                    })
+                                    .with_child({
+                                        cancel = ButtonBuilder::new(
+                                            WidgetBuilder::new().with_width(60.0),
+                                        )
+                                        .with_text("Cancel")
+                                        .build(ctx);
+                                        cancel
+                                    }),
+                            )
+                            .with_orientation(Orientation::Horizontal)
+                            .build(ctx),
+                        ),
                 )
+                .add_row(Row::stretch())
+                .add_row(Row::strict(30.0))
+                .add_column(Column::stretch())
                 .build(ctx),
+            )
+            .build(ctx);
+        Self {
+            window,
             tree,
             ok,
             cancel,
