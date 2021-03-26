@@ -19,12 +19,15 @@
 #![allow(clippy::unneeded_field_pattern)]
 
 use crate::visitor::{Visit, VisitResult, Visitor};
-use std::iter::FromIterator;
-use std::ops::{Index, IndexMut};
 use std::{
     fmt::{Debug, Formatter},
     hash::{Hash, Hasher},
+    iter::FromIterator,
     marker::PhantomData,
+};
+use std::{
+    future::Future,
+    ops::{Index, IndexMut},
 };
 
 const INVALID_GENERATION: u32 = 0;
@@ -301,8 +304,16 @@ impl<T> Pool<T> {
     #[inline]
     #[must_use]
     pub fn spawn(&mut self, payload: T) -> Handle<T> {
-        if let Some(free_index) = self.free_stack.pop() {
-            let record = &mut self.records[free_index as usize];
+        self.spawn_with(|_| payload)
+    }
+
+    #[inline]
+    #[must_use]
+    /// Construct a value with the handle it would be given.
+    /// Note: Handle is _not_ valid until function has finished executing.
+    pub fn spawn_with<F: FnOnce(Handle<T>) -> T>(&mut self, callback: F) -> Handle<T> {
+        if let Some(free_index) = self.free_stack.last() {
+            let record = &mut self.records[*free_index as usize];
 
             if record.payload.is_some() {
                 panic!(
@@ -311,24 +322,92 @@ impl<T> Pool<T> {
                 );
             }
 
-            record.generation += 1;
-            record.payload.replace(payload);
-            Handle {
-                index: free_index,
-                generation: record.generation,
+            let generation = record.generation + 1;
+            let handle = Handle {
+                index: *free_index,
+                generation,
                 type_marker: PhantomData,
-            }
+            };
+
+            let payload = callback(handle);
+
+            // Pop the index we've decided to use off.
+            self.free_stack.pop();
+
+            record.generation = generation;
+            record.payload.replace(payload);
+            handle
         } else {
             // No free records, create new one
-            let record = PoolRecord {
-                generation: 1,
-                payload: Some(payload),
-            };
+            let generation = 1;
 
             let handle = Handle {
                 index: self.records.len() as u32,
-                generation: record.generation,
+                generation,
                 type_marker: PhantomData,
+            };
+
+            let payload = callback(handle);
+
+            let record = PoolRecord {
+                generation,
+                payload: Some(payload),
+            };
+
+            self.records.push(record);
+
+            handle
+        }
+    }
+
+    #[inline]
+    /// Asynchronously construct a value with the handle it would be given.
+    /// Note: Handle is _not_ valid until function has finished executing.
+    pub async fn spawn_with_async<F, Fut>(&mut self, callback: F) -> Handle<T>
+    where
+        F: FnOnce(Handle<T>) -> Fut,
+        Fut: Future<Output = T>,
+    {
+        if let Some(free_index) = self.free_stack.last() {
+            let record = &mut self.records[*free_index as usize];
+
+            if record.payload.is_some() {
+                panic!(
+                    "Attempt to spawn an object at pool record with payload! Record index is {}",
+                    free_index
+                );
+            }
+
+            let generation = record.generation + 1;
+            let handle = Handle {
+                index: *free_index,
+                generation,
+                type_marker: PhantomData,
+            };
+
+            let payload = callback(handle).await;
+
+            // Pop the index we've decided to use off.
+            self.free_stack.pop();
+
+            record.generation = generation;
+            record.payload.replace(payload);
+            handle
+        } else {
+            // No free records, create new one
+            let generation = 1;
+
+            let handle = Handle {
+                index: self.records.len() as u32,
+                generation,
+                type_marker: PhantomData,
+            };
+
+            let payload = callback(handle).await;
+
+            let record = PoolRecord {
+                generation,
+                payload: Some(payload),
             };
 
             self.records.push(record);
@@ -1065,6 +1144,10 @@ mod test {
         assert_eq!(at_foobar_index.index, 0);
         assert_ne!(at_foobar_index.generation, INVALID_GENERATION);
         assert_eq!(pool.borrow(at_foobar_index), "AtFoobarIndex");
+        let bar_handle = pool.spawn_with(|_handle| String::from("Bar"));
+        assert_eq!(bar_handle.index, 0);
+        assert_ne!(bar_handle.generation, INVALID_GENERATION);
+        assert_eq!(pool.borrow(bar_handle), "Bar");
     }
 
     #[test]
