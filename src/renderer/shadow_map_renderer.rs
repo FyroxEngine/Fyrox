@@ -368,7 +368,7 @@ impl PointShadowMapRenderer {
                     texture: Rc::new(RefCell::new(cube_map)),
                 }],
             )
-        };
+        }
 
         Ok(Self {
             precision,
