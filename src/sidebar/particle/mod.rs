@@ -279,20 +279,18 @@ impl ParticleSystemSection {
                 );
             }
 
-            match &message.data() {
-                UiMessageData::Vec3Editor(msg) => {
-                    if let Vec3EditorMessage::Value(value) = *msg {
-                        if particle_system.acceleration() != value
-                            && message.destination() == self.acceleration
-                        {
-                            self.sender
-                                .send(Message::DoSceneCommand(
-                                    SceneCommand::SetParticleSystemAcceleration(
-                                        SetParticleSystemAccelerationCommand::new(handle, value),
-                                    ),
-                                ))
-                                .unwrap();
-                        }
+            match *message.data() {
+                UiMessageData::Vec3Editor(Vec3EditorMessage::Value(value)) => {
+                    if particle_system.acceleration() != value
+                        && message.destination() == self.acceleration
+                    {
+                        self.sender
+                            .send(Message::DoSceneCommand(
+                                SceneCommand::SetParticleSystemAcceleration(
+                                    SetParticleSystemAccelerationCommand::new(handle, value),
+                                ),
+                            ))
+                            .unwrap();
                     }
                 }
                 UiMessageData::Button(ButtonMessage::Click) => {
@@ -357,7 +355,7 @@ impl ParticleSystemSection {
                 }
                 UiMessageData::DropdownList(DropdownListMessage::SelectionChanged(selection)) => {
                     if message.destination() == self.emitters {
-                        self.emitter_index = *selection;
+                        self.emitter_index = selection;
                         self.sender.send(Message::SyncToModel).unwrap();
                     }
                 }

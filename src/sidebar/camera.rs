@@ -95,27 +95,27 @@ impl CameraSection {
         scope_profile!();
 
         if let Node::Camera(camera) = node {
-            if let UiMessageData::NumericUpDown(msg) = &message.data() {
-                if let NumericUpDownMessage::Value(value) = *msg {
-                    if message.destination() == self.fov && camera.fov().ne(&value) {
-                        self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::SetFov(
-                                SetFovCommand::new(handle, value),
-                            )))
-                            .unwrap();
-                    } else if message.destination() == self.z_far && camera.z_far().ne(&value) {
-                        self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::SetZFar(
-                                SetZFarCommand::new(handle, value),
-                            )))
-                            .unwrap();
-                    } else if message.destination() == self.z_near && camera.z_near().ne(&value) {
-                        self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::SetZNear(
-                                SetZNearCommand::new(handle, value),
-                            )))
-                            .unwrap();
-                    }
+            if let UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) =
+                *message.data()
+            {
+                if message.destination() == self.fov && camera.fov().ne(&value) {
+                    self.sender
+                        .send(Message::DoSceneCommand(SceneCommand::SetFov(
+                            SetFovCommand::new(handle, value),
+                        )))
+                        .unwrap();
+                } else if message.destination() == self.z_far && camera.z_far().ne(&value) {
+                    self.sender
+                        .send(Message::DoSceneCommand(SceneCommand::SetZFar(
+                            SetZFarCommand::new(handle, value),
+                        )))
+                        .unwrap();
+                } else if message.destination() == self.z_near && camera.z_near().ne(&value) {
+                    self.sender
+                        .send(Message::DoSceneCommand(SceneCommand::SetZNear(
+                            SetZNearCommand::new(handle, value),
+                        )))
+                        .unwrap();
                 }
             }
         }

@@ -124,7 +124,7 @@ impl Control<EditorUiMessage, EditorUiNode> for SceneItem {
     fn handle_routed_message(&mut self, ui: &mut Ui, message: &mut UiMessage) {
         self.tree.handle_routed_message(ui, message);
 
-        match &message.data() {
+        match message.data() {
             UiMessageData::Button(msg) => {
                 if message.destination() == self.visibility_toggle {
                     if let ButtonMessage::Click = msg {
@@ -700,7 +700,7 @@ impl WorldOutliner {
     ) {
         scope_profile!();
 
-        match &message.data() {
+        match message.data() {
             UiMessageData::TreeRoot(msg) => {
                 if message.destination() == self.root
                     && message.direction() == MessageDirection::FromWidget
@@ -725,38 +725,36 @@ impl WorldOutliner {
                     }
                 }
             }
-            UiMessageData::Widget(msg) => {
-                if let WidgetMessage::Drop(node) = *msg {
-                    if engine.user_interface.is_node_child_of(node, self.root)
-                        && engine
-                            .user_interface
-                            .is_node_child_of(message.destination(), self.root)
-                        && node != message.destination()
-                    {
-                        let child = self.map_tree_to_node(node, &engine.user_interface);
-                        let parent =
-                            self.map_tree_to_node(message.destination(), &engine.user_interface);
-                        if child.is_some() && parent.is_some() {
-                            // Make sure we won't create any loops - child must not have parent in its
-                            // descendants.
-                            let mut attach = true;
-                            let graph = &engine.scenes[editor_scene.scene].graph;
-                            let mut p = parent;
-                            while p.is_some() {
-                                if p == child {
-                                    attach = false;
-                                    break;
-                                }
-                                p = graph[p].parent();
+            &UiMessageData::Widget(WidgetMessage::Drop(node)) => {
+                if engine.user_interface.is_node_child_of(node, self.root)
+                    && engine
+                        .user_interface
+                        .is_node_child_of(message.destination(), self.root)
+                    && node != message.destination()
+                {
+                    let child = self.map_tree_to_node(node, &engine.user_interface);
+                    let parent =
+                        self.map_tree_to_node(message.destination(), &engine.user_interface);
+                    if child.is_some() && parent.is_some() {
+                        // Make sure we won't create any loops - child must not have parent in its
+                        // descendants.
+                        let mut attach = true;
+                        let graph = &engine.scenes[editor_scene.scene].graph;
+                        let mut p = parent;
+                        while p.is_some() {
+                            if p == child {
+                                attach = false;
+                                break;
                             }
+                            p = graph[p].parent();
+                        }
 
-                            if attach {
-                                self.sender
-                                    .send(Message::DoSceneCommand(SceneCommand::LinkNodes(
-                                        LinkNodesCommand::new(child, parent),
-                                    )))
-                                    .unwrap();
-                            }
+                        if attach {
+                            self.sender
+                                .send(Message::DoSceneCommand(SceneCommand::LinkNodes(
+                                    LinkNodesCommand::new(child, parent),
+                                )))
+                                .unwrap();
                         }
                     }
                 }

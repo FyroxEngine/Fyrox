@@ -266,7 +266,7 @@ impl PhysicsSection {
                                 value,
                             ),
                         );
-                    };
+                    }
 
                     toggle_visibility(ui, self.collider, body_index != 0);
                     toggle_visibility(ui, self.collider_text, body_index != 0);
@@ -419,7 +419,7 @@ impl PhysicsSection {
                     self.subsections_handle_ui_message(message, editor_scene, node_handle);
                 }
 
-                match &message.data() {
+                match message.data() {
                     UiMessageData::DropdownList(DropdownListMessage::SelectionChanged(Some(
                         index,
                     ))) if message.direction() == MessageDirection::FromWidget => {

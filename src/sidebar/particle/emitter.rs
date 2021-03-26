@@ -322,7 +322,7 @@ impl EmitterSection {
                 ui,
                 WidgetMessage::visibility(destination, MessageDirection::ToWidget, value),
             );
-        };
+        }
 
         toggle_visibility(ui, self.sphere_section.section, false);
         toggle_visibility(ui, self.cylinder_section.section, false);

@@ -100,35 +100,30 @@ impl SpriteSection {
         scope_profile!();
 
         if let Node::Sprite(sprite) = node {
-            match &message.data() {
-                UiMessageData::NumericUpDown(msg) => {
-                    if let NumericUpDownMessage::Value(value) = *msg {
-                        if message.destination() == self.size && sprite.size().ne(&value) {
-                            self.sender
-                                .send(Message::DoSceneCommand(SceneCommand::SetSpriteSize(
-                                    SetSpriteSizeCommand::new(handle, value),
-                                )))
-                                .unwrap();
-                        } else if message.destination() == self.rotation
-                            && sprite.rotation().ne(&value)
-                        {
-                            self.sender
-                                .send(Message::DoSceneCommand(SceneCommand::SetSpriteRotation(
-                                    SetSpriteRotationCommand::new(handle, value),
-                                )))
-                                .unwrap();
-                        }
+            match *message.data() {
+                UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) => {
+                    if message.destination() == self.size && sprite.size().ne(&value) {
+                        self.sender
+                            .send(Message::DoSceneCommand(SceneCommand::SetSpriteSize(
+                                SetSpriteSizeCommand::new(handle, value),
+                            )))
+                            .unwrap();
+                    } else if message.destination() == self.rotation && sprite.rotation().ne(&value)
+                    {
+                        self.sender
+                            .send(Message::DoSceneCommand(SceneCommand::SetSpriteRotation(
+                                SetSpriteRotationCommand::new(handle, value),
+                            )))
+                            .unwrap();
                     }
                 }
-                UiMessageData::ColorField(msg) => {
-                    if let ColorFieldMessage::Color(color) = *msg {
-                        if message.destination() == self.color && sprite.color() != color {
-                            self.sender
-                                .send(Message::DoSceneCommand(SceneCommand::SetSpriteColor(
-                                    SetSpriteColorCommand::new(handle, color),
-                                )))
-                                .unwrap();
-                        }
+                UiMessageData::ColorField(ColorFieldMessage::Color(color)) => {
+                    if message.destination() == self.color && sprite.color() != color {
+                        self.sender
+                            .send(Message::DoSceneCommand(SceneCommand::SetSpriteColor(
+                                SetSpriteColorCommand::new(handle, color),
+                            )))
+                            .unwrap();
                     }
                 }
                 _ => {}

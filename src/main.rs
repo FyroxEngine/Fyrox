@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 #![allow(irrefutable_let_patterns)]
+#![allow(clippy::upper_case_acronyms)]
 
 extern crate rg3d;
 #[macro_use]
@@ -1047,7 +1048,7 @@ impl Editor {
                 }
             }
 
-            match &message.data() {
+            match message.data() {
                 UiMessageData::MessageBox(MessageBoxMessage::Close(result))
                     if message.destination() == self.exit_message_box =>
                 {

@@ -147,16 +147,14 @@ impl LightSection {
         scope_profile!();
 
         if let Node::Light(light) = node {
-            match &message.data() {
-                UiMessageData::Vec3Editor(msg) => {
-                    if let Vec3EditorMessage::Value(value) = *msg {
-                        if message.destination() == self.light_scatter && light.scatter() != value {
-                            self.sender
-                                .send(Message::DoSceneCommand(SceneCommand::SetLightScatter(
-                                    SetLightScatterCommand::new(handle, value),
-                                )))
-                                .unwrap();
-                        }
+            match *message.data() {
+                UiMessageData::Vec3Editor(Vec3EditorMessage::Value(value)) => {
+                    if message.destination() == self.light_scatter && light.scatter() != value {
+                        self.sender
+                            .send(Message::DoSceneCommand(SceneCommand::SetLightScatter(
+                                SetLightScatterCommand::new(handle, value),
+                            )))
+                            .unwrap();
                     }
                 }
                 UiMessageData::CheckBox(CheckBoxMessage::Check(value)) => {
@@ -182,15 +180,13 @@ impl LightSection {
                             .unwrap();
                     }
                 }
-                UiMessageData::ColorField(msg) => {
-                    if let ColorFieldMessage::Color(color) = *msg {
-                        if message.destination() == self.color && light.color() != color {
-                            self.sender
-                                .send(Message::DoSceneCommand(SceneCommand::SetLightColor(
-                                    SetLightColorCommand::new(handle, color),
-                                )))
-                                .unwrap();
-                        }
+                UiMessageData::ColorField(ColorFieldMessage::Color(color)) => {
+                    if message.destination() == self.color && light.color() != color {
+                        self.sender
+                            .send(Message::DoSceneCommand(SceneCommand::SetLightColor(
+                                SetLightColorCommand::new(handle, color),
+                            )))
+                            .unwrap();
                     }
                 }
                 _ => {}

@@ -107,26 +107,23 @@ impl MeshSection {
         scope_profile!();
 
         if let Node::Mesh(mesh) = node {
-            match &message.data() {
-                UiMessageData::CheckBox(msg) => {
-                    if let CheckBoxMessage::Check(value) = *msg {
-                        let value = value.unwrap_or(false);
-                        if message.destination() == self.cast_shadows
-                            && mesh.cast_shadows().ne(&value)
-                        {
-                            self.sender
-                                .send(Message::DoSceneCommand(SceneCommand::SetMeshCastShadows(
-                                    SetMeshCastShadowsCommand::new(handle, value),
-                                )))
-                                .unwrap();
-                        }
+            match *message.data() {
+                UiMessageData::CheckBox(CheckBoxMessage::Check(value)) => {
+                    let value = value.unwrap_or(false);
+                    if message.destination() == self.cast_shadows && mesh.cast_shadows().ne(&value)
+                    {
+                        self.sender
+                            .send(Message::DoSceneCommand(SceneCommand::SetMeshCastShadows(
+                                SetMeshCastShadowsCommand::new(handle, value),
+                            )))
+                            .unwrap();
                     }
                 }
                 UiMessageData::DropdownList(DropdownListMessage::SelectionChanged(Some(
                     selection,
                 ))) => {
                     if message.destination() == self.render_path {
-                        let new_render_path = match *selection {
+                        let new_render_path = match selection {
                             0 => RenderPath::Deferred,
                             1 => RenderPath::Forward,
                             _ => unreachable!(),

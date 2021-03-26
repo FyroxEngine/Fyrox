@@ -133,7 +133,7 @@ impl LightPanel {
     ) {
         scope_profile!();
 
-        match message.data() {
+        match *message.data() {
             UiMessageData::Button(ButtonMessage::Click) => {
                 if message.destination() == self.generate {
                     let scene = &mut engine.scenes[editor_scene.scene];
@@ -157,15 +157,13 @@ impl LightPanel {
                     scene.set_lightmap(lightmap).unwrap();
                 }
             }
-            UiMessageData::NumericUpDown(msg)
+            UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value))
                 if message.direction() == MessageDirection::FromWidget =>
             {
-                if let NumericUpDownMessage::Value(value) = *msg {
-                    if message.destination() == self.nud_texels_per_unit {
-                        self.texels_per_unit = value as u32;
-                    } else if message.destination() == self.nud_spacing {
-                        self.spacing = value;
-                    }
+                if message.destination() == self.nud_texels_per_unit {
+                    self.texels_per_unit = value as u32;
+                } else if message.destination() == self.nud_spacing {
+                    self.spacing = value;
                 }
             }
             _ => {}

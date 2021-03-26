@@ -69,15 +69,15 @@ impl PointLightSection {
 
     pub fn handle_message(&mut self, message: &UiMessage, node: &Node, handle: Handle<Node>) {
         if let Node::Light(Light::Point(point)) = node {
-            if let UiMessageData::NumericUpDown(msg) = &message.data() {
-                if let NumericUpDownMessage::Value(value) = *msg {
-                    if message.destination() == self.radius && point.radius().ne(&value) {
-                        self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::SetPointLightRadius(
-                                SetPointLightRadiusCommand::new(handle, value),
-                            )))
-                            .unwrap();
-                    }
+            if let UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) =
+                *message.data()
+            {
+                if message.destination() == self.radius && point.radius().ne(&value) {
+                    self.sender
+                        .send(Message::DoSceneCommand(SceneCommand::SetPointLightRadius(
+                            SetPointLightRadiusCommand::new(handle, value),
+                        )))
+                        .unwrap();
                 }
             }
         }

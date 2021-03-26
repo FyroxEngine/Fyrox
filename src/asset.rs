@@ -331,7 +331,7 @@ impl AssetBrowser {
         self.preview.handle_message(message, engine);
         let ui = &mut engine.user_interface;
 
-        match &message.data() {
+        match message.data() {
             UiMessageData::User(EditorUiMessage::AssetItem(AssetItemMessage::Select(true))) => {
                 // Deselect other items.
                 for &item in self.items.iter().filter(|i| **i != message.destination()) {
@@ -374,7 +374,7 @@ impl AssetBrowser {
                                     ext.as_str(),
                                     "rgs" | "fbx" | "jpg" | "tga" | "png" | "bmp" | "ogg" | "wav"
                                 )
-                            };
+                            }
 
                             let entry_path = entry.path();
                             if !entry_path.is_dir()

@@ -109,32 +109,31 @@ impl SpotLightSection {
 
     pub fn handle_message(&mut self, message: &UiMessage, node: &Node, handle: Handle<Node>) {
         if let Node::Light(Light::Spot(spot)) = node {
-            if let UiMessageData::NumericUpDown(msg) = &message.data() {
-                if let NumericUpDownMessage::Value(value) = *msg {
-                    if message.destination() == self.hotspot && spot.hotspot_cone_angle().ne(&value)
-                    {
-                        self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::SetSpotLightHotspot(
-                                SetSpotLightHotspotCommand::new(handle, value),
-                            )))
-                            .unwrap();
-                    } else if message.destination() == self.falloff_delta
-                        && spot.falloff_angle_delta().ne(&value)
-                    {
-                        self.sender
-                            .send(Message::DoSceneCommand(
-                                SceneCommand::SetSpotLightFalloffAngleDelta(
-                                    SetSpotLightFalloffAngleDeltaCommand::new(handle, value),
-                                ),
-                            ))
-                            .unwrap();
-                    } else if message.destination() == self.distance && spot.distance().ne(&value) {
-                        self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::SetSpotLightDistance(
-                                SetSpotLightDistanceCommand::new(handle, value),
-                            )))
-                            .unwrap();
-                    }
+            if let UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) =
+                *message.data()
+            {
+                if message.destination() == self.hotspot && spot.hotspot_cone_angle().ne(&value) {
+                    self.sender
+                        .send(Message::DoSceneCommand(SceneCommand::SetSpotLightHotspot(
+                            SetSpotLightHotspotCommand::new(handle, value),
+                        )))
+                        .unwrap();
+                } else if message.destination() == self.falloff_delta
+                    && spot.falloff_angle_delta().ne(&value)
+                {
+                    self.sender
+                        .send(Message::DoSceneCommand(
+                            SceneCommand::SetSpotLightFalloffAngleDelta(
+                                SetSpotLightFalloffAngleDeltaCommand::new(handle, value),
+                            ),
+                        ))
+                        .unwrap();
+                } else if message.destination() == self.distance && spot.distance().ne(&value) {
+                    self.sender
+                        .send(Message::DoSceneCommand(SceneCommand::SetSpotLightDistance(
+                            SetSpotLightDistanceCommand::new(handle, value),
+                        )))
+                        .unwrap();
                 }
             }
         }

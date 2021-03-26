@@ -474,7 +474,7 @@ impl Menu {
             self.settings.handle_message(message, scene, ctx.engine);
         }
 
-        match &message.data() {
+        match message.data() {
             UiMessageData::FileSelector(FileSelectorMessage::Commit(path)) => {
                 if message.destination() == self.save_file_selector {
                     self.message_sender

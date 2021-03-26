@@ -320,7 +320,7 @@ impl ChildSelector {
         lod_index: usize,
         ui: &mut Ui,
     ) {
-        match &message.data() {
+        match message.data() {
             UiMessageData::Button(ButtonMessage::Click) => {
                 if message.destination() == self.ok {
                     let commands = self
@@ -687,7 +687,7 @@ impl LodGroupEditor {
             );
         }
 
-        match &message.data() {
+        match message.data() {
             UiMessageData::Button(ButtonMessage::Click) => {
                 if message.destination() == self.add_lod_level {
                     self.sender
@@ -1181,7 +1181,7 @@ impl SideBar {
                         &mut engine.user_interface,
                     );
 
-                    match &message.data() {
+                    match message.data() {
                         UiMessageData::Button(ButtonMessage::Click) => {
                             if message.destination() == self.create_lod_group {
                                 self.sender
@@ -1202,54 +1202,44 @@ impl SideBar {
                                 self.lod_editor.open(&mut engine.user_interface);
                             }
                         }
-                        UiMessageData::Vec3Editor(msg) => {
-                            if let Vec3EditorMessage::Value(value) = *msg {
-                                let transform = graph[node_handle].local_transform();
-                                if message.destination() == self.rotation {
-                                    let old_rotation = **transform.rotation();
-                                    let euler = Vector3::new(
-                                        value.x.to_radians(),
-                                        value.y.to_radians(),
-                                        value.z.to_radians(),
-                                    );
-                                    let new_rotation = quat_from_euler(euler, RotationOrder::XYZ);
-                                    if !old_rotation.approx_eq(&new_rotation, 0.00001) {
-                                        self.sender
-                                            .send(Message::DoSceneCommand(
-                                                SceneCommand::RotateNode(RotateNodeCommand::new(
-                                                    node_handle,
-                                                    old_rotation,
-                                                    new_rotation,
-                                                )),
-                                            ))
-                                            .unwrap();
-                                    }
-                                } else if message.destination() == self.position {
-                                    let old_position = **transform.position();
-                                    if old_position != value {
-                                        self.sender
-                                            .send(Message::DoSceneCommand(SceneCommand::MoveNode(
-                                                MoveNodeCommand::new(
-                                                    node_handle,
-                                                    old_position,
-                                                    value,
-                                                ),
-                                            )))
-                                            .unwrap();
-                                    }
-                                } else if message.destination() == self.scale {
-                                    let old_scale = **transform.scale();
-                                    if old_scale != value {
-                                        self.sender
-                                            .send(Message::DoSceneCommand(SceneCommand::ScaleNode(
-                                                ScaleNodeCommand::new(
-                                                    node_handle,
-                                                    old_scale,
-                                                    value,
-                                                ),
-                                            )))
-                                            .unwrap();
-                                    }
+                        &UiMessageData::Vec3Editor(Vec3EditorMessage::Value(value)) => {
+                            let transform = graph[node_handle].local_transform();
+                            if message.destination() == self.rotation {
+                                let old_rotation = **transform.rotation();
+                                let euler = Vector3::new(
+                                    value.x.to_radians(),
+                                    value.y.to_radians(),
+                                    value.z.to_radians(),
+                                );
+                                let new_rotation = quat_from_euler(euler, RotationOrder::XYZ);
+                                if !old_rotation.approx_eq(&new_rotation, 0.00001) {
+                                    self.sender
+                                        .send(Message::DoSceneCommand(SceneCommand::RotateNode(
+                                            RotateNodeCommand::new(
+                                                node_handle,
+                                                old_rotation,
+                                                new_rotation,
+                                            ),
+                                        )))
+                                        .unwrap();
+                                }
+                            } else if message.destination() == self.position {
+                                let old_position = **transform.position();
+                                if old_position != value {
+                                    self.sender
+                                        .send(Message::DoSceneCommand(SceneCommand::MoveNode(
+                                            MoveNodeCommand::new(node_handle, old_position, value),
+                                        )))
+                                        .unwrap();
+                                }
+                            } else if message.destination() == self.scale {
+                                let old_scale = **transform.scale();
+                                if old_scale != value {
+                                    self.sender
+                                        .send(Message::DoSceneCommand(SceneCommand::ScaleNode(
+                                            ScaleNodeCommand::new(node_handle, old_scale, value),
+                                        )))
+                                        .unwrap();
                                 }
                             }
                         }
