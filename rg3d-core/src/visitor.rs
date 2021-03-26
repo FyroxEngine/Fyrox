@@ -599,8 +599,7 @@ impl Visitor {
     pub fn save_binary<P: AsRef<Path>>(&self, path: P) -> VisitResult {
         let mut writer = BufWriter::new(File::create(path)?);
         writer.write_all(Self::MAGIC.as_bytes())?;
-        let mut stack = Vec::new();
-        stack.push(self.root);
+        let mut stack = vec![self.root];
         while let Some(node_handle) = stack.pop() {
             let node = self.nodes.borrow(node_handle);
             let name = node.name.as_bytes();

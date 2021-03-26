@@ -39,65 +39,63 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Vec3Editor<M, C> {
     ) {
         self.widget.handle_routed_message(ui, message);
 
-        match &message.data() {
-            UiMessageData::NumericUpDown(msg)
+        match *message.data() {
+            UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value))
                 if message.direction() == MessageDirection::FromWidget =>
             {
-                if let NumericUpDownMessage::Value(value) = *msg {
-                    if message.destination() == self.x_field {
-                        ui.send_message(Vec3EditorMessage::value(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                            Vector3::new(value, self.value.y, self.value.z),
-                        ));
-                    } else if message.destination() == self.y_field {
-                        ui.send_message(Vec3EditorMessage::value(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                            Vector3::new(self.value.x, value, self.value.z),
-                        ));
-                    } else if message.destination() == self.z_field {
-                        ui.send_message(Vec3EditorMessage::value(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                            Vector3::new(self.value.x, self.value.y, value),
-                        ));
-                    }
+                if message.destination() == self.x_field {
+                    ui.send_message(Vec3EditorMessage::value(
+                        self.handle(),
+                        MessageDirection::ToWidget,
+                        Vector3::new(value, self.value.y, self.value.z),
+                    ));
+                } else if message.destination() == self.y_field {
+                    ui.send_message(Vec3EditorMessage::value(
+                        self.handle(),
+                        MessageDirection::ToWidget,
+                        Vector3::new(self.value.x, value, self.value.z),
+                    ));
+                } else if message.destination() == self.z_field {
+                    ui.send_message(Vec3EditorMessage::value(
+                        self.handle(),
+                        MessageDirection::ToWidget,
+                        Vector3::new(self.value.x, self.value.y, value),
+                    ));
                 }
             }
-            UiMessageData::Vec3Editor(msg) if message.direction() == MessageDirection::ToWidget => {
-                if let Vec3EditorMessage::Value(value) = *msg {
-                    let mut changed = false;
-                    if self.value.x != value.x {
-                        self.value.x = value.x;
-                        ui.send_message(NumericUpDownMessage::value(
-                            self.x_field,
-                            MessageDirection::ToWidget,
-                            value.x,
-                        ));
-                        changed = true;
-                    }
-                    if self.value.y != value.y {
-                        self.value.y = value.y;
-                        ui.send_message(NumericUpDownMessage::value(
-                            self.y_field,
-                            MessageDirection::ToWidget,
-                            value.y,
-                        ));
-                        changed = true;
-                    }
-                    if self.value.z != value.z {
-                        self.value.z = value.z;
-                        ui.send_message(NumericUpDownMessage::value(
-                            self.z_field,
-                            MessageDirection::ToWidget,
-                            value.z,
-                        ));
-                        changed = true;
-                    }
-                    if changed {
-                        ui.send_message(message.reverse());
-                    }
+            UiMessageData::Vec3Editor(Vec3EditorMessage::Value(value))
+                if message.direction() == MessageDirection::ToWidget =>
+            {
+                let mut changed = false;
+                if self.value.x != value.x {
+                    self.value.x = value.x;
+                    ui.send_message(NumericUpDownMessage::value(
+                        self.x_field,
+                        MessageDirection::ToWidget,
+                        value.x,
+                    ));
+                    changed = true;
+                }
+                if self.value.y != value.y {
+                    self.value.y = value.y;
+                    ui.send_message(NumericUpDownMessage::value(
+                        self.y_field,
+                        MessageDirection::ToWidget,
+                        value.y,
+                    ));
+                    changed = true;
+                }
+                if self.value.z != value.z {
+                    self.value.z = value.z;
+                    ui.send_message(NumericUpDownMessage::value(
+                        self.z_field,
+                        MessageDirection::ToWidget,
+                        value.z,
+                    ));
+                    changed = true;
+                }
+                if changed {
+                    ui.send_message(message.reverse());
                 }
             }
             _ => (),

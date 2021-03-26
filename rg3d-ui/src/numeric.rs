@@ -78,32 +78,30 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for NumericUpDown<M, C> {
                     }
                 }
             }
-            UiMessageData::NumericUpDown(msg)
+            &UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value))
                 if message.direction() == MessageDirection::ToWidget
                     && message.destination() == self.handle() =>
             {
-                if let NumericUpDownMessage::Value(value) = *msg {
-                    let clamped = value.min(self.max_value).max(self.min_value);
-                    if self.value != clamped {
-                        self.value = clamped;
+                let clamped = value.min(self.max_value).max(self.min_value);
+                if self.value != clamped {
+                    self.value = clamped;
 
-                        // Sync text field.
-                        ui.send_message(TextBoxMessage::text(
-                            self.field,
-                            MessageDirection::ToWidget,
-                            format!("{:.1$}", self.value, self.precision),
-                        ));
+                    // Sync text field.
+                    ui.send_message(TextBoxMessage::text(
+                        self.field,
+                        MessageDirection::ToWidget,
+                        format!("{:.1$}", self.value, self.precision),
+                    ));
 
-                        let mut msg = NumericUpDownMessage::value(
-                            self.handle,
-                            MessageDirection::FromWidget,
-                            self.value,
-                        );
-                        // We must maintain flags
-                        msg.set_handled(message.handled());
-                        msg.flags = message.flags;
-                        ui.send_message(msg);
-                    }
+                    let mut msg = NumericUpDownMessage::value(
+                        self.handle,
+                        MessageDirection::FromWidget,
+                        self.value,
+                    );
+                    // We must maintain flags
+                    msg.set_handled(message.handled());
+                    msg.flags = message.flags;
+                    ui.send_message(msg);
                 }
             }
             UiMessageData::Button(ButtonMessage::Click) => {

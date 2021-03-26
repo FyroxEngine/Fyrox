@@ -1,6 +1,8 @@
 //! 3D Game Engine.
 
 #![allow(clippy::too_many_arguments)]
+#![allow(clippy::upper_case_acronyms)]
+#![allow(clippy::from_over_into)]
 
 extern crate ddsfile;
 extern crate glutin;

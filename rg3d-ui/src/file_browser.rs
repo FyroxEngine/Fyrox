@@ -169,44 +169,42 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileBrowser<M, C> {
                     }
                 }
             }
-            UiMessageData::Tree(msg) => {
-                if let TreeMessage::Expand { expand, .. } = *msg {
-                    if expand {
-                        // Look into internals of directory and build tree items.
-                        let parent_path = ui
-                            .node(message.destination())
-                            .user_data_ref::<PathBuf>()
-                            .clone();
-                        if let Ok(dir_iter) = std::fs::read_dir(&parent_path) {
-                            for p in dir_iter {
-                                if let Ok(entry) = p {
-                                    let path = entry.path();
-                                    let build = if let Some(filter) = self.filter.as_ref() {
-                                        filter.deref().borrow_mut().deref_mut()(&path)
-                                    } else {
-                                        true
-                                    };
-                                    if build {
-                                        build_tree(
-                                            message.destination(),
-                                            false,
-                                            &path,
-                                            &parent_path,
-                                            ui,
-                                        );
-                                    }
+            UiMessageData::Tree(TreeMessage::Expand { expand, .. }) => {
+                if *expand {
+                    // Look into internals of directory and build tree items.
+                    let parent_path = ui
+                        .node(message.destination())
+                        .user_data_ref::<PathBuf>()
+                        .clone();
+                    if let Ok(dir_iter) = std::fs::read_dir(&parent_path) {
+                        for p in dir_iter {
+                            if let Ok(entry) = p {
+                                let path = entry.path();
+                                let build = if let Some(filter) = self.filter.as_ref() {
+                                    filter.deref().borrow_mut().deref_mut()(&path)
+                                } else {
+                                    true
+                                };
+                                if build {
+                                    build_tree(
+                                        message.destination(),
+                                        false,
+                                        &path,
+                                        &parent_path,
+                                        ui,
+                                    );
                                 }
                             }
                         }
-                    } else {
-                        // Nuke everything in collapsed item. This also will free some resources
-                        // and will speed up layout pass.
-                        ui.send_message(TreeMessage::set_items(
-                            message.destination(),
-                            MessageDirection::ToWidget,
-                            vec![],
-                        ));
                     }
+                } else {
+                    // Nuke everything in collapsed item. This also will free some resources
+                    // and will speed up layout pass.
+                    ui.send_message(TreeMessage::set_items(
+                        message.destination(),
+                        MessageDirection::ToWidget,
+                        vec![],
+                    ));
                 }
             }
             UiMessageData::TreeRoot(msg) => {

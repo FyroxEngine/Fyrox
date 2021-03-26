@@ -5,6 +5,8 @@
 #![forbid(unsafe_code)]
 #![allow(irrefutable_let_patterns)]
 #![allow(clippy::float_cmp)]
+#![allow(clippy::upper_case_acronyms)]
+#![allow(clippy::from_over_into)]
 
 #[macro_use]
 extern crate lazy_static;

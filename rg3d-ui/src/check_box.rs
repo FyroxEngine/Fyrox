@@ -74,52 +74,50 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CheckBox<M, C> {
                     _ => (),
                 }
             }
-            UiMessageData::CheckBox(ref msg)
+            &UiMessageData::CheckBox(CheckBoxMessage::Check(value))
                 if message.direction() == MessageDirection::ToWidget
                     && message.destination() == self.handle() =>
             {
-                if let CheckBoxMessage::Check(value) = *msg {
-                    if self.checked != value {
-                        self.checked = value;
+                if self.checked != value {
+                    self.checked = value;
 
-                        ui.send_message(message.reverse());
+                    ui.send_message(message.reverse());
 
-                        if self.check_mark.is_some() {
-                            match value {
-                                None => {
-                                    ui.send_message(WidgetMessage::visibility(
-                                        self.check_mark,
-                                        MessageDirection::ToWidget,
-                                        false,
-                                    ));
-                                    ui.send_message(WidgetMessage::visibility(
-                                        self.uncheck_mark,
-                                        MessageDirection::ToWidget,
-                                        false,
-                                    ));
-                                    ui.send_message(WidgetMessage::visibility(
-                                        self.undefined_mark,
-                                        MessageDirection::ToWidget,
-                                        true,
-                                    ));
-                                }
-                                Some(value) => {
-                                    ui.send_message(WidgetMessage::visibility(
-                                        self.check_mark,
-                                        MessageDirection::ToWidget,
-                                        value,
-                                    ));
-                                    ui.send_message(WidgetMessage::visibility(
-                                        self.uncheck_mark,
-                                        MessageDirection::ToWidget,
-                                        !value,
-                                    ));
-                                    ui.send_message(WidgetMessage::visibility(
-                                        self.undefined_mark,
-                                        MessageDirection::ToWidget,
-                                        false,
-                                    ));
-                                }
+                    if self.check_mark.is_some() {
+                        match value {
+                            None => {
+                                ui.send_message(WidgetMessage::visibility(
+                                    self.check_mark,
+                                    MessageDirection::ToWidget,
+                                    false,
+                                ));
+                                ui.send_message(WidgetMessage::visibility(
+                                    self.uncheck_mark,
+                                    MessageDirection::ToWidget,
+                                    false,
+                                ));
+                                ui.send_message(WidgetMessage::visibility(
+                                    self.undefined_mark,
+                                    MessageDirection::ToWidget,
+                                    true,
+                                ));
+                            }
+                            Some(value) => {
+                                ui.send_message(WidgetMessage::visibility(
+                                    self.check_mark,
+                                    MessageDirection::ToWidget,
+                                    value,
+                                ));
+                                ui.send_message(WidgetMessage::visibility(
+                                    self.uncheck_mark,
+                                    MessageDirection::ToWidget,
+                                    !value,
+                                ));
+                                ui.send_message(WidgetMessage::visibility(
+                                    self.undefined_mark,
+                                    MessageDirection::ToWidget,
+                                    false,
+                                ));
                             }
                         }
                     }
