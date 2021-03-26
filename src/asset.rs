@@ -255,7 +255,6 @@ impl AssetBrowser {
                                     .with_child({
                                         selected_properties =
                                             TextBuilder::new(WidgetBuilder::new().on_row(0))
-                                                .with_text("Ololo")
                                                 .build(&mut ctx);
                                         selected_properties
                                     })

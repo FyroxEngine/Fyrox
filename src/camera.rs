@@ -26,6 +26,7 @@ pub struct CameraController {
     move_right: bool,
     move_forward: bool,
     move_backward: bool,
+    speed_factor: f32,
     stack: Vec<Handle<Node>>,
     editor_context: PickContext,
     scene_context: PickContext,
@@ -69,6 +70,7 @@ impl CameraController {
             move_right: false,
             move_forward: false,
             move_backward: false,
+            speed_factor: 1.0,
             stack: Default::default(),
             editor_context: Default::default(),
             scene_context: Default::default(),
@@ -116,6 +118,7 @@ impl CameraController {
             KeyCode::S => self.move_backward = false,
             KeyCode::A => self.move_left = false,
             KeyCode::D => self.move_right = false,
+            KeyCode::LControl | KeyCode::LShift => self.speed_factor = 1.0,
             _ => (),
         }
     }
@@ -126,6 +129,8 @@ impl CameraController {
             KeyCode::S => self.move_backward = true,
             KeyCode::A => self.move_left = true,
             KeyCode::D => self.move_right = true,
+            KeyCode::LControl => self.speed_factor = 2.0,
+            KeyCode::LShift => self.speed_factor = 0.5,
             _ => (),
         }
     }
@@ -151,7 +156,7 @@ impl CameraController {
             move_vec -= side;
         }
         if let Some(v) = move_vec.try_normalize(std::f32::EPSILON) {
-            move_vec = v.scale(10.0 * dt);
+            move_vec = v.scale(self.speed_factor * 10.0 * dt);
         }
 
         if let Node::Camera(camera) = camera {
