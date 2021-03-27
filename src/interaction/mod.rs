@@ -38,6 +38,7 @@ pub trait InteractionModeTrait {
         mouse_pos: Vector2<f32>,
         frame_size: Vector2<f32>,
     );
+
     fn on_left_mouse_button_up(
         &mut self,
         editor_scene: &mut EditorScene,
@@ -45,6 +46,7 @@ pub trait InteractionModeTrait {
         mouse_pos: Vector2<f32>,
         frame_size: Vector2<f32>,
     );
+
     fn on_mouse_move(
         &mut self,
         mouse_offset: Vector2<f32>,
@@ -54,14 +56,25 @@ pub trait InteractionModeTrait {
         engine: &mut GameEngine,
         frame_size: Vector2<f32>,
     );
+
     fn update(
         &mut self,
         editor_scene: &mut EditorScene,
         camera: Handle<Node>,
         engine: &mut GameEngine,
     );
+
     fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine);
+
     fn on_key_down(
+        &mut self,
+        _key: KeyCode,
+        _editor_scene: &mut EditorScene,
+        _engine: &mut GameEngine,
+    ) {
+    }
+
+    fn on_key_up(
         &mut self,
         _key: KeyCode,
         _editor_scene: &mut EditorScene,
@@ -1770,5 +1783,11 @@ impl InteractionModeTrait for InteractionMode {
         scope_profile!();
 
         static_dispatch!(self, on_key_down, key, editor_scene, engine)
+    }
+
+    fn on_key_up(&mut self, key: KeyCode, editor_scene: &mut EditorScene, engine: &mut GameEngine) {
+        scope_profile!();
+
+        static_dispatch!(self, on_key_up, key, editor_scene, engine)
     }
 }

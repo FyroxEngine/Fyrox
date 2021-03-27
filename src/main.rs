@@ -871,6 +871,14 @@ impl Editor {
                         }
                         WidgetMessage::KeyUp(key) => {
                             editor_scene.camera_controller.on_key_up(key);
+
+                            if let Some(current_im) = self.current_interaction_mode {
+                                self.interaction_modes[current_im as usize].on_key_up(
+                                    key,
+                                    editor_scene,
+                                    engine,
+                                );
+                            }
                         }
                         WidgetMessage::KeyDown(key) => {
                             editor_scene.camera_controller.on_key_down(key);
