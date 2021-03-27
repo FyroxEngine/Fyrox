@@ -13,6 +13,8 @@ extern crate lazy_static;
 extern crate fontdue;
 extern crate sysinfo;
 
+use message::PopupMessage;
+use popup::Placement;
 pub use rg3d_core as core;
 
 pub mod border;
@@ -1349,6 +1351,39 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
                                     MessageDirection::ToWidget,
                                     (parent_size - size).scale(0.5),
                                 ));
+                            }
+                        }
+                        WidgetMessage::MouseDown { button, .. } => {
+                            if *button == MouseButton::Right {
+                                if let Some(picked) = self.nodes.try_borrow(self.picked_node) {
+                                    // Get the context menu from the current node or aa parent node
+                                    let context_menu = if picked.context_menu().is_some() {
+                                        picked.context_menu()
+                                    } else {
+                                        let parent_handle = picked.find_by_criteria_up(self, |n| {
+                                            n.context_menu().is_some()
+                                        });
+
+                                        if let Some(parent) = self.nodes.try_borrow(parent_handle) {
+                                            parent.context_menu()
+                                        } else {
+                                            Handle::NONE
+                                        }
+                                    };
+
+                                    // Display context menu
+                                    if context_menu.is_some() {
+                                        self.send_message(PopupMessage::placement(
+                                            context_menu,
+                                            MessageDirection::ToWidget,
+                                            Placement::Cursor,
+                                        ));
+                                        self.send_message(PopupMessage::open(
+                                            context_menu,
+                                            MessageDirection::ToWidget,
+                                        ));
+                                    }
+                                }
                             }
                         }
                         _ => {}

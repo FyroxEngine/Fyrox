@@ -60,6 +60,7 @@ pub struct Widget<M: MessageData, C: Control<M, C>> {
     opacity: f32,
     tooltip: Handle<UINode<M, C>>,
     tooltip_time: f32,
+    context_menu: Handle<UINode<M, C>>,
 
     /// Layout. Interior mutability is a must here because layout performed in
     /// a series of recursive calls.
@@ -616,6 +617,17 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
     pub fn set_tooltip_time(&mut self, tooltip_time: f32) {
         self.tooltip_time = tooltip_time;
     }
+
+    #[inline]
+    pub fn context_menu(&self) -> Handle<UINode<M, C>> {
+        self.context_menu
+    }
+
+    #[inline]
+    /// The context menu receives `PopupMessage`s for being displayed, and so should support those.
+    pub fn set_context_menu(&mut self, context_menu: Handle<UINode<M, C>>) {
+        self.context_menu = context_menu;
+    }
 }
 
 #[macro_export]
@@ -664,6 +676,7 @@ pub struct WidgetBuilder<M: MessageData, C: Control<M, C>> {
     pub opacity: f32,
     pub tooltip: Handle<UINode<M, C>>,
     pub tooltip_time: f32,
+    pub context_menu: Handle<UINode<M, C>>,
 }
 
 impl<M: MessageData, C: Control<M, C>> Default for WidgetBuilder<M, C> {
@@ -701,6 +714,7 @@ impl<M: MessageData, C: Control<M, C>> WidgetBuilder<M, C> {
             opacity: 1.0,
             tooltip: Handle::default(),
             tooltip_time: 1.0,
+            context_menu: Handle::default(),
         }
     }
 
@@ -850,6 +864,14 @@ impl<M: MessageData, C: Control<M, C>> WidgetBuilder<M, C> {
         self
     }
 
+    /// The context menu receives `PopupMessage`s for being displayed, and so should support those.
+    pub fn with_context_menu(mut self, context_menu: Handle<UINode<M, C>>) -> Self {
+        if context_menu.is_some() {
+            self.context_menu = context_menu;
+        }
+        self
+    }
+
     pub fn build(self) -> Widget<M, C> {
         Widget {
             handle: Default::default(),
@@ -896,6 +918,7 @@ impl<M: MessageData, C: Control<M, C>> WidgetBuilder<M, C> {
             opacity: self.opacity,
             tooltip: self.tooltip,
             tooltip_time: self.tooltip_time,
+            context_menu: self.context_menu,
         }
     }
 }
