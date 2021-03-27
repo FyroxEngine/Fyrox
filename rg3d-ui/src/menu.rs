@@ -354,8 +354,6 @@ impl<M: MessageData, C: Control<M, C>> MenuBuilder<M, C> {
 }
 
 pub enum MenuItemContent<'a, 'b, M: MessageData, C: Control<M, C>> {
-    /// Empty menu item.
-    None,
     /// Quick-n-dirty way of building elements. It can cover most of use
     /// cases - it builds classic menu item:
     ///   _____________________
@@ -393,7 +391,7 @@ impl<'a, 'b, M: MessageData, C: Control<M, C>> MenuItemContent<'a, 'b, M, C> {
 pub struct MenuItemBuilder<'a, 'b, M: MessageData, C: Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     items: Vec<Handle<UINode<M, C>>>,
-    content: MenuItemContent<'a, 'b, M, C>,
+    content: Option<MenuItemContent<'a, 'b, M, C>>,
     back: Option<Handle<UINode<M, C>>>,
 }
 
@@ -402,13 +400,13 @@ impl<'a, 'b, M: MessageData, C: Control<M, C>> MenuItemBuilder<'a, 'b, M, C> {
         Self {
             widget_builder,
             items: Default::default(),
-            content: MenuItemContent::None,
+            content: None,
             back: None,
         }
     }
 
     pub fn with_content(mut self, content: MenuItemContent<'a, 'b, M, C>) -> Self {
-        self.content = content;
+        self.content = Some(content);
         self
     }
 
@@ -426,12 +424,12 @@ impl<'a, 'b, M: MessageData, C: Control<M, C>> MenuItemBuilder<'a, 'b, M, C> {
 
     pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
         let content = match self.content {
-            MenuItemContent::None => Handle::NONE,
-            MenuItemContent::Text {
+            None => Handle::NONE,
+            Some(MenuItemContent::Text {
                 text,
                 shortcut,
                 icon,
-            } => GridBuilder::new(
+            }) => GridBuilder::new(
                 WidgetBuilder::new()
                     .with_child(icon)
                     .with_child(
@@ -461,7 +459,7 @@ impl<'a, 'b, M: MessageData, C: Control<M, C>> MenuItemBuilder<'a, 'b, M, C> {
             .add_column(Column::stretch())
             .add_column(Column::auto())
             .build(ctx),
-            MenuItemContent::Node(node) => node,
+            Some(MenuItemContent::Node(node)) => node,
         };
 
         let back = self.back.unwrap_or_else(|| {
