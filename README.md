@@ -10,6 +10,27 @@ rg3d engine getting bigger, but still does not have scene editor what makes crea
 
 It should be noted that this editor is the **scene** editor, it does **not** allow you to run your game inside like many other editors do (Unreal Engine, Unity, etc.). This fact means that each prototyping iteration of your game will take more time. Having the ability to run game inside editor would be nice indeed, but this is too much work for one person and I just don't want to spend time on this.
 
+## How to build
+
+Fresh build:
+
+```shell
+git clone https://github.com/mrDIMAS/rg3d
+git clone https://github.com/mrDIMAS/rusty-editor
+cd rusty-editor
+cargo run --release
+```
+
+Update to latest and run:
+
+```shell
+cd rg3d
+git pull
+cd ../rusty-editor
+git pull
+cargo run --release
+```
+
 ## Screenshots
 
 ![1](screenshots/latest.png?raw=true "Editor")
