@@ -16,6 +16,7 @@ pub mod sprite;
 pub mod transform;
 
 use crate::core::pool::Ticket;
+use crate::scene::physics::PhysicsPerformanceStatistics;
 use crate::{
     animation::AnimationContainer,
     core::{
@@ -1128,10 +1129,10 @@ fn map_texture(tex: Option<Texture>, rm: ResourceManager) -> Option<Texture> {
 }
 
 /// A structure that holds times that specific update step took.
-#[derive(Copy, Clone, Default, Debug)]
+#[derive(Clone, Default, Debug)]
 pub struct PerformanceStatistics {
-    /// A time (in seconds) which was required to update physics.
-    pub physics_time: f32,
+    /// Physics performance statistics.
+    pub physics: PhysicsPerformanceStatistics,
 
     /// A time (in seconds) which was required to update graph.
     pub graph_update_time: f32,
@@ -1147,8 +1148,8 @@ impl Display for PerformanceStatistics {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Physics: {} ms\nGraph: {} ms\nAnimations: {} ms\nSounds: {} ms",
-            self.physics_time * 1000.0,
+            "{}\nGraph: {} ms\nAnimations: {} ms\nSounds: {} ms",
+            self.physics,
             self.graph_update_time * 1000.0,
             self.animations_update_time * 1000.0,
             self.sound_update_time * 1000.0
@@ -1284,6 +1285,9 @@ impl Scene {
 
     fn update_physics(&mut self) {
         self.physics.step();
+
+        self.performance_statistics.physics = self.physics.performance_statistics.clone();
+        self.physics.performance_statistics.reset();
 
         // Keep pair when node and body are both alive.
         let graph = &mut self.graph;
@@ -1433,9 +1437,7 @@ impl Scene {
     /// it updates physics, animations, and each graph node. In most cases there is
     /// no need to call it directly, engine automatically updates all available scenes.
     pub fn update(&mut self, frame_size: Vector2<f32>, dt: f32) {
-        let last = std::time::Instant::now();
         self.update_physics();
-        self.performance_statistics.physics_time = (std::time::Instant::now() - last).as_secs_f32();
 
         let last = std::time::Instant::now();
         self.animations.update_animations(dt);

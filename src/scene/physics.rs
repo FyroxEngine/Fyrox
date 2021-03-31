@@ -35,6 +35,9 @@ use rapier3d::{
     parry::shape::{FeatureId, SharedShape, TriMesh},
     pipeline::{EventHandler, PhysicsPipeline, QueryPipeline},
 };
+use std::cell::Cell;
+use std::fmt::Display;
+use std::time::Duration;
 use std::{
     cell::RefCell,
     cmp::Ordering,
@@ -141,6 +144,8 @@ pub struct Physics {
     pub embedded_resources: Vec<ResourceLink>,
 
     query: RefCell<QueryPipeline>,
+
+    pub(in crate) performance_statistics: PhysicsPerformanceStatistics,
 }
 
 impl Debug for Physics {
@@ -205,6 +210,33 @@ impl<A: Array<Item = Intersection>> QueryResultsStorage for ArrayVec<A> {
     }
 }
 
+/// Performance statistics for the physics part of the engine.
+#[derive(Debug, Default, Clone)]
+pub struct PhysicsPerformanceStatistics {
+    /// A time that was needed to perform a single simulation step.
+    pub step_time: Duration,
+
+    /// A time that was needed to perform all ray casts.
+    pub total_ray_cast_time: Cell<Duration>,
+}
+
+impl Display for PhysicsPerformanceStatistics {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Physics Step Time: {:?}\nPhysics Ray Cast Time: {:?}",
+            self.step_time,
+            self.total_ray_cast_time.get(),
+        )
+    }
+}
+
+impl PhysicsPerformanceStatistics {
+    pub(in crate) fn reset(&mut self) {
+        *self = Default::default();
+    }
+}
+
 impl Physics {
     pub(in crate) fn new() -> Self {
         Self {
@@ -220,6 +252,7 @@ impl Physics {
             query: Default::default(),
             desc: Default::default(),
             embedded_resources: Default::default(),
+            performance_statistics: Default::default(),
         }
     }
 
@@ -320,6 +353,8 @@ impl Physics {
     }
 
     pub(in crate) fn step(&mut self) {
+        let time = std::time::Instant::now();
+
         self.pipeline.step(
             &self.gravity,
             &self.integration_parameters,
@@ -331,6 +366,8 @@ impl Physics {
             &(),
             &*self.event_handler,
         );
+
+        self.performance_statistics.step_time += std::time::Instant::now() - time;
     }
 
     #[doc(hidden)]
@@ -475,6 +512,8 @@ impl Physics {
 
     /// Casts a ray with given options.
     pub fn cast_ray<S: QueryResultsStorage>(&self, opts: RayCastOptions, query_buffer: &mut S) {
+        let time = std::time::Instant::now();
+
         let mut query = self.query.borrow_mut();
 
         // TODO: Ideally this must be called once per frame, but it seems to be impossible because
@@ -519,6 +558,11 @@ impl Physics {
                 }
             })
         }
+
+        self.performance_statistics.total_ray_cast_time.set(
+            self.performance_statistics.total_ray_cast_time.get()
+                + (std::time::Instant::now() - time),
+        );
     }
 
     pub(in crate) fn resolve(&mut self, binder: &PhysicsBinder, graph: &Graph) {
