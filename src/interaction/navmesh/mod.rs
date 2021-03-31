@@ -385,13 +385,14 @@ impl InteractionModeTrait for EditNavmeshMode {
 
             let camera = editor_scene.camera_controller.camera;
             let camera_pivot = editor_scene.camera_controller.pivot;
+            let gizmo_origin = self.move_gizmo.origin;
             let editor_node = editor_scene.camera_controller.pick(
                 mouse_pos,
                 &scene.graph,
                 editor_scene.root,
                 frame_size,
                 true,
-                |handle, _| handle != camera && handle != camera_pivot,
+                |handle, _| handle != camera && handle != camera_pivot && handle != gizmo_origin,
             );
 
             if self

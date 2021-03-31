@@ -217,6 +217,9 @@ impl CameraController {
 
                 let (aabb, surfaces) = match node {
                     Node::Mesh(mesh) => (mesh.bounding_box(), Some(mesh.surfaces())),
+                    Node::Base(_) if handle == graph.get_root() || handle == root => {
+                        (AxisAlignedBoundingBox::default(), None)
+                    }
                     _ => (AxisAlignedBoundingBox::unit(), None),
                 };
 
