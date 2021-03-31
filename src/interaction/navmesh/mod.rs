@@ -719,7 +719,7 @@ impl InteractionModeTrait for EditNavmeshMode {
 
                             commands.push(SceneCommand::ChangeSelection(
                                 ChangeSelectionCommand::new(
-                                    Default::default(),
+                                    Selection::Navmesh(NavmeshSelection::empty(self.navmesh)),
                                     editor_scene.selection.clone(),
                                 ),
                             ));

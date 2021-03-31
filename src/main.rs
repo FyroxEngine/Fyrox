@@ -950,7 +950,9 @@ impl Editor {
                                     }
                                 }
                                 KeyCode::Delete => {
-                                    if !editor_scene.selection.is_empty() {
+                                    if !editor_scene.selection.is_empty()
+                                        && matches!(editor_scene.selection, Selection::Graph(_))
+                                    {
                                         self.message_sender
                                             .send(Message::DoSceneCommand(
                                                 make_delete_selection_command(editor_scene, engine),
