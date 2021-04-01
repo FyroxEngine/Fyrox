@@ -155,7 +155,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollBar<M, C> {
                         let new_value = math::clampf(value, self.min, self.max);
                         if (new_value - old_value).abs() > std::f32::EPSILON {
                             self.value = new_value;
-                            self.invalidate_layout();
+                            self.invalidate_arrange();
 
                             if self.value_text.is_some() {
                                 ui.send_message(TextMessage::text(

@@ -114,11 +114,11 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollPanel<M, C> {
                 match *msg {
                     ScrollPanelMessage::VerticalScroll(scroll) => {
                         self.scroll.y = scroll;
-                        self.invalidate_layout();
+                        self.invalidate_arrange();
                     }
                     ScrollPanelMessage::HorizontalScroll(scroll) => {
                         self.scroll.x = scroll;
-                        self.invalidate_layout();
+                        self.invalidate_arrange();
                     }
                     ScrollPanelMessage::BringIntoView(handle) => {
                         let size = ui.node(handle).actual_size();

@@ -79,6 +79,7 @@ pub struct Widget<M: MessageData, C: Control<M, C>> {
 }
 
 impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
+    #[inline]
     pub fn handle(&self) -> Handle<UINode<M, C>> {
         self.handle
     }
@@ -120,20 +121,33 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
         self.min_size.y
     }
 
+    #[inline]
     pub fn is_drag_allowed(&self) -> bool {
         self.allow_drag
     }
 
+    #[inline]
     pub fn is_drop_allowed(&self) -> bool {
         self.allow_drop
     }
 
     #[inline]
     pub fn invalidate_layout(&self) {
+        self.invalidate_measure();
+        self.invalidate_arrange();
+    }
+
+    #[inline]
+    pub fn invalidate_measure(&self) {
         self.measure_valid.set(false);
+    }
+
+    #[inline]
+    pub fn invalidate_arrange(&self) {
         self.arrange_valid.set(false);
     }
 
+    #[inline]
     pub fn is_hit_test_visible(&self) -> bool {
         self.hit_test_visibility
     }
@@ -590,10 +604,12 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
             .unwrap()
     }
 
+    #[inline]
     pub fn clip_bounds(&self) -> Rect<f32> {
         self.clip_bounds.get()
     }
 
+    #[inline]
     pub fn opacity(&self) -> f32 {
         self.opacity
     }
