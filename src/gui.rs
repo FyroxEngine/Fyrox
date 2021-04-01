@@ -1,6 +1,6 @@
 use crate::{asset::AssetItem, load_image, world_outliner::SceneItem};
 use rg3d::{
-    core::{algebra::Vector2, math::Rect, pool::Handle},
+    core::{algebra::Vector2, pool::Handle},
     engine::resource_manager::ResourceManager,
     gui::{
         border::BorderBuilder,
@@ -234,14 +234,6 @@ impl Control<EditorUiMessage, EditorUiNode> for EditorUiNode {
 
     fn arrange_override(&self, ui: &Ui, final_size: Vector2<f32>) -> Vector2<f32> {
         static_dispatch!(self, arrange_override, ui, final_size)
-    }
-
-    fn arrange(&self, ui: &Ui, final_rect: &Rect<f32>) {
-        static_dispatch!(self, arrange, ui, final_rect)
-    }
-
-    fn measure(&self, ui: &Ui, available_size: Vector2<f32>) {
-        static_dispatch!(self, measure, ui, available_size)
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {

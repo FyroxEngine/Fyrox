@@ -11,7 +11,7 @@ use crate::{
     send_sync_message, GameEngine, Message,
 };
 use rg3d::{
-    core::{algebra::Vector2, math::Rect, pool::Handle, scope_profile},
+    core::{algebra::Vector2, pool::Handle, scope_profile},
     engine::resource_manager::ResourceManager,
     gui::{
         brush::Brush,
@@ -103,14 +103,6 @@ impl Control<EditorUiMessage, EditorUiNode> for SceneItem {
 
     fn arrange_override(&self, ui: &Ui, final_size: Vector2<f32>) -> Vector2<f32> {
         self.tree.arrange_override(ui, final_size)
-    }
-
-    fn arrange(&self, ui: &Ui, final_rect: &Rect<f32>) {
-        self.tree.arrange(ui, final_rect);
-    }
-
-    fn measure(&self, ui: &Ui, available_size: Vector2<f32>) {
-        self.tree.measure(ui, available_size)
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
