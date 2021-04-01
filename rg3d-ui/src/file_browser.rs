@@ -3,10 +3,9 @@
 //! File selector is dialog window with file browser, it somewhat similar to standard
 //! OS file selector.
 
-use crate::core::algebra::Vector2;
 use crate::{
     button::ButtonBuilder,
-    core::{math::Rect, pool::Handle},
+    core::{algebra::Vector2, pool::Handle},
     draw::DrawingContext,
     grid::{Column, GridBuilder, Row},
     message::{
@@ -585,22 +584,6 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileSelector<M, C> {
 
     fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
         self.window.arrange_override(ui, final_size)
-    }
-
-    fn arrange(&self, ui: &UserInterface<M, C>, final_rect: &Rect<f32>) {
-        self.window.arrange(ui, final_rect);
-    }
-
-    fn is_measure_valid(&self, ui: &UserInterface<M, C>) -> bool {
-        self.window.is_measure_valid(ui)
-    }
-
-    fn is_arrange_valid(&self, ui: &UserInterface<M, C>) -> bool {
-        self.window.is_arrange_valid(ui)
-    }
-
-    fn measure(&self, ui: &UserInterface<M, C>, available_size: Vector2<f32>) {
-        self.window.measure(ui, available_size)
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {

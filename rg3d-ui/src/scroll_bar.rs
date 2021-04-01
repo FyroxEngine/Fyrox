@@ -49,7 +49,9 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollBar<M, C> {
         node_map.resolve(&mut self.increase);
         node_map.resolve(&mut self.decrease);
         node_map.resolve(&mut self.indicator);
-        node_map.resolve(&mut self.value_text);
+        if self.value_text.is_some() {
+            node_map.resolve(&mut self.value_text);
+        }
         node_map.resolve(&mut self.field);
     }
 
@@ -534,26 +536,32 @@ impl<M: MessageData, C: Control<M, C>> ScrollBarBuilder<M, C> {
         let max = self.max.unwrap_or(100.0);
         let value = math::clampf(self.value.unwrap_or(0.0), min, max);
 
-        let value_text = TextBuilder::new(
-            WidgetBuilder::new()
-                .with_visibility(self.show_value)
-                .with_horizontal_alignment(HorizontalAlignment::Center)
-                .with_vertical_alignment(VerticalAlignment::Center)
-                .with_hit_test_visibility(false)
-                .with_margin(Thickness::uniform(3.0))
-                .on_column(match orientation {
-                    Orientation::Horizontal => 1,
-                    Orientation::Vertical => 0,
-                })
-                .on_row(match orientation {
-                    Orientation::Horizontal => 0,
-                    Orientation::Vertical => 1,
-                }),
-        )
-        .with_text(format!("{:.1$}", value, self.value_precision))
-        .build(ctx);
+        let value_text = if self.show_value {
+            let value_text = TextBuilder::new(
+                WidgetBuilder::new()
+                    .with_visibility(self.show_value)
+                    .with_horizontal_alignment(HorizontalAlignment::Center)
+                    .with_vertical_alignment(VerticalAlignment::Center)
+                    .with_hit_test_visibility(false)
+                    .with_margin(Thickness::uniform(3.0))
+                    .on_column(match orientation {
+                        Orientation::Horizontal => 1,
+                        Orientation::Vertical => 0,
+                    })
+                    .on_row(match orientation {
+                        Orientation::Horizontal => 0,
+                        Orientation::Vertical => 1,
+                    }),
+            )
+            .with_text(format!("{:.1$}", value, self.value_precision))
+            .build(ctx);
 
-        ctx.link(value_text, indicator);
+            ctx.link(value_text, indicator);
+
+            value_text
+        } else {
+            Handle::NONE
+        };
 
         let field = CanvasBuilder::new(
             WidgetBuilder::new()

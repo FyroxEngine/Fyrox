@@ -31,7 +31,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Border<M, C> {
         let mut desired_size = Vector2::default();
 
         for child_handle in self.widget.children() {
-            ui.node(*child_handle).measure(ui, size_for_child);
+            ui.measure_node(*child_handle, size_for_child);
             let child = ui.nodes.borrow(*child_handle);
             let child_desired_size = child.desired_size();
             if child_desired_size.x > desired_size.x {
@@ -59,7 +59,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Border<M, C> {
         );
 
         for child_handle in self.widget.children() {
-            ui.node(*child_handle).arrange(ui, &rect_for_child);
+            ui.arrange_node(*child_handle, &rect_for_child);
         }
 
         final_size
@@ -99,14 +99,6 @@ impl<M: MessageData, C: Control<M, C>> Border<M, C> {
             widget,
             stroke_thickness: Thickness::uniform(1.0),
         }
-    }
-
-    pub fn set_stroke_thickness(&mut self, thickness: Thickness) -> &mut Self {
-        if self.stroke_thickness != thickness {
-            self.stroke_thickness = thickness;
-            self.widget.invalidate_layout();
-        }
-        self
     }
 }
 

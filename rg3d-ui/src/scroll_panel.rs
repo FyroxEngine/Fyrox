@@ -44,7 +44,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollPanel<M, C> {
         let mut desired_size = Vector2::default();
 
         for child_handle in self.widget.children() {
-            ui.node(*child_handle).measure(ui, size_for_child);
+            ui.measure_node(*child_handle, size_for_child);
 
             let child = ui.nodes.borrow(*child_handle);
             let child_desired_size = child.desired_size();
@@ -85,7 +85,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollPanel<M, C> {
         );
 
         for child_handle in self.widget.children() {
-            ui.node(*child_handle).arrange(ui, &child_rect);
+            ui.arrange_node(*child_handle, &child_rect);
         }
 
         final_size
@@ -172,20 +172,6 @@ impl<M: MessageData, C: Control<M, C>> ScrollPanel<M, C> {
             scroll: Default::default(),
             vertical_scroll_allowed: true,
             horizontal_scroll_allowed: false,
-        }
-    }
-
-    pub fn set_vertical_scroll_allowed(&mut self, state: bool) {
-        if self.vertical_scroll_allowed != state {
-            self.vertical_scroll_allowed = state;
-            self.widget.invalidate_layout();
-        }
-    }
-
-    pub fn set_horizontal_scroll_allowed(&mut self, state: bool) {
-        if self.horizontal_scroll_allowed != state {
-            self.horizontal_scroll_allowed = state;
-            self.widget.invalidate_layout();
         }
     }
 }

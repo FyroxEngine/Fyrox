@@ -279,148 +279,6 @@ where
         self.deref().arrange_override(ui, final_size)
     }
 
-    fn arrange(&self, ui: &UserInterface<M, C>, final_rect: &Rect<f32>) {
-        scope_profile!();
-
-        if self.is_arrange_valid(ui) && self.prev_arrange.get() == *final_rect {
-            return;
-        }
-
-        if self.visibility() {
-            self.prev_arrange.set(*final_rect);
-
-            let margin = self.margin().axes_margin();
-
-            let mut size = Vector2::new(
-                (final_rect.w() - margin.x).max(0.0),
-                (final_rect.h() - margin.y).max(0.0),
-            );
-
-            let available_size = size;
-
-            if self.horizontal_alignment() != HorizontalAlignment::Stretch {
-                size.x = size.x.min(self.desired_size().x - margin.x);
-            }
-            if self.vertical_alignment() != VerticalAlignment::Stretch {
-                size.y = size.y.min(self.desired_size().y - margin.y);
-            }
-
-            if self.width() > 0.0 {
-                size.x = self.width();
-            }
-            if self.height() > 0.0 {
-                size.y = self.height();
-            }
-
-            size = self.arrange_override(ui, size);
-
-            size.x = size.x.min(final_rect.w());
-            size.y = size.y.min(final_rect.h());
-
-            let mut origin = final_rect.position + self.margin().offset();
-
-            match self.horizontal_alignment() {
-                HorizontalAlignment::Center | HorizontalAlignment::Stretch => {
-                    origin.x += (available_size.x - size.x) * 0.5;
-                }
-                HorizontalAlignment::Right => origin.x += available_size.x - size.x,
-                _ => (),
-            }
-
-            match self.vertical_alignment() {
-                VerticalAlignment::Center | VerticalAlignment::Stretch => {
-                    origin.y += (available_size.y - size.y) * 0.5;
-                }
-                VerticalAlignment::Bottom => origin.y += available_size.y - size.y,
-                _ => (),
-            }
-
-            self.commit_arrange(origin, size);
-        }
-    }
-
-    fn is_measure_valid(&self, ui: &UserInterface<M, C>) -> bool {
-        let mut valid = self.deref().is_measure_valid()
-            && self.prev_global_visibility == self.is_globally_visible();
-        if valid {
-            for child in self.children() {
-                valid &= ui.node(*child).is_measure_valid(ui);
-                if !valid {
-                    break;
-                }
-            }
-        }
-        valid
-    }
-
-    fn is_arrange_valid(&self, ui: &UserInterface<M, C>) -> bool {
-        let mut valid = self.deref().is_arrange_valid()
-            && self.prev_global_visibility == self.is_globally_visible();
-        if valid {
-            for child in self.children() {
-                valid &= ui.node(*child).is_arrange_valid(ui);
-                if !valid {
-                    break;
-                }
-            }
-        }
-        valid
-    }
-
-    fn measure(&self, ui: &UserInterface<M, C>, available_size: Vector2<f32>) {
-        scope_profile!();
-
-        if self.is_measure_valid(ui) && self.prev_measure.get() == available_size {
-            return;
-        }
-
-        if self.visibility() {
-            self.prev_measure.set(available_size);
-
-            let axes_margin = self.margin().axes_margin();
-            let mut inner_size = available_size - axes_margin;
-            inner_size.x = inner_size.x.max(0.0);
-            inner_size.y = inner_size.y.max(0.0);
-
-            let mut size = Vector2::new(
-                if self.width() > 0.0 {
-                    self.width()
-                } else {
-                    inner_size.x
-                },
-                if self.height() > 0.0 {
-                    self.height()
-                } else {
-                    inner_size.y
-                },
-            );
-
-            size.x = clampf(size.x, self.min_size().x, self.max_size().x);
-            size.y = clampf(size.y, self.min_size().y, self.max_size().y);
-
-            let mut desired_size = self.measure_override(ui, size);
-
-            if !self.width().is_nan() {
-                desired_size.x = self.width();
-            }
-            if !self.height().is_nan() {
-                desired_size.y = self.height();
-            }
-
-            desired_size.x = clampf(desired_size.x, self.min_size().x, self.max_size().x);
-            desired_size.y = clampf(desired_size.y, self.min_size().y, self.max_size().y);
-
-            desired_size += axes_margin;
-
-            desired_size.x = desired_size.x.min(available_size.x);
-            desired_size.y = desired_size.y.min(available_size.y);
-
-            self.commit_measure(desired_size);
-        } else {
-            self.commit_measure(Vector2::new(0.0, 0.0));
-        }
-    }
-
     fn draw(&self, _drawing_context: &mut DrawingContext) {}
 
     fn update(&mut self, _dt: f32) {}
@@ -819,9 +677,11 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
             }
         }
 
-        self.node(self.root_canvas).measure(self, screen_size);
-        self.node(self.root_canvas)
-            .arrange(self, &Rect::new(0.0, 0.0, screen_size.x, screen_size.y));
+        self.measure_node(self.root_canvas, screen_size);
+        self.arrange_node(
+            self.root_canvas,
+            &Rect::new(0.0, 0.0, screen_size.x, screen_size.y),
+        );
         self.update_transform();
 
         for node in self.nodes.iter_mut() {
@@ -906,6 +766,129 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         }
 
         &self.drawing_context
+    }
+
+    pub fn arrange_node(&self, handle: Handle<UINode<M, C>>, final_rect: &Rect<f32>) -> bool {
+        scope_profile!();
+
+        let node = self.node(handle);
+
+        if node.is_arrange_valid_with_descendants(self) && node.prev_arrange.get() == *final_rect {
+            return false;
+        }
+
+        if node.visibility() {
+            node.prev_arrange.set(*final_rect);
+
+            let margin = node.margin().axes_margin();
+
+            let mut size = Vector2::new(
+                (final_rect.w() - margin.x).max(0.0),
+                (final_rect.h() - margin.y).max(0.0),
+            );
+
+            let available_size = size;
+
+            if node.horizontal_alignment() != HorizontalAlignment::Stretch {
+                size.x = size.x.min(node.desired_size().x - margin.x);
+            }
+            if node.vertical_alignment() != VerticalAlignment::Stretch {
+                size.y = size.y.min(node.desired_size().y - margin.y);
+            }
+
+            if node.width() > 0.0 {
+                size.x = node.width();
+            }
+            if node.height() > 0.0 {
+                size.y = node.height();
+            }
+
+            size = node.arrange_override(self, size);
+
+            size.x = size.x.min(final_rect.w());
+            size.y = size.y.min(final_rect.h());
+
+            let mut origin = final_rect.position + node.margin().offset();
+
+            match node.horizontal_alignment() {
+                HorizontalAlignment::Center | HorizontalAlignment::Stretch => {
+                    origin.x += (available_size.x - size.x) * 0.5;
+                }
+                HorizontalAlignment::Right => origin.x += available_size.x - size.x,
+                _ => (),
+            }
+
+            match node.vertical_alignment() {
+                VerticalAlignment::Center | VerticalAlignment::Stretch => {
+                    origin.y += (available_size.y - size.y) * 0.5;
+                }
+                VerticalAlignment::Bottom => origin.y += available_size.y - size.y,
+                _ => (),
+            }
+
+            node.commit_arrange(origin, size);
+        }
+
+        true
+    }
+
+    pub fn measure_node(&self, handle: Handle<UINode<M, C>>, available_size: Vector2<f32>) -> bool {
+        scope_profile!();
+
+        let node = self.node(handle);
+
+        if node.is_measure_valid_with_descendants(self) && node.prev_measure.get() == available_size
+        {
+            return false;
+        }
+
+        if node.visibility() {
+            node.prev_measure.set(available_size);
+
+            let axes_margin = node.margin().axes_margin();
+            let mut inner_size = available_size - axes_margin;
+            inner_size.x = inner_size.x.max(0.0);
+            inner_size.y = inner_size.y.max(0.0);
+
+            let mut size = Vector2::new(
+                if node.width() > 0.0 {
+                    node.width()
+                } else {
+                    inner_size.x
+                },
+                if node.height() > 0.0 {
+                    node.height()
+                } else {
+                    inner_size.y
+                },
+            );
+
+            size.x = clampf(size.x, node.min_size().x, node.max_size().x);
+            size.y = clampf(size.y, node.min_size().y, node.max_size().y);
+
+            let mut desired_size = node.measure_override(self, size);
+
+            if !node.width().is_nan() {
+                desired_size.x = node.width();
+            }
+            if !node.height().is_nan() {
+                desired_size.y = node.height();
+            }
+
+            desired_size.x = clampf(desired_size.x, node.min_size().x, node.max_size().x);
+            desired_size.y = clampf(desired_size.y, node.min_size().y, node.max_size().y);
+
+            desired_size += axes_margin;
+
+            desired_size.x = desired_size.x.min(available_size.x);
+            desired_size.y = desired_size.y.min(available_size.y);
+
+            node.commit_measure(desired_size);
+        } else {
+            node.commit_measure(Vector2::new(0.0, 0.0));
+        }
+
+        true
     }
 
     fn is_node_clipped(&self, node_handle: Handle<UINode<M, C>>, pt: Vector2<f32>) -> bool {
@@ -1842,7 +1825,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
 
     #[inline]
     pub fn node(&self, node_handle: Handle<UINode<M, C>>) -> &UINode<M, C> {
-        self.nodes().borrow(node_handle)
+        self.nodes.borrow(node_handle)
     }
 
     pub fn copy_node(&mut self, node: Handle<UINode<M, C>>) -> Handle<UINode<M, C>> {

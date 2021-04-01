@@ -25,7 +25,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Canvas<M, C> {
         let size_for_child = Vector2::new(std::f32::INFINITY, std::f32::INFINITY);
 
         for child_handle in self.widget.children() {
-            ui.node(*child_handle).measure(ui, size_for_child);
+            ui.measure_node(*child_handle, size_for_child);
         }
 
         Vector2::default()
@@ -34,10 +34,10 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Canvas<M, C> {
     fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
 
-        for child_handle in self.widget.children() {
-            let child = ui.nodes.borrow(*child_handle);
-            child.arrange(
-                ui,
+        for &child_handle in self.widget.children() {
+            let child = ui.nodes.borrow(child_handle);
+            ui.arrange_node(
+                child_handle,
                 &Rect::new(
                     child.desired_local_position().x,
                     child.desired_local_position().y,

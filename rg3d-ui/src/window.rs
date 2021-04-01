@@ -358,7 +358,6 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Window<M, C> {
                         &WindowMessage::Minimize(minimized) => {
                             if self.minimized != minimized {
                                 self.minimized = minimized;
-                                self.invalidate_layout();
                                 if self.content.is_some() {
                                     ui.send_message(WidgetMessage::visibility(
                                         self.content,
@@ -371,7 +370,6 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Window<M, C> {
                         &WindowMessage::CanMinimize(value) => {
                             if self.can_minimize != value {
                                 self.can_minimize = value;
-                                self.invalidate_layout();
                                 if self.minimize_button.is_some() {
                                     ui.send_message(WidgetMessage::visibility(
                                         self.minimize_button,
@@ -384,7 +382,6 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Window<M, C> {
                         &WindowMessage::CanClose(value) => {
                             if self.can_close != value {
                                 self.can_close = value;
-                                self.invalidate_layout();
                                 if self.close_button.is_some() {
                                     ui.send_message(WidgetMessage::visibility(
                                         self.close_button,

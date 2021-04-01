@@ -4,7 +4,7 @@ use crate::{
     canvas::Canvas,
     check_box::CheckBox,
     color::{AlphaBar, ColorField, ColorPicker, HueBar, SaturationBrightnessField},
-    core::{algebra::Vector2, define_is_as, math::Rect, pool::Handle},
+    core::{algebra::Vector2, define_is_as, pool::Handle},
     decorator::Decorator,
     dock::{DockingManager, Tile},
     draw::DrawingContext,
@@ -84,21 +84,22 @@ pub enum UINode<M: MessageData, C: Control<M, C>> {
 macro_rules! static_dispatch {
     ($self:ident, $func:ident, $($args:expr),*) => {
         match $self {
+            UINode::Grid(v) => v.$func($($args),*),
+            UINode::StackPanel(v) => v.$func($($args),*),
+            UINode::ScrollPanel(v) => v.$func($($args),*),
+            UINode::Canvas(v) => v.$func($($args),*),
+            UINode::WrapPanel(v) => v.$func($($args),*),
             UINode::Border(v) => v.$func($($args),*),
             UINode::Button(v) => v.$func($($args),*),
-            UINode::Canvas(v) => v.$func($($args),*),
             UINode::ColorPicker(v) => v.$func($($args),*),
             UINode::ColorField(v) => v.$func($($args),*),
             UINode::HueBar(v) => v.$func($($args),*),
             UINode::AlphaBar(v) => v.$func($($args),*),
             UINode::SaturationBrightnessField(v) => v.$func($($args),*),
             UINode::CheckBox(v) => v.$func($($args),*),
-            UINode::Grid(v) => v.$func($($args),*),
             UINode::Image(v) => v.$func($($args),*),
             UINode::ScrollBar(v) => v.$func($($args),*),
-            UINode::ScrollPanel(v) => v.$func($($args),*),
             UINode::ScrollViewer(v) => v.$func($($args),*),
-            UINode::StackPanel(v) => v.$func($($args),*),
             UINode::TabControl(v) => v.$func($($args),*),
             UINode::Text(v) => v.$func($($args),*),
             UINode::TextBox(v) => v.$func($($args),*),
@@ -120,7 +121,6 @@ macro_rules! static_dispatch {
             UINode::Menu(v) => v.$func($($args),*),
             UINode::MenuItem(v) => v.$func($($args),*),
             UINode::MessageBox(v) => v.$func($($args),*),
-            UINode::WrapPanel(v) => v.$func($($args),*),
             UINode::VectorImage(v) => v.$func($($args),*),
             UINode::Expander(v) => v.$func($($args),*),
             UINode::User(v) => v.$func($($args),*),
@@ -198,14 +198,6 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for UINode<M, C> {
 
     fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
         static_dispatch!(self, arrange_override, ui, final_size)
-    }
-
-    fn arrange(&self, ui: &UserInterface<M, C>, final_rect: &Rect<f32>) {
-        static_dispatch!(self, arrange, ui, final_rect)
-    }
-
-    fn measure(&self, ui: &UserInterface<M, C>, available_size: Vector2<f32>) {
-        static_dispatch!(self, measure, ui, available_size)
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {

@@ -336,7 +336,7 @@ fn main() {
     let event_loop = EventLoop::new();
 
     let window_builder = rg3d::window::WindowBuilder::new()
-        .with_title("Example - Model")
+        .with_title("Example - User Interface")
         .with_resizable(true);
 
     let mut engine = GameEngine::new(window_builder, &event_loop, true).unwrap();

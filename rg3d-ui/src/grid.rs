@@ -136,44 +136,50 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Grid<M, C> {
             return self.widget.measure_override(ui, available_size);
         }
 
-        let mut desired_size = Vector2::default();
+        let mut any_changed_desired_size = false;
+
         // Step 1. Measure every children with relaxed constraints (size of grid).
         for child_handle in self.widget.children() {
-            ui.node(*child_handle).measure(ui, available_size);
+            any_changed_desired_size |= ui.measure_node(*child_handle, available_size);
         }
 
-        // Step 2. Calculate width of columns and heights of rows.
-        let preset_width = self.calculate_preset_width(ui);
-        let preset_height = self.calculate_preset_height(ui);
+        if any_changed_desired_size {
+            // Step 2. Calculate width of columns and heights of rows.
+            let preset_width = self.calculate_preset_width(ui);
+            let preset_height = self.calculate_preset_height(ui);
 
-        self.fit_stretch_sized_columns(ui, available_size, preset_width);
-        self.fit_stretch_sized_rows(ui, available_size, preset_height);
+            self.fit_stretch_sized_columns(ui, available_size, preset_width);
+            self.fit_stretch_sized_rows(ui, available_size, preset_height);
 
-        // Step 3. Re-measure children with new constraints.
-        for child_handle in self.widget.children() {
-            let child = ui.nodes.borrow(*child_handle);
-            if let Some(column) = self.columns.borrow().get(child.column()) {
-                if let Some(row) = self.rows.borrow().get(child.row()) {
-                    // Contents of Auto cells must *not* be measured twice: Auto cells will be
-                    // fit to content size anyways, this check saves millions of calls on nested
-                    // grids.
-                    if column.size_mode != SizeMode::Auto && row.size_mode != SizeMode::Auto {
-                        let cell_size = Vector2::new(column.actual_width, row.actual_height);
-                        ui.node(*child_handle).measure(ui, cell_size);
+            // Step 3. Re-measure children with new constraints.
+            for child_handle in self.widget.children() {
+                let child = ui.nodes.borrow(*child_handle);
+                if let Some(column) = self.columns.borrow().get(child.column()) {
+                    if let Some(row) = self.rows.borrow().get(child.row()) {
+                        // Contents of Auto cells must *not* be measured twice: Auto cells will be
+                        // fit to content size anyways, this check saves millions of calls on nested
+                        // grids.
+                        if column.size_mode != SizeMode::Auto && row.size_mode != SizeMode::Auto {
+                            let cell_size = Vector2::new(column.actual_width, row.actual_height);
+                            ui.measure_node(*child_handle, cell_size);
+                        }
                     }
                 }
             }
-        }
 
-        // Step 4. Calculate desired size of grid.
-        for column in self.columns.borrow().iter() {
-            desired_size.x += column.actual_width;
+            let mut desired_size = Vector2::default();
+            // Step 4. Calculate desired size of grid.
+            for column in self.columns.borrow().iter() {
+                desired_size.x += column.actual_width;
+            }
+            for row in self.rows.borrow().iter() {
+                desired_size.y += row.actual_height;
+            }
+            desired_size
+        } else {
+            // Previously calculated value is still valid.
+            self.desired_size()
         }
-        for row in self.rows.borrow().iter() {
-            desired_size.y += row.actual_height;
-        }
-
-        desired_size
     }
 
     fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
@@ -182,7 +188,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Grid<M, C> {
         if self.columns.borrow().is_empty() || self.rows.borrow().is_empty() {
             let rect = Rect::new(0.0, 0.0, final_size.x, final_size.y);
             for child_handle in self.widget.children() {
-                ui.node(*child_handle).arrange(ui, &rect);
+                ui.arrange_node(*child_handle, &rect);
             }
             return final_size;
         }
@@ -200,8 +206,8 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Grid<M, C> {
             let child = ui.nodes.borrow(*child_handle);
             if let Some(column) = self.columns.borrow().get(child.column()) {
                 if let Some(row) = self.rows.borrow().get(child.row()) {
-                    ui.nodes.borrow(*child_handle).arrange(
-                        ui,
+                    ui.arrange_node(
+                        *child_handle,
                         &Rect::new(column.x, row.y, column.actual_width, row.actual_height),
                     );
                 }

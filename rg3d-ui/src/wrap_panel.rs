@@ -68,7 +68,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for WrapPanel<M, C> {
         let mut line_size = Vector2::default();
         for child_handle in self.widget.children() {
             let child = ui.node(*child_handle);
-            child.measure(ui, available_size);
+            ui.measure_node(*child_handle, available_size);
             let desired = child.desired_size();
             match self.orientation {
                 Orientation::Vertical => {
@@ -172,13 +172,13 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for WrapPanel<M, C> {
                     Orientation::Vertical => {
                         let child_bounds =
                             Rect::new(line.bounds.x(), cursor.y, line.bounds.w(), desired.y);
-                        child.arrange(ui, &child_bounds);
+                        ui.arrange_node(child_handle, &child_bounds);
                         cursor.y += desired.y;
                     }
                     Orientation::Horizontal => {
                         let child_bounds =
                             Rect::new(cursor.x, line.bounds.y(), desired.x, line.bounds.h());
-                        child.arrange(ui, &child_bounds);
+                        ui.arrange_node(child_handle, &child_bounds);
                         cursor.x += desired.x;
                     }
                 }

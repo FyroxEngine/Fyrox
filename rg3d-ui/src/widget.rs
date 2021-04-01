@@ -253,7 +253,7 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
         }
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn children(&self) -> &[Handle<UINode<M, C>>] {
         &self.children
     }
@@ -361,6 +361,34 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
             parent_handle = parent_node.parent;
         }
         Handle::NONE
+    }
+
+    pub fn is_measure_valid_with_descendants(&self, ui: &UserInterface<M, C>) -> bool {
+        let mut valid =
+            self.is_measure_valid() && self.prev_global_visibility == self.is_globally_visible();
+        if valid {
+            for &child in self.children.iter() {
+                valid &= ui.node(child).is_measure_valid_with_descendants(ui);
+                if !valid {
+                    break;
+                }
+            }
+        }
+        valid
+    }
+
+    pub fn is_arrange_valid_with_descendants(&self, ui: &UserInterface<M, C>) -> bool {
+        let mut valid =
+            self.is_arrange_valid() && self.prev_global_visibility == self.is_globally_visible();
+        if valid {
+            for &child in self.children.iter() {
+                valid &= ui.node(child).is_arrange_valid_with_descendants(ui);
+                if !valid {
+                    break;
+                }
+            }
+        }
+        valid
     }
 
     pub fn handle_routed_message(
@@ -506,10 +534,11 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
     ) -> Vector2<f32> {
         let mut size: Vector2<f32> = Vector2::default();
 
-        for child in self.children.iter().map(|&h| ui.node(h)) {
-            child.measure(ui, available_size);
-            size.x = size.x.max(child.desired_size.get().x);
-            size.y = size.y.max(child.desired_size.get().y);
+        for &child in self.children.iter() {
+            ui.measure_node(child, available_size);
+            let desired_size = ui.node(child).desired_size();
+            size.x = size.x.max(desired_size.x);
+            size.y = size.y.max(desired_size.y);
         }
 
         size
@@ -523,8 +552,8 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
     ) -> Vector2<f32> {
         let final_rect = Rect::new(0.0, 0.0, final_size.x, final_size.y);
 
-        for child in self.children.iter().map(|&h| ui.node(h)) {
-            child.arrange(ui, &final_rect);
+        for &child in self.children.iter() {
+            ui.arrange_node(child, &final_rect);
         }
 
         final_size
@@ -543,7 +572,7 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
         self.children = children;
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn is_arrange_valid(&self) -> bool {
         self.arrange_valid.get()
     }
@@ -554,7 +583,7 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
         self.measure_valid.set(true);
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn is_measure_valid(&self) -> bool {
         self.measure_valid.get()
     }

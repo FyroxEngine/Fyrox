@@ -1,7 +1,7 @@
 use crate::{
     border::{Border, BorderBuilder},
     brush::{Brush, GradientPoint},
-    core::{algebra::Vector2, color::Color, math::Rect, pool::Handle},
+    core::{algebra::Vector2, color::Color, pool::Handle},
     draw::DrawingContext,
     message::{
         DecoratorMessage, MessageData, MessageDirection, UiMessage, UiMessageData, WidgetMessage,
@@ -64,22 +64,6 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Decorator<M, C> {
 
     fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
         self.border.arrange_override(ui, final_size)
-    }
-
-    fn arrange(&self, ui: &UserInterface<M, C>, final_rect: &Rect<f32>) {
-        self.border.arrange(ui, final_rect)
-    }
-
-    fn is_measure_valid(&self, ui: &UserInterface<M, C>) -> bool {
-        self.border.is_measure_valid(ui)
-    }
-
-    fn is_arrange_valid(&self, ui: &UserInterface<M, C>) -> bool {
-        self.border.is_arrange_valid(ui)
-    }
-
-    fn measure(&self, ui: &UserInterface<M, C>, available_size: Vector2<f32>) {
-        self.border.measure(ui, available_size);
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {

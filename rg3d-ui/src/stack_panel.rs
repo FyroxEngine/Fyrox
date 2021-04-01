@@ -76,7 +76,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for StackPanel<M, C> {
         let mut measured_size = Vector2::default();
 
         for child_handle in self.widget.children() {
-            ui.node(*child_handle).measure(ui, child_constraint);
+            ui.measure_node(*child_handle, child_constraint);
 
             let child = ui.node(*child_handle);
             let desired = child.desired_size();
@@ -120,7 +120,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for StackPanel<M, C> {
                         width.max(child.desired_size().x),
                         child.desired_size().y,
                     );
-                    ui.node(*child_handle).arrange(ui, &child_bounds);
+                    ui.arrange_node(*child_handle, &child_bounds);
                     width = width.max(child.desired_size().x);
                     height += child.desired_size().y;
                 }
@@ -131,7 +131,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for StackPanel<M, C> {
                         child.desired_size().x,
                         height.max(child.desired_size().y),
                     );
-                    ui.node(*child_handle).arrange(ui, &child_bounds);
+                    ui.arrange_node(*child_handle, &child_bounds);
                     width += child.desired_size().x;
                     height = height.max(child.desired_size().y);
                 }

@@ -124,7 +124,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
                 _ => available_size,
             };
 
-            ui.node(child_handle).measure(ui, available_size);
+            ui.measure_node(child_handle, available_size);
         }
 
         available_size
@@ -198,7 +198,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
                 _ => full_bounds,
             };
 
-            ui.node(child_handle).arrange(ui, &bounds);
+            ui.arrange_node(child_handle, &bounds);
 
             // Main difference between tile arrangement and other arrangement methods in
             // library is that tile has to explicitly set width of child windows, otherwise
