@@ -176,12 +176,12 @@ impl PhysicsBinder {
     }
 
     /// Unlinks given body from a node that is linked with the body.
-    pub fn unbind_by_body(&mut self, body: RigidBodyHandle) -> Handle<Node> {
+    pub fn unbind_by_body(&mut self, body: RigidBodyHandle) -> Option<Handle<Node>> {
         if let Some(node) = self.backward_map.get(&body) {
             self.forward_map.remove(node);
-            *node
+            Some(*node)
         } else {
-            Handle::NONE
+            None
         }
     }
 

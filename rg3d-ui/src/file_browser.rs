@@ -68,25 +68,25 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileBrowser<M, C> {
                     match msg {
                         FileBrowserMessage::Path(path) => {
                             if &self.path != path {
-                                let mut item = find_tree(self.tree_root, path, ui);
-                                if item.is_none() {
-                                    // Generate new tree contents.
-                                    let result = build_all(
-                                        self.root.as_ref(),
-                                        path,
-                                        self.filter.clone(),
-                                        &mut ui.build_ctx(),
-                                    );
+                                let item =
+                                    find_tree(self.tree_root, path, ui).unwrap_or_else(|| {
+                                        // Generate new tree contents.
+                                        let result = build_all(
+                                            self.root.as_ref(),
+                                            path,
+                                            self.filter.clone(),
+                                            &mut ui.build_ctx(),
+                                        );
 
-                                    // Replace tree contents.
-                                    ui.send_message(TreeRootMessage::items(
-                                        self.tree_root,
-                                        MessageDirection::ToWidget,
-                                        result.root_items,
-                                    ));
+                                        // Replace tree contents.
+                                        ui.send_message(TreeRootMessage::items(
+                                            self.tree_root,
+                                            MessageDirection::ToWidget,
+                                            result.root_items,
+                                        ));
 
-                                    item = result.path_item;
-                                }
+                                        result.path_item
+                                    });
 
                                 self.path = path.clone();
 
@@ -241,13 +241,13 @@ fn find_tree<M: MessageData, C: Control<M, C>, P: AsRef<Path>>(
     node: Handle<UINode<M, C>>,
     path: &P,
     ui: &UserInterface<M, C>,
-) -> Handle<UINode<M, C>> {
-    let mut tree_handle = Handle::NONE;
+) -> Option<Handle<UINode<M, C>>> {
+    let mut tree_handle = None;
     match ui.node(node) {
         UINode::Tree(tree) => {
             let tree_path = tree.user_data_ref::<PathBuf>();
             if tree_path == path.as_ref() {
-                tree_handle = node;
+                tree_handle = Some(node);
             }
             for &item in tree.items() {
                 let tree = find_tree(item, path, ui);
@@ -368,9 +368,9 @@ fn build_all<M: MessageData, C: Control<M, C>>(
         };
         let item = build_tree_item(path, &Path::new(""), ctx);
         root_items.push(item);
-        item
+        Some(item)
     } else {
-        let mut parent = Handle::NONE;
+        let mut parent = None;
 
         // Create items for disks.
         for disk in sysinfo::System::new_with_specifics(RefreshKind::new().with_disks_list())
@@ -384,7 +384,7 @@ fn build_all<M: MessageData, C: Control<M, C>>(
 
             if let Some(dest_disk) = dest_disk {
                 if dest_disk == disk_letter {
-                    parent = item;
+                    parent = Some(item);
                 }
             }
 
@@ -394,7 +394,7 @@ fn build_all<M: MessageData, C: Control<M, C>>(
         parent
     };
 
-    let mut path_item = Handle::NONE;
+    let mut path_item = None;
 
     // Try to build tree only for given path.
     let mut full_path = PathBuf::new();
@@ -413,19 +413,19 @@ fn build_all<M: MessageData, C: Control<M, C>>(
                         .map_or(true, |f| f.deref().borrow_mut().deref_mut()(&path))
                     {
                         let item = build_tree_item(&path, &full_path, ctx);
-                        if parent.is_some() {
+                        if let Some(parent) = parent {
                             Tree::add_item(parent, item, ctx);
                         } else {
                             root_items.push(item);
                         }
                         if let Some(next) = next.as_ref() {
                             if *next == path {
-                                new_parent = item;
+                                new_parent = Some(item);
                             }
                         }
 
                         if path == dest_path {
-                            path_item = item;
+                            path_item = Some(item);
                         }
                     }
                 }
@@ -436,7 +436,7 @@ fn build_all<M: MessageData, C: Control<M, C>>(
 
     BuildResult {
         root_items,
-        path_item,
+        path_item: path_item.unwrap_or(Handle::NONE),
     }
 }
 

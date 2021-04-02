@@ -524,15 +524,15 @@ impl Visitor {
     pub fn enter_region(&mut self, name: &str) -> VisitResult {
         if self.reading {
             let node = self.nodes.borrow(self.current_node);
-            let mut region = Handle::NONE;
+            let mut region = None;
             for child_handle in node.children.iter() {
                 let child = self.nodes.borrow(*child_handle);
                 if child.name == name {
-                    region = *child_handle;
+                    region = Some(*child_handle);
                     break;
                 }
             }
-            if region.is_some() {
+            if let Some(region) = region {
                 self.current_node = region;
                 Ok(())
             } else {

@@ -245,7 +245,7 @@ fn main() {
     let game_scene = create_scene_async(engine.resource_manager.clone());
 
     // Initially these handles are None, once scene is loaded they'll be assigned.
-    let mut scene_handle = Handle::NONE;
+    let mut scene_handle = None;
     let mut model_handle = Handle::NONE;
     let mut walk_animation = Handle::NONE;
 
@@ -288,7 +288,7 @@ fn main() {
                             // Add scene to engine - engine will take ownership over scene and will return
                             // you a handle to scene which can be used later on to borrow it and do some
                             // actions you need.
-                            scene_handle = engine.scenes.add(game_scene.scene);
+                            scene_handle = Some(engine.scenes.add(game_scene.scene));
                             model_handle = game_scene.model_handle;
                             walk_animation = game_scene.walk_animation;
 
@@ -305,7 +305,7 @@ fn main() {
                     }
 
                     // Update scene only if it is loaded.
-                    if scene_handle.is_some() {
+                    if let Some(scene_handle) = scene_handle {
                         // Use stored scene handle to borrow a mutable reference of scene in
                         // engine.
                         let scene = &mut engine.scenes[scene_handle];

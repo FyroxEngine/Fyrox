@@ -719,8 +719,8 @@ impl<M: MessageData, C: Control<M, C>> Tile<M, C> {
         first: bool,
     ) {
         let existing_content = match self.content {
-            TileContent::Window(existing_window) => existing_window,
-            _ => Handle::NONE,
+            TileContent::Window(existing_window) => Some(existing_window).filter(|h| h.is_some()),
+            _ => None,
         };
 
         let first_tile = TileBuilder::new(WidgetBuilder::new())
@@ -743,7 +743,7 @@ impl<M: MessageData, C: Control<M, C>> Tile<M, C> {
             })
             .build(&mut ui.build_ctx());
 
-        if existing_content.is_some() {
+        if let Some(existing_content) = existing_content {
             ui.send_message(TileMessage::content(
                 if first { second_tile } else { first_tile },
                 MessageDirection::ToWidget,
