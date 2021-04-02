@@ -78,6 +78,7 @@ use crate::{
 };
 use rg3d_core::math::clampf;
 use rg3d_core::VecExtensions;
+use std::collections::HashSet;
 use std::{
     cell::Cell,
     collections::{HashMap, VecDeque},
@@ -310,6 +311,9 @@ where
     ///
     /// ## Important notes
     ///
+    /// Due to performance reasons, you **must** set `.with_preview_messages(true)` in widget builder to
+    /// force library to call `preview_message`!
+    ///
     /// The order of execution of this method is undefined! There is no guarantee that it will be called
     /// hierarchically as widgets connected.
     fn preview_message(&self, _ui: &UserInterface<M, C>, _message: &mut UiMessage<M, C>) {
@@ -464,6 +468,7 @@ pub struct UserInterface<M: MessageData, C: Control<M, C>> {
     keyboard_modifiers: KeyboardModifiers,
     cursor_icon: CursorIcon,
     visible_tooltips: Vec<TooltipEntry<M, C>>,
+    preview_set: HashSet<Handle<UINode<M, C>>>,
 }
 
 lazy_static! {
@@ -568,6 +573,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
             keyboard_modifiers: Default::default(),
             cursor_icon: Default::default(),
             visible_tooltips: Default::default(),
+            preview_set: Default::default(),
         };
         ui.root_canvas = ui.add_node(UINode::Canvas(Canvas::new(WidgetBuilder::new().build())));
         ui
@@ -1204,16 +1210,6 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         }
     }
 
-    fn preview_message(&mut self, message: &mut UiMessage<M, C>) {
-        scope_profile!();
-
-        // Fire preview handler first. This will allow controls to do some actions before
-        // message will begin bubble routing.
-        for node in self.nodes.iter() {
-            node.preview_message(self, message);
-        }
-    }
-
     fn bubble_message(&mut self, message: &mut UiMessage<M, C>) {
         scope_profile!();
 
@@ -1252,7 +1248,10 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
                     self.update(self.screen_size, 0.0);
                 }
 
-                self.preview_message(&mut message);
+                for &handle in self.preview_set.iter() {
+                    self.nodes[handle].preview_message(self, &mut message);
+                }
+
                 self.bubble_message(&mut message);
 
                 if let UiMessageData::Widget(msg) = &message.data() {
@@ -1719,6 +1718,9 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
             self.link_nodes_internal(child, node_handle, false)
         }
         let node = self.nodes[node_handle].deref_mut();
+        if node.preview_messages {
+            self.preview_set.insert(node_handle);
+        }
         node.handle = node_handle;
         node_handle
     }
@@ -1777,6 +1779,8 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
             }
             self.nodes.free(handle);
         }
+
+        self.preview_set.remove(&node);
 
         for node in self.nodes.iter_mut() {
             for removed_node in removed_nodes.iter() {

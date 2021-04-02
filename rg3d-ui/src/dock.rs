@@ -823,7 +823,7 @@ impl<M: MessageData, C: Control<M, C>> DockingManagerBuilder<M, C> {
 
     pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
         let docking_manager = DockingManager {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.with_preview_messages(true).build(),
             floating_windows: RefCell::new(self.floating_windows),
         };
 
@@ -945,6 +945,7 @@ impl<M: MessageData, C: Control<M, C>> TileBuilder<M, C> {
         let tile = Tile {
             widget: self
                 .widget_builder
+                .with_preview_messages(true)
                 .with_child(grid)
                 .with_child(splitter)
                 .with_children(&children)

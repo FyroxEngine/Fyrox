@@ -485,7 +485,11 @@ impl<'a, 'b, M: MessageData, C: Control<M, C>> MenuItemBuilder<'a, 'b, M, C> {
             .build(ctx);
 
         let menu = MenuItem {
-            widget: self.widget_builder.with_child(back).build(),
+            widget: self
+                .widget_builder
+                .with_preview_messages(true)
+                .with_child(back)
+                .build(),
             popup,
             items: self.items,
             placement: MenuItemPlacement::Right,

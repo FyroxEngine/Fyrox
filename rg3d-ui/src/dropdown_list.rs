@@ -236,6 +236,7 @@ impl<M: MessageData, C: Control<M, C>> DropdownListBuilder<M, C> {
         let dropdown_list = UINode::DropdownList(DropdownList {
             widget: self
                 .widget_builder
+                .with_preview_messages(true)
                 .with_child(
                     BorderBuilder::new(
                         WidgetBuilder::new()

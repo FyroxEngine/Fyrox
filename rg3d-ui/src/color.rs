@@ -1202,7 +1202,7 @@ impl<M: MessageData, C: Control<M, C>> ColorFieldBuilder<M, C> {
             .build(ctx);
 
         let field = ColorField {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.with_preview_messages(true).build(),
             popup,
             picker,
             color: self.color,
