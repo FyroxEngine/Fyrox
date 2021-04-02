@@ -213,9 +213,9 @@ impl State {
         let last_time = time::Instant::now();
 
         for i in 0..self.sources.get_capacity() {
-            if let Some(source) = self.sources.at(i) {
+            if let Some((handle, source)) = self.sources.at_pair(i) {
                 if source.is_play_once() && source.status() == Status::Stopped {
-                    self.sources.free(self.sources.handle_from_index(i));
+                    self.sources.free(handle);
                 }
             }
         }

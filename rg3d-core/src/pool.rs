@@ -811,13 +811,42 @@ impl<T> Pool<T> {
 
     #[inline]
     #[must_use]
-    pub fn handle_from_index(&self, n: usize) -> Handle<T> {
+    pub fn at_pair(&self, n: usize) -> Option<(Handle<T>, &T)> {
         if let Some(record) = self.records.get(n) {
             if record.generation != INVALID_GENERATION {
-                return Handle::new(n as u32, record.generation);
+                return record
+                    .payload
+                    .as_ref()
+                    .map(|p| (Handle::new(n as u32, record.generation), p));
             }
         }
-        Handle::NONE
+        None
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn at_pair_mut(&mut self, n: usize) -> Option<(Handle<T>, &mut T)> {
+        if let Some(record) = self.records.get_mut(n) {
+            if record.generation != INVALID_GENERATION {
+                let generation = record.generation;
+                return record
+                    .payload
+                    .as_mut()
+                    .map(|p| (Handle::new(n as u32, generation), p));
+            }
+        }
+        None
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn handle_from_index(&self, n: usize) -> Option<Handle<T>> {
+        if let Some(record) = self.records.get(n) {
+            if record.generation != INVALID_GENERATION {
+                return Some(Handle::new(n as u32, record.generation));
+            }
+        }
+        None
     }
 
     /// Returns exact amount of "alive" objects in pool.
@@ -976,7 +1005,7 @@ impl<T> Pool<T> {
         self.records.as_ptr()
     }
 
-    pub fn handle_of(&self, ptr: &T) -> Handle<T> {
+    pub fn handle_of(&self, ptr: &T) -> Option<Handle<T>> {
         let begin = self.begin() as usize;
         let end = self.end() as usize;
         let val = ptr as *const T as usize;
@@ -987,7 +1016,7 @@ impl<T> Pool<T> {
                 return self.handle_from_index(record_location / record_size);
             }
         }
-        Handle::NONE
+        None
     }
 }
 
@@ -1052,16 +1081,17 @@ impl<'a, T> Iterator for PoolPairIterator<'a, T> {
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            match self.pool.records.get(self.current) {
-                Some(record) => {
+            if let Some(record) = self.pool.records.get(self.current) {
+                if record.generation != INVALID_GENERATION {
                     if let Some(payload) = &record.payload {
-                        let handle = self.pool.handle_from_index(self.current);
+                        let handle = Handle::new(self.current as u32, record.generation);
                         self.current += 1;
                         return Some((handle, payload));
                     }
-                    self.current += 1;
                 }
-                None => return None,
+                self.current += 1;
+            } else {
+                return None;
             }
         }
     }
@@ -1180,8 +1210,8 @@ mod test {
         let baz = pool.spawn(Value {
             data: format!("Baz"),
         });
-        assert_eq!(pool.handle_of(pool.borrow(foobar)), foobar);
-        assert_eq!(pool.handle_of(pool.borrow(bar)), bar);
-        assert_eq!(pool.handle_of(pool.borrow(baz)), baz);
+        assert_eq!(pool.handle_of(pool.borrow(foobar)), Some(foobar));
+        assert_eq!(pool.handle_of(pool.borrow(bar)), Some(bar));
+        assert_eq!(pool.handle_of(pool.borrow(baz)), Some(baz));
     }
 }

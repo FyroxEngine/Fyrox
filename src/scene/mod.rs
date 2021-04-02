@@ -1003,7 +1003,7 @@ impl NavMeshContainer {
     }
 
     /// Creates a handle to navmesh from its index.
-    pub fn handle_from_index(&self, i: usize) -> Handle<Navmesh> {
+    pub fn handle_from_index(&self, i: usize) -> Option<Handle<Navmesh>> {
         self.pool.handle_from_index(i)
     }
 

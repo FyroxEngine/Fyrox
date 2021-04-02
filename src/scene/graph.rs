@@ -785,7 +785,7 @@ impl Graph {
         self.update_hierarchical_data();
 
         for i in 0..self.pool.get_capacity() {
-            if let Some(node) = self.pool.at_mut(i) {
+            if let Some((handle, node)) = self.pool.at_pair_mut(i) {
                 let remove = if let Some(lifetime) = node.lifetime.as_mut() {
                     *lifetime -= dt;
                     *lifetime <= 0.0
@@ -794,7 +794,7 @@ impl Graph {
                 };
 
                 if remove {
-                    self.remove_node(self.pool.handle_from_index(i));
+                    self.remove_node(handle);
                 } else {
                     match node {
                         Node::Camera(camera) => {
@@ -843,7 +843,7 @@ impl Graph {
     /// graph.add_node(Node::Base(Default::default()));
     /// for i in 0..graph.capacity() {
     ///     let handle = graph.handle_from_index(i);
-    ///     if handle.is_some() {
+    ///     if let Some(handle) = handle {
     ///         let node = &mut graph[handle];
     ///         // Do something with node.
     ///     }
@@ -864,13 +864,13 @@ impl Graph {
     /// graph.add_node(Node::Base(Default::default()));
     /// for i in 0..graph.capacity() {
     ///     let handle = graph.handle_from_index(i);
-    ///     if handle.is_some() {
+    ///     if let Some(handle) = handle {
     ///         let node = &mut graph[handle];
     ///         // Do something with node.
     ///     }
     /// }
     /// ```
-    pub fn handle_from_index(&self, index: usize) -> Handle<Node> {
+    pub fn handle_from_index(&self, index: usize) -> Option<Handle<Node>> {
         self.pool.handle_from_index(index)
     }
 

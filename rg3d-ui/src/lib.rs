@@ -1705,7 +1705,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         for i in 0..self.nodes.get_capacity() {
             let handle = self.nodes.handle_from_index(i);
 
-            if self.nodes.is_valid_handle(handle) {
+            if let Some(handle) = handle.filter(|h| self.nodes.is_valid_handle(*h)) {
                 let (ticket, mut node) = self.nodes.take_reserve(handle);
 
                 node.handle_os_event(handle, self, event);
