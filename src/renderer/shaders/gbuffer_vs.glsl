@@ -55,10 +55,12 @@ void main()
         localNormal = vertexNormal;
         localTangent = vertexTangent.xyz;
     }
+
+    mat3 nm = mat3(worldMatrix);
     gl_Position = worldViewProjection * localPosition;
-    normal = normalize(mat3(worldMatrix) * localNormal);
-    tangent = normalize(mat3(worldMatrix) * localTangent);
-    binormal = normalize(vertexTangent.w * cross(tangent, normal));
+    normal = normalize(nm * localNormal);
+    tangent = normalize(nm * localTangent);
+    binormal = normalize(vertexTangent.w * cross(normal, tangent));
     texCoord = vertexTexCoord;
     secondTexCoord = vertexSecondTexCoord;
     position = vec3(worldMatrix * localPosition);

@@ -190,7 +190,7 @@ fn convert_vertex(
             .coords,
         normal: geometric_transform.transform_vector(&normal),
         tangent: geometric_transform.transform_vector(&tangent),
-        uv: Vector2::new(uv.x, -uv.y), // Invert Y because OpenGL has origin at left *bottom* corner.
+        uv: Vector2::new(uv.x, 1.0 - uv.y), // Invert Y because OpenGL has origin at left *bottom* corner.
         surface: material as usize,
         weights: if skin_data.is_empty() {
             None
@@ -245,6 +245,7 @@ fn create_surfaces(
                         "ShininessExponent" => surface.set_roughness_texture(Some(texture)),
                         // No idea why it can be different for normal maps.
                         "Bump" | "NormalMap" => surface.set_normal_texture(Some(texture)),
+                        "DisplacementColor" => surface.set_height_texture(Some(texture)),
                         _ => (),
                     }
                 }

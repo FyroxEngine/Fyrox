@@ -96,8 +96,9 @@ void main()
     mat4 viewProj = viewProjectionMatrix;
     viewProj[3].z -= depthOffset;
     gl_Position = (viewProj * worldMatrix) * localPosition;
-    normal = normalize(mat3(worldMatrix) * localNormal);
-    tangent = normalize(mat3(worldMatrix) * localTangent);
+    mat3 nm = mat3(worldMatrix);
+    normal = normalize(nm * localNormal);
+    tangent = normalize(nm * localTangent);
     binormal = normalize(vertexTangent.w * cross(tangent, normal));
     texCoord = vertexTexCoord;
     secondTexCoord = vertexSecondTexCoord;

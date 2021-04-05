@@ -238,6 +238,9 @@ pub struct QualitySettings {
 
     /// Whether to use Fast Approximate AntiAliasing or not.
     pub fxaa: bool,
+
+    /// Whether to use Parallax Mapping or not.
+    pub use_parallax_mapping: bool,
 }
 
 impl Default for QualitySettings {
@@ -269,6 +272,8 @@ impl QualitySettings {
             spot_shadow_map_precision: ShadowMapPrecision::Full,
 
             fxaa: true,
+
+            use_parallax_mapping: false, // TODO: Enable when it is fixed!
         }
     }
 
@@ -294,6 +299,8 @@ impl QualitySettings {
             spot_shadow_map_precision: ShadowMapPrecision::Half,
 
             fxaa: true,
+
+            use_parallax_mapping: false, // TODO: Enable when it is fixed!
         }
     }
 
@@ -319,6 +326,8 @@ impl QualitySettings {
             spot_shadow_map_precision: ShadowMapPrecision::Half,
 
             fxaa: true,
+
+            use_parallax_mapping: false,
         }
     }
 
@@ -344,6 +353,8 @@ impl QualitySettings {
             spot_shadow_map_precision: ShadowMapPrecision::Half,
 
             fxaa: false,
+
+            use_parallax_mapping: false,
         }
     }
 }
@@ -1074,6 +1085,7 @@ impl Renderer {
                     batch_storage: &self.batch_storage,
                     texture_cache: &mut self.texture_cache,
                     environment_dummy: self.environment_dummy.clone(),
+                    use_parallax_mapping: self.quality_settings.use_parallax_mapping,
                 });
 
                 let (pass_stats, light_stats) =

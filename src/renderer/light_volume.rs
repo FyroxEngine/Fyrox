@@ -101,9 +101,9 @@ impl LightVolumeRenderer {
                 16,
                 1.0,
                 1.0,
-                Matrix4::new_translation(&Vector3::new(0.0, -1.0, 0.0)),
+                &Matrix4::new_translation(&Vector3::new(0.0, -1.0, 0.0)),
             ),
-            sphere: SurfaceSharedData::make_sphere(8, 8, 1.0),
+            sphere: SurfaceSharedData::make_sphere(8, 8, 1.0, &Matrix4::identity()),
         })
     }
 

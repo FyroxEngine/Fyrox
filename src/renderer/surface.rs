@@ -16,11 +16,10 @@ use crate::{
     scene::node::Node,
     utils::raw_mesh::{RawMesh, RawMeshBuilder},
 };
-use std::collections::hash_map::DefaultHasher;
-use std::sync::RwLock;
 use std::{
+    collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
-    sync::Arc,
+    sync::{Arc, RwLock},
 };
 
 /// Vertex for each mesh in engine.
@@ -88,12 +87,30 @@ impl Vertex {
             bone_indices: Default::default(),
         }
     }
+
+    /// Creates new vertex from given position and texture coordinates.
+    pub fn from_pos_uv_normal(
+        position: Vector3<f32>,
+        tex_coord: Vector2<f32>,
+        normal: Vector3<f32>,
+    ) -> Self {
+        Self {
+            position,
+            tex_coord,
+            second_tex_coord: Default::default(),
+            normal,
+            tangent: Vector4::default(),
+            bone_weights: [0.0; 4],
+            bone_indices: Default::default(),
+        }
+    }
 }
 
 impl PartialEq for Vertex {
     fn eq(&self, other: &Self) -> bool {
         self.position == other.position
             && self.tex_coord == other.tex_coord
+            && self.second_tex_coord == other.second_tex_coord
             && self.normal == other.normal
             && self.tangent == other.tangent
             && self.bone_weights == other.bone_weights
@@ -150,6 +167,20 @@ impl SurfaceSharedData {
             vertices,
             triangles,
             is_procedural,
+        }
+    }
+
+    /// Applies given transform for every spatial part of the data (vertex position, normal, tangent).
+    pub fn transform_geometry(&mut self, transform: &Matrix4<f32>) {
+        // Discard scale by inverse and transpose given transform (M^-1)^T
+        let normal_matrix = transform.try_inverse().unwrap_or_default().transpose();
+
+        for v in self.vertices.iter_mut() {
+            v.position = transform.transform_point(&Point3::from(v.position)).coords;
+            v.normal = normal_matrix.transform_vector(&v.normal);
+            let tangent = normal_matrix.transform_vector(&v.tangent.xyz());
+            // Keep sign (W).
+            v.tangent = Vector4::new(tangent.x, tangent.y, tangent.z, v.tangent.w);
         }
     }
 
@@ -341,8 +372,8 @@ impl SurfaceSharedData {
     }
 
     /// Creates new quad at oXY plane with given transform.
-    pub fn make_quad(transform: Matrix4<f32>) -> Self {
-        let mut vertices = vec![
+    pub fn make_quad(transform: &Matrix4<f32>) -> Self {
+        let vertices = vec![
             Vertex {
                 position: Vector3::new(-0.5, 0.5, 0.0),
                 normal: Vector3::z(),
@@ -381,17 +412,13 @@ impl SurfaceSharedData {
             },
         ];
 
-        for v in vertices.iter_mut() {
-            v.position = transform.transform_point(&Point3::from(v.position)).coords;
-        }
-
-        let indices = vec![TriangleDefinition([0, 1, 2]), TriangleDefinition([0, 2, 3])];
-
-        let mut data = Self::new(vertices, indices, true);
-
-        data.calculate_normals();
+        let mut data = Self::new(
+            vertices,
+            vec![TriangleDefinition([0, 1, 2]), TriangleDefinition([0, 2, 3])],
+            true,
+        );
         data.calculate_tangents();
-
+        data.transform_geometry(transform);
         data
     }
 
@@ -416,7 +443,7 @@ impl SurfaceSharedData {
     }
 
     /// Creates sphere of specified radius with given slices and stacks.
-    pub fn make_sphere(slices: usize, stacks: usize, r: f32) -> Self {
+    pub fn make_sphere(slices: usize, stacks: usize, r: f32, transform: &Matrix4<f32>) -> Self {
         let mut builder = RawMeshBuilder::<Vertex>::new(stacks * slices, stacks * slices * 3);
 
         let d_theta = std::f32::consts::PI / slices as f32;
@@ -440,45 +467,45 @@ impl SurfaceSharedData {
                 let k7 = r * (d_theta * ni as f32).cos();
 
                 if i != (stacks - 1) {
-                    builder.insert(Vertex::from_pos_uv(
-                        Vector3::new(k0 * k1, k0 * k2, k3),
-                        Vector2::new(d_tc_x * j as f32, d_tc_y * i as f32),
-                    ));
-                    builder.insert(Vertex::from_pos_uv(
-                        Vector3::new(k4 * k1, k4 * k2, k7),
-                        Vector2::new(d_tc_x * j as f32, d_tc_y * ni as f32),
-                    ));
-                    builder.insert(Vertex::from_pos_uv(
-                        Vector3::new(k4 * k5, k4 * k6, k7),
-                        Vector2::new(d_tc_x * nj as f32, d_tc_y * ni as f32),
-                    ));
+                    let v0 = Vector3::new(k0 * k1, k0 * k2, k3);
+                    let t0 = Vector2::new(d_tc_x * j as f32, d_tc_y * i as f32);
+
+                    let v1 = Vector3::new(k4 * k1, k4 * k2, k7);
+                    let t1 = Vector2::new(d_tc_x * j as f32, d_tc_y * ni as f32);
+
+                    let v2 = Vector3::new(k4 * k5, k4 * k6, k7);
+                    let t2 = Vector2::new(d_tc_x * nj as f32, d_tc_y * ni as f32);
+
+                    builder.insert(Vertex::from_pos_uv_normal(v0, t0, v0));
+                    builder.insert(Vertex::from_pos_uv_normal(v1, t1, v1));
+                    builder.insert(Vertex::from_pos_uv_normal(v2, t2, v2));
                 }
 
                 if i != 0 {
-                    builder.insert(Vertex::from_pos_uv(
-                        Vector3::new(k4 * k5, k4 * k6, k7),
-                        Vector2::new(d_tc_x * nj as f32, d_tc_y * ni as f32),
-                    ));
-                    builder.insert(Vertex::from_pos_uv(
-                        Vector3::new(k0 * k5, k0 * k6, k3),
-                        Vector2::new(d_tc_x * nj as f32, d_tc_y * i as f32),
-                    ));
-                    builder.insert(Vertex::from_pos_uv(
-                        Vector3::new(k0 * k1, k0 * k2, k3),
-                        Vector2::new(d_tc_x * j as f32, d_tc_y * i as f32),
-                    ));
+                    let v0 = Vector3::new(k4 * k5, k4 * k6, k7);
+                    let t0 = Vector2::new(d_tc_x * nj as f32, d_tc_y * ni as f32);
+
+                    let v1 = Vector3::new(k0 * k5, k0 * k6, k3);
+                    let t1 = Vector2::new(d_tc_x * nj as f32, d_tc_y * i as f32);
+
+                    let v2 = Vector3::new(k0 * k1, k0 * k2, k3);
+                    let t2 = Vector2::new(d_tc_x * j as f32, d_tc_y * i as f32);
+
+                    builder.insert(Vertex::from_pos_uv_normal(v0, t0, v0));
+                    builder.insert(Vertex::from_pos_uv_normal(v1, t1, v1));
+                    builder.insert(Vertex::from_pos_uv_normal(v2, t2, v2));
                 }
             }
         }
 
         let mut data = Self::from_raw_mesh(builder.build(), true);
-        data.calculate_normals();
         data.calculate_tangents();
+        data.transform_geometry(transform);
         data
     }
 
     /// Creates vertical cone - it has its vertex higher than base.
-    pub fn make_cone(sides: usize, r: f32, h: f32, transform: Matrix4<f32>) -> Self {
+    pub fn make_cone(sides: usize, r: f32, h: f32, transform: &Matrix4<f32>) -> Self {
         let mut builder = RawMeshBuilder::<Vertex>::new(3 * sides, 3 * sides);
 
         let d_phi = 2.0 * std::f32::consts::PI / sides as f32;
@@ -498,39 +525,58 @@ impl SurfaceSharedData {
             let tx1 = d_theta * (i + 1) as f32;
 
             // back cap
-            builder.insert(Vertex::from_pos_uv(
-                transform
-                    .transform_point(&Point3::new(0.0, 0.0, 0.0))
-                    .coords,
-                Vector2::default(),
+            let (t_cap_y_curr, t_cap_x_curr) = (d_phi * i as f32).sin_cos();
+            let (t_cap_y_next, t_cap_x_next) = (d_phi * (i + 1) as f32).sin_cos();
+
+            let t_cap_x_curr = t_cap_x_curr * 0.5 + 0.5;
+            let t_cap_y_curr = t_cap_y_curr * 0.5 + 0.5;
+
+            let t_cap_x_next = t_cap_x_next * 0.5 + 0.5;
+            let t_cap_y_next = t_cap_y_next * 0.5 + 0.5;
+
+            builder.insert(Vertex::from_pos_uv_normal(
+                Vector3::new(0.0, 0.0, 0.0),
+                Vector2::new(0.5, 0.5),
+                Vector3::new(0.0, -1.0, 0.0),
             ));
-            builder.insert(Vertex::from_pos_uv(
-                transform.transform_point(&Point3::new(x0, 0.0, z0)).coords,
-                Vector2::new(tx0, 1.0),
+            builder.insert(Vertex::from_pos_uv_normal(
+                Vector3::new(x0, 0.0, z0),
+                Vector2::new(t_cap_x_curr, t_cap_y_curr),
+                Vector3::new(0.0, -1.0, 0.0),
             ));
-            builder.insert(Vertex::from_pos_uv(
-                transform.transform_point(&Point3::new(x1, 0.0, z1)).coords,
-                Vector2::new(tx1, 0.0),
+            builder.insert(Vertex::from_pos_uv_normal(
+                Vector3::new(x1, 0.0, z1),
+                Vector2::new(t_cap_x_next, t_cap_y_next),
+                Vector3::new(0.0, -1.0, 0.0),
             ));
 
             // sides
-            builder.insert(Vertex::from_pos_uv(
-                transform.transform_point(&Point3::new(0.0, h, 0.0)).coords,
-                Vector2::new(tx1, 0.0),
+            let tip = Vector3::new(0.0, h, 0.0);
+            let v_curr = Vector3::new(x0, 0.0, z0);
+            let v_next = Vector3::new(x1, 0.0, z1);
+            let n_next = (tip - v_next).cross(&(v_next - v_curr));
+            let n_curr = (tip - v_curr).cross(&(v_next - v_curr));
+
+            builder.insert(Vertex::from_pos_uv_normal(
+                tip,
+                Vector2::new(0.5, 0.0),
+                n_curr,
             ));
-            builder.insert(Vertex::from_pos_uv(
-                transform.transform_point(&Point3::new(x1, 0.0, z1)).coords,
+            builder.insert(Vertex::from_pos_uv_normal(
+                v_next,
+                Vector2::new(tx1, 1.0),
+                n_next,
+            ));
+            builder.insert(Vertex::from_pos_uv_normal(
+                v_curr,
                 Vector2::new(tx0, 1.0),
-            ));
-            builder.insert(Vertex::from_pos_uv(
-                transform.transform_point(&Point3::new(x0, 0.0, z0)).coords,
-                Vector2::new(tx0, 0.0),
+                n_curr,
             ));
         }
 
         let mut data = Self::from_raw_mesh(builder.build(), true);
-        data.calculate_normals();
         data.calculate_tangents();
+        data.transform_geometry(transform);
         data
     }
 
@@ -540,7 +586,7 @@ impl SurfaceSharedData {
         r: f32,
         h: f32,
         caps: bool,
-        transform: Matrix4<f32>,
+        transform: &Matrix4<f32>,
     ) -> Self {
         let mut builder = RawMeshBuilder::<Vertex>::new(3 * sides, 3 * sides);
 
@@ -557,78 +603,98 @@ impl SurfaceSharedData {
             let z0 = r * ny0;
             let x1 = r * nx1;
             let z1 = r * ny1;
-            let tx0 = d_theta * i as f32;
-            let tx1 = d_theta * (i + 1) as f32;
 
             if caps {
+                let (t_cap_y_curr, t_cap_x_curr) = (d_phi * i as f32).sin_cos();
+                let (t_cap_y_next, t_cap_x_next) = (d_phi * (i + 1) as f32).sin_cos();
+
+                let t_cap_x_curr = t_cap_x_curr * 0.5 + 0.5;
+                let t_cap_y_curr = t_cap_y_curr * 0.5 + 0.5;
+
+                let t_cap_x_next = t_cap_x_next * 0.5 + 0.5;
+                let t_cap_y_next = t_cap_y_next * 0.5 + 0.5;
+
                 // front cap
-                builder.insert(Vertex::from_pos_uv(
-                    transform.transform_point(&Point3::new(x1, h, z1)).coords,
-                    Vector2::new(tx1, 1.0),
+                builder.insert(Vertex::from_pos_uv_normal(
+                    Vector3::new(x1, h, z1),
+                    Vector2::new(t_cap_x_next, t_cap_y_next),
+                    Vector3::new(0.0, 1.0, 0.0),
                 ));
-                builder.insert(Vertex::from_pos_uv(
-                    transform.transform_point(&Point3::new(x0, h, z0)).coords,
-                    Vector2::new(tx0, 1.0),
+                builder.insert(Vertex::from_pos_uv_normal(
+                    Vector3::new(x0, h, z0),
+                    Vector2::new(t_cap_x_curr, t_cap_y_curr),
+                    Vector3::new(0.0, 1.0, 0.0),
                 ));
-                builder.insert(Vertex::from_pos_uv(
-                    transform.transform_point(&Point3::new(0.0, h, 0.0)).coords,
-                    Vector2::default(),
+                builder.insert(Vertex::from_pos_uv_normal(
+                    Vector3::new(0.0, h, 0.0),
+                    Vector2::new(0.5, 0.5),
+                    Vector3::new(0.0, 1.0, 0.0),
                 ));
 
                 // back cap
-                builder.insert(Vertex::from_pos_uv(
-                    transform.transform_point(&Point3::new(x0, 0.0, z0)).coords,
-                    Vector2::new(tx1, 1.0),
+                builder.insert(Vertex::from_pos_uv_normal(
+                    Vector3::new(x0, 0.0, z0),
+                    Vector2::new(t_cap_x_curr, t_cap_y_curr),
+                    Vector3::new(0.0, -1.0, 0.0),
                 ));
-                builder.insert(Vertex::from_pos_uv(
-                    transform.transform_point(&Point3::new(x1, 0.0, z1)).coords,
-                    Vector2::new(tx0, 1.0),
+                builder.insert(Vertex::from_pos_uv_normal(
+                    Vector3::new(x1, 0.0, z1),
+                    Vector2::new(t_cap_x_next, t_cap_y_next),
+                    Vector3::new(0.0, -1.0, 0.0),
                 ));
-                builder.insert(Vertex::from_pos_uv(
-                    transform
-                        .transform_point(&Point3::new(0.0, 0.0, 0.0))
-                        .coords,
-                    Vector2::default(),
+                builder.insert(Vertex::from_pos_uv_normal(
+                    Vector3::new(0.0, 0.0, 0.0),
+                    Vector2::new(0.5, 0.5),
+                    Vector3::new(0.0, -1.0, 0.0),
                 ));
             }
 
+            let t_side_curr = d_theta * i as f32;
+            let t_side_next = d_theta * (i + 1) as f32;
+
             // sides
-            builder.insert(Vertex::from_pos_uv(
-                transform.transform_point(&Point3::new(x0, 0.0, z0)).coords,
-                Vector2::new(tx0, 0.0),
+            builder.insert(Vertex::from_pos_uv_normal(
+                Vector3::new(x0, 0.0, z0),
+                Vector2::new(t_side_curr, 0.0),
+                Vector3::new(x0, 0.0, z0),
             ));
-            builder.insert(Vertex::from_pos_uv(
-                transform.transform_point(&Point3::new(x0, h, z0)).coords,
-                Vector2::new(tx0, 1.0),
+            builder.insert(Vertex::from_pos_uv_normal(
+                Vector3::new(x0, h, z0),
+                Vector2::new(t_side_curr, 1.0),
+                Vector3::new(x0, 0.0, z0),
             ));
-            builder.insert(Vertex::from_pos_uv(
-                transform.transform_point(&Point3::new(x1, 0.0, z1)).coords,
-                Vector2::new(tx1, 0.0),
+            builder.insert(Vertex::from_pos_uv_normal(
+                Vector3::new(x1, 0.0, z1),
+                Vector2::new(t_side_next, 0.0),
+                Vector3::new(x1, 0.0, z1),
             ));
 
-            builder.insert(Vertex::from_pos_uv(
-                transform.transform_point(&Point3::new(x1, 0.0, z1)).coords,
-                Vector2::new(tx1, 0.0),
+            builder.insert(Vertex::from_pos_uv_normal(
+                Vector3::new(x1, 0.0, z1),
+                Vector2::new(t_side_next, 0.0),
+                Vector3::new(x1, 0.0, z1),
             ));
-            builder.insert(Vertex::from_pos_uv(
-                transform.transform_point(&Point3::new(x0, h, z0)).coords,
-                Vector2::new(tx0, 1.0),
+            builder.insert(Vertex::from_pos_uv_normal(
+                Vector3::new(x0, h, z0),
+                Vector2::new(t_side_curr, 1.0),
+                Vector3::new(x0, 0.0, z0),
             ));
-            builder.insert(Vertex::from_pos_uv(
-                transform.transform_point(&Point3::new(x1, h, z1)).coords,
-                Vector2::new(tx1, 1.0),
+            builder.insert(Vertex::from_pos_uv_normal(
+                Vector3::new(x1, h, z1),
+                Vector2::new(t_side_next, 1.0),
+                Vector3::new(x1, 0.0, z1),
             ));
         }
 
         let mut data = Self::from_raw_mesh(builder.build(), true);
-        data.calculate_normals();
         data.calculate_tangents();
+        data.transform_geometry(transform);
         data
     }
 
     /// Creates unit cube with given transform.
     pub fn make_cube(transform: Matrix4<f32>) -> Self {
-        let mut vertices = vec![
+        let vertices = vec![
             // Front
             Vertex {
                 position: Vector3::new(-0.5, -0.5, 0.5),
@@ -853,10 +919,6 @@ impl SurfaceSharedData {
             },
         ];
 
-        for v in vertices.iter_mut() {
-            v.position = transform.transform_point(&Point3::from(v.position)).coords;
-        }
-
         let indices = vec![
             TriangleDefinition([2, 1, 0]),
             TriangleDefinition([3, 2, 0]),
@@ -874,6 +936,7 @@ impl SurfaceSharedData {
 
         let mut data = Self::new(vertices, indices, true);
         data.calculate_tangents();
+        data.transform_geometry(&transform);
         data
     }
 
@@ -1015,6 +1078,7 @@ pub struct Surface {
     lightmap_texture: Option<Texture>,
     specular_texture: Option<Texture>,
     roughness_texture: Option<Texture>,
+    height_texture: Option<Texture>,
     /// Temporal array for FBX conversion needs, it holds skinning data (weight + bone handle)
     /// and will be used to fill actual bone indices and weight in vertices that will be
     /// sent to GPU. The idea is very simple: GPU needs to know only indices of matrices of
@@ -1041,6 +1105,7 @@ impl Clone for Surface {
             normal_texture: self.normal_texture.clone(),
             specular_texture: self.specular_texture.clone(),
             roughness_texture: self.roughness_texture.clone(),
+            height_texture: self.height_texture.clone(),
             bones: self.bones.clone(),
             vertex_weights: Vec::new(), // Intentionally not copied.
             color: self.color,
@@ -1059,6 +1124,7 @@ impl Surface {
             normal_texture: None,
             specular_texture: None,
             roughness_texture: None,
+            height_texture: None,
             bones: Vec::new(),
             vertex_weights: Vec::new(),
             color: Color::WHITE,
@@ -1087,6 +1153,9 @@ impl Surface {
         }
         if let Some(lightmap_texture) = self.lightmap_texture.as_ref() {
             lightmap_texture.key().hash(&mut hasher);
+        }
+        if let Some(height_texture) = self.height_texture.as_ref() {
+            height_texture.key().hash(&mut hasher);
         }
 
         hasher.finish()
@@ -1158,6 +1227,18 @@ impl Surface {
         self.lightmap_texture.clone()
     }
 
+    /// Sets new height texture.
+    #[inline]
+    pub fn set_height_texture(&mut self, tex: Option<Texture>) {
+        self.height_texture = tex;
+    }
+
+    /// Returns height texture.
+    #[inline]
+    pub fn height_texture(&self) -> Option<Texture> {
+        self.height_texture.clone()
+    }
+
     /// Sets color of surface. Keep in mind that alpha component is **not** compatible
     /// with deferred render path. You have to use forward render path if you need
     /// transparent surfaces.
@@ -1188,6 +1269,7 @@ impl Visit for Surface {
         self.diffuse_texture.visit("DiffuseTexture", visitor)?;
         let _ = self.specular_texture.visit("SpecularTexture", visitor);
         let _ = self.roughness_texture.visit("RoughnessTexture", visitor);
+        let _ = self.height_texture.visit("HeightTexture", visitor);
         self.color.visit("Color", visitor)?;
         self.bones.visit("Bones", visitor)?;
         // self.vertex_weights intentionally not serialized!
@@ -1208,6 +1290,7 @@ pub struct SurfaceBuilder {
     lightmap_texture: Option<Texture>,
     specular_texture: Option<Texture>,
     roughness_texture: Option<Texture>,
+    height_texture: Option<Texture>,
     bones: Vec<Handle<Node>>,
     color: Color,
 }
@@ -1222,6 +1305,7 @@ impl SurfaceBuilder {
             lightmap_texture: None,
             specular_texture: None,
             roughness_texture: None,
+            height_texture: None,
             bones: Default::default(),
             color: Color::WHITE,
         }
@@ -1257,6 +1341,12 @@ impl SurfaceBuilder {
         self
     }
 
+    /// Sets desired roughness texture.
+    pub fn with_height_texture(mut self, tex: Texture) -> Self {
+        self.height_texture = Some(tex);
+        self
+    }
+
     /// Sets desired color of surface.
     pub fn with_color(mut self, color: Color) -> Self {
         self.color = color;
@@ -1278,6 +1368,7 @@ impl SurfaceBuilder {
             lightmap_texture: self.lightmap_texture,
             specular_texture: self.specular_texture,
             roughness_texture: self.roughness_texture,
+            height_texture: self.height_texture,
             vertex_weights: Default::default(),
             bones: self.bones,
             color: self.color,

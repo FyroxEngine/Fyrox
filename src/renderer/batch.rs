@@ -49,6 +49,8 @@ pub struct Batch {
     pub specular_texture: Rc<RefCell<GpuTexture>>,
     pub roughness_texture: Rc<RefCell<GpuTexture>>,
     pub lightmap_texture: Rc<RefCell<GpuTexture>>,
+    pub height_texture: Rc<RefCell<GpuTexture>>,
+    pub use_pom: bool,
     pub is_skinned: bool,
     pub render_path: RenderPath,
 }
@@ -135,6 +137,11 @@ impl BatchStorage {
                     .and_then(|texture| texture_cache.get(state, texture))
                     .unwrap_or_else(|| black_dummy.clone());
 
+                let height_texture = surface
+                    .height_texture()
+                    .and_then(|texture| texture_cache.get(state, texture))
+                    .unwrap_or_else(|| black_dummy.clone());
+
                 let batch = if let Some(&batch_index) = self.inner.get(&key) {
                     self.batches.get_mut(batch_index).unwrap()
                 } else {
@@ -147,8 +154,10 @@ impl BatchStorage {
                         specular_texture: specular_texture.clone(),
                         roughness_texture: roughness_texture.clone(),
                         lightmap_texture: lightmap_texture.clone(),
+                        height_texture: height_texture.clone(),
                         is_skinned: !surface.bones.is_empty(),
                         render_path: mesh.render_path(),
+                        use_pom: surface.height_texture().is_some(),
                     });
                     self.batches.last_mut().unwrap()
                 };
@@ -159,6 +168,8 @@ impl BatchStorage {
                 batch.specular_texture = specular_texture;
                 batch.roughness_texture = roughness_texture;
                 batch.lightmap_texture = lightmap_texture;
+                batch.height_texture = height_texture;
+                batch.use_pom = surface.height_texture().is_some();
 
                 batch.instances.push(SurfaceInstance {
                     world_transform: world,

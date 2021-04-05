@@ -9,9 +9,11 @@ uniform sampler2D normalTexture;
 uniform sampler2D specularTexture;
 uniform sampler2D lightmapTexture;
 uniform sampler2D roughnessTexture;
+uniform sampler2D heightTexture;
 uniform samplerCube environmentMap;
 uniform vec4 diffuseColor;
 uniform vec3 cameraPosition;
+uniform bool usePOM;
 
 in vec3 position;
 in vec3 normal;
@@ -22,17 +24,29 @@ in vec2 secondTexCoord;
 
 void main()
 {
-    outColor = diffuseColor * texture(diffuseTexture, texCoord);
-    if (outColor.a < 0.5) discard;
-    outColor.a = 1;
-    vec4 n = normalize(texture(normalTexture, texCoord) * 2.0 - 1.0);
     mat3 tangentSpace = mat3(tangent, binormal, normal);
+    vec3 toFragment = normalize(position - cameraPosition);
+
+    vec2 tc;
+    if (usePOM) {
+        vec3 toFragmentTangentSpace = normalize(transpose(tangentSpace) * toFragment);
+        tc = S_ComputeParallaxTextureCoordinates(heightTexture, toFragmentTangentSpace, texCoord, normal);
+    } else {
+        tc = texCoord;
+    }
+
+    outColor = diffuseColor * texture(diffuseTexture, tc);
+    if (outColor.a < 0.5) {
+        discard;
+    }
+    outColor.a = 1;
+    vec4 n = normalize(texture(normalTexture, tc) * 2.0 - 1.0);
     outNormal.xyz = normalize(tangentSpace * n.xyz) * 0.5 + 0.5;
-    outNormal.w = texture(specularTexture, texCoord).r;
+    outNormal.w = texture(specularTexture, tc).r;
     outAmbient = vec4(texture(lightmapTexture, secondTexCoord).rgb, 1.0);
 
     // reflection mapping
-    float roughness = texture(roughnessTexture, texCoord).r;
-    vec3 reflectionTexCoord = reflect(normalize(position-cameraPosition), normalize(n.xyz));
-    outColor = (1-roughness) * outColor + roughness * vec4(texture(environmentMap, reflectionTexCoord).rgb, outColor.a);
+    float roughness = texture(roughnessTexture, tc).r;
+    vec3 reflectionTexCoord = reflect(toFragment, normalize(n.xyz));
+    outColor = (1 - roughness) * outColor + roughness * vec4(texture(environmentMap, reflectionTexCoord).rgb, outColor.a);
 }

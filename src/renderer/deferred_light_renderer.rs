@@ -324,7 +324,7 @@ impl DeferredLightRenderer {
                 ],
                 true,
             ),
-            sphere: SurfaceSharedData::make_sphere(6, 6, 1.0),
+            sphere: SurfaceSharedData::make_sphere(6, 6, 1.0, &Matrix4::identity()),
             flat_shader: FlatShader::new()?,
             spot_shadow_map_renderer: SpotShadowMapRenderer::new(
                 state,

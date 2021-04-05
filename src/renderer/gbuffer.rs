@@ -1,5 +1,3 @@
-use crate::renderer::TextureCache;
-use crate::scene::mesh::RenderPath;
 use crate::{
     core::{
         algebra::{Matrix4, Vector4},
@@ -21,9 +19,9 @@ use crate::{
             },
             state::PipelineState,
         },
-        GeometryCache, RenderPassStatistics,
+        GeometryCache, RenderPassStatistics, TextureCache,
     },
-    scene::camera::Camera,
+    scene::{camera::Camera, mesh::RenderPath},
 };
 use std::{cell::RefCell, rc::Rc};
 
@@ -41,6 +39,8 @@ struct InstancedShader {
     environment_map: UniformLocation,
     camera_position: UniformLocation,
     view_projection_matrix: UniformLocation,
+    use_pom: UniformLocation,
+    height_texture: UniformLocation,
 }
 
 impl InstancedShader {
@@ -62,6 +62,8 @@ impl InstancedShader {
             environment_map: program.uniform_location("environmentMap")?,
             camera_position: program.uniform_location("cameraPosition")?,
             view_projection_matrix: program.uniform_location("viewProjectionMatrix")?,
+            use_pom: program.uniform_location("usePOM")?,
+            height_texture: program.uniform_location("heightTexture")?,
             program,
         })
     }
@@ -81,6 +83,8 @@ struct Shader {
     diffuse_color: UniformLocation,
     environment_map: UniformLocation,
     camera_position: UniformLocation,
+    use_pom: UniformLocation,
+    height_texture: UniformLocation,
 }
 
 impl Shader {
@@ -101,6 +105,8 @@ impl Shader {
             diffuse_color: program.uniform_location("diffuseColor")?,
             environment_map: program.uniform_location("environmentMap")?,
             camera_position: program.uniform_location("cameraPosition")?,
+            use_pom: program.uniform_location("usePOM")?,
+            height_texture: program.uniform_location("heightTexture")?,
             program,
         })
     }
@@ -125,6 +131,7 @@ pub(in crate) struct GBufferRenderContext<'a, 'b> {
     pub batch_storage: &'a BatchStorage,
     pub texture_cache: &'a mut TextureCache,
     pub environment_dummy: Rc<RefCell<GpuTexture>>,
+    pub use_parallax_mapping: bool,
 }
 
 impl GBuffer {
@@ -283,6 +290,7 @@ impl GBuffer {
             batch_storage,
             texture_cache,
             environment_dummy,
+            use_parallax_mapping,
         } = args;
 
         let viewport = Rect::new(0, 0, self.width, self.height);
@@ -385,6 +393,17 @@ impl GBuffer {
                                     index: 5,
                                     texture: batch.roughness_texture.clone(),
                                 },
+                            ),
+                            (
+                                self.shader.height_texture,
+                                UniformValue::Sampler {
+                                    index: 6,
+                                    texture: batch.height_texture.clone(),
+                                },
+                            ),
+                            (
+                                self.shader.use_pom,
+                                UniformValue::Bool(batch.use_pom && use_parallax_mapping),
                             ),
                             (
                                 self.shader.wvp_matrix,
@@ -493,6 +512,17 @@ impl GBuffer {
                                     index: 6,
                                     texture: self.matrix_storage.matrices_storage.clone(),
                                 },
+                            ),
+                            (
+                                self.instanced_shader.height_texture,
+                                UniformValue::Sampler {
+                                    index: 7,
+                                    texture: batch.height_texture.clone(),
+                                },
+                            ),
+                            (
+                                self.instanced_shader.use_pom,
+                                UniformValue::Bool(batch.use_pom && use_parallax_mapping),
                             ),
                             (
                                 self.instanced_shader.use_skeletal_animation,
