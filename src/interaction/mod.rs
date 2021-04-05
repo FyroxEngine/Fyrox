@@ -143,7 +143,7 @@ fn make_move_axis(
                 .with_render_path(RenderPath::Forward)
                 .with_cast_shadows(false)
                 .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
-                    SurfaceSharedData::make_cone(10, 0.05, 0.1, Matrix4::identity()),
+                    SurfaceSharedData::make_cone(10, 0.05, 0.1, &Matrix4::identity()),
                 )))
                 .with_color(color)
                 .build()])
@@ -161,7 +161,7 @@ fn make_move_axis(
     .with_render_path(RenderPath::Forward)
     .with_cast_shadows(false)
     .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
-        SurfaceSharedData::make_cylinder(10, 0.015, 1.0, true, Matrix4::identity()),
+        SurfaceSharedData::make_cylinder(10, 0.015, 1.0, true, &Matrix4::identity()),
     )))
     .with_color(color)
     .build()])
@@ -190,9 +190,9 @@ fn create_quad_plane(
     .with_cast_shadows(false)
     .with_surfaces(vec![{
         SurfaceBuilder::new(Arc::new(RwLock::new(SurfaceSharedData::make_quad(
-            transform
+            &(transform
                 * UnitQuaternion::from_axis_angle(&Vector3::x_axis(), 90.0f32.to_radians())
-                    .to_homogeneous(),
+                    .to_homogeneous()),
         ))))
         .with_color(color)
         .build()
@@ -689,7 +689,7 @@ fn make_scale_axis(
     .with_render_path(RenderPath::Forward)
     .with_cast_shadows(false)
     .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
-        SurfaceSharedData::make_cylinder(10, 0.015, 1.0, true, Matrix4::identity()),
+        SurfaceSharedData::make_cylinder(10, 0.015, 1.0, true, &Matrix4::identity()),
     )))
     .with_color(color)
     .build()])
@@ -1126,7 +1126,7 @@ fn make_rotation_ribbon(
             0.5,
             0.05,
             false,
-            Matrix4::new_translation(&Vector3::new(0.0, -0.05, 0.0)),
+            &Matrix4::new_translation(&Vector3::new(0.0, -0.05, 0.0)),
         ),
     )))
     .with_color(color)
@@ -1148,7 +1148,7 @@ impl RotationGizmo {
         .with_render_path(RenderPath::Forward)
         .with_cast_shadows(false)
         .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
-            SurfaceSharedData::make_sphere(10, 10, 0.1),
+            SurfaceSharedData::make_sphere(10, 10, 0.1, &Matrix4::identity()),
         )))
         .with_color(Color::opaque(100, 100, 100))
         .build()])

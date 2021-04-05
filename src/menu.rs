@@ -547,7 +547,7 @@ impl Menu {
                 } else if message.destination() == self.create_cone {
                     let mesh = MeshBuilder::new(BaseBuilder::new().with_name("Cone"))
                         .with_surfaces(vec![Surface::new(Arc::new(RwLock::new(
-                            SurfaceSharedData::make_cone(16, 0.5, 1.0, Matrix4::identity()),
+                            SurfaceSharedData::make_cone(16, 0.5, 1.0, &Matrix4::identity()),
                         )))])
                         .build_node();
                     self.message_sender
@@ -563,7 +563,7 @@ impl Menu {
                                 0.5,
                                 1.0,
                                 true,
-                                Matrix4::identity(),
+                                &Matrix4::identity(),
                             ),
                         )))])
                         .build_node();
@@ -575,7 +575,7 @@ impl Menu {
                 } else if message.destination() == self.create_sphere {
                     let mesh = MeshBuilder::new(BaseBuilder::new().with_name("Sphere"))
                         .with_surfaces(vec![Surface::new(Arc::new(RwLock::new(
-                            SurfaceSharedData::make_sphere(16, 16, 0.5),
+                            SurfaceSharedData::make_sphere(16, 16, 0.5, &Matrix4::identity()),
                         )))])
                         .build_node();
                     self.message_sender

@@ -130,7 +130,7 @@ impl CameraController {
             KeyCode::A => self.move_left = true,
             KeyCode::D => self.move_right = true,
             KeyCode::LControl => self.speed_factor = 2.0,
-            KeyCode::LShift => self.speed_factor = 0.5,
+            KeyCode::LShift => self.speed_factor = 0.25,
             _ => (),
         }
     }

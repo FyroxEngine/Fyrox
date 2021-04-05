@@ -50,9 +50,10 @@ use crate::{
     world_outliner::WorldOutliner,
 };
 use rg3d::dpi::LogicalSize;
+use rg3d::scene::Line;
 use rg3d::{
     core::{
-        algebra::Vector2,
+        algebra::{Point3, Vector2},
         color::Color,
         math::aabb::AxisAlignedBoundingBox,
         pool::{Handle, Pool},
@@ -1382,12 +1383,62 @@ impl Editor {
                 }
 
                 let node = &graph[node];
-                if let Node::Base(_) = node {
-                    ctx.draw_oob(
-                        &AxisAlignedBoundingBox::unit(),
-                        node.global_transform(),
-                        Color::opaque(255, 127, 39),
-                    );
+                match node {
+                    Node::Base(_) => {
+                        ctx.draw_oob(
+                            &AxisAlignedBoundingBox::unit(),
+                            node.global_transform(),
+                            Color::opaque(255, 127, 39),
+                        );
+                    }
+                    Node::Mesh(mesh) => {
+                        if false {
+                            // TODO: Add switch to settings to turn this on/off
+                            let transform = node.global_transform();
+
+                            for surface in mesh.surfaces() {
+                                for vertex in surface.data().read().unwrap().get_vertices() {
+                                    let len = 0.025;
+                                    let position = transform
+                                        .transform_point(&Point3::from(vertex.position))
+                                        .coords;
+                                    let tangent = transform
+                                        .transform_vector(&vertex.tangent.xyz())
+                                        .normalize()
+                                        .scale(len);
+                                    let normal = transform
+                                        .transform_vector(&vertex.normal.xyz())
+                                        .normalize()
+                                        .scale(len);
+                                    let binormal = tangent
+                                        .xyz()
+                                        .cross(&normal)
+                                        .scale(vertex.tangent.w)
+                                        .normalize()
+                                        .scale(len);
+
+                                    ctx.add_line(Line {
+                                        begin: position,
+                                        end: position + tangent,
+                                        color: Color::RED,
+                                    });
+
+                                    ctx.add_line(Line {
+                                        begin: position,
+                                        end: position + normal,
+                                        color: Color::BLUE,
+                                    });
+
+                                    ctx.add_line(Line {
+                                        begin: position,
+                                        end: position + binormal,
+                                        color: Color::GREEN,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                    _ => {}
                 }
 
                 for &child in node.children() {

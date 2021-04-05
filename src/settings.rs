@@ -37,6 +37,7 @@ pub struct Settings {
     light_scatter: Handle<UiNode>,
     near_plane: Handle<UiNode>,
     far_plane: Handle<UiNode>,
+    parallax_mapping: Handle<UiNode>,
 }
 
 fn make_text_mark(ctx: &mut BuildContext, text: &str, row: usize) -> Handle<UiNode> {
@@ -73,6 +74,7 @@ impl Settings {
         let light_scatter;
         let near_plane;
         let far_plane;
+        let parallax_mapping;
         let ctx = &mut engine.user_interface.build_ctx();
         let settings = engine.renderer.get_quality_settings();
         let text =
@@ -160,8 +162,18 @@ impl Settings {
                                         )
                                         .build(ctx);
                                         far_plane
+                                    })
+                                    .with_child(make_text_mark(ctx, "Parallax Mapping", 7))
+                                    .with_child({
+                                        parallax_mapping = make_bool_input_field(
+                                            ctx,
+                                            7,
+                                            settings.use_parallax_mapping,
+                                        );
+                                        parallax_mapping
                                     }),
                             )
+                            .add_row(Row::strict(25.0))
                             .add_row(Row::strict(25.0))
                             .add_row(Row::strict(25.0))
                             .add_row(Row::strict(25.0))
@@ -225,6 +237,7 @@ impl Settings {
             light_scatter,
             near_plane,
             far_plane,
+            parallax_mapping,
         }
     }
 
@@ -267,6 +280,8 @@ impl Settings {
                     settings.spot_shadows_enabled = value;
                 } else if message.destination() == self.light_scatter {
                     settings.light_scatter_enabled = value;
+                } else if message.destination() == self.parallax_mapping {
+                    settings.use_parallax_mapping = value;
                 }
             }
             UiMessageData::ColorField(msg)
@@ -299,6 +314,7 @@ impl Settings {
                     sync_check_box(self.point_shadows, settings.point_shadows_enabled);
                     sync_check_box(self.spot_shadows, settings.spot_shadows_enabled);
                     sync_check_box(self.light_scatter, settings.light_scatter_enabled);
+                    sync_check_box(self.parallax_mapping, settings.use_parallax_mapping);
                 }
             }
             UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) => {
