@@ -54,6 +54,7 @@ pub struct Menu {
     create_cone: Handle<UiNode>,
     create_sphere: Handle<UiNode>,
     create_cylinder: Handle<UiNode>,
+    create_quad: Handle<UiNode>,
     create_point_light: Handle<UiNode>,
     create_spot_light: Handle<UiNode>,
     create_directional_light: Handle<UiNode>,
@@ -118,6 +119,7 @@ impl Menu {
         let create_cone;
         let create_sphere;
         let create_cylinder;
+        let create_quad;
         let create_point_light;
         let create_spot_light;
         let create_directional_light;
@@ -183,6 +185,13 @@ impl Menu {
                                     .with_content(MenuItemContent::text("Cone"))
                                     .build(ctx);
                             create_cone
+                        },
+                        {
+                            create_quad =
+                                MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
+                                    .with_content(MenuItemContent::text("Quad"))
+                                    .build(ctx);
+                            create_quad
                         },
                     ])
                     .build(ctx),
@@ -414,6 +423,7 @@ impl Menu {
             create_cone,
             create_sphere,
             create_cylinder,
+            create_quad,
             create_point_light,
             create_spot_light,
             create_directional_light,
@@ -583,6 +593,17 @@ impl Menu {
                     let mesh = MeshBuilder::new(BaseBuilder::new().with_name("Sphere"))
                         .with_surfaces(vec![Surface::new(Arc::new(RwLock::new(
                             SurfaceSharedData::make_sphere(16, 16, 0.5, &Matrix4::identity()),
+                        )))])
+                        .build_node();
+                    self.message_sender
+                        .send(Message::DoSceneCommand(SceneCommand::AddNode(
+                            AddNodeCommand::new(mesh),
+                        )))
+                        .unwrap();
+                } else if message.destination() == self.create_quad {
+                    let mesh = MeshBuilder::new(BaseBuilder::new().with_name("Quad"))
+                        .with_surfaces(vec![Surface::new(Arc::new(RwLock::new(
+                            SurfaceSharedData::make_quad(&Matrix4::identity()),
                         )))])
                         .build_node();
                     self.message_sender
