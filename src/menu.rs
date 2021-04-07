@@ -1,9 +1,10 @@
+use crate::settings::Settings;
 use crate::{
     gui::{Ui, UiMessage, UiNode},
     make_save_file_selector, make_scene_file_filter,
     scene::{AddNodeCommand, EditorScene, PasteCommand, SceneCommand, Selection},
     send_sync_message,
-    settings::Settings,
+    settings::SettingsWindow,
     GameEngine, Message,
 };
 use rg3d::{
@@ -69,7 +70,7 @@ pub struct Menu {
     open_settings: Handle<UiNode>,
     configure: Handle<UiNode>,
     light_panel: Handle<UiNode>,
-    settings: Settings,
+    settings: SettingsWindow,
     configure_message: Handle<UiNode>,
     log_panel: Handle<UiNode>,
     create: Handle<UiNode>,
@@ -85,6 +86,7 @@ pub struct MenuContext<'a, 'b> {
     pub configurator_window: Handle<UiNode>,
     pub light_panel: Handle<UiNode>,
     pub log_panel: Handle<UiNode>,
+    pub settings: &'b mut Settings,
 }
 
 fn switch_window_state(window: Handle<UiNode>, ui: &mut Ui, center: bool) {
@@ -97,7 +99,11 @@ fn switch_window_state(window: Handle<UiNode>, ui: &mut Ui, center: bool) {
 }
 
 impl Menu {
-    pub fn new(engine: &mut GameEngine, message_sender: Sender<Message>) -> Self {
+    pub fn new(
+        engine: &mut GameEngine,
+        message_sender: Sender<Message>,
+        settings: &Settings,
+    ) -> Self {
         let min_size = Vector2::new(120.0, 22.0);
         let new_scene;
         let save;
@@ -412,7 +418,7 @@ impl Menu {
             create_spot_light,
             create_directional_light,
             exit,
-            settings: Settings::new(engine, message_sender.clone()),
+            settings: SettingsWindow::new(engine, message_sender.clone(), settings),
             message_sender,
             save_file_selector,
             load_file_selector,
@@ -471,7 +477,8 @@ impl Menu {
         scope_profile!();
 
         if let Some(scene) = ctx.editor_scene.as_ref() {
-            self.settings.handle_message(message, scene, ctx.engine);
+            self.settings
+                .handle_message(message, scene, ctx.engine, ctx.settings);
         }
 
         match message.data() {
@@ -707,13 +714,7 @@ impl Menu {
                 } else if message.destination() == self.log_panel {
                     switch_window_state(ctx.log_panel, &mut ctx.engine.user_interface, false);
                 } else if message.destination() == self.open_settings {
-                    if let Some(scene) = ctx.editor_scene.as_ref() {
-                        let camera = ctx.engine.scenes[scene.scene].graph
-                            [scene.camera_controller.camera]
-                            .as_camera();
-
-                        self.settings.open(&ctx.engine.user_interface, camera);
-                    }
+                    self.settings.open(&ctx.engine.user_interface, ctx.settings);
                 } else if message.destination() == self.configure {
                     if ctx.editor_scene.is_none() {
                         ctx.engine

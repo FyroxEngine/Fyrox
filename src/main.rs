@@ -23,6 +23,7 @@ pub mod sidebar;
 pub mod world_outliner;
 
 use crate::gui::Ui;
+use crate::settings::Settings;
 use crate::{
     asset::{AssetBrowser, AssetKind},
     camera::CameraController,
@@ -439,6 +440,7 @@ struct Editor {
     command_stack_viewer: CommandStackViewer,
     validation_message_box: Handle<UiNode>,
     navmesh_panel: NavmeshPanel,
+    settings: Settings,
 }
 
 impl Editor {
@@ -460,9 +462,34 @@ impl Editor {
                 true,
             ));
 
+        let mut settings = Settings::default();
+
+        match Settings::load() {
+            Ok(s) => {
+                settings = s;
+
+                println!("Editor settings were loaded successfully!");
+
+                match engine.renderer.set_quality_settings(&settings.graphics) {
+                    Ok(_) => {
+                        println!("Graphics settings were applied successfully!");
+                    }
+                    Err(e) => {
+                        println!("Failed to apply graphics settings! Reason: {:?}", e)
+                    }
+                }
+            }
+            Err(e) => {
+                println!(
+                    "Failed to load settings, fallback to default. Reason: {:?}",
+                    e
+                )
+            }
+        }
+
         let preview = ScenePreview::new(engine, message_sender.clone());
         let asset_browser = AssetBrowser::new(engine);
-        let menu = Menu::new(engine, message_sender.clone());
+        let menu = Menu::new(engine, message_sender.clone(), &settings);
         let light_panel = LightPanel::new(engine);
 
         let ctx = &mut engine.user_interface.build_ctx();
@@ -612,6 +639,7 @@ impl Editor {
             light_panel,
             command_stack_viewer,
             validation_message_box,
+            settings,
         };
 
         editor.set_interaction_mode(Some(InteractionModeKind::Move), engine);
@@ -758,6 +786,7 @@ impl Editor {
                 configurator_window: self.configurator.window,
                 light_panel: self.light_panel.window,
                 log_panel: self.log.window,
+                settings: &mut self.settings,
             },
         );
 
@@ -1333,6 +1362,11 @@ impl Editor {
 
             scene.drawing_context.clear_lines();
 
+            let camera = scene.graph[editor_scene.camera_controller.camera].as_camera_mut();
+
+            camera.set_z_near(self.settings.z_near);
+            camera.set_z_far(self.settings.z_far);
+
             // Create new render target if preview frame has changed its size.
             let (rt_width, rt_height) = if let TextureKind::Rectangle { width, height } =
                 scene.render_target.clone().unwrap().data_ref().kind()
@@ -1376,6 +1410,8 @@ impl Editor {
                 graph: &Graph,
                 ctx: &mut SceneDrawingContext,
                 editor_scene: &EditorScene,
+                show_tbn: bool,
+                show_bounds: bool,
             ) {
                 // Ignore editor nodes.
                 if node == editor_scene.root {
@@ -1385,14 +1421,16 @@ impl Editor {
                 let node = &graph[node];
                 match node {
                     Node::Base(_) => {
-                        ctx.draw_oob(
-                            &AxisAlignedBoundingBox::unit(),
-                            node.global_transform(),
-                            Color::opaque(255, 127, 39),
-                        );
+                        if show_bounds {
+                            ctx.draw_oob(
+                                &AxisAlignedBoundingBox::unit(),
+                                node.global_transform(),
+                                Color::opaque(255, 127, 39),
+                            );
+                        }
                     }
                     Node::Mesh(mesh) => {
-                        if false {
+                        if show_tbn {
                             // TODO: Add switch to settings to turn this on/off
                             let transform = node.global_transform();
 
@@ -1442,7 +1480,7 @@ impl Editor {
                 }
 
                 for &child in node.children() {
-                    draw_recursively(child, graph, ctx, editor_scene)
+                    draw_recursively(child, graph, ctx, editor_scene, show_tbn, show_bounds)
                 }
             }
 
@@ -1452,11 +1490,15 @@ impl Editor {
                 &scene.graph,
                 &mut scene.drawing_context,
                 editor_scene,
+                self.settings.show_tbn,
+                self.settings.show_bounds,
             );
 
-            editor_scene
-                .physics
-                .draw(&mut scene.drawing_context, &scene.graph);
+            if self.settings.show_physics {
+                editor_scene
+                    .physics
+                    .draw(&mut scene.drawing_context, &scene.graph);
+            }
 
             let graph = &mut scene.graph;
 

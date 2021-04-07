@@ -5,8 +5,10 @@ authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 edition = "2018"
 
 [dependencies]
-rg3d = { path = "../rg3d" }
+rg3d = { path = "../rg3d", features = ["serde_integration"] }
 lazy_static = "1.4.0"
+ron = "0.6.4"
+serde = "^1.0.0"
 
 [profile.dev.package."*"]
 opt-level = 3

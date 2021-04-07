@@ -7,3 +7,4 @@
 *.rgs
 /data
 history.bin
+/settings.ron

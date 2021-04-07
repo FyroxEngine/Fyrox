@@ -1,3 +1,4 @@
+use crate::STARTUP_WORKING_DIR;
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     scene::EditorScene,
@@ -21,11 +22,14 @@ use rg3d::{
         window::{WindowBuilder, WindowTitle},
         HorizontalAlignment, Orientation, Thickness, VerticalAlignment,
     },
-    scene::camera::Camera,
+    renderer::QualitySettings,
 };
-use std::sync::mpsc::Sender;
+use ron::ser::PrettyConfig;
+use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
+use std::{fs::File, sync::mpsc::Sender};
 
-pub struct Settings {
+pub struct SettingsWindow {
     window: Handle<UiNode>,
     ssao: Handle<UiNode>,
     point_shadows: Handle<UiNode>,
@@ -38,6 +42,69 @@ pub struct Settings {
     near_plane: Handle<UiNode>,
     far_plane: Handle<UiNode>,
     parallax_mapping: Handle<UiNode>,
+    show_physics: Handle<UiNode>,
+    show_bounds: Handle<UiNode>,
+    show_tbn: Handle<UiNode>,
+}
+
+#[derive(Deserialize, Serialize, PartialEq, Clone)]
+pub struct Settings {
+    pub graphics: QualitySettings,
+    pub show_physics: bool,
+    pub show_bounds: bool,
+    pub show_tbn: bool,
+    pub z_near: f32,
+    pub z_far: f32,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self {
+            graphics: Default::default(),
+            show_physics: true,
+            show_bounds: true,
+            show_tbn: false,
+            z_near: 0.025,
+            z_far: 128.0,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum SettingsError {
+    Io(std::io::Error),
+    Ron(ron::Error),
+}
+
+impl From<std::io::Error> for SettingsError {
+    fn from(e: std::io::Error) -> Self {
+        Self::Io(e)
+    }
+}
+
+impl From<ron::Error> for SettingsError {
+    fn from(e: ron::Error) -> Self {
+        Self::Ron(e)
+    }
+}
+
+impl Settings {
+    const FILE_NAME: &'static str = "settings.ron";
+
+    fn full_path() -> PathBuf {
+        STARTUP_WORKING_DIR.lock().unwrap().join(Self::FILE_NAME)
+    }
+
+    pub fn load() -> Result<Self, SettingsError> {
+        let file = File::open(Self::full_path())?;
+        Ok(ron::de::from_reader(file)?)
+    }
+
+    pub fn save(&self) -> Result<(), SettingsError> {
+        let file = File::create(Self::full_path())?;
+        ron::ser::to_writer_pretty(file, self, PrettyConfig::default())?;
+        Ok(())
+    }
 }
 
 fn make_text_mark(ctx: &mut BuildContext, text: &str, row: usize) -> Handle<UiNode> {
@@ -63,8 +130,8 @@ fn make_bool_input_field(ctx: &mut BuildContext, row: usize, value: bool) -> Han
     .build(ctx)
 }
 
-impl Settings {
-    pub fn new(engine: &mut GameEngine, sender: Sender<Message>) -> Self {
+impl SettingsWindow {
+    pub fn new(engine: &mut GameEngine, sender: Sender<Message>, settings: &Settings) -> Self {
         let ssao;
         let ok;
         let default;
@@ -75,8 +142,10 @@ impl Settings {
         let near_plane;
         let far_plane;
         let parallax_mapping;
+        let show_physics;
+        let show_bounds;
+        let show_tbn;
         let ctx = &mut engine.user_interface.build_ctx();
-        let settings = engine.renderer.get_quality_settings();
         let text =
             "Here you can select graphics settings to improve performance and/or to understand how \
             you scene will look like with different graphics settings. Please note that these settings won't be saved \
@@ -103,7 +172,11 @@ impl Settings {
                                     .on_row(1)
                                     .with_child(make_text_mark(ctx, "SSAO", 0))
                                     .with_child({
-                                        ssao = make_bool_input_field(ctx, 0, settings.use_ssao);
+                                        ssao = make_bool_input_field(
+                                            ctx,
+                                            0,
+                                            settings.graphics.use_ssao,
+                                        );
                                         ssao
                                     })
                                     .with_child(make_text_mark(ctx, "Ambient Color", 1))
@@ -119,7 +192,7 @@ impl Settings {
                                         point_shadows = make_bool_input_field(
                                             ctx,
                                             2,
-                                            settings.point_shadows_enabled,
+                                            settings.graphics.point_shadows_enabled,
                                         );
                                         point_shadows
                                     })
@@ -128,7 +201,7 @@ impl Settings {
                                         spot_shadows = make_bool_input_field(
                                             ctx,
                                             3,
-                                            settings.spot_shadows_enabled,
+                                            settings.graphics.spot_shadows_enabled,
                                         );
                                         spot_shadows
                                     })
@@ -137,7 +210,7 @@ impl Settings {
                                         light_scatter = make_bool_input_field(
                                             ctx,
                                             4,
-                                            settings.light_scatter_enabled,
+                                            settings.graphics.light_scatter_enabled,
                                         );
                                         light_scatter
                                     })
@@ -149,6 +222,8 @@ impl Settings {
                                                 .on_row(5)
                                                 .with_margin(Thickness::uniform(1.0)),
                                         )
+                                        .with_value(settings.z_near)
+                                        .with_min_value(0.0)
                                         .build(ctx);
                                         near_plane
                                     })
@@ -160,6 +235,8 @@ impl Settings {
                                                 .on_row(6)
                                                 .with_margin(Thickness::uniform(1.0)),
                                         )
+                                        .with_min_value(0.0)
+                                        .with_value(settings.z_far)
                                         .build(ctx);
                                         far_plane
                                     })
@@ -168,9 +245,27 @@ impl Settings {
                                         parallax_mapping = make_bool_input_field(
                                             ctx,
                                             7,
-                                            settings.use_parallax_mapping,
+                                            settings.graphics.use_parallax_mapping,
                                         );
                                         parallax_mapping
+                                    })
+                                    .with_child(make_text_mark(ctx, "Show Physics", 8))
+                                    .with_child({
+                                        show_physics =
+                                            make_bool_input_field(ctx, 8, settings.show_physics);
+                                        show_physics
+                                    })
+                                    .with_child(make_text_mark(ctx, "Show Bounds", 9))
+                                    .with_child({
+                                        show_bounds =
+                                            make_bool_input_field(ctx, 9, settings.show_bounds);
+                                        show_bounds
+                                    })
+                                    .with_child(make_text_mark(ctx, "Show TBN", 10))
+                                    .with_child({
+                                        show_tbn =
+                                            make_bool_input_field(ctx, 10, settings.show_tbn);
+                                        show_tbn
                                     }),
                             )
                             .add_row(Row::strict(25.0))
@@ -181,9 +276,12 @@ impl Settings {
                             .add_row(Row::strict(25.0))
                             .add_row(Row::strict(25.0))
                             .add_row(Row::strict(25.0))
+                            .add_row(Row::strict(25.0))
+                            .add_row(Row::strict(25.0))
+                            .add_row(Row::strict(25.0))
                             .add_row(Row::stretch())
                             .add_row(Row::stretch())
-                            .add_column(Column::strict(100.0))
+                            .add_column(Column::strict(120.0))
                             .add_column(Column::stretch())
                             .build(ctx),
                         )
@@ -238,25 +336,53 @@ impl Settings {
             near_plane,
             far_plane,
             parallax_mapping,
+            show_physics,
+            show_bounds,
+            show_tbn,
         }
     }
 
-    pub fn open(&self, ui: &Ui, camera: &Camera) {
+    pub fn open(&self, ui: &Ui, settings: &Settings) {
         ui.send_message(WindowMessage::open(
             self.window,
             MessageDirection::ToWidget,
             true,
         ));
+
+        self.sync_to_model(ui, settings);
+    }
+
+    fn sync_to_model(&self, ui: &Ui, settings: &Settings) {
         ui.send_message(NumericUpDownMessage::value(
             self.near_plane,
             MessageDirection::ToWidget,
-            camera.z_near(),
+            settings.z_near,
         ));
         ui.send_message(NumericUpDownMessage::value(
             self.far_plane,
             MessageDirection::ToWidget,
-            camera.z_far(),
+            settings.z_far,
         ));
+
+        let sync_check_box = |handle: Handle<UiNode>, value: bool| {
+            ui.send_message(CheckBoxMessage::checked(
+                handle,
+                MessageDirection::ToWidget,
+                Some(value),
+            ));
+        };
+
+        sync_check_box(self.ssao, settings.graphics.use_ssao);
+        sync_check_box(self.point_shadows, settings.graphics.point_shadows_enabled);
+        sync_check_box(self.spot_shadows, settings.graphics.spot_shadows_enabled);
+        sync_check_box(self.light_scatter, settings.graphics.light_scatter_enabled);
+        sync_check_box(
+            self.parallax_mapping,
+            settings.graphics.use_parallax_mapping,
+        );
+        sync_check_box(self.show_physics, settings.show_physics);
+        sync_check_box(self.show_tbn, settings.show_tbn);
+        sync_check_box(self.show_bounds, settings.show_bounds);
     }
 
     pub fn handle_message(
@@ -264,29 +390,37 @@ impl Settings {
         message: &UiMessage,
         editor_scene: &EditorScene,
         engine: &mut GameEngine,
+        in_settings: &mut Settings,
     ) {
         scope_profile!();
 
-        let mut settings = engine.renderer.get_quality_settings();
+        let mut settings = in_settings.clone();
 
         match message.data() {
             UiMessageData::CheckBox(CheckBoxMessage::Check(check)) => {
                 let value = check.unwrap_or(false);
                 if message.destination() == self.ssao {
-                    settings.use_ssao = value;
+                    settings.graphics.use_ssao = value;
                 } else if message.destination() == self.point_shadows {
-                    settings.point_shadows_enabled = value;
+                    settings.graphics.point_shadows_enabled = value;
                 } else if message.destination() == self.spot_shadows {
-                    settings.spot_shadows_enabled = value;
+                    settings.graphics.spot_shadows_enabled = value;
                 } else if message.destination() == self.light_scatter {
-                    settings.light_scatter_enabled = value;
+                    settings.graphics.light_scatter_enabled = value;
                 } else if message.destination() == self.parallax_mapping {
-                    settings.use_parallax_mapping = value;
+                    settings.graphics.use_parallax_mapping = value;
+                } else if message.destination() == self.show_bounds {
+                    settings.show_bounds = value;
+                } else if message.destination() == self.show_tbn {
+                    settings.show_tbn = value;
+                } else if message.destination() == self.show_physics {
+                    settings.show_physics = value;
                 }
             }
             UiMessageData::ColorField(msg)
                 if message.direction() == MessageDirection::FromWidget =>
             {
+                // TODO: Should not be here!
                 if message.destination() == self.ambient_color {
                     if let ColorFieldMessage::Color(color) = *msg {
                         engine.scenes[editor_scene.scene].ambient_lighting_color = color;
@@ -301,50 +435,49 @@ impl Settings {
                     ));
                 } else if message.destination() == self.default {
                     settings = Default::default();
-
-                    let sync_check_box = |handle: Handle<UiNode>, value: bool| {
-                        engine.user_interface.send_message(CheckBoxMessage::checked(
-                            handle,
-                            MessageDirection::ToWidget,
-                            Some(value),
-                        ));
-                    };
-
-                    sync_check_box(self.ssao, settings.use_ssao);
-                    sync_check_box(self.point_shadows, settings.point_shadows_enabled);
-                    sync_check_box(self.spot_shadows, settings.spot_shadows_enabled);
-                    sync_check_box(self.light_scatter, settings.light_scatter_enabled);
-                    sync_check_box(self.parallax_mapping, settings.use_parallax_mapping);
+                    self.sync_to_model(&engine.user_interface, &settings);
                 }
             }
-            UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) => {
-                let camera = engine.scenes[editor_scene.scene].graph
-                    [editor_scene.camera_controller.camera]
-                    .as_camera_mut();
+            &UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) => {
                 if message.destination() == self.near_plane {
-                    camera.set_z_near(*value);
+                    settings.z_near = value;
                 } else if message.destination() == self.far_plane {
-                    camera.set_z_far(*value);
+                    settings.z_far = value;
                 }
             }
             _ => {}
         }
 
-        if settings != engine.renderer.get_quality_settings() {
-            if let Err(e) = engine.renderer.set_quality_settings(&settings) {
-                self.sender
-                    .send(Message::Log(format!(
-                        "An error occurred at attempt to set new graphics settings: {:?}",
-                        e
-                    )))
-                    .unwrap();
-            } else {
-                self.sender
-                    .send(Message::Log(
-                        "New graphics quality settings were successfully set!".to_owned(),
-                    ))
-                    .unwrap();
+        // Apply only if anything changed.
+        if &settings != in_settings {
+            *in_settings = settings.clone();
+
+            if settings.graphics != engine.renderer.get_quality_settings() {
+                if let Err(e) = engine.renderer.set_quality_settings(&settings.graphics) {
+                    self.sender
+                        .send(Message::Log(format!(
+                            "An error occurred at attempt to set new graphics settings: {:?}",
+                            e
+                        )))
+                        .unwrap();
+                } else {
+                    self.sender
+                        .send(Message::Log(
+                            "New graphics quality settings were successfully set!".to_owned(),
+                        ))
+                        .unwrap();
+                }
             }
+
+            // Save config
+            match settings.save() {
+                Ok(_) => {
+                    println!("Settings were successfully saved!");
+                }
+                Err(e) => {
+                    println!("Unable to save settings! Reason: {:?}!", e);
+                }
+            };
         }
     }
 }
