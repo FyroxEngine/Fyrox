@@ -56,18 +56,18 @@ pub mod widget;
 pub mod window;
 pub mod wrap_panel;
 
-use crate::core::algebra::Vector2;
-use crate::draw::Draw;
 use crate::{
     brush::Brush,
     canvas::Canvas,
     core::{
+        algebra::Vector2,
         color::Color,
+        math::clampf,
         math::Rect,
         pool::{Handle, Pool},
-        scope_profile,
+        scope_profile, VecExtensions,
     },
-    draw::{CommandTexture, DrawingContext},
+    draw::{CommandTexture, Draw, DrawingContext},
     message::{
         ButtonState, CursorIcon, KeyboardModifiers, MessageData, MessageDirection, MouseButton,
         OsEvent, UiMessage, UiMessageData, WidgetMessage,
@@ -76,12 +76,9 @@ use crate::{
     ttf::{Font, SharedFont},
     widget::{Widget, WidgetBuilder},
 };
-use rg3d_core::math::clampf;
-use rg3d_core::VecExtensions;
-use std::collections::HashSet;
 use std::{
     cell::Cell,
-    collections::{HashMap, VecDeque},
+    collections::{HashMap, HashSet, VecDeque},
     fmt::Debug,
     ops::{Deref, DerefMut, Index, IndexMut},
     sync::{
@@ -961,7 +958,13 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
 
         let widget = self.nodes.borrow(node_handle);
 
-        if !widget.is_hit_test_visible() || !widget.enabled() {
+        if !widget.is_hit_test_visible()
+            || !widget.enabled()
+            || !widget.screen_bounds().intersects(Rect {
+                position: Default::default(),
+                size: self.screen_size,
+            })
+        {
             return Handle::NONE;
         }
 

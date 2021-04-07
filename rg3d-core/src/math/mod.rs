@@ -12,7 +12,7 @@ use crate::{
     algebra::{Matrix3, Matrix4, Scalar, UnitQuaternion, Vector2, Vector3, U3},
     visitor::{Visit, VisitResult, Visitor},
 };
-use std::ops::{Add, Index, IndexMut, Mul, Sub};
+use std::ops::{Add, AddAssign, Index, IndexMut, Mul, Sub};
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Rect<T: Scalar> {
@@ -31,7 +31,7 @@ impl<T: Scalar + Default> Default for Rect<T> {
 
 impl<T> Rect<T>
 where
-    T: Scalar + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + PartialOrd + Copy,
+    T: Scalar + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + PartialOrd + Copy + AddAssign,
 {
     pub fn new(x: T, y: T, w: T, h: T) -> Self {
         Self {
@@ -146,6 +146,23 @@ where
                 self.position.y + translation.y,
             ),
             size: self.size,
+        }
+    }
+
+    pub fn extend_to_contain(&mut self, other: Rect<T>) {
+        if other.position.x < self.position.x {
+            self.position.x = other.position.x;
+        }
+        if other.position.y < self.position.y {
+            self.position.y = other.position.y;
+        }
+        let self_right_bottom_corner = self.right_bottom_corner();
+        let other_right_bottom_corner = other.right_bottom_corner();
+        if other_right_bottom_corner.x > self_right_bottom_corner.x {
+            self.size.x += other_right_bottom_corner.x - self_right_bottom_corner.x;
+        }
+        if other_right_bottom_corner.y > self_right_bottom_corner.y {
+            self.size.y += other_right_bottom_corner.y - self_right_bottom_corner.y;
         }
     }
 

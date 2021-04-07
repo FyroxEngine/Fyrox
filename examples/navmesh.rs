@@ -9,6 +9,7 @@ extern crate rg3d;
 pub mod shared;
 
 use crate::shared::create_camera;
+use rg3d::core::algebra::Matrix4;
 use rg3d::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
@@ -89,7 +90,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
 
     let cursor = MeshBuilder::new(BaseBuilder::new())
         .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
-            SurfaceSharedData::make_sphere(10, 10, 0.1),
+            SurfaceSharedData::make_sphere(10, 10, 0.1, &Matrix4::identity()),
         )))
         .with_color(Color::opaque(255, 0, 0))
         .build()])
@@ -103,7 +104,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
         ),
     )
     .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
-        SurfaceSharedData::make_sphere(10, 10, 0.2),
+        SurfaceSharedData::make_sphere(10, 10, 0.2, &Matrix4::identity()),
     )))
     .with_color(Color::opaque(0, 200, 0))
     .build()])

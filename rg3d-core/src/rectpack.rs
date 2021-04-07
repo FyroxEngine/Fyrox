@@ -6,7 +6,7 @@ use crate::{
     pool::{Handle, Pool},
 };
 use nalgebra::Scalar;
-use std::ops::{Add, Mul, Sub};
+use std::ops::{Add, AddAssign, Mul, Sub};
 
 struct RectPackNode<T: Scalar> {
     filled: bool,
@@ -39,7 +39,14 @@ pub struct RectPacker<T: Scalar> {
 
 impl<T> RectPacker<T>
 where
-    T: Add<Output = T> + Sub<Output = T> + Scalar + Mul<Output = T> + PartialOrd + Default + Copy,
+    T: Add<Output = T>
+        + Sub<Output = T>
+        + Scalar
+        + Mul<Output = T>
+        + PartialOrd
+        + Default
+        + Copy
+        + AddAssign,
 {
     /// Creates new instance of rectangle packer with given bounds.
     ///

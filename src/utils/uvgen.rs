@@ -389,7 +389,7 @@ mod test {
             16,
             1.0,
             1.0,
-            Matrix4::new_nonuniform_scaling(&Vector3::new(1.0, 1.1, 1.0)),
+            &Matrix4::new_nonuniform_scaling(&Vector3::new(1.0, 1.1, 1.0)),
         );
         generate_uvs(&mut data, 0.01);
 

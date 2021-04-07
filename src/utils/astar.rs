@@ -326,11 +326,11 @@ impl PathFinder {
 
 #[cfg(test)]
 mod test {
+    use crate::rand::Rng;
     use crate::{
         core::{algebra::Vector3, rand},
         utils::astar::{PathFinder, PathVertex},
     };
-    use rand::Rng;
 
     #[test]
     fn astar_random_points() {

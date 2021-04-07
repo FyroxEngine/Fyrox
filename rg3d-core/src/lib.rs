@@ -22,6 +22,7 @@ pub mod numeric_range;
 pub mod octree;
 pub mod pool;
 pub mod profiler;
+pub mod quadtree;
 pub mod rectpack;
 pub mod visitor;
 
