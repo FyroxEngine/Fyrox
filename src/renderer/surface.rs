@@ -376,7 +376,7 @@ impl SurfaceSharedData {
         let vertices = vec![
             Vertex {
                 position: Vector3::new(-0.5, 0.5, 0.0),
-                normal: Vector3::z(),
+                normal: -Vector3::z(),
                 tex_coord: Vector2::new(1.0, 1.0),
                 tangent: Vector4::default(),
                 bone_weights: [0.0; 4],
@@ -385,7 +385,7 @@ impl SurfaceSharedData {
             },
             Vertex {
                 position: Vector3::new(0.5, 0.5, 0.0),
-                normal: Vector3::z(),
+                normal: -Vector3::z(),
                 tex_coord: Vector2::new(0.0, 1.0),
                 tangent: Vector4::default(),
                 bone_weights: [0.0; 4],
@@ -394,7 +394,7 @@ impl SurfaceSharedData {
             },
             Vertex {
                 position: Vector3::new(0.5, -0.5, 0.0),
-                normal: Vector3::z(),
+                normal: -Vector3::z(),
                 tex_coord: Vector2::new(0.0, 0.0),
                 tangent: Vector4::default(),
                 bone_weights: [0.0; 4],
@@ -403,7 +403,7 @@ impl SurfaceSharedData {
             },
             Vertex {
                 position: Vector3::new(-0.5, -0.5, 0.0),
-                normal: Vector3::z(),
+                normal: -Vector3::z(),
                 tex_coord: Vector2::new(1.0, 0.0),
                 tangent: Vector4::default(),
                 bone_weights: [0.0; 4],
