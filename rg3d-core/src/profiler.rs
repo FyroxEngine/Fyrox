@@ -6,28 +6,40 @@
 
 use std::{
     collections::{hash_map::DefaultHasher, HashMap, HashSet},
+    fmt,
+    fmt::Write,
     hash::{Hash, Hasher},
     sync::{Arc, Mutex},
 };
 
-#[cfg(feature = "enable_profiler")]
-pub fn print() {
-    PROFILER.lock().unwrap().print();
+#[must_use]
+pub fn print() -> Result<String, fmt::Error> {
+    #[cfg(feature = "enable_profiler")]
+    {
+        let mut buffer = String::new();
+        PROFILER.lock().unwrap().print(&mut buffer)?;
+        Ok(buffer)
+    }
+
+    #[cfg(not(feature = "enable_profiler"))]
+    {
+        Ok("Performance profiling results are not available, because feature 'enable_profiler' wasn't defined!".to_owned())
+    }
 }
 
-#[cfg(not(feature = "enable_profiler"))]
-pub fn print() {
-    println!("Performance profiling results are not available, because feature 'enable_profiler' wasn't defined!")
-}
+#[must_use]
+pub fn print_hot_path() -> Result<String, fmt::Error> {
+    #[cfg(feature = "enable_profiler")]
+    {
+        let mut buffer = String::new();
+        PROFILER.lock().unwrap().print_hot_path(&mut buffer)?;
+        Ok(buffer)
+    }
 
-#[cfg(feature = "enable_profiler")]
-pub fn print_hot_path() {
-    PROFILER.lock().unwrap().print_hot_path();
-}
-
-#[cfg(not(feature = "enable_profiler"))]
-pub fn print_hot_path() {
-    println!("Performance profiling results are not available, because feature 'enable_profiler' wasn't defined!")
+    #[cfg(not(feature = "enable_profiler"))]
+    {
+        Ok("Performance profiling results are not available, because feature 'enable_profiler' wasn't defined!".to_owned())
+    }
 }
 
 struct Sample {
@@ -114,21 +126,29 @@ impl Profiler {
         self.samples.get_mut(&scope).unwrap().collect(elapsed);
     }
 
-    fn print(&self) {
+    fn print(&self, buffer: &mut String) -> fmt::Result {
         let full_time = (std::time::Instant::now() - self.start_time).as_secs_f64();
-        self.recursive_print(&ENTRY_SCOPE_MARK, 0, full_time);
-        println!("=========================================================================================================");
+        self.recursive_print(buffer, &ENTRY_SCOPE_MARK, 0, full_time)?;
+        writeln!(buffer,"=========================================================================================================")?;
+        Ok(())
     }
 
-    fn recursive_print(&self, scope_mark: &ScopeMark, offset: usize, full_time: f64) {
+    fn recursive_print(
+        &self,
+        buffer: &mut String,
+        scope_mark: &ScopeMark,
+        offset: usize,
+        full_time: f64,
+    ) -> fmt::Result {
         let sample = self.samples.get(&scope_mark).unwrap();
 
         if scope_mark == &ENTRY_SCOPE_MARK {
-            println!("=========================================================================================================");
-            println!("Profiling took {} seconds. Please note that profiling itself takes time so results are not 100% accurate.", full_time);
-            println!("Entry Point");
+            writeln!(buffer, "=========================================================================================================")?;
+            writeln!(buffer,"Profiling took {} seconds. Please note that profiling itself takes time so results are not 100% accurate.", full_time)?;
+            writeln!(buffer, "Entry Point")?;
         } else {
-            println!(
+            writeln!(
+                buffer,
                 "{}{:.4}% - {} at line {} was called {} times and took {} seconds individually.",
                 "\t".repeat(offset),
                 (sample.time / full_time) * 100.0,
@@ -136,7 +156,7 @@ impl Profiler {
                 scope_mark.line,
                 sample.count,
                 sample.time
-            );
+            )?;
         }
 
         for child_scope in self
@@ -147,25 +167,35 @@ impl Profiler {
             .children
             .iter()
         {
-            self.recursive_print(child_scope, offset + 1, full_time);
+            self.recursive_print(buffer, child_scope, offset + 1, full_time)?;
         }
+
+        Ok(())
     }
 
-    fn print_hot_path(&self) {
+    fn print_hot_path(&self, buffer: &mut String) -> fmt::Result {
         let full_time = (std::time::Instant::now() - self.start_time).as_secs_f64();
-        self.print_hot_path_recursive(&ENTRY_SCOPE_MARK, 0, full_time);
-        println!("=========================================================================================================");
+        self.print_hot_path_recursive(buffer, &ENTRY_SCOPE_MARK, 0, full_time)?;
+        writeln!(buffer, "=========================================================================================================")?;
+        Ok(())
     }
 
-    fn print_hot_path_recursive(&self, scope_mark: &ScopeMark, offset: usize, full_time: f64) {
+    fn print_hot_path_recursive(
+        &self,
+        buffer: &mut String,
+        scope_mark: &ScopeMark,
+        offset: usize,
+        full_time: f64,
+    ) -> fmt::Result {
         let sample = self.samples.get(&scope_mark).unwrap();
 
         if scope_mark == &ENTRY_SCOPE_MARK {
-            println!("=========================================================================================================");
-            println!("Showing hot path only! Profiling took {} seconds. Please note that profiling itself takes time so results are not 100% accurate.", full_time);
-            println!("Entry Point");
+            writeln!(buffer,"=========================================================================================================")?;
+            writeln!(buffer,"Showing hot path only! Profiling took {} seconds. Please note that profiling itself takes time so results are not 100% accurate.", full_time)?;
+            writeln!(buffer, "Entry Point")?;
         } else {
-            println!(
+            writeln!(
+                buffer,
                 "{}{:.4}% - {} at line {} was called {} times and took {} seconds individually.",
                 "\t".repeat(offset),
                 (sample.time / full_time) * 100.0,
@@ -173,7 +203,7 @@ impl Profiler {
                 scope_mark.line,
                 sample.count,
                 sample.time
-            );
+            )?;
         }
 
         let mut hot = None;
@@ -194,8 +224,10 @@ impl Profiler {
         }
 
         if let Some(hot) = hot.as_ref() {
-            self.print_hot_path_recursive(hot, offset + 1, full_time);
+            self.print_hot_path_recursive(buffer, hot, offset + 1, full_time)?;
         }
+
+        Ok(())
     }
 }
 
@@ -291,6 +323,6 @@ mod test {
             other_func();
         }
 
-        profiler::print();
+        println!("{:?}", profiler::print());
     }
 }

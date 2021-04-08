@@ -203,6 +203,8 @@ fn pre_draw(
     params: &DrawParameters,
     uniforms: &[(UniformLocation, UniformValue<'_>)],
 ) {
+    scope_profile!();
+
     state.set_framebuffer(fbo);
     state.set_viewport(viewport);
     state.apply_draw_parameters(params);

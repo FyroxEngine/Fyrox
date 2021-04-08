@@ -1,4 +1,5 @@
 use crate::core::algebra::{Matrix3, Matrix4, Vector2, Vector3, Vector4};
+use crate::core::scope_profile;
 use crate::utils::log::MessageKind;
 use crate::{
     core::color::Color,
@@ -202,6 +203,8 @@ impl GpuProgram {
         location: UniformLocation,
         value: &UniformValue<'_>,
     ) {
+        scope_profile!();
+
         state.set_program(self.id);
 
         let location = location.id;
