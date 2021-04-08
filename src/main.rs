@@ -22,14 +22,12 @@ pub mod settings;
 pub mod sidebar;
 pub mod world_outliner;
 
-use crate::gui::Ui;
-use crate::settings::Settings;
 use crate::{
     asset::{AssetBrowser, AssetKind},
     camera::CameraController,
     command::{CommandStack, CommandStackViewer},
     configurator::Configurator,
-    gui::{BuildContext, EditorUiMessage, EditorUiNode, UiMessage, UiNode},
+    gui::{BuildContext, EditorUiMessage, EditorUiNode, Ui, UiMessage, UiNode},
     interaction::{
         navmesh::{
             data_model::{Navmesh, NavmeshTriangle, NavmeshVertex},
@@ -47,11 +45,10 @@ use crate::{
         SceneContext, Selection, SetMeshTextureCommand, SetParticleSystemTextureCommand,
         SetSpriteTextureCommand,
     },
+    settings::Settings,
     sidebar::SideBar,
     world_outliner::WorldOutliner,
 };
-use rg3d::dpi::LogicalSize;
-use rg3d::scene::Line;
 use rg3d::{
     core::{
         algebra::{Point3, Vector2},
@@ -60,6 +57,7 @@ use rg3d::{
         pool::{Handle, Pool},
         scope_profile,
     },
+    dpi::LogicalSize,
     engine::resource_manager::ResourceManager,
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -85,11 +83,13 @@ use rg3d::{
         Thickness,
     },
     resource::texture::{Texture, TextureKind, TextureState},
-    scene::{base::BaseBuilder, graph::Graph, node::Node, Scene, SceneDrawingContext},
+    scene::{base::BaseBuilder, graph::Graph, node::Node, Line, Scene, SceneDrawingContext},
     utils::{into_gui_texture, translate_cursor_icon, translate_event},
 };
 use std::{
     cell::RefCell,
+    fs::File,
+    io::Write,
     path::{Path, PathBuf},
     rc::Rc,
     sync::{
@@ -1621,7 +1621,11 @@ fn main() {
             }
         }
         Event::LoopDestroyed => {
-            rg3d::core::profiler::print();
+            if let Ok(profiling_results) = rg3d::core::profiler::print() {
+                if let Ok(mut file) = File::create("profiling.log") {
+                    let _ = writeln!(file, "{}", profiling_results);
+                }
+            }
         }
         _ => *control_flow = ControlFlow::Poll,
     });
