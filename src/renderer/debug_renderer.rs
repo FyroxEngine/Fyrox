@@ -128,7 +128,7 @@ impl DebugRenderer {
             },
             &[(
                 self.shader.wvp_matrix,
-                UniformValue::Matrix4(camera.view_projection_matrix()),
+                UniformValue::Matrix4(&camera.view_projection_matrix()),
             )],
         );
 

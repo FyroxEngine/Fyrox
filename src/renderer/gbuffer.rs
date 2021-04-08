@@ -1,10 +1,5 @@
 use crate::{
-    core::{
-        algebra::{Matrix4, Vector4},
-        color::Color,
-        math::Rect,
-        scope_profile,
-    },
+    core::{algebra::Vector4, color::Color, math::Rect, scope_profile},
     renderer::{
         batch::{BatchStorage, InstanceData, MatrixStorage, BONE_MATRICES_COUNT},
         error::RendererError,
@@ -121,7 +116,6 @@ pub struct GBuffer {
     pub height: i32,
     matrix_storage: MatrixStorage,
     instance_data_set: Vec<InstanceData>,
-    bone_matrices: Vec<Matrix4<f32>>,
 }
 
 pub(in crate) struct GBufferRenderContext<'a, 'b> {
@@ -253,7 +247,6 @@ impl GBuffer {
             final_frame: opt_framebuffer,
             matrix_storage: MatrixStorage::new(state)?,
             instance_data_set: Default::default(),
-            bone_matrices: Default::default(),
         })
     }
 
@@ -378,7 +371,7 @@ impl GBuffer {
                             ),
                             (
                                 self.shader.camera_position,
-                                UniformValue::Vector3(camera.global_position()),
+                                UniformValue::Vector3(&camera.global_position()),
                             ),
                             (
                                 self.shader.environment_map,
@@ -407,11 +400,13 @@ impl GBuffer {
                             ),
                             (
                                 self.shader.wvp_matrix,
-                                UniformValue::Matrix4(view_projection * instance.world_transform),
+                                UniformValue::Matrix4(
+                                    &(view_projection * instance.world_transform),
+                                ),
                             ),
                             (
                                 self.shader.world_matrix,
-                                UniformValue::Matrix4(instance.world_transform),
+                                UniformValue::Matrix4(&instance.world_transform),
                             ),
                             (
                                 self.shader.use_skeletal_animation,
@@ -423,12 +418,7 @@ impl GBuffer {
                             ),
                             (
                                 self.shader.bone_matrices,
-                                UniformValue::Mat4Array({
-                                    self.bone_matrices.clear();
-                                    self.bone_matrices
-                                        .extend_from_slice(instance.bone_matrices.as_slice());
-                                    &self.bone_matrices
-                                }),
+                                UniformValue::Mat4Array(instance.bone_matrices.as_slice()),
                             ),
                         ],
                     );
@@ -490,7 +480,7 @@ impl GBuffer {
                             ),
                             (
                                 self.instanced_shader.camera_position,
-                                UniformValue::Vector3(camera.global_position()),
+                                UniformValue::Vector3(&camera.global_position()),
                             ),
                             (
                                 self.instanced_shader.environment_map,
@@ -542,7 +532,7 @@ impl GBuffer {
                                         } else {
                                             unreachable!()
                                         };
-                                    Vector4::new(
+                                    &Vector4::new(
                                         1.0 / (w as f32),
                                         1.0 / (h as f32),
                                         w as f32,
@@ -552,7 +542,7 @@ impl GBuffer {
                             ),
                             (
                                 self.instanced_shader.view_projection_matrix,
-                                UniformValue::Matrix4(camera.view_projection_matrix()),
+                                UniformValue::Matrix4(&camera.view_projection_matrix()),
                             ),
                         ],
                     );

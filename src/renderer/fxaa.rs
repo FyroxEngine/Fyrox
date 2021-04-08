@@ -92,13 +92,12 @@ impl FxaaRenderer {
                 blend: false,
             },
             &[
-                (self.shader.wvp_matrix, UniformValue::Matrix4(frame_matrix)),
+                (self.shader.wvp_matrix, UniformValue::Matrix4(&frame_matrix)),
                 (
                     self.shader.inverse_screen_size,
-                    UniformValue::Vector2(Vector2::new(
-                        1.0 / viewport.w() as f32,
-                        1.0 / viewport.h() as f32,
-                    )),
+                    UniformValue::Vector2(
+                        &(Vector2::new(1.0 / viewport.w() as f32, 1.0 / viewport.h() as f32)),
+                    ),
                 ),
                 (
                     self.shader.screen_texture,

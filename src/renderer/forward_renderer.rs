@@ -129,7 +129,9 @@ impl ForwardRenderer {
                             ),
                             (
                                 self.shader.wvp_matrix,
-                                UniformValue::Matrix4(view_projection * instance.world_transform),
+                                UniformValue::Matrix4(
+                                    &(view_projection * instance.world_transform),
+                                ),
                             ),
                             (
                                 self.shader.use_skeletal_animation,

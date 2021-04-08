@@ -369,8 +369,8 @@ impl PipelineState {
         }
     }
 
-    pub fn set_texture(&mut self, sampler_index: usize, target: GLenum, texture: GLuint) {
-        let unit = self.texture_units.get_mut(sampler_index).unwrap();
+    pub fn set_texture(&mut self, sampler_index: u32, target: GLenum, texture: GLuint) {
+        let unit = self.texture_units.get_mut(sampler_index as usize).unwrap();
 
         if unit.target != target || unit.texture != texture {
             unit.texture = texture;
@@ -379,7 +379,7 @@ impl PipelineState {
             self.frame_statistics.texture_binding_changes += 1;
 
             unsafe {
-                gl::ActiveTexture(gl::TEXTURE0 + sampler_index as u32);
+                gl::ActiveTexture(gl::TEXTURE0 + sampler_index);
                 gl::BindTexture(target, texture);
             }
         }

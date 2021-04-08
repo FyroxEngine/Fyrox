@@ -1,8 +1,9 @@
-use crate::core::algebra::{Matrix3, Matrix4, Vector2, Vector3, Vector4};
-use crate::core::scope_profile;
-use crate::utils::log::MessageKind;
 use crate::{
-    core::color::Color,
+    core::{
+        algebra::{Matrix3, Matrix4, Vector2, Vector3, Vector4},
+        color::Color,
+        scope_profile,
+    },
     renderer::{
         error::RendererError,
         framework::{
@@ -14,7 +15,7 @@ use crate::{
             state::PipelineState,
         },
     },
-    utils::log::Log,
+    utils::log::{Log, MessageKind},
 };
 use std::{cell::RefCell, ffi::CString, marker::PhantomData, rc::Rc};
 
@@ -35,19 +36,19 @@ pub struct UniformLocation {
 #[allow(dead_code)]
 pub enum UniformValue<'a> {
     Sampler {
-        index: usize,
+        index: u32,
         texture: Rc<RefCell<GpuTexture>>,
     },
 
     Bool(bool),
     Integer(i32),
     Float(f32),
-    Vector2(Vector2<f32>),
-    Vector3(Vector3<f32>),
-    Vector4(Vector4<f32>),
+    Vector2(&'a Vector2<f32>),
+    Vector3(&'a Vector3<f32>),
+    Vector4(&'a Vector4<f32>),
     Color(Color),
-    Matrix4(Matrix4<f32>),
-    Matrix3(Matrix3<f32>),
+    Matrix4(&'a Matrix4<f32>),
+    Matrix3(&'a Matrix3<f32>),
 
     IntegerArray(&'a [i32]),
     FloatArray(&'a [f32]),

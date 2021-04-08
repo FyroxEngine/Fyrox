@@ -152,19 +152,19 @@ impl SpriteRenderer {
                     ),
                     (
                         self.shader.view_projection_matrix,
-                        UniformValue::Matrix4(view_projection),
+                        UniformValue::Matrix4(&view_projection),
                     ),
                     (
                         self.shader.world_matrix,
-                        UniformValue::Matrix4(sprite.global_transform()),
+                        UniformValue::Matrix4(&sprite.global_transform()),
                     ),
                     (
                         self.shader.camera_up_vector,
-                        UniformValue::Vector3(camera_up),
+                        UniformValue::Vector3(&camera_up),
                     ),
                     (
                         self.shader.camera_side_vector,
-                        UniformValue::Vector3(camera_side),
+                        UniformValue::Vector3(&camera_side),
                     ),
                     (self.shader.size, UniformValue::Float(sprite.size())),
                     (self.shader.color, UniformValue::Color(sprite.color())),

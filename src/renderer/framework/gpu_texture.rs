@@ -1,7 +1,6 @@
 // Keep this for now, some texture kind might be used in future.
 #![allow(dead_code)]
 
-use crate::utils::log::MessageKind;
 use crate::{
     core::color::Color,
     renderer::{
@@ -12,7 +11,7 @@ use crate::{
         TextureKind, TextureMagnificationFilter, TextureMinificationFilter, TexturePixelKind,
         TextureWrapMode,
     },
-    utils::log::Log,
+    utils::log::{Log, MessageKind},
 };
 use std::{ffi::c_void, marker::PhantomData};
 
@@ -848,13 +847,13 @@ impl GpuTexture {
     pub fn bind_mut(
         &mut self,
         state: &mut PipelineState,
-        sampler_index: usize,
+        sampler_index: u32,
     ) -> TextureBinding<'_> {
         state.set_texture(sampler_index, self.kind.to_texture_target(), self.texture);
         TextureBinding { texture: self }
     }
 
-    pub fn bind(&self, state: &mut PipelineState, sampler_index: usize) {
+    pub fn bind(&self, state: &mut PipelineState, sampler_index: u32) {
         state.set_texture(sampler_index, self.kind.to_texture_target(), self.texture);
     }
 

@@ -197,7 +197,7 @@ impl LightVolumeRenderer {
                         depth_test: true,
                         blend: false,
                     },
-                    &[(self.flat_shader.wvp_matrix, UniformValue::Matrix4(mvp))],
+                    &[(self.flat_shader.wvp_matrix, UniformValue::Matrix4(&mvp))],
                 );
 
                 // Make sure to clean stencil buffer after drawing full screen quad.
@@ -226,11 +226,11 @@ impl LightVolumeRenderer {
                     &[
                         (
                             self.spot_light_shader.world_view_proj_matrix,
-                            UniformValue::Matrix4(frame_matrix),
+                            UniformValue::Matrix4(&frame_matrix),
                         ),
                         (
                             self.spot_light_shader.inv_proj,
-                            UniformValue::Matrix4(inv_proj),
+                            UniformValue::Matrix4(&inv_proj),
                         ),
                         (
                             self.spot_light_shader.cone_angle_cos,
@@ -238,11 +238,11 @@ impl LightVolumeRenderer {
                         ),
                         (
                             self.spot_light_shader.light_position,
-                            UniformValue::Vector3(position),
+                            UniformValue::Vector3(&position),
                         ),
                         (
                             self.spot_light_shader.light_direction,
-                            UniformValue::Vector3(direction),
+                            UniformValue::Vector3(&direction),
                         ),
                         (
                             self.spot_light_shader.depth_sampler,
@@ -253,11 +253,11 @@ impl LightVolumeRenderer {
                         ),
                         (
                             self.spot_light_shader.light_color,
-                            UniformValue::Vector3(light.color().as_frgba().xyz()),
+                            UniformValue::Vector3(&light.color().as_frgba().xyz()),
                         ),
                         (
                             self.spot_light_shader.scatter_factor,
-                            UniformValue::Vector3(light.scatter()),
+                            UniformValue::Vector3(&light.scatter()),
                         ),
                     ],
                 )
@@ -301,7 +301,7 @@ impl LightVolumeRenderer {
                         depth_test: true,
                         blend: false,
                     },
-                    &[(self.flat_shader.wvp_matrix, UniformValue::Matrix4(mvp))],
+                    &[(self.flat_shader.wvp_matrix, UniformValue::Matrix4(&mvp))],
                 );
 
                 // Make sure to clean stencil buffer after drawing full screen quad.
@@ -330,15 +330,15 @@ impl LightVolumeRenderer {
                     &[
                         (
                             self.point_light_shader.world_view_proj_matrix,
-                            UniformValue::Matrix4(frame_matrix),
+                            UniformValue::Matrix4(&frame_matrix),
                         ),
                         (
                             self.point_light_shader.inv_proj,
-                            UniformValue::Matrix4(inv_proj),
+                            UniformValue::Matrix4(&inv_proj),
                         ),
                         (
                             self.point_light_shader.light_position,
-                            UniformValue::Vector3(position),
+                            UniformValue::Vector3(&position),
                         ),
                         (
                             self.point_light_shader.depth_sampler,
@@ -353,11 +353,11 @@ impl LightVolumeRenderer {
                         ),
                         (
                             self.point_light_shader.light_color,
-                            UniformValue::Vector3(light.color().as_frgba().xyz()),
+                            UniformValue::Vector3(&light.color().as_frgba().xyz()),
                         ),
                         (
                             self.point_light_shader.scatter_factor,
-                            UniformValue::Vector3(light.scatter()),
+                            UniformValue::Vector3(&light.scatter()),
                         ),
                     ],
                 )

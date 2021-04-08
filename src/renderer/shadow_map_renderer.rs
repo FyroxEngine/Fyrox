@@ -1,6 +1,5 @@
 #![warn(clippy::too_many_arguments)]
 
-use crate::renderer::ShadowMapPrecision;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3},
@@ -22,7 +21,7 @@ use crate::{
             },
             state::{ColorMask, PipelineState},
         },
-        GeometryCache, RenderPassStatistics,
+        GeometryCache, RenderPassStatistics, ShadowMapPrecision,
     },
     scene::{graph::Graph, node::Node},
 };
@@ -61,7 +60,6 @@ pub struct SpotShadowMapRenderer {
     //  1 - medium, for lights with medium distance to camera.
     //  2 - small, for farthest lights.
     cascades: [FrameBuffer; 3],
-    bone_matrices: Vec<Matrix4<f32>>,
     size: usize,
 }
 
@@ -131,7 +129,6 @@ impl SpotShadowMapRenderer {
                 make_cascade(state, cascade_size(size, 2), precision)?,
             ],
             shader: SpotShadowMapShader::new()?,
-            bone_matrices: Vec::new(),
         })
     }
 
@@ -210,7 +207,7 @@ impl SpotShadowMapRenderer {
                             (
                                 self.shader.world_view_projection_matrix,
                                 UniformValue::Matrix4(
-                                    light_view_projection * instance.world_transform,
+                                    &(light_view_projection * instance.world_transform),
                                 ),
                             ),
                             (
@@ -219,12 +216,7 @@ impl SpotShadowMapRenderer {
                             ),
                             (
                                 self.shader.bone_matrices,
-                                UniformValue::Mat4Array({
-                                    self.bone_matrices.clear();
-                                    self.bone_matrices
-                                        .extend_from_slice(instance.bone_matrices.as_slice());
-                                    &self.bone_matrices
-                                }),
+                                UniformValue::Mat4Array(instance.bone_matrices.as_slice()),
                             ),
                             (
                                 self.shader.diffuse_texture,
@@ -273,7 +265,6 @@ impl PointShadowMapShader {
 
 pub struct PointShadowMapRenderer {
     precision: ShadowMapPrecision,
-    bone_matrices: Vec<Matrix4<f32>>,
     shader: PointShadowMapShader,
     cascades: [FrameBuffer; 3],
     size: usize,
@@ -372,7 +363,6 @@ impl PointShadowMapRenderer {
 
         Ok(Self {
             precision,
-            bone_matrices: Default::default(),
             cascades: [
                 make_cascade(state, cascade_size(size, 0), precision)?,
                 make_cascade(state, cascade_size(size, 1), precision)?,
@@ -501,15 +491,18 @@ impl PointShadowMapRenderer {
                                 blend: false,
                             },
                             &[
-                                (self.shader.light_position, UniformValue::Vector3(light_pos)),
+                                (
+                                    self.shader.light_position,
+                                    UniformValue::Vector3(&light_pos),
+                                ),
                                 (
                                     self.shader.world_matrix,
-                                    UniformValue::Matrix4(instance.world_transform),
+                                    UniformValue::Matrix4(&instance.world_transform),
                                 ),
                                 (
                                     self.shader.world_view_projection_matrix,
                                     UniformValue::Matrix4(
-                                        light_view_projection_matrix * instance.world_transform,
+                                        &(light_view_projection_matrix * instance.world_transform),
                                     ),
                                 ),
                                 (
@@ -518,12 +511,7 @@ impl PointShadowMapRenderer {
                                 ),
                                 (
                                     self.shader.bone_matrices,
-                                    UniformValue::Mat4Array({
-                                        self.bone_matrices.clear();
-                                        self.bone_matrices
-                                            .extend_from_slice(instance.bone_matrices.as_slice());
-                                        &self.bone_matrices
-                                    }),
+                                    UniformValue::Mat4Array(instance.bone_matrices.as_slice()),
                                 ),
                                 (
                                     self.shader.diffuse_texture,

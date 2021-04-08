@@ -1,7 +1,5 @@
-use crate::core::arrayvec::ArrayVec;
-use crate::scene::mesh::RenderPath;
 use crate::{
-    core::{algebra::Matrix4, color::Color, pool::Handle},
+    core::{algebra::Matrix4, arrayvec::ArrayVec, color::Color, pool::Handle, scope_profile},
     renderer::{
         error::RendererError,
         framework::gpu_texture::{
@@ -11,15 +9,14 @@ use crate::{
         surface::SurfaceSharedData,
         TextureCache,
     },
-    scene::{graph::Graph, node::Node},
+    scene::{graph::Graph, mesh::RenderPath, node::Node},
 };
-use std::sync::RwLock;
 use std::{
     cell::RefCell,
     collections::HashMap,
     fmt::{Debug, Formatter},
     rc::Rc,
-    sync::Arc,
+    sync::{Arc, RwLock},
 };
 
 pub const BONE_MATRICES_COUNT: usize = 64;
@@ -85,6 +82,8 @@ impl BatchStorage {
         specular_dummy: Rc<RefCell<GpuTexture>>,
         texture_cache: &mut TextureCache,
     ) {
+        scope_profile!();
+
         for batch in self.batches.iter_mut() {
             batch.instances.clear();
             self.buffers.push(std::mem::take(&mut batch.instances));

@@ -1139,7 +1139,7 @@ impl Renderer {
                     camera,
                     geom_cache: &mut self.geometry_cache,
                     batch_storage: &self.batch_storage,
-                    framebuffer: &mut gbuffer.final_frame, // TODO: GBuffer **must not** containt final frame.
+                    framebuffer: &mut gbuffer.final_frame, // TODO: GBuffer **must not** contain final frame.
                     viewport,
                 });
 
@@ -1179,7 +1179,7 @@ impl Renderer {
                             &[
                                 (
                                     self.flat_shader.wvp_matrix,
-                                    UniformValue::Matrix4({
+                                    UniformValue::Matrix4(&{
                                         Matrix4::new_orthographic(
                                             0.0,
                                             viewport.w() as f32,

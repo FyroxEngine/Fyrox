@@ -142,9 +142,13 @@ impl ParticleSystemRenderer {
         state.set_blend_func(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
 
         let inv_view = camera.inv_view_matrix().unwrap();
+        let view_proj = camera.view_projection_matrix();
 
         let camera_up = inv_view.up();
         let camera_side = inv_view.side();
+
+        let inv_screen_size = Vector2::new(1.0 / frame_width, 1.0 / frame_height);
+        let proj_params = Vector2::new(camera.z_far(), camera.z_near());
 
         for node in graph.linear_iter() {
             let particle_system = if let Node::ParticleSystem(particle_system) = node {
@@ -164,6 +168,8 @@ impl ParticleSystemRenderer {
             self.geometry_buffer
                 .bind(state)
                 .set_triangles(self.draw_data.triangles());
+
+            let global_transform = node.global_transform();
 
             let uniforms = [
                 (
@@ -190,28 +196,25 @@ impl ParticleSystemRenderer {
                 ),
                 (
                     self.shader.camera_side_vector,
-                    UniformValue::Vector3(camera_side),
+                    UniformValue::Vector3(&camera_side),
                 ),
                 (
                     self.shader.camera_up_vector,
-                    UniformValue::Vector3(camera_up),
+                    UniformValue::Vector3(&camera_up),
                 ),
                 (
                     self.shader.view_projection_matrix,
-                    UniformValue::Matrix4(camera.view_projection_matrix()),
+                    UniformValue::Matrix4(&view_proj),
                 ),
                 (
                     self.shader.world_matrix,
-                    UniformValue::Matrix4(node.global_transform()),
+                    UniformValue::Matrix4(&global_transform),
                 ),
                 (
                     self.shader.inv_screen_size,
-                    UniformValue::Vector2(Vector2::new(1.0 / frame_width, 1.0 / frame_height)),
+                    UniformValue::Vector2(&inv_screen_size),
                 ),
-                (
-                    self.shader.proj_params,
-                    UniformValue::Vector2(Vector2::new(camera.z_far(), camera.z_near())),
-                ),
+                (self.shader.proj_params, UniformValue::Vector2(&proj_params)),
             ];
 
             let draw_params = DrawParameters {

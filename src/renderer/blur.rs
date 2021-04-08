@@ -123,7 +123,7 @@ impl Blur {
                 (
                     self.shader.world_view_projection_matrix,
                     UniformValue::Matrix4(
-                        Matrix4::new_orthographic(
+                        &(Matrix4::new_orthographic(
                             0.0,
                             viewport.w() as f32,
                             viewport.h() as f32,
@@ -134,7 +134,7 @@ impl Blur {
                             viewport.w() as f32,
                             viewport.h() as f32,
                             0.0,
-                        )),
+                        ))),
                     ),
                 ),
                 (

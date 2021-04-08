@@ -262,7 +262,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                 (
                     self.shader.noise_scale,
                     UniformValue::Vector2({
-                        Vector2::new(
+                        &Vector2::new(
                             self.width as f32 / NOISE_SIZE as f32,
                             self.height as f32 / NOISE_SIZE as f32,
                         )
@@ -270,17 +270,17 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                 ),
                 (
                     self.shader.world_view_proj_matrix,
-                    UniformValue::Matrix4(frame_matrix),
+                    UniformValue::Matrix4(&frame_matrix),
                 ),
                 (
                     self.shader.projection_matrix,
-                    UniformValue::Matrix4(projection_matrix),
+                    UniformValue::Matrix4(&projection_matrix),
                 ),
                 (
                     self.shader.inv_proj_matrix,
-                    UniformValue::Matrix4(projection_matrix.try_inverse().unwrap_or_default()),
+                    UniformValue::Matrix4(&projection_matrix.try_inverse().unwrap_or_default()),
                 ),
-                (self.shader.view_matrix, UniformValue::Matrix3(view_matrix)),
+                (self.shader.view_matrix, UniformValue::Matrix3(&view_matrix)),
             ],
         );
 

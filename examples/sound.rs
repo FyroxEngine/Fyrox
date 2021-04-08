@@ -222,7 +222,7 @@ fn main() {
                 game.engine.render(fixed_timestep).unwrap();
             }
             Event::LoopDestroyed => {
-                rg3d::core::profiler::print();
+                println!("{:?}", rg3d::core::profiler::print());
             }
             Event::WindowEvent { event, .. } => {
                 match event {

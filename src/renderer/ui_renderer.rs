@@ -172,6 +172,7 @@ impl UiRenderer {
         geometry_buffer.set_triangles(drawing_context.get_triangles());
 
         let ortho = Matrix4::new_orthographic(0.0, frame_width, frame_height, 0.0, -1.0, 1.0);
+        let resolution = Vector2::new(frame_width, frame_height);
 
         state.set_scissor_test(true);
 
@@ -236,7 +237,7 @@ impl UiRenderer {
                         depth_test: false,
                         blend: false,
                     },
-                    &[(self.shader.wvp_matrix, UniformValue::Matrix4(ortho))],
+                    &[(self.shader.wvp_matrix, UniformValue::Matrix4(&ortho))],
                 );
 
                 // Make sure main geometry will be drawn only on marked pixels.
@@ -293,6 +294,13 @@ impl UiRenderer {
 
             let mut raw_stops = [0.0; 16];
             let mut raw_colors = [Vector4::default(); 16];
+            let bounds_max = cmd.bounds.right_bottom_corner();
+
+            let (gradient_origin, gradient_end) = match cmd.brush {
+                Brush::Solid(_) => (Vector2::default(), Vector2::default()),
+                Brush::LinearGradient { from, to, .. } => (from, to),
+                Brush::RadialGradient { center, .. } => (center, Vector2::default()),
+            };
 
             let uniforms = [
                 (
@@ -302,19 +310,13 @@ impl UiRenderer {
                         texture: diffuse_texture,
                     },
                 ),
-                (self.shader.wvp_matrix, UniformValue::Matrix4(ortho)),
-                (
-                    self.shader.resolution,
-                    UniformValue::Vector2(Vector2::new(frame_width, frame_height)),
-                ),
+                (self.shader.wvp_matrix, UniformValue::Matrix4(&ortho)),
+                (self.shader.resolution, UniformValue::Vector2(&resolution)),
                 (
                     self.shader.bounds_min,
-                    UniformValue::Vector2(cmd.bounds.position),
+                    UniformValue::Vector2(&cmd.bounds.position),
                 ),
-                (
-                    self.shader.bounds_max,
-                    UniformValue::Vector2(cmd.bounds.right_bottom_corner()),
-                ),
+                (self.shader.bounds_max, UniformValue::Vector2(&bounds_max)),
                 (self.shader.is_font, UniformValue::Bool(is_font_texture)),
                 (
                     self.shader.brush_type,
@@ -337,23 +339,11 @@ impl UiRenderer {
                 ),
                 (
                     self.shader.gradient_origin,
-                    UniformValue::Vector2({
-                        match cmd.brush {
-                            Brush::Solid(_) => Vector2::default(),
-                            Brush::LinearGradient { from, .. } => from,
-                            Brush::RadialGradient { center, .. } => center,
-                        }
-                    }),
+                    UniformValue::Vector2(&gradient_origin),
                 ),
                 (
                     self.shader.gradient_end,
-                    UniformValue::Vector2({
-                        match cmd.brush {
-                            Brush::Solid(_) => Vector2::default(),
-                            Brush::LinearGradient { to, .. } => to,
-                            Brush::RadialGradient { .. } => Vector2::default(),
-                        }
-                    }),
+                    UniformValue::Vector2(&gradient_end),
                 ),
                 (
                     self.shader.gradient_point_count,
