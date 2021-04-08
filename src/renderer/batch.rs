@@ -66,7 +66,7 @@ impl Debug for Batch {
 #[derive(Default)]
 pub struct BatchStorage {
     buffers: Vec<Vec<SurfaceInstance>>,
-    inner: HashMap<u64, usize>,
+    batch_map: HashMap<u64, usize>,
     /// Sorted list of batches.
     pub batches: Vec<Batch>,
 }
@@ -90,7 +90,7 @@ impl BatchStorage {
         }
 
         self.batches.clear();
-        self.inner.clear();
+        self.batch_map.clear();
 
         for (handle, mesh) in graph.pair_iter().filter_map(|(handle, node)| {
             if let Node::Mesh(mesh) = node {
@@ -112,39 +112,39 @@ impl BatchStorage {
                 let key = surface.batch_id();
 
                 let diffuse_texture = surface
-                    .diffuse_texture()
+                    .diffuse_texture_ref()
                     .and_then(|texture| texture_cache.get(state, texture))
                     .unwrap_or_else(|| white_dummy.clone());
 
                 let normal_texture = surface
-                    .normal_texture()
+                    .normal_texture_ref()
                     .and_then(|texture| texture_cache.get(state, texture))
                     .unwrap_or_else(|| normal_dummy.clone());
 
                 let specular_texture = surface
-                    .specular_texture()
+                    .specular_texture_ref()
                     .and_then(|texture| texture_cache.get(state, texture))
                     .unwrap_or_else(|| specular_dummy.clone());
 
                 let roughness_texture = surface
-                    .roughness_texture()
+                    .roughness_texture_ref()
                     .and_then(|texture| texture_cache.get(state, texture))
                     .unwrap_or_else(|| black_dummy.clone());
 
                 let lightmap_texture = surface
-                    .lightmap_texture()
+                    .lightmap_texture_ref()
                     .and_then(|texture| texture_cache.get(state, texture))
                     .unwrap_or_else(|| black_dummy.clone());
 
                 let height_texture = surface
-                    .height_texture()
+                    .height_texture_ref()
                     .and_then(|texture| texture_cache.get(state, texture))
                     .unwrap_or_else(|| black_dummy.clone());
 
-                let batch = if let Some(&batch_index) = self.inner.get(&key) {
+                let batch = if let Some(&batch_index) = self.batch_map.get(&key) {
                     self.batches.get_mut(batch_index).unwrap()
                 } else {
-                    self.inner.insert(key, self.batches.len());
+                    self.batch_map.insert(key, self.batches.len());
                     self.batches.push(Batch {
                         data,
                         instances: self.buffers.pop().unwrap_or_default(),
@@ -156,7 +156,7 @@ impl BatchStorage {
                         height_texture: height_texture.clone(),
                         is_skinned: !surface.bones.is_empty(),
                         render_path: mesh.render_path(),
-                        use_pom: surface.height_texture().is_some(),
+                        use_pom: surface.height_texture_ref().is_some(),
                     });
                     self.batches.last_mut().unwrap()
                 };

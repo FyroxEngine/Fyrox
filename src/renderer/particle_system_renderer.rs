@@ -183,7 +183,7 @@ impl ParticleSystemRenderer {
                     self.shader.diffuse_texture,
                     UniformValue::Sampler {
                         index: 1,
-                        texture: if let Some(texture) = particle_system.texture() {
+                        texture: if let Some(texture) = particle_system.texture_ref() {
                             if let Some(texture) = texture_cache.get(state, texture) {
                                 texture
                             } else {

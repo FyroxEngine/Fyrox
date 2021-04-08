@@ -1055,7 +1055,7 @@ impl<'a, T> Iterator for PoolPairIterator<'a, T> {
             match self.pool.records.get(self.current) {
                 Some(record) => {
                     if let Some(payload) = &record.payload {
-                        let handle = self.pool.handle_from_index(self.current);
+                        let handle = Handle::new(self.current as u32, record.generation);
                         self.current += 1;
                         return Some((handle, payload));
                     }

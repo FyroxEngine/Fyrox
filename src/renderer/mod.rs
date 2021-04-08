@@ -591,7 +591,7 @@ impl TextureCache {
     fn get(
         &mut self,
         state: &mut PipelineState,
-        texture: Texture,
+        texture: &Texture,
     ) -> Option<Rc<RefCell<GpuTexture>>> {
         scope_profile!();
 
@@ -599,8 +599,49 @@ impl TextureCache {
         let texture = texture.state();
 
         if let TextureState::Ok(texture) = texture.deref() {
-            let gpu_texture = match self.map.entry(key) {
-                Entry::Occupied(e) => e.into_mut(),
+            let entry = match self.map.entry(key) {
+                Entry::Occupied(e) => {
+                    let entry = e.into_mut();
+
+                    // Texture won't be destroyed while it used.
+                    entry.time_to_live = 20.0;
+
+                    // Check if some value has changed in resource.
+                    let mut tex = entry.borrow_mut();
+
+                    let new_mag_filter = texture.magnification_filter().into();
+                    if tex.magnification_filter() != new_mag_filter {
+                        tex.bind_mut(state, 0)
+                            .set_magnification_filter(new_mag_filter);
+                    }
+
+                    let new_min_filter = texture.minification_filter().into();
+                    if tex.minification_filter() != new_min_filter {
+                        tex.bind_mut(state, 0)
+                            .set_minification_filter(new_min_filter);
+                    }
+
+                    if tex.anisotropy().ne(&texture.anisotropy_level()) {
+                        tex.bind_mut(state, 0)
+                            .set_anisotropy(texture.anisotropy_level());
+                    }
+
+                    let new_s_wrap_mode = texture.s_wrap_mode().into();
+                    if tex.s_wrap_mode() != new_s_wrap_mode {
+                        tex.bind_mut(state, 0)
+                            .set_wrap(Coordinate::S, new_s_wrap_mode);
+                    }
+
+                    let new_t_wrap_mode = texture.t_wrap_mode().into();
+                    if tex.t_wrap_mode() != new_t_wrap_mode {
+                        tex.bind_mut(state, 0)
+                            .set_wrap(Coordinate::T, new_t_wrap_mode);
+                    }
+
+                    std::mem::drop(tex);
+
+                    entry
+                }
                 Entry::Vacant(e) => {
                     let gpu_texture = match GpuTexture::new(
                         state,
@@ -628,52 +669,7 @@ impl TextureCache {
                 }
             };
 
-            let new_mag_filter = texture.magnification_filter().into();
-            if gpu_texture.borrow().magnification_filter() != new_mag_filter {
-                gpu_texture
-                    .borrow_mut()
-                    .bind_mut(state, 0)
-                    .set_magnification_filter(new_mag_filter);
-            }
-
-            let new_min_filter = texture.minification_filter().into();
-            if gpu_texture.borrow().minification_filter() != new_min_filter {
-                gpu_texture
-                    .borrow_mut()
-                    .bind_mut(state, 0)
-                    .set_minification_filter(new_min_filter);
-            }
-
-            if gpu_texture
-                .borrow()
-                .anisotropy()
-                .ne(&texture.anisotropy_level())
-            {
-                gpu_texture
-                    .borrow_mut()
-                    .bind_mut(state, 0)
-                    .set_anisotropy(texture.anisotropy_level());
-            }
-
-            let new_s_wrap_mode = texture.s_wrap_mode().into();
-            if gpu_texture.borrow().s_wrap_mode() != new_s_wrap_mode {
-                gpu_texture
-                    .borrow_mut()
-                    .bind_mut(state, 0)
-                    .set_wrap(Coordinate::S, new_s_wrap_mode);
-            }
-
-            let new_t_wrap_mode = texture.t_wrap_mode().into();
-            if gpu_texture.borrow().t_wrap_mode() != new_t_wrap_mode {
-                gpu_texture
-                    .borrow_mut()
-                    .bind_mut(state, 0)
-                    .set_wrap(Coordinate::T, new_t_wrap_mode);
-            }
-
-            // Texture won't be destroyed while it used.
-            gpu_texture.time_to_live = 20.0;
-            Some(gpu_texture.value.clone())
+            Some(entry.value.clone())
         } else {
             None
         }

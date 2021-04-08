@@ -118,7 +118,7 @@ impl SpriteRenderer {
                 initial_view_projection
             };
 
-            let diffuse_texture = if let Some(texture) = sprite.texture() {
+            let diffuse_texture = if let Some(texture) = sprite.texture_ref() {
                 if let Some(texture) = textures.get(state, texture) {
                     texture
                 } else {

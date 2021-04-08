@@ -1139,23 +1139,18 @@ impl Surface {
         let data_key = &*self.data() as *const _ as u64;
         data_key.hash(&mut hasher);
 
-        if let Some(diffuse_texture) = self.diffuse_texture.as_ref() {
-            diffuse_texture.key().hash(&mut hasher);
-        }
-        if let Some(normal_texture) = self.normal_texture.as_ref() {
-            normal_texture.key().hash(&mut hasher);
-        }
-        if let Some(specular_texture) = self.specular_texture.as_ref() {
-            specular_texture.key().hash(&mut hasher);
-        }
-        if let Some(roughness_texture) = self.roughness_texture.as_ref() {
-            roughness_texture.key().hash(&mut hasher);
-        }
-        if let Some(lightmap_texture) = self.lightmap_texture.as_ref() {
-            lightmap_texture.key().hash(&mut hasher);
-        }
-        if let Some(height_texture) = self.height_texture.as_ref() {
-            height_texture.key().hash(&mut hasher);
+        for texture in [
+            self.diffuse_texture.as_ref(),
+            self.normal_texture.as_ref(),
+            self.specular_texture.as_ref(),
+            self.roughness_texture.as_ref(),
+            self.lightmap_texture.as_ref(),
+            self.height_texture.as_ref(),
+        ]
+        .iter()
+        .filter_map(|t| *t)
+        {
+            texture.key().hash(&mut hasher);
         }
 
         hasher.finish()
@@ -1179,6 +1174,12 @@ impl Surface {
         self.diffuse_texture.clone()
     }
 
+    /// Returns current diffuse texture ref.
+    #[inline]
+    pub fn diffuse_texture_ref(&self) -> Option<&Texture> {
+        self.diffuse_texture.as_ref()
+    }
+
     /// Sets new normal map texture.
     #[inline]
     pub fn set_normal_texture(&mut self, tex: Option<Texture>) {
@@ -1189,6 +1190,12 @@ impl Surface {
     #[inline]
     pub fn normal_texture(&self) -> Option<Texture> {
         self.normal_texture.clone()
+    }
+
+    /// Returns current normal map texture by ref.
+    #[inline]
+    pub fn normal_texture_ref(&self) -> Option<&Texture> {
+        self.normal_texture.as_ref()
     }
 
     /// Sets new specular texture.
@@ -1203,6 +1210,12 @@ impl Surface {
         self.specular_texture.clone()
     }
 
+    /// Returns current specular texture by ref.
+    #[inline]
+    pub fn specular_texture_ref(&self) -> Option<&Texture> {
+        self.specular_texture.as_ref()
+    }
+
     /// Sets new roughness texture.
     #[inline]
     pub fn set_roughness_texture(&mut self, tex: Option<Texture>) {
@@ -1213,6 +1226,12 @@ impl Surface {
     #[inline]
     pub fn roughness_texture(&self) -> Option<Texture> {
         self.roughness_texture.clone()
+    }
+
+    /// Returns current roughness texture by ref.
+    #[inline]
+    pub fn roughness_texture_ref(&self) -> Option<&Texture> {
+        self.roughness_texture.as_ref()
     }
 
     /// Sets new lightmap texture.
@@ -1227,6 +1246,12 @@ impl Surface {
         self.lightmap_texture.clone()
     }
 
+    /// Returns lightmap texture.
+    #[inline]
+    pub fn lightmap_texture_ref(&self) -> Option<&Texture> {
+        self.lightmap_texture.as_ref()
+    }
+
     /// Sets new height texture.
     #[inline]
     pub fn set_height_texture(&mut self, tex: Option<Texture>) {
@@ -1237,6 +1262,12 @@ impl Surface {
     #[inline]
     pub fn height_texture(&self) -> Option<Texture> {
         self.height_texture.clone()
+    }
+
+    /// Returns height texture by ref.
+    #[inline]
+    pub fn height_texture_ref(&self) -> Option<&Texture> {
+        self.height_texture.as_ref()
     }
 
     /// Sets color of surface. Keep in mind that alpha component is **not** compatible

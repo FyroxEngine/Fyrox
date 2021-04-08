@@ -1381,6 +1381,11 @@ impl ParticleSystem {
     pub fn texture(&self) -> Option<Texture> {
         self.texture.clone()
     }
+
+    /// Returns current texture used by particle system by ref.
+    pub fn texture_ref(&self) -> Option<&Texture> {
+        self.texture.as_ref()
+    }
 }
 
 impl Visit for ParticleSystem {

@@ -458,7 +458,7 @@ impl DeferredLightRenderer {
                 .enumerate()
                 .filter_map(|(face, tex)| tex.clone().map(|tex| (face, tex)))
             {
-                if let Some(gpu_texture) = textures.get(state, texture) {
+                if let Some(gpu_texture) = textures.get(state, &texture) {
                     pass_stats += gbuffer
                         .final_frame
                         .draw_part(DrawPartContext {
@@ -768,7 +768,7 @@ impl DeferredLightRenderer {
 
                     let (cookie_enabled, cookie_texture) =
                         if let Some(texture) = spot_light.cookie_texture() {
-                            (true, textures.get(state, texture.clone()).unwrap())
+                            (true, textures.get(state, texture).unwrap())
                         } else {
                             (false, white_dummy.clone())
                         };

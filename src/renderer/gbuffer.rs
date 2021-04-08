@@ -316,7 +316,7 @@ impl GBuffer {
             let geometry = geom_cache.get(state, &data);
 
             let environment = match camera.environment_ref() {
-                Some(texture) => texture_cache.get(state, texture.clone()).unwrap(),
+                Some(texture) => texture_cache.get(state, texture).unwrap(),
                 None => environment_dummy.clone(),
             };
 

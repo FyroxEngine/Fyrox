@@ -104,6 +104,12 @@ impl Sprite {
     pub fn texture(&self) -> Option<Texture> {
         self.texture.clone()
     }
+
+    /// Returns current texture of sprite by ref. Can be None if sprite has
+    /// no texture.
+    pub fn texture_ref(&self) -> Option<&Texture> {
+        self.texture.as_ref()
+    }
 }
 
 impl Visit for Sprite {
