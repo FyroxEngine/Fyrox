@@ -26,6 +26,7 @@ pub mod utils;
 pub use crate::core::rand;
 pub use glutin::*;
 pub use lazy_static;
+pub use tbc;
 
 pub use futures;
 pub use rapier3d as physics;

@@ -490,14 +490,50 @@ fn ceil_div_4(x: u32) -> u32 {
     (x + 3) / 4
 }
 
+/// Texture compression options.
+#[derive(Copy, Clone)]
+pub enum CompressionOptions {
+    /// An image will be stored without compression if it is not already compressed.
+    NoCompression,
+
+    /// An image will be encoded via DXT1 (BC1) compression with low quality if is not
+    /// already compressed.
+    /// Compression ratio is 1:8 (without alpha) or 1:6 (with 1-bit alpha).
+    /// This option provides maximum speed by significant reduction of
+    /// bandwidth.
+    Speed,
+
+    /// An image will be encoded via DXT5 (BC5) compression with high quality if it is
+    /// not already compressed.
+    /// Compression ratio is 1:4 (including alpha)
+    /// This option is faster than `NoCompression` speed by reduction of bandwidth.
+    Quality,
+}
+
+fn compress_bcn<T: tbc::color::ColorSource>(bytes: &[u8], width: usize, height: usize) -> Vec<u8> {
+    // This is absolutely safe because `image` crate's Rgb8 and `tbc` Rgb8
+    // have exactly the same memory layout.
+    let slice = unsafe {
+        std::slice::from_raw_parts(
+            bytes.as_ptr() as *const T,
+            bytes.len() / std::mem::size_of::<T>(),
+        )
+    };
+
+    tbc::bc1::encode_image_conv_u8::<T>(slice, width, height)
+}
+
 impl TextureData {
-    pub(in crate) fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, TextureError> {
+    pub(in crate) fn load_from_file<P: AsRef<Path>>(
+        path: P,
+        compression: CompressionOptions,
+    ) -> Result<Self, TextureError> {
         // DDS is special. It can contain various kinds of textures as well as textures with
         // various pixel formats.
         //
         // TODO: Add support for DXGI formats. This could be difficult because of mismatch
         // between OpenGL and DirectX formats.
-        if let Ok(dds) = ddsfile::Dds::read(&mut File::open(path.as_ref())?) {
+        let mut texture = if let Ok(dds) = ddsfile::Dds::read(&mut File::open(path.as_ref())?) {
             let d3dformat = dds
                 .get_d3d_format()
                 .ok_or(TextureError::UnsupportedFormat)?;
@@ -549,7 +585,7 @@ impl TextureData {
                 _ => return Err(TextureError::UnsupportedFormat),
             };
 
-            Ok(Self {
+            Self {
                 pixel_kind,
                 minification_filter: TextureMinificationFilter::LinearMipMapLinear,
                 magnification_filter: TextureMagnificationFilter::Linear,
@@ -576,7 +612,7 @@ impl TextureData {
                     }
                 },
                 anisotropy: 1.0,
-            })
+            }
         } else {
             // Commonly used formats are all rectangle textures.
 
@@ -598,13 +634,45 @@ impl TextureData {
                 DynamicImage::ImageRgba16(_) => TexturePixelKind::RGBA16,
             };
 
-            Ok(Self {
+            Self {
                 pixel_kind: kind,
                 kind: TextureKind::Rectangle { width, height },
                 bytes: dyn_img.to_bytes(),
                 path: path.as_ref().to_path_buf(),
                 ..Default::default()
-            })
+            }
+        };
+
+        match compression {
+            CompressionOptions::NoCompression => Ok(texture),
+            CompressionOptions::Speed => match texture.pixel_kind {
+                TexturePixelKind::RGB8 => match texture.kind {
+                    TextureKind::Rectangle { width, height } => {
+                        texture.bytes = compress_bcn::<tbc::color::Rgb8>(
+                            &texture.bytes,
+                            width as usize,
+                            height as usize,
+                        );
+                        texture.pixel_kind = TexturePixelKind::DXT1RGB;
+                        Ok(texture)
+                    }
+                    _ => Ok(texture),
+                },
+                TexturePixelKind::RGBA8 => match texture.kind {
+                    TextureKind::Rectangle { width, height } => {
+                        texture.bytes = compress_bcn::<tbc::color::Rgba8>(
+                            &texture.bytes,
+                            width as usize,
+                            height as usize,
+                        );
+                        texture.pixel_kind = TexturePixelKind::DXT1RGBA;
+                        Ok(texture)
+                    }
+                    _ => Ok(texture),
+                },
+                _ => Ok(texture), // TODO: Add compression for other formats.
+            },
+            _ => Ok(texture), // TODO: Add compression for other formats.
         }
     }
 

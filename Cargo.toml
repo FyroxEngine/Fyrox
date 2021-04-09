@@ -34,6 +34,7 @@ futures = {version = "0.3.13", features = ["thread-pool"] }
 ddsfile = "0.4.0"
 rapier3d = {version = "0.6" }
 rayon = "1.5.0"
+tbc = "0.1.0"
 
 [dev-dependencies]
 imageproc = "0.21.0"

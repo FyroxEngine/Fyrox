@@ -1,6 +1,8 @@
 //! Resource manager controls loading and lifetime of resource in the engine.
 
-use crate::resource::texture::{TextureError, TextureWrapMode};
+use crate::resource::texture::{
+    CompressionOptions, TextureError, TexturePixelKind, TextureWrapMode,
+};
 use crate::resource::ResourceLoadError;
 use crate::utils::log::MessageKind;
 use crate::{
@@ -158,6 +160,7 @@ pub struct TextureImportOptions {
     s_wrap_mode: TextureWrapMode,
     t_wrap_mode: TextureWrapMode,
     anisotropy: f32,
+    compression: CompressionOptions,
 }
 
 impl Default for TextureImportOptions {
@@ -168,6 +171,8 @@ impl Default for TextureImportOptions {
             s_wrap_mode: TextureWrapMode::Repeat,
             t_wrap_mode: TextureWrapMode::Repeat,
             anisotropy: 16.0,
+            // TODO: There is no BC5 compressor yet, so this is the same as NoCompression.
+            compression: CompressionOptions::Quality,
         }
     }
 }
@@ -277,7 +282,7 @@ impl ResourceManager {
 
         state.thread_pool.spawn_ok(async move {
             let time = time::Instant::now();
-            match TextureData::load_from_file(&path) {
+            match TextureData::load_from_file(&path, options.compression) {
                 Ok(mut raw_texture) => {
                     Log::writeln(
                         MessageKind::Information,
@@ -479,9 +484,20 @@ impl ResourceManager {
 
             for resource in textures.iter().cloned() {
                 let path = resource.state().path().to_path_buf();
+                let compression = if let ResourceState::Ok(ref data) = *resource.state() {
+                    match data.pixel_kind {
+                        TexturePixelKind::DXT1RGB => CompressionOptions::Speed,
+                        TexturePixelKind::DXT1RGBA => CompressionOptions::Speed,
+                        TexturePixelKind::DXT3RGBA => CompressionOptions::NoCompression, // TODO
+                        TexturePixelKind::DXT5RGBA => CompressionOptions::Quality,
+                        _ => CompressionOptions::NoCompression,
+                    }
+                } else {
+                    CompressionOptions::NoCompression
+                };
                 *resource.state() = ResourceState::new_pending(path.clone());
                 state.thread_pool.spawn_ok(async move {
-                    match TextureData::load_from_file(&path) {
+                    match TextureData::load_from_file(&path, compression) {
                         Ok(data) => {
                             Log::writeln(
                                 MessageKind::Information,
