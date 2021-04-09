@@ -10,7 +10,7 @@ use crate::dsp::DelayLine;
 use rg3d_core::visitor::{Visit, VisitResult, Visitor};
 
 /// One-pole Filter.
-/// For details see - https://www.earlevel.com/main/2012/12/15/a-one-pole-filter/
+/// For details see - <https://www.earlevel.com/main/2012/12/15/a-one-pole-filter/>
 #[derive(Debug, Clone)]
 pub struct OnePole {
     a0: f32,
@@ -76,7 +76,7 @@ impl Visit for OnePole {
 }
 
 /// Lowpass-Feedback Comb Filter
-/// For details see - https://ccrma.stanford.edu/~jos/pasp/Lowpass_Feedback_Comb_Filter.html
+/// For details see - <https://ccrma.stanford.edu/~jos/pasp/Lowpass_Feedback_Comb_Filter.html>
 #[derive(Debug, Clone)]
 pub struct LpfComb {
     low_pass: OnePole,
@@ -144,8 +144,8 @@ impl Visit for LpfComb {
     }
 }
 
-/// Allpass Filter - https://ccrma.stanford.edu/~jos/pasp/Allpass_Filters.html
-/// For details see - https://ccrma.stanford.edu/~jos/pasp/Allpass_Two_Combs.html
+/// Allpass Filter - <https://ccrma.stanford.edu/~jos/pasp/Allpass_Filters.html>
+/// For details see - <https://ccrma.stanford.edu/~jos/pasp/Allpass_Two_Combs.html>
 #[derive(Debug, Clone)]
 pub struct AllPass {
     delay_line: DelayLine,
@@ -203,7 +203,7 @@ impl Visit for AllPass {
 }
 
 /// Exact kind of biquad filter - it defines coefficients of the filter.
-/// More info here: https://shepazu.github.io/Audio-EQ-Cookbook/audio-eq-cookbook.html
+/// More info here: <https://shepazu.github.io/Audio-EQ-Cookbook/audio-eq-cookbook.html>
 pub enum BiquadKind {
     /// Reduces amplitude of frequencies higher F_center.
     LowPass,
@@ -227,7 +227,7 @@ pub enum BiquadKind {
 }
 
 /// Generic second order digital filter.
-/// More info here: https://ccrma.stanford.edu/~jos/filters/BiQuad_Section.html
+/// More info here: <https://ccrma.stanford.edu/~jos/filters/BiQuad_Section.html>
 #[derive(Clone, Debug)]
 pub struct Biquad {
     b0: f32,

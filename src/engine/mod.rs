@@ -27,7 +27,8 @@ use std::time::{self, Duration};
 /// See module docs.
 pub struct Engine<M: MessageData, C: Control<M, C>> {
     context: glutin::WindowedContext<PossiblyCurrent>,
-    /// Current renderer. You should call at least [render] method to see your scene on screen.
+    /// Current renderer. You should call at least [render](Self::render) method to see your scene on
+    /// screen.
     pub renderer: Renderer,
     /// User interface allows you to build interface of any kind. UI itself is *not* thread-safe,
     /// but it uses messages to "talk" with outside world and message queue (MPSC) *is* thread-safe

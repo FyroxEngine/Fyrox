@@ -1,6 +1,6 @@
 //! Extendable, retained mode, graphics API agnostic UI library.
 //!
-//! See examples here - https://github.com/mrDIMAS/rusty-shooter/blob/master/src/menu.rs
+//! See examples here - <https://github.com/mrDIMAS/rusty-shooter/blob/master/src/menu.rs>
 
 #![forbid(unsafe_code)]
 #![allow(irrefutable_let_patterns)]

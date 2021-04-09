@@ -527,7 +527,7 @@ impl<T> Pool<T> {
     ///
     /// # Panics
     ///
-    /// See [`borrow_mut`].
+    /// See [`borrow_mut`](Self::borrow_mut).
     ///
     /// # Example
     ///
@@ -557,7 +557,7 @@ impl<T> Pool<T> {
     ///
     /// # Panics
     ///
-    /// See [`borrow_mut`].
+    /// See [`borrow_mut`](Self::borrow_mut).
     ///
     /// # Example
     ///
@@ -598,7 +598,7 @@ impl<T> Pool<T> {
     ///
     /// # Panics
     ///
-    /// See [`borrow_mut`].
+    /// See [`borrow_mut`](Self::borrow_mut).
     ///
     /// # Example
     ///
@@ -789,7 +789,7 @@ impl<T> Pool<T> {
     ///
     /// Use this method cautiously if objects in pool have cross "references" (handles)
     /// to each other. This method will make all produced handles invalid and any further
-    /// calls for [`borrow`] or [`borrow_mut`] will raise panic.
+    /// calls for [`borrow`](Self::borrow) or [`borrow_mut`](Self::borrow_mut) will raise panic.
     ///
     #[inline]
     pub fn clear(&mut self) {

@@ -12,7 +12,7 @@ use rg3d_core::visitor::{Visit, VisitResult, Visitor};
 
 pub mod filters;
 
-/// See more info here https://ccrma.stanford.edu/~jos/pasp/Delay_Lines.html
+/// See more info here <https://ccrma.stanford.edu/~jos/pasp/Delay_Lines.html>
 #[derive(Debug, Clone)]
 pub struct DelayLine {
     samples: Vec<f32>,
@@ -75,19 +75,19 @@ impl Visit for DelayLine {
 }
 
 /// Calculates single coefficient of Hamming window.
-/// https://en.wikipedia.org/wiki/Window_function#Hamming_window
+/// <https://en.wikipedia.org/wiki/Window_function#Hamming_window>
 pub fn hamming_window(i: usize, sample_count: usize) -> f32 {
     0.54 - 0.46 * (2.0 * std::f32::consts::PI * i as f32 / (sample_count - 1) as f32).cos()
 }
 
 /// Calculates single coefficient of Hann window.
-/// https://en.wikipedia.org/wiki/Hann_function
+/// <https://en.wikipedia.org/wiki/Hann_function>
 pub fn hann_window(i: usize, sample_count: usize) -> f32 {
     0.5 - 0.5 * (2.0 * std::f32::consts::PI * i as f32 / (sample_count - 1) as f32).cos()
 }
 
 /// Creates new window using specified window function.
-/// https://en.wikipedia.org/wiki/Window_function
+/// <https://en.wikipedia.org/wiki/Window_function>
 pub fn make_window<W: Fn(usize, usize) -> f32>(sample_count: usize, func: W) -> Vec<f32> {
     (0..sample_count).map(|i| func(i, sample_count)).collect()
 }
