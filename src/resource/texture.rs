@@ -491,6 +491,12 @@ fn ceil_div_4(x: u32) -> u32 {
 }
 
 /// Texture compression options.
+///
+/// # Notes
+///
+/// Try to avoid using compression for normal maps, normals maps usually has smooth
+/// gradients, but compression algorithms used by rg3d cannot preserve good quality
+/// of such gradients.
 #[derive(Copy, Clone)]
 pub enum CompressionOptions {
     /// An image will be stored without compression if it is not already compressed.
@@ -499,28 +505,35 @@ pub enum CompressionOptions {
     /// An image will be encoded via DXT1 (BC1) compression with low quality if is not
     /// already compressed.
     /// Compression ratio is 1:8 (without alpha) or 1:6 (with 1-bit alpha).
-    /// This option provides maximum speed by significant reduction of
+    /// This option provides maximum speed by having lowest requirements of memory
     /// bandwidth.
     Speed,
 
     /// An image will be encoded via DXT5 (BC5) compression with high quality if it is
     /// not already compressed.
     /// Compression ratio is 1:4 (including alpha)
-    /// This option is faster than `NoCompression` speed by reduction of bandwidth.
+    /// This option is faster than `NoCompression` speed by lower requirements of memory
+    /// bandwidth.
     Quality,
 }
 
-fn compress_bcn<T: tbc::color::ColorSource>(bytes: &[u8], width: usize, height: usize) -> Vec<u8> {
-    // This is absolutely safe because `image` crate's Rgb8 and `tbc` Rgb8
+fn transmute_slice<T: tbc::color::ColorSource>(bytes: &[u8]) -> &'_ [T] {
+    // This is absolutely safe because `image` crate's Rgb8/Rgba8 and `tbc`s Rgb8/Rgba8
     // have exactly the same memory layout.
-    let slice = unsafe {
+    unsafe {
         std::slice::from_raw_parts(
             bytes.as_ptr() as *const T,
             bytes.len() / std::mem::size_of::<T>(),
         )
-    };
+    }
+}
 
-    tbc::bc1::encode_image_conv_u8::<T>(slice, width, height)
+fn compress_bc1<T: tbc::color::ColorSource>(bytes: &[u8], width: usize, height: usize) -> Vec<u8> {
+    tbc::bc1::encode_image_bc1_conv_u8::<T>(transmute_slice::<T>(bytes), width, height)
+}
+
+fn compress_bc3<T: tbc::color::ColorSource>(bytes: &[u8], width: usize, height: usize) -> Vec<u8> {
+    tbc::bc3::encode_image_bc3_conv_u8::<T>(transmute_slice::<T>(bytes), width, height)
 }
 
 impl TextureData {
@@ -645,10 +658,39 @@ impl TextureData {
 
         match compression {
             CompressionOptions::NoCompression => Ok(texture),
+            CompressionOptions::Quality => {
+                match texture.pixel_kind {
+                    TexturePixelKind::RGB8 => match texture.kind {
+                        TextureKind::Rectangle { width, height } => {
+                            texture.bytes = compress_bc3::<tbc::color::Rgb8>(
+                                &texture.bytes,
+                                width as usize,
+                                height as usize,
+                            );
+                            texture.pixel_kind = TexturePixelKind::DXT5RGBA;
+                            Ok(texture)
+                        }
+                        _ => Ok(texture),
+                    },
+                    TexturePixelKind::RGBA8 => match texture.kind {
+                        TextureKind::Rectangle { width, height } => {
+                            texture.bytes = compress_bc3::<tbc::color::Rgba8>(
+                                &texture.bytes,
+                                width as usize,
+                                height as usize,
+                            );
+                            texture.pixel_kind = TexturePixelKind::DXT5RGBA;
+                            Ok(texture)
+                        }
+                        _ => Ok(texture),
+                    },
+                    _ => Ok(texture), // TODO: Add compression for other formats.
+                }
+            }
             CompressionOptions::Speed => match texture.pixel_kind {
                 TexturePixelKind::RGB8 => match texture.kind {
                     TextureKind::Rectangle { width, height } => {
-                        texture.bytes = compress_bcn::<tbc::color::Rgb8>(
+                        texture.bytes = compress_bc1::<tbc::color::Rgb8>(
                             &texture.bytes,
                             width as usize,
                             height as usize,
@@ -660,7 +702,7 @@ impl TextureData {
                 },
                 TexturePixelKind::RGBA8 => match texture.kind {
                     TextureKind::Rectangle { width, height } => {
-                        texture.bytes = compress_bcn::<tbc::color::Rgba8>(
+                        texture.bytes = compress_bc1::<tbc::color::Rgba8>(
                             &texture.bytes,
                             width as usize,
                             height as usize,
@@ -672,7 +714,6 @@ impl TextureData {
                 },
                 _ => Ok(texture), // TODO: Add compression for other formats.
             },
-            _ => Ok(texture), // TODO: Add compression for other formats.
         }
     }
 

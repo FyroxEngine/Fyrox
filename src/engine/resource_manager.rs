@@ -171,7 +171,6 @@ impl Default for TextureImportOptions {
             s_wrap_mode: TextureWrapMode::Repeat,
             t_wrap_mode: TextureWrapMode::Repeat,
             anisotropy: 16.0,
-            // TODO: There is no BC5 compressor yet, so this is the same as NoCompression.
             compression: CompressionOptions::Quality,
         }
     }

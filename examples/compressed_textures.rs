@@ -81,7 +81,7 @@ async fn test(resource_manager: ResourceManager, procedural: bool) -> Texture {
         Texture::from(Arc::new(Mutex::new(ResourceState::Ok(text_data))))
     } else {
         resource_manager
-            .request_texture("examples/data/wall2.jpg")
+            .request_texture("examples/data/MetalMesh_Base_Color.png")
             .await
             .unwrap()
     }
@@ -109,15 +109,15 @@ fn main() {
         .renderer
         .set_backbuffer_clear_color(Color::opaque(120, 120, 120));
 
-    let procedural = true;
+    let procedural = false;
     let texture =
         rg3d::futures::executor::block_on(test(engine.resource_manager.clone(), procedural));
 
     ImageBuilder::new(
         WidgetBuilder::new()
             .with_desired_position(Vector2::new(100.0, 100.0))
-            .with_width(256.0)
-            .with_height(256.0),
+            .with_width(512.0)
+            .with_height(512.0),
     )
     .with_texture(into_gui_texture(texture))
     .build(&mut engine.user_interface.build_ctx());
