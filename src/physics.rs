@@ -54,7 +54,7 @@ impl Physics {
                 linvel: *b.linvel(),
                 angvel: *b.angvel(),
                 sleeping: b.is_sleeping(),
-                status: b.body_status.into(),
+                status: b.body_status().into(),
                 // Filled later.
                 colliders: vec![],
                 mass: b.mass(),
