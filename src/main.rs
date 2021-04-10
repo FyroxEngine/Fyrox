@@ -1542,6 +1542,10 @@ fn update(
         poll_ui_messages(editor, engine);
 
         editor.post_update(engine);
+
+        if dt >= 1.5 * fixed_timestep {
+            break;
+        }
     }
 
     let window = engine.get_window();
