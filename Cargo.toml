@@ -32,7 +32,7 @@ serde = { version = "^1.0.0", features = ["derive"], optional = true }
 lazy_static = "1.4.0"
 futures = {version = "0.3.13", features = ["thread-pool"] }
 ddsfile = "0.4.0"
-rapier3d = {version = "0.6" }
+rapier3d = {version = "0.7" }
 rayon = "1.5.0"
 tbc = "0.2.0"
 

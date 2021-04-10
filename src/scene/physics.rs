@@ -19,6 +19,7 @@ use crate::{
         raw_mesh::{RawMeshBuilder, RawVertex},
     },
 };
+use rapier3d::dynamics::CCDSolver;
 use rapier3d::{
     dynamics::{
         BallJoint, BodyStatus, FixedJoint, IntegrationParameters, Joint, JointParams, JointSet,
@@ -117,6 +118,8 @@ pub struct Physics {
     pub broad_phase: BroadPhase,
     /// Narrow phase is responsible for precise contact generation.
     pub narrow_phase: NarrowPhase,
+    /// A continuous collision detection solver.
+    pub ccd_solver: CCDSolver,
 
     /// A set of rigid bodies.
     pub bodies: RigidBodySet,
@@ -245,6 +248,7 @@ impl Physics {
             integration_parameters: IntegrationParameters::default(),
             broad_phase: BroadPhase::new(),
             narrow_phase: NarrowPhase::new(),
+            ccd_solver: CCDSolver::new(),
             bodies: RigidBodySet::new(),
             colliders: ColliderSet::new(),
             joints: JointSet::new(),
@@ -363,6 +367,7 @@ impl Physics {
             &mut self.bodies,
             &mut self.colliders,
             &mut self.joints,
+            &mut self.ccd_solver,
             &(),
             &*self.event_handler,
         );
@@ -537,6 +542,7 @@ impl Physics {
             opts.max_len,
             true,
             opts.groups,
+            None, // TODO
             |handle, _, intersection| {
                 query_buffer.push(Intersection {
                     collider: handle.into(),
@@ -859,7 +865,7 @@ impl<C: From<rapier3d::geometry::ColliderHandle>> RigidBodyDesc<C> {
             rotation: body.position().rotation,
             linvel: *body.linvel(),
             angvel: *body.angvel(),
-            status: body.body_status.into(),
+            status: body.body_status().into(),
             sleeping: body.is_sleeping(),
             colliders: body.colliders().iter().map(|&c| C::from(c)).collect(),
             mass: body.mass(),
@@ -874,7 +880,7 @@ impl<C: From<rapier3d::geometry::ColliderHandle>> RigidBodyDesc<C> {
                 },
                 rotation: self.rotation,
             })
-            .mass(self.mass)
+            .additional_mass(self.mass)
             .linvel(self.linvel.x, self.linvel.y, self.linvel.z)
             .angvel(AngVector::new(self.angvel.x, self.angvel.y, self.angvel.z))
             .build();
@@ -1272,7 +1278,7 @@ pub struct ColliderDesc<R> {
     pub shape: ColliderShapeDesc,
     pub parent: R,
     pub friction: f32,
-    pub density: f32,
+    pub density: Option<f32>,
     pub restitution: f32,
     pub is_sensor: bool,
     pub translation: Vector3<f32>,
@@ -1287,7 +1293,7 @@ impl<R: Default> Default for ColliderDesc<R> {
             shape: Default::default(),
             parent: Default::default(),
             friction: 0.5,
-            density: 1.0,
+            density: None,
             restitution: 0.0,
             is_sensor: false,
             translation: Default::default(),
@@ -1315,23 +1321,22 @@ impl<R: From<rapier3d::dynamics::RigidBodyHandle>> ColliderDesc<R> {
     }
 
     fn convert_to_collider(self) -> (Collider, R) {
-        (
-            ColliderBuilder::new(self.shape.into_collider_shape())
-                .friction(self.friction)
-                .restitution(self.restitution)
-                .density(self.density)
-                .position(Isometry3 {
-                    translation: Translation3 {
-                        vector: self.translation,
-                    },
-                    rotation: self.rotation,
-                })
-                .solver_groups(InteractionGroups(self.solver_groups))
-                .collision_groups(InteractionGroups(self.collision_groups))
-                .sensor(self.is_sensor)
-                .build(),
-            self.parent,
-        )
+        let mut builder = ColliderBuilder::new(self.shape.into_collider_shape())
+            .friction(self.friction)
+            .restitution(self.restitution)
+            .position_wrt_parent(Isometry3 {
+                translation: Translation3 {
+                    vector: self.translation,
+                },
+                rotation: self.rotation,
+            })
+            .solver_groups(InteractionGroups(self.solver_groups))
+            .collision_groups(InteractionGroups(self.collision_groups))
+            .sensor(self.is_sensor);
+        if let Some(density) = self.density {
+            builder = builder.density(density);
+        }
+        (builder.build(), self.parent)
     }
 }
 
@@ -1342,13 +1347,15 @@ impl<R: 'static + Visit + Default> Visit for ColliderDesc<R> {
         self.shape.visit("Shape", visitor)?;
         self.parent.visit("Parent", visitor)?;
         self.friction.visit("Friction", visitor)?;
-        self.density.visit("Density", visitor)?;
         self.restitution.visit("Restitution", visitor)?;
         self.is_sensor.visit("IsSensor", visitor)?;
         self.translation.visit("Translation", visitor)?;
         self.rotation.visit("Rotation", visitor)?;
         self.collision_groups.visit("CollisionGroups", visitor)?;
         self.solver_groups.visit("SolverGroups", visitor)?;
+
+        // Backward compatibility.
+        let _ = self.density.visit("Density", visitor);
 
         visitor.leave_region()
     }
@@ -1379,51 +1386,54 @@ impl Visit for Physics {
 }
 
 // Almost full copy of rapier's IntegrationParameters
-#[derive(Default, Clone, Debug)]
+#[derive(Clone, Debug)]
 #[doc(hidden)]
 pub struct IntegrationParametersDesc {
     pub dt: f32,
-    pub return_after_ccd_substep: bool,
     pub erp: f32,
+    pub min_ccd_dt: f32,
     pub joint_erp: f32,
     pub warmstart_coeff: f32,
+    pub warmstart_correction_slope: f32,
+    pub velocity_solve_fraction: f32,
+    pub velocity_based_erp: f32,
     pub allowed_linear_error: f32,
     pub prediction_distance: f32,
     pub allowed_angular_error: f32,
     pub max_linear_correction: f32,
     pub max_angular_correction: f32,
-    pub max_stabilization_multiplier: f32,
     pub max_velocity_iterations: u32,
     pub max_position_iterations: u32,
     pub min_island_size: u32,
-    pub max_ccd_position_iterations: u32,
     pub max_ccd_substeps: u32,
-    pub multiple_ccd_substep_sensor_events_enabled: bool,
-    pub ccd_on_penetration_enabled: bool,
+}
+
+impl Default for IntegrationParametersDesc {
+    fn default() -> Self {
+        Self::from(IntegrationParameters::default())
+    }
 }
 
 impl From<IntegrationParameters> for IntegrationParametersDesc {
     fn from(params: IntegrationParameters) -> Self {
         Self {
             dt: params.dt,
-            return_after_ccd_substep: params.return_after_ccd_substep,
             erp: params.erp,
+            min_ccd_dt: params.min_ccd_dt,
             joint_erp: params.joint_erp,
             warmstart_coeff: params.warmstart_coeff,
+            warmstart_correction_slope: params.warmstart_correction_slope,
+            velocity_solve_fraction: params.velocity_solve_fraction,
+            velocity_based_erp: params.velocity_based_erp,
             allowed_linear_error: params.allowed_linear_error,
             prediction_distance: params.prediction_distance,
             allowed_angular_error: params.allowed_angular_error,
             max_linear_correction: params.max_linear_correction,
             max_angular_correction: params.max_angular_correction,
-            max_stabilization_multiplier: params.max_stabilization_multiplier,
             max_velocity_iterations: params.max_velocity_iterations as u32,
             max_position_iterations: params.max_position_iterations as u32,
             min_island_size: params.min_island_size as u32,
-            max_ccd_position_iterations: params.max_ccd_position_iterations as u32,
             max_ccd_substeps: params.max_ccd_substeps as u32,
-            multiple_ccd_substep_sensor_events_enabled: params
-                .multiple_ccd_substep_sensor_events_enabled,
-            ccd_on_penetration_enabled: params.ccd_on_penetration_enabled,
         }
     }
 }
@@ -1432,24 +1442,22 @@ impl Into<IntegrationParameters> for IntegrationParametersDesc {
     fn into(self) -> IntegrationParameters {
         IntegrationParameters {
             dt: self.dt,
+            min_ccd_dt: self.min_ccd_dt,
             erp: self.erp,
             joint_erp: self.joint_erp,
             warmstart_coeff: self.warmstart_coeff,
+            warmstart_correction_slope: self.warmstart_correction_slope,
+            velocity_solve_fraction: self.velocity_solve_fraction,
+            velocity_based_erp: self.velocity_based_erp,
             allowed_linear_error: self.allowed_linear_error,
             allowed_angular_error: self.allowed_angular_error,
             max_linear_correction: self.max_linear_correction,
             max_angular_correction: self.max_angular_correction,
             prediction_distance: self.prediction_distance,
-            max_stabilization_multiplier: self.max_stabilization_multiplier,
             max_velocity_iterations: self.max_velocity_iterations as usize,
             max_position_iterations: self.max_position_iterations as usize,
-            max_ccd_position_iterations: self.max_ccd_position_iterations as usize,
+            min_island_size: self.min_island_size as usize,
             max_ccd_substeps: self.max_ccd_substeps as usize,
-            return_after_ccd_substep: self.return_after_ccd_substep,
-            multiple_ccd_substep_sensor_events_enabled: self
-                .multiple_ccd_substep_sensor_events_enabled,
-            ccd_on_penetration_enabled: self.ccd_on_penetration_enabled,
-            ..Default::default()
         }
     }
 }
@@ -1459,31 +1467,34 @@ impl Visit for IntegrationParametersDesc {
         visitor.enter_region(name)?;
 
         self.dt.visit("DeltaTime", visitor)?;
-        self.return_after_ccd_substep
-            .visit("ReturnAfterCcdSubstep", visitor)?;
+        let _ = self.min_ccd_dt.visit("MinCcdDt", visitor);
         self.erp.visit("Erp", visitor)?;
         self.joint_erp.visit("JointErp", visitor)?;
         self.warmstart_coeff.visit("WarmstartCoeff", visitor)?;
+        let _ = self
+            .warmstart_correction_slope
+            .visit("WarmstartCorrectionSlope", visitor);
+        let _ = self
+            .velocity_solve_fraction
+            .visit("VelocitySolveFraction", visitor);
+        let _ = self.velocity_based_erp.visit("VelocityBasedErp", visitor);
         self.allowed_linear_error
             .visit("AllowedLinearError", visitor)?;
         self.max_linear_correction
             .visit("MaxLinearCorrection", visitor)?;
         self.max_angular_correction
             .visit("MaxAngularCorrection", visitor)?;
-        self.max_stabilization_multiplier
-            .visit("MaxStabilizationMultiplier", visitor)?;
         self.max_velocity_iterations
             .visit("MaxVelocityIterations", visitor)?;
         self.max_position_iterations
             .visit("MaxPositionIterations", visitor)?;
         self.min_island_size.visit("MinIslandSize", visitor)?;
-        self.max_ccd_position_iterations
-            .visit("MaxCcdPositionIterations", visitor)?;
         self.max_ccd_substeps.visit("MaxCcdSubsteps", visitor)?;
-        self.multiple_ccd_substep_sensor_events_enabled
-            .visit("MultipleCcdSubstepSensorEventsEnabled", visitor)?;
-        self.ccd_on_penetration_enabled
-            .visit("CcdOnPenetrationEnabled", visitor)?;
+
+        // TODO: Remove
+        if self.min_island_size == 0 {
+            self.min_island_size = 128;
+        }
 
         visitor.leave_region()
     }
