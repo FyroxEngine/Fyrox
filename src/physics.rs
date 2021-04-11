@@ -48,6 +48,7 @@ impl Physics {
         let mut body_map = HashMap::new();
 
         for (h, b) in scene.physics.bodies.iter() {
+            let rotation_locked = b.is_rotation_locked();
             let pool_handle = bodies.spawn(RigidBodyDesc {
                 position: b.position().translation.vector,
                 rotation: b.position().rotation,
@@ -58,6 +59,10 @@ impl Physics {
                 // Filled later.
                 colliders: vec![],
                 mass: b.mass(),
+                x_rotation_locked: rotation_locked[0],
+                y_rotation_locked: rotation_locked[1],
+                z_rotation_locked: rotation_locked[1],
+                translation_locked: b.is_translation_locked(),
             });
 
             body_map.insert(h, pool_handle);
@@ -145,6 +150,10 @@ impl Physics {
                     // Filled later.
                     colliders: vec![],
                     mass: r.mass,
+                    x_rotation_locked: r.x_rotation_locked,
+                    y_rotation_locked: r.y_rotation_locked,
+                    z_rotation_locked: r.z_rotation_locked,
+                    translation_locked: r.translation_locked,
                 }
             })
             .collect::<Vec<_>>();
