@@ -840,6 +840,10 @@ pub struct RigidBodyDesc<C> {
     pub status: BodyStatusDesc,
     pub colliders: Vec<C>,
     pub mass: f32,
+    pub x_rotation_locked: bool,
+    pub y_rotation_locked: bool,
+    pub z_rotation_locked: bool,
+    pub translation_locked: bool,
 }
 
 impl<C> Default for RigidBodyDesc<C> {
@@ -853,6 +857,10 @@ impl<C> Default for RigidBodyDesc<C> {
             status: Default::default(),
             colliders: vec![],
             mass: 1.0,
+            x_rotation_locked: false,
+            y_rotation_locked: false,
+            z_rotation_locked: false,
+            translation_locked: false,
         }
     }
 }
@@ -860,6 +868,7 @@ impl<C> Default for RigidBodyDesc<C> {
 impl<C: From<rapier3d::geometry::ColliderHandle>> RigidBodyDesc<C> {
     #[doc(hidden)]
     pub fn from_body(body: &RigidBody) -> Self {
+        let rotation_locked = body.is_rotation_locked();
         Self {
             position: body.position().translation.vector,
             rotation: body.position().rotation,
@@ -869,11 +878,15 @@ impl<C: From<rapier3d::geometry::ColliderHandle>> RigidBodyDesc<C> {
             sleeping: body.is_sleeping(),
             colliders: body.colliders().iter().map(|&c| C::from(c)).collect(),
             mass: body.mass(),
+            x_rotation_locked: rotation_locked[0],
+            y_rotation_locked: rotation_locked[1],
+            z_rotation_locked: rotation_locked[2],
+            translation_locked: body.is_translation_locked(),
         }
     }
 
     fn convert_to_body(self) -> RigidBody {
-        let mut body = RigidBodyBuilder::new(self.status.into())
+        let mut builder = RigidBodyBuilder::new(self.status.into())
             .position(Isometry3 {
                 translation: Translation {
                     vector: self.position,
@@ -883,7 +896,17 @@ impl<C: From<rapier3d::geometry::ColliderHandle>> RigidBodyDesc<C> {
             .additional_mass(self.mass)
             .linvel(self.linvel.x, self.linvel.y, self.linvel.z)
             .angvel(AngVector::new(self.angvel.x, self.angvel.y, self.angvel.z))
-            .build();
+            .restrict_rotations(
+                self.x_rotation_locked,
+                self.y_rotation_locked,
+                self.z_rotation_locked,
+            );
+
+        if self.translation_locked {
+            builder = builder.lock_translations();
+        }
+
+        let mut body = builder.build();
         if self.sleeping {
             body.sleep();
         }
@@ -915,6 +938,10 @@ impl<C: Visit + Default + 'static> Visit for RigidBodyDesc<C> {
         self.status.visit("Status", visitor)?;
         self.colliders.visit("Colliders", visitor)?;
         let _ = self.mass.visit("Mass", visitor);
+        let _ = self.x_rotation_locked.visit("XRotationLocked", visitor);
+        let _ = self.y_rotation_locked.visit("YRotationLocked", visitor);
+        let _ = self.z_rotation_locked.visit("ZRotationLocked", visitor);
+        let _ = self.translation_locked.visit("TranslationLocked", visitor);
 
         visitor.leave_region()
     }

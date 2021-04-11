@@ -714,8 +714,14 @@ impl Graph {
                                     // Remap bones
                                     for surface in mesh.surfaces_mut() {
                                         for bone_handle in surface.bones.iter_mut() {
-                                            *bone_handle =
+                                            let copy =
                                                 graph.find_copy_of(root_handle, *bone_handle);
+
+                                            if copy.is_none() {
+                                                Log::writeln(MessageKind::Error, format!("Unable to find bone with name {} in graph!", graph[*bone_handle].name()));
+                                            }
+
+                                            *bone_handle = copy;
                                         }
                                     }
                                 }
