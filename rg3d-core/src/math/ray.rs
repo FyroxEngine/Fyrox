@@ -262,7 +262,7 @@ impl Ray {
 
     /// Generic ray-cylinder intersection test.
     ///
-    /// https://mrl.nyu.edu/~dzorin/rend05/lecture2.pdf
+    /// <https://mrl.nyu.edu/~dzorin/rend05/lecture2.pdf>
     ///
     ///  Infinite cylinder oriented along line pa + va * t:
     ///      sqr_len(q - pa - dot(va, q - pa) * va) - r ^ 2 = 0

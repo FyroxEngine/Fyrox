@@ -303,7 +303,7 @@ impl Base {
     }
 
     /// Returns current lifetime of a node. Will be None if node has undefined lifetime.
-    /// For more info about lifetimes see [`set_lifetime`].
+    /// For more info about lifetimes see [`set_lifetime`](Self::set_lifetime).
     pub fn lifetime(&self) -> Option<f32> {
         self.lifetime
     }
@@ -400,7 +400,7 @@ impl Base {
     /// # Details
     ///
     /// This value is used to modify projection matrix before render node.
-    /// Element m[4][3] of projection matrix usually set to -1 to which makes w coordinate
+    /// Element m\[4\]\[3\] of projection matrix usually set to -1 to which makes w coordinate
     /// of in homogeneous space to be -z_fragment for further perspective divide. We can
     /// abuse this to shift z of fragment by some value.
     pub fn set_depth_offset_factor(&mut self, factor: f32) {

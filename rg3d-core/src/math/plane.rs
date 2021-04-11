@@ -58,7 +58,7 @@ impl Plane {
         self.dot(point).abs()
     }
 
-    /// http://geomalgorithms.com/a05-_intersect-1.html
+    /// <http://geomalgorithms.com/a05-_intersect-1.html>
     pub fn intersection_point(&self, b: &Plane, c: &Plane) -> Vector3<f32> {
         let f = -1.0 / self.normal.dot(&b.normal.cross(&c.normal));
 

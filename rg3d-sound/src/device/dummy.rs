@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use crate::{
     device::{Device, FeedCallback, MixContext, NativeSample},
     error::SoundError,
