@@ -227,7 +227,7 @@ impl Graph {
         node_handle: Handle<Node>,
     ) -> Handle<Node> {
         let root = &self.pool[root_handle];
-        if root.original_handle() == node_handle {
+        if root.original_handle_in_resource() == node_handle {
             return root_handle;
         }
 
@@ -365,8 +365,7 @@ impl Graph {
 
         for (parent, children) in to_copy.iter() {
             // Copy parent first.
-            let mut parent_copy = self.pool[*parent].raw_copy();
-            parent_copy.original = *parent;
+            let parent_copy = self.pool[*parent].raw_copy();
             let parent_copy_handle = self.add_node(parent_copy);
             old_new_mapping.insert(*parent, parent_copy_handle);
 
@@ -377,8 +376,7 @@ impl Graph {
             // Copy children and link to new parent.
             for &child in children {
                 if filter(child, &self.pool[child]) {
-                    let mut child_copy = self.pool[child].raw_copy();
-                    child_copy.original = child;
+                    let child_copy = self.pool[child].raw_copy();
                     let child_copy_handle = self.add_node(child_copy);
                     old_new_mapping.insert(child, child_copy_handle);
                     self.link_nodes(child_copy_handle, parent_copy_handle);
@@ -399,7 +397,6 @@ impl Graph {
     pub fn copy_single_node(&self, node_handle: Handle<Node>) -> Node {
         let node = &self.pool[node_handle];
         let mut clone = node.raw_copy();
-        clone.original = node_handle;
         clone.parent = Handle::NONE;
         clone.children.clear();
         if let Node::Mesh(ref mut mesh) = clone {
@@ -421,8 +418,7 @@ impl Graph {
         F: FnMut(Handle<Node>, &Node) -> bool,
     {
         let src_node = &self.pool[root_handle];
-        let mut dest_node = src_node.raw_copy();
-        dest_node.original = root_handle;
+        let dest_node = src_node.raw_copy();
         let dest_copy_handle = dest_graph.add_node(dest_node);
         old_new_mapping.insert(root_handle, dest_copy_handle);
         for &src_child_handle in src_node.children() {
@@ -464,8 +460,9 @@ impl Graph {
 
         self.update_hierarchical_data();
 
-        // Resolve original handles. Original handle is a handle to a node in resource from which
-        // a node was instantiated from.
+        // Iterate over each node in the graph and resolve original handles. Original handle is a handle
+        // to a node in resource from which a node was instantiated from. Also sync templated properties
+        // if needed and copy surfaces from originals.
         for node in self.pool.iter_mut() {
             if let Some(model) = node.resource() {
                 let model = model.state();
@@ -493,13 +490,15 @@ impl Graph {
                                 // Use original handle directly.
                                 resource_graph
                                     .pool
-                                    .try_borrow(node.original)
-                                    .map(|resource_node| (resource_node, node.original))
+                                    .try_borrow(node.original_handle_in_resource)
+                                    .map(|resource_node| {
+                                        (resource_node, node.original_handle_in_resource)
+                                    })
                             }
                         };
 
                         if let Some((resource_node, original)) = resource_node {
-                            node.original = original;
+                            node.original_handle_in_resource = original;
                             node.inv_bind_pose_transform = resource_node.inv_bind_pose_transform();
 
                             // Check if we can sync transform of the nodes with resource.
@@ -559,6 +558,15 @@ impl Graph {
                                 local_transform
                                     .set_scaling_pivot(**resource_local_transform.scaling_pivot());
                             }
+
+                            if let (Node::Mesh(mesh), Node::Mesh(resource_mesh)) =
+                                (node, resource_node)
+                            {
+                                mesh.clear_surfaces();
+                                for resource_surface in resource_mesh.surfaces() {
+                                    mesh.add_surface(resource_surface.clone());
+                                }
+                            }
                         }
                     }
                     ResourceState::Pending { .. } => {
@@ -600,7 +608,7 @@ impl Graph {
             if let ResourceState::Ok(ref data) = *model {
                 let resource_graph = &data.get_scene().graph;
 
-                let original = self.pool[instance].original;
+                let original = self.pool[instance].original_handle_in_resource;
 
                 if original.is_none() {
                     let instance = &self.pool[instance];
@@ -684,63 +692,34 @@ impl Graph {
         // while iterating over it, so it is double safe.
         let graph = unsafe { &*(self as *const Graph) };
 
-        // Then iterate over all scenes and resolve changes in surface data, remap bones, etc.
-        // This step is needed to take correct graphical data from resource, we do not store
-        // meshes in save files, just references to resource this data was taken from. So on
-        // resolve stage we just copying surface from resource, do bones remapping. Bones remapping
-        // is required stage because we copied surface from resource and bones are mapped to nodes
-        // in resource, but we must have them mapped to instantiated nodes on scene. To do that
-        // we'll try to find a root for each node, and starting from it we'll find corresponding
-        // bone nodes. I know that this sounds too confusing but try to understand it.
+        // Remap bones as separate pass. We can't do that while resolving original handles because
+        // surfaces usually has more than one bone and it is impossible to remap unresolved nodes.
+        // Bones remapping is required stage because we copied surface from resource and
+        // bones are mapped to nodes in resource, but we must have them mapped to instantiated
+        // nodes on scene. To do that we'll try to find a root for each node, and starting from
+        // it we'll find corresponding bone nodes.
         for (node_handle, node) in self.pool.pair_iter_mut() {
             if let Node::Mesh(mesh) = node {
                 let root_handle = graph.find_model_root(node_handle);
-                let node_name = String::from(mesh.name());
-                if let Some(model) = mesh.resource() {
-                    let model = model.state();
-                    match *model {
-                        ResourceState::Ok(ref data) => {
-                            let resource_node_handle = data.find_node_by_name(node_name.as_str());
-                            if resource_node_handle.is_some() {
-                                if let Node::Mesh(resource_mesh) =
-                                    &data.get_scene().graph[resource_node_handle]
-                                {
-                                    // Copy surfaces from resource and assign to meshes.
-                                    mesh.clear_surfaces();
-                                    for resource_surface in resource_mesh.surfaces() {
-                                        mesh.add_surface(resource_surface.clone());
-                                    }
 
-                                    // Remap bones
-                                    for surface in mesh.surfaces_mut() {
-                                        for bone_handle in surface.bones.iter_mut() {
-                                            let copy =
-                                                graph.find_copy_of(root_handle, *bone_handle);
+                // Remap bones
+                for surface in mesh.surfaces_mut() {
+                    for bone_handle in surface.bones.iter_mut() {
+                        let copy = graph.find_copy_of(root_handle, *bone_handle);
 
-                                            if copy.is_none() {
-                                                Log::writeln(MessageKind::Error, format!("Unable to find bone with name {} in graph!", graph[*bone_handle].name()));
-                                            }
-
-                                            *bone_handle = copy;
-                                        }
-                                    }
-                                }
-                            } else {
-                                Log::writeln(
-                                    MessageKind::Warning,
-                                    format!(
-                                        "Unable to restore mesh info from node \
-                                {} because it is missing in the resource {}!",
-                                        node_name,
-                                        model.path().display()
-                                    ),
-                                );
-                            }
+                        if copy.is_none() {
+                            Log::writeln(
+                                MessageKind::Error,
+                                format!(
+                                    "Unable to find bone with name {} \
+                                                 starting from node {} in the graph!",
+                                    graph[*bone_handle].name(),
+                                    graph[root_handle].name()
+                                ),
+                            );
                         }
-                        ResourceState::Pending { .. } => {
-                            panic!("resources must be awaited before doing resolve!")
-                        }
-                        _ => {}
+
+                        *bone_handle = copy;
                     }
                 }
             }

@@ -78,6 +78,11 @@ impl Model {
             stack.extend_from_slice(node.children());
         }
 
+        // Fill original handles to instances.
+        for (&old, &new) in old_to_new.iter() {
+            dest_scene.graph[new].original_handle_in_resource = old;
+        }
+
         // Embed navmeshes.
         // TODO: This also must provide a map which will make it possible to extract navmesh
         // from resource later on.

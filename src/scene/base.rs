@@ -238,7 +238,7 @@ pub struct Base {
     pub(in crate) resource: Option<Model>,
     /// Handle to node in scene of model resource from which this node
     /// was instantiated from.
-    pub(in crate) original: Handle<Node>,
+    pub(in crate) original_handle_in_resource: Handle<Node>,
     /// When `true` it means that this node is instance of `resource`.
     /// More precisely - this node is root of whole descendant nodes
     /// hierarchy which was instantiated from resource.
@@ -367,8 +367,8 @@ impl Base {
 
     /// Handle to node in scene of model resource from which this node
     /// was instantiated from.
-    pub fn original_handle(&self) -> Handle<Node> {
-        self.original
+    pub fn original_handle_in_resource(&self) -> Handle<Node> {
+        self.original_handle_in_resource
     }
 
     /// Returns position of the node in absolute coordinates.
@@ -502,7 +502,7 @@ impl Visit for Base {
         self.depth_offset.visit("DepthOffset", visitor)?;
         let _ = self.lod_group.visit("LodGroup", visitor);
         let _ = self.mobility.visit("Mobility", visitor);
-        let _ = self.original.visit("Original", visitor);
+        let _ = self.original_handle_in_resource.visit("Original", visitor);
         let _ = self.tag.visit("Tag", visitor);
         let _ = self.physics_binding.visit("PhysicsBinding", visitor);
 
@@ -626,7 +626,7 @@ impl BaseBuilder {
             global_transform: Cell::new(Matrix4::identity()),
             inv_bind_pose_transform: self.inv_bind_pose_transform,
             resource: None,
-            original: Handle::NONE,
+            original_handle_in_resource: Handle::NONE,
             is_resource_instance_root: false,
             depth_offset: self.depth_offset,
             lod_group: self.lod_group,
