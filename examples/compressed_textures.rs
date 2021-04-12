@@ -9,6 +9,7 @@ extern crate rg3d;
 pub mod shared;
 
 use rg3d::engine::resource_manager::ResourceManager;
+use rg3d::futures::executor::block_on;
 use rg3d::resource::texture::TextureMagnificationFilter;
 use rg3d::tbc::color::Rgb8;
 use rg3d::{
@@ -30,62 +31,6 @@ use std::{
 // Create our own engine type aliases. These specializations are needed
 // because engine provides a way to extend UI with custom nodes and messages.
 type GameEngine = rg3d::engine::Engine<(), StubNode>;
-
-async fn test(resource_manager: ResourceManager, procedural: bool) -> Texture {
-    if procedural {
-        let block = [
-            // First row.
-            Rgb8::new(0, 0, 0),
-            Rgb8::new(64, 0, 0),
-            Rgb8::new(128, 0, 0),
-            Rgb8::new(255, 0, 0),
-            // Second row.
-            Rgb8::new(0, 0, 0),
-            Rgb8::new(64, 0, 0),
-            Rgb8::new(128, 0, 0),
-            Rgb8::new(255, 0, 0),
-            // Third row.
-            Rgb8::new(0, 0, 0),
-            Rgb8::new(64, 0, 0),
-            Rgb8::new(128, 0, 0),
-            Rgb8::new(255, 0, 0),
-            // Fourth row.
-            Rgb8::new(0, 0, 0),
-            Rgb8::new(64, 0, 0),
-            Rgb8::new(128, 0, 0),
-            Rgb8::new(255, 0, 0),
-        ];
-
-        let packed = rg3d::tbc::bc1::encode_block_bc1(block);
-
-        let bytes = unsafe {
-            std::slice::from_raw_parts(
-                &packed as *const _ as *const u8,
-                std::mem::size_of_val(&packed),
-            )
-            .to_owned()
-        };
-
-        let mut text_data = TextureData::from_bytes(
-            TextureKind::Rectangle {
-                width: 4,
-                height: 4,
-            },
-            TexturePixelKind::DXT1RGB,
-            bytes,
-        )
-        .unwrap();
-
-        text_data.set_magnification_filter(TextureMagnificationFilter::Nearest);
-
-        Texture::from(Arc::new(Mutex::new(ResourceState::Ok(text_data))))
-    } else {
-        resource_manager
-            .request_texture("examples/data/MetalMesh_Base_Color.png")
-            .await
-            .unwrap()
-    }
-}
 
 fn main() {
     let event_loop = EventLoop::new();
@@ -109,17 +54,36 @@ fn main() {
         .renderer
         .set_backbuffer_clear_color(Color::opaque(120, 120, 120));
 
-    let procedural = false;
-    let texture =
-        rg3d::futures::executor::block_on(test(engine.resource_manager.clone(), procedural));
-
     ImageBuilder::new(
         WidgetBuilder::new()
-            .with_desired_position(Vector2::new(100.0, 100.0))
+            .with_desired_position(Vector2::new(0.0, 0.0))
             .with_width(512.0)
             .with_height(512.0),
     )
-    .with_texture(into_gui_texture(texture))
+    .with_texture(into_gui_texture(
+        block_on(
+            engine
+                .resource_manager
+                .request_texture("examples/data/MetalMesh_Base_Color.png"),
+        )
+        .unwrap(),
+    ))
+    .build(&mut engine.user_interface.build_ctx());
+
+    ImageBuilder::new(
+        WidgetBuilder::new()
+            .with_desired_position(Vector2::new(512.0, 0.0))
+            .with_width(512.0)
+            .with_height(512.0),
+    )
+    .with_texture(into_gui_texture(
+        block_on(
+            engine
+                .resource_manager
+                .request_texture("examples/data/R8Texture.png"),
+        )
+        .unwrap(),
+    ))
     .build(&mut engine.user_interface.build_ctx());
 
     let clock = Instant::now();

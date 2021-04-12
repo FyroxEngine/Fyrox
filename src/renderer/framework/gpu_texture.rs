@@ -1,6 +1,7 @@
 // Keep this for now, some texture kind might be used in future.
 #![allow(dead_code)]
 
+use crate::renderer::framework::gl::{COMPRESSED_RED_RGTC1, COMPRESSED_RG_RGTC2};
 use crate::{
     core::color::Color,
     renderer::{
@@ -95,6 +96,8 @@ pub enum PixelKind {
     DXT3RGBA,
     DXT5RGBA,
     RGBA32F,
+    R8RGTC,
+    RG8RGTC,
 }
 
 impl From<TexturePixelKind> for PixelKind {
@@ -114,6 +117,8 @@ impl From<TexturePixelKind> for PixelKind {
             TexturePixelKind::DXT1RGBA => Self::DXT1RGBA,
             TexturePixelKind::DXT3RGBA => Self::DXT3RGBA,
             TexturePixelKind::DXT5RGBA => Self::DXT5RGBA,
+            TexturePixelKind::R8RGTC => Self::R8RGTC,
+            TexturePixelKind::RG8RGTC => Self::RG8RGTC,
         }
     }
 }
@@ -133,13 +138,23 @@ impl PixelKind {
             | Self::F32 => 4,
             Self::RG8 | Self::D16 | Self::F16 => 2,
             Self::R8 => 1,
-            Self::DXT1RGB | Self::DXT1RGBA | Self::DXT3RGBA | Self::DXT5RGBA => unreachable!(),
+            Self::DXT1RGB
+            | Self::DXT1RGBA
+            | Self::DXT3RGBA
+            | Self::DXT5RGBA
+            | Self::R8RGTC
+            | Self::RG8RGTC => unreachable!(),
         }
     }
 
     fn is_compressed(self) -> bool {
         match self {
-            Self::DXT1RGB | Self::DXT1RGBA | Self::DXT3RGBA | Self::DXT5RGBA => true,
+            Self::DXT1RGB
+            | Self::DXT1RGBA
+            | Self::DXT3RGBA
+            | Self::DXT5RGBA
+            | Self::R8RGTC
+            | Self::RG8RGTC => true,
             // Explicit match for rest of formats instead of _ will help to not forget
             // to add new entry here.
             Self::RGBA16
@@ -195,13 +210,13 @@ fn image_3d_size_bytes(pixel_kind: PixelKind, width: usize, height: usize, depth
         PixelKind::RGB8 | PixelKind::BGR8 => 3 * pixel_count,
         PixelKind::RG8 | PixelKind::R16 | PixelKind::D16 | PixelKind::F16 => 2 * pixel_count,
         PixelKind::R8 => pixel_count,
-        PixelKind::DXT1RGB | PixelKind::DXT1RGBA => {
-            // 8 here is block size.
-            ceil_div_4(width) * ceil_div_4(height) * ceil_div_4(depth) * 8
+        PixelKind::DXT1RGB | PixelKind::DXT1RGBA | PixelKind::R8RGTC => {
+            let block_size = 8;
+            ceil_div_4(width) * ceil_div_4(height) * ceil_div_4(depth) * block_size
         }
-        PixelKind::DXT3RGBA | PixelKind::DXT5RGBA => {
-            // 16 here is block size.
-            ceil_div_4(width) * ceil_div_4(height) * ceil_div_4(depth) * 16
+        PixelKind::DXT3RGBA | PixelKind::DXT5RGBA | PixelKind::RG8RGTC => {
+            let block_size = 16;
+            ceil_div_4(width) * ceil_div_4(height) * ceil_div_4(depth) * block_size
         }
     }
 }
@@ -221,13 +236,13 @@ fn image_2d_size_bytes(pixel_kind: PixelKind, width: usize, height: usize) -> us
         PixelKind::RGB8 | PixelKind::BGR8 => 3 * pixel_count,
         PixelKind::RG8 | PixelKind::R16 | PixelKind::D16 | PixelKind::F16 => 2 * pixel_count,
         PixelKind::R8 => pixel_count,
-        PixelKind::DXT1RGB | PixelKind::DXT1RGBA => {
-            // 8 here is block size.
-            ceil_div_4(width) * ceil_div_4(height) * 8
+        PixelKind::DXT1RGB | PixelKind::DXT1RGBA | PixelKind::R8RGTC => {
+            let block_size = 8;
+            ceil_div_4(width) * ceil_div_4(height) * block_size
         }
-        PixelKind::DXT3RGBA | PixelKind::DXT5RGBA => {
-            // 16 here is block size.
-            ceil_div_4(width) * ceil_div_4(height) * 16
+        PixelKind::DXT3RGBA | PixelKind::DXT5RGBA | PixelKind::RG8RGTC => {
+            let block_size = 16;
+            ceil_div_4(width) * ceil_div_4(height) * block_size
         }
     }
 }
@@ -246,13 +261,13 @@ fn image_1d_size_bytes(pixel_kind: PixelKind, length: usize) -> usize {
         PixelKind::RGB8 | PixelKind::BGR8 => 3 * length,
         PixelKind::RG8 | PixelKind::R16 | PixelKind::D16 | PixelKind::F16 => 2 * length,
         PixelKind::R8 => length,
-        PixelKind::DXT1RGB | PixelKind::DXT1RGBA => {
-            // 8 here is block size.
-            ceil_div_4(length) * 8
+        PixelKind::DXT1RGB | PixelKind::DXT1RGBA | PixelKind::R8RGTC => {
+            let block_size = 8;
+            ceil_div_4(length) * block_size
         }
-        PixelKind::DXT3RGBA | PixelKind::DXT5RGBA => {
-            // 16 here is block size.
-            ceil_div_4(length) * 16
+        PixelKind::DXT3RGBA | PixelKind::DXT5RGBA | PixelKind::RG8RGTC => {
+            let block_size = 16;
+            ceil_div_4(length) * block_size
         }
     }
 }
@@ -566,6 +581,8 @@ impl<'a> TextureBinding<'a> {
                 PixelKind::DXT1RGBA => (0, 0, GL_COMPRESSED_RGBA_S3TC_DXT1_EXT),
                 PixelKind::DXT3RGBA => (0, 0, GL_COMPRESSED_RGBA_S3TC_DXT3_EXT),
                 PixelKind::DXT5RGBA => (0, 0, GL_COMPRESSED_RGBA_S3TC_DXT5_EXT),
+                PixelKind::R8RGTC => (0, 0, COMPRESSED_RED_RGTC1),
+                PixelKind::RG8RGTC => (0, 0, COMPRESSED_RG_RGTC2),
                 PixelKind::RGBA32F => (gl::FLOAT, gl::RGBA, gl::RGBA32F),
             };
 

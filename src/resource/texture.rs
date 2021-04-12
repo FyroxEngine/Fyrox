@@ -435,6 +435,12 @@ pub enum TexturePixelKind {
 
     /// Compressed S3TC DXT5 RGBA.
     DXT5RGBA = 13,
+
+    /// Compressed R8 texture (RGTC).
+    R8RGTC = 14,
+
+    /// Compressed RG8 texture (RGTC).
+    RG8RGTC = 15,
 }
 
 impl TexturePixelKind {
@@ -454,6 +460,8 @@ impl TexturePixelKind {
             11 => Ok(Self::DXT1RGBA),
             12 => Ok(Self::DXT3RGBA),
             13 => Ok(Self::DXT5RGBA),
+            14 => Ok(Self::R8RGTC),
+            15 => Ok(Self::RG8RGTC),
             _ => Err(format!("Invalid texture kind {}!", id)),
         }
     }
@@ -517,8 +525,8 @@ pub enum CompressionOptions {
     Quality,
 }
 
-fn transmute_slice<T: tbc::color::ColorSource>(bytes: &[u8]) -> &'_ [T] {
-    // This is absolutely safe because `image` crate's Rgb8/Rgba8 and `tbc`s Rgb8/Rgba8
+fn transmute_slice<T>(bytes: &[u8]) -> &'_ [T] {
+    // This is absolutely safe because `image` crate's Rgb8/Rgba8/etc. and `tbc`s Rgb8/Rgba8/etc.
     // have exactly the same memory layout.
     unsafe {
         std::slice::from_raw_parts(
@@ -528,12 +536,24 @@ fn transmute_slice<T: tbc::color::ColorSource>(bytes: &[u8]) -> &'_ [T] {
     }
 }
 
-fn compress_bc1<T: tbc::color::ColorSource>(bytes: &[u8], width: usize, height: usize) -> Vec<u8> {
-    tbc::bc1::encode_image_bc1_conv_u8::<T>(transmute_slice::<T>(bytes), width, height)
+fn compress_bc1<T: tbc::color::ColorRgba8>(bytes: &[u8], width: usize, height: usize) -> Vec<u8> {
+    tbc::encode_image_bc1_conv_u8::<T>(transmute_slice::<T>(bytes), width, height)
 }
 
-fn compress_bc3<T: tbc::color::ColorSource>(bytes: &[u8], width: usize, height: usize) -> Vec<u8> {
-    tbc::bc3::encode_image_bc3_conv_u8::<T>(transmute_slice::<T>(bytes), width, height)
+fn compress_bc3<T: tbc::color::ColorRgba8>(bytes: &[u8], width: usize, height: usize) -> Vec<u8> {
+    tbc::encode_image_bc3_conv_u8::<T>(transmute_slice::<T>(bytes), width, height)
+}
+
+fn compress_r8_bc4<T: tbc::color::ColorRed8>(bytes: &[u8], width: usize, height: usize) -> Vec<u8> {
+    tbc::encode_image_bc4_r8_conv_u8::<T>(transmute_slice::<T>(bytes), width, height)
+}
+
+fn compress_rg8_bc4<T: tbc::color::ColorRedGreen8>(
+    bytes: &[u8],
+    width: usize,
+    height: usize,
+) -> Vec<u8> {
+    tbc::encode_image_bc4_rg8_conv_u8::<T>(transmute_slice::<T>(bytes), width, height)
 }
 
 impl TextureData {
@@ -544,8 +564,7 @@ impl TextureData {
         // DDS is special. It can contain various kinds of textures as well as textures with
         // various pixel formats.
         //
-        // TODO: Add support for DXGI formats. This could be difficult because of mismatch
-        // between OpenGL and DirectX formats.
+        // TODO: Add support for DXGI formats.
         let mut texture = if let Ok(dds) = ddsfile::Dds::read(&mut File::open(path.as_ref())?) {
             let d3dformat = dds
                 .get_d3d_format()
@@ -656,65 +675,43 @@ impl TextureData {
             }
         };
 
-        match compression {
-            CompressionOptions::NoCompression => Ok(texture),
-            CompressionOptions::Quality => {
-                match texture.pixel_kind {
-                    TexturePixelKind::RGB8 => match texture.kind {
-                        TextureKind::Rectangle { width, height } => {
-                            texture.bytes = compress_bc3::<tbc::color::Rgb8>(
-                                &texture.bytes,
-                                width as usize,
-                                height as usize,
-                            );
-                            texture.pixel_kind = TexturePixelKind::DXT5RGBA;
-                            Ok(texture)
-                        }
-                        _ => Ok(texture),
-                    },
-                    TexturePixelKind::RGBA8 => match texture.kind {
-                        TextureKind::Rectangle { width, height } => {
-                            texture.bytes = compress_bc3::<tbc::color::Rgba8>(
-                                &texture.bytes,
-                                width as usize,
-                                height as usize,
-                            );
-                            texture.pixel_kind = TexturePixelKind::DXT5RGBA;
-                            Ok(texture)
-                        }
-                        _ => Ok(texture),
-                    },
-                    _ => Ok(texture), // TODO: Add compression for other formats.
+        // Try compress if needed.
+        if let TextureKind::Rectangle { width, height } = texture.kind {
+            let w = width as usize;
+            let h = height as usize;
+
+            match (texture.pixel_kind, compression) {
+                (TexturePixelKind::RGB8, CompressionOptions::Speed) => {
+                    texture.bytes = compress_bc1::<tbc::color::Rgb8>(&texture.bytes, w, h);
+                    texture.pixel_kind = TexturePixelKind::DXT1RGB;
                 }
+                (TexturePixelKind::RGB8, CompressionOptions::Quality) => {
+                    texture.bytes = compress_bc3::<tbc::color::Rgb8>(&texture.bytes, w, h);
+                    texture.pixel_kind = TexturePixelKind::DXT5RGBA;
+                }
+                (TexturePixelKind::RGBA8, CompressionOptions::Speed) => {
+                    texture.bytes = compress_bc1::<tbc::color::Rgba8>(&texture.bytes, w, h);
+                    texture.pixel_kind = TexturePixelKind::DXT1RGBA;
+                }
+                (TexturePixelKind::RGBA8, CompressionOptions::Quality) => {
+                    texture.bytes = compress_bc3::<tbc::color::Rgba8>(&texture.bytes, w, h);
+                    texture.pixel_kind = TexturePixelKind::DXT5RGBA;
+                }
+                (TexturePixelKind::R8, CompressionOptions::Speed)
+                | (TexturePixelKind::R8, CompressionOptions::Quality) => {
+                    texture.bytes = compress_r8_bc4::<tbc::color::Red8>(&texture.bytes, w, h);
+                    texture.pixel_kind = TexturePixelKind::R8RGTC;
+                }
+                (TexturePixelKind::RG8, CompressionOptions::Speed)
+                | (TexturePixelKind::RG8, CompressionOptions::Quality) => {
+                    texture.bytes = compress_rg8_bc4::<tbc::color::RedGreen8>(&texture.bytes, w, h);
+                    texture.pixel_kind = TexturePixelKind::RG8RGTC;
+                }
+                _ => (),
             }
-            CompressionOptions::Speed => match texture.pixel_kind {
-                TexturePixelKind::RGB8 => match texture.kind {
-                    TextureKind::Rectangle { width, height } => {
-                        texture.bytes = compress_bc1::<tbc::color::Rgb8>(
-                            &texture.bytes,
-                            width as usize,
-                            height as usize,
-                        );
-                        texture.pixel_kind = TexturePixelKind::DXT1RGB;
-                        Ok(texture)
-                    }
-                    _ => Ok(texture),
-                },
-                TexturePixelKind::RGBA8 => match texture.kind {
-                    TextureKind::Rectangle { width, height } => {
-                        texture.bytes = compress_bc1::<tbc::color::Rgba8>(
-                            &texture.bytes,
-                            width as usize,
-                            height as usize,
-                        );
-                        texture.pixel_kind = TexturePixelKind::DXT1RGBA;
-                        Ok(texture)
-                    }
-                    _ => Ok(texture),
-                },
-                _ => Ok(texture), // TODO: Add compression for other formats.
-            },
         }
+
+        Ok(texture)
     }
 
     /// Creates new texture instance from given parameters.
@@ -748,10 +745,16 @@ impl TextureData {
             TexturePixelKind::DXT1RGB
             | TexturePixelKind::DXT1RGBA
             | TexturePixelKind::DXT3RGBA
-            | TexturePixelKind::DXT5RGBA => {
+            | TexturePixelKind::DXT5RGBA
+            | TexturePixelKind::R8RGTC
+            | TexturePixelKind::RG8RGTC => {
                 let block_size = match pixel_kind {
-                    TexturePixelKind::DXT1RGB | TexturePixelKind::DXT1RGBA => 8,
-                    TexturePixelKind::DXT3RGBA | TexturePixelKind::DXT5RGBA => 16,
+                    TexturePixelKind::DXT1RGB
+                    | TexturePixelKind::DXT1RGBA
+                    | TexturePixelKind::R8RGTC => 8,
+                    TexturePixelKind::DXT3RGBA
+                    | TexturePixelKind::DXT5RGBA
+                    | TexturePixelKind::RG8RGTC => 16,
                     _ => unreachable!(),
                 };
                 match kind {
@@ -867,7 +870,9 @@ impl TextureData {
             TexturePixelKind::DXT1RGB
             | TexturePixelKind::DXT1RGBA
             | TexturePixelKind::DXT3RGBA
-            | TexturePixelKind::DXT5RGBA => return Err(TextureError::UnsupportedFormat),
+            | TexturePixelKind::DXT5RGBA
+            | TexturePixelKind::R8RGTC
+            | TexturePixelKind::RG8RGTC => return Err(TextureError::UnsupportedFormat),
         };
         if let TextureKind::Rectangle { width, height } = self.kind {
             Ok(image::save_buffer(
