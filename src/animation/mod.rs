@@ -283,6 +283,14 @@ impl AnimationSignal {
     pub fn is_enabled(&self) -> bool {
         self.enabled
     }
+
+    pub fn id(&self) -> u64 {
+        self.id
+    }
+
+    pub fn time(&self) -> f32 {
+        self.time
+    }
 }
 
 impl Default for AnimationSignal {
@@ -553,6 +561,10 @@ impl Animation {
 
     pub fn get_resource(&self) -> Option<Model> {
         self.resource.clone()
+    }
+
+    pub fn signals(&self) -> &[AnimationSignal] {
+        &self.signals
     }
 
     pub fn retain_tracks<F>(&mut self, filter: F)
