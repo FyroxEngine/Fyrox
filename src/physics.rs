@@ -1,20 +1,19 @@
-use rg3d::core::algebra::Translation;
-use rg3d::core::BiDirHashMap;
 use rg3d::{
     core::{
-        algebra::{Isometry3, Point3, Translation3, Vector3},
+        algebra::{Isometry3, Point3, Translation, Translation3, Vector3},
         color::Color,
         math::aabb::AxisAlignedBoundingBox,
         pool::{ErasedHandle, Handle, Pool},
+        uuid::Uuid,
+        BiDirHashMap,
     },
-    physics::data::arena::Index,
     scene::{
         graph::Graph,
         node::Node,
         physics::{
             ColliderDesc, ColliderShapeDesc, JointDesc, JointParamsDesc, PhysicsDesc, RigidBodyDesc,
         },
-        ColliderHandle, Line, RigidBodyHandle, Scene, SceneDrawingContext,
+        ColliderHandle, JointHandle, Line, RigidBodyHandle, Scene, SceneDrawingContext,
     },
 };
 use std::collections::HashMap;
@@ -40,6 +39,10 @@ pub struct Physics {
     pub colliders: Pool<Collider>,
     pub joints: Pool<Joint>,
     pub binder: BiDirHashMap<Handle<Node>, Handle<RigidBody>>,
+
+    body_handle_map: HashMap<Handle<RigidBody>, RigidBodyHandle>,
+    collider_handle_map: HashMap<Handle<Collider>, ColliderHandle>,
+    joint_handle_map: HashMap<Handle<Joint>, JointHandle>,
 }
 
 impl Physics {
@@ -47,7 +50,8 @@ impl Physics {
         let mut bodies: Pool<RigidBody> = Default::default();
         let mut body_map = HashMap::new();
 
-        for (h, b) in scene.physics.bodies.iter() {
+        let mut body_handle_map = HashMap::new();
+        for (h, b) in scene.physics.bodies().iter() {
             let rotation_locked = b.is_rotation_locked();
             let pool_handle = bodies.spawn(RigidBodyDesc {
                 position: b.position().translation.vector,
@@ -66,12 +70,19 @@ impl Physics {
             });
 
             body_map.insert(h, pool_handle);
+
+            // Remember initial handle of a body.
+            body_handle_map.insert(
+                pool_handle,
+                scene.physics.body_handle_map().key_of(&h).cloned().unwrap(),
+            );
         }
 
         let mut colliders: Pool<Collider> = Default::default();
         let mut collider_map = HashMap::new();
 
-        for (h, c) in scene.physics.colliders.iter() {
+        let mut collider_handle_map = HashMap::new();
+        for (h, c) in scene.physics.colliders().iter() {
             let pool_handle = colliders.spawn(ColliderDesc {
                 shape: ColliderShapeDesc::from_collider_shape(c.shape()),
                 parent: ErasedHandle::from(*body_map.get(&c.parent()).unwrap()),
@@ -86,13 +97,28 @@ impl Physics {
             });
 
             collider_map.insert(h, pool_handle);
+            collider_handle_map.insert(
+                pool_handle,
+                scene
+                    .physics
+                    .collider_handle_map()
+                    .key_of(&h)
+                    .cloned()
+                    .unwrap(),
+            );
         }
 
         for (&old, &new) in body_map.iter() {
             bodies[new].colliders = scene
                 .physics
-                .bodies
-                .get(old)
+                .body(
+                    &scene
+                        .physics
+                        .body_handle_map()
+                        .key_of(&old)
+                        .cloned()
+                        .unwrap(),
+                )
                 .unwrap()
                 .colliders()
                 .iter()
@@ -102,18 +128,33 @@ impl Physics {
 
         let mut joints: Pool<Joint> = Pool::new();
 
-        for (_, j) in scene.physics.joints.iter() {
-            let _ = joints.spawn(JointDesc {
+        let mut joint_handle_map = HashMap::new();
+        for (h, j) in scene.physics.joints().iter() {
+            let pool_handle = joints.spawn(JointDesc {
                 body1: ErasedHandle::from(*body_map.get(&j.body1).unwrap()),
                 body2: ErasedHandle::from(*body_map.get(&j.body2).unwrap()),
                 params: JointParamsDesc::from_params(&j.params),
             });
+            joint_handle_map.insert(
+                pool_handle,
+                scene
+                    .physics
+                    .joint_handle_map()
+                    .key_of(&h)
+                    .cloned()
+                    .unwrap(),
+            );
         }
 
         let mut binder = BiDirHashMap::default();
 
-        for (&node, &body) in scene.physics_binder.forward_map().iter() {
-            let body_handle: rg3d::physics::dynamics::RigidBodyHandle = body.into();
+        for (&node, body) in scene.physics_binder.forward_map().iter() {
+            let body_handle = scene
+                .physics
+                .body_handle_map()
+                .value_of(body)
+                .cloned()
+                .unwrap();
             binder.insert(node, *body_map.get(&body_handle).unwrap());
         }
 
@@ -122,6 +163,9 @@ impl Physics {
             colliders,
             joints,
             binder,
+            body_handle_map,
+            collider_handle_map,
+            joint_handle_map,
         }
     }
 
@@ -130,16 +174,29 @@ impl Physics {
     }
 
     pub fn generate_engine_desc(&self) -> (PhysicsDesc, HashMap<Handle<Node>, RigidBodyHandle>) {
-        let mut body_map = HashMap::new();
+        let mut editor_body_handle_to_engine_map = BiDirHashMap::default();
+        let mut engine_body_handle_rapier_map = BiDirHashMap::default();
+        for (i, (handle, _)) in self.bodies.pair_iter().enumerate() {
+            let engine_handle = self
+                .body_handle_map
+                .get(&handle)
+                // Use existing handle or generate new for new object.
+                .map_or_else(
+                    || RigidBodyHandle::from(Uuid::new_v4()),
+                    |existing| existing.clone(),
+                );
+            engine_body_handle_rapier_map.insert(
+                engine_handle,
+                // Rapier3D handle will become just a simple index.
+                rg3d::physics::dynamics::RigidBodyHandle::from_raw_parts(i, 0),
+            );
+            editor_body_handle_to_engine_map.insert(handle, engine_handle);
+        }
 
         let mut bodies: Vec<RigidBodyDesc<ColliderHandle>> = self
             .bodies
             .pair_iter()
-            .enumerate()
-            .map(|(i, (h, r))| {
-                // Sparse to dense mapping.
-                let dense_handle = RigidBodyHandle::from(Index::from_raw_parts(i, 0));
-                body_map.insert(h, dense_handle);
+            .map(|(_, r)| {
                 RigidBodyDesc {
                     position: r.position,
                     rotation: r.rotation,
@@ -158,20 +215,35 @@ impl Physics {
             })
             .collect::<Vec<_>>();
 
-        let mut collider_map = HashMap::new();
+        let mut editor_collider_handle_to_engine_map = HashMap::new();
+        let mut engine_collider_handle_rapier_map = BiDirHashMap::default();
+        for (i, (handle, _)) in self.colliders.pair_iter().enumerate() {
+            let engine_handle = self
+                .collider_handle_map
+                .get(&handle)
+                // Use existing handle or generate new for new object.
+                .map_or_else(
+                    || ColliderHandle::from(Uuid::new_v4()),
+                    |existing| existing.clone(),
+                );
+            engine_collider_handle_rapier_map.insert(
+                engine_handle,
+                // Rapier3D handle will become just a simple index.
+                rg3d::physics::geometry::ColliderHandle::from_raw_parts(i, 0),
+            );
+            editor_collider_handle_to_engine_map.insert(handle, engine_handle);
+        }
 
         let colliders = self
             .colliders
             .pair_iter()
-            .enumerate()
-            .map(|(i, (h, c))| {
-                // Sparse to dense mapping.
-                let dense_handle = ColliderHandle::from(Index::from_raw_parts(i, 0));
-                collider_map.insert(h, dense_handle);
+            .map(|(h, c)| {
                 ColliderDesc {
                     shape: c.shape,
                     // Remap from sparse handle to dense.
-                    parent: *body_map.get(&c.parent.into()).unwrap(),
+                    parent: *editor_body_handle_to_engine_map
+                        .value_of(&c.parent.into())
+                        .unwrap(),
                     friction: c.friction,
                     density: c.density,
                     restitution: c.restitution,
@@ -185,27 +257,58 @@ impl Physics {
             .collect();
 
         // Find colliders for each remapped body.
-        for (&sparse_handle, &dense_handle) in body_map.iter() {
-            let body = &self.bodies[sparse_handle];
-            bodies[dense_handle.0.into_raw_parts().0].colliders = body
+        for (engine_handle, &dense_handle) in engine_body_handle_rapier_map.forward_map().iter() {
+            let editor_handle = editor_body_handle_to_engine_map
+                .key_of(engine_handle)
+                .cloned()
+                .unwrap();
+            let body = &self.bodies[editor_handle];
+            bodies[dense_handle.into_raw_parts().0].colliders = body
                 .colliders
                 .iter()
-                .map(|&collider_sparse| *collider_map.get(&collider_sparse.into()).unwrap())
+                .map(|&collider_sparse| {
+                    *editor_collider_handle_to_engine_map
+                        .get(&collider_sparse.into())
+                        .unwrap()
+                })
                 .collect();
         }
 
         let mut binder = HashMap::new();
 
         for (&node, body) in self.binder.forward_map().iter() {
-            binder.insert(node, *body_map.get(body).unwrap());
+            binder.insert(
+                node,
+                *editor_body_handle_to_engine_map.value_of(body).unwrap(),
+            );
         }
 
+        let mut engine_joint_handle_rapier_map = BiDirHashMap::default();
+        for (i, (handle, _)) in self.joints.pair_iter().enumerate() {
+            let engine_handle = self
+                .joint_handle_map
+                .get(&handle)
+                // Use existing handle or generate new for new object.
+                .map_or_else(
+                    || JointHandle::from(Uuid::new_v4()),
+                    |existing| existing.clone(),
+                );
+            engine_joint_handle_rapier_map.insert(
+                engine_handle,
+                // Rapier3D handle will become just a simple index.
+                rg3d::physics::dynamics::JointHandle::from_raw_parts(i, 0),
+            );
+        }
         let joints = self
             .joints
             .iter()
             .map(|j| JointDesc {
-                body1: *body_map.get(&j.body1.into()).unwrap(),
-                body2: *body_map.get(&j.body2.into()).unwrap(),
+                body1: *editor_body_handle_to_engine_map
+                    .value_of(&j.body1.into())
+                    .unwrap(),
+                body2: *editor_body_handle_to_engine_map
+                    .value_of(&j.body2.into())
+                    .unwrap(),
                 params: j.params.clone(),
             })
             .collect();
@@ -215,7 +318,11 @@ impl Physics {
                 colliders,
                 bodies,
                 joints,
-                ..Default::default()
+                body_handle_map: engine_body_handle_rapier_map,
+                collider_handle_map: engine_collider_handle_rapier_map,
+                joint_handle_map: engine_joint_handle_rapier_map,
+                gravity: Default::default(),
+                integration_parameters: Default::default(),
             },
             binder,
         )
