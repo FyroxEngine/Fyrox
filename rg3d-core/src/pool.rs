@@ -93,12 +93,27 @@ impl<T> From<Handle<T>> for ErasedHandle {
     }
 }
 
+impl Visit for ErasedHandle {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.index.visit("Index", visitor)?;
+        self.generation.visit("Generation", visitor)?;
+
+        visitor.leave_region()
+    }
+}
+
 impl ErasedHandle {
     pub fn none() -> Self {
-        ErasedHandle {
+        Self {
             index: 0,
             generation: INVALID_GENERATION,
         }
+    }
+
+    pub fn new(index: u32, generation: u32) -> Self {
+        Self { index, generation }
     }
 
     #[inline(always)]

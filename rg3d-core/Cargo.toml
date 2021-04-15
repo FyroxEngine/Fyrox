@@ -17,6 +17,7 @@ memoffset = "0.6.1"
 lazy_static = "1.4.0"
 nalgebra = "0.25.3"
 arrayvec = "0.5.2"
+uuid = { version = "0.8.2", features = ["v4"] }
 
 [features]
 enable_profiler = []

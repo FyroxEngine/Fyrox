@@ -501,7 +501,7 @@ impl Player {
                 ))
                 .build(),
         );
-        scene.physics.add_collider(capsule, body);
+        scene.physics.add_collider(capsule, &body);
 
         scene.physics_binder.bind(pivot, body.into());
 
@@ -567,23 +567,7 @@ impl Player {
             .unwrap_or(Vector3::default());
         let is_moving = velocity.norm_squared() > 0.0;
 
-        let body = scene.physics.bodies.get_mut(self.body.into()).unwrap();
-
-        let mut has_ground_contact = false;
-        if let Some(iterator) = scene
-            .physics
-            .narrow_phase
-            .contacts_with(body.colliders()[0])
-        {
-            'outer_loop: for (_, _, contact) in iterator {
-                for manifold in contact.manifolds.iter() {
-                    if manifold.local_n1.y > 0.7 {
-                        has_ground_contact = true;
-                        break 'outer_loop;
-                    }
-                }
-            }
-        }
+        let body = scene.physics.body_mut(&self.body).unwrap();
 
         let mut new_y_vel = None;
         while let Some(event) = scene
@@ -665,6 +649,19 @@ impl Player {
                 &Vector3::x_axis(),
                 self.controller.pitch,
             ));
+
+        let collider = body.colliders()[0];
+        let mut has_ground_contact = false;
+        if let Some(iterator) = scene.physics.narrow_phase.contacts_with(collider) {
+            'outer_loop: for (_, _, contact) in iterator {
+                for manifold in contact.manifolds.iter() {
+                    if manifold.local_n1.y > 0.7 {
+                        has_ground_contact = true;
+                        break 'outer_loop;
+                    }
+                }
+            }
+        }
 
         if has_ground_contact && self.controller.jump {
             // Rewind jump animation to beginning before jump.

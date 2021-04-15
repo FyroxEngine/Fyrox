@@ -28,6 +28,7 @@ use std::{
     string::FromUtf8Error,
     sync::{Arc, Mutex, RwLock},
 };
+use uuid::Uuid;
 
 pub enum FieldKind {
     Bool(bool),
@@ -48,6 +49,7 @@ pub enum FieldKind {
     Matrix3(Matrix3<f32>),
     Vector2(Vector2<f32>),
     Vector4(Vector4<f32>),
+    Uuid(Uuid),
 }
 
 impl FieldKind {
@@ -93,6 +95,7 @@ impl FieldKind {
             Self::Vector4(data) => {
                 format!("<vec4 = {}; {}; {}; {}>, ", data.x, data.y, data.z, data.w)
             }
+            Self::Uuid(uuid) => uuid.to_string(),
         }
     }
 }
@@ -148,6 +151,7 @@ impl_field_data!(bool, FieldKind::Bool);
 impl_field_data!(Matrix3<f32>, FieldKind::Matrix3);
 impl_field_data!(Vector2<f32>, FieldKind::Vector2);
 impl_field_data!(Vector4<f32>, FieldKind::Vector4);
+impl_field_data!(Uuid, FieldKind::Uuid);
 
 impl<'a> Visit for Data<'a> {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
@@ -359,6 +363,10 @@ impl Field {
                 file.write_f32::<LittleEndian>(data.z)?;
                 file.write_f32::<LittleEndian>(data.w)?;
             }
+            FieldKind::Uuid(uuid) => {
+                file.write_u8(19)?;
+                file.write_all(uuid.as_bytes())?;
+            }
         }
         Ok(())
     }
@@ -428,6 +436,11 @@ impl Field {
                     let z = file.read_f32::<LittleEndian>()?;
                     let w = file.read_f32::<LittleEndian>()?;
                     Vector4::new(x, y, z, w)
+                }),
+                19 => FieldKind::Uuid({
+                    let mut bytes = uuid::Bytes::default();
+                    file.read_exact(&mut bytes)?;
+                    Uuid::from_bytes(bytes)
                 }),
                 _ => return Err(VisitError::UnknownFieldType(id)),
             },

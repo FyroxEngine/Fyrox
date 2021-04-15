@@ -5,8 +5,10 @@ use crate::{
         arrayvec::{Array, ArrayVec},
         color::Color,
         math::{aabb::AxisAlignedBoundingBox, ray::Ray},
-        pool::Handle,
+        pool::{ErasedHandle, Handle},
+        uuid::Uuid,
         visitor::{Visit, VisitResult, Visitor},
+        BiDirHashMap,
     },
     physics::math::AngVector,
     resource::model::Model,
@@ -19,11 +21,10 @@ use crate::{
         raw_mesh::{RawMeshBuilder, RawVertex},
     },
 };
-use rapier3d::dynamics::CCDSolver;
 use rapier3d::{
     dynamics::{
-        BallJoint, BodyStatus, FixedJoint, IntegrationParameters, Joint, JointParams, JointSet,
-        PrismaticJoint, RevoluteJoint, RigidBody, RigidBodyBuilder, RigidBodySet,
+        BallJoint, BodyStatus, CCDSolver, FixedJoint, IntegrationParameters, Joint, JointParams,
+        JointSet, PrismaticJoint, RevoluteJoint, RigidBody, RigidBodyBuilder, RigidBodySet,
     },
     geometry::{
         BroadPhase, Collider, ColliderBuilder, ColliderSet, InteractionGroups, NarrowPhase,
@@ -36,14 +37,13 @@ use rapier3d::{
     parry::shape::{FeatureId, SharedShape, TriMesh},
     pipeline::{EventHandler, PhysicsPipeline, QueryPipeline},
 };
-use std::cell::Cell;
-use std::fmt::Display;
-use std::time::Duration;
 use std::{
-    cell::RefCell,
+    cell::{Cell, RefCell},
     cmp::Ordering,
     collections::HashMap,
-    fmt::{Debug, Formatter},
+    fmt::{Debug, Display, Formatter},
+    hash::Hash,
+    time::Duration,
 };
 
 /// A ray intersection result.
@@ -109,7 +109,7 @@ impl Visit for ResourceLink {
 /// Physics world.
 pub struct Physics {
     /// Current physics pipeline.
-    pub pipeline: PhysicsPipeline,
+    pipeline: PhysicsPipeline,
     /// Current gravity vector. Default is (0.0, -9.81, 0.0)
     pub gravity: Vector3<f32>,
     /// A set of parameters that define behavior of every rigid body.
@@ -122,13 +122,13 @@ pub struct Physics {
     pub ccd_solver: CCDSolver,
 
     /// A set of rigid bodies.
-    pub bodies: RigidBodySet,
+    bodies: RigidBodySet,
 
     /// A set of colliders.
-    pub colliders: ColliderSet,
+    colliders: ColliderSet,
 
     /// A set of joints.
-    pub joints: JointSet,
+    joints: JointSet,
 
     /// Event handler collects info about contacts and proximity events.
     pub event_handler: Box<dyn EventHandler>,
@@ -149,6 +149,12 @@ pub struct Physics {
     query: RefCell<QueryPipeline>,
 
     pub(in crate) performance_statistics: PhysicsPerformanceStatistics,
+
+    body_handle_map: BiDirHashMap<RigidBodyHandle, rapier3d::dynamics::RigidBodyHandle>,
+
+    collider_handle_map: BiDirHashMap<ColliderHandle, rapier3d::geometry::ColliderHandle>,
+
+    joint_handle_map: BiDirHashMap<JointHandle, rapier3d::dynamics::JointHandle>,
 }
 
 impl Debug for Physics {
@@ -257,6 +263,9 @@ impl Physics {
             desc: Default::default(),
             embedded_resources: Default::default(),
             performance_statistics: Default::default(),
+            body_handle_map: Default::default(),
+            collider_handle_map: Default::default(),
+            joint_handle_map: Default::default(),
         }
     }
 
@@ -356,6 +365,88 @@ impl Physics {
         }
     }
 
+    /// TODO
+    pub fn bodies(&self) -> &RigidBodySet {
+        &self.bodies
+    }
+
+    /// TODO
+    pub fn colliders(&self) -> &ColliderSet {
+        &self.colliders
+    }
+
+    /// TODO
+    pub fn joints(&self) -> &JointSet {
+        &self.joints
+    }
+
+    /// TODO
+    pub fn body_mut(&mut self, handle: &RigidBodyHandle) -> Option<&mut RigidBody> {
+        let bodies = &mut self.bodies;
+        self.body_handle_map
+            .value_of(handle)
+            .and_then(move |&h| bodies.get_mut(h))
+    }
+
+    /// TODO
+    pub fn body(&self, handle: &RigidBodyHandle) -> Option<&RigidBody> {
+        let bodies = &self.bodies;
+        self.body_handle_map
+            .value_of(handle)
+            .and_then(move |&h| bodies.get(h))
+    }
+
+    /// TODO
+    pub fn contains_body(&self, handle: &RigidBodyHandle) -> bool {
+        self.body(handle).is_some()
+    }
+
+    /// TODO
+    pub fn collider_mut(&mut self, handle: &ColliderHandle) -> Option<&mut Collider> {
+        let colliders = &mut self.colliders;
+        self.collider_handle_map
+            .value_of(handle)
+            .and_then(move |&h| colliders.get_mut(h))
+    }
+
+    /// TODO
+    pub fn collider(&self, handle: &ColliderHandle) -> Option<&Collider> {
+        let colliders = &self.colliders;
+        self.collider_handle_map
+            .value_of(handle)
+            .and_then(|&h| colliders.get(h))
+    }
+
+    /// TODO
+    pub fn contains_collider(&self, handle: &ColliderHandle) -> bool {
+        self.collider(handle).is_some()
+    }
+
+    /// TODO
+    pub fn body_handle_map(
+        &self,
+    ) -> &BiDirHashMap<RigidBodyHandle, rapier3d::dynamics::RigidBodyHandle> {
+        &self.body_handle_map
+    }
+
+    /// TODO
+    pub fn collider_handle_map(
+        &self,
+    ) -> &BiDirHashMap<ColliderHandle, rapier3d::geometry::ColliderHandle> {
+        &self.collider_handle_map
+    }
+
+    /// TODO
+    pub fn joint_handle_map(&self) -> &BiDirHashMap<JointHandle, rapier3d::dynamics::JointHandle> {
+        &self.joint_handle_map
+    }
+
+    /// TODO
+    pub fn collider_parent(&self, collider: &ColliderHandle) -> Option<&RigidBodyHandle> {
+        self.collider(collider)
+            .and_then(|c| self.body_handle_map.key_of(&c.parent()))
+    }
+
     pub(in crate) fn step(&mut self) {
         let time = std::time::Instant::now();
 
@@ -377,19 +468,55 @@ impl Physics {
 
     #[doc(hidden)]
     pub fn generate_desc(&self) -> PhysicsDesc {
+        let body_dense_map = self
+            .bodies
+            .iter()
+            .enumerate()
+            .map(|(i, (h, _))| (h, rapier3d::dynamics::RigidBodyHandle::from_raw_parts(i, 0)))
+            .collect::<HashMap<_, _>>();
+
+        let mut body_handle_map = BiDirHashMap::default();
+        for (engine_handle, rapier_handle) in self.body_handle_map.forward_map() {
+            body_handle_map.insert(engine_handle.clone(), body_dense_map[rapier_handle]);
+        }
+
+        let collider_dense_map = self
+            .colliders
+            .iter()
+            .enumerate()
+            .map(|(i, (h, _))| (h, rapier3d::geometry::ColliderHandle::from_raw_parts(i, 0)))
+            .collect::<HashMap<_, _>>();
+
+        let mut collider_handle_map = BiDirHashMap::default();
+        for (engine_handle, rapier_handle) in self.collider_handle_map.forward_map() {
+            collider_handle_map.insert(engine_handle.clone(), collider_dense_map[rapier_handle]);
+        }
+
+        let joint_dense_map = self
+            .joints
+            .iter()
+            .enumerate()
+            .map(|(i, (h, _))| (h, rapier3d::dynamics::JointHandle::from_raw_parts(i, 0)))
+            .collect::<HashMap<_, _>>();
+
+        let mut joint_handle_map = BiDirHashMap::default();
+        for (engine_handle, rapier_handle) in self.joint_handle_map.forward_map() {
+            joint_handle_map.insert(engine_handle.clone(), joint_dense_map[rapier_handle]);
+        }
+
         PhysicsDesc {
             integration_parameters: self.integration_parameters.clone().into(),
 
             bodies: self
                 .bodies
                 .iter()
-                .map(|(_, b)| RigidBodyDesc::from_body(b))
+                .map(|(_, b)| RigidBodyDesc::from_body(b, &self.collider_handle_map))
                 .collect::<Vec<_>>(),
 
             colliders: self
                 .colliders
                 .iter()
-                .map(|(_, c)| ColliderDesc::from_collider(c))
+                .map(|(_, c)| ColliderDesc::from_collider(c, &self.body_handle_map))
                 .collect::<Vec<_>>(),
 
             gravity: self.gravity,
@@ -397,8 +524,12 @@ impl Physics {
             joints: self
                 .joints
                 .iter()
-                .map(|(_, j)| JointDesc::from_joint(j))
+                .map(|(_, j)| JointDesc::from_joint(j, &self.body_handle_map))
                 .collect::<Vec<_>>(),
+
+            body_handle_map,
+            collider_handle_map,
+            joint_handle_map,
         }
     }
 
@@ -510,9 +641,9 @@ impl Physics {
                 },
             })
             .build();
-        let handle = self.bodies.insert(body);
-        self.colliders.insert(tri_mesh, handle, &mut self.bodies);
-        handle.into()
+        let handle = self.add_body(body);
+        self.add_collider(tri_mesh, &handle);
+        handle
     }
 
     /// Casts a ray with given options.
@@ -545,7 +676,7 @@ impl Physics {
             None, // TODO
             |handle, _, intersection| {
                 query_buffer.push(Intersection {
-                    collider: handle.into(),
+                    collider: self.collider_handle_map.key_of(&handle).cloned().unwrap(),
                     normal: intersection.normal,
                     position: ray.point_at(intersection.toi),
                     feature: intersection.feature,
@@ -577,6 +708,10 @@ impl Physics {
 
         let mut phys_desc = self.desc.take().unwrap();
 
+        self.body_handle_map = phys_desc.body_handle_map;
+        self.collider_handle_map = phys_desc.collider_handle_map;
+        self.joint_handle_map = phys_desc.joint_handle_map;
+
         self.integration_parameters = phys_desc.integration_parameters.into();
 
         for desc in phys_desc.bodies.drain(..) {
@@ -593,8 +728,14 @@ impl Physics {
                         let collider =
                             ColliderBuilder::new(Self::make_trimesh(associated_node, graph))
                                 .build();
-                        self.colliders
-                            .insert(collider, desc.parent.into(), &mut self.bodies);
+                        self.colliders.insert(
+                            collider,
+                            self.body_handle_map
+                                .value_of(&desc.parent)
+                                .cloned()
+                                .unwrap(),
+                            &mut self.bodies,
+                        );
 
                         Log::writeln(
                             MessageKind::Information,
@@ -609,18 +750,26 @@ impl Physics {
                 }
             } else {
                 let (collider, parent) = desc.convert_to_collider();
-                self.colliders
-                    .insert(collider, parent.into(), &mut self.bodies);
+                self.colliders.insert(
+                    collider,
+                    self.body_handle_map.value_of(&parent).cloned().unwrap(),
+                    &mut self.bodies,
+                );
             }
         }
 
         for desc in phys_desc.joints.drain(..) {
-            self.joints.insert(
-                &mut self.bodies,
-                desc.body1.into(),
-                desc.body2.into(),
-                desc.params,
-            );
+            let b1 = self
+                .body_handle_map()
+                .value_of(&desc.body1)
+                .cloned()
+                .unwrap();
+            let b2 = self
+                .body_handle_map()
+                .value_of(&desc.body2)
+                .cloned()
+                .unwrap();
+            self.joints.insert(&mut self.bodies, b1, b2, desc.params);
         }
     }
 
@@ -639,11 +788,20 @@ impl Physics {
 
         // Instantiate rigid bodies.
         for (resource_handle, body) in resource_physics.bodies.iter() {
-            let desc = RigidBodyDesc::<ColliderHandle>::from_body(body);
-            let new_handle = self.bodies.insert(desc.convert_to_body());
+            let desc = RigidBodyDesc::<ColliderHandle>::from_body(
+                body,
+                &resource_physics.collider_handle_map,
+            );
+            let new_handle = self.add_body(desc.convert_to_body());
 
-            link.bodies
-                .insert(resource_handle.into(), new_handle.into());
+            link.bodies.insert(
+                resource_physics
+                    .body_handle_map
+                    .key_of(&resource_handle)
+                    .cloned()
+                    .unwrap(),
+                new_handle,
+            );
         }
 
         // Bind instantiated nodes with their respective rigid bodies from resource.
@@ -655,7 +813,7 @@ impl Physics {
 
         // Instantiate colliders.
         for (resource_handle, collider) in resource_physics.colliders.iter() {
-            let desc = ColliderDesc::from_collider(collider);
+            let desc = ColliderDesc::from_collider(collider, &resource_physics.body_handle_map);
             // Remap handle from resource to one that was created above.
             let remapped_parent = *link.bodies.get(&desc.parent).unwrap();
             if let (ColliderShapeDesc::Trimesh(_), Some(associated_node)) =
@@ -666,11 +824,15 @@ impl Physics {
                     let collider =
                         ColliderBuilder::new(Self::make_trimesh(associated_node, target_graph))
                             .build();
-                    let new_handle =
-                        self.colliders
-                            .insert(collider, remapped_parent.into(), &mut self.bodies);
-                    link.colliders
-                        .insert(new_handle.into(), resource_handle.into());
+                    let new_handle = self.add_collider(collider, &remapped_parent);
+                    link.colliders.insert(
+                        new_handle,
+                        resource_physics
+                            .collider_handle_map
+                            .key_of(&resource_handle)
+                            .cloned()
+                            .unwrap(),
+                    );
 
                     Log::writeln(
                         MessageKind::Information,
@@ -684,27 +846,38 @@ impl Physics {
                 }
             } else {
                 let (new_collider, _) = desc.convert_to_collider();
-                let new_handle =
-                    self.colliders
-                        .insert(new_collider, remapped_parent.into(), &mut self.bodies);
-                link.colliders
-                    .insert(resource_handle.into(), new_handle.into());
+                let new_handle = self.add_collider(new_collider, &remapped_parent);
+                link.colliders.insert(
+                    resource_physics
+                        .collider_handle_map
+                        .key_of(&resource_handle)
+                        .cloned()
+                        .unwrap(),
+                    new_handle.into(),
+                );
             }
         }
 
         // Instantiate joints.
         for (resource_handle, joint) in resource_physics.joints.iter() {
-            let desc = JointDesc::<RigidBodyHandle>::from_joint(joint);
-            let new_body1_handle = *link.bodies.get(&joint.body1.into()).unwrap();
-            let new_body2_handle = *link.bodies.get(&joint.body2.into()).unwrap();
-            let new_handle = self.joints.insert(
-                &mut self.bodies,
-                new_body1_handle.into(),
-                new_body2_handle.into(),
-                desc.params,
+            let desc =
+                JointDesc::<RigidBodyHandle>::from_joint(joint, &resource_physics.body_handle_map);
+            let new_body1_handle = link
+                .bodies
+                .get(self.body_handle_map.key_of(&joint.body1).unwrap())
+                .unwrap();
+            let new_body2_handle = link
+                .bodies
+                .get(self.body_handle_map.key_of(&joint.body2).unwrap())
+                .unwrap();
+            let new_handle = self.add_joint(new_body1_handle, new_body2_handle, desc.params);
+            link.joints.insert(
+                *resource_physics
+                    .joint_handle_map
+                    .key_of(&resource_handle)
+                    .unwrap(),
+                new_handle.into(),
             );
-            link.joints
-                .insert(resource_handle.into(), new_handle.into());
         }
 
         self.embedded_resources.push(link);
@@ -720,51 +893,89 @@ impl Physics {
 
     /// Adds new rigid body.
     pub fn add_body(&mut self, rigid_body: RigidBody) -> RigidBodyHandle {
-        self.bodies.insert(rigid_body).into()
+        let handle = self.bodies.insert(rigid_body);
+        let id = RigidBodyHandle::from(Uuid::new_v4());
+        self.body_handle_map.insert(id, handle);
+        id
     }
 
     /// Removes a rigid body.
-    pub fn remove_body(&mut self, rigid_body: RigidBodyHandle) -> Option<RigidBody> {
-        self.bodies
-            .remove(rigid_body.into(), &mut self.colliders, &mut self.joints)
+    pub fn remove_body(&mut self, rigid_body: &RigidBodyHandle) -> Option<RigidBody> {
+        let bodies = &mut self.bodies;
+        let colliders = &mut self.colliders;
+        let joints = &mut self.joints;
+        let result = self
+            .body_handle_map
+            .value_of(rigid_body)
+            .and_then(|&h| bodies.remove(h, colliders, joints));
+        if let Some(body) = result.as_ref() {
+            for collider in body.colliders() {
+                self.collider_handle_map.remove_by_value(collider);
+            }
+            self.body_handle_map.remove_by_key(rigid_body);
+        }
+        result
     }
 
     /// Adds new collider.
     pub fn add_collider(
         &mut self,
         collider: Collider,
-        rigid_body: RigidBodyHandle,
+        rigid_body: &RigidBodyHandle,
     ) -> ColliderHandle {
-        self.colliders
-            .insert(collider, rigid_body.into(), &mut self.bodies)
-            .into()
+        let handle = self.colliders.insert(
+            collider,
+            *self.body_handle_map.value_of(rigid_body).unwrap(),
+            &mut self.bodies,
+        );
+        let id = ColliderHandle::from(Uuid::new_v4());
+        self.collider_handle_map.insert(id, handle);
+        id
     }
 
     /// Removes a collider.
-    pub fn remove_collider(&mut self, collider_handle: ColliderHandle) -> Option<Collider> {
-        self.colliders
-            .remove(collider_handle.into(), &mut self.bodies, true)
+    pub fn remove_collider(&mut self, collider_handle: &ColliderHandle) -> Option<Collider> {
+        let bodies = &mut self.bodies;
+        let colliders = &mut self.colliders;
+        let result = self
+            .collider_handle_map
+            .value_of(collider_handle)
+            .and_then(|&h| colliders.remove(h, bodies, true));
+        self.collider_handle_map.remove_by_key(collider_handle);
+        result
     }
 
     /// Adds new joint.
     pub fn add_joint<J>(
         &mut self,
-        body1: RigidBodyHandle,
-        body2: RigidBodyHandle,
+        body1: &RigidBodyHandle,
+        body2: &RigidBodyHandle,
         joint_params: J,
     ) -> JointHandle
     where
         J: Into<JointParams>,
     {
-        self.joints
-            .insert(&mut self.bodies, body1.into(), body2.into(), joint_params)
-            .into()
+        let handle = self.joints.insert(
+            &mut self.bodies,
+            *self.body_handle_map.value_of(body1).unwrap(),
+            *self.body_handle_map.value_of(body2).unwrap(),
+            joint_params,
+        );
+        let id = JointHandle::from(Uuid::new_v4());
+        self.joint_handle_map.insert(id, handle);
+        id
     }
 
     /// Removes a joint.
-    pub fn remove_joint(&mut self, joint_handle: JointHandle, wake_up: bool) -> Option<Joint> {
-        self.joints
-            .remove(joint_handle.into(), &mut self.bodies, wake_up)
+    pub fn remove_joint(&mut self, joint_handle: &JointHandle, wake_up: bool) -> Option<Joint> {
+        let bodies = &mut self.bodies;
+        let joints = &mut self.joints;
+        let result = self
+            .joint_handle_map
+            .value_of(joint_handle)
+            .and_then(|&h| joints.remove(h, bodies, wake_up));
+        self.joint_handle_map.remove_by_key(joint_handle);
+        result
     }
 }
 
@@ -865,9 +1076,12 @@ impl<C> Default for RigidBodyDesc<C> {
     }
 }
 
-impl<C: From<rapier3d::geometry::ColliderHandle>> RigidBodyDesc<C> {
+impl<C: Hash + Clone + Eq> RigidBodyDesc<C> {
     #[doc(hidden)]
-    pub fn from_body(body: &RigidBody) -> Self {
+    pub fn from_body(
+        body: &RigidBody,
+        handle_map: &BiDirHashMap<C, rapier3d::geometry::ColliderHandle>,
+    ) -> Self {
         let rotation_locked = body.is_rotation_locked();
         Self {
             position: body.position().translation.vector,
@@ -876,7 +1090,11 @@ impl<C: From<rapier3d::geometry::ColliderHandle>> RigidBodyDesc<C> {
             angvel: *body.angvel(),
             status: body.body_status().into(),
             sleeping: body.is_sleeping(),
-            colliders: body.colliders().iter().map(|&c| C::from(c)).collect(),
+            colliders: body
+                .colliders()
+                .iter()
+                .map(|c| handle_map.key_of(c).cloned().unwrap())
+                .collect(),
             mass: body.mass(),
             x_rotation_locked: rotation_locked[0],
             y_rotation_locked: rotation_locked[1],
@@ -1331,11 +1549,14 @@ impl<R: Default> Default for ColliderDesc<R> {
     }
 }
 
-impl<R: From<rapier3d::dynamics::RigidBodyHandle>> ColliderDesc<R> {
-    fn from_collider(collider: &Collider) -> Self {
+impl<R: Hash + Clone + Eq> ColliderDesc<R> {
+    fn from_collider(
+        collider: &Collider,
+        handle_map: &BiDirHashMap<R, rapier3d::dynamics::RigidBodyHandle>,
+    ) -> Self {
         Self {
             shape: ColliderShapeDesc::from_collider_shape(collider.shape()),
-            parent: R::from(collider.parent()),
+            parent: handle_map.key_of(&collider.parent()).cloned().unwrap(),
             friction: collider.friction,
             density: collider.density(),
             restitution: collider.restitution,
@@ -1759,12 +1980,15 @@ pub struct JointDesc<R> {
     pub params: JointParamsDesc,
 }
 
-impl<R: From<rapier3d::dynamics::RigidBodyHandle>> JointDesc<R> {
+impl<R: Hash + Clone + Eq> JointDesc<R> {
     #[doc(hidden)]
-    pub fn from_joint(joint: &Joint) -> Self {
+    pub fn from_joint(
+        joint: &Joint,
+        handle_map: &BiDirHashMap<R, rapier3d::dynamics::RigidBodyHandle>,
+    ) -> Self {
         Self {
-            body1: R::from(joint.body1),
-            body2: R::from(joint.body2),
+            body1: handle_map.key_of(&joint.body1).cloned().unwrap(),
+            body2: handle_map.key_of(&joint.body2).cloned().unwrap(),
             params: JointParamsDesc::from_params(&joint.params),
         }
     }
@@ -1790,6 +2014,9 @@ pub struct PhysicsDesc {
     pub bodies: Vec<RigidBodyDesc<ColliderHandle>>,
     pub gravity: Vector3<f32>,
     pub joints: Vec<JointDesc<RigidBodyHandle>>,
+    pub body_handle_map: BiDirHashMap<RigidBodyHandle, rapier3d::dynamics::RigidBodyHandle>,
+    pub collider_handle_map: BiDirHashMap<ColliderHandle, rapier3d::geometry::ColliderHandle>,
+    pub joint_handle_map: BiDirHashMap<JointHandle, rapier3d::dynamics::JointHandle>,
 }
 
 impl Visit for PhysicsDesc {
@@ -1802,6 +2029,130 @@ impl Visit for PhysicsDesc {
         self.colliders.visit("Colliders", visitor)?;
         self.bodies.visit("Bodies", visitor)?;
         let _ = self.joints.visit("Joints", visitor);
+
+        // TODO: Refactor duplicates here.
+        {
+            let mut body_handle_map = if visitor.is_reading() {
+                Default::default()
+            } else {
+                let mut hash_map: HashMap<RigidBodyHandle, ErasedHandle> = Default::default();
+                for (k, v) in self.body_handle_map.forward_map().iter() {
+                    let (index, gen) = v.into_raw_parts();
+                    hash_map.insert(*k, ErasedHandle::new(index as u32, gen as u32));
+                }
+                hash_map
+            };
+            if body_handle_map.visit("BodyHandleMap", visitor).is_err() {
+                body_handle_map = (0..self.bodies.len())
+                    .map(|i| {
+                        let bytes = unsafe { std::mem::transmute::<_, [u8; 16]>([i as u64, 0u64]) };
+                        (
+                            RigidBodyHandle::from(Uuid::from_bytes(bytes)),
+                            ErasedHandle::new(i as u32, 0),
+                        )
+                    })
+                    .collect();
+            }
+            if visitor.is_reading() {
+                self.body_handle_map = BiDirHashMap::from(
+                    body_handle_map
+                        .iter()
+                        .map(|(k, v)| {
+                            (
+                                *k,
+                                rapier3d::dynamics::RigidBodyHandle::from_raw_parts(
+                                    v.index() as usize,
+                                    v.generation() as u64,
+                                ),
+                            )
+                        })
+                        .collect::<HashMap<_, _>>(),
+                );
+            }
+        }
+
+        {
+            let mut collider_handle_map = if visitor.is_reading() {
+                Default::default()
+            } else {
+                let mut hash_map: HashMap<ColliderHandle, ErasedHandle> = Default::default();
+                for (k, v) in self.collider_handle_map.forward_map().iter() {
+                    let (index, gen) = v.into_raw_parts();
+                    hash_map.insert(*k, ErasedHandle::new(index as u32, gen as u32));
+                }
+                hash_map
+            };
+            if collider_handle_map
+                .visit("ColliderHandleMap", visitor)
+                .is_err()
+            {
+                collider_handle_map = (0..self.colliders.len())
+                    .map(|i| {
+                        let bytes = unsafe { std::mem::transmute::<_, [u8; 16]>([i as u64, 0u64]) };
+                        (
+                            ColliderHandle::from(Uuid::from_bytes(bytes)),
+                            ErasedHandle::new(i as u32, 0),
+                        )
+                    })
+                    .collect();
+            }
+            if visitor.is_reading() {
+                self.collider_handle_map = BiDirHashMap::from(
+                    collider_handle_map
+                        .iter()
+                        .map(|(k, v)| {
+                            (
+                                *k,
+                                rapier3d::geometry::ColliderHandle::from_raw_parts(
+                                    v.index() as usize,
+                                    v.generation() as u64,
+                                ),
+                            )
+                        })
+                        .collect::<HashMap<_, _>>(),
+                );
+            }
+        }
+
+        {
+            let mut joint_handle_map = if visitor.is_reading() {
+                Default::default()
+            } else {
+                let mut hash_map: HashMap<JointHandle, ErasedHandle> = Default::default();
+                for (k, v) in self.joint_handle_map.forward_map().iter() {
+                    let (index, gen) = v.into_raw_parts();
+                    hash_map.insert(*k, ErasedHandle::new(index as u32, gen as u32));
+                }
+                hash_map
+            };
+            if joint_handle_map.visit("JointHandleMap", visitor).is_err() {
+                joint_handle_map = (0..self.joints.len())
+                    .map(|i| {
+                        let bytes = unsafe { std::mem::transmute::<_, [u8; 16]>([i as u64, 0u64]) };
+                        (
+                            JointHandle::from(Uuid::from_bytes(bytes)),
+                            ErasedHandle::new(i as u32, 0),
+                        )
+                    })
+                    .collect();
+            }
+            if visitor.is_reading() {
+                self.joint_handle_map = BiDirHashMap::from(
+                    joint_handle_map
+                        .iter()
+                        .map(|(k, v)| {
+                            (
+                                *k,
+                                rapier3d::dynamics::JointHandle::from_raw_parts(
+                                    v.index() as usize,
+                                    v.generation() as u64,
+                                ),
+                            )
+                        })
+                        .collect::<HashMap<_, _>>(),
+                );
+            }
+        }
 
         visitor.leave_region()
     }

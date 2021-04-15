@@ -41,59 +41,21 @@ use std::{
 };
 
 macro_rules! define_rapier_handle {
-    ($(#[$meta:meta])*, $type_name:ident, $dep_type:ty) => {
+    ($(#[$meta:meta])*, $type_name:ident) => {
         $(#[$meta])*
-        #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+        #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
         #[repr(transparent)]
-        pub struct $type_name(pub rapier3d::data::arena::Index);
+        pub struct $type_name(pub crate::core::uuid::Uuid);
 
-        impl From<$dep_type> for $type_name {
-            fn from(inner: $dep_type) -> Self {
-                let (index, generation) = inner.into_raw_parts();
-                Self(rapier3d::data::arena::Index::from_raw_parts(
-                    index, generation,
-                ))
-            }
-        }
-
-        impl From<rapier3d::data::arena::Index> for $type_name {
-            fn from(inner: rapier3d::data::arena::Index) -> Self {
+        impl From<crate::core::uuid::Uuid> for $type_name {
+            fn from(inner: crate::core::uuid::Uuid) -> Self {
                 Self(inner)
             }
         }
 
-        impl Into<$dep_type> for $type_name {
-            fn into(self) -> $dep_type {
-                let (index, generation) = self.0.into_raw_parts();
-                <$dep_type>::from_raw_parts(index, generation)
-            }
-        }
-
-        impl Into<rapier3d::data::arena::Index> for $type_name {
-            fn into(self) -> rapier3d::data::arena::Index {
-                let (index, generation) = self.0.into_raw_parts();
-                rapier3d::data::arena::Index::from_raw_parts(index, generation)
-            }
-        }
-
-        impl Default for $type_name {
-            fn default() -> Self {
-                Self(rapier3d::data::arena::Index::from_raw_parts(
-                    usize::max_value(),
-                    u64::max_value(),
-                ))
-            }
-        }
-
-        impl $type_name {
-            /// Checks if handle is invalid.
-            pub fn is_none(&self) -> bool {
-                *self == Default::default()
-            }
-
-            /// Checks if handle is valid.
-            pub fn is_some(&self) -> bool {
-                !self.is_none()
+        impl Into<crate::core::uuid::Uuid> for $type_name {
+            fn into(self) -> crate::core::uuid::Uuid {
+                self.0
             }
         }
 
@@ -101,15 +63,17 @@ macro_rules! define_rapier_handle {
             fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
                 visitor.enter_region(name)?;
 
-                let (index, mut generation) = self.0.into_raw_parts();
-                let mut index = index as u64;
+                if self.0.visit("Id", visitor).is_err() && visitor.is_reading() {
+                    // Backward compatibility.
+                    let mut generation: u64 = 0;
+                    let mut index: u64 = 0;
 
-                index.visit("Index", visitor)?;
-                generation.visit("Generation", visitor)?;
+                    index.visit("Index", visitor)?;
+                    generation.visit("Generation", visitor)?;
 
-                if visitor.is_reading() {
-                    self.0 =
-                        rapier3d::data::arena::Index::from_raw_parts(index as usize, generation);
+                    self.0 = crate::core::uuid::Uuid::from_bytes(
+                        unsafe { std::mem::transmute::<_, [u8;16]>([index, generation])}
+                    );
                 }
 
                 visitor.leave_region()
@@ -120,15 +84,15 @@ macro_rules! define_rapier_handle {
 
 define_rapier_handle!(
     #[doc="Rigid body handle wrapper."],
-    RigidBodyHandle, rapier3d::dynamics::RigidBodyHandle);
+    RigidBodyHandle);
 
 define_rapier_handle!(
     #[doc="Collider handle wrapper."],
-    ColliderHandle, rapier3d::geometry::ColliderHandle);
+    ColliderHandle);
 
 define_rapier_handle!(
     #[doc="Joint handle wrapper."],
-    JointHandle, rapier3d::dynamics::JointHandle);
+    JointHandle);
 
 /// Physics binder is used to link graph nodes with rigid bodies. Scene will
 /// sync transform of node with its associated rigid body.
@@ -188,8 +152,8 @@ impl PhysicsBinder {
 
     /// Returns handle of rigid body associated with given node. It will return
     /// Handle::NONE if given node isn't linked to a rigid body.
-    pub fn body_of(&self, node: Handle<Node>) -> Option<RigidBodyHandle> {
-        self.forward_map.get(&node).copied()
+    pub fn body_of(&self, node: Handle<Node>) -> Option<&RigidBodyHandle> {
+        self.forward_map.get(&node)
     }
 
     /// Tries to find a node for a given rigid body.
@@ -1292,14 +1256,14 @@ impl Scene {
         // Keep pair when node and body are both alive.
         let graph = &mut self.graph;
         let physics = &mut self.physics;
-        self.physics_binder.forward_map.retain(|node, body| {
-            graph.is_valid_handle(*node) && physics.bodies.contains(body.clone().into())
-        });
+        self.physics_binder
+            .forward_map
+            .retain(|node, body| graph.is_valid_handle(*node) && physics.contains_body(body));
 
         // Sync node positions with assigned physics bodies
         if self.physics_binder.enabled {
-            for (&node_handle, &body) in self.physics_binder.forward_map.iter() {
-                let body = physics.bodies.get_mut(body.into()).unwrap();
+            for (&node_handle, body) in self.physics_binder.forward_map.iter() {
+                let body = physics.body_mut(body).unwrap();
                 let node = &mut self.graph[node_handle];
                 match node.physics_binding {
                     PhysicsBinding::NodeWithBody => {
