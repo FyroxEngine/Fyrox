@@ -200,8 +200,8 @@ impl Visit for SpotLight {
         self.falloff_angle_delta
             .visit("FalloffAngleDelta", visitor)?;
         self.distance.visit("Distance", visitor)?;
-        let _ = self.shadow_bias.visit("ShadowBias", visitor);
-        let _ = self.cookie_texture.visit("CookieTexture", visitor);
+        self.shadow_bias.visit("ShadowBias", visitor)?;
+        self.cookie_texture.visit("CookieTexture", visitor)?;
 
         visitor.leave_region()
     }
@@ -363,7 +363,7 @@ impl Visit for PointLight {
 
         self.base_light.visit("BaseLight", visitor)?;
         self.radius.visit("Radius", visitor)?;
-        let _ = self.shadow_bias.visit("ShadowBias", visitor);
+        self.shadow_bias.visit("ShadowBias", visitor)?;
 
         visitor.leave_region()
     }

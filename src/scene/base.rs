@@ -500,11 +500,12 @@ impl Visit for Base {
             .visit("IsResourceInstance", visitor)?;
         self.lifetime.visit("Lifetime", visitor)?;
         self.depth_offset.visit("DepthOffset", visitor)?;
-        let _ = self.lod_group.visit("LodGroup", visitor);
-        let _ = self.mobility.visit("Mobility", visitor);
-        let _ = self.original_handle_in_resource.visit("Original", visitor);
-        let _ = self.tag.visit("Tag", visitor);
-        let _ = self.physics_binding.visit("PhysicsBinding", visitor);
+        self.lod_group.visit("LodGroup", visitor)?;
+        self.mobility.visit("Mobility", visitor)?;
+        self.original_handle_in_resource
+            .visit("Original", visitor)?;
+        self.tag.visit("Tag", visitor)?;
+        self.physics_binding.visit("PhysicsBinding", visitor)?;
 
         visitor.leave_region()
     }

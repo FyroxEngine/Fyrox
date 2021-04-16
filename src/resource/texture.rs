@@ -170,18 +170,15 @@ impl Visit for TextureData {
 
         self.path.visit("Path", visitor)?;
 
-        // Ignore results for backward compatibility.
-        let _ = self
-            .minification_filter
-            .visit("MinificationFilter", visitor);
-        let _ = self
-            .magnification_filter
-            .visit("MagnificationFilter", visitor);
-        let _ = self.anisotropy.visit("Anisotropy", visitor);
-        let _ = self.s_wrap_mode.visit("SWrapMode", visitor);
-        let _ = self.t_wrap_mode.visit("TWrapMode", visitor);
-        let _ = self.mip_count.visit("MipCount", visitor);
-        let _ = self.kind.visit("Kind", visitor);
+        self.minification_filter
+            .visit("MinificationFilter", visitor)?;
+        self.magnification_filter
+            .visit("MagnificationFilter", visitor)?;
+        self.anisotropy.visit("Anisotropy", visitor)?;
+        self.s_wrap_mode.visit("SWrapMode", visitor)?;
+        self.t_wrap_mode.visit("TWrapMode", visitor)?;
+        self.mip_count.visit("MipCount", visitor)?;
+        self.kind.visit("Kind", visitor)?;
 
         visitor.leave_region()
     }

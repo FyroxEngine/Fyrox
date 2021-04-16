@@ -56,7 +56,7 @@ impl Visit for Vertex {
 
         self.position.visit("Position", visitor)?;
         self.tex_coord.visit("TexCoord", visitor)?;
-        let _ = self.second_tex_coord.visit("SecondTexCoord", visitor);
+        self.second_tex_coord.visit("SecondTexCoord", visitor)?;
         self.normal.visit("Normal", visitor)?;
         self.tangent.visit("Tangent", visitor)?;
 
@@ -1298,16 +1298,13 @@ impl Visit for Surface {
         self.data.visit("Data", visitor)?;
         self.normal_texture.visit("NormalTexture", visitor)?;
         self.diffuse_texture.visit("DiffuseTexture", visitor)?;
-        let _ = self.specular_texture.visit("SpecularTexture", visitor);
-        let _ = self.roughness_texture.visit("RoughnessTexture", visitor);
-        let _ = self.height_texture.visit("HeightTexture", visitor);
+        self.specular_texture.visit("SpecularTexture", visitor)?;
+        self.roughness_texture.visit("RoughnessTexture", visitor)?;
+        self.height_texture.visit("HeightTexture", visitor)?;
         self.color.visit("Color", visitor)?;
         self.bones.visit("Bones", visitor)?;
+        self.lightmap_texture.visit("LightmapTexture", visitor)?;
         // self.vertex_weights intentionally not serialized!
-
-        // Try to get lightmap texture but don't care if it is missing, it can
-        // be missing on previous versions.
-        let _ = self.lightmap_texture.visit("LightmapTexture", visitor);
 
         visitor.leave_region()
     }

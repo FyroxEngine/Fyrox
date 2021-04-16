@@ -128,7 +128,7 @@ impl Visit for Track {
         self.enabled.visit("Enabled", visitor)?;
         self.max_time.visit("MaxTime", visitor)?;
         self.node.visit("Node", visitor)?;
-        let _ = self.flags.visit("Flags", visitor);
+        self.flags.visit("Flags", visitor)?;
 
         visitor.leave_region()
     }

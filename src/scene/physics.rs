@@ -1155,11 +1155,12 @@ impl<C: Visit + Default + 'static> Visit for RigidBodyDesc<C> {
         self.sleeping.visit("Sleeping", visitor)?;
         self.status.visit("Status", visitor)?;
         self.colliders.visit("Colliders", visitor)?;
-        let _ = self.mass.visit("Mass", visitor);
-        let _ = self.x_rotation_locked.visit("XRotationLocked", visitor);
-        let _ = self.y_rotation_locked.visit("YRotationLocked", visitor);
-        let _ = self.z_rotation_locked.visit("ZRotationLocked", visitor);
-        let _ = self.translation_locked.visit("TranslationLocked", visitor);
+        self.mass.visit("Mass", visitor)?;
+        self.x_rotation_locked.visit("XRotationLocked", visitor)?;
+        self.y_rotation_locked.visit("YRotationLocked", visitor)?;
+        self.z_rotation_locked.visit("ZRotationLocked", visitor)?;
+        self.translation_locked
+            .visit("TranslationLocked", visitor)?;
 
         visitor.leave_region()
     }
@@ -1601,9 +1602,7 @@ impl<R: 'static + Visit + Default> Visit for ColliderDesc<R> {
         self.rotation.visit("Rotation", visitor)?;
         self.collision_groups.visit("CollisionGroups", visitor)?;
         self.solver_groups.visit("SolverGroups", visitor)?;
-
-        // Backward compatibility.
-        let _ = self.density.visit("Density", visitor);
+        self.density.visit("Density", visitor)?;
 
         visitor.leave_region()
     }
@@ -1622,7 +1621,8 @@ impl Visit for Physics {
         };
         desc.visit("Desc", visitor)?;
 
-        let _ = self.embedded_resources.visit("EmbeddedResources", visitor);
+        self.embedded_resources
+            .visit("EmbeddedResources", visitor)?;
 
         // Save descriptors for resolve stage.
         if visitor.is_reading() {
@@ -1715,17 +1715,15 @@ impl Visit for IntegrationParametersDesc {
         visitor.enter_region(name)?;
 
         self.dt.visit("DeltaTime", visitor)?;
-        let _ = self.min_ccd_dt.visit("MinCcdDt", visitor);
+        self.min_ccd_dt.visit("MinCcdDt", visitor)?;
         self.erp.visit("Erp", visitor)?;
         self.joint_erp.visit("JointErp", visitor)?;
         self.warmstart_coeff.visit("WarmstartCoeff", visitor)?;
-        let _ = self
-            .warmstart_correction_slope
-            .visit("WarmstartCorrectionSlope", visitor);
-        let _ = self
-            .velocity_solve_fraction
-            .visit("VelocitySolveFraction", visitor);
-        let _ = self.velocity_based_erp.visit("VelocityBasedErp", visitor);
+        self.warmstart_correction_slope
+            .visit("WarmstartCorrectionSlope", visitor)?;
+        self.velocity_solve_fraction
+            .visit("VelocitySolveFraction", visitor)?;
+        self.velocity_based_erp.visit("VelocityBasedErp", visitor)?;
         self.allowed_linear_error
             .visit("AllowedLinearError", visitor)?;
         self.max_linear_correction
@@ -2028,7 +2026,7 @@ impl Visit for PhysicsDesc {
         self.gravity.visit("Gravity", visitor)?;
         self.colliders.visit("Colliders", visitor)?;
         self.bodies.visit("Bodies", visitor)?;
-        let _ = self.joints.visit("Joints", visitor);
+        self.joints.visit("Joints", visitor)?;
 
         // TODO: Refactor duplicates here.
         {

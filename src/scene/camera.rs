@@ -78,8 +78,8 @@ impl Visit for Camera {
         self.viewport.visit("Viewport", visitor)?;
         self.base.visit("Base", visitor)?;
         self.enabled.visit("Enabled", visitor)?;
-        let _ = self.skybox.visit("SkyBox", visitor);
-        let _ = self.environment.visit("Environment", visitor);
+        self.skybox.visit("SkyBox", visitor)?;
+        self.environment.visit("Environment", visitor)?;
         // self.visibility_cache intentionally not serialized. It is valid only for one frame.
         visitor.leave_region()
     }

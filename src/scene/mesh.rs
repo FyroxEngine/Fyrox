@@ -101,10 +101,10 @@ impl Visit for Mesh {
         visitor.enter_region(name)?;
 
         self.base.visit("Common", visitor)?;
-        let _ = self.cast_shadows.visit("CastShadows", visitor);
+        self.cast_shadows.visit("CastShadows", visitor)?;
 
         let mut render_path = self.render_path as u32;
-        let _ = render_path.visit("RenderPath", visitor);
+        render_path.visit("RenderPath", visitor)?;
         if visitor.is_reading() {
             self.render_path = RenderPath::from_id(render_path)?;
         }

@@ -188,7 +188,7 @@ impl Visit for PhysicsBinder {
                 self.backward_map.insert(b, n);
             }
         }
-        let _ = self.enabled.visit("Enabled", visitor);
+        self.enabled.visit("Enabled", visitor)?;
 
         visitor.leave_region()
     }
@@ -1476,17 +1476,12 @@ impl Visit for Scene {
         self.graph.visit("Graph", visitor)?;
         self.animations.visit("Animations", visitor)?;
         self.physics.visit("Physics", visitor)?;
-        let _ = self.lightmap.visit("Lightmap", visitor);
-        let _ = self.sound_context.visit("SoundContext", visitor);
-        let _ = self.navmeshes.visit("NavMeshes", visitor);
-        let _ = self
-            .ambient_lighting_color
-            .visit("AmbientLightingColor", visitor);
-        let _ = self.enabled.visit("Enabled", visitor);
-        // Backward compatibility.
-        if self.sound_context.is_invalid() {
-            self.sound_context = Context::new();
-        }
+        self.lightmap.visit("Lightmap", visitor)?;
+        self.sound_context.visit("SoundContext", visitor)?;
+        self.navmeshes.visit("NavMeshes", visitor)?;
+        self.ambient_lighting_color
+            .visit("AmbientLightingColor", visitor)?;
+        self.enabled.visit("Enabled", visitor)?;
         visitor.leave_region()
     }
 }
@@ -1588,7 +1583,7 @@ impl Visit for SceneContainer {
         visitor.enter_region(name)?;
 
         self.pool.visit("Pool", visitor)?;
-        let _ = self.sound_engine.visit("SoundEngine", visitor);
+        self.sound_engine.visit("SoundEngine", visitor)?;
 
         visitor.leave_region()
     }
