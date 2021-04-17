@@ -768,7 +768,11 @@ impl DeferredLightRenderer {
 
                     let (cookie_enabled, cookie_texture) =
                         if let Some(texture) = spot_light.cookie_texture() {
-                            (true, textures.get(state, texture).unwrap())
+                            if let Some(cookie) = textures.get(state, texture) {
+                                (true, cookie)
+                            } else {
+                                (false, white_dummy.clone())
+                            }
                         } else {
                             (false, white_dummy.clone())
                         };
