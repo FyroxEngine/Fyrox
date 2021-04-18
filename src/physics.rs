@@ -237,7 +237,7 @@ impl Physics {
         let colliders = self
             .colliders
             .pair_iter()
-            .map(|(h, c)| {
+            .map(|(_, c)| {
                 ColliderDesc {
                     shape: c.shape,
                     // Remap from sparse handle to dense.
