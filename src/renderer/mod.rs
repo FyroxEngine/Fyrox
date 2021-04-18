@@ -295,8 +295,8 @@ impl QualitySettings {
 
             light_scatter_enabled: true,
 
-            point_shadow_map_precision: ShadowMapPrecision::Half,
-            spot_shadow_map_precision: ShadowMapPrecision::Half,
+            point_shadow_map_precision: ShadowMapPrecision::Full,
+            spot_shadow_map_precision: ShadowMapPrecision::Full,
 
             fxaa: true,
 
