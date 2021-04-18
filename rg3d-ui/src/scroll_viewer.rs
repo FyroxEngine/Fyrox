@@ -239,6 +239,8 @@ pub struct ScrollViewerBuilder<M: MessageData, C: Control<M, C>> {
     content: Handle<UINode<M, C>>,
     h_scroll_bar: Option<Handle<UINode<M, C>>>,
     v_scroll_bar: Option<Handle<UINode<M, C>>>,
+    horizontal_scroll_allowed: bool,
+    vertical_scroll_allowed: bool,
 }
 
 impl<M: MessageData, C: Control<M, C>> ScrollViewerBuilder<M, C> {
@@ -248,6 +250,8 @@ impl<M: MessageData, C: Control<M, C>> ScrollViewerBuilder<M, C> {
             content: Handle::NONE,
             h_scroll_bar: None,
             v_scroll_bar: None,
+            horizontal_scroll_allowed: false,
+            vertical_scroll_allowed: true,
         }
     }
 
@@ -266,6 +270,16 @@ impl<M: MessageData, C: Control<M, C>> ScrollViewerBuilder<M, C> {
         self
     }
 
+    pub fn with_vertical_scroll_allowed(mut self, value: bool) -> Self {
+        self.vertical_scroll_allowed = value;
+        self
+    }
+
+    pub fn with_horizontal_scroll_allowed(mut self, value: bool) -> Self {
+        self.horizontal_scroll_allowed = value;
+        self
+    }
+
     pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
         let content_presenter = ScrollPanelBuilder::new(
             WidgetBuilder::new()
@@ -273,6 +287,8 @@ impl<M: MessageData, C: Control<M, C>> ScrollViewerBuilder<M, C> {
                 .on_row(0)
                 .on_column(0),
         )
+        .with_horizontal_scroll_allowed(self.horizontal_scroll_allowed)
+        .with_vertical_scroll_allowed(self.vertical_scroll_allowed)
         .build(ctx);
 
         let v_scroll_bar = self.v_scroll_bar.unwrap_or_else(|| {
