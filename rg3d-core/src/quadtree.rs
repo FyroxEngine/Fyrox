@@ -62,6 +62,12 @@ pub trait BoundsProvider {
     fn id(&self) -> Self::Id;
 }
 
+pub enum QuadTreeBuildError {
+    /// It means that given split threshold is too low for an algorithm to build quad tree.
+    /// Make it larger and try again. Also this might mean that your initial bounds are too small.  
+    ReachedRecursionLimit,
+}
+
 #[derive(Clone)]
 struct Entry<I: Clone> {
     id: I,
@@ -74,42 +80,40 @@ fn build_recursive<I: Clone>(
     entries: &[Entry<I>],
     split_threshold: usize,
     depth: usize,
-) -> Result<Handle<QuadTreeNode<I>>, ()> {
+) -> Result<Handle<QuadTreeNode<I>>, QuadTreeBuildError> {
     if depth >= 64 {
-        Err(())
+        Err(QuadTreeBuildError::ReachedRecursionLimit)
+    } else if entries.len() <= split_threshold {
+        Ok(nodes.spawn(QuadTreeNode::Leaf {
+            bounds,
+            ids: entries.iter().map(|e| e.id.clone()).collect::<Vec<_>>(),
+        }))
     } else {
-        if entries.len() <= split_threshold {
-            Ok(nodes.spawn(QuadTreeNode::Leaf {
-                bounds,
-                ids: entries.iter().map(|e| e.id.clone()).collect::<Vec<_>>(),
-            }))
-        } else {
-            let leaf_bounds = split_rect(&bounds);
-            let mut leaves = [Handle::NONE; 4];
+        let leaf_bounds = split_rect(&bounds);
+        let mut leaves = [Handle::NONE; 4];
 
-            for (leaf, &leaf_bounds) in leaves.iter_mut().zip(leaf_bounds.iter()) {
-                let leaf_entries = entries
-                    .iter()
-                    .filter_map(|e| {
-                        if leaf_bounds.intersects(e.bounds) {
-                            Some(e.clone())
-                        } else {
-                            None
-                        }
-                    })
-                    .collect::<Vec<_>>();
+        for (leaf, &leaf_bounds) in leaves.iter_mut().zip(leaf_bounds.iter()) {
+            let leaf_entries = entries
+                .iter()
+                .filter_map(|e| {
+                    if leaf_bounds.intersects(e.bounds) {
+                        Some(e.clone())
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>();
 
-                *leaf = build_recursive(
-                    nodes,
-                    leaf_bounds,
-                    &leaf_entries,
-                    split_threshold,
-                    depth + 1,
-                )?;
-            }
-
-            Ok(nodes.spawn(QuadTreeNode::Branch { bounds, leaves }))
+            *leaf = build_recursive(
+                nodes,
+                leaf_bounds,
+                &leaf_entries,
+                split_threshold,
+                depth + 1,
+            )?;
         }
+
+        Ok(nodes.spawn(QuadTreeNode::Branch { bounds, leaves }))
     }
 }
 
@@ -118,7 +122,7 @@ impl<I: Clone> QuadTree<I> {
         root_bounds: Rect<f32>,
         objects: impl Iterator<Item = T>,
         split_threshold: usize,
-    ) -> Result<Self, ()> {
+    ) -> Result<Self, QuadTreeBuildError> {
         let entries = objects
             .filter_map(|o| {
                 if root_bounds.intersects(o.bounds()) {

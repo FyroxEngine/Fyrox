@@ -12,7 +12,6 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-#[must_use]
 pub fn print() -> Result<String, fmt::Error> {
     #[cfg(feature = "enable_profiler")]
     {
@@ -27,7 +26,6 @@ pub fn print() -> Result<String, fmt::Error> {
     }
 }
 
-#[must_use]
 pub fn print_hot_path() -> Result<String, fmt::Error> {
     #[cfg(feature = "enable_profiler")]
     {

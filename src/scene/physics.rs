@@ -477,7 +477,7 @@ impl Physics {
 
         let mut body_handle_map = BiDirHashMap::default();
         for (engine_handle, rapier_handle) in self.body_handle_map.forward_map() {
-            body_handle_map.insert(engine_handle.clone(), body_dense_map[rapier_handle]);
+            body_handle_map.insert(*engine_handle, body_dense_map[rapier_handle]);
         }
 
         let collider_dense_map = self
@@ -489,7 +489,7 @@ impl Physics {
 
         let mut collider_handle_map = BiDirHashMap::default();
         for (engine_handle, rapier_handle) in self.collider_handle_map.forward_map() {
-            collider_handle_map.insert(engine_handle.clone(), collider_dense_map[rapier_handle]);
+            collider_handle_map.insert(*engine_handle, collider_dense_map[rapier_handle]);
         }
 
         let joint_dense_map = self
@@ -501,7 +501,7 @@ impl Physics {
 
         let mut joint_handle_map = BiDirHashMap::default();
         for (engine_handle, rapier_handle) in self.joint_handle_map.forward_map() {
-            joint_handle_map.insert(engine_handle.clone(), joint_dense_map[rapier_handle]);
+            joint_handle_map.insert(*engine_handle, joint_dense_map[rapier_handle]);
         }
 
         PhysicsDesc {
@@ -853,7 +853,7 @@ impl Physics {
                         .key_of(&resource_handle)
                         .cloned()
                         .unwrap(),
-                    new_handle.into(),
+                    new_handle,
                 );
             }
         }
@@ -876,7 +876,7 @@ impl Physics {
                     .joint_handle_map
                     .key_of(&resource_handle)
                     .unwrap(),
-                new_handle.into(),
+                new_handle,
             );
         }
 
