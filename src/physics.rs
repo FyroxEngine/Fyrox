@@ -183,7 +183,7 @@ impl Physics {
                 // Use existing handle or generate new for new object.
                 .map_or_else(
                     || RigidBodyHandle::from(Uuid::new_v4()),
-                    |existing| existing.clone(),
+                    |existing| *existing,
                 );
             engine_body_handle_rapier_map.insert(
                 engine_handle,
@@ -224,7 +224,7 @@ impl Physics {
                 // Use existing handle or generate new for new object.
                 .map_or_else(
                     || ColliderHandle::from(Uuid::new_v4()),
-                    |existing| existing.clone(),
+                    |existing| *existing,
                 );
             engine_collider_handle_rapier_map.insert(
                 engine_handle,
@@ -291,7 +291,7 @@ impl Physics {
                 // Use existing handle or generate new for new object.
                 .map_or_else(
                     || JointHandle::from(Uuid::new_v4()),
-                    |existing| existing.clone(),
+                    |existing| *existing,
                 );
             engine_joint_handle_rapier_map.insert(
                 engine_handle,
