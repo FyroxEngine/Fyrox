@@ -389,11 +389,24 @@ impl Physics {
     }
 
     /// TODO
+    pub fn body_mut_rapier(
+        &mut self,
+        handle: rapier3d::dynamics::RigidBodyHandle,
+    ) -> Option<&mut RigidBody> {
+        self.bodies.get_mut(handle)
+    }
+
+    /// TODO
     pub fn body(&self, handle: &RigidBodyHandle) -> Option<&RigidBody> {
         let bodies = &self.bodies;
         self.body_handle_map
             .value_of(handle)
             .and_then(move |&h| bodies.get(h))
+    }
+
+    /// TODO
+    pub fn body_rapier(&self, handle: rapier3d::dynamics::RigidBodyHandle) -> Option<&RigidBody> {
+        self.bodies.get(handle)
     }
 
     /// TODO
@@ -415,6 +428,11 @@ impl Physics {
         self.collider_handle_map
             .value_of(handle)
             .and_then(|&h| colliders.get(h))
+    }
+
+    /// TODO
+    pub fn collider_rapier(&self, handle: rapier3d::geometry::ColliderHandle) -> Option<&Collider> {
+        self.colliders.get(handle)
     }
 
     /// TODO
