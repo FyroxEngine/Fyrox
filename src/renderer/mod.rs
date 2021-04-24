@@ -61,7 +61,6 @@ use crate::{
                 AttributeDefinition, AttributeKind, BufferBuilder, DrawCallStatistics, ElementKind,
                 GeometryBuffer, GeometryBufferBuilder, GeometryBufferKind,
             },
-            gl,
             gpu_program::UniformValue,
             gpu_texture::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
@@ -413,7 +412,7 @@ impl Default for Statistics {
 
 /// See module docs.
 pub struct Renderer {
-    state: PipelineState,
+    state: Box<PipelineState>,
     backbuffer: BackBuffer,
     deferred_light_renderer: DeferredLightRenderer,
     flat_shader: FlatShader,
@@ -741,18 +740,21 @@ impl Renderer {
         context: &mut glutin::WindowedContext<PossiblyCurrent>,
         frame_size: (u32, u32),
     ) -> Result<Self, RendererError> {
-        gl::load_with(|symbol| context.get_proc_address(symbol) as *const _);
-
         let settings = QualitySettings::default();
-        let mut state = PipelineState::new();
+
+        // Box pipeline state because we'll store pointers to it inside framework's entities and
+        // it must have constant address.
+        let mut state = Box::new(PipelineState::new(|symbol| {
+            context.get_proc_address(symbol) as *const _
+        }));
 
         Ok(Self {
             backbuffer: BackBuffer,
             frame_size,
             deferred_light_renderer: DeferredLightRenderer::new(&mut state, frame_size, &settings)?,
-            flat_shader: FlatShader::new()?,
+            flat_shader: FlatShader::new(&mut state)?,
             statistics: Statistics::default(),
-            sprite_renderer: SpriteRenderer::new()?,
+            sprite_renderer: SpriteRenderer::new(&mut state)?,
             white_dummy: Rc::new(RefCell::new(GpuTexture::new(
                 &mut state,
                 GpuTextureKind::Rectangle {
@@ -829,11 +831,11 @@ impl Renderer {
             backbuffer_clear_color: Color::BLACK,
             texture_cache: Default::default(),
             geometry_cache: Default::default(),
-            state,
             batch_storage: Default::default(),
-            forward_renderer: ForwardRenderer::new()?,
+            forward_renderer: ForwardRenderer::new(&mut state)?,
             ui_frame_buffers: Default::default(),
-            fxaa_renderer: FxaaRenderer::new()?,
+            fxaa_renderer: FxaaRenderer::new(&mut state)?,
+            state,
         })
     }
 
@@ -1229,7 +1231,7 @@ impl Renderer {
         self.render_frame(scenes, drawing_context, dt)?;
         self.statistics.end_frame();
         context.swap_buffers()?;
-        check_gl_error!();
+        self.state.check_error();
         self.statistics.finalize();
         self.statistics.pipeline = self.state.pipeline_statistics();
         Ok(())

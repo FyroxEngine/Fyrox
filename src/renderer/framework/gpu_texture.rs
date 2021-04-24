@@ -1,20 +1,17 @@
 // Keep this for now, some texture kind might be used in future.
 #![allow(dead_code)]
 
-use crate::renderer::framework::gl::{COMPRESSED_RED_RGTC1, COMPRESSED_RG_RGTC2};
 use crate::{
     core::color::Color,
-    renderer::{
-        error::RendererError,
-        framework::{gl, gl::types::GLuint, state::PipelineState},
-    },
+    renderer::{error::RendererError, framework::state::PipelineState},
     resource::texture::{
         TextureKind, TextureMagnificationFilter, TextureMinificationFilter, TexturePixelKind,
         TextureWrapMode,
     },
     utils::log::{Log, MessageKind},
 };
-use std::{ffi::c_void, marker::PhantomData};
+use glow::{HasContext, COMPRESSED_RED_RGTC1, COMPRESSED_RG_RGTC2};
+use std::marker::PhantomData;
 
 #[derive(Copy, Clone)]
 pub enum GpuTextureKind {
@@ -64,12 +61,12 @@ impl From<TextureKind> for GpuTextureKind {
 }
 
 impl GpuTextureKind {
-    fn to_texture_target(&self) -> GLuint {
+    fn to_texture_target(&self) -> u32 {
         match self {
-            Self::Line { .. } => gl::TEXTURE_1D,
-            Self::Rectangle { .. } => gl::TEXTURE_2D,
-            Self::Cube { .. } => gl::TEXTURE_CUBE_MAP,
-            Self::Volume { .. } => gl::TEXTURE_3D,
+            Self::Line { .. } => glow::TEXTURE_1D,
+            Self::Rectangle { .. } => glow::TEXTURE_2D,
+            Self::Cube { .. } => glow::TEXTURE_CUBE_MAP,
+            Self::Volume { .. } => glow::TEXTURE_3D,
         }
     }
 }
@@ -178,7 +175,8 @@ impl PixelKind {
 }
 
 pub struct GpuTexture {
-    texture: GLuint,
+    state: *mut PipelineState,
+    texture: glow::Texture,
     kind: GpuTextureKind,
     min_filter: MinificationFilter,
     mag_filter: MagnificationFilter,
@@ -282,8 +280,8 @@ pub enum MagnificationFilter {
 impl MagnificationFilter {
     pub fn into_gl_value(self) -> i32 {
         (match self {
-            Self::Nearest => gl::NEAREST,
-            Self::Linear => gl::LINEAR,
+            Self::Nearest => glow::NEAREST,
+            Self::Linear => glow::LINEAR,
         }) as i32
     }
 }
@@ -300,12 +298,12 @@ impl From<TextureMagnificationFilter> for MagnificationFilter {
 #[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Hash)]
 #[repr(u32)]
 pub enum MinificationFilter {
-    Nearest = gl::NEAREST,
-    NearestMipMapNearest = gl::NEAREST_MIPMAP_NEAREST,
-    NearestMipMapLinear = gl::NEAREST_MIPMAP_LINEAR,
-    Linear = gl::LINEAR,
-    LinearMipMapNearest = gl::LINEAR_MIPMAP_NEAREST,
-    LinearMipMapLinear = gl::LINEAR_MIPMAP_LINEAR,
+    Nearest = glow::NEAREST,
+    NearestMipMapNearest = glow::NEAREST_MIPMAP_NEAREST,
+    NearestMipMapLinear = glow::NEAREST_MIPMAP_LINEAR,
+    Linear = glow::LINEAR,
+    LinearMipMapNearest = glow::LINEAR_MIPMAP_NEAREST,
+    LinearMipMapLinear = glow::LINEAR_MIPMAP_LINEAR,
 }
 
 impl From<TextureMinificationFilter> for MinificationFilter {
@@ -329,11 +327,11 @@ impl MinificationFilter {
 #[derive(Copy, Clone, Eq, PartialEq)]
 #[repr(u32)]
 pub enum WrapMode {
-    Repeat = gl::REPEAT,
-    ClampToEdge = gl::CLAMP_TO_EDGE,
-    ClampToBorder = gl::CLAMP_TO_BORDER,
-    MirroredRepeat = gl::MIRRORED_REPEAT,
-    MirrorClampToEdge = gl::MIRROR_CLAMP_TO_EDGE,
+    Repeat = glow::REPEAT,
+    ClampToEdge = glow::CLAMP_TO_EDGE,
+    ClampToBorder = glow::CLAMP_TO_BORDER,
+    MirroredRepeat = glow::MIRRORED_REPEAT,
+    MirrorClampToEdge = glow::MIRROR_CLAMP_TO_EDGE,
 }
 
 impl WrapMode {
@@ -357,9 +355,9 @@ impl From<TextureWrapMode> for WrapMode {
 #[derive(Copy, Clone)]
 #[repr(u32)]
 pub enum Coordinate {
-    S = gl::TEXTURE_WRAP_S,
-    T = gl::TEXTURE_WRAP_T,
-    R = gl::TEXTURE_WRAP_R,
+    S = glow::TEXTURE_WRAP_S,
+    T = glow::TEXTURE_WRAP_T,
+    R = glow::TEXTURE_WRAP_R,
 }
 
 impl Coordinate {
@@ -369,6 +367,7 @@ impl Coordinate {
 }
 
 pub struct TextureBinding<'a> {
+    state: &'a mut PipelineState,
     texture: &'a mut GpuTexture,
 }
 
@@ -385,12 +384,12 @@ pub enum CubeMapFace {
 impl CubeMapFace {
     pub fn into_gl_value(self) -> u32 {
         match self {
-            Self::PositiveX => gl::TEXTURE_CUBE_MAP_POSITIVE_X,
-            Self::NegativeX => gl::TEXTURE_CUBE_MAP_NEGATIVE_X,
-            Self::PositiveY => gl::TEXTURE_CUBE_MAP_POSITIVE_Y,
-            Self::NegativeY => gl::TEXTURE_CUBE_MAP_NEGATIVE_Y,
-            Self::PositiveZ => gl::TEXTURE_CUBE_MAP_POSITIVE_Z,
-            Self::NegativeZ => gl::TEXTURE_CUBE_MAP_NEGATIVE_Z,
+            Self::PositiveX => glow::TEXTURE_CUBE_MAP_POSITIVE_X,
+            Self::NegativeX => glow::TEXTURE_CUBE_MAP_NEGATIVE_X,
+            Self::PositiveY => glow::TEXTURE_CUBE_MAP_POSITIVE_Y,
+            Self::NegativeY => glow::TEXTURE_CUBE_MAP_NEGATIVE_Y,
+            Self::PositiveZ => glow::TEXTURE_CUBE_MAP_POSITIVE_Z,
+            Self::NegativeZ => glow::TEXTURE_CUBE_MAP_NEGATIVE_Z,
         }
     }
 }
@@ -398,11 +397,13 @@ impl CubeMapFace {
 impl<'a> TextureBinding<'a> {
     pub fn set_anisotropy(self, anisotropy: f32) -> Self {
         unsafe {
-            let mut max = 0.0;
-            gl::GetFloatv(gl::MAX_TEXTURE_MAX_ANISOTROPY_EXT, &mut max);
-            gl::TexParameterf(
-                gl::TEXTURE_2D,
-                gl::TEXTURE_MAX_ANISOTROPY_EXT,
+            let max = self
+                .state
+                .gl
+                .get_parameter_f32(glow::MAX_TEXTURE_MAX_ANISOTROPY_EXT);
+            self.state.gl.tex_parameter_f32(
+                glow::TEXTURE_2D,
+                glow::TEXTURE_MAX_ANISOTROPY_EXT,
                 anisotropy.max(1.0).min(max),
             );
 
@@ -417,12 +418,16 @@ impl<'a> TextureBinding<'a> {
         unsafe {
             let target = self.texture.kind.to_texture_target();
 
-            gl::TexParameteri(target, gl::TEXTURE_MIN_FILTER, min_filter.into_gl_value());
+            self.state.gl.tex_parameter_i32(
+                target,
+                glow::TEXTURE_MIN_FILTER,
+                min_filter.into_gl_value(),
+            );
 
             if self.texture.min_filter != MinificationFilter::Linear
                 && self.texture.min_filter != MinificationFilter::Nearest
             {
-                gl::GenerateMipmap(target);
+                self.state.gl.generate_mipmap(target);
             }
 
             self.texture.min_filter = min_filter;
@@ -432,9 +437,9 @@ impl<'a> TextureBinding<'a> {
 
     pub fn set_magnification_filter(self, mag_filter: MagnificationFilter) -> Self {
         unsafe {
-            gl::TexParameteri(
+            self.state.gl.tex_parameter_i32(
                 self.texture.kind.to_texture_target(),
-                gl::TEXTURE_MAG_FILTER,
+                glow::TEXTURE_MAG_FILTER,
                 mag_filter.into_gl_value(),
             );
 
@@ -445,7 +450,7 @@ impl<'a> TextureBinding<'a> {
 
     pub fn set_wrap(self, coordinate: Coordinate, wrap: WrapMode) -> Self {
         unsafe {
-            gl::TexParameteri(
+            self.state.gl.tex_parameter_i32(
                 self.texture.kind.to_texture_target(),
                 coordinate.into_gl_value(),
                 wrap.into_gl_value(),
@@ -464,10 +469,10 @@ impl<'a> TextureBinding<'a> {
         unsafe {
             let color = color.as_frgba();
             let color = [color.x, color.y, color.z, color.w];
-            gl::TexParameterfv(
+            self.state.gl.tex_parameter_f32_slice(
                 self.texture.kind.to_texture_target(),
-                gl::TEXTURE_BORDER_COLOR,
-                color.as_ptr(),
+                glow::TEXTURE_BORDER_COLOR,
+                &color,
             );
         }
         self
@@ -475,14 +480,15 @@ impl<'a> TextureBinding<'a> {
 
     pub fn generate_mip_maps(self) -> Self {
         unsafe {
-            gl::GenerateMipmap(self.texture.kind.to_texture_target());
+            self.state
+                .gl
+                .generate_mipmap(self.texture.kind.to_texture_target());
         }
         self
     }
 
     pub fn set_data(
         self,
-        state: &mut PipelineState,
         kind: GpuTextureKind,
         pixel_kind: PixelKind,
         mip_count: usize,
@@ -555,35 +561,35 @@ impl<'a> TextureBinding<'a> {
         let target = kind.to_texture_target();
 
         unsafe {
-            state.set_texture(0, target, self.texture.texture);
+            self.state.set_texture(0, target, self.texture.texture);
 
             let (type_, format, internal_format) = match pixel_kind {
-                PixelKind::F32 => (gl::FLOAT, gl::RED, gl::R32F),
-                PixelKind::F16 => (gl::FLOAT, gl::RED, gl::R16F),
-                PixelKind::D32 => (gl::FLOAT, gl::DEPTH_COMPONENT, gl::DEPTH_COMPONENT32),
-                PixelKind::D16 => (gl::FLOAT, gl::DEPTH_COMPONENT, gl::DEPTH_COMPONENT16),
+                PixelKind::F32 => (glow::FLOAT, glow::RED, glow::R32F),
+                PixelKind::F16 => (glow::FLOAT, glow::RED, glow::R16F),
+                PixelKind::D32 => (glow::FLOAT, glow::DEPTH_COMPONENT, glow::DEPTH_COMPONENT32),
+                PixelKind::D16 => (glow::FLOAT, glow::DEPTH_COMPONENT, glow::DEPTH_COMPONENT16),
                 PixelKind::D24S8 => (
-                    gl::UNSIGNED_INT_24_8,
-                    gl::DEPTH_STENCIL,
-                    gl::DEPTH24_STENCIL8,
+                    glow::UNSIGNED_INT_24_8,
+                    glow::DEPTH_STENCIL,
+                    glow::DEPTH24_STENCIL8,
                 ),
-                PixelKind::RGBA8 => (gl::UNSIGNED_BYTE, gl::RGBA, gl::RGBA8),
-                PixelKind::RGB8 => (gl::UNSIGNED_BYTE, gl::RGB, gl::RGB8),
-                PixelKind::RG8 => (gl::UNSIGNED_BYTE, gl::RG, gl::RG8),
-                PixelKind::R8 => (gl::UNSIGNED_BYTE, gl::RED, gl::R8),
-                PixelKind::BGRA8 => (gl::UNSIGNED_BYTE, gl::BGRA, gl::RGBA8),
-                PixelKind::BGR8 => (gl::UNSIGNED_BYTE, gl::BGR, gl::RGB8),
-                PixelKind::RG16 => (gl::UNSIGNED_SHORT, gl::RG, gl::RG16),
-                PixelKind::R16 => (gl::UNSIGNED_SHORT, gl::RED, gl::R16),
-                PixelKind::RGB16 => (gl::UNSIGNED_SHORT, gl::RGB, gl::RGB16),
-                PixelKind::RGBA16 => (gl::UNSIGNED_SHORT, gl::RGBA, gl::RGBA16),
+                PixelKind::RGBA8 => (glow::UNSIGNED_BYTE, glow::RGBA, glow::RGBA8),
+                PixelKind::RGB8 => (glow::UNSIGNED_BYTE, glow::RGB, glow::RGB8),
+                PixelKind::RG8 => (glow::UNSIGNED_BYTE, glow::RG, glow::RG8),
+                PixelKind::R8 => (glow::UNSIGNED_BYTE, glow::RED, glow::R8),
+                PixelKind::BGRA8 => (glow::UNSIGNED_BYTE, glow::BGRA, glow::RGBA8),
+                PixelKind::BGR8 => (glow::UNSIGNED_BYTE, glow::BGR, glow::RGB8),
+                PixelKind::RG16 => (glow::UNSIGNED_SHORT, glow::RG, glow::RG16),
+                PixelKind::R16 => (glow::UNSIGNED_SHORT, glow::RED, glow::R16),
+                PixelKind::RGB16 => (glow::UNSIGNED_SHORT, glow::RGB, glow::RGB16),
+                PixelKind::RGBA16 => (glow::UNSIGNED_SHORT, glow::RGBA, glow::RGBA16),
                 PixelKind::DXT1RGB => (0, 0, GL_COMPRESSED_RGB_S3TC_DXT1_EXT),
                 PixelKind::DXT1RGBA => (0, 0, GL_COMPRESSED_RGBA_S3TC_DXT1_EXT),
                 PixelKind::DXT3RGBA => (0, 0, GL_COMPRESSED_RGBA_S3TC_DXT3_EXT),
                 PixelKind::DXT5RGBA => (0, 0, GL_COMPRESSED_RGBA_S3TC_DXT5_EXT),
                 PixelKind::R8RGTC => (0, 0, COMPRESSED_RED_RGTC1),
                 PixelKind::RG8RGTC => (0, 0, COMPRESSED_RG_RGTC2),
-                PixelKind::RGBA32F => (gl::FLOAT, gl::RGBA, gl::RGBA32F),
+                PixelKind::RGBA32F => (glow::FLOAT, glow::RGBA, glow::RGBA32F),
             };
 
             let is_compressed = pixel_kind.is_compressed();
@@ -591,7 +597,9 @@ impl<'a> TextureBinding<'a> {
             // Compressed textures does not have such term as "unpack alignment", so we have to check
             // for compressed textures here.
             if !is_compressed {
-                gl::PixelStorei(gl::UNPACK_ALIGNMENT, pixel_kind.unpack_alignment());
+                self.state
+                    .gl
+                    .pixel_store_i32(glow::UNPACK_ALIGNMENT, pixel_kind.unpack_alignment());
             }
 
             let mut mip_byte_offset = 0;
@@ -599,26 +607,22 @@ impl<'a> TextureBinding<'a> {
                 match kind {
                     GpuTextureKind::Line { length } => {
                         if let Some(length) = length.checked_shr(mip as u32) {
-                            let pixels = match data {
-                                None => std::ptr::null(),
-                                Some(data) => data[mip_byte_offset..].as_ptr() as *const c_void,
-                            };
-
+                            let pixels = data.map(|data| &data[mip_byte_offset..]);
                             let size = image_1d_size_bytes(pixel_kind, length) as i32;
 
                             if is_compressed {
-                                gl::CompressedTexImage1D(
-                                    gl::TEXTURE_1D,
+                                self.state.gl.compressed_tex_image_1d(
+                                    glow::TEXTURE_1D,
                                     mip as i32,
-                                    internal_format,
+                                    internal_format as i32,
                                     length as i32,
                                     0,
                                     size,
-                                    pixels,
+                                    pixels.ok_or(RendererError::EmptyTextureData)?,
                                 );
                             } else {
-                                gl::TexImage1D(
-                                    gl::TEXTURE_1D,
+                                self.state.gl.tex_image_1d(
+                                    glow::TEXTURE_1D,
                                     mip as i32,
                                     internal_format as i32,
                                     length as i32,
@@ -640,27 +644,23 @@ impl<'a> TextureBinding<'a> {
                             width.checked_shr(mip as u32),
                             height.checked_shr(mip as u32),
                         ) {
-                            let pixels = match data {
-                                None => std::ptr::null(),
-                                Some(data) => data[mip_byte_offset..].as_ptr() as *const c_void,
-                            };
-
+                            let pixels = data.map(|data| &data[mip_byte_offset..]);
                             let size = image_2d_size_bytes(pixel_kind, width, height) as i32;
 
                             if is_compressed {
-                                gl::CompressedTexImage2D(
-                                    gl::TEXTURE_2D,
+                                self.state.gl.compressed_tex_image_2d(
+                                    glow::TEXTURE_2D,
                                     mip as i32,
-                                    internal_format as u32,
+                                    internal_format as i32,
                                     width as i32,
                                     height as i32,
                                     0,
                                     size,
-                                    pixels,
+                                    pixels.ok_or(RendererError::EmptyTextureData)?,
                                 );
                             } else {
-                                gl::TexImage2D(
-                                    gl::TEXTURE_2D,
+                                self.state.gl.tex_image_2d(
+                                    glow::TEXTURE_2D,
                                     mip as i32,
                                     internal_format as i32,
                                     width as i32,
@@ -688,26 +688,22 @@ impl<'a> TextureBinding<'a> {
                             for face in 0..6 {
                                 let begin = mip_byte_offset + face * bytes_per_face;
                                 let end = mip_byte_offset + (face + 1) * bytes_per_face;
-
-                                let face_pixels = match data {
-                                    None => std::ptr::null(),
-                                    Some(data) => data[begin..end].as_ptr() as *const c_void,
-                                };
+                                let face_pixels = data.map(|data| &data[begin..end]);
 
                                 if is_compressed {
-                                    gl::CompressedTexImage2D(
-                                        gl::TEXTURE_CUBE_MAP_POSITIVE_X + face as u32,
+                                    self.state.gl.compressed_tex_image_2d(
+                                        glow::TEXTURE_CUBE_MAP_POSITIVE_X + face as u32,
                                         mip as i32,
-                                        internal_format as u32,
+                                        internal_format as i32,
                                         width as i32,
                                         height as i32,
                                         0,
                                         bytes_per_face as i32,
-                                        face_pixels,
+                                        face_pixels.ok_or(RendererError::EmptyTextureData)?,
                                     );
                                 } else {
-                                    gl::TexImage2D(
-                                        gl::TEXTURE_CUBE_MAP_POSITIVE_X + face as u32,
+                                    self.state.gl.tex_image_2d(
+                                        glow::TEXTURE_CUBE_MAP_POSITIVE_X + face as u32,
                                         mip as i32,
                                         internal_format as i32,
                                         width as i32,
@@ -736,28 +732,24 @@ impl<'a> TextureBinding<'a> {
                             height.checked_shr(mip as u32),
                             depth.checked_shr(mip as u32),
                         ) {
-                            let pixels = match data {
-                                None => std::ptr::null(),
-                                Some(data) => data[mip_byte_offset..].as_ptr() as *const c_void,
-                            };
-
+                            let pixels = data.map(|data| &data[mip_byte_offset..]);
                             let size = image_3d_size_bytes(pixel_kind, width, height, depth) as i32;
 
                             if is_compressed {
-                                gl::CompressedTexImage3D(
-                                    gl::TEXTURE_3D,
+                                self.state.gl.compressed_tex_image_3d(
+                                    glow::TEXTURE_3D,
                                     0,
-                                    internal_format as u32,
+                                    internal_format as i32,
                                     width as i32,
                                     height as i32,
                                     depth as i32,
                                     0,
                                     size,
-                                    pixels,
+                                    pixels.ok_or(RendererError::EmptyTextureData)?,
                                 );
                             } else {
-                                gl::TexImage3D(
-                                    gl::TEXTURE_3D,
+                                self.state.gl.tex_image_3d(
+                                    glow::TEXTURE_3D,
                                     0,
                                     internal_format as i32,
                                     width as i32,
@@ -819,10 +811,10 @@ impl GpuTexture {
         let target = kind.to_texture_target();
 
         unsafe {
-            let mut texture = 0;
-            gl::GenTextures(1, &mut texture);
+            let texture = state.gl.create_texture()?;
 
             let mut result = Self {
+                state,
                 texture,
                 kind,
                 min_filter,
@@ -836,18 +828,27 @@ impl GpuTexture {
             };
 
             TextureBinding {
+                state,
                 texture: &mut result,
             }
-            .set_data(state, kind, pixel_kind, mip_count, data)?;
+            .set_data(kind, pixel_kind, mip_count, data)?;
 
-            gl::TexParameteri(target, gl::TEXTURE_MAG_FILTER, mag_filter.into_gl_value());
-            gl::TexParameteri(target, gl::TEXTURE_MIN_FILTER, min_filter.into_gl_value());
+            state.gl.tex_parameter_i32(
+                target,
+                glow::TEXTURE_MAG_FILTER,
+                mag_filter.into_gl_value(),
+            );
+            state.gl.tex_parameter_i32(
+                target,
+                glow::TEXTURE_MIN_FILTER,
+                min_filter.into_gl_value(),
+            );
 
             if min_filter != MinificationFilter::Linear
                 && min_filter != MinificationFilter::Nearest
                 && mip_count == 1
             {
-                gl::GenerateMipmap(target);
+                state.gl.generate_mipmap(target);
             }
 
             state.set_texture(0, target, 0);
@@ -861,13 +862,16 @@ impl GpuTexture {
         }
     }
 
-    pub fn bind_mut(
-        &mut self,
-        state: &mut PipelineState,
+    pub fn bind_mut<'a>(
+        &'a mut self,
+        state: &'a mut PipelineState,
         sampler_index: u32,
-    ) -> TextureBinding<'_> {
+    ) -> TextureBinding<'a> {
         state.set_texture(sampler_index, self.kind.to_texture_target(), self.texture);
-        TextureBinding { texture: self }
+        TextureBinding {
+            state,
+            texture: self,
+        }
     }
 
     pub fn bind(&self, state: &mut PipelineState, sampler_index: u32) {
@@ -911,7 +915,7 @@ impl Drop for GpuTexture {
                 format!("GL texture {} was destroyed!", self.texture),
             );
 
-            gl::DeleteTextures(1, &self.texture);
+            (*self.state).gl.delete_texture(self.texture);
         }
     }
 }

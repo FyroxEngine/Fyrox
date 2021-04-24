@@ -30,14 +30,14 @@ struct Shader {
 }
 
 impl Shader {
-    fn new() -> Result<Self, RendererError> {
+    fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
         let fragment_source = include_str!("shaders/blur_fs.glsl");
         let vertex_source = include_str!("shaders/blur_vs.glsl");
 
-        let program = GpuProgram::from_source("FlatShader", vertex_source, fragment_source)?;
+        let program = GpuProgram::from_source(state, "FlatShader", vertex_source, fragment_source)?;
         Ok(Self {
-            world_view_projection_matrix: program.uniform_location("worldViewProjection")?,
-            input_texture: program.uniform_location("inputTexture")?,
+            world_view_projection_matrix: program.uniform_location(state, "worldViewProjection")?,
+            input_texture: program.uniform_location(state, "inputTexture")?,
             program,
         })
     }
@@ -76,7 +76,7 @@ impl Blur {
         };
 
         Ok(Self {
-            shader: Shader::new()?,
+            shader: Shader::new(state)?,
             framebuffer: FrameBuffer::new(
                 state,
                 None,

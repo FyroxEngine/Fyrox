@@ -6,29 +6,23 @@ use crate::{
     },
     renderer::{
         error::RendererError,
-        framework::{
-            gl::{
-                self,
-                types::{GLint, GLuint},
-            },
-            gpu_texture::GpuTexture,
-            state::PipelineState,
-        },
+        framework::{gpu_texture::GpuTexture, state::PipelineState},
     },
     utils::log::{Log, MessageKind},
 };
-use std::{cell::RefCell, ffi::CString, marker::PhantomData, rc::Rc};
+use glow::HasContext;
+use std::{cell::RefCell, marker::PhantomData, rc::Rc};
 
 pub struct GpuProgram {
-    id: GLuint,
-    name_buf: RefCell<Vec<u8>>,
+    state: *mut PipelineState,
+    id: glow::Program,
     // Force compiler to not implement Send and Sync, because OpenGL is not thread-safe.
     thread_mark: PhantomData<*const u8>,
 }
 
 #[derive(Copy, Clone, Debug)]
 pub struct UniformLocation {
-    id: GLint,
+    id: glow::UniformLocation,
     // Force compiler to not implement Send and Sync, because OpenGL is not thread-safe.
     thread_mark: PhantomData<*const u8>,
 }
@@ -58,49 +52,40 @@ pub enum UniformValue<'a> {
     Mat4Array(&'a [Matrix4<f32>]),
 }
 
-fn create_shader(name: String, actual_type: GLuint, source: &str) -> Result<GLuint, RendererError> {
-    unsafe {
-        let csource = prepare_source_code(source)?;
+unsafe fn create_shader(
+    state: &mut PipelineState,
+    name: String,
+    actual_type: u32,
+    source: &str,
+) -> Result<glow::Shader, RendererError> {
+    let merged_source = prepare_source_code(source);
 
-        let shader = gl::CreateShader(actual_type);
-        gl::ShaderSource(shader, 1, &csource.as_ptr(), std::ptr::null());
-        gl::CompileShader(shader);
+    let shader = state.gl.create_shader(actual_type)?;
+    state.gl.shader_source(shader, &merged_source);
+    state.gl.compile_shader(shader);
 
-        let mut status = 1;
-        gl::GetShaderiv(shader, gl::COMPILE_STATUS, &mut status);
+    let status = state.gl.get_shader_compile_status(shader);
+    let compilation_message = state.gl.get_shader_info_log(shader);
 
-        let mut log_len = 0;
-        gl::GetShaderiv(shader, gl::INFO_LOG_LENGTH, &mut log_len);
-        let mut buffer: Vec<u8> = Vec::with_capacity(log_len as usize);
-        buffer.set_len(log_len as usize);
-        gl::GetShaderInfoLog(
-            shader,
-            log_len,
-            std::ptr::null_mut(),
-            buffer.as_mut_ptr() as *mut i8,
+    if !status {
+        Log::writeln(
+            MessageKind::Error,
+            format!("Failed to compile {} shader: {}", name, compilation_message),
         );
-        let compilation_message = String::from_utf8_unchecked(buffer);
-
-        if status == 0 {
-            Log::writeln(
-                MessageKind::Error,
-                format!("Failed to compile {} shader: {}", name, compilation_message),
-            );
-            Err(RendererError::ShaderCompilationFailed {
-                shader_name: name,
-                error_message: compilation_message,
-            })
-        } else {
-            Log::writeln(
-                MessageKind::Information,
-                format!("Shader {} compiled!\n{}", name, compilation_message),
-            );
-            Ok(shader)
-        }
+        Err(RendererError::ShaderCompilationFailed {
+            shader_name: name,
+            error_message: compilation_message,
+        })
+    } else {
+        Log::writeln(
+            MessageKind::Information,
+            format!("Shader {} compiled!\n{}", name, compilation_message),
+        );
+        Ok(shader)
     }
 }
 
-fn prepare_source_code(code: &str) -> Result<CString, RendererError> {
+fn prepare_source_code(code: &str) -> String {
     let mut shared = "\n// include 'shared.glsl'\n".to_owned();
     shared += include_str!("../shaders/shared.glsl");
     shared += "\n// end of include\n";
@@ -109,50 +94,43 @@ fn prepare_source_code(code: &str) -> Result<CString, RendererError> {
         let mut full = code.to_owned();
         let end = p + full[p..].find('\n').unwrap() + 1;
         full.insert_str(end, &shared);
-        Ok(CString::new(full)?)
+        full
     } else {
         shared += code;
-        Ok(CString::new(shared)?)
+        shared
     }
 }
 
 impl GpuProgram {
     pub fn from_source(
+        state: &mut PipelineState,
         name: &str,
         vertex_source: &str,
         fragment_source: &str,
     ) -> Result<GpuProgram, RendererError> {
         unsafe {
             let vertex_shader = create_shader(
+                state,
                 format!("{}_VertexShader", name),
-                gl::VERTEX_SHADER,
+                glow::VERTEX_SHADER,
                 vertex_source,
             )?;
             let fragment_shader = create_shader(
+                state,
                 format!("{}_FragmentShader", name),
-                gl::FRAGMENT_SHADER,
+                glow::FRAGMENT_SHADER,
                 fragment_source,
             )?;
-            let program: GLuint = gl::CreateProgram();
-            gl::AttachShader(program, vertex_shader);
-            gl::DeleteShader(vertex_shader);
-            gl::AttachShader(program, fragment_shader);
-            gl::DeleteShader(fragment_shader);
-            gl::LinkProgram(program);
-            let mut status = 1;
-            gl::GetProgramiv(program, gl::LINK_STATUS, &mut status);
+            let program = state.gl.create_program()?;
+            state.gl.attach_shader(program, vertex_shader);
+            state.gl.delete_shader(vertex_shader);
+            state.gl.attach_shader(program, fragment_shader);
+            state.gl.delete_shader(fragment_shader);
+            state.gl.link_program(program);
+            let status = state.gl.get_program_link_status(program);
+            let link_message = state.gl.get_program_info_log(program);
 
-            let mut log_len = 0;
-            gl::GetProgramiv(program, gl::INFO_LOG_LENGTH, &mut log_len);
-            let mut buffer: Vec<u8> = Vec::with_capacity(log_len as usize);
-            gl::GetProgramInfoLog(
-                program,
-                log_len,
-                std::ptr::null_mut(),
-                buffer.as_mut_ptr() as *mut i8,
-            );
-            let link_message = String::from_utf8_lossy(&buffer).to_string();
-            if status == 0 {
+            if !status {
                 Log::writeln(
                     MessageKind::Error,
                     format!("Failed to link {} shader: {}", name, link_message),
@@ -167,29 +145,27 @@ impl GpuProgram {
                     format!("Shader {} linked!\n{}", name, link_message),
                 );
                 Ok(Self {
+                    state,
                     id: program,
-                    name_buf: Default::default(),
                     thread_mark: PhantomData,
                 })
             }
         }
     }
 
-    pub fn uniform_location(&self, name: &str) -> Result<UniformLocation, RendererError> {
-        // Form c string in special buffer to reduce memory allocations
-        let buf = &mut self.name_buf.borrow_mut();
-        buf.clear();
-        buf.extend_from_slice(name.as_bytes());
-        buf.push(0);
+    pub fn uniform_location(
+        &self,
+        state: &mut PipelineState,
+        name: &str,
+    ) -> Result<UniformLocation, RendererError> {
         unsafe {
-            let id = gl::GetUniformLocation(self.id, buf.as_ptr() as *const i8);
-            if id < 0 {
-                Err(RendererError::UnableToFindShaderUniform(name.to_owned()))
-            } else {
+            if let Some(id) = state.gl.get_uniform_location(self.id, name) {
                 Ok(UniformLocation {
                     id,
                     thread_mark: PhantomData,
                 })
+            } else {
+                Err(RendererError::UnableToFindShaderUniform(name.to_owned()))
             }
         }
     }
@@ -208,63 +184,82 @@ impl GpuProgram {
 
         state.set_program(self.id);
 
-        let location = location.id;
+        let location = Some(&location.id);
         unsafe {
             match value {
                 UniformValue::Sampler { index, texture } => {
-                    gl::Uniform1i(location, *index as i32);
+                    state.gl.uniform_1_i32(location, *index as i32);
                     texture.borrow().bind(state, *index);
                 }
                 UniformValue::Bool(value) => {
-                    gl::Uniform1i(location, if *value { gl::TRUE } else { gl::FALSE } as i32);
+                    state.gl.uniform_1_i32(
+                        location,
+                        if *value { glow::TRUE } else { glow::FALSE } as i32,
+                    );
                 }
                 UniformValue::Integer(value) => {
-                    gl::Uniform1i(location, *value);
+                    state.gl.uniform_1_i32(location, *value);
                 }
                 UniformValue::Float(value) => {
-                    gl::Uniform1f(location, *value);
+                    state.gl.uniform_1_f32(location, *value);
                 }
                 UniformValue::Vector2(value) => {
-                    gl::Uniform2f(location, value.x, value.y);
+                    state.gl.uniform_2_f32(location, value.x, value.y);
                 }
                 UniformValue::Vector3(value) => {
-                    gl::Uniform3f(location, value.x, value.y, value.z);
+                    state.gl.uniform_3_f32(location, value.x, value.y, value.z);
                 }
                 UniformValue::Vector4(value) => {
-                    gl::Uniform4f(location, value.x, value.y, value.z, value.w);
+                    state
+                        .gl
+                        .uniform_4_f32(location, value.x, value.y, value.z, value.w);
                 }
                 UniformValue::IntegerArray(value) => {
-                    gl::Uniform1iv(location, value.len() as i32, value.as_ptr());
+                    state.gl.uniform_1_i32_slice(location, value);
                 }
                 UniformValue::FloatArray(value) => {
-                    gl::Uniform1fv(location, value.len() as i32, value.as_ptr());
+                    state.gl.uniform_1_f32_slice(location, value);
                 }
                 UniformValue::Vec2Array(value) => {
-                    gl::Uniform2fv(location, value.len() as i32, value.as_ptr() as *const _);
+                    state.gl.uniform_2_f32_slice(
+                        location,
+                        std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 2),
+                    );
                 }
                 UniformValue::Vec3Array(value) => {
-                    gl::Uniform3fv(location, value.len() as i32, value.as_ptr() as *const _);
+                    state.gl.uniform_3_f32_slice(
+                        location,
+                        std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 3),
+                    );
                 }
                 UniformValue::Vec4Array(value) => {
-                    gl::Uniform4fv(location, value.len() as i32, value.as_ptr() as *const _);
+                    state.gl.uniform_4_f32_slice(
+                        location,
+                        std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 4),
+                    );
                 }
                 UniformValue::Matrix4(value) => {
-                    gl::UniformMatrix4fv(location, 1, gl::FALSE, value.as_ptr() as *const _);
+                    state
+                        .gl
+                        .uniform_matrix_4_f32_slice(location, false, value.as_slice());
                 }
                 UniformValue::Matrix3(value) => {
-                    gl::UniformMatrix3fv(location, 1, gl::FALSE, value.as_ptr() as *const _);
+                    state
+                        .gl
+                        .uniform_matrix_3_f32_slice(location, false, value.as_slice());
                 }
                 UniformValue::Mat4Array(value) => {
-                    gl::UniformMatrix4fv(
+                    state.gl.uniform_matrix_4_f32_slice(
                         location,
-                        value.len() as i32,
-                        gl::FALSE,
-                        value.as_ptr() as *const _,
+                        false,
+                        std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 16),
                     );
                 }
                 UniformValue::Color(value) => {
                     let rgba = value.as_frgba();
-                    gl::Uniform4f(location, rgba.x, rgba.y, rgba.z, rgba.w);
+                    state
+                        .gl
+                        .uniform_4_f32(location, rgba.x, rgba.y, rgba.z, rgba.w);
                 }
             }
         }
@@ -274,7 +269,7 @@ impl GpuProgram {
 impl Drop for GpuProgram {
     fn drop(&mut self) {
         unsafe {
-            gl::DeleteProgram(self.id);
+            (*self.state).gl.delete_program(self.id);
         }
     }
 }

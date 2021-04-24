@@ -1,23 +1,16 @@
+use crate::utils::array_as_u8_slice;
 use crate::utils::log::MessageKind;
 use crate::{
     core::scope_profile,
-    renderer::{
-        error::RendererError,
-        framework::{
-            gl::{
-                self,
-                types::{GLint, GLuint},
-            },
-            state::PipelineState,
-        },
-        TriangleDefinition,
-    },
+    renderer::{error::RendererError, framework::state::PipelineState, TriangleDefinition},
     utils::log::Log,
 };
-use std::{cell::Cell, ffi::c_void, marker::PhantomData, mem::size_of};
+use glow::HasContext;
+use std::{cell::Cell, marker::PhantomData, mem::size_of};
 
 struct NativeBuffer {
-    id: GLuint,
+    state: *mut PipelineState,
+    id: glow::Buffer,
     kind: GeometryBufferKind,
     element_size: usize,
     size_bytes: usize,
@@ -29,16 +22,17 @@ impl Drop for NativeBuffer {
     fn drop(&mut self) {
         unsafe {
             if self.id != 0 {
-                gl::DeleteBuffers(1, &self.id);
+                (*self.state).gl.delete_buffer(self.id);
             }
         }
     }
 }
 
 pub struct GeometryBuffer {
-    vertex_array_object: GLuint,
+    state: *mut PipelineState,
+    vertex_array_object: glow::VertexArray,
     buffers: Vec<NativeBuffer>,
-    element_buffer_object: GLuint,
+    element_buffer_object: glow::Buffer,
     element_count: Cell<usize>,
     element_kind: ElementKind,
     // Force compiler to not implement Send and Sync, because OpenGL is not thread-safe.
@@ -101,31 +95,31 @@ impl AttributeKind {
         }
     }
 
-    fn get_type(self) -> GLuint {
+    fn get_type(self) -> u32 {
         match self {
             AttributeKind::Float
             | AttributeKind::Float2
             | AttributeKind::Float3
-            | AttributeKind::Float4 => gl::FLOAT,
+            | AttributeKind::Float4 => glow::FLOAT,
 
             AttributeKind::UnsignedByte
             | AttributeKind::UnsignedByte2
             | AttributeKind::UnsignedByte3
-            | AttributeKind::UnsignedByte4 => gl::UNSIGNED_BYTE,
+            | AttributeKind::UnsignedByte4 => glow::UNSIGNED_BYTE,
 
             AttributeKind::UnsignedShort
             | AttributeKind::UnsignedShort2
             | AttributeKind::UnsignedShort3
-            | AttributeKind::UnsignedShort4 => gl::UNSIGNED_SHORT,
+            | AttributeKind::UnsignedShort4 => glow::UNSIGNED_SHORT,
 
             AttributeKind::UnsignedInt
             | AttributeKind::UnsignedInt2
             | AttributeKind::UnsignedInt3
-            | AttributeKind::UnsignedInt4 => gl::UNSIGNED_INT,
+            | AttributeKind::UnsignedInt4 => glow::UNSIGNED_INT,
         }
     }
 
-    fn length(self) -> GLint {
+    fn length(self) -> usize {
         match self {
             AttributeKind::Float
             | AttributeKind::UnsignedByte
@@ -153,8 +147,8 @@ impl AttributeKind {
 #[derive(Copy, Clone)]
 #[repr(u32)]
 pub enum GeometryBufferKind {
-    StaticDraw = gl::STATIC_DRAW,
-    DynamicDraw = gl::DYNAMIC_DRAW,
+    StaticDraw = glow::STATIC_DRAW,
+    DynamicDraw = glow::DYNAMIC_DRAW,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
@@ -173,6 +167,7 @@ impl ElementKind {
 }
 
 pub struct GeometryBufferBinding<'a> {
+    state: &'a mut PipelineState,
     buffer: &'a GeometryBuffer,
 }
 
@@ -188,11 +183,7 @@ impl<'a> GeometryBufferBinding<'a> {
         assert_eq!(self.buffer.element_kind, ElementKind::Triangle);
         self.buffer.element_count.set(triangles.len());
 
-        let index_count = triangles.len() * 3;
-        let size = (index_count * size_of::<u32>()) as isize;
-        let data = triangles.as_ptr() as *const c_void;
-
-        unsafe { self.set_elements(data, size) }
+        unsafe { self.set_elements(array_as_u8_slice(triangles)) }
 
         self
     }
@@ -203,19 +194,19 @@ impl<'a> GeometryBufferBinding<'a> {
         assert_eq!(self.buffer.element_kind, ElementKind::Line);
         self.buffer.element_count.set(lines.len());
 
-        let index_count = lines.len() * 2;
-        let size = (index_count * size_of::<u32>()) as isize;
-        let data = lines.as_ptr() as *const c_void;
-
-        unsafe { self.set_elements(data, size) }
+        unsafe {
+            self.set_elements(array_as_u8_slice(lines));
+        }
 
         self
     }
 
-    unsafe fn set_elements(&self, elements: *const c_void, size: isize) {
+    unsafe fn set_elements(&self, data: &[u8]) {
         scope_profile!();
 
-        gl::BufferData(gl::ELEMENT_ARRAY_BUFFER, size, elements, gl::DYNAMIC_DRAW);
+        self.state
+            .gl
+            .buffer_data_u8_slice(glow::ELEMENT_ARRAY_BUFFER, data, glow::DYNAMIC_DRAW);
     }
 
     pub fn draw_part(
@@ -246,10 +237,10 @@ impl<'a> GeometryBufferBinding<'a> {
         }
     }
 
-    fn mode(&self) -> GLuint {
+    fn mode(&self) -> u32 {
         match self.buffer.element_kind {
-            ElementKind::Triangle => gl::TRIANGLES,
-            ElementKind::Line => gl::LINES,
+            ElementKind::Triangle => glow::TRIANGLES,
+            ElementKind::Line => glow::LINES,
         }
     }
 
@@ -271,8 +262,13 @@ impl<'a> GeometryBufferBinding<'a> {
         scope_profile!();
 
         if index_count > 0 {
-            let indices = (start_index * size_of::<u32>()) as *const c_void;
-            gl::DrawElements(self.mode(), index_count as i32, gl::UNSIGNED_INT, indices);
+            let indices = (start_index * size_of::<u32>()) as i32;
+            self.state.gl.draw_elements(
+                self.mode(),
+                index_count as i32,
+                glow::UNSIGNED_INT,
+                indices,
+            );
         }
     }
 
@@ -281,11 +277,11 @@ impl<'a> GeometryBufferBinding<'a> {
         let index_count = self.buffer.element_count.get() * index_per_element;
         if index_count > 0 {
             unsafe {
-                gl::DrawElementsInstanced(
+                self.state.gl.draw_elements_instanced(
                     self.mode(),
                     index_count as i32,
-                    gl::UNSIGNED_INT,
-                    std::ptr::null(),
+                    glow::UNSIGNED_INT,
+                    0,
                     count as i32,
                 )
             }
@@ -307,21 +303,24 @@ impl GeometryBuffer {
         state.set_vertex_buffer_object(buffer.id);
 
         let size = data.len() * size_of::<T>();
-        let ptr = data.as_ptr() as *const c_void;
         let usage = buffer.kind as u32;
 
         unsafe {
             if buffer.size_bytes < size {
-                gl::BufferData(gl::ARRAY_BUFFER, size as isize, ptr, usage);
+                state
+                    .gl
+                    .buffer_data_u8_slice(glow::ARRAY_BUFFER, array_as_u8_slice(data), usage);
             } else {
-                gl::BufferSubData(gl::ARRAY_BUFFER, 0, size as isize, ptr);
+                state
+                    .gl
+                    .buffer_sub_data_u8_slice(glow::ARRAY_BUFFER, 0, array_as_u8_slice(data));
             }
         }
 
         buffer.size_bytes = size;
     }
 
-    pub fn bind(&self, state: &mut PipelineState) -> GeometryBufferBinding<'_> {
+    pub fn bind<'a>(&'a self, state: &'a mut PipelineState) -> GeometryBufferBinding<'a> {
         scope_profile!();
 
         state.set_vertex_array_object(self.vertex_array_object);
@@ -329,10 +328,15 @@ impl GeometryBuffer {
         // Element buffer object binding is stored inside vertex array object, so
         // it does not modifies state.
         unsafe {
-            gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.element_buffer_object);
+            state
+                .gl
+                .bind_buffer(glow::ELEMENT_ARRAY_BUFFER, Some(self.element_buffer_object));
         }
 
-        GeometryBufferBinding { buffer: self }
+        GeometryBufferBinding {
+            state,
+            buffer: self,
+        }
     }
 }
 
@@ -348,8 +352,11 @@ impl Drop for GeometryBuffer {
             );
 
             self.buffers.clear();
-            gl::DeleteBuffers(1, &self.element_buffer_object);
-            gl::DeleteVertexArrays(1, &self.vertex_array_object);
+
+            (*self.state).gl.delete_buffer(self.element_buffer_object);
+            (*self.state)
+                .gl
+                .delete_vertex_array(self.vertex_array_object);
         }
     }
 }
@@ -358,17 +365,14 @@ pub struct BufferBuilder {
     element_size: usize,
     kind: GeometryBufferKind,
     attributes: Vec<AttributeDefinition>,
-    data: *const c_void,
+    data: *const u8,
     data_size: usize,
 }
 
 impl BufferBuilder {
     pub fn new<T: Sized>(kind: GeometryBufferKind, data: Option<&[T]>) -> Self {
         let (data, data_size) = if let Some(data) = data {
-            (
-                data as *const _ as *const c_void,
-                data.len() * size_of::<T>(),
-            )
+            (data as *const _ as *const u8, data.len() * size_of::<T>())
         } else {
             (std::ptr::null(), 0)
         };
@@ -388,25 +392,22 @@ impl BufferBuilder {
     }
 
     fn build(self, state: &mut PipelineState) -> Result<NativeBuffer, RendererError> {
-        let mut vbo = 0;
-        unsafe {
-            gl::GenBuffers(1, &mut vbo);
-        }
+        let vbo = unsafe { state.gl.create_buffer()? };
 
         state.set_vertex_buffer_object(vbo);
 
         if self.data_size > 0 {
             unsafe {
-                gl::BufferData(
-                    gl::ARRAY_BUFFER,
-                    self.data_size as isize,
-                    self.data,
+                state.gl.buffer_data_u8_slice(
+                    glow::ARRAY_BUFFER,
+                    std::slice::from_raw_parts(self.data, self.data_size),
                     self.kind as u32,
                 );
             }
         }
 
         let native_buffer = NativeBuffer {
+            state,
             id: vbo,
             kind: self.kind,
             element_size: self.element_size,
@@ -414,29 +415,21 @@ impl BufferBuilder {
             thread_mark: Default::default(),
         };
 
-        let mut offset = 0;
+        let mut offset = 0usize;
         for definition in self.attributes {
-            let size = definition.kind.length();
-            let type_ = definition.kind.get_type();
-            let normalized = if definition.normalized {
-                gl::TRUE
-            } else {
-                gl::FALSE
-            };
-            let stride = self.element_size as i32;
-            let pointer = offset as *const c_void;
-
             unsafe {
-                gl::VertexAttribPointer(
+                state.gl.vertex_attrib_pointer_f32(
                     definition.location,
-                    size,
-                    type_,
-                    normalized,
-                    stride,
-                    pointer,
+                    definition.kind.length() as i32,
+                    definition.kind.get_type(),
+                    definition.normalized,
+                    self.element_size as i32,
+                    offset as i32,
                 );
-                gl::VertexAttribDivisor(definition.location, definition.divisor);
-                gl::EnableVertexAttribArray(definition.location);
+                state
+                    .gl
+                    .vertex_attrib_divisor(definition.location, definition.divisor);
+                state.gl.enable_vertex_attrib_array(definition.location);
 
                 offset += definition.kind.size_bytes();
 
@@ -472,13 +465,8 @@ impl GeometryBufferBuilder {
     pub fn build(self, state: &mut PipelineState) -> Result<GeometryBuffer, RendererError> {
         scope_profile!();
 
-        let mut vao = 0;
-        let mut ebo = 0;
-
-        unsafe {
-            gl::GenVertexArrays(1, &mut vao);
-            gl::GenBuffers(1, &mut ebo);
-        }
+        let vao = unsafe { state.gl.create_vertex_array()? };
+        let ebo = unsafe { state.gl.create_buffer()? };
 
         state.set_vertex_array_object(vao);
 
@@ -488,6 +476,7 @@ impl GeometryBufferBuilder {
         }
 
         Ok(GeometryBuffer {
+            state,
             vertex_array_object: vao,
             buffers,
             element_buffer_object: ebo,

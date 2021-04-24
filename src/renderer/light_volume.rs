@@ -10,7 +10,6 @@ use crate::{
         flat_shader::FlatShader,
         framework::{
             framebuffer::{CullFace, DrawParameters, FrameBufferTrait},
-            gl,
             gpu_program::{GpuProgram, UniformLocation, UniformValue},
             state::{ColorMask, PipelineState, StencilFunc, StencilOp},
         },
@@ -34,20 +33,20 @@ struct SpotLightShader {
 }
 
 impl SpotLightShader {
-    fn new() -> Result<Self, RendererError> {
+    fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
         let fragment_source = include_str!("shaders/spot_volumetric_fs.glsl");
         let vertex_source = include_str!("shaders/flat_vs.glsl");
         let program =
-            GpuProgram::from_source("SpotVolumetricLight", vertex_source, fragment_source)?;
+            GpuProgram::from_source(state, "SpotVolumetricLight", vertex_source, fragment_source)?;
         Ok(Self {
-            world_view_proj_matrix: program.uniform_location("worldViewProjection")?,
-            depth_sampler: program.uniform_location("depthSampler")?,
-            light_position: program.uniform_location("lightPosition")?,
-            light_direction: program.uniform_location("lightDirection")?,
-            cone_angle_cos: program.uniform_location("coneAngleCos")?,
-            light_color: program.uniform_location("lightColor")?,
-            scatter_factor: program.uniform_location("scatterFactor")?,
-            inv_proj: program.uniform_location("invProj")?,
+            world_view_proj_matrix: program.uniform_location(state, "worldViewProjection")?,
+            depth_sampler: program.uniform_location(state, "depthSampler")?,
+            light_position: program.uniform_location(state, "lightPosition")?,
+            light_direction: program.uniform_location(state, "lightDirection")?,
+            cone_angle_cos: program.uniform_location(state, "coneAngleCos")?,
+            light_color: program.uniform_location(state, "lightColor")?,
+            scatter_factor: program.uniform_location(state, "scatterFactor")?,
+            inv_proj: program.uniform_location(state, "invProj")?,
             program,
         })
     }
@@ -65,19 +64,23 @@ struct PointLightShader {
 }
 
 impl PointLightShader {
-    fn new() -> Result<Self, RendererError> {
+    fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
         let fragment_source = include_str!("shaders/point_volumetric_fs.glsl");
         let vertex_source = include_str!("shaders/flat_vs.glsl");
-        let program =
-            GpuProgram::from_source("PointVolumetricLight", vertex_source, fragment_source)?;
+        let program = GpuProgram::from_source(
+            state,
+            "PointVolumetricLight",
+            vertex_source,
+            fragment_source,
+        )?;
         Ok(Self {
-            world_view_proj_matrix: program.uniform_location("worldViewProjection")?,
-            depth_sampler: program.uniform_location("depthSampler")?,
-            light_position: program.uniform_location("lightPosition")?,
-            inv_proj: program.uniform_location("invProj")?,
-            light_radius: program.uniform_location("lightRadius")?,
-            light_color: program.uniform_location("lightColor")?,
-            scatter_factor: program.uniform_location("scatterFactor")?,
+            world_view_proj_matrix: program.uniform_location(state, "worldViewProjection")?,
+            depth_sampler: program.uniform_location(state, "depthSampler")?,
+            light_position: program.uniform_location(state, "lightPosition")?,
+            inv_proj: program.uniform_location(state, "invProj")?,
+            light_radius: program.uniform_location(state, "lightRadius")?,
+            light_color: program.uniform_location(state, "lightColor")?,
+            scatter_factor: program.uniform_location(state, "scatterFactor")?,
             program,
         })
     }
@@ -92,11 +95,11 @@ pub struct LightVolumeRenderer {
 }
 
 impl LightVolumeRenderer {
-    pub fn new() -> Result<Self, RendererError> {
+    pub fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
         Ok(Self {
-            spot_light_shader: SpotLightShader::new()?,
-            point_light_shader: PointLightShader::new()?,
-            flat_shader: FlatShader::new()?,
+            spot_light_shader: SpotLightShader::new(state)?,
+            point_light_shader: PointLightShader::new(state)?,
+            flat_shader: FlatShader::new(state)?,
             cone: SurfaceSharedData::make_cone(
                 16,
                 1.0,
@@ -173,14 +176,14 @@ impl LightVolumeRenderer {
 
                 state.set_stencil_mask(0xFFFF_FFFF);
                 state.set_stencil_func(StencilFunc {
-                    func: gl::EQUAL,
+                    func: glow::EQUAL,
                     ref_value: 0xFF,
                     mask: 0xFFFF_FFFF,
                 });
                 state.set_stencil_op(StencilOp {
-                    fail: gl::REPLACE,
-                    zfail: gl::KEEP,
-                    zpass: gl::REPLACE,
+                    fail: glow::REPLACE,
+                    zfail: glow::KEEP,
+                    zpass: glow::REPLACE,
                 });
 
                 stats += gbuffer.final_frame.draw(
@@ -202,7 +205,7 @@ impl LightVolumeRenderer {
 
                 // Make sure to clean stencil buffer after drawing full screen quad.
                 state.set_stencil_op(StencilOp {
-                    zpass: gl::ZERO,
+                    zpass: glow::ZERO,
                     ..Default::default()
                 });
 
@@ -269,14 +272,14 @@ impl LightVolumeRenderer {
 
                 state.set_stencil_mask(0xFFFF_FFFF);
                 state.set_stencil_func(StencilFunc {
-                    func: gl::EQUAL,
+                    func: glow::EQUAL,
                     ref_value: 0xFF,
                     mask: 0xFFFF_FFFF,
                 });
                 state.set_stencil_op(StencilOp {
-                    fail: gl::REPLACE,
-                    zfail: gl::KEEP,
-                    zpass: gl::REPLACE,
+                    fail: glow::REPLACE,
+                    zfail: glow::KEEP,
+                    zpass: glow::REPLACE,
                 });
 
                 // Radius bias is used to to slightly increase sphere radius to add small margin
@@ -306,7 +309,7 @@ impl LightVolumeRenderer {
 
                 // Make sure to clean stencil buffer after drawing full screen quad.
                 state.set_stencil_op(StencilOp {
-                    zpass: gl::ZERO,
+                    zpass: glow::ZERO,
                     ..Default::default()
                 });
 

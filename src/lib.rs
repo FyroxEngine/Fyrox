@@ -5,6 +5,7 @@
 #![allow(clippy::from_over_into)]
 
 extern crate ddsfile;
+extern crate glow;
 extern crate glutin;
 extern crate image;
 extern crate inflate;

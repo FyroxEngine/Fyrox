@@ -256,7 +256,6 @@ impl MatrixStorage {
             .borrow_mut()
             .bind_mut(state, 0)
             .set_data(
-                state,
                 GpuTextureKind::Rectangle {
                     width: matrices_w,
                     height: matrices_h,

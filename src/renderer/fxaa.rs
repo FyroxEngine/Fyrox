@@ -25,15 +25,15 @@ struct FxaaShader {
 }
 
 impl FxaaShader {
-    pub fn new() -> Result<Self, RendererError> {
+    pub fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
         let fragment_source = include_str!("shaders/fxaa_fs.glsl");
         let vertex_source = include_str!("shaders/flat_vs.glsl");
 
-        let program = GpuProgram::from_source("FXAAShader", vertex_source, fragment_source)?;
+        let program = GpuProgram::from_source(state, "FXAAShader", vertex_source, fragment_source)?;
         Ok(Self {
-            wvp_matrix: program.uniform_location("worldViewProjection")?,
-            screen_texture: program.uniform_location("screenTexture")?,
-            inverse_screen_size: program.uniform_location("inverseScreenSize")?,
+            wvp_matrix: program.uniform_location(state, "worldViewProjection")?,
+            screen_texture: program.uniform_location(state, "screenTexture")?,
+            inverse_screen_size: program.uniform_location(state, "inverseScreenSize")?,
             program,
         })
     }
@@ -45,9 +45,9 @@ pub struct FxaaRenderer {
 }
 
 impl FxaaRenderer {
-    pub fn new() -> Result<Self, RendererError> {
+    pub fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
         Ok(Self {
-            shader: FxaaShader::new()?,
+            shader: FxaaShader::new(state)?,
             quad: SurfaceSharedData::make_unit_xy_quad(),
         })
     }

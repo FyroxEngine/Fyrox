@@ -6,7 +6,6 @@
 //! For now it is used **only** to render transparent meshes (or any other mesh that has Forward render
 //! path).
 
-use crate::renderer::framework::gl;
 use crate::{
     core::{math::Rect, scope_profile},
     renderer::{
@@ -32,16 +31,17 @@ pub struct Shader {
 }
 
 impl Shader {
-    pub fn new() -> Result<Self, RendererError> {
+    pub fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
         let fragment_source = include_str!("shaders/forward_fs.glsl");
         let vertex_source = include_str!("shaders/forward_vs.glsl");
-        let program = GpuProgram::from_source("ForwardShader", vertex_source, fragment_source)?;
+        let program =
+            GpuProgram::from_source(state, "ForwardShader", vertex_source, fragment_source)?;
         Ok(Self {
-            wvp_matrix: program.uniform_location("worldViewProjection")?,
-            diffuse_texture: program.uniform_location("diffuseTexture")?,
-            color: program.uniform_location("color")?,
-            use_skeletal_animation: program.uniform_location("useSkeletalAnimation")?,
-            bone_matrices: program.uniform_location("boneMatrices")?,
+            wvp_matrix: program.uniform_location(state, "worldViewProjection")?,
+            diffuse_texture: program.uniform_location(state, "diffuseTexture")?,
+            color: program.uniform_location(state, "color")?,
+            use_skeletal_animation: program.uniform_location(state, "useSkeletalAnimation")?,
+            bone_matrices: program.uniform_location(state, "boneMatrices")?,
             program,
         })
     }
@@ -61,9 +61,9 @@ pub(in crate) struct ForwardRenderContext<'a, 'b> {
 }
 
 impl ForwardRenderer {
-    pub(in crate) fn new() -> Result<Self, RendererError> {
+    pub(in crate) fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
         Ok(Self {
-            shader: Shader::new()?,
+            shader: Shader::new(state)?,
         })
     }
 
@@ -91,7 +91,7 @@ impl ForwardRenderer {
             blend: true, // TODO: Do not forget to change when renderer will have all features!
         };
 
-        state.set_blend_func(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
+        state.set_blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
 
         let initial_view_projection = camera.view_projection_matrix();
 

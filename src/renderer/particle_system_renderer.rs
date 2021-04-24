@@ -8,7 +8,6 @@ use crate::{
                 AttributeDefinition, AttributeKind, BufferBuilder, ElementKind, GeometryBuffer,
                 GeometryBufferBuilder, GeometryBufferKind,
             },
-            gl,
             gpu_program::{GpuProgram, UniformLocation, UniformValue},
             gpu_texture::GpuTexture,
             state::PipelineState,
@@ -32,20 +31,24 @@ struct ParticleSystemShader {
 }
 
 impl ParticleSystemShader {
-    fn new() -> Result<Self, RendererError> {
+    fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
         let vertex_source = include_str!("shaders/particle_system_vs.glsl");
         let fragment_source = include_str!("shaders/particle_system_fs.glsl");
-        let program =
-            GpuProgram::from_source("ParticleSystemShader", vertex_source, fragment_source)?;
+        let program = GpuProgram::from_source(
+            state,
+            "ParticleSystemShader",
+            vertex_source,
+            fragment_source,
+        )?;
         Ok(Self {
-            view_projection_matrix: program.uniform_location("viewProjectionMatrix")?,
-            world_matrix: program.uniform_location("worldMatrix")?,
-            camera_side_vector: program.uniform_location("cameraSideVector")?,
-            camera_up_vector: program.uniform_location("cameraUpVector")?,
-            diffuse_texture: program.uniform_location("diffuseTexture")?,
-            depth_buffer_texture: program.uniform_location("depthBufferTexture")?,
-            inv_screen_size: program.uniform_location("invScreenSize")?,
-            proj_params: program.uniform_location("projParams")?,
+            view_projection_matrix: program.uniform_location(state, "viewProjectionMatrix")?,
+            world_matrix: program.uniform_location(state, "worldMatrix")?,
+            camera_side_vector: program.uniform_location(state, "cameraSideVector")?,
+            camera_up_vector: program.uniform_location(state, "cameraUpVector")?,
+            diffuse_texture: program.uniform_location(state, "diffuseTexture")?,
+            depth_buffer_texture: program.uniform_location(state, "depthBufferTexture")?,
+            inv_screen_size: program.uniform_location(state, "invScreenSize")?,
+            proj_params: program.uniform_location(state, "projParams")?,
             program,
         })
     }
@@ -113,7 +116,7 @@ impl ParticleSystemRenderer {
             .build(state)?;
 
         Ok(Self {
-            shader: ParticleSystemShader::new()?,
+            shader: ParticleSystemShader::new(state)?,
             draw_data: Default::default(),
             geometry_buffer,
             sorted_particles: Vec::new(),
@@ -139,7 +142,7 @@ impl ParticleSystemRenderer {
             texture_cache,
         } = args;
 
-        state.set_blend_func(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
+        state.set_blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
 
         let inv_view = camera.inv_view_matrix().unwrap();
         let view_proj = camera.view_projection_matrix();

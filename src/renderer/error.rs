@@ -32,6 +32,8 @@ pub enum RendererError {
         /// Actual data size in bytes.
         actual_data_size: usize,
     },
+    /// None variant was passed as texture data, but engine does not support it.
+    EmptyTextureData,
     /// Means that you tried to draw element range from GeometryBuffer that
     /// does not have enough elements.
     InvalidElementRange {
@@ -54,6 +56,8 @@ pub enum RendererError {
     FailedToConstructFBO,
     /// Internal context error.
     Context(ContextError),
+    /// Custom error. Usually used for internal errors.
+    Custom(String),
 }
 
 impl From<NulError> for RendererError {
@@ -65,5 +69,11 @@ impl From<NulError> for RendererError {
 impl From<ContextError> for RendererError {
     fn from(err: ContextError) -> Self {
         Self::Context(err)
+    }
+}
+
+impl From<String> for RendererError {
+    fn from(v: String) -> Self {
+        Self::Custom(v)
     }
 }

@@ -36,16 +36,16 @@ struct SpotShadowMapShader {
 }
 
 impl SpotShadowMapShader {
-    pub fn new() -> Result<Self, RendererError> {
+    pub fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
         let fragment_source = include_str!("shaders/spot_shadow_map_fs.glsl");
         let vertex_source = include_str!("shaders/spot_shadow_map_vs.glsl");
         let program =
-            GpuProgram::from_source("SpotShadowMapShader", vertex_source, fragment_source)?;
+            GpuProgram::from_source(state, "SpotShadowMapShader", vertex_source, fragment_source)?;
         Ok(Self {
-            bone_matrices: program.uniform_location("boneMatrices")?,
-            world_view_projection_matrix: program.uniform_location("worldViewProjection")?,
-            use_skeletal_animation: program.uniform_location("useSkeletalAnimation")?,
-            diffuse_texture: program.uniform_location("diffuseTexture")?,
+            bone_matrices: program.uniform_location(state, "boneMatrices")?,
+            world_view_projection_matrix: program.uniform_location(state, "worldViewProjection")?,
+            use_skeletal_animation: program.uniform_location(state, "useSkeletalAnimation")?,
+            diffuse_texture: program.uniform_location(state, "diffuseTexture")?,
 
             program,
         })
@@ -128,7 +128,7 @@ impl SpotShadowMapRenderer {
                 make_cascade(state, cascade_size(size, 1), precision)?,
                 make_cascade(state, cascade_size(size, 2), precision)?,
             ],
-            shader: SpotShadowMapShader::new()?,
+            shader: SpotShadowMapShader::new(state)?,
         })
     }
 
@@ -246,18 +246,22 @@ struct PointShadowMapShader {
 }
 
 impl PointShadowMapShader {
-    pub fn new() -> Result<Self, RendererError> {
+    pub fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
         let fragment_source = include_str!("shaders/point_shadow_map_fs.glsl");
         let vertex_source = include_str!("shaders/point_shadow_map_vs.glsl");
-        let program =
-            GpuProgram::from_source("PointShadowMapShader", vertex_source, fragment_source)?;
+        let program = GpuProgram::from_source(
+            state,
+            "PointShadowMapShader",
+            vertex_source,
+            fragment_source,
+        )?;
         Ok(Self {
-            world_matrix: program.uniform_location("worldMatrix")?,
-            bone_matrices: program.uniform_location("boneMatrices")?,
-            world_view_projection_matrix: program.uniform_location("worldViewProjection")?,
-            use_skeletal_animation: program.uniform_location("useSkeletalAnimation")?,
-            diffuse_texture: program.uniform_location("diffuseTexture")?,
-            light_position: program.uniform_location("lightPosition")?,
+            world_matrix: program.uniform_location(state, "worldMatrix")?,
+            bone_matrices: program.uniform_location(state, "boneMatrices")?,
+            world_view_projection_matrix: program.uniform_location(state, "worldViewProjection")?,
+            use_skeletal_animation: program.uniform_location(state, "useSkeletalAnimation")?,
+            diffuse_texture: program.uniform_location(state, "diffuseTexture")?,
+            light_position: program.uniform_location(state, "lightPosition")?,
             program,
         })
     }
@@ -369,7 +373,7 @@ impl PointShadowMapRenderer {
                 make_cascade(state, cascade_size(size, 2), precision)?,
             ],
             size,
-            shader: PointShadowMapShader::new()?,
+            shader: PointShadowMapShader::new(state)?,
             faces: [
                 PointShadowCubeMapFace {
                     face: CubeMapFace::PositiveX,

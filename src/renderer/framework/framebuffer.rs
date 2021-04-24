@@ -4,13 +4,13 @@ use crate::{
         error::RendererError,
         framework::{
             geometry_buffer::{DrawCallStatistics, GeometryBuffer},
-            gl::{self, types::GLuint},
             gpu_program::{GpuProgram, UniformLocation, UniformValue},
             gpu_texture::{CubeMapFace, GpuTexture, GpuTextureKind},
             state::{ColorMask, PipelineState},
         },
     },
 };
+use glow::HasContext;
 use std::{cell::RefCell, rc::Rc};
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug)]
@@ -26,7 +26,8 @@ pub struct Attachment {
 }
 
 pub struct FrameBuffer {
-    fbo: GLuint,
+    state: *mut PipelineState,
+    fbo: glow::Framebuffer,
     depth_attachment: Option<Attachment>,
     color_attachments: Vec<Attachment>,
 }
@@ -40,8 +41,8 @@ pub enum CullFace {
 impl CullFace {
     pub fn into_gl_value(self) -> u32 {
         match self {
-            Self::Front => gl::FRONT,
-            Self::Back => gl::BACK,
+            Self::Front => glow::FRONT,
+            Self::Back => glow::BACK,
         }
     }
 }
@@ -70,41 +71,40 @@ impl Default for DrawParameters {
     }
 }
 
-unsafe fn set_attachment(gl_attachment_kind: u32, texture: &GpuTexture) {
+unsafe fn set_attachment(state: &mut PipelineState, gl_attachment_kind: u32, texture: &GpuTexture) {
     match texture.kind() {
         GpuTextureKind::Line { .. } => {
-            gl::FramebufferTexture1D(
-                gl::FRAMEBUFFER,
+            state.gl.framebuffer_texture(
+                glow::FRAMEBUFFER,
                 gl_attachment_kind,
-                gl::TEXTURE_1D,
-                texture.id(),
+                Some(texture.id()),
                 0,
             );
         }
         GpuTextureKind::Rectangle { .. } => {
-            gl::FramebufferTexture2D(
-                gl::FRAMEBUFFER,
+            state.gl.framebuffer_texture_2d(
+                glow::FRAMEBUFFER,
                 gl_attachment_kind,
-                gl::TEXTURE_2D,
-                texture.id(),
+                glow::TEXTURE_2D,
+                Some(texture.id()),
                 0,
             );
         }
         GpuTextureKind::Cube { .. } => {
-            gl::FramebufferTexture2D(
-                gl::FRAMEBUFFER,
+            state.gl.framebuffer_texture_2d(
+                glow::FRAMEBUFFER,
                 gl_attachment_kind,
-                gl::TEXTURE_CUBE_MAP_POSITIVE_X,
-                texture.id(),
+                glow::TEXTURE_CUBE_MAP_POSITIVE_X,
+                Some(texture.id()),
                 0,
             );
         }
         GpuTextureKind::Volume { .. } => {
-            gl::FramebufferTexture3D(
-                gl::FRAMEBUFFER,
+            state.gl.framebuffer_texture_3d(
+                glow::FRAMEBUFFER,
                 gl_attachment_kind,
-                gl::TEXTURE_3D,
-                texture.id(),
+                glow::TEXTURE_3D,
+                Some(texture.id()),
                 0,
                 0,
             );
@@ -119,9 +119,7 @@ impl FrameBuffer {
         color_attachments: Vec<Attachment>,
     ) -> Result<Self, RendererError> {
         unsafe {
-            let mut fbo = 0;
-
-            gl::GenFramebuffers(1, &mut fbo);
+            let fbo = state.gl.create_framebuffer()?;
 
             state.set_framebuffer(fbo);
 
@@ -130,33 +128,42 @@ impl FrameBuffer {
                     AttachmentKind::Color => {
                         panic!("Attempt to use color attachment as depth/stencil!")
                     }
-                    AttachmentKind::DepthStencil => gl::DEPTH_STENCIL_ATTACHMENT,
-                    AttachmentKind::Depth => gl::DEPTH_ATTACHMENT,
+                    AttachmentKind::DepthStencil => glow::DEPTH_STENCIL_ATTACHMENT,
+                    AttachmentKind::Depth => glow::DEPTH_ATTACHMENT,
                 };
-                set_attachment(depth_attachment_kind, &depth_attachment.texture.borrow());
+                set_attachment(
+                    state,
+                    depth_attachment_kind,
+                    &depth_attachment.texture.borrow(),
+                );
             }
 
             let mut color_buffers = Vec::new();
             for (i, color_attachment) in color_attachments.iter().enumerate() {
                 assert_eq!(color_attachment.kind, AttachmentKind::Color);
-                let color_attachment_kind = gl::COLOR_ATTACHMENT0 + i as u32;
-                set_attachment(color_attachment_kind, &color_attachment.texture.borrow());
+                let color_attachment_kind = glow::COLOR_ATTACHMENT0 + i as u32;
+                set_attachment(
+                    state,
+                    color_attachment_kind,
+                    &color_attachment.texture.borrow(),
+                );
                 color_buffers.push(color_attachment_kind);
             }
 
             if color_buffers.is_empty() {
-                gl::DrawBuffer(gl::NONE)
+                state.gl.draw_buffer(glow::NONE)
             } else {
-                gl::DrawBuffers(color_buffers.len() as i32, color_buffers.as_ptr());
+                state.gl.draw_buffers(&color_buffers);
             }
 
-            if gl::CheckFramebufferStatus(gl::FRAMEBUFFER) != gl::FRAMEBUFFER_COMPLETE {
+            if state.gl.check_framebuffer_status(glow::FRAMEBUFFER) != glow::FRAMEBUFFER_COMPLETE {
                 return Err(RendererError::FailedToConstructFBO);
             }
 
             state.set_framebuffer(0);
 
             Ok(Self {
+                state,
                 fbo,
                 depth_attachment,
                 color_attachments,
@@ -182,11 +189,11 @@ impl FrameBuffer {
             state.set_framebuffer(self.fbo);
 
             let attachment = self.color_attachments.get(attachment_index).unwrap();
-            gl::FramebufferTexture2D(
-                gl::FRAMEBUFFER,
-                gl::COLOR_ATTACHMENT0 + attachment_index as u32,
+            state.gl.framebuffer_texture_2d(
+                glow::FRAMEBUFFER,
+                glow::COLOR_ATTACHMENT0 + attachment_index as u32,
                 face.into_gl_value(),
-                attachment.texture.borrow().id(),
+                Some(attachment.texture.borrow().id()),
                 0,
             );
         }
@@ -196,7 +203,7 @@ impl FrameBuffer {
 }
 
 fn pre_draw(
-    fbo: GLuint,
+    fbo: glow::Framebuffer,
     state: &mut PipelineState,
     viewport: Rect<i32>,
     program: &GpuProgram,
@@ -247,21 +254,21 @@ pub trait FrameBufferTrait {
         if let Some(color) = color {
             state.set_color_write(ColorMask::default());
             state.set_clear_color(color);
-            mask |= gl::COLOR_BUFFER_BIT;
+            mask |= glow::COLOR_BUFFER_BIT;
         }
         if let Some(depth) = depth {
             state.set_depth_write(true);
             state.set_clear_depth(depth);
-            mask |= gl::DEPTH_BUFFER_BIT;
+            mask |= glow::DEPTH_BUFFER_BIT;
         }
         if let Some(stencil) = stencil {
             state.set_stencil_mask(0xFFFF_FFFF);
             state.set_clear_stencil(stencil);
-            mask |= gl::STENCIL_BUFFER_BIT;
+            mask |= glow::STENCIL_BUFFER_BIT;
         }
 
         unsafe {
-            gl::Clear(mask);
+            state.gl.clear(mask);
         }
     }
 
@@ -330,7 +337,7 @@ impl FrameBufferTrait for BackBuffer {
 impl Drop for FrameBuffer {
     fn drop(&mut self) {
         unsafe {
-            gl::DeleteFramebuffers(1, &self.fbo);
+            (*self.state).gl.delete_framebuffer(self.fbo);
         }
     }
 }

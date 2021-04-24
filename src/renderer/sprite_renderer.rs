@@ -4,7 +4,6 @@ use crate::{
         error::RendererError,
         framework::{
             framebuffer::{CullFace, DrawParameters, FrameBuffer, FrameBufferTrait},
-            gl,
             gpu_program::{GpuProgram, UniformLocation, UniformValue},
             gpu_texture::GpuTexture,
             state::PipelineState,
@@ -29,19 +28,19 @@ struct SpriteShader {
 }
 
 impl SpriteShader {
-    pub fn new() -> Result<Self, RendererError> {
+    pub fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
         let fragment_source = include_str!("shaders/sprite_fs.glsl");
         let vertex_source = include_str!("shaders/sprite_vs.glsl");
-        let program = GpuProgram::from_source("FlatShader", vertex_source, fragment_source)?;
+        let program = GpuProgram::from_source(state, "FlatShader", vertex_source, fragment_source)?;
         Ok(Self {
-            view_projection_matrix: program.uniform_location("viewProjectionMatrix")?,
-            world_matrix: program.uniform_location("worldMatrix")?,
-            camera_side_vector: program.uniform_location("cameraSideVector")?,
-            camera_up_vector: program.uniform_location("cameraUpVector")?,
-            size: program.uniform_location("size")?,
-            diffuse_texture: program.uniform_location("diffuseTexture")?,
-            color: program.uniform_location("color")?,
-            rotation: program.uniform_location("rotation")?,
+            view_projection_matrix: program.uniform_location(state, "viewProjectionMatrix")?,
+            world_matrix: program.uniform_location(state, "worldMatrix")?,
+            camera_side_vector: program.uniform_location(state, "cameraSideVector")?,
+            camera_up_vector: program.uniform_location(state, "cameraUpVector")?,
+            size: program.uniform_location(state, "size")?,
+            diffuse_texture: program.uniform_location(state, "diffuseTexture")?,
+            color: program.uniform_location(state, "color")?,
+            rotation: program.uniform_location(state, "rotation")?,
             program,
         })
     }
@@ -64,11 +63,11 @@ pub(in crate) struct SpriteRenderContext<'a, 'b, 'c> {
 }
 
 impl SpriteRenderer {
-    pub fn new() -> Result<Self, RendererError> {
+    pub fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
         let surface = SurfaceSharedData::make_collapsed_xy_quad();
 
         Ok(Self {
-            shader: SpriteShader::new()?,
+            shader: SpriteShader::new(state)?,
             surface,
         })
     }
@@ -90,7 +89,7 @@ impl SpriteRenderer {
             geom_map,
         } = args;
 
-        state.set_blend_func(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
+        state.set_blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
 
         let initial_view_projection = camera.view_projection_matrix();
 

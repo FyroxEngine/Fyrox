@@ -41,12 +41,13 @@ pub(in crate) struct DebugShader {
 }
 
 impl DebugShader {
-    fn new() -> Result<Self, RendererError> {
+    fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
         let fragment_source = include_str!("shaders/debug_fs.glsl");
         let vertex_source = include_str!("shaders/debug_vs.glsl");
-        let program = GpuProgram::from_source("DebugShader", &vertex_source, &fragment_source)?;
+        let program =
+            GpuProgram::from_source(state, "DebugShader", &vertex_source, &fragment_source)?;
         Ok(Self {
-            wvp_matrix: program.uniform_location("worldViewProjection")?,
+            wvp_matrix: program.uniform_location(state, "worldViewProjection")?,
             program,
         })
     }
@@ -74,7 +75,7 @@ impl DebugRenderer {
 
         Ok(Self {
             geometry,
-            shader: DebugShader::new()?,
+            shader: DebugShader::new(state)?,
             vertices: Default::default(),
             line_indices: Default::default(),
         })

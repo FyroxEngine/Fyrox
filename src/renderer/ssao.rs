@@ -48,21 +48,21 @@ struct Shader {
 }
 
 impl Shader {
-    pub fn new() -> Result<Self, RendererError> {
+    pub fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
         let fragment_source = include_str!("shaders/ssao_fs.glsl");
         let vertex_source = include_str!("shaders/ssao_vs.glsl");
-        let program = GpuProgram::from_source("SsaoShader", vertex_source, fragment_source)?;
+        let program = GpuProgram::from_source(state, "SsaoShader", vertex_source, fragment_source)?;
         Ok(Self {
-            depth_sampler: program.uniform_location("depthSampler")?,
-            normal_sampler: program.uniform_location("normalSampler")?,
-            noise_sampler: program.uniform_location("noiseSampler")?,
-            kernel: program.uniform_location("kernel")?,
-            radius: program.uniform_location("radius")?,
-            projection_matrix: program.uniform_location("projectionMatrix")?,
-            inv_proj_matrix: program.uniform_location("inverseProjectionMatrix")?,
-            noise_scale: program.uniform_location("noiseScale")?,
-            world_view_proj_matrix: program.uniform_location("worldViewProjection")?,
-            view_matrix: program.uniform_location("viewMatrix")?,
+            depth_sampler: program.uniform_location(state, "depthSampler")?,
+            normal_sampler: program.uniform_location(state, "normalSampler")?,
+            noise_sampler: program.uniform_location(state, "noiseSampler")?,
+            kernel: program.uniform_location(state, "kernel")?,
+            radius: program.uniform_location(state, "radius")?,
+            projection_matrix: program.uniform_location(state, "projectionMatrix")?,
+            inv_proj_matrix: program.uniform_location(state, "inverseProjectionMatrix")?,
+            noise_scale: program.uniform_location(state, "noiseScale")?,
+            world_view_proj_matrix: program.uniform_location(state, "worldViewProjection")?,
+            view_matrix: program.uniform_location(state, "viewMatrix")?,
             program,
         })
     }
@@ -113,7 +113,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
 
         Ok(Self {
             blur: Blur::new(state, width, height)?,
-            shader: Shader::new()?,
+            shader: Shader::new(state)?,
             framebuffer: FrameBuffer::new(
                 state,
                 None,

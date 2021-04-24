@@ -1,13 +1,9 @@
+use crate::utils::log::{Log, MessageKind};
 use crate::{
     core::{color::Color, math::Rect},
-    renderer::framework::{
-        framebuffer::{CullFace, DrawParameters},
-        gl::{
-            self,
-            types::{GLboolean, GLenum, GLint, GLuint},
-        },
-    },
+    renderer::framework::framebuffer::{CullFace, DrawParameters},
 };
+use glow::HasContext;
 use std::fmt::{Display, Formatter};
 
 #[derive(Default, Copy, Clone)]
@@ -42,6 +38,8 @@ impl Display for PipelineStatistics {
 }
 
 pub struct PipelineState {
+    pub gl: glow::Context,
+
     blend: bool,
     depth_test: bool,
     depth_write: bool,
@@ -55,44 +53,36 @@ pub struct PipelineState {
     clear_depth: f32,
     scissor_test: bool,
 
-    framebuffer: GLuint,
+    framebuffer: glow::Framebuffer,
     viewport: Rect<i32>,
 
-    blend_src_factor: GLuint,
-    blend_dst_factor: GLuint,
+    blend_src_factor: u32,
+    blend_dst_factor: u32,
 
-    program: GLuint,
+    program: glow::Program,
     texture_units: [TextureUnit; 32],
 
     stencil_func: StencilFunc,
     stencil_op: StencilOp,
 
-    vao: GLuint,
-    vbo: GLuint,
+    vao: glow::VertexArray,
+    vbo: glow::Buffer,
 
     frame_statistics: PipelineStatistics,
 }
 
 #[derive(Copy, Clone)]
 struct TextureUnit {
-    target: GLenum,
-    texture: GLuint,
+    target: u32,
+    texture: glow::Texture,
 }
 
 impl Default for TextureUnit {
     fn default() -> Self {
         Self {
-            target: gl::TEXTURE_2D,
+            target: glow::TEXTURE_2D,
             texture: 0,
         }
-    }
-}
-
-fn bool_to_gl_bool(v: bool) -> GLboolean {
-    if v {
-        gl::TRUE
-    } else {
-        gl::FALSE
     }
 }
 
@@ -128,15 +118,15 @@ impl ColorMask {
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug)]
 pub struct StencilFunc {
-    pub func: GLenum,
-    pub ref_value: GLint,
-    pub mask: GLuint,
+    pub func: u32,
+    pub ref_value: u32,
+    pub mask: u32,
 }
 
 impl Default for StencilFunc {
     fn default() -> Self {
         Self {
-            func: gl::ALWAYS,
+            func: glow::ALWAYS,
             ref_value: 0,
             mask: 0xFFFF_FFFF,
         }
@@ -145,24 +135,28 @@ impl Default for StencilFunc {
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug)]
 pub struct StencilOp {
-    pub fail: GLenum,
-    pub zfail: GLenum,
-    pub zpass: GLenum,
+    pub fail: u32,
+    pub zfail: u32,
+    pub zpass: u32,
 }
 
 impl Default for StencilOp {
     fn default() -> Self {
         Self {
-            fail: gl::KEEP,
-            zfail: gl::KEEP,
-            zpass: gl::KEEP,
+            fail: glow::KEEP,
+            zfail: glow::KEEP,
+            zpass: glow::KEEP,
         }
     }
 }
 
 impl PipelineState {
-    pub fn new() -> Self {
+    pub fn new<F>(loader_function: F) -> Self
+    where
+        F: FnMut(&str) -> *const std::os::raw::c_void,
+    {
         Self {
+            gl: unsafe { glow::Context::from_loader_function(loader_function) },
             blend: false,
             depth_test: false,
             depth_write: true,
@@ -177,8 +171,8 @@ impl PipelineState {
             scissor_test: false,
             framebuffer: 0,
             viewport: Rect::new(0, 0, 1, 1),
-            blend_src_factor: gl::ONE,
-            blend_dst_factor: gl::ZERO,
+            blend_src_factor: glow::ONE,
+            blend_dst_factor: glow::ZERO,
             program: 0,
             texture_units: [Default::default(); 32],
             stencil_func: Default::default(),
@@ -189,13 +183,16 @@ impl PipelineState {
         }
     }
 
-    pub fn set_framebuffer(&mut self, framebuffer: GLuint) {
+    pub fn set_framebuffer(&mut self, framebuffer: glow::Framebuffer) {
         if self.framebuffer != framebuffer {
             self.framebuffer = framebuffer;
 
             self.frame_statistics.framebuffer_binding_changes += 1;
 
-            unsafe { gl::BindFramebuffer(gl::FRAMEBUFFER, self.framebuffer) }
+            unsafe {
+                self.gl
+                    .bind_framebuffer(glow::FRAMEBUFFER, Some(self.framebuffer))
+            }
         }
     }
 
@@ -204,7 +201,7 @@ impl PipelineState {
             self.viewport = viewport;
 
             unsafe {
-                gl::Viewport(
+                self.gl.viewport(
                     self.viewport.x(),
                     self.viewport.y(),
                     self.viewport.w(),
@@ -222,9 +219,9 @@ impl PipelineState {
 
             unsafe {
                 if self.blend {
-                    gl::Enable(gl::BLEND);
+                    self.gl.enable(glow::BLEND);
                 } else {
-                    gl::Disable(gl::BLEND);
+                    self.gl.disable(glow::BLEND);
                 }
             }
         }
@@ -236,9 +233,9 @@ impl PipelineState {
 
             unsafe {
                 if self.depth_test {
-                    gl::Enable(gl::DEPTH_TEST);
+                    self.gl.enable(glow::DEPTH_TEST);
                 } else {
-                    gl::Disable(gl::DEPTH_TEST);
+                    self.gl.disable(glow::DEPTH_TEST);
                 }
             }
         }
@@ -249,7 +246,7 @@ impl PipelineState {
             self.depth_write = depth_write;
 
             unsafe {
-                gl::DepthMask(bool_to_gl_bool(self.depth_write));
+                self.gl.depth_mask(self.depth_write);
             }
         }
     }
@@ -259,11 +256,11 @@ impl PipelineState {
             self.color_write = color_write;
 
             unsafe {
-                gl::ColorMask(
-                    bool_to_gl_bool(self.color_write.red),
-                    bool_to_gl_bool(self.color_write.green),
-                    bool_to_gl_bool(self.color_write.blue),
-                    bool_to_gl_bool(self.color_write.alpha),
+                self.gl.color_mask(
+                    self.color_write.red,
+                    self.color_write.green,
+                    self.color_write.blue,
+                    self.color_write.alpha,
                 );
             }
         }
@@ -275,9 +272,9 @@ impl PipelineState {
 
             unsafe {
                 if self.stencil_test {
-                    gl::Enable(gl::STENCIL_TEST);
+                    self.gl.enable(glow::STENCIL_TEST);
                 } else {
-                    gl::Disable(gl::STENCIL_TEST);
+                    self.gl.disable(glow::STENCIL_TEST);
                 }
             }
         }
@@ -287,7 +284,7 @@ impl PipelineState {
         if self.cull_face != cull_face {
             self.cull_face = cull_face;
 
-            unsafe { gl::CullFace(self.cull_face.into_gl_value()) }
+            unsafe { self.gl.cull_face(self.cull_face.into_gl_value()) }
         }
     }
 
@@ -297,9 +294,9 @@ impl PipelineState {
 
             unsafe {
                 if self.culling {
-                    gl::Enable(gl::CULL_FACE);
+                    self.gl.enable(glow::CULL_FACE);
                 } else {
-                    gl::Disable(gl::CULL_FACE);
+                    self.gl.disable(glow::CULL_FACE);
                 }
             }
         }
@@ -310,7 +307,7 @@ impl PipelineState {
             self.stencil_mask = stencil_mask;
 
             unsafe {
-                gl::StencilMask(stencil_mask);
+                self.gl.stencil_mask(stencil_mask);
             }
         }
     }
@@ -321,7 +318,7 @@ impl PipelineState {
 
             let rgba = color.as_frgba();
             unsafe {
-                gl::ClearColor(rgba.x, rgba.y, rgba.z, rgba.w);
+                self.gl.clear_color(rgba.x, rgba.y, rgba.z, rgba.w);
             }
         }
     }
@@ -331,7 +328,7 @@ impl PipelineState {
             self.clear_depth = depth;
 
             unsafe {
-                gl::ClearDepth(depth as f64);
+                self.gl.clear_depth_f32(depth);
             }
         }
     }
@@ -341,35 +338,36 @@ impl PipelineState {
             self.clear_stencil = stencil;
 
             unsafe {
-                gl::ClearStencil(stencil);
+                self.gl.clear_stencil(stencil);
             }
         }
     }
 
-    pub fn set_blend_func(&mut self, sfactor: GLenum, dfactor: GLenum) {
+    pub fn set_blend_func(&mut self, sfactor: u32, dfactor: u32) {
         if self.blend_src_factor != sfactor || self.blend_dst_factor != dfactor {
             self.blend_src_factor = sfactor;
             self.blend_dst_factor = dfactor;
 
             unsafe {
-                gl::BlendFunc(self.blend_src_factor, self.blend_dst_factor);
+                self.gl
+                    .blend_func(self.blend_src_factor, self.blend_dst_factor);
             }
         }
     }
 
-    pub fn set_program(&mut self, program: GLuint) {
+    pub fn set_program(&mut self, program: glow::Program) {
         if self.program != program {
             self.program = program;
 
             self.frame_statistics.program_binding_changes += 1;
 
             unsafe {
-                gl::UseProgram(self.program);
+                self.gl.use_program(Some(self.program));
             }
         }
     }
 
-    pub fn set_texture(&mut self, sampler_index: u32, target: GLenum, texture: GLuint) {
+    pub fn set_texture(&mut self, sampler_index: u32, target: u32, texture: glow::Texture) {
         let unit = self.texture_units.get_mut(sampler_index as usize).unwrap();
 
         if unit.target != target || unit.texture != texture {
@@ -379,8 +377,8 @@ impl PipelineState {
             self.frame_statistics.texture_binding_changes += 1;
 
             unsafe {
-                gl::ActiveTexture(gl::TEXTURE0 + sampler_index);
-                gl::BindTexture(target, texture);
+                self.gl.active_texture(glow::TEXTURE0 + sampler_index);
+                self.gl.bind_texture(target, Some(texture));
             }
         }
     }
@@ -390,9 +388,9 @@ impl PipelineState {
             self.stencil_func = func;
 
             unsafe {
-                gl::StencilFunc(
+                self.gl.stencil_func(
                     self.stencil_func.func,
-                    self.stencil_func.ref_value,
+                    self.stencil_func.ref_value as i32,
                     self.stencil_func.mask,
                 );
             }
@@ -404,7 +402,7 @@ impl PipelineState {
             self.stencil_op = op;
 
             unsafe {
-                gl::StencilOp(
+                self.gl.stencil_op(
                     self.stencil_op.fail,
                     self.stencil_op.zfail,
                     self.stencil_op.zpass,
@@ -413,26 +411,26 @@ impl PipelineState {
         }
     }
 
-    pub fn set_vertex_array_object(&mut self, vao: GLuint) {
+    pub fn set_vertex_array_object(&mut self, vao: glow::VertexArray) {
         if self.vao != vao {
             self.vao = vao;
 
             self.frame_statistics.vao_binding_changes += 1;
 
             unsafe {
-                gl::BindVertexArray(vao);
+                self.gl.bind_vertex_array(Some(vao));
             }
         }
     }
 
-    pub fn set_vertex_buffer_object(&mut self, vbo: GLuint) {
+    pub fn set_vertex_buffer_object(&mut self, vbo: glow::Buffer) {
         if self.vbo != vbo {
             self.vbo = vbo;
 
             self.frame_statistics.vbo_binding_changes += 1;
 
             unsafe {
-                gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
+                self.gl.bind_buffer(glow::ARRAY_BUFFER, Some(vbo));
             }
         }
     }
@@ -443,9 +441,9 @@ impl PipelineState {
 
             unsafe {
                 if state {
-                    gl::Enable(gl::SCISSOR_TEST);
+                    self.gl.enable(glow::SCISSOR_TEST);
                 } else {
-                    gl::Disable(gl::SCISSOR_TEST);
+                    self.gl.disable(glow::SCISSOR_TEST);
                 }
             }
         }
@@ -453,7 +451,7 @@ impl PipelineState {
 
     pub fn set_scissor_box(&mut self, x: i32, y: i32, w: i32, h: i32) {
         unsafe {
-            gl::Scissor(x, y, w, h);
+            self.gl.scissor(x, y, w, h);
         }
     }
 
@@ -476,5 +474,27 @@ impl PipelineState {
 
     pub fn pipeline_statistics(&self) -> PipelineStatistics {
         self.frame_statistics
+    }
+
+    pub fn check_error(&self) {
+        unsafe {
+            let error_code = self.gl.get_error();
+            if error_code != glow::NO_ERROR {
+                let code = match error_code {
+                    glow::INVALID_ENUM => "GL_INVALID_ENUM",
+                    glow::INVALID_VALUE => "GL_INVALID_VALUE",
+                    glow::INVALID_OPERATION => "GL_INVALID_OPERATION",
+                    glow::STACK_OVERFLOW => "GL_STACK_OVERFLOW",
+                    glow::STACK_UNDERFLOW => "GL_STACK_UNDERFLOW",
+                    glow::OUT_OF_MEMORY => "GL_OUT_OF_MEMORY",
+                    _ => "Unknown",
+                };
+
+                Log::writeln(
+                    MessageKind::Error,
+                    format!("{} error has occurred! Stability is not guaranteed!", code),
+                );
+            }
+        }
     }
 }

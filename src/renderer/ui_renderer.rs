@@ -17,7 +17,6 @@ use crate::{
                 AttributeDefinition, AttributeKind, BufferBuilder, ElementKind, GeometryBuffer,
                 GeometryBufferBuilder, GeometryBufferKind,
             },
-            gl,
             gpu_program::{GpuProgram, UniformLocation, UniformValue},
             gpu_texture::GpuTexture,
             state::{ColorMask, PipelineState, StencilFunc, StencilOp},
@@ -51,25 +50,25 @@ struct UiShader {
 }
 
 impl UiShader {
-    pub fn new() -> Result<Self, RendererError> {
+    pub fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
         let fragment_source = include_str!("shaders/ui_fs.glsl");
         let vertex_source = include_str!("shaders/ui_vs.glsl");
-        let program = GpuProgram::from_source("UIShader", vertex_source, fragment_source)?;
+        let program = GpuProgram::from_source(state, "UIShader", vertex_source, fragment_source)?;
         Ok(Self {
-            wvp_matrix: program.uniform_location("worldViewProjection")?,
-            diffuse_texture: program.uniform_location("diffuseTexture")?,
-            is_font: program.uniform_location("isFont")?,
-            solid_color: program.uniform_location("solidColor")?,
-            brush_type: program.uniform_location("brushType")?,
-            gradient_point_count: program.uniform_location("gradientPointCount")?,
-            gradient_colors: program.uniform_location("gradientColors")?,
-            gradient_stops: program.uniform_location("gradientStops")?,
-            gradient_origin: program.uniform_location("gradientOrigin")?,
-            gradient_end: program.uniform_location("gradientEnd")?,
-            bounds_min: program.uniform_location("boundsMin")?,
-            bounds_max: program.uniform_location("boundsMax")?,
-            resolution: program.uniform_location("resolution")?,
-            opacity: program.uniform_location("opacity")?,
+            wvp_matrix: program.uniform_location(state, "worldViewProjection")?,
+            diffuse_texture: program.uniform_location(state, "diffuseTexture")?,
+            is_font: program.uniform_location(state, "isFont")?,
+            solid_color: program.uniform_location(state, "solidColor")?,
+            brush_type: program.uniform_location(state, "brushType")?,
+            gradient_point_count: program.uniform_location(state, "gradientPointCount")?,
+            gradient_colors: program.uniform_location(state, "gradientColors")?,
+            gradient_stops: program.uniform_location(state, "gradientStops")?,
+            gradient_origin: program.uniform_location(state, "gradientOrigin")?,
+            gradient_end: program.uniform_location(state, "gradientEnd")?,
+            bounds_min: program.uniform_location(state, "boundsMin")?,
+            bounds_max: program.uniform_location(state, "boundsMax")?,
+            resolution: program.uniform_location(state, "resolution")?,
+            opacity: program.uniform_location(state, "opacity")?,
             program,
         })
     }
@@ -140,7 +139,7 @@ impl UiRenderer {
         Ok(Self {
             geometry_buffer,
             clipping_geometry_buffer,
-            shader: UiShader::new()?,
+            shader: UiShader::new(state)?,
         })
     }
 
@@ -163,7 +162,7 @@ impl UiRenderer {
 
         let mut statistics = RenderPassStatistics::default();
 
-        state.set_blend_func(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
+        state.set_blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
 
         self.geometry_buffer
             .set_buffer_data(state, 0, drawing_context.get_vertices());
@@ -202,12 +201,12 @@ impl UiRenderer {
                 backbuffer.clear(state, viewport, None, None, Some(0));
 
                 state.set_stencil_op(StencilOp {
-                    zpass: gl::INCR,
+                    zpass: glow::INCR,
                     ..Default::default()
                 });
 
                 state.set_stencil_func(StencilFunc {
-                    func: gl::ALWAYS,
+                    func: glow::ALWAYS,
                     ..Default::default()
                 });
 
@@ -242,7 +241,7 @@ impl UiRenderer {
 
                 // Make sure main geometry will be drawn only on marked pixels.
                 state.set_stencil_func(StencilFunc {
-                    func: gl::EQUAL,
+                    func: glow::EQUAL,
                     ref_value: 1,
                     ..Default::default()
                 });

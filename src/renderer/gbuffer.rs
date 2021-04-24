@@ -39,26 +39,30 @@ struct InstancedShader {
 }
 
 impl InstancedShader {
-    fn new() -> Result<Self, RendererError> {
+    fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
         let fragment_source = include_str!("shaders/gbuffer_fs_instanced.glsl");
         let vertex_source = include_str!("shaders/gbuffer_vs_instanced.glsl");
-        let program =
-            GpuProgram::from_source("GBufferInstancedShader", vertex_source, fragment_source)?;
+        let program = GpuProgram::from_source(
+            state,
+            "GBufferInstancedShader",
+            vertex_source,
+            fragment_source,
+        )?;
         Ok(Self {
-            use_skeletal_animation: program.uniform_location("useSkeletalAnimation")?,
-            diffuse_texture: program.uniform_location("diffuseTexture")?,
-            normal_texture: program.uniform_location("normalTexture")?,
-            specular_texture: program.uniform_location("specularTexture")?,
-            roughness_texture: program.uniform_location("roughnessTexture")?,
-            lightmap_texture: program.uniform_location("lightmapTexture")?,
-            matrix_buffer_stride: program.uniform_location("matrixBufferStride")?,
-            matrix_storage_size: program.uniform_location("matrixStorageSize")?,
-            matrix_storage: program.uniform_location("matrixStorage")?,
-            environment_map: program.uniform_location("environmentMap")?,
-            camera_position: program.uniform_location("cameraPosition")?,
-            view_projection_matrix: program.uniform_location("viewProjectionMatrix")?,
-            use_pom: program.uniform_location("usePOM")?,
-            height_texture: program.uniform_location("heightTexture")?,
+            use_skeletal_animation: program.uniform_location(state, "useSkeletalAnimation")?,
+            diffuse_texture: program.uniform_location(state, "diffuseTexture")?,
+            normal_texture: program.uniform_location(state, "normalTexture")?,
+            specular_texture: program.uniform_location(state, "specularTexture")?,
+            roughness_texture: program.uniform_location(state, "roughnessTexture")?,
+            lightmap_texture: program.uniform_location(state, "lightmapTexture")?,
+            matrix_buffer_stride: program.uniform_location(state, "matrixBufferStride")?,
+            matrix_storage_size: program.uniform_location(state, "matrixStorageSize")?,
+            matrix_storage: program.uniform_location(state, "matrixStorage")?,
+            environment_map: program.uniform_location(state, "environmentMap")?,
+            camera_position: program.uniform_location(state, "cameraPosition")?,
+            view_projection_matrix: program.uniform_location(state, "viewProjectionMatrix")?,
+            use_pom: program.uniform_location(state, "usePOM")?,
+            height_texture: program.uniform_location(state, "heightTexture")?,
             program,
         })
     }
@@ -83,25 +87,26 @@ struct Shader {
 }
 
 impl Shader {
-    fn new() -> Result<Self, RendererError> {
+    fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
         let fragment_source = include_str!("shaders/gbuffer_fs.glsl");
         let vertex_source = include_str!("shaders/gbuffer_vs.glsl");
-        let program = GpuProgram::from_source("GBufferShader", vertex_source, fragment_source)?;
+        let program =
+            GpuProgram::from_source(state, "GBufferShader", vertex_source, fragment_source)?;
         Ok(Self {
-            world_matrix: program.uniform_location("worldMatrix")?,
-            wvp_matrix: program.uniform_location("worldViewProjection")?,
-            use_skeletal_animation: program.uniform_location("useSkeletalAnimation")?,
-            bone_matrices: program.uniform_location("boneMatrices")?,
-            diffuse_texture: program.uniform_location("diffuseTexture")?,
-            normal_texture: program.uniform_location("normalTexture")?,
-            specular_texture: program.uniform_location("specularTexture")?,
-            roughness_texture: program.uniform_location("roughnessTexture")?,
-            lightmap_texture: program.uniform_location("lightmapTexture")?,
-            diffuse_color: program.uniform_location("diffuseColor")?,
-            environment_map: program.uniform_location("environmentMap")?,
-            camera_position: program.uniform_location("cameraPosition")?,
-            use_pom: program.uniform_location("usePOM")?,
-            height_texture: program.uniform_location("heightTexture")?,
+            world_matrix: program.uniform_location(state, "worldMatrix")?,
+            wvp_matrix: program.uniform_location(state, "worldViewProjection")?,
+            use_skeletal_animation: program.uniform_location(state, "useSkeletalAnimation")?,
+            bone_matrices: program.uniform_location(state, "boneMatrices")?,
+            diffuse_texture: program.uniform_location(state, "diffuseTexture")?,
+            normal_texture: program.uniform_location(state, "normalTexture")?,
+            specular_texture: program.uniform_location(state, "specularTexture")?,
+            roughness_texture: program.uniform_location(state, "roughnessTexture")?,
+            lightmap_texture: program.uniform_location(state, "lightmapTexture")?,
+            diffuse_color: program.uniform_location(state, "diffuseColor")?,
+            environment_map: program.uniform_location(state, "environmentMap")?,
+            camera_position: program.uniform_location(state, "cameraPosition")?,
+            use_pom: program.uniform_location(state, "usePOM")?,
+            height_texture: program.uniform_location(state, "heightTexture")?,
             program,
         })
     }
@@ -240,8 +245,8 @@ impl GBuffer {
 
         Ok(Self {
             framebuffer,
-            instanced_shader: InstancedShader::new()?,
-            shader: Shader::new()?,
+            instanced_shader: InstancedShader::new(state)?,
+            shader: Shader::new(state)?,
             width: width as i32,
             height: height as i32,
             final_frame: opt_framebuffer,
