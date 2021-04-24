@@ -176,14 +176,14 @@ impl ParticleSystemRenderer {
 
             let uniforms = [
                 (
-                    self.shader.depth_buffer_texture,
+                    self.shader.depth_buffer_texture.clone(),
                     UniformValue::Sampler {
                         index: 0,
                         texture: depth.clone(),
                     },
                 ),
                 (
-                    self.shader.diffuse_texture,
+                    self.shader.diffuse_texture.clone(),
                     UniformValue::Sampler {
                         index: 1,
                         texture: if let Some(texture) = particle_system.texture_ref() {
@@ -198,26 +198,29 @@ impl ParticleSystemRenderer {
                     },
                 ),
                 (
-                    self.shader.camera_side_vector,
+                    self.shader.camera_side_vector.clone(),
                     UniformValue::Vector3(&camera_side),
                 ),
                 (
-                    self.shader.camera_up_vector,
+                    self.shader.camera_up_vector.clone(),
                     UniformValue::Vector3(&camera_up),
                 ),
                 (
-                    self.shader.view_projection_matrix,
+                    self.shader.view_projection_matrix.clone(),
                     UniformValue::Matrix4(&view_proj),
                 ),
                 (
-                    self.shader.world_matrix,
+                    self.shader.world_matrix.clone(),
                     UniformValue::Matrix4(&global_transform),
                 ),
                 (
-                    self.shader.inv_screen_size,
+                    self.shader.inv_screen_size.clone(),
                     UniformValue::Vector2(&inv_screen_size),
                 ),
-                (self.shader.proj_params, UniformValue::Vector2(&proj_params)),
+                (
+                    self.shader.proj_params.clone(),
+                    UniformValue::Vector2(&proj_params),
+                ),
             ];
 
             let draw_params = DrawParameters {

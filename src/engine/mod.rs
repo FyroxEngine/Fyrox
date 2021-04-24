@@ -17,7 +17,6 @@ use crate::{
     renderer::{error::RendererError, Renderer},
     scene::SceneContainer,
     window::{Window, WindowBuilder},
-    Api, GlProfile, GlRequest, NotCurrent, PossiblyCurrent, WindowedContext,
 };
 use rg3d_sound::engine::SoundEngine;
 use rg3d_ui::message::MessageData;
@@ -26,7 +25,10 @@ use std::time::{self, Duration};
 
 /// See module docs.
 pub struct Engine<M: MessageData, C: Control<M, C>> {
-    context: glutin::WindowedContext<PossiblyCurrent>,
+    #[cfg(not(target_arch = "wasm32"))]
+    context: glutin::WindowedContext<glutin::PossiblyCurrent>,
+    #[cfg(target_arch = "wasm32")]
+    window: winit::window::Window,
     /// Current renderer. You should call at least [render](Self::render) method to see your scene on
     /// screen.
     pub renderer: Renderer,
@@ -74,33 +76,78 @@ impl<M: MessageData, C: Control<M, C>> Engine<M, C> {
     pub fn new(
         window_builder: WindowBuilder,
         events_loop: &EventLoop<()>,
-        vsync: bool,
+        #[allow(unused_variables)] vsync: bool,
     ) -> Result<Self, EngineError> {
-        let context_wrapper: WindowedContext<NotCurrent> = glutin::ContextBuilder::new()
-            .with_vsync(vsync)
-            .with_gl_profile(GlProfile::Core)
-            .with_gl(GlRequest::Specific(Api::OpenGl, (3, 3)))
-            .build_windowed(window_builder, events_loop)?;
+        #[cfg(not(target_arch = "wasm32"))]
+        let (context, client_size) = {
+            let context_wrapper: glutin::WindowedContext<glutin::NotCurrent> =
+                glutin::ContextBuilder::new()
+                    .with_vsync(vsync)
+                    .with_gl_profile(glutin::GlProfile::Core)
+                    .with_gl(glutin::GlRequest::Specific(glutin::Api::OpenGl, (3, 3)))
+                    .build_windowed(window_builder, events_loop)?;
 
-        let mut context = match unsafe { context_wrapper.make_current() } {
-            Ok(context) => context,
-            Err((_, e)) => return Err(EngineError::from(e)),
+            let ctx = match unsafe { context_wrapper.make_current() } {
+                Ok(context) => context,
+                Err((_, e)) => return Err(EngineError::from(e)),
+            };
+            let inner_size = ctx.window().inner_size();
+            (
+                ctx,
+                Vector2::new(inner_size.width as f32, inner_size.height as f32),
+            )
         };
 
-        let client_size = context.window().inner_size();
+        #[cfg(target_arch = "wasm32")]
+        let (window, client_size) = {
+            let window = window_builder.build(events_loop).unwrap();
+            let inner_size = window.inner_size();
+            (
+                window,
+                Vector2::new(inner_size.width as f32, inner_size.height as f32),
+            )
+        };
+
+        let glow_context = {
+            #[cfg(not(target_arch = "wasm32"))]
+            unsafe {
+                glow::Context::from_loader_function(|s| context.get_proc_address(s))
+            }
+
+            #[cfg(target_arch = "wasm32")]
+            {
+                use wasm_bindgen::JsCast;
+                let canvas = web_sys::window()
+                    .unwrap()
+                    .document()
+                    .unwrap()
+                    .get_element_by_id("canvas")
+                    .unwrap()
+                    .dyn_into::<web_sys::HtmlCanvasElement>()
+                    .unwrap();
+                let webgl2_context = canvas
+                    .get_context("webgl2")
+                    .unwrap()
+                    .unwrap()
+                    .dyn_into::<web_sys::WebGl2RenderingContext>()
+                    .unwrap();
+                glow::Context::from_webgl2_context(webgl2_context)
+            }
+        };
+
         let sound_engine = SoundEngine::new();
 
         Ok(Self {
-            renderer: Renderer::new(&mut context, client_size.into())?,
+            renderer: Renderer::new(glow_context, (client_size.x as u32, client_size.y as u32))?,
             resource_manager: ResourceManager::new(),
             scenes: SceneContainer::new(sound_engine.clone()),
             sound_engine,
-            user_interface: UserInterface::new(Vector2::new(
-                client_size.width as f32,
-                client_size.height as f32,
-            )),
+            user_interface: UserInterface::new(client_size),
             ui_time: Default::default(),
+            #[cfg(not(target_arch = "wasm32"))]
             context,
+            #[cfg(target_arch = "wasm32")]
+            window,
         })
     }
 
@@ -108,14 +155,21 @@ impl<M: MessageData, C: Control<M, C>> Engine<M, C> {
     /// size of window, its title, etc.
     #[inline]
     pub fn get_window(&self) -> &Window {
-        self.context.window()
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            self.context.window()
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            &self.window
+        }
     }
 
     /// Performs single update tick with given time delta. Engine internally will perform update
     /// of all scenes, sub-systems, user interface, etc. Must be called in order to get engine
     /// functioning.
     pub fn update(&mut self, dt: f32) {
-        let inner_size = self.context.window().inner_size();
+        let inner_size = self.get_window().inner_size();
         let window_size = Vector2::new(inner_size.width as f32, inner_size.height as f32);
 
         self.resource_manager.state().update(dt);
@@ -142,12 +196,24 @@ impl<M: MessageData, C: Control<M, C>> Engine<M, C> {
     #[inline]
     pub fn render(&mut self, dt: f32) -> Result<(), RendererError> {
         self.user_interface.draw();
-        self.renderer.render_and_swap_buffers(
-            &self.scenes,
-            &self.user_interface.get_drawing_context(),
-            &self.context,
-            dt,
-        )
+
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            self.renderer.render_and_swap_buffers(
+                &self.scenes,
+                &self.user_interface.get_drawing_context(),
+                &self.context,
+                dt,
+            )
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            self.renderer.render_and_swap_buffers(
+                &self.scenes,
+                &self.user_interface.get_drawing_context(),
+                dt,
+            )
+        }
     }
 }
 

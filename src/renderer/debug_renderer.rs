@@ -128,7 +128,7 @@ impl DebugRenderer {
                 blend: false,
             },
             &[(
-                self.shader.wvp_matrix,
+                self.shader.wvp_matrix.clone(),
                 UniformValue::Matrix4(&camera.view_projection_matrix()),
             )],
         );

@@ -13,8 +13,11 @@ readme = "README.md"
 [dependencies]
 rg3d-core = { path = "../rg3d-core", version = "0.14.0" }
 lazy_static = "1.4.0"
-sysinfo = "0.16.3"
+
 fontdue = "0.4.0"
 
 [features]
 enable_profiler = ["rg3d-core/enable_profiler"]
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+sysinfo = "0.17.2"

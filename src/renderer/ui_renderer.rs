@@ -236,7 +236,10 @@ impl UiRenderer {
                         depth_test: false,
                         blend: false,
                     },
-                    &[(self.shader.wvp_matrix, UniformValue::Matrix4(&ortho))],
+                    &[(
+                        self.shader.wvp_matrix.clone(),
+                        UniformValue::Matrix4(&ortho),
+                    )],
                 );
 
                 // Make sure main geometry will be drawn only on marked pixels.
@@ -303,22 +306,34 @@ impl UiRenderer {
 
             let uniforms = [
                 (
-                    self.shader.diffuse_texture,
+                    self.shader.diffuse_texture.clone(),
                     UniformValue::Sampler {
                         index: 0,
                         texture: diffuse_texture,
                     },
                 ),
-                (self.shader.wvp_matrix, UniformValue::Matrix4(&ortho)),
-                (self.shader.resolution, UniformValue::Vector2(&resolution)),
                 (
-                    self.shader.bounds_min,
+                    self.shader.wvp_matrix.clone(),
+                    UniformValue::Matrix4(&ortho),
+                ),
+                (
+                    self.shader.resolution.clone(),
+                    UniformValue::Vector2(&resolution),
+                ),
+                (
+                    self.shader.bounds_min.clone(),
                     UniformValue::Vector2(&cmd.bounds.position),
                 ),
-                (self.shader.bounds_max, UniformValue::Vector2(&bounds_max)),
-                (self.shader.is_font, UniformValue::Bool(is_font_texture)),
                 (
-                    self.shader.brush_type,
+                    self.shader.bounds_max.clone(),
+                    UniformValue::Vector2(&bounds_max),
+                ),
+                (
+                    self.shader.is_font.clone(),
+                    UniformValue::Bool(is_font_texture),
+                ),
+                (
+                    self.shader.brush_type.clone(),
                     UniformValue::Integer({
                         match cmd.brush {
                             Brush::Solid(_) => 0,
@@ -328,7 +343,7 @@ impl UiRenderer {
                     }),
                 ),
                 (
-                    self.shader.solid_color,
+                    self.shader.solid_color.clone(),
                     UniformValue::Color({
                         match cmd.brush {
                             Brush::Solid(color) => color,
@@ -337,15 +352,15 @@ impl UiRenderer {
                     }),
                 ),
                 (
-                    self.shader.gradient_origin,
+                    self.shader.gradient_origin.clone(),
                     UniformValue::Vector2(&gradient_origin),
                 ),
                 (
-                    self.shader.gradient_end,
+                    self.shader.gradient_end.clone(),
                     UniformValue::Vector2(&gradient_end),
                 ),
                 (
-                    self.shader.gradient_point_count,
+                    self.shader.gradient_point_count.clone(),
                     UniformValue::Integer({
                         match &cmd.brush {
                             Brush::Solid(_) => 0,
@@ -355,7 +370,7 @@ impl UiRenderer {
                     }),
                 ),
                 (
-                    self.shader.gradient_stops,
+                    self.shader.gradient_stops.clone(),
                     UniformValue::FloatArray({
                         match &cmd.brush {
                             Brush::Solid(_) => &[],
@@ -370,7 +385,7 @@ impl UiRenderer {
                     }),
                 ),
                 (
-                    self.shader.gradient_colors,
+                    self.shader.gradient_colors.clone(),
                     UniformValue::Vec4Array({
                         match &cmd.brush {
                             Brush::Solid(_) => &[],
@@ -384,7 +399,10 @@ impl UiRenderer {
                         }
                     }),
                 ),
-                (self.shader.opacity, UniformValue::Float(cmd.opacity)),
+                (
+                    self.shader.opacity.clone(),
+                    UniformValue::Float(cmd.opacity),
+                ),
             ];
 
             let params = DrawParameters {

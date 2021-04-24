@@ -1,7 +1,6 @@
 //! Contains all possible errors that may occur during rendering, initialization of
 //! renderer structures, or GAPI.
 
-use crate::ContextError;
 use std::ffi::NulError;
 
 /// Set of possible renderer errors.
@@ -54,8 +53,6 @@ pub enum RendererError {
     InvalidFrameBuffer,
     /// OpenGL failed to construct framebuffer.
     FailedToConstructFBO,
-    /// Internal context error.
-    Context(ContextError),
     /// Custom error. Usually used for internal errors.
     Custom(String),
 }
@@ -66,9 +63,10 @@ impl From<NulError> for RendererError {
     }
 }
 
-impl From<ContextError> for RendererError {
-    fn from(err: ContextError) -> Self {
-        Self::Context(err)
+#[cfg(not(target_arch = "wasm32"))]
+impl From<glutin::ContextError> for RendererError {
+    fn from(err: glutin::ContextError) -> Self {
+        Self::Custom(format!("{:?}", err))
     }
 }
 

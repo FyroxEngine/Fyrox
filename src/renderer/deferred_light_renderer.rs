@@ -477,14 +477,14 @@ impl DeferredLightRenderer {
                             },
                             uniforms: &[
                                 (
-                                    self.flat_shader.diffuse_texture,
+                                    self.flat_shader.diffuse_texture.clone(),
                                     UniformValue::Sampler {
                                         index: 0,
                                         texture: gpu_texture,
                                     },
                                 ),
                                 (
-                                    self.flat_shader.wvp_matrix,
+                                    self.flat_shader.wvp_matrix.clone(),
                                     UniformValue::Matrix4(&(view_projection * wvp)),
                                 ),
                             ],
@@ -516,22 +516,22 @@ impl DeferredLightRenderer {
             },
             &[
                 (
-                    self.ambient_light_shader.wvp_matrix,
+                    self.ambient_light_shader.wvp_matrix.clone(),
                     UniformValue::Matrix4(&frame_matrix),
                 ),
                 (
-                    self.ambient_light_shader.ambient_color,
+                    self.ambient_light_shader.ambient_color.clone(),
                     UniformValue::Color(ambient_color),
                 ),
                 (
-                    self.ambient_light_shader.diffuse_texture,
+                    self.ambient_light_shader.diffuse_texture.clone(),
                     UniformValue::Sampler {
                         index: 0,
                         texture: gbuffer.diffuse_texture(),
                     },
                 ),
                 (
-                    self.ambient_light_shader.ao_sampler,
+                    self.ambient_light_shader.ao_sampler.clone(),
                     UniformValue::Sampler {
                         index: 1,
                         texture: if settings.use_ssao {
@@ -542,7 +542,7 @@ impl DeferredLightRenderer {
                     },
                 ),
                 (
-                    self.ambient_light_shader.ambient_texture,
+                    self.ambient_light_shader.ambient_texture.clone(),
                     UniformValue::Sampler {
                         index: 2,
                         texture: gbuffer.ambient_texture(),
@@ -699,7 +699,7 @@ impl DeferredLightRenderer {
                     blend: false,
                 },
                 &[(
-                    self.flat_shader.wvp_matrix,
+                    self.flat_shader.wvp_matrix.clone(),
                     UniformValue::Matrix4(
                         &(view_projection
                             * Matrix4::new_translation(&light_position)
@@ -732,7 +732,7 @@ impl DeferredLightRenderer {
                     blend: false,
                 },
                 &[(
-                    self.flat_shader.wvp_matrix,
+                    self.flat_shader.wvp_matrix.clone(),
                     UniformValue::Matrix4(
                         &(view_projection
                             * Matrix4::new_translation(&light_position)
@@ -778,72 +778,84 @@ impl DeferredLightRenderer {
                         };
 
                     let uniforms = [
-                        (shader.shadows_enabled, UniformValue::Bool(shadows_enabled)),
                         (
-                            shader.light_view_proj_matrix,
+                            shader.shadows_enabled.clone(),
+                            UniformValue::Bool(shadows_enabled),
+                        ),
+                        (
+                            shader.light_view_proj_matrix.clone(),
                             UniformValue::Matrix4(&light_view_projection),
                         ),
                         (
-                            shader.soft_shadows,
+                            shader.soft_shadows.clone(),
                             UniformValue::Bool(settings.spot_soft_shadows),
                         ),
                         (
-                            shader.light_position,
+                            shader.light_position.clone(),
                             UniformValue::Vector3(&light_position),
                         ),
                         (
-                            shader.light_direction,
+                            shader.light_direction.clone(),
                             UniformValue::Vector3(&emit_direction),
                         ),
-                        (shader.light_radius, UniformValue::Float(light_radius)),
                         (
-                            shader.inv_view_proj_matrix,
+                            shader.light_radius.clone(),
+                            UniformValue::Float(light_radius),
+                        ),
+                        (
+                            shader.inv_view_proj_matrix.clone(),
                             UniformValue::Matrix4(&inv_view_projection),
                         ),
-                        (shader.light_color, UniformValue::Color(light.color())),
                         (
-                            shader.half_hotspot_cone_angle_cos,
+                            shader.light_color.clone(),
+                            UniformValue::Color(light.color()),
+                        ),
+                        (
+                            shader.half_hotspot_cone_angle_cos.clone(),
                             UniformValue::Float((spot_light.hotspot_cone_angle() * 0.5).cos()),
                         ),
                         (
-                            shader.half_cone_angle_cos,
+                            shader.half_cone_angle_cos.clone(),
                             UniformValue::Float((spot_light.full_cone_angle() * 0.5).cos()),
                         ),
-                        (shader.wvp_matrix, UniformValue::Matrix4(&frame_matrix)),
                         (
-                            shader.shadow_map_inv_size,
+                            shader.wvp_matrix.clone(),
+                            UniformValue::Matrix4(&frame_matrix),
+                        ),
+                        (
+                            shader.shadow_map_inv_size.clone(),
                             UniformValue::Float(
                                 1.0 / (self.spot_shadow_map_renderer.cascade_size(cascade_index)
                                     as f32),
                             ),
                         ),
                         (
-                            shader.camera_position,
+                            shader.camera_position.clone(),
                             UniformValue::Vector3(&camera_global_position),
                         ),
                         (
-                            shader.depth_sampler,
+                            shader.depth_sampler.clone(),
                             UniformValue::Sampler {
                                 index: 0,
                                 texture: gbuffer.depth(),
                             },
                         ),
                         (
-                            shader.color_sampler,
+                            shader.color_sampler.clone(),
                             UniformValue::Sampler {
                                 index: 1,
                                 texture: gbuffer.diffuse_texture(),
                             },
                         ),
                         (
-                            shader.normal_sampler,
+                            shader.normal_sampler.clone(),
                             UniformValue::Sampler {
                                 index: 2,
                                 texture: gbuffer.normal_texture(),
                             },
                         ),
                         (
-                            shader.spot_shadow_texture,
+                            shader.spot_shadow_texture.clone(),
                             UniformValue::Sampler {
                                 index: 3,
                                 texture: self
@@ -851,16 +863,19 @@ impl DeferredLightRenderer {
                                     .cascade_texture(cascade_index),
                             },
                         ),
-                        (shader.cookie_enabled, UniformValue::Bool(cookie_enabled)),
                         (
-                            shader.cookie_texture,
+                            shader.cookie_enabled.clone(),
+                            UniformValue::Bool(cookie_enabled),
+                        ),
+                        (
+                            shader.cookie_texture.clone(),
                             UniformValue::Sampler {
                                 index: 4,
                                 texture: cookie_texture,
                             },
                         ),
                         (
-                            shader.shadow_bias,
+                            shader.shadow_bias.clone(),
                             UniformValue::Float(spot_light.shadow_bias()),
                         ),
                     ];
@@ -880,49 +895,61 @@ impl DeferredLightRenderer {
                     let shader = &self.point_light_shader;
 
                     let uniforms = [
-                        (shader.shadows_enabled, UniformValue::Bool(shadows_enabled)),
                         (
-                            shader.soft_shadows,
+                            shader.shadows_enabled.clone(),
+                            UniformValue::Bool(shadows_enabled),
+                        ),
+                        (
+                            shader.soft_shadows.clone(),
                             UniformValue::Bool(settings.point_soft_shadows),
                         ),
                         (
-                            shader.light_position,
+                            shader.light_position.clone(),
                             UniformValue::Vector3(&light_position),
                         ),
-                        (shader.light_radius, UniformValue::Float(light_radius)),
                         (
-                            shader.inv_view_proj_matrix,
+                            shader.light_radius.clone(),
+                            UniformValue::Float(light_radius),
+                        ),
+                        (
+                            shader.inv_view_proj_matrix.clone(),
                             UniformValue::Matrix4(&inv_view_projection),
                         ),
-                        (shader.light_color, UniformValue::Color(light.color())),
-                        (shader.wvp_matrix, UniformValue::Matrix4(&frame_matrix)),
                         (
-                            shader.camera_position,
+                            shader.light_color.clone(),
+                            UniformValue::Color(light.color()),
+                        ),
+                        (
+                            shader.wvp_matrix.clone(),
+                            UniformValue::Matrix4(&frame_matrix),
+                        ),
+                        (
+                            shader.camera_position.clone(),
                             UniformValue::Vector3(&camera_global_position),
                         ),
                         (
-                            shader.depth_sampler,
+                            shader.depth_sampler.clone(),
                             UniformValue::Sampler {
                                 index: 0,
                                 texture: gbuffer.depth(),
                             },
                         ),
                         (
-                            shader.color_sampler,
+                            shader.color_sampler.clone(),
                             UniformValue::Sampler {
                                 index: 1,
                                 texture: gbuffer.diffuse_texture(),
                             },
                         ),
                         (
-                            shader.normal_sampler,
+                            shader.normal_sampler.clone(),
                             UniformValue::Sampler {
                                 index: 2,
                                 texture: gbuffer.normal_texture(),
                             },
                         ),
                         (
-                            shader.point_shadow_texture,
+                            shader.point_shadow_texture.clone(),
                             UniformValue::Sampler {
                                 index: 3,
                                 texture: self
@@ -931,7 +958,7 @@ impl DeferredLightRenderer {
                             },
                         ),
                         (
-                            shader.shadow_bias,
+                            shader.shadow_bias.clone(),
                             UniformValue::Float(point_light.shadow_bias()),
                         ),
                     ];
@@ -952,35 +979,41 @@ impl DeferredLightRenderer {
 
                     let uniforms = [
                         (
-                            shader.light_direction,
+                            shader.light_direction.clone(),
                             UniformValue::Vector3(&emit_direction),
                         ),
                         (
-                            shader.inv_view_proj_matrix,
+                            shader.inv_view_proj_matrix.clone(),
                             UniformValue::Matrix4(&inv_view_projection),
                         ),
-                        (shader.light_color, UniformValue::Color(light.color())),
-                        (shader.wvp_matrix, UniformValue::Matrix4(&frame_matrix)),
                         (
-                            shader.camera_position,
+                            shader.light_color.clone(),
+                            UniformValue::Color(light.color()),
+                        ),
+                        (
+                            shader.wvp_matrix.clone(),
+                            UniformValue::Matrix4(&frame_matrix),
+                        ),
+                        (
+                            shader.camera_position.clone(),
                             UniformValue::Vector3(&camera_global_position),
                         ),
                         (
-                            shader.depth_sampler,
+                            shader.depth_sampler.clone(),
                             UniformValue::Sampler {
                                 index: 0,
                                 texture: gbuffer.depth(),
                             },
                         ),
                         (
-                            shader.color_sampler,
+                            shader.color_sampler.clone(),
                             UniformValue::Sampler {
                                 index: 1,
                                 texture: gbuffer.diffuse_texture(),
                             },
                         ),
                         (
-                            shader.normal_sampler,
+                            shader.normal_sampler.clone(),
                             UniformValue::Sampler {
                                 index: 2,
                                 texture: gbuffer.normal_texture(),

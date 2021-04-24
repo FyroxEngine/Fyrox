@@ -200,7 +200,10 @@ impl LightVolumeRenderer {
                         depth_test: true,
                         blend: false,
                     },
-                    &[(self.flat_shader.wvp_matrix, UniformValue::Matrix4(&mvp))],
+                    &[(
+                        self.flat_shader.wvp_matrix.clone(),
+                        UniformValue::Matrix4(&mvp),
+                    )],
                 );
 
                 // Make sure to clean stencil buffer after drawing full screen quad.
@@ -228,38 +231,38 @@ impl LightVolumeRenderer {
                     },
                     &[
                         (
-                            self.spot_light_shader.world_view_proj_matrix,
+                            self.spot_light_shader.world_view_proj_matrix.clone(),
                             UniformValue::Matrix4(&frame_matrix),
                         ),
                         (
-                            self.spot_light_shader.inv_proj,
+                            self.spot_light_shader.inv_proj.clone(),
                             UniformValue::Matrix4(&inv_proj),
                         ),
                         (
-                            self.spot_light_shader.cone_angle_cos,
+                            self.spot_light_shader.cone_angle_cos.clone(),
                             UniformValue::Float((spot.full_cone_angle() * 0.5).cos()),
                         ),
                         (
-                            self.spot_light_shader.light_position,
+                            self.spot_light_shader.light_position.clone(),
                             UniformValue::Vector3(&position),
                         ),
                         (
-                            self.spot_light_shader.light_direction,
+                            self.spot_light_shader.light_direction.clone(),
                             UniformValue::Vector3(&direction),
                         ),
                         (
-                            self.spot_light_shader.depth_sampler,
+                            self.spot_light_shader.depth_sampler.clone(),
                             UniformValue::Sampler {
                                 index: 0,
                                 texture: gbuffer.depth(),
                             },
                         ),
                         (
-                            self.spot_light_shader.light_color,
+                            self.spot_light_shader.light_color.clone(),
                             UniformValue::Vector3(&light.color().as_frgba().xyz()),
                         ),
                         (
-                            self.spot_light_shader.scatter_factor,
+                            self.spot_light_shader.scatter_factor.clone(),
                             UniformValue::Vector3(&light.scatter()),
                         ),
                     ],
@@ -304,7 +307,10 @@ impl LightVolumeRenderer {
                         depth_test: true,
                         blend: false,
                     },
-                    &[(self.flat_shader.wvp_matrix, UniformValue::Matrix4(&mvp))],
+                    &[(
+                        self.flat_shader.wvp_matrix.clone(),
+                        UniformValue::Matrix4(&mvp),
+                    )],
                 );
 
                 // Make sure to clean stencil buffer after drawing full screen quad.
@@ -332,34 +338,34 @@ impl LightVolumeRenderer {
                     },
                     &[
                         (
-                            self.point_light_shader.world_view_proj_matrix,
+                            self.point_light_shader.world_view_proj_matrix.clone(),
                             UniformValue::Matrix4(&frame_matrix),
                         ),
                         (
-                            self.point_light_shader.inv_proj,
+                            self.point_light_shader.inv_proj.clone(),
                             UniformValue::Matrix4(&inv_proj),
                         ),
                         (
-                            self.point_light_shader.light_position,
+                            self.point_light_shader.light_position.clone(),
                             UniformValue::Vector3(&position),
                         ),
                         (
-                            self.point_light_shader.depth_sampler,
+                            self.point_light_shader.depth_sampler.clone(),
                             UniformValue::Sampler {
                                 index: 0,
                                 texture: gbuffer.depth(),
                             },
                         ),
                         (
-                            self.point_light_shader.light_radius,
+                            self.point_light_shader.light_radius.clone(),
                             UniformValue::Float(point.radius()),
                         ),
                         (
-                            self.point_light_shader.light_color,
+                            self.point_light_shader.light_color.clone(),
                             UniformValue::Vector3(&light.color().as_frgba().xyz()),
                         ),
                         (
-                            self.point_light_shader.scatter_factor,
+                            self.point_light_shader.scatter_factor.clone(),
                             UniformValue::Vector3(&light.scatter()),
                         ),
                     ],

@@ -1,7 +1,6 @@
 //! All possible errors that can happen in the engine.
 
 use crate::{renderer::error::RendererError, sound::error::SoundError};
-use glutin::{ContextError, CreationError};
 
 /// See module docs.
 #[derive(Debug)]
@@ -10,10 +9,8 @@ pub enum EngineError {
     Sound(SoundError),
     /// Rendering system error.
     Renderer(RendererError),
-    /// OpenGL context creation error.
-    ContextCreationError(CreationError),
-    /// Runtime OpenGL context error.
-    ContextError(ContextError),
+    /// Internal error.
+    Custom(String),
 }
 
 impl From<SoundError> for EngineError {
@@ -28,14 +25,16 @@ impl From<RendererError> for EngineError {
     }
 }
 
-impl From<CreationError> for EngineError {
-    fn from(e: CreationError) -> Self {
-        Self::ContextCreationError(e)
+#[cfg(not(target_arch = "wasm32"))]
+impl From<glutin::CreationError> for EngineError {
+    fn from(e: glutin::CreationError) -> Self {
+        Self::Custom(format!("{:?}", e))
     }
 }
 
-impl From<ContextError> for EngineError {
-    fn from(e: ContextError) -> Self {
-        Self::ContextError(e)
+#[cfg(not(target_arch = "wasm32"))]
+impl From<glutin::ContextError> for EngineError {
+    fn from(e: glutin::ContextError) -> Self {
+        Self::Custom(format!("{:?}", e))
     }
 }

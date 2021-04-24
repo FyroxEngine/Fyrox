@@ -81,7 +81,7 @@ impl Default for TextureUnit {
     fn default() -> Self {
         Self {
             target: glow::TEXTURE_2D,
-            texture: 0,
+            texture: Default::default(),
         }
     }
 }
@@ -151,12 +151,9 @@ impl Default for StencilOp {
 }
 
 impl PipelineState {
-    pub fn new<F>(loader_function: F) -> Self
-    where
-        F: FnMut(&str) -> *const std::os::raw::c_void,
-    {
+    pub fn new(context: glow::Context) -> Self {
         Self {
-            gl: unsafe { glow::Context::from_loader_function(loader_function) },
+            gl: context,
             blend: false,
             depth_test: false,
             depth_write: true,
@@ -169,16 +166,16 @@ impl PipelineState {
             clear_stencil: 0,
             clear_depth: 1.0,
             scissor_test: false,
-            framebuffer: 0,
+            framebuffer: glow::Framebuffer::default(),
             viewport: Rect::new(0, 0, 1, 1),
             blend_src_factor: glow::ONE,
             blend_dst_factor: glow::ZERO,
-            program: 0,
+            program: Default::default(),
             texture_units: [Default::default(); 32],
             stencil_func: Default::default(),
             stencil_op: Default::default(),
-            vao: 0,
-            vbo: 0,
+            vao: Default::default(),
+            vbo: Default::default(),
             frame_statistics: Default::default(),
         }
     }
@@ -457,7 +454,7 @@ impl PipelineState {
 
     pub fn invalidate_resource_bindings_cache(&mut self) {
         self.texture_units = Default::default();
-        self.program = 0;
+        self.program = Default::default();
 
         self.frame_statistics = Default::default();
     }

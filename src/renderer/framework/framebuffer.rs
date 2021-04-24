@@ -160,7 +160,7 @@ impl FrameBuffer {
                 return Err(RendererError::FailedToConstructFBO);
             }
 
-            state.set_framebuffer(0);
+            state.set_framebuffer(glow::Framebuffer::default());
 
             Ok(Self {
                 state,
@@ -218,7 +218,7 @@ fn pre_draw(
 
     program.bind(state);
     for (location, value) in uniforms {
-        program.set_uniform(state, *location, value)
+        program.set_uniform(state, location.clone(), value)
     }
 }
 
@@ -234,7 +234,7 @@ pub struct DrawPartContext<'a, 'b, 'c, 'd> {
 }
 
 pub trait FrameBufferTrait {
-    fn id(&self) -> u32;
+    fn id(&self) -> glow::Framebuffer;
 
     fn clear(
         &mut self,
@@ -321,7 +321,7 @@ pub trait FrameBufferTrait {
 }
 
 impl FrameBufferTrait for FrameBuffer {
-    fn id(&self) -> u32 {
+    fn id(&self) -> glow::Framebuffer {
         self.fbo
     }
 }
@@ -329,8 +329,8 @@ impl FrameBufferTrait for FrameBuffer {
 pub struct BackBuffer;
 
 impl FrameBufferTrait for BackBuffer {
-    fn id(&self) -> u32 {
-        0
+    fn id(&self) -> glow::Framebuffer {
+        Default::default()
     }
 }
 

@@ -78,7 +78,6 @@ use crate::{
     scene::{node::Node, Scene, SceneContainer},
     utils::log::{Log, MessageKind},
 };
-use glutin::PossiblyCurrent;
 #[cfg(feature = "serde_integration")]
 use serde::{Deserialize, Serialize};
 use std::{
@@ -737,16 +736,14 @@ fn make_ui_frame_buffer(
 
 impl Renderer {
     pub(in crate) fn new(
-        context: &mut glutin::WindowedContext<PossiblyCurrent>,
+        context: glow::Context,
         frame_size: (u32, u32),
     ) -> Result<Self, RendererError> {
         let settings = QualitySettings::default();
 
         // Box pipeline state because we'll store pointers to it inside framework's entities and
         // it must have constant address.
-        let mut state = Box::new(PipelineState::new(|symbol| {
-            context.get_proc_address(symbol) as *const _
-        }));
+        let mut state = Box::new(PipelineState::new(context));
 
         Ok(Self {
             backbuffer: BackBuffer,
@@ -1176,7 +1173,7 @@ impl Renderer {
                             },
                             &[
                                 (
-                                    self.flat_shader.wvp_matrix,
+                                    self.flat_shader.wvp_matrix.clone(),
                                     UniformValue::Matrix4(&{
                                         Matrix4::new_orthographic(
                                             0.0,
@@ -1193,7 +1190,7 @@ impl Renderer {
                                     }),
                                 ),
                                 (
-                                    self.flat_shader.diffuse_texture,
+                                    self.flat_shader.diffuse_texture.clone(),
                                     UniformValue::Sampler {
                                         index: 0,
                                         texture: gbuffer.frame_texture(),
@@ -1221,16 +1218,32 @@ impl Renderer {
         Ok(())
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub(in crate) fn render_and_swap_buffers(
         &mut self,
         scenes: &SceneContainer,
         drawing_context: &DrawingContext,
-        context: &glutin::WindowedContext<PossiblyCurrent>,
+        context: &glutin::WindowedContext<glutin::PossiblyCurrent>,
         dt: f32,
     ) -> Result<(), RendererError> {
         self.render_frame(scenes, drawing_context, dt)?;
         self.statistics.end_frame();
         context.swap_buffers()?;
+        self.state.check_error();
+        self.statistics.finalize();
+        self.statistics.pipeline = self.state.pipeline_statistics();
+        Ok(())
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub(in crate) fn render_and_swap_buffers(
+        &mut self,
+        scenes: &SceneContainer,
+        drawing_context: &DrawingContext,
+        dt: f32,
+    ) -> Result<(), RendererError> {
+        self.render_frame(scenes, drawing_context, dt)?;
+        self.statistics.end_frame();
         self.state.check_error();
         self.statistics.finalize();
         self.statistics.pipeline = self.state.pipeline_statistics();

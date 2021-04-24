@@ -121,7 +121,7 @@ impl Blur {
             },
             &[
                 (
-                    self.shader.world_view_projection_matrix,
+                    self.shader.world_view_projection_matrix.clone(),
                     UniformValue::Matrix4(
                         &(Matrix4::new_orthographic(
                             0.0,
@@ -138,7 +138,7 @@ impl Blur {
                     ),
                 ),
                 (
-                    self.shader.input_texture,
+                    self.shader.input_texture.clone(),
                     UniformValue::Sampler {
                         index: 0,
                         texture: input,

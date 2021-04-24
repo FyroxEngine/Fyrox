@@ -237,30 +237,33 @@ impl ScreenSpaceAmbientOcclusionRenderer {
             },
             &[
                 (
-                    self.shader.depth_sampler,
+                    self.shader.depth_sampler.clone(),
                     UniformValue::Sampler {
                         index: 0,
                         texture: gbuffer.depth(),
                     },
                 ),
                 (
-                    self.shader.normal_sampler,
+                    self.shader.normal_sampler.clone(),
                     UniformValue::Sampler {
                         index: 1,
                         texture: gbuffer.normal_texture(),
                     },
                 ),
                 (
-                    self.shader.noise_sampler,
+                    self.shader.noise_sampler.clone(),
                     UniformValue::Sampler {
                         index: 2,
                         texture: self.noise.clone(),
                     },
                 ),
-                (self.shader.kernel, UniformValue::Vec3Array(&self.kernel)),
-                (self.shader.radius, UniformValue::Float(self.radius)),
                 (
-                    self.shader.noise_scale,
+                    self.shader.kernel.clone(),
+                    UniformValue::Vec3Array(&self.kernel),
+                ),
+                (self.shader.radius.clone(), UniformValue::Float(self.radius)),
+                (
+                    self.shader.noise_scale.clone(),
                     UniformValue::Vector2({
                         &Vector2::new(
                             self.width as f32 / NOISE_SIZE as f32,
@@ -269,18 +272,21 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                     }),
                 ),
                 (
-                    self.shader.world_view_proj_matrix,
+                    self.shader.world_view_proj_matrix.clone(),
                     UniformValue::Matrix4(&frame_matrix),
                 ),
                 (
-                    self.shader.projection_matrix,
+                    self.shader.projection_matrix.clone(),
                     UniformValue::Matrix4(&projection_matrix),
                 ),
                 (
-                    self.shader.inv_proj_matrix,
+                    self.shader.inv_proj_matrix.clone(),
                     UniformValue::Matrix4(&projection_matrix.try_inverse().unwrap_or_default()),
                 ),
-                (self.shader.view_matrix, UniformValue::Matrix3(&view_matrix)),
+                (
+                    self.shader.view_matrix.clone(),
+                    UniformValue::Matrix3(&view_matrix),
+                ),
             ],
         );
 

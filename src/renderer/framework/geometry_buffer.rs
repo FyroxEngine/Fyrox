@@ -1,9 +1,7 @@
 use crate::utils::array_as_u8_slice;
-use crate::utils::log::MessageKind;
 use crate::{
     core::scope_profile,
     renderer::{error::RendererError, framework::state::PipelineState, TriangleDefinition},
-    utils::log::Log,
 };
 use glow::HasContext;
 use std::{cell::Cell, marker::PhantomData, mem::size_of};
@@ -21,7 +19,7 @@ struct NativeBuffer {
 impl Drop for NativeBuffer {
     fn drop(&mut self) {
         unsafe {
-            if self.id != 0 {
+            if self.id != Default::default() {
                 (*self.state).gl.delete_buffer(self.id);
             }
         }
@@ -343,14 +341,6 @@ impl GeometryBuffer {
 impl Drop for GeometryBuffer {
     fn drop(&mut self) {
         unsafe {
-            Log::writeln(
-                MessageKind::Information,
-                format!(
-                    "GL geometry buffer was destroyed - VAO: {}!",
-                    self.vertex_array_object
-                ),
-            );
-
             self.buffers.clear();
 
             (*self.state).gl.delete_buffer(self.element_buffer_object);
@@ -434,7 +424,7 @@ impl BufferBuilder {
                 offset += definition.kind.size_bytes();
 
                 if offset > self.element_size {
-                    state.set_vertex_buffer_object(0);
+                    state.set_vertex_buffer_object(Default::default());
                     return Err(RendererError::InvalidAttributeDescriptor);
                 }
             }

@@ -205,21 +205,21 @@ impl SpotShadowMapRenderer {
                         },
                         &[
                             (
-                                self.shader.world_view_projection_matrix,
+                                self.shader.world_view_projection_matrix.clone(),
                                 UniformValue::Matrix4(
                                     &(light_view_projection * instance.world_transform),
                                 ),
                             ),
                             (
-                                self.shader.use_skeletal_animation,
+                                self.shader.use_skeletal_animation.clone(),
                                 UniformValue::Bool(batch.is_skinned),
                             ),
                             (
-                                self.shader.bone_matrices,
+                                self.shader.bone_matrices.clone(),
                                 UniformValue::Mat4Array(instance.bone_matrices.as_slice()),
                             ),
                             (
-                                self.shader.diffuse_texture,
+                                self.shader.diffuse_texture.clone(),
                                 UniformValue::Sampler {
                                     index: 0,
                                     texture: batch.diffuse_texture.clone(),
@@ -496,29 +496,29 @@ impl PointShadowMapRenderer {
                             },
                             &[
                                 (
-                                    self.shader.light_position,
+                                    self.shader.light_position.clone(),
                                     UniformValue::Vector3(&light_pos),
                                 ),
                                 (
-                                    self.shader.world_matrix,
+                                    self.shader.world_matrix.clone(),
                                     UniformValue::Matrix4(&instance.world_transform),
                                 ),
                                 (
-                                    self.shader.world_view_projection_matrix,
+                                    self.shader.world_view_projection_matrix.clone(),
                                     UniformValue::Matrix4(
                                         &(light_view_projection_matrix * instance.world_transform),
                                     ),
                                 ),
                                 (
-                                    self.shader.use_skeletal_animation,
+                                    self.shader.use_skeletal_animation.clone(),
                                     UniformValue::Bool(batch.is_skinned),
                                 ),
                                 (
-                                    self.shader.bone_matrices,
+                                    self.shader.bone_matrices.clone(),
                                     UniformValue::Mat4Array(instance.bone_matrices.as_slice()),
                                 ),
                                 (
-                                    self.shader.diffuse_texture,
+                                    self.shader.diffuse_texture.clone(),
                                     UniformValue::Sampler {
                                         index: 0,
                                         texture: batch.diffuse_texture.clone(),

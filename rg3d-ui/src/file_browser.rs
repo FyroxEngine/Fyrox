@@ -30,6 +30,8 @@ use std::{
     path::{Component, Path, PathBuf, Prefix},
     rc::Rc,
 };
+
+#[cfg(not(target_arch = "wasm32"))]
 use sysinfo::{DiskExt, RefreshKind, SystemExt};
 
 pub type Filter = dyn FnMut(&Path) -> bool;
@@ -346,6 +348,7 @@ fn build_all<M: MessageData, C: Control<M, C>>(
     }
 
     let dest_path_components = dest_path.components().collect::<Vec<Component>>();
+    #[allow(unused_variables)]
     let dest_disk = dest_path_components.get(0).and_then(|c| {
         if let Component::Prefix(prefix) = c {
             if let Prefix::Disk(disk_letter) | Prefix::VerbatimDisk(disk_letter) = prefix.kind() {
@@ -369,28 +372,36 @@ fn build_all<M: MessageData, C: Control<M, C>>(
         root_items.push(item);
         item
     } else {
-        let mut parent = Handle::NONE;
-
-        // Create items for disks.
-        for disk in sysinfo::System::new_with_specifics(RefreshKind::new().with_disks_list())
-            .get_disks()
-            .iter()
-            .map(|i| i.get_mount_point().to_string_lossy())
+        #[cfg(not(target_arch = "wasm32"))]
         {
-            let item = build_tree_item(disk.as_ref(), "", ctx);
+            let mut parent = Handle::NONE;
 
-            let disk_letter = disk.chars().next().unwrap() as u8;
+            // Create items for disks.
+            for disk in sysinfo::System::new_with_specifics(RefreshKind::new().with_disks_list())
+                .get_disks()
+                .iter()
+                .map(|i| i.get_mount_point().to_string_lossy())
+            {
+                let item = build_tree_item(disk.as_ref(), "", ctx);
 
-            if let Some(dest_disk) = dest_disk {
-                if dest_disk == disk_letter {
-                    parent = item;
+                let disk_letter = disk.chars().next().unwrap() as u8;
+
+                if let Some(dest_disk) = dest_disk {
+                    if dest_disk == disk_letter {
+                        parent = item;
+                    }
                 }
+
+                root_items.push(item);
             }
 
-            root_items.push(item);
+            parent
         }
 
-        parent
+        #[cfg(target_arch = "wasm32")]
+        {
+            Handle::NONE
+        }
     };
 
     let mut path_item = Handle::NONE;

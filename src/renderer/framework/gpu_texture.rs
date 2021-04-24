@@ -8,7 +8,6 @@ use crate::{
         TextureKind, TextureMagnificationFilter, TextureMinificationFilter, TexturePixelKind,
         TextureWrapMode,
     },
-    utils::log::{Log, MessageKind},
 };
 use glow::{HasContext, COMPRESSED_RED_RGTC1, COMPRESSED_RG_RGTC2};
 use std::marker::PhantomData;
@@ -851,12 +850,7 @@ impl GpuTexture {
                 state.gl.generate_mipmap(target);
             }
 
-            state.set_texture(0, target, 0);
-
-            Log::writeln(
-                MessageKind::Information,
-                format!("GL texture {} was created!", texture),
-            );
+            state.set_texture(0, target, Default::default());
 
             Ok(result)
         }
@@ -882,7 +876,7 @@ impl GpuTexture {
         self.kind
     }
 
-    pub fn id(&self) -> u32 {
+    pub fn id(&self) -> glow::Texture {
         self.texture
     }
 
@@ -910,11 +904,6 @@ impl GpuTexture {
 impl Drop for GpuTexture {
     fn drop(&mut self) {
         unsafe {
-            Log::writeln(
-                MessageKind::Information,
-                format!("GL texture {} was destroyed!", self.texture),
-            );
-
             (*self.state).gl.delete_texture(self.texture);
         }
     }

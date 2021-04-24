@@ -11,6 +11,8 @@
 #[macro_use]
 extern crate lazy_static;
 extern crate fontdue;
+
+#[cfg(not(target_arch = "wasm32"))]
 extern crate sysinfo;
 
 use message::PopupMessage;

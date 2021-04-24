@@ -347,82 +347,82 @@ impl GBuffer {
                         &params,
                         &[
                             (
-                                self.shader.diffuse_texture,
+                                self.shader.diffuse_texture.clone(),
                                 UniformValue::Sampler {
                                     index: 0,
                                     texture: batch.diffuse_texture.clone(),
                                 },
                             ),
                             (
-                                self.shader.normal_texture,
+                                self.shader.normal_texture.clone(),
                                 UniformValue::Sampler {
                                     index: 1,
                                     texture: batch.normal_texture.clone(),
                                 },
                             ),
                             (
-                                self.shader.specular_texture,
+                                self.shader.specular_texture.clone(),
                                 UniformValue::Sampler {
                                     index: 2,
                                     texture: batch.specular_texture.clone(),
                                 },
                             ),
                             (
-                                self.shader.lightmap_texture,
+                                self.shader.lightmap_texture.clone(),
                                 UniformValue::Sampler {
                                     index: 3,
                                     texture: batch.lightmap_texture.clone(),
                                 },
                             ),
                             (
-                                self.shader.camera_position,
+                                self.shader.camera_position.clone(),
                                 UniformValue::Vector3(&camera.global_position()),
                             ),
                             (
-                                self.shader.environment_map,
+                                self.shader.environment_map.clone(),
                                 UniformValue::Sampler {
                                     index: 4,
                                     texture: environment.clone(),
                                 },
                             ),
                             (
-                                self.shader.roughness_texture,
+                                self.shader.roughness_texture.clone(),
                                 UniformValue::Sampler {
                                     index: 5,
                                     texture: batch.roughness_texture.clone(),
                                 },
                             ),
                             (
-                                self.shader.height_texture,
+                                self.shader.height_texture.clone(),
                                 UniformValue::Sampler {
                                     index: 6,
                                     texture: batch.height_texture.clone(),
                                 },
                             ),
                             (
-                                self.shader.use_pom,
+                                self.shader.use_pom.clone(),
                                 UniformValue::Bool(batch.use_pom && use_parallax_mapping),
                             ),
                             (
-                                self.shader.wvp_matrix,
+                                self.shader.wvp_matrix.clone(),
                                 UniformValue::Matrix4(
                                     &(view_projection * instance.world_transform),
                                 ),
                             ),
                             (
-                                self.shader.world_matrix,
+                                self.shader.world_matrix.clone(),
                                 UniformValue::Matrix4(&instance.world_transform),
                             ),
                             (
-                                self.shader.use_skeletal_animation,
+                                self.shader.use_skeletal_animation.clone(),
                                 UniformValue::Bool(batch.is_skinned),
                             ),
                             (
-                                self.shader.diffuse_color,
+                                self.shader.diffuse_color.clone(),
                                 UniformValue::Color(instance.color),
                             ),
                             (
-                                self.shader.bone_matrices,
+                                self.shader.bone_matrices.clone(),
                                 UniformValue::Mat4Array(instance.bone_matrices.as_slice()),
                             ),
                         ],
@@ -456,79 +456,79 @@ impl GBuffer {
                         &params,
                         &[
                             (
-                                self.instanced_shader.diffuse_texture,
+                                self.instanced_shader.diffuse_texture.clone(),
                                 UniformValue::Sampler {
                                     index: 0,
                                     texture: batch.diffuse_texture.clone(),
                                 },
                             ),
                             (
-                                self.instanced_shader.normal_texture,
+                                self.instanced_shader.normal_texture.clone(),
                                 UniformValue::Sampler {
                                     index: 1,
                                     texture: batch.normal_texture.clone(),
                                 },
                             ),
                             (
-                                self.instanced_shader.specular_texture,
+                                self.instanced_shader.specular_texture.clone(),
                                 UniformValue::Sampler {
                                     index: 2,
                                     texture: batch.specular_texture.clone(),
                                 },
                             ),
                             (
-                                self.instanced_shader.lightmap_texture,
+                                self.instanced_shader.lightmap_texture.clone(),
                                 UniformValue::Sampler {
                                     index: 3,
                                     texture: batch.lightmap_texture.clone(),
                                 },
                             ),
                             (
-                                self.instanced_shader.camera_position,
+                                self.instanced_shader.camera_position.clone(),
                                 UniformValue::Vector3(&camera.global_position()),
                             ),
                             (
-                                self.instanced_shader.environment_map,
+                                self.instanced_shader.environment_map.clone(),
                                 UniformValue::Sampler {
                                     index: 4,
                                     texture: environment.clone(),
                                 },
                             ),
                             (
-                                self.instanced_shader.roughness_texture,
+                                self.instanced_shader.roughness_texture.clone(),
                                 UniformValue::Sampler {
                                     index: 5,
                                     texture: batch.roughness_texture.clone(),
                                 },
                             ),
                             (
-                                self.instanced_shader.matrix_storage,
+                                self.instanced_shader.matrix_storage.clone(),
                                 UniformValue::Sampler {
                                     index: 6,
                                     texture: self.matrix_storage.matrices_storage.clone(),
                                 },
                             ),
                             (
-                                self.instanced_shader.height_texture,
+                                self.instanced_shader.height_texture.clone(),
                                 UniformValue::Sampler {
                                     index: 7,
                                     texture: batch.height_texture.clone(),
                                 },
                             ),
                             (
-                                self.instanced_shader.use_pom,
+                                self.instanced_shader.use_pom.clone(),
                                 UniformValue::Bool(batch.use_pom && use_parallax_mapping),
                             ),
                             (
-                                self.instanced_shader.use_skeletal_animation,
+                                self.instanced_shader.use_skeletal_animation.clone(),
                                 UniformValue::Bool(batch.is_skinned),
                             ),
                             (
-                                self.instanced_shader.matrix_buffer_stride,
+                                self.instanced_shader.matrix_buffer_stride.clone(),
                                 UniformValue::Integer(BONE_MATRICES_COUNT as i32),
                             ),
                             (
-                                self.instanced_shader.matrix_storage_size,
+                                self.instanced_shader.matrix_storage_size.clone(),
                                 UniformValue::Vector4({
                                     let kind = self.matrix_storage.matrices_storage.borrow().kind();
                                     let (w, h) =
@@ -546,7 +546,7 @@ impl GBuffer {
                                 }),
                             ),
                             (
-                                self.instanced_shader.view_projection_matrix,
+                                self.instanced_shader.view_projection_matrix.clone(),
                                 UniformValue::Matrix4(&camera.view_projection_matrix()),
                             ),
                         ],

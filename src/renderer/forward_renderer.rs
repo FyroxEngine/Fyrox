@@ -121,25 +121,28 @@ impl ForwardRenderer {
                         &params,
                         &[
                             (
-                                self.shader.diffuse_texture,
+                                self.shader.diffuse_texture.clone(),
                                 UniformValue::Sampler {
                                     index: 0,
                                     texture: batch.diffuse_texture.clone(),
                                 },
                             ),
                             (
-                                self.shader.wvp_matrix,
+                                self.shader.wvp_matrix.clone(),
                                 UniformValue::Matrix4(
                                     &(view_projection * instance.world_transform),
                                 ),
                             ),
                             (
-                                self.shader.use_skeletal_animation,
+                                self.shader.use_skeletal_animation.clone(),
                                 UniformValue::Bool(batch.is_skinned),
                             ),
-                            (self.shader.color, UniformValue::Color(instance.color)),
                             (
-                                self.shader.bone_matrices,
+                                self.shader.color.clone(),
+                                UniformValue::Color(instance.color),
+                            ),
+                            (
+                                self.shader.bone_matrices.clone(),
                                 UniformValue::Mat4Array(instance.bone_matrices.as_slice()),
                             ),
                         ],
