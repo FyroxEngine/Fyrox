@@ -90,7 +90,7 @@ fn prepare_source_code(code: &str) -> String {
     shared += include_str!("../shaders/shared.glsl");
     shared += "\n// end of include\n";
 
-    if let Some(p) = code.rfind('#') {
+    let code = if let Some(p) = code.find('#') {
         let mut full = code.to_owned();
         let end = p + full[p..].find('\n').unwrap() + 1;
         full.insert_str(end, &shared);
@@ -98,7 +98,16 @@ fn prepare_source_code(code: &str) -> String {
     } else {
         shared += code;
         shared
+    };
+
+    // HACK
+    #[cfg(target_arch = "wasm32")]
+    {
+        code.replace("#version 330 core", "#version 300 es")
     }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    code
 }
 
 impl GpuProgram {

@@ -362,7 +362,7 @@ pub fn generate_uvs(data: &mut SurfaceSharedData, spacing: f32) -> SurfaceDataPa
 
 /// Generates UVs for a specified mesh.
 pub fn generate_uvs_mesh(mesh: &Mesh, spacing: f32) {
-    let last = std::time::Instant::now();
+    let last = instant::Instant::now();
 
     let data_set = mesh.surfaces().iter().map(|s| s.data()).collect::<Vec<_>>();
 
@@ -370,7 +370,7 @@ pub fn generate_uvs_mesh(mesh: &Mesh, spacing: f32) {
         generate_uvs(&mut data.write().unwrap(), spacing);
     });
 
-    println!("Generate UVs: {:?}", std::time::Instant::now() - last);
+    println!("Generate UVs: {:?}", instant::Instant::now() - last);
 }
 
 #[cfg(test)]

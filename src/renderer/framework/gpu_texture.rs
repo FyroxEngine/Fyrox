@@ -464,10 +464,12 @@ impl<'a> TextureBinding<'a> {
         self
     }
 
-    pub fn set_border_color(self, color: Color) -> Self {
+    pub fn set_border_color(self, #[allow(unused_variables)] color: Color) -> Self {
+        #[cfg(not(target_arch = "wasm32"))]
         unsafe {
             let color = color.as_frgba();
             let color = [color.x, color.y, color.z, color.w];
+
             self.state.gl.tex_parameter_f32_slice(
                 self.texture.kind.to_texture_target(),
                 glow::TEXTURE_BORDER_COLOR,
@@ -565,8 +567,12 @@ impl<'a> TextureBinding<'a> {
             let (type_, format, internal_format) = match pixel_kind {
                 PixelKind::F32 => (glow::FLOAT, glow::RED, glow::R32F),
                 PixelKind::F16 => (glow::FLOAT, glow::RED, glow::R16F),
-                PixelKind::D32 => (glow::FLOAT, glow::DEPTH_COMPONENT, glow::DEPTH_COMPONENT32),
-                PixelKind::D16 => (glow::FLOAT, glow::DEPTH_COMPONENT, glow::DEPTH_COMPONENT16),
+                PixelKind::D32 => (glow::FLOAT, glow::DEPTH_COMPONENT, glow::DEPTH_COMPONENT32F),
+                PixelKind::D16 => (
+                    glow::UNSIGNED_SHORT,
+                    glow::DEPTH_COMPONENT,
+                    glow::DEPTH_COMPONENT16,
+                ),
                 PixelKind::D24S8 => (
                     glow::UNSIGNED_INT_24_8,
                     glow::DEPTH_STENCIL,

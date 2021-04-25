@@ -466,7 +466,7 @@ impl Physics {
     }
 
     pub(in crate) fn step(&mut self) {
-        let time = std::time::Instant::now();
+        let time = instant::Instant::now();
 
         self.pipeline.step(
             &self.gravity,
@@ -481,7 +481,7 @@ impl Physics {
             &*self.event_handler,
         );
 
-        self.performance_statistics.step_time += std::time::Instant::now() - time;
+        self.performance_statistics.step_time += instant::Instant::now() - time;
     }
 
     #[doc(hidden)]
@@ -666,7 +666,7 @@ impl Physics {
 
     /// Casts a ray with given options.
     pub fn cast_ray<S: QueryResultsStorage>(&self, opts: RayCastOptions, query_buffer: &mut S) {
-        let time = std::time::Instant::now();
+        let time = instant::Instant::now();
 
         let mut query = self.query.borrow_mut();
 
@@ -716,7 +716,7 @@ impl Physics {
 
         self.performance_statistics.total_ray_cast_time.set(
             self.performance_statistics.total_ray_cast_time.get()
-                + (std::time::Instant::now() - time),
+                + (instant::Instant::now() - time),
         );
     }
 

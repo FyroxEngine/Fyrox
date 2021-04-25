@@ -9,6 +9,7 @@ use std::{
 
 lazy_static! {
     static ref LOG: Mutex<Log> = Mutex::new(Log {
+        #[cfg(not(target_arch = "wasm32"))]
         file: File::create("rg3d.log").unwrap(),
         verbosity: MessageKind::Information
     });
@@ -38,6 +39,7 @@ impl MessageKind {
 
 /// See module docs.
 pub struct Log {
+    #[cfg(not(target_arch = "wasm32"))]
     file: File,
     verbosity: MessageKind,
 }
@@ -47,6 +49,7 @@ impl Log {
         if kind as u32 >= self.verbosity as u32 {
             msg.insert_str(0, kind.as_str());
             let _ = io::stdout().write_all(msg.as_bytes());
+            #[cfg(not(target_arch = "wasm32"))]
             let _ = self.file.write_all(msg.as_bytes());
         }
     }

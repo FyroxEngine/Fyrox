@@ -187,8 +187,14 @@ impl PipelineState {
             self.frame_statistics.framebuffer_binding_changes += 1;
 
             unsafe {
-                self.gl
-                    .bind_framebuffer(glow::FRAMEBUFFER, Some(self.framebuffer))
+                self.gl.bind_framebuffer(
+                    glow::FRAMEBUFFER,
+                    if framebuffer == Default::default() {
+                        None
+                    } else {
+                        Some(self.framebuffer)
+                    },
+                )
             }
         }
     }
@@ -359,7 +365,11 @@ impl PipelineState {
             self.frame_statistics.program_binding_changes += 1;
 
             unsafe {
-                self.gl.use_program(Some(self.program));
+                self.gl.use_program(if program == Default::default() {
+                    None
+                } else {
+                    Some(self.program)
+                });
             }
         }
     }
@@ -375,7 +385,14 @@ impl PipelineState {
 
             unsafe {
                 self.gl.active_texture(glow::TEXTURE0 + sampler_index);
-                self.gl.bind_texture(target, Some(texture));
+                self.gl.bind_texture(
+                    target,
+                    if texture == Default::default() {
+                        None
+                    } else {
+                        Some(texture)
+                    },
+                );
             }
         }
     }
@@ -427,7 +444,14 @@ impl PipelineState {
             self.frame_statistics.vbo_binding_changes += 1;
 
             unsafe {
-                self.gl.bind_buffer(glow::ARRAY_BUFFER, Some(vbo));
+                self.gl.bind_buffer(
+                    glow::ARRAY_BUFFER,
+                    if vbo == Default::default() {
+                        None
+                    } else {
+                        Some(vbo)
+                    },
+                );
             }
         }
     }

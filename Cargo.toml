@@ -11,7 +11,7 @@ repository = "https://github.com/mrDIMAS/rg3d"
 readme = "README.md"
 
 [workspace]
-members = ["rg3d-core", "rg3d-sound", "rg3d-ui"]
+members = ["rg3d-core", "rg3d-sound", "rg3d-ui", "examples/wasm"]
 
 [profile.dev]
 opt-level = 0
@@ -33,6 +33,7 @@ ddsfile = "0.4.0"
 rapier3d = {version = "0.7" }
 rayon = "1.5.0"
 tbc = "0.3.0"
+instant = {version = "0.1.9", features = ["wasm-bindgen"] }
 # Temporary, until https://github.com/grovesNL/glow/pull/157 is merged and new glow (0.10?) published on crates.io
 glow = { git = "https://github.com/mrDIMAS/glow", branch = "main" }
 
@@ -50,5 +51,6 @@ glutin = "0.26.0"
 web-sys = "0.3.50"
 wasm-bindgen = "0.2.73"
 winit ={ version = "0.24.0", features=["web-sys"]}
+wasm-bindgen-futures = "0.4.23"
 
 

@@ -86,7 +86,6 @@ use std::{
     fmt::{Display, Formatter},
     ops::Deref,
     rc::Rc,
-    time,
 };
 
 /// Renderer statistics for one frame, also includes current frames per second
@@ -108,8 +107,8 @@ pub struct Statistics {
     /// Total amount of frames been rendered in one second.
     pub frames_per_second: usize,
     frame_counter: usize,
-    frame_start_time: time::Instant,
-    last_fps_commit_time: time::Instant,
+    frame_start_time: instant::Instant,
+    last_fps_commit_time: instant::Instant,
 }
 
 impl Display for Statistics {
@@ -360,14 +359,14 @@ impl QualitySettings {
 impl Statistics {
     /// Must be called before render anything.
     fn begin_frame(&mut self) {
-        self.frame_start_time = time::Instant::now();
+        self.frame_start_time = instant::Instant::now();
         self.geometry = Default::default();
         self.lighting = Default::default();
     }
 
     /// Must be called before SwapBuffers but after all rendering is done.
     fn end_frame(&mut self) {
-        let current_time = time::Instant::now();
+        let current_time = instant::Instant::now();
 
         self.pure_frame_time = current_time
             .duration_since(self.frame_start_time)
@@ -387,7 +386,7 @@ impl Statistics {
 
     /// Must be called after SwapBuffers to get capped frame time.
     fn finalize(&mut self) {
-        self.capped_frame_time = time::Instant::now()
+        self.capped_frame_time = instant::Instant::now()
             .duration_since(self.frame_start_time)
             .as_secs_f32();
     }
@@ -403,8 +402,8 @@ impl Default for Statistics {
             capped_frame_time: 0.0,
             frames_per_second: 0,
             frame_counter: 0,
-            frame_start_time: time::Instant::now(),
-            last_fps_commit_time: time::Instant::now(),
+            frame_start_time: instant::Instant::now(),
+            last_fps_commit_time: instant::Instant::now(),
         }
     }
 }
@@ -750,7 +749,6 @@ impl Renderer {
             frame_size,
             deferred_light_renderer: DeferredLightRenderer::new(&mut state, frame_size, &settings)?,
             flat_shader: FlatShader::new(&mut state)?,
-            statistics: Statistics::default(),
             sprite_renderer: SpriteRenderer::new(&mut state)?,
             white_dummy: Rc::new(RefCell::new(GpuTexture::new(
                 &mut state,
@@ -832,6 +830,7 @@ impl Renderer {
             forward_renderer: ForwardRenderer::new(&mut state)?,
             ui_frame_buffers: Default::default(),
             fxaa_renderer: FxaaRenderer::new(&mut state)?,
+            statistics: Statistics::default(),
             state,
         })
     }

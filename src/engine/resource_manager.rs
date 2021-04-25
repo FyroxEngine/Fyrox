@@ -24,7 +24,6 @@ use std::{
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     sync::{Arc, Mutex, MutexGuard},
-    time,
 };
 
 /// Lifetime of orphaned resource in seconds (with only one strong ref which is resource manager itself)
@@ -120,6 +119,7 @@ pub struct ResourceManagerState {
     /// format (either relative or absolute) which is obviously not good for engine.
     textures_path: PathBuf,
     textures_import_options: TextureImportOptions,
+    #[cfg(not(target_arch = "wasm32"))]
     thread_pool: ThreadPool,
 }
 
@@ -131,6 +131,7 @@ impl Default for ResourceManagerState {
             sound_buffers: Default::default(),
             textures_path: Default::default(),
             textures_import_options: Default::default(),
+            #[cfg(not(target_arch = "wasm32"))]
             thread_pool: ThreadPool::new().unwrap(),
         }
     }
@@ -236,6 +237,186 @@ impl From<TextureError> for TextureRegistrationError {
     }
 }
 
+fn load_texture(texture: Texture, path: PathBuf, options: TextureImportOptions) {
+    let time = instant::Instant::now();
+    match TextureData::load_from_file(&path, options.compression) {
+        Ok(mut raw_texture) => {
+            Log::writeln(
+                MessageKind::Information,
+                format!("Texture {:?} is loaded in {:?}!", path, time.elapsed()),
+            );
+
+            raw_texture.set_magnification_filter(options.magnification_filter);
+            raw_texture.set_minification_filter(options.minification_filter);
+            raw_texture.set_anisotropy_level(options.anisotropy);
+            raw_texture.set_s_wrap_mode(options.s_wrap_mode);
+            raw_texture.set_t_wrap_mode(options.t_wrap_mode);
+
+            texture.state().commit(ResourceState::Ok(raw_texture));
+        }
+        Err(error) => {
+            Log::writeln(
+                MessageKind::Error,
+                format!("Unable to load texture {:?}! Reason {:?}", &path, &error),
+            );
+
+            texture.state().commit(ResourceState::LoadError {
+                path,
+                error: Some(Arc::new(error)),
+            });
+        }
+    }
+}
+
+async fn load_model(model: Model, path: PathBuf, resource_manager: ResourceManager) {
+    match ModelData::load(&path, resource_manager).await {
+        Ok(raw_model) => {
+            Log::writeln(
+                MessageKind::Information,
+                format!("Model {:?} is loaded!", path),
+            );
+
+            model.state().commit(ResourceState::Ok(raw_model));
+        }
+        Err(error) => {
+            Log::writeln(
+                MessageKind::Error,
+                format!("Unable to load model from {:?}! Reason {:?}", path, error),
+            );
+
+            model.state().commit(ResourceState::LoadError {
+                path,
+                error: Some(Arc::new(error)),
+            });
+        }
+    }
+}
+
+fn load_sound_buffer(resource: SharedSoundBuffer, path: PathBuf, stream: bool) {
+    match DataSource::from_file(&path) {
+        Ok(source) => {
+            let buffer = if stream {
+                SoundBuffer::new_streaming(source)
+            } else {
+                SoundBuffer::new_generic(source)
+            };
+            match buffer {
+                Ok(sound_buffer) => {
+                    Log::writeln(
+                        MessageKind::Information,
+                        format!("Sound buffer {:?} is loaded!", path),
+                    );
+
+                    resource.state().commit(ResourceState::Ok(sound_buffer));
+                }
+                Err(_) => {
+                    Log::writeln(
+                        MessageKind::Error,
+                        format!("Unable to load sound buffer from {:?}!", path),
+                    );
+
+                    resource.state().commit(ResourceState::LoadError {
+                        path: path.clone(),
+                        error: Some(Arc::new(())),
+                    })
+                }
+            }
+        }
+        Err(e) => {
+            Log::writeln(MessageKind::Error, format!("Invalid data source: {:?}", e));
+
+            resource.state().commit(ResourceState::LoadError {
+                path: path.clone(),
+                error: Some(Arc::new(())),
+            })
+        }
+    }
+}
+
+fn reload_texture(texture: Texture, path: PathBuf, compression: CompressionOptions) {
+    match TextureData::load_from_file(&path, compression) {
+        Ok(data) => {
+            Log::writeln(
+                MessageKind::Information,
+                format!("Texture {:?} successfully reloaded!", path,),
+            );
+
+            texture.state().commit(ResourceState::Ok(data));
+        }
+        Err(e) => {
+            Log::writeln(
+                MessageKind::Error,
+                format!("Unable to reload {:?} texture! Reason: {:?}", path, e),
+            );
+
+            texture.state().commit(ResourceState::LoadError {
+                path,
+                error: Some(Arc::new(e)),
+            });
+        }
+    };
+}
+
+async fn reload_model(model: Model, path: PathBuf, resource_manager: ResourceManager) {
+    match ModelData::load(&path, resource_manager).await {
+        Ok(data) => {
+            Log::writeln(
+                MessageKind::Information,
+                format!("Model {:?} successfully reloaded!", path,),
+            );
+
+            model.state().commit(ResourceState::Ok(data));
+        }
+        Err(e) => {
+            Log::writeln(
+                MessageKind::Error,
+                format!("Unable to reload {:?} model! Reason: {:?}", path, e),
+            );
+
+            model.state().commit(ResourceState::LoadError {
+                path,
+                error: Some(Arc::new(e)),
+            })
+        }
+    };
+}
+
+fn reload_sound_buffer(
+    resource: SharedSoundBuffer,
+    path: PathBuf,
+    stream: bool,
+    inner_buffer: Arc<Mutex<SoundBuffer>>,
+) {
+    if let Ok(data_source) = DataSource::from_file(&path) {
+        let new_sound_buffer = match stream {
+            false => SoundBuffer::raw_generic(data_source),
+            true => SoundBuffer::raw_streaming(data_source),
+        };
+        match new_sound_buffer {
+            Ok(new_sound_buffer) => {
+                Log::writeln(
+                    MessageKind::Information,
+                    format!("Sound buffer {:?} successfully reloaded!", path,),
+                );
+
+                *inner_buffer.lock().unwrap() = new_sound_buffer;
+                resource.state().commit(ResourceState::Ok(inner_buffer));
+            }
+            Err(_) => {
+                Log::writeln(
+                    MessageKind::Error,
+                    format!("Unable to reload {:?} sound buffer!", path),
+                );
+
+                resource.state().commit(ResourceState::LoadError {
+                    path,
+                    error: Some(Arc::new(())),
+                })
+            }
+        }
+    }
+}
+
 impl ResourceManager {
     pub(in crate) fn new() -> Self {
         Self {
@@ -276,38 +457,16 @@ impl ResourceManager {
         });
         let result = texture.clone();
         let options = state.textures_import_options.clone();
-
         let path = path.as_ref().to_owned();
 
+        #[cfg(target_arch = "wasm32")]
+        wasm_bindgen_futures::spawn_local(async move {
+            load_texture(texture, path, options);
+        });
+
+        #[cfg(not(target_arch = "wasm32"))]
         state.thread_pool.spawn_ok(async move {
-            let time = time::Instant::now();
-            match TextureData::load_from_file(&path, options.compression) {
-                Ok(mut raw_texture) => {
-                    Log::writeln(
-                        MessageKind::Information,
-                        format!("Texture {:?} is loaded in {:?}!", path, time.elapsed()),
-                    );
-
-                    raw_texture.set_magnification_filter(options.magnification_filter);
-                    raw_texture.set_minification_filter(options.minification_filter);
-                    raw_texture.set_anisotropy_level(options.anisotropy);
-                    raw_texture.set_s_wrap_mode(options.s_wrap_mode);
-                    raw_texture.set_t_wrap_mode(options.t_wrap_mode);
-
-                    texture.state().commit(ResourceState::Ok(raw_texture));
-                }
-                Err(error) => {
-                    Log::writeln(
-                        MessageKind::Error,
-                        format!("Unable to load texture {:?}! Reason {:?}", &path, &error),
-                    );
-
-                    texture.state().commit(ResourceState::LoadError {
-                        path,
-                        error: Some(Arc::new(error)),
-                    });
-                }
-            }
+            load_texture(texture, path, options);
         });
 
         result
@@ -370,33 +529,19 @@ impl ResourceManager {
             value: model.clone(),
             time_to_live: MAX_RESOURCE_TTL,
         });
+
         let result = model.clone();
         let path = path.as_ref().to_owned();
-
         let resource_manager = self.clone();
 
+        #[cfg(target_arch = "wasm32")]
+        wasm_bindgen_futures::spawn_local(async move {
+            load_model(model, path, resource_manager).await;
+        });
+
+        #[cfg(not(target_arch = "wasm32"))]
         state.thread_pool.spawn_ok(async move {
-            match ModelData::load(&path, resource_manager).await {
-                Ok(raw_model) => {
-                    Log::writeln(
-                        MessageKind::Information,
-                        format!("Model {:?} is loaded!", path),
-                    );
-
-                    model.state().commit(ResourceState::Ok(raw_model));
-                }
-                Err(error) => {
-                    Log::writeln(
-                        MessageKind::Error,
-                        format!("Unable to load model from {:?}! Reason {:?}", path, error),
-                    );
-
-                    model.state().commit(ResourceState::LoadError {
-                        path,
-                        error: Some(Arc::new(error)),
-                    });
-                }
-            }
+            load_model(model, path, resource_manager).await;
         });
 
         result
@@ -424,45 +569,14 @@ impl ResourceManager {
         let result = resource.clone();
         let path = path.as_ref().to_owned();
 
+        #[cfg(target_arch = "wasm32")]
+        wasm_bindgen_futures::spawn_local(async move {
+            load_sound_buffer(resource, path, stream);
+        });
+
+        #[cfg(not(target_arch = "wasm32"))]
         state.thread_pool.spawn_ok(async move {
-            match DataSource::from_file(&path) {
-                Ok(source) => {
-                    let buffer = if stream {
-                        SoundBuffer::new_streaming(source)
-                    } else {
-                        SoundBuffer::new_generic(source)
-                    };
-                    match buffer {
-                        Ok(sound_buffer) => {
-                            Log::writeln(
-                                MessageKind::Information,
-                                format!("Sound buffer {:?} is loaded!", path),
-                            );
-
-                            resource.state().commit(ResourceState::Ok(sound_buffer));
-                        }
-                        Err(_) => {
-                            Log::writeln(
-                                MessageKind::Error,
-                                format!("Unable to load sound buffer from {:?}!", path),
-                            );
-
-                            resource.state().commit(ResourceState::LoadError {
-                                path: path.clone(),
-                                error: Some(Arc::new(())),
-                            })
-                        }
-                    }
-                }
-                Err(e) => {
-                    Log::writeln(MessageKind::Error, format!("Invalid data source: {:?}", e));
-
-                    resource.state().commit(ResourceState::LoadError {
-                        path: path.clone(),
-                        error: Some(Arc::new(())),
-                    })
-                }
-            }
+            load_sound_buffer(resource, path, stream);
         });
 
         result
@@ -495,28 +609,15 @@ impl ResourceManager {
                     CompressionOptions::NoCompression
                 };
                 *resource.state() = ResourceState::new_pending(path.clone());
+
+                #[cfg(target_arch = "wasm32")]
+                wasm_bindgen_futures::spawn_local(async move {
+                    reload_texture(resource, path, compression);
+                });
+
+                #[cfg(not(target_arch = "wasm32"))]
                 state.thread_pool.spawn_ok(async move {
-                    match TextureData::load_from_file(&path, compression) {
-                        Ok(data) => {
-                            Log::writeln(
-                                MessageKind::Information,
-                                format!("Texture {:?} successfully reloaded!", path,),
-                            );
-
-                            resource.state().commit(ResourceState::Ok(data));
-                        }
-                        Err(e) => {
-                            Log::writeln(
-                                MessageKind::Error,
-                                format!("Unable to reload {:?} texture! Reason: {:?}", path, e),
-                            );
-
-                            resource.state().commit(ResourceState::LoadError {
-                                path,
-                                error: Some(Arc::new(e)),
-                            });
-                        }
-                    };
+                    reload_texture(resource, path, compression);
                 });
             }
 
@@ -543,28 +644,15 @@ impl ResourceManager {
                 let this = this.clone();
                 let path = model.state().path().to_path_buf();
                 *model.state() = ResourceState::new_pending(path.clone());
+
+                #[cfg(target_arch = "wasm32")]
+                wasm_bindgen_futures::spawn_local(async move {
+                    reload_model(model, path, this).await;
+                });
+
+                #[cfg(not(target_arch = "wasm32"))]
                 state.thread_pool.spawn_ok(async move {
-                    match ModelData::load(&path, this).await {
-                        Ok(data) => {
-                            Log::writeln(
-                                MessageKind::Information,
-                                format!("Model {:?} successfully reloaded!", path,),
-                            );
-
-                            model.state().commit(ResourceState::Ok(data));
-                        }
-                        Err(e) => {
-                            Log::writeln(
-                                MessageKind::Error,
-                                format!("Unable to reload {:?} model! Reason: {:?}", path, e),
-                            );
-
-                            model.state().commit(ResourceState::LoadError {
-                                path,
-                                error: Some(Arc::new(e)),
-                            })
-                        }
-                    };
+                    reload_model(model, path, this).await;
                 })
             }
 
@@ -608,38 +696,14 @@ impl ResourceManager {
                 if let Some(ext_path) = path {
                     *resource.state() = ResourceState::new_pending(ext_path.clone());
 
+                    #[cfg(target_arch = "wasm32")]
+                    wasm_bindgen_futures::spawn_local(async move {
+                        reload_sound_buffer(resource, ext_path, stream, inner_buffer);
+                    });
+
+                    #[cfg(not(target_arch = "wasm32"))]
                     state.thread_pool.spawn_ok(async move {
-                        if let Ok(data_source) = DataSource::from_file(&ext_path) {
-                            let new_sound_buffer = match stream {
-                                false => SoundBuffer::raw_generic(data_source),
-                                true => SoundBuffer::raw_streaming(data_source),
-                            };
-                            match new_sound_buffer {
-                                Ok(new_sound_buffer) => {
-                                    Log::writeln(
-                                        MessageKind::Information,
-                                        format!(
-                                            "Sound buffer {:?} successfully reloaded!",
-                                            ext_path,
-                                        ),
-                                    );
-
-                                    *inner_buffer.lock().unwrap() = new_sound_buffer;
-                                    resource.state().commit(ResourceState::Ok(inner_buffer));
-                                }
-                                Err(_) => {
-                                    Log::writeln(
-                                        MessageKind::Error,
-                                        format!("Unable to reload {:?} sound buffer!", ext_path),
-                                    );
-
-                                    resource.state().commit(ResourceState::LoadError {
-                                        path: ext_path,
-                                        error: Some(Arc::new(())),
-                                    })
-                                }
-                            }
-                        }
+                        reload_sound_buffer(resource, ext_path, stream, inner_buffer);
                     });
                 }
             }
@@ -701,6 +765,7 @@ impl ResourceManagerState {
             sound_buffers: Vec::new(),
             textures_path: PathBuf::from("data/textures/"),
             textures_import_options: Default::default(),
+            #[cfg(not(target_arch = "wasm32"))]
             thread_pool: ThreadPool::new().unwrap(),
         }
     }

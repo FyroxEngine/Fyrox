@@ -39,7 +39,7 @@ void main()
     if (outColor.a < 0.5) {
         discard;
     }
-    outColor.a = 1;
+    outColor.a = 1.0;
     vec4 n = normalize(texture(normalTexture, tc) * 2.0 - 1.0);
     outNormal.xyz = normalize(tangentSpace * n.xyz) * 0.5 + 0.5;
     outNormal.w = texture(specularTexture, tc).r;
@@ -48,5 +48,5 @@ void main()
     // reflection mapping
     float roughness = texture(roughnessTexture, tc).r;
     vec3 reflectionTexCoord = reflect(toFragment, normalize(n.xyz));
-    outColor = (1 - roughness) * outColor + roughness * vec4(texture(environmentMap, reflectionTexCoord).rgb, outColor.a);
+    outColor = (1.0 - roughness) * outColor + roughness * vec4(texture(environmentMap, reflectionTexCoord).rgb, outColor.a);
 }

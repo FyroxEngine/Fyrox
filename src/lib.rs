@@ -15,6 +15,8 @@ extern crate rayon;
 #[cfg(feature = "serde_integration")]
 extern crate serde;
 #[cfg(target_arch = "wasm32")]
+extern crate wasm_bindgen_futures;
+#[cfg(target_arch = "wasm32")]
 extern crate winit;
 
 #[cfg(test)]
@@ -38,6 +40,7 @@ pub use web_sys::*;
 pub use winit::*;
 
 pub use futures;
+pub use instant;
 pub use rapier3d as physics;
 pub use rg3d_core as core;
 pub use rg3d_sound as sound;

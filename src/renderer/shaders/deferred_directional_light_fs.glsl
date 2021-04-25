@@ -22,7 +22,7 @@ void main()
     vec3 h = normalize(lightDirection + (cameraPosition - fragmentPosition));
     float specular = pow(clamp(dot(fragmentNormal, h), 0.0, 1.0), specularPower);
 
-    float lambertian = max(dot(fragmentNormal, lightDirection), 0);
+    float lambertian = max(dot(fragmentNormal, lightDirection), 0.0);
 
     FragColor = texture(colorTexture, texCoord);
     FragColor.xyz += 0.4 * specular;

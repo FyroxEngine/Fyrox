@@ -311,8 +311,8 @@ impl PointShadowMapRenderer {
                     state,
                     kind,
                     match precision {
-                        ShadowMapPrecision::Half => PixelKind::D16,
                         ShadowMapPrecision::Full => PixelKind::D32,
+                        ShadowMapPrecision::Half => PixelKind::D16,
                     },
                     MinificationFilter::Nearest,
                     MagnificationFilter::Nearest,

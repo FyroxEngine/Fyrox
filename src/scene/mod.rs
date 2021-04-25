@@ -1403,15 +1403,15 @@ impl Scene {
     pub fn update(&mut self, frame_size: Vector2<f32>, dt: f32) {
         self.update_physics();
 
-        let last = std::time::Instant::now();
+        let last = instant::Instant::now();
         self.animations.update_animations(dt);
         self.performance_statistics.animations_update_time =
-            (std::time::Instant::now() - last).as_secs_f32();
+            (instant::Instant::now() - last).as_secs_f32();
 
-        let last = std::time::Instant::now();
+        let last = instant::Instant::now();
         self.graph.update_nodes(frame_size, dt);
         self.performance_statistics.graph_update_time =
-            (std::time::Instant::now() - last).as_secs_f32();
+            (instant::Instant::now() - last).as_secs_f32();
 
         self.performance_statistics.sound_update_time = self
             .sound_context

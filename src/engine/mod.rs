@@ -21,7 +21,7 @@ use crate::{
 use rg3d_sound::engine::SoundEngine;
 use rg3d_ui::message::MessageData;
 use std::sync::{Arc, Mutex};
-use std::time::{self, Duration};
+use std::time::Duration;
 
 /// See module docs.
 pub struct Engine<M: MessageData, C: Control<M, C>> {
@@ -99,41 +99,40 @@ impl<M: MessageData, C: Control<M, C>> Engine<M, C> {
         };
 
         #[cfg(target_arch = "wasm32")]
-        let (window, client_size) = {
-            let window = window_builder.build(events_loop).unwrap();
-            let inner_size = window.inner_size();
+        let (window, client_size, glow_context) = {
+            let winit_window = window_builder.build(events_loop).unwrap();
+
+            use crate::platform::web::WindowExtWebSys;
+            use wasm_bindgen::JsCast;
+
+            let canvas = winit_window.canvas();
+
+            let window = crate::window().unwrap();
+            let document = window.document().unwrap();
+            let body = document.body().unwrap();
+
+            body.append_child(&canvas)
+                .expect("Append canvas to HTML body");
+
+            let webgl2_context = canvas
+                .get_context("webgl2")
+                .unwrap()
+                .unwrap()
+                .dyn_into::<web_sys::WebGl2RenderingContext>()
+                .unwrap();
+            let glow_context = glow::Context::from_webgl2_context(webgl2_context);
+
+            let inner_size = winit_window.inner_size();
             (
-                window,
+                winit_window,
                 Vector2::new(inner_size.width as f32, inner_size.height as f32),
+                glow_context,
             )
         };
 
-        let glow_context = {
-            #[cfg(not(target_arch = "wasm32"))]
-            unsafe {
-                glow::Context::from_loader_function(|s| context.get_proc_address(s))
-            }
-
-            #[cfg(target_arch = "wasm32")]
-            {
-                use wasm_bindgen::JsCast;
-                let canvas = web_sys::window()
-                    .unwrap()
-                    .document()
-                    .unwrap()
-                    .get_element_by_id("canvas")
-                    .unwrap()
-                    .dyn_into::<web_sys::HtmlCanvasElement>()
-                    .unwrap();
-                let webgl2_context = canvas
-                    .get_context("webgl2")
-                    .unwrap()
-                    .unwrap()
-                    .dyn_into::<web_sys::WebGl2RenderingContext>()
-                    .unwrap();
-                glow::Context::from_webgl2_context(webgl2_context)
-            }
-        };
+        #[cfg(not(target_arch = "wasm32"))]
+        let glow_context =
+            { unsafe { glow::Context::from_loader_function(|s| context.get_proc_address(s)) } };
 
         let sound_engine = SoundEngine::new();
 
@@ -186,9 +185,9 @@ impl<M: MessageData, C: Control<M, C>> Engine<M, C> {
             scene.update(frame_size, dt);
         }
 
-        let time = time::Instant::now();
+        let time = instant::Instant::now();
         self.user_interface.update(window_size, dt);
-        self.ui_time = time::Instant::now() - time;
+        self.ui_time = instant::Instant::now() - time;
     }
 
     /// Performs rendering of single frame, must be called from your game loop, otherwise you won't

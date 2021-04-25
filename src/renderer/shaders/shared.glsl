@@ -1,6 +1,8 @@
 // Shared functions for all shaders in the engine. Contents of this
 // file will be *automatically* included in all shaders!
 
+precision highp float;
+
 // Tries to solve quadratic equation. Returns true iff there are any real roots.
 bool S_SolveQuadraticEq(float a, float b, float c, out float minT, out float maxT)
 {
@@ -102,7 +104,7 @@ TBlinnPhong S_BlinnPhong(TBlinnPhongContext ctx)
 
     float specular = S_SpecularFactor(lightVector, ctx.cameraPosition, ctx.fragmentPosition, ctx.fragmentNormal, ctx.specularPower);
 
-    float lambertian = max(dot(ctx.fragmentNormal, lightVector), 0);
+    float lambertian = max(dot(ctx.fragmentNormal, lightVector), 0.0);
 
     float distance_attenuation = S_LightDistanceAttenuation(distance, ctx.lightRadius);
 
@@ -124,7 +126,7 @@ float S_InScatter(vec3 start, vec3 dir, vec3 lightPos, float d)
     float c = dot(q, q);
 
     // evaluate integral
-    float s = 1.0f / sqrt(c - b*b);
+    float s = 1.0 / sqrt(c - b*b);
     float l = s * (atan((d + b) * s) - atan(b*s));
 
     return l;
