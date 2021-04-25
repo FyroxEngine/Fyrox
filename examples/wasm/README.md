@@ -5,7 +5,7 @@ Simple example showing how to use rg3d with WebAssembly.
 ### Build instructions
 
 1. Make sure you have `wasm32-unknown-unknown` target installed in rustup (if not, do: `rustup target add wasm32-unknown-unknown`)
-2. Make sure you have `wask-pack` installed (if not, do: `cargo install wask-pack`)
+2. Make sure you have `wasm-pack` installed (if not, do: `cargo install wasm-pack`)
 3. Make sure you have `npm` installed (if not, install it from here: https://nodejs.org/en/download/)
 4. Finally execute this:
 
