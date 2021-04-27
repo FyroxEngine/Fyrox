@@ -373,7 +373,7 @@ impl UiRenderer {
                     self.shader.gradient_stops.clone(),
                     UniformValue::FloatArray({
                         match &cmd.brush {
-                            Brush::Solid(_) => &[],
+                            Brush::Solid(_) => &raw_stops,
                             Brush::LinearGradient { stops, .. }
                             | Brush::RadialGradient { stops, .. } => {
                                 for (i, point) in stops.iter().enumerate() {
@@ -388,7 +388,7 @@ impl UiRenderer {
                     self.shader.gradient_colors.clone(),
                     UniformValue::Vec4Array({
                         match &cmd.brush {
-                            Brush::Solid(_) => &[],
+                            Brush::Solid(_) => &raw_colors,
                             Brush::LinearGradient { stops, .. }
                             | Brush::RadialGradient { stops, .. } => {
                                 for (i, point) in stops.iter().enumerate() {

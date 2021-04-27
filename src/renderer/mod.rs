@@ -410,22 +410,21 @@ impl Default for Statistics {
 
 /// See module docs.
 pub struct Renderer {
-    state: Box<PipelineState>,
     backbuffer: BackBuffer,
     deferred_light_renderer: DeferredLightRenderer,
     flat_shader: FlatShader,
     sprite_renderer: SpriteRenderer,
     particle_system_renderer: ParticleSystemRenderer,
-    /// Dummy white one pixel texture which will be used as stub when rendering
-    /// something without texture specified.
+    // Dummy white one pixel texture which will be used as stub when rendering
+    // something without texture specified.
     white_dummy: Rc<RefCell<GpuTexture>>,
     black_dummy: Rc<RefCell<GpuTexture>>,
     environment_dummy: Rc<RefCell<GpuTexture>>,
-    /// Dummy one pixel texture with (0, 1, 0) vector is used as stub when rendering
-    /// something without normal map.
+    // Dummy one pixel texture with (0, 1, 0) vector is used as stub when rendering
+    // something without normal map.
     normal_dummy: Rc<RefCell<GpuTexture>>,
-    /// Dummy one pixel texture used as stub when rendering something without a
-    /// specular texture
+    // Dummy one pixel texture used as stub when rendering something without a
+    // specular texture
     specular_dummy: Rc<RefCell<GpuTexture>>,
     ui_renderer: UiRenderer,
     statistics: Statistics,
@@ -442,9 +441,12 @@ pub struct Renderer {
     batch_storage: BatchStorage,
     forward_renderer: ForwardRenderer,
     fxaa_renderer: FxaaRenderer,
-    /// TextureId -> FrameBuffer mapping. This mapping is used for temporal frame buffers
-    /// like ones used to render UI instances.
+    // TextureId -> FrameBuffer mapping. This mapping is used for temporal frame buffers
+    // like ones used to render UI instances.
     ui_frame_buffers: HashMap<usize, FrameBuffer>,
+    // MUST BE LAST! Otherwise you'll get crash, because other parts of the renderer will
+    // contain **pointer** to pipeline state. It must be dropped last!
+    state: Box<PipelineState>,
 }
 
 #[derive(Default)]
