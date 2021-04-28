@@ -2,7 +2,6 @@
 
 use crate::lazy_static::lazy_static;
 use std::{
-    fs::File,
     io::{self, Write},
     sync::Mutex,
 };
@@ -10,7 +9,7 @@ use std::{
 lazy_static! {
     static ref LOG: Mutex<Log> = Mutex::new(Log {
         #[cfg(not(target_arch = "wasm32"))]
-        file: File::create("rg3d.log").unwrap(),
+        file: std::fs::File::create("rg3d.log").unwrap(),
         verbosity: MessageKind::Information
     });
 }
@@ -40,7 +39,7 @@ impl MessageKind {
 /// See module docs.
 pub struct Log {
     #[cfg(not(target_arch = "wasm32"))]
-    file: File,
+    file: std::fs::File,
     verbosity: MessageKind,
 }
 

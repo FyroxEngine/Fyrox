@@ -1,26 +1,20 @@
 //! Resource manager controls loading and lifetime of resource in the engine.
 
-use crate::resource::texture::{
-    CompressionOptions, TextureError, TexturePixelKind, TextureWrapMode,
-};
-use crate::resource::ResourceLoadError;
-use crate::utils::log::MessageKind;
 use crate::{
     core::visitor::{Visit, VisitResult, Visitor},
     resource::{
         model::{Model, ModelData},
         texture::{
-            Texture, TextureData, TextureMagnificationFilter, TextureMinificationFilter,
-            TextureState,
+            CompressionOptions, Texture, TextureData, TextureError, TextureMagnificationFilter,
+            TextureMinificationFilter, TexturePixelKind, TextureState, TextureWrapMode,
         },
-        Resource, ResourceData, ResourceState,
+        Resource, ResourceData, ResourceLoadError, ResourceState,
     },
     sound::buffer::{DataSource, SoundBuffer},
-    utils::log::Log,
+    utils::log::{Log, MessageKind},
 };
+#[cfg(not(target_arch = "wasm32"))]
 use futures::executor::ThreadPool;
-use std::fs::File;
-use std::io::Read;
 use std::{
     borrow::Cow,
     ops::{Deref, DerefMut},

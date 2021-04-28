@@ -79,7 +79,10 @@ trait Device {
 
 /// Transfer ownership of device to separate mixer thread. It will
 /// call the callback with a specified rate to get data to send to a physical device.
-pub(in crate) fn run_device(buffer_len_bytes: u32, callback: Box<FeedCallback>) {
+pub(in crate) fn run_device(
+    #[allow(unused_variables)] buffer_len_bytes: u32,
+    #[allow(unused_variables)] callback: Box<FeedCallback>,
+) {
     // TODO: Add WASM backend.
     #[cfg(not(target_arch = "wasm32"))]
     {
