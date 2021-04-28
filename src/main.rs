@@ -448,7 +448,7 @@ impl Editor {
         let (message_sender, message_receiver) = mpsc::channel();
 
         *rg3d::gui::DEFAULT_FONT.0.lock().unwrap() =
-            Font::from_file("resources/arial.ttf", 14.0, Font::default_char_set()).unwrap();
+            rg3d::futures::executor::block_on(Font::from_file("resources/arial.ttf", 14.0, Font::default_char_set())).unwrap();
 
         let configurator = Configurator::new(
             message_sender.clone(),
