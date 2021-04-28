@@ -3,15 +3,13 @@ pub mod attribute;
 mod binary;
 
 use crate::core::algebra::Vector3;
+use crate::core::io;
 use crate::{
     core::pool::{Handle, Pool},
     resource::fbx::{document::attribute::FbxAttribute, error::FbxError},
 };
-use std::{
-    fs::File,
-    io::{BufReader, Read},
-    path::Path,
-};
+use std::io::Cursor;
+use std::path::Path;
 
 pub struct FbxNode {
     name: String,
@@ -116,19 +114,18 @@ pub struct FbxDocument {
     nodes: FbxNodeContainer,
 }
 
-fn is_binary<P: AsRef<Path>>(path: P) -> Result<bool, FbxError> {
-    let mut file = File::open(path)?;
-    let mut magic = [0; 18];
-    file.read_exact(&mut magic)?;
+fn is_binary(data: &[u8]) -> bool {
     let fbx_magic = b"Kaydara FBX Binary";
-    Ok(magic == *fbx_magic)
+    &data[0..18] == fbx_magic
 }
 
 impl FbxDocument {
-    pub fn new<P: AsRef<Path>>(path: P) -> Result<FbxDocument, FbxError> {
-        let is_bin = is_binary(path.as_ref())?;
+    pub async fn new<P: AsRef<Path>>(path: P) -> Result<FbxDocument, FbxError> {
+        let data = io::load_file(path).await?;
 
-        let mut reader = BufReader::new(File::open(path)?);
+        let is_bin = is_binary(&data);
+
+        let mut reader = Cursor::new(data);
 
         if is_bin {
             binary::read_binary(&mut reader)

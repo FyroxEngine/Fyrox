@@ -48,9 +48,6 @@ serde_integration = ["glutin/serde", "serde"]
 glutin = "0.26.0"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-web-sys = "0.3.50"
-wasm-bindgen = "0.2.73"
-winit ={ version = "0.24.0", features=["web-sys"]}
-wasm-bindgen-futures = "0.4.23"
+winit = { version = "0.24.0", features=["web-sys"] }
 
 

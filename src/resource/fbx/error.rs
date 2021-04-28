@@ -1,5 +1,6 @@
 //! Contains all possible errors that can occur during FBX parsing and conversion.
 
+use rg3d_core::io::FileLoadError;
 use std::fmt::Formatter;
 
 /// See module docs.
@@ -31,30 +32,39 @@ pub enum FbxError {
     InvalidMapping,
     /// Unknown or unsupported reference.
     InvalidReference,
+    /// An error occurred during file loading.
+    FileLoadError(FileLoadError),
 }
 
 impl std::fmt::Display for FbxError {
     fn fmt(&self, f: &mut Formatter) -> Result<(), std::fmt::Error> {
         match self {
-            FbxError::Io(io) => write!(f, "Io error: {}", io),
-            FbxError::UnknownAttributeType(attrib_type) => {
+            Self::Io(io) => write!(f, "Io error: {}", io),
+            Self::UnknownAttributeType(attrib_type) => {
                 write!(f, "Unknown attribute type {}", attrib_type)
             }
-            FbxError::InvalidNullRecord => write!(f, "Invalid null record"),
-            FbxError::InvalidString => write!(f, "Invalid string"),
-            FbxError::Custom(err) => write!(f, "{}", err),
-            FbxError::UnsupportedVersion(ver) => write!(f, "Unsupported version {}", ver),
-            FbxError::InvalidPoolHandle => write!(f, "Invalid pool handle."),
-            FbxError::UnexpectedType => write!(
+            Self::InvalidNullRecord => write!(f, "Invalid null record"),
+            Self::InvalidString => write!(f, "Invalid string"),
+            Self::Custom(err) => write!(f, "{}", err),
+            Self::UnsupportedVersion(ver) => write!(f, "Unsupported version {}", ver),
+            Self::InvalidPoolHandle => write!(f, "Invalid pool handle."),
+            Self::UnexpectedType => write!(
                 f,
                 "Unexpected type. This means that invalid cast has occured in fbx component."
             ),
-            FbxError::IndexOutOfBounds => write!(f, "Index out of bounds."),
-            FbxError::UnableToFindBone => write!(f, "Unable to find bone."),
-            FbxError::UnableToRemapModelToNode => write!(f, "Unable to remap model to node."),
-            FbxError::InvalidMapping => write!(f, "Unknown mapping"),
-            FbxError::InvalidReference => write!(f, "Unknown reference"),
+            Self::IndexOutOfBounds => write!(f, "Index out of bounds."),
+            Self::UnableToFindBone => write!(f, "Unable to find bone."),
+            Self::UnableToRemapModelToNode => write!(f, "Unable to remap model to node."),
+            Self::InvalidMapping => write!(f, "Unknown mapping"),
+            Self::InvalidReference => write!(f, "Unknown reference"),
+            Self::FileLoadError(e) => write!(f, "File load error: {:?}", e),
         }
+    }
+}
+
+impl From<FileLoadError> for FbxError {
+    fn from(err: FileLoadError) -> Self {
+        FbxError::FileLoadError(err)
     }
 }
 

@@ -9,6 +9,8 @@
 //! just 1 second will take ~172 Kb of memory (with 44100 Hz sampling rate and float sample representation).
 
 use crate::buffer::{generic::GenericBuffer, streaming::StreamingBuffer};
+use rg3d_core::io;
+use rg3d_core::io::FileLoadError;
 use rg3d_core::visitor::{Visit, VisitError, VisitResult, Visitor};
 use std::{
     fs::File,
@@ -31,7 +33,12 @@ pub enum DataSource {
         path: PathBuf,
 
         /// Buffered file opened for read.
+        #[cfg(not(target_arch = "wasm32"))]
         data: BufReader<File>,
+
+        /// TODO: In case of WASM load file entirely.
+        #[cfg(target_arch = "wasm32")]
+        data: Cursor<Vec<u8>>,
     },
 
     /// Data source is a memory block. Memory block must be in valid format (wav or vorbis/ogg). This variant can
@@ -59,13 +66,21 @@ pub enum DataSource {
 
 impl DataSource {
     /// Tries to create new `File` data source from given path. May fail if file does not exists.
-    pub fn from_file<P>(path: P) -> Result<Self, std::io::Error>
+    pub async fn from_file<P>(path: P) -> Result<Self, FileLoadError>
     where
         P: AsRef<Path>,
     {
         Ok(DataSource::File {
             path: path.as_ref().to_path_buf(),
-            data: BufReader::new(File::open(path)?),
+
+            #[cfg(not(target_arch = "wasm32"))]
+            data: BufReader::new(match File::open(path) {
+                Ok(file) => file,
+                Err(e) => return Err(FileLoadError::Io(e)),
+            }),
+
+            #[cfg(target_arch = "wasm32")]
+            data: Cursor::new(io::load_file(path).await?),
         })
     }
 

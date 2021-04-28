@@ -19,6 +19,8 @@ use crate::{
     utils::log::Log,
 };
 use futures::executor::ThreadPool;
+use std::fs::File;
+use std::io::Read;
 use std::{
     borrow::Cow,
     ops::{Deref, DerefMut},
@@ -218,6 +220,12 @@ impl TextureImportOptions {
         self.anisotropy = anisotropy.min(1.0);
         self
     }
+
+    /// Sets desired texture compression.
+    pub fn with_compression(mut self, compression: CompressionOptions) -> Self {
+        self.compression = compression;
+        self
+    }
 }
 
 /// An error that may occur during texture registration.
@@ -237,9 +245,9 @@ impl From<TextureError> for TextureRegistrationError {
     }
 }
 
-fn load_texture(texture: Texture, path: PathBuf, options: TextureImportOptions) {
+async fn load_texture(texture: Texture, path: PathBuf, options: TextureImportOptions) {
     let time = instant::Instant::now();
-    match TextureData::load_from_file(&path, options.compression) {
+    match TextureData::load_from_file(&path, options.compression).await {
         Ok(mut raw_texture) => {
             Log::writeln(
                 MessageKind::Information,
@@ -292,8 +300,8 @@ async fn load_model(model: Model, path: PathBuf, resource_manager: ResourceManag
     }
 }
 
-fn load_sound_buffer(resource: SharedSoundBuffer, path: PathBuf, stream: bool) {
-    match DataSource::from_file(&path) {
+async fn load_sound_buffer(resource: SharedSoundBuffer, path: PathBuf, stream: bool) {
+    match DataSource::from_file(&path).await {
         Ok(source) => {
             let buffer = if stream {
                 SoundBuffer::new_streaming(source)
@@ -333,8 +341,8 @@ fn load_sound_buffer(resource: SharedSoundBuffer, path: PathBuf, stream: bool) {
     }
 }
 
-fn reload_texture(texture: Texture, path: PathBuf, compression: CompressionOptions) {
-    match TextureData::load_from_file(&path, compression) {
+async fn reload_texture(texture: Texture, path: PathBuf, compression: CompressionOptions) {
+    match TextureData::load_from_file(&path, compression).await {
         Ok(data) => {
             Log::writeln(
                 MessageKind::Information,
@@ -381,13 +389,13 @@ async fn reload_model(model: Model, path: PathBuf, resource_manager: ResourceMan
     };
 }
 
-fn reload_sound_buffer(
+async fn reload_sound_buffer(
     resource: SharedSoundBuffer,
     path: PathBuf,
     stream: bool,
     inner_buffer: Arc<Mutex<SoundBuffer>>,
 ) {
-    if let Ok(data_source) = DataSource::from_file(&path) {
+    if let Ok(data_source) = DataSource::from_file(&path).await {
         let new_sound_buffer = match stream {
             false => SoundBuffer::raw_generic(data_source),
             true => SoundBuffer::raw_streaming(data_source),
@@ -460,13 +468,13 @@ impl ResourceManager {
         let path = path.as_ref().to_owned();
 
         #[cfg(target_arch = "wasm32")]
-        wasm_bindgen_futures::spawn_local(async move {
-            load_texture(texture, path, options);
+        crate::core::wasm_bindgen_futures::spawn_local(async move {
+            load_texture(texture, path, options).await;
         });
 
         #[cfg(not(target_arch = "wasm32"))]
         state.thread_pool.spawn_ok(async move {
-            load_texture(texture, path, options);
+            load_texture(texture, path, options).await;
         });
 
         result
@@ -535,7 +543,7 @@ impl ResourceManager {
         let resource_manager = self.clone();
 
         #[cfg(target_arch = "wasm32")]
-        wasm_bindgen_futures::spawn_local(async move {
+        crate::core::wasm_bindgen_futures::spawn_local(async move {
             load_model(model, path, resource_manager).await;
         });
 
@@ -570,13 +578,13 @@ impl ResourceManager {
         let path = path.as_ref().to_owned();
 
         #[cfg(target_arch = "wasm32")]
-        wasm_bindgen_futures::spawn_local(async move {
-            load_sound_buffer(resource, path, stream);
+        crate::core::wasm_bindgen_futures::spawn_local(async move {
+            load_sound_buffer(resource, path, stream).await;
         });
 
         #[cfg(not(target_arch = "wasm32"))]
         state.thread_pool.spawn_ok(async move {
-            load_sound_buffer(resource, path, stream);
+            load_sound_buffer(resource, path, stream).await;
         });
 
         result
@@ -611,13 +619,13 @@ impl ResourceManager {
                 *resource.state() = ResourceState::new_pending(path.clone());
 
                 #[cfg(target_arch = "wasm32")]
-                wasm_bindgen_futures::spawn_local(async move {
-                    reload_texture(resource, path, compression);
+                crate::core::wasm_bindgen_futures::spawn_local(async move {
+                    reload_texture(resource, path, compression).await;
                 });
 
                 #[cfg(not(target_arch = "wasm32"))]
                 state.thread_pool.spawn_ok(async move {
-                    reload_texture(resource, path, compression);
+                    reload_texture(resource, path, compression).await;
                 });
             }
 
@@ -646,7 +654,7 @@ impl ResourceManager {
                 *model.state() = ResourceState::new_pending(path.clone());
 
                 #[cfg(target_arch = "wasm32")]
-                wasm_bindgen_futures::spawn_local(async move {
+                crate::core::wasm_bindgen_futures::spawn_local(async move {
                     reload_model(model, path, this).await;
                 });
 
@@ -697,13 +705,13 @@ impl ResourceManager {
                     *resource.state() = ResourceState::new_pending(ext_path.clone());
 
                     #[cfg(target_arch = "wasm32")]
-                    wasm_bindgen_futures::spawn_local(async move {
-                        reload_sound_buffer(resource, ext_path, stream, inner_buffer);
+                    crate::core::wasm_bindgen_futures::spawn_local(async move {
+                        reload_sound_buffer(resource, ext_path, stream, inner_buffer).await;
                     });
 
                     #[cfg(not(target_arch = "wasm32"))]
                     state.thread_pool.spawn_ok(async move {
-                        reload_sound_buffer(resource, ext_path, stream, inner_buffer);
+                        reload_sound_buffer(resource, ext_path, stream, inner_buffer).await;
                     });
                 }
             }

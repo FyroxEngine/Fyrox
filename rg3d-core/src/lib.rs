@@ -19,6 +19,7 @@ use std::path::{Path, PathBuf};
 
 pub mod color;
 pub mod color_gradient;
+pub mod io;
 pub mod math;
 pub mod numeric_range;
 pub mod octree;
@@ -27,6 +28,15 @@ pub mod profiler;
 pub mod quadtree;
 pub mod rectpack;
 pub mod visitor;
+
+#[cfg(target_arch = "wasm32")]
+pub use js_sys;
+#[cfg(target_arch = "wasm32")]
+pub use wasm_bindgen;
+#[cfg(target_arch = "wasm32")]
+pub use wasm_bindgen_futures;
+#[cfg(target_arch = "wasm32")]
+pub use web_sys;
 
 /// Defines as_(variant), as_mut_(variant) and is_(variant) methods.
 #[macro_export]

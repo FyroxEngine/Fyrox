@@ -1,10 +1,9 @@
 use crate::core::algebra::Vector2;
+use crate::core::io;
 use crate::{core::rectpack::RectPacker, draw::SharedTexture};
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
-    fs::File,
-    io::Read,
     ops::{Deref, Range},
     path::Path,
     sync::{Arc, Mutex},
@@ -116,16 +115,12 @@ impl Font {
         Ok(font)
     }
 
-    pub fn from_file<P: AsRef<Path>>(
+    pub async fn from_file<P: AsRef<Path>>(
         path: P,
         height: f32,
         char_set: &[Range<u32>],
     ) -> Result<Self, &'static str> {
-        if let Ok(ref mut file) = File::open(path) {
-            let mut file_content: Vec<u8> =
-                Vec::with_capacity(file.metadata().unwrap().len() as usize);
-            file.read_to_end(&mut file_content).unwrap();
-
+        if let Ok(file_content) = io::load_file(path).await {
             Self::from_memory(file_content, height, char_set)
         } else {
             Err("Unable to read file")

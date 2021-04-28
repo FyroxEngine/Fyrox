@@ -9,4 +9,3 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 rg3d = { path = "../../" }
-wasm-bindgen = "0.2.73"

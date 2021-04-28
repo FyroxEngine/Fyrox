@@ -20,6 +20,7 @@
 //! will automatically provide you info about metrics of texture, but it won't give you
 //! access to pixels of render target.
 
+use crate::core::io;
 use crate::{
     core::visitor::{Visit, VisitError, VisitResult, Visitor},
     resource::{Resource, ResourceData, ResourceState},
@@ -27,9 +28,10 @@ use crate::{
 use ddsfile::{Caps2, D3DFormat};
 use futures::io::Error;
 use image::{ColorType, DynamicImage, GenericImageView, ImageError};
+use rg3d_core::io::FileLoadError;
+use std::io::Cursor;
 use std::{
     borrow::Cow,
-    fs::File,
     path::{Path, PathBuf},
 };
 
@@ -477,6 +479,14 @@ pub enum TextureError {
     Io(std::io::Error),
     /// Internal image crate error.
     Image(image::ImageError),
+    /// An error occurred during file loading.
+    FileLoadError(FileLoadError),
+}
+
+impl From<FileLoadError> for TextureError {
+    fn from(v: FileLoadError) -> Self {
+        Self::FileLoadError(v)
+    }
 }
 
 impl From<image::ImageError> for TextureError {
@@ -554,7 +564,7 @@ fn compress_rg8_bc4<T: tbc::color::ColorRedGreen8>(
 }
 
 impl TextureData {
-    pub(in crate) fn load_from_file<P: AsRef<Path>>(
+    pub(in crate) async fn load_from_file<P: AsRef<Path>>(
         path: P,
         compression: CompressionOptions,
     ) -> Result<Self, TextureError> {
@@ -562,7 +572,9 @@ impl TextureData {
         // various pixel formats.
         //
         // TODO: Add support for DXGI formats.
-        let mut texture = if let Ok(dds) = ddsfile::Dds::read(&mut File::open(path.as_ref())?) {
+        let mut texture = if let Ok(dds) =
+            ddsfile::Dds::read(&mut Cursor::new(io::load_file(path.as_ref()).await?))
+        {
             let d3dformat = dds
                 .get_d3d_format()
                 .ok_or(TextureError::UnsupportedFormat)?;
@@ -644,8 +656,9 @@ impl TextureData {
             }
         } else {
             // Commonly used formats are all rectangle textures.
+            let data = io::load_file(path.as_ref()).await?;
 
-            let dyn_img = image::open(path.as_ref())?;
+            let dyn_img = image::load_from_memory(&data)?;
 
             let width = dyn_img.width();
             let height = dyn_img.height();

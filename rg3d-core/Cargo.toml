@@ -19,5 +19,12 @@ nalgebra = "0.25.3"
 arrayvec = "0.5.2"
 uuid = { version = "0.8.2", features = ["v4","wasm-bindgen"] }
 
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+web-sys = { version = "0.3.50", features = ["Request", "Window", "Response"] }
+wasm-bindgen = "0.2.73"
+wasm-bindgen-futures = "0.4.23"
+js-sys = "0.3.50"
+
+
 [features]
 enable_profiler = []

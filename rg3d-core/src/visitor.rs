@@ -8,12 +8,15 @@
 //! types and some of basic structures of the crate. Main criteria of what could be the field and what
 //! not is the ability to be represented as set of bytes without any aliasing issues.
 
+use crate::io::FileLoadError;
 use crate::{
     algebra::{Matrix3, Matrix4, Quaternion, UnitQuaternion, Vector2, Vector3, Vector4},
+    io,
     pool::{Handle, Pool},
     replace_slashes,
 };
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use std::io::Cursor;
 use std::{
     any::Any,
     cell::{Cell, RefCell},
@@ -21,7 +24,7 @@ use std::{
     fmt::{Display, Formatter},
     fs::File,
     hash::Hash,
-    io::{BufReader, BufWriter, Read, Write},
+    io::{BufWriter, Read, Write},
     ops::DerefMut,
     path::{Path, PathBuf},
     rc::Rc,
@@ -201,6 +204,7 @@ pub enum VisitError {
     User(String),
     UnexpectedRcNullIndex,
     PoisonedMutex,
+    FileLoadError(FileLoadError),
 }
 
 impl Display for VisitError {
@@ -222,6 +226,7 @@ impl Display for VisitError {
             Self::User(msg) => write!(f, "user defined error: {}", msg),
             Self::UnexpectedRcNullIndex => write!(f, "unexpected rc null index"),
             Self::PoisonedMutex => write!(f, "attempt to lock poisoned mutex"),
+            Self::FileLoadError(e) => write!(f, "file load error: {:?}", e),
         }
     }
 }
@@ -259,6 +264,12 @@ impl From<FromUtf8Error> for VisitError {
 impl From<String> for VisitError {
     fn from(s: String) -> Self {
         Self::User(s)
+    }
+}
+
+impl From<FileLoadError> for VisitError {
+    fn from(e: FileLoadError) -> Self {
+        Self::FileLoadError(e)
     }
 }
 
@@ -664,8 +675,8 @@ impl Visitor {
         Ok(handle)
     }
 
-    pub fn load_binary<P: AsRef<Path>>(path: P) -> Result<Self, VisitError> {
-        let mut reader = BufReader::new(File::open(path)?);
+    pub async fn load_binary<P: AsRef<Path>>(path: P) -> Result<Self, VisitError> {
+        let mut reader = Cursor::new(io::load_file(path).await?);
         let mut magic: [u8; 4] = Default::default();
         reader.read_exact(&mut magic)?;
         if !magic.eq(Self::MAGIC.as_bytes()) {

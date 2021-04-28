@@ -1155,7 +1155,7 @@ impl Scene {
     ) -> Result<Self, VisitError> {
         let mut scene = Scene::default();
         {
-            let mut visitor = Visitor::load_binary(path.as_ref())?;
+            let mut visitor = Visitor::load_binary(path.as_ref()).await?;
             scene.visit("Scene", &mut visitor)?;
         }
 

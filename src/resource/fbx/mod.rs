@@ -541,7 +541,7 @@ fn convert(
 /// Tries to load and convert FBX from given path.
 ///
 /// Normally you should never use this method, use resource manager to load models.
-pub fn load_to_scene<P: AsRef<Path>>(
+pub async fn load_to_scene<P: AsRef<Path>>(
     scene: &mut Scene,
     resource_manager: ResourceManager,
     path: P,
@@ -554,7 +554,7 @@ pub fn load_to_scene<P: AsRef<Path>>(
     );
 
     let now = Instant::now();
-    let fbx = FbxDocument::new(path.as_ref())?;
+    let fbx = FbxDocument::new(path.as_ref()).await?;
     let parsing_time = now.elapsed().as_millis();
 
     let now = Instant::now();

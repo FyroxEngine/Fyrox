@@ -102,12 +102,12 @@ impl<M: MessageData, C: Control<M, C>> Engine<M, C> {
         let (window, client_size, glow_context) = {
             let winit_window = window_builder.build(events_loop).unwrap();
 
+            use crate::core::wasm_bindgen::JsCast;
             use crate::platform::web::WindowExtWebSys;
-            use wasm_bindgen::JsCast;
 
             let canvas = winit_window.canvas();
 
-            let window = crate::window().unwrap();
+            let window = crate::core::web_sys::window().unwrap();
             let document = window.document().unwrap();
             let body = document.body().unwrap();
 
@@ -118,7 +118,7 @@ impl<M: MessageData, C: Control<M, C>> Engine<M, C> {
                 .get_context("webgl2")
                 .unwrap()
                 .unwrap()
-                .dyn_into::<web_sys::WebGl2RenderingContext>()
+                .dyn_into::<crate::core::web_sys::WebGl2RenderingContext>()
                 .unwrap();
             let glow_context = glow::Context::from_webgl2_context(webgl2_context);
 

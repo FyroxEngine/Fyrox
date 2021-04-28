@@ -14,8 +14,7 @@ extern crate lexical;
 extern crate rayon;
 #[cfg(feature = "serde_integration")]
 extern crate serde;
-#[cfg(target_arch = "wasm32")]
-extern crate wasm_bindgen_futures;
+
 #[cfg(target_arch = "wasm32")]
 extern crate winit;
 
@@ -34,8 +33,6 @@ pub use crate::core::rand;
 pub use glutin::*;
 pub use lazy_static;
 pub use tbc;
-#[cfg(target_arch = "wasm32")]
-pub use web_sys::*;
 #[cfg(target_arch = "wasm32")]
 pub use winit::*;
 

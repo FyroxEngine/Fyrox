@@ -3,17 +3,16 @@
 //! Warning - Work in progress!
 
 extern crate rg3d;
-extern crate wasm_bindgen;
-
-use wasm_bindgen::prelude::*;
 
 use rg3d::{
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector3},
         color::Color,
         pool::Handle,
+        wasm_bindgen::{self, prelude::*},
     },
     dpi::LogicalSize,
+    engine::resource_manager::{ResourceManager, TextureImportOptions},
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
@@ -23,10 +22,11 @@ use rg3d::{
         widget::WidgetBuilder,
     },
     renderer::surface::{SurfaceBuilder, SurfaceSharedData},
+    resource::texture::CompressionOptions,
     scene::{
         base::BaseBuilder,
         camera::CameraBuilder,
-        light::{BaseLightBuilder, SpotLightBuilder},
+        light::{BaseLightBuilder, PointLightBuilder},
         mesh::MeshBuilder,
         node::Node,
         transform::TransformBuilder,
@@ -34,6 +34,12 @@ use rg3d::{
     },
     utils::translate_event,
 };
+
+use rg3d::animation::Animation;
+use rg3d::resource::texture::TextureWrapMode;
+use rg3d::scene::camera::SkyBox;
+use rg3d::scene::graph::Graph;
+use std::sync::Mutex;
 use std::{
     panic,
     sync::{Arc, RwLock},
@@ -112,19 +118,75 @@ pub fn set_once() {
     });
 }
 
-fn create_scene() -> (Scene, Handle<Node>) {
-    let mut scene = Scene::new();
+struct GameScene {
+    scene: Scene,
+    model: Handle<Node>,
+    walk_animation: Handle<Animation>,
+}
 
+struct SceneContext {
+    data: Option<GameScene>,
+}
+
+/// Creates a camera at given position with a skybox.
+pub async fn create_camera(
+    resource_manager: ResourceManager,
+    position: Vector3<f32>,
+    graph: &mut Graph,
+) -> Handle<Node> {
+    // Load skybox textures in parallel.
+    let (front, back, left, right, top, bottom) = rg3d::futures::join!(
+        resource_manager.request_texture("/data/textures/DarkStormyFront2048.png"),
+        resource_manager.request_texture("/data/textures/DarkStormyBack2048.png"),
+        resource_manager.request_texture("/data/textures/DarkStormyLeft2048.png"),
+        resource_manager.request_texture("/data/textures/DarkStormyRight2048.png"),
+        resource_manager.request_texture("/data/textures/DarkStormyUp2048.png"),
+        resource_manager.request_texture("/data/textures/DarkStormyDown2048.png")
+    );
+
+    // Unwrap everything.
+    let skybox = SkyBox {
+        front: Some(front.unwrap()),
+        back: Some(back.unwrap()),
+        left: Some(left.unwrap()),
+        right: Some(right.unwrap()),
+        top: Some(top.unwrap()),
+        bottom: Some(bottom.unwrap()),
+    };
+
+    // Set S and T coordinate wrap mode, ClampToEdge will remove any possible seams on edges
+    // of the skybox.
+    for skybox_texture in skybox.textures().iter().filter_map(|t| t.clone()) {
+        let mut data = skybox_texture.data_ref();
+        data.set_s_wrap_mode(TextureWrapMode::ClampToEdge);
+        data.set_t_wrap_mode(TextureWrapMode::ClampToEdge);
+    }
+
+    // Camera is our eyes in the world - you won't see anything without it.
     CameraBuilder::new(
         BaseBuilder::new().with_local_transform(
             TransformBuilder::new()
-                .with_local_position(Vector3::new(0.0, 1.25, -3.0))
+                .with_local_position(position)
                 .build(),
         ),
     )
-    .build(&mut scene.graph);
+    .with_skybox(skybox)
+    .build(graph)
+}
 
-    SpotLightBuilder::new(BaseLightBuilder::new(
+async fn create_scene(resource_manager: ResourceManager, context: Arc<Mutex<SceneContext>>) {
+    let mut scene = Scene::new();
+
+    scene.ambient_lighting_color = Color::opaque(200, 200, 200);
+
+    create_camera(
+        resource_manager.clone(),
+        Vector3::new(0.0, 6.0, -12.0),
+        &mut scene.graph,
+    )
+    .await;
+
+    PointLightBuilder::new(BaseLightBuilder::new(
         BaseBuilder::new().with_local_transform(
             TransformBuilder::new()
                 .with_local_position(Vector3::new(0.0, 2.0, 0.0))
@@ -133,14 +195,55 @@ fn create_scene() -> (Scene, Handle<Node>) {
     ))
     .build(&mut scene.graph);
 
-    let model = MeshBuilder::new(BaseBuilder::new())
-        .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
-            SurfaceSharedData::make_cube(Matrix4::identity()),
-        )))
-        .build()])
-        .build(&mut scene.graph);
+    let (model_resource, walk_animation_resource) = rg3d::futures::join!(
+        resource_manager.request_model("/data/mutant.FBX"),
+        resource_manager.request_model("/data/walk.fbx")
+    );
 
-    (scene, model)
+    // Instantiate model on scene - but only geometry, without any animations.
+    // Instantiation is a process of embedding model resource data in desired scene.
+    let model = model_resource.unwrap().instantiate_geometry(&mut scene);
+
+    // Now we have whole sub-graph instantiated, we can start modifying model instance.
+    scene.graph[model]
+        .local_transform_mut()
+        // Our model is too big, fix it by scale.
+        .set_scale(Vector3::new(0.05, 0.05, 0.05));
+
+    // Add simple animation for our model. Animations are loaded from model resources -
+    // this is because animation is a set of skeleton bones with their own transforms.
+    // Once animation resource is loaded it must be re-targeted to our model instance.
+    // Why? Because animation in *resource* uses information about *resource* bones,
+    // not model instance bones, retarget_animations maps animations of each bone on
+    // model instance so animation will know about nodes it should operate on.
+    let walk_animation = *walk_animation_resource
+        .unwrap()
+        .retarget_animations(model, &mut scene)
+        .get(0)
+        .unwrap();
+
+    // Add floor.
+    MeshBuilder::new(
+        BaseBuilder::new().with_local_transform(
+            TransformBuilder::new()
+                .with_local_position(Vector3::new(0.0, -0.25, 0.0))
+                .build(),
+        ),
+    )
+    .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
+        SurfaceSharedData::make_cube(Matrix4::new_nonuniform_scaling(&Vector3::new(
+            25.0, 0.25, 25.0,
+        ))),
+    )))
+    .with_diffuse_texture(resource_manager.request_texture("/data/textures/concrete.jpg"))
+    .build()])
+    .build(&mut scene.graph);
+
+    context.lock().unwrap().data = Some(GameScene {
+        scene,
+        model,
+        walk_animation,
+    })
 }
 
 struct InputController {
@@ -164,8 +267,21 @@ pub fn main() {
         .renderer
         .set_backbuffer_clear_color(Color::opaque(150, 150, 255));
 
-    let (scene, model_handle) = create_scene();
-    let scene_handle = engine.scenes.add(scene);
+    // Configure resource manager.
+    engine.resource_manager.state().set_textures_import_options(
+        TextureImportOptions::default().with_compression(CompressionOptions::NoCompression),
+    );
+
+    let load_context = Arc::new(Mutex::new(SceneContext { data: None }));
+
+    rg3d::core::wasm_bindgen_futures::spawn_local(create_scene(
+        engine.resource_manager.clone(),
+        load_context.clone(),
+    ));
+
+    let mut scene_handle = Handle::NONE;
+    let mut model_handle = Handle::NONE;
+    let mut walk_animation = Handle::NONE;
 
     // Create simple user interface that will show some useful info.
     let debug_text = create_ui(&mut engine.user_interface.build_ctx());
@@ -197,21 +313,35 @@ pub fn main() {
                     dt -= fixed_timestep;
                     elapsed_time += fixed_timestep;
 
-                    let scene = &mut engine.scenes[scene_handle];
-
-                    // Rotate model according to input controller state.
-                    if input_controller.rotate_left {
-                        model_angle -= 5.0f32.to_radians();
-                    } else if input_controller.rotate_right {
-                        model_angle += 5.0f32.to_radians();
+                    if let Some(scene) = load_context.lock().unwrap().data.take() {
+                        scene_handle = engine.scenes.add(scene.scene);
+                        model_handle = scene.model;
+                        walk_animation = scene.walk_animation;
                     }
 
-                    scene.graph[model_handle]
-                        .local_transform_mut()
-                        .set_rotation(UnitQuaternion::from_axis_angle(
-                            &Vector3::y_axis(),
-                            model_angle,
-                        ));
+                    if scene_handle.is_some() && model_handle.is_some() {
+                        let scene = &mut engine.scenes[scene_handle];
+
+                        scene
+                            .animations
+                            .get_mut(walk_animation)
+                            .get_pose()
+                            .apply(&mut scene.graph);
+
+                        // Rotate model according to input controller state.
+                        if input_controller.rotate_left {
+                            model_angle -= 5.0f32.to_radians();
+                        } else if input_controller.rotate_right {
+                            model_angle += 5.0f32.to_radians();
+                        }
+
+                        scene.graph[model_handle]
+                            .local_transform_mut()
+                            .set_rotation(UnitQuaternion::from_axis_angle(
+                                &Vector3::y_axis(),
+                                model_angle,
+                            ));
+                    }
 
                     let fps = engine.renderer.get_statistics().frames_per_second;
                     let text = format!(

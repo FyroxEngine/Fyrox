@@ -256,7 +256,7 @@ impl ModelData {
                     let root = scene.graph.get_root();
                     scene.graph[root].set_name(filename.to_string_lossy().to_string());
                 }
-                fbx::load_to_scene(&mut scene, resource_manager, path.as_ref())?;
+                fbx::load_to_scene(&mut scene, resource_manager, path.as_ref()).await?;
                 // Set NodeMapping::UseNames as mapping here because FBX does not have
                 // any persistent unique ids, and we have to use names.
                 (scene, NodeMapping::UseNames)
