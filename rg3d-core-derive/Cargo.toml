@@ -1,0 +1,18 @@
+[package]
+name = "rg3d-core-derive"
+version = "0.10.0"
+authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
+edition = "2018"
+license = "MIT"
+# description = ""
+repository = "https://github.com/mrDIMAS/rg3d"
+include = ["/src/**/*", "/Cargo.toml", "/README.md"]
+readme = "README.md"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1.0.26"
+quote = "1.0.9"
+syn = "1.0.71"
