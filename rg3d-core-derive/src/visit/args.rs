@@ -11,6 +11,7 @@ pub struct StructArgs {
     // attrs: Vec<Attribute>
 }
 
+/// Parsed from struct's or enum variant's field
 #[derive(FromField)]
 #[darling(attributes(visit))]
 pub struct FieldArgs {

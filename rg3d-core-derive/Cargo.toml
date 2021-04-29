@@ -20,5 +20,5 @@ syn = "1.0.71"
 darling = "0.12.4"
 
 [dev-dependencies]
-rg3d = { path = "../" }
+rg3d-core = { path = "../rg3d-core" }
 futures = "0.3.14"
