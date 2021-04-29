@@ -9,6 +9,7 @@ extern crate rg3d;
 pub mod shared;
 
 use crate::shared::create_camera;
+use rg3d::scene::light::{BaseLightBuilder, PointLightBuilder};
 use rg3d::{
     animation::Animation,
     core::{
@@ -63,6 +64,17 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
         &mut scene.graph,
     )
     .await;
+
+    // Add some light.
+    PointLightBuilder::new(BaseLightBuilder::new(
+        BaseBuilder::new().with_local_transform(
+            TransformBuilder::new()
+                .with_local_position(Vector3::new(0.0, 12.0, 0.0))
+                .build(),
+        ),
+    ))
+    .with_radius(20.0)
+    .build(&mut scene.graph);
 
     // Load model and animation resource in parallel. Is does *not* adds anything to
     // our scene - it just loads a resource then can be used later on to instantiate

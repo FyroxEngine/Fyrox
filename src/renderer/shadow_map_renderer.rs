@@ -104,8 +104,8 @@ impl SpotShadowMapRenderer {
                     .bind_mut(state, 0)
                     .set_magnification_filter(MagnificationFilter::Linear)
                     .set_minification_filter(MinificationFilter::Linear)
-                    .set_wrap(Coordinate::T, WrapMode::ClampToBorder)
-                    .set_wrap(Coordinate::S, WrapMode::ClampToBorder)
+                    .set_wrap(Coordinate::T, WrapMode::ClampToEdge)
+                    .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
                     .set_border_color(Color::WHITE);
                 texture
             };
@@ -323,8 +323,8 @@ impl PointShadowMapRenderer {
                     .bind_mut(state, 0)
                     .set_minification_filter(MinificationFilter::Nearest)
                     .set_magnification_filter(MagnificationFilter::Nearest)
-                    .set_wrap(Coordinate::S, WrapMode::ClampToBorder)
-                    .set_wrap(Coordinate::T, WrapMode::ClampToBorder);
+                    .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
+                    .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
                 texture
             };
 

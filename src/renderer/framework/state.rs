@@ -497,7 +497,8 @@ impl PipelineState {
         self.frame_statistics
     }
 
-    pub fn check_error(&self) {
+    /// Checks for errors, returns true if any error has occurred.
+    pub fn check_error(&self) -> bool {
         unsafe {
             let error_code = self.gl.get_error();
             if error_code != glow::NO_ERROR {
@@ -515,6 +516,10 @@ impl PipelineState {
                     MessageKind::Error,
                     format!("{} error has occurred! Stability is not guaranteed!", code),
                 );
+
+                true
+            } else {
+                false
             }
         }
     }

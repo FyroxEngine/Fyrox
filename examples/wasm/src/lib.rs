@@ -189,10 +189,11 @@ async fn create_scene(resource_manager: ResourceManager, context: Arc<Mutex<Scen
     PointLightBuilder::new(BaseLightBuilder::new(
         BaseBuilder::new().with_local_transform(
             TransformBuilder::new()
-                .with_local_position(Vector3::new(0.0, 2.0, 0.0))
+                .with_local_position(Vector3::new(0.0, 12.0, 0.0))
                 .build(),
         ),
     ))
+    .with_radius(20.0)
     .build(&mut scene.graph);
 
     let (model_resource, walk_animation_resource) = rg3d::futures::join!(
