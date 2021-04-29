@@ -13,6 +13,11 @@ readme = "README.md"
 proc-macro = true
 
 [dependencies]
+convert_case = "0.4.0"
 proc-macro2 = "1.0.26"
 quote = "1.0.9"
 syn = "1.0.71"
+
+[dev-dependencies]
+rg3d = { path = "../" }
+futures = "0.3.14"

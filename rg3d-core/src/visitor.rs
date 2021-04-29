@@ -8,7 +8,10 @@
 //! types and some of basic structures of the crate. Main criteria of what could be the field and what
 //! not is the ability to be represented as set of bytes without any aliasing issues.
 
+pub use rg3d_core_derive::Visit;
+
 use crate::io::FileLoadError;
+
 use crate::{
     algebra::{Matrix3, Matrix4, Quaternion, UnitQuaternion, Vector2, Vector3, Vector4},
     io,
