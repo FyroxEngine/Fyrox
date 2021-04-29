@@ -32,13 +32,17 @@ fn impl_visit_struct(args: args::StructArgs) -> TokenStream2 {
     );
 
     // `self.field.visit(..);`
-    let field_visits = field_args.fields.iter().map(|field| {
+    let field_visits = field_args.fields.iter().filter_map(|field| {
+        if field.skip {
+            return None;
+        }
+
         let field_ident = field.ident.as_ref().unwrap_or_else(|| unreachable!());
         let field_name = format!("{}", field_ident).to_case(Case::UpperCamel);
 
-        quote! {
+        Some(quote! {
             self.#field_ident.visit(#field_name, visitor)?;
-        }
+        })
     });
 
     // `impl Visit`
@@ -47,7 +51,11 @@ fn impl_visit_struct(args: args::StructArgs) -> TokenStream2 {
 
     quote! {
         impl #impl_generics rg3d::core::visitor::Visit for #ty_name #ty_generics #where_clause {
-            fn visit(&mut self, name: &str, visitor: &mut rg3d::core::visitor::Visitor) -> VisitResult {
+            fn visit(
+                &mut self,
+                name: &str,
+                visitor: &mut rg3d::core::visitor::Visitor,
+            ) -> rg3d::core::visitor::VisitResult {
                 visitor.enter_region(name)?;
 
                 #(#field_visits)*
