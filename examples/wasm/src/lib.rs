@@ -139,12 +139,12 @@ pub async fn create_camera(
 ) -> Handle<Node> {
     // Load skybox textures in parallel.
     let (front, back, left, right, top, bottom) = rg3d::core::futures::join!(
-        resource_manager.request_texture("/data/textures/DarkStormyFront.jpg"),
-        resource_manager.request_texture("/data/textures/DarkStormyBack.jpg"),
-        resource_manager.request_texture("/data/textures/DarkStormyLeft.jpg"),
-        resource_manager.request_texture("/data/textures/DarkStormyRight.jpg"),
-        resource_manager.request_texture("/data/textures/DarkStormyUp.jpg"),
-        resource_manager.request_texture("/data/textures/DarkStormyDown.jpg")
+        resource_manager.request_texture("data/textures/DarkStormyFront.jpg"),
+        resource_manager.request_texture("data/textures/DarkStormyBack.jpg"),
+        resource_manager.request_texture("data/textures/DarkStormyLeft.jpg"),
+        resource_manager.request_texture("data/textures/DarkStormyRight.jpg"),
+        resource_manager.request_texture("data/textures/DarkStormyUp.jpg"),
+        resource_manager.request_texture("data/textures/DarkStormyDown.jpg")
     );
 
     // Unwrap everything.
@@ -182,7 +182,7 @@ async fn create_scene(resource_manager: ResourceManager, context: Arc<Mutex<Scen
 
     let music = GenericSourceBuilder::new(
         resource_manager
-            .request_sound_buffer("/data/music.ogg", false)
+            .request_sound_buffer("data/music.ogg", false)
             .await
             .unwrap()
             .into(),
@@ -213,8 +213,8 @@ async fn create_scene(resource_manager: ResourceManager, context: Arc<Mutex<Scen
     .build(&mut scene.graph);
 
     let (model_resource, walk_animation_resource) = rg3d::core::futures::join!(
-        resource_manager.request_model("/data/mutant.FBX"),
-        resource_manager.request_model("/data/walk.fbx")
+        resource_manager.request_model("data/mutant.FBX"),
+        resource_manager.request_model("data/walk.fbx")
     );
 
     // Instantiate model on scene - but only geometry, without any animations.
@@ -252,7 +252,7 @@ async fn create_scene(resource_manager: ResourceManager, context: Arc<Mutex<Scen
             25.0, 0.25, 25.0,
         ))),
     )))
-    .with_diffuse_texture(resource_manager.request_texture("/data/textures/concrete.jpg"))
+    .with_diffuse_texture(resource_manager.request_texture("data/textures/concrete.jpg"))
     .build()])
     .build(&mut scene.graph);
 
@@ -288,6 +288,10 @@ pub fn main() {
     engine.resource_manager.state().set_textures_import_options(
         TextureImportOptions::default().with_compression(CompressionOptions::NoCompression),
     );
+    engine
+        .resource_manager
+        .state()
+        .set_textures_path("data/textures");
 
     let load_context = Arc::new(Mutex::new(SceneContext { data: None }));
 

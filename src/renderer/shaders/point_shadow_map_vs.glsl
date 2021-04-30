@@ -8,7 +8,7 @@ layout(location = 6) in vec4 boneIndices;
 uniform mat4 worldMatrix;
 uniform mat4 worldViewProjection;
 uniform bool useSkeletalAnimation;
-uniform mat4 boneMatrices[80];
+uniform mat4 boneMatrices[60];
 
 out vec2 texCoord;
 out vec3 worldPosition;
