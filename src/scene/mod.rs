@@ -15,6 +15,7 @@ pub mod physics;
 pub mod sprite;
 pub mod transform;
 
+use crate::core::instant;
 use crate::core::pool::Ticket;
 use crate::scene::physics::PhysicsPerformanceStatistics;
 use crate::{
@@ -1171,7 +1172,7 @@ impl Scene {
             }
         }
 
-        let _ = futures::future::join_all(resources).await;
+        let _ = crate::core::futures::future::join_all(resources).await;
 
         // Restore pointers to resources. Scene saves only paths to resources, here we must
         // find real resources instead.

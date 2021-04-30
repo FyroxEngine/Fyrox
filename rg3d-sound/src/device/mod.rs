@@ -15,8 +15,11 @@ mod alsa;
 mod coreaudio;
 
 // The dummy target works on all platforms
-#[cfg(not(any(target_os = "windows", target_os = "linux")))]
+#[cfg(not(any(target_os = "windows", target_os = "linux", target_arch = "wasm32")))]
 mod dummy;
+
+#[cfg(target_arch = "wasm32")]
+mod web;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -52,38 +55,39 @@ fn sample_to_i16(sample: f32) -> i16 {
 }
 
 trait Device {
-    fn get_mix_context(&mut self) -> MixContext;
+    fn get_mix_context(&mut self) -> Option<MixContext>;
 
     fn run(&mut self);
 
     fn mix(&mut self) {
-        let context = self.get_mix_context();
+        if let Some(context) = self.get_mix_context() {
+            // Clear mixer buffer.
+            for (left, right) in context.mix_buffer.iter_mut() {
+                *left = 0.0;
+                *right = 0.0;
+            }
 
-        // Clear mixer buffer.
-        for (left, right) in context.mix_buffer.iter_mut() {
-            *left = 0.0;
-            *right = 0.0;
-        }
+            // Fill it.
+            (context.callback)(context.mix_buffer);
 
-        // Fill it.
-        (context.callback)(context.mix_buffer);
-
-        // Convert to i16 - device expects samples in this format.
-        assert_eq!(context.mix_buffer.len(), context.out_data.len());
-        for ((left, right), ref mut out_sample) in context.mix_buffer.iter().zip(context.out_data) {
-            out_sample.left = sample_to_i16(*left);
-            out_sample.right = sample_to_i16(*right);
+            // Convert to i16 - device expects samples in this format.
+            assert_eq!(context.mix_buffer.len(), context.out_data.len());
+            for ((left, right), ref mut out_sample) in
+                context.mix_buffer.iter().zip(context.out_data)
+            {
+                out_sample.left = sample_to_i16(*left);
+                out_sample.right = sample_to_i16(*right);
+            }
         }
     }
 }
 
 /// Transfer ownership of device to separate mixer thread. It will
 /// call the callback with a specified rate to get data to send to a physical device.
-pub(in crate) fn run_device(
+pub(in crate) fn run_device<F: FnMut(&mut [(f32, f32)]) + Send + 'static>(
     #[allow(unused_variables)] buffer_len_bytes: u32,
-    #[allow(unused_variables)] callback: Box<FeedCallback>,
+    #[allow(unused_variables)] callback: F,
 ) {
-    // TODO: Add WASM backend.
     #[cfg(not(target_arch = "wasm32"))]
     {
         std::thread::spawn(move || {
@@ -98,5 +102,12 @@ pub(in crate) fn run_device(
             let mut device = dummy::DummySoundDevice::new(buffer_len_bytes, callback).unwrap();
             device.run()
         });
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        let mut device = web::WebAudioDevice::new(buffer_len_bytes, callback);
+        device.run();
+        std::mem::forget(device);
     }
 }

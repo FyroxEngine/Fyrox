@@ -28,6 +28,8 @@ pub mod profiler;
 pub mod quadtree;
 pub mod rectpack;
 pub mod visitor;
+pub use futures;
+pub use instant;
 
 #[cfg(target_arch = "wasm32")]
 pub use js_sys;

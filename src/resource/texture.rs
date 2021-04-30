@@ -20,18 +20,20 @@
 //! will automatically provide you info about metrics of texture, but it won't give you
 //! access to pixels of render target.
 
-use crate::core::io;
 use crate::{
-    core::visitor::{Visit, VisitError, VisitResult, Visitor},
+    core::{
+        futures::io::Error,
+        io,
+        visitor::{Visit, VisitError, VisitResult, Visitor},
+    },
     resource::{Resource, ResourceData, ResourceState},
 };
 use ddsfile::{Caps2, D3DFormat};
-use futures::io::Error;
 use image::{ColorType, DynamicImage, GenericImageView, ImageError};
 use rg3d_core::io::FileLoadError;
-use std::io::Cursor;
 use std::{
     borrow::Cow,
+    io::Cursor,
     path::{Path, PathBuf},
 };
 

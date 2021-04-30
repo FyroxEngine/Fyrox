@@ -24,7 +24,7 @@ use rg3d_core::{
 use std::sync::MutexGuard;
 use std::{
     sync::{Arc, Mutex},
-    time::{self, Duration},
+    time::Duration,
 };
 
 /// Sample rate for output device.
@@ -210,7 +210,7 @@ impl State {
     }
 
     pub(crate) fn render(&mut self, master_gain: f32, buf: &mut [(f32, f32)]) {
-        let last_time = time::Instant::now();
+        let last_time = rg3d_core::instant::Instant::now();
 
         for i in 0..self.sources.get_capacity() {
             if let Some(source) = self.sources.at(i) {
@@ -250,7 +250,7 @@ impl State {
             *right *= global_gain;
         }
 
-        self.render_duration = time::Instant::now() - last_time;
+        self.render_duration = rg3d_core::instant::Instant::now() - last_time;
     }
 }
 

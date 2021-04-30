@@ -62,9 +62,9 @@ unsafe extern "C" fn audio_queue_callback(
 }
 
 impl CoreaudioSoundDevice {
-    pub fn new(
+    pub fn new<F: FnMut(&mut [(f32, f32)]) + Send + 'static>(
         buffer_len_bytes: u32,
-        fill_callback: Box<FeedCallback>,
+        fill_callback: F,
     ) -> Result<Self, SoundError> {
         // 16-bit linear PCM
         let desc = AudioStreamBasicDescription {
@@ -82,7 +82,7 @@ impl CoreaudioSoundDevice {
         // create data at fixed memory location
         let samples_per_channel = buffer_len_bytes as usize / size_of::<NativeSample>();
         let mut inner = Box::new(Inner {
-            fill_callback,
+            fill_callback: Box::new(fill_callback),
             out_data: vec![Default::default(); samples_per_channel],
             mix_buffer: vec![(0.0, 0.0); samples_per_channel],
             queue: std::ptr::null_mut(),
@@ -156,12 +156,12 @@ impl CoreaudioSoundDevice {
 }
 
 impl Device for CoreaudioSoundDevice {
-    fn get_mix_context(&mut self) -> MixContext {
-        MixContext {
+    fn get_mix_context(&mut self) -> Option<MixContext> {
+        Some(MixContext {
             mix_buffer: &mut self.inner.mix_buffer,
             out_data: &mut self.inner.out_data,
             callback: &mut self.inner.fill_callback,
-        }
+        })
     }
 
     fn run(&mut self) {
@@ -174,12 +174,12 @@ impl Device for CoreaudioSoundDevice {
 }
 
 impl Device for Inner {
-    fn get_mix_context(&mut self) -> MixContext {
-        MixContext {
+    fn get_mix_context(&mut self) -> Option<MixContext> {
+        Some(MixContext {
             mix_buffer: &mut self.mix_buffer,
             out_data: &mut self.out_data,
             callback: &mut self.fill_callback,
-        }
+        })
     }
 
     fn run(&mut self) {

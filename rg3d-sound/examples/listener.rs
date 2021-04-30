@@ -1,5 +1,6 @@
 use rg3d_core::algebra::Point3;
 use rg3d_sound::engine::SoundEngine;
+use rg3d_sound::futures::executor::block_on;
 use rg3d_sound::{
     algebra::{UnitQuaternion, Vector3},
     buffer::DataSource,
@@ -22,8 +23,10 @@ fn main() {
     engine.lock().unwrap().add_context(context.clone());
 
     // Load sound buffer.
-    let drop_buffer =
-        SoundBuffer::new_generic(DataSource::from_file("examples/data/drop.wav").unwrap()).unwrap();
+    let drop_buffer = SoundBuffer::new_generic(
+        block_on(DataSource::from_file("examples/data/drop.wav")).unwrap(),
+    )
+    .unwrap();
 
     // Create spatial source - spatial sources can be positioned in space.
     let source = SpatialSourceBuilder::new(

@@ -52,13 +52,13 @@ fn main() {
     ];
 
     // Request foot step sound buffer from resources directory.
-    let footstep_buffers = rg3d::futures::executor::block_on(rg3d::futures::future::join_all(
-        footstep_paths.iter().map(|&path| {
+    let footstep_buffers = rg3d::core::futures::executor::block_on(
+        rg3d::core::futures::future::join_all(footstep_paths.iter().map(|&path| {
             game.engine
                 .resource_manager
                 .request_sound_buffer(path, false)
-        }),
-    ))
+        })),
+    )
     .into_iter()
     .map(|r| r.unwrap())
     .collect::<Vec<_>>();

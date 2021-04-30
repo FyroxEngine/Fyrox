@@ -32,6 +32,7 @@ mod sprite_renderer;
 mod ssao;
 mod ui_renderer;
 
+use crate::core::instant;
 use crate::renderer::fxaa::FxaaRenderer;
 use crate::{
     core::{

@@ -59,7 +59,10 @@ fn check<S: Into<String>>(code: i32, message: S) -> Result<(), SoundError> {
 }
 
 impl DirectSoundDevice {
-    pub fn new(buffer_len_bytes: u32, callback: Box<FeedCallback>) -> Result<Self, SoundError> {
+    pub fn new<F: FnMut(&mut [(f32, f32)]) + Send + 'static>(
+        buffer_len_bytes: u32,
+        callback: F,
+    ) -> Result<Self, SoundError> {
         unsafe {
             let mut direct_sound = std::ptr::null_mut();
             check(
@@ -146,7 +149,7 @@ impl DirectSoundDevice {
                 mix_buffer: vec![(0.0, 0.0); samples_per_channel],
                 notify_points,
                 buffer_len_bytes,
-                callback,
+                callback: Box::new(callback),
             })
         }
     }
@@ -186,12 +189,12 @@ unsafe fn write(
 }
 
 impl Device for DirectSoundDevice {
-    fn get_mix_context(&mut self) -> MixContext {
-        MixContext {
+    fn get_mix_context(&mut self) -> Option<MixContext> {
+        Some(MixContext {
             mix_buffer: self.mix_buffer.as_mut_slice(),
             out_data: &mut self.out_data,
             callback: &mut self.callback,
-        }
+        })
     }
 
     fn run(&mut self) {

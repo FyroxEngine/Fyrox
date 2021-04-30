@@ -7,6 +7,7 @@ pub mod error;
 pub mod resource_manager;
 
 use crate::core::algebra::Vector2;
+use crate::core::instant;
 use crate::resource::texture::TextureKind;
 use crate::utils::log::{Log, MessageKind};
 use crate::{
@@ -231,7 +232,7 @@ impl<M: MessageData, C: Control<M, C>> Visit for Engine<M, C> {
         self.scenes.visit("Scenes", visitor)?;
 
         if visitor.is_reading() {
-            futures::executor::block_on(self.resource_manager.reload_resources());
+            crate::core::futures::executor::block_on(self.resource_manager.reload_resources());
 
             let mut sound_engine = self.sound_engine.lock().unwrap();
             for scene in self.scenes.iter_mut() {

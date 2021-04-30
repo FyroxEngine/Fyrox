@@ -86,6 +86,7 @@ pub mod source;
 // Reexport some modules because there some types of them in public API.
 pub use hrtf;
 pub use rg3d_core::algebra;
+pub use rg3d_core::futures;
 pub use rg3d_core::math;
 pub use rg3d_core::pool;
 

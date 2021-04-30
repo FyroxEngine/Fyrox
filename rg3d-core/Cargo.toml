@@ -17,14 +17,15 @@ memoffset = "0.6.1"
 lazy_static = "1.4.0"
 nalgebra = "0.25.3"
 arrayvec = "0.5.2"
+futures = {version = "0.3.13", features = ["thread-pool"] }
 uuid = { version = "0.8.2", features = ["v4","wasm-bindgen"] }
+instant = {version = "0.1.9", features = ["wasm-bindgen"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-web-sys = { version = "0.3.50", features = ["Request", "Window", "Response"] }
+web-sys = { version = "0.3.50", features = ["Request", "Window", "Response", "AudioContext", "AudioBuffer", "AudioContextOptions", "AudioNode", "AudioBufferSourceNode", "AudioDestinationNode"] }
 wasm-bindgen = "0.2.73"
 wasm-bindgen-futures = "0.4.23"
 js-sys = "0.3.50"
-
 
 [features]
 enable_profiler = []

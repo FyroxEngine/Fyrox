@@ -43,7 +43,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use instant::Instant;
+use crate::core::instant::Instant;
 
 /// Input angles in degrees
 fn quat_from_euler(euler: Vector3<f32>) -> UnitQuaternion<f32> {

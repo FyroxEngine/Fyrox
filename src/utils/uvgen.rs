@@ -1,6 +1,7 @@
 //! UV Map generator. Used to generate second texture coordinates for lightmaps.
 //!
 //! Current implementation uses simple planar mapping.
+use crate::core::instant;
 use crate::{
     core::{
         algebra::Vector2,

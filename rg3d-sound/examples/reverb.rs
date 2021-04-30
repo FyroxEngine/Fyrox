@@ -1,4 +1,5 @@
 use rg3d_sound::engine::SoundEngine;
+use rg3d_sound::futures::executor::block_on;
 use rg3d_sound::{
     algebra::{Point3, UnitQuaternion, Vector3},
     buffer::{DataSource, SoundBuffer},
@@ -38,9 +39,10 @@ fn main() {
     let reverb_handle = context.state().add_effect(Effect::Reverb(reverb));
 
     // Create some sounds.
-    let sound_buffer =
-        SoundBuffer::new_generic(DataSource::from_file("examples/data/door_open.wav").unwrap())
-            .unwrap();
+    let sound_buffer = SoundBuffer::new_generic(
+        block_on(DataSource::from_file("examples/data/door_open.wav")).unwrap(),
+    )
+    .unwrap();
     let source = SpatialSourceBuilder::new(
         GenericSourceBuilder::new(sound_buffer)
             .with_status(Status::Playing)
@@ -57,8 +59,10 @@ fn main() {
         .effect_mut(reverb_handle)
         .add_input(EffectInput::direct(door_sound));
 
-    let sound_buffer =
-        SoundBuffer::new_generic(DataSource::from_file("examples/data/drop.wav").unwrap()).unwrap();
+    let sound_buffer = SoundBuffer::new_generic(
+        block_on(DataSource::from_file("examples/data/drop.wav")).unwrap(),
+    )
+    .unwrap();
     let source = SpatialSourceBuilder::new(
         GenericSourceBuilder::new(sound_buffer)
             .with_status(Status::Playing)

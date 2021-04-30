@@ -18,9 +18,13 @@ fn main() {
     engine.lock().unwrap().add_context(context.clone());
 
     // Load sound buffer.
-    let door_open_buffer =
-        SoundBuffer::new_generic(DataSource::from_file("examples/data/door_open.wav").unwrap())
-            .unwrap();
+    let door_open_buffer = SoundBuffer::new_generic(
+        rg3d_sound::futures::executor::block_on(DataSource::from_file(
+            "examples/data/door_open.wav",
+        ))
+        .unwrap(),
+    )
+    .unwrap();
 
     // Create generic source (without spatial effects) using that buffer.
     let source = GenericSourceBuilder::new(door_open_buffer)

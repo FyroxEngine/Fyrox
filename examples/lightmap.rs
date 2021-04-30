@@ -10,6 +10,7 @@ extern crate rg3d;
 pub mod shared;
 
 use crate::shared::create_camera;
+use rg3d::core::futures;
 use rg3d::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},

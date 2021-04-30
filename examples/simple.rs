@@ -83,7 +83,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     // create instance of it - much more efficient is to load it once and then make copies
     // of it. In case of models it is very efficient because single vertex and index buffer
     // can be used for all models instances, so memory footprint on GPU will be lower.
-    let (model_resource, walk_animation_resource) = rg3d::futures::join!(
+    let (model_resource, walk_animation_resource) = rg3d::core::futures::join!(
         resource_manager.request_model("examples/data/mutant.FBX"),
         resource_manager.request_model("examples/data/walk.fbx")
     );
@@ -165,7 +165,7 @@ fn main() {
         scene,
         model_handle,
         walk_animation,
-    } = rg3d::futures::executor::block_on(create_scene(engine.resource_manager.clone()));
+    } = rg3d::core::futures::executor::block_on(create_scene(engine.resource_manager.clone()));
 
     // Add scene to engine - engine will take ownership over scene and will return
     // you a handle to scene which can be used later on to borrow it and do some

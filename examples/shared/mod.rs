@@ -57,7 +57,7 @@ pub async fn create_camera(
     graph: &mut Graph,
 ) -> Handle<Node> {
     // Load skybox textures in parallel.
-    let (front, back, left, right, top, bottom) = rg3d::futures::join!(
+    let (front, back, left, right, top, bottom) = rg3d::core::futures::join!(
         resource_manager
             .request_texture("examples/data/skyboxes/DarkStormy/DarkStormyFront2048.png"),
         resource_manager
@@ -732,7 +732,7 @@ pub fn create_scene_async(resource_manager: ResourceManager) -> Arc<Mutex<SceneL
 
     // Spawn separate thread which will create scene by loading various assets.
     std::thread::spawn(move || {
-        futures::executor::block_on(async move {
+        rg3d::core::futures::executor::block_on(async move {
             let mut scene = Scene::new();
 
             // Set ambient light.

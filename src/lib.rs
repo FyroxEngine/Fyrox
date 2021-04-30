@@ -36,8 +36,6 @@ pub use tbc;
 #[cfg(target_arch = "wasm32")]
 pub use winit::*;
 
-pub use futures;
-pub use instant;
 pub use rapier3d as physics;
 pub use rg3d_core as core;
 pub use rg3d_sound as sound;

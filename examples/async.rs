@@ -34,6 +34,7 @@ use std::{
 
 use crate::shared::create_camera;
 use rg3d::core::algebra::{UnitQuaternion, Vector2, Vector3};
+use rg3d::core::futures;
 
 // Create our own engine type aliases. These specializations are needed
 // because engine provides a way to extend UI with custom nodes and messages.

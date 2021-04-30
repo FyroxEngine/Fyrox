@@ -6,30 +6,17 @@ use crate::{
 };
 use std::mem::size_of;
 
-pub struct DummySoundDevice {
-    callback: Box<FeedCallback>,
-    out_data: Vec<NativeSample>,
-    mix_buffer: Vec<(f32, f32)>,
-}
+pub struct DummySoundDevice {}
 
-impl DummySoundDevice {
-    pub fn new(buffer_len_bytes: u32, callback: Box<FeedCallback>) -> Result<Self, SoundError> {
-        let samples_per_channel = buffer_len_bytes as usize / size_of::<NativeSample>();
-        Ok(Self {
-            callback,
-            out_data: vec![Default::default(); samples_per_channel],
-            mix_buffer: vec![(0.0, 0.0); samples_per_channel],
-        })
+impl DummySoundDevice<F: FnMut(&mut [(f32, f32)]) + Send + 'static> {
+    pub fn new(_buffer_len_bytes: u32, _callback: F) -> Result<Self, SoundError> {
+        Ok(Self)
     }
 }
 
 impl Device for DummySoundDevice {
-    fn get_mix_context(&mut self) -> MixContext {
-        MixContext {
-            mix_buffer: self.mix_buffer.as_mut_slice(),
-            out_data: &mut self.out_data,
-            callback: &mut self.callback,
-        }
+    fn get_mix_context(&mut self) -> Option<MixContext> {
+        None
     }
 
     fn run(&mut self) {

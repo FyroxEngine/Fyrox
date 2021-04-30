@@ -23,6 +23,7 @@ Examples can be found in `./examples`. Make sure you run examples with `--releas
 - Windows (DirectSound)
 - Linux (alsa)
 - macOS (CoreAudio)
+- WebAssembly (WebAudio)
 
 ## HRTF
 

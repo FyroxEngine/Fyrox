@@ -1,5 +1,8 @@
 //! Resource manager controls loading and lifetime of resource in the engine.
 
+#[cfg(not(target_arch = "wasm32"))]
+use crate::core::futures::executor::ThreadPool;
+use crate::core::instant;
 use crate::{
     core::visitor::{Visit, VisitResult, Visitor},
     resource::{
@@ -13,8 +16,6 @@ use crate::{
     sound::buffer::{DataSource, SoundBuffer},
     utils::log::{Log, MessageKind},
 };
-#[cfg(not(target_arch = "wasm32"))]
-use futures::executor::ThreadPool;
 use std::{
     borrow::Cow,
     ops::{Deref, DerefMut},
@@ -626,7 +627,7 @@ impl ResourceManager {
             textures
         };
 
-        futures::future::join_all(textures).await;
+        crate::core::futures::future::join_all(textures).await;
     }
 
     /// Reloads every loaded model. This method is asynchronous, internally it uses thread pool
@@ -661,7 +662,7 @@ impl ResourceManager {
             models
         };
 
-        futures::future::join_all(models).await;
+        crate::core::futures::future::join_all(models).await;
 
         Log::writeln(
             MessageKind::Information,
@@ -713,14 +714,14 @@ impl ResourceManager {
             sound_buffers
         };
 
-        futures::future::join_all(buffers).await;
+        crate::core::futures::future::join_all(buffers).await;
     }
 
     /// Reloads all loaded resources. Normally it should never be called, because it is **very** heavy
     /// method! This method is asynchronous, it uses all available CPU power to reload resources as
     /// fast as possible.
     pub async fn reload_resources(&self) {
-        futures::join!(
+        crate::core::futures::join!(
             self.reload_textures(),
             self.reload_models(),
             self.reload_sound_buffers()
@@ -992,13 +993,13 @@ impl Visit for ResourceManagerState {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
-        futures::executor::block_on(futures::future::join_all(
+        crate::core::futures::executor::block_on(crate::core::futures::future::join_all(
             self.textures.iter().map(|t| t.value.clone()),
         ));
-        futures::executor::block_on(futures::future::join_all(
+        crate::core::futures::executor::block_on(crate::core::futures::future::join_all(
             self.models.iter().map(|m| m.value.clone()),
         ));
-        futures::executor::block_on(futures::future::join_all(
+        crate::core::futures::executor::block_on(crate::core::futures::future::join_all(
             self.sound_buffers.iter().map(|m| m.value.clone()),
         ));
 

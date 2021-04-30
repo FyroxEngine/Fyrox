@@ -30,14 +30,14 @@ impl SoundEngine {
         // in Arc<Mutex<>>
         device::run_device(4 * Context::SAMPLES_PER_CHANNEL as u32, {
             let state = engine.clone();
-            Box::new(move |buf| {
+            move |buf| {
                 if let Ok(mut state) = state.lock() {
                     let master_gain = state.master_gain;
                     for context in state.contexts.iter_mut() {
                         context.state().render(master_gain, buf);
                     }
                 }
-            })
+            }
         });
 
         engine

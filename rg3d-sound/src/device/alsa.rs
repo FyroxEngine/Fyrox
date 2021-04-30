@@ -40,7 +40,10 @@ pub fn check(err_code: c_int) -> Result<(), SoundError> {
 }
 
 impl AlsaSoundDevice {
-    pub fn new(buffer_len_bytes: u32, callback: Box<FeedCallback>) -> Result<Self, SoundError> {
+    pub fn new<F: FnMut(&mut [(f32, f32)]) + Send + 'static>(
+        buffer_len_bytes: u32,
+        callback: F,
+    ) -> Result<Self, SoundError> {
         unsafe {
             let name = CString::new("default").unwrap();
             // 16-bit stereo is 4 bytes, so frame count is bufferHalfSize / 4
@@ -112,7 +115,7 @@ impl AlsaSoundDevice {
             Ok(Self {
                 playback_device,
                 frame_count,
-                callback,
+                callback: Box::new(callback),
                 out_data: vec![Default::default(); samples_per_channel],
                 mix_buffer: vec![(0.0, 0.0); samples_per_channel],
             })
@@ -121,12 +124,12 @@ impl AlsaSoundDevice {
 }
 
 impl Device for AlsaSoundDevice {
-    fn get_mix_context(&mut self) -> MixContext {
-        MixContext {
+    fn get_mix_context(&mut self) -> Option<MixContext> {
+        Some(MixContext {
             mix_buffer: self.mix_buffer.as_mut_slice(),
             out_data: &mut self.out_data,
             callback: &mut self.callback,
-        }
+        })
     }
 
     fn run(&mut self) {

@@ -8,8 +8,8 @@ extern crate rg3d;
 
 pub mod shared;
 
+use rg3d::core::futures::executor::block_on;
 use rg3d::engine::resource_manager::ResourceManager;
-use rg3d::futures::executor::block_on;
 use rg3d::resource::texture::TextureMagnificationFilter;
 use rg3d::tbc::color::Rgb8;
 use rg3d::{

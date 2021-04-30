@@ -1,5 +1,6 @@
 //! Contains all structures and methods to operate with physics world.
 
+use crate::core::instant;
 use crate::{
     core::{
         arrayvec::{Array, ArrayVec},

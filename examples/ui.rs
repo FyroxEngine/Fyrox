@@ -358,7 +358,7 @@ fn main() {
         scene,
         model_handle,
         walk_animation,
-    } = rg3d::futures::executor::block_on(create_scene(engine.resource_manager.clone()));
+    } = rg3d::core::futures::executor::block_on(create_scene(engine.resource_manager.clone()));
 
     // Add scene to engine - engine will take ownership over scene and will return
     // you a handle to scene which can be used later on to borrow it and do some

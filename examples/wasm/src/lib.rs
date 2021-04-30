@@ -39,6 +39,9 @@ use rg3d::animation::Animation;
 use rg3d::resource::texture::TextureWrapMode;
 use rg3d::scene::camera::SkyBox;
 use rg3d::scene::graph::Graph;
+use rg3d::sound::buffer::SoundBuffer;
+use rg3d::sound::source::generic::GenericSourceBuilder;
+use rg3d::sound::source::Status;
 use std::sync::Mutex;
 use std::{
     panic,
@@ -135,7 +138,7 @@ pub async fn create_camera(
     graph: &mut Graph,
 ) -> Handle<Node> {
     // Load skybox textures in parallel.
-    let (front, back, left, right, top, bottom) = rg3d::futures::join!(
+    let (front, back, left, right, top, bottom) = rg3d::core::futures::join!(
         resource_manager.request_texture("/data/textures/DarkStormyFront2048.png"),
         resource_manager.request_texture("/data/textures/DarkStormyBack2048.png"),
         resource_manager.request_texture("/data/textures/DarkStormyLeft2048.png"),
@@ -177,6 +180,19 @@ pub async fn create_camera(
 async fn create_scene(resource_manager: ResourceManager, context: Arc<Mutex<SceneContext>>) {
     let mut scene = Scene::new();
 
+    let music = GenericSourceBuilder::new(
+        resource_manager
+            .request_sound_buffer("/data/music.ogg", false)
+            .await
+            .unwrap()
+            .into(),
+    )
+    .with_status(Status::Playing)
+    .build_source()
+    .unwrap();
+
+    scene.sound_context.state().add_source(music);
+
     scene.ambient_lighting_color = Color::opaque(200, 200, 200);
 
     create_camera(
@@ -196,7 +212,7 @@ async fn create_scene(resource_manager: ResourceManager, context: Arc<Mutex<Scen
     .with_radius(20.0)
     .build(&mut scene.graph);
 
-    let (model_resource, walk_animation_resource) = rg3d::futures::join!(
+    let (model_resource, walk_animation_resource) = rg3d::core::futures::join!(
         resource_manager.request_model("/data/mutant.FBX"),
         resource_manager.request_model("/data/walk.fbx")
     );
@@ -287,7 +303,7 @@ pub fn main() {
     // Create simple user interface that will show some useful info.
     let debug_text = create_ui(&mut engine.user_interface.build_ctx());
 
-    let clock = rg3d::instant::Instant::now();
+    let clock = rg3d::core::instant::Instant::now();
     let fixed_timestep = 1.0 / 60.0;
     let mut elapsed_time = 0.0;
 
