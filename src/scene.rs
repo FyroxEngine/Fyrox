@@ -2067,7 +2067,7 @@ impl<'a> Command<'a> for LoadModelCommand {
     fn execute(&mut self, context: &mut Self::Context) {
         if self.model.is_none() {
             // No model was loaded yet, do it.
-            if let Ok(model) = rg3d::futures::executor::block_on(
+            if let Ok(model) = rg3d::core::futures::executor::block_on(
                 context.resource_manager.request_model(&self.path),
             ) {
                 let instance = model.instantiate(context.scene);

@@ -350,7 +350,9 @@ impl AssetBrowser {
 
                     if item.kind == AssetKind::Model {
                         let path = item.path.clone();
-                        rg3d::futures::executor::block_on(self.preview.set_model(&path, engine));
+                        rg3d::core::futures::executor::block_on(
+                            self.preview.set_model(&path, engine),
+                        );
                     }
                 } else {
                     unreachable!()
