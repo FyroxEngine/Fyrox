@@ -45,29 +45,38 @@ impl WebAudioDevice {
             let onended_closure_clone = onended_closure.clone();
             let time = time.clone();
             let callback = callback.clone();
+            let mut mix_buffer = vec![(0.0f32, 0.0f32); samples_per_channel];
+            let mut temp_samples = vec![0.0f32; samples_per_channel];
             onended_closure
                 .write()
                 .unwrap()
                 .replace(Closure::wrap(Box::new(move || {
-                    let mut mix_buffer = vec![(0.0f32, 0.0f32); samples_per_channel];
+                    for (l, r) in mix_buffer.iter_mut() {
+                        *r = 0.0;
+                        *l = 0.0;
+                    }
 
                     let current_time = ctx_clone.current_time() as f32;
                     let raw_time = *time.read().unwrap();
-                    let start_time = if raw_time > f32::EPSILON {
+                    let start_time = if raw_time >= current_time {
                         raw_time
                     } else {
-                        current_time + 0.025
+                        current_time
                     };
 
                     callback.lock().unwrap()(&mut mix_buffer);
 
                     // Fill left channel.
-                    let channel_samples = mix_buffer.iter().map(|s| s.0).collect::<Vec<_>>();
-                    buffer.copy_to_channel(&channel_samples, 0).unwrap();
+                    for ((l, _), sample) in mix_buffer.iter().zip(temp_samples.iter_mut()) {
+                        *sample = *l;
+                    }
+                    buffer.copy_to_channel(&temp_samples, 0).unwrap();
 
                     // Fill right channel.
-                    let channel_samples = mix_buffer.iter().map(|s| s.1).collect::<Vec<_>>();
-                    buffer.copy_to_channel(&channel_samples, 1).unwrap();
+                    for ((_, r), sample) in mix_buffer.iter().zip(temp_samples.iter_mut()) {
+                        *sample = *r;
+                    }
+                    buffer.copy_to_channel(&temp_samples, 1).unwrap();
 
                     // Create source.
                     let source = ctx_clone.create_buffer_source().unwrap();
@@ -113,7 +122,7 @@ impl Device for WebAudioDevice {
 
     fn run(&mut self) {
         let window = rg3d_core::web_sys::window().unwrap();
-        let mut offset_ms = 10;
+        let mut offset_ms = 0;
         let time_step_ms = (self.buffer_duration_secs * 1_000.0) as i32;
         for on_ended_closure in self.onended.iter() {
             window

@@ -139,12 +139,12 @@ pub async fn create_camera(
 ) -> Handle<Node> {
     // Load skybox textures in parallel.
     let (front, back, left, right, top, bottom) = rg3d::core::futures::join!(
-        resource_manager.request_texture("/data/textures/DarkStormyFront2048.png"),
-        resource_manager.request_texture("/data/textures/DarkStormyBack2048.png"),
-        resource_manager.request_texture("/data/textures/DarkStormyLeft2048.png"),
-        resource_manager.request_texture("/data/textures/DarkStormyRight2048.png"),
-        resource_manager.request_texture("/data/textures/DarkStormyUp2048.png"),
-        resource_manager.request_texture("/data/textures/DarkStormyDown2048.png")
+        resource_manager.request_texture("/data/textures/DarkStormyFront.jpg"),
+        resource_manager.request_texture("/data/textures/DarkStormyBack.jpg"),
+        resource_manager.request_texture("/data/textures/DarkStormyLeft.jpg"),
+        resource_manager.request_texture("/data/textures/DarkStormyRight.jpg"),
+        resource_manager.request_texture("/data/textures/DarkStormyUp.jpg"),
+        resource_manager.request_texture("/data/textures/DarkStormyDown.jpg")
     );
 
     // Unwrap everything.
