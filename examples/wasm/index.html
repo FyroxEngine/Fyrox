@@ -6,6 +6,9 @@
   </head>
   <body>
     <noscript>This page contains webassembly and javascript content, please enable javascript in your browser.</noscript>
-    <script src="./bootstrap.js"></script>
+    <script type="module">
+		import init from './pkg/wasm.js'
+		init().then(w => w.main())
+    </script>
   </body>
 </html>
