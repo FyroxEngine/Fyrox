@@ -5,18 +5,16 @@
 
 use crate::{
     core::{algebra::Vector3, math::Rect, scope_profile},
-    renderer::{
-        error::RendererError,
-        framework::{
-            framebuffer::{CullFace, DrawParameters, FrameBuffer, FrameBufferTrait},
-            geometry_buffer::{
-                AttributeDefinition, AttributeKind, BufferBuilder, ElementKind, GeometryBuffer,
-                GeometryBufferBuilder, GeometryBufferKind,
-            },
-            gpu_program::{GpuProgram, UniformLocation, UniformValue},
-            state::PipelineState,
+    renderer::RenderPassStatistics,
+    rendering_framework::{
+        error::FrameworkError,
+        framebuffer::{CullFace, DrawParameters, FrameBuffer, FrameBufferTrait},
+        geometry_buffer::{
+            AttributeDefinition, AttributeKind, BufferBuilder, ElementKind, GeometryBuffer,
+            GeometryBufferBuilder, GeometryBufferKind,
         },
-        RenderPassStatistics,
+        gpu_program::{GpuProgram, UniformLocation, UniformValue},
+        state::PipelineState,
     },
     scene::{camera::Camera, SceneDrawingContext},
 };
@@ -41,7 +39,7 @@ pub(in crate) struct DebugShader {
 }
 
 impl DebugShader {
-    fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
+    fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/debug_fs.glsl");
         let vertex_source = include_str!("shaders/debug_vs.glsl");
         let program =
@@ -54,7 +52,7 @@ impl DebugShader {
 }
 
 impl DebugRenderer {
-    pub(in crate) fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
+    pub(in crate) fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
         let geometry = GeometryBufferBuilder::new(ElementKind::Line)
             .with_buffer_builder(
                 BufferBuilder::new::<Vertex>(GeometryBufferKind::DynamicDraw, None)

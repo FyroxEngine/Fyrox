@@ -7,22 +7,20 @@ use crate::{
     },
     rand::Rng,
     renderer::{
-        blur::Blur,
-        error::RendererError,
-        framework::{
-            framebuffer::{
-                Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer, FrameBufferTrait,
-            },
-            gpu_program::{GpuProgram, UniformLocation, UniformValue},
-            gpu_texture::{
-                Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
-                PixelKind, WrapMode,
-            },
-            state::PipelineState,
+        blur::Blur, gbuffer::GBuffer, surface::SurfaceSharedData, GeometryCache,
+        RenderPassStatistics,
+    },
+    rendering_framework::{
+        error::FrameworkError,
+        framebuffer::{
+            Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer, FrameBufferTrait,
         },
-        gbuffer::GBuffer,
-        surface::SurfaceSharedData,
-        GeometryCache, RenderPassStatistics,
+        gpu_program::{GpuProgram, UniformLocation, UniformValue},
+        gpu_texture::{
+            Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
+            PixelKind, WrapMode,
+        },
+        state::PipelineState,
     },
 };
 use std::{cell::RefCell, rc::Rc};
@@ -48,7 +46,7 @@ struct Shader {
 }
 
 impl Shader {
-    pub fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
+    pub fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/ssao_fs.glsl");
         let vertex_source = include_str!("shaders/ssao_vs.glsl");
         let program = GpuProgram::from_source(state, "SsaoShader", vertex_source, fragment_source)?;
@@ -85,7 +83,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
         state: &mut PipelineState,
         frame_width: usize,
         frame_height: usize,
-    ) -> Result<Self, RendererError> {
+    ) -> Result<Self, FrameworkError> {
         // It is good balance between quality and performance, no need to do SSAO in full resolution.
         // This SSAO map size reduction was taken from DOOM (2016).
         let width = (frame_width / 2).max(1);

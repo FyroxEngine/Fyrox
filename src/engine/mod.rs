@@ -6,23 +6,27 @@
 pub mod error;
 pub mod resource_manager;
 
-use crate::core::algebra::Vector2;
-use crate::core::instant;
-use crate::resource::texture::TextureKind;
-use crate::utils::log::{Log, MessageKind};
 use crate::{
-    core::visitor::{Visit, VisitResult, Visitor},
+    core::{
+        algebra::Vector2,
+        instant,
+        visitor::{Visit, VisitResult, Visitor},
+    },
     engine::{error::EngineError, resource_manager::ResourceManager},
     event_loop::EventLoop,
-    gui::{Control, UserInterface},
-    renderer::{error::RendererError, Renderer},
+    gui::{message::MessageData, Control, UserInterface},
+    renderer::Renderer,
+    rendering_framework::error::FrameworkError,
+    resource::texture::TextureKind,
     scene::SceneContainer,
+    sound::engine::SoundEngine,
+    utils::log::{Log, MessageKind},
     window::{Window, WindowBuilder},
 };
-use rg3d_sound::engine::SoundEngine;
-use rg3d_ui::message::MessageData;
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::{
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 /// See module docs.
 pub struct Engine<M: MessageData, C: Control<M, C>> {
@@ -194,7 +198,7 @@ impl<M: MessageData, C: Control<M, C>> Engine<M, C> {
     /// Performs rendering of single frame, must be called from your game loop, otherwise you won't
     /// see anything.
     #[inline]
-    pub fn render(&mut self, dt: f32) -> Result<(), RendererError> {
+    pub fn render(&mut self, dt: f32) -> Result<(), FrameworkError> {
         self.user_interface.draw();
 
         #[cfg(not(target_arch = "wasm32"))]

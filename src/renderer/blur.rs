@@ -4,21 +4,18 @@ use crate::{
         math::Rect,
         scope_profile,
     },
-    renderer::{
-        error::RendererError,
-        framework::{
-            framebuffer::{
-                Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer, FrameBufferTrait,
-            },
-            gpu_program::{GpuProgram, UniformLocation, UniformValue},
-            gpu_texture::{
-                Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
-                PixelKind, WrapMode,
-            },
-            state::PipelineState,
+    renderer::{surface::SurfaceSharedData, GeometryCache},
+    rendering_framework::{
+        error::FrameworkError,
+        framebuffer::{
+            Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer, FrameBufferTrait,
         },
-        surface::SurfaceSharedData,
-        GeometryCache,
+        gpu_program::{GpuProgram, UniformLocation, UniformValue},
+        gpu_texture::{
+            Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
+            PixelKind, WrapMode,
+        },
+        state::PipelineState,
     },
 };
 use std::{cell::RefCell, rc::Rc};
@@ -30,7 +27,7 @@ struct Shader {
 }
 
 impl Shader {
-    fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
+    fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/blur_fs.glsl");
         let vertex_source = include_str!("shaders/blur_vs.glsl");
 
@@ -56,7 +53,7 @@ impl Blur {
         state: &mut PipelineState,
         width: usize,
         height: usize,
-    ) -> Result<Self, RendererError> {
+    ) -> Result<Self, FrameworkError> {
         let frame = {
             let kind = GpuTextureKind::Rectangle { width, height };
             let mut texture = GpuTexture::new(

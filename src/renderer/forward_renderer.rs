@@ -8,15 +8,12 @@
 
 use crate::{
     core::{math::Rect, scope_profile},
-    renderer::{
-        batch::BatchStorage,
-        error::RendererError,
-        framework::{
-            framebuffer::{CullFace, DrawParameters, FrameBuffer, FrameBufferTrait},
-            gpu_program::{GpuProgram, UniformLocation, UniformValue},
-            state::PipelineState,
-        },
-        GeometryCache, RenderPassStatistics,
+    renderer::{batch::BatchStorage, GeometryCache, RenderPassStatistics},
+    rendering_framework::{
+        error::FrameworkError,
+        framebuffer::{CullFace, DrawParameters, FrameBuffer, FrameBufferTrait},
+        gpu_program::{GpuProgram, UniformLocation, UniformValue},
+        state::PipelineState,
     },
     scene::{camera::Camera, mesh::RenderPath},
 };
@@ -31,7 +28,7 @@ pub struct Shader {
 }
 
 impl Shader {
-    pub fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
+    pub fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/forward_fs.glsl");
         let vertex_source = include_str!("shaders/forward_vs.glsl");
         let program =
@@ -61,7 +58,7 @@ pub(in crate) struct ForwardRenderContext<'a, 'b> {
 }
 
 impl ForwardRenderer {
-    pub(in crate) fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
+    pub(in crate) fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
         Ok(Self {
             shader: Shader::new(state)?,
         })

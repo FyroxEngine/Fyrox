@@ -3,7 +3,7 @@
 
 use crate::{
     core::color::Color,
-    renderer::{error::RendererError, framework::state::PipelineState},
+    rendering_framework::{error::FrameworkError, state::PipelineState},
     resource::texture::{
         TextureKind, TextureMagnificationFilter, TextureMinificationFilter, TexturePixelKind,
         TextureWrapMode,
@@ -494,7 +494,7 @@ impl<'a> TextureBinding<'a> {
         pixel_kind: PixelKind,
         mip_count: usize,
         data: Option<&[u8]>,
-    ) -> Result<Self, RendererError> {
+    ) -> Result<Self, FrameworkError> {
         let mip_count = mip_count.max(1);
 
         let mut desired_byte_count = 0;
@@ -549,7 +549,7 @@ impl<'a> TextureBinding<'a> {
         if let Some(data) = data {
             let actual_data_size = data.len();
             if actual_data_size != desired_byte_count {
-                return Err(RendererError::InvalidTextureData {
+                return Err(FrameworkError::InvalidTextureData {
                     expected_data_size: desired_byte_count,
                     actual_data_size,
                 });
@@ -623,7 +623,7 @@ impl<'a> TextureBinding<'a> {
                                     length as i32,
                                     0,
                                     size,
-                                    pixels.ok_or(RendererError::EmptyTextureData)?,
+                                    pixels.ok_or(FrameworkError::EmptyTextureData)?,
                                 );
                             } else {
                                 self.state.gl.tex_image_1d(
@@ -661,7 +661,7 @@ impl<'a> TextureBinding<'a> {
                                     height as i32,
                                     0,
                                     size,
-                                    pixels.ok_or(RendererError::EmptyTextureData)?,
+                                    pixels.ok_or(FrameworkError::EmptyTextureData)?,
                                 );
                             } else {
                                 self.state.gl.tex_image_2d(
@@ -704,7 +704,7 @@ impl<'a> TextureBinding<'a> {
                                         height as i32,
                                         0,
                                         bytes_per_face as i32,
-                                        face_pixels.ok_or(RendererError::EmptyTextureData)?,
+                                        face_pixels.ok_or(FrameworkError::EmptyTextureData)?,
                                     );
                                 } else {
                                     self.state.gl.tex_image_2d(
@@ -750,7 +750,7 @@ impl<'a> TextureBinding<'a> {
                                     depth as i32,
                                     0,
                                     size,
-                                    pixels.ok_or(RendererError::EmptyTextureData)?,
+                                    pixels.ok_or(FrameworkError::EmptyTextureData)?,
                                 );
                             } else {
                                 self.state.gl.tex_image_3d(
@@ -810,7 +810,7 @@ impl GpuTexture {
         mag_filter: MagnificationFilter,
         mip_count: usize,
         data: Option<&[u8]>,
-    ) -> Result<Self, RendererError> {
+    ) -> Result<Self, FrameworkError> {
         let mip_count = mip_count.max(1);
 
         let target = kind.to_texture_target();

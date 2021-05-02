@@ -1,13 +1,11 @@
 use crate::{
     core::{color::Color, math::Rect, scope_profile},
-    renderer::{
-        error::RendererError,
-        framework::{
-            geometry_buffer::{DrawCallStatistics, GeometryBuffer},
-            gpu_program::{GpuProgram, UniformLocation, UniformValue},
-            gpu_texture::{CubeMapFace, GpuTexture, GpuTextureKind},
-            state::{ColorMask, PipelineState},
-        },
+    rendering_framework::{
+        error::FrameworkError,
+        geometry_buffer::{DrawCallStatistics, GeometryBuffer},
+        gpu_program::{GpuProgram, UniformLocation, UniformValue},
+        gpu_texture::{CubeMapFace, GpuTexture, GpuTextureKind},
+        state::{ColorMask, PipelineState},
     },
 };
 use glow::HasContext;
@@ -117,7 +115,7 @@ impl FrameBuffer {
         state: &mut PipelineState,
         depth_attachment: Option<Attachment>,
         color_attachments: Vec<Attachment>,
-    ) -> Result<Self, RendererError> {
+    ) -> Result<Self, FrameworkError> {
         unsafe {
             let fbo = state.gl.create_framebuffer()?;
 
@@ -157,7 +155,7 @@ impl FrameBuffer {
             }
 
             if state.gl.check_framebuffer_status(glow::FRAMEBUFFER) != glow::FRAMEBUFFER_COMPLETE {
-                return Err(RendererError::FailedToConstructFBO);
+                return Err(FrameworkError::FailedToConstructFBO);
             }
 
             state.set_framebuffer(glow::Framebuffer::default());
@@ -303,7 +301,7 @@ pub trait FrameBufferTrait {
         geometry.bind(state).draw_instances(count)
     }
 
-    fn draw_part(&mut self, args: DrawPartContext) -> Result<DrawCallStatistics, RendererError> {
+    fn draw_part(&mut self, args: DrawPartContext) -> Result<DrawCallStatistics, FrameworkError> {
         scope_profile!();
 
         pre_draw(

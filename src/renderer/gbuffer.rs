@@ -2,19 +2,19 @@ use crate::{
     core::{algebra::Vector4, color::Color, math::Rect, scope_profile},
     renderer::{
         batch::{BatchStorage, InstanceData, MatrixStorage, BONE_MATRICES_COUNT},
-        error::RendererError,
-        framework::{
-            framebuffer::{
-                Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer, FrameBufferTrait,
-            },
-            gpu_program::{GpuProgram, UniformLocation, UniformValue},
-            gpu_texture::{
-                Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
-                PixelKind, WrapMode,
-            },
-            state::PipelineState,
-        },
         GeometryCache, RenderPassStatistics, TextureCache,
+    },
+    rendering_framework::{
+        error::FrameworkError,
+        framebuffer::{
+            Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer, FrameBufferTrait,
+        },
+        gpu_program::{GpuProgram, UniformLocation, UniformValue},
+        gpu_texture::{
+            Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
+            PixelKind, WrapMode,
+        },
+        state::PipelineState,
     },
     scene::{camera::Camera, mesh::RenderPath},
 };
@@ -40,7 +40,7 @@ struct InstancedShader {
 }
 
 impl InstancedShader {
-    fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
+    fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/gbuffer_fs_instanced.glsl");
         let vertex_source = include_str!("shaders/gbuffer_vs_instanced.glsl");
         let program = GpuProgram::from_source(
@@ -88,7 +88,7 @@ struct Shader {
 }
 
 impl Shader {
-    fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
+    fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/gbuffer_fs.glsl");
         let vertex_source = include_str!("shaders/gbuffer_vs.glsl");
         let program =
@@ -139,7 +139,7 @@ impl GBuffer {
         state: &mut PipelineState,
         width: usize,
         height: usize,
-    ) -> Result<Self, RendererError> {
+    ) -> Result<Self, FrameworkError> {
         scope_profile!();
 
         let mut depth_stencil_texture = GpuTexture::new(

@@ -4,10 +4,7 @@ use crate::{
         color::Color,
         scope_profile,
     },
-    renderer::{
-        error::RendererError,
-        framework::{gpu_texture::GpuTexture, state::PipelineState},
-    },
+    rendering_framework::{error::FrameworkError, gpu_texture::GpuTexture, state::PipelineState},
     utils::log::{Log, MessageKind},
 };
 use glow::HasContext;
@@ -57,7 +54,7 @@ unsafe fn create_shader(
     name: String,
     actual_type: u32,
     source: &str,
-) -> Result<glow::Shader, RendererError> {
+) -> Result<glow::Shader, FrameworkError> {
     let merged_source = prepare_source_code(source);
 
     let shader = state.gl.create_shader(actual_type)?;
@@ -72,7 +69,7 @@ unsafe fn create_shader(
             MessageKind::Error,
             format!("Failed to compile {} shader: {}", name, compilation_message),
         );
-        Err(RendererError::ShaderCompilationFailed {
+        Err(FrameworkError::ShaderCompilationFailed {
             shader_name: name,
             error_message: compilation_message,
         })
@@ -87,7 +84,7 @@ unsafe fn create_shader(
 
 fn prepare_source_code(code: &str) -> String {
     let mut shared = "\n// include 'shared.glsl'\n".to_owned();
-    shared += include_str!("../shaders/shared.glsl");
+    shared += include_str!("shaders/shared.glsl");
     shared += "\n// end of include\n";
 
     let code = if let Some(p) = code.find('#') {
@@ -116,7 +113,7 @@ impl GpuProgram {
         name: &str,
         vertex_source: &str,
         fragment_source: &str,
-    ) -> Result<GpuProgram, RendererError> {
+    ) -> Result<GpuProgram, FrameworkError> {
         unsafe {
             let vertex_shader = create_shader(
                 state,
@@ -144,7 +141,7 @@ impl GpuProgram {
                     MessageKind::Error,
                     format!("Failed to link {} shader: {}", name, link_message),
                 );
-                Err(RendererError::ShaderLinkingFailed {
+                Err(FrameworkError::ShaderLinkingFailed {
                     shader_name: name.to_owned(),
                     error_message: link_message,
                 })
@@ -166,7 +163,7 @@ impl GpuProgram {
         &self,
         state: &mut PipelineState,
         name: &str,
-    ) -> Result<UniformLocation, RendererError> {
+    ) -> Result<UniformLocation, FrameworkError> {
         unsafe {
             if let Some(id) = state.gl.get_uniform_location(self.id, name) {
                 Ok(UniformLocation {
@@ -174,7 +171,7 @@ impl GpuProgram {
                     thread_mark: PhantomData,
                 })
             } else {
-                Err(RendererError::UnableToFindShaderUniform(name.to_owned()))
+                Err(FrameworkError::UnableToFindShaderUniform(name.to_owned()))
             }
         }
     }

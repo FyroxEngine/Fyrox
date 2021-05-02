@@ -3,16 +3,13 @@ use crate::{
         algebra::{Matrix4, Vector2, Vector3},
         math::Rect,
     },
-    renderer::{
-        error::RendererError,
-        framework::{
-            framebuffer::{CullFace, DrawParameters, FrameBufferTrait},
-            gpu_program::{GpuProgram, UniformLocation, UniformValue},
-            gpu_texture::GpuTexture,
-            state::PipelineState,
-        },
-        surface::SurfaceSharedData,
-        GeometryCache, RenderPassStatistics,
+    renderer::{surface::SurfaceSharedData, GeometryCache, RenderPassStatistics},
+    rendering_framework::{
+        error::FrameworkError,
+        framebuffer::{CullFace, DrawParameters, FrameBufferTrait},
+        gpu_program::{GpuProgram, UniformLocation, UniformValue},
+        gpu_texture::GpuTexture,
+        state::PipelineState,
     },
 };
 use std::{cell::RefCell, rc::Rc};
@@ -25,7 +22,7 @@ struct FxaaShader {
 }
 
 impl FxaaShader {
-    pub fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
+    pub fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/fxaa_fs.glsl");
         let vertex_source = include_str!("shaders/flat_vs.glsl");
 
@@ -45,7 +42,7 @@ pub struct FxaaRenderer {
 }
 
 impl FxaaRenderer {
-    pub fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
+    pub fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
         Ok(Self {
             shader: FxaaShader::new(state)?,
             quad: SurfaceSharedData::make_unit_xy_quad(),

@@ -9,14 +9,7 @@
 //#![deny(unsafe_code)]
 
 pub mod debug_renderer;
-pub mod error;
 pub mod surface;
-
-// Framework wraps all OpenGL calls so it has to be unsafe. Rest of renderer
-// code must be safe.
-#[macro_use]
-#[allow(unsafe_code)]
-mod framework;
 
 mod batch;
 mod blur;
@@ -32,13 +25,12 @@ mod sprite_renderer;
 mod ssao;
 mod ui_renderer;
 
-use crate::core::instant;
-use crate::renderer::fxaa::FxaaRenderer;
 use crate::{
+    core::instant,
     core::{
         algebra::{Matrix4, Vector2, Vector3},
         color::Color,
-        math::{Rect, TriangleDefinition},
+        math::Rect,
         pool::Handle,
         scope_profile,
     },
@@ -50,30 +42,31 @@ use crate::{
         deferred_light_renderer::{
             DeferredLightRenderer, DeferredRendererContext, LightingStatistics,
         },
-        error::RendererError,
         flat_shader::FlatShader,
         forward_renderer::{ForwardRenderContext, ForwardRenderer},
-        framework::{
-            framebuffer::{
-                Attachment, AttachmentKind, BackBuffer, CullFace, DrawParameters, FrameBuffer,
-                FrameBufferTrait,
-            },
-            geometry_buffer::{
-                AttributeDefinition, AttributeKind, BufferBuilder, DrawCallStatistics, ElementKind,
-                GeometryBuffer, GeometryBufferBuilder, GeometryBufferKind,
-            },
-            gpu_program::UniformValue,
-            gpu_texture::{
-                Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
-                PixelKind,
-            },
-            state::{PipelineState, PipelineStatistics},
-        },
+        fxaa::FxaaRenderer,
         gbuffer::{GBuffer, GBufferRenderContext},
         particle_system_renderer::{ParticleSystemRenderContext, ParticleSystemRenderer},
         sprite_renderer::{SpriteRenderContext, SpriteRenderer},
         surface::SurfaceSharedData,
         ui_renderer::{UiRenderContext, UiRenderer},
+    },
+    rendering_framework::{
+        error::FrameworkError,
+        framebuffer::{
+            Attachment, AttachmentKind, BackBuffer, CullFace, DrawParameters, FrameBuffer,
+            FrameBufferTrait,
+        },
+        geometry_buffer::{
+            AttributeDefinition, AttributeKind, BufferBuilder, DrawCallStatistics, ElementKind,
+            GeometryBuffer, GeometryBufferBuilder, GeometryBufferKind,
+        },
+        gpu_program::UniformValue,
+        gpu_texture::{
+            Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
+            PixelKind,
+        },
+        state::{PipelineState, PipelineStatistics},
     },
     resource::texture::{Texture, TextureKind, TextureState},
     scene::{node::Node, Scene, SceneContainer},
@@ -696,7 +689,7 @@ impl TextureCache {
 fn make_ui_frame_buffer(
     frame_size: Vector2<f32>,
     state: &mut PipelineState,
-) -> Result<FrameBuffer, RendererError> {
+) -> Result<FrameBuffer, FrameworkError> {
     let color_texture = Rc::new(RefCell::new(GpuTexture::new(
         state,
         GpuTextureKind::Rectangle {
@@ -740,7 +733,7 @@ impl Renderer {
     pub(in crate) fn new(
         context: glow::Context,
         frame_size: (u32, u32),
-    ) -> Result<Self, RendererError> {
+    ) -> Result<Self, FrameworkError> {
         let settings = QualitySettings::default();
 
         // Box pipeline state because we'll store pointers to it inside framework's entities and
@@ -883,7 +876,7 @@ impl Renderer {
     pub fn set_quality_settings(
         &mut self,
         settings: &QualitySettings,
-    ) -> Result<(), RendererError> {
+    ) -> Result<(), FrameworkError> {
         self.quality_settings = *settings;
         self.deferred_light_renderer
             .set_quality_settings(&mut self.state, settings)
@@ -908,7 +901,7 @@ impl Renderer {
         &mut self,
         render_target: Texture,
         ui: &mut UserInterface<M, C>,
-    ) -> Result<(), RendererError> {
+    ) -> Result<(), FrameworkError> {
         let new_width = ui.screen_size().x as usize;
         let new_height = ui.screen_size().y as usize;
 
@@ -976,7 +969,7 @@ impl Renderer {
         scenes: &SceneContainer,
         drawing_context: &DrawingContext,
         dt: f32,
-    ) -> Result<(), RendererError> {
+    ) -> Result<(), FrameworkError> {
         scope_profile!();
 
         // We have to invalidate resource bindings cache because some textures or programs,
@@ -1227,7 +1220,7 @@ impl Renderer {
         drawing_context: &DrawingContext,
         context: &glutin::WindowedContext<glutin::PossiblyCurrent>,
         dt: f32,
-    ) -> Result<(), RendererError> {
+    ) -> Result<(), FrameworkError> {
         self.render_frame(scenes, drawing_context, dt)?;
         self.statistics.end_frame();
         context.swap_buffers()?;
@@ -1243,7 +1236,7 @@ impl Renderer {
         scenes: &SceneContainer,
         drawing_context: &DrawingContext,
         dt: f32,
-    ) -> Result<(), RendererError> {
+    ) -> Result<(), FrameworkError> {
         self.render_frame(scenes, drawing_context, dt)?;
         self.statistics.end_frame();
         self.state.check_error();

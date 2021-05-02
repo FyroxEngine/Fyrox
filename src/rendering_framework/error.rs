@@ -5,7 +5,7 @@ use std::ffi::NulError;
 
 /// Set of possible renderer errors.
 #[derive(Debug)]
-pub enum RendererError {
+pub enum FrameworkError {
     /// Compilation of a shader has failed.
     ShaderCompilationFailed {
         /// Name of shader.
@@ -57,20 +57,20 @@ pub enum RendererError {
     Custom(String),
 }
 
-impl From<NulError> for RendererError {
+impl From<NulError> for FrameworkError {
     fn from(_: NulError) -> Self {
         Self::FaultyShaderSource
     }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-impl From<glutin::ContextError> for RendererError {
+impl From<glutin::ContextError> for FrameworkError {
     fn from(err: glutin::ContextError) -> Self {
         Self::Custom(format!("{:?}", err))
     }
 }
 
-impl From<String> for RendererError {
+impl From<String> for FrameworkError {
     fn from(v: String) -> Self {
         Self::Custom(v)
     }

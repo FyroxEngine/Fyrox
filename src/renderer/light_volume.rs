@@ -6,16 +6,14 @@ use crate::{
         scope_profile,
     },
     renderer::{
-        error::RendererError,
-        flat_shader::FlatShader,
-        framework::{
-            framebuffer::{CullFace, DrawParameters, FrameBufferTrait},
-            gpu_program::{GpuProgram, UniformLocation, UniformValue},
-            state::{ColorMask, PipelineState, StencilFunc, StencilOp},
-        },
-        gbuffer::GBuffer,
-        surface::SurfaceSharedData,
-        GeometryCache, RenderPassStatistics,
+        flat_shader::FlatShader, gbuffer::GBuffer, surface::SurfaceSharedData, GeometryCache,
+        RenderPassStatistics,
+    },
+    rendering_framework::{
+        error::FrameworkError,
+        framebuffer::{CullFace, DrawParameters, FrameBufferTrait},
+        gpu_program::{GpuProgram, UniformLocation, UniformValue},
+        state::{ColorMask, PipelineState, StencilFunc, StencilOp},
     },
     scene::{graph::Graph, light::Light, node::Node},
 };
@@ -33,7 +31,7 @@ struct SpotLightShader {
 }
 
 impl SpotLightShader {
-    fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
+    fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/spot_volumetric_fs.glsl");
         let vertex_source = include_str!("shaders/flat_vs.glsl");
         let program =
@@ -64,7 +62,7 @@ struct PointLightShader {
 }
 
 impl PointLightShader {
-    fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
+    fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/point_volumetric_fs.glsl");
         let vertex_source = include_str!("shaders/flat_vs.glsl");
         let program = GpuProgram::from_source(
@@ -95,7 +93,7 @@ pub struct LightVolumeRenderer {
 }
 
 impl LightVolumeRenderer {
-    pub fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
+    pub fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
         Ok(Self {
             spot_light_shader: SpotLightShader::new(state)?,
             point_light_shader: PointLightShader::new(state)?,

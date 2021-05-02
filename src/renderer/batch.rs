@@ -1,13 +1,12 @@
 use crate::{
     core::{algebra::Matrix4, arrayvec::ArrayVec, color::Color, pool::Handle, scope_profile},
-    renderer::{
-        error::RendererError,
-        framework::gpu_texture::{
-            GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
+    renderer::{surface::SurfaceSharedData, TextureCache},
+    rendering_framework::{
+        error::FrameworkError,
+        gpu_texture::{
+            GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
         },
-        framework::{gpu_texture::GpuTexture, state::PipelineState},
-        surface::SurfaceSharedData,
-        TextureCache,
+        state::PipelineState,
     },
     scene::{graph::Graph, mesh::RenderPath, node::Node},
 };
@@ -207,7 +206,7 @@ pub struct MatrixStorage {
 }
 
 impl MatrixStorage {
-    pub fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
+    pub fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
         Ok(Self {
             matrices_storage: Rc::new(RefCell::new(GpuTexture::new(
                 state,

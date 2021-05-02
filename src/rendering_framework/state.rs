@@ -1,7 +1,7 @@
-use crate::utils::log::{Log, MessageKind};
 use crate::{
     core::{color::Color, math::Rect},
-    renderer::framework::framebuffer::{CullFace, DrawParameters},
+    rendering_framework::framebuffer::{CullFace, DrawParameters},
+    utils::log::{Log, MessageKind},
 };
 use glow::HasContext;
 use std::fmt::{Display, Formatter};

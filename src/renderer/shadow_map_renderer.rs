@@ -7,21 +7,18 @@ use crate::{
         math::{frustum::Frustum, Rect},
         scope_profile,
     },
-    renderer::{
-        batch::BatchStorage,
-        error::RendererError,
-        framework::{
-            framebuffer::{
-                Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer, FrameBufferTrait,
-            },
-            gpu_program::{GpuProgram, UniformLocation, UniformValue},
-            gpu_texture::{
-                Coordinate, CubeMapFace, GpuTexture, GpuTextureKind, MagnificationFilter,
-                MinificationFilter, PixelKind, WrapMode,
-            },
-            state::{ColorMask, PipelineState},
+    renderer::{batch::BatchStorage, GeometryCache, RenderPassStatistics, ShadowMapPrecision},
+    rendering_framework::{
+        error::FrameworkError,
+        framebuffer::{
+            Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer, FrameBufferTrait,
         },
-        GeometryCache, RenderPassStatistics, ShadowMapPrecision,
+        gpu_program::{GpuProgram, UniformLocation, UniformValue},
+        gpu_texture::{
+            Coordinate, CubeMapFace, GpuTexture, GpuTextureKind, MagnificationFilter,
+            MinificationFilter, PixelKind, WrapMode,
+        },
+        state::{ColorMask, PipelineState},
     },
     scene::{graph::Graph, node::Node},
 };
@@ -36,7 +33,7 @@ struct SpotShadowMapShader {
 }
 
 impl SpotShadowMapShader {
-    pub fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
+    pub fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/spot_shadow_map_fs.glsl");
         let vertex_source = include_str!("shaders/spot_shadow_map_vs.glsl");
         let program =
@@ -77,12 +74,12 @@ impl SpotShadowMapRenderer {
         state: &mut PipelineState,
         size: usize,
         precision: ShadowMapPrecision,
-    ) -> Result<Self, RendererError> {
+    ) -> Result<Self, FrameworkError> {
         fn make_cascade(
             state: &mut PipelineState,
             size: usize,
             precision: ShadowMapPrecision,
-        ) -> Result<FrameBuffer, RendererError> {
+        ) -> Result<FrameBuffer, FrameworkError> {
             let depth = {
                 let kind = GpuTextureKind::Rectangle {
                     width: size,
@@ -246,7 +243,7 @@ struct PointShadowMapShader {
 }
 
 impl PointShadowMapShader {
-    pub fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
+    pub fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/point_shadow_map_fs.glsl");
         let vertex_source = include_str!("shaders/point_shadow_map_vs.glsl");
         let program = GpuProgram::from_source(
@@ -296,12 +293,12 @@ impl PointShadowMapRenderer {
         state: &mut PipelineState,
         size: usize,
         precision: ShadowMapPrecision,
-    ) -> Result<Self, RendererError> {
+    ) -> Result<Self, FrameworkError> {
         fn make_cascade(
             state: &mut PipelineState,
             size: usize,
             precision: ShadowMapPrecision,
-        ) -> Result<FrameBuffer, RendererError> {
+        ) -> Result<FrameBuffer, FrameworkError> {
             let depth = {
                 let kind = GpuTextureKind::Rectangle {
                     width: size,

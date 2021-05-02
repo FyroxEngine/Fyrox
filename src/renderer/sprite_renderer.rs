@@ -1,15 +1,12 @@
 use crate::{
     core::{math::Matrix4Ext, math::Rect, scope_profile},
-    renderer::{
-        error::RendererError,
-        framework::{
-            framebuffer::{CullFace, DrawParameters, FrameBuffer, FrameBufferTrait},
-            gpu_program::{GpuProgram, UniformLocation, UniformValue},
-            gpu_texture::GpuTexture,
-            state::PipelineState,
-        },
-        surface::SurfaceSharedData,
-        GeometryCache, RenderPassStatistics, TextureCache,
+    renderer::{surface::SurfaceSharedData, GeometryCache, RenderPassStatistics, TextureCache},
+    rendering_framework::{
+        error::FrameworkError,
+        framebuffer::{CullFace, DrawParameters, FrameBuffer, FrameBufferTrait},
+        gpu_program::{GpuProgram, UniformLocation, UniformValue},
+        gpu_texture::GpuTexture,
+        state::PipelineState,
     },
     scene::{camera::Camera, graph::Graph, node::Node},
 };
@@ -28,7 +25,7 @@ struct SpriteShader {
 }
 
 impl SpriteShader {
-    pub fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
+    pub fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/sprite_fs.glsl");
         let vertex_source = include_str!("shaders/sprite_vs.glsl");
         let program = GpuProgram::from_source(state, "FlatShader", vertex_source, fragment_source)?;
@@ -63,7 +60,7 @@ pub(in crate) struct SpriteRenderContext<'a, 'b, 'c> {
 }
 
 impl SpriteRenderer {
-    pub fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
+    pub fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
         let surface = SurfaceSharedData::make_collapsed_xy_quad();
 
         Ok(Self {

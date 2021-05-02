@@ -7,14 +7,7 @@ use crate::{
     },
     renderer::{
         batch::BatchStorage,
-        error::RendererError,
         flat_shader::FlatShader,
-        framework::{
-            framebuffer::{CullFace, DrawParameters, DrawPartContext, FrameBufferTrait},
-            gpu_program::{GpuProgram, UniformLocation, UniformValue},
-            gpu_texture::GpuTexture,
-            state::{ColorMask, PipelineState, StencilFunc, StencilOp},
-        },
         gbuffer::GBuffer,
         light_volume::LightVolumeRenderer,
         shadow_map_renderer::{
@@ -23,6 +16,13 @@ use crate::{
         ssao::ScreenSpaceAmbientOcclusionRenderer,
         surface::{SurfaceSharedData, Vertex},
         GeometryCache, QualitySettings, RenderPassStatistics, TextureCache,
+    },
+    rendering_framework::{
+        error::FrameworkError,
+        framebuffer::{CullFace, DrawParameters, DrawPartContext, FrameBufferTrait},
+        gpu_program::{GpuProgram, UniformLocation, UniformValue},
+        gpu_texture::GpuTexture,
+        state::{ColorMask, PipelineState, StencilFunc, StencilOp},
     },
     scene::{camera::Camera, light::Light, node::Node, Scene},
 };
@@ -81,7 +81,7 @@ impl Display for LightingStatistics {
 }
 
 impl AmbientLightShader {
-    fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
+    fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/ambient_light_fs.glsl");
         let vertex_source = include_str!("shaders/ambient_light_vs.glsl");
         let program =
@@ -122,7 +122,7 @@ struct SpotLightShader {
 }
 
 impl SpotLightShader {
-    fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
+    fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/deferred_spot_light_fs.glsl");
         let vertex_source = include_str!("shaders/deferred_light_vs.glsl");
         let program =
@@ -173,7 +173,7 @@ struct PointLightShader {
 }
 
 impl PointLightShader {
-    fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
+    fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/deferred_point_light_fs.glsl");
         let vertex_source = include_str!("shaders/deferred_light_vs.glsl");
         let program =
@@ -211,7 +211,7 @@ struct DirectionalLightShader {
 }
 
 impl DirectionalLightShader {
-    fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
+    fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/deferred_directional_light_fs.glsl");
         let vertex_source = include_str!("shaders/deferred_light_vs.glsl");
         let program =
@@ -263,7 +263,7 @@ impl DeferredLightRenderer {
         state: &mut PipelineState,
         frame_size: (u32, u32),
         settings: &QualitySettings,
-    ) -> Result<Self, RendererError> {
+    ) -> Result<Self, FrameworkError> {
         Ok(Self {
             ssao_renderer: ScreenSpaceAmbientOcclusionRenderer::new(
                 state,
@@ -344,7 +344,7 @@ impl DeferredLightRenderer {
         &mut self,
         state: &mut PipelineState,
         settings: &QualitySettings,
-    ) -> Result<(), RendererError> {
+    ) -> Result<(), FrameworkError> {
         if settings.spot_shadow_map_size != self.spot_shadow_map_renderer.base_size()
             || settings.spot_shadow_map_precision != self.spot_shadow_map_renderer.precision()
         {
@@ -371,7 +371,7 @@ impl DeferredLightRenderer {
         &mut self,
         state: &mut PipelineState,
         frame_size: (u32, u32),
-    ) -> Result<(), RendererError> {
+    ) -> Result<(), FrameworkError> {
         self.ssao_renderer = ScreenSpaceAmbientOcclusionRenderer::new(
             state,
             frame_size.0 as usize,

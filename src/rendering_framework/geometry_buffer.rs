@@ -1,7 +1,7 @@
-use crate::utils::array_as_u8_slice;
 use crate::{
-    core::scope_profile,
-    renderer::{error::RendererError, framework::state::PipelineState, TriangleDefinition},
+    core::{math::TriangleDefinition, scope_profile},
+    rendering_framework::{error::FrameworkError, state::PipelineState},
+    utils::array_as_u8_slice,
 };
 use glow::HasContext;
 use std::{cell::Cell, marker::PhantomData, mem::size_of};
@@ -211,13 +211,13 @@ impl<'a> GeometryBufferBinding<'a> {
         &self,
         offset: usize,
         count: usize,
-    ) -> Result<DrawCallStatistics, RendererError> {
+    ) -> Result<DrawCallStatistics, FrameworkError> {
         scope_profile!();
 
         let last_triangle_index = offset + count;
 
         if last_triangle_index > self.buffer.element_count.get() {
-            Err(RendererError::InvalidElementRange {
+            Err(FrameworkError::InvalidElementRange {
                 start: offset,
                 end: last_triangle_index,
                 total: self.buffer.element_count.get(),
@@ -381,7 +381,7 @@ impl BufferBuilder {
         self
     }
 
-    fn build(self, state: &mut PipelineState) -> Result<NativeBuffer, RendererError> {
+    fn build(self, state: &mut PipelineState) -> Result<NativeBuffer, FrameworkError> {
         let vbo = unsafe { state.gl.create_buffer()? };
 
         state.set_vertex_buffer_object(vbo);
@@ -425,7 +425,7 @@ impl BufferBuilder {
 
                 if offset > self.element_size {
                     state.set_vertex_buffer_object(Default::default());
-                    return Err(RendererError::InvalidAttributeDescriptor);
+                    return Err(FrameworkError::InvalidAttributeDescriptor);
                 }
             }
         }
@@ -452,7 +452,7 @@ impl GeometryBufferBuilder {
         self
     }
 
-    pub fn build(self, state: &mut PipelineState) -> Result<GeometryBuffer, RendererError> {
+    pub fn build(self, state: &mut PipelineState) -> Result<GeometryBuffer, FrameworkError> {
         scope_profile!();
 
         let vao = unsafe { state.gl.create_vertex_array()? };

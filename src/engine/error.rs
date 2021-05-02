@@ -1,6 +1,6 @@
 //! All possible errors that can happen in the engine.
 
-use crate::{renderer::error::RendererError, sound::error::SoundError};
+use crate::{rendering_framework::error::FrameworkError, sound::error::SoundError};
 
 /// See module docs.
 #[derive(Debug)]
@@ -8,7 +8,7 @@ pub enum EngineError {
     /// Sound system error.
     Sound(SoundError),
     /// Rendering system error.
-    Renderer(RendererError),
+    Renderer(FrameworkError),
     /// Internal error.
     Custom(String),
 }
@@ -19,8 +19,8 @@ impl From<SoundError> for EngineError {
     }
 }
 
-impl From<RendererError> for EngineError {
-    fn from(renderer: RendererError) -> Self {
+impl From<FrameworkError> for EngineError {
+    fn from(renderer: FrameworkError) -> Self {
         Self::Renderer(renderer)
     }
 }

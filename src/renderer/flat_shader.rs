@@ -1,7 +1,7 @@
-use crate::renderer::framework::state::PipelineState;
-use crate::renderer::{
-    error::RendererError,
-    framework::gpu_program::{GpuProgram, UniformLocation},
+use crate::rendering_framework::{
+    error::FrameworkError,
+    gpu_program::{GpuProgram, UniformLocation},
+    state::PipelineState,
 };
 
 pub struct FlatShader {
@@ -11,7 +11,7 @@ pub struct FlatShader {
 }
 
 impl FlatShader {
-    pub fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
+    pub fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/flat_fs.glsl");
         let vertex_source = include_str!("shaders/flat_vs.glsl");
 

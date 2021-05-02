@@ -1,4 +1,4 @@
-//! 3D Game Engine.
+//! 3D and 2D Game Engine.
 
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::upper_case_acronyms)]
@@ -24,8 +24,11 @@ extern crate imageproc;
 pub mod animation;
 pub mod engine;
 pub mod renderer;
+pub mod renderer2d;
+pub mod rendering_framework;
 pub mod resource;
 pub mod scene;
+pub mod scene2d;
 pub mod utils;
 
 pub use crate::core::rand;

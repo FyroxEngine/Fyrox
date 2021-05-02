@@ -9,19 +9,17 @@ use crate::{
         brush::Brush,
         draw::{CommandTexture, DrawingContext, SharedTexture},
     },
-    renderer::{
-        error::RendererError,
-        framework::{
-            framebuffer::{CullFace, DrawParameters, DrawPartContext, FrameBufferTrait},
-            geometry_buffer::{
-                AttributeDefinition, AttributeKind, BufferBuilder, ElementKind, GeometryBuffer,
-                GeometryBufferBuilder, GeometryBufferKind,
-            },
-            gpu_program::{GpuProgram, UniformLocation, UniformValue},
-            gpu_texture::GpuTexture,
-            state::{ColorMask, PipelineState, StencilFunc, StencilOp},
+    renderer::{RenderPassStatistics, TextureCache},
+    rendering_framework::{
+        error::FrameworkError,
+        framebuffer::{CullFace, DrawParameters, DrawPartContext, FrameBufferTrait},
+        geometry_buffer::{
+            AttributeDefinition, AttributeKind, BufferBuilder, ElementKind, GeometryBuffer,
+            GeometryBufferBuilder, GeometryBufferKind,
         },
-        RenderPassStatistics, TextureCache,
+        gpu_program::{GpuProgram, UniformLocation, UniformValue},
+        gpu_texture::GpuTexture,
+        state::{ColorMask, PipelineState, StencilFunc, StencilOp},
     },
     resource::texture::{Texture, TextureData, TextureKind, TexturePixelKind, TextureState},
 };
@@ -50,7 +48,7 @@ struct UiShader {
 }
 
 impl UiShader {
-    pub fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
+    pub fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/ui_fs.glsl");
         let vertex_source = include_str!("shaders/ui_vs.glsl");
         let program = GpuProgram::from_source(state, "UIShader", vertex_source, fragment_source)?;
@@ -92,7 +90,7 @@ pub(in crate) struct UiRenderContext<'a, 'b, 'c> {
 }
 
 impl UiRenderer {
-    pub(in crate::renderer) fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
+    pub(in crate::renderer) fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
         let geometry_buffer = GeometryBufferBuilder::new(ElementKind::Triangle)
             .with_buffer_builder(
                 BufferBuilder::new::<crate::gui::draw::Vertex>(
@@ -146,7 +144,7 @@ impl UiRenderer {
     pub(in crate::renderer) fn render(
         &mut self,
         args: UiRenderContext,
-    ) -> Result<RenderPassStatistics, RendererError> {
+    ) -> Result<RenderPassStatistics, FrameworkError> {
         scope_profile!();
 
         let UiRenderContext {

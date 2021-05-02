@@ -1,18 +1,16 @@
 use crate::{
     core::{algebra::Vector2, math::Matrix4Ext, math::Rect, scope_profile},
-    renderer::{
-        error::RendererError,
-        framework::{
-            framebuffer::{CullFace, DrawParameters, FrameBuffer, FrameBufferTrait},
-            geometry_buffer::{
-                AttributeDefinition, AttributeKind, BufferBuilder, ElementKind, GeometryBuffer,
-                GeometryBufferBuilder, GeometryBufferKind,
-            },
-            gpu_program::{GpuProgram, UniformLocation, UniformValue},
-            gpu_texture::GpuTexture,
-            state::PipelineState,
+    renderer::{RenderPassStatistics, TextureCache},
+    rendering_framework::{
+        error::FrameworkError,
+        framebuffer::{CullFace, DrawParameters, FrameBuffer, FrameBufferTrait},
+        geometry_buffer::{
+            AttributeDefinition, AttributeKind, BufferBuilder, ElementKind, GeometryBuffer,
+            GeometryBufferBuilder, GeometryBufferKind,
         },
-        RenderPassStatistics, TextureCache,
+        gpu_program::{GpuProgram, UniformLocation, UniformValue},
+        gpu_texture::GpuTexture,
+        state::PipelineState,
     },
     scene::{camera::Camera, graph::Graph, node::Node, particle_system},
 };
@@ -31,7 +29,7 @@ struct ParticleSystemShader {
 }
 
 impl ParticleSystemShader {
-    fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
+    fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
         let vertex_source = include_str!("shaders/particle_system_vs.glsl");
         let fragment_source = include_str!("shaders/particle_system_fs.glsl");
         let program = GpuProgram::from_source(
@@ -75,7 +73,7 @@ pub(in crate) struct ParticleSystemRenderContext<'a, 'b, 'c> {
 }
 
 impl ParticleSystemRenderer {
-    pub fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
+    pub fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
         let geometry_buffer = GeometryBufferBuilder::new(ElementKind::Triangle)
             .with_buffer_builder(
                 BufferBuilder::new::<crate::scene::particle_system::Vertex>(
