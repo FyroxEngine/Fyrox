@@ -420,15 +420,19 @@ impl PhysicsSection {
                 }
 
                 match message.data() {
-                    UiMessageData::DropdownList(DropdownListMessage::SelectionChanged(Some(
-                        index,
-                    ))) if message.direction() == MessageDirection::FromWidget => {
-                        if message.destination() == self.body {
-                            self.select_body(editor_scene, node_handle, graph, *index);
-                        } else if message.destination() == self.collider {
+                    UiMessageData::DropdownList(DropdownListMessage::SelectionChanged(index))
+                        if message.direction() == MessageDirection::FromWidget =>
+                    {
+                        if message.destination() == self.collider {
                             self.select_collider(editor_scene, node_handle, *index);
-                        } else if message.destination() == self.joint {
-                            self.select_joint(editor_scene, node_handle, *index);
+                        }
+
+                        if let Some(index) = index {
+                            if message.destination() == self.body {
+                                self.select_body(editor_scene, node_handle, graph, *index);
+                            } else if message.destination() == self.joint {
+                                self.select_joint(editor_scene, node_handle, *index);
+                            }
                         }
                     }
                     UiMessageData::Button(ButtonMessage::Click)
@@ -599,16 +603,30 @@ impl PhysicsSection {
         };
     }
 
-    fn select_collider(&self, editor_scene: &EditorScene, node_handle: Handle<Node>, index: usize) {
+    fn select_collider(
+        &self,
+        editor_scene: &EditorScene,
+        node_handle: Handle<Node>,
+        index: Option<usize>,
+    ) {
         if let Some(&body) = editor_scene.physics.binder.value_of(&node_handle) {
-            let mut current_index = 0;
-            if let Some(&first_collider) = editor_scene.physics.bodies[body].colliders.first() {
-                current_index = editor_scene.physics.colliders[first_collider.into()]
-                    .shape
-                    .id();
-            }
+            let current_index =
+                editor_scene.physics.bodies[body]
+                    .colliders
+                    .first()
+                    .map(|&first_collider| {
+                        editor_scene.physics.colliders[first_collider.into()]
+                            .shape
+                            .id() as usize
+                    });
 
-            if current_index != index as u32 {
+            let (can_switch, index) = match (current_index, index) {
+                (Some(current_index), Some(index)) if current_index != index => (true, index),
+                (None, Some(index)) => (true, index),
+                _ => (false, 0),
+            };
+
+            if can_switch {
                 let collider = match index {
                     0 => Collider {
                         shape: ColliderShapeDesc::Ball(BallDesc { radius: 0.5 }),
