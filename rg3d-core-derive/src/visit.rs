@@ -18,9 +18,9 @@ pub fn impl_visit(ast: DeriveInput) -> TokenStream2 {
     }
 }
 
-fn create_generics<'a>(
+fn create_generics(
     generics: &Generics,
-    field_args: impl Iterator<Item = &'a args::FieldArgs>,
+    field_args: impl Iterator<Item = args::FieldArgs>,
 ) -> Generics {
     let mut generics = generics.clone();
 
@@ -28,36 +28,11 @@ fn create_generics<'a>(
     generics.make_where_clause().predicates.extend(
         field_args
             .filter(|f| !f.skip)
-            .map(|f| &f.ty)
+            .map(|f| f.ty)
             .map::<WherePredicate, _>(|ty| parse_quote! { #ty: Visit }),
     );
 
     generics
-}
-
-// `impl Visit` for struct
-fn impl_visit_impl<'a>(
-    ty_ident: &Ident,
-    generics: &Generics,
-    field_args: impl Iterator<Item = &'a args::FieldArgs>,
-    visit_body: TokenStream2,
-) -> TokenStream2 {
-    let generics = self::create_generics(generics, field_args);
-    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
-
-    quote! {
-        impl #impl_generics Visit for #ty_ident #ty_generics #where_clause {
-            fn visit(
-                &mut self,
-                #[allow(unused)]
-                name: &str,
-                #[allow(unused)]
-                visitor: &mut Visitor,
-            ) -> VisitResult {
-                #visit_body
-            }
-        }
-    }
 }
 
 /// `<prefix>field.visit("name", visitor);`
@@ -115,26 +90,37 @@ fn create_field_visits<'a>(
 fn impl_visit_struct(args: args::StructArgs) -> TokenStream2 {
     let field_args = args.data.take_struct().unwrap_or_else(|| unreachable!());
 
-    self::impl_visit_impl(
-        // impl block parameters:
-        &args.ident,
-        &args.generics,
-        field_args.iter(),
-        // visit function body:
-        if field_args.style.clone() == ast::Style::Unit {
-            quote! { Ok(()) }
-        } else {
-            // `field.visit(..);` parts
-            let field_visits =
-                self::create_field_visits(None, field_args.fields.iter(), field_args.style);
+    let ty_ident = &args.ident;
+    let generics = self::create_generics(&args.generics, field_args.iter().cloned());
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
-            quote! {
-                visitor.enter_region(name)?;
-                #(self.#field_visits)*
-                visitor.leave_region()
+    let visit_fn_body = if field_args.style.clone() == ast::Style::Unit {
+        quote! { Ok(()) }
+    } else {
+        // `field.visit(..);` parts
+        let field_visits =
+            self::create_field_visits(None, field_args.fields.iter(), field_args.style);
+
+        quote! {
+            visitor.enter_region(name)?;
+            #(self.#field_visits)*
+            visitor.leave_region()
+        }
+    };
+
+    quote! {
+        impl #impl_generics Visit for #ty_ident #ty_generics #where_clause {
+            fn visit(
+                &mut self,
+                #[allow(unused)]
+                name: &str,
+                #[allow(unused)]
+                visitor: &mut Visitor,
+            ) -> VisitResult {
+                #visit_fn_body
             }
-        },
-    )
+        }
+    }
 }
 
 /// impl `Visit` for `enum`
@@ -172,8 +158,10 @@ fn impl_visit_enum(ast: &DeriveInput, data: &DataEnum) -> TokenStream2 {
                 }
             });
 
+        let (impl_generics, ty_generics, where_clause) = ast.generics.split_for_impl();
+
         quote! {
-            fn id(me: &#ty_ident) -> #id_type {
+            fn id #impl_generics (me: &#ty_ident #ty_generics) -> #id_type #where_clause {
                 match me {
                     #(#matchers)*
                     _ => unreachable!("Unable to get ID from enum variant") ,
@@ -229,8 +217,14 @@ fn impl_visit_enum(ast: &DeriveInput, data: &DataEnum) -> TokenStream2 {
                 }
             });
 
+        let (impl_generics, ty_generics, where_clause) = ast.generics.split_for_impl();
+
         quote! {
-            fn from_id(id: #id_type) -> std::result::Result<#ty_ident, String> {
+            fn from_id #impl_generics (
+                id: #id_type
+            ) -> std::result::Result<#ty_ident #ty_generics, String>
+                #where_clause
+            {
                 match id {
                     #(#matchers)*
                     _ => Err(format!("Unknown ID for type `{}`: `{}`", #ty_name, id)),
@@ -241,17 +235,7 @@ fn impl_visit_enum(ast: &DeriveInput, data: &DataEnum) -> TokenStream2 {
 
     // visit every field of each variant
     let variant_visits = data.variants.iter().map(|variant| {
-        let (fields, style): (Vec<_>, _) = match &variant.fields {
-            Fields::Named(fields) => (fields.named.iter().collect(), ast::Style::Struct),
-            Fields::Unnamed(fields) => (fields.unnamed.iter().collect(), ast::Style::Tuple),
-            Fields::Unit => (vec![], ast::Style::Unit),
-        };
-
-        let fields = fields
-            .iter()
-            .map(|f| args::FieldArgs::from_field(f).unwrap())
-            .collect::<Vec<_>>();
-
+        let (fields, style) = args::field_args_from_variant(variant);
         let variant_ident = &variant.ident;
 
         match style {
@@ -286,10 +270,17 @@ fn impl_visit_enum(ast: &DeriveInput, data: &DataEnum) -> TokenStream2 {
         }
     });
 
-    // self::impl_visit_impl(ty_ident, &ast.generics,
+    let generics = {
+        // fields of all the variants
+        let field_args = data.variants.iter().flat_map(|variant| {
+            let (fields, _style) = args::field_args_from_variant(variant);
+            fields.into_iter()
+        });
 
-    // TODO: add generic bounds
-    let (impl_generics, ty_generics, where_clause) = ast.generics.split_for_impl();
+        self::create_generics(&ast.generics, field_args)
+    };
+
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     // plain-enum-only support
     quote! {

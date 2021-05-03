@@ -56,6 +56,15 @@ enum ComplexEnum {
     NamedFields { a: f32, b: u32 },
 }
 
+#[derive(Debug, Clone, PartialEq, Visit)]
+enum GenericEnum<T>
+where
+    T: std::fmt::Debug,
+{
+    UnitVariant,
+    Tuple(i32, Vec<T>),
+}
+
 /// Saves given `data` and overwrites `data_default` with the saved data.
 /// Test the equality after running this method!
 fn save_load<T: Visit>(test_name: &str, data: &mut T, data_default: &mut T) {
@@ -201,6 +210,26 @@ fn complex_enum() {
     let mut data_default = ComplexEnum::UnitVariant;
 
     self::save_load("complex_enum", &mut data, &mut data_default);
+
+    assert_eq!(data, data_default);
+}
+
+#[test]
+fn generic_enum() {
+    #[derive(Debug)]
+    struct NotVisit;
+
+    #[allow(warnings)]
+    let mut not_compile = GenericEnum::Tuple(1, vec![NotVisit]);
+
+    // Compile error because `Generics<NotVisit> is not `Visit`:
+    // let mut visitor = Visitor::new();
+    // not_compile.visit("Data", &mut visitor).unwrap();
+
+    let mut data = GenericEnum::Tuple(1, vec![100u32]);
+    let mut data_default = GenericEnum::UnitVariant;
+
+    self::save_load("generic_enum", &mut data, &mut data_default);
 
     assert_eq!(data, data_default);
 }
