@@ -10,6 +10,11 @@
 
 pub use rg3d_core_derive::Visit;
 
+pub mod prelude {
+    //! Types to use `#[derive(Visit)]`
+    pub use super::{Visit, VisitResult, Visitor};
+}
+
 use crate::io::FileLoadError;
 
 use crate::{
