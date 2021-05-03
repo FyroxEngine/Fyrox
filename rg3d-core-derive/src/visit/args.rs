@@ -2,12 +2,12 @@ use darling::*;
 use syn::*;
 
 #[derive(FromDeriveInput)]
-#[darling(attributes(visit), supports(struct_any))]
-pub struct StructArgs {
+#[darling(attributes(visit), supports(struct_any, enum_any))]
+pub struct TypeArgs {
     pub ident: Ident,
     // pub vis: Visibility,
     pub generics: Generics,
-    pub data: ast::Data<util::Ignored, FieldArgs>,
+    pub data: ast::Data<VariantArgs, FieldArgs>,
     // attrs: Vec<Attribute>
 }
 
@@ -28,18 +28,9 @@ pub struct FieldArgs {
     pub rename: Option<String>,
 }
 
-/// Collect [`FieldArgs`] manually from [`syn::Variant`]
-pub fn field_args_from_variant(variant: &Variant) -> (Vec<FieldArgs>, ast::Style) {
-    let (fields, style): (Vec<_>, _) = match &variant.fields {
-        Fields::Named(fields) => (fields.named.iter().collect(), ast::Style::Struct),
-        Fields::Unnamed(fields) => (fields.unnamed.iter().collect(), ast::Style::Tuple),
-        Fields::Unit => (vec![], ast::Style::Unit),
-    };
-
-    let fields = fields
-        .iter()
-        .map(|f| self::FieldArgs::from_field(f).unwrap())
-        .collect::<Vec<_>>();
-
-    (fields, style)
+#[derive(FromVariant)]
+#[darling(attributes(inspect))]
+pub struct VariantArgs {
+    pub ident: Ident,
+    pub fields: ast::Fields<FieldArgs>,
 }
