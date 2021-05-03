@@ -1,3 +1,5 @@
+mod utils;
+
 use std::{env, fs::File, io::Write, path::PathBuf};
 
 use futures::executor::block_on;
@@ -65,40 +67,6 @@ where
     Tuple(i32, Vec<T>),
 }
 
-/// Saves given `data` and overwrites `data_default` with the saved data.
-/// Test the equality after running this method!
-fn save_load<T: Visit>(test_name: &str, data: &mut T, data_default: &mut T) {
-    // Locate output path
-    let (bin, txt) = {
-        let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
-        let root = PathBuf::from(manifest_dir).join("test_output");
-        (
-            root.join(format!("{}.bin", test_name)),
-            root.join(format!("{}.txt", test_name)),
-        )
-    };
-
-    // Save `data`
-    {
-        let mut visitor = Visitor::new();
-        data.visit("Data", &mut visitor).unwrap();
-
-        visitor.save_binary(&bin).unwrap();
-        let mut file = File::create(&txt).unwrap();
-        file.write(visitor.save_text().as_bytes()).unwrap();
-    }
-
-    // Load the saevd data to `data_default`
-    {
-        let mut visitor = block_on(Visitor::load_binary(&bin)).unwrap();
-        // overwrite the default data with saved data
-        data_default.visit("Data", &mut visitor).unwrap();
-    }
-
-    // Test function would would do:
-    // assert_eq!(data, default_data);
-}
-
 #[test]
 fn named_fields() {
     let mut data = NamedFields {
@@ -107,7 +75,7 @@ fn named_fields() {
     };
     let mut data_default = NamedFields::default();
 
-    self::save_load("named_fields", &mut data, &mut data_default);
+    utils::save_load("named_fields", &mut data, &mut data_default);
 
     // The default data was overwritten with saved data.
     // Now it should be same as the original data:
@@ -121,7 +89,7 @@ fn unit_struct() {
 
     // non seuse.. but anyways,
     // `Visit` is implemented `UnitStruct;` as empty code block `{}`
-    self::save_load("unit_struct", &mut data, &mut data_default);
+    utils::save_load("unit_struct", &mut data, &mut data_default);
 
     assert_eq!(data, data_default);
 }
@@ -131,7 +99,7 @@ fn tuple_struct() {
     let mut data = TupleStruct(10.0, 20);
     let mut data_default = TupleStruct(0.0, 0);
 
-    self::save_load("tuple_struct", &mut data, &mut data_default);
+    utils::save_load("tuple_struct", &mut data, &mut data_default);
 
     assert_eq!(data, data_default);
 }
@@ -144,7 +112,7 @@ fn skip_attr() {
     };
     let mut data_default = SkipAttr::default();
 
-    self::save_load("skip_attr", &mut data, &mut data_default);
+    utils::save_load("skip_attr", &mut data, &mut data_default);
 
     // The default data was overwritten with saved data,
     // except the `skipped` field:
@@ -176,7 +144,7 @@ fn generics() {
     };
     let mut data_default = Generics { items: vec![] };
 
-    self::save_load("generics", &mut data, &mut data_default);
+    utils::save_load("generics", &mut data, &mut data_default);
 
     assert_eq!(data, data_default);
 }
@@ -186,7 +154,7 @@ fn plain_enum() {
     let mut data = PlainEnum::C;
     let mut data_default = PlainEnum::A;
 
-    self::save_load("plain_enum", &mut data, &mut data_default);
+    utils::save_load("plain_enum", &mut data, &mut data_default);
 
     assert_eq!(data, data_default);
 }
@@ -199,7 +167,7 @@ fn one_of_the_types() {
     });
     let mut data_default = OneOfTheTypes::U32(0);
 
-    self::save_load("one_of_the_types", &mut data, &mut data_default);
+    utils::save_load("one_of_the_types", &mut data, &mut data_default);
 
     assert_eq!(data, data_default);
 }
@@ -209,7 +177,7 @@ fn complex_enum() {
     let mut data = ComplexEnum::Tuple(100, 200);
     let mut data_default = ComplexEnum::UnitVariant;
 
-    self::save_load("complex_enum", &mut data, &mut data_default);
+    utils::save_load("complex_enum", &mut data, &mut data_default);
 
     assert_eq!(data, data_default);
 }
@@ -229,7 +197,7 @@ fn generic_enum() {
     let mut data = GenericEnum::Tuple(1, vec![100u32]);
     let mut data_default = GenericEnum::UnitVariant;
 
-    self::save_load("generic_enum", &mut data, &mut data_default);
+    utils::save_load("generic_enum", &mut data, &mut data_default);
 
     assert_eq!(data, data_default);
 }

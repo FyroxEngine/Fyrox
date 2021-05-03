@@ -23,6 +23,9 @@ pub struct FieldArgs {
     /// `#[visit(skip)]`: skip on read and write
     #[darling(default)]
     pub skip: bool,
+    /// `#[visit(rename = "..")]`: force reading/writing as this name
+    #[darling(default)]
+    pub rename: Option<String>,
 }
 
 /// Collect [`FieldArgs`] manually from [`syn::Variant`]

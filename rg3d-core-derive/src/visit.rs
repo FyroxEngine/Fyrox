@@ -1,5 +1,7 @@
 mod args;
 
+use std::collections::HashSet;
+
 use convert_case::{Case, Casing};
 use darling::*;
 use proc_macro2::TokenStream as TokenStream2;
@@ -48,7 +50,7 @@ fn create_field_visits<'a>(
         return vec![];
     }
 
-    fields
+    let visit_args = fields
         .filter(|field| !field.skip)
         .enumerate()
         .map(|(field_index, field)| {
@@ -79,6 +81,32 @@ fn create_field_visits<'a>(
                 ast::Style::Unit => unreachable!(),
             };
 
+            let name = match &field.rename {
+                Some(new_name) => {
+                    assert!(
+                        !new_name.is_empty(),
+                        "renaming to empty string doesn't make sense!"
+                    );
+                    // overwrite the field name with the specified name:
+                    new_name.clone()
+                }
+                None => name,
+            };
+
+            (ident, name)
+        })
+        .collect::<Vec<_>>();
+
+    let mut no_dup = HashSet::new();
+    for name in visit_args.iter().map(|(_ident, name)| name) {
+        if !no_dup.insert(name) {
+            panic!("duplicate visiting names detected!");
+        }
+    }
+
+    visit_args
+        .iter()
+        .map(|(ident, name)| {
             quote! {
                 #ident.visit(#name, visitor)?;
             }
