@@ -11,7 +11,7 @@ repository = "https://github.com/mrDIMAS/rg3d"
 readme = "README.md"
 
 [workspace]
-members = ["rg3d-core", "rg3d-sound", "rg3d-ui", "examples/wasm"]
+members = ["rg3d-core-derive", "rg3d-core", "rg3d-sound", "rg3d-ui", "examples/wasm"]
 
 [profile.dev]
 opt-level = 0
