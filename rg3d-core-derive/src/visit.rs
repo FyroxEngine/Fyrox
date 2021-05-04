@@ -1,5 +1,7 @@
 mod args;
 
+use std::collections::HashSet;
+
 use convert_case::{Case, Casing};
 use darling::*;
 use proc_macro2::TokenStream as TokenStream2;
@@ -8,13 +10,10 @@ use syn::*;
 
 // impl `#[derive(Visit)]` for `struct` or `enum`
 pub fn impl_visit(ast: DeriveInput) -> TokenStream2 {
-    match ast.data {
-        Data::Struct(ref _data) => {
-            let struct_args = args::StructArgs::from_derive_input(&ast).unwrap();
-            self::impl_visit_struct(struct_args)
-        }
-        Data::Enum(ref data) => self::impl_visit_enum(&ast, data),
-        Data::Union(ref _union) => todo!("add union support for #[derive(Visit)]"),
+    let args = args::TypeArgs::from_derive_input(&ast).unwrap();
+    match &args.data {
+        ast::Data::Struct(ref field_args) => self::impl_visit_struct(&args, field_args),
+        ast::Data::Enum(ref variants) => self::impl_visit_enum(&args, variants),
     }
 }
 
@@ -48,7 +47,7 @@ fn create_field_visits<'a>(
         return vec![];
     }
 
-    fields
+    let visit_args = fields
         .filter(|field| !field.skip)
         .enumerate()
         .map(|(field_index, field)| {
@@ -79,6 +78,32 @@ fn create_field_visits<'a>(
                 ast::Style::Unit => unreachable!(),
             };
 
+            let name = match &field.rename {
+                Some(new_name) => {
+                    assert!(
+                        !new_name.is_empty(),
+                        "renaming to empty string doesn't make sense!"
+                    );
+                    // overwrite the field name with the specified name:
+                    new_name.clone()
+                }
+                None => name,
+            };
+
+            (ident, name)
+        })
+        .collect::<Vec<_>>();
+
+    let mut no_dup = HashSet::new();
+    for name in visit_args.iter().map(|(_ident, name)| name) {
+        if !no_dup.insert(name) {
+            panic!("duplicate visiting names detected!");
+        }
+    }
+
+    visit_args
+        .iter()
+        .map(|(ident, name)| {
             quote! {
                 #ident.visit(#name, visitor)?;
             }
@@ -87,9 +112,10 @@ fn create_field_visits<'a>(
 }
 
 /// impl `Visit` for `struct`
-fn impl_visit_struct(args: args::StructArgs) -> TokenStream2 {
-    let field_args = args.data.take_struct().unwrap_or_else(|| unreachable!());
-
+fn impl_visit_struct(
+    args: &args::TypeArgs,
+    field_args: &ast::Fields<args::FieldArgs>,
+) -> TokenStream2 {
     let ty_ident = &args.ident;
     let generics = self::create_generics(&args.generics, field_args.iter().cloned());
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
@@ -124,8 +150,8 @@ fn impl_visit_struct(args: args::StructArgs) -> TokenStream2 {
 }
 
 /// impl `Visit` for `enum`
-fn impl_visit_enum(ast: &DeriveInput, data: &DataEnum) -> TokenStream2 {
-    let ty_ident = &ast.ident;
+fn impl_visit_enum(args: &args::TypeArgs, variants: &[args::VariantArgs]) -> TokenStream2 {
+    let ty_ident = &args.ident;
     let ty_name = format!("{}", ty_ident);
 
     // variant ID = variant index
@@ -133,32 +159,28 @@ fn impl_visit_enum(ast: &DeriveInput, data: &DataEnum) -> TokenStream2 {
 
     // `fn id(&self) -> u32`
     let fn_id = {
-        let matchers = data
-            .variants
-            .iter()
-            .enumerate()
-            .map(|(variant_index, variant)| {
-                let variant_index = variant_index as u32;
-                let variant_ident = &variant.ident;
+        let matchers = variants.iter().enumerate().map(|(variant_index, variant)| {
+            let variant_index = variant_index as u32;
+            let variant_ident = &variant.ident;
 
-                match variant.fields {
-                    Fields::Named(_) => quote! {
-                        #ty_ident::#variant_ident { .. } => #variant_index,
-                    },
-                    Fields::Unnamed(_) => {
-                        let idents = (0..variant.fields.len()).map(|__| quote!(_));
+            match variant.fields.style {
+                ast::Style::Struct => quote! {
+                    #ty_ident::#variant_ident { .. } => #variant_index,
+                },
+                ast::Style::Tuple => {
+                    let idents = (0..variant.fields.len()).map(|__| quote!(_));
 
-                        quote! {
-                            #ty_ident::#variant_ident(#(#idents),*) => #variant_index,
-                        }
+                    quote! {
+                        #ty_ident::#variant_ident(#(#idents),*) => #variant_index,
                     }
-                    Fields::Unit => quote! {
-                        #ty_ident::#variant_ident => #variant_index,
-                    },
                 }
-            });
+                ast::Style::Unit => quote! {
+                    #ty_ident::#variant_ident => #variant_index,
+                },
+            }
+        });
 
-        let (impl_generics, ty_generics, where_clause) = ast.generics.split_for_impl();
+        let (impl_generics, ty_generics, where_clause) = args.generics.split_for_impl();
 
         quote! {
             fn id #impl_generics (me: &#ty_ident #ty_generics) -> #id_type #where_clause {
@@ -173,51 +195,47 @@ fn impl_visit_enum(ast: &DeriveInput, data: &DataEnum) -> TokenStream2 {
     // `fn from_id(id: u32) -> Result<Self, String>`
     let fn_from_id = {
         // `<variant_index> => Ok(TypeName::Variant(Default::default())),
-        let matchers = data
-            .variants
-            .iter()
-            .enumerate()
-            .map(|(variant_index, variant)| {
-                let variant_index = variant_index as u32;
-                let variant_ident = &variant.ident;
+        let matchers = variants.iter().enumerate().map(|(variant_index, variant)| {
+            let variant_index = variant_index as u32;
+            let variant_ident = &variant.ident;
 
-                // create default value of this variant
-                let default = match &variant.fields {
-                    Fields::Named(fields) => {
-                        let defaults = fields.named.iter().map(|field| {
-                            let field_ident = &field.ident;
-                            quote! {
-                                #field_ident: Default::default(),
-                            }
-                        });
-
+            // create default value of this variant
+            let default = match variant.fields.style {
+                ast::Style::Struct => {
+                    let defaults = variant.fields.iter().map(|field| {
+                        let field_ident = &field.ident;
                         quote! {
-                            #ty_ident::#variant_ident {
-                                #(#defaults)*
-                            },
+                            #field_ident: Default::default(),
                         }
-                    }
-                    Fields::Unnamed(fields) => {
-                        let defaults = fields
-                            .unnamed
-                            .iter()
-                            .map(|_| quote! { Default::default(), });
+                    });
 
-                        quote! {
-                            #ty_ident::#variant_ident(#(#defaults)*),
-                        }
+                    quote! {
+                        #ty_ident::#variant_ident {
+                            #(#defaults)*
+                        },
                     }
-                    Fields::Unit => quote! {
-                        #ty_ident::#variant_ident
-                    },
-                };
-
-                quote! {
-                    id if id == #variant_index => Ok(#default),
                 }
-            });
+                ast::Style::Tuple => {
+                    let defaults = variant
+                        .fields
+                        .iter()
+                        .map(|_| quote! { Default::default(), });
 
-        let (impl_generics, ty_generics, where_clause) = ast.generics.split_for_impl();
+                    quote! {
+                        #ty_ident::#variant_ident(#(#defaults)*),
+                    }
+                }
+                ast::Style::Unit => quote! {
+                    #ty_ident::#variant_ident
+                },
+            };
+
+            quote! {
+                id if id == #variant_index => Ok(#default),
+            }
+        });
+
+        let (impl_generics, ty_generics, where_clause) = args.generics.split_for_impl();
 
         quote! {
             fn from_id #impl_generics (
@@ -234,8 +252,8 @@ fn impl_visit_enum(ast: &DeriveInput, data: &DataEnum) -> TokenStream2 {
     };
 
     // visit every field of each variant
-    let variant_visits = data.variants.iter().map(|variant| {
-        let (fields, style) = args::field_args_from_variant(variant);
+    let variant_visits = variants.iter().map(|variant| {
+        let (fields, style) = (&variant.fields, variant.fields.style);
         let variant_ident = &variant.ident;
 
         match style {
@@ -272,12 +290,11 @@ fn impl_visit_enum(ast: &DeriveInput, data: &DataEnum) -> TokenStream2 {
 
     let generics = {
         // fields of all the variants
-        let field_args = data.variants.iter().flat_map(|variant| {
-            let (fields, _style) = args::field_args_from_variant(variant);
-            fields.into_iter()
-        });
+        let field_args = variants
+            .iter()
+            .flat_map(|variant| variant.fields.clone().into_iter());
 
-        self::create_generics(&ast.generics, field_args)
+        self::create_generics(&args.generics, field_args)
     };
 
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
