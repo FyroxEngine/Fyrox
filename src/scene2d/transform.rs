@@ -1,6 +1,6 @@
-use crate::core::algebra::Vector2;
-use crate::core::visitor::{Visit, VisitResult, Visitor};
+use crate::core::{algebra::Vector2, visitor::prelude::*};
 
+#[derive(Visit)]
 pub struct Transform {
     position: Vector2<f32>,
     scale: Vector2<f32>,
@@ -14,18 +14,6 @@ impl Default for Transform {
             scale: Vector2::new(1.0, 1.0),
             rotation: 0.0,
         }
-    }
-}
-
-impl Visit for Transform {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.position.visit("Position", visitor)?;
-        self.scale.visit("Scale", visitor)?;
-        self.rotation.visit("Rotation", visitor)?;
-
-        visitor.leave_region()
     }
 }
 

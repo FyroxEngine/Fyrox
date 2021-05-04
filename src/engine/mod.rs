@@ -6,6 +6,7 @@
 pub mod error;
 pub mod resource_manager;
 
+use crate::scene2d::Scene2dContainer;
 use crate::{
     core::{
         algebra::Vector2,
@@ -15,8 +16,8 @@ use crate::{
     engine::{error::EngineError, resource_manager::ResourceManager},
     event_loop::EventLoop,
     gui::{message::MessageData, Control, UserInterface},
+    renderer::framework::error::FrameworkError,
     renderer::Renderer,
-    rendering_framework::error::FrameworkError,
     resource::texture::TextureKind,
     scene::SceneContainer,
     sound::engine::SoundEngine,
@@ -56,6 +57,8 @@ pub struct Engine<M: MessageData, C: Control<M, C>> {
     /// for such statistics, probably it is best to make separate structure to hold all
     /// such data.
     pub ui_time: Duration,
+    /// All available 2d scenes.
+    pub scenes2d: Scene2dContainer,
 }
 
 impl<M: MessageData, C: Control<M, C>> Engine<M, C> {
@@ -152,6 +155,7 @@ impl<M: MessageData, C: Control<M, C>> Engine<M, C> {
             context,
             #[cfg(target_arch = "wasm32")]
             window,
+            scenes2d: Default::default(),
         })
     }
 
@@ -206,6 +210,7 @@ impl<M: MessageData, C: Control<M, C>> Engine<M, C> {
             self.renderer.render_and_swap_buffers(
                 &self.scenes,
                 &self.user_interface.get_drawing_context(),
+                &self.scenes2d,
                 &self.context,
                 dt,
             )
@@ -215,6 +220,7 @@ impl<M: MessageData, C: Control<M, C>> Engine<M, C> {
             self.renderer.render_and_swap_buffers(
                 &self.scenes,
                 &self.user_interface.get_drawing_context(),
+                &self.scenes2d,
                 dt,
             )
         }

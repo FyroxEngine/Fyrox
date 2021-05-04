@@ -4,8 +4,7 @@ use crate::{
         math::Rect,
         scope_profile,
     },
-    renderer::{surface::SurfaceSharedData, GeometryCache},
-    rendering_framework::{
+    renderer::framework::{
         error::FrameworkError,
         framebuffer::{
             Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer, FrameBufferTrait,
@@ -17,6 +16,7 @@ use crate::{
         },
         state::PipelineState,
     },
+    renderer::{surface::SurfaceSharedData, GeometryCache},
 };
 use std::{cell::RefCell, rc::Rc};
 

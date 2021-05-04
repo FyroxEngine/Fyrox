@@ -5,15 +5,15 @@ use crate::{
         pool::Handle,
         scope_profile,
     },
-    renderer::{
-        flat_shader::FlatShader, gbuffer::GBuffer, surface::SurfaceSharedData, GeometryCache,
-        RenderPassStatistics,
-    },
-    rendering_framework::{
+    renderer::framework::{
         error::FrameworkError,
         framebuffer::{CullFace, DrawParameters, FrameBufferTrait},
         gpu_program::{GpuProgram, UniformLocation, UniformValue},
         state::{ColorMask, PipelineState, StencilFunc, StencilOp},
+    },
+    renderer::{
+        flat_shader::FlatShader, gbuffer::GBuffer, surface::SurfaceSharedData, GeometryCache,
+        RenderPassStatistics,
     },
     scene::{graph::Graph, light::Light, node::Node},
 };

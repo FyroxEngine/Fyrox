@@ -1,3 +1,5 @@
+#![allow(missing_docs)] // TODO
+
 pub mod error;
 pub mod framebuffer;
 pub mod geometry_buffer;

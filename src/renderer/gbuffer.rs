@@ -1,10 +1,6 @@
 use crate::{
     core::{algebra::Vector4, color::Color, math::Rect, scope_profile},
-    renderer::{
-        batch::{BatchStorage, InstanceData, MatrixStorage, BONE_MATRICES_COUNT},
-        GeometryCache, RenderPassStatistics, TextureCache,
-    },
-    rendering_framework::{
+    renderer::framework::{
         error::FrameworkError,
         framebuffer::{
             Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer, FrameBufferTrait,
@@ -15,6 +11,10 @@ use crate::{
             PixelKind, WrapMode,
         },
         state::PipelineState,
+    },
+    renderer::{
+        batch::{BatchStorage, InstanceData, MatrixStorage, BONE_MATRICES_COUNT},
+        GeometryCache, RenderPassStatistics, TextureCache,
     },
     scene::{camera::Camera, mesh::RenderPath},
 };

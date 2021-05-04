@@ -1,15 +1,18 @@
+use crate::core::pool::Ticket;
 use crate::{
     core::{
         algebra::Vector2,
         pool::{Handle, Pool},
+        visitor::prelude::*,
     },
     scene2d::node::Node,
 };
 
-#[derive(Default)]
+#[derive(Default, Visit)]
 pub struct Graph {
     pool: Pool<Node>,
     root: Handle<Node>,
+    #[visit(skip)]
     stack: Vec<Handle<Node>>,
 }
 
@@ -123,5 +126,57 @@ impl Graph {
         self.pool[node_handle]
             .local_transform_mut()
             .set_position(Vector2::default());
+    }
+
+    pub fn capacity(&self) -> usize {
+        self.pool.get_capacity()
+    }
+
+    /// Makes new handle from given index. Handle will be none if index was either out-of-bounds
+    /// or point to a vacant pool entry.
+    pub fn handle_from_index(&self, index: usize) -> Handle<Node> {
+        self.pool.handle_from_index(index)
+    }
+
+    /// Creates an iterator that has linear iteration order over internal collection
+    /// of nodes. It does *not* perform any tree traversal!
+    pub fn linear_iter(&self) -> impl Iterator<Item = &Node> {
+        self.pool.iter()
+    }
+
+    /// Creates an iterator that has linear iteration order over internal collection
+    /// of nodes. It does *not* perform any tree traversal!
+    pub fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Node> {
+        self.pool.iter_mut()
+    }
+
+    /// Creates new iterator that iterates over internal collection giving (handle; node) pairs.
+    pub fn pair_iter(&self) -> impl Iterator<Item = (Handle<Node>, &Node)> {
+        self.pool.pair_iter()
+    }
+
+    /// Creates new iterator that iterates over internal collection giving (handle; node) pairs.
+    pub fn pair_iter_mut(&mut self) -> impl Iterator<Item = (Handle<Node>, &mut Node)> {
+        self.pool.pair_iter_mut()
+    }
+
+    /// Extracts node from graph and reserves its handle. It is used to temporarily take
+    /// ownership over node, and then put node back using given ticket. Extracted node is
+    /// detached from its parent!
+    pub fn take_reserve(&mut self, handle: Handle<Node>) -> (Ticket<Node>, Node) {
+        self.unlink_internal(handle);
+        self.pool.take_reserve(handle)
+    }
+
+    /// Puts node back by given ticket. Attaches back to root node of graph.
+    pub fn put_back(&mut self, ticket: Ticket<Node>, node: Node) -> Handle<Node> {
+        let handle = self.pool.put_back(ticket, node);
+        self.link_nodes(handle, self.root);
+        handle
+    }
+
+    /// Makes node handle vacant again.
+    pub fn forget_ticket(&mut self, ticket: Ticket<Node>) {
+        self.pool.forget_ticket(ticket)
     }
 }

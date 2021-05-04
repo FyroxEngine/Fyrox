@@ -1,0 +1,273 @@
+use crate::{
+    core::{algebra::Vector2, pool::Handle},
+    physics::parry::utils::hashmap::Entry,
+    renderer::{
+        framework::{
+            error::FrameworkError,
+            framebuffer::{
+                Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer, FrameBufferTrait,
+            },
+            gpu_program::{GpuProgram, UniformLocation, UniformValue},
+            gpu_texture::{
+                GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
+            },
+            state::PipelineState,
+        },
+        renderer2d::cache::{GeometryCache, InstanceData, Mesh},
+        RenderPassStatistics, TextureCache,
+    },
+    resource::texture::TextureKind,
+    scene2d::{node::Node, Scene2d, Scene2dContainer},
+    utils::log::{Log, MessageKind},
+};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
+
+mod cache;
+
+struct SpriteShader {
+    program: GpuProgram,
+    wvp_matrix: UniformLocation,
+    diffuse_texture: UniformLocation,
+    framebuffers: HashMap<Handle<Scene2d>, FrameBuffer>,
+}
+
+impl SpriteShader {
+    pub fn new(state: &mut PipelineState) -> Result<SpriteShader, FrameworkError> {
+        let fragment_source = include_str!("shaders/sprite_fs.glsl");
+        let vertex_source = include_str!("shaders/sprite_vs.glsl");
+
+        let program =
+            GpuProgram::from_source(state, "SpriteShader2D", vertex_source, fragment_source)?;
+        Ok(Self {
+            wvp_matrix: program.uniform_location(state, "viewProjection")?,
+            diffuse_texture: program.uniform_location(state, "diffuseTexture")?,
+            program,
+            framebuffers: Default::default(),
+        })
+    }
+}
+
+struct RenderTarget {
+    width: u32,
+    height: u32,
+    framebuffer: FrameBuffer,
+}
+
+impl RenderTarget {
+    fn new(state: &mut PipelineState, width: u32, height: u32) -> Result<Self, FrameworkError> {
+        let texture = GpuTexture::new(
+            state,
+            GpuTextureKind::Rectangle {
+                width: width as usize,
+                height: height as usize,
+            },
+            PixelKind::RGBA8,
+            MinificationFilter::Nearest,
+            MagnificationFilter::Nearest,
+            1,
+            None,
+        )?;
+
+        let framebuffer = FrameBuffer::new(
+            state,
+            None,
+            vec![Attachment {
+                kind: AttachmentKind::Color,
+                texture: Rc::new(RefCell::new(texture)),
+            }],
+        )?;
+
+        Ok(Self {
+            framebuffer,
+            width,
+            height,
+        })
+    }
+}
+
+pub struct Renderer2d {
+    shader: SpriteShader,
+    quad: Mesh,
+    geometry_cache: GeometryCache,
+    framebuffers: HashMap<Handle<Scene2d>, RenderTarget>,
+    batch_storage: BatchStorage,
+}
+
+#[derive(Default)]
+struct BatchStorage {
+    batches: Vec<Batch>,
+    index_map: HashMap<u64, usize>,
+}
+
+impl BatchStorage {
+    fn generate_batches(
+        &mut self,
+        state: &mut PipelineState,
+        scene: &Scene2d,
+        texture_cache: &mut TextureCache,
+        white_dummy: Rc<RefCell<GpuTexture>>,
+    ) {
+        self.index_map.clear();
+        for batch in self.batches.iter_mut() {
+            batch.instances.clear();
+        }
+
+        let mut batch_index = 0;
+        for node in scene.graph.linear_iter() {
+            if let Node::Sprite(sprite) = node {
+                let texture = sprite.texture().map_or_else(
+                    || white_dummy.clone(),
+                    |t| {
+                        texture_cache
+                            .get(state, t)
+                            .unwrap_or_else(|| white_dummy.clone())
+                    },
+                );
+
+                let texture_id = &*texture.borrow() as *const _ as u64;
+                let index = *self.index_map.entry(texture_id).or_insert_with(|| {
+                    let index = batch_index;
+                    batch_index += 1;
+                    index as usize
+                });
+
+                // Reuse old batches to prevent redundant memory allocations
+                let batch = if let Some(batch) = self.batches.get_mut(index) {
+                    batch.texture = texture.clone();
+                    batch
+                } else {
+                    self.batches.push(Batch {
+                        instances: Default::default(),
+                        texture: texture.clone(),
+                    });
+                    self.batches.last_mut().unwrap()
+                };
+
+                batch.instances.push(InstanceData {
+                    color: sprite.color(),
+                    world_matrix: sprite.global_transform().to_homogeneous(),
+                });
+            }
+        }
+    }
+}
+
+struct Batch {
+    instances: Vec<InstanceData>,
+    texture: Rc<RefCell<GpuTexture>>,
+}
+
+impl Renderer2d {
+    pub(in crate) fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
+        Ok(Self {
+            shader: SpriteShader::new(state)?,
+            quad: Mesh::new_unit_quad(),
+            geometry_cache: Default::default(),
+            framebuffers: Default::default(),
+            batch_storage: Default::default(),
+        })
+    }
+
+    pub(in crate) fn render(
+        &mut self,
+        state: &mut PipelineState,
+        final_buffer: &mut dyn FrameBufferTrait,
+        final_buffer_size: Vector2<f32>,
+        scenes: &Scene2dContainer,
+        texture_cache: &mut TextureCache,
+        white_dummy: Rc<RefCell<GpuTexture>>,
+        dt: f32,
+    ) -> Result<RenderPassStatistics, FrameworkError> {
+        self.geometry_cache.update(dt);
+
+        let mut stats = RenderPassStatistics::default();
+        let quad = self.geometry_cache.get(state, &self.quad);
+
+        for (scene_handle, scene) in scenes.pair_iter() {
+            let (frame_buffer, frame_size): (&mut dyn FrameBufferTrait, Vector2<f32>) =
+                if let Some(render_target) = scene.render_target.as_ref() {
+                    let kind = render_target.data_ref().kind();
+                    let (width, height) = match kind {
+                        TextureKind::Rectangle { width, height } => (width, height),
+                        _ => {
+                            Log::write(MessageKind::Error, format!("Attempt to use {:?} as render target, only rectangular render targets are supported!", kind));
+                            continue;
+                        }
+                    };
+
+                    match self.framebuffers.entry(scene_handle) {
+                        Entry::Occupied(entry) => {
+                            let render_target = entry.into_mut();
+                            if render_target.width != width || render_target.height != height {
+                                *render_target = RenderTarget::new(state, width, height)?;
+                            }
+                            (
+                                &mut render_target.framebuffer,
+                                Vector2::new(width as f32, height as f32),
+                            )
+                        }
+                        Entry::Vacant(entry) => (
+                            &mut entry
+                                .insert(RenderTarget::new(state, width, height)?)
+                                .framebuffer,
+                            Vector2::new(width as f32, height as f32),
+                        ),
+                    }
+                } else {
+                    (final_buffer, final_buffer_size)
+                };
+
+            self.batch_storage
+                .generate_batches(state, scene, texture_cache, white_dummy.clone());
+
+            for camera in scene.graph.linear_iter().filter_map(|n| {
+                if let Node::Camera(c) = n {
+                    Some(c)
+                } else {
+                    None
+                }
+            }) {
+                let view_projection = camera.view_projection_matrix();
+                let viewport = camera.viewport_pixels(frame_size);
+
+                for batch in self.batch_storage.batches.iter() {
+                    quad.set_buffer_data(state, 1, &batch.instances);
+
+                    stats += frame_buffer.draw(
+                        quad,
+                        state,
+                        viewport,
+                        &self.shader.program,
+                        &DrawParameters {
+                            cull_face: CullFace::Back,
+                            culling: false,
+                            color_write: Default::default(),
+                            depth_write: false,
+                            stencil_test: false,
+                            depth_test: false,
+                            blend: true,
+                        },
+                        &[
+                            (
+                                self.shader.wvp_matrix.clone(),
+                                UniformValue::Matrix4(&view_projection),
+                            ),
+                            (
+                                self.shader.diffuse_texture.clone(),
+                                UniformValue::Sampler {
+                                    index: 0,
+                                    texture: batch.texture.clone(),
+                                },
+                            ),
+                        ],
+                    );
+                }
+            }
+        }
+        Ok(stats)
+    }
+
+    pub fn flush(&mut self) {
+        self.geometry_cache.clear();
+    }
+}

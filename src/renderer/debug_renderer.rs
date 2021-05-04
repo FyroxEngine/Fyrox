@@ -5,8 +5,7 @@
 
 use crate::{
     core::{algebra::Vector3, math::Rect, scope_profile},
-    renderer::RenderPassStatistics,
-    rendering_framework::{
+    renderer::framework::{
         error::FrameworkError,
         framebuffer::{CullFace, DrawParameters, FrameBuffer, FrameBufferTrait},
         geometry_buffer::{
@@ -16,6 +15,7 @@ use crate::{
         gpu_program::{GpuProgram, UniformLocation, UniformValue},
         state::PipelineState,
     },
+    renderer::RenderPassStatistics,
     scene::{camera::Camera, SceneDrawingContext},
 };
 

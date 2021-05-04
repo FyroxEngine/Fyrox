@@ -9,8 +9,7 @@ use crate::{
         brush::Brush,
         draw::{CommandTexture, DrawingContext, SharedTexture},
     },
-    renderer::{RenderPassStatistics, TextureCache},
-    rendering_framework::{
+    renderer::framework::{
         error::FrameworkError,
         framebuffer::{CullFace, DrawParameters, DrawPartContext, FrameBufferTrait},
         geometry_buffer::{
@@ -21,6 +20,7 @@ use crate::{
         gpu_texture::GpuTexture,
         state::{ColorMask, PipelineState, StencilFunc, StencilOp},
     },
+    renderer::{RenderPassStatistics, TextureCache},
     resource::texture::{Texture, TextureData, TextureKind, TexturePixelKind, TextureState},
 };
 use std::{

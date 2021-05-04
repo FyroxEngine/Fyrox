@@ -1,38 +1,15 @@
 use crate::{
-    core::define_is_as,
-    core::visitor::{Visit, VisitResult, Visitor},
+    core::{define_is_as, visitor::prelude::*},
     scene2d::{base::Base, camera::Camera, light::Light, sprite::Sprite},
 };
 use std::ops::{Deref, DerefMut};
 
+#[derive(Visit)]
 pub enum Node {
     Base(Base),
     Camera(Camera),
     Light(Light),
     Sprite(Sprite),
-}
-
-macro_rules! static_dispatch {
-    ($self:ident, $func:ident, $($args:expr),*) => {
-        match $self {
-            Node::Base(v) => v.$func($($args),*),
-            Node::Camera(v) => v.$func($($args),*),
-            Node::Light(v) => v.$func($($args),*),
-            Node::Sprite(v) => v.$func($($args),*),
-        }
-    };
-}
-
-impl Visit for Node {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        let mut kind_id = self.id();
-        kind_id.visit("KindId", visitor)?;
-        if visitor.is_reading() {
-            *self = Node::from_id(kind_id)?;
-        }
-
-        static_dispatch!(self, visit, name, visitor)
-    }
 }
 
 macro_rules! static_dispatch_deref {

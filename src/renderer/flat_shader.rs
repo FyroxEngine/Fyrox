@@ -1,4 +1,4 @@
-use crate::rendering_framework::{
+use crate::renderer::framework::{
     error::FrameworkError,
     gpu_program::{GpuProgram, UniformLocation},
     state::PipelineState,

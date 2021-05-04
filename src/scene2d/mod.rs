@@ -1,5 +1,11 @@
-use crate::core::pool::{Handle, Pool};
-use crate::scene2d::graph::Graph;
+use crate::{
+    core::{
+        pool::{Handle, Pool},
+        visitor::prelude::*,
+    },
+    resource::texture::Texture,
+    scene2d::graph::Graph,
+};
 
 pub mod base;
 pub mod camera;
@@ -9,20 +15,28 @@ pub mod node;
 pub mod sprite;
 pub mod transform;
 
+#[derive(Visit, Default)]
 pub struct Scene2d {
     pub graph: Graph,
+
+    pub render_target: Option<Texture>,
 }
 
+#[derive(Default, Visit)]
 pub struct Scene2dContainer {
-    scenes: Pool<Scene2d>,
+    pool: Pool<Scene2d>,
 }
 
 impl Scene2dContainer {
     pub fn add(&mut self, scene: Scene2d) -> Handle<Scene2d> {
-        self.scenes.spawn(scene)
+        self.pool.spawn(scene)
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &Scene2d> {
-        self.scenes.iter()
+        self.pool.iter()
+    }
+
+    pub fn pair_iter(&self) -> impl Iterator<Item = (Handle<Scene2d>, &Scene2d)> {
+        self.pool.pair_iter()
     }
 }

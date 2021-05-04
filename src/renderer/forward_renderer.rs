@@ -8,13 +8,13 @@
 
 use crate::{
     core::{math::Rect, scope_profile},
-    renderer::{batch::BatchStorage, GeometryCache, RenderPassStatistics},
-    rendering_framework::{
+    renderer::framework::{
         error::FrameworkError,
         framebuffer::{CullFace, DrawParameters, FrameBuffer, FrameBufferTrait},
         gpu_program::{GpuProgram, UniformLocation, UniformValue},
         state::PipelineState,
     },
+    renderer::{batch::BatchStorage, GeometryCache, RenderPassStatistics},
     scene::{camera::Camera, mesh::RenderPath},
 };
 

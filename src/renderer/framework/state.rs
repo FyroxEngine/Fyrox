@@ -1,6 +1,6 @@
 use crate::{
     core::{color::Color, math::Rect},
-    rendering_framework::framebuffer::{CullFace, DrawParameters},
+    renderer::framework::framebuffer::{CullFace, DrawParameters},
     utils::log::{Log, MessageKind},
 };
 use glow::HasContext;

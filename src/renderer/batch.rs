@@ -1,13 +1,13 @@
 use crate::{
     core::{algebra::Matrix4, arrayvec::ArrayVec, color::Color, pool::Handle, scope_profile},
-    renderer::{surface::SurfaceSharedData, TextureCache},
-    rendering_framework::{
+    renderer::framework::{
         error::FrameworkError,
         gpu_texture::{
             GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
         },
         state::PipelineState,
     },
+    renderer::{surface::SurfaceSharedData, TextureCache},
     scene::{graph::Graph, mesh::RenderPath, node::Node},
 };
 use std::{

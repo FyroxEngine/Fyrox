@@ -5,6 +5,13 @@ use crate::{
         math::{frustum::Frustum, Matrix4Ext, Rect, TriangleDefinition},
         scope_profile,
     },
+    renderer::framework::{
+        error::FrameworkError,
+        framebuffer::{CullFace, DrawParameters, DrawPartContext, FrameBufferTrait},
+        gpu_program::{GpuProgram, UniformLocation, UniformValue},
+        gpu_texture::GpuTexture,
+        state::{ColorMask, PipelineState, StencilFunc, StencilOp},
+    },
     renderer::{
         batch::BatchStorage,
         flat_shader::FlatShader,
@@ -16,13 +23,6 @@ use crate::{
         ssao::ScreenSpaceAmbientOcclusionRenderer,
         surface::{SurfaceSharedData, Vertex},
         GeometryCache, QualitySettings, RenderPassStatistics, TextureCache,
-    },
-    rendering_framework::{
-        error::FrameworkError,
-        framebuffer::{CullFace, DrawParameters, DrawPartContext, FrameBufferTrait},
-        gpu_program::{GpuProgram, UniformLocation, UniformValue},
-        gpu_texture::GpuTexture,
-        state::{ColorMask, PipelineState, StencilFunc, StencilOp},
     },
     scene::{camera::Camera, light::Light, node::Node, Scene},
 };

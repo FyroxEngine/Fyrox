@@ -1,13 +1,13 @@
 use crate::{
     core::{math::Matrix4Ext, math::Rect, scope_profile},
-    renderer::{surface::SurfaceSharedData, GeometryCache, RenderPassStatistics, TextureCache},
-    rendering_framework::{
+    renderer::framework::{
         error::FrameworkError,
         framebuffer::{CullFace, DrawParameters, FrameBuffer, FrameBufferTrait},
         gpu_program::{GpuProgram, UniformLocation, UniformValue},
         gpu_texture::GpuTexture,
         state::PipelineState,
     },
+    renderer::{surface::SurfaceSharedData, GeometryCache, RenderPassStatistics, TextureCache},
     scene::{camera::Camera, graph::Graph, node::Node},
 };
 use std::{cell::RefCell, rc::Rc};

@@ -1,13 +1,11 @@
+use crate::core::algebra::Vector2;
 use crate::{
-    core::{
-        algebra::Matrix4,
-        math::Rect,
-        visitor::{Visit, VisitResult, Visitor},
-    },
+    core::{algebra::Matrix4, math::Rect, visitor::prelude::*},
     scene2d::base::Base,
 };
 use std::ops::{Deref, DerefMut};
 
+#[derive(Visit)]
 pub struct Camera {
     base: Base,
     viewport: Rect<f32>,
@@ -42,13 +40,20 @@ impl DerefMut for Camera {
     }
 }
 
-impl Visit for Camera {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
+impl Camera {
+    /// Calculates viewport rectangle in pixels based on internal resolution-independent
+    /// viewport. It is useful when you need to get real viewport rectangle in pixels.
+    #[inline]
+    pub fn viewport_pixels(&self, frame_size: Vector2<f32>) -> Rect<i32> {
+        Rect::new(
+            (self.viewport.x() * frame_size.x) as i32,
+            (self.viewport.y() * frame_size.y) as i32,
+            (self.viewport.w() * frame_size.x) as i32,
+            (self.viewport.h() * frame_size.y) as i32,
+        )
+    }
 
-        self.base.visit("Base", visitor)?;
-        self.viewport.visit("Viewport", visitor)?;
-
-        visitor.leave_region()
+    pub fn view_projection_matrix(&self) -> Matrix4<f32> {
+        self.projection_matrix * self.view_matrix
     }
 }

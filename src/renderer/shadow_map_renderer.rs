@@ -7,8 +7,7 @@ use crate::{
         math::{frustum::Frustum, Rect},
         scope_profile,
     },
-    renderer::{batch::BatchStorage, GeometryCache, RenderPassStatistics, ShadowMapPrecision},
-    rendering_framework::{
+    renderer::framework::{
         error::FrameworkError,
         framebuffer::{
             Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer, FrameBufferTrait,
@@ -20,6 +19,7 @@ use crate::{
         },
         state::{ColorMask, PipelineState},
     },
+    renderer::{batch::BatchStorage, GeometryCache, RenderPassStatistics, ShadowMapPrecision},
     scene::{graph::Graph, node::Node},
 };
 use std::{cell::RefCell, rc::Rc};

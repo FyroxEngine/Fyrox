@@ -3,14 +3,14 @@ use crate::{
         algebra::{Matrix4, Vector2, Vector3},
         math::Rect,
     },
-    renderer::{surface::SurfaceSharedData, GeometryCache, RenderPassStatistics},
-    rendering_framework::{
+    renderer::framework::{
         error::FrameworkError,
         framebuffer::{CullFace, DrawParameters, FrameBufferTrait},
         gpu_program::{GpuProgram, UniformLocation, UniformValue},
         gpu_texture::GpuTexture,
         state::PipelineState,
     },
+    renderer::{surface::SurfaceSharedData, GeometryCache, RenderPassStatistics},
 };
 use std::{cell::RefCell, rc::Rc};
 

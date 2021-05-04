@@ -1,6 +1,6 @@
 use crate::{
     core::{color::Color, math::Rect, scope_profile},
-    rendering_framework::{
+    renderer::framework::{
         error::FrameworkError,
         geometry_buffer::{DrawCallStatistics, GeometryBuffer},
         gpu_program::{GpuProgram, UniformLocation, UniformValue},

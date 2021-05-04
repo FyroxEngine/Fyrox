@@ -1,6 +1,6 @@
 use crate::{
     core::{math::TriangleDefinition, scope_profile},
-    rendering_framework::{error::FrameworkError, state::PipelineState},
+    renderer::framework::{error::FrameworkError, state::PipelineState},
     utils::array_as_u8_slice,
 };
 use glow::HasContext;

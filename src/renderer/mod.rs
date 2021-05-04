@@ -9,6 +9,8 @@
 //#![deny(unsafe_code)]
 
 pub mod debug_renderer;
+pub mod framework;
+pub mod renderer2d;
 pub mod surface;
 
 mod batch;
@@ -25,6 +27,8 @@ mod sprite_renderer;
 mod ssao;
 mod ui_renderer;
 
+use crate::renderer::renderer2d::Renderer2d;
+use crate::scene2d::Scene2dContainer;
 use crate::{
     core::instant,
     core::{
@@ -36,22 +40,7 @@ use crate::{
     },
     engine::resource_manager::TimedEntry,
     gui::{draw::DrawingContext, message::MessageData, Control, UserInterface},
-    renderer::{
-        batch::{BatchStorage, InstanceData},
-        debug_renderer::DebugRenderer,
-        deferred_light_renderer::{
-            DeferredLightRenderer, DeferredRendererContext, LightingStatistics,
-        },
-        flat_shader::FlatShader,
-        forward_renderer::{ForwardRenderContext, ForwardRenderer},
-        fxaa::FxaaRenderer,
-        gbuffer::{GBuffer, GBufferRenderContext},
-        particle_system_renderer::{ParticleSystemRenderContext, ParticleSystemRenderer},
-        sprite_renderer::{SpriteRenderContext, SpriteRenderer},
-        surface::SurfaceSharedData,
-        ui_renderer::{UiRenderContext, UiRenderer},
-    },
-    rendering_framework::{
+    renderer::framework::{
         error::FrameworkError,
         framebuffer::{
             Attachment, AttachmentKind, BackBuffer, CullFace, DrawParameters, FrameBuffer,
@@ -67,6 +56,21 @@ use crate::{
             PixelKind,
         },
         state::{PipelineState, PipelineStatistics},
+    },
+    renderer::{
+        batch::{BatchStorage, InstanceData},
+        debug_renderer::DebugRenderer,
+        deferred_light_renderer::{
+            DeferredLightRenderer, DeferredRendererContext, LightingStatistics,
+        },
+        flat_shader::FlatShader,
+        forward_renderer::{ForwardRenderContext, ForwardRenderer},
+        fxaa::FxaaRenderer,
+        gbuffer::{GBuffer, GBufferRenderContext},
+        particle_system_renderer::{ParticleSystemRenderContext, ParticleSystemRenderer},
+        sprite_renderer::{SpriteRenderContext, SpriteRenderer},
+        surface::SurfaceSharedData,
+        ui_renderer::{UiRenderContext, UiRenderer},
     },
     resource::texture::{Texture, TextureKind, TextureState},
     scene::{node::Node, Scene, SceneContainer},
@@ -435,6 +439,7 @@ pub struct Renderer {
     batch_storage: BatchStorage,
     forward_renderer: ForwardRenderer,
     fxaa_renderer: FxaaRenderer,
+    renderer2d: Renderer2d,
     // TextureId -> FrameBuffer mapping. This mapping is used for temporal frame buffers
     // like ones used to render UI instances.
     ui_frame_buffers: HashMap<usize, FrameBuffer>,
@@ -827,6 +832,7 @@ impl Renderer {
             ui_frame_buffers: Default::default(),
             fxaa_renderer: FxaaRenderer::new(&mut state)?,
             statistics: Statistics::default(),
+            renderer2d: Renderer2d::new(&mut state)?,
             state,
         })
     }
@@ -893,6 +899,7 @@ impl Renderer {
     pub fn flush(&mut self) {
         self.texture_cache.clear();
         self.geometry_cache.clear();
+        self.renderer2d.flush();
     }
 
     /// Renders given UI into specified render target. This method is especially useful if you need
@@ -968,6 +975,7 @@ impl Renderer {
         &mut self,
         scenes: &SceneContainer,
         drawing_context: &DrawingContext,
+        scenes2d: &Scene2dContainer,
         dt: f32,
     ) -> Result<(), FrameworkError> {
         scope_profile!();
@@ -1198,6 +1206,16 @@ impl Renderer {
             }
         }
 
+        self.statistics += self.renderer2d.render(
+            &mut self.state,
+            &mut self.backbuffer,
+            Vector2::new(backbuffer_width, backbuffer_height),
+            scenes2d,
+            &mut self.texture_cache,
+            self.white_dummy.clone(),
+            dt,
+        )?;
+
         // Render UI on top of everything.
         self.statistics += self.ui_renderer.render(UiRenderContext {
             state: &mut self.state,
@@ -1218,10 +1236,11 @@ impl Renderer {
         &mut self,
         scenes: &SceneContainer,
         drawing_context: &DrawingContext,
+        scenes2d: &Scene2dContainer,
         context: &glutin::WindowedContext<glutin::PossiblyCurrent>,
         dt: f32,
     ) -> Result<(), FrameworkError> {
-        self.render_frame(scenes, drawing_context, dt)?;
+        self.render_frame(scenes, drawing_context, scenes2d, dt)?;
         self.statistics.end_frame();
         context.swap_buffers()?;
         self.state.check_error();
@@ -1235,9 +1254,10 @@ impl Renderer {
         &mut self,
         scenes: &SceneContainer,
         drawing_context: &DrawingContext,
+        scenes2d: &Scene2dContainer,
         dt: f32,
     ) -> Result<(), FrameworkError> {
-        self.render_frame(scenes, drawing_context, dt)?;
+        self.render_frame(scenes, drawing_context, scenes2d, dt)?;
         self.statistics.end_frame();
         self.state.check_error();
         self.statistics.finalize();

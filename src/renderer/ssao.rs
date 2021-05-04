@@ -6,11 +6,7 @@ use crate::{
         scope_profile,
     },
     rand::Rng,
-    renderer::{
-        blur::Blur, gbuffer::GBuffer, surface::SurfaceSharedData, GeometryCache,
-        RenderPassStatistics,
-    },
-    rendering_framework::{
+    renderer::framework::{
         error::FrameworkError,
         framebuffer::{
             Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer, FrameBufferTrait,
@@ -21,6 +17,10 @@ use crate::{
             PixelKind, WrapMode,
         },
         state::PipelineState,
+    },
+    renderer::{
+        blur::Blur, gbuffer::GBuffer, surface::SurfaceSharedData, GeometryCache,
+        RenderPassStatistics,
     },
 };
 use std::{cell::RefCell, rc::Rc};

@@ -4,7 +4,7 @@ use crate::{
         color::Color,
         scope_profile,
     },
-    rendering_framework::{error::FrameworkError, gpu_texture::GpuTexture, state::PipelineState},
+    renderer::framework::{error::FrameworkError, gpu_texture::GpuTexture, state::PipelineState},
     utils::log::{Log, MessageKind},
 };
 use glow::HasContext;

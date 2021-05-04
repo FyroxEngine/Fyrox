@@ -1,7 +1,6 @@
 use crate::{
     core::{algebra::Vector2, math::Matrix4Ext, math::Rect, scope_profile},
-    renderer::{RenderPassStatistics, TextureCache},
-    rendering_framework::{
+    renderer::framework::{
         error::FrameworkError,
         framebuffer::{CullFace, DrawParameters, FrameBuffer, FrameBufferTrait},
         geometry_buffer::{
@@ -12,6 +11,7 @@ use crate::{
         gpu_texture::GpuTexture,
         state::PipelineState,
     },
+    renderer::{RenderPassStatistics, TextureCache},
     scene::{camera::Camera, graph::Graph, node::Node, particle_system},
 };
 use std::{cell::RefCell, rc::Rc};

@@ -3,7 +3,7 @@
 
 use crate::{
     core::color::Color,
-    rendering_framework::{error::FrameworkError, state::PipelineState},
+    renderer::framework::{error::FrameworkError, state::PipelineState},
     resource::texture::{
         TextureKind, TextureMagnificationFilter, TextureMinificationFilter, TexturePixelKind,
         TextureWrapMode,
