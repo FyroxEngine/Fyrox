@@ -1,4 +1,8 @@
 use crate::core::algebra::Vector2;
+use crate::core::pool::Handle;
+use crate::scene2d::base::BaseBuilder;
+use crate::scene2d::graph::Graph;
+use crate::scene2d::node::Node;
 use crate::{
     core::{algebra::Matrix4, math::Rect, visitor::prelude::*},
     scene2d::base::Base,
@@ -55,5 +59,47 @@ impl Camera {
 
     pub fn view_projection_matrix(&self) -> Matrix4<f32> {
         self.projection_matrix * self.view_matrix
+    }
+
+    pub fn update(&mut self, render_target_size: Vector2<f32>) {
+        self.projection_matrix = Matrix4::new_orthographic(
+            0.0,
+            render_target_size.x,
+            render_target_size.y,
+            0.0,
+            0.0,
+            1.0,
+        );
+
+        self.view_matrix = self
+            .global_transform()
+            .try_inverse()
+            .unwrap_or_else(|| Matrix4::identity());
+    }
+}
+
+pub struct CameraBuilder {
+    base_builder: BaseBuilder,
+    viewport: Rect<f32>,
+    enabled: bool,
+}
+
+impl CameraBuilder {
+    pub fn new(base_builder: BaseBuilder) -> Self {
+        Self {
+            base_builder,
+            viewport: Rect::new(0.0, 0.0, 1.0, 1.0),
+            enabled: true,
+        }
+    }
+
+    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
+        graph.add_node(Node::Camera(Camera {
+            base: self.base_builder.build_base(),
+            viewport: self.viewport,
+            view_matrix: Matrix4::identity(),
+            projection_matrix: Default::default(),
+            enabled: self.enabled,
+        }))
     }
 }

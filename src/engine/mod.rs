@@ -194,6 +194,18 @@ impl<M: MessageData, C: Control<M, C>> Engine<M, C> {
             scene.update(frame_size, dt);
         }
 
+        for scene in self.scenes2d.iter_mut().filter(|s| s.enabled) {
+            let render_target_size = scene.render_target.as_ref().map_or(window_size, |rt| {
+                if let TextureKind::Rectangle { width, height } = rt.data_ref().kind {
+                    Vector2::new(width as f32, height as f32)
+                } else {
+                    panic!("only rectangle textures can be used as render target!");
+                }
+            });
+
+            scene.update(render_target_size, dt);
+        }
+
         let time = instant::Instant::now();
         self.user_interface.update(window_size, dt);
         self.ui_time = instant::Instant::now() - time;

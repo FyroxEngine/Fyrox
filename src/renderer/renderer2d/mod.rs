@@ -1,5 +1,8 @@
 use crate::{
-    core::{algebra::Vector2, pool::Handle},
+    core::{
+        algebra::{Matrix4, Vector2},
+        pool::Handle,
+    },
     physics::parry::utils::hashmap::Entry,
     renderer::{
         framework::{
@@ -86,7 +89,7 @@ impl RenderTarget {
 }
 
 pub struct Renderer2d {
-    shader: SpriteShader,
+    sprite_shader: SpriteShader,
     quad: Mesh,
     geometry_cache: GeometryCache,
     framebuffers: HashMap<Handle<Scene2d>, RenderTarget>,
@@ -145,7 +148,7 @@ impl BatchStorage {
 
                 batch.instances.push(InstanceData {
                     color: sprite.color(),
-                    world_matrix: sprite.global_transform().to_homogeneous(),
+                    world_matrix: sprite.global_transform() * Matrix4::new_scaling(sprite.size()),
                 });
             }
         }
@@ -160,7 +163,7 @@ struct Batch {
 impl Renderer2d {
     pub(in crate) fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
         Ok(Self {
-            shader: SpriteShader::new(state)?,
+            sprite_shader: SpriteShader::new(state)?,
             quad: Mesh::new_unit_quad(),
             geometry_cache: Default::default(),
             framebuffers: Default::default(),
@@ -233,11 +236,12 @@ impl Renderer2d {
                 for batch in self.batch_storage.batches.iter() {
                     quad.set_buffer_data(state, 1, &batch.instances);
 
-                    stats += frame_buffer.draw(
+                    stats += frame_buffer.draw_instances(
+                        batch.instances.len(),
                         quad,
                         state,
                         viewport,
-                        &self.shader.program,
+                        &self.sprite_shader.program,
                         &DrawParameters {
                             cull_face: CullFace::Back,
                             culling: false,
@@ -249,11 +253,11 @@ impl Renderer2d {
                         },
                         &[
                             (
-                                self.shader.wvp_matrix.clone(),
+                                self.sprite_shader.wvp_matrix.clone(),
                                 UniformValue::Matrix4(&view_projection),
                             ),
                             (
-                                self.shader.diffuse_texture.clone(),
+                                self.sprite_shader.diffuse_texture.clone(),
                                 UniformValue::Sampler {
                                     index: 0,
                                     texture: batch.texture.clone(),

@@ -31,20 +31,20 @@ impl Mesh {
     pub fn new_unit_quad() -> Self {
         let vertices = vec![
             Vertex {
-                position: Vector2::default(),
-                tex_coord: Vector2::y(),
+                position: Vector2::new(0.0, 0.0),
+                tex_coord: Vector2::new(0.0, 0.0),
             },
             Vertex {
-                position: Vector2::x(),
-                tex_coord: Vector2::new(1.0, 1.0),
+                position: Vector2::new(1.0, 0.0),
+                tex_coord: Vector2::new(1.0, 0.0),
             },
             Vertex {
                 position: Vector2::new(1.0, 1.0),
-                tex_coord: Vector2::x(),
+                tex_coord: Vector2::new(1.0, 1.0),
             },
             Vertex {
-                position: Vector2::y(),
-                tex_coord: Vector2::default(),
+                position: Vector2::new(0.0, 1.0),
+                tex_coord: Vector2::new(0.0, 1.0),
             },
         ];
 

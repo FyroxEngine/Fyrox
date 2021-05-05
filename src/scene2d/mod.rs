@@ -1,11 +1,13 @@
 use crate::{
     core::{
+        algebra::Vector2,
         pool::{Handle, Pool},
         visitor::prelude::*,
     },
     resource::texture::Texture,
     scene2d::graph::Graph,
 };
+use std::ops::{Index, IndexMut};
 
 pub mod base;
 pub mod camera;
@@ -20,6 +22,22 @@ pub struct Scene2d {
     pub graph: Graph,
 
     pub render_target: Option<Texture>,
+
+    pub enabled: bool,
+}
+
+impl Scene2d {
+    pub fn new() -> Self {
+        Self {
+            graph: Graph::new(),
+            render_target: None,
+            enabled: true,
+        }
+    }
+
+    pub fn update(&mut self, render_target_size: Vector2<f32>, dt: f32) {
+        self.graph.update(render_target_size, dt);
+    }
 }
 
 #[derive(Default, Visit)]
@@ -36,7 +54,25 @@ impl Scene2dContainer {
         self.pool.iter()
     }
 
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Scene2d> {
+        self.pool.iter_mut()
+    }
+
     pub fn pair_iter(&self) -> impl Iterator<Item = (Handle<Scene2d>, &Scene2d)> {
         self.pool.pair_iter()
+    }
+}
+
+impl Index<Handle<Scene2d>> for Scene2dContainer {
+    type Output = Scene2d;
+
+    fn index(&self, index: Handle<Scene2d>) -> &Self::Output {
+        &self.pool[index]
+    }
+}
+
+impl IndexMut<Handle<Scene2d>> for Scene2dContainer {
+    fn index_mut(&mut self, index: Handle<Scene2d>) -> &mut Self::Output {
+        &mut self.pool[index]
     }
 }

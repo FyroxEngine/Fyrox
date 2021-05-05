@@ -1,0 +1,65 @@
+use crate::{
+    core::{pool::Handle, visitor::prelude::*},
+    scene2d::{
+        base::Base,
+        graph::Graph,
+        light::{BaseLight, BaseLightBuilder, Light},
+        node::Node,
+    },
+};
+use std::ops::{Deref, DerefMut};
+
+#[derive(Visit)]
+pub struct PointLight {
+    base_light: BaseLight,
+    radius: f32,
+}
+
+impl Deref for PointLight {
+    type Target = Base;
+
+    fn deref(&self) -> &Self::Target {
+        &self.base_light.base
+    }
+}
+
+impl DerefMut for PointLight {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.base_light.base
+    }
+}
+
+impl Default for PointLight {
+    fn default() -> Self {
+        Self {
+            base_light: Default::default(),
+            radius: 10.0,
+        }
+    }
+}
+
+pub struct PointLightBuilder {
+    base_light_builder: BaseLightBuilder,
+    radius: f32,
+}
+
+impl PointLightBuilder {
+    pub fn new(base_light_builder: BaseLightBuilder) -> Self {
+        Self {
+            base_light_builder,
+            radius: 10.0,
+        }
+    }
+
+    pub fn with_radius(mut self, radius: f32) -> Self {
+        self.radius = radius;
+        self
+    }
+
+    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
+        graph.add_node(Node::Light(Light::Point(PointLight {
+            base_light: self.base_light_builder.build(),
+            radius: self.radius,
+        })))
+    }
+}

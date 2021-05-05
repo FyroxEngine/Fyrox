@@ -6,17 +6,8 @@
 
 extern crate rg3d;
 
-pub mod shared;
-
-use crate::shared::create_camera;
-use rg3d::scene::light::{BaseLightBuilder, PointLightBuilder};
 use rg3d::{
-    animation::Animation,
-    core::{
-        algebra::{Matrix4, UnitQuaternion, Vector3},
-        color::Color,
-        pool::Handle,
-    },
+    core::{algebra::Vector2, pool::Handle},
     engine::resource_manager::ResourceManager,
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -26,14 +17,14 @@ use rg3d::{
         text::TextBuilder,
         widget::WidgetBuilder,
     },
-    renderer::surface::{SurfaceBuilder, SurfaceSharedData},
-    scene::{base::BaseBuilder, mesh::MeshBuilder, node::Node, transform::TransformBuilder, Scene},
+    scene2d::{
+        base::BaseBuilder, camera::CameraBuilder, light::point::PointLightBuilder,
+        light::BaseLightBuilder, node::Node, sprite::SpriteBuilder, transform::TransformBuilder,
+        Scene2d,
+    },
     utils::translate_event,
 };
-use std::{
-    sync::{Arc, RwLock},
-    time::Instant,
-};
+use std::time::Instant;
 
 // Create our own engine type aliases. These specializations are needed
 // because engine provides a way to extend UI with custom nodes and messages.
@@ -46,104 +37,63 @@ fn create_ui(ctx: &mut BuildContext) -> Handle<UiNode> {
 }
 
 struct GameScene {
-    scene: Scene,
-    model_handle: Handle<Node>,
-    walk_animation: Handle<Animation>,
+    scene: Scene2d,
+    camera: Handle<Node>,
 }
 
 async fn create_scene(resource_manager: ResourceManager) -> GameScene {
-    let mut scene = Scene::new();
+    let mut scene = Scene2d::new();
 
-    // Set ambient light.
-    scene.ambient_lighting_color = Color::opaque(200, 200, 200);
+    // Create camera first.
+    let camera = CameraBuilder::new(BaseBuilder::new()).build(&mut scene.graph);
 
-    // Camera is our eyes in the world - you won't see anything without it.
-    create_camera(
-        resource_manager.clone(),
-        Vector3::new(0.0, 6.0, -12.0),
-        &mut scene.graph,
-    )
-    .await;
+    // Add some sprites.
+    for y in 0..10 {
+        for x in 0..10 {
+            let sprite_size = 64.0;
+            let spacing = 5.0;
+            SpriteBuilder::new(
+                BaseBuilder::new().with_local_transform(
+                    TransformBuilder::new()
+                        .with_position(Vector2::new(
+                            100.0 + x as f32 * (sprite_size + spacing),
+                            100.0 + y as f32 * (sprite_size + spacing),
+                        ))
+                        .build(),
+                ),
+            )
+            .with_texture(resource_manager.request_texture("examples/data/starship.png"))
+            .with_size(sprite_size)
+            .build(&mut scene.graph);
+        }
+    }
 
     // Add some light.
     PointLightBuilder::new(BaseLightBuilder::new(
         BaseBuilder::new().with_local_transform(
             TransformBuilder::new()
-                .with_local_position(Vector3::new(0.0, 12.0, 0.0))
+                .with_position(Vector2::new(300.0, 400.0))
                 .build(),
         ),
     ))
     .with_radius(20.0)
     .build(&mut scene.graph);
 
-    // Load model and animation resource in parallel. Is does *not* adds anything to
-    // our scene - it just loads a resource then can be used later on to instantiate
-    // models from it on scene. Why loading of resource is separated from instantiation?
-    // Because it is too inefficient to load a resource every time you trying to
-    // create instance of it - much more efficient is to load it once and then make copies
-    // of it. In case of models it is very efficient because single vertex and index buffer
-    // can be used for all models instances, so memory footprint on GPU will be lower.
-    let (model_resource, walk_animation_resource) = rg3d::core::futures::join!(
-        resource_manager.request_model("examples/data/mutant.FBX"),
-        resource_manager.request_model("examples/data/walk.fbx")
-    );
-
-    // Instantiate model on scene - but only geometry, without any animations.
-    // Instantiation is a process of embedding model resource data in desired scene.
-    let model_handle = model_resource.unwrap().instantiate_geometry(&mut scene);
-
-    // Now we have whole sub-graph instantiated, we can start modifying model instance.
-    scene.graph[model_handle]
-        .local_transform_mut()
-        // Our model is too big, fix it by scale.
-        .set_scale(Vector3::new(0.05, 0.05, 0.05));
-
-    // Add simple animation for our model. Animations are loaded from model resources -
-    // this is because animation is a set of skeleton bones with their own transforms.
-    // Once animation resource is loaded it must be re-targeted to our model instance.
-    // Why? Because animation in *resource* uses information about *resource* bones,
-    // not model instance bones, retarget_animations maps animations of each bone on
-    // model instance so animation will know about nodes it should operate on.
-    let walk_animation = *walk_animation_resource
-        .unwrap()
-        .retarget_animations(model_handle, &mut scene)
-        .get(0)
-        .unwrap();
-
-    // Add floor.
-    MeshBuilder::new(
-        BaseBuilder::new().with_local_transform(
-            TransformBuilder::new()
-                .with_local_position(Vector3::new(0.0, -0.25, 0.0))
-                .build(),
-        ),
-    )
-    .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
-        SurfaceSharedData::make_cube(Matrix4::new_nonuniform_scaling(&Vector3::new(
-            25.0, 0.25, 25.0,
-        ))),
-    )))
-    .with_diffuse_texture(resource_manager.request_texture("examples/data/concrete2.dds"))
-    .build()])
-    .build(&mut scene.graph);
-
-    GameScene {
-        scene,
-        model_handle,
-        walk_animation,
-    }
+    GameScene { scene, camera }
 }
 
 struct InputController {
-    rotate_left: bool,
-    rotate_right: bool,
+    move_forward: bool,
+    move_backward: bool,
+    move_left: bool,
+    move_right: bool,
 }
 
 fn main() {
     let event_loop = EventLoop::new();
 
     let window_builder = rg3d::window::WindowBuilder::new()
-        .with_title("Example - Model")
+        .with_title("Example - 2D")
         .with_resizable(true);
 
     let mut engine = GameEngine::new(window_builder, &event_loop, true).unwrap();
@@ -161,16 +111,13 @@ fn main() {
     let debug_text = create_ui(&mut engine.user_interface.build_ctx());
 
     // Create test scene.
-    let GameScene {
-        scene,
-        model_handle,
-        walk_animation,
-    } = rg3d::core::futures::executor::block_on(create_scene(engine.resource_manager.clone()));
+    let GameScene { scene, camera } =
+        rg3d::core::futures::executor::block_on(create_scene(engine.resource_manager.clone()));
 
     // Add scene to engine - engine will take ownership over scene and will return
     // you a handle to scene which can be used later on to borrow it and do some
     // actions you need.
-    let scene_handle = engine.scenes.add(scene);
+    let scene_handle = engine.scenes2d.add(scene);
 
     let clock = Instant::now();
     let fixed_timestep = 1.0 / 60.0;
@@ -181,8 +128,10 @@ fn main() {
 
     // Create input controller - it will hold information about needed actions.
     let mut input_controller = InputController {
-        rotate_left: false,
-        rotate_right: false,
+        move_forward: false,
+        move_backward: false,
+        move_left: false,
+        move_right: false,
     };
 
     // Finally run our event loop which will respond to OS and window events and update
@@ -203,37 +152,28 @@ fn main() {
                     // Put your game logic here.
                     // ************************
 
-                    // Use stored scene handle to borrow a mutable reference of scene in
-                    // engine.
-                    let scene = &mut engine.scenes[scene_handle];
-
-                    // Our animation must be applied to scene explicitly, otherwise
-                    // it will have no effect.
-                    scene
-                        .animations
-                        .get_mut(walk_animation)
-                        .get_pose()
-                        .apply(&mut scene.graph);
-
-                    // Rotate model according to input controller state.
-                    if input_controller.rotate_left {
-                        model_angle -= 5.0f32.to_radians();
-                    } else if input_controller.rotate_right {
-                        model_angle += 5.0f32.to_radians();
+                    let mut offset = Vector2::default();
+                    if input_controller.move_forward {
+                        offset.y -= 10.0
+                    }
+                    if input_controller.move_backward {
+                        offset.y += 10.0
+                    }
+                    if input_controller.move_left {
+                        offset.x -= 10.0
+                    }
+                    if input_controller.move_right {
+                        offset.x += 10.0
                     }
 
-                    scene.graph[model_handle]
-                        .local_transform_mut()
-                        .set_rotation(UnitQuaternion::from_axis_angle(
-                            &Vector3::y_axis(),
-                            model_angle,
-                        ));
+                    if let Some(offset) = offset.try_normalize(f32::EPSILON) {
+                        engine.scenes2d[scene_handle].graph[camera]
+                            .local_transform_mut()
+                            .offset(offset);
+                    }
 
                     let fps = engine.renderer.get_statistics().frames_per_second;
-                    let text = format!(
-                        "Example 01 - Simple Scene\nUse [A][D] keys to rotate model.\nFPS: {}",
-                        fps
-                    );
+                    let text = format!("Example - 2D\nFPS: {}", fps);
                     engine.user_interface.send_message(TextMessage::text(
                         debug_text,
                         MessageDirection::ToWidget,
@@ -274,12 +214,20 @@ fn main() {
                         // Handle key input events via `WindowEvent`, not via `DeviceEvent` (#32)
                         if let Some(key_code) = input.virtual_keycode {
                             match key_code {
+                                VirtualKeyCode::W => {
+                                    input_controller.move_forward =
+                                        input.state == ElementState::Pressed
+                                }
+                                VirtualKeyCode::S => {
+                                    input_controller.move_backward =
+                                        input.state == ElementState::Pressed
+                                }
                                 VirtualKeyCode::A => {
-                                    input_controller.rotate_left =
+                                    input_controller.move_left =
                                         input.state == ElementState::Pressed
                                 }
                                 VirtualKeyCode::D => {
-                                    input_controller.rotate_right =
+                                    input_controller.move_right =
                                         input.state == ElementState::Pressed
                                 }
                                 _ => (),

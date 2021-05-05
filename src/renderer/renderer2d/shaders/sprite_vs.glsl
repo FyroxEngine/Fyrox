@@ -12,5 +12,5 @@ out vec2 texCoord;
 void main()
 {
     texCoord = vertexTexCoord;
-    gl_Position = worldMatrix * viewProjection * vec4(vertexPosition.x, vertexPosition.y, 0.0, 1.0);
+    gl_Position = viewProjection * worldMatrix * vec4(vertexPosition.x, vertexPosition.y, 0.0, 1.0);
 }

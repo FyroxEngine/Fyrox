@@ -1,12 +1,12 @@
-use crate::core::pool::Ticket;
 use crate::{
     core::{
-        algebra::Vector2,
-        pool::{Handle, Pool},
+        algebra::{Matrix4, Vector2},
+        pool::{Handle, Pool, Ticket},
         visitor::prelude::*,
     },
     scene2d::node::Node,
 };
+use std::ops::{Index, IndexMut};
 
 #[derive(Default, Visit)]
 pub struct Graph {
@@ -178,5 +178,58 @@ impl Graph {
     /// Makes node handle vacant again.
     pub fn forget_ticket(&mut self, ticket: Ticket<Node>) {
         self.pool.forget_ticket(ticket)
+    }
+
+    pub fn update(&mut self, render_target_size: Vector2<f32>, _dt: f32) {
+        self.update_hierarchical_data();
+
+        for node in self.pool.iter_mut() {
+            if let Node::Camera(camera) = node {
+                camera.update(render_target_size);
+            }
+        }
+    }
+
+    /// Calculates local and global transform, global visibility for each node in graph.
+    /// Normally you not need to call this method directly, it will be called automatically
+    /// on each frame. However there is one use case - when you setup complex hierarchy and
+    /// need to know global transform of nodes before entering update loop, then you can call
+    /// this method.
+    pub fn update_hierarchical_data(&mut self) {
+        fn update_recursively(graph: &Graph, node_handle: Handle<Node>) {
+            let node = &graph.pool[node_handle];
+
+            let (parent_global_transform, parent_visibility) =
+                if let Some(parent) = graph.pool.try_borrow(node.parent()) {
+                    (parent.global_transform(), parent.global_visibility())
+                } else {
+                    (Matrix4::identity(), true)
+                };
+
+            node.global_transform
+                .set(parent_global_transform * node.local_transform().matrix());
+            node.global_visibility
+                .set(parent_visibility && node.visibility());
+
+            for &child in node.children() {
+                update_recursively(graph, child);
+            }
+        }
+
+        update_recursively(self, self.root);
+    }
+}
+
+impl Index<Handle<Node>> for Graph {
+    type Output = Node;
+
+    fn index(&self, index: Handle<Node>) -> &Self::Output {
+        &self.pool[index]
+    }
+}
+
+impl IndexMut<Handle<Node>> for Graph {
+    fn index_mut(&mut self, index: Handle<Node>) -> &mut Self::Output {
+        &mut self.pool[index]
     }
 }
