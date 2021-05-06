@@ -384,7 +384,7 @@ impl UiRenderer {
                 ),
                 (
                     self.shader.gradient_colors.clone(),
-                    UniformValue::Vec4Array({
+                    UniformValue::Vector4Array({
                         match &cmd.brush {
                             Brush::Solid(_) => &raw_colors,
                             Brush::LinearGradient { stops, .. }

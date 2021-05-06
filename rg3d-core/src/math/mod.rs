@@ -149,6 +149,32 @@ where
         }
     }
 
+    pub fn intersects_circle(&self, circle: Vector2<T>, radius: T) -> bool {
+        let r = self.position.x + self.size.x;
+        let b = self.position.y + self.size.y;
+        // find the closest point to the circle within the rectangle
+        let closest_x = if circle.x < self.position.x {
+            self.position.x
+        } else if circle.x > r {
+            r
+        } else {
+            circle.x
+        };
+        let closest_y = if circle.y < self.position.y {
+            self.position.y
+        } else if circle.y > b {
+            b
+        } else {
+            circle.y
+        };
+        // calculate the distance between the circle's center and this closest point
+        let distance_x = circle.x - closest_x;
+        let distance_y = circle.y - closest_y;
+        // if the distance is less than the circle's radius, an intersection occurs
+        let distance_squared = (distance_x * distance_x) + (distance_y * distance_y);
+        distance_squared < (radius * radius)
+    }
+
     pub fn extend_to_contain(&mut self, other: Rect<T>) {
         if other.position.x < self.position.x {
             self.position.x = other.position.x;

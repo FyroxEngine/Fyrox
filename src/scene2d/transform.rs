@@ -24,9 +24,17 @@ impl Transform {
         self
     }
 
+    pub fn position(&self) -> Vector2<f32> {
+        self.position
+    }
+
     pub fn set_rotation(&mut self, rotation: f32) -> &mut Self {
         self.rotation = rotation;
         self
+    }
+
+    pub fn rotation(&self) -> f32 {
+        self.rotation
     }
 
     pub fn set_scale(&mut self, scale: Vector2<f32>) -> &mut Self {
@@ -34,15 +42,24 @@ impl Transform {
         self
     }
 
+    pub fn scale(&self) -> Vector2<f32> {
+        self.scale
+    }
+
     pub fn offset(&mut self, offset: Vector2<f32>) -> &mut Self {
         self.position += offset;
         self
     }
 
+    pub fn turn(&mut self, delta: f32) -> &mut Self {
+        self.rotation += delta;
+        self
+    }
+
     pub fn matrix(&self) -> Matrix4<f32> {
-        Matrix4::new_nonuniform_scaling(&Vector3::new(self.scale.x, self.scale.y, 1.0))
+        Matrix4::new_translation(&Vector3::new(self.position.x, self.position.y, 0.0))
             * Matrix3::new_rotation(self.rotation).to_homogeneous()
-            * Matrix4::new_translation(&Vector3::new(self.position.x, self.position.y, 0.0))
+            * Matrix4::new_nonuniform_scaling(&Vector3::new(self.scale.x, self.scale.y, 1.0))
     }
 }
 

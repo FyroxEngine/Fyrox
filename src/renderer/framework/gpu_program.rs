@@ -43,9 +43,9 @@ pub enum UniformValue<'a> {
 
     IntegerArray(&'a [i32]),
     FloatArray(&'a [f32]),
-    Vec2Array(&'a [Vector2<f32>]),
-    Vec3Array(&'a [Vector3<f32>]),
-    Vec4Array(&'a [Vector4<f32>]),
+    Vector2Array(&'a [Vector2<f32>]),
+    Vector3Array(&'a [Vector3<f32>]),
+    Vector4Array(&'a [Vector4<f32>]),
     Mat4Array(&'a [Matrix4<f32>]),
 }
 
@@ -226,19 +226,19 @@ impl GpuProgram {
                 UniformValue::FloatArray(value) => {
                     state.gl.uniform_1_f32_slice(location, value);
                 }
-                UniformValue::Vec2Array(value) => {
+                UniformValue::Vector2Array(value) => {
                     state.gl.uniform_2_f32_slice(
                         location,
                         std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 2),
                     );
                 }
-                UniformValue::Vec3Array(value) => {
+                UniformValue::Vector3Array(value) => {
                     state.gl.uniform_3_f32_slice(
                         location,
                         std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 3),
                     );
                 }
-                UniformValue::Vec4Array(value) => {
+                UniformValue::Vector4Array(value) => {
                     state.gl.uniform_4_f32_slice(
                         location,
                         std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 4),

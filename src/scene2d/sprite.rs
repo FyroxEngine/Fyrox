@@ -1,3 +1,5 @@
+use crate::core::algebra::{Point3, Vector2};
+use crate::core::math::Rect;
 use crate::{
     core::{color::Color, pool::Handle, visitor::prelude::*},
     resource::texture::Texture,
@@ -53,6 +55,34 @@ impl Sprite {
 
     pub fn size(&self) -> f32 {
         self.size
+    }
+
+    pub fn local_bounds(&self) -> Rect<f32> {
+        Rect {
+            position: self.local_transform().position(),
+            size: Vector2::new(self.size, self.size),
+        }
+    }
+
+    pub fn global_bounds(&self) -> Rect<f32> {
+        let mut bounds = Rect::default();
+        let local_top_left = self.local_transform().position();
+        let local_bottom_right = local_top_left + Vector2::new(self.size, self.size);
+        let global_top_left = self
+            .global_transform()
+            .transform_point(&Point3::new(local_top_left.x, local_top_left.y, 0.0))
+            .coords;
+        let global_bottom_right = self
+            .global_transform()
+            .transform_point(&Point3::new(
+                local_bottom_right.x,
+                local_bottom_right.y,
+                0.0,
+            ))
+            .coords;
+        bounds.push(global_top_left.xy());
+        bounds.push(global_bottom_right.xy());
+        bounds
     }
 }
 

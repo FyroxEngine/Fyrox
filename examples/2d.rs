@@ -6,6 +6,7 @@
 
 extern crate rg3d;
 
+use rg3d::scene2d::light::spot::SpotLightBuilder;
 use rg3d::{
     core::{algebra::Vector2, pool::Handle},
     engine::resource_manager::ResourceManager,
@@ -39,6 +40,7 @@ fn create_ui(ctx: &mut BuildContext) -> Handle<UiNode> {
 struct GameScene {
     scene: Scene2d,
     camera: Handle<Node>,
+    spot_light: Handle<Node>,
 }
 
 async fn create_scene(resource_manager: ResourceManager) -> GameScene {
@@ -72,14 +74,28 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     PointLightBuilder::new(BaseLightBuilder::new(
         BaseBuilder::new().with_local_transform(
             TransformBuilder::new()
-                .with_position(Vector2::new(300.0, 400.0))
+                .with_position(Vector2::new(300.0, 200.0))
                 .build(),
         ),
     ))
-    .with_radius(20.0)
+    .with_radius(200.0)
     .build(&mut scene.graph);
 
-    GameScene { scene, camera }
+    let spot_light = SpotLightBuilder::new(BaseLightBuilder::new(
+        BaseBuilder::new().with_local_transform(
+            TransformBuilder::new()
+                .with_position(Vector2::new(500.0, 400.0))
+                .build(),
+        ),
+    ))
+    .with_radius(200.0)
+    .build(&mut scene.graph);
+
+    GameScene {
+        scene,
+        camera,
+        spot_light,
+    }
 }
 
 struct InputController {
@@ -111,8 +127,11 @@ fn main() {
     let debug_text = create_ui(&mut engine.user_interface.build_ctx());
 
     // Create test scene.
-    let GameScene { scene, camera } =
-        rg3d::core::futures::executor::block_on(create_scene(engine.resource_manager.clone()));
+    let GameScene {
+        scene,
+        camera,
+        spot_light,
+    } = rg3d::core::futures::executor::block_on(create_scene(engine.resource_manager.clone()));
 
     // Add scene to engine - engine will take ownership over scene and will return
     // you a handle to scene which can be used later on to borrow it and do some
@@ -122,9 +141,6 @@ fn main() {
     let clock = Instant::now();
     let fixed_timestep = 1.0 / 60.0;
     let mut elapsed_time = 0.0;
-
-    // We will rotate model using keyboard input.
-    let mut model_angle = 180.0f32.to_radians();
 
     // Create input controller - it will hold information about needed actions.
     let mut input_controller = InputController {
@@ -166,11 +182,15 @@ fn main() {
                         offset.x += 10.0
                     }
 
+                    let graph = &mut engine.scenes2d[scene_handle].graph;
+
                     if let Some(offset) = offset.try_normalize(f32::EPSILON) {
-                        engine.scenes2d[scene_handle].graph[camera]
-                            .local_transform_mut()
-                            .offset(offset);
+                        graph[camera].local_transform_mut().offset(offset);
                     }
+
+                    graph[spot_light]
+                        .local_transform_mut()
+                        .turn(10.0f32.to_radians());
 
                     let fps = engine.renderer.get_statistics().frames_per_second;
                     let text = format!("Example - 2D\nFPS: {}", fps);

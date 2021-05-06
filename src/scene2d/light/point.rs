@@ -1,7 +1,6 @@
 use crate::{
     core::{pool::Handle, visitor::prelude::*},
     scene2d::{
-        base::Base,
         graph::Graph,
         light::{BaseLight, BaseLightBuilder, Light},
         node::Node,
@@ -15,17 +14,23 @@ pub struct PointLight {
     radius: f32,
 }
 
+impl PointLight {
+    pub fn radius(&self) -> f32 {
+        self.radius
+    }
+}
+
 impl Deref for PointLight {
-    type Target = Base;
+    type Target = BaseLight;
 
     fn deref(&self) -> &Self::Target {
-        &self.base_light.base
+        &self.base_light
     }
 }
 
 impl DerefMut for PointLight {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.base_light.base
+        &mut self.base_light
     }
 }
 

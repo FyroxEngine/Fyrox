@@ -1,3 +1,6 @@
+use crate::core::algebra::Vector4;
+use crate::core::math::Rect;
+use crate::scene2d::light::Light;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2},
@@ -31,11 +34,15 @@ struct SpriteShader {
     program: GpuProgram,
     wvp_matrix: UniformLocation,
     diffuse_texture: UniformLocation,
-    framebuffers: HashMap<Handle<Scene2d>, FrameBuffer>,
+    light_count: UniformLocation,
+    light_color_radius: UniformLocation,
+    light_position_direction: UniformLocation,
+    light_parameters: UniformLocation,
+    ambient_light_color: UniformLocation,
 }
 
 impl SpriteShader {
-    pub fn new(state: &mut PipelineState) -> Result<SpriteShader, FrameworkError> {
+    pub fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/sprite_fs.glsl");
         let vertex_source = include_str!("shaders/sprite_vs.glsl");
 
@@ -44,8 +51,12 @@ impl SpriteShader {
         Ok(Self {
             wvp_matrix: program.uniform_location(state, "viewProjection")?,
             diffuse_texture: program.uniform_location(state, "diffuseTexture")?,
+            light_count: program.uniform_location(state, "lightCount")?,
+            light_color_radius: program.uniform_location(state, "lightColorRadius")?,
+            light_position_direction: program.uniform_location(state, "lightPositionDirection")?,
+            light_parameters: program.uniform_location(state, "lightParameters")?,
+            ambient_light_color: program.uniform_location(state, "ambientLightColor")?,
             program,
-            framebuffers: Default::default(),
         })
     }
 }
@@ -94,6 +105,7 @@ pub struct Renderer2d {
     geometry_cache: GeometryCache,
     framebuffers: HashMap<Handle<Scene2d>, RenderTarget>,
     batch_storage: BatchStorage,
+    instance_data_set: Vec<InstanceData>,
 }
 
 #[derive(Default)]
@@ -146,17 +158,26 @@ impl BatchStorage {
                     self.batches.last_mut().unwrap()
                 };
 
-                batch.instances.push(InstanceData {
-                    color: sprite.color(),
-                    world_matrix: sprite.global_transform() * Matrix4::new_scaling(sprite.size()),
+                batch.instances.push(Instance {
+                    gpu_data: InstanceData {
+                        color: sprite.color(),
+                        world_matrix: sprite.global_transform()
+                            * Matrix4::new_scaling(sprite.size()),
+                    },
+                    bounds: sprite.global_bounds(),
                 });
             }
         }
     }
 }
 
+struct Instance {
+    gpu_data: InstanceData,
+    bounds: Rect<f32>,
+}
+
 struct Batch {
-    instances: Vec<InstanceData>,
+    instances: Vec<Instance>,
     texture: Rc<RefCell<GpuTexture>>,
 }
 
@@ -168,6 +189,7 @@ impl Renderer2d {
             geometry_cache: Default::default(),
             framebuffers: Default::default(),
             batch_storage: Default::default(),
+            instance_data_set: Default::default(),
         })
     }
 
@@ -232,9 +254,68 @@ impl Renderer2d {
             }) {
                 let view_projection = camera.view_projection_matrix();
                 let viewport = camera.viewport_pixels(frame_size);
+                let viewport_f32 = Rect::new(
+                    viewport.position.x as f32,
+                    viewport.position.y as f32,
+                    viewport.size.x as f32,
+                    viewport.size.y as f32,
+                );
+
+                const MAX_LIGHTS: usize = 16;
+                let mut light_count = 0;
+                let mut light_color_radius = [Vector4::default(); MAX_LIGHTS];
+                let mut light_position_direction = [Vector4::default(); MAX_LIGHTS];
+                let mut light_parameters = [Vector2::default(); MAX_LIGHTS];
+
+                for light in scene.graph.linear_iter().filter_map(|n| {
+                    if let Node::Light(l) = n {
+                        Some(l)
+                    } else {
+                        None
+                    }
+                }) {
+                    let (radius, half_cone_angle_cos, half_hotspot_angle_cos, direction) =
+                        match light {
+                            Light::Point(point) => (
+                                point.radius(),
+                                std::f32::consts::PI.cos(),
+                                std::f32::consts::PI.cos(),
+                                Vector2::new(0.0, 1.0),
+                            ),
+                            Light::Spot(spot) => (
+                                spot.radius(),
+                                spot.half_hotspot_cone_angle(),
+                                spot.half_full_cone_angle_cos(),
+                                spot.up(),
+                            ),
+                        };
+
+                    let position = light.global_position();
+
+                    if viewport_f32.intersects_circle(position, radius) {
+                        let light_num = light_count as usize;
+                        let color = light.color().as_frgb();
+
+                        light_position_direction[light_num] =
+                            Vector4::new(position.x, position.y, direction.x, direction.y);
+                        light_color_radius[light_num] =
+                            Vector4::new(color.x, color.y, color.z, radius);
+                        light_parameters[light_num] =
+                            Vector2::new(half_cone_angle_cos, half_hotspot_angle_cos);
+
+                        light_count += 1;
+                    }
+                }
 
                 for batch in self.batch_storage.batches.iter() {
-                    quad.set_buffer_data(state, 1, &batch.instances);
+                    self.instance_data_set.clear();
+                    for instance in batch.instances.iter() {
+                        if viewport_f32.intersects(instance.bounds) {
+                            self.instance_data_set.push(instance.gpu_data.clone());
+                        }
+                    }
+
+                    quad.set_buffer_data(state, 1, &self.instance_data_set);
 
                     stats += frame_buffer.draw_instances(
                         batch.instances.len(),
@@ -262,6 +343,26 @@ impl Renderer2d {
                                     index: 0,
                                     texture: batch.texture.clone(),
                                 },
+                            ),
+                            (
+                                self.sprite_shader.light_count.clone(),
+                                UniformValue::Integer(light_count),
+                            ),
+                            (
+                                self.sprite_shader.light_color_radius.clone(),
+                                UniformValue::Vector4Array(&light_color_radius),
+                            ),
+                            (
+                                self.sprite_shader.light_position_direction.clone(),
+                                UniformValue::Vector4Array(&light_position_direction),
+                            ),
+                            (
+                                self.sprite_shader.light_parameters.clone(),
+                                UniformValue::Vector2Array(&light_parameters),
+                            ),
+                            (
+                                self.sprite_shader.ambient_light_color.clone(),
+                                UniformValue::Vector3(&scene.ambient_light_color.as_frgb()),
                             ),
                         ],
                     );

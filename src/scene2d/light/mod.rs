@@ -1,8 +1,7 @@
-use crate::scene2d::base::BaseBuilder;
 use crate::{
-    core::visitor::prelude::*,
+    core::{color::Color, visitor::prelude::*},
     scene2d::{
-        base::Base,
+        base::{Base, BaseBuilder},
         light::{point::PointLight, spot::SpotLight},
     },
 };
@@ -18,7 +17,7 @@ pub enum Light {
 }
 
 impl Deref for Light {
-    type Target = Base;
+    type Target = BaseLight;
 
     fn deref(&self) -> &Self::Target {
         match self {
@@ -47,11 +46,45 @@ impl Default for Light {
 pub struct BaseLight {
     base: Base,
     enabled: bool,
+    color: Color,
+}
+
+impl Deref for BaseLight {
+    type Target = Base;
+
+    fn deref(&self) -> &Self::Target {
+        &self.base
+    }
+}
+
+impl DerefMut for BaseLight {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.base
+    }
+}
+
+impl BaseLight {
+    pub fn color(&self) -> Color {
+        self.color
+    }
+
+    pub fn set_color(&mut self, color: Color) {
+        self.color = color;
+    }
+
+    pub fn enabled(&self) -> bool {
+        self.enabled
+    }
+
+    pub fn set_enabled(&mut self, enabled: bool) {
+        self.enabled = enabled;
+    }
 }
 
 pub struct BaseLightBuilder {
     base_builder: BaseBuilder,
     enabled: bool,
+    color: Color,
 }
 
 impl BaseLightBuilder {
@@ -59,6 +92,7 @@ impl BaseLightBuilder {
         Self {
             base_builder,
             enabled: true,
+            color: Color::WHITE,
         }
     }
 
@@ -67,10 +101,16 @@ impl BaseLightBuilder {
         self
     }
 
+    pub fn with_color(mut self, color: Color) -> Self {
+        self.color = color;
+        self
+    }
+
     pub fn build(self) -> BaseLight {
         BaseLight {
             base: self.base_builder.build_base(),
             enabled: self.enabled,
+            color: self.color,
         }
     }
 }

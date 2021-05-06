@@ -1,6 +1,7 @@
 use crate::{
     core::{
         algebra::Vector2,
+        color::Color,
         pool::{Handle, Pool},
         visitor::prelude::*,
     },
@@ -24,6 +25,8 @@ pub struct Scene2d {
     pub render_target: Option<Texture>,
 
     pub enabled: bool,
+
+    pub ambient_light_color: Color,
 }
 
 impl Scene2d {
@@ -32,6 +35,7 @@ impl Scene2d {
             graph: Graph::new(),
             render_target: None,
             enabled: true,
+            ambient_light_color: Color::opaque(80, 80, 80),
         }
     }
 

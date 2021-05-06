@@ -41,6 +41,16 @@ impl Base {
         Vector2::new(m[12], m[13])
     }
 
+    pub fn up(&self) -> Vector2<f32> {
+        let m = self.global_transform.get();
+        Vector2::new(m[4], m[5])
+    }
+
+    pub fn right(&self) -> Vector2<f32> {
+        let m = self.global_transform.get();
+        Vector2::new(m[0], m[1])
+    }
+
     pub fn children(&self) -> &[Handle<Node>] {
         &self.children
     }

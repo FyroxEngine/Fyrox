@@ -62,6 +62,7 @@ pub(in crate) struct GeometryCache {
     map: HashMap<usize, TimedEntry<GeometryBuffer>>,
 }
 
+#[derive(Clone)]
 #[repr(C)]
 pub(in crate) struct InstanceData {
     pub color: Color,

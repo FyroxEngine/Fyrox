@@ -257,7 +257,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                 ),
                 (
                     self.shader.kernel.clone(),
-                    UniformValue::Vec3Array(&self.kernel),
+                    UniformValue::Vector3Array(&self.kernel),
                 ),
                 (self.shader.radius.clone(), UniformValue::Float(self.radius)),
                 (
