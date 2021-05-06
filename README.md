@@ -1,6 +1,6 @@
 [![RG3D](pics/logo.png)](https://rg3d.rs/)
 
-# Rust Game engine 3D
+# Rust Game engine 3D (and 2D)
 
 [![Crates.io](https://img.shields.io/crates/l/rg3d)](https://github.com/mrDIMAS/rg3d/blob/master/LICENSE.md)
 [![Crates.io](https://img.shields.io/crates/v/rg3d)](https://crates.io/crates/rg3d)
@@ -8,7 +8,7 @@
 [![Discord](https://img.shields.io/discord/756573453561102427)](https://discord.gg/xENF5Uh)
 [![Lines of code](https://tokei.rs/b1/github/mrDIMAS/rg3d)](https://github.com/mrDIMAS/rg3d)
 
-A feature-rich, general purpose 3D game engine written in Rust with a scene editor. Most powerful 
+A feature-rich, general purpose 2D/3D game engine written in Rust with a scene editor. Most powerful 
 3D game engine written in Rust so far.
 
 ## Support
@@ -57,7 +57,7 @@ There are many examples covering various aspects of the engine. Also don't hesit
 ## Features
 
 - Exceptional safety, reliability, and speed.
-- PC (Windows, Linux, macOS) and Web (WebAssembly) support.
+- PC (Windows, Linux, macOS) and Web (WebAssembly) support - [Check online example](https://rg3d.rs/assets/webexample/index.html).
 - Deferred shading.
 	- Renderer based on OpenGL 3.3 Core (released in 2010) which means that your game will run on almost
 	  any relatively modern GPU. 
@@ -72,6 +72,7 @@ There are many examples covering various aspects of the engine. Also don't hesit
 	- FXAA
 - Render in texture.
 - Sky box.
+- 2D support.
 - Multi-camera rendering.
 - Multiple scenes.
 - Lightmap generator.
@@ -122,6 +123,7 @@ modern games at a decent frame rate.
 - Linux - **full support**
 - macOS - **full support**
 - WebAssembly - **full support**
+- Android - **not supported**
 
 ## Compiler version
 
