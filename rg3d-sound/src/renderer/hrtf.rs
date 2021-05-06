@@ -19,13 +19,13 @@
 //! To use HRTF you need to change default renderer to HRTF renderer like so:
 //!
 //! ```no_run
-//! use rg3d_sound::context::{self, Context};
+//! use rg3d_sound::context::{self, SoundContext};
 //! use rg3d_sound::renderer::hrtf::{HrtfRenderer};
 //! use rg3d_sound::renderer::Renderer;
 //! use std::path::Path;
 //! use hrtf::HrirSphere;
 //!
-//! fn use_hrtf(context: &mut Context) {
+//! fn use_hrtf(context: &mut SoundContext) {
 //!     // IRC_1002_C.bin is HRIR sphere in binary format, can be any valid HRIR sphere
 //!     // from base mentioned above.
 //!     let hrir_sphere = HrirSphere::from_file("examples/data/IRC_1002_C.bin", context::SAMPLE_RATE).unwrap();
@@ -53,7 +53,7 @@
 
 use crate::{
     context,
-    context::{Context, DistanceModel},
+    context::{DistanceModel, SoundContext},
     listener::Listener,
     renderer::render_source_default,
     source::SoundSource,
@@ -86,8 +86,8 @@ impl Visit for HrtfRenderer {
         if visitor.is_reading() {
             self.processor = Some(hrtf::HrtfProcessor::new(
                 HrirSphere::from_file(resource_path, context::SAMPLE_RATE).unwrap(),
-                Context::HRTF_INTERPOLATION_STEPS,
-                Context::HRTF_BLOCK_LEN,
+                SoundContext::HRTF_INTERPOLATION_STEPS,
+                SoundContext::HRTF_BLOCK_LEN,
             ));
         }
 
@@ -101,8 +101,8 @@ impl HrtfRenderer {
         Self {
             processor: Some(hrtf::HrtfProcessor::new(
                 hrir_sphere,
-                Context::HRTF_INTERPOLATION_STEPS,
-                Context::HRTF_BLOCK_LEN,
+                SoundContext::HRTF_INTERPOLATION_STEPS,
+                SoundContext::HRTF_BLOCK_LEN,
             )),
         }
     }

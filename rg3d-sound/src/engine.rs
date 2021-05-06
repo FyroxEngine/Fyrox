@@ -4,14 +4,14 @@
 //!
 //! Sound engine manages contexts, feeds output device with data.
 
-use crate::{context::Context, device};
+use crate::{context::SoundContext, device};
 use rg3d_core::visitor::{Visit, VisitResult, Visitor};
 use std::sync::{Arc, Mutex};
 
 /// Internal state of sound engine.
 #[derive(Default)]
 pub struct SoundEngine {
-    contexts: Vec<Context>,
+    contexts: Vec<SoundContext>,
     master_gain: f32,
 }
 
@@ -28,7 +28,7 @@ impl SoundEngine {
         // Run the default output device. Internally it creates separate thread, so we have
         // to share sound engine instance with it, this is the only reason why it is wrapped
         // in Arc<Mutex<>>
-        device::run_device(4 * Context::SAMPLES_PER_CHANNEL as u32, {
+        device::run_device(4 * SoundContext::SAMPLES_PER_CHANNEL as u32, {
             let state = engine.clone();
             move |buf| {
                 if let Ok(mut state) = state.lock() {
@@ -45,26 +45,26 @@ impl SoundEngine {
 
     /// Adds new context to the engine. Each context must be added to the engine to emit
     /// sounds.
-    pub fn add_context(&mut self, context: Context) {
+    pub fn add_context(&mut self, context: SoundContext) {
         self.contexts.push(context);
     }
 
     /// Removes a context from the engine. Removed context will no longer produce any sound.
-    pub fn remove_context(&mut self, context: Context) {
+    pub fn remove_context(&mut self, context: SoundContext) {
         if let Some(position) = self.contexts.iter().position(|c| c == &context) {
             self.contexts.remove(position);
         }
     }
 
     /// Checks if a context is registered in the engine.
-    pub fn has_context(&self, context: &Context) -> bool {
+    pub fn has_context(&self, context: &SoundContext) -> bool {
         self.contexts
             .iter()
             .any(|c| Arc::ptr_eq(c.state.as_ref().unwrap(), context.state.as_ref().unwrap()))
     }
 
     /// Returns a reference to context container.
-    pub fn contexts(&self) -> &[Context] {
+    pub fn contexts(&self) -> &[SoundContext] {
         &self.contexts
     }
 

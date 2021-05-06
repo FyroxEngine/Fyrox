@@ -84,11 +84,11 @@ impl Default for DistanceModel {
 
 /// See module docs.
 #[derive(Clone, Default, Debug)]
-pub struct Context {
+pub struct SoundContext {
     pub(in crate) state: Option<Arc<Mutex<State>>>,
 }
 
-impl PartialEq for Context {
+impl PartialEq for SoundContext {
     fn eq(&self, other: &Self) -> bool {
         Arc::ptr_eq(self.state.as_ref().unwrap(), other.state.as_ref().unwrap())
     }
@@ -254,7 +254,7 @@ impl State {
     }
 }
 
-impl Context {
+impl SoundContext {
     /// TODO: This is magic constant that gives 1024 + 1 number when summed with
     ///       HRTF length for faster FFT calculations. Find a better way of selecting this.
     pub const HRTF_BLOCK_LEN: usize = 513;
@@ -288,8 +288,8 @@ impl Context {
     /// This method internally locks a mutex, so if you'll try to do something like this:
     ///
     /// ```rust
-    /// # use rg3d_sound::context::Context;
-    /// # let ctx = Context::new();
+    /// # use rg3d_sound::context::SoundContext;
+    /// # let ctx = SoundContext::new();
     /// let state = ctx.state();
     /// // Do something
     /// // ...
@@ -303,8 +303,8 @@ impl Context {
     }
 
     /// Creates deep copy intead of shallow which is done by clone().
-    pub fn deep_clone(&self) -> Context {
-        Context {
+    pub fn deep_clone(&self) -> SoundContext {
+        SoundContext {
             state: Some(Arc::new(Mutex::new(self.state().clone()))),
         }
     }
@@ -315,7 +315,7 @@ impl Context {
     }
 }
 
-impl Visit for Context {
+impl Visit for SoundContext {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 

@@ -3,7 +3,7 @@ use rg3d_sound::futures::executor::block_on;
 use rg3d_sound::{
     algebra::{Point3, UnitQuaternion, Vector3},
     buffer::{DataSource, SoundBuffer},
-    context::{self, Context},
+    context::{self, SoundContext},
     effects::{reverb::Reverb, BaseEffect, Effect, EffectInput},
     hrtf::HrirSphere,
     renderer::{hrtf::HrtfRenderer, Renderer},
@@ -22,7 +22,7 @@ fn main() {
     let engine = SoundEngine::new();
 
     // Initialize new sound context.
-    let context = Context::new();
+    let context = SoundContext::new();
 
     engine.lock().unwrap().add_context(context.clone());
 

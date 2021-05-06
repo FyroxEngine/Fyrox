@@ -148,6 +148,7 @@ impl<M: MessageData, C: Control<M, C>> Engine<M, C> {
             renderer: Renderer::new(glow_context, (client_size.x as u32, client_size.y as u32))?,
             resource_manager: ResourceManager::new(),
             scenes: SceneContainer::new(sound_engine.clone()),
+            scenes2d: Scene2dContainer::new(sound_engine.clone()),
             sound_engine,
             user_interface: UserInterface::new(client_size),
             ui_time: Default::default(),
@@ -155,7 +156,6 @@ impl<M: MessageData, C: Control<M, C>> Engine<M, C> {
             context,
             #[cfg(target_arch = "wasm32")]
             window,
-            scenes2d: Default::default(),
         })
     }
 

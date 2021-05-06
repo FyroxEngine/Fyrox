@@ -7,8 +7,12 @@ use crate::{
     },
     resource::texture::Texture,
     scene2d::graph::Graph,
+    sound::{context::SoundContext, engine::SoundEngine},
 };
-use std::ops::{Index, IndexMut};
+use std::{
+    ops::{Index, IndexMut},
+    sync::{Arc, Mutex},
+};
 
 pub mod base;
 pub mod camera;
@@ -27,6 +31,9 @@ pub struct Scene2d {
     pub enabled: bool,
 
     pub ambient_light_color: Color,
+
+    /// A sound context that holds all sound sources, effects, etc. belonging to the scene.
+    pub sound_context: SoundContext,
 }
 
 impl Scene2d {
@@ -36,6 +43,7 @@ impl Scene2d {
             render_target: None,
             enabled: true,
             ambient_light_color: Color::opaque(80, 80, 80),
+            sound_context: SoundContext::new(),
         }
     }
 
@@ -44,18 +52,36 @@ impl Scene2d {
     }
 }
 
-#[derive(Default, Visit)]
+#[derive(Visit)]
 pub struct Scene2dContainer {
     pool: Pool<Scene2d>,
+    sound_engine: Arc<Mutex<SoundEngine>>,
 }
 
 impl Scene2dContainer {
+    pub fn new(sound_engine: Arc<Mutex<SoundEngine>>) -> Self {
+        Self {
+            pool: Default::default(),
+            sound_engine,
+        }
+    }
+
     pub fn add(&mut self, scene: Scene2d) -> Handle<Scene2d> {
+        self.sound_engine
+            .lock()
+            .unwrap()
+            .add_context(scene.sound_context.clone());
+
         self.pool.spawn(scene)
     }
 
-    pub fn remove(&mut self, scene: Handle<Scene2d>) -> Scene2d {
-        self.pool.free(scene)
+    pub fn remove(&mut self, scene_handle: Handle<Scene2d>) -> Scene2d {
+        self.sound_engine
+            .lock()
+            .unwrap()
+            .remove_context(self.pool[scene_handle].sound_context.clone());
+
+        self.pool.free(scene_handle)
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &Scene2d> {
@@ -68,6 +94,10 @@ impl Scene2dContainer {
 
     pub fn pair_iter(&self) -> impl Iterator<Item = (Handle<Scene2d>, &Scene2d)> {
         self.pool.pair_iter()
+    }
+
+    pub fn pair_iter_mut(&mut self) -> impl Iterator<Item = (Handle<Scene2d>, &mut Scene2d)> {
+        self.pool.pair_iter_mut()
     }
 }
 

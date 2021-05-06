@@ -4,7 +4,7 @@ use rg3d_sound::futures::executor::block_on;
 use rg3d_sound::{
     algebra::{UnitQuaternion, Vector3},
     buffer::{DataSource, SoundBuffer},
-    context::{self, Context},
+    context::{self, SoundContext},
     hrtf::HrirSphere,
     renderer::{hrtf::HrtfRenderer, Renderer},
     source::{generic::GenericSourceBuilder, spatial::SpatialSourceBuilder, SoundSource, Status},
@@ -22,7 +22,7 @@ fn main() {
         HrirSphere::from_file("examples/data/IRC_1002_C.bin", context::SAMPLE_RATE).unwrap();
 
     // Initialize new sound context with default output device.
-    let context = Context::new();
+    let context = SoundContext::new();
 
     engine.lock().unwrap().add_context(context.clone());
 

@@ -13,10 +13,10 @@
 //! use rg3d_sound::pool::Handle;
 //! use rg3d_sound::source::{SoundSource, Status};
 //! use rg3d_sound::source::generic::GenericSourceBuilder;
-//! use rg3d_sound::context::Context;
+//! use rg3d_sound::context::SoundContext;
 //! use rg3d_sound::source::spatial::SpatialSourceBuilder;
 //!
-//! fn make_source(context: &mut Context, buffer: Arc<Mutex<SoundBuffer>>) -> Handle<SoundSource> {
+//! fn make_source(context: &mut SoundContext, buffer: Arc<Mutex<SoundBuffer>>) -> Handle<SoundSource> {
 //!     let source = SpatialSourceBuilder::new(GenericSourceBuilder::new(buffer)
 //!         .with_status(Status::Playing)
 //!         .build()

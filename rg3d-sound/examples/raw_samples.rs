@@ -1,7 +1,7 @@
 use rg3d_sound::engine::SoundEngine;
 use rg3d_sound::{
     buffer::{DataSource, SoundBuffer},
-    context::Context,
+    context::SoundContext,
     source::{generic::GenericSourceBuilder, Status},
 };
 use std::{thread, time::Duration};
@@ -11,7 +11,7 @@ fn main() {
     let engine = SoundEngine::new();
 
     // Initialize new sound context.
-    let context = Context::new();
+    let context = SoundContext::new();
 
     engine.lock().unwrap().add_context(context.clone());
 

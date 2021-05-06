@@ -23,14 +23,14 @@
 //!         SoundSource,
 //!         Status
 //!     },
-//!     context::Context,
+//!     context::SoundContext,
 //!     buffer::{
 //!         DataSource,
 //!         SoundBuffer
 //!     },
 //! };
 //!
-//!  let context = Context::new();
+//!  let context = SoundContext::new();
 //!
 //!  let sound_buffer = SoundBuffer::new_generic(DataSource::from_file("sound.wav").unwrap()).unwrap();
 //!

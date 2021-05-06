@@ -15,27 +15,28 @@ pub mod physics;
 pub mod sprite;
 pub mod transform;
 
-use crate::core::instant;
-use crate::core::pool::Ticket;
-use crate::scene::physics::PhysicsPerformanceStatistics;
 use crate::{
     animation::AnimationContainer,
     core::{
         algebra::{Isometry3, Matrix4, Point3, Translation, Vector2, Vector3},
         color::Color,
+        instant,
         math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, Matrix4Ext},
-        pool::{Handle, Pool, PoolIterator, PoolIteratorMut},
+        pool::{Handle, Pool, PoolIterator, PoolIteratorMut, Ticket},
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
     resource::texture::Texture,
-    scene::{base::PhysicsBinding, graph::Graph, node::Node, physics::Physics},
-    sound::{context::Context, engine::SoundEngine},
+    scene::{
+        base::PhysicsBinding, graph::Graph, node::Node, physics::Physics,
+        physics::PhysicsPerformanceStatistics,
+    },
+    sound::{context::SoundContext, engine::SoundEngine},
     utils::{lightmap::Lightmap, log::Log, log::MessageKind, navmesh::Navmesh},
 };
-use std::fmt::{Display, Formatter};
 use std::{
     collections::HashMap,
+    fmt::{Display, Formatter},
     ops::{Deref, Index, IndexMut, Range},
     path::Path,
     sync::{Arc, Mutex},
@@ -1041,7 +1042,7 @@ pub struct Scene {
     pub drawing_context: SceneDrawingContext,
 
     /// A sound context that holds all sound sources, effects, etc. belonging to the scene.
-    pub sound_context: Context,
+    pub sound_context: SoundContext,
 
     /// A container for navigational meshes.
     pub navmeshes: NavMeshContainer,
@@ -1140,7 +1141,7 @@ impl Scene {
             render_target: None,
             lightmap: None,
             drawing_context: Default::default(),
-            sound_context: Context::new(),
+            sound_context: SoundContext::new(),
             navmeshes: Default::default(),
             performance_statistics: Default::default(),
             ambient_lighting_color: Color::opaque(100, 100, 100),

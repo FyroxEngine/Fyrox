@@ -5,7 +5,7 @@ use rg3d_sound::{
     algebra::{UnitQuaternion, Vector3},
     buffer::DataSource,
     buffer::SoundBuffer,
-    context::Context,
+    context::SoundContext,
     source::{generic::GenericSourceBuilder, spatial::SpatialSourceBuilder, Status},
 };
 use std::{
@@ -18,7 +18,7 @@ fn main() {
     let engine = SoundEngine::new();
 
     // Initialize new sound context.
-    let context = Context::new();
+    let context = SoundContext::new();
 
     engine.lock().unwrap().add_context(context.clone());
 

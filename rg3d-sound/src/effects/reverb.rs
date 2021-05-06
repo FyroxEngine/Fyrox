@@ -9,11 +9,11 @@
 //!
 //! ```
 //! use std::time::Duration;
-//! use rg3d_sound::context::Context;
+//! use rg3d_sound::context::SoundContext;
 //! use rg3d_sound::effects::reverb::Reverb;
 //! use rg3d_sound::effects::{Effect, BaseEffect};
 //!
-//! fn set_reverberator(context: &mut Context) {
+//! fn set_reverberator(context: &mut SoundContext) {
 //!     let mut reverb = Reverb::new(BaseEffect::default());
 //!     reverb.set_decay_time(Duration::from_secs_f32(10.0));
 //!     context.state().add_effect(Effect::Reverb(reverb));

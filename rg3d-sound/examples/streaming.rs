@@ -2,7 +2,7 @@ use rg3d_sound::engine::SoundEngine;
 use rg3d_sound::futures::executor::block_on;
 use rg3d_sound::{
     buffer::{DataSource, SoundBuffer},
-    context::Context,
+    context::SoundContext,
     pool::Handle,
     source::{generic::GenericSourceBuilder, SoundSource, Status},
 };
@@ -13,7 +13,7 @@ fn main() {
     let engine = SoundEngine::new();
 
     // Initialize new sound context.
-    let context = Context::new();
+    let context = SoundContext::new();
 
     engine.lock().unwrap().add_context(context.clone());
 
