@@ -54,6 +54,10 @@ impl Scene2dContainer {
         self.pool.spawn(scene)
     }
 
+    pub fn remove(&mut self, scene: Handle<Scene2d>) -> Scene2d {
+        self.pool.free(scene)
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = &Scene2d> {
         self.pool.iter()
     }

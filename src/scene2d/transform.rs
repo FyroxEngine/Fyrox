@@ -1,5 +1,7 @@
-use crate::core::algebra::{Matrix3, Matrix4, Vector3};
-use crate::core::{algebra::Vector2, visitor::prelude::*};
+use crate::core::{
+    algebra::{Matrix3, Matrix4, Vector2, Vector3},
+    visitor::prelude::*,
+};
 
 #[derive(Visit)]
 pub struct Transform {

@@ -8,7 +8,7 @@ use crate::{
 };
 use std::cell::Cell;
 
-#[derive(Default, Visit)]
+#[derive(Visit)]
 pub struct Base {
     transform: Transform,
     pub(in crate) global_transform: Cell<Matrix4<f32>>,
@@ -19,9 +19,27 @@ pub struct Base {
     name: String,
 }
 
+impl Default for Base {
+    fn default() -> Self {
+        Self {
+            transform: Default::default(),
+            global_transform: Cell::new(Matrix4::identity()),
+            visibility: true,
+            global_visibility: Cell::new(true),
+            parent: Default::default(),
+            children: Default::default(),
+            name: Default::default(),
+        }
+    }
+}
+
 impl Base {
     pub fn set_name<S: AsRef<str>>(&mut self, name: S) {
         self.name = name.as_ref().to_owned();
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
     }
 
     pub fn parent(&self) -> Handle<Node> {

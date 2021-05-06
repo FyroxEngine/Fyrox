@@ -1,7 +1,11 @@
-use crate::core::algebra::{Point3, Vector2};
-use crate::core::math::Rect;
 use crate::{
-    core::{color::Color, pool::Handle, visitor::prelude::*},
+    core::{
+        algebra::{Point3, Vector2},
+        color::Color,
+        math::Rect,
+        pool::Handle,
+        visitor::prelude::*,
+    },
     resource::texture::Texture,
     scene2d::{
         base::{Base, BaseBuilder},
@@ -49,12 +53,24 @@ impl Sprite {
         self.texture.as_ref()
     }
 
+    pub fn set_texture(&mut self, texture: Option<Texture>) {
+        self.texture = texture;
+    }
+
     pub fn color(&self) -> Color {
         self.color
     }
 
+    pub fn set_color(&mut self, color: Color) {
+        self.color = color;
+    }
+
     pub fn size(&self) -> f32 {
         self.size
+    }
+
+    pub fn set_size(&mut self, size: f32) {
+        self.size = size;
     }
 
     pub fn local_bounds(&self) -> Rect<f32> {

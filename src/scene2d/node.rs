@@ -44,27 +44,6 @@ impl Default for Node {
 }
 
 impl Node {
-    /// Creates new Node based on variant id.
-    pub fn from_id(id: u8) -> Result<Self, String> {
-        match id {
-            0 => Ok(Self::Base(Default::default())),
-            1 => Ok(Self::Light(Default::default())),
-            2 => Ok(Self::Camera(Default::default())),
-            3 => Ok(Self::Sprite(Default::default())),
-            _ => Err(format!("Invalid node kind {}", id)),
-        }
-    }
-
-    /// Returns actual variant id.
-    pub fn id(&self) -> u8 {
-        match self {
-            Self::Base(_) => 0,
-            Self::Light(_) => 1,
-            Self::Camera(_) => 2,
-            Self::Sprite(_) => 3,
-        }
-    }
-
     define_is_as!(Node : Camera -> ref Camera => fn is_camera, fn as_camera, fn as_camera_mut);
     define_is_as!(Node : Light -> ref Light => fn is_light, fn as_light, fn as_light_mut);
     define_is_as!(Node : Sprite -> ref Sprite => fn is_sprite, fn as_sprite, fn as_sprite_mut);

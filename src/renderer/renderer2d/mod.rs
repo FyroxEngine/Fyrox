@@ -130,6 +130,10 @@ impl BatchStorage {
         let mut batch_index = 0;
         for node in scene.graph.linear_iter() {
             if let Node::Sprite(sprite) = node {
+                if !sprite.global_visibility() {
+                    continue;
+                }
+
                 let texture = sprite.texture().map_or_else(
                     || white_dummy.clone(),
                     |t| {
@@ -274,6 +278,10 @@ impl Renderer2d {
                         None
                     }
                 }) {
+                    if !light.global_visibility() || light_count == MAX_LIGHTS {
+                        continue;
+                    }
+
                     let (radius, half_cone_angle_cos, half_hotspot_angle_cos, direction) =
                         match light {
                             Light::Point(point) => (
@@ -346,7 +354,7 @@ impl Renderer2d {
                             ),
                             (
                                 self.sprite_shader.light_count.clone(),
-                                UniformValue::Integer(light_count),
+                                UniformValue::Integer(light_count as i32),
                             ),
                             (
                                 self.sprite_shader.light_color_radius.clone(),

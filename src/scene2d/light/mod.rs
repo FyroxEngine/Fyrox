@@ -45,7 +45,6 @@ impl Default for Light {
 #[derive(Default, Visit)]
 pub struct BaseLight {
     base: Base,
-    enabled: bool,
     color: Color,
 }
 
@@ -71,19 +70,10 @@ impl BaseLight {
     pub fn set_color(&mut self, color: Color) {
         self.color = color;
     }
-
-    pub fn enabled(&self) -> bool {
-        self.enabled
-    }
-
-    pub fn set_enabled(&mut self, enabled: bool) {
-        self.enabled = enabled;
-    }
 }
 
 pub struct BaseLightBuilder {
     base_builder: BaseBuilder,
-    enabled: bool,
     color: Color,
 }
 
@@ -91,14 +81,8 @@ impl BaseLightBuilder {
     pub fn new(base_builder: BaseBuilder) -> Self {
         Self {
             base_builder,
-            enabled: true,
             color: Color::WHITE,
         }
-    }
-
-    pub fn with_enabled(mut self, enabled: bool) -> Self {
-        self.enabled = enabled;
-        self
     }
 
     pub fn with_color(mut self, color: Color) -> Self {
@@ -109,7 +93,6 @@ impl BaseLightBuilder {
     pub fn build(self) -> BaseLight {
         BaseLight {
             base: self.base_builder.build_base(),
-            enabled: self.enabled,
             color: self.color,
         }
     }

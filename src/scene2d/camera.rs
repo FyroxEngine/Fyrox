@@ -1,11 +1,10 @@
-use crate::core::algebra::Vector2;
-use crate::core::pool::Handle;
-use crate::scene2d::base::BaseBuilder;
-use crate::scene2d::graph::Graph;
-use crate::scene2d::node::Node;
 use crate::{
-    core::{algebra::Matrix4, math::Rect, visitor::prelude::*},
-    scene2d::base::Base,
+    core::{algebra::Matrix4, algebra::Vector2, math::Rect, pool::Handle, visitor::prelude::*},
+    scene2d::{
+        base::{Base, BaseBuilder},
+        graph::Graph,
+        node::Node,
+    },
 };
 use std::ops::{Deref, DerefMut};
 
@@ -57,6 +56,10 @@ impl Camera {
         )
     }
 
+    pub fn set_viewport(&mut self, viewport: Rect<f32>) {
+        self.viewport = viewport;
+    }
+
     pub fn view_projection_matrix(&self) -> Matrix4<f32> {
         self.projection_matrix * self.view_matrix
     }
@@ -76,6 +79,14 @@ impl Camera {
             .try_inverse()
             .unwrap_or_else(|| Matrix4::identity());
     }
+
+    pub fn enabled(&self) -> bool {
+        self.enabled
+    }
+
+    pub fn set_enabled(&mut self, enabled: bool) {
+        self.enabled = enabled;
+    }
 }
 
 pub struct CameraBuilder {
@@ -91,6 +102,16 @@ impl CameraBuilder {
             viewport: Rect::new(0.0, 0.0, 1.0, 1.0),
             enabled: true,
         }
+    }
+
+    pub fn with_viewport(mut self, viewport: Rect<f32>) -> Self {
+        self.viewport = viewport;
+        self
+    }
+
+    pub fn with_enabled(mut self, enabled: bool) -> Self {
+        self.enabled = enabled;
+        self
     }
 
     pub fn build(self, graph: &mut Graph) -> Handle<Node> {
