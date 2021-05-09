@@ -7,13 +7,14 @@ use rg3d::{
         uuid::Uuid,
         BiDirHashMap,
     },
+    engine::{ColliderHandle, JointHandle, RigidBodyHandle},
     scene::{
         graph::Graph,
         node::Node,
         physics::{
             ColliderDesc, ColliderShapeDesc, JointDesc, JointParamsDesc, PhysicsDesc, RigidBodyDesc,
         },
-        ColliderHandle, JointHandle, Line, RigidBodyHandle, Scene, SceneDrawingContext,
+        Line, Scene, SceneDrawingContext,
     },
 };
 use std::collections::HashMap;
@@ -289,10 +290,7 @@ impl Physics {
                 .joint_handle_map
                 .get(&handle)
                 // Use existing handle or generate new for new object.
-                .map_or_else(
-                    || JointHandle::from(Uuid::new_v4()),
-                    |existing| *existing,
-                );
+                .map_or_else(|| JointHandle::from(Uuid::new_v4()), |existing| *existing);
             engine_joint_handle_rapier_map.insert(
                 engine_handle,
                 // Rapier3D handle will become just a simple index.
