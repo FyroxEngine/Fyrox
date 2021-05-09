@@ -11,12 +11,10 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
         BiDirHashMap,
     },
+    engine::{ColliderHandle, JointHandle, PhysicsBinder, RigidBodyHandle},
     physics::math::AngVector,
     resource::model::Model,
-    scene::{
-        graph::Graph, node::Node, ColliderHandle, JointHandle, PhysicsBinder, RigidBodyHandle,
-        SceneDrawingContext,
-    },
+    scene::{graph::Graph, node::Node, SceneDrawingContext},
     utils::{
         log::{Log, MessageKind},
         raw_mesh::{RawMeshBuilder, RawVertex},
@@ -271,7 +269,7 @@ impl Physics {
     }
 
     // Deep copy is performed using descriptors.
-    pub(in crate) fn deep_copy(&self, binder: &PhysicsBinder, graph: &Graph) -> Self {
+    pub(in crate) fn deep_copy(&self, binder: &PhysicsBinder<Node>, graph: &Graph) -> Self {
         let mut phys = Self::new();
         phys.embedded_resources = self.embedded_resources.clone();
         phys.desc = Some(self.generate_desc());
@@ -721,7 +719,7 @@ impl Physics {
         );
     }
 
-    pub(in crate) fn resolve(&mut self, binder: &PhysicsBinder, graph: &Graph) {
+    pub(in crate) fn resolve(&mut self, binder: &PhysicsBinder<Node>, graph: &Graph) {
         assert_eq!(self.bodies.len(), 0);
         assert_eq!(self.colliders.len(), 0);
 
@@ -794,7 +792,7 @@ impl Physics {
 
     pub(in crate) fn embed_resource(
         &mut self,
-        target_binder: &mut PhysicsBinder,
+        target_binder: &mut PhysicsBinder<Node>,
         target_graph: &Graph,
         old_to_new: HashMap<Handle<Node>, Handle<Node>>,
         resource: Model,
@@ -824,7 +822,7 @@ impl Physics {
         }
 
         // Bind instantiated nodes with their respective rigid bodies from resource.
-        for (handle, body) in resource_binder.forward_map.iter() {
+        for (handle, body) in resource_binder.forward_map().iter() {
             let new_handle = *old_to_new.get(handle).unwrap();
             let new_body = *link.bodies.get(body).unwrap();
             target_binder.bind(new_handle, new_body);

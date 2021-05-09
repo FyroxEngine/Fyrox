@@ -33,6 +33,7 @@ pub use instant;
 
 #[cfg(target_arch = "wasm32")]
 pub use js_sys;
+use std::iter::FromIterator;
 #[cfg(target_arch = "wasm32")]
 pub use wasm_bindgen;
 #[cfg(target_arch = "wasm32")]
@@ -193,6 +194,21 @@ where
         self.backward_map.visit("BackwardMap", visitor)?;
 
         visitor.leave_region()
+    }
+}
+
+impl<K, V> FromIterator<(K, V)> for BiDirHashMap<K, V>
+where
+    K: Hash + Eq + Clone,
+    V: Hash + Eq + Clone,
+{
+    fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
+        let mut hm = Self::default();
+        for (k, v) in iter {
+            hm.forward_map.insert(k.clone(), v.clone());
+            hm.backward_map.insert(v, k);
+        }
+        hm
     }
 }
 

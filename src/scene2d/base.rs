@@ -1,3 +1,4 @@
+use crate::scene::base::PhysicsBinding;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2},
@@ -16,6 +17,7 @@ pub struct Base {
     pub(in crate) global_visibility: Cell<bool>,
     pub(in crate) parent: Handle<Node>,
     pub(in crate) children: Vec<Handle<Node>>,
+    pub(in crate) physics_binding: PhysicsBinding,
     name: String,
 }
 
@@ -28,6 +30,7 @@ impl Default for Base {
             global_visibility: Cell::new(true),
             parent: Default::default(),
             children: Default::default(),
+            physics_binding: Default::default(),
             name: Default::default(),
         }
     }
@@ -84,6 +87,14 @@ impl Base {
     pub fn global_transform(&self) -> Matrix4<f32> {
         self.global_transform.get()
     }
+
+    pub fn set_physics_binding(&mut self, binding: PhysicsBinding) {
+        self.physics_binding = binding;
+    }
+
+    pub fn physics_binding(&self) -> PhysicsBinding {
+        self.physics_binding
+    }
 }
 
 pub struct BaseBuilder {
@@ -91,6 +102,7 @@ pub struct BaseBuilder {
     children: Vec<Handle<Node>>,
     name: String,
     visibility: bool,
+    physics_binding: PhysicsBinding,
 }
 
 impl BaseBuilder {
@@ -100,6 +112,7 @@ impl BaseBuilder {
             children: Default::default(),
             name: "Base".to_string(),
             visibility: true,
+            physics_binding: Default::default(),
         }
     }
 
@@ -131,6 +144,11 @@ impl BaseBuilder {
         self
     }
 
+    pub fn with_physics_binding(mut self, binding: PhysicsBinding) -> Self {
+        self.physics_binding = binding;
+        self
+    }
+
     pub fn build_base(self) -> Base {
         Base {
             transform: self.transform,
@@ -140,6 +158,7 @@ impl BaseBuilder {
             parent: Default::default(),
             children: self.children,
             name: self.name,
+            physics_binding: self.physics_binding,
         }
     }
 

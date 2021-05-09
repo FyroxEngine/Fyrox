@@ -1,3 +1,5 @@
+use crate::core::algebra::{Rotation2, UnitComplex, Vector3, U2};
+use crate::scene2d::transform::TransformBuilder;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2},
@@ -190,6 +192,11 @@ impl Graph {
         }
     }
 
+    /// Checks whether given node handle is valid or not.
+    pub fn is_valid_handle(&self, node_handle: Handle<Node>) -> bool {
+        self.pool.is_valid_handle(node_handle)
+    }
+
     /// Calculates local and global transform, global visibility for each node in graph.
     /// Normally you not need to call this method directly, it will be called automatically
     /// on each frame. However there is one use case - when you setup complex hierarchy and
@@ -217,6 +224,103 @@ impl Graph {
         }
 
         update_recursively(self, self.root);
+    }
+
+    /// Returns local transformation matrix of a node without scale.
+    pub fn local_transform_no_scale(&self, node: Handle<Node>) -> Matrix4<f32> {
+        self[node]
+            .local_transform()
+            .clone()
+            .set_scale(Vector2::new(1.0, 1.0))
+            .matrix()
+    }
+
+    /// Returns world transformation matrix of a node without scale.
+    pub fn global_transform_no_scale(&self, node: Handle<Node>) -> Matrix4<f32> {
+        let parent = self[node].parent();
+        if parent.is_some() {
+            self.global_transform_no_scale(parent) * self.local_transform_no_scale(node)
+        } else {
+            self.local_transform_no_scale(node)
+        }
+    }
+
+    /// Returns isometric local transformation matrix of a node. Such transform has
+    /// only translation and rotation.
+    pub fn isometric_local_transform(&self, node: Handle<Node>) -> Matrix4<f32> {
+        let transform = self[node].local_transform();
+        TransformBuilder::new()
+            .with_position(transform.position())
+            .with_rotation(transform.rotation())
+            .build()
+            .matrix()
+    }
+
+    /// Returns world transformation matrix of a node only.  Such transform has
+    /// only translation and rotation.
+    pub fn isometric_global_transform(&self, node: Handle<Node>) -> Matrix4<f32> {
+        let parent = self[node].parent();
+        if parent.is_some() {
+            self.isometric_global_transform(parent) * self.isometric_local_transform(node)
+        } else {
+            self.isometric_local_transform(node)
+        }
+    }
+
+    /// Returns global scale matrix of a node.
+    pub fn global_scale_matrix(&self, node: Handle<Node>) -> Matrix4<f32> {
+        let node = &self[node];
+        let scale = node.local_transform().scale();
+        let local_scale_matrix =
+            Matrix4::new_nonuniform_scaling(&Vector3::new(scale.x, scale.y, 1.0));
+        if node.parent().is_some() {
+            self.global_scale_matrix(node.parent()) * local_scale_matrix
+        } else {
+            local_scale_matrix
+        }
+    }
+
+    /// Returns rotation quaternion of a node in world coordinates.
+    pub fn global_rotation(&self, node: Handle<Node>) -> UnitComplex<f32> {
+        UnitComplex::from(Rotation2::from_matrix(
+            &self
+                .global_transform_no_scale(node)
+                .fixed_resize::<U2, U2>(f32::default()),
+        ))
+    }
+
+    /// Returns rotation quaternion of a node in world coordinates without pre- and post-rotations.
+    pub fn isometric_global_rotation(&self, node: Handle<Node>) -> UnitComplex<f32> {
+        UnitComplex::from(Rotation2::from_matrix(
+            &self
+                .isometric_global_transform(node)
+                .fixed_resize::<U2, U2>(f32::default()),
+        ))
+    }
+
+    /// Returns rotation quaternion and position of a node in world coordinates, scale is eliminated.
+    pub fn global_rotation_position_no_scale(
+        &self,
+        node: Handle<Node>,
+    ) -> (UnitComplex<f32>, Vector2<f32>) {
+        (self.global_rotation(node), self[node].global_position())
+    }
+
+    /// Returns isometric global rotation and position.
+    pub fn isometric_global_rotation_position(
+        &self,
+        node: Handle<Node>,
+    ) -> (UnitComplex<f32>, Vector2<f32>) {
+        (
+            self.isometric_global_rotation(node),
+            self[node].global_position(),
+        )
+    }
+
+    /// Returns global scale of a node.
+    pub fn global_scale(&self, node: Handle<Node>) -> Vector2<f32> {
+        let m = self.global_scale_matrix(node);
+        Vector2::new(m[0], m[5])
     }
 }
 

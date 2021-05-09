@@ -1,12 +1,15 @@
 use crate::{
     core::{
-        algebra::Vector2,
+        algebra::{Isometry2, Translation2, Vector2},
         color::Color,
+        instant,
         pool::{Handle, Pool},
         visitor::prelude::*,
     },
+    engine::PhysicsBinder,
     resource::texture::Texture,
-    scene2d::graph::Graph,
+    scene::base::PhysicsBinding,
+    scene2d::{graph::Graph, node::Node, physics::Physics, physics::PhysicsPerformanceStatistics},
     sound::{context::SoundContext, engine::SoundEngine},
 };
 use std::{
@@ -19,8 +22,22 @@ pub mod camera;
 pub mod graph;
 pub mod light;
 pub mod node;
+pub mod physics;
 pub mod sprite;
 pub mod transform;
+
+/// A structure that holds times that specific update step took.
+#[derive(Clone, Default, Debug)]
+pub struct PerformanceStatistics {
+    /// Physics performance statistics.
+    pub physics: PhysicsPerformanceStatistics,
+
+    /// A time (in seconds) which was required to update graph.
+    pub graph_update_time: f32,
+
+    /// A time (in seconds) which was required to render sounds.
+    pub sound_update_time: f32,
+}
 
 #[derive(Visit, Default)]
 pub struct Scene2d {
@@ -34,6 +51,13 @@ pub struct Scene2d {
 
     /// A sound context that holds all sound sources, effects, etc. belonging to the scene.
     pub sound_context: SoundContext,
+
+    pub physics: Physics,
+
+    pub physics_binder: PhysicsBinder<Node>,
+
+    #[visit(skip)]
+    pub performance_statistics: PerformanceStatistics,
 }
 
 impl Scene2d {
@@ -44,11 +68,67 @@ impl Scene2d {
             enabled: true,
             ambient_light_color: Color::opaque(80, 80, 80),
             sound_context: SoundContext::new(),
+            physics: Default::default(),
+            physics_binder: Default::default(),
+            performance_statistics: Default::default(),
+        }
+    }
+
+    fn update_physics(&mut self) {
+        self.physics.step();
+
+        self.performance_statistics.physics = self.physics.performance_statistics.clone();
+        self.physics.performance_statistics.reset();
+
+        // Keep pair when node and body are both alive.
+        let graph = &mut self.graph;
+        let physics = &mut self.physics;
+        self.physics_binder
+            .retain(|node, body| graph.is_valid_handle(*node) && physics.contains_body(body));
+
+        // Sync node positions with assigned physics bodies
+        if self.physics_binder.enabled {
+            for (&node_handle, body) in self.physics_binder.forward_map().iter() {
+                let body = physics.body_mut(body).unwrap();
+                let node = &mut self.graph[node_handle];
+                match node.physics_binding {
+                    PhysicsBinding::NodeWithBody => {
+                        node.local_transform_mut()
+                            .set_position(body.position().translation.vector)
+                            .set_rotation(body.position().rotation.to_polar().1);
+                    }
+                    PhysicsBinding::BodyWithNode => {
+                        let (r, p) = self.graph.isometric_global_rotation_position(node_handle);
+                        body.set_position(
+                            Isometry2 {
+                                rotation: r,
+                                translation: Translation2 { vector: p },
+                            },
+                            true,
+                        );
+                    }
+                }
+            }
         }
     }
 
     pub fn update(&mut self, render_target_size: Vector2<f32>, dt: f32) {
+        self.update_physics();
+
+        let last = instant::Instant::now();
         self.graph.update(render_target_size, dt);
+        self.performance_statistics.graph_update_time =
+            (instant::Instant::now() - last).as_secs_f32();
+
+        self.performance_statistics.sound_update_time = self
+            .sound_context
+            .state()
+            .full_render_duration()
+            .as_secs_f32();
+    }
+
+    pub(in crate) fn resolve(&mut self) {
+        self.physics.resolve();
     }
 }
 
@@ -98,6 +178,10 @@ impl Scene2dContainer {
 
     pub fn pair_iter_mut(&mut self) -> impl Iterator<Item = (Handle<Scene2d>, &mut Scene2d)> {
         self.pool.pair_iter_mut()
+    }
+
+    pub fn clear(&mut self) {
+        self.pool.clear();
     }
 }
 

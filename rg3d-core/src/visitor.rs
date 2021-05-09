@@ -17,6 +17,7 @@ pub mod prelude {
 
 use crate::io::FileLoadError;
 
+use crate::algebra::{Complex, UnitComplex};
 use crate::{
     algebra::{Matrix3, Matrix4, Quaternion, UnitQuaternion, Vector2, Vector3, Vector4},
     io,
@@ -61,6 +62,7 @@ pub enum FieldKind {
     Vector2(Vector2<f32>),
     Vector4(Vector4<f32>),
     Uuid(Uuid),
+    UnitComplex(UnitComplex<f32>),
 }
 
 impl FieldKind {
@@ -107,6 +109,9 @@ impl FieldKind {
                 format!("<vec4 = {}; {}; {}; {}>, ", data.x, data.y, data.z, data.w)
             }
             Self::Uuid(uuid) => uuid.to_string(),
+            Self::UnitComplex(data) => {
+                format!("<complex = {}; {}>, ", data.re, data.im)
+            }
         }
     }
 }
@@ -163,6 +168,7 @@ impl_field_data!(Matrix3<f32>, FieldKind::Matrix3);
 impl_field_data!(Vector2<f32>, FieldKind::Vector2);
 impl_field_data!(Vector4<f32>, FieldKind::Vector4);
 impl_field_data!(Uuid, FieldKind::Uuid);
+impl_field_data!(UnitComplex<f32>, FieldKind::UnitComplex);
 
 impl<'a> Visit for Data<'a> {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
@@ -386,6 +392,11 @@ impl Field {
                 file.write_u8(19)?;
                 file.write_all(uuid.as_bytes())?;
             }
+            FieldKind::UnitComplex(c) => {
+                file.write_u8(20)?;
+                file.write_f32::<LittleEndian>(c.re)?;
+                file.write_f32::<LittleEndian>(c.im)?;
+            }
         }
         Ok(())
     }
@@ -460,6 +471,11 @@ impl Field {
                     let mut bytes = uuid::Bytes::default();
                     file.read_exact(&mut bytes)?;
                     Uuid::from_bytes(bytes)
+                }),
+                20 => FieldKind::UnitComplex({
+                    let re = file.read_f32::<LittleEndian>()?;
+                    let im = file.read_f32::<LittleEndian>()?;
+                    UnitComplex::from_complex(Complex::new(re, im))
                 }),
                 _ => return Err(VisitError::UnknownFieldType(id)),
             },

@@ -3,7 +3,7 @@ use crate::core::{
     visitor::prelude::*,
 };
 
-#[derive(Visit)]
+#[derive(Visit, Clone)]
 pub struct Transform {
     position: Vector2<f32>,
     scale: Vector2<f32>,

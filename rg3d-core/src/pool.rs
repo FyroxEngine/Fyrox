@@ -59,7 +59,7 @@ unsafe impl<T> Send for Handle<T> {}
 unsafe impl<T> Sync for Handle<T> {}
 
 /// Type-erased handle.
-#[derive(Copy, Clone, Debug, Ord, PartialOrd, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Ord, PartialOrd, PartialEq, Eq, Hash)]
 pub struct ErasedHandle {
     /// Index of object in pool.
     index: u32,

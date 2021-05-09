@@ -6,25 +6,25 @@
 pub mod error;
 pub mod resource_manager;
 
-use crate::scene2d::Scene2dContainer;
 use crate::{
     core::{
         algebra::Vector2,
         instant,
+        pool::Handle,
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::{error::EngineError, resource_manager::ResourceManager},
     event_loop::EventLoop,
     gui::{message::MessageData, Control, UserInterface},
-    renderer::framework::error::FrameworkError,
-    renderer::Renderer,
+    renderer::{framework::error::FrameworkError, Renderer},
     resource::texture::TextureKind,
     scene::SceneContainer,
+    scene2d::Scene2dContainer,
     sound::engine::SoundEngine,
-    utils::log::{Log, MessageKind},
     window::{Window, WindowBuilder},
 };
 use std::{
+    collections::HashMap,
     sync::{Arc, Mutex},
     time::Duration,
 };
@@ -247,28 +247,189 @@ impl<M: MessageData, C: Control<M, C>> Visit for Engine<M, C> {
             self.renderer.flush();
             self.resource_manager.state().update(0.0);
             self.scenes.clear();
+            self.scenes2d.clear();
         }
 
         self.resource_manager.visit("ResourceManager", visitor)?;
         self.sound_engine.visit("SoundEngine", visitor)?;
         self.scenes.visit("Scenes", visitor)?;
+        self.scenes2d.visit("Scenes2d", visitor)?;
 
         if visitor.is_reading() {
             crate::core::futures::executor::block_on(self.resource_manager.reload_resources());
-
-            let mut sound_engine = self.sound_engine.lock().unwrap();
             for scene in self.scenes.iter_mut() {
-                // Fix scenes with previous format.
-                if !sound_engine.has_context(&scene.sound_context) {
-                    Log::writeln(
-                        MessageKind::Warning,
-                        "Restoring sound context of the scene!".to_owned(),
-                    );
-                    sound_engine.add_context(scene.sound_context.clone());
-                }
                 scene.resolve();
             }
+
+            for scene2d in self.scenes2d.iter_mut() {
+                scene2d.resolve();
+            }
         }
+
+        visitor.leave_region()
+    }
+}
+
+macro_rules! define_rapier_handle {
+    ($(#[$meta:meta])*, $type_name:ident) => {
+        $(#[$meta])*
+        #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+        #[repr(transparent)]
+        pub struct $type_name(pub crate::core::uuid::Uuid);
+
+        impl From<crate::core::uuid::Uuid> for $type_name {
+            fn from(inner: crate::core::uuid::Uuid) -> Self {
+                Self(inner)
+            }
+        }
+
+        impl Into<crate::core::uuid::Uuid> for $type_name {
+            fn into(self) -> crate::core::uuid::Uuid {
+                self.0
+            }
+        }
+
+        impl Visit for $type_name {
+            fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+                visitor.enter_region(name)?;
+
+                if self.0.visit("Id", visitor).is_err() && visitor.is_reading() {
+                    // Backward compatibility.
+                    let mut generation: u64 = 0;
+                    let mut index: u64 = 0;
+
+                    index.visit("Index", visitor)?;
+                    generation.visit("Generation", visitor)?;
+
+                    self.0 = crate::core::uuid::Uuid::from_bytes(
+                        unsafe { std::mem::transmute::<_, [u8;16]>([index, generation])}
+                    );
+                }
+
+                visitor.leave_region()
+            }
+        }
+    };
+}
+
+define_rapier_handle!(
+    #[doc="Rigid body handle wrapper."],
+    RigidBodyHandle);
+
+define_rapier_handle!(
+    #[doc="Collider handle wrapper."],
+    ColliderHandle);
+
+define_rapier_handle!(
+    #[doc="Joint handle wrapper."],
+    JointHandle);
+
+/// Physics binder is used to link graph nodes with rigid bodies. Scene will
+/// sync transform of node with its associated rigid body.
+#[derive(Clone, Debug)]
+pub struct PhysicsBinder<N> {
+    /// Mapping Node -> RigidBody.
+    forward_map: HashMap<Handle<N>, RigidBodyHandle>,
+
+    backward_map: HashMap<RigidBodyHandle, Handle<N>>,
+
+    /// Whether binder is enabled or not. If binder is disabled, it won't synchronize
+    /// node's transform with body's transform.
+    pub enabled: bool,
+}
+
+impl<N> Default for PhysicsBinder<N> {
+    fn default() -> Self {
+        Self {
+            forward_map: Default::default(),
+            backward_map: Default::default(),
+            enabled: true,
+        }
+    }
+}
+
+impl<N> PhysicsBinder<N> {
+    /// Links given graph node with specified rigid body. Returns old linked body.
+    pub fn bind(
+        &mut self,
+        node: Handle<N>,
+        rigid_body: RigidBodyHandle,
+    ) -> Option<RigidBodyHandle> {
+        let old_body = self.forward_map.insert(node, rigid_body);
+        self.backward_map.insert(rigid_body, node);
+        old_body
+    }
+
+    /// Unlinks given graph node from its associated rigid body (if any).
+    pub fn unbind(&mut self, node: Handle<N>) -> Option<RigidBodyHandle> {
+        if let Some(body_handle) = self.forward_map.remove(&node) {
+            self.backward_map.remove(&body_handle);
+            Some(body_handle)
+        } else {
+            None
+        }
+    }
+
+    /// Unlinks given body from a node that is linked with the body.
+    pub fn unbind_by_body(&mut self, body: RigidBodyHandle) -> Handle<N> {
+        if let Some(node) = self.backward_map.get(&body) {
+            self.forward_map.remove(node);
+            *node
+        } else {
+            Handle::NONE
+        }
+    }
+
+    /// Returns handle of rigid body associated with given node. It will return
+    /// Handle::NONE if given node isn't linked to a rigid body.
+    pub fn body_of(&self, node: Handle<N>) -> Option<&RigidBodyHandle> {
+        self.forward_map.get(&node)
+    }
+
+    /// Tries to find a node for a given rigid body.
+    pub fn node_of(&self, body: RigidBodyHandle) -> Option<Handle<N>> {
+        self.backward_map.get(&body).copied()
+    }
+
+    /// Removes all bindings.
+    pub fn clear(&mut self) {
+        self.forward_map.clear();
+        self.backward_map.clear();
+    }
+
+    /// Returns a shared reference to inner forward mapping.
+    pub fn forward_map(&self) -> &HashMap<Handle<N>, RigidBodyHandle> {
+        &self.forward_map
+    }
+
+    /// Returns a shared reference to inner backward mapping.
+    pub fn backward_map(&self) -> &HashMap<RigidBodyHandle, Handle<N>> {
+        &self.backward_map
+    }
+
+    pub fn retain<F>(&mut self, mut f: F)
+    where
+        F: FnMut(&Handle<N>, &mut RigidBodyHandle) -> bool,
+    {
+        self.backward_map.retain(|node, handle| {
+            let mut n = *node;
+            f(handle, &mut n)
+        });
+        self.forward_map.retain(f);
+    }
+}
+
+impl<N> Visit for PhysicsBinder<N> {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.forward_map.visit("Map", visitor)?;
+        if self.backward_map.visit("RevMap", visitor).is_err() {
+            for (&n, &b) in self.forward_map.iter() {
+                self.backward_map.insert(b, n);
+            }
+        }
+        self.enabled.visit("Enabled", visitor)?;
 
         visitor.leave_region()
     }
