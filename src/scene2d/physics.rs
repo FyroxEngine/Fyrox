@@ -12,7 +12,7 @@ use crate::{
         math::ray::Ray,
         pool::ErasedHandle,
         uuid::Uuid,
-        visitor::{Visit, VisitResult, Visitor},
+        visitor::prelude::*,
         BiDirHashMap,
     },
     engine::{ColliderHandle, JointHandle, RigidBodyHandle},
@@ -828,27 +828,13 @@ pub struct TriangleDesc {
 // TODO: for now data of trimesh and heightfield is not serializable.
 //  In most cases it is ok, because PhysicsBinder allows to automatically
 //  obtain data from associated mesh.
-#[derive(Default, Copy, Clone, Debug)]
+#[derive(Default, Copy, Clone, Debug, Visit)]
 #[doc(hidden)]
 pub struct TrimeshDesc;
 
-impl Visit for TrimeshDesc {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-        visitor.leave_region()
-    }
-}
-
-#[derive(Default, Copy, Clone, Debug)]
+#[derive(Default, Copy, Clone, Debug, Visit)]
 #[doc(hidden)]
 pub struct HeightfieldDesc;
-
-impl Visit for HeightfieldDesc {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-        visitor.leave_region()
-    }
-}
 
 #[derive(Copy, Clone, Debug, Visit)]
 #[doc(hidden)]
@@ -943,7 +929,7 @@ impl ColliderShapeDesc {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Visit)]
 #[doc(hidden)]
 pub struct ColliderDesc<R> {
     pub shape: ColliderShapeDesc,
@@ -1011,25 +997,6 @@ impl<R: Hash + Clone + Eq> ColliderDesc<R> {
             builder = builder.density(density);
         }
         (builder.build(), self.parent)
-    }
-}
-
-impl<R: 'static + Visit + Default> Visit for ColliderDesc<R> {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.shape.visit("Shape", visitor)?;
-        self.parent.visit("Parent", visitor)?;
-        self.friction.visit("Friction", visitor)?;
-        self.restitution.visit("Restitution", visitor)?;
-        self.is_sensor.visit("IsSensor", visitor)?;
-        self.translation.visit("Translation", visitor)?;
-        self.rotation.visit("Rotation", visitor)?;
-        self.collision_groups.visit("CollisionGroups", visitor)?;
-        self.solver_groups.visit("SolverGroups", visitor)?;
-        self.density.visit("Density", visitor)?;
-
-        visitor.leave_region()
     }
 }
 

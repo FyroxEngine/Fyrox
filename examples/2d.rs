@@ -1,8 +1,8 @@
-//! Example 01. Simple scene.
+//! Example - 2D
 //!
 //! Difficulty: Easy.
 //!
-//! This example shows how to create simple scene with animated model.
+//! This example shows simple 2D scene with light sources.
 
 extern crate rg3d;
 
@@ -43,7 +43,7 @@ struct GameScene {
     spot_light: Handle<Node>,
 }
 
-async fn create_scene(resource_manager: ResourceManager) -> GameScene {
+fn create_scene(resource_manager: ResourceManager) -> GameScene {
     let mut scene = Scene2d::new();
 
     // Create camera first.
@@ -70,7 +70,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
         }
     }
 
-    // Add some light.
+    // Add some lights.
     PointLightBuilder::new(BaseLightBuilder::new(
         BaseBuilder::new().with_local_transform(
             TransformBuilder::new()
@@ -112,7 +112,7 @@ fn main() {
         .with_title("Example - 2D")
         .with_resizable(true);
 
-    let mut engine = GameEngine::new(window_builder, &event_loop, true).unwrap();
+    let mut engine = GameEngine::new(window_builder, &event_loop, false).unwrap();
 
     // Prepare resource manager - it must be notified where to search textures. When engine
     // loads model resource it automatically tries to load textures it uses. But since most
@@ -131,7 +131,7 @@ fn main() {
         scene,
         camera,
         spot_light,
-    } = rg3d::core::futures::executor::block_on(create_scene(engine.resource_manager.clone()));
+    } = create_scene(engine.resource_manager.clone());
 
     // Add scene to engine - engine will take ownership over scene and will return
     // you a handle to scene which can be used later on to borrow it and do some
@@ -192,8 +192,7 @@ fn main() {
                         .local_transform_mut()
                         .turn(10.0f32.to_radians());
 
-                    let fps = engine.renderer.get_statistics().frames_per_second;
-                    let text = format!("Example - 2D\nFPS: {}", fps);
+                    let text = format!("Example - 2D\n{}", engine.renderer.get_statistics());
                     engine.user_interface.send_message(TextMessage::text(
                         debug_text,
                         MessageDirection::ToWidget,
