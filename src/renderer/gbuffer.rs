@@ -204,7 +204,7 @@ impl GBuffer {
             state,
             Some(Attachment {
                 kind: AttachmentKind::DepthStencil,
-                texture: depth_stencil.clone(),
+                texture: depth_stencil,
             }),
             vec![
                 Attachment {

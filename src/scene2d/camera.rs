@@ -77,7 +77,7 @@ impl Camera {
         self.view_matrix = self
             .global_transform()
             .try_inverse()
-            .unwrap_or_else(|| Matrix4::identity());
+            .unwrap_or_else(Matrix4::identity);
     }
 
     pub fn enabled(&self) -> bool {

@@ -407,6 +407,7 @@ impl<N> PhysicsBinder<N> {
         &self.backward_map
     }
 
+    /// Retains only the elements specified by the predicate.
     pub fn retain<F>(&mut self, mut f: F)
     where
         F: FnMut(&Handle<N>, &mut RigidBodyHandle) -> bool,

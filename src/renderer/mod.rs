@@ -114,8 +114,8 @@ impl Display for Statistics {
         write!(
             f,
             "FPS: {}\n\
-            Pure Frame Time: {} ms\n\
-            Capped Frame Time: {} ms\n\
+            Pure Frame Time: {:.2} ms\n\
+            Capped Frame Time: {:.2} ms\n\
             {}\n\
             {}\n\
             {}\n",

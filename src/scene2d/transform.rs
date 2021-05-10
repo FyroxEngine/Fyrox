@@ -71,6 +71,12 @@ pub struct TransformBuilder {
     rotation: f32,
 }
 
+impl Default for TransformBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TransformBuilder {
     pub fn new() -> Self {
         Self {

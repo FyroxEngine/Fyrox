@@ -105,6 +105,12 @@ pub struct BaseBuilder {
     physics_binding: PhysicsBinding,
 }
 
+impl Default for BaseBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BaseBuilder {
     pub fn new() -> Self {
         Self {
