@@ -1,6 +1,6 @@
 //! Contains all structures and methods to operate with physics world.
 
-use crate::core::algebra::{DVector, U1};
+use crate::core::algebra::{Const, DVector};
 use crate::{
     core::{
         algebra::{
@@ -920,7 +920,7 @@ impl ColliderShapeDesc {
             ColliderShapeDesc::Heightfield(_) => SharedShape::heightfield(
                 DVector::from_data(VecStorage::new(
                     Dynamic::new(2),
-                    U1,
+                    Const,
                     vec![0.0, 1.0, 0.0, 0.0],
                 )),
                 Vector2::new(1.0, 1.0),

@@ -9,7 +9,7 @@ pub mod triangulator;
 
 use crate::math::ray::IntersectionResult;
 use crate::{
-    algebra::{Matrix3, Matrix4, Scalar, UnitQuaternion, Vector2, Vector3, U3},
+    algebra::{Matrix3, Matrix4, Scalar, UnitQuaternion, Vector2, Vector3},
     visitor::{Visit, VisitResult, Visitor},
 };
 use std::ops::{Add, AddAssign, Index, IndexMut, Mul, Sub};
@@ -888,23 +888,23 @@ pub trait Matrix4Ext<T: Scalar> {
 
 impl<T: Scalar + Default + Copy + Clone> Matrix4Ext<T> for Matrix4<T> {
     fn side(&self) -> Vector3<T> {
-        Vector3::new(self.data[0], self.data[1], self.data[2])
+        Vector3::new(self[0], self[1], self[2])
     }
 
     fn up(&self) -> Vector3<T> {
-        Vector3::new(self.data[4], self.data[5], self.data[6])
+        Vector3::new(self[4], self[5], self[6])
     }
 
     fn look(&self) -> Vector3<T> {
-        Vector3::new(self.data[8], self.data[9], self.data[10])
+        Vector3::new(self[8], self[9], self[10])
     }
 
     fn position(&self) -> Vector3<T> {
-        Vector3::new(self.data[12], self.data[13], self.data[14])
+        Vector3::new(self[12], self[13], self[14])
     }
 
     fn basis(&self) -> Matrix3<T> {
-        self.fixed_resize::<U3, U3>(T::default())
+        self.fixed_resize::<3, 3>(T::default())
     }
 }
 
@@ -916,15 +916,15 @@ pub trait Matrix3Ext<T: Scalar> {
 
 impl<T: Scalar + Copy + Clone> Matrix3Ext<T> for Matrix3<T> {
     fn side(&self) -> Vector3<T> {
-        Vector3::new(self.data[0], self.data[1], self.data[2])
+        Vector3::new(self[0], self[1], self[2])
     }
 
     fn up(&self) -> Vector3<T> {
-        Vector3::new(self.data[3], self.data[4], self.data[5])
+        Vector3::new(self[3], self[4], self[5])
     }
 
     fn look(&self) -> Vector3<T> {
-        Vector3::new(self.data[6], self.data[7], self.data[8])
+        Vector3::new(self[6], self[7], self[8])
     }
 }
 

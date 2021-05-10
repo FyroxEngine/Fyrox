@@ -1,4 +1,4 @@
-use crate::core::algebra::{Rotation2, UnitComplex, Vector3, U2};
+use crate::core::algebra::{Rotation2, UnitComplex, Vector3};
 use crate::scene2d::transform::TransformBuilder;
 use crate::{
     core::{
@@ -285,7 +285,7 @@ impl Graph {
         UnitComplex::from(Rotation2::from_matrix(
             &self
                 .global_transform_no_scale(node)
-                .fixed_resize::<U2, U2>(f32::default()),
+                .fixed_resize::<2, 2>(f32::default()),
         ))
     }
 
@@ -294,7 +294,7 @@ impl Graph {
         UnitComplex::from(Rotation2::from_matrix(
             &self
                 .isometric_global_transform(node)
-                .fixed_resize::<U2, U2>(f32::default()),
+                .fixed_resize::<2, 2>(f32::default()),
         ))
     }
 

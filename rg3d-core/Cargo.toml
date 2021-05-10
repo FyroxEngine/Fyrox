@@ -17,7 +17,7 @@ byteorder = "1.4.2"
 rand = "0.8.3"
 memoffset = "0.6.1"
 lazy_static = "1.4.0"
-nalgebra = "0.25.3"
+nalgebra = "0.26.2"
 arrayvec = "0.5.2"
 futures = {version = "0.3.13", features = ["thread-pool"] }
 uuid = { version = "0.8.2", features = ["v4","wasm-bindgen"] }
