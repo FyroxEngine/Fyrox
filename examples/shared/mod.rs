@@ -4,20 +4,18 @@
 // some parts can be unused in some examples.
 #![allow(dead_code)]
 
-use rapier3d::dynamics::RigidBodyBuilder;
-use rapier3d::geometry::ColliderBuilder;
-use rapier3d::na::{Isometry3, UnitQuaternion, Vector3};
-use rg3d::core::algebra::Vector2;
-use rg3d::scene::graph::Graph;
-use rg3d::scene::RigidBodyHandle;
-use rg3d::sound::effects::{BaseEffect, Effect};
+use rapier3d::{
+    dynamics::RigidBodyBuilder,
+    geometry::ColliderBuilder,
+    na::{Isometry3, UnitQuaternion, Vector3},
+};
 use rg3d::{
     animation::{
         machine::{Machine, Parameter, PoseNode, State, Transition},
         Animation, AnimationSignal,
     },
-    core::{color::Color, math::SmoothAngle, pool::Handle},
-    engine::resource_manager::ResourceManager,
+    core::{algebra::Vector2, color::Color, math::SmoothAngle, pool::Handle},
+    engine::{resource_manager::ResourceManager, RigidBodyHandle},
     event::{DeviceEvent, ElementState, VirtualKeyCode},
     event_loop::EventLoop,
     gui::{
@@ -33,15 +31,17 @@ use rg3d::{
     scene::{
         base::BaseBuilder,
         camera::{CameraBuilder, SkyBox},
+        graph::Graph,
         node::Node,
         transform::TransformBuilder,
         Scene,
     },
+    sound::effects::{BaseEffect, Effect},
 };
-use std::time::Duration;
 use std::{
     path::Path,
     sync::{Arc, Mutex},
+    time::Duration,
 };
 
 // Create our own engine type aliases. These specializations are needed

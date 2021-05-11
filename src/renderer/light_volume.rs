@@ -1,3 +1,4 @@
+use crate::core::algebra::{Isometry3, Translation};
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3},
@@ -153,7 +154,7 @@ impl LightVolumeRenderer {
                 let direction = view.transform_vector(
                     &(-light
                         .up_vector()
-                        .try_normalize(std::f32::EPSILON)
+                        .try_normalize(f32::EPSILON)
                         .unwrap_or_else(Vector3::z)),
                 );
 
@@ -161,10 +162,15 @@ impl LightVolumeRenderer {
                 // calculations, it will significantly reduce amount of pixels for far lights thus
                 // significantly improve performance.
 
-                // Angle bias is used to to slightly increase cone radius to add small margin
-                // for fadeout effect.
-                let k = 2.25 * spot.full_cone_angle().sin() * spot.distance();
-                let light_shape_matrix = graph.global_transform_no_scale(light_handle)
+                let k =
+                    (spot.full_cone_angle() * 0.5 + 1.0f32.to_radians()).tan() * spot.distance();
+                let light_shape_matrix = Isometry3 {
+                    rotation: graph.global_rotation(light_handle),
+                    translation: Translation {
+                        vector: spot.global_position(),
+                    },
+                }
+                .to_homogeneous()
                     * Matrix4::new_nonuniform_scaling(&Vector3::new(k, spot.distance(), k));
                 let mvp = view_proj * light_shape_matrix;
 
@@ -287,7 +293,7 @@ impl LightVolumeRenderer {
                 // for fadeout effect. It is set to 5%.
                 let bias = 1.05;
                 let k = bias * point.radius();
-                let light_shape_matrix = light.global_transform()
+                let light_shape_matrix = Matrix4::new_translation(&light.global_position())
                     * Matrix4::new_nonuniform_scaling(&Vector3::new(k, k, k));
                 let mvp = view_proj * light_shape_matrix;
 

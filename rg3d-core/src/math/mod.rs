@@ -974,6 +974,19 @@ impl Vector2Ext for Vector2<f32> {
     }
 }
 
+/// Returns rotation quaternion that represents rotation basis with Z axis aligned on `vec`.
+/// This function handles singularities for you.
+pub fn vector_to_quat(vec: Vector3<f32>) -> UnitQuaternion<f32> {
+    let dot = vec.normalize().dot(&Vector3::y());
+
+    if dot.abs() > 1.0 - 10.0 * f32::EPSILON {
+        // Handle singularity when vector is collinear with Y axis.
+        UnitQuaternion::from_axis_angle(&Vector3::x_axis(), -dot.signum() * 90.0f32.to_radians())
+    } else {
+        UnitQuaternion::face_towards(&vec, &Vector3::y())
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::algebra::Vector2;
