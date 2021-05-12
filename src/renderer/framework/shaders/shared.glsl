@@ -153,7 +153,8 @@ bool S_RaySphereIntersection(vec3 origin, vec3 dir, vec3 center, float radius, o
     return S_SolveQuadraticEq(a, b, c, minT, maxT);
 }
 
-// Calculates point shadow factor.
+// Calculates point shadow factor where 1.0 - no shadow, 0.0 - fully in shadow.
+// Why value is inversed? To be able to directly multiply color to shadow factor.
 float S_PointShadow(
     bool shadowsEnabled,
     bool softShadows,
@@ -162,10 +163,10 @@ float S_PointShadow(
     vec3 toLight,
     in samplerCube shadowMap)
 {
-    float shadow = 1.0;
-
     if (shadowsEnabled)
     {
+        float biasedFragmentDistance = fragmentDistance - shadowBias;
+
         if (softShadows)
         {
             const int samples = 20;
@@ -180,32 +181,32 @@ float S_PointShadow(
 
             const float diskRadius = 0.0025;
 
+            float accumulator = 0.0;
+
             for (int i = 0; i < samples; ++i)
             {
                 vec3 fetchDirection = -toLight + directions[i] * diskRadius;
                 float shadowDistanceToLight = texture(shadowMap, fetchDirection).r;
-                if (fragmentDistance - shadowBias > shadowDistanceToLight)
+                if (biasedFragmentDistance > shadowDistanceToLight)
                 {
-                    shadow += 1.0;
+                    accumulator += 1.0;
                 }
             }
 
-            shadow = clamp(1.0 - shadow / float(samples), 0.0, 1.0);
+            return clamp(1.0 - accumulator / float(samples), 0.0, 1.0);
         }
         else
         {
             float shadowDistanceToLight = texture(shadowMap, -toLight).r;
-            if (fragmentDistance - shadowBias > shadowDistanceToLight)
-            {
-                shadow = 0.0;
-            }
+            return biasedFragmentDistance > shadowDistanceToLight ? 0.0 : 1.0;
         }
+    } else {
+        return 1.0; // No shadow
     }
-
-    return shadow;
 }
 
-// Calculates spot light shadow factor.
+// Calculates spot light shadow factor where 1.0 - no shadow, 0.0 - fully in shadow.
+// Why value is inversed? To be able to directly multiply color to shadow factor.
 float S_SpotShadowFactor(
     bool shadowsEnabled,
     bool softShadows,
@@ -215,38 +216,37 @@ float S_SpotShadowFactor(
     float shadowMapInvSize,
     in sampler2D spotShadowTexture)
 {
-    float shadow = 1.0;
-
     if (shadowsEnabled)
     {
         vec3 lightSpacePosition = S_Project(fragmentPosition, lightViewProjMatrix);
 
+        float biasedLightSpaceFragmentDepth = lightSpacePosition.z - shadowBias;
+
         if (softShadows)
         {
-            for (float y = -1.5; y <= 1.5; y += 0.5)
+            float accumulator = 0.0;
+
+            for (float y = -0.5; y <= 0.5; y += 0.5)
             {
-                for (float x = -1.5; x <= 1.5; x += 0.5)
+                for (float x = -0.5; x <= 0.5; x += 0.5)
                 {
                     vec2 fetchTexCoord = lightSpacePosition.xy + vec2(x, y) * shadowMapInvSize;
-                    if (lightSpacePosition.z - shadowBias > texture(spotShadowTexture, fetchTexCoord).r)
+                    if (biasedLightSpaceFragmentDepth > texture(spotShadowTexture, fetchTexCoord).r)
                     {
-                        shadow += 1.0;
+                        accumulator += 1.0;
                     }
                 }
             }
 
-            shadow = clamp(1.0 - shadow / 9.0, 0.0, 1.0);
+            return clamp(1.0 - accumulator / 9.0, 0.0, 1.0);
         }
         else
         {
-            if (lightSpacePosition.z - shadowBias > texture(spotShadowTexture, lightSpacePosition.xy).r)
-            {
-                shadow = 0.0;
-            }
+            return biasedLightSpaceFragmentDepth > texture(spotShadowTexture, lightSpacePosition.xy).r ? 0.0 : 1.0;
         }
+    } else {
+        return 1.0; // No shadow
     }
-
-    return shadow;
 }
 
 float Internal_FetchHeight(in sampler2D heightTexture, vec2 texCoords) {

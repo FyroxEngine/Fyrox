@@ -169,7 +169,7 @@ impl SpotShadowMapRenderer {
         let viewport = Rect::new(0, 0, cascade_size as i32, cascade_size as i32);
 
         framebuffer.clear(state, viewport, None, Some(1.0), None);
-        let frustum = Frustum::from(*light_view_projection).unwrap();
+        let frustum = Frustum::from(*light_view_projection).unwrap_or_default();
 
         for batch in batches.batches.iter() {
             let geometry = geom_cache.get(state, &batch.data.read().unwrap());
