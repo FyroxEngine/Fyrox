@@ -594,13 +594,14 @@ impl DeferredLightRenderer {
             };
             let b1 = v * 0.2;
             let b2 = v * 0.4;
-            let cascade_index = if distance_to_camera < b1 {
-                0
-            } else if distance_to_camera > b1 && distance_to_camera < b2 {
-                1
-            } else {
-                2
-            };
+            let cascade_index =
+                if distance_to_camera < b1 || frustum.is_contains_point(camera.global_position()) {
+                    0
+                } else if distance_to_camera > b1 && distance_to_camera < b2 {
+                    1
+                } else {
+                    2
+                };
 
             let mut light_view_projection = Matrix4::identity();
             let shadows_enabled = light.is_cast_shadows()

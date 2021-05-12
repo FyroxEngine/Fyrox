@@ -15,6 +15,7 @@ pub mod physics;
 pub mod sprite;
 pub mod transform;
 
+use crate::scene::light::Light;
 use crate::{
     animation::AnimationContainer,
     core::{
@@ -1487,28 +1488,46 @@ impl VisibilityCache {
 
         // Fill rest of data from global visibility flag of nodes and check frustums (if any).
         for (handle, node) in graph.pair_iter() {
-            // We care only about meshes.
-            if let Node::Mesh(mesh) = node {
-                // We need to fill only unfilled entries, none of visibility flags of a node can
-                // make it visible again if lod group hid it.
-                self.map.entry(handle).or_insert_with(|| {
-                    let mut visibility = node.global_visibility();
-                    if visibility {
-                        // If a mesh globally visible, check it with each frustum (if any).
-                        if let Some(frustums) = frustums {
-                            let mut visible_by_any_frustum = false;
-                            for frustum in frustums {
-                                if mesh.is_intersect_frustum(graph, frustum) {
-                                    visible_by_any_frustum = true;
-                                    break;
+            // We need to fill only unfilled entries, none of visibility flags of a node can
+            // make it visible again if lod group hid it.
+            self.map.entry(handle).or_insert_with(|| {
+                let mut visibility = node.global_visibility();
+                if visibility {
+                    // If a node globally visible, check it with each frustum (if any).
+                    if let Some(frustums) = frustums {
+                        let mut visible_by_any_frustum = false;
+                        for frustum in frustums {
+                            match node {
+                                Node::Mesh(mesh) => {
+                                    if mesh.is_intersect_frustum(graph, frustum) {
+                                        visible_by_any_frustum = true;
+                                        break;
+                                    }
                                 }
+                                Node::Light(light) => {
+                                    let radius = match light {
+                                        Light::Spot(spot_light) => spot_light.distance(),
+                                        Light::Point(point_light) => point_light.radius(),
+                                        Light::Directional(_) => std::f32::MAX,
+                                    };
+
+                                    // Rough intersection check should cover most of the use cases,
+                                    // however spot lights require more precise check, for now this
+                                    // is a TODO.
+                                    if frustum.is_intersects_sphere(node.global_position(), radius)
+                                    {
+                                        visible_by_any_frustum = true;
+                                        break;
+                                    }
+                                }
+                                _ => {}
                             }
-                            visibility = visible_by_any_frustum;
                         }
+                        visibility = visible_by_any_frustum;
                     }
-                    visibility
-                });
-            }
+                }
+                visibility
+            });
         }
     }
 
