@@ -3,6 +3,7 @@
 #[cfg(not(target_arch = "wasm32"))]
 use crate::core::futures::executor::ThreadPool;
 use crate::core::instant;
+use crate::renderer::TextureUploadSender;
 use crate::{
     core::visitor::{Visit, VisitResult, Visitor},
     resource::{
@@ -24,7 +25,7 @@ use std::{
 };
 
 /// Lifetime of orphaned resource in seconds (with only one strong ref which is resource manager itself)
-pub const MAX_RESOURCE_TTL: f32 = 20.0;
+pub const DEFAULT_RESOURCE_LIFETIME: f32 = 60.0;
 
 /// Resource container with fixed TTL (time-to-live). Resource will be removed
 /// (and unloaded) if there were no other strong references to it in given time
@@ -57,7 +58,7 @@ where
     fn default() -> Self {
         Self {
             value: Default::default(),
-            time_to_live: MAX_RESOURCE_TTL,
+            time_to_live: DEFAULT_RESOURCE_LIFETIME,
         }
     }
 }
@@ -118,6 +119,7 @@ pub struct ResourceManagerState {
     textures_import_options: TextureImportOptions,
     #[cfg(not(target_arch = "wasm32"))]
     thread_pool: ThreadPool,
+    pub(in crate) upload_sender: Option<TextureUploadSender>,
 }
 
 impl Default for ResourceManagerState {
@@ -130,6 +132,7 @@ impl Default for ResourceManagerState {
             textures_import_options: Default::default(),
             #[cfg(not(target_arch = "wasm32"))]
             thread_pool: ThreadPool::new().unwrap(),
+            upload_sender: None,
         }
     }
 }
@@ -240,7 +243,12 @@ impl From<TextureError> for TextureRegistrationError {
     }
 }
 
-async fn load_texture(texture: Texture, path: PathBuf, options: TextureImportOptions) {
+async fn load_texture(
+    texture: Texture,
+    path: PathBuf,
+    options: TextureImportOptions,
+    upload_sender: TextureUploadSender,
+) {
     let time = instant::Instant::now();
     match TextureData::load_from_file(&path, options.compression).await {
         Ok(mut raw_texture) => {
@@ -256,6 +264,9 @@ async fn load_texture(texture: Texture, path: PathBuf, options: TextureImportOpt
             raw_texture.set_t_wrap_mode(options.t_wrap_mode);
 
             texture.state().commit(ResourceState::Ok(raw_texture));
+
+            // Ask renderer to upload texture to GPU.
+            upload_sender.request_upload(texture);
         }
         Err(error) => {
             Log::writeln(
@@ -421,9 +432,11 @@ async fn reload_sound_buffer(
 }
 
 impl ResourceManager {
-    pub(in crate) fn new() -> Self {
+    pub(in crate) fn new(upload_sender: TextureUploadSender) -> Self {
         Self {
-            state: Some(Arc::new(Mutex::new(ResourceManagerState::new()))),
+            state: Some(Arc::new(Mutex::new(ResourceManagerState::new(
+                upload_sender,
+            )))),
         }
     }
 
@@ -456,20 +469,25 @@ impl ResourceManager {
         let texture = Texture::new(ResourceState::new_pending(path.as_ref().to_owned()));
         state.textures.push(TimedEntry {
             value: texture.clone(),
-            time_to_live: MAX_RESOURCE_TTL,
+            time_to_live: DEFAULT_RESOURCE_LIFETIME,
         });
         let result = texture.clone();
         let options = state.textures_import_options.clone();
         let path = path.as_ref().to_owned();
+        let upload_sender = state
+            .upload_sender
+            .as_ref()
+            .expect("Upload sender must be set!")
+            .clone();
 
         #[cfg(target_arch = "wasm32")]
         crate::core::wasm_bindgen_futures::spawn_local(async move {
-            load_texture(texture, path, options).await;
+            load_texture(texture, path, options, upload_sender).await;
         });
 
         #[cfg(not(target_arch = "wasm32"))]
         state.thread_pool.spawn_ok(async move {
-            load_texture(texture, path, options).await;
+            load_texture(texture, path, options, upload_sender).await;
         });
 
         result
@@ -496,7 +514,7 @@ impl ResourceManager {
                         std::mem::drop(texture_state);
                         state.textures.push(TimedEntry {
                             value: texture,
-                            time_to_live: MAX_RESOURCE_TTL,
+                            time_to_live: DEFAULT_RESOURCE_LIFETIME,
                         });
                         Ok(())
                     }
@@ -530,7 +548,7 @@ impl ResourceManager {
         let model = Model::new(ResourceState::new_pending(path.as_ref().to_owned()));
         state.models.push(TimedEntry {
             value: model.clone(),
-            time_to_live: MAX_RESOURCE_TTL,
+            time_to_live: DEFAULT_RESOURCE_LIFETIME,
         });
 
         let result = model.clone();
@@ -567,7 +585,7 @@ impl ResourceManager {
         let resource = SharedSoundBuffer::new(ResourceState::new_pending(path.as_ref().to_owned()));
         state.sound_buffers.push(TimedEntry {
             value: resource.clone(),
-            time_to_live: MAX_RESOURCE_TTL,
+            time_to_live: DEFAULT_RESOURCE_LIFETIME,
         });
         let result = resource.clone();
         let path = path.as_ref().to_owned();
@@ -761,7 +779,7 @@ where
 }
 
 impl ResourceManagerState {
-    pub(in crate::engine) fn new() -> Self {
+    pub(in crate::engine) fn new(upload_sender: TextureUploadSender) -> Self {
         Self {
             textures: Vec::new(),
             models: Vec::new(),
@@ -770,6 +788,7 @@ impl ResourceManagerState {
             textures_import_options: Default::default(),
             #[cfg(not(target_arch = "wasm32"))]
             thread_pool: ThreadPool::new().unwrap(),
+            upload_sender: Some(upload_sender),
         }
     }
 
@@ -919,7 +938,7 @@ impl ResourceManagerState {
             if matches!(*texture.state(), ResourceState::Ok(_)) {
                 texture.time_to_live -= dt;
                 if texture.use_count() > 1 {
-                    texture.time_to_live = MAX_RESOURCE_TTL;
+                    texture.time_to_live = DEFAULT_RESOURCE_LIFETIME;
                 }
             }
         }
@@ -942,7 +961,7 @@ impl ResourceManagerState {
         for model in self.models.iter_mut() {
             model.time_to_live -= dt;
             if model.use_count() > 1 {
-                model.time_to_live = MAX_RESOURCE_TTL;
+                model.time_to_live = DEFAULT_RESOURCE_LIFETIME;
             }
         }
         self.models.retain(|model| {
@@ -964,7 +983,7 @@ impl ResourceManagerState {
         for buffer in self.sound_buffers.iter_mut() {
             buffer.time_to_live -= dt;
             if buffer.use_count() > 1 {
-                buffer.time_to_live = MAX_RESOURCE_TTL;
+                buffer.time_to_live = DEFAULT_RESOURCE_LIFETIME;
             }
         }
         self.sound_buffers.retain(|buffer| {

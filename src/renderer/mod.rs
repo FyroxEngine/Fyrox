@@ -74,6 +74,7 @@ use crate::{
 };
 #[cfg(feature = "serde_integration")]
 use serde::{Deserialize, Serialize};
+use std::sync::mpsc::{Receiver, Sender};
 use std::{
     cell::RefCell,
     collections::{hash_map::Entry, HashMap},
@@ -402,6 +403,21 @@ impl Default for Statistics {
     }
 }
 
+/// A sending point for textures that should be uploaded to GPU memory.
+#[derive(Clone)]
+pub struct TextureUploadSender {
+    sender: Sender<Texture>,
+}
+
+impl TextureUploadSender {
+    /// Requests an upload of the texture to GPU memory.
+    pub fn request_upload(&self, texture: Texture) {
+        self.sender
+            .send(texture)
+            .expect("Texture upload receiver must be alive while renderer is alive")
+    }
+}
+
 /// See module docs.
 pub struct Renderer {
     backbuffer: FrameBuffer,
@@ -436,6 +452,8 @@ pub struct Renderer {
     forward_renderer: ForwardRenderer,
     fxaa_renderer: FxaaRenderer,
     renderer2d: Renderer2d,
+    texture_upload_receiver: Receiver<Texture>,
+    texture_upload_sender: Sender<Texture>,
     // TextureId -> FrameBuffer mapping. This mapping is used for temporal frame buffers
     // like ones used to render UI instances.
     ui_frame_buffers: HashMap<usize, FrameBuffer>,
@@ -737,6 +755,8 @@ impl Renderer {
     ) -> Result<Self, FrameworkError> {
         let settings = QualitySettings::default();
 
+        let (texture_upload_sender, texture_upload_receiver) = std::sync::mpsc::channel();
+
         // Box pipeline state because we'll store pointers to it inside framework's entities and
         // it must have constant address.
         let mut state = Box::new(PipelineState::new(context));
@@ -829,6 +849,8 @@ impl Renderer {
             fxaa_renderer: FxaaRenderer::new(&mut state)?,
             statistics: Statistics::default(),
             renderer2d: Renderer2d::new(&mut state)?,
+            texture_upload_receiver,
+            texture_upload_sender,
             state,
         })
     }
@@ -846,6 +868,12 @@ impl Renderer {
     /// Sets color which will be used to fill screen when there is nothing to render.
     pub fn set_backbuffer_clear_color(&mut self, color: Color) {
         self.backbuffer_clear_color = color;
+    }
+
+    pub(in crate) fn upload_sender(&self) -> TextureUploadSender {
+        TextureUploadSender {
+            sender: self.texture_upload_sender.clone(),
+        }
     }
 
     /// Sets new frame size, should be called when received a Resize event.
@@ -967,6 +995,26 @@ impl Renderer {
         Ok(())
     }
 
+    fn update_texture_cache(&mut self, dt: f32) {
+        // Maximum amount of textures uploaded to GPU per frame. This defines throughput **only** for
+        // requests from resource manager. This is needed to prevent huge lag when there are tons of
+        // requests, so this is some kind of work load balancer.
+        const THROUGHPUT: usize = 5;
+
+        let mut uploaded = 0;
+        while let Ok(texture) = self.texture_upload_receiver.try_recv() {
+            // Just "touch" texture in the cache and it will load texture to GPU.
+            let _ = self.texture_cache.get(&mut self.state, &texture);
+
+            uploaded += 1;
+            if uploaded >= THROUGHPUT {
+                break;
+            }
+        }
+
+        self.texture_cache.update(dt);
+    }
+
     fn render_frame(
         &mut self,
         scenes: &SceneContainer,
@@ -983,8 +1031,8 @@ impl Renderer {
         self.state.invalidate_resource_bindings_cache();
 
         // Update caches - this will remove timed out resources.
+        self.update_texture_cache(dt);
         self.geometry_cache.update(dt);
-        self.texture_cache.update(dt);
 
         self.statistics.begin_frame();
 

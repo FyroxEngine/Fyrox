@@ -144,9 +144,11 @@ impl<M: MessageData, C: Control<M, C>> Engine<M, C> {
 
         let sound_engine = SoundEngine::new();
 
+        let renderer = Renderer::new(glow_context, (client_size.x as u32, client_size.y as u32))?;
+
         Ok(Self {
-            renderer: Renderer::new(glow_context, (client_size.x as u32, client_size.y as u32))?,
-            resource_manager: ResourceManager::new(),
+            resource_manager: ResourceManager::new(renderer.upload_sender()),
+            renderer,
             scenes: SceneContainer::new(sound_engine.clone()),
             scenes2d: Scene2dContainer::new(sound_engine.clone()),
             sound_engine,
@@ -256,6 +258,8 @@ impl<M: MessageData, C: Control<M, C>> Visit for Engine<M, C> {
         self.scenes2d.visit("Scenes2d", visitor)?;
 
         if visitor.is_reading() {
+            self.resource_manager.state().upload_sender = Some(self.renderer.upload_sender());
+
             crate::core::futures::executor::block_on(self.resource_manager.reload_resources());
             for scene in self.scenes.iter_mut() {
                 scene.resolve();
