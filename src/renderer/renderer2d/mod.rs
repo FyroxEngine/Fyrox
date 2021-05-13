@@ -10,10 +10,8 @@ use crate::{
     renderer::{
         framework::{
             error::FrameworkError,
-            framebuffer::{
-                Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer, FrameBufferTrait,
-            },
-            gpu_program::{GpuProgram, UniformLocation, UniformValue},
+            framebuffer::{Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer},
+            gpu_program::{GpuProgram, UniformLocation},
             gpu_texture::{
                 GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
             },
@@ -200,7 +198,7 @@ impl Renderer2d {
     pub(in crate) fn render(
         &mut self,
         state: &mut PipelineState,
-        final_buffer: &mut dyn FrameBufferTrait,
+        final_buffer: &mut FrameBuffer,
         final_buffer_size: Vector2<f32>,
         scenes: &Scene2dContainer,
         texture_cache: &mut TextureCache,
@@ -213,38 +211,41 @@ impl Renderer2d {
         let quad = self.geometry_cache.get(state, &self.quad);
 
         for (scene_handle, scene) in scenes.pair_iter() {
-            let (frame_buffer, frame_size): (&mut dyn FrameBufferTrait, Vector2<f32>) =
-                if let Some(render_target) = scene.render_target.as_ref() {
-                    let kind = render_target.data_ref().kind();
-                    let (width, height) = match kind {
-                        TextureKind::Rectangle { width, height } => (width, height),
-                        _ => {
-                            Log::write(MessageKind::Error, format!("Attempt to use {:?} as render target, only rectangular render targets are supported!", kind));
-                            continue;
-                        }
-                    };
-
-                    match self.framebuffers.entry(scene_handle) {
-                        Entry::Occupied(entry) => {
-                            let render_target = entry.into_mut();
-                            if render_target.width != width || render_target.height != height {
-                                *render_target = RenderTarget::new(state, width, height)?;
-                            }
-                            (
-                                &mut render_target.framebuffer,
-                                Vector2::new(width as f32, height as f32),
-                            )
-                        }
-                        Entry::Vacant(entry) => (
-                            &mut entry
-                                .insert(RenderTarget::new(state, width, height)?)
-                                .framebuffer,
-                            Vector2::new(width as f32, height as f32),
-                        ),
+            let (frame_buffer, frame_size): (&mut FrameBuffer, Vector2<f32>) = if let Some(
+                render_target,
+            ) =
+                scene.render_target.as_ref()
+            {
+                let kind = render_target.data_ref().kind();
+                let (width, height) = match kind {
+                    TextureKind::Rectangle { width, height } => (width, height),
+                    _ => {
+                        Log::write(MessageKind::Error, format!("Attempt to use {:?} as render target, only rectangular render targets are supported!", kind));
+                        continue;
                     }
-                } else {
-                    (final_buffer, final_buffer_size)
                 };
+
+                match self.framebuffers.entry(scene_handle) {
+                    Entry::Occupied(entry) => {
+                        let render_target = entry.into_mut();
+                        if render_target.width != width || render_target.height != height {
+                            *render_target = RenderTarget::new(state, width, height)?;
+                        }
+                        (
+                            &mut render_target.framebuffer,
+                            Vector2::new(width as f32, height as f32),
+                        )
+                    }
+                    Entry::Vacant(entry) => (
+                        &mut entry
+                            .insert(RenderTarget::new(state, width, height)?)
+                            .framebuffer,
+                        Vector2::new(width as f32, height as f32),
+                    ),
+                }
+            } else {
+                (final_buffer, final_buffer_size)
+            };
 
             self.batch_storage
                 .generate_batches(state, scene, texture_cache, white_dummy.clone());
@@ -325,12 +326,13 @@ impl Renderer2d {
 
                     quad.set_buffer_data(state, 1, &self.instance_data_set);
 
+                    let shader = &self.sprite_shader;
                     stats += frame_buffer.draw_instances(
                         batch.instances.len(),
                         quad,
                         state,
                         viewport,
-                        &self.sprite_shader.program,
+                        &shader.program,
                         &DrawParameters {
                             cull_face: CullFace::Back,
                             culling: false,
@@ -340,39 +342,22 @@ impl Renderer2d {
                             depth_test: false,
                             blend: true,
                         },
-                        &[
-                            (
-                                self.sprite_shader.wvp_matrix.clone(),
-                                UniformValue::Matrix4(&view_projection),
-                            ),
-                            (
-                                self.sprite_shader.diffuse_texture.clone(),
-                                UniformValue::Sampler {
-                                    index: 0,
-                                    texture: batch.texture.clone(),
-                                },
-                            ),
-                            (
-                                self.sprite_shader.light_count.clone(),
-                                UniformValue::Integer(light_count as i32),
-                            ),
-                            (
-                                self.sprite_shader.light_color_radius.clone(),
-                                UniformValue::Vector4Array(&light_color_radius),
-                            ),
-                            (
-                                self.sprite_shader.light_position_direction.clone(),
-                                UniformValue::Vector4Array(&light_position_direction),
-                            ),
-                            (
-                                self.sprite_shader.light_parameters.clone(),
-                                UniformValue::Vector2Array(&light_parameters),
-                            ),
-                            (
-                                self.sprite_shader.ambient_light_color.clone(),
-                                UniformValue::Vector3(&scene.ambient_light_color.as_frgb()),
-                            ),
-                        ],
+                        |program_binding| {
+                            program_binding
+                                .set_matrix4(&shader.wvp_matrix, &view_projection)
+                                .set_sampler(&shader.diffuse_texture, 0, &batch.texture)
+                                .set_integer(&shader.light_count, light_count as i32)
+                                .set_vector4_slice(&shader.light_color_radius, &light_color_radius)
+                                .set_vector4_slice(
+                                    &shader.light_position_direction,
+                                    &light_position_direction,
+                                )
+                                .set_vector2_slice(&shader.light_parameters, &light_parameters)
+                                .set_vector3(
+                                    &shader.ambient_light_color,
+                                    &scene.ambient_light_color.as_frgb(),
+                                );
+                        },
                     );
                 }
             }

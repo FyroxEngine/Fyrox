@@ -6,10 +6,8 @@ use crate::{
     },
     renderer::framework::{
         error::FrameworkError,
-        framebuffer::{
-            Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer, FrameBufferTrait,
-        },
-        gpu_program::{GpuProgram, UniformLocation, UniformValue},
+        framebuffer::{Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer},
+        gpu_program::{GpuProgram, UniformLocation},
         gpu_texture::{
             Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
             PixelKind, WrapMode,
@@ -102,11 +100,12 @@ impl Blur {
 
         let viewport = Rect::new(0, 0, self.width as i32, self.height as i32);
 
+        let shader = &self.shader;
         self.framebuffer.draw(
             geom_cache.get(state, &self.quad),
             state,
             viewport,
-            &self.shader.program,
+            &shader.program,
             &DrawParameters {
                 cull_face: CullFace::Back,
                 culling: false,
@@ -116,10 +115,10 @@ impl Blur {
                 depth_test: false,
                 blend: false,
             },
-            &[
-                (
-                    self.shader.world_view_projection_matrix.clone(),
-                    UniformValue::Matrix4(
+            |program_binding| {
+                program_binding
+                    .set_matrix4(
+                        &shader.world_view_projection_matrix,
                         &(Matrix4::new_orthographic(
                             0.0,
                             viewport.w() as f32,
@@ -132,16 +131,9 @@ impl Blur {
                             viewport.h() as f32,
                             0.0,
                         ))),
-                    ),
-                ),
-                (
-                    self.shader.input_texture.clone(),
-                    UniformValue::Sampler {
-                        index: 0,
-                        texture: input,
-                    },
-                ),
-            ],
+                    )
+                    .set_sampler(&shader.input_texture, 0, &input);
+            },
         );
     }
 }

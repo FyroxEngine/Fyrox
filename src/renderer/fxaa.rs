@@ -1,3 +1,4 @@
+use crate::renderer::framework::framebuffer::FrameBuffer;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector3},
@@ -5,8 +6,8 @@ use crate::{
     },
     renderer::framework::{
         error::FrameworkError,
-        framebuffer::{CullFace, DrawParameters, FrameBufferTrait},
-        gpu_program::{GpuProgram, UniformLocation, UniformValue},
+        framebuffer::{CullFace, DrawParameters},
+        gpu_program::{GpuProgram, UniformLocation},
         gpu_texture::GpuTexture,
         state::PipelineState,
     },
@@ -54,7 +55,7 @@ impl FxaaRenderer {
         state: &mut PipelineState,
         viewport: Rect<i32>,
         frame_texture: Rc<RefCell<GpuTexture>>,
-        frame_buffer: &mut dyn FrameBufferTrait,
+        frame_buffer: &mut FrameBuffer,
         geom_cache: &mut GeometryCache,
     ) -> RenderPassStatistics {
         let mut statistics = RenderPassStatistics::default();
@@ -88,25 +89,15 @@ impl FxaaRenderer {
                 depth_test: false,
                 blend: false,
             },
-            &[
-                (
-                    self.shader.wvp_matrix.clone(),
-                    UniformValue::Matrix4(&frame_matrix),
-                ),
-                (
-                    self.shader.inverse_screen_size.clone(),
-                    UniformValue::Vector2(
-                        &(Vector2::new(1.0 / viewport.w() as f32, 1.0 / viewport.h() as f32)),
-                    ),
-                ),
-                (
-                    self.shader.screen_texture.clone(),
-                    UniformValue::Sampler {
-                        index: 0,
-                        texture: frame_texture,
-                    },
-                ),
-            ],
+            |program_binding| {
+                program_binding
+                    .set_matrix4(&self.shader.wvp_matrix, &frame_matrix)
+                    .set_vector2(
+                        &self.shader.inverse_screen_size,
+                        &Vector2::new(1.0 / viewport.w() as f32, 1.0 / viewport.h() as f32),
+                    )
+                    .set_sampler(&self.shader.screen_texture, 0, &frame_texture);
+            },
         );
 
         statistics

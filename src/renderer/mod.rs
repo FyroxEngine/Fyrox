@@ -42,15 +42,11 @@ use crate::{
     gui::{draw::DrawingContext, message::MessageData, Control, UserInterface},
     renderer::framework::{
         error::FrameworkError,
-        framebuffer::{
-            Attachment, AttachmentKind, BackBuffer, CullFace, DrawParameters, FrameBuffer,
-            FrameBufferTrait,
-        },
+        framebuffer::{Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer},
         geometry_buffer::{
             AttributeDefinition, AttributeKind, BufferBuilder, DrawCallStatistics, ElementKind,
             GeometryBuffer, GeometryBufferBuilder, GeometryBufferKind,
         },
-        gpu_program::UniformValue,
         gpu_texture::{
             Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
             PixelKind,
@@ -408,7 +404,7 @@ impl Default for Statistics {
 
 /// See module docs.
 pub struct Renderer {
-    backbuffer: BackBuffer,
+    backbuffer: FrameBuffer,
     deferred_light_renderer: DeferredLightRenderer,
     flat_shader: FlatShader,
     sprite_renderer: SpriteRenderer,
@@ -746,7 +742,7 @@ impl Renderer {
         let mut state = Box::new(PipelineState::new(context));
 
         Ok(Self {
-            backbuffer: BackBuffer,
+            backbuffer: FrameBuffer::backbuffer(&mut state),
             frame_size,
             deferred_light_renderer: DeferredLightRenderer::new(&mut state, frame_size, &settings)?,
             flat_shader: FlatShader::new(&mut state)?,
@@ -1160,6 +1156,7 @@ impl Renderer {
                             &mut self.geometry_cache,
                         );
                     } else {
+                        let shader = &self.flat_shader;
                         self.statistics.geometry += self.backbuffer.draw(
                             self.geometry_cache.get(state, &self.quad),
                             state,
@@ -1174,10 +1171,9 @@ impl Renderer {
                                 depth_test: false,
                                 blend: false,
                             },
-                            &[
-                                (
-                                    self.flat_shader.wvp_matrix.clone(),
-                                    UniformValue::Matrix4(&{
+                            |program_binding| {
+                                program_binding
+                                    .set_matrix4(&shader.wvp_matrix, &{
                                         Matrix4::new_orthographic(
                                             0.0,
                                             viewport.w() as f32,
@@ -1190,16 +1186,13 @@ impl Renderer {
                                             viewport.h() as f32,
                                             0.0,
                                         ))
-                                    }),
-                                ),
-                                (
-                                    self.flat_shader.diffuse_texture.clone(),
-                                    UniformValue::Sampler {
-                                        index: 0,
-                                        texture: gbuffer.frame_texture(),
-                                    },
-                                ),
-                            ],
+                                    })
+                                    .set_sampler(
+                                        &shader.diffuse_texture,
+                                        0,
+                                        &gbuffer.frame_texture(),
+                                    );
+                            },
                         );
                     }
                 }

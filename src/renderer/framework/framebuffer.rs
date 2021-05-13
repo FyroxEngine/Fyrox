@@ -1,9 +1,10 @@
+use crate::renderer::framework::gpu_program::GpuProgramBinding;
 use crate::{
     core::{color::Color, math::Rect, scope_profile},
     renderer::framework::{
         error::FrameworkError,
         geometry_buffer::{DrawCallStatistics, GeometryBuffer},
-        gpu_program::{GpuProgram, UniformLocation, UniformValue},
+        gpu_program::GpuProgram,
         gpu_texture::{CubeMapFace, GpuTexture, GpuTextureKind},
         state::{ColorMask, PipelineState},
     },
@@ -169,6 +170,15 @@ impl FrameBuffer {
         }
     }
 
+    pub fn backbuffer(state: &mut PipelineState) -> Self {
+        Self {
+            state,
+            fbo: Default::default(),
+            depth_attachment: None,
+            color_attachments: Default::default(),
+        }
+    }
+
     pub fn color_attachments(&self) -> &[Attachment] {
         &self.color_attachments
     }
@@ -198,43 +208,12 @@ impl FrameBuffer {
 
         self
     }
-}
 
-fn pre_draw(
-    fbo: glow::Framebuffer,
-    state: &mut PipelineState,
-    viewport: Rect<i32>,
-    program: &GpuProgram,
-    params: &DrawParameters,
-    uniforms: &[(UniformLocation, UniformValue<'_>)],
-) {
-    scope_profile!();
-
-    state.set_framebuffer(fbo);
-    state.set_viewport(viewport);
-    state.apply_draw_parameters(params);
-
-    program.bind(state);
-    for (location, value) in uniforms {
-        program.set_uniform(state, location.clone(), value)
+    pub fn id(&self) -> glow::Framebuffer {
+        self.fbo
     }
-}
 
-pub struct DrawPartContext<'a, 'b, 'c, 'd> {
-    pub state: &'a mut PipelineState,
-    pub viewport: Rect<i32>,
-    pub geometry: &'a mut GeometryBuffer,
-    pub program: &'b mut GpuProgram,
-    pub params: DrawParameters,
-    pub uniforms: &'c [(UniformLocation, UniformValue<'d>)],
-    pub offset: usize,
-    pub count: usize,
-}
-
-pub trait FrameBufferTrait {
-    fn id(&self) -> glow::Framebuffer;
-
-    fn clear(
+    pub fn clear(
         &mut self,
         state: &mut PipelineState,
         viewport: Rect<i32>,
@@ -270,22 +249,22 @@ pub trait FrameBufferTrait {
         }
     }
 
-    fn draw(
+    pub fn draw<F: FnOnce(GpuProgramBinding<'_>)>(
         &mut self,
         geometry: &GeometryBuffer,
         state: &mut PipelineState,
         viewport: Rect<i32>,
         program: &GpuProgram,
         params: &DrawParameters,
-        uniforms: &[(UniformLocation, UniformValue<'_>)],
+        apply_uniforms: F,
     ) -> DrawCallStatistics {
         scope_profile!();
 
-        pre_draw(self.id(), state, viewport, program, params, uniforms);
+        pre_draw(self.id(), state, viewport, program, params, apply_uniforms);
         geometry.bind(state).draw()
     }
 
-    fn draw_instances(
+    pub fn draw_instances<F: FnOnce(GpuProgramBinding<'_>)>(
         &mut self,
         count: usize,
         geometry: &GeometryBuffer,
@@ -293,49 +272,56 @@ pub trait FrameBufferTrait {
         viewport: Rect<i32>,
         program: &GpuProgram,
         params: &DrawParameters,
-        uniforms: &[(UniformLocation, UniformValue<'_>)],
+        apply_uniforms: F,
     ) -> DrawCallStatistics {
         scope_profile!();
 
-        pre_draw(self.id(), state, viewport, program, params, uniforms);
+        pre_draw(self.id(), state, viewport, program, params, apply_uniforms);
         geometry.bind(state).draw_instances(count)
     }
 
-    fn draw_part(&mut self, args: DrawPartContext) -> Result<DrawCallStatistics, FrameworkError> {
+    pub fn draw_part<F: FnOnce(GpuProgramBinding<'_>)>(
+        &mut self,
+        geometry: &mut GeometryBuffer,
+        state: &mut PipelineState,
+        viewport: Rect<i32>,
+        program: &GpuProgram,
+        params: DrawParameters,
+        offset: usize,
+        count: usize,
+        apply_uniforms: F,
+    ) -> Result<DrawCallStatistics, FrameworkError> {
         scope_profile!();
 
-        pre_draw(
-            self.id(),
-            args.state,
-            args.viewport,
-            args.program,
-            &args.params,
-            args.uniforms,
-        );
-        args.geometry
-            .bind(args.state)
-            .draw_part(args.offset, args.count)
+        pre_draw(self.id(), state, viewport, program, &params, apply_uniforms);
+        geometry.bind(state).draw_part(offset, count)
     }
 }
 
-impl FrameBufferTrait for FrameBuffer {
-    fn id(&self) -> glow::Framebuffer {
-        self.fbo
-    }
-}
+fn pre_draw<F: FnOnce(GpuProgramBinding<'_>)>(
+    fbo: glow::Framebuffer,
+    state: &mut PipelineState,
+    viewport: Rect<i32>,
+    program: &GpuProgram,
+    params: &DrawParameters,
+    apply_uniforms: F,
+) {
+    scope_profile!();
 
-pub struct BackBuffer;
+    state.set_framebuffer(fbo);
+    state.set_viewport(viewport);
+    state.apply_draw_parameters(params);
 
-impl FrameBufferTrait for BackBuffer {
-    fn id(&self) -> glow::Framebuffer {
-        Default::default()
-    }
+    let program_binding = program.bind(state);
+    apply_uniforms(program_binding);
 }
 
 impl Drop for FrameBuffer {
     fn drop(&mut self) {
         unsafe {
-            (*self.state).gl.delete_framebuffer(self.fbo);
+            if self.fbo != Default::default() {
+                (*self.state).gl.delete_framebuffer(self.fbo);
+            }
         }
     }
 }

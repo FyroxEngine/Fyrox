@@ -7,12 +7,12 @@ use crate::{
     core::{algebra::Vector3, math::Rect, scope_profile},
     renderer::framework::{
         error::FrameworkError,
-        framebuffer::{CullFace, DrawParameters, FrameBuffer, FrameBufferTrait},
+        framebuffer::{CullFace, DrawParameters, FrameBuffer},
         geometry_buffer::{
             AttributeDefinition, AttributeKind, BufferBuilder, ElementKind, GeometryBuffer,
             GeometryBufferBuilder, GeometryBufferKind,
         },
-        gpu_program::{GpuProgram, UniformLocation, UniformValue},
+        gpu_program::{GpuProgram, UniformLocation},
         state::PipelineState,
     },
     renderer::RenderPassStatistics,
@@ -125,10 +125,10 @@ impl DebugRenderer {
                 depth_test: true,
                 blend: false,
             },
-            &[(
-                self.shader.wvp_matrix.clone(),
-                UniformValue::Matrix4(&camera.view_projection_matrix()),
-            )],
+            |program_binding| {
+                program_binding
+                    .set_matrix4(&self.shader.wvp_matrix, &camera.view_projection_matrix());
+            },
         );
 
         statistics.draw_calls += 1;

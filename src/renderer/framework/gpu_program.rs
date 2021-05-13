@@ -2,7 +2,6 @@ use crate::{
     core::{
         algebra::{Matrix3, Matrix4, Vector2, Vector3, Vector4},
         color::Color,
-        scope_profile,
     },
     renderer::framework::{error::FrameworkError, gpu_texture::GpuTexture, state::PipelineState},
     utils::log::{Log, MessageKind},
@@ -22,31 +21,6 @@ pub struct UniformLocation {
     id: glow::UniformLocation,
     // Force compiler to not implement Send and Sync, because OpenGL is not thread-safe.
     thread_mark: PhantomData<*const u8>,
-}
-
-#[allow(dead_code)]
-pub enum UniformValue<'a> {
-    Sampler {
-        index: u32,
-        texture: Rc<RefCell<GpuTexture>>,
-    },
-
-    Bool(bool),
-    Integer(i32),
-    Float(f32),
-    Vector2(&'a Vector2<f32>),
-    Vector3(&'a Vector3<f32>),
-    Vector4(&'a Vector4<f32>),
-    Color(Color),
-    Matrix4(&'a Matrix4<f32>),
-    Matrix3(&'a Matrix3<f32>),
-
-    IntegerArray(&'a [i32]),
-    FloatArray(&'a [f32]),
-    Vector2Array(&'a [Vector2<f32>]),
-    Vector3Array(&'a [Vector3<f32>]),
-    Vector4Array(&'a [Vector4<f32>]),
-    Mat4Array(&'a [Matrix4<f32>]),
 }
 
 unsafe fn create_shader(
@@ -105,6 +79,173 @@ fn prepare_source_code(code: &str) -> String {
 
     #[cfg(not(target_arch = "wasm32"))]
     code
+}
+
+pub struct GpuProgramBinding<'a> {
+    state: &'a mut PipelineState,
+}
+
+impl<'a> GpuProgramBinding<'a> {
+    #[inline(always)]
+    pub fn set_sampler(
+        self,
+        location: &UniformLocation,
+        index: i32,
+        texture: &Rc<RefCell<GpuTexture>>,
+    ) -> Self {
+        unsafe { self.state.gl.uniform_1_i32(Some(&location.id), index) };
+        texture.borrow().bind(self.state, index as u32);
+        self
+    }
+
+    #[inline(always)]
+    pub fn set_bool(self, location: &UniformLocation, value: bool) -> Self {
+        unsafe {
+            self.state.gl.uniform_1_i32(
+                Some(&location.id),
+                if value { glow::TRUE } else { glow::FALSE } as i32,
+            );
+        }
+        self
+    }
+
+    #[inline(always)]
+    pub fn set_integer(self, location: &UniformLocation, value: i32) -> Self {
+        unsafe {
+            self.state.gl.uniform_1_i32(Some(&location.id), value);
+        }
+        self
+    }
+
+    #[inline(always)]
+    pub fn set_float(self, location: &UniformLocation, value: f32) -> Self {
+        unsafe {
+            self.state.gl.uniform_1_f32(Some(&location.id), value);
+        }
+        self
+    }
+
+    #[inline(always)]
+    pub fn set_vector2(self, location: &UniformLocation, value: &Vector2<f32>) -> Self {
+        unsafe {
+            self.state
+                .gl
+                .uniform_2_f32(Some(&location.id), value.x, value.y);
+        }
+        self
+    }
+
+    #[inline(always)]
+    pub fn set_vector3(self, location: &UniformLocation, value: &Vector3<f32>) -> Self {
+        unsafe {
+            self.state
+                .gl
+                .uniform_3_f32(Some(&location.id), value.x, value.y, value.z);
+        }
+        self
+    }
+
+    #[inline(always)]
+    pub fn set_vector4(self, location: &UniformLocation, value: &Vector4<f32>) -> Self {
+        unsafe {
+            self.state
+                .gl
+                .uniform_4_f32(Some(&location.id), value.x, value.y, value.z, value.w);
+        }
+        self
+    }
+
+    #[inline(always)]
+    pub fn set_integer_slice(self, location: &UniformLocation, value: &[i32]) -> Self {
+        unsafe {
+            self.state.gl.uniform_1_i32_slice(Some(&location.id), value);
+        }
+        self
+    }
+
+    #[inline(always)]
+    pub fn set_float_slice(self, location: &UniformLocation, value: &[f32]) -> Self {
+        unsafe {
+            self.state.gl.uniform_1_f32_slice(Some(&location.id), value);
+        }
+        self
+    }
+
+    #[inline(always)]
+    pub fn set_vector2_slice(self, location: &UniformLocation, value: &[Vector2<f32>]) -> Self {
+        unsafe {
+            self.state.gl.uniform_2_f32_slice(
+                Some(&location.id),
+                std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 2),
+            );
+        }
+        self
+    }
+
+    #[inline(always)]
+    pub fn set_vector3_slice(self, location: &UniformLocation, value: &[Vector3<f32>]) -> Self {
+        unsafe {
+            self.state.gl.uniform_3_f32_slice(
+                Some(&location.id),
+                std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 3),
+            );
+        }
+        self
+    }
+
+    #[inline(always)]
+    pub fn set_vector4_slice(self, location: &UniformLocation, value: &[Vector4<f32>]) -> Self {
+        unsafe {
+            self.state.gl.uniform_4_f32_slice(
+                Some(&location.id),
+                std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 4),
+            );
+        }
+        self
+    }
+
+    #[inline(always)]
+    pub fn set_matrix3(self, location: &UniformLocation, value: &Matrix3<f32>) -> Self {
+        unsafe {
+            self.state
+                .gl
+                .uniform_matrix_3_f32_slice(Some(&location.id), false, value.as_slice());
+        }
+        self
+    }
+
+    #[inline(always)]
+    pub fn set_matrix4(self, location: &UniformLocation, value: &Matrix4<f32>) -> Self {
+        unsafe {
+            self.state
+                .gl
+                .uniform_matrix_4_f32_slice(Some(&location.id), false, value.as_slice());
+        }
+        self
+    }
+
+    #[inline(always)]
+    pub fn set_matrix4_array(self, location: &UniformLocation, value: &[Matrix4<f32>]) -> Self {
+        unsafe {
+            self.state.gl.uniform_matrix_4_f32_slice(
+                Some(&location.id),
+                false,
+                std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 16),
+            );
+        }
+        self
+    }
+
+    #[inline(always)]
+    pub fn set_color(self, location: &UniformLocation, value: &Color) -> Self {
+        unsafe {
+            let rgba = value.as_frgba();
+            self.state
+                .gl
+                .uniform_4_f32(Some(&location.id), rgba.x, rgba.y, rgba.z, rgba.w);
+        }
+        self
+    }
 }
 
 impl GpuProgram {
@@ -176,99 +317,9 @@ impl GpuProgram {
         }
     }
 
-    pub fn bind(&self, state: &mut PipelineState) {
+    pub fn bind<'a>(&self, state: &'a mut PipelineState) -> GpuProgramBinding<'a> {
         state.set_program(self.id);
-    }
-
-    pub fn set_uniform(
-        &self,
-        state: &mut PipelineState,
-        location: UniformLocation,
-        value: &UniformValue<'_>,
-    ) {
-        scope_profile!();
-
-        state.set_program(self.id);
-
-        let location = Some(&location.id);
-        unsafe {
-            match value {
-                UniformValue::Sampler { index, texture } => {
-                    state.gl.uniform_1_i32(location, *index as i32);
-                    texture.borrow().bind(state, *index);
-                }
-                UniformValue::Bool(value) => {
-                    state.gl.uniform_1_i32(
-                        location,
-                        if *value { glow::TRUE } else { glow::FALSE } as i32,
-                    );
-                }
-                UniformValue::Integer(value) => {
-                    state.gl.uniform_1_i32(location, *value);
-                }
-                UniformValue::Float(value) => {
-                    state.gl.uniform_1_f32(location, *value);
-                }
-                UniformValue::Vector2(value) => {
-                    state.gl.uniform_2_f32(location, value.x, value.y);
-                }
-                UniformValue::Vector3(value) => {
-                    state.gl.uniform_3_f32(location, value.x, value.y, value.z);
-                }
-                UniformValue::Vector4(value) => {
-                    state
-                        .gl
-                        .uniform_4_f32(location, value.x, value.y, value.z, value.w);
-                }
-                UniformValue::IntegerArray(value) => {
-                    state.gl.uniform_1_i32_slice(location, value);
-                }
-                UniformValue::FloatArray(value) => {
-                    state.gl.uniform_1_f32_slice(location, value);
-                }
-                UniformValue::Vector2Array(value) => {
-                    state.gl.uniform_2_f32_slice(
-                        location,
-                        std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 2),
-                    );
-                }
-                UniformValue::Vector3Array(value) => {
-                    state.gl.uniform_3_f32_slice(
-                        location,
-                        std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 3),
-                    );
-                }
-                UniformValue::Vector4Array(value) => {
-                    state.gl.uniform_4_f32_slice(
-                        location,
-                        std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 4),
-                    );
-                }
-                UniformValue::Matrix4(value) => {
-                    state
-                        .gl
-                        .uniform_matrix_4_f32_slice(location, false, value.as_slice());
-                }
-                UniformValue::Matrix3(value) => {
-                    state
-                        .gl
-                        .uniform_matrix_3_f32_slice(location, false, value.as_slice());
-                }
-                UniformValue::Mat4Array(value) => {
-                    state.gl.uniform_matrix_4_f32_slice(
-                        location,
-                        false,
-                        std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 16),
-                    );
-                }
-                UniformValue::Color(value) => {
-                    let rgba = value.as_frgba();
-                    state
-                        .gl
-                        .uniform_4_f32(location, rgba.x, rgba.y, rgba.z, rgba.w);
-                }
-            }
-        }
+        GpuProgramBinding { state }
     }
 }
 

@@ -8,10 +8,8 @@ use crate::{
     rand::Rng,
     renderer::framework::{
         error::FrameworkError,
-        framebuffer::{
-            Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer, FrameBufferTrait,
-        },
-        gpu_program::{GpuProgram, UniformLocation, UniformValue},
+        framebuffer::{Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer},
+        gpu_program::{GpuProgram, UniformLocation},
         gpu_texture::{
             Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
             PixelKind, WrapMode,
@@ -219,11 +217,19 @@ impl ScreenSpaceAmbientOcclusionRenderer {
             None,
         );
 
+        let shader = &self.shader;
+        let noise = &self.noise;
+        let kernel = &self.kernel;
+        let noise_scale = Vector2::new(
+            self.width as f32 / NOISE_SIZE as f32,
+            self.height as f32 / NOISE_SIZE as f32,
+        );
+        let radius = self.radius;
         stats += self.framebuffer.draw(
             geom_cache.get(state, &self.quad),
             state,
             viewport,
-            &self.shader.program,
+            &shader.program,
             &DrawParameters {
                 cull_face: CullFace::Back,
                 culling: false,
@@ -233,59 +239,22 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                 depth_test: false,
                 blend: false,
             },
-            &[
-                (
-                    self.shader.depth_sampler.clone(),
-                    UniformValue::Sampler {
-                        index: 0,
-                        texture: gbuffer.depth(),
-                    },
-                ),
-                (
-                    self.shader.normal_sampler.clone(),
-                    UniformValue::Sampler {
-                        index: 1,
-                        texture: gbuffer.normal_texture(),
-                    },
-                ),
-                (
-                    self.shader.noise_sampler.clone(),
-                    UniformValue::Sampler {
-                        index: 2,
-                        texture: self.noise.clone(),
-                    },
-                ),
-                (
-                    self.shader.kernel.clone(),
-                    UniformValue::Vector3Array(&self.kernel),
-                ),
-                (self.shader.radius.clone(), UniformValue::Float(self.radius)),
-                (
-                    self.shader.noise_scale.clone(),
-                    UniformValue::Vector2({
-                        &Vector2::new(
-                            self.width as f32 / NOISE_SIZE as f32,
-                            self.height as f32 / NOISE_SIZE as f32,
-                        )
-                    }),
-                ),
-                (
-                    self.shader.world_view_proj_matrix.clone(),
-                    UniformValue::Matrix4(&frame_matrix),
-                ),
-                (
-                    self.shader.projection_matrix.clone(),
-                    UniformValue::Matrix4(&projection_matrix),
-                ),
-                (
-                    self.shader.inv_proj_matrix.clone(),
-                    UniformValue::Matrix4(&projection_matrix.try_inverse().unwrap_or_default()),
-                ),
-                (
-                    self.shader.view_matrix.clone(),
-                    UniformValue::Matrix3(&view_matrix),
-                ),
-            ],
+            |program_binding| {
+                program_binding
+                    .set_sampler(&shader.depth_sampler, 0, &gbuffer.depth())
+                    .set_sampler(&shader.normal_sampler, 1, &gbuffer.normal_texture())
+                    .set_sampler(&shader.noise_sampler, 2, noise)
+                    .set_vector3_slice(&shader.kernel, kernel)
+                    .set_vector2(&shader.noise_scale, &noise_scale)
+                    .set_float(&shader.radius, radius)
+                    .set_matrix4(&shader.world_view_proj_matrix, &frame_matrix)
+                    .set_matrix4(&shader.projection_matrix, &projection_matrix)
+                    .set_matrix4(
+                        &shader.inv_proj_matrix,
+                        &projection_matrix.try_inverse().unwrap_or_default(),
+                    )
+                    .set_matrix3(&shader.view_matrix, &view_matrix);
+            },
         );
 
         self.blur.render(state, geom_cache, self.raw_ao_map());

@@ -9,10 +9,8 @@ use crate::{
     },
     renderer::framework::{
         error::FrameworkError,
-        framebuffer::{
-            Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer, FrameBufferTrait,
-        },
-        gpu_program::{GpuProgram, UniformLocation, UniformValue},
+        framebuffer::{Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer},
+        gpu_program::{GpuProgram, UniformLocation},
         gpu_texture::{
             Coordinate, CubeMapFace, GpuTexture, GpuTextureKind, MagnificationFilter,
             MinificationFilter, PixelKind, WrapMode,
@@ -186,6 +184,7 @@ impl SpotShadowMapRenderer {
                 };
 
                 if visible {
+                    let shader = &self.shader;
                     statistics += framebuffer.draw(
                         geometry,
                         state,
@@ -200,29 +199,19 @@ impl SpotShadowMapRenderer {
                             depth_test: true,
                             blend: false,
                         },
-                        &[
-                            (
-                                self.shader.world_view_projection_matrix.clone(),
-                                UniformValue::Matrix4(
+                        |program_binding| {
+                            program_binding
+                                .set_matrix4(
+                                    &shader.world_view_projection_matrix,
                                     &(light_view_projection * instance.world_transform),
-                                ),
-                            ),
-                            (
-                                self.shader.use_skeletal_animation.clone(),
-                                UniformValue::Bool(batch.is_skinned),
-                            ),
-                            (
-                                self.shader.bone_matrices.clone(),
-                                UniformValue::Mat4Array(instance.bone_matrices.as_slice()),
-                            ),
-                            (
-                                self.shader.diffuse_texture.clone(),
-                                UniformValue::Sampler {
-                                    index: 0,
-                                    texture: batch.diffuse_texture.clone(),
-                                },
-                            ),
-                        ],
+                                )
+                                .set_bool(&shader.use_skeletal_animation, batch.is_skinned)
+                                .set_matrix4_array(
+                                    &shader.bone_matrices,
+                                    instance.bone_matrices.as_slice(),
+                                )
+                                .set_sampler(&shader.diffuse_texture, 0, &batch.diffuse_texture);
+                        },
                     );
                 }
             }
@@ -477,6 +466,7 @@ impl PointShadowMapRenderer {
                     };
 
                     if visible {
+                        let shader = &self.shader;
                         statistics += framebuffer.draw(
                             geometry,
                             state,
@@ -491,37 +481,25 @@ impl PointShadowMapRenderer {
                                 depth_test: true,
                                 blend: false,
                             },
-                            &[
-                                (
-                                    self.shader.light_position.clone(),
-                                    UniformValue::Vector3(&light_pos),
-                                ),
-                                (
-                                    self.shader.world_matrix.clone(),
-                                    UniformValue::Matrix4(&instance.world_transform),
-                                ),
-                                (
-                                    self.shader.world_view_projection_matrix.clone(),
-                                    UniformValue::Matrix4(
+                            |program_binding| {
+                                program_binding
+                                    .set_vector3(&shader.light_position, &light_pos)
+                                    .set_matrix4(&shader.world_matrix, &instance.world_transform)
+                                    .set_matrix4(
+                                        &shader.world_view_projection_matrix,
                                         &(light_view_projection_matrix * instance.world_transform),
-                                    ),
-                                ),
-                                (
-                                    self.shader.use_skeletal_animation.clone(),
-                                    UniformValue::Bool(batch.is_skinned),
-                                ),
-                                (
-                                    self.shader.bone_matrices.clone(),
-                                    UniformValue::Mat4Array(instance.bone_matrices.as_slice()),
-                                ),
-                                (
-                                    self.shader.diffuse_texture.clone(),
-                                    UniformValue::Sampler {
-                                        index: 0,
-                                        texture: batch.diffuse_texture.clone(),
-                                    },
-                                ),
-                            ],
+                                    )
+                                    .set_bool(&shader.use_skeletal_animation, batch.is_skinned)
+                                    .set_matrix4_array(
+                                        &shader.bone_matrices,
+                                        instance.bone_matrices.as_slice(),
+                                    )
+                                    .set_sampler(
+                                        &shader.diffuse_texture,
+                                        0,
+                                        &batch.diffuse_texture,
+                                    );
+                            },
                         );
                     }
                 }

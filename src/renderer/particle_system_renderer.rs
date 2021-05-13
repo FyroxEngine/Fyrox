@@ -2,12 +2,12 @@ use crate::{
     core::{algebra::Vector2, math::Matrix4Ext, math::Rect, scope_profile},
     renderer::framework::{
         error::FrameworkError,
-        framebuffer::{CullFace, DrawParameters, FrameBuffer, FrameBufferTrait},
+        framebuffer::{CullFace, DrawParameters, FrameBuffer},
         geometry_buffer::{
             AttributeDefinition, AttributeKind, BufferBuilder, ElementKind, GeometryBuffer,
             GeometryBufferBuilder, GeometryBufferKind,
         },
-        gpu_program::{GpuProgram, UniformLocation, UniformValue},
+        gpu_program::{GpuProgram, UniformLocation},
         gpu_texture::GpuTexture,
         state::PipelineState,
     },
@@ -172,55 +172,6 @@ impl ParticleSystemRenderer {
 
             let global_transform = node.global_transform();
 
-            let uniforms = [
-                (
-                    self.shader.depth_buffer_texture.clone(),
-                    UniformValue::Sampler {
-                        index: 0,
-                        texture: depth.clone(),
-                    },
-                ),
-                (
-                    self.shader.diffuse_texture.clone(),
-                    UniformValue::Sampler {
-                        index: 1,
-                        texture: if let Some(texture) = particle_system.texture_ref() {
-                            if let Some(texture) = texture_cache.get(state, texture) {
-                                texture
-                            } else {
-                                white_dummy.clone()
-                            }
-                        } else {
-                            white_dummy.clone()
-                        },
-                    },
-                ),
-                (
-                    self.shader.camera_side_vector.clone(),
-                    UniformValue::Vector3(&camera_side),
-                ),
-                (
-                    self.shader.camera_up_vector.clone(),
-                    UniformValue::Vector3(&camera_up),
-                ),
-                (
-                    self.shader.view_projection_matrix.clone(),
-                    UniformValue::Matrix4(&view_proj),
-                ),
-                (
-                    self.shader.world_matrix.clone(),
-                    UniformValue::Matrix4(&global_transform),
-                ),
-                (
-                    self.shader.inv_screen_size.clone(),
-                    UniformValue::Vector2(&inv_screen_size),
-                ),
-                (
-                    self.shader.proj_params.clone(),
-                    UniformValue::Vector2(&proj_params),
-                ),
-            ];
-
             let draw_params = DrawParameters {
                 cull_face: CullFace::Front,
                 culling: false,
@@ -231,13 +182,33 @@ impl ParticleSystemRenderer {
                 blend: true,
             };
 
+            let diffuse_texture = if let Some(texture) = particle_system.texture_ref() {
+                if let Some(texture) = texture_cache.get(state, texture) {
+                    texture
+                } else {
+                    white_dummy.clone()
+                }
+            } else {
+                white_dummy.clone()
+            };
+
             statistics += framebuffer.draw(
                 &self.geometry_buffer,
                 state,
                 viewport,
                 &self.shader.program,
                 &draw_params,
-                &uniforms,
+                |program_binding| {
+                    program_binding
+                        .set_sampler(&self.shader.depth_buffer_texture, 0, &depth)
+                        .set_sampler(&self.shader.diffuse_texture, 1, &diffuse_texture)
+                        .set_vector3(&self.shader.camera_side_vector, &camera_side)
+                        .set_vector3(&self.shader.camera_up_vector, &camera_up)
+                        .set_matrix4(&self.shader.view_projection_matrix, &view_proj)
+                        .set_matrix4(&self.shader.world_matrix, &global_transform)
+                        .set_vector2(&self.shader.inv_screen_size, &inv_screen_size)
+                        .set_vector2(&self.shader.proj_params, &proj_params);
+                },
             );
         }
 

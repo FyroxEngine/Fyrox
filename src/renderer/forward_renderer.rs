@@ -10,8 +10,8 @@ use crate::{
     core::{math::Rect, scope_profile},
     renderer::framework::{
         error::FrameworkError,
-        framebuffer::{CullFace, DrawParameters, FrameBuffer, FrameBufferTrait},
-        gpu_program::{GpuProgram, UniformLocation, UniformValue},
+        framebuffer::{CullFace, DrawParameters, FrameBuffer},
+        gpu_program::{GpuProgram, UniformLocation},
         state::PipelineState,
     },
     renderer::{batch::BatchStorage, GeometryCache, RenderPassStatistics},
@@ -116,33 +116,24 @@ impl ForwardRenderer {
                         viewport,
                         &self.shader.program,
                         &params,
-                        &[
-                            (
-                                self.shader.diffuse_texture.clone(),
-                                UniformValue::Sampler {
-                                    index: 0,
-                                    texture: batch.diffuse_texture.clone(),
-                                },
-                            ),
-                            (
-                                self.shader.wvp_matrix.clone(),
-                                UniformValue::Matrix4(
+                        |program_binding| {
+                            program_binding
+                                .set_sampler(
+                                    &self.shader.diffuse_texture,
+                                    0,
+                                    &batch.diffuse_texture,
+                                )
+                                .set_matrix4(
+                                    &self.shader.wvp_matrix,
                                     &(view_projection * instance.world_transform),
-                                ),
-                            ),
-                            (
-                                self.shader.use_skeletal_animation.clone(),
-                                UniformValue::Bool(batch.is_skinned),
-                            ),
-                            (
-                                self.shader.color.clone(),
-                                UniformValue::Color(instance.color),
-                            ),
-                            (
-                                self.shader.bone_matrices.clone(),
-                                UniformValue::Mat4Array(instance.bone_matrices.as_slice()),
-                            ),
-                        ],
+                                )
+                                .set_bool(&self.shader.use_skeletal_animation, batch.is_skinned)
+                                .set_color(&self.shader.color, &instance.color)
+                                .set_matrix4_array(
+                                    &self.shader.bone_matrices,
+                                    instance.bone_matrices.as_slice(),
+                                );
+                        },
                     );
                 }
             }

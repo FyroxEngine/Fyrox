@@ -2,8 +2,8 @@ use crate::{
     core::{math::Matrix4Ext, math::Rect, scope_profile},
     renderer::framework::{
         error::FrameworkError,
-        framebuffer::{CullFace, DrawParameters, FrameBuffer, FrameBufferTrait},
-        gpu_program::{GpuProgram, UniformLocation, UniformValue},
+        framebuffer::{CullFace, DrawParameters, FrameBuffer},
+        gpu_program::{GpuProgram, UniformLocation},
         gpu_texture::GpuTexture,
         state::PipelineState,
     },
@@ -138,40 +138,17 @@ impl SpriteRenderer {
                     depth_test: true,
                     blend: true,
                 },
-                &[
-                    (
-                        self.shader.diffuse_texture.clone(),
-                        UniformValue::Sampler {
-                            index: 0,
-                            texture: diffuse_texture,
-                        },
-                    ),
-                    (
-                        self.shader.view_projection_matrix.clone(),
-                        UniformValue::Matrix4(&view_projection),
-                    ),
-                    (
-                        self.shader.world_matrix.clone(),
-                        UniformValue::Matrix4(&sprite.global_transform()),
-                    ),
-                    (
-                        self.shader.camera_up_vector.clone(),
-                        UniformValue::Vector3(&camera_up),
-                    ),
-                    (
-                        self.shader.camera_side_vector.clone(),
-                        UniformValue::Vector3(&camera_side),
-                    ),
-                    (self.shader.size.clone(), UniformValue::Float(sprite.size())),
-                    (
-                        self.shader.color.clone(),
-                        UniformValue::Color(sprite.color()),
-                    ),
-                    (
-                        self.shader.rotation.clone(),
-                        UniformValue::Float(sprite.rotation()),
-                    ),
-                ],
+                |program_binding| {
+                    program_binding
+                        .set_sampler(&self.shader.diffuse_texture, 0, &diffuse_texture)
+                        .set_matrix4(&self.shader.view_projection_matrix, &view_projection)
+                        .set_matrix4(&self.shader.world_matrix, &sprite.global_transform())
+                        .set_vector3(&self.shader.camera_up_vector, &camera_up)
+                        .set_vector3(&self.shader.camera_side_vector, &camera_side)
+                        .set_float(&self.shader.size, sprite.size())
+                        .set_color(&self.shader.color, &sprite.color())
+                        .set_float(&self.shader.rotation, sprite.rotation());
+                },
             );
         }
 

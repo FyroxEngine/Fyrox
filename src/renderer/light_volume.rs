@@ -8,8 +8,8 @@ use crate::{
     },
     renderer::framework::{
         error::FrameworkError,
-        framebuffer::{CullFace, DrawParameters, FrameBufferTrait},
-        gpu_program::{GpuProgram, UniformLocation, UniformValue},
+        framebuffer::{CullFace, DrawParameters},
+        gpu_program::{GpuProgram, UniformLocation},
         state::{ColorMask, PipelineState, StencilFunc, StencilOp},
     },
     renderer::{
@@ -204,10 +204,9 @@ impl LightVolumeRenderer {
                         depth_test: true,
                         blend: false,
                     },
-                    &[(
-                        self.flat_shader.wvp_matrix.clone(),
-                        UniformValue::Matrix4(&mvp),
-                    )],
+                    |program_binding| {
+                        program_binding.set_matrix4(&self.flat_shader.wvp_matrix, &mvp);
+                    },
                 );
 
                 // Make sure to clean stencil buffer after drawing full screen quad.
@@ -219,11 +218,13 @@ impl LightVolumeRenderer {
                 // Finally draw fullscreen quad, GPU will calculate scattering only on pixels that were
                 // marked in stencil buffer. For distant lights it will be very low amount of pixels and
                 // so distant lights won't impact performance.
+                let shader = &self.spot_light_shader;
+                let depth_map = gbuffer.depth();
                 stats += gbuffer.final_frame.draw(
                     geom_cache.get(state, quad),
                     state,
                     viewport,
-                    &self.spot_light_shader.program,
+                    &shader.program,
                     &DrawParameters {
                         cull_face: CullFace::Back,
                         culling: false,
@@ -233,43 +234,17 @@ impl LightVolumeRenderer {
                         depth_test: false,
                         blend: true,
                     },
-                    &[
-                        (
-                            self.spot_light_shader.world_view_proj_matrix.clone(),
-                            UniformValue::Matrix4(&frame_matrix),
-                        ),
-                        (
-                            self.spot_light_shader.inv_proj.clone(),
-                            UniformValue::Matrix4(&inv_proj),
-                        ),
-                        (
-                            self.spot_light_shader.cone_angle_cos.clone(),
-                            UniformValue::Float((spot.full_cone_angle() * 0.5).cos()),
-                        ),
-                        (
-                            self.spot_light_shader.light_position.clone(),
-                            UniformValue::Vector3(&position),
-                        ),
-                        (
-                            self.spot_light_shader.light_direction.clone(),
-                            UniformValue::Vector3(&direction),
-                        ),
-                        (
-                            self.spot_light_shader.depth_sampler.clone(),
-                            UniformValue::Sampler {
-                                index: 0,
-                                texture: gbuffer.depth(),
-                            },
-                        ),
-                        (
-                            self.spot_light_shader.light_color.clone(),
-                            UniformValue::Vector3(&light.color().as_frgba().xyz()),
-                        ),
-                        (
-                            self.spot_light_shader.scatter_factor.clone(),
-                            UniformValue::Vector3(&light.scatter()),
-                        ),
-                    ],
+                    |program_binding| {
+                        program_binding
+                            .set_matrix4(&shader.world_view_proj_matrix, &frame_matrix)
+                            .set_matrix4(&shader.inv_proj, &inv_proj)
+                            .set_float(&shader.cone_angle_cos, (spot.full_cone_angle() * 0.5).cos())
+                            .set_vector3(&shader.light_position, &position)
+                            .set_vector3(&shader.light_direction, &direction)
+                            .set_sampler(&shader.depth_sampler, 0, &depth_map)
+                            .set_vector3(&shader.light_color, &light.color().as_frgba().xyz())
+                            .set_vector3(&shader.scatter_factor, &light.scatter());
+                    },
                 )
             }
             Light::Point(point) => {
@@ -311,10 +286,9 @@ impl LightVolumeRenderer {
                         depth_test: true,
                         blend: false,
                     },
-                    &[(
-                        self.flat_shader.wvp_matrix.clone(),
-                        UniformValue::Matrix4(&mvp),
-                    )],
+                    |program_binding| {
+                        program_binding.set_matrix4(&self.flat_shader.wvp_matrix, &mvp);
+                    },
                 );
 
                 // Make sure to clean stencil buffer after drawing full screen quad.
@@ -326,11 +300,13 @@ impl LightVolumeRenderer {
                 // Finally draw fullscreen quad, GPU will calculate scattering only on pixels that were
                 // marked in stencil buffer. For distant lights it will be very low amount of pixels and
                 // so distant lights won't impact performance.
+                let shader = &self.point_light_shader;
+                let depth_map = gbuffer.depth();
                 stats += gbuffer.final_frame.draw(
                     geom_cache.get(state, quad),
                     state,
                     viewport,
-                    &self.point_light_shader.program,
+                    &shader.program,
                     &DrawParameters {
                         cull_face: CullFace::Back,
                         culling: false,
@@ -340,39 +316,16 @@ impl LightVolumeRenderer {
                         depth_test: false,
                         blend: true,
                     },
-                    &[
-                        (
-                            self.point_light_shader.world_view_proj_matrix.clone(),
-                            UniformValue::Matrix4(&frame_matrix),
-                        ),
-                        (
-                            self.point_light_shader.inv_proj.clone(),
-                            UniformValue::Matrix4(&inv_proj),
-                        ),
-                        (
-                            self.point_light_shader.light_position.clone(),
-                            UniformValue::Vector3(&position),
-                        ),
-                        (
-                            self.point_light_shader.depth_sampler.clone(),
-                            UniformValue::Sampler {
-                                index: 0,
-                                texture: gbuffer.depth(),
-                            },
-                        ),
-                        (
-                            self.point_light_shader.light_radius.clone(),
-                            UniformValue::Float(point.radius()),
-                        ),
-                        (
-                            self.point_light_shader.light_color.clone(),
-                            UniformValue::Vector3(&light.color().as_frgba().xyz()),
-                        ),
-                        (
-                            self.point_light_shader.scatter_factor.clone(),
-                            UniformValue::Vector3(&light.scatter()),
-                        ),
-                    ],
+                    |program_binding| {
+                        program_binding
+                            .set_matrix4(&shader.world_view_proj_matrix, &frame_matrix)
+                            .set_matrix4(&shader.inv_proj, &inv_proj)
+                            .set_vector3(&shader.light_position, &position)
+                            .set_sampler(&shader.depth_sampler, 0, &depth_map)
+                            .set_float(&shader.light_radius, point.radius())
+                            .set_vector3(&shader.light_color, &light.color().as_frgba().xyz())
+                            .set_vector3(&shader.scatter_factor, &light.scatter());
+                    },
                 )
             }
             _ => (),

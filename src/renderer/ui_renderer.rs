@@ -1,3 +1,4 @@
+use crate::renderer::framework::framebuffer::FrameBuffer;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector4},
@@ -11,12 +12,12 @@ use crate::{
     },
     renderer::framework::{
         error::FrameworkError,
-        framebuffer::{CullFace, DrawParameters, DrawPartContext, FrameBufferTrait},
+        framebuffer::{CullFace, DrawParameters},
         geometry_buffer::{
             AttributeDefinition, AttributeKind, BufferBuilder, ElementKind, GeometryBuffer,
             GeometryBufferBuilder, GeometryBufferKind,
         },
-        gpu_program::{GpuProgram, UniformLocation, UniformValue},
+        gpu_program::{GpuProgram, UniformLocation},
         gpu_texture::GpuTexture,
         state::{ColorMask, PipelineState, StencilFunc, StencilOp},
     },
@@ -81,7 +82,7 @@ pub struct UiRenderer {
 pub(in crate) struct UiRenderContext<'a, 'b, 'c> {
     pub state: &'a mut PipelineState,
     pub viewport: Rect<i32>,
-    pub frame_buffer: &'b mut dyn FrameBufferTrait,
+    pub frame_buffer: &'b mut FrameBuffer,
     pub frame_width: f32,
     pub frame_height: f32,
     pub drawing_context: &'c DrawingContext,
@@ -234,10 +235,9 @@ impl UiRenderer {
                         depth_test: false,
                         blend: false,
                     },
-                    &[(
-                        self.shader.wvp_matrix.clone(),
-                        UniformValue::Matrix4(&ortho),
-                    )],
+                    |program_binding| {
+                        program_binding.set_matrix4(&self.shader.wvp_matrix, &ortho);
+                    },
                 );
 
                 // Make sure main geometry will be drawn only on marked pixels.
@@ -302,107 +302,6 @@ impl UiRenderer {
                 Brush::RadialGradient { center, .. } => (center, Vector2::default()),
             };
 
-            let uniforms = [
-                (
-                    self.shader.diffuse_texture.clone(),
-                    UniformValue::Sampler {
-                        index: 0,
-                        texture: diffuse_texture,
-                    },
-                ),
-                (
-                    self.shader.wvp_matrix.clone(),
-                    UniformValue::Matrix4(&ortho),
-                ),
-                (
-                    self.shader.resolution.clone(),
-                    UniformValue::Vector2(&resolution),
-                ),
-                (
-                    self.shader.bounds_min.clone(),
-                    UniformValue::Vector2(&cmd.bounds.position),
-                ),
-                (
-                    self.shader.bounds_max.clone(),
-                    UniformValue::Vector2(&bounds_max),
-                ),
-                (
-                    self.shader.is_font.clone(),
-                    UniformValue::Bool(is_font_texture),
-                ),
-                (
-                    self.shader.brush_type.clone(),
-                    UniformValue::Integer({
-                        match cmd.brush {
-                            Brush::Solid(_) => 0,
-                            Brush::LinearGradient { .. } => 1,
-                            Brush::RadialGradient { .. } => 2,
-                        }
-                    }),
-                ),
-                (
-                    self.shader.solid_color.clone(),
-                    UniformValue::Color({
-                        match cmd.brush {
-                            Brush::Solid(color) => color,
-                            _ => Color::WHITE,
-                        }
-                    }),
-                ),
-                (
-                    self.shader.gradient_origin.clone(),
-                    UniformValue::Vector2(&gradient_origin),
-                ),
-                (
-                    self.shader.gradient_end.clone(),
-                    UniformValue::Vector2(&gradient_end),
-                ),
-                (
-                    self.shader.gradient_point_count.clone(),
-                    UniformValue::Integer({
-                        match &cmd.brush {
-                            Brush::Solid(_) => 0,
-                            Brush::LinearGradient { stops, .. }
-                            | Brush::RadialGradient { stops, .. } => stops.len() as i32,
-                        }
-                    }),
-                ),
-                (
-                    self.shader.gradient_stops.clone(),
-                    UniformValue::FloatArray({
-                        match &cmd.brush {
-                            Brush::Solid(_) => &raw_stops,
-                            Brush::LinearGradient { stops, .. }
-                            | Brush::RadialGradient { stops, .. } => {
-                                for (i, point) in stops.iter().enumerate() {
-                                    raw_stops[i] = point.stop;
-                                }
-                                &raw_stops
-                            }
-                        }
-                    }),
-                ),
-                (
-                    self.shader.gradient_colors.clone(),
-                    UniformValue::Vector4Array({
-                        match &cmd.brush {
-                            Brush::Solid(_) => &raw_colors,
-                            Brush::LinearGradient { stops, .. }
-                            | Brush::RadialGradient { stops, .. } => {
-                                for (i, point) in stops.iter().enumerate() {
-                                    raw_colors[i] = point.color.as_frgba();
-                                }
-                                &raw_colors
-                            }
-                        }
-                    }),
-                ),
-                (
-                    self.shader.opacity.clone(),
-                    UniformValue::Float(cmd.opacity),
-                ),
-            ];
-
             let params = DrawParameters {
                 cull_face: CullFace::Back,
                 culling: false,
@@ -413,16 +312,77 @@ impl UiRenderer {
                 blend: true,
             };
 
-            statistics += backbuffer.draw_part(DrawPartContext {
+            let shader = &self.shader;
+            statistics += backbuffer.draw_part(
+                &mut self.geometry_buffer,
                 state,
                 viewport,
-                geometry: &mut self.geometry_buffer,
-                program: &mut self.shader.program,
+                &self.shader.program,
                 params,
-                uniforms: &uniforms,
-                offset: cmd.triangles.start,
-                count: cmd.triangles.end - cmd.triangles.start,
-            })?;
+                cmd.triangles.start,
+                cmd.triangles.end - cmd.triangles.start,
+                |program_binding| {
+                    program_binding
+                        .set_sampler(&shader.diffuse_texture, 0, &diffuse_texture)
+                        .set_matrix4(&shader.wvp_matrix, &ortho)
+                        .set_vector2(&shader.resolution, &resolution)
+                        .set_vector2(&shader.bounds_min, &cmd.bounds.position)
+                        .set_vector2(&shader.bounds_max, &bounds_max)
+                        .set_bool(&shader.is_font, is_font_texture)
+                        .set_integer(
+                            &shader.brush_type,
+                            match cmd.brush {
+                                Brush::Solid(_) => 0,
+                                Brush::LinearGradient { .. } => 1,
+                                Brush::RadialGradient { .. } => 2,
+                            },
+                        )
+                        .set_color(
+                            &shader.solid_color,
+                            &match cmd.brush {
+                                Brush::Solid(color) => color,
+                                _ => Color::WHITE,
+                            },
+                        )
+                        .set_vector2(&shader.gradient_origin, &gradient_origin)
+                        .set_vector2(&shader.gradient_end, &gradient_end)
+                        .set_integer(
+                            &shader.gradient_point_count,
+                            match &cmd.brush {
+                                Brush::Solid(_) => 0,
+                                Brush::LinearGradient { stops, .. }
+                                | Brush::RadialGradient { stops, .. } => stops.len() as i32,
+                            },
+                        )
+                        .set_float_slice(
+                            &shader.gradient_stops,
+                            match &cmd.brush {
+                                Brush::Solid(_) => &raw_stops,
+                                Brush::LinearGradient { stops, .. }
+                                | Brush::RadialGradient { stops, .. } => {
+                                    for (i, point) in stops.iter().enumerate() {
+                                        raw_stops[i] = point.stop;
+                                    }
+                                    &raw_stops
+                                }
+                            },
+                        )
+                        .set_vector4_slice(
+                            &shader.gradient_colors,
+                            match &cmd.brush {
+                                Brush::Solid(_) => &raw_colors,
+                                Brush::LinearGradient { stops, .. }
+                                | Brush::RadialGradient { stops, .. } => {
+                                    for (i, point) in stops.iter().enumerate() {
+                                        raw_colors[i] = point.color.as_frgba();
+                                    }
+                                    &raw_colors
+                                }
+                            },
+                        )
+                        .set_float(&shader.opacity, cmd.opacity);
+                },
+            )?;
         }
 
         state.set_scissor_test(false);
