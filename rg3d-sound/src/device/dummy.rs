@@ -1,15 +1,16 @@
-#![allow(unused)]
-
 use crate::{
     device::{Device, FeedCallback, MixContext, NativeSample},
     error::SoundError,
 };
 use std::mem::size_of;
 
-pub struct DummySoundDevice {}
+pub struct DummySoundDevice;
 
-impl DummySoundDevice<F: FnMut(&mut [(f32, f32)]) + Send + 'static> {
-    pub fn new(_buffer_len_bytes: u32, _callback: F) -> Result<Self, SoundError> {
+impl DummySoundDevice {
+    pub fn new<F: FnMut(&mut [(f32, f32)]) + Send + 'static>(
+        _buffer_len_bytes: u32,
+        _callback: F,
+    ) -> Result<Self, SoundError> {
         Ok(Self)
     }
 }
