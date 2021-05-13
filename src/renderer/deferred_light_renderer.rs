@@ -480,7 +480,7 @@ impl DeferredLightRenderer {
                             2,
                             |program_binding| {
                                 program_binding
-                                    .set_sampler(&shader.diffuse_texture, 0, &gpu_texture)
+                                    .set_texture(&shader.diffuse_texture, &gpu_texture)
                                     .set_matrix4(&shader.wvp_matrix, &(view_projection * wvp));
                             },
                         )
@@ -517,23 +517,20 @@ impl DeferredLightRenderer {
                 program_binding
                     .set_matrix4(&self.ambient_light_shader.wvp_matrix, &frame_matrix)
                     .set_color(&self.ambient_light_shader.ambient_color, &ambient_color)
-                    .set_sampler(
+                    .set_texture(
                         &self.ambient_light_shader.diffuse_texture,
-                        0,
                         &gbuffer_diffuse_map,
                     )
-                    .set_sampler(
+                    .set_texture(
                         &self.ambient_light_shader.ao_sampler,
-                        1,
                         if settings.use_ssao {
                             &ao_map
                         } else {
                             &white_dummy
                         },
                     )
-                    .set_sampler(
+                    .set_texture(
                         &self.ambient_light_shader.ambient_texture,
-                        2,
                         &gbuffer_ambient_map,
                     );
             },
@@ -799,15 +796,14 @@ impl DeferredLightRenderer {
                                         as f32),
                                 )
                                 .set_vector3(&shader.camera_position, &camera_global_position)
-                                .set_sampler(&shader.depth_sampler, 0, &gbuffer_depth_map)
-                                .set_sampler(&shader.color_sampler, 1, &gbuffer_diffuse_map)
-                                .set_sampler(&shader.normal_sampler, 2, &gbuffer_normal_map)
-                                .set_sampler(
+                                .set_texture(&shader.depth_sampler, &gbuffer_depth_map)
+                                .set_texture(&shader.color_sampler, &gbuffer_diffuse_map)
+                                .set_texture(&shader.normal_sampler, &gbuffer_normal_map)
+                                .set_texture(
                                     &shader.spot_shadow_texture,
-                                    3,
                                     &self.spot_shadow_map_renderer.cascade_texture(cascade_index),
                                 )
-                                .set_sampler(&shader.cookie_texture, 4, &cookie_texture)
+                                .set_texture(&shader.cookie_texture, &cookie_texture)
                                 .set_bool(&shader.cookie_enabled, cookie_enabled)
                                 .set_float(&shader.shadow_bias, spot_light.shadow_bias());
                         },
@@ -835,12 +831,11 @@ impl DeferredLightRenderer {
                                 .set_matrix4(&shader.wvp_matrix, &frame_matrix)
                                 .set_vector3(&shader.camera_position, &camera_global_position)
                                 .set_float(&shader.shadow_bias, point_light.shadow_bias())
-                                .set_sampler(&shader.depth_sampler, 0, &gbuffer_depth_map)
-                                .set_sampler(&shader.color_sampler, 1, &gbuffer_diffuse_map)
-                                .set_sampler(&shader.normal_sampler, 2, &gbuffer_normal_map)
-                                .set_sampler(
+                                .set_texture(&shader.depth_sampler, &gbuffer_depth_map)
+                                .set_texture(&shader.color_sampler, &gbuffer_diffuse_map)
+                                .set_texture(&shader.normal_sampler, &gbuffer_normal_map)
+                                .set_texture(
                                     &shader.point_shadow_texture,
-                                    3,
                                     &self
                                         .point_shadow_map_renderer
                                         .cascade_texture(cascade_index),
@@ -874,9 +869,9 @@ impl DeferredLightRenderer {
                                 .set_color(&shader.light_color, &light.color())
                                 .set_matrix4(&shader.wvp_matrix, &frame_matrix)
                                 .set_vector3(&shader.camera_position, &camera_global_position)
-                                .set_sampler(&shader.depth_sampler, 0, &gbuffer_depth_map)
-                                .set_sampler(&shader.color_sampler, 1, &gbuffer_diffuse_map)
-                                .set_sampler(&shader.normal_sampler, 2, &gbuffer_normal_map);
+                                .set_texture(&shader.depth_sampler, &gbuffer_depth_map)
+                                .set_texture(&shader.color_sampler, &gbuffer_diffuse_map)
+                                .set_texture(&shader.normal_sampler, &gbuffer_normal_map);
                         },
                     )
                 }

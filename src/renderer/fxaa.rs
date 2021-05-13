@@ -96,7 +96,7 @@ impl FxaaRenderer {
                         &self.shader.inverse_screen_size,
                         &Vector2::new(1.0 / viewport.w() as f32, 1.0 / viewport.h() as f32),
                     )
-                    .set_sampler(&self.shader.screen_texture, 0, &frame_texture);
+                    .set_texture(&self.shader.screen_texture, &frame_texture);
             },
         );
 

@@ -363,13 +363,13 @@ impl GBuffer {
                         &params,
                         |program_binding| {
                             program_binding
-                                .set_sampler(&shader.diffuse_texture, 0, &batch.diffuse_texture)
-                                .set_sampler(&shader.normal_texture, 1, &batch.normal_texture)
-                                .set_sampler(&shader.specular_texture, 2, &batch.specular_texture)
-                                .set_sampler(&shader.lightmap_texture, 3, &batch.lightmap_texture)
-                                .set_sampler(&shader.environment_map, 4, &environment)
-                                .set_sampler(&shader.roughness_texture, 5, &batch.roughness_texture)
-                                .set_sampler(&shader.height_texture, 6, &batch.height_texture)
+                                .set_texture(&shader.diffuse_texture, &batch.diffuse_texture)
+                                .set_texture(&shader.normal_texture, &batch.normal_texture)
+                                .set_texture(&shader.specular_texture, &batch.specular_texture)
+                                .set_texture(&shader.lightmap_texture, &batch.lightmap_texture)
+                                .set_texture(&shader.environment_map, &environment)
+                                .set_texture(&shader.roughness_texture, &batch.roughness_texture)
+                                .set_texture(&shader.height_texture, &batch.height_texture)
                                 .set_vector3(&shader.camera_position, &camera.global_position())
                                 .set_bool(&shader.use_pom, batch.use_pom && use_parallax_mapping)
                                 .set_matrix4(
@@ -416,18 +416,17 @@ impl GBuffer {
                         &params,
                         |program_binding| {
                             program_binding
-                                .set_sampler(&shader.diffuse_texture, 0, &batch.diffuse_texture)
-                                .set_sampler(&shader.normal_texture, 1, &batch.normal_texture)
-                                .set_sampler(&shader.specular_texture, 2, &batch.specular_texture)
-                                .set_sampler(&shader.lightmap_texture, 3, &batch.lightmap_texture)
-                                .set_sampler(&shader.environment_map, 4, &environment)
-                                .set_sampler(&shader.roughness_texture, 5, &batch.roughness_texture)
-                                .set_sampler(
+                                .set_texture(&shader.diffuse_texture, &batch.diffuse_texture)
+                                .set_texture(&shader.normal_texture, &batch.normal_texture)
+                                .set_texture(&shader.specular_texture, &batch.specular_texture)
+                                .set_texture(&shader.lightmap_texture, &batch.lightmap_texture)
+                                .set_texture(&shader.environment_map, &environment)
+                                .set_texture(&shader.roughness_texture, &batch.roughness_texture)
+                                .set_texture(
                                     &shader.matrix_storage,
-                                    6,
                                     &matrix_storage.matrices_storage,
                                 )
-                                .set_sampler(&shader.height_texture, 7, &batch.height_texture)
+                                .set_texture(&shader.height_texture, &batch.height_texture)
                                 .set_vector3(&shader.camera_position, &camera.global_position())
                                 .set_bool(&shader.use_pom, batch.use_pom && use_parallax_mapping)
                                 .set_bool(&shader.use_skeletal_animation, batch.is_skinned)

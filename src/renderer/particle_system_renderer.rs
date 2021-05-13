@@ -200,8 +200,8 @@ impl ParticleSystemRenderer {
                 &draw_params,
                 |program_binding| {
                     program_binding
-                        .set_sampler(&self.shader.depth_buffer_texture, 0, &depth)
-                        .set_sampler(&self.shader.diffuse_texture, 1, &diffuse_texture)
+                        .set_texture(&self.shader.depth_buffer_texture, &depth)
+                        .set_texture(&self.shader.diffuse_texture, &diffuse_texture)
                         .set_vector3(&self.shader.camera_side_vector, &camera_side)
                         .set_vector3(&self.shader.camera_up_vector, &camera_up)
                         .set_matrix4(&self.shader.view_projection_matrix, &view_proj)

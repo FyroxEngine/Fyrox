@@ -132,7 +132,7 @@ impl Blur {
                             0.0,
                         ))),
                     )
-                    .set_sampler(&shader.input_texture, 0, &input);
+                    .set_texture(&shader.input_texture, &input);
             },
         );
     }

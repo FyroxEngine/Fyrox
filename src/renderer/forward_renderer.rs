@@ -118,11 +118,7 @@ impl ForwardRenderer {
                         &params,
                         |program_binding| {
                             program_binding
-                                .set_sampler(
-                                    &self.shader.diffuse_texture,
-                                    0,
-                                    &batch.diffuse_texture,
-                                )
+                                .set_texture(&self.shader.diffuse_texture, &batch.diffuse_texture)
                                 .set_matrix4(
                                     &self.shader.wvp_matrix,
                                     &(view_projection * instance.world_transform),

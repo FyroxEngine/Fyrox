@@ -241,9 +241,9 @@ impl ScreenSpaceAmbientOcclusionRenderer {
             },
             |program_binding| {
                 program_binding
-                    .set_sampler(&shader.depth_sampler, 0, &gbuffer.depth())
-                    .set_sampler(&shader.normal_sampler, 1, &gbuffer.normal_texture())
-                    .set_sampler(&shader.noise_sampler, 2, noise)
+                    .set_texture(&shader.depth_sampler, &gbuffer.depth())
+                    .set_texture(&shader.normal_sampler, &gbuffer.normal_texture())
+                    .set_texture(&shader.noise_sampler, noise)
                     .set_vector3_slice(&shader.kernel, kernel)
                     .set_vector2(&shader.noise_scale, &noise_scale)
                     .set_float(&shader.radius, radius)

@@ -1,4 +1,3 @@
-use crate::renderer::framework::framebuffer::FrameBuffer;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector4},
@@ -10,18 +9,20 @@ use crate::{
         brush::Brush,
         draw::{CommandTexture, DrawingContext, SharedTexture},
     },
-    renderer::framework::{
-        error::FrameworkError,
-        framebuffer::{CullFace, DrawParameters},
-        geometry_buffer::{
-            AttributeDefinition, AttributeKind, BufferBuilder, ElementKind, GeometryBuffer,
-            GeometryBufferBuilder, GeometryBufferKind,
+    renderer::{
+        framework::{
+            error::FrameworkError,
+            framebuffer::{CullFace, DrawParameters, FrameBuffer},
+            geometry_buffer::{
+                AttributeDefinition, AttributeKind, BufferBuilder, ElementKind, GeometryBuffer,
+                GeometryBufferBuilder, GeometryBufferKind,
+            },
+            gpu_program::{GpuProgram, UniformLocation},
+            gpu_texture::GpuTexture,
+            state::{ColorMask, PipelineState, StencilFunc, StencilOp},
         },
-        gpu_program::{GpuProgram, UniformLocation},
-        gpu_texture::GpuTexture,
-        state::{ColorMask, PipelineState, StencilFunc, StencilOp},
+        RenderPassStatistics, TextureCache,
     },
-    renderer::{RenderPassStatistics, TextureCache},
     resource::texture::{Texture, TextureData, TextureKind, TexturePixelKind, TextureState},
 };
 use std::{
@@ -323,7 +324,7 @@ impl UiRenderer {
                 cmd.triangles.end - cmd.triangles.start,
                 |program_binding| {
                     program_binding
-                        .set_sampler(&shader.diffuse_texture, 0, &diffuse_texture)
+                        .set_texture(&shader.diffuse_texture, &diffuse_texture)
                         .set_matrix4(&shader.wvp_matrix, &ortho)
                         .set_vector2(&shader.resolution, &resolution)
                         .set_vector2(&shader.bounds_min, &cmd.bounds.position)

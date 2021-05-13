@@ -210,7 +210,7 @@ impl SpotShadowMapRenderer {
                                     &shader.bone_matrices,
                                     instance.bone_matrices.as_slice(),
                                 )
-                                .set_sampler(&shader.diffuse_texture, 0, &batch.diffuse_texture);
+                                .set_texture(&shader.diffuse_texture, &batch.diffuse_texture);
                         },
                     );
                 }
@@ -494,11 +494,7 @@ impl PointShadowMapRenderer {
                                         &shader.bone_matrices,
                                         instance.bone_matrices.as_slice(),
                                     )
-                                    .set_sampler(
-                                        &shader.diffuse_texture,
-                                        0,
-                                        &batch.diffuse_texture,
-                                    );
+                                    .set_texture(&shader.diffuse_texture, &batch.diffuse_texture);
                             },
                         );
                     }

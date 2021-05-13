@@ -241,7 +241,7 @@ impl LightVolumeRenderer {
                             .set_float(&shader.cone_angle_cos, (spot.full_cone_angle() * 0.5).cos())
                             .set_vector3(&shader.light_position, &position)
                             .set_vector3(&shader.light_direction, &direction)
-                            .set_sampler(&shader.depth_sampler, 0, &depth_map)
+                            .set_texture(&shader.depth_sampler, &depth_map)
                             .set_vector3(&shader.light_color, &light.color().as_frgba().xyz())
                             .set_vector3(&shader.scatter_factor, &light.scatter());
                     },
@@ -321,7 +321,7 @@ impl LightVolumeRenderer {
                             .set_matrix4(&shader.world_view_proj_matrix, &frame_matrix)
                             .set_matrix4(&shader.inv_proj, &inv_proj)
                             .set_vector3(&shader.light_position, &position)
-                            .set_sampler(&shader.depth_sampler, 0, &depth_map)
+                            .set_texture(&shader.depth_sampler, &depth_map)
                             .set_float(&shader.light_radius, point.radius())
                             .set_vector3(&shader.light_color, &light.color().as_frgba().xyz())
                             .set_vector3(&shader.scatter_factor, &light.scatter());

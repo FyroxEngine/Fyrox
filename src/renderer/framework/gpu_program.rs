@@ -83,18 +83,23 @@ fn prepare_source_code(code: &str) -> String {
 
 pub struct GpuProgramBinding<'a> {
     state: &'a mut PipelineState,
+    active_sampler: u32,
 }
 
 impl<'a> GpuProgramBinding<'a> {
     #[inline(always)]
-    pub fn set_sampler(
-        self,
+    pub fn set_texture(
+        mut self,
         location: &UniformLocation,
-        index: i32,
         texture: &Rc<RefCell<GpuTexture>>,
     ) -> Self {
-        unsafe { self.state.gl.uniform_1_i32(Some(&location.id), index) };
-        texture.borrow().bind(self.state, index as u32);
+        unsafe {
+            self.state
+                .gl
+                .uniform_1_i32(Some(&location.id), self.active_sampler as i32)
+        };
+        texture.borrow().bind(self.state, self.active_sampler);
+        self.active_sampler += 1;
         self
     }
 
@@ -319,7 +324,10 @@ impl GpuProgram {
 
     pub fn bind<'a>(&self, state: &'a mut PipelineState) -> GpuProgramBinding<'a> {
         state.set_program(self.id);
-        GpuProgramBinding { state }
+        GpuProgramBinding {
+            state,
+            active_sampler: 0,
+        }
     }
 }
 

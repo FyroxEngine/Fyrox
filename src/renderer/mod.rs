@@ -1187,11 +1187,7 @@ impl Renderer {
                                             0.0,
                                         ))
                                     })
-                                    .set_sampler(
-                                        &shader.diffuse_texture,
-                                        0,
-                                        &gbuffer.frame_texture(),
-                                    );
+                                    .set_texture(&shader.diffuse_texture, &gbuffer.frame_texture());
                             },
                         );
                     }

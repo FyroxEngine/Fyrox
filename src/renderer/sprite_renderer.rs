@@ -140,7 +140,7 @@ impl SpriteRenderer {
                 },
                 |program_binding| {
                     program_binding
-                        .set_sampler(&self.shader.diffuse_texture, 0, &diffuse_texture)
+                        .set_texture(&self.shader.diffuse_texture, &diffuse_texture)
                         .set_matrix4(&self.shader.view_projection_matrix, &view_projection)
                         .set_matrix4(&self.shader.world_matrix, &sprite.global_transform())
                         .set_vector3(&self.shader.camera_up_vector, &camera_up)
