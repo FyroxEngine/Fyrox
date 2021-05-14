@@ -600,13 +600,14 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
                                 ui.keyboard_modifiers().shift,
                             );
                         }
-                        KeyCode::Delete => {
+                        KeyCode::Delete if !message.handled() => {
                             if let Some(range) = self.selection_range {
                                 self.remove_range(ui, range);
                                 self.selection_range = None;
                             } else {
                                 self.remove_char(HorizontalDirection::Right, ui);
                             }
+                            message.set_handled(true);
                         }
                         KeyCode::NumpadEnter | KeyCode::Return => {
                             if self.multiline {

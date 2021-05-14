@@ -626,12 +626,8 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
     }
 
     #[inline]
-    pub fn user_data_ref<T: 'static>(&self) -> &T {
-        self.user_data
-            .as_ref()
-            .unwrap()
-            .downcast_ref::<T>()
-            .unwrap()
+    pub fn user_data_ref<T: 'static>(&self) -> Option<&T> {
+        self.user_data.as_ref().and_then(|v| v.downcast_ref::<T>())
     }
 
     #[inline]

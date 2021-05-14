@@ -176,6 +176,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileBrowser<M, C> {
                     let parent_path = ui
                         .node(message.destination())
                         .user_data_ref::<PathBuf>()
+                        .unwrap()
                         .clone();
                     if let Ok(dir_iter) = std::fs::read_dir(&parent_path) {
                         for p in dir_iter {
@@ -212,7 +213,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileBrowser<M, C> {
                 if message.destination() == self.tree_root {
                     if let TreeRootMessage::Selected(selection) = msg {
                         if let Some(&first_selected) = selection.first() {
-                            let path = ui.node(first_selected).user_data_ref::<PathBuf>();
+                            let path = ui.node(first_selected).user_data_ref::<PathBuf>().unwrap();
                             if &self.path != path {
                                 ui.send_message(FileBrowserMessage::path(
                                     self.handle,
@@ -246,7 +247,7 @@ fn find_tree<M: MessageData, C: Control<M, C>, P: AsRef<Path>>(
     let mut tree_handle = Handle::NONE;
     match ui.node(node) {
         UINode::Tree(tree) => {
-            let tree_path = tree.user_data_ref::<PathBuf>();
+            let tree_path = tree.user_data_ref::<PathBuf>().unwrap();
             if tree_path == path.as_ref() {
                 tree_handle = node;
             }

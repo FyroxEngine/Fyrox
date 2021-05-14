@@ -152,7 +152,7 @@ fn find_menu<M: MessageData, C: Control<M, C>>(
     ui: &UserInterface<M, C>,
 ) -> Handle<UINode<M, C>> {
     let mut handle = from;
-    loop {
+    while handle.is_some() {
         let popup = ui.find_by_criteria_up(handle, |n| matches!(n, UINode::Popup(_)));
         if popup.is_none() {
             // Maybe we have Menu as parent for MenuItem.
@@ -160,9 +160,35 @@ fn find_menu<M: MessageData, C: Control<M, C>>(
         } else {
             // Continue search from parent menu item of popup.
             if let UINode::Popup(popup) = ui.node(popup) {
-                handle = *popup.user_data_ref::<Handle<UINode<M, C>>>();
-            } else {
-                unreachable!();
+                handle = popup
+                    .user_data_ref::<Handle<UINode<M, C>>>()
+                    .cloned()
+                    .unwrap_or_default();
+            }
+        }
+    }
+    Default::default()
+}
+
+fn close_menu_chain<M: MessageData, C: Control<M, C>>(
+    from: Handle<UINode<M, C>>,
+    ui: &UserInterface<M, C>,
+) {
+    let mut handle = from;
+    while handle.is_some() {
+        let popup_handle = ui.find_by_criteria_up(handle, |n| matches!(n, UINode::Popup(_)));
+        if popup_handle.is_some() {
+            if let UINode::Popup(popup) = ui.node(popup_handle) {
+                ui.send_message(PopupMessage::close(
+                    popup_handle,
+                    MessageDirection::ToWidget,
+                ));
+
+                // Continue search from parent menu item of popup.
+                handle = popup
+                    .user_data_ref::<Handle<UINode<M, C>>>()
+                    .cloned()
+                    .unwrap_or_default();
             }
         }
     }
@@ -209,10 +235,14 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for MenuItem<M, C> {
                             if self.items.is_empty() {
                                 let menu = find_menu(self.parent(), ui);
                                 if menu.is_some() {
+                                    // Deactivate menu if we have one.
                                     ui.send_message(MenuMessage::deactivate(
                                         menu,
                                         MessageDirection::ToWidget,
                                     ));
+                                } else {
+                                    // Or close menu chain if menu item is in "orphaned" state.
+                                    close_menu_chain(self.parent(), ui);
                                 }
                             }
                             message.set_handled(true);
@@ -222,15 +252,20 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for MenuItem<M, C> {
                         // While parent menu active it is possible to open submenus
                         // by simple mouse hover.
                         let menu = find_menu(self.parent(), ui);
-                        if menu.is_some() {
+                        let open = if menu.is_some() {
                             if let UINode::Menu(menu) = ui.node(menu) {
-                                if menu.active {
-                                    ui.send_message(MenuItemMessage::open(
-                                        self.handle(),
-                                        MessageDirection::ToWidget,
-                                    ));
-                                }
+                                menu.active
+                            } else {
+                                false
                             }
+                        } else {
+                            true
+                        };
+                        if open {
+                            ui.send_message(MenuItemMessage::open(
+                                self.handle(),
+                                MessageDirection::ToWidget,
+                            ));
                         }
                     }
                     _ => {}
@@ -290,7 +325,10 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for MenuItem<M, C> {
                         if let UINode::Popup(popup) = node {
                             // Once we found popup in chain, we must extract handle
                             // of parent menu item to continue search.
-                            handle = *popup.user_data_ref::<Handle<UINode<M, C>>>();
+                            handle = popup
+                                .user_data_ref::<Handle<UINode<M, C>>>()
+                                .cloned()
+                                .unwrap_or_default();
                         } else {
                             handle = node.parent();
                         }

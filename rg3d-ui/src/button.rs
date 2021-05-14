@@ -204,7 +204,10 @@ impl<M: MessageData, C: Control<M, C>> ButtonBuilder<M, C> {
             .with_pressed_brush(BRUSH_LIGHTEST)
             .build(ctx)
         });
-        ctx.link(content, back);
+
+        if content.is_some() {
+            ctx.link(content, back);
+        }
 
         let button = Button {
             widget: self.widget_builder.with_child(back).build(),
