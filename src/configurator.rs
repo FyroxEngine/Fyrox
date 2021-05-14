@@ -133,9 +133,9 @@ impl Configurator {
             .filter(|e| e.textures_path.exists() && e.work_dir.exists())
             .collect::<Vec<_>>();
 
-        let message = "Please select a working directory of a project your will\
-         work on and a path to the textures. Textures directory must be under working\
-          directory!";
+        let message = "Please select the working directory and texture directory of \
+        your current project. The texture directory must be a subdirectory of the \
+        working directory.";
 
         let lv_history;
         let window = WindowBuilder::new(
