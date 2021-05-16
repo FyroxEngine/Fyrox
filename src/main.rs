@@ -814,7 +814,7 @@ impl Editor {
                 .handle_ui_message(message, editor_scene, engine);
 
             self.world_outliner
-                .handle_ui_message(message, &editor_scene, engine);
+                .handle_ui_message(message, editor_scene, engine);
 
             self.light_panel
                 .handle_ui_message(message, &editor_scene, engine);

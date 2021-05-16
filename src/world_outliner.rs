@@ -1,3 +1,4 @@
+use crate::scene::make_delete_selection_command;
 use crate::{
     gui::{
         BuildContext, CustomWidget, EditorUiMessage, EditorUiNode, SceneItemMessage, Ui, UiMessage,
@@ -45,6 +46,91 @@ use std::{
     sync::mpsc::Sender,
 };
 
+struct ItemContextMenu {
+    menu: Handle<UiNode>,
+    delete_selection: Handle<UiNode>,
+    copy_selection: Handle<UiNode>,
+}
+
+impl ItemContextMenu {
+    pub fn new(ctx: &mut BuildContext) -> Self {
+        let delete_selection;
+        let copy_selection;
+
+        let menu = PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
+            .with_content(
+                StackPanelBuilder::new(
+                    WidgetBuilder::new()
+                        .with_child({
+                            delete_selection = MenuItemBuilder::new(
+                                WidgetBuilder::new().with_min_size(Vector2::new(120.0, 20.0)),
+                            )
+                            .with_content(MenuItemContent::Text {
+                                text: "Delete Selection",
+                                shortcut: "Del",
+                                icon: Default::default(),
+                            })
+                            .build(ctx);
+                            delete_selection
+                        })
+                        .with_child({
+                            copy_selection = MenuItemBuilder::new(
+                                WidgetBuilder::new().with_min_size(Vector2::new(120.0, 20.0)),
+                            )
+                            .with_content(MenuItemContent::Text {
+                                text: "Copy Selection",
+                                shortcut: "Ctrl+C",
+                                icon: Default::default(),
+                            })
+                            .build(ctx);
+                            copy_selection
+                        }),
+                )
+                .build(ctx),
+            )
+            .build(ctx);
+
+        Self {
+            menu,
+            delete_selection,
+            copy_selection,
+        }
+    }
+
+    pub fn handle_ui_message(
+        &mut self,
+        message: &UiMessage,
+        editor_scene: &mut EditorScene,
+        engine: &GameEngine,
+        sender: &Sender<Message>,
+    ) {
+        scope_profile!();
+
+        match message.data() {
+            UiMessageData::MenuItem(MenuItemMessage::Click) => {
+                if message.destination() == self.delete_selection {
+                    sender
+                        .send(Message::DoSceneCommand(make_delete_selection_command(
+                            editor_scene,
+                            engine,
+                        )))
+                        .unwrap();
+                } else if message.destination() == self.copy_selection {
+                    if let Selection::Graph(graph_selection) = &editor_scene.selection {
+                        editor_scene.clipboard.fill_from_selection(
+                            graph_selection,
+                            editor_scene.scene,
+                            &editor_scene.physics,
+                            engine,
+                        );
+                    }
+                }
+            }
+            _ => (),
+        }
+    }
+}
+
 pub struct WorldOutliner {
     pub window: Handle<UiNode>,
     root: Handle<UiNode>,
@@ -60,7 +146,7 @@ pub struct WorldOutliner {
     expand_all: Handle<UiNode>,
     locate_selection: Handle<UiNode>,
     scroll_view: Handle<UiNode>,
-    item_context_menu: Handle<UiNode>,
+    item_context_menu: ItemContextMenu,
 }
 
 #[derive(Clone)]
@@ -486,36 +572,7 @@ impl WorldOutliner {
             )
             .build(ctx);
 
-        let item_context_menu = PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
-            .with_content(
-                StackPanelBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child(
-                            MenuItemBuilder::new(
-                                WidgetBuilder::new().with_min_size(Vector2::new(120.0, 20.0)),
-                            )
-                            .with_content(MenuItemContent::Text {
-                                text: "Delete Selection",
-                                shortcut: "Del",
-                                icon: Default::default(),
-                            })
-                            .build(ctx),
-                        )
-                        .with_child(
-                            MenuItemBuilder::new(
-                                WidgetBuilder::new().with_min_size(Vector2::new(120.0, 20.0)),
-                            )
-                            .with_content(MenuItemContent::Text {
-                                text: "Copy Selection",
-                                shortcut: "Ctrl+C",
-                                icon: Default::default(),
-                            })
-                            .build(ctx),
-                        ),
-                )
-                .build(ctx),
-            )
-            .build(ctx);
+        let item_context_menu = ItemContextMenu::new(ctx);
 
         Self {
             window,
@@ -600,7 +657,7 @@ impl WorldOutliner {
                                         &mut ui.build_ctx(),
                                         self.sender.clone(),
                                         engine.resource_manager.clone(),
-                                        self.item_context_menu,
+                                        self.item_context_menu.menu,
                                     );
                                     send_sync_message(
                                         ui,
@@ -634,7 +691,7 @@ impl WorldOutliner {
                             &mut ui.build_ctx(),
                             self.sender.clone(),
                             engine.resource_manager.clone(),
-                            self.item_context_menu,
+                            self.item_context_menu.menu,
                         );
                         send_sync_message(
                             ui,
@@ -737,10 +794,13 @@ impl WorldOutliner {
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
-        editor_scene: &EditorScene,
+        editor_scene: &mut EditorScene,
         engine: &GameEngine,
     ) {
         scope_profile!();
+
+        self.item_context_menu
+            .handle_ui_message(message, editor_scene, engine, &self.sender);
 
         match message.data() {
             UiMessageData::TreeRoot(msg) => {
@@ -801,8 +861,6 @@ impl WorldOutliner {
                     }
                 }
             }
-            UiMessageData::MenuItem(MenuItemMessage::Click)
-                if message.destination() == self.item_context_menu => {}
             UiMessageData::Button(ButtonMessage::Click) => {
                 if let Some(&node) = self.breadcrumbs.get(&message.destination()) {
                     self.sender
@@ -904,7 +962,6 @@ impl WorldOutliner {
                 _ => unreachable!(),
             }
         }
-        // Must not be reached. If still triggered then there is a bug.
-        unreachable!()
+        unreachable!("Must not be reached. If still triggered then there is a bug.")
     }
 }
