@@ -8,8 +8,7 @@
 [![Discord](https://img.shields.io/discord/756573453561102427)](https://discord.gg/xENF5Uh)
 [![Lines of code](https://tokei.rs/b1/github/mrDIMAS/rg3d)](https://github.com/mrDIMAS/rg3d)
 
-A feature-rich, general purpose 2D/3D game engine written in Rust with a scene editor. Most powerful 
-3D game engine written in Rust so far.
+A feature-rich, general purpose 2D/3D game engine written in Rust with a scene editor.
 
 ## Support
 

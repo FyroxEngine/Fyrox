@@ -95,6 +95,20 @@ impl Base {
     pub fn physics_binding(&self) -> PhysicsBinding {
         self.physics_binding
     }
+
+    pub fn raw_copy(&self) -> Self {
+        Self {
+            transform: self.transform.clone(),
+            global_transform: self.global_transform.clone(),
+            visibility: self.visibility,
+            global_visibility: self.global_visibility.clone(),
+            physics_binding: self.physics_binding,
+            name: self.name.clone(),
+            // Handles to parent/children are intentionally not copied!
+            parent: Default::default(),
+            children: Default::default(),
+        }
+    }
 }
 
 pub struct BaseBuilder {
@@ -140,8 +154,8 @@ impl BaseBuilder {
         self
     }
 
-    pub fn with_name(mut self, name: String) -> Self {
-        self.name = name;
+    pub fn with_name<N: AsRef<str>>(mut self, name: N) -> Self {
+        self.name = name.as_ref().to_owned();
         self
     }
 

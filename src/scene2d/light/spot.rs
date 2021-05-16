@@ -36,6 +36,15 @@ impl SpotLight {
     pub fn half_hotspot_cone_angle(&self) -> f32 {
         (self.hotspot_angle * 0.5).cos()
     }
+
+    pub fn raw_copy(&self) -> Self {
+        Self {
+            base_light: self.base_light.raw_copy(),
+            radius: self.radius,
+            hotspot_angle: self.hotspot_angle,
+            falloff_angle_delta: self.falloff_angle_delta,
+        }
+    }
 }
 
 impl Deref for SpotLight {
@@ -82,6 +91,16 @@ impl SpotLightBuilder {
 
     pub fn with_radius(mut self, radius: f32) -> Self {
         self.radius = radius;
+        self
+    }
+
+    pub fn with_hotspot_angle(mut self, angle: f32) -> Self {
+        self.hotspot = angle;
+        self
+    }
+
+    pub fn with_angle_delta(mut self, delta: f32) -> Self {
+        self.delta = delta.abs();
         self
     }
 

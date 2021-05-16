@@ -8,6 +8,7 @@ use crate::{
     },
     scene2d::node::Node,
 };
+use std::collections::HashMap;
 use std::ops::{Index, IndexMut};
 
 #[derive(Default, Visit)]
@@ -322,6 +323,161 @@ impl Graph {
         let m = self.global_scale_matrix(node);
         Vector2::new(m[0], m[5])
     }
+
+    /// Creates deep copy of node with all children. This is relatively heavy operation!
+    /// In case if any error happened it returns `Handle::NONE`.
+    ///
+    /// # Implementation notes
+    ///
+    /// Returns tuple where first element is handle to copy of node, and second element -
+    /// old-to-new hash map, which can be used to easily find copy of node by its original.
+    ///
+    /// Filter allows to exclude some nodes from copied hierarchy. It must return false for
+    /// odd nodes. Filtering applied only to descendant nodes.
+    pub fn copy_node<F>(
+        &self,
+        node_handle: Handle<Node>,
+        dest_graph: &mut Graph,
+        filter: &mut F,
+    ) -> (Handle<Node>, HashMap<Handle<Node>, Handle<Node>>)
+    where
+        F: FnMut(Handle<Node>, &Node) -> bool,
+    {
+        let mut old_new_mapping = HashMap::new();
+        let root_handle = self.copy_node_raw(node_handle, dest_graph, &mut old_new_mapping, filter);
+        (root_handle, old_new_mapping)
+    }
+
+    /// Creates deep copy of node with all children. This is relatively heavy operation!
+    /// In case if any error happened it returns `Handle::NONE`.
+    ///
+    /// # Notes
+    ///
+    /// This method has exactly the same functionality as `copy_node`, but copies not in-place.
+    ///
+    /// # Implementation notes
+    ///
+    /// Returns tuple where first element is handle to copy of node, and second element -
+    /// old-to-new hash map, which can be used to easily find copy of node by its original.
+    ///
+    /// Filter allows to exclude some nodes from copied hierarchy. It must return false for
+    /// odd nodes. Filtering applied only to descendant nodes.
+    pub fn copy_node_inplace<F>(
+        &mut self,
+        node_handle: Handle<Node>,
+        filter: &mut F,
+    ) -> (Handle<Node>, HashMap<Handle<Node>, Handle<Node>>)
+    where
+        F: FnMut(Handle<Node>, &Node) -> bool,
+    {
+        let mut old_new_mapping = HashMap::new();
+
+        let to_copy = self
+            .traverse_handle_iter(node_handle)
+            .map(|node| (node, self.pool[node].children.clone()))
+            .collect::<Vec<_>>();
+
+        let mut root_handle = Handle::NONE;
+
+        for (parent, children) in to_copy.iter() {
+            // Copy parent first.
+            let parent_copy = self.pool[*parent].raw_copy();
+            let parent_copy_handle = self.add_node(parent_copy);
+            old_new_mapping.insert(*parent, parent_copy_handle);
+
+            if root_handle.is_none() {
+                root_handle = parent_copy_handle;
+            }
+
+            // Copy children and link to new parent.
+            for &child in children {
+                if filter(child, &self.pool[child]) {
+                    let child_copy = self.pool[child].raw_copy();
+                    let child_copy_handle = self.add_node(child_copy);
+                    old_new_mapping.insert(child, child_copy_handle);
+                    self.link_nodes(child_copy_handle, parent_copy_handle);
+                }
+            }
+        }
+
+        (root_handle, old_new_mapping)
+    }
+
+    /// Creates copy of a node and breaks all connections with other nodes.
+    pub fn copy_single_node(&self, node_handle: Handle<Node>) -> Node {
+        let node = &self.pool[node_handle];
+        let mut clone = node.raw_copy();
+        clone.parent = Handle::NONE;
+        clone.children.clear();
+        clone
+    }
+
+    fn copy_node_raw<F>(
+        &self,
+        root_handle: Handle<Node>,
+        dest_graph: &mut Graph,
+        old_new_mapping: &mut HashMap<Handle<Node>, Handle<Node>>,
+        filter: &mut F,
+    ) -> Handle<Node>
+    where
+        F: FnMut(Handle<Node>, &Node) -> bool,
+    {
+        let src_node = &self.pool[root_handle];
+        let dest_node = src_node.raw_copy();
+        let dest_copy_handle = dest_graph.add_node(dest_node);
+        old_new_mapping.insert(root_handle, dest_copy_handle);
+        for &src_child_handle in src_node.children() {
+            if filter(src_child_handle, &self.pool[src_child_handle]) {
+                let dest_child_handle =
+                    self.copy_node_raw(src_child_handle, dest_graph, old_new_mapping, filter);
+                if !dest_child_handle.is_none() {
+                    dest_graph.link_nodes(dest_child_handle, dest_copy_handle);
+                }
+            }
+        }
+        dest_copy_handle
+    }
+
+    /// Creates deep copy of graph. Allows filtering while copying, returns copy and
+    /// old-to-new node mapping.
+    pub fn clone<F>(&self, filter: &mut F) -> (Self, HashMap<Handle<Node>, Handle<Node>>)
+    where
+        F: FnMut(Handle<Node>, &Node) -> bool,
+    {
+        let mut copy = Self::default();
+        let (root, old_new_map) = self.copy_node(self.root, &mut copy, filter);
+        copy.root = root;
+        (copy, old_new_map)
+    }
+
+    /// Create graph depth traversal iterator.
+    ///
+    /// # Notes
+    ///
+    /// This method allocates temporal array so it is not cheap! Should not be
+    /// used on each frame.
+    pub fn traverse_iter(&self, from: Handle<Node>) -> impl Iterator<Item = &Node> {
+        GraphTraverseIterator {
+            graph: self,
+            stack: vec![from],
+        }
+    }
+
+    /// Create graph depth traversal iterator which will emit *handles* to nodes.
+    ///
+    /// # Notes
+    ///
+    /// This method allocates temporal array so it is not cheap! Should not be
+    /// used on each frame.
+    pub fn traverse_handle_iter(
+        &self,
+        from: Handle<Node>,
+    ) -> impl Iterator<Item = Handle<Node>> + '_ {
+        GraphHandleTraverseIterator {
+            graph: self,
+            stack: vec![from],
+        }
+    }
 }
 
 impl Index<Handle<Node>> for Graph {
@@ -335,5 +491,50 @@ impl Index<Handle<Node>> for Graph {
 impl IndexMut<Handle<Node>> for Graph {
     fn index_mut(&mut self, index: Handle<Node>) -> &mut Self::Output {
         &mut self.pool[index]
+    }
+}
+
+/// Iterator that traverses tree in depth and returns shared references to nodes.
+pub struct GraphTraverseIterator<'a> {
+    graph: &'a Graph,
+    stack: Vec<Handle<Node>>,
+}
+
+impl<'a> Iterator for GraphTraverseIterator<'a> {
+    type Item = &'a Node;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(handle) = self.stack.pop() {
+            let node = &self.graph[handle];
+
+            for child_handle in node.children() {
+                self.stack.push(*child_handle);
+            }
+
+            return Some(node);
+        }
+
+        None
+    }
+}
+
+/// Iterator that traverses tree in depth and returns handles to nodes.
+pub struct GraphHandleTraverseIterator<'a> {
+    graph: &'a Graph,
+    stack: Vec<Handle<Node>>,
+}
+
+impl<'a> Iterator for GraphHandleTraverseIterator<'a> {
+    type Item = Handle<Node>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(handle) = self.stack.pop() {
+            for child_handle in self.graph[handle].children() {
+                self.stack.push(*child_handle);
+            }
+
+            return Some(handle);
+        }
+        None
     }
 }

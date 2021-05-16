@@ -100,6 +100,15 @@ impl Sprite {
         bounds.push(global_bottom_right.xy());
         bounds
     }
+
+    pub fn raw_copy(&self) -> Self {
+        Self {
+            base: self.base.raw_copy(),
+            texture: self.texture.clone(),
+            color: self.color,
+            size: self.size,
+        }
+    }
 }
 
 pub struct SpriteBuilder {

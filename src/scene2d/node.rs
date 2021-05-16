@@ -47,4 +47,13 @@ impl Node {
     define_is_as!(Node : Camera -> ref Camera => fn is_camera, fn as_camera, fn as_camera_mut);
     define_is_as!(Node : Light -> ref Light => fn is_light, fn as_light, fn as_light_mut);
     define_is_as!(Node : Sprite -> ref Sprite => fn is_sprite, fn as_sprite, fn as_sprite_mut);
+
+    pub fn raw_copy(&self) -> Self {
+        match self {
+            Node::Base(v) => Node::Base(v.raw_copy()),
+            Node::Camera(v) => Node::Camera(v.raw_copy()),
+            Node::Light(v) => Node::Light(v.raw_copy()),
+            Node::Sprite(v) => Node::Sprite(v.raw_copy()),
+        }
+    }
 }

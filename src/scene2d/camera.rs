@@ -87,6 +87,16 @@ impl Camera {
     pub fn set_enabled(&mut self, enabled: bool) {
         self.enabled = enabled;
     }
+
+    pub fn raw_copy(&self) -> Self {
+        Self {
+            base: self.base.raw_copy(),
+            viewport: self.viewport,
+            view_matrix: self.view_matrix,
+            projection_matrix: self.projection_matrix,
+            enabled: self.enabled,
+        }
+    }
 }
 
 pub struct CameraBuilder {

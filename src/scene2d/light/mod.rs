@@ -36,6 +36,15 @@ impl DerefMut for Light {
     }
 }
 
+impl Light {
+    pub fn raw_copy(&self) -> Self {
+        match self {
+            Light::Point(v) => Light::Point(v.raw_copy()),
+            Light::Spot(v) => Light::Spot(v.raw_copy()),
+        }
+    }
+}
+
 impl Default for Light {
     fn default() -> Self {
         Self::Spot(Default::default())
@@ -69,6 +78,13 @@ impl BaseLight {
 
     pub fn set_color(&mut self, color: Color) {
         self.color = color;
+    }
+
+    pub fn raw_copy(&self) -> Self {
+        Self {
+            base: self.base.raw_copy(),
+            color: self.color,
+        }
     }
 }
 

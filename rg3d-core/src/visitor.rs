@@ -1280,7 +1280,7 @@ mod test {
 
         // Load
         {
-            let mut visitor = Visitor::load_binary(path).unwrap();
+            let mut visitor = futures::executor::block_on(Visitor::load_binary(path)).unwrap();
             let mut resource: Rc<Resource> = Rc::new(Default::default());
             resource.visit("SharedResource", &mut visitor).unwrap();
 

@@ -12,6 +12,7 @@ use crate::{
     scene2d::{graph::Graph, node::Node, physics::Physics, physics::PhysicsPerformanceStatistics},
     sound::{context::SoundContext, engine::SoundEngine},
 };
+use std::collections::HashMap;
 use std::{
     ops::{Index, IndexMut},
     sync::{Arc, Mutex},
@@ -129,6 +130,42 @@ impl Scene2d {
 
     pub(in crate) fn resolve(&mut self) {
         self.physics.resolve();
+    }
+
+    /// Creates deep copy of a scene, filter predicate allows you to filter out nodes
+    /// by your criteria.
+    pub fn clone<F>(&self, filter: &mut F) -> (Self, HashMap<Handle<Node>, Handle<Node>>)
+    where
+        F: FnMut(Handle<Node>, &Node) -> bool,
+    {
+        let (graph, old_new_map) = self.graph.clone(filter);
+
+        // It is ok to use old binder here, because handles maps one-to-one.
+        let physics = self.physics.deep_copy();
+        let mut physics_binder = PhysicsBinder::default();
+        for (node, &body) in self.physics_binder.forward_map().iter() {
+            // Make sure we bind existing node with new physical body.
+            if let Some(&new_node) = old_new_map.get(node) {
+                // Re-use of body handle is fine here because physics copy bodies
+                // directly and handles from previous pool is still suitable for copy.
+                physics_binder.bind(new_node, body);
+            }
+        }
+        (
+            Self {
+                graph,
+                physics,
+                physics_binder,
+                // Render target is intentionally not copied, because it does not makes sense - a copy
+                // will redraw frame completely.
+                render_target: Default::default(),
+                sound_context: self.sound_context.deep_clone(),
+                performance_statistics: Default::default(),
+                ambient_light_color: self.ambient_light_color,
+                enabled: self.enabled,
+            },
+            old_new_map,
+        )
     }
 }
 

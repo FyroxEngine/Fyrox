@@ -18,6 +18,13 @@ impl PointLight {
     pub fn radius(&self) -> f32 {
         self.radius
     }
+
+    pub fn raw_copy(&self) -> Self {
+        Self {
+            base_light: self.base_light.raw_copy(),
+            radius: self.radius,
+        }
+    }
 }
 
 impl Deref for PointLight {

@@ -1,9 +1,9 @@
-use crate::core::algebra::Vector4;
-use crate::core::math::Rect;
-use crate::scene2d::light::Light;
+//! A renderer responsible for drawing 2D scenes.
+
 use crate::{
     core::{
-        algebra::{Matrix4, Vector2},
+        algebra::{Matrix4, Vector2, Vector4},
+        math::Rect,
         pool::Handle,
     },
     physics::parry::utils::hashmap::Entry,
@@ -21,7 +21,7 @@ use crate::{
         RenderPassStatistics, TextureCache,
     },
     resource::texture::TextureKind,
-    scene2d::{node::Node, Scene2d, Scene2dContainer},
+    scene2d::{light::Light, node::Node, Scene2d, Scene2dContainer},
     utils::log::{Log, MessageKind},
 };
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
@@ -97,7 +97,7 @@ impl RenderTarget {
     }
 }
 
-pub struct Renderer2d {
+pub(in crate) struct Renderer2d {
     sprite_shader: SpriteShader,
     quad: Mesh,
     geometry_cache: GeometryCache,
