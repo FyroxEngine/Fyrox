@@ -359,7 +359,7 @@ impl ChildSelector {
                     self.selection.clear();
 
                     for &item in selection {
-                        let node = *ui.node(item).user_data_ref::<Handle<Node>>();
+                        let node = *ui.node(item).user_data_ref::<Handle<Node>>().unwrap();
 
                         for descendant in graph.traverse_handle_iter(node) {
                             self.selection.push(descendant);

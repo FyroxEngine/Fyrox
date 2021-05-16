@@ -20,12 +20,14 @@ use rg3d::{
         draw::{DrawingContext, SharedTexture},
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
+        menu::{MenuItemBuilder, MenuItemContent},
         message::{
-            ButtonMessage, DecoratorMessage, MessageDirection, OsEvent, ScrollViewerMessage,
-            TextMessage, TreeExpansionStrategy, TreeMessage, TreeRootMessage, UiMessageData,
-            WidgetMessage,
+            ButtonMessage, DecoratorMessage, MenuItemMessage, MessageDirection, OsEvent,
+            ScrollViewerMessage, TextMessage, TreeExpansionStrategy, TreeMessage, TreeRootMessage,
+            UiMessageData, WidgetMessage,
         },
         node::UINode,
+        popup::PopupBuilder,
         scroll_viewer::ScrollViewerBuilder,
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
@@ -58,6 +60,7 @@ pub struct WorldOutliner {
     expand_all: Handle<UiNode>,
     locate_selection: Handle<UiNode>,
     scroll_view: Handle<UiNode>,
+    item_context_menu: Handle<UiNode>,
 }
 
 #[derive(Clone)]
@@ -201,6 +204,7 @@ pub struct SceneItemBuilder {
     name: String,
     visibility: bool,
     icon: Option<SharedTexture>,
+    context_menu: Handle<UiNode>,
 }
 
 impl SceneItemBuilder {
@@ -210,6 +214,7 @@ impl SceneItemBuilder {
             name: Default::default(),
             visibility: true,
             icon: None,
+            context_menu: Default::default(),
         }
     }
 
@@ -233,6 +238,11 @@ impl SceneItemBuilder {
         self
     }
 
+    pub fn with_context_menu(mut self, menu: Handle<UiNode>) -> Self {
+        self.context_menu = menu;
+        self
+    }
+
     pub fn build(
         self,
         ctx: &mut BuildContext,
@@ -244,12 +254,16 @@ impl SceneItemBuilder {
 
         let text_name;
         let visibility_toggle;
-        let tree = TreeBuilder::new(WidgetBuilder::new().with_margin(Thickness {
-            left: 1.0,
-            top: 1.0,
-            right: 0.0,
-            bottom: 0.0,
-        }))
+        let tree = TreeBuilder::new(
+            WidgetBuilder::new()
+                .with_context_menu(self.context_menu)
+                .with_margin(Thickness {
+                    left: 1.0,
+                    top: 1.0,
+                    right: 0.0,
+                    bottom: 0.0,
+                }),
+        )
         .with_content(
             GridBuilder::new(
                 WidgetBuilder::new()
@@ -333,6 +347,7 @@ fn make_tree(
     ctx: &mut BuildContext,
     sender: Sender<Message>,
     resource_manager: ResourceManager,
+    context_menu: Handle<UiNode>,
 ) -> Handle<UiNode> {
     let icon_path = match node {
         Node::Light(_) => "resources/light.png",
@@ -346,6 +361,7 @@ fn make_tree(
         .with_node(handle)
         .with_visibility(node.visibility())
         .with_icon(icon)
+        .with_context_menu(context_menu)
         .build(ctx, sender, resource_manager, node)
 }
 
@@ -470,6 +486,37 @@ impl WorldOutliner {
             )
             .build(ctx);
 
+        let item_context_menu = PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
+            .with_content(
+                StackPanelBuilder::new(
+                    WidgetBuilder::new()
+                        .with_child(
+                            MenuItemBuilder::new(
+                                WidgetBuilder::new().with_min_size(Vector2::new(120.0, 20.0)),
+                            )
+                            .with_content(MenuItemContent::Text {
+                                text: "Delete Selection",
+                                shortcut: "Del",
+                                icon: Default::default(),
+                            })
+                            .build(ctx),
+                        )
+                        .with_child(
+                            MenuItemBuilder::new(
+                                WidgetBuilder::new().with_min_size(Vector2::new(120.0, 20.0)),
+                            )
+                            .with_content(MenuItemContent::Text {
+                                text: "Copy Selection",
+                                shortcut: "Ctrl+C",
+                                icon: Default::default(),
+                            })
+                            .build(ctx),
+                        ),
+                )
+                .build(ctx),
+            )
+            .build(ctx);
+
         Self {
             window,
             sender,
@@ -482,6 +529,7 @@ impl WorldOutliner {
             collapse_all,
             expand_all,
             scroll_view,
+            item_context_menu,
         }
     }
 
@@ -552,6 +600,7 @@ impl WorldOutliner {
                                         &mut ui.build_ctx(),
                                         self.sender.clone(),
                                         engine.resource_manager.clone(),
+                                        self.item_context_menu,
                                     );
                                     send_sync_message(
                                         ui,
@@ -585,6 +634,7 @@ impl WorldOutliner {
                             &mut ui.build_ctx(),
                             self.sender.clone(),
                             engine.resource_manager.clone(),
+                            self.item_context_menu,
                         );
                         send_sync_message(
                             ui,
@@ -751,6 +801,8 @@ impl WorldOutliner {
                     }
                 }
             }
+            UiMessageData::MenuItem(MenuItemMessage::Click)
+                if message.destination() == self.item_context_menu => {}
             UiMessageData::Button(ButtonMessage::Click) => {
                 if let Some(&node) = self.breadcrumbs.get(&message.destination()) {
                     self.sender

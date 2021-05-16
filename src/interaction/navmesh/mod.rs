@@ -294,6 +294,7 @@ impl NavmeshPanel {
                             .user_interface
                             .node(item)
                             .user_data_ref::<Handle<Navmesh>>()
+                            .unwrap()
                     } else {
                         Default::default()
                     };
