@@ -90,15 +90,19 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tree<M, C> {
                                 } else {
                                     selection.push(self.handle);
                                 }
-                                selection
+                                Some(selection)
+                            } else if !self.is_selected {
+                                Some(vec![self.handle()])
                             } else {
-                                vec![self.handle()]
+                                None
                             };
-                            ui.send_message(TreeRootMessage::select(
-                                root,
-                                MessageDirection::ToWidget,
-                                selection,
-                            ));
+                            if let Some(selection) = selection {
+                                ui.send_message(TreeRootMessage::select(
+                                    root,
+                                    MessageDirection::ToWidget,
+                                    selection,
+                                ));
+                            }
                             message.set_handled(true);
                         } else {
                             unreachable!();
