@@ -25,7 +25,7 @@ use rg3d::{
         window::{WindowBuilder, WindowTitle},
         Thickness,
     },
-    renderer::surface::{Surface, SurfaceSharedData},
+    scene::mesh::surface::{Surface, SurfaceData},
     scene::{
         base::BaseBuilder,
         camera::CameraBuilder,
@@ -507,9 +507,9 @@ impl Menu {
                 if message.destination() == self.create_cube {
                     let mut mesh = Mesh::default();
                     mesh.set_name("Cube");
-                    mesh.add_surface(Surface::new(Arc::new(RwLock::new(
-                        SurfaceSharedData::make_cube(Matrix4::identity()),
-                    ))));
+                    mesh.add_surface(Surface::new(Arc::new(RwLock::new(SurfaceData::make_cube(
+                        Matrix4::identity(),
+                    )))));
                     let node = Node::Mesh(mesh);
                     self.message_sender
                         .send(Message::DoSceneCommand(SceneCommand::AddNode(
@@ -564,7 +564,7 @@ impl Menu {
                 } else if message.destination() == self.create_cone {
                     let mesh = MeshBuilder::new(BaseBuilder::new().with_name("Cone"))
                         .with_surfaces(vec![Surface::new(Arc::new(RwLock::new(
-                            SurfaceSharedData::make_cone(16, 0.5, 1.0, &Matrix4::identity()),
+                            SurfaceData::make_cone(16, 0.5, 1.0, &Matrix4::identity()),
                         )))])
                         .build_node();
                     self.message_sender
@@ -575,13 +575,7 @@ impl Menu {
                 } else if message.destination() == self.create_cylinder {
                     let mesh = MeshBuilder::new(BaseBuilder::new().with_name("Cylinder"))
                         .with_surfaces(vec![Surface::new(Arc::new(RwLock::new(
-                            SurfaceSharedData::make_cylinder(
-                                16,
-                                0.5,
-                                1.0,
-                                true,
-                                &Matrix4::identity(),
-                            ),
+                            SurfaceData::make_cylinder(16, 0.5, 1.0, true, &Matrix4::identity()),
                         )))])
                         .build_node();
                     self.message_sender
@@ -592,7 +586,7 @@ impl Menu {
                 } else if message.destination() == self.create_sphere {
                     let mesh = MeshBuilder::new(BaseBuilder::new().with_name("Sphere"))
                         .with_surfaces(vec![Surface::new(Arc::new(RwLock::new(
-                            SurfaceSharedData::make_sphere(16, 16, 0.5, &Matrix4::identity()),
+                            SurfaceData::make_sphere(16, 16, 0.5, &Matrix4::identity()),
                         )))])
                         .build_node();
                     self.message_sender
@@ -603,7 +597,7 @@ impl Menu {
                 } else if message.destination() == self.create_quad {
                     let mesh = MeshBuilder::new(BaseBuilder::new().with_name("Quad"))
                         .with_surfaces(vec![Surface::new(Arc::new(RwLock::new(
-                            SurfaceSharedData::make_quad(&Matrix4::identity()),
+                            SurfaceData::make_quad(&Matrix4::identity()),
                         )))])
                         .build_node();
                     self.message_sender
