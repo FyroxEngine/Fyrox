@@ -9,10 +9,9 @@ extern crate rg3d;
 pub mod shared;
 
 use crate::shared::create_camera;
-use rg3d::core::algebra::Matrix4;
 use rg3d::{
     core::{
-        algebra::{UnitQuaternion, Vector2, Vector3},
+        algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
         arrayvec::ArrayVec,
         color::Color,
         math::PositionProvider,
@@ -28,10 +27,12 @@ use rg3d::{
         text::TextBuilder,
         widget::WidgetBuilder,
     },
-    renderer::surface::{SurfaceBuilder, SurfaceData},
     scene::{
         base::BaseBuilder,
-        mesh::MeshBuilder,
+        mesh::{
+            surface::{SurfaceBuilder, SurfaceData},
+            MeshBuilder,
+        },
         node::Node,
         physics::{Intersection, RayCastOptions},
         transform::TransformBuilder,
@@ -70,7 +71,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     // Camera is our eyes in the world - you won't see anything without it.
     let camera = create_camera(
         resource_manager.clone(),
-        Vector3::new(4.0, 8.0, 0.0),
+        Vector3::new(0.0, 5.0, 0.0),
         &mut scene.graph,
     )
     .await;
@@ -170,6 +171,7 @@ fn main() {
     let mut mouse_position = Vector2::default();
 
     let mut navmesh_agent = NavmeshAgent::new();
+    navmesh_agent.set_speed(0.75);
     let mut target_position = Vector3::default();
 
     // Finally run our event loop which will respond to OS and window events and update
@@ -200,7 +202,7 @@ fn main() {
                         .as_camera()
                         .make_ray(mouse_position, engine.renderer.get_frame_bounds());
 
-                    let mut buffer = ArrayVec::<[Intersection; 64]>::new();
+                    let mut buffer = ArrayVec::<Intersection, 64>::new();
                     scene.physics.cast_ray(
                         RayCastOptions {
                             ray,

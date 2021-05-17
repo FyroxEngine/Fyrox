@@ -26,8 +26,16 @@ use rg3d::{
         text::TextBuilder,
         widget::WidgetBuilder,
     },
-    renderer::surface::{SurfaceBuilder, SurfaceData},
-    scene::{base::BaseBuilder, mesh::MeshBuilder, node::Node, transform::TransformBuilder, Scene},
+    scene::{
+        base::BaseBuilder,
+        mesh::{
+            surface::{SurfaceBuilder, SurfaceData},
+            MeshBuilder,
+        },
+        node::Node,
+        transform::TransformBuilder,
+        Scene,
+    },
     utils::translate_event,
 };
 use std::{

@@ -27,14 +27,14 @@ use rg3d::{
         widget::WidgetBuilder,
     },
     rand::Rng,
-    renderer::{
-        surface::{SurfaceBuilder, SurfaceData},
-        QualitySettings,
-    },
+    renderer::QualitySettings,
     scene::{
         base::BaseBuilder,
         light::{BaseLightBuilder, PointLightBuilder},
-        mesh::MeshBuilder,
+        mesh::{
+            surface::{SurfaceBuilder, SurfaceData},
+            MeshBuilder,
+        },
         node::Node,
         transform::TransformBuilder,
         Scene,

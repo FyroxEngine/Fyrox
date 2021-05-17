@@ -1,32 +1,22 @@
-//! Example 01. Simple scene.
+//! Example - Texture compression
 //!
-//! Difficulty: Easy.
-//!
-//! This example shows how to create simple scene with animated model.
+//! Just shows two textures with compression. Engine compresses textures automatically,
+//! based on compression options.
 
 extern crate rg3d;
 
 pub mod shared;
 
-use rg3d::core::futures::executor::block_on;
-use rg3d::engine::resource_manager::ResourceManager;
-use rg3d::resource::texture::TextureMagnificationFilter;
-use rg3d::tbc::color::Rgb8;
 use rg3d::{
-    core::{algebra::Vector2, color::Color},
+    core::{algebra::Vector2, color::Color, futures::executor::block_on},
+    engine::resource_manager::TextureImportOptions,
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{image::ImageBuilder, node::StubNode, widget::WidgetBuilder},
-    resource::{
-        texture::{Texture, TextureData, TextureKind, TexturePixelKind},
-        ResourceState,
-    },
+    resource::texture::CompressionOptions,
     utils::{into_gui_texture, translate_event},
 };
-use std::{
-    sync::{Arc, Mutex},
-    time::Instant,
-};
+use std::time::Instant;
 
 // Create our own engine type aliases. These specializations are needed
 // because engine provides a way to extend UI with custom nodes and messages.
@@ -36,19 +26,16 @@ fn main() {
     let event_loop = EventLoop::new();
 
     let window_builder = rg3d::window::WindowBuilder::new()
-        .with_title("Example N - Compressed Textures")
+        .with_title("Example - Compressed Textures")
         .with_resizable(true);
 
     let mut engine = GameEngine::new(window_builder, &event_loop, true).unwrap();
 
-    // Prepare resource manager - it must be notified where to search textures. When engine
-    // loads model resource it automatically tries to load textures it uses. But since most
-    // model formats store absolute paths, we can't use them as direct path to load texture
-    // instead we telling engine to search textures in given folder.
-    engine
-        .resource_manager
-        .state()
-        .set_textures_path("examples/data");
+    // Explicitly set compression options - here we use Quality which in most cases will use
+    // DXT5 compression with compression ratio 4:1
+    engine.resource_manager.state().set_textures_import_options(
+        TextureImportOptions::default().with_compression(CompressionOptions::Quality),
+    );
 
     engine
         .renderer
@@ -103,11 +90,6 @@ fn main() {
                 while dt >= fixed_timestep {
                     dt -= fixed_timestep;
                     elapsed_time += fixed_timestep;
-
-                    // ************************
-                    // Put your game logic here.
-                    // ************************
-
                     engine.update(fixed_timestep);
                 }
 
