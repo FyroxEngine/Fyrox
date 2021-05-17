@@ -7,8 +7,12 @@ use crate::{
         },
         state::PipelineState,
     },
-    renderer::{surface::SurfaceSharedData, TextureCache},
-    scene::{graph::Graph, mesh::RenderPath, node::Node},
+    renderer::TextureCache,
+    scene::{
+        graph::Graph,
+        mesh::{surface::SurfaceData, RenderPath},
+        node::Node,
+    },
 };
 use std::{
     cell::RefCell,
@@ -38,7 +42,7 @@ pub struct SurfaceInstance {
 }
 
 pub struct Batch {
-    pub data: Arc<RwLock<SurfaceSharedData>>,
+    pub data: Arc<RwLock<SurfaceData>>,
     pub instances: Vec<SurfaceInstance>,
     pub diffuse_texture: Rc<RefCell<GpuTexture>>,
     pub normal_texture: Rc<RefCell<GpuTexture>>,

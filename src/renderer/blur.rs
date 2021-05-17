@@ -14,7 +14,8 @@ use crate::{
         },
         state::PipelineState,
     },
-    renderer::{surface::SurfaceSharedData, GeometryCache},
+    renderer::GeometryCache,
+    scene::mesh::surface::SurfaceData,
 };
 use std::{cell::RefCell, rc::Rc};
 
@@ -41,7 +42,7 @@ impl Shader {
 pub struct Blur {
     shader: Shader,
     framebuffer: FrameBuffer,
-    quad: SurfaceSharedData,
+    quad: SurfaceData,
     width: usize,
     height: usize,
 }
@@ -80,7 +81,7 @@ impl Blur {
                     texture: Rc::new(RefCell::new(frame)),
                 }],
             )?,
-            quad: SurfaceSharedData::make_unit_xy_quad(),
+            quad: SurfaceData::make_unit_xy_quad(),
             width,
             height,
         })

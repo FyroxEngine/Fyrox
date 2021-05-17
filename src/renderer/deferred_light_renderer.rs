@@ -21,9 +21,9 @@ use crate::{
             PointShadowMapRenderContext, PointShadowMapRenderer, SpotShadowMapRenderer,
         },
         ssao::ScreenSpaceAmbientOcclusionRenderer,
-        surface::{SurfaceSharedData, Vertex},
         GeometryCache, QualitySettings, RenderPassStatistics, TextureCache,
     },
+    scene::mesh::surface::{SurfaceData, Vertex},
     scene::{camera::Camera, light::Light, node::Node, Scene},
 };
 use std::{
@@ -236,9 +236,9 @@ pub struct DeferredLightRenderer {
     point_light_shader: PointLightShader,
     directional_light_shader: DirectionalLightShader,
     ambient_light_shader: AmbientLightShader,
-    quad: SurfaceSharedData,
-    sphere: SurfaceSharedData,
-    skybox: SurfaceSharedData,
+    quad: SurfaceData,
+    sphere: SurfaceData,
+    skybox: SurfaceData,
     flat_shader: FlatShader,
     spot_shadow_map_renderer: SpotShadowMapRenderer,
     point_shadow_map_renderer: PointShadowMapRenderer,
@@ -274,8 +274,8 @@ impl DeferredLightRenderer {
             point_light_shader: PointLightShader::new(state)?,
             directional_light_shader: DirectionalLightShader::new(state)?,
             ambient_light_shader: AmbientLightShader::new(state)?,
-            quad: SurfaceSharedData::make_unit_xy_quad(),
-            skybox: SurfaceSharedData::new(
+            quad: SurfaceData::make_unit_xy_quad(),
+            skybox: SurfaceData::new(
                 vec![
                     // Front
                     Vertex::from_pos_uv(Vector3::new(-0.5, 0.5, -0.5), Vector2::new(0.0, 0.0)),
@@ -324,7 +324,7 @@ impl DeferredLightRenderer {
                 ],
                 true,
             ),
-            sphere: SurfaceSharedData::make_sphere(6, 6, 1.0, &Matrix4::identity()),
+            sphere: SurfaceData::make_sphere(6, 6, 1.0, &Matrix4::identity()),
             flat_shader: FlatShader::new(state)?,
             spot_shadow_map_renderer: SpotShadowMapRenderer::new(
                 state,

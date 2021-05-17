@@ -7,7 +7,8 @@ use crate::{
         gpu_texture::GpuTexture,
         state::PipelineState,
     },
-    renderer::{surface::SurfaceSharedData, GeometryCache, RenderPassStatistics, TextureCache},
+    renderer::{GeometryCache, RenderPassStatistics, TextureCache},
+    scene::mesh::surface::SurfaceData,
     scene::{camera::Camera, graph::Graph, node::Node},
 };
 use std::{cell::RefCell, rc::Rc};
@@ -45,7 +46,7 @@ impl SpriteShader {
 
 pub struct SpriteRenderer {
     shader: SpriteShader,
-    surface: SurfaceSharedData,
+    surface: SurfaceData,
 }
 
 pub(in crate) struct SpriteRenderContext<'a, 'b, 'c> {
@@ -61,7 +62,7 @@ pub(in crate) struct SpriteRenderContext<'a, 'b, 'c> {
 
 impl SpriteRenderer {
     pub fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
-        let surface = SurfaceSharedData::make_collapsed_xy_quad();
+        let surface = SurfaceData::make_collapsed_xy_quad();
 
         Ok(Self {
             shader: SpriteShader::new(state)?,

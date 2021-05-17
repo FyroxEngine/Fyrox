@@ -28,7 +28,7 @@ use rg3d::{
         text::TextBuilder,
         widget::WidgetBuilder,
     },
-    renderer::surface::{SurfaceBuilder, SurfaceSharedData},
+    renderer::surface::{SurfaceBuilder, SurfaceData},
     scene::{
         base::BaseBuilder,
         mesh::MeshBuilder,
@@ -90,7 +90,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
 
     let cursor = MeshBuilder::new(BaseBuilder::new())
         .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
-            SurfaceSharedData::make_sphere(10, 10, 0.1, &Matrix4::identity()),
+            SurfaceData::make_sphere(10, 10, 0.1, &Matrix4::identity()),
         )))
         .with_color(Color::opaque(255, 0, 0))
         .build()])
@@ -104,7 +104,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
         ),
     )
     .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
-        SurfaceSharedData::make_sphere(10, 10, 0.2, &Matrix4::identity()),
+        SurfaceData::make_sphere(10, 10, 0.2, &Matrix4::identity()),
     )))
     .with_color(Color::opaque(0, 200, 0))
     .build()])

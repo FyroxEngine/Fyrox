@@ -138,7 +138,7 @@ impl Hash for Vertex {
 /// in instancing technique to render multiple instances of same model at different
 /// places.
 #[derive(Debug)]
-pub struct SurfaceSharedData {
+pub struct SurfaceData {
     pub(in crate) vertices: Vec<Vertex>,
     pub(in crate) triangles: Vec<TriangleDefinition>,
     // If true - indicates that surface was generated and does not have reference
@@ -146,7 +146,7 @@ pub struct SurfaceSharedData {
     is_procedural: bool,
 }
 
-impl Default for SurfaceSharedData {
+impl Default for SurfaceData {
     fn default() -> Self {
         Self {
             vertices: Default::default(),
@@ -156,7 +156,7 @@ impl Default for SurfaceSharedData {
     }
 }
 
-impl SurfaceSharedData {
+impl SurfaceData {
     /// Creates new data source using given vertices and indices.
     pub fn new(
         vertices: Vec<Vertex>,
@@ -960,7 +960,7 @@ impl SurfaceSharedData {
     }
 }
 
-impl Visit for SurfaceSharedData {
+impl Visit for SurfaceData {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
@@ -1072,7 +1072,7 @@ impl VertexWeightSet {
 pub struct Surface {
     // Wrapped into option to be able to implement Default for serialization.
     // In normal conditions it must never be None!
-    data: Option<Arc<RwLock<SurfaceSharedData>>>,
+    data: Option<Arc<RwLock<SurfaceData>>>,
     diffuse_texture: Option<Texture>,
     normal_texture: Option<Texture>,
     lightmap_texture: Option<Texture>,
@@ -1117,7 +1117,7 @@ impl Clone for Surface {
 impl Surface {
     /// Creates new surface instance with given data and without any texture.
     #[inline]
-    pub fn new(data: Arc<RwLock<SurfaceSharedData>>) -> Self {
+    pub fn new(data: Arc<RwLock<SurfaceData>>) -> Self {
         Self {
             data: Some(data),
             diffuse_texture: None,
@@ -1158,7 +1158,7 @@ impl Surface {
 
     /// Returns current data used by surface.
     #[inline]
-    pub fn data(&self) -> Arc<RwLock<SurfaceSharedData>> {
+    pub fn data(&self) -> Arc<RwLock<SurfaceData>> {
         self.data.as_ref().unwrap().clone()
     }
 
@@ -1312,7 +1312,7 @@ impl Visit for Surface {
 
 /// Surface builder allows you to create surfaces in declarative manner.
 pub struct SurfaceBuilder {
-    data: Arc<RwLock<SurfaceSharedData>>,
+    data: Arc<RwLock<SurfaceData>>,
     diffuse_texture: Option<Texture>,
     normal_texture: Option<Texture>,
     lightmap_texture: Option<Texture>,
@@ -1325,7 +1325,7 @@ pub struct SurfaceBuilder {
 
 impl SurfaceBuilder {
     /// Creates new builder instance with given data and no textures or bones.
-    pub fn new(data: Arc<RwLock<SurfaceSharedData>>) -> Self {
+    pub fn new(data: Arc<RwLock<SurfaceData>>) -> Self {
         Self {
             data,
             diffuse_texture: None,

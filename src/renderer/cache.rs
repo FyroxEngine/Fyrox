@@ -11,9 +11,9 @@ use crate::{
             gpu_texture::{Coordinate, GpuTexture, PixelKind},
             state::PipelineState,
         },
-        surface::SurfaceSharedData,
     },
     resource::texture::{Texture, TextureState},
+    scene::mesh::surface::SurfaceData,
     utils::log::{Log, MessageKind},
 };
 use std::{
@@ -29,11 +29,7 @@ pub(in crate) struct GeometryCache {
 }
 
 impl GeometryCache {
-    pub fn get(
-        &mut self,
-        state: &mut PipelineState,
-        data: &SurfaceSharedData,
-    ) -> &mut GeometryBuffer {
+    pub fn get(&mut self, state: &mut PipelineState, data: &SurfaceData) -> &mut GeometryBuffer {
         scope_profile!();
 
         let key = (data as *const _) as usize;

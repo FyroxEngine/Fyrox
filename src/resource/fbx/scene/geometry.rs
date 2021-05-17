@@ -1,7 +1,6 @@
 use crate::core::algebra::{Vector2, Vector3};
 use crate::{
     core::pool::Handle,
-    renderer::surface::{VertexWeight, VertexWeightSet},
     resource::{
         fbx::scene,
         fbx::{
@@ -10,6 +9,7 @@ use crate::{
             scene::{FbxComponent, FbxContainer, FbxScene},
         },
     },
+    scene::mesh::surface::{VertexWeight, VertexWeightSet},
 };
 
 pub struct FbxGeometry {

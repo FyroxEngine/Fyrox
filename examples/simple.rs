@@ -26,7 +26,7 @@ use rg3d::{
         text::TextBuilder,
         widget::WidgetBuilder,
     },
-    renderer::surface::{SurfaceBuilder, SurfaceSharedData},
+    renderer::surface::{SurfaceBuilder, SurfaceData},
     scene::{base::BaseBuilder, mesh::MeshBuilder, node::Node, transform::TransformBuilder, Scene},
     utils::translate_event,
 };
@@ -119,7 +119,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
         ),
     )
     .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
-        SurfaceSharedData::make_cube(Matrix4::new_nonuniform_scaling(&Vector3::new(
+        SurfaceData::make_cube(Matrix4::new_nonuniform_scaling(&Vector3::new(
             25.0, 0.25, 25.0,
         ))),
     )))

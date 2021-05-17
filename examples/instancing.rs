@@ -28,7 +28,7 @@ use rg3d::{
     },
     rand::Rng,
     renderer::{
-        surface::{SurfaceBuilder, SurfaceSharedData},
+        surface::{SurfaceBuilder, SurfaceData},
         QualitySettings,
     },
     scene::{
@@ -152,7 +152,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
         ),
     )
     .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
-        SurfaceSharedData::make_cube(Matrix4::new_nonuniform_scaling(&Vector3::new(
+        SurfaceData::make_cube(Matrix4::new_nonuniform_scaling(&Vector3::new(
             300.0, 0.25, 300.0,
         ))),
     )))

@@ -12,10 +12,8 @@ use crate::{
         gpu_program::{GpuProgram, UniformLocation},
         state::{ColorMask, PipelineState, StencilFunc, StencilOp},
     },
-    renderer::{
-        flat_shader::FlatShader, gbuffer::GBuffer, surface::SurfaceSharedData, GeometryCache,
-        RenderPassStatistics,
-    },
+    renderer::{flat_shader::FlatShader, gbuffer::GBuffer, GeometryCache, RenderPassStatistics},
+    scene::mesh::surface::SurfaceData,
     scene::{graph::Graph, light::Light, node::Node},
 };
 
@@ -89,8 +87,8 @@ pub struct LightVolumeRenderer {
     spot_light_shader: SpotLightShader,
     point_light_shader: PointLightShader,
     flat_shader: FlatShader,
-    cone: SurfaceSharedData,
-    sphere: SurfaceSharedData,
+    cone: SurfaceData,
+    sphere: SurfaceData,
 }
 
 impl LightVolumeRenderer {
@@ -99,13 +97,13 @@ impl LightVolumeRenderer {
             spot_light_shader: SpotLightShader::new(state)?,
             point_light_shader: PointLightShader::new(state)?,
             flat_shader: FlatShader::new(state)?,
-            cone: SurfaceSharedData::make_cone(
+            cone: SurfaceData::make_cone(
                 16,
                 1.0,
                 1.0,
                 &Matrix4::new_translation(&Vector3::new(0.0, -1.0, 0.0)),
             ),
-            sphere: SurfaceSharedData::make_sphere(8, 8, 1.0, &Matrix4::identity()),
+            sphere: SurfaceData::make_sphere(8, 8, 1.0, &Matrix4::identity()),
         })
     }
 
@@ -116,7 +114,7 @@ impl LightVolumeRenderer {
         light: &Light,
         light_handle: Handle<Node>,
         gbuffer: &mut GBuffer,
-        quad: &SurfaceSharedData,
+        quad: &SurfaceData,
         geom_cache: &mut GeometryCache,
         view: Matrix4<f32>,
         inv_proj: Matrix4<f32>,

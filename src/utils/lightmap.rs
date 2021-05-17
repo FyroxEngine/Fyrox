@@ -19,8 +19,8 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::{ResourceManager, TextureRegistrationError},
-    renderer::surface::SurfaceSharedData,
     resource::texture::{Texture, TextureData, TextureKind, TexturePixelKind, TextureState},
+    scene::mesh::surface::SurfaceData,
     scene::{light::Light, node::Node, Scene},
     utils::{uvgen, uvgen::SurfaceDataPatch},
 };
@@ -99,7 +99,7 @@ struct InstanceData {
 
 struct Instance {
     owner: Handle<Node>,
-    source_data: Arc<RwLock<SurfaceSharedData>>,
+    source_data: Arc<RwLock<SurfaceData>>,
     data: Option<InstanceData>,
     transform: Matrix4<f32>,
 }
@@ -870,7 +870,7 @@ mod test {
     use crate::utils::lightmap::Lightmap;
     use crate::{
         core::algebra::{Matrix4, Vector3},
-        renderer::surface::SurfaceSharedData,
+        renderer::surface::SurfaceData,
     };
     use std::sync::{Arc, RwLock};
 
@@ -878,7 +878,7 @@ mod test {
     fn test_generate_lightmap() {
         let mut scene = Scene::new();
 
-        let data = SurfaceSharedData::make_cone(
+        let data = SurfaceData::make_cone(
             16,
             1.0,
             1.0,

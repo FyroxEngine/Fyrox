@@ -9,7 +9,7 @@ use crate::{
         rectpack::RectPacker,
         visitor::{Visit, VisitResult, Visitor},
     },
-    renderer::surface::SurfaceSharedData,
+    scene::mesh::surface::SurfaceData,
     scene::mesh::Mesh,
 };
 use rayon::prelude::*;
@@ -61,7 +61,7 @@ pub struct UvBox {
 }
 
 fn face_vs_face(
-    data: &mut SurfaceSharedData,
+    data: &mut SurfaceData,
     face_triangles: &[usize],
     other_face_triangles: &[usize],
     patch: &mut SurfaceDataPatch,
@@ -86,7 +86,7 @@ fn face_vs_face(
 }
 
 fn make_seam(
-    data: &mut SurfaceSharedData,
+    data: &mut SurfaceData,
     face_triangles: &[usize],
     other_faces: &[&[usize]],
     patch: &mut SurfaceDataPatch,
@@ -135,7 +135,7 @@ impl Visit for SurfaceDataPatch {
 
 /// Maps each triangle from surface to appropriate side of box. This is so called
 /// box mapping.
-fn generate_uv_box(data: &SurfaceSharedData) -> UvBox {
+fn generate_uv_box(data: &SurfaceData) -> UvBox {
     let mut uv_box = UvBox::default();
     for (i, triangle) in data.triangles.iter().enumerate() {
         let a = data.vertices[triangle[0] as usize].position;
@@ -179,7 +179,7 @@ fn generate_uv_box(data: &SurfaceSharedData) -> UvBox {
 /// Generates a set of UV meshes.
 pub fn generate_uv_meshes(
     uv_box: &UvBox,
-    data: &mut SurfaceSharedData,
+    data: &mut SurfaceData,
 ) -> (Vec<UvMesh>, SurfaceDataPatch) {
     let mut mesh_patch = SurfaceDataPatch {
         data_id: data.id(),
@@ -290,7 +290,7 @@ pub fn generate_uv_meshes(
 ///
 /// This method utilizes lots of "brute force" algorithms, so it is not fast as it
 /// could be in ideal case. It also allocates some memory for internal needs.
-pub fn generate_uvs(data: &mut SurfaceSharedData, spacing: f32) -> SurfaceDataPatch {
+pub fn generate_uvs(data: &mut SurfaceData, spacing: f32) -> SurfaceDataPatch {
     let uv_box = generate_uv_box(data);
 
     let (mut meshes, mut patch) = generate_uv_meshes(&uv_box, data);
@@ -377,7 +377,7 @@ pub fn generate_uvs_mesh(mesh: &Mesh, spacing: f32) {
 #[cfg(test)]
 mod test {
     use crate::core::algebra::{Matrix4, Vector3};
-    use crate::{renderer::surface::SurfaceSharedData, utils::uvgen::generate_uvs};
+    use crate::{renderer::surface::SurfaceData, utils::uvgen::generate_uvs};
     use image::{Rgb, RgbImage};
     use imageproc::drawing::draw_line_segment_mut;
 
@@ -386,7 +386,7 @@ mod test {
         //let mut data = SurfaceSharedData::make_sphere(100, 100, 1.0);
         //let mut data = SurfaceSharedData::make_cylinder(80, 1.0, 1.0, true, Matrix4::identity());
         //let mut data = SurfaceSharedData::make_cube(Matrix4::identity());
-        let mut data = SurfaceSharedData::make_cone(
+        let mut data = SurfaceData::make_cone(
             16,
             1.0,
             1.0,

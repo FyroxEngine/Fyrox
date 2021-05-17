@@ -16,10 +16,10 @@ use crate::{
         pool::Handle,
         visitor::{Visit, VisitResult, Visitor},
     },
-    renderer::surface::Surface,
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
+        mesh::surface::Surface,
         node::Node,
     },
 };
@@ -27,6 +27,8 @@ use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
 };
+
+pub mod surface;
 
 /// Defines a path that should be used to render a mesh.
 #[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Ord, Hash, Debug)]

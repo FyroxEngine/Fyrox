@@ -11,7 +11,6 @@
 pub mod debug_renderer;
 pub mod framework;
 pub mod renderer2d;
-pub mod surface;
 
 mod batch;
 mod blur;
@@ -62,10 +61,10 @@ use crate::{
         particle_system_renderer::{ParticleSystemRenderContext, ParticleSystemRenderer},
         renderer2d::Renderer2d,
         sprite_renderer::{SpriteRenderContext, SpriteRenderer},
-        surface::SurfaceSharedData,
         ui_renderer::{UiRenderContext, UiRenderer},
     },
     resource::texture::{Texture, TextureKind},
+    scene::mesh::surface::SurfaceData,
     scene::{node::Node, Scene, SceneContainer},
     scene2d::Scene2dContainer,
 };
@@ -434,7 +433,7 @@ pub struct Renderer {
     specular_dummy: Rc<RefCell<GpuTexture>>,
     ui_renderer: UiRenderer,
     statistics: Statistics,
-    quad: SurfaceSharedData,
+    quad: SurfaceData,
     frame_size: (u32, u32),
     quality_settings: QualitySettings,
     /// Debug renderer instance can be used for debugging purposes
@@ -587,7 +586,7 @@ impl Renderer {
                 1,
                 Some(&[32u8, 32u8, 32u8, 32u8]),
             )?)),
-            quad: SurfaceSharedData::make_unit_xy_quad(),
+            quad: SurfaceData::make_unit_xy_quad(),
             ui_renderer: UiRenderer::new(&mut state)?,
             particle_system_renderer: ParticleSystemRenderer::new(&mut state)?,
             quality_settings: settings,

@@ -11,7 +11,8 @@ use crate::{
         gpu_texture::GpuTexture,
         state::PipelineState,
     },
-    renderer::{surface::SurfaceSharedData, GeometryCache, RenderPassStatistics},
+    renderer::{GeometryCache, RenderPassStatistics},
+    scene::mesh::surface::SurfaceData,
 };
 use std::{cell::RefCell, rc::Rc};
 
@@ -39,14 +40,14 @@ impl FxaaShader {
 
 pub struct FxaaRenderer {
     shader: FxaaShader,
-    quad: SurfaceSharedData,
+    quad: SurfaceData,
 }
 
 impl FxaaRenderer {
     pub fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
         Ok(Self {
             shader: FxaaShader::new(state)?,
-            quad: SurfaceSharedData::make_unit_xy_quad(),
+            quad: SurfaceData::make_unit_xy_quad(),
         })
     }
 

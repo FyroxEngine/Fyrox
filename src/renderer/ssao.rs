@@ -16,10 +16,8 @@ use crate::{
         },
         state::PipelineState,
     },
-    renderer::{
-        blur::Blur, gbuffer::GBuffer, surface::SurfaceSharedData, GeometryCache,
-        RenderPassStatistics,
-    },
+    renderer::{blur::Blur, gbuffer::GBuffer, GeometryCache, RenderPassStatistics},
+    scene::mesh::surface::SurfaceData,
 };
 use std::{cell::RefCell, rc::Rc};
 
@@ -68,7 +66,7 @@ pub struct ScreenSpaceAmbientOcclusionRenderer {
     blur: Blur,
     shader: Shader,
     framebuffer: FrameBuffer,
-    quad: SurfaceSharedData,
+    quad: SurfaceData,
     width: i32,
     height: i32,
     noise: Rc<RefCell<GpuTexture>>,
@@ -118,7 +116,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                     texture: Rc::new(RefCell::new(occlusion)),
                 }],
             )?,
-            quad: SurfaceSharedData::make_unit_xy_quad(),
+            quad: SurfaceData::make_unit_xy_quad(),
             width: width as i32,
             height: height as i32,
             kernel: {

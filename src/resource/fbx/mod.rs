@@ -12,13 +12,13 @@ mod scene;
 
 use crate::{
     animation::{Animation, AnimationContainer, KeyFrame, Track},
+    core::instant::Instant,
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3, Vector4},
         math::{self, triangulator::triangulate, RotationOrder},
         pool::Handle,
     },
     engine::resource_manager::ResourceManager,
-    renderer::surface::{Surface, SurfaceSharedData, Vertex, VertexWeightSet},
     resource::fbx::{
         document::FbxDocument,
         error::FbxError,
@@ -28,8 +28,15 @@ use crate::{
         },
     },
     scene::{
-        base::BaseBuilder, graph::Graph, mesh::MeshBuilder, node::Node,
-        transform::TransformBuilder, Scene,
+        base::BaseBuilder,
+        graph::Graph,
+        mesh::{
+            surface::{Surface, SurfaceData, Vertex, VertexWeightSet},
+            MeshBuilder,
+        },
+        node::Node,
+        transform::TransformBuilder,
+        Scene,
     },
     utils::{
         log::{Log, MessageKind},
@@ -42,8 +49,6 @@ use std::{
     path::Path,
     sync::{Arc, RwLock},
 };
-
-use crate::core::instant::Instant;
 
 /// Input angles in degrees
 fn quat_from_euler(euler: Vector3<f32>) -> UnitQuaternion<f32> {
@@ -202,14 +207,14 @@ fn convert_vertex(
 }
 
 #[derive(Default, Clone)]
-struct SurfaceData {
+struct FbxSurfaceData {
     builder: RawMeshBuilder<Vertex>,
     skin_data: Vec<VertexWeightSet>,
 }
 
 fn create_surfaces(
     fbx_scene: &FbxScene,
-    data_set: Vec<SurfaceData>,
+    data_set: Vec<FbxSurfaceData>,
     resource_manager: ResourceManager,
     model: &FbxModel,
 ) -> Result<Vec<Surface>, FbxError> {
@@ -219,7 +224,7 @@ fn create_surfaces(
     if model.materials.is_empty() {
         assert_eq!(data_set.len(), 1);
         let data = data_set.into_iter().next().unwrap();
-        let mut surface = Surface::new(Arc::new(RwLock::new(SurfaceSharedData::from_raw_mesh(
+        let mut surface = Surface::new(Arc::new(RwLock::new(SurfaceData::from_raw_mesh(
             data.builder.build(),
             false,
         ))));
@@ -228,9 +233,10 @@ fn create_surfaces(
     } else {
         assert_eq!(data_set.len(), model.materials.len());
         for (&material_handle, data) in model.materials.iter().zip(data_set.into_iter()) {
-            let mut surface = Surface::new(Arc::new(RwLock::new(
-                SurfaceSharedData::from_raw_mesh(data.builder.build(), false),
-            )));
+            let mut surface = Surface::new(Arc::new(RwLock::new(SurfaceData::from_raw_mesh(
+                data.builder.build(),
+                false,
+            ))));
             surface.vertex_weights = data.skin_data;
             let material = fbx_scene.get(material_handle).as_material()?;
             for (name, texture_handle) in material.textures.iter() {
@@ -282,7 +288,7 @@ fn convert_mesh(
         let skin_data = geom.get_skin_data(fbx_scene)?;
 
         let mut data_set = vec![
-            SurfaceData {
+            FbxSurfaceData {
                 builder: RawMeshBuilder::new(1024, 1024),
                 skin_data: Default::default(),
             };
