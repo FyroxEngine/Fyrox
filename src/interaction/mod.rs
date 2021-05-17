@@ -1577,6 +1577,7 @@ impl InteractionModeTrait for SelectInteractionMode {
                 Node::Mesh(mesh) => mesh.bounding_box(),
                 Node::Sprite(_) => AxisAlignedBoundingBox::unit(),
                 Node::ParticleSystem(_) => AxisAlignedBoundingBox::unit(),
+                Node::Terrain(ref terrain) => terrain.bounding_box(),
             };
 
             for screen_corner in aabb

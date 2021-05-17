@@ -817,7 +817,7 @@ impl Editor {
                 .handle_ui_message(message, editor_scene, engine);
 
             self.light_panel
-                .handle_ui_message(message, &editor_scene, engine);
+                .handle_ui_message(message, editor_scene, engine);
 
             self.preview.handle_ui_message(message);
 
@@ -1400,6 +1400,7 @@ impl Editor {
                         Node::Mesh(ref mesh) => mesh.bounding_box(),
                         Node::Sprite(_) => AxisAlignedBoundingBox::unit(),
                         Node::ParticleSystem(_) => AxisAlignedBoundingBox::unit(),
+                        Node::Terrain(ref terrain) => terrain.bounding_box(),
                     };
                     scene
                         .drawing_context
