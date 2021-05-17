@@ -2,6 +2,7 @@
 
 #![allow(missing_docs)] // Temporary
 
+use crate::core::math::aabb::AxisAlignedBoundingBox;
 use crate::resource::texture::{TextureKind, TexturePixelKind};
 use crate::{
     core::{algebra::Vector3, arrayvec::ArrayVec, pool::Handle, visitor::prelude::*},
@@ -12,6 +13,7 @@ use crate::{
         node::Node,
     },
 };
+use std::cell::Cell;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Default, Debug, Clone, Visit)]
@@ -36,6 +38,8 @@ pub struct Terrain {
     length: f32,
     base: Base,
     chunks: Vec<Chunk>,
+    bounding_box_dirty: Cell<bool>,
+    bounding_box: Cell<AxisAlignedBoundingBox>,
 }
 
 impl Deref for Terrain {
@@ -71,6 +75,32 @@ impl Terrain {
             length: self.length,
             base: self.base.raw_copy(),
             chunks: self.chunks.clone(),
+            bounding_box_dirty: Cell::new(true),
+            bounding_box: Default::default(),
+        }
+    }
+
+    pub fn bounding_box(&self) -> AxisAlignedBoundingBox {
+        if self.bounding_box_dirty.get() {
+            let mut max_height = -f32::MAX;
+            for chunk in self.chunks.iter() {
+                for &height in chunk.heightmap.iter() {
+                    if height > max_height {
+                        max_height = height;
+                    }
+                }
+            }
+
+            let bounding_box = AxisAlignedBoundingBox::from_min_max(
+                self.global_position(),
+                self.global_position() + Vector3::new(self.width, max_height, self.length),
+            );
+            self.bounding_box.set(bounding_box);
+            self.bounding_box_dirty.set(false);
+
+            bounding_box
+        } else {
+            self.bounding_box.get()
         }
     }
 }
@@ -201,6 +231,8 @@ impl TerrainBuilder {
             length: self.length,
             base: self.base_builder.build_base(),
             chunks,
+            bounding_box_dirty: Cell::new(true),
+            bounding_box: Default::default(),
         };
 
         graph.add_node(Node::Terrain(terrain))
