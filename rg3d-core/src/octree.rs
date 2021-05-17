@@ -3,7 +3,7 @@ use crate::{
     math::{aabb::AxisAlignedBoundingBox, ray::Ray},
     pool::{Handle, Pool},
 };
-use arrayvec::{Array, ArrayVec};
+use arrayvec::ArrayVec;
 
 #[derive(Clone, Debug)]
 pub enum OctreeNode {
@@ -135,22 +135,21 @@ impl Octree {
         &self.nodes
     }
 
-    pub fn ray_query_static<T>(&self, ray: &Ray, buffer: &mut ArrayVec<T>)
-    where
-        T: Array<Item = Handle<OctreeNode>>,
-    {
+    pub fn ray_query_static<const CAP: usize>(
+        &self,
+        ray: &Ray,
+        buffer: &mut ArrayVec<Handle<OctreeNode>, CAP>,
+    ) {
         buffer.clear();
         self.ray_recursive_query_static(self.root, ray, buffer);
     }
 
-    fn ray_recursive_query_static<T>(
+    fn ray_recursive_query_static<const CAP: usize>(
         &self,
         node: Handle<OctreeNode>,
         ray: &Ray,
-        buffer: &mut ArrayVec<T>,
-    ) where
-        T: Array<Item = Handle<OctreeNode>>,
-    {
+        buffer: &mut ArrayVec<Handle<OctreeNode>, CAP>,
+    ) {
         match self.nodes.borrow(node) {
             OctreeNode::Leaf { bounds, .. } => {
                 if ray.box_intersection(&bounds.min, &bounds.max).is_some() {

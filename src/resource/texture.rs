@@ -236,6 +236,18 @@ impl Texture {
             anisotropy: 1.0,
         }))
     }
+
+    /// Tries to create new texture from given parameters, it may fail only if size of data passed
+    /// in does not match with required.
+    pub fn from_bytes(
+        kind: TextureKind,
+        pixel_kind: TexturePixelKind,
+        bytes: Vec<u8>,
+    ) -> Option<Self> {
+        Some(Self::new(TextureState::Ok(TextureData::from_bytes(
+            kind, pixel_kind, bytes,
+        )?)))
+    }
 }
 
 /// The texture magnification function is used when the pixel being textured maps to an area

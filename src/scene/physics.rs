@@ -3,7 +3,7 @@
 use crate::core::instant;
 use crate::{
     core::{
-        arrayvec::{Array, ArrayVec},
+        arrayvec::ArrayVec,
         color::Color,
         math::{aabb::AxisAlignedBoundingBox, ray::Ray},
         pool::{ErasedHandle, Handle},
@@ -201,7 +201,7 @@ impl QueryResultsStorage for Vec<Intersection> {
     }
 }
 
-impl<A: Array<Item = Intersection>> QueryResultsStorage for ArrayVec<A> {
+impl<const CAP: usize> QueryResultsStorage for ArrayVec<Intersection, CAP> {
     fn push(&mut self, intersection: Intersection) -> bool {
         self.try_push(intersection).is_ok()
     }

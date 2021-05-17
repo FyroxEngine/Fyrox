@@ -2,6 +2,7 @@
 //!
 //! Node is enumeration of possible types of scene nodes.
 
+use crate::scene::terrain::Terrain;
 use crate::{
     core::define_is_as,
     core::visitor::{Visit, VisitResult, Visitor},
@@ -23,6 +24,7 @@ macro_rules! static_dispatch {
             Node::Light(v) => v.$func($($args),*),
             Node::ParticleSystem(v) => v.$func($($args),*),
             Node::Sprite(v) => v.$func($($args),*),
+            Node::Terrain(v) => v.$func($($args),*),
         }
     };
 }
@@ -54,6 +56,8 @@ pub enum Node {
     Sprite(Sprite),
     /// See ParticleSystem node docs.
     ParticleSystem(ParticleSystem),
+    /// See Terrain node docs.
+    Terrain(Terrain),
 }
 
 macro_rules! static_dispatch_deref {
@@ -65,6 +69,7 @@ macro_rules! static_dispatch_deref {
             Node::Light(v) => v,
             Node::ParticleSystem(v) => v,
             Node::Sprite(v) => v,
+            Node::Terrain(v) => v,
         }
     };
 }
@@ -99,6 +104,7 @@ impl Node {
             3 => Ok(Self::Mesh(Default::default())),
             4 => Ok(Self::Sprite(Default::default())),
             5 => Ok(Self::ParticleSystem(Default::default())),
+            6 => Ok(Self::Terrain(Default::default())),
             _ => Err(format!("Invalid node kind {}", id)),
         }
     }
@@ -112,6 +118,7 @@ impl Node {
             Self::Mesh(_) => 3,
             Self::Sprite(_) => 4,
             Self::ParticleSystem(_) => 5,
+            Self::Terrain(_) => 6,
         }
     }
 
@@ -126,6 +133,7 @@ impl Node {
             Node::Mesh(v) => Node::Mesh(v.raw_copy()),
             Node::Sprite(v) => Node::Sprite(v.raw_copy()),
             Node::ParticleSystem(v) => Node::ParticleSystem(v.raw_copy()),
+            Node::Terrain(v) => Node::Terrain(v.raw_copy()),
         }
     }
 

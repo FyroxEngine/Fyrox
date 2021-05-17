@@ -270,7 +270,7 @@ impl Navmesh {
 
     /// Tries to pick a triangle by given ray.
     pub fn ray_cast(&self, ray: Ray) -> Option<(Vector3<f32>, usize, TriangleDefinition)> {
-        let mut buffer = ArrayVec::<[Handle<OctreeNode>; 128]>::new();
+        let mut buffer = ArrayVec::<Handle<OctreeNode>, 128>::new();
 
         self.octree.ray_query_static(&ray, &mut buffer);
 
@@ -377,7 +377,7 @@ fn closest_point_index_in_triangle_and_adjacent(
     navmesh: &Navmesh,
     to: Vector3<f32>,
 ) -> Option<usize> {
-    let mut triangles = ArrayVec::<[TriangleDefinition; 4]>::new();
+    let mut triangles = ArrayVec::<TriangleDefinition, 4>::new();
     triangles.push(triangle);
     math::get_closest_point_triangle_set(&navmesh.pathfinder.vertices(), &triangles, to)
 }

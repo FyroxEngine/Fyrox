@@ -13,6 +13,7 @@ pub mod node;
 pub mod particle_system;
 pub mod physics;
 pub mod sprite;
+pub mod terrain;
 pub mod transform;
 
 use crate::scene::light::Light;

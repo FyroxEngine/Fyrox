@@ -7,7 +7,7 @@ use crate::{
             Dynamic, Isometry2, Point2, Translation, Translation2, Unit, UnitComplex, VecStorage,
             Vector2,
         },
-        arrayvec::{Array, ArrayVec},
+        arrayvec::ArrayVec,
         instant,
         math::ray::Ray,
         pool::ErasedHandle,
@@ -165,7 +165,7 @@ impl QueryResultsStorage for Vec<Intersection> {
     }
 }
 
-impl<A: Array<Item = Intersection>> QueryResultsStorage for ArrayVec<A> {
+impl<const CAP: usize> QueryResultsStorage for ArrayVec<Intersection, CAP> {
     fn push(&mut self, intersection: Intersection) -> bool {
         self.try_push(intersection).is_ok()
     }

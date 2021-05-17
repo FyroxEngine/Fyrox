@@ -32,7 +32,7 @@ pub struct InstanceData {
 pub struct SurfaceInstance {
     pub owner: Handle<Node>,
     pub world_transform: Matrix4<f32>,
-    pub bone_matrices: ArrayVec<[Matrix4<f32>; BONE_MATRICES_COUNT]>,
+    pub bone_matrices: ArrayVec<Matrix4<f32>, BONE_MATRICES_COUNT>,
     pub color: Color,
     pub depth_offset: f32,
 }

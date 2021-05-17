@@ -3,7 +3,7 @@ use crate::{
     math::Rect,
     pool::{Handle, Pool},
 };
-use arrayvec::{Array, ArrayVec};
+use arrayvec::ArrayVec;
 
 pub enum QuadTreeNode<T> {
     Leaf {
@@ -204,7 +204,7 @@ impl<I> QueryStorage for Vec<I> {
     }
 }
 
-impl<I, A: Array<Item = I>> QueryStorage for ArrayVec<A> {
+impl<I, const CAP: usize> QueryStorage for ArrayVec<I, CAP> {
     type Id = I;
 
     fn try_push(&mut self, intersection: I) -> bool {
