@@ -1138,6 +1138,42 @@ where
     }
 }
 
+impl<T: Default + Visit, const SIZE: usize> Visit for [T; SIZE] {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        let mut len = SIZE as u32;
+        len.visit("Length", visitor)?;
+
+        if visitor.reading {
+            if len > SIZE as u32 {
+                return VisitResult::Err(VisitError::User(format!(
+                    "Not enough space in static array, got {}, needed {}!",
+                    len, SIZE
+                )));
+            }
+
+            for index in 0..len {
+                let region_name = format!("Item{}", index);
+                visitor.enter_region(region_name.as_str())?;
+                let mut object = T::default();
+                object.visit("ItemData", visitor)?;
+                self[index as usize] = object;
+                visitor.leave_region()?;
+            }
+        } else {
+            for (index, item) in self.iter_mut().enumerate() {
+                let region_name = format!("Item{}", index);
+                visitor.enter_region(region_name.as_str())?;
+                item.visit("ItemData", visitor)?;
+                visitor.leave_region()?;
+            }
+        }
+
+        visitor.leave_region()
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::visitor::{Data, Visit, VisitError, VisitResult, Visitor};
@@ -1180,6 +1216,7 @@ mod test {
         }
     }
 
+    #[allow(dead_code)]
     pub enum ResourceKind {
         Unknown,
         Model(Model),
