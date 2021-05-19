@@ -10,7 +10,7 @@ mod document;
 pub mod error;
 mod scene;
 
-use crate::scene::mesh::buffer::{VertexAttributeKind, VertexWriteTrait};
+use crate::scene::mesh::buffer::{VertexAttributeUsage, VertexWriteTrait};
 use crate::scene::mesh::vertex::{AnimatedVertex, StaticVertex};
 use crate::{
     animation::{Animation, AnimationContainer, KeyFrame, Track},
@@ -573,9 +573,9 @@ fn convert(
                             weights[k] = weight.value;
                         }
 
-                        view.write_4_f32(VertexAttributeKind::BoneWeight, weights)
+                        view.write_4_f32(VertexAttributeUsage::BoneWeight, weights)
                             .unwrap();
-                        view.write_4_u8(VertexAttributeKind::BoneIndices, indices)
+                        view.write_4_u8(VertexAttributeUsage::BoneIndices, indices)
                             .unwrap();
                     }
                 }

@@ -18,7 +18,7 @@ use crate::{
     scene::{
         mesh::{
             buffer::{
-                VertexAttributeDescriptor, VertexAttributeKind, VertexBuffer, VertexReadTrait,
+                VertexAttributeDescriptor, VertexAttributeUsage, VertexBuffer, VertexReadTrait,
                 VertexWriteTrait,
             },
             vertex::StaticVertex,
@@ -75,21 +75,21 @@ impl SurfaceData {
         let normal_matrix = transform.try_inverse().unwrap_or_default().transpose();
 
         for mut view in self.vertex_buffer.iter_mut() {
-            let position = view.read_3_f32(VertexAttributeKind::Position)?;
+            let position = view.read_3_f32(VertexAttributeUsage::Position)?;
             view.write_3_f32(
-                VertexAttributeKind::Position,
+                VertexAttributeUsage::Position,
                 transform.transform_point(&Point3::from(position)).coords,
             )?;
-            let normal = view.read_3_f32(VertexAttributeKind::Normal)?;
+            let normal = view.read_3_f32(VertexAttributeUsage::Normal)?;
             view.write_3_f32(
-                VertexAttributeKind::Normal,
+                VertexAttributeUsage::Normal,
                 normal_matrix.transform_vector(&normal),
             )?;
-            let tangent = view.read_4_f32(VertexAttributeKind::Tangent)?;
+            let tangent = view.read_4_f32(VertexAttributeUsage::Tangent)?;
             let new_tangent = normal_matrix.transform_vector(&tangent.xyz());
             // Keep sign (W).
             view.write_4_f32(
-                VertexAttributeKind::Tangent,
+                VertexAttributeUsage::Tangent,
                 Vector4::new(new_tangent.x, new_tangent.y, new_tangent.z, tangent.w),
             )?;
         }
@@ -146,13 +146,13 @@ impl SurfaceData {
             let view2 = &self.vertex_buffer.get(i2).unwrap();
             let view3 = &self.vertex_buffer.get(i3).unwrap();
 
-            let v1 = view1.read_3_f32(VertexAttributeKind::Position)?;
-            let v2 = view2.read_3_f32(VertexAttributeKind::Position)?;
-            let v3 = view3.read_3_f32(VertexAttributeKind::Position)?;
+            let v1 = view1.read_3_f32(VertexAttributeUsage::Position)?;
+            let v2 = view2.read_3_f32(VertexAttributeUsage::Position)?;
+            let v3 = view3.read_3_f32(VertexAttributeUsage::Position)?;
 
-            let w1 = view1.read_3_f32(VertexAttributeKind::TexCoord0)?;
-            let w2 = view2.read_3_f32(VertexAttributeKind::TexCoord0)?;
-            let w3 = view3.read_3_f32(VertexAttributeKind::TexCoord0)?;
+            let w1 = view1.read_3_f32(VertexAttributeUsage::TexCoord0)?;
+            let w2 = view2.read_3_f32(VertexAttributeUsage::TexCoord0)?;
+            let w3 = view3.read_3_f32(VertexAttributeUsage::TexCoord0)?;
 
             let x1 = v2.x - v1.x;
             let x2 = v3.x - v1.x;
@@ -193,7 +193,7 @@ impl SurfaceData {
             .iter_mut()
             .zip(tan1.into_iter().zip(tan2))
         {
-            let normal = view.read_3_f32(VertexAttributeKind::Normal)?;
+            let normal = view.read_3_f32(VertexAttributeUsage::Normal)?;
 
             // Gram-Schmidt orthogonalize
             let tangent = (t1 - normal.scale(normal.dot(&t1)))
@@ -201,7 +201,7 @@ impl SurfaceData {
                 .unwrap_or_else(|| Vector3::new(0.0, 1.0, 0.0));
             let handedness = normal.cross(&t1).dot(&t2).signum();
             view.write_4_f32(
-                VertexAttributeKind::Tangent,
+                VertexAttributeUsage::Tangent,
                 Vector4::new(tangent.x, tangent.y, tangent.z, handedness),
             )?;
         }
@@ -338,32 +338,32 @@ impl SurfaceData {
                 .vertex_buffer
                 .get(ia)
                 .unwrap()
-                .read_3_f32(VertexAttributeKind::Position)?;
+                .read_3_f32(VertexAttributeUsage::Position)?;
             let b = self
                 .vertex_buffer
                 .get(ib)
                 .unwrap()
-                .read_3_f32(VertexAttributeKind::Position)?;
+                .read_3_f32(VertexAttributeUsage::Position)?;
             let c = self
                 .vertex_buffer
                 .get(ic)
                 .unwrap()
-                .read_3_f32(VertexAttributeKind::Position)?;
+                .read_3_f32(VertexAttributeUsage::Position)?;
 
             let normal = (b - a).cross(&(c - a)).normalize();
 
             self.vertex_buffer
                 .get_mut(ia)
                 .unwrap()
-                .write_3_f32(VertexAttributeKind::Normal, normal)?;
+                .write_3_f32(VertexAttributeUsage::Normal, normal)?;
             self.vertex_buffer
                 .get_mut(ib)
                 .unwrap()
-                .write_3_f32(VertexAttributeKind::Normal, normal)?;
+                .write_3_f32(VertexAttributeUsage::Normal, normal)?;
             self.vertex_buffer
                 .get_mut(ic)
                 .unwrap()
-                .write_3_f32(VertexAttributeKind::Normal, normal)?;
+                .write_3_f32(VertexAttributeUsage::Normal, normal)?;
         }
 
         Ok(())

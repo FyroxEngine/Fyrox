@@ -11,7 +11,7 @@
 
 #![warn(missing_docs)]
 
-use crate::scene::mesh::buffer::{VertexAttributeKind, VertexReadTrait};
+use crate::scene::mesh::buffer::{VertexAttributeUsage, VertexReadTrait};
 use crate::{
     core::{
         algebra::{Point3, Vector3},
@@ -185,7 +185,7 @@ impl Navmesh {
                             vertex_buffer
                                 .get(triangle[0] as usize)
                                 .unwrap()
-                                .read_3_f32(VertexAttributeKind::Position)
+                                .read_3_f32(VertexAttributeUsage::Position)
                                 .unwrap(),
                         ))
                         .coords,
@@ -196,7 +196,7 @@ impl Navmesh {
                             vertex_buffer
                                 .get(triangle[1] as usize)
                                 .unwrap()
-                                .read_3_f32(VertexAttributeKind::Position)
+                                .read_3_f32(VertexAttributeUsage::Position)
                                 .unwrap(),
                         ))
                         .coords,
@@ -207,7 +207,7 @@ impl Navmesh {
                             vertex_buffer
                                 .get(triangle[2] as usize)
                                 .unwrap()
-                                .read_3_f32(VertexAttributeKind::Position)
+                                .read_3_f32(VertexAttributeUsage::Position)
                                 .unwrap(),
                         ))
                         .coords,

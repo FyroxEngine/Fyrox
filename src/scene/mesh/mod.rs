@@ -8,7 +8,7 @@
 //! modelling software or just download some model you like and load it in engine. But since
 //! 3d model can contain multiple nodes, 3d model loading discussed in model resource section.
 
-use crate::scene::mesh::buffer::{VertexAttributeKind, VertexReadTrait};
+use crate::scene::mesh::buffer::{VertexAttributeUsage, VertexReadTrait};
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3},
@@ -178,7 +178,8 @@ impl Mesh {
                 let data = surface.data();
                 let data = data.read().unwrap();
                 for view in data.vertex_buffer().iter() {
-                    bounding_box.add_point(view.read_3_f32(VertexAttributeKind::Position).unwrap());
+                    bounding_box
+                        .add_point(view.read_3_f32(VertexAttributeUsage::Position).unwrap());
                 }
             }
             self.bounding_box.set(bounding_box);
@@ -208,7 +209,7 @@ impl Mesh {
                 bounding_box.add_point(
                     self.global_transform()
                         .transform_point(&Point3::from(
-                            view.read_3_f32(VertexAttributeKind::Position).unwrap(),
+                            view.read_3_f32(VertexAttributeUsage::Position).unwrap(),
                         ))
                         .coords,
                 );
@@ -229,7 +230,7 @@ impl Mesh {
                     bounding_box.add_point(
                         self.global_transform()
                             .transform_point(&Point3::from(
-                                view.read_3_f32(VertexAttributeKind::Position).unwrap(),
+                                view.read_3_f32(VertexAttributeUsage::Position).unwrap(),
                             ))
                             .coords,
                     );
@@ -251,18 +252,18 @@ impl Mesh {
                 for view in data.vertex_buffer().iter() {
                     let mut position = Vector3::default();
                     for (&bone_index, &weight) in view
-                        .read_4_u8(VertexAttributeKind::BoneIndices)
+                        .read_4_u8(VertexAttributeUsage::BoneIndices)
                         .unwrap()
                         .iter()
                         .zip(
-                            view.read_4_f32(VertexAttributeKind::BoneWeight)
+                            view.read_4_f32(VertexAttributeUsage::BoneWeight)
                                 .unwrap()
                                 .iter(),
                         )
                     {
                         position += bone_matrices[bone_index as usize]
                             .transform_point(&Point3::from(
-                                view.read_3_f32(VertexAttributeKind::Position).unwrap(),
+                                view.read_3_f32(VertexAttributeUsage::Position).unwrap(),
                             ))
                             .coords
                             .scale(weight);

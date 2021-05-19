@@ -1,7 +1,7 @@
 //! Contains all structures and methods to operate with physics world.
 
 use crate::core::instant;
-use crate::scene::mesh::buffer::{VertexAttributeKind, VertexReadTrait};
+use crate::scene::mesh::buffer::{VertexAttributeUsage, VertexReadTrait};
 use crate::{
     core::{
         arrayvec::ArrayVec,
@@ -585,7 +585,7 @@ impl Physics {
                                     vertices
                                         .get(triangle[0] as usize)
                                         .unwrap()
-                                        .read_3_f32(VertexAttributeKind::Position)
+                                        .read_3_f32(VertexAttributeUsage::Position)
                                         .unwrap(),
                                 ))
                                 .coords,
@@ -596,7 +596,7 @@ impl Physics {
                                     vertices
                                         .get(triangle[1] as usize)
                                         .unwrap()
-                                        .read_3_f32(VertexAttributeKind::Position)
+                                        .read_3_f32(VertexAttributeUsage::Position)
                                         .unwrap(),
                                 ))
                                 .coords,
@@ -607,7 +607,7 @@ impl Physics {
                                     vertices
                                         .get(triangle[2] as usize)
                                         .unwrap()
-                                        .read_3_f32(VertexAttributeKind::Position)
+                                        .read_3_f32(VertexAttributeUsage::Position)
                                         .unwrap(),
                                 ))
                                 .coords,

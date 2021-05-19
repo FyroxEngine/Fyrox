@@ -9,7 +9,7 @@
 
 #![forbid(unsafe_code)]
 
-use crate::scene::mesh::buffer::{VertexAttributeKind, VertexFetchError, VertexReadTrait};
+use crate::scene::mesh::buffer::{VertexAttributeUsage, VertexFetchError, VertexReadTrait};
 use crate::{
     core::{
         algebra::{Matrix3, Matrix4, Point3, Vector2, Vector3, Vector4},
@@ -372,18 +372,18 @@ impl Lightmap {
                             let world_position = instance
                                 .transform
                                 .transform_point(&Point3::from(
-                                    view.read_3_f32(VertexAttributeKind::Position).unwrap(),
+                                    view.read_3_f32(VertexAttributeUsage::Position).unwrap(),
                                 ))
                                 .coords;
                             let world_normal = (normal_matrix
-                                * view.read_3_f32(VertexAttributeKind::Normal).unwrap())
+                                * view.read_3_f32(VertexAttributeUsage::Normal).unwrap())
                             .try_normalize(f32::EPSILON)
                             .unwrap_or_default();
                             WorldVertex {
                                 world_normal,
                                 world_position,
                                 second_tex_coord: view
-                                    .read_2_f32(VertexAttributeKind::TexCoord1)
+                                    .read_2_f32(VertexAttributeUsage::TexCoord1)
                                     .unwrap(),
                             }
                         })

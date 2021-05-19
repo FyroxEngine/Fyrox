@@ -6,8 +6,6 @@
 //! almost every GPU supports up to 16 vertex attributes with 16 bytes of size each, which
 //! gives exactly 256 bytes.
 
-#![allow(missing_docs)] // TEMPORARY
-
 use crate::{
     core::{
         algebra::{Vector2, Vector3, Vector4},
@@ -20,34 +18,42 @@ use crate::{
 };
 use std::{marker::PhantomData, mem::MaybeUninit};
 
+/// Data type for a vertex attribute component.
 #[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Ord, Hash, Visit, Debug)]
 #[repr(u8)]
-pub enum VertexAttributeDataKind {
+pub enum VertexAttributeDataType {
+    /// 32-bit floating-point.
     F32,
+    /// 32-bit unsigned integer.
     U32,
+    /// 16-bit unsigned integer.
     U16,
+    /// 8-bit unsigned integer.
     U8,
 }
 
-impl Default for VertexAttributeDataKind {
+impl Default for VertexAttributeDataType {
     fn default() -> Self {
         Self::F32
     }
 }
 
-impl VertexAttributeDataKind {
+impl VertexAttributeDataType {
+    /// Returns size of data in bytes.
     pub fn size(self) -> u8 {
         match self {
-            VertexAttributeDataKind::F32 | VertexAttributeDataKind::U32 => 4,
-            VertexAttributeDataKind::U16 => 2,
-            VertexAttributeDataKind::U8 => 1,
+            VertexAttributeDataType::F32 | VertexAttributeDataType::U32 => 4,
+            VertexAttributeDataType::U16 => 2,
+            VertexAttributeDataType::U8 => 1,
         }
     }
 }
 
+/// An usage for vertex attribute. It is a fixed set, but there are plenty
+/// room for any custom data - it may be fit into `TexCoordN` attributes.
 #[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Ord, Hash, Visit, Debug)]
 #[repr(u32)]
-pub enum VertexAttributeKind {
+pub enum VertexAttributeUsage {
     /// Vertex position. Usually Vector2<f32> or Vector3<f32>.
     Position = 0,
     /// Vertex normal. Usually Vector3<f32>, more rare Vector3<u16> (F16).
@@ -79,33 +85,54 @@ pub enum VertexAttributeKind {
     Count,
 }
 
-impl Default for VertexAttributeKind {
+impl Default for VertexAttributeUsage {
     fn default() -> Self {
         Self::Position
     }
 }
 
+/// Input vertex attribute descriptor used to construct layouts and feed vertex buffer.
 #[derive(Debug)]
 pub struct VertexAttributeDescriptor {
-    pub kind: VertexAttributeKind,
-    pub component_type: VertexAttributeDataKind,
+    /// Claimed usage of the attribute. It could be Position, Normal, etc.
+    pub usage: VertexAttributeUsage,
+    /// Data type of every component of the attribute. It could be F32, U32, U16, etc.
+    pub data_type: VertexAttributeDataType,
+    /// Size of attribute expressed in components. For example, for `Position` it could
+    /// be 3 - which means there are 3 components in attribute of `data_type`.
     pub size: u8,
+    /// Sets a "fetch rate" for vertex shader at which it will read vertex attribute:
+    ///  0 - per vertex (default)
+    ///  1 - per instance
+    ///  2 - per 2 instances and so on.
     pub divisor: u8,
     /// Defines location of the attribute in a shader (`layout(location = x) attrib;`)
     pub shader_location: u8,
 }
 
+/// Vertex attribute is a simple "bridge" between raw data and its interpretation. In
+/// other words it defines how to treat raw data in vertex shader.
 #[derive(Visit, Copy, Clone, Default, Debug)]
 pub struct VertexAttribute {
-    pub kind: VertexAttributeKind,
-    pub component_type: VertexAttributeDataKind,
+    /// Claimed usage of the attribute. It could be Position, Normal, etc.
+    pub usage: VertexAttributeUsage,
+    /// Data type of every component of the attribute. It could be F32, U32, U16, etc.
+    pub data_type: VertexAttributeDataType,
+    /// Size of attribute expressed in components. For example, for `Position` it could
+    /// be 3 - which means there are 3 components in attribute of `data_type`.
     pub size: u8,
+    /// Sets a "fetch rate" for vertex shader at which it will read vertex attribute:
+    ///  0 - per vertex (default)
+    ///  1 - per instance
+    ///  2 - per 2 instances and so on.
     pub divisor: u8,
+    /// Offset in bytes from beginning of the vertex.
     pub offset: u8,
     /// Defines location of the attribute in a shader (`layout(location = x) attrib;`)
     pub shader_location: u8,
 }
 
+/// See module docs.
 #[derive(Clone, Visit, Default, Debug)]
 pub struct VertexBuffer {
     dense_layout: Vec<VertexAttribute>,
@@ -115,12 +142,18 @@ pub struct VertexBuffer {
     data: Vec<u8>,
 }
 
+/// An error that may occur during input data and layout validation.
 #[derive(Debug)]
 pub enum ValidationError {
     /// Attribute size must be either 1, 2, 3 or 4.
     InvalidAttributeSize,
     /// Data size is not correct.
-    InvalidDataSize { expected: usize, actual: usize },
+    InvalidDataSize {
+        /// Expected data size in bytes.
+        expected: usize,
+        /// Actual data size in bytes.
+        actual: usize,
+    },
     /// Trying to add vertex of incorrect size.
     InvalidVertexSize,
     /// A duplicate for a descriptor was found.
@@ -130,6 +163,7 @@ pub enum ValidationError {
 }
 
 impl VertexBuffer {
+    /// Creates new vertex buffer from provided data and with given layout.
     pub fn new<T: Copy>(
         vertex_count: usize,
         layout: &[VertexAttributeDescriptor],
@@ -147,7 +181,7 @@ impl VertexBuffer {
         for descriptor in layout {
             for other_descriptor in layout {
                 if !std::ptr::eq(descriptor, other_descriptor) {
-                    if descriptor.kind == other_descriptor.kind {
+                    if descriptor.usage == other_descriptor.usage {
                         return Err(ValidationError::DuplicatedAttributeDescriptor);
                     } else if descriptor.shader_location == other_descriptor.shader_location {
                         return Err(ValidationError::ConflictingShaderLocations);
@@ -159,7 +193,7 @@ impl VertexBuffer {
         let mut dense_layout = Vec::new();
 
         // Validate everything as much as possible and calculate vertex size.
-        let mut sparse_layout = [None; VertexAttributeKind::Count as usize];
+        let mut sparse_layout = [None; VertexAttributeUsage::Count as usize];
         let mut vertex_size_bytes = 0u8;
         for attribute in layout.iter() {
             if attribute.size < 1 || attribute.size > 4 {
@@ -167,8 +201,8 @@ impl VertexBuffer {
             }
 
             let vertex_attribute = VertexAttribute {
-                kind: attribute.kind,
-                component_type: attribute.component_type,
+                usage: attribute.usage,
+                data_type: attribute.data_type,
                 size: attribute.size,
                 divisor: attribute.divisor,
                 offset: vertex_size_bytes,
@@ -178,9 +212,9 @@ impl VertexBuffer {
             dense_layout.push(vertex_attribute);
 
             // Map dense to sparse layout to increase performance.
-            sparse_layout[attribute.kind as usize] = Some(vertex_attribute);
+            sparse_layout[attribute.usage as usize] = Some(vertex_attribute);
 
-            vertex_size_bytes += attribute.size * attribute.component_type.size();
+            vertex_size_bytes += attribute.size * attribute.data_type.size();
         }
 
         let expected_data_size = vertex_count * vertex_size_bytes as usize;
@@ -200,6 +234,7 @@ impl VertexBuffer {
         })
     }
 
+    /// Returns a reference to underlying data buffer slice.
     pub fn raw_data(&self) -> &[u8] {
         &self.data
     }
@@ -222,10 +257,12 @@ impl VertexBuffer {
         }
     }
 
-    pub fn has_attribute(&self, kind: VertexAttributeKind) -> bool {
-        self.sparse_layout[kind as usize].is_some()
+    /// Checks if an attribute of `usage` exists.
+    pub fn has_attribute(&self, usage: VertexAttributeUsage) -> bool {
+        self.sparse_layout[usage as usize].is_some()
     }
 
+    /// Returns vertex buffer layout.
     pub fn layout(&self) -> &[VertexAttribute] {
         &self.dense_layout
     }
@@ -267,6 +304,8 @@ impl VertexBuffer {
         }
     }
 
+    /// Tries to cast internal data buffer to a slice of given type. It may fail if
+    /// size of type is not equal with claimed size (which is set by the layout).
     pub fn cast_data_ref<T: Copy>(&self) -> Result<&[T], ValidationError> {
         if std::mem::size_of::<T>() == self.vertex_size as usize {
             Ok(unsafe {
@@ -280,6 +319,8 @@ impl VertexBuffer {
         }
     }
 
+    /// Tries to cast internal data buffer to a slice of given type. It may fail if
+    /// size of type is not equal with claimed size (which is set by the layout).
     pub fn cast_data_mut<T: Copy>(&mut self) -> Result<&mut [T], ValidationError> {
         if std::mem::size_of::<T>() == self.vertex_size as usize {
             Ok(unsafe {
@@ -293,6 +334,7 @@ impl VertexBuffer {
         }
     }
 
+    /// Creates iterator that emits read accessors for vertices.    
     pub fn iter(&self) -> impl Iterator<Item = VertexViewRef<'_>> + '_ {
         VertexViewRefIterator {
             data: &self.data,
@@ -303,6 +345,7 @@ impl VertexBuffer {
         }
     }
 
+    /// Creates iterator that emits read/write accessors for vertices.
     pub fn iter_mut(&mut self) -> impl Iterator<Item = VertexViewMut<'_>> + '_ {
         unsafe {
             VertexViewMutIterator {
@@ -318,6 +361,7 @@ impl VertexBuffer {
         }
     }
 
+    /// Returns a read accessor of n-th vertex.
     pub fn get(&self, n: usize) -> Option<VertexViewRef<'_>> {
         let offset = n * self.vertex_size as usize;
         if offset < self.data.len() {
@@ -330,6 +374,7 @@ impl VertexBuffer {
         }
     }
 
+    /// Returns a read/write accessor of n-th vertex.
     pub fn get_mut(&mut self, n: usize) -> Option<VertexViewMut<'_>> {
         let offset = n * self.vertex_size as usize;
         if offset < self.data.len() {
@@ -342,6 +387,7 @@ impl VertexBuffer {
         }
     }
 
+    /// Duplicates n-th vertex and puts it at the back of the buffer.
     pub fn duplicate(&mut self, n: usize) {
         // Vertex cannot be larger than 256 bytes, so having temporary array of
         // such size is ok.
@@ -354,31 +400,40 @@ impl VertexBuffer {
         self.vertex_count += 1;
     }
 
+    /// Returns exact amount of vertices in the buffer.
     pub fn vertex_count(&self) -> u32 {
         self.vertex_count
     }
 
+    /// Return vertex size of the buffer.
     pub fn vertex_size(&self) -> u8 {
         self.vertex_size
     }
 
+    /// Adds new attribute at the end of layout, reorganizes internal data storage to be
+    /// able to contain new attribute. Default value of the new attribute in the buffer
+    /// becomes `fill_value`. Graphically this could be represented like so:
+    ///
+    /// Add secondary texture coordinates:
+    ///  Before: P1_N1_TC1_P2_N2_TC2...
+    ///  After: P1_N1_TC1_TC2(fill_value)_P2_N2_TC2_TC2(fill_value)...
     pub fn add_attribute<T: Copy>(
         &mut self,
         descriptor: VertexAttributeDescriptor,
         fill_value: T,
     ) -> Result<(), ValidationError> {
-        if self.sparse_layout[descriptor.kind as usize].is_some() {
+        if self.sparse_layout[descriptor.usage as usize].is_some() {
             return Err(ValidationError::DuplicatedAttributeDescriptor);
         } else {
             let vertex_attribute = VertexAttribute {
-                kind: descriptor.kind,
-                component_type: descriptor.component_type,
+                usage: descriptor.usage,
+                data_type: descriptor.data_type,
                 size: descriptor.size,
                 divisor: descriptor.divisor,
                 offset: self.vertex_size,
                 shader_location: descriptor.shader_location,
             };
-            self.sparse_layout[descriptor.kind as usize] = Some(vertex_attribute);
+            self.sparse_layout[descriptor.usage as usize] = Some(vertex_attribute);
             self.dense_layout.push(vertex_attribute);
 
             let mut new_data = Vec::new();
@@ -399,6 +454,7 @@ impl VertexBuffer {
         }
     }
 
+    /// Finds free location for an attribute in the layout.
     pub fn find_free_shader_location(&self) -> u8 {
         let mut location = None;
         for attribute in self.dense_layout.chunks_exact(2) {
@@ -476,6 +532,7 @@ impl<'a> Iterator for VertexViewMutIterator<'a> {
     }
 }
 
+/// Read accessor for a vertex with some layout.
 #[derive(Debug)]
 pub struct VertexViewRef<'a> {
     vertex_data: &'a [u8],
@@ -488,6 +545,7 @@ impl<'a> PartialEq for VertexViewRef<'a> {
     }
 }
 
+/// Read/write accessor for a vertex with some layout.
 #[derive(Debug)]
 pub struct VertexViewMut<'a> {
     vertex_data: &'a mut [u8],
@@ -500,9 +558,12 @@ impl<'a> PartialEq for VertexViewMut<'a> {
     }
 }
 
+/// An error that may occur during fetching using vertex read/write accessor.
 #[derive(Debug)]
 pub enum VertexFetchError {
-    NoSuchAttribute(VertexAttributeKind),
+    /// Trying to read/write non-existent attribute.
+    NoSuchAttribute(VertexAttributeUsage),
+    /// IO error.
     Io(std::io::Error),
 }
 
@@ -512,52 +573,58 @@ impl From<std::io::Error> for VertexFetchError {
     }
 }
 
+/// A trait for read-only vertex data accessor.
 pub trait VertexReadTrait {
+    #[doc(hidden)]
     fn data_layout_ref(&self) -> (&[u8], &[Option<VertexAttribute>]);
 
+    /// Tries to read an attribute with given usage as a pair of two f32.
     #[inline(always)]
-    fn read_2_f32(&self, attribute: VertexAttributeKind) -> Result<Vector2<f32>, VertexFetchError> {
+    fn read_2_f32(&self, usage: VertexAttributeUsage) -> Result<Vector2<f32>, VertexFetchError> {
         let (data, layout) = self.data_layout_ref();
-        if let Some(attribute) = layout.get(attribute as usize).unwrap() {
+        if let Some(attribute) = layout.get(usage as usize).unwrap() {
             let x = (&data[(attribute.offset as usize)..]).read_f32::<LittleEndian>()?;
             let y = (&data[(attribute.offset as usize + 4)..]).read_f32::<LittleEndian>()?;
             Ok(Vector2::new(x, y))
         } else {
-            Err(VertexFetchError::NoSuchAttribute(attribute))
+            Err(VertexFetchError::NoSuchAttribute(usage))
         }
     }
 
+    /// Tries to read an attribute with given usage as a pair of three f32.
     #[inline(always)]
-    fn read_3_f32(&self, attribute: VertexAttributeKind) -> Result<Vector3<f32>, VertexFetchError> {
+    fn read_3_f32(&self, usage: VertexAttributeUsage) -> Result<Vector3<f32>, VertexFetchError> {
         let (data, layout) = self.data_layout_ref();
-        if let Some(attribute) = layout.get(attribute as usize).unwrap() {
+        if let Some(attribute) = layout.get(usage as usize).unwrap() {
             let x = (&data[(attribute.offset as usize)..]).read_f32::<LittleEndian>()?;
             let y = (&data[(attribute.offset as usize + 4)..]).read_f32::<LittleEndian>()?;
             let z = (&data[(attribute.offset as usize + 8)..]).read_f32::<LittleEndian>()?;
             Ok(Vector3::new(x, y, z))
         } else {
-            Err(VertexFetchError::NoSuchAttribute(attribute))
+            Err(VertexFetchError::NoSuchAttribute(usage))
         }
     }
 
+    /// Tries to read an attribute with given usage as a pair of four f32.
     #[inline(always)]
-    fn read_4_f32(&self, attribute: VertexAttributeKind) -> Result<Vector4<f32>, VertexFetchError> {
+    fn read_4_f32(&self, usage: VertexAttributeUsage) -> Result<Vector4<f32>, VertexFetchError> {
         let (data, layout) = self.data_layout_ref();
-        if let Some(attribute) = layout.get(attribute as usize).unwrap() {
+        if let Some(attribute) = layout.get(usage as usize).unwrap() {
             let x = (&data[(attribute.offset as usize)..]).read_f32::<LittleEndian>()?;
             let y = (&data[(attribute.offset as usize + 4)..]).read_f32::<LittleEndian>()?;
             let z = (&data[(attribute.offset as usize + 8)..]).read_f32::<LittleEndian>()?;
             let w = (&data[(attribute.offset as usize + 12)..]).read_f32::<LittleEndian>()?;
             Ok(Vector4::new(x, y, z, w))
         } else {
-            Err(VertexFetchError::NoSuchAttribute(attribute))
+            Err(VertexFetchError::NoSuchAttribute(usage))
         }
     }
 
+    /// Tries to read an attribute with given usage as a pair of four u8.
     #[inline(always)]
-    fn read_4_u8(&self, attribute: VertexAttributeKind) -> Result<Vector4<u8>, VertexFetchError> {
+    fn read_4_u8(&self, usage: VertexAttributeUsage) -> Result<Vector4<u8>, VertexFetchError> {
         let (data, layout) = self.data_layout_ref();
-        if let Some(attribute) = layout.get(attribute as usize).unwrap() {
+        if let Some(attribute) = layout.get(usage as usize).unwrap() {
             let offset = attribute.offset as usize;
             let x = data[offset];
             let y = data[offset + 1];
@@ -565,7 +632,7 @@ pub trait VertexReadTrait {
             let w = data[offset + 3];
             Ok(Vector4::new(x, y, z, w))
         } else {
-            Err(VertexFetchError::NoSuchAttribute(attribute))
+            Err(VertexFetchError::NoSuchAttribute(usage))
         }
     }
 }
@@ -576,30 +643,36 @@ impl<'a> VertexReadTrait for VertexViewRef<'a> {
     }
 }
 
+/// A trait for read/write vertex data accessor.
 pub trait VertexWriteTrait: VertexReadTrait {
+    #[doc(hidden)]
     fn data_layout_mut(&mut self) -> (&mut [u8], &[Option<VertexAttribute>]);
 
+    /// Tries to write an attribute with given usage as a pair of two f32.
     fn write_2_f32(
         &mut self,
-        attribute: VertexAttributeKind,
+        usage: VertexAttributeUsage,
         value: Vector2<f32>,
     ) -> Result<(), VertexFetchError>;
 
+    /// Tries to write an attribute with given usage as a pair of three f32.
     fn write_3_f32(
         &mut self,
-        attribute: VertexAttributeKind,
+        usage: VertexAttributeUsage,
         value: Vector3<f32>,
     ) -> Result<(), VertexFetchError>;
 
+    /// Tries to write an attribute with given usage as a pair of four f32.
     fn write_4_f32(
         &mut self,
-        attribute: VertexAttributeKind,
+        usage: VertexAttributeUsage,
         value: Vector4<f32>,
     ) -> Result<(), VertexFetchError>;
 
+    /// Tries to write an attribute with given usage as a pair of four u8.
     fn write_4_u8(
         &mut self,
-        attribute: VertexAttributeKind,
+        usage: VertexAttributeUsage,
         value: Vector4<u8>,
     ) -> Result<(), VertexFetchError>;
 }
@@ -617,66 +690,66 @@ impl<'a> VertexWriteTrait for VertexViewMut<'a> {
 
     fn write_2_f32(
         &mut self,
-        attribute: VertexAttributeKind,
+        usage: VertexAttributeUsage,
         value: Vector2<f32>,
     ) -> Result<(), VertexFetchError> {
         let (data, layout) = self.data_layout_mut();
-        if let Some(attribute) = layout.get(attribute as usize).unwrap() {
+        if let Some(attribute) = layout.get(usage as usize).unwrap() {
             (&mut data[(attribute.offset as usize)..]).write_f32::<LittleEndian>(value.x)?;
             (&mut data[(attribute.offset as usize + 4)..]).write_f32::<LittleEndian>(value.y)?;
             Ok(())
         } else {
-            Err(VertexFetchError::NoSuchAttribute(attribute))
+            Err(VertexFetchError::NoSuchAttribute(usage))
         }
     }
 
     fn write_3_f32(
         &mut self,
-        attribute: VertexAttributeKind,
+        usage: VertexAttributeUsage,
         value: Vector3<f32>,
     ) -> Result<(), VertexFetchError> {
         let (data, layout) = self.data_layout_mut();
-        if let Some(attribute) = layout.get(attribute as usize).unwrap() {
+        if let Some(attribute) = layout.get(usage as usize).unwrap() {
             (&mut data[(attribute.offset as usize)..]).write_f32::<LittleEndian>(value.x)?;
             (&mut data[(attribute.offset as usize + 4)..]).write_f32::<LittleEndian>(value.y)?;
             (&mut data[(attribute.offset as usize + 8)..]).write_f32::<LittleEndian>(value.z)?;
             Ok(())
         } else {
-            Err(VertexFetchError::NoSuchAttribute(attribute))
+            Err(VertexFetchError::NoSuchAttribute(usage))
         }
     }
 
     fn write_4_f32(
         &mut self,
-        attribute: VertexAttributeKind,
+        usage: VertexAttributeUsage,
         value: Vector4<f32>,
     ) -> Result<(), VertexFetchError> {
         let (data, layout) = self.data_layout_mut();
-        if let Some(attribute) = layout.get(attribute as usize).unwrap() {
+        if let Some(attribute) = layout.get(usage as usize).unwrap() {
             (&mut data[(attribute.offset as usize)..]).write_f32::<LittleEndian>(value.x)?;
             (&mut data[(attribute.offset as usize + 4)..]).write_f32::<LittleEndian>(value.y)?;
             (&mut data[(attribute.offset as usize + 8)..]).write_f32::<LittleEndian>(value.z)?;
             (&mut data[(attribute.offset as usize + 12)..]).write_f32::<LittleEndian>(value.w)?;
             Ok(())
         } else {
-            Err(VertexFetchError::NoSuchAttribute(attribute))
+            Err(VertexFetchError::NoSuchAttribute(usage))
         }
     }
 
     fn write_4_u8(
         &mut self,
-        attribute: VertexAttributeKind,
+        usage: VertexAttributeUsage,
         value: Vector4<u8>,
     ) -> Result<(), VertexFetchError> {
         let (data, layout) = self.data_layout_mut();
-        if let Some(attribute) = layout.get(attribute as usize).unwrap() {
+        if let Some(attribute) = layout.get(usage as usize).unwrap() {
             data[attribute.offset as usize] = value.x;
             data[(attribute.offset + 1) as usize] = value.y;
             data[(attribute.offset + 2) as usize] = value.z;
             data[(attribute.offset + 3) as usize] = value.w;
             Ok(())
         } else {
-            Err(VertexFetchError::NoSuchAttribute(attribute))
+            Err(VertexFetchError::NoSuchAttribute(usage))
         }
     }
 }
@@ -686,7 +759,7 @@ mod test {
     use crate::{
         core::algebra::{Vector2, Vector3, Vector4},
         scene::mesh::buffer::{
-            VertexAttributeDataKind, VertexAttributeDescriptor, VertexAttributeKind, VertexBuffer,
+            VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage, VertexBuffer,
             VertexReadTrait,
         },
     };
@@ -706,50 +779,50 @@ mod test {
         pub fn layout() -> &'static [VertexAttributeDescriptor] {
             static LAYOUT: [VertexAttributeDescriptor; 7] = [
                 VertexAttributeDescriptor {
-                    kind: VertexAttributeKind::Position,
-                    component_type: VertexAttributeDataKind::F32,
+                    usage: VertexAttributeUsage::Position,
+                    data_type: VertexAttributeDataType::F32,
                     size: 3,
                     divisor: 0,
                     shader_location: 0,
                 },
                 VertexAttributeDescriptor {
-                    kind: VertexAttributeKind::TexCoord0,
-                    component_type: VertexAttributeDataKind::F32,
+                    usage: VertexAttributeUsage::TexCoord0,
+                    data_type: VertexAttributeDataType::F32,
                     size: 2,
                     divisor: 0,
                     shader_location: 1,
                 },
                 VertexAttributeDescriptor {
-                    kind: VertexAttributeKind::TexCoord1,
-                    component_type: VertexAttributeDataKind::F32,
+                    usage: VertexAttributeUsage::TexCoord1,
+                    data_type: VertexAttributeDataType::F32,
                     size: 2,
                     divisor: 0,
                     shader_location: 2,
                 },
                 VertexAttributeDescriptor {
-                    kind: VertexAttributeKind::Normal,
-                    component_type: VertexAttributeDataKind::F32,
+                    usage: VertexAttributeUsage::Normal,
+                    data_type: VertexAttributeDataType::F32,
                     size: 3,
                     divisor: 0,
                     shader_location: 3,
                 },
                 VertexAttributeDescriptor {
-                    kind: VertexAttributeKind::Tangent,
-                    component_type: VertexAttributeDataKind::F32,
+                    usage: VertexAttributeUsage::Tangent,
+                    data_type: VertexAttributeDataType::F32,
                     size: 4,
                     divisor: 0,
                     shader_location: 4,
                 },
                 VertexAttributeDescriptor {
-                    kind: VertexAttributeKind::BoneWeight,
-                    component_type: VertexAttributeDataKind::F32,
+                    usage: VertexAttributeUsage::BoneWeight,
+                    data_type: VertexAttributeDataType::F32,
                     size: 4,
                     divisor: 0,
                     shader_location: 5,
                 },
                 VertexAttributeDescriptor {
-                    kind: VertexAttributeKind::BoneIndices,
-                    component_type: VertexAttributeDataKind::U8,
+                    usage: VertexAttributeUsage::BoneIndices,
+                    data_type: VertexAttributeDataType::U8,
                     size: 4,
                     divisor: 0,
                     shader_location: 6,
@@ -792,31 +865,31 @@ mod test {
 
     fn test_view_original_equal<T: VertexReadTrait>(view: T, original: &Vertex) {
         assert_eq!(
-            view.read_3_f32(VertexAttributeKind::Position).unwrap(),
+            view.read_3_f32(VertexAttributeUsage::Position).unwrap(),
             original.position
         );
         assert_eq!(
-            view.read_2_f32(VertexAttributeKind::TexCoord0).unwrap(),
+            view.read_2_f32(VertexAttributeUsage::TexCoord0).unwrap(),
             original.tex_coord
         );
         assert_eq!(
-            view.read_2_f32(VertexAttributeKind::TexCoord1).unwrap(),
+            view.read_2_f32(VertexAttributeUsage::TexCoord1).unwrap(),
             original.second_tex_coord
         );
         assert_eq!(
-            view.read_3_f32(VertexAttributeKind::Normal).unwrap(),
+            view.read_3_f32(VertexAttributeUsage::Normal).unwrap(),
             original.normal
         );
         assert_eq!(
-            view.read_4_f32(VertexAttributeKind::Tangent).unwrap(),
+            view.read_4_f32(VertexAttributeUsage::Tangent).unwrap(),
             original.tangent
         );
         assert_eq!(
-            view.read_4_f32(VertexAttributeKind::BoneWeight).unwrap(),
+            view.read_4_f32(VertexAttributeUsage::BoneWeight).unwrap(),
             original.bone_weights
         );
         assert_eq!(
-            view.read_4_u8(VertexAttributeKind::BoneIndices).unwrap(),
+            view.read_4_u8(VertexAttributeUsage::BoneIndices).unwrap(),
             original.bone_indices
         );
     }
@@ -882,8 +955,8 @@ mod test {
         buffer
             .add_attribute(
                 VertexAttributeDescriptor {
-                    kind: VertexAttributeKind::TexCoord2,
-                    component_type: VertexAttributeDataKind::F32,
+                    usage: VertexAttributeUsage::TexCoord2,
+                    data_type: VertexAttributeDataType::F32,
                     size: 2,
                     divisor: 0,
                 },
@@ -920,35 +993,35 @@ mod test {
         );
         let view = buffer.get(test_index).unwrap();
         assert_eq!(
-            view.read_3_f32(VertexAttributeKind::Position).unwrap(),
+            view.read_3_f32(VertexAttributeUsage::Position).unwrap(),
             new_1.position
         );
         assert_eq!(
-            view.read_2_f32(VertexAttributeKind::TexCoord0).unwrap(),
+            view.read_2_f32(VertexAttributeUsage::TexCoord0).unwrap(),
             new_1.tex_coord
         );
         assert_eq!(
-            view.read_2_f32(VertexAttributeKind::TexCoord1).unwrap(),
+            view.read_2_f32(VertexAttributeUsage::TexCoord1).unwrap(),
             new_1.second_tex_coord
         );
         assert_eq!(
-            view.read_2_f32(VertexAttributeKind::TexCoord2).unwrap(),
+            view.read_2_f32(VertexAttributeUsage::TexCoord2).unwrap(),
             new_1.third_tex_coord
         );
         assert_eq!(
-            view.read_3_f32(VertexAttributeKind::Normal).unwrap(),
+            view.read_3_f32(VertexAttributeUsage::Normal).unwrap(),
             new_1.normal
         );
         assert_eq!(
-            view.read_4_f32(VertexAttributeKind::Tangent).unwrap(),
+            view.read_4_f32(VertexAttributeUsage::Tangent).unwrap(),
             new_1.tangent
         );
         assert_eq!(
-            view.read_4_f32(VertexAttributeKind::BoneWeight).unwrap(),
+            view.read_4_f32(VertexAttributeUsage::BoneWeight).unwrap(),
             new_1.bone_weights
         );
         assert_eq!(
-            view.read_4_u8(VertexAttributeKind::BoneIndices).unwrap(),
+            view.read_4_u8(VertexAttributeUsage::BoneIndices).unwrap(),
             new_1.bone_indices
         );
     }

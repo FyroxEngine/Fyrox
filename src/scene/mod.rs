@@ -18,7 +18,7 @@ pub mod transform;
 
 use crate::scene::light::Light;
 use crate::scene::mesh::buffer::{
-    VertexAttributeDataKind, VertexAttributeDescriptor, VertexAttributeKind, VertexWriteTrait,
+    VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage, VertexWriteTrait,
 };
 use crate::{
     animation::AnimationContainer,
@@ -1198,15 +1198,15 @@ impl Scene {
                 if let Some(patch) = lightmap.patches.get(&data.id()) {
                     if !data
                         .vertex_buffer
-                        .has_attribute(VertexAttributeKind::TexCoord1)
+                        .has_attribute(VertexAttributeUsage::TexCoord1)
                     {
                         let free = data.vertex_buffer.find_free_shader_location();
 
                         data.vertex_buffer
                             .add_attribute(
                                 VertexAttributeDescriptor {
-                                    kind: VertexAttributeKind::TexCoord1,
-                                    component_type: VertexAttributeDataKind::F32,
+                                    usage: VertexAttributeUsage::TexCoord1,
+                                    data_type: VertexAttributeDataType::F32,
                                     size: 2,
                                     divisor: 0,
                                     shader_location: free,
@@ -1229,7 +1229,7 @@ impl Scene {
                         .iter_mut()
                         .zip(patch.second_tex_coords.iter())
                     {
-                        view.write_2_f32(VertexAttributeKind::TexCoord1, tex_coord)
+                        view.write_2_f32(VertexAttributeUsage::TexCoord1, tex_coord)
                             .unwrap();
                     }
                 } else {

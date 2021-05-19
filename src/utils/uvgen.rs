@@ -3,7 +3,7 @@
 //! Current implementation uses simple planar mapping.
 use crate::core::instant;
 use crate::scene::mesh::buffer::{
-    VertexAttributeDataKind, VertexAttributeDescriptor, VertexAttributeKind, VertexFetchError,
+    VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage, VertexFetchError,
     VertexReadTrait, VertexWriteTrait,
 };
 use crate::{
@@ -145,19 +145,19 @@ fn generate_uv_box(data: &SurfaceData) -> UvBox {
             .vertex_buffer
             .get(triangle[0] as usize)
             .unwrap()
-            .read_3_f32(VertexAttributeKind::Position)
+            .read_3_f32(VertexAttributeUsage::Position)
             .unwrap();
         let b = data
             .vertex_buffer
             .get(triangle[1] as usize)
             .unwrap()
-            .read_3_f32(VertexAttributeKind::Position)
+            .read_3_f32(VertexAttributeUsage::Position)
             .unwrap();
         let c = data
             .vertex_buffer
             .get(triangle[2] as usize)
             .unwrap()
-            .read_3_f32(VertexAttributeKind::Position)
+            .read_3_f32(VertexAttributeUsage::Position)
             .unwrap();
         let normal = (b - a).cross(&(c - a));
         let class = math::classify_plane(normal);
@@ -206,15 +206,15 @@ pub fn generate_uv_meshes(
 
     if !data
         .vertex_buffer
-        .has_attribute(VertexAttributeKind::TexCoord1)
+        .has_attribute(VertexAttributeUsage::TexCoord1)
     {
         let free = data.vertex_buffer.find_free_shader_location();
 
         data.vertex_buffer
             .add_attribute(
                 VertexAttributeDescriptor {
-                    kind: VertexAttributeKind::TexCoord1,
-                    component_type: VertexAttributeDataKind::F32,
+                    usage: VertexAttributeUsage::TexCoord1,
+                    data_type: VertexAttributeDataType::F32,
                     size: 2,
                     divisor: 0,
                     shader_location: free,
@@ -388,7 +388,7 @@ pub fn generate_uvs(
                     .get_mut(vertex_index as usize)
                     .unwrap()
                     .write_2_f32(
-                        VertexAttributeKind::TexCoord1,
+                        VertexAttributeUsage::TexCoord1,
                         (projection - mesh.uv_min).scale(scale)
                             + Vector2::new(spacing, spacing)
                             + rect.position,
@@ -402,7 +402,7 @@ pub fn generate_uvs(
     for view in data.vertex_buffer.iter() {
         patch
             .second_tex_coords
-            .push(view.read_2_f32(VertexAttributeKind::TexCoord1)?);
+            .push(view.read_2_f32(VertexAttributeUsage::TexCoord1)?);
     }
 
     Ok(patch)
@@ -430,7 +430,7 @@ pub fn generate_uvs_mesh(
 #[cfg(test)]
 mod test {
     use crate::core::algebra::{Matrix4, Vector3};
-    use crate::scene::mesh::buffer::{VertexAttributeKind, VertexReadTrait};
+    use crate::scene::mesh::buffer::{VertexAttributeUsage, VertexReadTrait};
     use crate::{scene::mesh::surface::SurfaceData, utils::uvgen::generate_uvs};
     use image::{Rgb, RgbImage};
     use imageproc::drawing::draw_line_segment_mut;
@@ -455,21 +455,21 @@ mod test {
                 .vertex_buffer
                 .get(triangle[0] as usize)
                 .unwrap()
-                .read_2_f32(VertexAttributeKind::TexCoord1)
+                .read_2_f32(VertexAttributeUsage::TexCoord1)
                 .unwrap()
                 .scale(1024.0);
             let b = data
                 .vertex_buffer
                 .get(triangle[1] as usize)
                 .unwrap()
-                .read_2_f32(VertexAttributeKind::TexCoord1)
+                .read_2_f32(VertexAttributeUsage::TexCoord1)
                 .unwrap()
                 .scale(1024.0);
             let c = data
                 .vertex_buffer
                 .get(triangle[2] as usize)
                 .unwrap()
-                .read_2_f32(VertexAttributeKind::TexCoord1)
+                .read_2_f32(VertexAttributeUsage::TexCoord1)
                 .unwrap()
                 .scale(1024.0);
 
