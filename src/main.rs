@@ -49,6 +49,7 @@ use crate::{
     sidebar::SideBar,
     world_outliner::WorldOutliner,
 };
+use rg3d::scene::mesh::buffer::{VertexAttributeKind, VertexReadTrait};
 use rg3d::{
     core::{
         algebra::{Point3, Vector2},
@@ -1438,23 +1439,35 @@ impl Editor {
                             let transform = node.global_transform();
 
                             for surface in mesh.surfaces() {
-                                for vertex in surface.data().read().unwrap().get_vertices() {
+                                for vertex in surface.data().read().unwrap().vertex_buffer().iter()
+                                {
                                     let len = 0.025;
                                     let position = transform
-                                        .transform_point(&Point3::from(vertex.position))
+                                        .transform_point(&Point3::from(
+                                            vertex
+                                                .read_3_f32(VertexAttributeKind::Position)
+                                                .unwrap(),
+                                        ))
                                         .coords;
+                                    let vertex_tangent =
+                                        vertex.read_4_f32(VertexAttributeKind::Tangent).unwrap();
                                     let tangent = transform
-                                        .transform_vector(&vertex.tangent.xyz())
+                                        .transform_vector(&vertex_tangent.xyz())
                                         .normalize()
                                         .scale(len);
                                     let normal = transform
-                                        .transform_vector(&vertex.normal.xyz())
+                                        .transform_vector(
+                                            &vertex
+                                                .read_3_f32(VertexAttributeKind::Normal)
+                                                .unwrap()
+                                                .xyz(),
+                                        )
                                         .normalize()
                                         .scale(len);
                                     let binormal = tangent
                                         .xyz()
                                         .cross(&normal)
-                                        .scale(vertex.tangent.w)
+                                        .scale(vertex_tangent.w)
                                         .normalize()
                                         .scale(len);
 

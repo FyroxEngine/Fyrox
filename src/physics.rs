@@ -1,3 +1,4 @@
+use rg3d::scene::mesh::buffer::{VertexAttributeKind, VertexReadTrait};
 use rg3d::{
     core::{
         algebra::{Isometry3, Point3, Translation, Translation3, Vector3},
@@ -460,13 +461,25 @@ impl Physics {
                                     let data = data.read().unwrap();
                                     for triangle in data.triangles() {
                                         let a = transform.transform_point(&Point3::from(
-                                            data.get_vertices()[triangle[0] as usize].position,
+                                            data.vertex_buffer()
+                                                .get(triangle[0] as usize)
+                                                .unwrap()
+                                                .read_3_f32(VertexAttributeKind::Position)
+                                                .unwrap(),
                                         ));
                                         let b = transform.transform_point(&Point3::from(
-                                            data.get_vertices()[triangle[1] as usize].position,
+                                            data.vertex_buffer()
+                                                .get(triangle[1] as usize)
+                                                .unwrap()
+                                                .read_3_f32(VertexAttributeKind::Position)
+                                                .unwrap(),
                                         ));
                                         let c = transform.transform_point(&Point3::from(
-                                            data.get_vertices()[triangle[2] as usize].position,
+                                            data.vertex_buffer()
+                                                .get(triangle[2] as usize)
+                                                .unwrap()
+                                                .read_3_f32(VertexAttributeKind::Position)
+                                                .unwrap(),
                                         ));
                                         context.draw_triangle(a.coords, b.coords, c.coords, color);
                                     }
