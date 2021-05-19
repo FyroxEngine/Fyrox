@@ -75,6 +75,7 @@ There are many examples covering various aspects of the engine. Also don't hesit
 - Multi-camera rendering.
 - Multiple scenes.
 - Lightmap generator.
+- Fully customizable vertex format.
 - Level-of-detail (LOD) support.
 - Scene graph with pivot, camera, mesh, light, particle system, sprite nodes.
 - Built-in save/load - save/load the state of the engine in one call.
