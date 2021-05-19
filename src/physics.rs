@@ -1,4 +1,4 @@
-use rg3d::scene::mesh::buffer::{VertexAttributeKind, VertexReadTrait};
+use rg3d::scene::mesh::buffer::{VertexAttributeUsage, VertexReadTrait};
 use rg3d::{
     core::{
         algebra::{Isometry3, Point3, Translation, Translation3, Vector3},
@@ -464,21 +464,21 @@ impl Physics {
                                             data.vertex_buffer()
                                                 .get(triangle[0] as usize)
                                                 .unwrap()
-                                                .read_3_f32(VertexAttributeKind::Position)
+                                                .read_3_f32(VertexAttributeUsage::Position)
                                                 .unwrap(),
                                         ));
                                         let b = transform.transform_point(&Point3::from(
                                             data.vertex_buffer()
                                                 .get(triangle[1] as usize)
                                                 .unwrap()
-                                                .read_3_f32(VertexAttributeKind::Position)
+                                                .read_3_f32(VertexAttributeUsage::Position)
                                                 .unwrap(),
                                         ));
                                         let c = transform.transform_point(&Point3::from(
                                             data.vertex_buffer()
                                                 .get(triangle[2] as usize)
                                                 .unwrap()
-                                                .read_3_f32(VertexAttributeKind::Position)
+                                                .read_3_f32(VertexAttributeUsage::Position)
                                                 .unwrap(),
                                         ));
                                         context.draw_triangle(a.coords, b.coords, c.coords, color);

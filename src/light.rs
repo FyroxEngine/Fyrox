@@ -3,9 +3,8 @@ use crate::{
     scene::EditorScene,
     GameEngine,
 };
-use rg3d::core::scope_profile;
 use rg3d::{
-    core::pool::Handle,
+    core::{pool::Handle, scope_profile},
     gui::{
         button::ButtonBuilder,
         grid::{Column, GridBuilder, Row},
@@ -17,9 +16,7 @@ use rg3d::{
         window::{WindowBuilder, WindowTitle},
         Thickness, VerticalAlignment,
     },
-    scene::node::Node,
     utils::lightmap::Lightmap,
-    utils::uvgen,
 };
 
 pub struct LightPanel {
@@ -137,12 +134,6 @@ impl LightPanel {
             UiMessageData::Button(ButtonMessage::Click) => {
                 if message.destination() == self.generate {
                     let scene = &mut engine.scenes[editor_scene.scene];
-
-                    for node in scene.graph.linear_iter() {
-                        if let Node::Mesh(mesh) = node {
-                            uvgen::generate_uvs_mesh(mesh, self.spacing);
-                        }
-                    }
 
                     let lightmap = Lightmap::new(
                         scene,

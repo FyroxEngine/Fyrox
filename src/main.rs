@@ -49,7 +49,7 @@ use crate::{
     sidebar::SideBar,
     world_outliner::WorldOutliner,
 };
-use rg3d::scene::mesh::buffer::{VertexAttributeKind, VertexReadTrait};
+use rg3d::scene::mesh::buffer::{VertexAttributeUsage, VertexReadTrait};
 use rg3d::{
     core::{
         algebra::{Point3, Vector2},
@@ -1445,12 +1445,12 @@ impl Editor {
                                     let position = transform
                                         .transform_point(&Point3::from(
                                             vertex
-                                                .read_3_f32(VertexAttributeKind::Position)
+                                                .read_3_f32(VertexAttributeUsage::Position)
                                                 .unwrap(),
                                         ))
                                         .coords;
                                     let vertex_tangent =
-                                        vertex.read_4_f32(VertexAttributeKind::Tangent).unwrap();
+                                        vertex.read_4_f32(VertexAttributeUsage::Tangent).unwrap();
                                     let tangent = transform
                                         .transform_vector(&vertex_tangent.xyz())
                                         .normalize()
@@ -1458,7 +1458,7 @@ impl Editor {
                                     let normal = transform
                                         .transform_vector(
                                             &vertex
-                                                .read_3_f32(VertexAttributeKind::Normal)
+                                                .read_3_f32(VertexAttributeUsage::Normal)
                                                 .unwrap()
                                                 .xyz(),
                                         )
