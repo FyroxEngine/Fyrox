@@ -53,6 +53,7 @@ pub struct Batch {
     pub use_pom: bool,
     pub is_skinned: bool,
     pub render_path: RenderPath,
+    pub use_lightmapping: bool,
 }
 
 impl Debug for Batch {
@@ -160,6 +161,7 @@ impl BatchStorage {
                         is_skinned: !surface.bones.is_empty(),
                         render_path: mesh.render_path(),
                         use_pom: surface.height_texture_ref().is_some(),
+                        use_lightmapping: surface.lightmap_texture_ref().is_some(),
                     });
                     self.batches.last_mut().unwrap()
                 };

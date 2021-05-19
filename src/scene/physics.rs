@@ -1,6 +1,7 @@
 //! Contains all structures and methods to operate with physics world.
 
 use crate::core::instant;
+use crate::scene::mesh::buffer::{VertexAttributeKind, VertexReadTrait};
 use crate::{
     core::{
         arrayvec::ArrayVec,
@@ -576,26 +577,38 @@ impl Physics {
                     let shared_data = surface.data();
                     let shared_data = shared_data.read().unwrap();
 
-                    let vertices = shared_data.get_vertices();
+                    let vertices = shared_data.vertex_buffer();
                     for triangle in shared_data.triangles() {
                         let a = RawVertex::from(
                             global_transform
                                 .transform_point(&Point3::from(
-                                    vertices[triangle[0] as usize].position,
+                                    vertices
+                                        .get(triangle[0] as usize)
+                                        .unwrap()
+                                        .read_3_f32(VertexAttributeKind::Position)
+                                        .unwrap(),
                                 ))
                                 .coords,
                         );
                         let b = RawVertex::from(
                             global_transform
                                 .transform_point(&Point3::from(
-                                    vertices[triangle[1] as usize].position,
+                                    vertices
+                                        .get(triangle[1] as usize)
+                                        .unwrap()
+                                        .read_3_f32(VertexAttributeKind::Position)
+                                        .unwrap(),
                                 ))
                                 .coords,
                         );
                         let c = RawVertex::from(
                             global_transform
                                 .transform_point(&Point3::from(
-                                    vertices[triangle[2] as usize].position,
+                                    vertices
+                                        .get(triangle[2] as usize)
+                                        .unwrap()
+                                        .read_3_f32(VertexAttributeKind::Position)
+                                        .unwrap(),
                                 ))
                                 .coords,
                         );

@@ -10,6 +10,8 @@ mod document;
 pub mod error;
 mod scene;
 
+use crate::scene::mesh::buffer::{VertexAttributeKind, VertexWriteTrait};
+use crate::scene::mesh::vertex::{AnimatedVertex, StaticVertex};
 use crate::{
     animation::{Animation, AnimationContainer, KeyFrame, Track},
     core::instant::Instant,
@@ -31,7 +33,7 @@ use crate::{
         base::BaseBuilder,
         graph::Graph,
         mesh::{
-            surface::{Surface, SurfaceData, Vertex, VertexWeightSet},
+            surface::{Surface, SurfaceData, VertexWeightSet},
             MeshBuilder,
         },
         node::Node,
@@ -142,20 +144,28 @@ struct UnpackedVertex {
     weights: Option<VertexWeightSet>,
 }
 
-impl Into<Vertex> for UnpackedVertex {
-    fn into(self) -> Vertex {
-        Vertex {
+impl Into<AnimatedVertex> for UnpackedVertex {
+    fn into(self) -> AnimatedVertex {
+        AnimatedVertex {
             position: self.position,
             tex_coord: self.uv,
-            // TODO: FBX can contain second texture coordinates so they should be
-            //  extracted when available
-            second_tex_coord: Default::default(),
             normal: self.normal,
             tangent: Vector4::new(self.tangent.x, self.tangent.y, self.tangent.z, 1.0),
             // Correct values will be assigned in second pass of conversion
             // when all nodes will be converted.
             bone_weights: Default::default(),
             bone_indices: Default::default(),
+        }
+    }
+}
+
+impl Into<StaticVertex> for UnpackedVertex {
+    fn into(self) -> StaticVertex {
+        StaticVertex {
+            position: self.position,
+            tex_coord: self.uv,
+            normal: self.normal,
+            tangent: Vector4::new(self.tangent.x, self.tangent.y, self.tangent.z, 1.0),
         }
     }
 }
@@ -198,7 +208,7 @@ fn convert_vertex(
         tangent: geometric_transform.transform_vector(&tangent),
         uv: Vector2::new(uv.x, 1.0 - uv.y), // Invert Y because OpenGL has origin at left *bottom* corner.
         surface: material as usize,
-        weights: if skin_data.is_empty() {
+        weights: if geom.deformers.is_empty() {
             None
         } else {
             Some(*skin_data.get(index).ok_or(FbxError::IndexOutOfBounds)?)
@@ -206,9 +216,28 @@ fn convert_vertex(
     })
 }
 
-#[derive(Default, Clone)]
+#[derive(Clone)]
+enum FbxMeshBuilder {
+    Static(RawMeshBuilder<StaticVertex>),
+    Animated(RawMeshBuilder<AnimatedVertex>),
+}
+
+impl FbxMeshBuilder {
+    fn build(self) -> SurfaceData {
+        match self {
+            FbxMeshBuilder::Static(builder) => {
+                SurfaceData::from_raw_mesh(builder.build(), StaticVertex::layout(), false)
+            }
+            FbxMeshBuilder::Animated(builder) => {
+                SurfaceData::from_raw_mesh(builder.build(), AnimatedVertex::layout(), false)
+            }
+        }
+    }
+}
+
+#[derive(Clone)]
 struct FbxSurfaceData {
-    builder: RawMeshBuilder<Vertex>,
+    builder: FbxMeshBuilder,
     skin_data: Vec<VertexWeightSet>,
 }
 
@@ -224,19 +253,13 @@ fn create_surfaces(
     if model.materials.is_empty() {
         assert_eq!(data_set.len(), 1);
         let data = data_set.into_iter().next().unwrap();
-        let mut surface = Surface::new(Arc::new(RwLock::new(SurfaceData::from_raw_mesh(
-            data.builder.build(),
-            false,
-        ))));
+        let mut surface = Surface::new(Arc::new(RwLock::new(data.builder.build())));
         surface.vertex_weights = data.skin_data;
         surfaces.push(surface);
     } else {
         assert_eq!(data_set.len(), model.materials.len());
         for (&material_handle, data) in model.materials.iter().zip(data_set.into_iter()) {
-            let mut surface = Surface::new(Arc::new(RwLock::new(SurfaceData::from_raw_mesh(
-                data.builder.build(),
-                false,
-            ))));
+            let mut surface = Surface::new(Arc::new(RwLock::new(data.builder.build())));
             surface.vertex_weights = data.skin_data;
             let material = fbx_scene.get(material_handle).as_material()?;
             for (name, texture_handle) in material.textures.iter() {
@@ -289,7 +312,11 @@ fn convert_mesh(
 
         let mut data_set = vec![
             FbxSurfaceData {
-                builder: RawMeshBuilder::new(1024, 1024),
+                builder: if geom.deformers.is_empty() {
+                    FbxMeshBuilder::Static(RawMeshBuilder::new(1024, 1024))
+                } else {
+                    FbxMeshBuilder::Animated(RawMeshBuilder::new(1024, 1024))
+                },
                 skin_data: Default::default(),
             };
             model.materials.len().max(1)
@@ -319,7 +346,10 @@ fn convert_mesh(
                     )?;
                     let data = data_set.get_mut(vertex.surface).unwrap();
                     let weights = vertex.weights;
-                    let is_unique_vertex = data.builder.insert(vertex.into());
+                    let is_unique_vertex = match data.builder {
+                        FbxMeshBuilder::Static(ref mut builder) => builder.insert(vertex.into()),
+                        FbxMeshBuilder::Animated(ref mut builder) => builder.insert(vertex.into()),
+                    };
                     if is_unique_vertex {
                         if let Some(skin_data) = weights {
                             data.skin_data.push(skin_data);
@@ -338,7 +368,12 @@ fn convert_mesh(
 
         if geom.tangents.is_none() {
             for surface in surfaces.iter_mut() {
-                surface.data().write().unwrap().calculate_tangents();
+                surface
+                    .data()
+                    .write()
+                    .unwrap()
+                    .calculate_tangents()
+                    .unwrap();
             }
         }
 
@@ -520,21 +555,28 @@ fn convert(
 
                 let data_rc = surface.data();
                 let mut data = data_rc.write().unwrap();
-                if data.get_vertices().len() == surface.vertex_weights.len() {
-                    for (vertex, weight_set) in data
-                        .get_vertices_mut()
+                if data.vertex_buffer().vertex_count() as usize == surface.vertex_weights.len() {
+                    for (mut view, weight_set) in data
+                        .vertex_buffer_mut()
                         .iter_mut()
                         .zip(surface.vertex_weights.iter())
                     {
+                        let mut indices = Vector4::default();
+                        let mut weights = Vector4::default();
                         for (k, weight) in weight_set.iter().enumerate() {
-                            vertex.bone_indices[k] = surface
+                            indices[k] = surface
                                 .bones
                                 .iter()
                                 .position(|bone_handle| *bone_handle == weight.effector.into())
                                 .ok_or(FbxError::UnableToFindBone)?
                                 as u8;
-                            vertex.bone_weights[k] = weight.value;
+                            weights[k] = weight.value;
                         }
+
+                        view.write_4_f32(VertexAttributeKind::BoneWeight, weights)
+                            .unwrap();
+                        view.write_4_u8(VertexAttributeKind::BoneIndices, indices)
+                            .unwrap();
                     }
                 }
             }

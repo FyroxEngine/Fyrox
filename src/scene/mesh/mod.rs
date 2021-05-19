@@ -8,6 +8,7 @@
 //! modelling software or just download some model you like and load it in engine. But since
 //! 3d model can contain multiple nodes, 3d model loading discussed in model resource section.
 
+use crate::scene::mesh::buffer::{VertexAttributeKind, VertexReadTrait};
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3},
@@ -28,7 +29,9 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+pub mod buffer;
 pub mod surface;
+pub mod vertex;
 
 /// Defines a path that should be used to render a mesh.
 #[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Ord, Hash, Debug)]
@@ -174,8 +177,8 @@ impl Mesh {
             for surface in self.surfaces.iter() {
                 let data = surface.data();
                 let data = data.read().unwrap();
-                for vertex in data.get_vertices() {
-                    bounding_box.add_point(vertex.position);
+                for view in data.vertex_buffer().iter() {
+                    bounding_box.add_point(view.read_3_f32(VertexAttributeKind::Position).unwrap());
                 }
             }
             self.bounding_box.set(bounding_box);
@@ -201,10 +204,12 @@ impl Mesh {
         for surface in self.surfaces.iter() {
             let data = surface.data();
             let data = data.read().unwrap();
-            for vertex in data.get_vertices() {
+            for view in data.vertex_buffer().iter() {
                 bounding_box.add_point(
                     self.global_transform()
-                        .transform_point(&Point3::from(vertex.position))
+                        .transform_point(&Point3::from(
+                            view.read_3_f32(VertexAttributeKind::Position).unwrap(),
+                        ))
                         .coords,
                 );
             }
@@ -220,10 +225,12 @@ impl Mesh {
             let data = surface.data();
             let data = data.read().unwrap();
             if surface.bones().is_empty() {
-                for vertex in data.get_vertices() {
+                for view in data.vertex_buffer().iter() {
                     bounding_box.add_point(
                         self.global_transform()
-                            .transform_point(&Point3::from(vertex.position))
+                            .transform_point(&Point3::from(
+                                view.read_3_f32(VertexAttributeKind::Position).unwrap(),
+                            ))
                             .coords,
                     );
                 }
@@ -241,13 +248,22 @@ impl Mesh {
                     })
                     .collect::<Vec<Matrix4<f32>>>();
 
-                for vertex in data.get_vertices() {
+                for view in data.vertex_buffer().iter() {
                     let mut position = Vector3::default();
-                    for (&bone_index, &weight) in
-                        vertex.bone_indices.iter().zip(vertex.bone_weights.iter())
+                    for (&bone_index, &weight) in view
+                        .read_4_u8(VertexAttributeKind::BoneIndices)
+                        .unwrap()
+                        .iter()
+                        .zip(
+                            view.read_4_f32(VertexAttributeKind::BoneWeight)
+                                .unwrap()
+                                .iter(),
+                        )
                     {
                         position += bone_matrices[bone_index as usize]
-                            .transform_point(&Point3::from(vertex.position))
+                            .transform_point(&Point3::from(
+                                view.read_3_f32(VertexAttributeKind::Position).unwrap(),
+                            ))
                             .coords
                             .scale(weight);
                     }

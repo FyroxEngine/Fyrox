@@ -36,54 +36,10 @@ impl GeometryCache {
 
         let geometry_buffer = self.map.entry(key).or_insert_with(|| {
             let geometry_buffer = GeometryBufferBuilder::new(ElementKind::Triangle)
-                .with_buffer_builder(
-                    BufferBuilder::new(
-                        GeometryBufferKind::StaticDraw,
-                        Some(data.vertices.as_slice()),
-                    )
-                    .with_attribute(AttributeDefinition {
-                        location: 0,
-                        divisor: 0,
-                        kind: AttributeKind::Float3,
-                        normalized: false,
-                    })
-                    .with_attribute(AttributeDefinition {
-                        location: 1,
-                        divisor: 0,
-                        kind: AttributeKind::Float2,
-                        normalized: false,
-                    })
-                    .with_attribute(AttributeDefinition {
-                        location: 2,
-                        divisor: 0,
-                        kind: AttributeKind::Float2,
-                        normalized: false,
-                    })
-                    .with_attribute(AttributeDefinition {
-                        location: 3,
-                        divisor: 0,
-                        kind: AttributeKind::Float3,
-                        normalized: false,
-                    })
-                    .with_attribute(AttributeDefinition {
-                        location: 4,
-                        divisor: 0,
-                        kind: AttributeKind::Float4,
-                        normalized: false,
-                    })
-                    .with_attribute(AttributeDefinition {
-                        location: 5,
-                        divisor: 0,
-                        kind: AttributeKind::Float4,
-                        normalized: false,
-                    })
-                    .with_attribute(AttributeDefinition {
-                        location: 6,
-                        divisor: 0,
-                        kind: AttributeKind::UnsignedByte4,
-                        normalized: false,
-                    }),
-                )
+                .with_buffer_builder(BufferBuilder::from_vertex_buffer(
+                    data.vertex_buffer(),
+                    GeometryBufferKind::StaticDraw,
+                ))
                 // Buffer for world and world-view-projection matrices per instance.
                 .with_buffer_builder(
                     BufferBuilder::new::<InstanceData>(GeometryBufferKind::DynamicDraw, None)

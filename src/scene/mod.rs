@@ -17,6 +17,9 @@ pub mod terrain;
 pub mod transform;
 
 use crate::scene::light::Light;
+use crate::scene::mesh::buffer::{
+    VertexAttributeDataKind, VertexAttributeDescriptor, VertexAttributeKind, VertexWriteTrait,
+};
 use crate::{
     animation::AnimationContainer,
     core::{
@@ -1191,17 +1194,43 @@ impl Scene {
 
             for (_, data) in unique_data_set.into_iter() {
                 let mut data = data.write().unwrap();
+
                 if let Some(patch) = lightmap.patches.get(&data.id()) {
+                    if !data
+                        .vertex_buffer
+                        .has_attribute(VertexAttributeKind::TexCoord1)
+                    {
+                        let free = data.vertex_buffer.find_free_shader_location();
+
+                        data.vertex_buffer
+                            .add_attribute(
+                                VertexAttributeDescriptor {
+                                    kind: VertexAttributeKind::TexCoord1,
+                                    component_type: VertexAttributeDataKind::F32,
+                                    size: 2,
+                                    divisor: 0,
+                                    shader_location: free,
+                                },
+                                Vector2::<f32>::default(),
+                            )
+                            .unwrap();
+                    }
+
                     data.triangles = patch.triangles.clone();
                     for &v in patch.additional_vertices.iter() {
-                        let vertex = data.vertices[v as usize];
-                        data.vertices.push(vertex);
+                        data.vertex_buffer.duplicate(v as usize);
                     }
-                    assert_eq!(data.vertices.len(), patch.second_tex_coords.len());
-                    for (v, &tex_coord) in
-                        data.vertices.iter_mut().zip(patch.second_tex_coords.iter())
+                    assert_eq!(
+                        data.vertex_buffer.vertex_count() as usize,
+                        patch.second_tex_coords.len()
+                    );
+                    for (mut view, &tex_coord) in data
+                        .vertex_buffer
+                        .iter_mut()
+                        .zip(patch.second_tex_coords.iter())
                     {
-                        v.second_tex_coord = tex_coord;
+                        view.write_2_f32(VertexAttributeKind::TexCoord1, tex_coord)
+                            .unwrap();
                     }
                 } else {
                     Log::writeln(

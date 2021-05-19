@@ -14,8 +14,8 @@
 //! use std::sync::{Mutex, Arc};
 //! use rg3d_sound::buffer::{SoundBuffer, DataSource};
 //!
-//! fn make_buffer() -> Arc<Mutex<SoundBuffer>> {
-//!     let data_source = DataSource::from_file("sound.wav").unwrap();
+//! async fn make_buffer() -> Arc<Mutex<SoundBuffer>> {
+//!     let data_source = DataSource::from_file("sound.wav").await.unwrap();
 //!     SoundBuffer::new_generic(data_source).unwrap()
 //! }
 //! ```
@@ -112,8 +112,7 @@ impl GenericBuffer {
     /// when you loading a saved game.
     #[inline]
     pub fn external_data_path(&self) -> Option<&Path> {
-        self.external_source_path
-            .as_deref()
+        self.external_source_path.as_deref()
     }
 
     /// Checks if buffer is empty or not.

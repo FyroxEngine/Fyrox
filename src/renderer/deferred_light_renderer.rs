@@ -1,3 +1,5 @@
+use crate::scene::mesh::buffer::VertexBuffer;
+use crate::scene::mesh::vertex::SimpleVertex;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
@@ -23,8 +25,7 @@ use crate::{
         ssao::ScreenSpaceAmbientOcclusionRenderer,
         GeometryCache, QualitySettings, RenderPassStatistics, TextureCache,
     },
-    scene::mesh::surface::{SurfaceData, Vertex},
-    scene::{camera::Camera, light::Light, node::Node, Scene},
+    scene::{camera::Camera, light::Light, mesh::surface::SurfaceData, node::Node, Scene},
 };
 use std::{
     cell::RefCell,
@@ -264,6 +265,111 @@ impl DeferredLightRenderer {
         frame_size: (u32, u32),
         settings: &QualitySettings,
     ) -> Result<Self, FrameworkError> {
+        let vertices = vec![
+            // Front
+            SimpleVertex {
+                position: Vector3::new(-0.5, 0.5, -0.5),
+                tex_coord: Vector2::new(0.0, 0.0),
+            },
+            SimpleVertex {
+                position: Vector3::new(0.5, 0.5, -0.5),
+                tex_coord: Vector2::new(1.0, 0.0),
+            },
+            SimpleVertex {
+                position: Vector3::new(0.5, -0.5, -0.5),
+                tex_coord: Vector2::new(1.0, 1.0),
+            },
+            SimpleVertex {
+                position: Vector3::new(-0.5, -0.5, -0.5),
+                tex_coord: Vector2::new(0.0, 1.0),
+            },
+            // Back
+            SimpleVertex {
+                position: Vector3::new(0.5, 0.5, 0.5),
+                tex_coord: Vector2::new(0.0, 0.0),
+            },
+            SimpleVertex {
+                position: Vector3::new(-0.5, 0.5, 0.5),
+                tex_coord: Vector2::new(1.0, 0.0),
+            },
+            SimpleVertex {
+                position: Vector3::new(-0.5, -0.5, 0.5),
+                tex_coord: Vector2::new(1.0, 1.0),
+            },
+            SimpleVertex {
+                position: Vector3::new(0.5, -0.5, 0.5),
+                tex_coord: Vector2::new(0.0, 1.0),
+            },
+            // Left
+            SimpleVertex {
+                position: Vector3::new(0.5, 0.5, -0.5),
+                tex_coord: Vector2::new(0.0, 0.0),
+            },
+            SimpleVertex {
+                position: Vector3::new(0.5, 0.5, 0.5),
+                tex_coord: Vector2::new(1.0, 0.0),
+            },
+            SimpleVertex {
+                position: Vector3::new(0.5, -0.5, 0.5),
+                tex_coord: Vector2::new(1.0, 1.0),
+            },
+            SimpleVertex {
+                position: Vector3::new(0.5, -0.5, -0.5),
+                tex_coord: Vector2::new(0.0, 1.0),
+            },
+            // Right
+            SimpleVertex {
+                position: Vector3::new(-0.5, 0.5, 0.5),
+                tex_coord: Vector2::new(0.0, 0.0),
+            },
+            SimpleVertex {
+                position: Vector3::new(-0.5, 0.5, -0.5),
+                tex_coord: Vector2::new(1.0, 0.0),
+            },
+            SimpleVertex {
+                position: Vector3::new(-0.5, -0.5, -0.5),
+                tex_coord: Vector2::new(1.0, 1.0),
+            },
+            SimpleVertex {
+                position: Vector3::new(-0.5, -0.5, 0.5),
+                tex_coord: Vector2::new(0.0, 1.0),
+            },
+            // Up
+            SimpleVertex {
+                position: Vector3::new(-0.5, 0.5, 0.5),
+                tex_coord: Vector2::new(0.0, 0.0),
+            },
+            SimpleVertex {
+                position: Vector3::new(0.5, 0.5, 0.5),
+                tex_coord: Vector2::new(1.0, 0.0),
+            },
+            SimpleVertex {
+                position: Vector3::new(0.5, 0.5, -0.5),
+                tex_coord: Vector2::new(1.0, 1.0),
+            },
+            SimpleVertex {
+                position: Vector3::new(-0.5, 0.5, -0.5),
+                tex_coord: Vector2::new(0.0, 1.0),
+            },
+            // Down
+            SimpleVertex {
+                position: Vector3::new(-0.5, -0.5, 0.5),
+                tex_coord: Vector2::new(0.0, 0.0),
+            },
+            SimpleVertex {
+                position: Vector3::new(0.5, -0.5, 0.5),
+                tex_coord: Vector2::new(1.0, 0.0),
+            },
+            SimpleVertex {
+                position: Vector3::new(0.5, -0.5, -0.5),
+                tex_coord: Vector2::new(1.0, 1.0),
+            },
+            SimpleVertex {
+                position: Vector3::new(-0.5, -0.5, -0.5),
+                tex_coord: Vector2::new(0.0, 1.0),
+            },
+        ];
+
         Ok(Self {
             ssao_renderer: ScreenSpaceAmbientOcclusionRenderer::new(
                 state,
@@ -276,38 +382,7 @@ impl DeferredLightRenderer {
             ambient_light_shader: AmbientLightShader::new(state)?,
             quad: SurfaceData::make_unit_xy_quad(),
             skybox: SurfaceData::new(
-                vec![
-                    // Front
-                    Vertex::from_pos_uv(Vector3::new(-0.5, 0.5, -0.5), Vector2::new(0.0, 0.0)),
-                    Vertex::from_pos_uv(Vector3::new(0.5, 0.5, -0.5), Vector2::new(1.0, 0.0)),
-                    Vertex::from_pos_uv(Vector3::new(0.5, -0.5, -0.5), Vector2::new(1.0, 1.0)),
-                    Vertex::from_pos_uv(Vector3::new(-0.5, -0.5, -0.5), Vector2::new(0.0, 1.0)),
-                    // Back
-                    Vertex::from_pos_uv(Vector3::new(0.5, 0.5, 0.5), Vector2::new(0.0, 0.0)),
-                    Vertex::from_pos_uv(Vector3::new(-0.5, 0.5, 0.5), Vector2::new(1.0, 0.0)),
-                    Vertex::from_pos_uv(Vector3::new(-0.5, -0.5, 0.5), Vector2::new(1.0, 1.0)),
-                    Vertex::from_pos_uv(Vector3::new(0.5, -0.5, 0.5), Vector2::new(0.0, 1.0)),
-                    // Left
-                    Vertex::from_pos_uv(Vector3::new(0.5, 0.5, -0.5), Vector2::new(0.0, 0.0)),
-                    Vertex::from_pos_uv(Vector3::new(0.5, 0.5, 0.5), Vector2::new(1.0, 0.0)),
-                    Vertex::from_pos_uv(Vector3::new(0.5, -0.5, 0.5), Vector2::new(1.0, 1.0)),
-                    Vertex::from_pos_uv(Vector3::new(0.5, -0.5, -0.5), Vector2::new(0.0, 1.0)),
-                    // Right
-                    Vertex::from_pos_uv(Vector3::new(-0.5, 0.5, 0.5), Vector2::new(0.0, 0.0)),
-                    Vertex::from_pos_uv(Vector3::new(-0.5, 0.5, -0.5), Vector2::new(1.0, 0.0)),
-                    Vertex::from_pos_uv(Vector3::new(-0.5, -0.5, -0.5), Vector2::new(1.0, 1.0)),
-                    Vertex::from_pos_uv(Vector3::new(-0.5, -0.5, 0.5), Vector2::new(0.0, 1.0)),
-                    // Up
-                    Vertex::from_pos_uv(Vector3::new(-0.5, 0.5, 0.5), Vector2::new(0.0, 0.0)),
-                    Vertex::from_pos_uv(Vector3::new(0.5, 0.5, 0.5), Vector2::new(1.0, 0.0)),
-                    Vertex::from_pos_uv(Vector3::new(0.5, 0.5, -0.5), Vector2::new(1.0, 1.0)),
-                    Vertex::from_pos_uv(Vector3::new(-0.5, 0.5, -0.5), Vector2::new(0.0, 1.0)),
-                    // Down
-                    Vertex::from_pos_uv(Vector3::new(-0.5, -0.5, 0.5), Vector2::new(0.0, 0.0)),
-                    Vertex::from_pos_uv(Vector3::new(0.5, -0.5, 0.5), Vector2::new(1.0, 0.0)),
-                    Vertex::from_pos_uv(Vector3::new(0.5, -0.5, -0.5), Vector2::new(1.0, 1.0)),
-                    Vertex::from_pos_uv(Vector3::new(-0.5, -0.5, -0.5), Vector2::new(0.0, 1.0)),
-                ],
+                VertexBuffer::new(vertices.len(), SimpleVertex::layout(), vertices).unwrap(),
                 vec![
                     TriangleDefinition([0, 1, 2]),
                     TriangleDefinition([0, 2, 3]),

@@ -1,3 +1,4 @@
+use crate::scene::mesh::buffer::{VertexAttributeDataKind, VertexBuffer};
 use crate::{
     core::{math::TriangleDefinition, scope_profile},
     renderer::framework::{error::FrameworkError, state::PipelineState},
@@ -373,6 +374,43 @@ impl BufferBuilder {
             element_size: size_of::<T>(),
             data,
             data_size,
+        }
+    }
+
+    pub fn from_vertex_buffer(buffer: &VertexBuffer, kind: GeometryBufferKind) -> Self {
+        Self {
+            element_size: buffer.vertex_size() as usize,
+            kind,
+            attributes: buffer
+                .layout()
+                .iter()
+                .map(|a| AttributeDefinition {
+                    location: a.shader_location as u32,
+                    kind: match (a.component_type, a.size) {
+                        (VertexAttributeDataKind::F32, 1) => AttributeKind::Float,
+                        (VertexAttributeDataKind::F32, 2) => AttributeKind::Float2,
+                        (VertexAttributeDataKind::F32, 3) => AttributeKind::Float3,
+                        (VertexAttributeDataKind::F32, 4) => AttributeKind::Float4,
+                        (VertexAttributeDataKind::U32, 1) => AttributeKind::UnsignedInt,
+                        (VertexAttributeDataKind::U32, 2) => AttributeKind::UnsignedInt2,
+                        (VertexAttributeDataKind::U32, 3) => AttributeKind::UnsignedInt3,
+                        (VertexAttributeDataKind::U32, 4) => AttributeKind::UnsignedInt4,
+                        (VertexAttributeDataKind::U16, 1) => AttributeKind::UnsignedShort,
+                        (VertexAttributeDataKind::U16, 2) => AttributeKind::UnsignedShort2,
+                        (VertexAttributeDataKind::U16, 3) => AttributeKind::UnsignedShort3,
+                        (VertexAttributeDataKind::U16, 4) => AttributeKind::UnsignedShort4,
+                        (VertexAttributeDataKind::U8, 1) => AttributeKind::UnsignedByte,
+                        (VertexAttributeDataKind::U8, 2) => AttributeKind::UnsignedByte2,
+                        (VertexAttributeDataKind::U8, 3) => AttributeKind::UnsignedByte3,
+                        (VertexAttributeDataKind::U8, 4) => AttributeKind::UnsignedByte4,
+                        _ => unreachable!(),
+                    },
+                    normalized: false,
+                    divisor: 0,
+                })
+                .collect(),
+            data: buffer.raw_data().as_ptr(),
+            data_size: buffer.raw_data().len(),
         }
     }
 

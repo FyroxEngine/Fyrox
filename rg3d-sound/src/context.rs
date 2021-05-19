@@ -287,7 +287,7 @@ impl SoundContext {
     ///
     /// This method internally locks a mutex, so if you'll try to do something like this:
     ///
-    /// ```rust
+    /// ```norun
     /// # use rg3d_sound::context::SoundContext;
     /// # let ctx = SoundContext::new();
     /// let state = ctx.state();

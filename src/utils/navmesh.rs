@@ -11,6 +11,7 @@
 
 #![warn(missing_docs)]
 
+use crate::scene::mesh::buffer::{VertexAttributeKind, VertexReadTrait};
 use crate::{
     core::{
         algebra::{Point3, Vector3},
@@ -176,21 +177,39 @@ impl Navmesh {
             let shared_data = surface.data();
             let shared_data = shared_data.read().unwrap();
 
-            let vertices = shared_data.get_vertices();
+            let vertex_buffer = shared_data.vertex_buffer();
             for triangle in shared_data.triangles() {
                 builder.insert(RawVertex::from(
                     global_transform
-                        .transform_point(&Point3::from(vertices[triangle[0] as usize].position))
+                        .transform_point(&Point3::from(
+                            vertex_buffer
+                                .get(triangle[0] as usize)
+                                .unwrap()
+                                .read_3_f32(VertexAttributeKind::Position)
+                                .unwrap(),
+                        ))
                         .coords,
                 ));
                 builder.insert(RawVertex::from(
                     global_transform
-                        .transform_point(&Point3::from(vertices[triangle[1] as usize].position))
+                        .transform_point(&Point3::from(
+                            vertex_buffer
+                                .get(triangle[1] as usize)
+                                .unwrap()
+                                .read_3_f32(VertexAttributeKind::Position)
+                                .unwrap(),
+                        ))
                         .coords,
                 ));
                 builder.insert(RawVertex::from(
                     global_transform
-                        .transform_point(&Point3::from(vertices[triangle[2] as usize].position))
+                        .transform_point(&Point3::from(
+                            vertex_buffer
+                                .get(triangle[2] as usize)
+                                .unwrap()
+                                .read_3_f32(VertexAttributeKind::Position)
+                                .unwrap(),
+                        ))
                         .coords,
                 ));
             }

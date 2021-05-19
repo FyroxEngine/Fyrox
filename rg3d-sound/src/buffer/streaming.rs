@@ -15,8 +15,8 @@
 //! use std::sync::{Mutex, Arc};
 //! use rg3d_sound::buffer::{SoundBuffer, DataSource};
 //!
-//! fn make_streaming_buffer() -> Arc<Mutex<SoundBuffer>> {
-//!     let data_source = DataSource::from_file("some_long_sound.ogg").unwrap();
+//! async fn make_streaming_buffer() -> Arc<Mutex<SoundBuffer>> {
+//!     let data_source = DataSource::from_file("some_long_sound.ogg").await.unwrap();
 //!     SoundBuffer::new_streaming(data_source).unwrap()
 //! }
 //! ```

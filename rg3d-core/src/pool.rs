@@ -1160,7 +1160,7 @@ mod test {
         assert_ne!(at_foobar_index.generation, INVALID_GENERATION);
         assert_eq!(pool.borrow(at_foobar_index), "AtFoobarIndex");
         let bar_handle = pool.spawn_with(|_handle| String::from("Bar"));
-        assert_eq!(bar_handle.index, 0);
+        assert_ne!(bar_handle.index, 0);
         assert_ne!(bar_handle.generation, INVALID_GENERATION);
         assert_eq!(pool.borrow(bar_handle), "Bar");
     }
@@ -1181,6 +1181,7 @@ mod test {
 
     #[test]
     fn handle_of() {
+        #[allow(dead_code)]
         struct Value {
             data: String,
         }

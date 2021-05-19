@@ -9,6 +9,7 @@
 
 #![forbid(unsafe_code)]
 
+use crate::scene::mesh::buffer::{VertexAttributeKind, VertexFetchError, VertexReadTrait};
 use crate::{
     core::{
         algebra::{Matrix3, Matrix4, Point3, Vector2, Vector3, Vector4},
@@ -214,6 +215,14 @@ impl Deref for ProgressIndicator {
 pub enum LightmapGenerationError {
     /// Generation was cancelled by user.
     Cancelled,
+    /// Vertex buffer of a mesh lacks needed data.
+    InvalidData(VertexFetchError),
+}
+
+impl From<VertexFetchError> for LightmapGenerationError {
+    fn from(e: VertexFetchError) -> Self {
+        Self::InvalidData(e)
+    }
 }
 
 impl Lightmap {
@@ -332,7 +341,7 @@ impl Lightmap {
                     Err(LightmapGenerationError::Cancelled)
                 } else {
                     let mut data = data.write().unwrap();
-                    let patch = uvgen::generate_uvs(&mut data, 0.005);
+                    let patch = uvgen::generate_uvs(&mut data, 0.005)?;
                     progress_indicator.advance_progress();
                     Ok((patch.data_id, patch))
                 }
@@ -357,20 +366,25 @@ impl Lightmap {
                         .unwrap_or_else(Matrix3::identity);
 
                     let world_vertices = data
-                        .vertices
+                        .vertex_buffer
                         .iter()
-                        .map(|v| {
+                        .map(|view| {
                             let world_position = instance
                                 .transform
-                                .transform_point(&Point3::from(v.position))
+                                .transform_point(&Point3::from(
+                                    view.read_3_f32(VertexAttributeKind::Position).unwrap(),
+                                ))
                                 .coords;
-                            let world_normal = (normal_matrix * v.normal)
-                                .try_normalize(f32::EPSILON)
-                                .unwrap_or_default();
+                            let world_normal = (normal_matrix
+                                * view.read_3_f32(VertexAttributeKind::Normal).unwrap())
+                            .try_normalize(f32::EPSILON)
+                            .unwrap_or_default();
                             WorldVertex {
                                 world_normal,
                                 world_position,
-                                second_tex_coord: v.second_tex_coord,
+                                second_tex_coord: view
+                                    .read_2_f32(VertexAttributeKind::TexCoord1)
+                                    .unwrap(),
                             }
                         })
                         .collect::<Vec<_>>();
@@ -861,16 +875,19 @@ fn generate_lightmap(
 
 #[cfg(test)]
 mod test {
-    use crate::renderer::surface::SurfaceBuilder;
-    use crate::scene::base::BaseBuilder;
-    use crate::scene::light::{BaseLightBuilder, PointLightBuilder};
-    use crate::scene::mesh::MeshBuilder;
-    use crate::scene::transform::TransformBuilder;
-    use crate::scene::Scene;
-    use crate::utils::lightmap::Lightmap;
     use crate::{
         core::algebra::{Matrix4, Vector3},
-        renderer::surface::SurfaceData,
+        scene::{
+            base::BaseBuilder,
+            light::{BaseLightBuilder, PointLightBuilder},
+            mesh::{
+                surface::{SurfaceBuilder, SurfaceData},
+                MeshBuilder,
+            },
+            transform::TransformBuilder,
+            Scene,
+        },
+        utils::lightmap::Lightmap,
     };
     use std::sync::{Arc, RwLock};
 

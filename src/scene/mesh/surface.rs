@@ -4,6 +4,8 @@
 //! Surfaces can use the same data source across many instances, this is a memory optimization for
 //! being able to re-use data when you need to draw the same mesh in many places.
 
+use crate::scene::mesh::buffer::VertexFetchError;
+use crate::scene::mesh::vertex::OldVertex;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
@@ -13,7 +15,16 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
     },
     resource::texture::Texture,
-    scene::node::Node,
+    scene::{
+        mesh::{
+            buffer::{
+                VertexAttributeDescriptor, VertexAttributeKind, VertexBuffer, VertexReadTrait,
+                VertexWriteTrait,
+            },
+            vertex::StaticVertex,
+        },
+        node::Node,
+    },
     utils::raw_mesh::{RawMesh, RawMeshBuilder},
 };
 use std::{
@@ -22,124 +33,12 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-/// Vertex for each mesh in engine.
-///
-/// # Possible optimizations
-///
-/// This vertex format maybe too big for some cases thus impacting performance.
-/// The ability to make your own vertices is nice to have but this is still a
-/// TODO.
-#[derive(Copy, Clone, Debug, Default)]
-#[repr(C)] // OpenGL expects this structure packed as in C
-pub struct Vertex {
-    /// Position of vertex in local coordinates.
-    pub position: Vector3<f32>,
-    /// Texture coordinates.
-    pub tex_coord: Vector2<f32>,
-    /// Second texture coordinates. Usually used for lightmapping.
-    pub second_tex_coord: Vector2<f32>,
-    /// Normal in local coordinates.
-    pub normal: Vector3<f32>,
-    /// Tangent vector in local coordinates.
-    pub tangent: Vector4<f32>,
-    /// Array of bone weights. Unused bones will have 0.0 weight so they won't
-    /// impact the shape of mesh.
-    pub bone_weights: [f32; 4],
-    /// Array of bone indices. It has indices of bones in array of bones of a
-    /// surface.
-    pub bone_indices: [u8; 4],
-}
-
-impl Visit for Vertex {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.position.visit("Position", visitor)?;
-        self.tex_coord.visit("TexCoord", visitor)?;
-        self.second_tex_coord.visit("SecondTexCoord", visitor)?;
-        self.normal.visit("Normal", visitor)?;
-        self.tangent.visit("Tangent", visitor)?;
-
-        self.bone_weights[0].visit("Weight0", visitor)?;
-        self.bone_weights[1].visit("Weight1", visitor)?;
-        self.bone_weights[2].visit("Weight2", visitor)?;
-        self.bone_weights[3].visit("Weight3", visitor)?;
-
-        self.bone_indices[0].visit("BoneIndex0", visitor)?;
-        self.bone_indices[1].visit("BoneIndex1", visitor)?;
-        self.bone_indices[2].visit("BoneIndex2", visitor)?;
-        self.bone_indices[3].visit("BoneIndex3", visitor)?;
-
-        visitor.leave_region()
-    }
-}
-
-impl Vertex {
-    /// Creates new vertex from given position and texture coordinates.
-    pub fn from_pos_uv(position: Vector3<f32>, tex_coord: Vector2<f32>) -> Self {
-        Self {
-            position,
-            tex_coord,
-            second_tex_coord: Default::default(),
-            normal: Vector3::new(0.0, 1.0, 0.0),
-            tangent: Vector4::default(),
-            bone_weights: [0.0; 4],
-            bone_indices: Default::default(),
-        }
-    }
-
-    /// Creates new vertex from given position and texture coordinates.
-    pub fn from_pos_uv_normal(
-        position: Vector3<f32>,
-        tex_coord: Vector2<f32>,
-        normal: Vector3<f32>,
-    ) -> Self {
-        Self {
-            position,
-            tex_coord,
-            second_tex_coord: Default::default(),
-            normal,
-            tangent: Vector4::default(),
-            bone_weights: [0.0; 4],
-            bone_indices: Default::default(),
-        }
-    }
-}
-
-impl PartialEq for Vertex {
-    fn eq(&self, other: &Self) -> bool {
-        self.position == other.position
-            && self.tex_coord == other.tex_coord
-            && self.second_tex_coord == other.second_tex_coord
-            && self.normal == other.normal
-            && self.tangent == other.tangent
-            && self.bone_weights == other.bone_weights
-            && self.bone_indices == other.bone_indices
-    }
-}
-
-// This is safe because Vertex is tightly packed struct with C representation
-// there is no padding bytes which may contain garbage data. This is strictly
-// required because vertices will be directly passed on GPU.
-impl Hash for Vertex {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        #[allow(unsafe_code)]
-        unsafe {
-            let bytes = self as *const Self as *const u8;
-            state.write(std::slice::from_raw_parts(
-                bytes,
-                std::mem::size_of::<Self>(),
-            ))
-        }
-    }
-}
-
 /// Data source of a surface. Each surface can share same data source, this is used
 /// in instancing technique to render multiple instances of same model at different
 /// places.
 #[derive(Debug)]
 pub struct SurfaceData {
-    pub(in crate) vertices: Vec<Vertex>,
+    pub(in crate) vertex_buffer: VertexBuffer,
     pub(in crate) triangles: Vec<TriangleDefinition>,
     // If true - indicates that surface was generated and does not have reference
     // resource. Procedural data will be serialized.
@@ -149,7 +48,7 @@ pub struct SurfaceData {
 impl Default for SurfaceData {
     fn default() -> Self {
         Self {
-            vertices: Default::default(),
+            vertex_buffer: Default::default(),
             triangles: Default::default(),
             is_procedural: false,
         }
@@ -159,36 +58,54 @@ impl Default for SurfaceData {
 impl SurfaceData {
     /// Creates new data source using given vertices and indices.
     pub fn new(
-        vertices: Vec<Vertex>,
+        vertex_buffer: VertexBuffer,
         triangles: Vec<TriangleDefinition>,
         is_procedural: bool,
     ) -> Self {
         Self {
-            vertices,
+            vertex_buffer,
             triangles,
             is_procedural,
         }
     }
 
     /// Applies given transform for every spatial part of the data (vertex position, normal, tangent).
-    pub fn transform_geometry(&mut self, transform: &Matrix4<f32>) {
+    pub fn transform_geometry(&mut self, transform: &Matrix4<f32>) -> Result<(), VertexFetchError> {
         // Discard scale by inverse and transpose given transform (M^-1)^T
         let normal_matrix = transform.try_inverse().unwrap_or_default().transpose();
 
-        for v in self.vertices.iter_mut() {
-            v.position = transform.transform_point(&Point3::from(v.position)).coords;
-            v.normal = normal_matrix.transform_vector(&v.normal);
-            let tangent = normal_matrix.transform_vector(&v.tangent.xyz());
+        for mut view in self.vertex_buffer.iter_mut() {
+            let position = view.read_3_f32(VertexAttributeKind::Position)?;
+            view.write_3_f32(
+                VertexAttributeKind::Position,
+                transform.transform_point(&Point3::from(position)).coords,
+            )?;
+            let normal = view.read_3_f32(VertexAttributeKind::Normal)?;
+            view.write_3_f32(
+                VertexAttributeKind::Normal,
+                normal_matrix.transform_vector(&normal),
+            )?;
+            let tangent = view.read_4_f32(VertexAttributeKind::Tangent)?;
+            let new_tangent = normal_matrix.transform_vector(&tangent.xyz());
             // Keep sign (W).
-            v.tangent = Vector4::new(tangent.x, tangent.y, tangent.z, v.tangent.w);
+            view.write_4_f32(
+                VertexAttributeKind::Tangent,
+                Vector4::new(new_tangent.x, new_tangent.y, new_tangent.z, tangent.w),
+            )?;
         }
+
+        Ok(())
     }
 
     /// Converts raw mesh into "renderable" mesh. It is useful to build procedural
     /// meshes.
-    pub fn from_raw_mesh(raw: RawMesh<Vertex>, is_procedural: bool) -> Self {
+    pub fn from_raw_mesh<T: Copy>(
+        raw: RawMesh<T>,
+        layout: &[VertexAttributeDescriptor],
+        is_procedural: bool,
+    ) -> Self {
         Self {
-            vertices: raw.vertices,
+            vertex_buffer: VertexBuffer::new(raw.vertices.len(), layout, raw.vertices).unwrap(),
             triangles: raw.triangles,
             is_procedural,
         }
@@ -196,13 +113,13 @@ impl SurfaceData {
 
     /// Returns shared reference to vertices array.
     #[inline]
-    pub fn get_vertices(&self) -> &[Vertex] {
-        &self.vertices
+    pub fn vertex_buffer(&self) -> &VertexBuffer {
+        &self.vertex_buffer
     }
 
     #[inline]
-    pub(in crate) fn get_vertices_mut(&mut self) -> &mut [Vertex] {
-        &mut self.vertices
+    pub(in crate) fn vertex_buffer_mut(&mut self) -> &mut VertexBuffer {
+        &mut self.vertex_buffer
     }
 
     /// Return shared reference to triangles array.
@@ -216,22 +133,26 @@ impl SurfaceData {
     /// a mesh from "untrusted" source, it automatically calculates tangents for you, so
     /// there is no need to call this manually in this case. However if you making your
     /// mesh procedurally, you have to use this method!
-    pub fn calculate_tangents(&mut self) {
-        let mut tan1 = vec![Vector3::default(); self.vertices.len()];
-        let mut tan2 = vec![Vector3::default(); self.vertices.len()];
+    pub fn calculate_tangents(&mut self) -> Result<(), VertexFetchError> {
+        let mut tan1 = vec![Vector3::default(); self.vertex_buffer.vertex_count() as usize];
+        let mut tan2 = vec![Vector3::default(); self.vertex_buffer.vertex_count() as usize];
 
         for triangle in self.triangles.iter() {
             let i1 = triangle[0] as usize;
             let i2 = triangle[1] as usize;
             let i3 = triangle[2] as usize;
 
-            let v1 = &self.vertices[i1].position;
-            let v2 = &self.vertices[i2].position;
-            let v3 = &self.vertices[i3].position;
+            let view1 = &self.vertex_buffer.get(i1).unwrap();
+            let view2 = &self.vertex_buffer.get(i2).unwrap();
+            let view3 = &self.vertex_buffer.get(i3).unwrap();
 
-            let w1 = &self.vertices[i1].tex_coord;
-            let w2 = &self.vertices[i2].tex_coord;
-            let w3 = &self.vertices[i3].tex_coord;
+            let v1 = view1.read_3_f32(VertexAttributeKind::Position)?;
+            let v2 = view2.read_3_f32(VertexAttributeKind::Position)?;
+            let v3 = view3.read_3_f32(VertexAttributeKind::Position)?;
+
+            let w1 = view1.read_3_f32(VertexAttributeKind::TexCoord0)?;
+            let w2 = view2.read_3_f32(VertexAttributeKind::TexCoord0)?;
+            let w3 = view3.read_3_f32(VertexAttributeKind::TexCoord0)?;
 
             let x1 = v2.x - v1.x;
             let x2 = v3.x - v1.x;
@@ -267,60 +188,63 @@ impl SurfaceData {
             tan2[i3] += tdir;
         }
 
-        for (v, (t1, t2)) in self.vertices.iter_mut().zip(tan1.into_iter().zip(tan2)) {
+        for (mut view, (t1, t2)) in self
+            .vertex_buffer
+            .iter_mut()
+            .zip(tan1.into_iter().zip(tan2))
+        {
+            let normal = view.read_3_f32(VertexAttributeKind::Normal)?;
+
             // Gram-Schmidt orthogonalize
-            let tangent = (t1 - v.normal.scale(v.normal.dot(&t1)))
+            let tangent = (t1 - normal.scale(normal.dot(&t1)))
                 .try_normalize(std::f32::EPSILON)
                 .unwrap_or_else(|| Vector3::new(0.0, 1.0, 0.0));
-            let handedness = v.normal.cross(&t1).dot(&t2).signum();
-            v.tangent = Vector4::new(tangent.x, tangent.y, tangent.z, handedness);
+            let handedness = normal.cross(&t1).dot(&t2).signum();
+            view.write_4_f32(
+                VertexAttributeKind::Tangent,
+                Vector4::new(tangent.x, tangent.y, tangent.z, handedness),
+            )?;
         }
+
+        Ok(())
     }
 
     /// Creates a quad oriented on oXY plane with unit width and height.
     pub fn make_unit_xy_quad() -> Self {
         let vertices = vec![
-            Vertex {
+            StaticVertex {
                 position: Vector3::default(),
                 normal: Vector3::z(),
                 tex_coord: Vector2::y(),
                 tangent: Vector4::default(),
-                bone_weights: [0.0; 4],
-                bone_indices: [0; 4],
-                second_tex_coord: Default::default(),
             },
-            Vertex {
+            StaticVertex {
                 position: Vector3::x(),
                 normal: Vector3::z(),
                 tex_coord: Vector2::new(1.0, 1.0),
                 tangent: Vector4::default(),
-                bone_weights: [0.0; 4],
-                bone_indices: [0; 4],
-                second_tex_coord: Default::default(),
             },
-            Vertex {
+            StaticVertex {
                 position: Vector3::new(1.0, 1.0, 0.0),
                 normal: Vector3::z(),
                 tex_coord: Vector2::x(),
                 tangent: Vector4::default(),
-                bone_weights: [0.0; 4],
-                bone_indices: [0; 4],
-                second_tex_coord: Default::default(),
             },
-            Vertex {
+            StaticVertex {
                 position: Vector3::y(),
                 normal: Vector3::z(),
                 tex_coord: Vector2::default(),
                 tangent: Vector4::default(),
-                bone_weights: [0.0; 4],
-                bone_indices: [0; 4],
-                second_tex_coord: Default::default(),
             },
         ];
 
         let indices = vec![TriangleDefinition([0, 1, 2]), TriangleDefinition([0, 2, 3])];
 
-        Self::new(vertices, indices, true)
+        Self::new(
+            VertexBuffer::new(vertices.len(), StaticVertex::layout(), vertices).unwrap(),
+            indices,
+            true,
+        )
     }
 
     /// Creates a degenerated quad which collapsed in a point. This is very special method for
@@ -328,123 +252,126 @@ impl SurfaceData {
     /// will always face camera.
     pub fn make_collapsed_xy_quad() -> Self {
         let vertices = vec![
-            Vertex {
+            StaticVertex {
                 position: Vector3::default(),
                 normal: Vector3::z(),
                 tex_coord: Vector2::default(),
                 tangent: Vector4::default(),
-                bone_weights: [0.0; 4],
-                bone_indices: [0; 4],
-                second_tex_coord: Default::default(),
             },
-            Vertex {
+            StaticVertex {
                 position: Vector3::default(),
                 normal: Vector3::z(),
                 tex_coord: Vector2::x(),
                 tangent: Vector4::default(),
-                bone_weights: [0.0; 4],
-                bone_indices: [0; 4],
-                second_tex_coord: Default::default(),
             },
-            Vertex {
+            StaticVertex {
                 position: Vector3::default(),
                 normal: Vector3::z(),
                 tex_coord: Vector2::new(1.0, 1.0),
                 tangent: Vector4::default(),
-                bone_weights: [0.0; 4],
-                bone_indices: [0; 4],
-                second_tex_coord: Default::default(),
             },
-            Vertex {
+            StaticVertex {
                 position: Vector3::default(),
                 normal: Vector3::z(),
                 tex_coord: Vector2::y(),
                 tangent: Vector4::default(),
-                bone_weights: [0.0; 4],
-                bone_indices: [0; 4],
-                second_tex_coord: Default::default(),
             },
         ];
 
         let indices = vec![TriangleDefinition([0, 1, 2]), TriangleDefinition([0, 2, 3])];
 
-        Self::new(vertices, indices, true)
+        Self::new(
+            VertexBuffer::new(vertices.len(), StaticVertex::layout(), vertices).unwrap(),
+            indices,
+            true,
+        )
     }
 
     /// Creates new quad at oXY plane with given transform.
     pub fn make_quad(transform: &Matrix4<f32>) -> Self {
         let vertices = vec![
-            Vertex {
+            StaticVertex {
                 position: Vector3::new(-0.5, 0.5, 0.0),
                 normal: -Vector3::z(),
                 tex_coord: Vector2::new(1.0, 1.0),
                 tangent: Vector4::default(),
-                bone_weights: [0.0; 4],
-                bone_indices: [0; 4],
-                second_tex_coord: Default::default(),
             },
-            Vertex {
+            StaticVertex {
                 position: Vector3::new(0.5, 0.5, 0.0),
                 normal: -Vector3::z(),
                 tex_coord: Vector2::new(0.0, 1.0),
                 tangent: Vector4::default(),
-                bone_weights: [0.0; 4],
-                bone_indices: [0; 4],
-                second_tex_coord: Default::default(),
             },
-            Vertex {
+            StaticVertex {
                 position: Vector3::new(0.5, -0.5, 0.0),
                 normal: -Vector3::z(),
                 tex_coord: Vector2::new(0.0, 0.0),
                 tangent: Vector4::default(),
-                bone_weights: [0.0; 4],
-                bone_indices: [0; 4],
-                second_tex_coord: Default::default(),
             },
-            Vertex {
+            StaticVertex {
                 position: Vector3::new(-0.5, -0.5, 0.0),
                 normal: -Vector3::z(),
                 tex_coord: Vector2::new(1.0, 0.0),
                 tangent: Vector4::default(),
-                bone_weights: [0.0; 4],
-                bone_indices: [0; 4],
-                second_tex_coord: Default::default(),
             },
         ];
 
         let mut data = Self::new(
-            vertices,
+            VertexBuffer::new(vertices.len(), StaticVertex::layout(), vertices).unwrap(),
             vec![TriangleDefinition([0, 1, 2]), TriangleDefinition([0, 2, 3])],
             true,
         );
-        data.calculate_tangents();
-        data.transform_geometry(transform);
+        data.calculate_tangents().unwrap();
+        data.transform_geometry(transform).unwrap();
         data
     }
 
     /// Calculates per-face normals. This method is fast, but have very poor quality, and surface
     /// will look facet.
-    pub fn calculate_normals(&mut self) {
+    pub fn calculate_normals(&mut self) -> Result<(), VertexFetchError> {
         for triangle in self.triangles.iter() {
             let ia = triangle[0] as usize;
             let ib = triangle[1] as usize;
             let ic = triangle[2] as usize;
 
-            let a = self.vertices[ia].position;
-            let b = self.vertices[ib].position;
-            let c = self.vertices[ic].position;
+            let a = self
+                .vertex_buffer
+                .get(ia)
+                .unwrap()
+                .read_3_f32(VertexAttributeKind::Position)?;
+            let b = self
+                .vertex_buffer
+                .get(ib)
+                .unwrap()
+                .read_3_f32(VertexAttributeKind::Position)?;
+            let c = self
+                .vertex_buffer
+                .get(ic)
+                .unwrap()
+                .read_3_f32(VertexAttributeKind::Position)?;
 
             let normal = (b - a).cross(&(c - a)).normalize();
 
-            self.vertices[ia].normal = normal;
-            self.vertices[ib].normal = normal;
-            self.vertices[ic].normal = normal;
+            self.vertex_buffer
+                .get_mut(ia)
+                .unwrap()
+                .write_3_f32(VertexAttributeKind::Normal, normal)?;
+            self.vertex_buffer
+                .get_mut(ib)
+                .unwrap()
+                .write_3_f32(VertexAttributeKind::Normal, normal)?;
+            self.vertex_buffer
+                .get_mut(ic)
+                .unwrap()
+                .write_3_f32(VertexAttributeKind::Normal, normal)?;
         }
+
+        Ok(())
     }
 
     /// Creates sphere of specified radius with given slices and stacks.
     pub fn make_sphere(slices: usize, stacks: usize, r: f32, transform: &Matrix4<f32>) -> Self {
-        let mut builder = RawMeshBuilder::<Vertex>::new(stacks * slices, stacks * slices * 3);
+        let mut builder = RawMeshBuilder::<StaticVertex>::new(stacks * slices, stacks * slices * 3);
 
         let d_theta = std::f32::consts::PI / slices as f32;
         let d_phi = 2.0 * std::f32::consts::PI / stacks as f32;
@@ -476,9 +403,9 @@ impl SurfaceData {
                     let v2 = Vector3::new(k4 * k5, k4 * k6, k7);
                     let t2 = Vector2::new(d_tc_x * nj as f32, d_tc_y * ni as f32);
 
-                    builder.insert(Vertex::from_pos_uv_normal(v0, t0, v0));
-                    builder.insert(Vertex::from_pos_uv_normal(v1, t1, v1));
-                    builder.insert(Vertex::from_pos_uv_normal(v2, t2, v2));
+                    builder.insert(StaticVertex::from_pos_uv_normal(v0, t0, v0));
+                    builder.insert(StaticVertex::from_pos_uv_normal(v1, t1, v1));
+                    builder.insert(StaticVertex::from_pos_uv_normal(v2, t2, v2));
                 }
 
                 if i != 0 {
@@ -491,22 +418,22 @@ impl SurfaceData {
                     let v2 = Vector3::new(k0 * k1, k0 * k2, k3);
                     let t2 = Vector2::new(d_tc_x * j as f32, d_tc_y * i as f32);
 
-                    builder.insert(Vertex::from_pos_uv_normal(v0, t0, v0));
-                    builder.insert(Vertex::from_pos_uv_normal(v1, t1, v1));
-                    builder.insert(Vertex::from_pos_uv_normal(v2, t2, v2));
+                    builder.insert(StaticVertex::from_pos_uv_normal(v0, t0, v0));
+                    builder.insert(StaticVertex::from_pos_uv_normal(v1, t1, v1));
+                    builder.insert(StaticVertex::from_pos_uv_normal(v2, t2, v2));
                 }
             }
         }
 
-        let mut data = Self::from_raw_mesh(builder.build(), true);
-        data.calculate_tangents();
-        data.transform_geometry(transform);
+        let mut data = Self::from_raw_mesh(builder.build(), StaticVertex::layout(), true);
+        data.calculate_tangents().unwrap();
+        data.transform_geometry(transform).unwrap();
         data
     }
 
     /// Creates vertical cone - it has its vertex higher than base.
     pub fn make_cone(sides: usize, r: f32, h: f32, transform: &Matrix4<f32>) -> Self {
-        let mut builder = RawMeshBuilder::<Vertex>::new(3 * sides, 3 * sides);
+        let mut builder = RawMeshBuilder::<StaticVertex>::new(3 * sides, 3 * sides);
 
         let d_phi = 2.0 * std::f32::consts::PI / sides as f32;
         let d_theta = 1.0 / sides as f32;
@@ -534,17 +461,17 @@ impl SurfaceData {
             let t_cap_x_next = t_cap_x_next * 0.5 + 0.5;
             let t_cap_y_next = t_cap_y_next * 0.5 + 0.5;
 
-            builder.insert(Vertex::from_pos_uv_normal(
+            builder.insert(StaticVertex::from_pos_uv_normal(
                 Vector3::new(0.0, 0.0, 0.0),
                 Vector2::new(0.5, 0.5),
                 Vector3::new(0.0, -1.0, 0.0),
             ));
-            builder.insert(Vertex::from_pos_uv_normal(
+            builder.insert(StaticVertex::from_pos_uv_normal(
                 Vector3::new(x0, 0.0, z0),
                 Vector2::new(t_cap_x_curr, t_cap_y_curr),
                 Vector3::new(0.0, -1.0, 0.0),
             ));
-            builder.insert(Vertex::from_pos_uv_normal(
+            builder.insert(StaticVertex::from_pos_uv_normal(
                 Vector3::new(x1, 0.0, z1),
                 Vector2::new(t_cap_x_next, t_cap_y_next),
                 Vector3::new(0.0, -1.0, 0.0),
@@ -557,26 +484,26 @@ impl SurfaceData {
             let n_next = (tip - v_next).cross(&(v_next - v_curr));
             let n_curr = (tip - v_curr).cross(&(v_next - v_curr));
 
-            builder.insert(Vertex::from_pos_uv_normal(
+            builder.insert(StaticVertex::from_pos_uv_normal(
                 tip,
                 Vector2::new(0.5, 0.0),
                 n_curr,
             ));
-            builder.insert(Vertex::from_pos_uv_normal(
+            builder.insert(StaticVertex::from_pos_uv_normal(
                 v_next,
                 Vector2::new(tx1, 1.0),
                 n_next,
             ));
-            builder.insert(Vertex::from_pos_uv_normal(
+            builder.insert(StaticVertex::from_pos_uv_normal(
                 v_curr,
                 Vector2::new(tx0, 1.0),
                 n_curr,
             ));
         }
 
-        let mut data = Self::from_raw_mesh(builder.build(), true);
-        data.calculate_tangents();
-        data.transform_geometry(transform);
+        let mut data = Self::from_raw_mesh(builder.build(), StaticVertex::layout(), true);
+        data.calculate_tangents().unwrap();
+        data.transform_geometry(transform).unwrap();
         data
     }
 
@@ -588,7 +515,7 @@ impl SurfaceData {
         caps: bool,
         transform: &Matrix4<f32>,
     ) -> Self {
-        let mut builder = RawMeshBuilder::<Vertex>::new(3 * sides, 3 * sides);
+        let mut builder = RawMeshBuilder::<StaticVertex>::new(3 * sides, 3 * sides);
 
         let d_phi = 2.0 * std::f32::consts::PI / sides as f32;
         let d_theta = 1.0 / sides as f32;
@@ -615,34 +542,34 @@ impl SurfaceData {
                 let t_cap_y_next = t_cap_y_next * 0.5 + 0.5;
 
                 // front cap
-                builder.insert(Vertex::from_pos_uv_normal(
+                builder.insert(StaticVertex::from_pos_uv_normal(
                     Vector3::new(x1, h, z1),
                     Vector2::new(t_cap_x_next, t_cap_y_next),
                     Vector3::new(0.0, 1.0, 0.0),
                 ));
-                builder.insert(Vertex::from_pos_uv_normal(
+                builder.insert(StaticVertex::from_pos_uv_normal(
                     Vector3::new(x0, h, z0),
                     Vector2::new(t_cap_x_curr, t_cap_y_curr),
                     Vector3::new(0.0, 1.0, 0.0),
                 ));
-                builder.insert(Vertex::from_pos_uv_normal(
+                builder.insert(StaticVertex::from_pos_uv_normal(
                     Vector3::new(0.0, h, 0.0),
                     Vector2::new(0.5, 0.5),
                     Vector3::new(0.0, 1.0, 0.0),
                 ));
 
                 // back cap
-                builder.insert(Vertex::from_pos_uv_normal(
+                builder.insert(StaticVertex::from_pos_uv_normal(
                     Vector3::new(x0, 0.0, z0),
                     Vector2::new(t_cap_x_curr, t_cap_y_curr),
                     Vector3::new(0.0, -1.0, 0.0),
                 ));
-                builder.insert(Vertex::from_pos_uv_normal(
+                builder.insert(StaticVertex::from_pos_uv_normal(
                     Vector3::new(x1, 0.0, z1),
                     Vector2::new(t_cap_x_next, t_cap_y_next),
                     Vector3::new(0.0, -1.0, 0.0),
                 ));
-                builder.insert(Vertex::from_pos_uv_normal(
+                builder.insert(StaticVertex::from_pos_uv_normal(
                     Vector3::new(0.0, 0.0, 0.0),
                     Vector2::new(0.5, 0.5),
                     Vector3::new(0.0, -1.0, 0.0),
@@ -653,42 +580,42 @@ impl SurfaceData {
             let t_side_next = d_theta * (i + 1) as f32;
 
             // sides
-            builder.insert(Vertex::from_pos_uv_normal(
+            builder.insert(StaticVertex::from_pos_uv_normal(
                 Vector3::new(x0, 0.0, z0),
                 Vector2::new(t_side_curr, 0.0),
                 Vector3::new(x0, 0.0, z0),
             ));
-            builder.insert(Vertex::from_pos_uv_normal(
+            builder.insert(StaticVertex::from_pos_uv_normal(
                 Vector3::new(x0, h, z0),
                 Vector2::new(t_side_curr, 1.0),
                 Vector3::new(x0, 0.0, z0),
             ));
-            builder.insert(Vertex::from_pos_uv_normal(
+            builder.insert(StaticVertex::from_pos_uv_normal(
                 Vector3::new(x1, 0.0, z1),
                 Vector2::new(t_side_next, 0.0),
                 Vector3::new(x1, 0.0, z1),
             ));
 
-            builder.insert(Vertex::from_pos_uv_normal(
+            builder.insert(StaticVertex::from_pos_uv_normal(
                 Vector3::new(x1, 0.0, z1),
                 Vector2::new(t_side_next, 0.0),
                 Vector3::new(x1, 0.0, z1),
             ));
-            builder.insert(Vertex::from_pos_uv_normal(
+            builder.insert(StaticVertex::from_pos_uv_normal(
                 Vector3::new(x0, h, z0),
                 Vector2::new(t_side_curr, 1.0),
                 Vector3::new(x0, 0.0, z0),
             ));
-            builder.insert(Vertex::from_pos_uv_normal(
+            builder.insert(StaticVertex::from_pos_uv_normal(
                 Vector3::new(x1, h, z1),
                 Vector2::new(t_side_next, 1.0),
                 Vector3::new(x1, 0.0, z1),
             ));
         }
 
-        let mut data = Self::from_raw_mesh(builder.build(), true);
-        data.calculate_tangents();
-        data.transform_geometry(transform);
+        let mut data = Self::from_raw_mesh(builder.build(), StaticVertex::layout(), true);
+        data.calculate_tangents().unwrap();
+        data.transform_geometry(transform).unwrap();
         data
     }
 
@@ -696,226 +623,154 @@ impl SurfaceData {
     pub fn make_cube(transform: Matrix4<f32>) -> Self {
         let vertices = vec![
             // Front
-            Vertex {
+            StaticVertex {
                 position: Vector3::new(-0.5, -0.5, 0.5),
                 normal: Vector3::z(),
                 tex_coord: Vector2::default(),
                 tangent: Vector4::default(),
-                bone_weights: [0.0; 4],
-                bone_indices: [0; 4],
-                second_tex_coord: Default::default(),
             },
-            Vertex {
+            StaticVertex {
                 position: Vector3::new(-0.5, 0.5, 0.5),
                 normal: Vector3::z(),
                 tex_coord: Vector2::y(),
                 tangent: Vector4::default(),
-                bone_weights: [0.0; 4],
-                bone_indices: [0; 4],
-                second_tex_coord: Default::default(),
             },
-            Vertex {
+            StaticVertex {
                 position: Vector3::new(0.5, 0.5, 0.5),
                 normal: Vector3::z(),
                 tex_coord: Vector2::new(1.0, 1.0),
                 tangent: Vector4::default(),
-                bone_weights: [0.0; 4],
-                bone_indices: [0; 4],
-                second_tex_coord: Default::default(),
             },
-            Vertex {
+            StaticVertex {
                 position: Vector3::new(0.5, -0.5, 0.5),
                 normal: Vector3::z(),
                 tex_coord: Vector2::x(),
                 tangent: Vector4::default(),
-                bone_weights: [0.0; 4],
-                bone_indices: [0; 4],
-                second_tex_coord: Default::default(),
             },
             // Back
-            Vertex {
+            StaticVertex {
                 position: Vector3::new(-0.5, -0.5, -0.5),
                 normal: -Vector3::z(),
                 tex_coord: Vector2::default(),
                 tangent: Vector4::default(),
-                bone_weights: [0.0; 4],
-                bone_indices: [0; 4],
-                second_tex_coord: Default::default(),
             },
-            Vertex {
+            StaticVertex {
                 position: Vector3::new(-0.5, 0.5, -0.5),
                 normal: -Vector3::z(),
                 tex_coord: Vector2::y(),
                 tangent: Vector4::default(),
-                bone_weights: [0.0; 4],
-                bone_indices: [0; 4],
-                second_tex_coord: Default::default(),
             },
-            Vertex {
+            StaticVertex {
                 position: Vector3::new(0.5, 0.5, -0.5),
                 normal: -Vector3::z(),
                 tex_coord: Vector2::new(1.0, 1.0),
                 tangent: Vector4::default(),
-                bone_weights: [0.0; 4],
-                bone_indices: [0; 4],
-                second_tex_coord: Default::default(),
             },
-            Vertex {
+            StaticVertex {
                 position: Vector3::new(0.5, -0.5, -0.5),
                 normal: -Vector3::z(),
                 tex_coord: Vector2::x(),
                 tangent: Vector4::default(),
-                bone_weights: [0.0; 4],
-                bone_indices: [0; 4],
-                second_tex_coord: Default::default(),
             },
             // Left
-            Vertex {
+            StaticVertex {
                 position: Vector3::new(-0.5, -0.5, -0.5),
                 normal: -Vector3::x(),
                 tex_coord: Vector2::default(),
                 tangent: Vector4::default(),
-                bone_weights: [0.0; 4],
-                bone_indices: [0; 4],
-                second_tex_coord: Default::default(),
             },
-            Vertex {
+            StaticVertex {
                 position: Vector3::new(-0.5, 0.5, -0.5),
                 normal: -Vector3::x(),
                 tex_coord: Vector2::y(),
                 tangent: Vector4::default(),
-                bone_weights: [0.0; 4],
-                bone_indices: [0; 4],
-                second_tex_coord: Default::default(),
             },
-            Vertex {
+            StaticVertex {
                 position: Vector3::new(-0.5, 0.5, 0.5),
                 normal: -Vector3::x(),
                 tex_coord: Vector2::new(1.0, 1.0),
                 tangent: Vector4::default(),
-                bone_weights: [0.0; 4],
-                bone_indices: [0; 4],
-                second_tex_coord: Default::default(),
             },
-            Vertex {
+            StaticVertex {
                 position: Vector3::new(-0.5, -0.5, 0.5),
                 normal: -Vector3::x(),
                 tex_coord: Vector2::x(),
                 tangent: Vector4::default(),
-                bone_weights: [0.0; 4],
-                bone_indices: [0; 4],
-                second_tex_coord: Default::default(),
             },
             // Right
-            Vertex {
+            StaticVertex {
                 position: Vector3::new(0.5, -0.5, -0.5),
                 normal: Vector3::x(),
                 tex_coord: Vector2::default(),
                 tangent: Vector4::default(),
-                bone_weights: [0.0; 4],
-                bone_indices: [0; 4],
-                second_tex_coord: Default::default(),
             },
-            Vertex {
+            StaticVertex {
                 position: Vector3::new(0.5, 0.5, -0.5),
                 normal: Vector3::x(),
                 tex_coord: Vector2::y(),
                 tangent: Vector4::default(),
-                bone_weights: [0.0; 4],
-                bone_indices: [0; 4],
-                second_tex_coord: Default::default(),
             },
-            Vertex {
+            StaticVertex {
                 position: Vector3::new(0.5, 0.5, 0.5),
                 normal: Vector3::x(),
                 tex_coord: Vector2::new(1.0, 1.0),
                 tangent: Vector4::default(),
-                bone_weights: [0.0; 4],
-                bone_indices: [0; 4],
-                second_tex_coord: Default::default(),
             },
-            Vertex {
+            StaticVertex {
                 position: Vector3::new(0.5, -0.5, 0.5),
                 normal: Vector3::x(),
                 tex_coord: Vector2::x(),
                 tangent: Vector4::default(),
-                bone_weights: [0.0; 4],
-                bone_indices: [0; 4],
-                second_tex_coord: Default::default(),
             },
             // Top
-            Vertex {
+            StaticVertex {
                 position: Vector3::new(-0.5, 0.5, 0.5),
                 normal: Vector3::y(),
                 tex_coord: Vector2::default(),
                 tangent: Vector4::default(),
-                bone_weights: [0.0; 4],
-                bone_indices: [0; 4],
-                second_tex_coord: Default::default(),
             },
-            Vertex {
+            StaticVertex {
                 position: Vector3::new(-0.5, 0.5, -0.5),
                 normal: Vector3::y(),
                 tex_coord: Vector2::y(),
                 tangent: Vector4::default(),
-                bone_weights: [0.0; 4],
-                bone_indices: [0; 4],
-                second_tex_coord: Default::default(),
             },
-            Vertex {
+            StaticVertex {
                 position: Vector3::new(0.5, 0.5, -0.5),
                 normal: Vector3::y(),
                 tex_coord: Vector2::new(1.0, 1.0),
                 tangent: Vector4::default(),
-                bone_weights: [0.0; 4],
-                bone_indices: [0; 4],
-                second_tex_coord: Default::default(),
             },
-            Vertex {
+            StaticVertex {
                 position: Vector3::new(0.5, 0.5, 0.5),
                 normal: Vector3::y(),
                 tex_coord: Vector2::x(),
                 tangent: Vector4::default(),
-                bone_weights: [0.0; 4],
-                bone_indices: [0; 4],
-                second_tex_coord: Default::default(),
             },
             // Bottom
-            Vertex {
+            StaticVertex {
                 position: Vector3::new(-0.5, -0.5, 0.5),
                 normal: -Vector3::y(),
                 tex_coord: Vector2::default(),
                 tangent: Vector4::default(),
-                bone_weights: [0.0; 4],
-                bone_indices: [0; 4],
-                second_tex_coord: Default::default(),
             },
-            Vertex {
+            StaticVertex {
                 position: Vector3::new(-0.5, -0.5, -0.5),
                 normal: -Vector3::y(),
                 tex_coord: Vector2::y(),
                 tangent: Vector4::default(),
-                bone_weights: [0.0; 4],
-                bone_indices: [0; 4],
-                second_tex_coord: Default::default(),
             },
-            Vertex {
+            StaticVertex {
                 position: Vector3::new(0.5, -0.5, -0.5),
                 normal: -Vector3::y(),
                 tex_coord: Vector2::new(1.0, 1.0),
                 tangent: Vector4::default(),
-                bone_weights: [0.0; 4],
-                bone_indices: [0; 4],
-                second_tex_coord: Default::default(),
             },
-            Vertex {
+            StaticVertex {
                 position: Vector3::new(0.5, -0.5, 0.5),
                 normal: -Vector3::y(),
                 tex_coord: Vector2::x(),
                 tangent: Vector4::default(),
-                bone_weights: [0.0; 4],
-                bone_indices: [0; 4],
-                second_tex_coord: Default::default(),
             },
         ];
 
@@ -934,9 +789,13 @@ impl SurfaceData {
             TriangleDefinition([20, 22, 23]),
         ];
 
-        let mut data = Self::new(vertices, indices, true);
-        data.calculate_tangents();
-        data.transform_geometry(&transform);
+        let mut data = Self::new(
+            VertexBuffer::new(vertices.len(), StaticVertex::layout(), vertices).unwrap(),
+            indices,
+            true,
+        );
+        data.calculate_tangents().unwrap();
+        data.transform_geometry(&transform).unwrap();
         data
     }
 
@@ -950,11 +809,7 @@ impl SurfaceData {
             );
             triangles_bytes.hash(&mut hasher);
 
-            let vertices_bytes = std::slice::from_raw_parts(
-                self.vertices.as_ptr() as *const u8,
-                self.vertices.len() * std::mem::size_of::<Vertex>(),
-            );
-            vertices_bytes.hash(&mut hasher);
+            self.vertex_buffer.raw_data().hash(&mut hasher);
         }
         hasher.finish()
     }
@@ -964,17 +819,19 @@ impl Visit for SurfaceData {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
-        if visitor.is_reading() || (self.is_procedural && !visitor.is_reading()) {
-            self.vertices.visit("Vertices", visitor)?;
-            self.triangles.visit("Triangles", visitor)?;
-        } else {
-            let mut dummy = Vec::<Vertex>::new();
-            dummy.visit("Vertices", visitor)?;
-            let mut dummy = Vec::<TriangleDefinition>::new();
-            dummy.visit("Triangles", visitor)?;
-        }
-
         self.is_procedural.visit("IsProcedural", visitor)?;
+
+        if self.is_procedural {
+            if self.vertex_buffer.visit("VertexBuffer", visitor).is_err() && visitor.is_reading() {
+                // Backward compatibility
+                let mut old_vertices = Vec::<OldVertex>::new();
+                old_vertices.visit("Vertices", visitor)?;
+                self.vertex_buffer =
+                    VertexBuffer::new(old_vertices.len(), OldVertex::layout(), old_vertices)
+                        .unwrap();
+            };
+            self.triangles.visit("Triangles", visitor)?;
+        }
 
         visitor.leave_region()
     }

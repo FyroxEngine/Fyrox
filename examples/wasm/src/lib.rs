@@ -1,3 +1,5 @@
+#![cfg(target_arch = "wasm32")]
+
 //! Example - WebAssembly
 //!
 //! Warning - Work in progress!
@@ -21,8 +23,8 @@ use rg3d::{
         text::TextBuilder,
         widget::WidgetBuilder,
     },
-    renderer::surface::{SurfaceBuilder, SurfaceData},
     resource::texture::CompressionOptions,
+    scene::mesh::surface::{SurfaceBuilder, SurfaceData},
     scene::{
         base::BaseBuilder,
         camera::CameraBuilder,

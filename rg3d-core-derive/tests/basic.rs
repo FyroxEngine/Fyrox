@@ -1,3 +1,5 @@
+#![allow(unused_imports)]
+
 mod utils;
 
 use std::{env, fs::File, io::Write, path::PathBuf};

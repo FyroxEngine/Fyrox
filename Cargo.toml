@@ -33,6 +33,7 @@ rapier3d = {version = "0.8" }
 rapier2d = {version = "0.8" }
 rayon = "1.5.0"
 tbc = "0.3.0"
+bitflags = "1.2.1"
 # Temporary, until https://github.com/grovesNL/glow/pull/157 is merged and new glow (0.10?) published on crates.io
 glow = { git = "https://github.com/mrDIMAS/glow", branch = "main" }
 

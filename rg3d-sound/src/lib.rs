@@ -32,7 +32,7 @@
 //!
 //!  let context = SoundContext::new();
 //!
-//!  let sound_buffer = SoundBuffer::new_generic(DataSource::from_file("sound.wav").unwrap()).unwrap();
+//!  let sound_buffer = SoundBuffer::new_generic(rg3d_sound::futures::executor::block_on(DataSource::from_file("sound.wav")).unwrap()).unwrap();
 //!
 //!  let source = GenericSourceBuilder::new(sound_buffer)
 //!     .with_status(Status::Playing)

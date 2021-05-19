@@ -4,6 +4,7 @@
 #![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::from_over_into)]
 
+extern crate bitflags;
 extern crate ddsfile;
 extern crate glow;
 #[cfg(not(target_arch = "wasm32"))]
