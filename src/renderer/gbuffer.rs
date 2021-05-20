@@ -766,7 +766,7 @@ impl GBuffer {
 
                 statistics += if use_instanced_rendering {
                     self.framebuffer.draw_instances(
-                        batch.instances.len(),
+                        self.instance_data_set.len(),
                         geometry,
                         state,
                         viewport,
