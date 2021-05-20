@@ -36,7 +36,7 @@ use std::{
 /// Data source of a surface. Each surface can share same data source, this is used
 /// in instancing technique to render multiple instances of same model at different
 /// places.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SurfaceData {
     pub(in crate) vertex_buffer: VertexBuffer,
     pub(in crate) triangles: Vec<TriangleDefinition>,
@@ -812,6 +812,12 @@ impl SurfaceData {
             self.vertex_buffer.raw_data().hash(&mut hasher);
         }
         hasher.finish()
+    }
+
+    /// Clears both vertex and index buffers.
+    pub fn clear(&mut self) {
+        self.triangles.clear();
+        self.vertex_buffer.clear();
     }
 }
 

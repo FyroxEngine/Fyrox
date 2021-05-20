@@ -810,6 +810,7 @@ impl Graph {
                                 .visibility_cache = new_cache;
                         }
                         Node::ParticleSystem(particle_system) => particle_system.update(dt),
+                        Node::Terrain(terrain) => terrain.update(),
                         _ => (),
                     }
                 }

@@ -96,99 +96,180 @@ impl BatchStorage {
         self.batches.clear();
         self.batch_map.clear();
 
-        for (handle, mesh) in graph.pair_iter().filter_map(|(handle, node)| {
-            if let Node::Mesh(mesh) = node {
-                Some((handle, mesh))
-            } else {
-                None
-            }
-        }) {
-            for surface in mesh.surfaces().iter() {
-                let is_skinned = !surface.bones.is_empty();
+        for (handle, node) in graph.pair_iter() {
+            match node {
+                Node::Mesh(mesh) => {
+                    for surface in mesh.surfaces().iter() {
+                        let is_skinned = !surface.bones.is_empty();
 
-                let world = if is_skinned {
-                    Matrix4::identity()
-                } else {
-                    mesh.global_transform()
-                };
+                        let world = if is_skinned {
+                            Matrix4::identity()
+                        } else {
+                            mesh.global_transform()
+                        };
 
-                let data = surface.data();
-                let key = surface.batch_id();
+                        let data = surface.data();
+                        let key = surface.batch_id();
 
-                let diffuse_texture = surface
-                    .diffuse_texture_ref()
-                    .and_then(|texture| texture_cache.get(state, texture))
-                    .unwrap_or_else(|| white_dummy.clone());
+                        let diffuse_texture = surface
+                            .diffuse_texture_ref()
+                            .and_then(|texture| texture_cache.get(state, texture))
+                            .unwrap_or_else(|| white_dummy.clone());
 
-                let normal_texture = surface
-                    .normal_texture_ref()
-                    .and_then(|texture| texture_cache.get(state, texture))
-                    .unwrap_or_else(|| normal_dummy.clone());
+                        let normal_texture = surface
+                            .normal_texture_ref()
+                            .and_then(|texture| texture_cache.get(state, texture))
+                            .unwrap_or_else(|| normal_dummy.clone());
 
-                let specular_texture = surface
-                    .specular_texture_ref()
-                    .and_then(|texture| texture_cache.get(state, texture))
-                    .unwrap_or_else(|| specular_dummy.clone());
+                        let specular_texture = surface
+                            .specular_texture_ref()
+                            .and_then(|texture| texture_cache.get(state, texture))
+                            .unwrap_or_else(|| specular_dummy.clone());
 
-                let roughness_texture = surface
-                    .roughness_texture_ref()
-                    .and_then(|texture| texture_cache.get(state, texture))
-                    .unwrap_or_else(|| black_dummy.clone());
+                        let roughness_texture = surface
+                            .roughness_texture_ref()
+                            .and_then(|texture| texture_cache.get(state, texture))
+                            .unwrap_or_else(|| black_dummy.clone());
 
-                let lightmap_texture = surface
-                    .lightmap_texture_ref()
-                    .and_then(|texture| texture_cache.get(state, texture))
-                    .unwrap_or_else(|| black_dummy.clone());
+                        let lightmap_texture = surface
+                            .lightmap_texture_ref()
+                            .and_then(|texture| texture_cache.get(state, texture))
+                            .unwrap_or_else(|| black_dummy.clone());
 
-                let height_texture = surface
-                    .height_texture_ref()
-                    .and_then(|texture| texture_cache.get(state, texture))
-                    .unwrap_or_else(|| black_dummy.clone());
+                        let height_texture = surface
+                            .height_texture_ref()
+                            .and_then(|texture| texture_cache.get(state, texture))
+                            .unwrap_or_else(|| black_dummy.clone());
 
-                let batch = if let Some(&batch_index) = self.batch_map.get(&key) {
-                    self.batches.get_mut(batch_index).unwrap()
-                } else {
-                    self.batch_map.insert(key, self.batches.len());
-                    self.batches.push(Batch {
-                        data,
-                        instances: self.buffers.pop().unwrap_or_default(),
-                        diffuse_texture: diffuse_texture.clone(),
-                        normal_texture: normal_texture.clone(),
-                        specular_texture: specular_texture.clone(),
-                        roughness_texture: roughness_texture.clone(),
-                        lightmap_texture: lightmap_texture.clone(),
-                        height_texture: height_texture.clone(),
-                        is_skinned: !surface.bones.is_empty(),
-                        render_path: mesh.render_path(),
-                        use_pom: surface.height_texture_ref().is_some(),
-                        use_lightmapping: surface.lightmap_texture_ref().is_some(),
-                    });
-                    self.batches.last_mut().unwrap()
-                };
+                        let batch = if let Some(&batch_index) = self.batch_map.get(&key) {
+                            self.batches.get_mut(batch_index).unwrap()
+                        } else {
+                            self.batch_map.insert(key, self.batches.len());
+                            self.batches.push(Batch {
+                                data,
+                                instances: self.buffers.pop().unwrap_or_default(),
+                                diffuse_texture: diffuse_texture.clone(),
+                                normal_texture: normal_texture.clone(),
+                                specular_texture: specular_texture.clone(),
+                                roughness_texture: roughness_texture.clone(),
+                                lightmap_texture: lightmap_texture.clone(),
+                                height_texture: height_texture.clone(),
+                                is_skinned: !surface.bones.is_empty(),
+                                render_path: mesh.render_path(),
+                                use_pom: surface.height_texture_ref().is_some(),
+                                use_lightmapping: surface.lightmap_texture_ref().is_some(),
+                            });
+                            self.batches.last_mut().unwrap()
+                        };
 
-                // Update textures.
-                batch.diffuse_texture = diffuse_texture;
-                batch.normal_texture = normal_texture;
-                batch.specular_texture = specular_texture;
-                batch.roughness_texture = roughness_texture;
-                batch.lightmap_texture = lightmap_texture;
-                batch.height_texture = height_texture;
-                batch.use_pom = surface.height_texture().is_some();
+                        // Update textures.
+                        batch.diffuse_texture = diffuse_texture;
+                        batch.normal_texture = normal_texture;
+                        batch.specular_texture = specular_texture;
+                        batch.roughness_texture = roughness_texture;
+                        batch.lightmap_texture = lightmap_texture;
+                        batch.height_texture = height_texture;
+                        batch.use_pom = surface.height_texture().is_some();
 
-                batch.instances.push(SurfaceInstance {
-                    world_transform: world,
-                    bone_matrices: surface
-                        .bones
-                        .iter()
-                        .map(|&bone_handle| {
-                            let bone_node = &graph[bone_handle];
-                            bone_node.global_transform() * bone_node.inv_bind_pose_transform()
-                        })
-                        .collect(),
-                    color: surface.color(),
-                    owner: handle,
-                    depth_offset: mesh.depth_offset_factor(),
-                });
+                        batch.instances.push(SurfaceInstance {
+                            world_transform: world,
+                            bone_matrices: surface
+                                .bones
+                                .iter()
+                                .map(|&bone_handle| {
+                                    let bone_node = &graph[bone_handle];
+                                    bone_node.global_transform()
+                                        * bone_node.inv_bind_pose_transform()
+                                })
+                                .collect(),
+                            color: surface.color(),
+                            owner: handle,
+                            depth_offset: mesh.depth_offset_factor(),
+                        });
+                    }
+                }
+                Node::Terrain(terrain) => {
+                    for chunk in terrain.chunks_ref().iter() {
+                        let data = chunk.data();
+                        let data_key = &*data as *const _ as u64;
+
+                        for layer in chunk.layers() {
+                            let key = layer.batch_id(data_key);
+
+                            let diffuse_texture = layer
+                                .diffuse_texture
+                                .as_ref()
+                                .and_then(|texture| texture_cache.get(state, texture))
+                                .unwrap_or_else(|| white_dummy.clone());
+
+                            let normal_texture = layer
+                                .normal_texture
+                                .as_ref()
+                                .and_then(|texture| texture_cache.get(state, texture))
+                                .unwrap_or_else(|| normal_dummy.clone());
+
+                            let specular_texture = layer
+                                .specular_texture
+                                .as_ref()
+                                .and_then(|texture| texture_cache.get(state, texture))
+                                .unwrap_or_else(|| specular_dummy.clone());
+
+                            let roughness_texture = layer
+                                .roughness_texture
+                                .as_ref()
+                                .and_then(|texture| texture_cache.get(state, texture))
+                                .unwrap_or_else(|| black_dummy.clone());
+
+                            let height_texture = layer
+                                .height_texture
+                                .as_ref()
+                                .and_then(|texture| texture_cache.get(state, texture))
+                                .unwrap_or_else(|| black_dummy.clone());
+
+                            // TODO. Add support for lightmaps for terrains.
+                            let lightmap_texture = black_dummy.clone();
+
+                            let batch = if let Some(&batch_index) = self.batch_map.get(&key) {
+                                self.batches.get_mut(batch_index).unwrap()
+                            } else {
+                                self.batch_map.insert(key, self.batches.len());
+                                self.batches.push(Batch {
+                                    data: data.clone(),
+                                    instances: self.buffers.pop().unwrap_or_default(),
+                                    diffuse_texture: diffuse_texture.clone(),
+                                    normal_texture: normal_texture.clone(),
+                                    specular_texture: specular_texture.clone(),
+                                    roughness_texture: roughness_texture.clone(),
+                                    lightmap_texture: lightmap_texture.clone(),
+                                    height_texture: height_texture.clone(),
+                                    is_skinned: false,
+                                    render_path: RenderPath::Deferred,
+                                    use_pom: layer.height_texture.is_some(),
+                                    use_lightmapping: false, // TODO
+                                });
+                                self.batches.last_mut().unwrap()
+                            };
+
+                            // Update textures.
+                            batch.diffuse_texture = diffuse_texture;
+                            batch.normal_texture = normal_texture;
+                            batch.specular_texture = specular_texture;
+                            batch.roughness_texture = roughness_texture;
+                            batch.lightmap_texture = lightmap_texture;
+                            batch.height_texture = height_texture;
+                            batch.use_pom = layer.height_texture.is_some();
+
+                            batch.instances.push(SurfaceInstance {
+                                world_transform: terrain.global_transform(),
+                                bone_matrices: Default::default(),
+                                color: Color::WHITE,
+                                owner: handle,
+                                depth_offset: terrain.depth_offset_factor(),
+                            });
+                        }
+                    }
+                }
+                _ => (),
             }
         }
 

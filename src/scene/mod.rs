@@ -1550,6 +1550,9 @@ impl VisibilityCache {
                                         break;
                                     }
                                 }
+                                Node::Terrain(_) => {
+                                    visible_by_any_frustum = true; // TODO
+                                }
                                 _ => {}
                             }
                         }

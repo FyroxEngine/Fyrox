@@ -239,6 +239,17 @@ impl VertexBuffer {
         &self.data
     }
 
+    /// Clears the buffer making it empty.
+    pub fn clear(&mut self) {
+        self.data.clear();
+        self.vertex_count = 0;
+    }
+
+    /// Returns true if buffer does not contain any vertex, false - otherwise.
+    pub fn is_empty(&self) -> bool {
+        self.vertex_count == 0
+    }
+
     /// Tries to append a vertex to the buffer.
     ///
     /// # Safety and validation
@@ -899,6 +910,11 @@ mod test {
     }
 
     #[test]
+    fn test_empty() {
+        VertexBuffer::new::<Vertex>(0, Vertex::layout(), vec![]).unwrap();
+    }
+
+    #[test]
     fn test_iter() {
         let buffer = create_test_buffer();
 
@@ -959,6 +975,7 @@ mod test {
                     data_type: VertexAttributeDataType::F32,
                     size: 2,
                     divisor: 0,
+                    shader_location: 7,
                 },
                 fill,
             )
