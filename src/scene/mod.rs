@@ -1195,7 +1195,7 @@ impl Scene {
             for (_, data) in unique_data_set.into_iter() {
                 let mut data = data.write().unwrap();
 
-                if let Some(patch) = lightmap.patches.get(&data.id()) {
+                if let Some(patch) = lightmap.patches.get(&data.content_hash()) {
                     if !data
                         .vertex_buffer
                         .has_attribute(VertexAttributeUsage::TexCoord1)
@@ -1203,6 +1203,7 @@ impl Scene {
                         let free = data.vertex_buffer.find_free_shader_location();
 
                         data.vertex_buffer
+                            .modify()
                             .add_attribute(
                                 VertexAttributeDescriptor {
                                     usage: VertexAttributeUsage::TexCoord1,
@@ -1216,16 +1217,18 @@ impl Scene {
                             .unwrap();
                     }
 
-                    data.triangles = patch.triangles.clone();
+                    data.geometry_buffer.set_triangles(patch.triangles.clone());
+
+                    let mut vertex_buffer_mut = data.vertex_buffer.modify();
                     for &v in patch.additional_vertices.iter() {
-                        data.vertex_buffer.duplicate(v as usize);
+                        vertex_buffer_mut.duplicate(v as usize);
                     }
+
                     assert_eq!(
-                        data.vertex_buffer.vertex_count() as usize,
+                        vertex_buffer_mut.vertex_count() as usize,
                         patch.second_tex_coords.len()
                     );
-                    for (mut view, &tex_coord) in data
-                        .vertex_buffer
+                    for (mut view, &tex_coord) in vertex_buffer_mut
                         .iter_mut()
                         .zip(patch.second_tex_coords.iter())
                     {

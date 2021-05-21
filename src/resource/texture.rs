@@ -154,6 +154,8 @@ pub struct TextureData {
     t_wrap_mode: TextureWrapMode,
     mip_count: u32,
     anisotropy: f32,
+    serialize_content: bool,
+    dirty: bool,
 }
 
 impl ResourceData for TextureData {
@@ -183,6 +185,11 @@ impl Visit for TextureData {
         self.t_wrap_mode.visit("TWrapMode", visitor)?;
         self.mip_count.visit("MipCount", visitor)?;
         self.kind.visit("Kind", visitor)?;
+        let _ = self.serialize_content.visit("SerializeContent", visitor);
+
+        if self.serialize_content {
+            self.bytes.visit("Data", visitor)?;
+        }
 
         visitor.leave_region()
     }
@@ -207,6 +214,8 @@ impl Default for TextureData {
             t_wrap_mode: TextureWrapMode::Repeat,
             mip_count: 1,
             anisotropy: 16.0,
+            serialize_content: false,
+            dirty: true,
         }
     }
 }
@@ -234,6 +243,8 @@ impl Texture {
             t_wrap_mode: TextureWrapMode::Repeat,
             mip_count: 1,
             anisotropy: 1.0,
+            serialize_content: false,
+            dirty: true,
         }))
     }
 
@@ -243,9 +254,13 @@ impl Texture {
         kind: TextureKind,
         pixel_kind: TexturePixelKind,
         bytes: Vec<u8>,
+        serialize_content: bool,
     ) -> Option<Self> {
         Some(Self::new(TextureState::Ok(TextureData::from_bytes(
-            kind, pixel_kind, bytes,
+            kind,
+            pixel_kind,
+            bytes,
+            serialize_content,
         )?)))
     }
 }
@@ -667,6 +682,8 @@ impl TextureData {
                     }
                 },
                 anisotropy: 1.0,
+                serialize_content: false,
+                dirty: true,
             }
         } else {
             // Commonly used formats are all rectangle textures.
@@ -743,6 +760,7 @@ impl TextureData {
         kind: TextureKind,
         pixel_kind: TexturePixelKind,
         bytes: Vec<u8>,
+        serialize_content: bool,
     ) -> Option<Self> {
         let pixel_count = match kind {
             TextureKind::Line { length } => length,
@@ -805,6 +823,7 @@ impl TextureData {
                 kind,
                 bytes,
                 pixel_kind,
+                serialize_content,
                 ..Default::default()
             })
         }

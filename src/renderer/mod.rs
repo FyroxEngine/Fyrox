@@ -27,6 +27,7 @@ mod sprite_renderer;
 mod ssao;
 mod ui_renderer;
 
+use crate::renderer::cache::CacheEntry;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector3},
@@ -36,7 +37,6 @@ use crate::{
         pool::Handle,
         scope_profile,
     },
-    engine::resource_manager::TimedEntry,
     gui::{draw::DrawingContext, message::MessageData, Control, UserInterface},
     renderer::{
         batch::BatchStorage,
@@ -733,7 +733,7 @@ impl Renderer {
         // renderer.
         self.texture_cache.map.insert(
             render_target.key(),
-            TimedEntry {
+            CacheEntry {
                 value: frame_buffer
                     .color_attachments()
                     .first()
@@ -741,6 +741,7 @@ impl Renderer {
                     .texture
                     .clone(),
                 time_to_live: f32::INFINITY,
+                value_hash: 0, // TODO
             },
         );
 
@@ -852,9 +853,10 @@ impl Renderer {
             if let Some(rt) = scene.render_target.clone() {
                 self.texture_cache.map.insert(
                     rt.key(),
-                    TimedEntry {
+                    CacheEntry {
                         value: gbuffer.frame_texture(),
                         time_to_live: std::f32::INFINITY,
+                        value_hash: 0, // TODO
                     },
                 );
             }

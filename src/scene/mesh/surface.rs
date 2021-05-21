@@ -4,7 +4,7 @@
 //! Surfaces can use the same data source across many instances, this is a memory optimization for
 //! being able to re-use data when you need to draw the same mesh in many places.
 
-use crate::scene::mesh::buffer::VertexFetchError;
+use crate::scene::mesh::buffer::{GeometryBuffer, VertexFetchError};
 use crate::scene::mesh::vertex::OldVertex;
 use crate::{
     core::{
@@ -38,8 +38,10 @@ use std::{
 /// places.
 #[derive(Debug, Clone)]
 pub struct SurfaceData {
-    pub(in crate) vertex_buffer: VertexBuffer,
-    pub(in crate) triangles: Vec<TriangleDefinition>,
+    /// Current vertex buffer.
+    pub vertex_buffer: VertexBuffer,
+    /// Current geometry buffer.
+    pub geometry_buffer: GeometryBuffer,
     // If true - indicates that surface was generated and does not have reference
     // resource. Procedural data will be serialized.
     is_procedural: bool,
@@ -49,7 +51,7 @@ impl Default for SurfaceData {
     fn default() -> Self {
         Self {
             vertex_buffer: Default::default(),
-            triangles: Default::default(),
+            geometry_buffer: Default::default(),
             is_procedural: false,
         }
     }
@@ -59,12 +61,12 @@ impl SurfaceData {
     /// Creates new data source using given vertices and indices.
     pub fn new(
         vertex_buffer: VertexBuffer,
-        triangles: Vec<TriangleDefinition>,
+        triangles: GeometryBuffer,
         is_procedural: bool,
     ) -> Self {
         Self {
             vertex_buffer,
-            triangles,
+            geometry_buffer: triangles,
             is_procedural,
         }
     }
@@ -74,7 +76,8 @@ impl SurfaceData {
         // Discard scale by inverse and transpose given transform (M^-1)^T
         let normal_matrix = transform.try_inverse().unwrap_or_default().transpose();
 
-        for mut view in self.vertex_buffer.iter_mut() {
+        let mut vertex_buffer_mut = self.vertex_buffer.modify();
+        for mut view in vertex_buffer_mut.iter_mut() {
             let position = view.read_3_f32(VertexAttributeUsage::Position)?;
             view.write_3_f32(
                 VertexAttributeUsage::Position,
@@ -106,26 +109,9 @@ impl SurfaceData {
     ) -> Self {
         Self {
             vertex_buffer: VertexBuffer::new(raw.vertices.len(), layout, raw.vertices).unwrap(),
-            triangles: raw.triangles,
+            geometry_buffer: GeometryBuffer::new(raw.triangles),
             is_procedural,
         }
-    }
-
-    /// Returns shared reference to vertices array.
-    #[inline]
-    pub fn vertex_buffer(&self) -> &VertexBuffer {
-        &self.vertex_buffer
-    }
-
-    #[inline]
-    pub(in crate) fn vertex_buffer_mut(&mut self) -> &mut VertexBuffer {
-        &mut self.vertex_buffer
-    }
-
-    /// Return shared reference to triangles array.
-    #[inline]
-    pub fn triangles(&self) -> &[TriangleDefinition] {
-        self.triangles.as_slice()
     }
 
     /// Calculates tangents of surface. Tangents are needed for correct lighting, you will
@@ -137,7 +123,7 @@ impl SurfaceData {
         let mut tan1 = vec![Vector3::default(); self.vertex_buffer.vertex_count() as usize];
         let mut tan2 = vec![Vector3::default(); self.vertex_buffer.vertex_count() as usize];
 
-        for triangle in self.triangles.iter() {
+        for triangle in self.geometry_buffer.iter() {
             let i1 = triangle[0] as usize;
             let i2 = triangle[1] as usize;
             let i3 = triangle[2] as usize;
@@ -188,11 +174,8 @@ impl SurfaceData {
             tan2[i3] += tdir;
         }
 
-        for (mut view, (t1, t2)) in self
-            .vertex_buffer
-            .iter_mut()
-            .zip(tan1.into_iter().zip(tan2))
-        {
+        let mut vertex_buffer_mut = self.vertex_buffer.modify();
+        for (mut view, (t1, t2)) in vertex_buffer_mut.iter_mut().zip(tan1.into_iter().zip(tan2)) {
             let normal = view.read_3_f32(VertexAttributeUsage::Normal)?;
 
             // Gram-Schmidt orthogonalize
@@ -238,11 +221,11 @@ impl SurfaceData {
             },
         ];
 
-        let indices = vec![TriangleDefinition([0, 1, 2]), TriangleDefinition([0, 2, 3])];
+        let triangles = vec![TriangleDefinition([0, 1, 2]), TriangleDefinition([0, 2, 3])];
 
         Self::new(
             VertexBuffer::new(vertices.len(), StaticVertex::layout(), vertices).unwrap(),
-            indices,
+            GeometryBuffer::new(triangles),
             true,
         )
     }
@@ -278,11 +261,11 @@ impl SurfaceData {
             },
         ];
 
-        let indices = vec![TriangleDefinition([0, 1, 2]), TriangleDefinition([0, 2, 3])];
+        let triangles = vec![TriangleDefinition([0, 1, 2]), TriangleDefinition([0, 2, 3])];
 
         Self::new(
             VertexBuffer::new(vertices.len(), StaticVertex::layout(), vertices).unwrap(),
-            indices,
+            GeometryBuffer::new(triangles),
             true,
         )
     }
@@ -318,7 +301,10 @@ impl SurfaceData {
 
         let mut data = Self::new(
             VertexBuffer::new(vertices.len(), StaticVertex::layout(), vertices).unwrap(),
-            vec![TriangleDefinition([0, 1, 2]), TriangleDefinition([0, 2, 3])],
+            GeometryBuffer::new(vec![
+                TriangleDefinition([0, 1, 2]),
+                TriangleDefinition([0, 2, 3]),
+            ]),
             true,
         );
         data.calculate_tangents().unwrap();
@@ -329,38 +315,36 @@ impl SurfaceData {
     /// Calculates per-face normals. This method is fast, but have very poor quality, and surface
     /// will look facet.
     pub fn calculate_normals(&mut self) -> Result<(), VertexFetchError> {
-        for triangle in self.triangles.iter() {
+        let mut vertex_buffer_mut = self.vertex_buffer.modify();
+        for triangle in self.geometry_buffer.iter() {
             let ia = triangle[0] as usize;
             let ib = triangle[1] as usize;
             let ic = triangle[2] as usize;
 
-            let a = self
-                .vertex_buffer
+            let a = vertex_buffer_mut
                 .get(ia)
                 .unwrap()
                 .read_3_f32(VertexAttributeUsage::Position)?;
-            let b = self
-                .vertex_buffer
+            let b = vertex_buffer_mut
                 .get(ib)
                 .unwrap()
                 .read_3_f32(VertexAttributeUsage::Position)?;
-            let c = self
-                .vertex_buffer
+            let c = vertex_buffer_mut
                 .get(ic)
                 .unwrap()
                 .read_3_f32(VertexAttributeUsage::Position)?;
 
             let normal = (b - a).cross(&(c - a)).normalize();
 
-            self.vertex_buffer
+            vertex_buffer_mut
                 .get_mut(ia)
                 .unwrap()
                 .write_3_f32(VertexAttributeUsage::Normal, normal)?;
-            self.vertex_buffer
+            vertex_buffer_mut
                 .get_mut(ib)
                 .unwrap()
                 .write_3_f32(VertexAttributeUsage::Normal, normal)?;
-            self.vertex_buffer
+            vertex_buffer_mut
                 .get_mut(ic)
                 .unwrap()
                 .write_3_f32(VertexAttributeUsage::Normal, normal)?;
@@ -774,7 +758,7 @@ impl SurfaceData {
             },
         ];
 
-        let indices = vec![
+        let triangles = vec![
             TriangleDefinition([2, 1, 0]),
             TriangleDefinition([3, 2, 0]),
             TriangleDefinition([4, 5, 6]),
@@ -791,7 +775,7 @@ impl SurfaceData {
 
         let mut data = Self::new(
             VertexBuffer::new(vertices.len(), StaticVertex::layout(), vertices).unwrap(),
-            indices,
+            GeometryBuffer::new(triangles),
             true,
         );
         data.calculate_tangents().unwrap();
@@ -799,25 +783,18 @@ impl SurfaceData {
         data
     }
 
-    /// Calculates unique id based on contents of surface shared data.
-    pub fn id(&self) -> u64 {
+    /// Calculates hash based on contents of surface shared data.
+    pub fn content_hash(&self) -> u64 {
         let mut hasher = DefaultHasher::new();
-        unsafe {
-            let triangles_bytes = std::slice::from_raw_parts(
-                self.triangles.as_ptr() as *const u8,
-                self.triangles.len() * std::mem::size_of::<TriangleDefinition>(),
-            );
-            triangles_bytes.hash(&mut hasher);
-
-            self.vertex_buffer.raw_data().hash(&mut hasher);
-        }
+        self.geometry_buffer.data_hash().hash(&mut hasher);
+        self.vertex_buffer.data_hash().hash(&mut hasher);
         hasher.finish()
     }
 
     /// Clears both vertex and index buffers.
     pub fn clear(&mut self) {
-        self.triangles.clear();
-        self.vertex_buffer.clear();
+        self.geometry_buffer.modify().clear();
+        self.vertex_buffer.modify().clear();
     }
 }
 
@@ -836,7 +813,16 @@ impl Visit for SurfaceData {
                     VertexBuffer::new(old_vertices.len(), OldVertex::layout(), old_vertices)
                         .unwrap();
             };
-            self.triangles.visit("Triangles", visitor)?;
+            if self
+                .geometry_buffer
+                .visit("GeometryBuffer", visitor)
+                .is_err()
+                && visitor.is_reading()
+            {
+                let mut triangles = Vec::<TriangleDefinition>::new();
+                triangles.visit("Triangles", visitor)?;
+                self.geometry_buffer = GeometryBuffer::new(triangles);
+            }
         }
 
         visitor.leave_region()

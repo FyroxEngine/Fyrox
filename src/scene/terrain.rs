@@ -2,10 +2,14 @@
 
 #![allow(missing_docs)] // Temporary
 
+use crate::core::algebra::Matrix4;
+use crate::scene::mesh::buffer::GeometryBuffer;
 use crate::{
     core::{
-        algebra::Vector2, algebra::Vector3, arrayvec::ArrayVec, math::aabb::AxisAlignedBoundingBox,
-        math::TriangleDefinition, pool::Handle, visitor::prelude::*,
+        algebra::{Point3, Vector2, Vector3},
+        math::{aabb::AxisAlignedBoundingBox, TriangleDefinition},
+        pool::Handle,
+        visitor::prelude::*,
     },
     resource::texture::{Texture, TextureKind, TexturePixelKind},
     scene::{
@@ -82,6 +86,7 @@ impl Chunk {
             assert_eq!(self.width_point_count & 1, 0);
             assert_eq!(self.length_point_count & 1, 0);
 
+            let mut vertex_buffer_mut = surface_data.vertex_buffer.modify();
             // Form vertex buffer.
             for z in 0..self.length_point_count {
                 let kz = z as f32 / ((self.length_point_count - 1) as f32);
@@ -95,8 +100,7 @@ impl Chunk {
                     let px = self.position.x + kx * self.width;
                     let py = self.position.y + height;
 
-                    surface_data
-                        .vertex_buffer
+                    vertex_buffer_mut
                         .push_vertex(&StaticVertex {
                             position: Vector3::new(px, py, pz),
                             tex_coord: Vector2::new(10.0 * kx, 10.0 * kz),
@@ -107,7 +111,9 @@ impl Chunk {
                         .unwrap();
                 }
             }
+            drop(vertex_buffer_mut);
 
+            let mut geometry_buffer_mut = surface_data.geometry_buffer.modify();
             // Form index buffer.
             // TODO: Generate LODs.
             for z in 0..self.length_point_count - 1 {
@@ -120,14 +126,11 @@ impl Chunk {
                     let i2 = z_next * self.width_point_count + x_next;
                     let i3 = z * self.width_point_count + x_next;
 
-                    surface_data
-                        .triangles
-                        .push(TriangleDefinition([i0, i1, i2]));
-                    surface_data
-                        .triangles
-                        .push(TriangleDefinition([i2, i3, i0]));
+                    geometry_buffer_mut.push(TriangleDefinition([i0, i1, i2]));
+                    geometry_buffer_mut.push(TriangleDefinition([i2, i3, i0]));
                 }
             }
+            drop(geometry_buffer_mut);
 
             surface_data.calculate_normals().unwrap();
             surface_data.calculate_tangents().unwrap();
@@ -140,9 +143,18 @@ impl Chunk {
         &self.layers
     }
 
+    pub fn local_position(&self) -> Vector2<f32> {
+        map_to_local(self.position)
+    }
+
     pub fn data(&self) -> Arc<RwLock<SurfaceData>> {
         self.surface_data.clone()
     }
+}
+
+fn map_to_local(v: Vector3<f32>) -> Vector2<f32> {
+    // Terrain is a XZ oriented surface so we can map X -> X, Z -> Y
+    Vector2::new(v.x, v.z)
 }
 
 #[derive(Visit, Debug, Default)]
@@ -166,6 +178,18 @@ impl Deref for Terrain {
 impl DerefMut for Terrain {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.base
+    }
+}
+
+fn project(global_transform: Matrix4<f32>, p: Vector3<f32>) -> Option<Vector2<f32>> {
+    // Transform point in coordinate system of the terrain.
+    if let Some(inv_global_transform) = global_transform.try_inverse() {
+        let local_p = inv_global_transform
+            .transform_point(&Point3::from(p))
+            .coords;
+        Some(map_to_local(local_p))
+    } else {
+        None
     }
 }
 
@@ -217,6 +241,52 @@ impl Terrain {
         }
     }
 
+    /// Projects given 3D point on the surface of terrain and returns 2D vector
+    /// expressed in local 2D coordinate system of terrain.
+    pub fn project(&self, p: Vector3<f32>) -> Option<Vector2<f32>> {
+        project(self.global_transform(), p)
+    }
+
+    pub fn draw(&mut self, brush: &Brush) {
+        let center = project(self.global_transform(), brush.center).unwrap();
+
+        for chunk in self.chunks.iter_mut() {
+            match brush.mode {
+                BrushMode::AlternateHeightMap { amount } => match brush.kind {
+                    BrushKind::Circle { radius } => {
+                        for z in 0..chunk.length_point_count {
+                            let kz = z as f32 / (chunk.length_point_count - 1) as f32;
+                            for x in 0..chunk.width_point_count {
+                                let kx = x as f32 / (chunk.width_point_count - 1) as f32;
+
+                                let pixel_position = chunk.local_position()
+                                    + Vector2::new(kx * chunk.width, kz * chunk.length);
+
+                                if (center - pixel_position).norm() < radius {
+                                    chunk.heightmap[(z * chunk.width_point_count + x) as usize] +=
+                                        amount;
+
+                                    chunk.dirty.set(true);
+                                }
+                            }
+                        }
+                    }
+                    BrushKind::Rectangle { .. } => {} // TODO
+                },
+                BrushMode::DrawOnMask { layer } => {
+                    // TODO Requires drawing on texture and ability to update new texture data
+                    // to GPU. This is the next step.
+                    let _layer = &mut chunk.layers[layer];
+
+                    match brush.kind {
+                        BrushKind::Circle { .. } => {}
+                        BrushKind::Rectangle { .. } => {} // TODO
+                    }
+                }
+            }
+        }
+    }
+
     pub fn update(&mut self) {
         for chunk in self.chunks.iter_mut() {
             chunk.update();
@@ -232,15 +302,15 @@ pub enum BrushKind {
 
 #[derive(Clone, PartialEq, PartialOrd)]
 pub enum BrushMode {
-    ChangeHeight { amount: f32 },
-    Draw { layers: ArrayVec<usize, 32> },
+    AlternateHeightMap { amount: f32 },
+    DrawOnMask { layer: usize },
 }
 
 #[derive(Clone)]
 pub struct Brush {
-    position: Vector3<f32>,
-    kind: BrushKind,
-    mode: BrushMode,
+    pub center: Vector3<f32>,
+    pub kind: BrushKind,
+    pub mode: BrushMode,
 }
 
 pub struct LayerDefinition {
@@ -349,6 +419,8 @@ impl TerrainBuilder {
                                 },
                                 TexturePixelKind::R8,
                                 vec![255; (chunk_mask_width * chunk_mask_height) as usize],
+                                // Content of mask will be explicitly serialized.
+                                true,
                             ),
                         })
                         .collect(),
@@ -357,7 +429,7 @@ impl TerrainBuilder {
                     surface_data: Arc::new(RwLock::new(SurfaceData::new(
                         VertexBuffer::new::<StaticVertex>(0, StaticVertex::layout(), vec![])
                             .unwrap(),
-                        vec![],
+                        GeometryBuffer::default(),
                         false,
                     ))),
                     dirty: Cell::new(true),
@@ -366,7 +438,7 @@ impl TerrainBuilder {
             }
         }
 
-        let mut terrain = Terrain {
+        let terrain = Terrain {
             width: self.width,
             length: self.length,
             base: self.base_builder.build_base(),
@@ -374,8 +446,6 @@ impl TerrainBuilder {
             bounding_box_dirty: Cell::new(true),
             bounding_box: Default::default(),
         };
-
-        terrain.update();
 
         graph.add_node(Node::Terrain(terrain))
     }

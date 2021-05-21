@@ -177,7 +177,7 @@ impl Mesh {
             for surface in self.surfaces.iter() {
                 let data = surface.data();
                 let data = data.read().unwrap();
-                for view in data.vertex_buffer().iter() {
+                for view in data.vertex_buffer.iter() {
                     bounding_box
                         .add_point(view.read_3_f32(VertexAttributeUsage::Position).unwrap());
                 }
@@ -205,7 +205,7 @@ impl Mesh {
         for surface in self.surfaces.iter() {
             let data = surface.data();
             let data = data.read().unwrap();
-            for view in data.vertex_buffer().iter() {
+            for view in data.vertex_buffer.iter() {
                 bounding_box.add_point(
                     self.global_transform()
                         .transform_point(&Point3::from(
@@ -226,7 +226,7 @@ impl Mesh {
             let data = surface.data();
             let data = data.read().unwrap();
             if surface.bones().is_empty() {
-                for view in data.vertex_buffer().iter() {
+                for view in data.vertex_buffer.iter() {
                     bounding_box.add_point(
                         self.global_transform()
                             .transform_point(&Point3::from(
@@ -249,7 +249,7 @@ impl Mesh {
                     })
                     .collect::<Vec<Matrix4<f32>>>();
 
-                for view in data.vertex_buffer().iter() {
+                for view in data.vertex_buffer.iter() {
                     let mut position = Vector3::default();
                     for (&bone_index, &weight) in view
                         .read_4_u8(VertexAttributeUsage::BoneIndices)

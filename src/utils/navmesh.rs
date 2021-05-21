@@ -177,8 +177,8 @@ impl Navmesh {
             let shared_data = surface.data();
             let shared_data = shared_data.read().unwrap();
 
-            let vertex_buffer = shared_data.vertex_buffer();
-            for triangle in shared_data.triangles() {
+            let vertex_buffer = &shared_data.vertex_buffer;
+            for triangle in shared_data.geometry_buffer.iter() {
                 builder.insert(RawVertex::from(
                     global_transform
                         .transform_point(&Point3::from(

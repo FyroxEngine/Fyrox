@@ -577,8 +577,8 @@ impl Physics {
                     let shared_data = surface.data();
                     let shared_data = shared_data.read().unwrap();
 
-                    let vertices = shared_data.vertex_buffer();
-                    for triangle in shared_data.triangles() {
+                    let vertices = &shared_data.vertex_buffer;
+                    for triangle in shared_data.geometry_buffer.iter() {
                         let a = RawVertex::from(
                             global_transform
                                 .transform_point(&Point3::from(

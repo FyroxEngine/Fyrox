@@ -265,6 +265,7 @@ impl UiRenderer {
                             },
                             TexturePixelKind::R8,
                             font.atlas_pixels().to_vec(),
+                            false,
                         ) {
                             font.texture = Some(SharedTexture(Arc::new(Mutex::new(
                                 TextureState::Ok(details),

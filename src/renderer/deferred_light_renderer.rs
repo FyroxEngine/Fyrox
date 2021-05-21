@@ -1,4 +1,4 @@
-use crate::scene::mesh::buffer::VertexBuffer;
+use crate::scene::mesh::buffer::{GeometryBuffer, VertexBuffer};
 use crate::scene::mesh::vertex::SimpleVertex;
 use crate::{
     core::{
@@ -383,7 +383,7 @@ impl DeferredLightRenderer {
             quad: SurfaceData::make_unit_xy_quad(),
             skybox: SurfaceData::new(
                 VertexBuffer::new(vertices.len(), SimpleVertex::layout(), vertices).unwrap(),
-                vec![
+                GeometryBuffer::new(vec![
                     TriangleDefinition([0, 1, 2]),
                     TriangleDefinition([0, 2, 3]),
                     TriangleDefinition([4, 5, 6]),
@@ -396,7 +396,7 @@ impl DeferredLightRenderer {
                     TriangleDefinition([16, 18, 19]),
                     TriangleDefinition([20, 21, 22]),
                     TriangleDefinition([20, 22, 23]),
-                ],
+                ]),
                 true,
             ),
             sphere: SurfaceData::make_sphere(6, 6, 1.0, &Matrix4::identity()),

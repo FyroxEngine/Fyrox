@@ -390,7 +390,7 @@ impl Lightmap {
                         .collect::<Vec<_>>();
 
                     let world_triangles = data
-                        .triangles()
+                        .geometry_buffer
                         .iter()
                         .map(|tri| {
                             [
@@ -403,7 +403,7 @@ impl Lightmap {
 
                     instance.data = Some(InstanceData {
                         vertices: world_vertices,
-                        triangles: data.triangles.clone(),
+                        triangles: data.geometry_buffer.triangles_ref().to_vec(),
                         octree: Octree::new(&world_triangles, 64),
                     });
 
@@ -869,6 +869,9 @@ fn generate_lightmap(
         },
         TexturePixelKind::RGB8,
         bytes,
+        // Do not serialize content because lightmap is saved as a series of images in
+        // a common format.
+        false,
     )
     .unwrap()
 }

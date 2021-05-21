@@ -142,4 +142,5 @@ impl Node {
     define_is_as!(Node : Light -> ref Light => fn is_light, fn as_light, fn as_light_mut);
     define_is_as!(Node : ParticleSystem -> ref ParticleSystem => fn is_particle_system, fn as_particle_system, fn as_particle_system_mut);
     define_is_as!(Node : Sprite -> ref Sprite => fn is_sprite, fn as_sprite, fn as_sprite_mut);
+    define_is_as!(Node : Terrain -> ref Terrain => fn is_terrain, fn as_terrain, fn as_terrain_mut);
 }

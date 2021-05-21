@@ -38,7 +38,7 @@ bitflags = "1.2.1"
 glow = { git = "https://github.com/mrDIMAS/glow", branch = "main" }
 
 [dev-dependencies]
-imageproc = "0.21.0"
+imageproc = "0.22.0"
 
 [features]
 enable_profiler = ["rg3d-core/enable_profiler"]

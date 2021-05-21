@@ -1,6 +1,5 @@
 use crate::{
     core::scope_profile,
-    engine::resource_manager::TimedEntry,
     renderer::{
         batch::InstanceData,
         framework::{
@@ -19,13 +18,33 @@ use crate::{
 use std::{
     cell::RefCell,
     collections::{hash_map::Entry, HashMap},
-    ops::Deref,
+    ops::{Deref, DerefMut},
     rc::Rc,
 };
 
+pub struct CacheEntry<T> {
+    pub value: T,
+    pub value_hash: u64,
+    pub time_to_live: f32,
+}
+
+impl<T> Deref for CacheEntry<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.value
+    }
+}
+
+impl<T> DerefMut for CacheEntry<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.value
+    }
+}
+
 #[derive(Default)]
 pub(in crate) struct GeometryCache {
-    map: HashMap<usize, TimedEntry<GeometryBuffer>>,
+    map: HashMap<usize, CacheEntry<GeometryBuffer>>,
 }
 
 impl GeometryCache {
@@ -33,11 +52,12 @@ impl GeometryCache {
         scope_profile!();
 
         let key = (data as *const _) as usize;
+        let data_hash = data.content_hash();
 
         let geometry_buffer = self.map.entry(key).or_insert_with(|| {
             let geometry_buffer = GeometryBufferBuilder::new(ElementKind::Triangle)
                 .with_buffer_builder(BufferBuilder::from_vertex_buffer(
-                    data.vertex_buffer(),
+                    &data.vertex_buffer,
                     GeometryBufferKind::StaticDraw,
                 ))
                 // Buffer for world and world-view-projection matrices per instance.
@@ -85,13 +105,26 @@ impl GeometryCache {
                 .build(state)
                 .unwrap();
 
-            geometry_buffer.bind(state).set_triangles(data.triangles());
+            geometry_buffer
+                .bind(state)
+                .set_triangles(data.geometry_buffer.triangles_ref());
 
-            TimedEntry {
+            CacheEntry {
                 value: geometry_buffer,
                 time_to_live: 20.0,
+                value_hash: data_hash,
             }
         });
+
+        if data_hash != geometry_buffer.value_hash {
+            // Content has changed, upload new content.
+            geometry_buffer.set_buffer_data(state, 0, data.vertex_buffer.raw_data());
+            geometry_buffer
+                .bind(state)
+                .set_triangles(data.geometry_buffer.triangles_ref());
+
+            geometry_buffer.value_hash = data_hash;
+        }
 
         geometry_buffer.time_to_live = 20.0;
         geometry_buffer
@@ -113,7 +146,7 @@ impl GeometryCache {
 
 #[derive(Default)]
 pub(in crate) struct TextureCache {
-    pub(super) map: HashMap<usize, TimedEntry<Rc<RefCell<GpuTexture>>>>,
+    pub(super) map: HashMap<usize, CacheEntry<Rc<RefCell<GpuTexture>>>>,
 }
 
 impl TextureCache {
@@ -191,9 +224,10 @@ impl TextureCache {
                         }
                     };
 
-                    e.insert(TimedEntry {
+                    e.insert(CacheEntry {
                         value: Rc::new(RefCell::new(gpu_texture)),
                         time_to_live: 20.0,
+                        value_hash: 0, // TODO
                     })
                 }
             };

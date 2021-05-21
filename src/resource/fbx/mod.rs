@@ -555,9 +555,9 @@ fn convert(
 
                 let data_rc = surface.data();
                 let mut data = data_rc.write().unwrap();
-                if data.vertex_buffer().vertex_count() as usize == surface.vertex_weights.len() {
-                    for (mut view, weight_set) in data
-                        .vertex_buffer_mut()
+                if data.vertex_buffer.vertex_count() as usize == surface.vertex_weights.len() {
+                    let mut vertex_buffer_mut = data.vertex_buffer.modify();
+                    for (mut view, weight_set) in vertex_buffer_mut
                         .iter_mut()
                         .zip(surface.vertex_weights.iter())
                     {

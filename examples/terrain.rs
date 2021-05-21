@@ -5,14 +5,12 @@ extern crate rg3d;
 pub mod shared;
 
 use crate::shared::create_camera;
-use rg3d::scene::light::{BaseLightBuilder, PointLightBuilder};
-use rg3d::scene::terrain::{LayerDefinition, TerrainBuilder};
 use rg3d::{
-    animation::Animation,
     core::{
-        algebra::{Matrix4, UnitQuaternion, Vector3},
+        algebra::{UnitQuaternion, Vector3},
         color::Color,
         pool::Handle,
+        rand::Rng,
     },
     engine::resource_manager::ResourceManager,
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
@@ -23,22 +21,18 @@ use rg3d::{
         text::TextBuilder,
         widget::WidgetBuilder,
     },
+    rand::thread_rng,
     scene::{
         base::BaseBuilder,
-        mesh::{
-            surface::{SurfaceBuilder, SurfaceData},
-            MeshBuilder,
-        },
+        light::{BaseLightBuilder, PointLightBuilder},
         node::Node,
+        terrain::{Brush, BrushKind, BrushMode, LayerDefinition, TerrainBuilder},
         transform::TransformBuilder,
         Scene,
     },
     utils::translate_event,
 };
-use std::{
-    sync::{Arc, RwLock},
-    time::Instant,
-};
+use std::time::Instant;
 
 // Create our own engine type aliases. These specializations are needed
 // because engine provides a way to extend UI with custom nodes and messages.
@@ -64,13 +58,13 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     // Camera is our eyes in the world - you won't see anything without it.
     let model_handle = create_camera(
         resource_manager.clone(),
-        Vector3::new(32.0, 6.0, 32.0),
+        Vector3::new(32.0, 8.0, 32.0),
         &mut scene.graph,
     )
     .await;
 
     // Add terrain.
-    TerrainBuilder::new(BaseBuilder::new())
+    let terrain = TerrainBuilder::new(BaseBuilder::new())
         .with_layers(vec![LayerDefinition {
             diffuse_texture: Some(
                 resource_manager.request_texture("examples/data/Grass_DiffuseColor.jpg"),
@@ -83,6 +77,22 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
             height_texture: None,
         }])
         .build(&mut scene.graph);
+
+    let terrain = scene.graph[terrain].as_terrain_mut();
+
+    for _ in 0..60 {
+        let x = thread_rng().gen_range(4.0..60.00);
+        let z = thread_rng().gen_range(4.0..60.00);
+        let radius = thread_rng().gen_range(1.0..3.0);
+        let height = thread_rng().gen_range(1.0..4.0);
+
+        // Draw something on the terrain.
+        terrain.draw(&Brush {
+            center: Vector3::new(x, 0.0, z),
+            kind: BrushKind::Circle { radius },
+            mode: BrushMode::AlternateHeightMap { amount: height },
+        });
+    }
 
     // Add some light.
     PointLightBuilder::new(BaseLightBuilder::new(

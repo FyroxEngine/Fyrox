@@ -297,7 +297,7 @@ impl GeometryBuffer {
 
         let buffer = &mut self.buffers[buffer];
 
-        assert_eq!(buffer.element_size, size_of::<T>());
+        assert_eq!(buffer.element_size % size_of::<T>(), 0);
 
         state.set_vertex_buffer_object(buffer.id);
 
