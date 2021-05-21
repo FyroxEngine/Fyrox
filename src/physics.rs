@@ -459,23 +459,23 @@ impl Physics {
                                 for surface in mesh.surfaces() {
                                     let data = surface.data();
                                     let data = data.read().unwrap();
-                                    for triangle in data.triangles() {
+                                    for triangle in data.geometry_buffer.triangles_ref() {
                                         let a = transform.transform_point(&Point3::from(
-                                            data.vertex_buffer()
+                                            data.vertex_buffer
                                                 .get(triangle[0] as usize)
                                                 .unwrap()
                                                 .read_3_f32(VertexAttributeUsage::Position)
                                                 .unwrap(),
                                         ));
                                         let b = transform.transform_point(&Point3::from(
-                                            data.vertex_buffer()
+                                            data.vertex_buffer
                                                 .get(triangle[1] as usize)
                                                 .unwrap()
                                                 .read_3_f32(VertexAttributeUsage::Position)
                                                 .unwrap(),
                                         ));
                                         let c = transform.transform_point(&Point3::from(
-                                            data.vertex_buffer()
+                                            data.vertex_buffer
                                                 .get(triangle[2] as usize)
                                                 .unwrap()
                                                 .read_3_f32(VertexAttributeUsage::Position)

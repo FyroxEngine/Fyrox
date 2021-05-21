@@ -1439,8 +1439,7 @@ impl Editor {
                             let transform = node.global_transform();
 
                             for surface in mesh.surfaces() {
-                                for vertex in surface.data().read().unwrap().vertex_buffer().iter()
-                                {
+                                for vertex in surface.data().read().unwrap().vertex_buffer.iter() {
                                     let len = 0.025;
                                     let position = transform
                                         .transform_point(&Point3::from(
