@@ -957,11 +957,15 @@ impl TextureData {
         }
     }
 
+    /// Returns a special reference holder that provides mutable access to content of the
+    /// texture and automatically calculates hash of the data in its destructor.
     pub fn modify(&mut self) -> TextureDataRefMut<'_> {
         TextureDataRefMut { texture: self }
     }
 }
 
+/// A special reference holder that provides mutable access to content of the
+/// texture and automatically calculates hash of the data in its destructor.
 pub struct TextureDataRefMut<'a> {
     texture: &'a mut TextureData,
 }
@@ -987,6 +991,7 @@ impl<'a> DerefMut for TextureDataRefMut<'a> {
 }
 
 impl<'a> TextureDataRefMut<'a> {
+    /// Returns mutable reference to the data of the texture.
     pub fn data_mut(&mut self) -> &mut [u8] {
         &mut self.texture.bytes
     }

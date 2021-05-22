@@ -63,7 +63,7 @@ impl Layer {
     }
 }
 
-#[derive(Default, Debug, Clone, Visit)]
+#[derive(Debug, Clone, Visit)]
 pub struct Chunk {
     heightmap: Vec<f32>,
     layers: Vec<Layer>,
@@ -75,15 +75,32 @@ pub struct Chunk {
     // No need to save surface data, it will be regenerated automatically from
     // other data.
     #[visit(skip)]
-    surface_data: Arc<RwLock<SurfaceData>>,
+    surface_data: Option<Arc<RwLock<SurfaceData>>>,
     #[visit(skip)]
     dirty: Cell<bool>,
+}
+
+impl Default for Chunk {
+    fn default() -> Self {
+        Self {
+            heightmap: Default::default(),
+            layers: Default::default(),
+            position: Default::default(),
+            width: 0.0,
+            length: 0.0,
+            width_point_count: 0,
+            length_point_count: 0,
+            surface_data: None,
+            dirty: Cell::new(true),
+        }
+    }
 }
 
 impl Chunk {
     pub fn update(&mut self) {
         if self.dirty.get() {
-            let mut surface_data = self.surface_data.write().unwrap();
+            let surface_data = self.surface_data.clone().unwrap();
+            let mut surface_data = surface_data.write().unwrap();
             surface_data.clear();
 
             assert_eq!(self.width_point_count & 1, 0);
@@ -151,7 +168,7 @@ impl Chunk {
     }
 
     pub fn data(&self) -> Arc<RwLock<SurfaceData>> {
-        self.surface_data.clone()
+        self.surface_data.clone().unwrap()
     }
 }
 
@@ -303,9 +320,17 @@ impl Terrain {
                             let pixel_position =
                                 chunk_position + Vector2::new(kx * chunk.width, kz * chunk.length);
 
+                            let k = match brush.kind {
+                                BrushKind::Circle { radius } => {
+                                    1.0 - ((center - pixel_position).norm() / radius).powf(4.0)
+                                }
+                                BrushKind::Rectangle { .. } => 1.0,
+                            };
+
                             if brush.kind.contains(center, pixel_position) {
                                 // We can draw on mask directly, without any problems because it has R8 pixel format.
-                                texture_data_mut.data_mut()[(z * texture_width + x) as usize] = 255;
+                                texture_data_mut.data_mut()[(z * texture_width + x) as usize] =
+                                    (k * 255.0) as u8;
                             }
                         }
                     }
@@ -432,7 +457,7 @@ impl TerrainBuilder {
         self
     }
 
-    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
+    pub fn build_node(self) -> Node {
         let mut chunks = Vec::new();
         let chunk_length = self.length / self.length_chunks as f32;
         let chunk_width = self.width / self.width_chunks as f32;
@@ -475,12 +500,12 @@ impl TerrainBuilder {
                         .collect(),
                     position: Vector3::new(x as f32 * chunk_width, 0.0, z as f32 * chunk_length),
                     width: chunk_width,
-                    surface_data: Arc::new(RwLock::new(SurfaceData::new(
+                    surface_data: Some(Arc::new(RwLock::new(SurfaceData::new(
                         VertexBuffer::new::<StaticVertex>(0, StaticVertex::layout(), vec![])
                             .unwrap(),
                         GeometryBuffer::default(),
                         false,
-                    ))),
+                    )))),
                     dirty: Cell::new(true),
                     length: chunk_length,
                 });
@@ -496,6 +521,10 @@ impl TerrainBuilder {
             bounding_box: Default::default(),
         };
 
-        graph.add_node(Node::Terrain(terrain))
+        Node::Terrain(terrain)
+    }
+
+    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
+        graph.add_node(self.build_node())
     }
 }
