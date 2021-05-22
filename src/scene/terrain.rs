@@ -2,6 +2,7 @@
 
 #![allow(missing_docs)] // Temporary
 
+use crate::resource::texture::TextureWrapMode;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
@@ -298,7 +299,9 @@ impl Terrain {
                     }
                 }
             }
-            BrushMode::DrawOnMask { layer } => {
+            BrushMode::DrawOnMask { layer, alpha } => {
+                let alpha = alpha.clamp(0.0, 1.0);
+
                 for chunk in self.chunks.iter_mut() {
                     let chunk_position = chunk.local_position();
                     let layer = &mut chunk.layers[layer];
@@ -329,8 +332,9 @@ impl Terrain {
 
                             if brush.kind.contains(center, pixel_position) {
                                 // We can draw on mask directly, without any problems because it has R8 pixel format.
-                                texture_data_mut.data_mut()[(z * texture_width + x) as usize] =
-                                    (k * 255.0) as u8;
+                                let data = texture_data_mut.data_mut();
+                                let pixel = &mut data[(z * texture_width + x) as usize];
+                                *pixel = (*pixel as f32 + k * alpha * 255.0).min(255.0) as u8;
                             }
                         }
                     }
@@ -369,8 +373,16 @@ impl BrushKind {
 
 #[derive(Clone, PartialEq, PartialOrd)]
 pub enum BrushMode {
-    AlternateHeightMap { amount: f32 },
-    DrawOnMask { layer: usize },
+    AlternateHeightMap {
+        /// An offset for height map.
+        amount: f32,
+    },
+    DrawOnMask {
+        /// A layer to draw on.
+        layer: usize,
+        /// A value to put on mask.
+        alpha: f32,
+    },
 }
 
 #[derive(Clone)]
@@ -475,27 +487,37 @@ impl TerrainBuilder {
                         .layers
                         .iter()
                         .enumerate()
-                        .map(|(layer_index, definition)| Layer {
-                            diffuse_texture: definition.diffuse_texture.clone(),
-                            normal_texture: definition.normal_texture.clone(),
-                            specular_texture: definition.specular_texture.clone(),
-                            roughness_texture: definition.roughness_texture.clone(),
-                            height_texture: definition.height_texture.clone(),
-                            mask: Texture::from_bytes(
+                        .map(|(layer_index, definition)| {
+                            let mask = Texture::from_bytes(
                                 TextureKind::Rectangle {
                                     width: chunk_mask_width,
                                     height: chunk_mask_height,
                                 },
                                 TexturePixelKind::R8,
                                 vec![
-                                    // Base layer is opaque, every other by default - transparent.
-                                    if layer_index == 0 { 255 } else { 0 };
-                                    (chunk_mask_width * chunk_mask_height) as usize
-                                ],
+                                        // Base layer is opaque, every other by default - transparent.
+                                        if layer_index == 0 { 255 } else { 0 };
+                                        (chunk_mask_width * chunk_mask_height) as usize
+                                    ],
                                 // Content of mask will be explicitly serialized.
                                 true,
-                            ),
-                            tile_factor: definition.tile_factor,
+                            )
+                            .unwrap();
+
+                            let mut data_ref = mask.data_ref();
+                            data_ref.set_s_wrap_mode(TextureWrapMode::ClampToEdge);
+                            data_ref.set_t_wrap_mode(TextureWrapMode::ClampToEdge);
+                            drop(data_ref);
+
+                            Layer {
+                                diffuse_texture: definition.diffuse_texture.clone(),
+                                normal_texture: definition.normal_texture.clone(),
+                                specular_texture: definition.specular_texture.clone(),
+                                roughness_texture: definition.roughness_texture.clone(),
+                                height_texture: definition.height_texture.clone(),
+                                mask: Some(mask),
+                                tile_factor: definition.tile_factor,
+                            }
                         })
                         .collect(),
                     position: Vector3::new(x as f32 * chunk_width, 0.0, z as f32 * chunk_length),

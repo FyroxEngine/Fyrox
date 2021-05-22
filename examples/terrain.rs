@@ -115,7 +115,10 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
         terrain.draw(&Brush {
             center: Vector3::new(x, 0.0, z),
             kind: BrushKind::Circle { radius },
-            mode: BrushMode::DrawOnMask { layer: 1 },
+            mode: BrushMode::DrawOnMask {
+                layer: 1,
+                alpha: 1.0,
+            },
         });
     }
 
