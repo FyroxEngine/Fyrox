@@ -112,11 +112,7 @@ impl Ray {
         let a = self.dir.dot(&self.dir);
         let b = 2.0 * self.dir.dot(&d);
         let c = d.dot(&d) - radius * radius;
-        if let Some(roots) = solve_quadratic(a, b, c) {
-            Some(IntersectionResult::from_slice(&roots))
-        } else {
-            None
-        }
+        solve_quadratic(a, b, c).map(|roots| IntersectionResult::from_slice(&roots))
     }
 
     /// Checks intersection with sphere.
@@ -359,10 +355,7 @@ impl Ray {
                 };
 
                 match a {
-                    None => match b {
-                        None => None,
-                        Some(b) => Some([b, b]),
-                    },
+                    None => b.map(|b| [b, b]),
                     Some(a) => match b {
                         None => Some([a, a]),
                         Some(b) => Some([a, b]),

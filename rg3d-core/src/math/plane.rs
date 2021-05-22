@@ -21,14 +21,12 @@ impl Plane {
     /// May fail if normal is degenerated vector.
     #[inline]
     pub fn from_normal_and_point(normal: &Vector3<f32>, point: &Vector3<f32>) -> Option<Self> {
-        if let Some(normalized_normal) = normal.try_normalize(std::f32::EPSILON) {
-            Some(Self {
+        normal
+            .try_normalize(f32::EPSILON)
+            .map(|normalized_normal| Self {
                 normal: normalized_normal,
                 d: -point.dot(&normalized_normal),
             })
-        } else {
-            None
-        }
     }
 
     /// Creates plane using coefficients of plane equation Ax + By + Cz + D = 0

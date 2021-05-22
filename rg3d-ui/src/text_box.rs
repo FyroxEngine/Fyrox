@@ -232,11 +232,11 @@ impl<M: MessageData, C: Control<M, C>> TextBox<M, C> {
     }
 
     pub fn get_absolute_position(&self, position: Position) -> Option<usize> {
-        if let Some(line) = self.formatted_text.borrow().get_lines().get(position.line) {
-            Some(line.begin + cmp::min(position.offset, line.len()))
-        } else {
-            None
-        }
+        self.formatted_text
+            .borrow()
+            .get_lines()
+            .get(position.line)
+            .map(|line| line.begin + cmp::min(position.offset, line.len()))
     }
 
     /// Inserts given character at current caret position.

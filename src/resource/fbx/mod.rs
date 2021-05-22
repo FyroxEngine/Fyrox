@@ -467,17 +467,15 @@ fn convert_model(
             track.add_key_frame(KeyFrame::new(time, translation, scale, rotation));
 
             let mut next_time = std::f32::MAX;
-            for node in &[lcl_translation, lcl_rotation, lcl_scale] {
-                if let Some(node) = node {
-                    for &curve_handle in node.curves.iter() {
-                        let curve_component = fbx_scene.get(curve_handle);
-                        if let FbxComponent::AnimationCurve(curve) = curve_component {
-                            for key in curve.keys.iter() {
-                                if key.time > time {
-                                    let distance = key.time - time;
-                                    if distance < next_time - key.time {
-                                        next_time = key.time;
-                                    }
+            for node in [lcl_translation, lcl_rotation, lcl_scale].iter().flatten() {
+                for &curve_handle in node.curves.iter() {
+                    let curve_component = fbx_scene.get(curve_handle);
+                    if let FbxComponent::AnimationCurve(curve) = curve_component {
+                        for key in curve.keys.iter() {
+                            if key.time > time {
+                                let distance = key.time - time;
+                                if distance < next_time - key.time {
+                                    next_time = key.time;
                                 }
                             }
                         }

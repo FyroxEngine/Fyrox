@@ -191,7 +191,7 @@ impl<'a> VertexBufferRefMut<'a> {
         if std::mem::size_of::<T>() == self.vertex_buffer.vertex_size as usize {
             self.vertex_buffer
                 .data
-                .extend_from_slice(unsafe { value_as_u8_slice(vertex) });
+                .extend_from_slice(value_as_u8_slice(vertex));
             self.vertex_buffer.vertex_count += 1;
             Ok(())
         } else {
@@ -310,7 +310,7 @@ impl<'a> VertexBufferRefMut<'a> {
         fill_value: T,
     ) -> Result<(), ValidationError> {
         if self.vertex_buffer.sparse_layout[descriptor.usage as usize].is_some() {
-            return Err(ValidationError::DuplicatedAttributeDescriptor);
+            Err(ValidationError::DuplicatedAttributeDescriptor)
         } else {
             let vertex_attribute = VertexAttribute {
                 usage: descriptor.usage,
@@ -332,7 +332,7 @@ impl<'a> VertexBufferRefMut<'a> {
             {
                 let mut temp = ArrayVec::<u8, 256>::new();
                 temp.try_extend_from_slice(chunk).unwrap();
-                temp.try_extend_from_slice(unsafe { value_as_u8_slice(&fill_value) })
+                temp.try_extend_from_slice(value_as_u8_slice(&fill_value))
                     .unwrap();
                 new_data.extend_from_slice(&temp);
             }

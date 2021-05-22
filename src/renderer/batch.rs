@@ -270,7 +270,7 @@ impl BatchStorage {
                                     use_lightmapping: false, // TODO
                                     sort_index: layer_index as u64,
                                     is_terrain: true,
-                                    blend: if layer_index == 0 { false } else { true },
+                                    blend: layer_index != 0,
                                     tex_coord_scale: layer.tile_factor,
                                 });
                                 self.batches.last_mut().unwrap()

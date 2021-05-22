@@ -254,14 +254,10 @@ pub fn translate_event(event: &WindowEvent) -> Option<OsEvent> {
     match event {
         WindowEvent::ReceivedCharacter(c) => Some(OsEvent::Character(*c)),
         WindowEvent::KeyboardInput { input, .. } => {
-            if let Some(key) = input.virtual_keycode {
-                Some(OsEvent::KeyboardInput {
-                    button: translate_key(key),
-                    state: translate_state(input.state),
-                })
-            } else {
-                None
-            }
+            input.virtual_keycode.map(|key| OsEvent::KeyboardInput {
+                button: translate_key(key),
+                state: translate_state(input.state),
+            })
         }
         WindowEvent::CursorMoved { position, .. } => Some(OsEvent::CursorMoved {
             position: Vector2::new(position.x as f32, position.y as f32),
@@ -464,6 +460,7 @@ pub fn virtual_key_code_name(code: VirtualKeyCode) -> &'static str {
 }
 
 /// Helper function to convert Option<Arc<T>> to Option<Arc<dyn Any>>.
+#[allow(clippy::manual_map)]
 pub fn into_any_arc<T: Any + Send + Sync>(
     opt: Option<Arc<T>>,
 ) -> Option<Arc<dyn Any + Send + Sync>> {
@@ -479,16 +476,18 @@ pub fn into_gui_texture(this: Texture) -> draw::SharedTexture {
 }
 
 /// "Transmutes" array of any sized type to a slice of bytes.
-pub unsafe fn array_as_u8_slice<T: Sized>(v: &[T]) -> &'_ [u8] {
-    std::slice::from_raw_parts(v.as_ptr() as *const u8, std::mem::size_of::<T>() * v.len())
+pub fn array_as_u8_slice<T: Sized>(v: &[T]) -> &'_ [u8] {
+    unsafe {
+        std::slice::from_raw_parts(v.as_ptr() as *const u8, std::mem::size_of::<T>() * v.len())
+    }
 }
 
 /// "Transmutes" value of any sized type to a slice of bytes.
-pub unsafe fn value_as_u8_slice<T: Sized>(v: &T) -> &'_ [u8] {
-    std::slice::from_raw_parts(v as *const T as *const u8, std::mem::size_of::<T>())
+pub fn value_as_u8_slice<T: Sized>(v: &T) -> &'_ [u8] {
+    unsafe { std::slice::from_raw_parts(v as *const T as *const u8, std::mem::size_of::<T>()) }
 }
 
 /// Performs hashing of a sized value by interpreting it as raw memory.
 pub fn hash_as_bytes<T: Sized, H: Hasher>(value: &T, hasher: &mut H) {
-    unsafe { hasher.write(value_as_u8_slice(value)) }
+    hasher.write(value_as_u8_slice(value))
 }

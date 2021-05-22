@@ -56,6 +56,7 @@ unsafe fn create_shader(
     }
 }
 
+#[allow(clippy::let_and_return)]
 fn prepare_source_code(code: &str) -> String {
     let mut shared = "\n// include 'shared.glsl'\n".to_owned();
     shared += include_str!("shaders/shared.glsl");

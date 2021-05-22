@@ -90,9 +90,9 @@ impl RenderTarget {
         )?;
 
         Ok(Self {
-            framebuffer,
             width,
             height,
+            framebuffer,
         })
     }
 }

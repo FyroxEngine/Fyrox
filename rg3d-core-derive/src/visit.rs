@@ -120,7 +120,7 @@ fn impl_visit_struct(
     let generics = self::create_generics(&args.generics, field_args.iter().cloned());
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
-    let visit_fn_body = if field_args.style.clone() == ast::Style::Unit {
+    let visit_fn_body = if field_args.style == ast::Style::Unit {
         quote! { Ok(()) }
     } else {
         // `field.visit(..);` parts

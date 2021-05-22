@@ -35,10 +35,10 @@ impl KeyFrame {
         rotation: UnitQuaternion<f32>,
     ) -> Self {
         Self {
-            time,
             position,
             scale,
             rotation,
+            time,
         }
     }
 }

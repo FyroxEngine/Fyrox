@@ -176,8 +176,8 @@ impl<K: Hash + Eq + Clone, V: Hash + Eq + Clone> From<HashMap<K, V>> for BiDirHa
             backward_map.insert(v.clone(), k.clone());
         }
         Self {
-            backward_map,
             forward_map,
+            backward_map,
         }
     }
 }

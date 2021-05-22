@@ -179,23 +179,15 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileBrowser<M, C> {
                         .unwrap()
                         .clone();
                     if let Ok(dir_iter) = std::fs::read_dir(&parent_path) {
-                        for p in dir_iter {
-                            if let Ok(entry) = p {
-                                let path = entry.path();
-                                let build = if let Some(filter) = self.filter.as_ref() {
-                                    filter.deref().borrow_mut().deref_mut()(&path)
-                                } else {
-                                    true
-                                };
-                                if build {
-                                    build_tree(
-                                        message.destination(),
-                                        false,
-                                        &path,
-                                        &parent_path,
-                                        ui,
-                                    );
-                                }
+                        for entry in dir_iter.flatten() {
+                            let path = entry.path();
+                            let build = if let Some(filter) = self.filter.as_ref() {
+                                filter.deref().borrow_mut().deref_mut()(&path)
+                            } else {
+                                true
+                            };
+                            if build {
+                                build_tree(message.destination(), false, &path, &parent_path, ui);
                             }
                         }
                     }
@@ -416,28 +408,26 @@ fn build_all<M: MessageData, C: Control<M, C>>(
 
         let mut new_parent = parent;
         if let Ok(dir_iter) = std::fs::read_dir(&full_path) {
-            for p in dir_iter {
-                if let Ok(entry) = p {
-                    let path = entry.path();
-                    if filter
-                        .as_ref()
-                        .map_or(true, |f| f.deref().borrow_mut().deref_mut()(&path))
-                    {
-                        let item = build_tree_item(&path, &full_path, ctx);
-                        if parent.is_some() {
-                            Tree::add_item(parent, item, ctx);
-                        } else {
-                            root_items.push(item);
+            for entry in dir_iter.flatten() {
+                let path = entry.path();
+                if filter
+                    .as_ref()
+                    .map_or(true, |f| f.deref().borrow_mut().deref_mut()(&path))
+                {
+                    let item = build_tree_item(&path, &full_path, ctx);
+                    if parent.is_some() {
+                        Tree::add_item(parent, item, ctx);
+                    } else {
+                        root_items.push(item);
+                    }
+                    if let Some(next) = next.as_ref() {
+                        if *next == path {
+                            new_parent = item;
                         }
-                        if let Some(next) = next.as_ref() {
-                            if *next == path {
-                                new_parent = item;
-                            }
-                        }
+                    }
 
-                        if path == dest_path {
-                            path_item = item;
-                        }
+                    if path == dest_path {
+                        path_item = item;
                     }
                 }
             }
