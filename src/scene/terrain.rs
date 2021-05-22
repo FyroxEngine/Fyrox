@@ -264,9 +264,16 @@ impl Terrain {
                             let pixel_position = chunk.local_position()
                                 + Vector2::new(kx * chunk.width, kz * chunk.length);
 
+                            let k = match brush.kind {
+                                BrushKind::Circle { radius } => {
+                                    1.0 - ((center - pixel_position).norm() / radius).powf(2.0)
+                                }
+                                BrushKind::Rectangle { .. } => 1.0,
+                            };
+
                             if brush.kind.contains(center, pixel_position) {
                                 chunk.heightmap[(z * chunk.width_point_count + x) as usize] +=
-                                    amount;
+                                    k * amount;
 
                                 chunk.dirty.set(true);
                             }

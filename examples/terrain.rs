@@ -59,7 +59,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     // Camera is our eyes in the world - you won't see anything without it.
     let model_handle = create_camera(
         resource_manager.clone(),
-        Vector3::new(32.0, 8.0, 32.0),
+        Vector3::new(32.0, 6.0, 32.0),
         &mut scene.graph,
     )
     .await;
@@ -99,8 +99,8 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     for _ in 0..60 {
         let x = thread_rng().gen_range(4.0..60.00);
         let z = thread_rng().gen_range(4.0..60.00);
-        let radius = thread_rng().gen_range(1.0..3.0);
-        let height = thread_rng().gen_range(1.0..4.0);
+        let radius = thread_rng().gen_range(2.0..4.0);
+        let height = thread_rng().gen_range(1.0..3.0);
 
         // Draw something on the terrain.
 
@@ -145,7 +145,7 @@ fn main() {
     let event_loop = EventLoop::new();
 
     let window_builder = rg3d::window::WindowBuilder::new()
-        .with_title("Example - Model")
+        .with_title("Example - Terrain")
         .with_resizable(true);
 
     let mut engine = GameEngine::new(window_builder, &event_loop, true).unwrap();
@@ -224,7 +224,7 @@ fn main() {
 
                     let fps = engine.renderer.get_statistics().frames_per_second;
                     let text = format!(
-                        "Example 01 - Simple Scene\nUse [A][D] keys to rotate model.\nFPS: {}",
+                        "Example - Terrain\nUse [A][D] keys to rotate camera.\nFPS: {}",
                         fps
                     );
                     engine.user_interface.send_message(TextMessage::text(
