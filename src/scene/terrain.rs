@@ -2,12 +2,10 @@
 
 #![allow(missing_docs)] // Temporary
 
-use crate::core::algebra::Matrix4;
-use crate::scene::mesh::buffer::GeometryBuffer;
 use crate::{
     core::{
-        algebra::{Point3, Vector2, Vector3},
-        math::{aabb::AxisAlignedBoundingBox, TriangleDefinition},
+        algebra::{Matrix4, Point3, Vector2, Vector3},
+        math::{aabb::AxisAlignedBoundingBox, Rect, TriangleDefinition},
         pool::Handle,
         visitor::prelude::*,
     },
@@ -15,7 +13,11 @@ use crate::{
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
-        mesh::{buffer::VertexBuffer, surface::SurfaceData, vertex::StaticVertex},
+        mesh::{
+            buffer::{GeometryBuffer, VertexBuffer},
+            surface::SurfaceData,
+            vertex::StaticVertex,
+        },
         node::Node,
     },
 };
@@ -35,6 +37,7 @@ pub struct Layer {
     pub roughness_texture: Option<Texture>,
     pub height_texture: Option<Texture>,
     pub mask: Option<Texture>,
+    pub tile_factor: Vector2<f32>,
 }
 
 impl Layer {
@@ -103,7 +106,7 @@ impl Chunk {
                     vertex_buffer_mut
                         .push_vertex(&StaticVertex {
                             position: Vector3::new(px, py, pz),
-                            tex_coord: Vector2::new(10.0 * kx, 10.0 * kz),
+                            tex_coord: Vector2::new(kx, kz),
                             // Normals and tangents will be calculated later.
                             normal: Default::default(),
                             tangent: Default::default(),
@@ -250,37 +253,54 @@ impl Terrain {
     pub fn draw(&mut self, brush: &Brush) {
         let center = project(self.global_transform(), brush.center).unwrap();
 
-        for chunk in self.chunks.iter_mut() {
-            match brush.mode {
-                BrushMode::AlternateHeightMap { amount } => match brush.kind {
-                    BrushKind::Circle { radius } => {
-                        for z in 0..chunk.length_point_count {
-                            let kz = z as f32 / (chunk.length_point_count - 1) as f32;
-                            for x in 0..chunk.width_point_count {
-                                let kx = x as f32 / (chunk.width_point_count - 1) as f32;
+        match brush.mode {
+            BrushMode::AlternateHeightMap { amount } => {
+                for chunk in self.chunks.iter_mut() {
+                    for z in 0..chunk.length_point_count {
+                        let kz = z as f32 / (chunk.length_point_count - 1) as f32;
+                        for x in 0..chunk.width_point_count {
+                            let kx = x as f32 / (chunk.width_point_count - 1) as f32;
 
-                                let pixel_position = chunk.local_position()
-                                    + Vector2::new(kx * chunk.width, kz * chunk.length);
+                            let pixel_position = chunk.local_position()
+                                + Vector2::new(kx * chunk.width, kz * chunk.length);
 
-                                if (center - pixel_position).norm() < radius {
-                                    chunk.heightmap[(z * chunk.width_point_count + x) as usize] +=
-                                        amount;
+                            if brush.kind.contains(center, pixel_position) {
+                                chunk.heightmap[(z * chunk.width_point_count + x) as usize] +=
+                                    amount;
 
-                                    chunk.dirty.set(true);
-                                }
+                                chunk.dirty.set(true);
                             }
                         }
                     }
-                    BrushKind::Rectangle { .. } => {} // TODO
-                },
-                BrushMode::DrawOnMask { layer } => {
-                    // TODO Requires drawing on texture and ability to update new texture data
-                    // to GPU. This is the next step.
-                    let _layer = &mut chunk.layers[layer];
+                }
+            }
+            BrushMode::DrawOnMask { layer } => {
+                for chunk in self.chunks.iter_mut() {
+                    let chunk_position = chunk.local_position();
+                    let layer = &mut chunk.layers[layer];
+                    let mut texture_data = layer.mask.as_ref().unwrap().data_ref();
+                    let mut texture_data_mut = texture_data.modify();
 
-                    match brush.kind {
-                        BrushKind::Circle { .. } => {}
-                        BrushKind::Rectangle { .. } => {} // TODO
+                    let (texture_width, texture_height) =
+                        if let TextureKind::Rectangle { width, height } = texture_data_mut.kind() {
+                            (width as usize, height as usize)
+                        } else {
+                            unreachable!("Mask must be a 2D greyscale image!")
+                        };
+
+                    for z in 0..texture_height {
+                        let kz = z as f32 / (texture_height - 1) as f32;
+                        for x in 0..texture_width {
+                            let kx = x as f32 / (texture_width - 1) as f32;
+
+                            let pixel_position =
+                                chunk_position + Vector2::new(kx * chunk.width, kz * chunk.length);
+
+                            if brush.kind.contains(center, pixel_position) {
+                                // We can draw on mask directly, without any problems because it has R8 pixel format.
+                                texture_data_mut.data_mut()[(z * texture_width + x) as usize] = 255;
+                            }
+                        }
                     }
                 }
             }
@@ -298,6 +318,21 @@ impl Terrain {
 pub enum BrushKind {
     Circle { radius: f32 },
     Rectangle { width: f32, length: f32 },
+}
+
+impl BrushKind {
+    pub fn contains(&self, brush_center: Vector2<f32>, pixel_position: Vector2<f32>) -> bool {
+        match *self {
+            BrushKind::Circle { radius } => (brush_center - pixel_position).norm() < radius,
+            BrushKind::Rectangle { width, length } => Rect::new(
+                brush_center.x - width * 0.5,
+                brush_center.y - length * 0.5,
+                width,
+                length,
+            )
+            .contains(pixel_position),
+        }
+    }
 }
 
 #[derive(Clone, PartialEq, PartialOrd)]
@@ -319,6 +354,7 @@ pub struct LayerDefinition {
     pub specular_texture: Option<Texture>,
     pub roughness_texture: Option<Texture>,
     pub height_texture: Option<Texture>,
+    pub tile_factor: Vector2<f32>,
 }
 
 pub struct TerrainBuilder {
@@ -406,7 +442,8 @@ impl TerrainBuilder {
                     layers: self
                         .layers
                         .iter()
-                        .map(|definition| Layer {
+                        .enumerate()
+                        .map(|(layer_index, definition)| Layer {
                             diffuse_texture: definition.diffuse_texture.clone(),
                             normal_texture: definition.normal_texture.clone(),
                             specular_texture: definition.specular_texture.clone(),
@@ -418,10 +455,15 @@ impl TerrainBuilder {
                                     height: chunk_mask_height,
                                 },
                                 TexturePixelKind::R8,
-                                vec![255; (chunk_mask_width * chunk_mask_height) as usize],
+                                vec![
+                                    // Base layer is opaque, every other by default - transparent.
+                                    if layer_index == 0 { 255 } else { 0 };
+                                    (chunk_mask_width * chunk_mask_height) as usize
+                                ],
                                 // Content of mask will be explicitly serialized.
                                 true,
                             ),
+                            tile_factor: definition.tile_factor,
                         })
                         .collect(),
                     position: Vector3::new(x as f32 * chunk_width, 0.0, z as f32 * chunk_length),

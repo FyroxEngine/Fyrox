@@ -169,6 +169,31 @@ impl TextureCache {
                     entry.time_to_live = 20.0;
 
                     // Check if some value has changed in resource.
+
+                    // Data might change from last frame, so we have to check it and upload new if so.
+                    let data_hash = texture.data_hash();
+                    if entry.value_hash != data_hash {
+                        let mut tex = entry.borrow_mut();
+                        if let Err(e) = tex.bind_mut(state, 0).set_data(
+                            texture.kind().into(),
+                            texture.pixel_kind().into(),
+                            texture.mip_count() as usize,
+                            Some(texture.data()),
+                        ) {
+                            Log::writeln(
+                                MessageKind::Error,
+                                format!(
+                                    "Unable to upload new texture data to GPU. Reason: {:?}",
+                                    e
+                                ),
+                            )
+                        } else {
+                            drop(tex);
+                            // TODO: Is this correct to overwrite hash only if we've succeeded?
+                            entry.value_hash = data_hash;
+                        }
+                    }
+
                     let mut tex = entry.borrow_mut();
 
                     let new_mag_filter = texture.magnification_filter().into();
@@ -207,12 +232,12 @@ impl TextureCache {
                 Entry::Vacant(e) => {
                     let gpu_texture = match GpuTexture::new(
                         state,
-                        texture.kind.into(),
-                        PixelKind::from(texture.pixel_kind),
+                        texture.kind().into(),
+                        PixelKind::from(texture.pixel_kind()),
                         texture.minification_filter().into(),
                         texture.magnification_filter().into(),
                         texture.mip_count() as usize,
-                        Some(texture.bytes.as_slice()),
+                        Some(texture.data()),
                     ) {
                         Ok(texture) => texture,
                         Err(e) => {
@@ -227,7 +252,7 @@ impl TextureCache {
                     e.insert(CacheEntry {
                         value: Rc::new(RefCell::new(gpu_texture)),
                         time_to_live: 20.0,
-                        value_hash: 0, // TODO
+                        value_hash: texture.data_hash(),
                     })
                 }
             };

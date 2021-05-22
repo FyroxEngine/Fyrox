@@ -1,3 +1,4 @@
+use crate::core::algebra::Vector2;
 use crate::{
     core::{algebra::Matrix4, arrayvec::ArrayVec, color::Color, pool::Handle, scope_profile},
     renderer::framework::{
@@ -50,10 +51,15 @@ pub struct Batch {
     pub roughness_texture: Rc<RefCell<GpuTexture>>,
     pub lightmap_texture: Rc<RefCell<GpuTexture>>,
     pub height_texture: Rc<RefCell<GpuTexture>>,
+    pub mask_texture: Rc<RefCell<GpuTexture>>,
     pub use_pom: bool,
     pub is_skinned: bool,
     pub render_path: RenderPath,
     pub use_lightmapping: bool,
+    pub is_terrain: bool,
+    pub blend: bool,
+    pub tex_coord_scale: Vector2<f32>,
+    sort_index: u64,
 }
 
 impl Debug for Batch {
@@ -147,6 +153,9 @@ impl BatchStorage {
                             self.batch_map.insert(key, self.batches.len());
                             self.batches.push(Batch {
                                 data,
+                                // Batches from meshes will be sorted using diffuse textures.
+                                // This will significantly reduce pipeline state changes.
+                                sort_index: (&*diffuse_texture.borrow()) as *const _ as u64,
                                 instances: self.buffers.pop().unwrap_or_default(),
                                 diffuse_texture: diffuse_texture.clone(),
                                 normal_texture: normal_texture.clone(),
@@ -154,13 +163,19 @@ impl BatchStorage {
                                 roughness_texture: roughness_texture.clone(),
                                 lightmap_texture: lightmap_texture.clone(),
                                 height_texture: height_texture.clone(),
+                                mask_texture: white_dummy.clone(),
                                 is_skinned: !surface.bones.is_empty(),
                                 render_path: mesh.render_path(),
                                 use_pom: surface.height_texture_ref().is_some(),
                                 use_lightmapping: surface.lightmap_texture_ref().is_some(),
+                                is_terrain: false,
+                                blend: false,
+                                tex_coord_scale: Vector2::new(1.0, 1.0),
                             });
                             self.batches.last_mut().unwrap()
                         };
+
+                        batch.sort_index = (&*diffuse_texture.borrow()) as *const _ as u64;
 
                         // Update textures.
                         batch.diffuse_texture = diffuse_texture;
@@ -193,7 +208,7 @@ impl BatchStorage {
                         let data = chunk.data();
                         let data_key = &*data as *const _ as u64;
 
-                        for layer in chunk.layers() {
+                        for (layer_index, layer) in chunk.layers().iter().enumerate() {
                             let key = layer.batch_id(data_key);
 
                             let diffuse_texture = layer
@@ -226,6 +241,12 @@ impl BatchStorage {
                                 .and_then(|texture| texture_cache.get(state, texture))
                                 .unwrap_or_else(|| black_dummy.clone());
 
+                            let mask_texture = layer
+                                .mask
+                                .as_ref()
+                                .and_then(|texture| texture_cache.get(state, texture))
+                                .unwrap_or_else(|| white_dummy.clone());
+
                             // TODO. Add support for lightmaps for terrains.
                             let lightmap_texture = black_dummy.clone();
 
@@ -242,13 +263,20 @@ impl BatchStorage {
                                     roughness_texture: roughness_texture.clone(),
                                     lightmap_texture: lightmap_texture.clone(),
                                     height_texture: height_texture.clone(),
+                                    mask_texture: mask_texture.clone(),
                                     is_skinned: false,
                                     render_path: RenderPath::Deferred,
                                     use_pom: layer.height_texture.is_some(),
                                     use_lightmapping: false, // TODO
+                                    sort_index: layer_index as u64,
+                                    is_terrain: true,
+                                    blend: if layer_index == 0 { false } else { true },
+                                    tex_coord_scale: layer.tile_factor,
                                 });
                                 self.batches.last_mut().unwrap()
                             };
+
+                            batch.sort_index = layer_index as u64;
 
                             // Update textures.
                             batch.diffuse_texture = diffuse_texture;
@@ -258,6 +286,7 @@ impl BatchStorage {
                             batch.lightmap_texture = lightmap_texture;
                             batch.height_texture = height_texture;
                             batch.use_pom = layer.height_texture.is_some();
+                            batch.mask_texture = mask_texture;
 
                             batch.instances.push(SurfaceInstance {
                                 world_transform: terrain.global_transform(),
@@ -273,10 +302,7 @@ impl BatchStorage {
             }
         }
 
-        // Sort by diffuse texture, this will significantly decrease texture pipeline
-        // state changes during the rendering.
-        self.batches
-            .sort_unstable_by_key(|b| (&*b.diffuse_texture.borrow()) as *const _ as u64);
+        self.batches.sort_unstable_by_key(|b| b.sort_index);
     }
 }
 

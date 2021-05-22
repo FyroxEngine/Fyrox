@@ -23,17 +23,19 @@
 use crate::{
     core::{
         futures::io::Error,
-        io,
+        io::{self, FileLoadError},
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
     resource::{Resource, ResourceData, ResourceState},
 };
 use ddsfile::{Caps2, D3DFormat};
 use image::{ColorType, DynamicImage, GenericImageView, ImageError};
-use rg3d_core::io::FileLoadError;
 use std::{
     borrow::Cow,
+    collections::hash_map::DefaultHasher,
+    hash::{Hash, Hasher},
     io::Cursor,
+    ops::{Deref, DerefMut},
     path::{Path, PathBuf},
 };
 
@@ -144,10 +146,10 @@ impl Visit for TextureKind {
 /// Actual texture data.
 #[derive(Debug)]
 pub struct TextureData {
-    pub(in crate) path: PathBuf,
-    pub(in crate) kind: TextureKind,
-    pub(in crate) bytes: Vec<u8>,
-    pub(in crate) pixel_kind: TexturePixelKind,
+    path: PathBuf,
+    kind: TextureKind,
+    bytes: Vec<u8>,
+    pixel_kind: TexturePixelKind,
     minification_filter: TextureMinificationFilter,
     magnification_filter: TextureMagnificationFilter,
     s_wrap_mode: TextureWrapMode,
@@ -155,7 +157,7 @@ pub struct TextureData {
     mip_count: u32,
     anisotropy: f32,
     serialize_content: bool,
-    dirty: bool,
+    data_hash: u64,
 }
 
 impl ResourceData for TextureData {
@@ -215,7 +217,7 @@ impl Default for TextureData {
             mip_count: 1,
             anisotropy: 16.0,
             serialize_content: false,
-            dirty: true,
+            data_hash: 0,
         }
     }
 }
@@ -244,7 +246,7 @@ impl Texture {
             mip_count: 1,
             anisotropy: 1.0,
             serialize_content: false,
-            dirty: true,
+            data_hash: 0,
         }))
     }
 
@@ -592,6 +594,12 @@ fn compress_rg8_bc4<T: tbc::color::ColorRedGreen8>(
     tbc::encode_image_bc4_rg8_conv_u8::<T>(transmute_slice::<T>(bytes), width, height)
 }
 
+fn data_hash(data: &[u8]) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    data.hash(&mut hasher);
+    hasher.finish()
+}
+
 impl TextureData {
     pub(in crate) async fn load_from_file<P: AsRef<Path>>(
         path: P,
@@ -657,6 +665,7 @@ impl TextureData {
 
             Self {
                 pixel_kind,
+                data_hash: data_hash(&bytes),
                 minification_filter: TextureMinificationFilter::LinearMipMapLinear,
                 magnification_filter: TextureMagnificationFilter::Linear,
                 s_wrap_mode: TextureWrapMode::Repeat,
@@ -683,7 +692,6 @@ impl TextureData {
                 },
                 anisotropy: 1.0,
                 serialize_content: false,
-                dirty: true,
             }
         } else {
             // Commonly used formats are all rectangle textures.
@@ -707,10 +715,13 @@ impl TextureData {
                 DynamicImage::ImageRgba16(_) => TexturePixelKind::RGBA16,
             };
 
+            let bytes = dyn_img.to_bytes();
+
             Self {
                 pixel_kind: kind,
                 kind: TextureKind::Rectangle { width, height },
-                bytes: dyn_img.to_bytes(),
+                data_hash: data_hash(&bytes),
+                bytes,
                 path: path.as_ref().to_path_buf(),
                 ..Default::default()
             }
@@ -821,6 +832,7 @@ impl TextureData {
             Some(Self {
                 path: Default::default(),
                 kind,
+                data_hash: data_hash(&bytes),
                 bytes,
                 pixel_kind,
                 serialize_content,
@@ -879,6 +891,21 @@ impl TextureData {
         self.kind
     }
 
+    /// Returns current data hash. Hash is guaranteed to be in actual state.
+    pub fn data_hash(&self) -> u64 {
+        self.data_hash
+    }
+
+    /// Returns current pixel kind.
+    pub fn pixel_kind(&self) -> TexturePixelKind {
+        self.pixel_kind
+    }
+
+    /// Returns current data as immutable slice.
+    pub fn data(&self) -> &[u8] {
+        &self.bytes
+    }
+
     /// Max samples for anisotropic filtering. Default value is 16.0 (max).
     /// However real value passed to GPU will be clamped to maximum supported
     /// by current GPU. To disable anisotropic filtering set this to 1.0.
@@ -928,5 +955,39 @@ impl TextureData {
         } else {
             Err(TextureError::UnsupportedFormat)
         }
+    }
+
+    pub fn modify(&mut self) -> TextureDataRefMut<'_> {
+        TextureDataRefMut { texture: self }
+    }
+}
+
+pub struct TextureDataRefMut<'a> {
+    texture: &'a mut TextureData,
+}
+
+impl<'a> Drop for TextureDataRefMut<'a> {
+    fn drop(&mut self) {
+        self.texture.data_hash = data_hash(&self.texture.bytes);
+    }
+}
+
+impl<'a> Deref for TextureDataRefMut<'a> {
+    type Target = TextureData;
+
+    fn deref(&self) -> &Self::Target {
+        self.texture
+    }
+}
+
+impl<'a> DerefMut for TextureDataRefMut<'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.texture
+    }
+}
+
+impl<'a> TextureDataRefMut<'a> {
+    pub fn data_mut(&mut self) -> &mut [u8] {
+        &mut self.texture.bytes
     }
 }

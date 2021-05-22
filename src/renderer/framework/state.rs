@@ -152,6 +152,10 @@ impl Default for StencilOp {
 
 impl PipelineState {
     pub fn new(context: glow::Context) -> Self {
+        unsafe {
+            context.depth_func(glow::LEQUAL);
+        }
+
         Self {
             gl: context,
             blend: false,

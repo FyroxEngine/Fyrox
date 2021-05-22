@@ -809,7 +809,7 @@ impl Renderer {
                 || Vector2::new(backbuffer_width, backbuffer_height),
                 // Or framebuffer size
                 |rt| {
-                    if let TextureKind::Rectangle { width, height } = rt.data_ref().kind {
+                    if let TextureKind::Rectangle { width, height } = rt.data_ref().kind() {
                         Vector2::new(width as f32, height as f32)
                     } else {
                         panic!("only rectangle textures can be used as render target!")

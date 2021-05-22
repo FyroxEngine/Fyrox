@@ -5,6 +5,7 @@ extern crate rg3d;
 pub mod shared;
 
 use crate::shared::create_camera;
+use rg3d::core::algebra::Vector2;
 use rg3d::{
     core::{
         algebra::{UnitQuaternion, Vector3},
@@ -65,17 +66,32 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
 
     // Add terrain.
     let terrain = TerrainBuilder::new(BaseBuilder::new())
-        .with_layers(vec![LayerDefinition {
-            diffuse_texture: Some(
-                resource_manager.request_texture("examples/data/Grass_DiffuseColor.jpg"),
-            ),
-            normal_texture: Some(
-                resource_manager.request_texture("examples/data/Grass_Normal.jpg"),
-            ),
-            specular_texture: None,
-            roughness_texture: None,
-            height_texture: None,
-        }])
+        .with_layers(vec![
+            LayerDefinition {
+                diffuse_texture: Some(
+                    resource_manager.request_texture("examples/data/Grass_DiffuseColor.jpg"),
+                ),
+                normal_texture: Some(
+                    resource_manager.request_texture("examples/data/Grass_Normal.jpg"),
+                ),
+                specular_texture: None,
+                roughness_texture: None,
+                height_texture: None,
+                tile_factor: Vector2::new(10.0, 10.0),
+            },
+            LayerDefinition {
+                diffuse_texture: Some(
+                    resource_manager.request_texture("examples/data/Rock_DiffuseColor.jpg"),
+                ),
+                normal_texture: Some(
+                    resource_manager.request_texture("examples/data/Rock_Normal.jpg"),
+                ),
+                specular_texture: None,
+                roughness_texture: None,
+                height_texture: None,
+                tile_factor: Vector2::new(10.0, 10.0),
+            },
+        ])
         .build(&mut scene.graph);
 
     let terrain = scene.graph[terrain].as_terrain_mut();
@@ -87,10 +103,19 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
         let height = thread_rng().gen_range(1.0..4.0);
 
         // Draw something on the terrain.
+
+        // Pull terrain.
         terrain.draw(&Brush {
             center: Vector3::new(x, 0.0, z),
             kind: BrushKind::Circle { radius },
             mode: BrushMode::AlternateHeightMap { amount: height },
+        });
+
+        // Draw rock texture on top.
+        terrain.draw(&Brush {
+            center: Vector3::new(x, 0.0, z),
+            kind: BrushKind::Circle { radius },
+            mode: BrushMode::DrawOnMask { layer: 1 },
         });
     }
 

@@ -186,7 +186,7 @@ impl<M: MessageData, C: Control<M, C>> Engine<M, C> {
 
         for scene in self.scenes.iter_mut().filter(|s| s.enabled) {
             let frame_size = scene.render_target.as_ref().map_or(window_size, |rt| {
-                if let TextureKind::Rectangle { width, height } = rt.data_ref().kind {
+                if let TextureKind::Rectangle { width, height } = rt.data_ref().kind() {
                     Vector2::new(width as f32, height as f32)
                 } else {
                     panic!("only rectangle textures can be used as render target!");
@@ -198,7 +198,7 @@ impl<M: MessageData, C: Control<M, C>> Engine<M, C> {
 
         for scene in self.scenes2d.iter_mut().filter(|s| s.enabled) {
             let render_target_size = scene.render_target.as_ref().map_or(window_size, |rt| {
-                if let TextureKind::Rectangle { width, height } = rt.data_ref().kind {
+                if let TextureKind::Rectangle { width, height } = rt.data_ref().kind() {
                     Vector2::new(width as f32, height as f32)
                 } else {
                     panic!("only rectangle textures can be used as render target!");

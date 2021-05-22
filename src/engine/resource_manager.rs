@@ -619,7 +619,7 @@ impl ResourceManager {
             for resource in textures.iter().cloned() {
                 let path = resource.state().path().to_path_buf();
                 let compression = if let ResourceState::Ok(ref data) = *resource.state() {
-                    match data.pixel_kind {
+                    match data.pixel_kind() {
                         TexturePixelKind::DXT1RGB => CompressionOptions::Speed,
                         TexturePixelKind::DXT1RGBA => CompressionOptions::Speed,
                         TexturePixelKind::DXT3RGBA => CompressionOptions::NoCompression, // TODO

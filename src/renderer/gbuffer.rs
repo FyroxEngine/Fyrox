@@ -1,3 +1,5 @@
+use crate::bitflags::bitflags;
+use crate::core::arrayvec::ArrayVec;
 use crate::renderer::framework::gpu_program::GpuProgramBinding;
 use crate::{
     core::{algebra::Vector4, color::Color, math::Rect, scope_profile},
@@ -20,11 +22,11 @@ use crate::{
 use glow::HasContext;
 use std::{cell::RefCell, rc::Rc};
 
-fn make_vertex_shader_source(instancing: bool, lightmaps: bool) -> String {
+fn make_vertex_shader_source(features: UberShaderFeatures) -> String {
     let mut source = "#version 330 core\n".to_owned();
 
-    if instancing {
-        if lightmaps {
+    if features.contains(UberShaderFeatures::INSTANCING) {
+        if features.contains(UberShaderFeatures::LIGHTMAP) {
             source += r#"
             layout(location = 0) in vec3 vertexPosition;
             layout(location = 1) in vec2 vertexTexCoord;            
@@ -82,7 +84,7 @@ fn make_vertex_shader_source(instancing: bool, lightmaps: bool) -> String {
             }
         "#;
     } else {
-        if lightmaps {
+        if features.contains(UberShaderFeatures::LIGHTMAP) {
             source += r#"
             layout(location = 0) in vec3 vertexPosition;
             layout(location = 1) in vec2 vertexTexCoord;            
@@ -120,13 +122,13 @@ fn make_vertex_shader_source(instancing: bool, lightmaps: bool) -> String {
         out vec3 binormal;        
     "#;
 
-    if lightmaps {
+    if features.contains(UberShaderFeatures::LIGHTMAP) {
         source += r#"
         out vec2 secondTexCoord;
     "#;
     }
 
-    if instancing {
+    if features.contains(UberShaderFeatures::INSTANCING) {
         source += r#"
         out vec4 diffuseColor;
     "#;
@@ -149,7 +151,7 @@ fn make_vertex_shader_source(instancing: bool, lightmaps: bool) -> String {
                 int i3 = int(boneIndices.w);
                 "#;
 
-    if instancing {
+    if features.contains(UberShaderFeatures::INSTANCING) {
         source += r#"
                 int boneIndexOrigin = gl_InstanceID * matrixBufferStride;
 
@@ -198,13 +200,13 @@ fn make_vertex_shader_source(instancing: bool, lightmaps: bool) -> String {
             position = vec3(worldMatrix * localPosition);            
             "#;
 
-    if lightmaps {
+    if features.contains(UberShaderFeatures::LIGHTMAP) {
         source += r#"
         secondTexCoord = vertexSecondTexCoord;
     "#;
     }
 
-    if instancing {
+    if features.contains(UberShaderFeatures::INSTANCING) {
         source += r#"
             mat4 viewProj = viewProjectionMatrix;
             viewProj[3].z -= depthOffset;
@@ -222,7 +224,7 @@ fn make_vertex_shader_source(instancing: bool, lightmaps: bool) -> String {
     source
 }
 
-fn make_fragment_shader_source(instancing: bool, lightmaps: bool) -> String {
+fn make_fragment_shader_source(features: UberShaderFeatures) -> String {
     let mut source = r#"#version 330 core
     "#
     .to_owned();
@@ -240,6 +242,7 @@ fn make_fragment_shader_source(instancing: bool, lightmaps: bool) -> String {
         uniform samplerCube environmentMap;
         uniform vec3 cameraPosition;
         uniform bool usePOM;
+        uniform vec2 texCoordScale;
     "#;
 
     source += r#"
@@ -250,14 +253,20 @@ fn make_fragment_shader_source(instancing: bool, lightmaps: bool) -> String {
         in vec3 binormal;
     "#;
 
-    if lightmaps {
+    if features.contains(UberShaderFeatures::LIGHTMAP) {
         source += r#"
         in vec2 secondTexCoord;
         uniform sampler2D lightmapTexture;
         "#;
     }
 
-    if instancing {
+    if features.contains(UberShaderFeatures::TERRAIN) {
+        source += r#"
+        uniform sampler2D maskTexture;        
+        "#;
+    }
+
+    if features.contains(UberShaderFeatures::INSTANCING) {
         source += r#"
         in vec4 diffuseColor;
         "#;
@@ -276,22 +285,39 @@ fn make_fragment_shader_source(instancing: bool, lightmaps: bool) -> String {
         vec2 tc;
         if (usePOM) {
             vec3 toFragmentTangentSpace = normalize(transpose(tangentSpace) * toFragment);
-            tc = S_ComputeParallaxTextureCoordinates(heightTexture, toFragmentTangentSpace, texCoord, normal);
+            tc = S_ComputeParallaxTextureCoordinates(heightTexture, toFragmentTangentSpace, texCoord * texCoordScale, normal);
         } else {
-            tc = texCoord;
+            tc = texCoord * texCoordScale;
         }
+    "#;
 
+    if features.contains(UberShaderFeatures::TERRAIN) {
+        source += r#"      
+        // No alpha test, we need alpha for blending.
         outColor = diffuseColor * texture(diffuseTexture, tc);
+        "#;
+    } else {
+        source += r#"
+        outColor = diffuseColor * texture(diffuseTexture, tc);
+        // Alpha test.
         if (outColor.a < 0.5) {
             discard;
         }
         outColor.a = 1.0;
+        "#;
+    }
+
+    source += r#"
+        outColor = diffuseColor * texture(diffuseTexture, tc);
+        if (outColor.a < 0.5) {
+            discard;
+        }       
         vec4 n = normalize(texture(normalTexture, tc) * 2.0 - 1.0);
         outNormal.xyz = normalize(tangentSpace * n.xyz) * 0.5 + 0.5;
         outNormal.w = texture(specularTexture, tc).r;
         "#;
 
-    if lightmaps {
+    if features.contains(UberShaderFeatures::LIGHTMAP) {
         source += r#"outAmbient = vec4(texture(lightmapTexture, secondTexCoord).rgb, 1.0);"#;
     } else {
         source += r#"outAmbient = vec4(0.0, 0.0, 0.0, 1.0);"#;
@@ -302,6 +328,19 @@ fn make_fragment_shader_source(instancing: bool, lightmaps: bool) -> String {
         float roughness = texture(roughnessTexture, tc).r;
         vec3 reflectionTexCoord = reflect(toFragment, normalize(n.xyz));
         outColor = (1.0 - roughness) * outColor + roughness * vec4(texture(environmentMap, reflectionTexCoord).rgb, outColor.a);
+    "#;
+
+    if features.contains(UberShaderFeatures::TERRAIN) {
+        source += r#"   
+        // In case of terrain we'll use alpha for blending.   
+        float mask = texture(maskTexture, texCoord).r;
+        outColor.a *= mask;     
+        outAmbient.a *= mask;         
+        outNormal.a *= mask;        
+        "#;
+    }
+
+    source += r#"
     }
     "#;
 
@@ -315,6 +354,7 @@ struct UberShader {
     normal_texture: UniformLocation,
     specular_texture: UniformLocation,
     roughness_texture: UniformLocation,
+    tex_coord_scale: UniformLocation,
     lightmap_texture: Option<UniformLocation>,
     matrix_buffer_stride: Option<UniformLocation>,
     matrix_storage_size: Option<UniformLocation>,
@@ -329,25 +369,50 @@ struct UberShader {
     wvp_matrix: Option<UniformLocation>,
     bone_matrices: Option<UniformLocation>,
     diffuse_color: Option<UniformLocation>,
+    // Terrain.
+    mask_texture: Option<UniformLocation>,
+}
+
+bitflags! {
+    struct UberShaderFeatures: u32 {
+        const DEFAULT = 0;
+        const INSTANCING = 0b0001;
+        const LIGHTMAP = 0b0010;
+        const TERRAIN = 0b0100;
+        const COUNT = (1 << 3) + 1;
+    }
+}
+
+fn make_name(features: UberShaderFeatures) -> String {
+    let mut name = "GBuffer".to_owned();
+    if features.contains(UberShaderFeatures::TERRAIN) {
+        name += "Terrain";
+    }
+    if features.contains(UberShaderFeatures::LIGHTMAP) {
+        name += "Lightmap";
+    }
+    if features.contains(UberShaderFeatures::INSTANCING) {
+        name += "Instancing";
+    }
+    name += "Shader";
+    name
 }
 
 impl UberShader {
     fn new(
         state: &mut PipelineState,
-        instancing: bool,
-        lightmaps: bool,
+        features: UberShaderFeatures,
     ) -> Result<Self, FrameworkError> {
-        let name = match (instancing, lightmaps) {
-            (false, false) => "GBufferShader",
-            (false, true) => "GBufferLightmapShader",
-            (true, false) => "GBufferInstancedShader",
-            (true, true) => "GBufferInstancedLightmapShader",
-        };
-        let fragment_source = make_fragment_shader_source(instancing, lightmaps);
-        let vertex_source = make_vertex_shader_source(instancing, lightmaps);
-        let program = GpuProgram::from_source(state, name, &vertex_source, &fragment_source)?;
+        let name = make_name(features);
+        let fragment_source = make_fragment_shader_source(features);
+        let vertex_source = make_vertex_shader_source(features);
+        let program = GpuProgram::from_source(state, &name, &vertex_source, &fragment_source)?;
+        let instancing = features.contains(UberShaderFeatures::INSTANCING);
+        let lightmap = features.contains(UberShaderFeatures::LIGHTMAP);
+        let terrain = features.contains(UberShaderFeatures::TERRAIN);
         Ok(Self {
             use_skeletal_animation: program.uniform_location(state, "useSkeletalAnimation")?,
+            tex_coord_scale: program.uniform_location(state, "texCoordScale")?,
             world_matrix: if !instancing {
                 Some(program.uniform_location(state, "worldMatrix")?)
             } else {
@@ -362,7 +427,7 @@ impl UberShader {
             normal_texture: program.uniform_location(state, "normalTexture")?,
             specular_texture: program.uniform_location(state, "specularTexture")?,
             roughness_texture: program.uniform_location(state, "roughnessTexture")?,
-            lightmap_texture: if lightmaps {
+            lightmap_texture: if lightmap {
                 Some(program.uniform_location(state, "lightmapTexture")?)
             } else {
                 None
@@ -401,18 +466,20 @@ impl UberShader {
             } else {
                 None
             },
+            mask_texture: if terrain {
+                Some(program.uniform_location(state, "maskTexture")?)
+            } else {
+                None
+            },
             program,
         })
     }
 }
 
 pub struct GBuffer {
+    shaders: ArrayVec<UberShader, 9>,
     framebuffer: FrameBuffer,
     pub final_frame: FrameBuffer,
-    instanced_shader: UberShader,
-    instanced_shader_lightmaps: UberShader,
-    shader: UberShader,
-    shader_lightmaps: UberShader,
     pub width: i32,
     pub height: i32,
     matrix_storage: MatrixStorage,
@@ -555,12 +622,17 @@ impl GBuffer {
             }],
         )?;
 
+        let mut shaders = ArrayVec::<UberShader, 9>::new();
+        for i in 0..(UberShaderFeatures::COUNT.bits as usize) {
+            shaders.push(UberShader::new(
+                state,
+                UberShaderFeatures::from_bits(i as u32).unwrap(),
+            )?);
+        }
+
         Ok(Self {
             framebuffer,
-            instanced_shader: UberShader::new(state, true, false)?,
-            instanced_shader_lightmaps: UberShader::new(state, true, true)?,
-            shader: UberShader::new(state, false, false)?,
-            shader_lightmaps: UberShader::new(state, false, true)?,
+            shaders,
             width: width as i32,
             height: height as i32,
             final_frame,
@@ -614,7 +686,7 @@ impl GBuffer {
             Some(0),
         );
 
-        let params = DrawParameters {
+        let mut params = DrawParameters {
             cull_face: CullFace::Back,
             culling: true,
             color_write: Default::default(),
@@ -664,17 +736,12 @@ impl GBuffer {
             }
 
             // Select shader
-            let shader = if batch.use_lightmapping {
-                if use_instanced_rendering {
-                    &self.instanced_shader_lightmaps
-                } else {
-                    &self.shader_lightmaps
-                }
-            } else if use_instanced_rendering {
-                &self.instanced_shader
-            } else {
-                &self.shader
-            };
+            let mut required_features = UberShaderFeatures::DEFAULT;
+            required_features.set(UberShaderFeatures::LIGHTMAP, batch.use_lightmapping);
+            required_features.set(UberShaderFeatures::TERRAIN, batch.is_terrain);
+            required_features.set(UberShaderFeatures::INSTANCING, use_instanced_rendering);
+
+            let shader = &self.shaders[required_features.bits as usize];
 
             let need_render = if use_instanced_rendering {
                 !self.instance_data_set.is_empty()
@@ -697,13 +764,21 @@ impl GBuffer {
                         .set_texture(&shader.height_texture, &batch.height_texture)
                         .set_vector3(&shader.camera_position, &camera.global_position())
                         .set_bool(&shader.use_pom, batch.use_pom && use_parallax_mapping)
-                        .set_bool(&shader.use_skeletal_animation, batch.is_skinned);
+                        .set_bool(&shader.use_skeletal_animation, batch.is_skinned)
+                        .set_vector2(&shader.tex_coord_scale, &batch.tex_coord_scale);
 
                     let program_binding = if batch.use_lightmapping {
                         program_binding.set_texture(
                             shader.lightmap_texture.as_ref().unwrap(),
                             &batch.lightmap_texture,
                         )
+                    } else {
+                        program_binding
+                    };
+
+                    let program_binding = if batch.is_terrain {
+                        program_binding
+                            .set_texture(shader.mask_texture.as_ref().unwrap(), &batch.mask_texture)
                     } else {
                         program_binding
                     };
@@ -763,6 +838,9 @@ impl GBuffer {
                             );
                     }
                 };
+
+                params.blend = batch.blend;
+                state.set_blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
 
                 statistics += if use_instanced_rendering {
                     self.framebuffer.draw_instances(
