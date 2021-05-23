@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Install Dependencies
-      run: apt install libasound2-dev libudev-dev pkg-config
+      run: sudo apt-get install libasound2-dev libudev-dev pkg-config
     - uses: actions/checkout@v2
     - name: Build
       run: cargo check --verbose
