@@ -1,0 +1,39 @@
+name: CI 
+on: [push, pull_request]
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  windows:
+    name: Windows CI
+    runs-on: windows-2019
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build
+      run: cargo build --verbose
+    - name: Test
+      run: cargo test --verbose
+
+  macosx:
+    name: MacOSX CI
+    runs-on: macos-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build
+      run: cargo build --verbose
+    - name: Test
+      run: cargo test --verbose
+
+  # macos11:
+  #   name: MacOS Big Sur (M1) CI
+  #   runs-on: macos-11
+
+  #   steps:
+  #   - uses: actions/checkout@v2
+  #   - name: Build
+  #     run: cargo build --verbose
+  #   - name: Test
+  #     run: cargo test --verbose
+
