@@ -1,5 +1,3 @@
-use crate::scene::commands::lod::SetLodGroupCommand;
-use crate::scene::commands::particle_system::SetEmitterPositionCommand;
 use crate::{
     command::Command,
     physics::{Collider, Joint, RigidBody},
@@ -21,6 +19,7 @@ use crate::{
             lod::{
                 AddLodGroupLevelCommand, AddLodObjectCommand, ChangeLodRangeBeginCommand,
                 ChangeLodRangeEndCommand, RemoveLodGroupLevelCommand, RemoveLodObjectCommand,
+                SetLodGroupCommand,
             },
             mesh::{SetMeshCastShadowsCommand, SetMeshRenderPathCommand, SetMeshTextureCommand},
             navmesh::{
@@ -33,8 +32,8 @@ use crate::{
                 SetBoxEmitterHalfDepthCommand, SetBoxEmitterHalfHeightCommand,
                 SetBoxEmitterHalfWidthCommand, SetCylinderEmitterHeightCommand,
                 SetCylinderEmitterRadiusCommand, SetEmitterNumericParameterCommand,
-                SetParticleSystemAccelerationCommand, SetParticleSystemTextureCommand,
-                SetSphereEmitterRadiusCommand,
+                SetEmitterPositionCommand, SetParticleSystemAccelerationCommand,
+                SetParticleSystemTextureCommand, SetSphereEmitterRadiusCommand,
             },
             physics::{
                 AddJointCommand, DeleteBodyCommand, DeleteColliderCommand, DeleteJointCommand,
@@ -57,6 +56,7 @@ use crate::{
                 SetSpriteColorCommand, SetSpriteRotationCommand, SetSpriteSizeCommand,
                 SetSpriteTextureCommand,
             },
+            terrain::{AddTerrainLayerCommand, DeleteTerrainLayerCommand},
         },
         EditorScene, GraphSelection, Selection,
     },
@@ -78,6 +78,7 @@ pub mod navmesh;
 pub mod particle_system;
 pub mod physics;
 pub mod sprite;
+pub mod terrain;
 
 #[macro_export]
 macro_rules! get_set_swap {
@@ -94,8 +95,14 @@ macro_rules! get_set_swap {
 
 #[derive(Debug)]
 pub enum SceneCommand {
+    // Generic commands.
     CommandGroup(CommandGroup),
+
+    // Scene commands.
     Paste(PasteCommand),
+    LoadModel(LoadModelCommand),
+
+    // Graph commands.
     AddNode(AddNodeCommand),
     DeleteNode(DeleteNodeCommand),
     DeleteSubGraph(DeleteSubGraphCommand),
@@ -106,6 +113,9 @@ pub enum SceneCommand {
     LinkNodes(LinkNodesCommand),
     SetVisible(SetVisibleCommand),
     SetName(SetNameCommand),
+    SetTag(SetTagCommand),
+
+    // LOD commands.
     SetLodGroup(SetLodGroupCommand),
     AddLodGroupLevel(AddLodGroupLevelCommand),
     RemoveLodGroupLevel(RemoveLodGroupLevelCommand),
@@ -113,7 +123,8 @@ pub enum SceneCommand {
     RemoveLodObject(RemoveLodObjectCommand),
     ChangeLodRangeEnd(ChangeLodRangeEndCommand),
     ChangeLodRangeBegin(ChangeLodRangeBeginCommand),
-    SetTag(SetTagCommand),
+
+    // Physics commands.
     AddJoint(AddJointCommand),
     DeleteJoint(DeleteJointCommand),
     SetJointConnectedBody(SetJointConnectedBodyCommand),
@@ -151,7 +162,9 @@ pub enum SceneCommand {
     SetCuboidHalfExtents(SetCuboidHalfExtentsCommand),
     DeleteBody(DeleteBodyCommand),
     DeleteCollider(DeleteColliderCommand),
-    LoadModel(LoadModelCommand),
+    SetPhysicsBinding(SetPhysicsBindingCommand),
+
+    // Light commands.
     SetLightColor(SetLightColorCommand),
     SetLightScatter(SetLightScatterCommand),
     SetLightScatterEnabled(SetLightScatterEnabledCommand),
@@ -160,9 +173,13 @@ pub enum SceneCommand {
     SetSpotLightHotspot(SetSpotLightHotspotCommand),
     SetSpotLightFalloffAngleDelta(SetSpotLightFalloffAngleDeltaCommand),
     SetSpotLightDistance(SetSpotLightDistanceCommand),
+
+    // Camera commands.
     SetFov(SetFovCommand),
     SetZNear(SetZNearCommand),
     SetZFar(SetZFarCommand),
+
+    // Particle system commands.
     SetParticleSystemAcceleration(SetParticleSystemAccelerationCommand),
     AddParticleSystemEmitter(AddParticleSystemEmitterCommand),
     SetEmitterNumericParameter(SetEmitterNumericParameterCommand),
@@ -175,13 +192,19 @@ pub enum SceneCommand {
     SetEmitterPosition(SetEmitterPositionCommand),
     SetParticleSystemTexture(SetParticleSystemTextureCommand),
     DeleteEmitter(DeleteEmitterCommand),
+
+    // Sprite commands.
     SetSpriteSize(SetSpriteSizeCommand),
     SetSpriteRotation(SetSpriteRotationCommand),
     SetSpriteColor(SetSpriteColorCommand),
     SetSpriteTexture(SetSpriteTextureCommand),
+
+    // Mesh commands.
     SetMeshTexture(SetMeshTextureCommand),
     SetMeshCastShadows(SetMeshCastShadowsCommand),
     SetMeshRenderPath(SetMeshRenderPathCommand),
+
+    // Navmesh commands.
     AddNavmesh(AddNavmeshCommand),
     DeleteNavmesh(DeleteNavmeshCommand),
     MoveNavmeshVertex(MoveNavmeshVertexCommand),
@@ -190,7 +213,10 @@ pub enum SceneCommand {
     AddNavmeshEdge(AddNavmeshEdgeCommand),
     DeleteNavmeshVertex(DeleteNavmeshVertexCommand),
     ConnectNavmeshEdges(ConnectNavmeshEdgesCommand),
-    SetPhysicsBinding(SetPhysicsBindingCommand),
+
+    // Terrain commands.
+    AddTerrainLayer(AddTerrainLayerCommand),
+    DeleteTerrainLayer(DeleteTerrainLayerCommand),
 }
 
 pub struct SceneContext<'a> {
@@ -300,6 +326,8 @@ macro_rules! static_dispatch {
             SceneCommand::DeleteNavmeshVertex(v) => v.$func($($args),*),
             SceneCommand::ConnectNavmeshEdges(v) => v.$func($($args),*),
             SceneCommand::SetPhysicsBinding(v) => v.$func($($args),*),
+            SceneCommand::AddTerrainLayer(v) => v.$func($($args),*),
+            SceneCommand::DeleteTerrainLayer(v) => v.$func($($args),*),
         }
     };
 }

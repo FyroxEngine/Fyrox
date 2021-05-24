@@ -1189,7 +1189,9 @@ impl SideBar {
                         message,
                         &mut engine.user_interface,
                         node,
+                        graph,
                         node_handle,
+                        &self.sender,
                     );
 
                     self.lod_editor.handle_ui_message(
