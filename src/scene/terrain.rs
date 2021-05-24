@@ -164,6 +164,10 @@ impl Chunk {
         &self.layers
     }
 
+    pub fn layers_mut(&mut self) -> &mut [Layer] {
+        &mut self.layers
+    }
+
     pub fn add_layer(&mut self, layer: Layer) {
         self.layers.push(layer);
         self.dirty.set(true);
