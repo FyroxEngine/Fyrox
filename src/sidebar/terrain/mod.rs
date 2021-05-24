@@ -1,3 +1,4 @@
+use crate::sidebar::terrain::layer::LayerSection;
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     scene::{
@@ -8,6 +9,7 @@ use crate::{
     sidebar::{terrain::brush::BrushSection, ROW_HEIGHT},
     Message,
 };
+use rg3d::engine::resource_manager::ResourceManager;
 use rg3d::{
     core::{algebra::Vector2, pool::Handle, scope_profile},
     gui::{
@@ -32,6 +34,7 @@ use rg3d::{
 use std::sync::mpsc::Sender;
 
 mod brush;
+mod layer;
 
 pub struct TerrainSection {
     pub section: Handle<UiNode>,
@@ -41,11 +44,13 @@ pub struct TerrainSection {
     remove_layer: Handle<UiNode>,
     brush: Brush,
     current_layer: Option<usize>,
+    layer_section: LayerSection,
 }
 
 impl TerrainSection {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let brush_section = BrushSection::new(ctx);
+        let layer_section = LayerSection::new(ctx);
 
         let layers;
         let add_layer;
@@ -90,7 +95,8 @@ impl TerrainSection {
                     .add_column(Column::stretch())
                     .build(ctx),
                 )
-                .with_child(brush_section.section),
+                .with_child(brush_section.section)
+                .with_child(layer_section.section),
         )
         .with_orientation(Orientation::Vertical)
         .build(ctx);
@@ -108,6 +114,7 @@ impl TerrainSection {
             brush_section,
             brush,
             remove_layer,
+            layer_section,
             current_layer: None,
         }
     }
@@ -143,6 +150,12 @@ impl TerrainSection {
                 MessageDirection::ToWidget,
                 layer_items,
             ));
+
+            self.layer_section.sync_to_model(
+                self.current_layer
+                    .map(|i| &terrain.chunks_ref().first().unwrap().layers()[i]),
+                ui,
+            );
         }
 
         self.brush_section.sync_to_model(&self.brush, ui);
@@ -152,12 +165,18 @@ impl TerrainSection {
         &mut self,
         message: &UiMessage,
         ui: &mut Ui,
+        resource_manager: ResourceManager,
         node: &Node,
         graph: &Graph,
         handle: Handle<Node>,
         sender: &Sender<Message>,
     ) {
         scope_profile!();
+
+        if let Some(index) = self.current_layer {
+            self.layer_section
+                .handle_message(message, ui, index, resource_manager, handle, sender);
+        }
 
         if let Node::Terrain(sprite) = node {
             match *message.data() {

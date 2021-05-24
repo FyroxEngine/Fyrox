@@ -1188,6 +1188,7 @@ impl SideBar {
                     self.terrain_section.handle_message(
                         message,
                         &mut engine.user_interface,
+                        engine.resource_manager.clone(),
                         node,
                         graph,
                         node_handle,
