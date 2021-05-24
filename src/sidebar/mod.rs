@@ -1,6 +1,7 @@
-use crate::scene::CommandGroup;
+use crate::sidebar::terrain::TerrainSection;
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
+    scene::CommandGroup,
     scene::{
         AddLodGroupLevelCommand, AddLodObjectCommand, ChangeLodRangeBeginCommand,
         ChangeLodRangeEndCommand, EditorScene, MoveNodeCommand, RemoveLodGroupLevelCommand,
@@ -14,9 +15,6 @@ use crate::{
     },
     GameEngine, Message,
 };
-use rg3d::gui::message::{TreeMessage, TreeRootMessage};
-use rg3d::gui::tree::{TreeBuilder, TreeRootBuilder};
-use rg3d::scene::graph::Graph;
 use rg3d::{
     core::{
         algebra::Vector3,
@@ -39,20 +37,21 @@ use rg3d::{
             UiMessageData, Vec3EditorMessage, WidgetMessage,
         },
         message::{ListViewMessage, NumericUpDownMessage, WindowMessage},
+        message::{TreeMessage, TreeRootMessage},
         numeric::NumericUpDownBuilder,
         scroll_viewer::ScrollViewerBuilder,
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
         text_box::TextBoxBuilder,
+        tree::{TreeBuilder, TreeRootBuilder},
         vec::Vec3EditorBuilder,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
         HorizontalAlignment, Orientation, Thickness, VerticalAlignment,
     },
-    scene::{base::PhysicsBinding, node::Node, Scene},
+    scene::{base::PhysicsBinding, graph::Graph, node::Node, Scene},
 };
-use std::rc::Rc;
-use std::sync::mpsc::Sender;
+use std::{rc::Rc, sync::mpsc::Sender};
 
 mod camera;
 mod light;
@@ -60,6 +59,7 @@ mod mesh;
 mod particle;
 mod physics;
 mod sprite;
+mod terrain;
 
 const ROW_HEIGHT: f32 = 25.0;
 const COLUMN_WIDTH: f32 = 140.0;
@@ -85,6 +85,7 @@ pub struct SideBar {
     sprite_section: SpriteSection,
     mesh_section: MeshSection,
     physics_section: PhysicsSection,
+    terrain_section: TerrainSection,
 }
 
 fn make_text_mark(ctx: &mut BuildContext, text: &str, row: usize) -> Handle<UiNode> {
@@ -807,6 +808,7 @@ impl SideBar {
         let sprite_section = SpriteSection::new(ctx, sender.clone());
         let mesh_section = MeshSection::new(ctx, sender.clone());
         let physics_section = PhysicsSection::new(ctx, sender.clone());
+        let terrain_section = TerrainSection::new(ctx);
 
         let window = WindowBuilder::new(WidgetBuilder::new())
             .can_minimize(false)
@@ -951,6 +953,7 @@ impl SideBar {
                                     particle_system_section.section,
                                     sprite_section.section,
                                     mesh_section.section,
+                                    terrain_section.section,
                                     physics_section.section,
                                 ]),
                             )
@@ -979,6 +982,7 @@ impl SideBar {
             sprite_section,
             mesh_section,
             physics_section,
+            terrain_section,
             physics_binding,
             create_lod_group,
             remove_lod_group,
@@ -1132,6 +1136,7 @@ impl SideBar {
                     );
                     self.sprite_section.sync_to_model(node, ui);
                     self.mesh_section.sync_to_model(node, ui);
+                    self.terrain_section.sync_to_model(node, ui);
                     self.physics_section.sync_to_model(editor_scene, engine);
                 }
             }
@@ -1172,6 +1177,12 @@ impl SideBar {
                     self.sprite_section
                         .handle_message(message, node, node_handle);
                     self.mesh_section.handle_message(message, node, node_handle);
+                    self.terrain_section.handle_message(
+                        message,
+                        &mut engine.user_interface,
+                        node,
+                        node_handle,
+                    );
 
                     self.lod_editor.handle_ui_message(
                         message,

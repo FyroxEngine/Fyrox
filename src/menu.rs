@@ -7,6 +7,7 @@ use crate::{
     settings::SettingsWindow,
     GameEngine, Message,
 };
+use rg3d::scene::terrain::{LayerDefinition, TerrainBuilder};
 use rg3d::{
     core::{
         algebra::{Matrix4, Vector2},
@@ -58,6 +59,7 @@ pub struct Menu {
     create_point_light: Handle<UiNode>,
     create_spot_light: Handle<UiNode>,
     create_directional_light: Handle<UiNode>,
+    create_terrain: Handle<UiNode>,
     exit: Handle<UiNode>,
     message_sender: Sender<Message>,
     save_file_selector: Handle<UiNode>,
@@ -127,6 +129,7 @@ impl Menu {
         let create_camera;
         let create_sprite;
         let create_particle_system;
+        let create_terrain;
         let sidebar;
         let asset_browser;
         let world_outliner;
@@ -241,6 +244,13 @@ impl Menu {
                             .with_content(MenuItemContent::text("Particle System"))
                             .build(ctx);
                     create_particle_system
+                },
+                {
+                    create_terrain =
+                        MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
+                            .with_content(MenuItemContent::text("Terrain"))
+                            .build(ctx);
+                    create_terrain
                 },
             ])
             .build(ctx);
@@ -446,6 +456,7 @@ impl Menu {
             paste,
             log_panel,
             create_pivot,
+            create_terrain,
             create,
             edit,
         }
@@ -634,6 +645,23 @@ impl Menu {
                             .with_radius(1.0)
                             .build()])
                             .build_node();
+
+                    self.message_sender
+                        .send(Message::DoSceneCommand(SceneCommand::AddNode(
+                            AddNodeCommand::new(node),
+                        )))
+                        .unwrap();
+                } else if message.destination() == self.create_terrain {
+                    let node = TerrainBuilder::new(BaseBuilder::new().with_name("Terrain"))
+                        .with_layers(vec![LayerDefinition {
+                            diffuse_texture: None,
+                            normal_texture: None,
+                            specular_texture: None,
+                            roughness_texture: None,
+                            height_texture: None,
+                            tile_factor: Vector2::new(10.0, 10.0),
+                        }])
+                        .build_node();
 
                     self.message_sender
                         .send(Message::DoSceneCommand(SceneCommand::AddNode(
