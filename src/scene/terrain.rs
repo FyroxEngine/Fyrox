@@ -164,6 +164,28 @@ impl Chunk {
         &self.layers
     }
 
+    pub fn add_layer(&mut self, layer: Layer) {
+        self.layers.push(layer);
+        self.dirty.set(true);
+    }
+
+    pub fn remove_layer(&mut self, layer: usize) -> Layer {
+        let layer = self.layers.remove(layer);
+        self.dirty.set(true);
+        layer
+    }
+
+    pub fn pop_layer(&mut self) -> Option<Layer> {
+        let layer = self.layers.pop();
+        self.dirty.set(true);
+        layer
+    }
+
+    pub fn insert_layer(&mut self, layer: Layer, index: usize) {
+        self.layers.insert(index, layer);
+        self.dirty.set(true);
+    }
+
     pub fn local_position(&self) -> Vector2<f32> {
         map_to_local(self.position)
     }
@@ -182,8 +204,12 @@ fn map_to_local(v: Vector3<f32>) -> Vector2<f32> {
 pub struct Terrain {
     width: f32,
     length: f32,
+    mask_resolution: f32,
+    height_map_resolution: f32,
     base: Base,
     chunks: Vec<Chunk>,
+    width_chunks: u32,
+    length_chunks: u32,
     bounding_box_dirty: Cell<bool>,
     bounding_box: Cell<AxisAlignedBoundingBox>,
 }
@@ -227,12 +253,20 @@ impl Terrain {
         &self.chunks
     }
 
+    pub fn chunks_mut(&mut self) -> &mut [Chunk] {
+        &mut self.chunks
+    }
+
     pub fn raw_copy(&self) -> Self {
         Self {
             width: self.width,
             length: self.length,
+            mask_resolution: self.mask_resolution,
+            height_map_resolution: self.height_map_resolution,
             base: self.base.raw_copy(),
             chunks: self.chunks.clone(),
+            width_chunks: self.width_chunks,
+            length_chunks: self.length_chunks,
             bounding_box_dirty: Cell::new(true),
             bounding_box: Default::default(),
         }
@@ -348,6 +382,23 @@ impl Terrain {
             chunk.update();
         }
     }
+
+    pub fn create_layer(&self, tile_factor: Vector2<f32>, value: u8) -> Layer {
+        let chunk_length = self.length / self.length_chunks as f32;
+        let chunk_width = self.width / self.width_chunks as f32;
+        let mask_width = (chunk_width * self.mask_resolution) as u32;
+        let mask_height = (chunk_length * self.mask_resolution) as u32;
+
+        Layer {
+            diffuse_texture: None,
+            normal_texture: None,
+            specular_texture: None,
+            roughness_texture: None,
+            height_texture: None,
+            mask: Some(create_layer_mask(mask_width, mask_height, value)),
+            tile_factor,
+        }
+    }
 }
 
 #[derive(Copy, Clone)]
@@ -408,7 +459,7 @@ pub struct TerrainBuilder {
     mask_resolution: f32,
     width_chunks: usize,
     length_chunks: usize,
-    resolution: f32,
+    height_map_resolution: f32,
     layers: Vec<LayerDefinition>,
 }
 
@@ -420,6 +471,24 @@ fn make_divisible_by_2(n: u32) -> u32 {
     }
 }
 
+fn create_layer_mask(width: u32, height: u32, value: u8) -> Texture {
+    let mask = Texture::from_bytes(
+        TextureKind::Rectangle { width, height },
+        TexturePixelKind::R8,
+        vec![value; (width * height) as usize],
+        // Content of mask will be explicitly serialized.
+        true,
+    )
+    .unwrap();
+
+    let mut data_ref = mask.data_ref();
+    data_ref.set_s_wrap_mode(TextureWrapMode::ClampToEdge);
+    data_ref.set_t_wrap_mode(TextureWrapMode::ClampToEdge);
+    drop(data_ref);
+
+    mask
+}
+
 impl TerrainBuilder {
     pub fn new(base_builder: BaseBuilder) -> Self {
         Self {
@@ -429,7 +498,7 @@ impl TerrainBuilder {
             width_chunks: 2,
             length_chunks: 2,
             mask_resolution: 16.0,
-            resolution: 8.0,
+            height_map_resolution: 8.0,
             layers: Default::default(),
         }
     }
@@ -450,17 +519,17 @@ impl TerrainBuilder {
     }
 
     pub fn with_width_chunks(mut self, count: usize) -> Self {
-        self.width_chunks = count;
+        self.width_chunks = count.max(1);
         self
     }
 
     pub fn with_length_chunks(mut self, count: usize) -> Self {
-        self.length_chunks = count;
+        self.length_chunks = count.max(1);
         self
     }
 
-    pub fn with_resolution(mut self, resolution: f32) -> Self {
-        self.resolution = resolution;
+    pub fn with_height_map_resolution(mut self, resolution: f32) -> Self {
+        self.height_map_resolution = resolution;
         self
     }
 
@@ -473,8 +542,10 @@ impl TerrainBuilder {
         let mut chunks = Vec::new();
         let chunk_length = self.length / self.length_chunks as f32;
         let chunk_width = self.width / self.width_chunks as f32;
-        let chunk_length_points = make_divisible_by_2((chunk_length * self.resolution) as u32);
-        let chunk_width_points = make_divisible_by_2((chunk_width * self.resolution) as u32);
+        let chunk_length_points =
+            make_divisible_by_2((chunk_length * self.height_map_resolution) as u32);
+        let chunk_width_points =
+            make_divisible_by_2((chunk_width * self.height_map_resolution) as u32);
         let chunk_mask_width = (chunk_width * self.mask_resolution) as u32;
         let chunk_mask_height = (chunk_length * self.mask_resolution) as u32;
         for z in 0..self.length_chunks {
@@ -488,34 +559,18 @@ impl TerrainBuilder {
                         .iter()
                         .enumerate()
                         .map(|(layer_index, definition)| {
-                            let mask = Texture::from_bytes(
-                                TextureKind::Rectangle {
-                                    width: chunk_mask_width,
-                                    height: chunk_mask_height,
-                                },
-                                TexturePixelKind::R8,
-                                vec![
-                                        // Base layer is opaque, every other by default - transparent.
-                                        if layer_index == 0 { 255 } else { 0 };
-                                        (chunk_mask_width * chunk_mask_height) as usize
-                                    ],
-                                // Content of mask will be explicitly serialized.
-                                true,
-                            )
-                            .unwrap();
-
-                            let mut data_ref = mask.data_ref();
-                            data_ref.set_s_wrap_mode(TextureWrapMode::ClampToEdge);
-                            data_ref.set_t_wrap_mode(TextureWrapMode::ClampToEdge);
-                            drop(data_ref);
-
                             Layer {
                                 diffuse_texture: definition.diffuse_texture.clone(),
                                 normal_texture: definition.normal_texture.clone(),
                                 specular_texture: definition.specular_texture.clone(),
                                 roughness_texture: definition.roughness_texture.clone(),
                                 height_texture: definition.height_texture.clone(),
-                                mask: Some(mask),
+                                // Base layer is opaque, every other by default - transparent.
+                                mask: Some(create_layer_mask(
+                                    chunk_mask_width,
+                                    chunk_mask_height,
+                                    if layer_index == 0 { 255 } else { 0 },
+                                )),
                                 tile_factor: definition.tile_factor,
                             }
                         })
@@ -541,6 +596,10 @@ impl TerrainBuilder {
             chunks,
             bounding_box_dirty: Cell::new(true),
             bounding_box: Default::default(),
+            mask_resolution: self.mask_resolution,
+            height_map_resolution: self.height_map_resolution,
+            width_chunks: self.width_chunks as u32,
+            length_chunks: self.length_chunks as u32,
         };
 
         Node::Terrain(terrain)
