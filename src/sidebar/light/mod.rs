@@ -1,20 +1,21 @@
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
-    scene::{
-        SceneCommand, SetLightCastShadowsCommand, SetLightColorCommand, SetLightScatterCommand,
-        SetLightScatterEnabledCommand,
+    scene::commands::{
+        light::{
+            SetLightCastShadowsCommand, SetLightColorCommand, SetLightScatterCommand,
+            SetLightScatterEnabledCommand,
+        },
+        SceneCommand,
     },
     send_sync_message,
     sidebar::{
-        light::point::PointLightSection, light::spot::SpotLightSection, make_bool_input_field,
-        make_text_mark, make_vec3_input_field, COLUMN_WIDTH, ROW_HEIGHT,
+        light::{point::PointLightSection, spot::SpotLightSection},
+        make_bool_input_field, make_text_mark, make_vec3_input_field, COLUMN_WIDTH, ROW_HEIGHT,
     },
     Message,
 };
-use rg3d::core::scope_profile;
-use rg3d::gui::stack_panel::StackPanelBuilder;
 use rg3d::{
-    core::pool::Handle,
+    core::{pool::Handle, scope_profile},
     gui::{
         color::ColorFieldBuilder,
         grid::{Column, GridBuilder, Row},
@@ -22,6 +23,7 @@ use rg3d::{
             CheckBoxMessage, ColorFieldMessage, MessageDirection, UiMessageData, Vec3EditorMessage,
             WidgetMessage,
         },
+        stack_panel::StackPanelBuilder,
         widget::WidgetBuilder,
     },
     scene::node::Node,

@@ -1,24 +1,33 @@
-use crate::scene::{
-    SetColliderCollisionGroupsCommand, SetColliderIsSensorCommand, SetColliderPositionCommand,
-    SetColliderRotationCommand,
-};
-use crate::sidebar::{make_bool_input_field, make_int_input_field, make_vec3_input_field};
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::Collider,
-    scene::{SceneCommand, SetColliderFrictionCommand, SetColliderRestitutionCommand},
+    scene::commands::{
+        physics::{
+            SetColliderCollisionGroupsCommand, SetColliderFrictionCommand,
+            SetColliderIsSensorCommand, SetColliderPositionCommand, SetColliderRestitutionCommand,
+            SetColliderRotationCommand,
+        },
+        SceneCommand,
+    },
     send_sync_message,
-    sidebar::{make_f32_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT},
+    sidebar::{
+        make_bool_input_field, make_f32_input_field, make_int_input_field, make_text_mark,
+        make_vec3_input_field, COLUMN_WIDTH, ROW_HEIGHT,
+    },
     Message,
 };
-use rg3d::core::math::{quat_from_euler, RotationOrder, UnitQuaternionExt};
-use rg3d::gui::message::{CheckBoxMessage, Vec3EditorMessage};
 use rg3d::{
-    core::algebra::Vector3,
-    core::pool::Handle,
+    core::{
+        algebra::Vector3,
+        math::{quat_from_euler, RotationOrder, UnitQuaternionExt},
+        pool::Handle,
+    },
     gui::{
         grid::{Column, GridBuilder, Row},
-        message::{MessageDirection, NumericUpDownMessage, UiMessageData},
+        message::{
+            CheckBoxMessage, MessageDirection, NumericUpDownMessage, UiMessageData,
+            Vec3EditorMessage,
+        },
         widget::WidgetBuilder,
     },
 };

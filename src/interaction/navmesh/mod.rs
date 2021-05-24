@@ -1,4 +1,10 @@
-use crate::scene::ConnectNavmeshEdgesCommand;
+use crate::scene::commands::navmesh::{
+    AddNavmeshCommand, AddNavmeshEdgeCommand, ConnectNavmeshEdgesCommand, DeleteNavmeshCommand,
+    DeleteNavmeshVertexCommand, MoveNavmeshVertexCommand,
+};
+use crate::scene::commands::CommandGroup;
+use crate::scene::commands::{ChangeSelectionCommand, SceneCommand};
+use crate::scene::{EditorScene, Selection};
 use crate::{
     gui::{BuildContext, UiMessage, UiNode},
     interaction::{
@@ -6,11 +12,6 @@ use crate::{
         navmesh::data_model::{Navmesh, NavmeshEdge, NavmeshEntity, NavmeshVertex},
         navmesh::selection::NavmeshSelection,
         InteractionModeTrait, MoveGizmo,
-    },
-    scene::{
-        AddNavmeshCommand, AddNavmeshEdgeCommand, ChangeSelectionCommand, CommandGroup,
-        DeleteNavmeshCommand, DeleteNavmeshVertexCommand, EditorScene, MoveNavmeshVertexCommand,
-        SceneCommand, Selection,
     },
     send_sync_message, GameEngine, Message, MSG_SYNC_FLAG,
 };

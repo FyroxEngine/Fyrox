@@ -1,9 +1,12 @@
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::Joint,
-    scene::{
-        SceneCommand, SetFixedJointAnchor1RotationCommand, SetFixedJointAnchor1TranslationCommand,
-        SetFixedJointAnchor2RotationCommand, SetFixedJointAnchor2TranslationCommand,
+    scene::commands::{
+        physics::{
+            SetFixedJointAnchor1RotationCommand, SetFixedJointAnchor1TranslationCommand,
+            SetFixedJointAnchor2RotationCommand, SetFixedJointAnchor2TranslationCommand,
+        },
+        SceneCommand,
     },
     send_sync_message,
     sidebar::{make_text_mark, make_vec3_input_field, COLUMN_WIDTH, ROW_HEIGHT},

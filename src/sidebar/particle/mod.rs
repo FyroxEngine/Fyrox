@@ -1,14 +1,13 @@
+use crate::scene::commands::particle_system::{
+    AddParticleSystemEmitterCommand, DeleteEmitterCommand, SetParticleSystemAccelerationCommand,
+};
+use crate::scene::commands::SceneCommand;
 use crate::{
     gui::{
         BuildContext, DeletableItemBuilder, DeletableItemMessage, EditorUiMessage, EditorUiNode,
         Ui, UiMessage, UiNode,
     },
-    load_image,
-    scene::{
-        AddParticleSystemEmitterCommand, DeleteEmitterCommand, SceneCommand,
-        SetParticleSystemAccelerationCommand,
-    },
-    send_sync_message,
+    load_image, send_sync_message,
     sidebar::{
         make_text_mark, make_vec3_input_field, particle::emitter::EmitterSection, COLUMN_WIDTH,
         ROW_HEIGHT,

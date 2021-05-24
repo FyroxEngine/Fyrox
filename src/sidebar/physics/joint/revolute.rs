@@ -1,16 +1,17 @@
-use crate::scene::{
-    SetRevoluteJointAnchor1Command, SetRevoluteJointAnchor2Command, SetRevoluteJointAxis1Command,
-    SetRevoluteJointAxis2Command,
-};
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::Joint,
-    scene::SceneCommand,
+    scene::commands::{
+        physics::{
+            SetRevoluteJointAnchor1Command, SetRevoluteJointAnchor2Command,
+            SetRevoluteJointAxis1Command, SetRevoluteJointAxis2Command,
+        },
+        SceneCommand,
+    },
     send_sync_message,
     sidebar::{make_text_mark, make_vec3_input_field, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
 };
-use rg3d::scene::physics::RevoluteJointDesc;
 use rg3d::{
     core::pool::Handle,
     gui::{
@@ -18,6 +19,7 @@ use rg3d::{
         message::{MessageDirection, UiMessageData, Vec3EditorMessage},
         widget::WidgetBuilder,
     },
+    scene::physics::RevoluteJointDesc,
 };
 use std::sync::mpsc::Sender;
 

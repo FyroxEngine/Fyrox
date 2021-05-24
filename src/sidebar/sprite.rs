@@ -1,15 +1,17 @@
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
-    scene::{SceneCommand, SetSpriteColorCommand, SetSpriteRotationCommand, SetSpriteSizeCommand},
+    scene::commands::{
+        sprite::{SetSpriteColorCommand, SetSpriteRotationCommand, SetSpriteSizeCommand},
+        SceneCommand,
+    },
     send_sync_message,
     sidebar::{
         make_color_input_field, make_f32_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT,
     },
     Message,
 };
-use rg3d::core::scope_profile;
 use rg3d::{
-    core::pool::Handle,
+    core::{pool::Handle, scope_profile},
     gui::{
         grid::{Column, GridBuilder, Row},
         message::{

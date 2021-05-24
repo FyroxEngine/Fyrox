@@ -1,7 +1,8 @@
+use crate::scene::commands::physics::{SetBallJointAnchor1Command, SetBallJointAnchor2Command};
+use crate::scene::commands::SceneCommand;
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::Joint,
-    scene::{SceneCommand, SetBallJointAnchor1Command, SetBallJointAnchor2Command},
     send_sync_message,
     sidebar::{make_text_mark, make_vec3_input_field, COLUMN_WIDTH, ROW_HEIGHT},
     Message,

@@ -1,15 +1,12 @@
-use crate::scene::make_delete_selection_command;
+use crate::scene::commands::graph::{LinkNodesCommand, SetVisibleCommand};
+use crate::scene::commands::{make_delete_selection_command, ChangeSelectionCommand, SceneCommand};
+use crate::scene::{EditorScene, GraphSelection, Selection};
 use crate::{
     gui::{
         BuildContext, CustomWidget, EditorUiMessage, EditorUiNode, SceneItemMessage, Ui, UiMessage,
         UiNode,
     },
-    load_image,
-    scene::{
-        ChangeSelectionCommand, EditorScene, GraphSelection, LinkNodesCommand, SceneCommand,
-        Selection, SetVisibleCommand,
-    },
-    send_sync_message, GameEngine, Message,
+    load_image, send_sync_message, GameEngine, Message,
 };
 use rg3d::{
     core::{algebra::Vector2, pool::Handle, scope_profile},

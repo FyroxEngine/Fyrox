@@ -1,8 +1,10 @@
+use crate::scene::commands::graph::AddNodeCommand;
+use crate::scene::commands::{PasteCommand, SceneCommand};
 use crate::settings::Settings;
 use crate::{
     gui::{Ui, UiMessage, UiNode},
     make_save_file_selector, make_scene_file_filter,
-    scene::{AddNodeCommand, EditorScene, PasteCommand, SceneCommand, Selection},
+    scene::{EditorScene, Selection},
     send_sync_message,
     settings::SettingsWindow,
     GameEngine, Message,

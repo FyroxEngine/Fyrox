@@ -1,17 +1,26 @@
-use crate::sidebar::terrain::TerrainSection;
+use crate::scene::commands::CommandGroup;
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
-    scene::CommandGroup,
     scene::{
-        AddLodGroupLevelCommand, AddLodObjectCommand, ChangeLodRangeBeginCommand,
-        ChangeLodRangeEndCommand, EditorScene, MoveNodeCommand, RemoveLodGroupLevelCommand,
-        RemoveLodObjectCommand, RotateNodeCommand, ScaleNodeCommand, SceneCommand, Selection,
-        SetLodGroupCommand, SetNameCommand, SetPhysicsBindingCommand, SetTagCommand,
+        commands::{
+            graph::{
+                MoveNodeCommand, RotateNodeCommand, ScaleNodeCommand, SetNameCommand,
+                SetPhysicsBindingCommand, SetTagCommand,
+            },
+            lod::{
+                AddLodGroupLevelCommand, AddLodObjectCommand, ChangeLodRangeBeginCommand,
+                ChangeLodRangeEndCommand, RemoveLodGroupLevelCommand, RemoveLodObjectCommand,
+                SetLodGroupCommand,
+            },
+            SceneCommand,
+        },
+        EditorScene, Selection,
     },
     send_sync_message,
     sidebar::{
         camera::CameraSection, light::LightSection, mesh::MeshSection,
         particle::ParticleSystemSection, physics::PhysicsSection, sprite::SpriteSection,
+        terrain::TerrainSection,
     },
     GameEngine, Message,
 };
@@ -33,11 +42,10 @@ use rg3d::{
         grid::{Column, GridBuilder, Row},
         list_view::ListViewBuilder,
         message::{
-            ButtonMessage, DropdownListMessage, MessageDirection, TextBoxMessage, TextMessage,
-            UiMessageData, Vec3EditorMessage, WidgetMessage,
+            ButtonMessage, DropdownListMessage, ListViewMessage, MessageDirection,
+            NumericUpDownMessage, TextBoxMessage, TextMessage, TreeMessage, TreeRootMessage,
+            UiMessageData, Vec3EditorMessage, WidgetMessage, WindowMessage,
         },
-        message::{ListViewMessage, NumericUpDownMessage, WindowMessage},
-        message::{TreeMessage, TreeRootMessage},
         numeric::NumericUpDownBuilder,
         scroll_viewer::ScrollViewerBuilder,
         stack_panel::StackPanelBuilder,

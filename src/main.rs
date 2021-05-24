@@ -22,6 +22,14 @@ pub mod settings;
 pub mod sidebar;
 pub mod world_outliner;
 
+use crate::scene::commands::graph::LoadModelCommand;
+use crate::scene::commands::mesh::SetMeshTextureCommand;
+use crate::scene::commands::particle_system::SetParticleSystemTextureCommand;
+use crate::scene::commands::sprite::SetSpriteTextureCommand;
+use crate::scene::commands::{
+    make_delete_selection_command, PasteCommand, SceneCommand, SceneContext,
+};
+use crate::scene::{EditorScene, Selection};
 use crate::{
     asset::{AssetBrowser, AssetKind},
     camera::CameraController,
@@ -40,11 +48,6 @@ use crate::{
     log::Log,
     menu::{Menu, MenuContext},
     physics::Physics,
-    scene::{
-        make_delete_selection_command, EditorScene, LoadModelCommand, PasteCommand, SceneCommand,
-        SceneContext, Selection, SetMeshTextureCommand, SetParticleSystemTextureCommand,
-        SetSpriteTextureCommand,
-    },
     settings::Settings,
     sidebar::SideBar,
     world_outliner::WorldOutliner,

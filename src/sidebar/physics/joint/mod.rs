@@ -1,8 +1,9 @@
+use crate::scene::commands::physics::SetJointConnectedBodyCommand;
+use crate::scene::commands::SceneCommand;
 use crate::sidebar::physics::joint::prismatic::PrismaticJointSection;
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::{Joint, RigidBody},
-    scene::{SceneCommand, SetJointConnectedBodyCommand},
     send_sync_message,
     sidebar::{
         make_text_mark,

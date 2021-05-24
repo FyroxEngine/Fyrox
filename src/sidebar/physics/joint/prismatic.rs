@@ -1,16 +1,17 @@
-use crate::scene::{
-    SetPrismaticJointAnchor1Command, SetPrismaticJointAnchor2Command,
-    SetPrismaticJointAxis1Command, SetPrismaticJointAxis2Command,
-};
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::Joint,
-    scene::SceneCommand,
+    scene::commands::{
+        physics::{
+            SetPrismaticJointAnchor1Command, SetPrismaticJointAnchor2Command,
+            SetPrismaticJointAxis1Command, SetPrismaticJointAxis2Command,
+        },
+        SceneCommand,
+    },
     send_sync_message,
     sidebar::{make_text_mark, make_vec3_input_field, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
 };
-use rg3d::scene::physics::PrismaticJointDesc;
 use rg3d::{
     core::pool::Handle,
     gui::{
@@ -18,6 +19,7 @@ use rg3d::{
         message::{MessageDirection, UiMessageData, Vec3EditorMessage},
         widget::WidgetBuilder,
     },
+    scene::physics::PrismaticJointDesc,
 };
 use std::sync::mpsc::Sender;
 

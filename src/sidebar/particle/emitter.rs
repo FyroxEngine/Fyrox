@@ -1,32 +1,32 @@
-use crate::scene::SetEmitterPositionCommand;
-use crate::sidebar::particle::cuboid::BoxSection;
-use crate::sidebar::particle::cylinder::CylinderSection;
+use crate::scene::commands::particle_system::SetEmitterPositionCommand;
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
-    scene::{EmitterNumericParameter, SceneCommand, SetEmitterNumericParameterCommand},
+    scene::commands::{
+        particle_system::{EmitterNumericParameter, SetEmitterNumericParameterCommand},
+        SceneCommand,
+    },
     send_sync_message,
     sidebar::{
         make_bool_input_field, make_f32_input_field, make_text_mark, make_vec3_input_field,
-        particle::sphere::SphereSection, COLUMN_WIDTH, ROW_HEIGHT,
+        particle::{cuboid::BoxSection, cylinder::CylinderSection, sphere::SphereSection},
+        COLUMN_WIDTH, ROW_HEIGHT,
     },
     Message,
 };
-use rg3d::gui::expander::ExpanderBuilder;
-use rg3d::gui::message::WidgetMessage;
-use rg3d::gui::text::TextBuilder;
-use rg3d::gui::VerticalAlignment;
 use rg3d::{
     core::pool::Handle,
     gui::{
+        expander::ExpanderBuilder,
         grid::{Column, GridBuilder, Row},
         message::{
             CheckBoxMessage, MessageDirection, NumericUpDownMessage, UiMessageData,
-            Vec3EditorMessage,
+            Vec3EditorMessage, WidgetMessage,
         },
         numeric::NumericUpDownBuilder,
         stack_panel::StackPanelBuilder,
+        text::TextBuilder,
         widget::WidgetBuilder,
-        Thickness,
+        Thickness, VerticalAlignment,
     },
     scene::{
         node::Node,

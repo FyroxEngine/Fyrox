@@ -1,7 +1,10 @@
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::Collider,
-    scene::{SceneCommand, SetCapsuleBeginCommand, SetCapsuleEndCommand, SetCapsuleRadiusCommand},
+    scene::commands::{
+        physics::{SetCapsuleBeginCommand, SetCapsuleEndCommand, SetCapsuleRadiusCommand},
+        SceneCommand,
+    },
     send_sync_message,
     sidebar::{
         make_f32_input_field, make_text_mark, make_vec3_input_field, COLUMN_WIDTH, ROW_HEIGHT,

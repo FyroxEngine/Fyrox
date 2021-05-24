@@ -1,11 +1,10 @@
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
-    scene::{SceneCommand, SetPointLightRadiusCommand},
+    scene::commands::{light::SetPointLightRadiusCommand, SceneCommand},
     send_sync_message,
     sidebar::{make_f32_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
 };
-use rg3d::scene::node::Node;
 use rg3d::{
     core::pool::Handle,
     gui::{
@@ -13,7 +12,7 @@ use rg3d::{
         message::{MessageDirection, NumericUpDownMessage, UiMessageData, WidgetMessage},
         widget::WidgetBuilder,
     },
-    scene::light::Light,
+    scene::{light::Light, node::Node},
 };
 use std::sync::mpsc::Sender;
 

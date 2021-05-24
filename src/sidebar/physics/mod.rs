@@ -1,11 +1,18 @@
+use crate::scene::commands::CommandGroup;
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::{Collider, Joint, RigidBody},
     scene::{
-        AddJointCommand, CommandGroup, DeleteBodyCommand, DeleteColliderCommand,
-        DeleteJointCommand, EditorScene, SceneCommand, Selection, SetBallRadiusCommand,
-        SetBodyCommand, SetColliderCommand, SetColliderPositionCommand,
-        SetCuboidHalfExtentsCommand, SetCylinderHalfHeightCommand, SetCylinderRadiusCommand,
+        commands::{
+            physics::{
+                AddJointCommand, DeleteBodyCommand, DeleteColliderCommand, DeleteJointCommand,
+                SetBallRadiusCommand, SetBodyCommand, SetColliderCommand,
+                SetColliderPositionCommand, SetCuboidHalfExtentsCommand,
+                SetCylinderHalfHeightCommand, SetCylinderRadiusCommand,
+            },
+            SceneCommand,
+        },
+        EditorScene, Selection,
     },
     send_sync_message,
     sidebar::{

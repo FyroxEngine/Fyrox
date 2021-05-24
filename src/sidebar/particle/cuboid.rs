@@ -1,14 +1,16 @@
-use crate::scene::{
-    SetBoxEmitterHalfDepthCommand, SetBoxEmitterHalfHeightCommand, SetBoxEmitterHalfWidthCommand,
-};
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
-    scene::SceneCommand,
+    scene::commands::{
+        particle_system::{
+            SetBoxEmitterHalfDepthCommand, SetBoxEmitterHalfHeightCommand,
+            SetBoxEmitterHalfWidthCommand,
+        },
+        SceneCommand,
+    },
     send_sync_message,
     sidebar::{make_f32_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
 };
-use rg3d::scene::particle_system::BoxEmitter;
 use rg3d::{
     core::pool::Handle,
     gui::{
@@ -16,7 +18,7 @@ use rg3d::{
         message::{MessageDirection, NumericUpDownMessage, UiMessageData},
         widget::WidgetBuilder,
     },
-    scene::node::Node,
+    scene::{node::Node, particle_system::BoxEmitter},
 };
 use std::sync::mpsc::Sender;
 

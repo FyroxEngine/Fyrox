@@ -1,9 +1,9 @@
+use crate::scene::commands::light::{
+    SetSpotLightDistanceCommand, SetSpotLightFalloffAngleDeltaCommand, SetSpotLightHotspotCommand,
+};
+use crate::scene::commands::SceneCommand;
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
-    scene::{
-        SceneCommand, SetSpotLightDistanceCommand, SetSpotLightFalloffAngleDeltaCommand,
-        SetSpotLightHotspotCommand,
-    },
     send_sync_message,
     sidebar::{make_f32_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT},
     Message,

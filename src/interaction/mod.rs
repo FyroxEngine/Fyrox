@@ -2,12 +2,14 @@ use crate::{
     gui::UiNode,
     interaction::navmesh::EditNavmeshMode,
     scene::{
-        ChangeSelectionCommand, CommandGroup, EditorScene, GraphSelection, MoveNodeCommand,
-        RotateNodeCommand, ScaleNodeCommand, SceneCommand, Selection,
+        commands::{
+            graph::{MoveNodeCommand, RotateNodeCommand, ScaleNodeCommand},
+            ChangeSelectionCommand, CommandGroup, SceneCommand,
+        },
+        EditorScene, GraphSelection, Selection,
     },
     GameEngine, Message,
 };
-use rg3d::scene::mesh::RenderPath;
 use rg3d::{
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
@@ -17,11 +19,13 @@ use rg3d::{
         scope_profile,
     },
     gui::message::{KeyCode, MessageDirection, WidgetMessage},
-    scene::mesh::surface::{SurfaceBuilder, SurfaceData},
     scene::{
         base::BaseBuilder,
         graph::Graph,
-        mesh::MeshBuilder,
+        mesh::{
+            surface::{SurfaceBuilder, SurfaceData},
+            MeshBuilder, RenderPath,
+        },
         node::Node,
         transform::{Transform, TransformBuilder},
     },

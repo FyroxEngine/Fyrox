@@ -1,7 +1,7 @@
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::RigidBody,
-    scene::{SceneCommand, SetBodyMassCommand},
+    scene::commands::{physics::SetBodyMassCommand, SceneCommand},
     send_sync_message,
     sidebar::{make_f32_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
