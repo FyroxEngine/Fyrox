@@ -2,12 +2,13 @@
 
 # Rust Game engine 3D (and 2D)
 
-[![Crates.io](https://img.shields.io/crates/l/rg3d)](https://github.com/mrDIMAS/rg3d/blob/master/LICENSE.md)
+[![License (MIT)](https://img.shields.io/crates/l/rg3d)](https://github.com/mrDIMAS/rg3d/blob/master/LICENSE.md)
+[![CI Status](https://github.com/gideongrinberg/rg3d/actions/workflows/ci.yml/badge.svg)](https://github.com/gideongrinberg/rg3d/actions/workflows/ci.yml)
 [![Crates.io](https://img.shields.io/crates/v/rg3d)](https://crates.io/crates/rg3d)
 [![docs.rs](https://img.shields.io/badge/docs-website-blue)](https://docs.rs/rg3d/)
 [![Discord](https://img.shields.io/discord/756573453561102427)](https://discord.gg/xENF5Uh)
 [![Lines of code](https://tokei.rs/b1/github/mrDIMAS/rg3d)](https://github.com/mrDIMAS/rg3d)
-
+ 
 A feature-rich, general purpose 2D/3D game engine written in Rust with a scene editor.
 
 ## Support

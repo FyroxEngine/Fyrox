@@ -1,0 +1,52 @@
+name: CI 
+on: [push, pull_request]
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  windows:
+    name: Windows CI
+    runs-on: windows-2019
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build
+      run: cargo check --verbose
+    - name: Test
+      run: cargo test --verbose
+
+  macosx:
+    name: MacOSX CI
+    runs-on: macos-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build
+      run: cargo check --verbose
+    - name: Test
+      run: cargo test --verbose
+
+  linux:
+    name: Linux CI
+    runs-on: ubuntu-latest
+    steps:
+    - name: Install Dependencies
+      run: sudo apt-get install libasound2-dev libudev-dev pkg-config
+    - uses: actions/checkout@v2
+    - name: Build
+      run: cargo check --verbose
+    - name: Test
+      run: cargo test --verbose
+      
+  # MacOS 11 CI is currently in beta. Uncomment the below lines when it's out of beta.
+  # macos11:
+  #   name: MacOS Big Sur (M1) CI
+  #   runs-on: macos-11
+
+  #   steps:
+  #   - uses: actions/checkout@v2
+  #   - name: Build
+  #     run: cargo build --verbose
+  #   - name: Test
+  #     run: cargo test --verbose
+
