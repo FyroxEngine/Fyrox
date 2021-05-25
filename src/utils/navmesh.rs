@@ -301,7 +301,7 @@ impl Navmesh {
                     let b = self.pathfinder.vertices()[triangle[1] as usize].position;
                     let c = self.pathfinder.vertices()[triangle[2] as usize].position;
 
-                    if let Some(intersection) = ray.triangle_intersection(&[a, b, c]) {
+                    if let Some(intersection) = ray.triangle_intersection_point(&[a, b, c]) {
                         return Some((intersection, index as usize, triangle));
                     }
                 }

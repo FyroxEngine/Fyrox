@@ -749,7 +749,7 @@ fn generate_lightmap(
                                             let vc = other_data.vertices[triangle[2] as usize]
                                                 .world_position;
                                             if let Some(pt) =
-                                                ray.triangle_intersection(&[va, vb, vc])
+                                                ray.triangle_intersection_point(&[va, vb, vc])
                                             {
                                                 if ray.origin.metric_distance(&pt) + shadow_bias
                                                     < ray.dir.norm()

@@ -243,7 +243,28 @@ impl Ray {
         }
     }
 
-    pub fn triangle_intersection(&self, vertices: &[Vector3<f32>; 3]) -> Option<Vector3<f32>> {
+    pub fn triangle_intersection(
+        &self,
+        vertices: &[Vector3<f32>; 3],
+    ) -> Option<(f32, Vector3<f32>)> {
+        let ba = vertices[1] - vertices[0];
+        let ca = vertices[2] - vertices[0];
+        let plane = Plane::from_normal_and_point(&ba.cross(&ca), &vertices[0])?;
+
+        let t = self.plane_intersection(&plane);
+        if (0.0..=1.0).contains(&t) {
+            let point = self.get_point(t);
+            if is_point_inside_triangle(&point, vertices) {
+                return Some((t, point));
+            }
+        }
+        None
+    }
+
+    pub fn triangle_intersection_point(
+        &self,
+        vertices: &[Vector3<f32>; 3],
+    ) -> Option<Vector3<f32>> {
         let ba = vertices[1] - vertices[0];
         let ca = vertices[2] - vertices[0];
         let plane = Plane::from_normal_and_point(&ba.cross(&ca), &vertices[0])?;
@@ -408,6 +429,6 @@ mod test {
             Vector3::new(0.5, -0.5, 0.0),
         ];
         let ray = Ray::from_two_points(Vector3::new(0.0, 0.0, -2.0), Vector3::new(0.0, 0.0, -1.0));
-        assert!(ray.triangle_intersection(&triangle).is_none());
+        assert!(ray.triangle_intersection_point(&triangle).is_none());
     }
 }

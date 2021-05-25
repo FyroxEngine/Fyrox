@@ -2,6 +2,9 @@
 
 #![allow(missing_docs)] // Temporary
 
+use crate::core::arrayvec::ArrayVec;
+use crate::core::math::ray::Ray;
+use crate::core::math::ray_rect_intersection;
 use crate::resource::texture::TextureWrapMode;
 use crate::{
     core::{
@@ -22,6 +25,7 @@ use crate::{
         node::Node,
     },
 };
+use std::cmp::Ordering;
 use std::{
     cell::Cell,
     collections::hash_map::DefaultHasher,
@@ -204,6 +208,14 @@ fn map_to_local(v: Vector3<f32>) -> Vector2<f32> {
     Vector2::new(v.x, v.z)
 }
 
+#[derive(Debug)]
+pub struct TerrainRayCastResult {
+    pub position: Vector3<f32>,
+    pub normal: Vector3<f32>,
+    pub chunk_index: usize,
+    pub toi: f32,
+}
+
 #[derive(Visit, Debug, Default)]
 pub struct Terrain {
     width: f32,
@@ -379,6 +391,105 @@ impl Terrain {
                 }
             }
         }
+    }
+
+    pub fn raycast<const DIM: usize>(
+        &self,
+        ray: Ray,
+        results: &mut ArrayVec<TerrainRayCastResult, DIM>,
+        sort_results: bool,
+    ) -> bool {
+        if let Some(inv_transform) = self.global_transform().try_inverse() {
+            // Transform ray into local coordinate system of the terrain.
+            let local_ray = ray.transform(inv_transform);
+
+            // Project ray on the terrain's 2D space.
+            let origin_proj = map_to_local(
+                inv_transform
+                    .transform_point(&Point3::from(ray.origin))
+                    .coords,
+            );
+            let dir_proj = map_to_local(inv_transform.transform_vector(&ray.dir));
+
+            // Check each cell of each chunk for intersection in 2D.
+            'chunk_loop: for (chunk_index, chunk) in self.chunks.iter().enumerate() {
+                let cell_width = chunk.width / (chunk.width_point_count - 1) as f32;
+                let cell_length = chunk.length / (chunk.length_point_count - 1) as f32;
+
+                for z in 0..chunk.length_point_count {
+                    let kz = z as f32 / (chunk.length_point_count - 1) as f32;
+                    let nz = z + 1;
+
+                    for x in 0..chunk.width_point_count {
+                        let kx = x as f32 / (chunk.width_point_count - 1) as f32;
+                        let nx = x + 1;
+
+                        let pixel_position = chunk.local_position()
+                            + Vector2::new(kx * chunk.width, kz * chunk.length);
+
+                        let cell_bounds =
+                            Rect::new(pixel_position.x, pixel_position.y, cell_width, cell_length);
+
+                        if ray_rect_intersection(cell_bounds, origin_proj, dir_proj).is_some() {
+                            // If we have 2D intersection, go back in 3D and do precise intersection
+                            // check.
+                            if nx < chunk.width_point_count && nz < chunk.length_point_count {
+                                let i0 = (z * chunk.width_point_count + x) as usize;
+                                let i1 = ((z + 1) * chunk.width_point_count + x) as usize;
+                                let i2 = ((z + 1) * chunk.width_point_count + x + 1) as usize;
+                                let i3 = (z * chunk.width_point_count + x + 1) as usize;
+
+                                let v0 = Vector3::new(
+                                    pixel_position.x,
+                                    chunk.heightmap[i0],
+                                    pixel_position.y, // Remember Z -> Y mapping!
+                                );
+                                let v1 =
+                                    Vector3::new(v0.x, chunk.heightmap[i1], v0.z + cell_length);
+                                let v2 = Vector3::new(v1.x + cell_width, chunk.heightmap[i2], v1.z);
+                                let v3 = Vector3::new(v0.x + cell_width, chunk.heightmap[i3], v0.z);
+
+                                for vertices in &[[v0, v1, v2], [v2, v3, v0]] {
+                                    if let Some((toi, intersection)) =
+                                        local_ray.triangle_intersection(vertices)
+                                    {
+                                        let normal = (vertices[2] - vertices[0])
+                                            .cross(&(vertices[1] - vertices[0]))
+                                            .try_normalize(f32::EPSILON)
+                                            .unwrap_or_else(Vector3::y);
+
+                                        let result = TerrainRayCastResult {
+                                            position: intersection,
+                                            normal,
+                                            chunk_index,
+                                            toi,
+                                        };
+
+                                        if results.try_push(result).is_err() {
+                                            break 'chunk_loop;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if sort_results {
+            results.sort_unstable_by(|a, b| {
+                if a.toi > b.toi {
+                    Ordering::Greater
+                } else if a.toi < b.toi {
+                    Ordering::Less
+                } else {
+                    Ordering::Equal
+                }
+            });
+        }
+
+        !results.is_empty()
     }
 
     pub fn update(&mut self) {
