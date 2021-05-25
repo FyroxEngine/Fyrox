@@ -1,3 +1,4 @@
+use crate::interaction::terrain::TerrainInteractionMode;
 use crate::{
     gui::UiNode,
     interaction::navmesh::EditNavmeshMode,
@@ -33,6 +34,7 @@ use rg3d::{
 use std::sync::{mpsc::Sender, Arc, RwLock};
 
 pub mod navmesh;
+pub mod terrain;
 
 pub trait InteractionModeTrait {
     fn on_left_mouse_button_down(
@@ -1678,6 +1680,7 @@ pub enum InteractionModeKind {
     Scale = 2,
     Rotate = 3,
     Navmesh = 4,
+    Terrain = 5,
 }
 
 pub enum InteractionMode {
@@ -1686,6 +1689,7 @@ pub enum InteractionMode {
     Scale(ScaleInteractionMode),
     Rotate(RotateInteractionMode),
     Navmesh(EditNavmeshMode),
+    Terrain(TerrainInteractionMode),
 }
 
 macro_rules! static_dispatch {
@@ -1696,6 +1700,7 @@ macro_rules! static_dispatch {
             InteractionMode::Scale(v) => v.$func($($args),*),
             InteractionMode::Rotate(v) => v.$func($($args),*),
             InteractionMode::Navmesh(v) => v.$func($($args),*),
+            InteractionMode::Terrain(v) => v.$func($($args),*),
         }
     }
 }

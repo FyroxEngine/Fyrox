@@ -22,6 +22,7 @@ pub mod settings;
 pub mod sidebar;
 pub mod world_outliner;
 
+use crate::interaction::terrain::TerrainInteractionMode;
 use crate::scene::commands::graph::LoadModelCommand;
 use crate::scene::commands::mesh::SetMeshTextureCommand;
 use crate::scene::commands::particle_system::SetParticleSystemTextureCommand;
@@ -149,6 +150,7 @@ pub struct ScenePreview {
     rotate_mode: Handle<UiNode>,
     scale_mode: Handle<UiNode>,
     navmesh_mode: Handle<UiNode>,
+    terrain_mode: Handle<UiNode>,
     sender: Sender<Message>,
 }
 
@@ -175,6 +177,7 @@ impl ScenePreview {
         let rotate_mode;
         let scale_mode;
         let navmesh_mode;
+        let terrain_mode;
         let selection_frame;
         let window = WindowBuilder::new(WidgetBuilder::new())
             .can_close(false)
@@ -319,6 +322,27 @@ impl ScenePreview {
                                         )
                                         .build(ctx);
                                         navmesh_mode
+                                    })
+                                    .with_child({
+                                        terrain_mode = ButtonBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_margin(Thickness::uniform(1.0)),
+                                        )
+                                        .with_content(
+                                            ImageBuilder::new(
+                                                WidgetBuilder::new()
+                                                    .with_width(32.0)
+                                                    .with_height(32.0),
+                                            )
+                                            .with_texture(into_gui_texture(
+                                                engine
+                                                    .resource_manager
+                                                    .request_texture("resources/terrain.png"),
+                                            ))
+                                            .build(ctx),
+                                        )
+                                        .build(ctx);
+                                        terrain_mode
                                     }),
                             )
                             .build(ctx),
@@ -343,6 +367,7 @@ impl ScenePreview {
             selection_frame,
             select_mode,
             navmesh_mode,
+            terrain_mode,
             click_mouse_pos: None,
         }
     }
@@ -372,6 +397,10 @@ impl ScenePreview {
             } else if message.destination() == self.navmesh_mode {
                 self.sender
                     .send(Message::SetInteractionMode(InteractionModeKind::Navmesh))
+                    .unwrap();
+            } else if message.destination() == self.terrain_mode {
+                self.sender
+                    .send(Message::SetInteractionMode(InteractionModeKind::Terrain))
                     .unwrap();
             }
         }
@@ -733,6 +762,11 @@ impl Editor {
                 self.message_sender.clone(),
             )),
             InteractionMode::Navmesh(EditNavmeshMode::new(
+                &editor_scene,
+                engine,
+                self.message_sender.clone(),
+            )),
+            InteractionMode::Terrain(TerrainInteractionMode::new(
                 &editor_scene,
                 engine,
                 self.message_sender.clone(),
