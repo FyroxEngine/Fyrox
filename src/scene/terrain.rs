@@ -198,6 +198,16 @@ impl Chunk {
         map_to_local(self.position)
     }
 
+    pub fn heightmap(&self) -> &[f32] {
+        &self.heightmap
+    }
+
+    pub fn set_heightmap(&mut self, heightmap: Vec<f32>) {
+        assert_eq!(self.heightmap.len(), heightmap.len());
+        self.heightmap = heightmap;
+        self.dirty.set(true);
+    }
+
     pub fn data(&self) -> Arc<RwLock<SurfaceData>> {
         self.surface_data.clone().unwrap()
     }
@@ -322,7 +332,7 @@ impl Terrain {
         let center = project(self.global_transform(), brush.center).unwrap();
 
         match brush.mode {
-            BrushMode::AlternateHeightMap { amount } => {
+            BrushMode::ModifyHeightMap { amount } => {
                 for chunk in self.chunks.iter_mut() {
                     for z in 0..chunk.length_point_count {
                         let kz = z as f32 / (chunk.length_point_count - 1) as f32;
@@ -539,7 +549,7 @@ impl BrushKind {
 
 #[derive(Clone, PartialEq, PartialOrd)]
 pub enum BrushMode {
-    AlternateHeightMap {
+    ModifyHeightMap {
         /// An offset for height map.
         amount: f32,
     },

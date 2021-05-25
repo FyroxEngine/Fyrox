@@ -108,7 +108,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
         terrain.draw(&Brush {
             center: Vector3::new(x, 0.0, z),
             kind: BrushKind::Circle { radius },
-            mode: BrushMode::AlternateHeightMap { amount: height },
+            mode: BrushMode::ModifyHeightMap { amount: height },
         });
 
         // Draw rock texture on top.
