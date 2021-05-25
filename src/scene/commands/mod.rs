@@ -1,4 +1,4 @@
-use crate::scene::commands::terrain::SetTerrainLayerTextureCommand;
+use crate::scene::commands::terrain::{ModifyTerrainHeightCommand, SetTerrainLayerTextureCommand};
 use crate::{
     command::Command,
     physics::{Collider, Joint, RigidBody},
@@ -219,6 +219,7 @@ pub enum SceneCommand {
     AddTerrainLayer(AddTerrainLayerCommand),
     DeleteTerrainLayer(DeleteTerrainLayerCommand),
     SetTerrainLayerTexture(SetTerrainLayerTextureCommand),
+    ModifyTerrainHeight(ModifyTerrainHeightCommand),
 }
 
 pub struct SceneContext<'a> {
@@ -331,6 +332,7 @@ macro_rules! static_dispatch {
             SceneCommand::AddTerrainLayer(v) => v.$func($($args),*),
             SceneCommand::DeleteTerrainLayer(v) => v.$func($($args),*),
             SceneCommand::SetTerrainLayerTexture(v) => v.$func($($args),*),
+            SceneCommand::ModifyTerrainHeight(v) => v.$func($($args),*),
         }
     };
 }

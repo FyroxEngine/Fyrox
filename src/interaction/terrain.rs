@@ -1,15 +1,19 @@
-use crate::scene::Selection;
-use crate::{interaction::InteractionModeTrait, scene::EditorScene, GameEngine, Message};
-use rg3d::scene::graph::Graph;
+use crate::scene::commands::terrain::ModifyTerrainHeightCommand;
+use crate::scene::commands::SceneCommand;
+use crate::{
+    interaction::InteractionModeTrait, scene::EditorScene, scene::Selection, GameEngine, Message,
+};
+use rg3d::scene::terrain::{Brush, BrushKind, BrushMode};
 use rg3d::{
     core::{
-        algebra::{UnitQuaternion, Vector2, Vector3},
+        algebra::{Point3, UnitQuaternion, Vector2, Vector3},
         arrayvec::ArrayVec,
         color::Color,
         pool::Handle,
     },
     scene::{
         base::BaseBuilder,
+        graph::Graph,
         mesh::{
             surface::{SurfaceBuilder, SurfaceData},
             MeshBuilder, RenderPath,
@@ -21,6 +25,7 @@ use rg3d::{
 use std::sync::{mpsc::Sender, Arc, RwLock};
 
 pub struct TerrainInteractionMode {
+    heightmaps: Vec<Vec<f32>>,
     message_sender: Sender<Message>,
     interacting: bool,
     brush_gizmo: BrushGizmo,
@@ -33,6 +38,7 @@ impl TerrainInteractionMode {
         message_sender: Sender<Message>,
     ) -> Self {
         Self {
+            heightmaps: Default::default(),
             brush_gizmo: BrushGizmo::new(editor_scene, engine),
             interacting: false,
             message_sender,
@@ -80,20 +86,62 @@ impl BrushGizmo {
 impl InteractionModeTrait for TerrainInteractionMode {
     fn on_left_mouse_button_down(
         &mut self,
-        _editor_scene: &mut EditorScene,
-        _engine: &mut GameEngine,
+        editor_scene: &mut EditorScene,
+        engine: &mut GameEngine,
         _mouse_pos: Vector2<f32>,
         _frame_size: Vector2<f32>,
     ) {
+        if let Selection::Graph(selection) = &editor_scene.selection {
+            if selection.is_single_selection() {
+                let graph = &mut engine.scenes[editor_scene.scene].graph;
+                let handle = selection.nodes()[0];
+
+                if let Node::Terrain(terrain) = &graph[handle] {
+                    self.heightmaps = terrain
+                        .chunks_ref()
+                        .iter()
+                        .map(|c| c.heightmap().to_vec())
+                        .collect();
+
+                    self.interacting = true;
+                }
+            }
+        }
     }
 
     fn on_left_mouse_button_up(
         &mut self,
-        _editor_scene: &mut EditorScene,
-        _engine: &mut GameEngine,
+        editor_scene: &mut EditorScene,
+        engine: &mut GameEngine,
         _mouse_pos: Vector2<f32>,
         _frame_size: Vector2<f32>,
     ) {
+        if let Selection::Graph(selection) = &editor_scene.selection {
+            if selection.is_single_selection() {
+                let graph = &mut engine.scenes[editor_scene.scene].graph;
+                let handle = selection.nodes()[0];
+
+                if let Node::Terrain(terrain) = &graph[handle] {
+                    if self.interacting {
+                        let new_heightmaps = terrain
+                            .chunks_ref()
+                            .iter()
+                            .map(|c| c.heightmap().to_vec())
+                            .collect();
+
+                        self.message_sender.send(Message::DoSceneCommand(
+                            SceneCommand::ModifyTerrainHeight(ModifyTerrainHeightCommand::new(
+                                handle,
+                                std::mem::take(&mut self.heightmaps),
+                                new_heightmaps,
+                            )),
+                        ));
+
+                        self.interacting = false;
+                    }
+                }
+            }
+        }
     }
 
     fn on_mouse_move(
@@ -110,18 +158,30 @@ impl InteractionModeTrait for TerrainInteractionMode {
                 let graph = &mut engine.scenes[editor_scene.scene].graph;
                 let handle = selection.nodes()[0];
 
-                if let Node::Terrain(terrain) = &graph[handle] {
-                    let camera = &graph[camera];
-                    if let Node::Camera(camera) = camera {
-                        let ray = camera.make_ray(mouse_position, frame_size);
-
+                let camera = &graph[camera];
+                if let Node::Camera(camera) = camera {
+                    let ray = camera.make_ray(mouse_position, frame_size);
+                    if let Node::Terrain(terrain) = &mut graph[handle] {
                         let mut intersections = ArrayVec::<TerrainRayCastResult, 128>::new();
                         terrain.raycast(ray, &mut intersections, true);
 
                         if let Some(closest) = intersections.first() {
+                            let global_position = terrain
+                                .global_transform()
+                                .transform_point(&Point3::from(closest.position))
+                                .coords;
+
+                            if self.interacting {
+                                terrain.draw(&Brush {
+                                    center: global_position,
+                                    kind: BrushKind::Circle { radius: 2.0 },
+                                    mode: BrushMode::ModifyHeightMap { amount: 0.25 },
+                                });
+                            }
+
                             graph[self.brush_gizmo.brush]
                                 .local_transform_mut()
-                                .set_position(closest.position);
+                                .set_position(global_position);
                         }
                     }
                 }

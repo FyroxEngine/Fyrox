@@ -104,7 +104,7 @@ impl TerrainSection {
         let brush = Brush {
             center: Default::default(),
             kind: BrushKind::Circle { radius: 1.0 },
-            mode: BrushMode::AlternateHeightMap { amount: 1.0 },
+            mode: BrushMode::ModifyHeightMap { amount: 1.0 },
         };
 
         Self {

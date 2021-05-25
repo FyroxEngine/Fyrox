@@ -159,3 +159,55 @@ impl<'a> Command<'a> for SetTerrainLayerTextureCommand {
         self.swap(context);
     }
 }
+
+#[derive(Debug)]
+pub struct ModifyTerrainHeightCommand {
+    terrain: Handle<Node>,
+    // TODO: This is very memory-inefficient solution, it could be done
+    //  better by either pack/unpack data on the fly, or by saving changes
+    //  for sub-chunks.
+    old_heightmaps: Vec<Vec<f32>>,
+    new_heightmaps: Vec<Vec<f32>>,
+}
+
+impl ModifyTerrainHeightCommand {
+    pub fn new(
+        terrain: Handle<Node>,
+        old_heightmaps: Vec<Vec<f32>>,
+        new_heightmaps: Vec<Vec<f32>>,
+    ) -> Self {
+        Self {
+            terrain,
+            old_heightmaps,
+            new_heightmaps,
+        }
+    }
+
+    pub fn swap(&mut self, context: &mut SceneContext) {
+        let terrain = context.scene.graph[self.terrain].as_terrain_mut();
+        for (chunk, (old, new)) in terrain.chunks_mut().iter_mut().zip(
+            self.old_heightmaps
+                .iter_mut()
+                .zip(self.new_heightmaps.iter_mut()),
+        ) {
+            chunk.set_heightmap(new.clone());
+            std::mem::swap(old, new);
+        }
+    }
+}
+
+impl<'a> Command<'a> for ModifyTerrainHeightCommand {
+    type Context = SceneContext<'a>;
+
+    fn name(&mut self, _context: &Self::Context) -> String {
+        "Modify Terrain Height".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut Self::Context) {
+        self.swap(context);
+    }
+
+    fn revert(&mut self, context: &mut Self::Context) {
+        self.swap(context);
+    }
+}
