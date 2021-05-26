@@ -44,8 +44,9 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Install
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      - name: Install Dependencies
+        run: rustup target add wasm32-unknown-unknown
+        run: cargo install wasm-pack
         run: sudo apt-get install libasound2-dev libudev-dev pkg-config
       - name: Build
         run: cd examples/wasm
