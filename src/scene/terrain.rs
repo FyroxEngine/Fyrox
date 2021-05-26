@@ -376,7 +376,7 @@ impl Terrain {
                 }
             }
             BrushMode::DrawOnMask { layer, alpha } => {
-                let alpha = alpha.clamp(0.0, 1.0);
+                let alpha = alpha.clamp(-1.0, 1.0);
 
                 for chunk in self.chunks.iter_mut() {
                     let chunk_position = chunk.local_position();
