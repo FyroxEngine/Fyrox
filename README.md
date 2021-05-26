@@ -1,6 +1,8 @@
 # rusty editor
 
-[![CI Status](https://github.com/gideongrinberg/rusty-editor/actions/workflows/ci.yml/badge.svg)](https://github.com/gideongrinberg/rusty-editor/actions/workflows/ci.yml)
+Scene editor for [rg3d engine](https://github.com/rg3dengine/rg3d).
+
+[![CI Status](https://github.com/rg3dengine/rusty-editor/actions/workflows/ci.yml/badge.svg)](https://github.com/rg3dengine/rusty-editor/actions/workflows/ci.yml)
 
 ## Motivation
 
