@@ -38,19 +38,7 @@ jobs:
     - name: Test
       run: cargo test --verbose
 
-  wasm:
-    name: Wasm CI
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
 
-      - name: Install
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-
-      - run: cargo check
-      - run: cargo test --verbose
-      - run: wasm-pack test --headless --chrome
-      - run: wasm-pack test --headless --firefox
 
   # MacOS 11 CI is currently in beta. Uncomment the below lines when it's out of beta.
   # macos11:
