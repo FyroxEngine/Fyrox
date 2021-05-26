@@ -23,7 +23,7 @@ use rg3d::{
         widget::WidgetBuilder,
         Orientation,
     },
-    scene::{graph::Graph, node::Node},
+    scene::{graph::Graph, node::Node, terrain::BrushMode},
 };
 use std::sync::mpsc::Sender;
 
@@ -139,7 +139,7 @@ impl TerrainSection {
 
             self.layer_section.sync_to_model(
                 self.current_layer
-                    .map(|i| &terrain.chunks_ref().first().unwrap().layers()[i]),
+                    .and_then(|i| terrain.chunks_ref().first().unwrap().layers().get(i)),
                 ui,
             );
         }
@@ -165,6 +165,12 @@ impl TerrainSection {
         }
 
         self.brush_section.handle_message(message);
+
+        let mut brush = self.brush_section.brush.lock().unwrap();
+        if let BrushMode::DrawOnMask { layer, .. } = &mut brush.mode {
+            *layer = self.current_layer.unwrap_or(0);
+        }
+        drop(brush);
 
         if let Node::Terrain(_) = node {
             match *message.data() {

@@ -1,3 +1,4 @@
+use crate::scene::commands::terrain::ModifyTerrainLayerMaskCommand;
 use crate::{
     interaction::InteractionModeTrait,
     scene::{
@@ -6,6 +7,7 @@ use crate::{
     },
     GameEngine, Message,
 };
+use rg3d::scene::terrain::{BrushKind, BrushMode, Terrain};
 use rg3d::{
     core::{
         algebra::{Point3, UnitQuaternion, Vector2, Vector3},
@@ -28,6 +30,7 @@ use std::sync::{mpsc::Sender, Arc, Mutex, RwLock};
 
 pub struct TerrainInteractionMode {
     heightmaps: Vec<Vec<f32>>,
+    masks: Vec<Vec<u8>>,
     message_sender: Sender<Message>,
     interacting: bool,
     brush_gizmo: BrushGizmo,
@@ -47,6 +50,7 @@ impl TerrainInteractionMode {
             interacting: false,
             message_sender,
             brush,
+            masks: Default::default(),
         }
     }
 }
@@ -88,6 +92,22 @@ impl BrushGizmo {
     }
 }
 
+fn copy_layer_masks(terrain: &Terrain, layer: usize) -> Vec<Vec<u8>> {
+    terrain
+        .chunks_ref()
+        .iter()
+        .map(|c| {
+            c.layers()[layer]
+                .mask
+                .as_ref()
+                .unwrap()
+                .data_ref()
+                .data()
+                .to_vec()
+        })
+        .collect()
+}
+
 impl InteractionModeTrait for TerrainInteractionMode {
     fn on_left_mouse_button_down(
         &mut self,
@@ -102,11 +122,18 @@ impl InteractionModeTrait for TerrainInteractionMode {
                 let handle = selection.nodes()[0];
 
                 if let Node::Terrain(terrain) = &graph[handle] {
-                    self.heightmaps = terrain
-                        .chunks_ref()
-                        .iter()
-                        .map(|c| c.heightmap().to_vec())
-                        .collect();
+                    match self.brush.lock().unwrap().mode {
+                        BrushMode::ModifyHeightMap { .. } => {
+                            self.heightmaps = terrain
+                                .chunks_ref()
+                                .iter()
+                                .map(|c| c.heightmap().to_vec())
+                                .collect();
+                        }
+                        BrushMode::DrawOnMask { layer, .. } => {
+                            self.masks = copy_layer_masks(terrain, layer);
+                        }
+                    }
 
                     self.interacting = true;
                 }
@@ -134,15 +161,35 @@ impl InteractionModeTrait for TerrainInteractionMode {
                             .map(|c| c.heightmap().to_vec())
                             .collect();
 
-                        self.message_sender
-                            .send(Message::DoSceneCommand(SceneCommand::ModifyTerrainHeight(
-                                ModifyTerrainHeightCommand::new(
-                                    handle,
-                                    std::mem::take(&mut self.heightmaps),
-                                    new_heightmaps,
-                                ),
-                            )))
-                            .unwrap();
+                        match self.brush.lock().unwrap().mode {
+                            BrushMode::ModifyHeightMap { .. } => {
+                                self.message_sender
+                                    .send(Message::DoSceneCommand(
+                                        SceneCommand::ModifyTerrainHeight(
+                                            ModifyTerrainHeightCommand::new(
+                                                handle,
+                                                std::mem::take(&mut self.heightmaps),
+                                                new_heightmaps,
+                                            ),
+                                        ),
+                                    ))
+                                    .unwrap();
+                            }
+                            BrushMode::DrawOnMask { layer, .. } => {
+                                self.message_sender
+                                    .send(Message::DoSceneCommand(
+                                        SceneCommand::ModifyTerrainLayerMask(
+                                            ModifyTerrainLayerMaskCommand::new(
+                                                handle,
+                                                std::mem::take(&mut self.masks),
+                                                copy_layer_masks(terrain, layer),
+                                                layer,
+                                            ),
+                                        ),
+                                    ))
+                                    .unwrap();
+                            }
+                        }
 
                         self.interacting = false;
                     }
@@ -181,13 +228,35 @@ impl InteractionModeTrait for TerrainInteractionMode {
                             let mut brush = self.brush.lock().unwrap();
                             brush.center = global_position;
 
-                            if self.interacting {
-                                terrain.draw(&brush);
+                            let mut brush_copy = brush.clone();
+                            match &mut brush_copy.mode {
+                                BrushMode::ModifyHeightMap { amount } => {
+                                    if engine.user_interface.keyboard_modifiers().shift {
+                                        *amount = *amount * -1.0;
+                                    }
+                                }
+                                BrushMode::DrawOnMask { alpha, .. } => {
+                                    if engine.user_interface.keyboard_modifiers().shift {
+                                        *alpha = -1.0;
+                                    }
+                                }
                             }
+
+                            if self.interacting {
+                                terrain.draw(&brush_copy);
+                            }
+
+                            let scale = match brush.kind {
+                                BrushKind::Circle { radius } => Vector3::new(radius, 1.0, radius),
+                                BrushKind::Rectangle { width, length } => {
+                                    Vector3::new(width, 1.0, length)
+                                }
+                            };
 
                             graph[self.brush_gizmo.brush]
                                 .local_transform_mut()
-                                .set_position(global_position);
+                                .set_position(global_position)
+                                .set_scale(scale);
                         }
                     }
                 }

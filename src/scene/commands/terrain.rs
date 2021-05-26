@@ -211,3 +211,69 @@ impl<'a> Command<'a> for ModifyTerrainHeightCommand {
         self.swap(context);
     }
 }
+
+#[derive(Debug)]
+pub struct ModifyTerrainLayerMaskCommand {
+    terrain: Handle<Node>,
+    // TODO: This is very memory-inefficient solution, it could be done
+    //  better by either pack/unpack data on the fly, or by saving changes
+    //  for sub-chunks.
+    old_masks: Vec<Vec<u8>>,
+    new_masks: Vec<Vec<u8>>,
+    layer: usize,
+}
+
+impl ModifyTerrainLayerMaskCommand {
+    pub fn new(
+        terrain: Handle<Node>,
+        old_masks: Vec<Vec<u8>>,
+        new_masks: Vec<Vec<u8>>,
+        layer: usize,
+    ) -> Self {
+        Self {
+            terrain,
+            old_masks,
+            new_masks,
+            layer,
+        }
+    }
+
+    pub fn swap(&mut self, context: &mut SceneContext) {
+        let terrain = context.scene.graph[self.terrain].as_terrain_mut();
+        for (chunk, (old, new)) in terrain
+            .chunks_mut()
+            .iter_mut()
+            .zip(self.old_masks.iter_mut().zip(self.new_masks.iter_mut()))
+        {
+            let mut texture_data = chunk.layers_mut()[self.layer]
+                .mask
+                .as_mut()
+                .unwrap()
+                .data_ref();
+
+            for (mask_pixel, new_pixel) in
+                texture_data.modify().data_mut().iter_mut().zip(new.iter())
+            {
+                *mask_pixel = *new_pixel;
+            }
+
+            std::mem::swap(old, new);
+        }
+    }
+}
+
+impl<'a> Command<'a> for ModifyTerrainLayerMaskCommand {
+    type Context = SceneContext<'a>;
+
+    fn name(&mut self, _context: &Self::Context) -> String {
+        "Modify Terrain Layer Mask".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut Self::Context) {
+        self.swap(context);
+    }
+
+    fn revert(&mut self, context: &mut Self::Context) {
+        self.swap(context);
+    }
+}

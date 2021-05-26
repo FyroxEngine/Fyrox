@@ -21,6 +21,7 @@ use std::sync::{Arc, Mutex};
 pub struct BrushSection {
     pub section: Handle<UiNode>,
     kind: Handle<UiNode>,
+    mode: Handle<UiNode>,
     width: Handle<UiNode>,
     length: Handle<UiNode>,
     radius: Handle<UiNode>,
@@ -30,6 +31,7 @@ pub struct BrushSection {
 impl BrushSection {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let kind;
+        let mode;
         let width;
         let length;
         let radius;
@@ -42,22 +44,34 @@ impl BrushSection {
                             make_dropdown_list_option(ctx, "Circle"),
                             make_dropdown_list_option(ctx, "Rectangle"),
                         ])
+                        .with_selected(0)
                         .build(ctx);
                     kind
                 })
-                .with_child(make_text_mark(ctx, "Brush Width", 1))
+                .with_child(make_text_mark(ctx, "Brush Mode", 1))
                 .with_child({
-                    width = make_f32_input_field(ctx, 1, 0.0, f32::MAX, 0.1);
+                    mode = DropdownListBuilder::new(WidgetBuilder::new().on_row(1).on_column(1))
+                        .with_items(vec![
+                            make_dropdown_list_option(ctx, "Modify Height Map"),
+                            make_dropdown_list_option(ctx, "Draw On Mask"),
+                        ])
+                        .with_selected(0)
+                        .build(ctx);
+                    mode
+                })
+                .with_child(make_text_mark(ctx, "Brush Width", 2))
+                .with_child({
+                    width = make_f32_input_field(ctx, 2, 0.0, f32::MAX, 0.1);
                     width
                 })
-                .with_child(make_text_mark(ctx, "Brush Height", 2))
+                .with_child(make_text_mark(ctx, "Brush Height", 3))
                 .with_child({
-                    length = make_f32_input_field(ctx, 2, 0.0, f32::MAX, 0.1);
+                    length = make_f32_input_field(ctx, 3, 0.0, f32::MAX, 0.1);
                     length
                 })
-                .with_child(make_text_mark(ctx, "Brush Radius", 3))
+                .with_child(make_text_mark(ctx, "Brush Radius", 4))
                 .with_child({
-                    radius = make_f32_input_field(ctx, 3, 0.0, f32::MAX, 0.1);
+                    radius = make_f32_input_field(ctx, 4, 0.0, f32::MAX, 0.1);
                     radius
                 }),
         )
@@ -67,11 +81,13 @@ impl BrushSection {
         .add_row(Row::strict(ROW_HEIGHT))
         .add_row(Row::strict(ROW_HEIGHT))
         .add_row(Row::strict(ROW_HEIGHT))
+        .add_row(Row::strict(ROW_HEIGHT))
         .build(ctx);
 
         Self {
             section,
             kind,
+            mode,
             width,
             length,
             radius,
@@ -115,6 +131,21 @@ impl BrushSection {
                 );
             }
         }
+
+        match brush.mode {
+            BrushMode::ModifyHeightMap { .. } => {
+                send_sync_message(
+                    ui,
+                    DropdownListMessage::selection(self.mode, MessageDirection::ToWidget, Some(0)),
+                );
+            }
+            BrushMode::DrawOnMask { .. } => {
+                send_sync_message(
+                    ui,
+                    DropdownListMessage::selection(self.mode, MessageDirection::ToWidget, Some(1)),
+                );
+            }
+        }
     }
 
     pub fn handle_message(&mut self, message: &UiMessage) {
@@ -123,20 +154,31 @@ impl BrushSection {
         let mut brush = self.brush.lock().unwrap();
 
         match message.data() {
-            UiMessageData::DropdownList(DropdownListMessage::SelectionChanged(Some(selection)))
-                if message.destination() == self.kind =>
-            {
-                match selection {
-                    0 => {
-                        brush.kind = BrushKind::Circle { radius: 1.0 };
-                    }
-                    1 => {
-                        brush.kind = BrushKind::Rectangle {
-                            width: 0.5,
-                            length: 0.5,
+            UiMessageData::DropdownList(DropdownListMessage::SelectionChanged(Some(selection))) => {
+                if message.destination() == self.kind {
+                    match selection {
+                        0 => {
+                            brush.kind = BrushKind::Circle { radius: 1.0 };
                         }
+                        1 => {
+                            brush.kind = BrushKind::Rectangle {
+                                width: 0.5,
+                                length: 0.5,
+                            }
+                        }
+                        _ => unreachable!(),
                     }
-                    _ => unreachable!(),
+                } else if message.destination() == self.mode {
+                    match selection {
+                        0 => brush.mode = BrushMode::ModifyHeightMap { amount: 0.25 },
+                        1 => {
+                            brush.mode = BrushMode::DrawOnMask {
+                                layer: 0,
+                                alpha: 1.0,
+                            }
+                        }
+                        _ => unreachable!(),
+                    }
                 }
             }
             UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) => {
