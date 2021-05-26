@@ -47,11 +47,11 @@ jobs:
       - name: Install Dependencies
         run: https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | s
       - name: Build
-        run: |
+      - run: |
 			cd examples/wasm 
 			wasm-pack build --target web
       - name: Test
-        run: | 
+      - run: | 
 			cd examples/wasm
 			wasm-pack test --headless --chrome
 			wasm-pack test --headless --firefox
