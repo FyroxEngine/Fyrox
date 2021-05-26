@@ -38,6 +38,14 @@ jobs:
     - name: Test
       run: cargo test --verbose
 
+  wasm:
+    name: Wasm CI
+    runs-on: ubuntu-latest
+    steps:
+    - name: Install Dependencies and tools
+      run: sudo apt-get install libasound2-dev libudev-dev pkg-config; rustup target add wasm32-unknown-unknown; cargo install wasm-pack; cargo install basic-http-server
+    - uses: actions/checkout@v2
+    -
   # MacOS 11 CI is currently in beta. Uncomment the below lines when it's out of beta.
   # macos11:
   #   name: MacOS Big Sur (M1) CI
