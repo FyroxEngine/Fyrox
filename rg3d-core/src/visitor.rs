@@ -63,6 +63,142 @@ pub enum FieldKind {
     Vector4(Vector4<f32>),
     Uuid(Uuid),
     UnitComplex(UnitComplex<f32>),
+    PodArray {
+        type_id: u8,
+        element_size: u32,
+        bytes: Vec<u8>,
+    },
+}
+
+pub trait Pod: Copy {
+    fn type_id() -> u8;
+}
+
+impl Pod for u8 {
+    fn type_id() -> u8 {
+        0
+    }
+}
+
+impl Pod for i8 {
+    fn type_id() -> u8 {
+        1
+    }
+}
+
+impl Pod for u16 {
+    fn type_id() -> u8 {
+        2
+    }
+}
+
+impl Pod for i16 {
+    fn type_id() -> u8 {
+        3
+    }
+}
+
+impl Pod for u32 {
+    fn type_id() -> u8 {
+        4
+    }
+}
+
+impl Pod for i32 {
+    fn type_id() -> u8 {
+        5
+    }
+}
+
+impl Pod for u64 {
+    fn type_id() -> u8 {
+        6
+    }
+}
+
+impl Pod for i64 {
+    fn type_id() -> u8 {
+        7
+    }
+}
+
+impl Pod for f32 {
+    fn type_id() -> u8 {
+        8
+    }
+}
+
+impl Pod for f64 {
+    fn type_id() -> u8 {
+        9
+    }
+}
+
+pub struct PodVecView<'a, T: Pod> {
+    type_id: u8,
+    vec: &'a mut Vec<T>,
+}
+
+impl<'a, T: Pod> PodVecView<'a, T> {
+    pub fn from_pod_vec(vec: &'a mut Vec<T>) -> Self {
+        Self {
+            type_id: T::type_id(),
+            vec,
+        }
+    }
+}
+
+impl<'a, T: Pod> Visit for PodVecView<'a, T> {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        if visitor.reading {
+            if let Some(field) = visitor.find_field(name) {
+                match &field.kind {
+                    FieldKind::PodArray {
+                        type_id,
+                        element_size,
+                        bytes,
+                    } => {
+                        if *type_id == self.type_id {
+                            let mut owned_bytes = bytes.clone();
+                            let len = owned_bytes.len() / (*element_size as usize);
+                            *self.vec = unsafe {
+                                Vec::from_raw_parts(owned_bytes.as_mut_ptr() as *mut T, len, len)
+                            };
+                            std::mem::forget(owned_bytes);
+                            Ok(())
+                        } else {
+                            Err(VisitError::TypeMismatch)
+                        }
+                    }
+                    _ => Err(VisitError::FieldTypeDoesNotMatch),
+                }
+            } else {
+                Err(VisitError::FieldDoesNotExist(name.to_owned()))
+            }
+        } else if visitor.find_field(name).is_some() {
+            Err(VisitError::FieldAlreadyExists(name.to_owned()))
+        } else {
+            let node = visitor.current_node();
+            node.fields.push(Field::new(
+                name,
+                FieldKind::PodArray {
+                    type_id: T::type_id(),
+                    element_size: std::mem::size_of::<T>() as u32,
+                    bytes: unsafe {
+                        let mut data = self.vec.clone();
+                        let bytes = Vec::from_raw_parts(
+                            data.as_mut_ptr() as *mut u8,
+                            data.len() * std::mem::size_of::<T>(),
+                            data.capacity() * std::mem::size_of::<T>(),
+                        );
+                        std::mem::forget(data);
+                        bytes
+                    },
+                },
+            ));
+            Ok(())
+        }
+    }
 }
 
 impl FieldKind {
@@ -111,6 +247,17 @@ impl FieldKind {
             Self::Uuid(uuid) => uuid.to_string(),
             Self::UnitComplex(data) => {
                 format!("<complex = {}; {}>, ", data.re, data.im)
+            }
+            FieldKind::PodArray {
+                type_id,
+                element_size,
+                bytes,
+            } => {
+                let base64_encoded = base64::encode(bytes);
+                format!(
+                    "<podarray = {}; {}; [{}]>",
+                    type_id, element_size, base64_encoded
+                )
             }
         }
     }
@@ -397,6 +544,17 @@ impl Field {
                 file.write_f32::<LittleEndian>(c.re)?;
                 file.write_f32::<LittleEndian>(c.im)?;
             }
+            FieldKind::PodArray {
+                type_id,
+                element_size,
+                bytes,
+            } => {
+                file.write_u8(21)?;
+                file.write_u8(*type_id)?;
+                file.write_u32::<LittleEndian>(*element_size)?;
+                file.write_u64::<LittleEndian>(bytes.len() as u64)?;
+                file.write_all(bytes)?;
+            }
         }
         Ok(())
     }
@@ -477,6 +635,18 @@ impl Field {
                     let im = file.read_f32::<LittleEndian>()?;
                     UnitComplex::from_complex(Complex::new(re, im))
                 }),
+                21 => {
+                    let type_id = file.read_u8()?;
+                    let element_size = file.read_u32::<LittleEndian>()?;
+                    let data_size = file.read_u64::<LittleEndian>()?;
+                    let mut bytes = vec![0; data_size as usize];
+                    file.read_exact(&mut bytes)?;
+                    FieldKind::PodArray {
+                        type_id,
+                        element_size,
+                        bytes,
+                    }
+                }
                 _ => return Err(VisitError::UnknownFieldType(id)),
             },
         ))

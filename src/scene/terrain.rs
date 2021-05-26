@@ -5,6 +5,7 @@
 use crate::core::arrayvec::ArrayVec;
 use crate::core::math::ray::Ray;
 use crate::core::math::ray_rect_intersection;
+use crate::core::visitor::PodVecView;
 use crate::resource::texture::TextureWrapMode;
 use crate::{
     core::{
@@ -68,7 +69,7 @@ impl Layer {
     }
 }
 
-#[derive(Debug, Clone, Visit)]
+#[derive(Debug, Clone)]
 pub struct Chunk {
     heightmap: Vec<f32>,
     layers: Vec<Layer>,
@@ -77,12 +78,28 @@ pub struct Chunk {
     length: f32,
     width_point_count: u32,
     length_point_count: u32,
-    // No need to save surface data, it will be regenerated automatically from
-    // other data.
-    #[visit(skip)]
-    surface_data: Option<Arc<RwLock<SurfaceData>>>,
-    #[visit(skip)]
+    surface_data: Arc<RwLock<SurfaceData>>,
     dirty: Cell<bool>,
+}
+
+// Manual implementation of the trait because we need to serialize heightmap differently.
+impl Visit for Chunk {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        let mut view = PodVecView::from_pod_vec(&mut self.heightmap);
+        view.visit("Heightmap", visitor)?;
+
+        self.layers.visit("Layers", visitor)?;
+        self.position.visit("Position", visitor)?;
+        self.width.visit("Width", visitor)?;
+        self.length.visit("Length", visitor)?;
+        self.width_point_count.visit("WidthPointCount", visitor)?;
+        self.length_point_count.visit("LengthPointCount", visitor)?;
+        // self.surface_data, self.dirty is are not serialized.
+
+        visitor.leave_region()
+    }
 }
 
 impl Default for Chunk {
@@ -95,7 +112,7 @@ impl Default for Chunk {
             length: 0.0,
             width_point_count: 0,
             length_point_count: 0,
-            surface_data: None,
+            surface_data: make_surface_data(),
             dirty: Cell::new(true),
         }
     }
@@ -104,8 +121,7 @@ impl Default for Chunk {
 impl Chunk {
     pub fn update(&mut self) {
         if self.dirty.get() {
-            let surface_data = self.surface_data.clone().unwrap();
-            let mut surface_data = surface_data.write().unwrap();
+            let mut surface_data = self.surface_data.write().unwrap();
             surface_data.clear();
 
             assert_eq!(self.width_point_count & 1, 0);
@@ -209,7 +225,7 @@ impl Chunk {
     }
 
     pub fn data(&self) -> Arc<RwLock<SurfaceData>> {
-        self.surface_data.clone().unwrap()
+        self.surface_data.clone()
     }
 }
 
@@ -360,7 +376,7 @@ impl Terrain {
                 }
             }
             BrushMode::DrawOnMask { layer, alpha } => {
-                let alpha = alpha.clamp(0.0, 1.0);
+                let alpha = alpha.clamp(-1.0, 1.0);
 
                 for chunk in self.chunks.iter_mut() {
                     let chunk_position = chunk.local_position();
@@ -614,6 +630,14 @@ fn create_layer_mask(width: u32, height: u32, value: u8) -> Texture {
     mask
 }
 
+fn make_surface_data() -> Arc<RwLock<SurfaceData>> {
+    Arc::new(RwLock::new(SurfaceData::new(
+        VertexBuffer::new::<StaticVertex>(0, StaticVertex::layout(), vec![]).unwrap(),
+        GeometryBuffer::default(),
+        false,
+    )))
+}
+
 impl TerrainBuilder {
     pub fn new(base_builder: BaseBuilder) -> Self {
         Self {
@@ -702,12 +726,7 @@ impl TerrainBuilder {
                         .collect(),
                     position: Vector3::new(x as f32 * chunk_width, 0.0, z as f32 * chunk_length),
                     width: chunk_width,
-                    surface_data: Some(Arc::new(RwLock::new(SurfaceData::new(
-                        VertexBuffer::new::<StaticVertex>(0, StaticVertex::layout(), vec![])
-                            .unwrap(),
-                        GeometryBuffer::default(),
-                        false,
-                    )))),
+                    surface_data: make_surface_data(),
                     dirty: Cell::new(true),
                     length: chunk_length,
                 });
