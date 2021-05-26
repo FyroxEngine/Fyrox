@@ -1,6 +1,8 @@
 # rusty editor
 
-Scene editor for [rg3d engine](https://github.com/mrDIMAS/rg3d).
+Scene editor for [rg3d engine](https://github.com/rg3dengine/rg3d).
+
+[![CI Status](https://github.com/rg3dengine/rusty-editor/actions/workflows/ci.yml/badge.svg)](https://github.com/rg3dengine/rusty-editor/actions/workflows/ci.yml)
 
 ## Motivation
 
@@ -58,7 +60,7 @@ use rg3d::scene::Scene;
 let mut scene = Scene::default();
 
 // There is no difference between scene created in rusty-editor and any other
-// model file, so any scene can be used directly as resource. 
+// model file, so any scene can be used directly as resource.
 let root = resource_manager
 	.request_model("your_scene.rgs")
 	.unwrap()
@@ -66,9 +68,9 @@ let root = resource_manager
 	.unwrap()
 	.instantiate(&mut scene)
 	.root;
-	
+
 let scene_handle = engine.scenes.add(scene);
-	
+
 ```
 
 Alternatively `rgs` can be loaded by `Scene::from_file` method:
