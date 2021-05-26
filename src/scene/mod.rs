@@ -16,10 +16,6 @@ pub mod sprite;
 pub mod terrain;
 pub mod transform;
 
-use crate::scene::light::Light;
-use crate::scene::mesh::buffer::{
-    VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage, VertexWriteTrait,
-};
 use crate::{
     animation::AnimationContainer,
     core::{
@@ -33,8 +29,15 @@ use crate::{
     engine::{resource_manager::ResourceManager, PhysicsBinder},
     resource::texture::Texture,
     scene::{
-        base::PhysicsBinding, graph::Graph, node::Node, physics::Physics,
-        physics::PhysicsPerformanceStatistics,
+        base::PhysicsBinding,
+        graph::Graph,
+        light::Light,
+        mesh::buffer::{
+            VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage,
+            VertexWriteTrait,
+        },
+        node::Node,
+        physics::{Physics, PhysicsPerformanceStatistics},
     },
     sound::{context::SoundContext, engine::SoundEngine},
     utils::{lightmap::Lightmap, log::Log, log::MessageKind, navmesh::Navmesh},
@@ -1080,6 +1083,34 @@ impl Scene {
                         skybox.right = map_texture(skybox.right.clone(), resource_manager.clone());
                         skybox.front = map_texture(skybox.front.clone(), resource_manager.clone());
                         skybox.back = map_texture(skybox.back.clone(), resource_manager.clone());
+                    }
+                }
+                Node::Terrain(terrain) => {
+                    for chunk in terrain.chunks_mut() {
+                        for layer in chunk.layers_mut() {
+                            layer.diffuse_texture = map_texture(
+                                layer.diffuse_texture.clone(),
+                                resource_manager.clone(),
+                            );
+
+                            layer.normal_texture =
+                                map_texture(layer.normal_texture.clone(), resource_manager.clone());
+
+                            layer.specular_texture = map_texture(
+                                layer.specular_texture.clone(),
+                                resource_manager.clone(),
+                            );
+
+                            layer.roughness_texture = map_texture(
+                                layer.roughness_texture.clone(),
+                                resource_manager.clone(),
+                            );
+
+                            layer.height_texture =
+                                map_texture(layer.height_texture.clone(), resource_manager.clone());
+
+                            // Mask is not resolved because it is procedural texture.
+                        }
                     }
                 }
                 _ => (),

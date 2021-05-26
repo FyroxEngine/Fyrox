@@ -24,7 +24,7 @@ use crate::{
     core::{
         futures::io::Error,
         io::{self, FileLoadError},
-        visitor::{Visit, VisitError, VisitResult, Visitor},
+        visitor::{PodVecView, Visit, VisitError, VisitResult, Visitor},
     },
     resource::{Resource, ResourceData, ResourceState},
 };
@@ -190,7 +190,8 @@ impl Visit for TextureData {
         let _ = self.serialize_content.visit("SerializeContent", visitor);
 
         if self.serialize_content {
-            self.bytes.visit("Data", visitor)?;
+            let mut bytes_view = PodVecView::from_pod_vec(&mut self.bytes);
+            bytes_view.visit("Data", visitor)?;
         }
 
         visitor.leave_region()
