@@ -45,12 +45,16 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Install
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh ; sudo apt-get install libasound2-dev libudev-dev pkg-config
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+        run: sudo apt-get install libasound2-dev libudev-dev pkg-config
+      - name: Build
+        run: cd examples/wasm
+        run: wasm-pack build --target web
+      - name: Test
+        run: cd examples/wasm
+        run: wasm-pack test --headless --chrome
+        run: wasm-pack test --headless --firefox
 
-      - run: cargo check
-      - run: cargo test --verbose
-      - run: wasm-pack test --headless --chrome
-      - run: wasm-pack test --headless --firefox
 
   # MacOS 11 CI is currently in beta. Uncomment the below lines when it's out of beta.
   # macos11:
