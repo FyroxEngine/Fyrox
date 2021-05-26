@@ -1,4 +1,3 @@
-use crate::sidebar::terrain::layer::LayerSection;
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     scene::{
@@ -6,30 +5,25 @@ use crate::{
         commands::SceneCommand,
     },
     send_sync_message,
-    sidebar::{terrain::brush::BrushSection, ROW_HEIGHT},
+    sidebar::{terrain::brush::BrushSection, terrain::layer::LayerSection, ROW_HEIGHT},
     Message,
 };
-use rg3d::engine::resource_manager::ResourceManager;
 use rg3d::{
     core::{algebra::Vector2, pool::Handle, scope_profile},
+    engine::resource_manager::ResourceManager,
     gui::{
         border::BorderBuilder,
         button::ButtonBuilder,
         decorator::DecoratorBuilder,
         grid::{Column, GridBuilder, Row},
         list_view::ListViewBuilder,
-        message::{ButtonMessage, ListViewMessage, UiMessageData},
-        message::{MessageDirection, WidgetMessage},
+        message::{ButtonMessage, ListViewMessage, MessageDirection, UiMessageData, WidgetMessage},
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
         widget::WidgetBuilder,
         Orientation,
     },
-    scene::{
-        graph::Graph,
-        node::Node,
-        terrain::{Brush, BrushKind, BrushMode},
-    },
+    scene::{graph::Graph, node::Node},
 };
 use std::sync::mpsc::Sender;
 
@@ -38,11 +32,10 @@ mod layer;
 
 pub struct TerrainSection {
     pub section: Handle<UiNode>,
-    brush_section: BrushSection,
+    pub brush_section: BrushSection,
     layers: Handle<UiNode>,
     add_layer: Handle<UiNode>,
     remove_layer: Handle<UiNode>,
-    brush: Brush,
     current_layer: Option<usize>,
     layer_section: LayerSection,
 }
@@ -101,18 +94,11 @@ impl TerrainSection {
         .with_orientation(Orientation::Vertical)
         .build(ctx);
 
-        let brush = Brush {
-            center: Default::default(),
-            kind: BrushKind::Circle { radius: 1.0 },
-            mode: BrushMode::ModifyHeightMap { amount: 1.0 },
-        };
-
         Self {
             section,
             layers,
             add_layer,
             brush_section,
-            brush,
             remove_layer,
             layer_section,
             current_layer: None,
@@ -133,7 +119,7 @@ impl TerrainSection {
                 .layers()
                 .iter()
                 .enumerate()
-                .map(|(i, l)| {
+                .map(|(i, _)| {
                     DecoratorBuilder::new(BorderBuilder::new(
                         WidgetBuilder::new().with_child(
                             TextBuilder::new(WidgetBuilder::new())
@@ -158,7 +144,7 @@ impl TerrainSection {
             );
         }
 
-        self.brush_section.sync_to_model(&self.brush, ui);
+        self.brush_section.sync_to_model(ui);
     }
 
     pub fn handle_message(
@@ -178,7 +164,9 @@ impl TerrainSection {
                 .handle_message(message, ui, index, resource_manager, handle, sender);
         }
 
-        if let Node::Terrain(sprite) = node {
+        self.brush_section.handle_message(message);
+
+        if let Node::Terrain(_) = node {
             match *message.data() {
                 UiMessageData::Button(ButtonMessage::Click) => {
                     if message.destination() == self.add_layer {

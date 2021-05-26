@@ -1,9 +1,11 @@
-use crate::scene::commands::terrain::ModifyTerrainHeightCommand;
-use crate::scene::commands::SceneCommand;
 use crate::{
-    interaction::InteractionModeTrait, scene::EditorScene, scene::Selection, GameEngine, Message,
+    interaction::InteractionModeTrait,
+    scene::{
+        commands::terrain::ModifyTerrainHeightCommand, commands::SceneCommand, EditorScene,
+        Selection,
+    },
+    GameEngine, Message,
 };
-use rg3d::scene::terrain::{Brush, BrushKind, BrushMode};
 use rg3d::{
     core::{
         algebra::{Point3, UnitQuaternion, Vector2, Vector3},
@@ -19,16 +21,17 @@ use rg3d::{
             MeshBuilder, RenderPath,
         },
         node::Node,
-        terrain::TerrainRayCastResult,
+        terrain::{Brush, TerrainRayCastResult},
     },
 };
-use std::sync::{mpsc::Sender, Arc, RwLock};
+use std::sync::{mpsc::Sender, Arc, Mutex, RwLock};
 
 pub struct TerrainInteractionMode {
     heightmaps: Vec<Vec<f32>>,
     message_sender: Sender<Message>,
     interacting: bool,
     brush_gizmo: BrushGizmo,
+    brush: Arc<Mutex<Brush>>,
 }
 
 impl TerrainInteractionMode {
@@ -36,12 +39,14 @@ impl TerrainInteractionMode {
         editor_scene: &EditorScene,
         engine: &mut GameEngine,
         message_sender: Sender<Message>,
+        brush: Arc<Mutex<Brush>>,
     ) -> Self {
         Self {
             heightmaps: Default::default(),
             brush_gizmo: BrushGizmo::new(editor_scene, engine),
             interacting: false,
             message_sender,
+            brush,
         }
     }
 }
@@ -129,13 +134,15 @@ impl InteractionModeTrait for TerrainInteractionMode {
                             .map(|c| c.heightmap().to_vec())
                             .collect();
 
-                        self.message_sender.send(Message::DoSceneCommand(
-                            SceneCommand::ModifyTerrainHeight(ModifyTerrainHeightCommand::new(
-                                handle,
-                                std::mem::take(&mut self.heightmaps),
-                                new_heightmaps,
-                            )),
-                        ));
+                        self.message_sender
+                            .send(Message::DoSceneCommand(SceneCommand::ModifyTerrainHeight(
+                                ModifyTerrainHeightCommand::new(
+                                    handle,
+                                    std::mem::take(&mut self.heightmaps),
+                                    new_heightmaps,
+                                ),
+                            )))
+                            .unwrap();
 
                         self.interacting = false;
                     }
@@ -171,12 +178,11 @@ impl InteractionModeTrait for TerrainInteractionMode {
                                 .transform_point(&Point3::from(closest.position))
                                 .coords;
 
+                            let mut brush = self.brush.lock().unwrap();
+                            brush.center = global_position;
+
                             if self.interacting {
-                                terrain.draw(&Brush {
-                                    center: global_position,
-                                    kind: BrushKind::Circle { radius: 2.0 },
-                                    mode: BrushMode::ModifyHeightMap { amount: 0.25 },
-                                });
+                                terrain.draw(&brush);
                             }
 
                             graph[self.brush_gizmo.brush]

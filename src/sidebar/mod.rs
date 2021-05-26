@@ -93,7 +93,7 @@ pub struct SideBar {
     sprite_section: SpriteSection,
     mesh_section: MeshSection,
     physics_section: PhysicsSection,
-    terrain_section: TerrainSection,
+    pub terrain_section: TerrainSection,
 }
 
 fn make_text_mark(ctx: &mut BuildContext, text: &str, row: usize) -> Handle<UiNode> {
