@@ -42,9 +42,10 @@ jobs:
     name: Wasm CI
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v2
+
       - name: Install Dependencies
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | s
-      - uses: actions/checkout@v2        
       - name: Build
         run: |
              cd examples/wasm
