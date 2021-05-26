@@ -48,13 +48,13 @@ jobs:
         run: https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | s
       - name: Build
       - run: |
-			cd examples/wasm 
-			wasm-pack build --target web
+            cd examples/wasm 
+            wasm-pack build --target web
       - name: Test
       - run: | 
-			cd examples/wasm
-			wasm-pack test --headless --chrome
-			wasm-pack test --headless --firefox
+            cd examples/wasm
+            wasm-pack test --headless --chrome
+            wasm-pack test --headless --firefox
 
 
   # MacOS 11 CI is currently in beta. Uncomment the below lines when it's out of beta.
