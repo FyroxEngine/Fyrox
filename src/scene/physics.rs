@@ -1,11 +1,10 @@
 //! Contains all structures and methods to operate with physics world.
 
-use crate::core::instant;
-use crate::scene::mesh::buffer::{VertexAttributeUsage, VertexReadTrait};
 use crate::{
     core::{
         arrayvec::ArrayVec,
         color::Color,
+        instant,
         math::{aabb::AxisAlignedBoundingBox, ray::Ray},
         pool::{ErasedHandle, Handle},
         uuid::Uuid,
@@ -15,7 +14,13 @@ use crate::{
     engine::{ColliderHandle, JointHandle, PhysicsBinder, RigidBodyHandle},
     physics::math::AngVector,
     resource::model::Model,
-    scene::{graph::Graph, node::Node, SceneDrawingContext},
+    scene::{
+        graph::Graph,
+        mesh::buffer::{VertexAttributeUsage, VertexReadTrait},
+        node::Node,
+        terrain::Terrain,
+        SceneDrawingContext,
+    },
     utils::{
         log::{Log, MessageKind},
         raw_mesh::{RawMeshBuilder, RawVertex},
@@ -652,9 +657,7 @@ impl Physics {
     }
 
     /// Creates height field shape from given terrain.
-    pub fn make_heightfield(terrain: Handle<Node>, graph: &Graph) -> SharedShape {
-        let terrain = graph[terrain].as_terrain();
-
+    pub fn make_heightfield(terrain: &Terrain) -> SharedShape {
         // Count rows and columns.
         let mut nrows = 0;
         let mut ncols = 0;
@@ -710,6 +713,38 @@ impl Physics {
             .build();
         let handle = self.add_body(body);
         self.add_collider(tri_mesh, &handle);
+        handle
+    }
+
+    /// Creates new heightfield rigid body from given terrain scene node.
+    pub fn terrain_to_heightfield(
+        &mut self,
+        terrain_handle: Handle<Node>,
+        graph: &Graph,
+    ) -> RigidBodyHandle {
+        let terrain = graph[terrain_handle].as_terrain();
+        let shape = Self::make_heightfield(terrain);
+        let heightfield = ColliderBuilder::new(shape)
+            .position_wrt_parent(Isometry3 {
+                rotation: UnitQuaternion::default(),
+                translation: Translation {
+                    vector: Vector3::new(terrain.width() * 0.5, 0.0, terrain.length() * 0.5),
+                },
+            })
+            .friction(0.0)
+            .build();
+        let (global_rotation, global_position) =
+            graph.isometric_global_rotation_position(terrain_handle);
+        let body = RigidBodyBuilder::new(BodyStatus::Static)
+            .position(Isometry3 {
+                rotation: global_rotation,
+                translation: Translation {
+                    vector: global_position,
+                },
+            })
+            .build();
+        let handle = self.add_body(body);
+        self.add_collider(heightfield, &handle);
         handle
     }
 
