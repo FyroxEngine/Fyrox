@@ -254,6 +254,16 @@ impl Chunk {
     pub fn data(&self) -> Arc<RwLock<SurfaceData>> {
         self.surface_data.clone()
     }
+
+    /// Returns width of height map in dots.
+    pub fn width_point_count(&self) -> u32 {
+        self.width_point_count
+    }
+
+    /// Returns length of height map in dots.
+    pub fn length_point_count(&self) -> u32 {
+        self.length_point_count
+    }
 }
 
 fn map_to_local(v: Vector3<f32>) -> Vector2<f32> {

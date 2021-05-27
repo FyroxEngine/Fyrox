@@ -651,6 +651,43 @@ impl Physics {
         }
     }
 
+    /// Creates height field shape from given terrain.
+    pub fn make_heightfield(terrain: Handle<Node>, graph: &Graph) -> SharedShape {
+        let terrain = graph[terrain].as_terrain();
+
+        // Count rows and columns.
+        let mut nrows = 0;
+        let mut ncols = 0;
+        for chunk in terrain.chunks_ref() {
+            ncols += chunk.width_point_count();
+            nrows += chunk.length_point_count();
+        }
+
+        // Combine height map of each chunk into bigger one.
+        let mut ox = 0;
+        let mut oz = 0;
+        let mut data = vec![0.0; (nrows * ncols) as usize];
+        for chunk in terrain.chunks_ref() {
+            for z in 0..chunk.length_point_count() {
+                for x in 0..chunk.width_point_count() {
+                    data[((oz + z) * ncols + ox + x) as usize] =
+                        chunk.heightmap()[(z * chunk.width_point_count() + x) as usize];
+                }
+            }
+            ox += chunk.width_point_count();
+            oz += chunk.length_point_count();
+        }
+
+        SharedShape::heightfield(
+            DMatrix::from_data(VecStorage::new(
+                Dynamic::new(nrows as usize),
+                Dynamic::new(ncols as usize),
+                data,
+            )),
+            Vector3::new(terrain.width(), 1.0, terrain.length()),
+        )
+    }
+
     /// Small helper that creates static physics geometry from given mesh.
     ///
     /// # Notes
