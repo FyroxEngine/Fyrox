@@ -1,18 +1,20 @@
-use crate::scene::commands::terrain::ModifyTerrainLayerMaskCommand;
 use crate::{
     interaction::InteractionModeTrait,
     scene::{
-        commands::terrain::ModifyTerrainHeightCommand, commands::SceneCommand, EditorScene,
-        Selection,
+        commands::{
+            terrain::{ModifyTerrainHeightCommand, ModifyTerrainLayerMaskCommand},
+            SceneCommand,
+        },
+        EditorScene, Selection,
     },
     GameEngine, Message,
 };
-use rg3d::scene::terrain::{BrushMode, BrushShape, Terrain};
 use rg3d::{
     core::{
-        algebra::{Point3, UnitQuaternion, Vector2, Vector3},
+        algebra::{Matrix4, Point3, Vector2, Vector3},
         arrayvec::ArrayVec,
         color::Color,
+        math::vector_to_quat,
         pool::Handle,
     },
     scene::{
@@ -23,7 +25,7 @@ use rg3d::{
             MeshBuilder, RenderPath,
         },
         node::Node,
-        terrain::{Brush, TerrainRayCastResult},
+        terrain::{Brush, BrushMode, BrushShape, Terrain, TerrainRayCastResult},
     },
 };
 use std::sync::{mpsc::Sender, Arc, Mutex, RwLock};
@@ -73,12 +75,9 @@ impl BrushGizmo {
         .with_render_path(RenderPath::Forward)
         .with_cast_shadows(false)
         .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
-            SurfaceData::make_quad(
-                &UnitQuaternion::from_axis_angle(&Vector3::x_axis(), 90.0f32.to_radians())
-                    .to_homogeneous(),
-            ),
+            SurfaceData::make_quad(&Matrix4::identity()),
         )))
-        .with_color(Color::opaque(0, 255, 0))
+        .with_color(Color::from_rgba(0, 255, 0, 130))
         .build()])
         .build(graph);
 
@@ -256,7 +255,8 @@ impl InteractionModeTrait for TerrainInteractionMode {
                             graph[self.brush_gizmo.brush]
                                 .local_transform_mut()
                                 .set_position(global_position)
-                                .set_scale(scale);
+                                .set_scale(scale)
+                                .set_rotation(vector_to_quat(closest.normal));
                         }
                     }
                 }
