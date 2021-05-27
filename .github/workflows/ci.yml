@@ -12,13 +12,15 @@ jobs:
     - uses: actions/checkout@v2
     - name: Install rg3d
       run: |
-           if exists rg3d\ (
-             cd rg3d
-             git pull
-             cd ..\
-           ) else (
+           if (Test-Path -Path ..\rg3d\) {
+             cd ..\rg3d
+             git pull             
+           } else {
+             cd ..
              git clone https://github.com/rg3dengine/rg3d
-           )		   
+           }
+           cd rusty-editor
+           rm -r rg3d
     - name: Build
       run: cargo check --verbose
     - name: Test
@@ -31,14 +33,16 @@ jobs:
     steps:
     - name: Install rg3d
       run: |
-           if [[ -f rg3d/ ]]
+           if [[ -f ../rg3d/ ]]
            then
-             cd rg3d
+             cd ../rg3d
              git pull
-             cd ..\
            else
-             git clone https://github.com/rg3dengine/rg3d
-           fi
+             cd ..
+             git clone https://github.com/rg3dengine/rg3d             
+           fi           
+           cd rusty-editor
+           rm -r rg3d
     - uses: actions/checkout@v2
     - name: Build
       run: cargo check --verbose
@@ -51,14 +55,16 @@ jobs:
     steps:
     - name: Install rg3d
       run: |
-           if [[ -f rg3d/ ]]
+           if [[ -f ../rg3d/ ]]
            then
-             cd rg3d
+             cd ../rg3d
              git pull
-             cd ..\
            else
-             git clone https://github.com/rg3dengine/rg3d
-           fi
+             cd ..
+             git clone https://github.com/rg3dengine/rg3d             
+           fi           
+           cd rusty-editor
+           rm -r rg3d
     - name: Install Dependencies
       run: sudo apt-get install libasound2-dev libudev-dev pkg-config
     - uses: actions/checkout@v2
