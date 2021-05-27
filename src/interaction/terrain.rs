@@ -7,7 +7,7 @@ use crate::{
     },
     GameEngine, Message,
 };
-use rg3d::scene::terrain::{BrushKind, BrushMode, Terrain};
+use rg3d::scene::terrain::{BrushMode, BrushShape, Terrain};
 use rg3d::{
     core::{
         algebra::{Point3, UnitQuaternion, Vector2, Vector3},
@@ -246,9 +246,9 @@ impl InteractionModeTrait for TerrainInteractionMode {
                                 terrain.draw(&brush_copy);
                             }
 
-                            let scale = match brush.kind {
-                                BrushKind::Circle { radius } => Vector3::new(radius, 1.0, radius),
-                                BrushKind::Rectangle { width, length } => {
+                            let scale = match brush.shape {
+                                BrushShape::Circle { radius } => Vector3::new(radius, 1.0, radius),
+                                BrushShape::Rectangle { width, length } => {
                                     Vector3::new(width, 1.0, length)
                                 }
                             };

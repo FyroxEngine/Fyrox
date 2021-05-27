@@ -14,7 +14,7 @@ use rg3d::{
         message::{MessageDirection, NumericUpDownMessage},
         widget::WidgetBuilder,
     },
-    scene::terrain::{Brush, BrushKind, BrushMode},
+    scene::terrain::{Brush, BrushMode, BrushShape},
 };
 use std::sync::{Arc, Mutex};
 
@@ -93,7 +93,7 @@ impl BrushSection {
             radius,
             brush: Arc::new(Mutex::new(Brush {
                 center: Default::default(),
-                kind: BrushKind::Circle { radius: 1.0 },
+                shape: BrushShape::Circle { radius: 1.0 },
                 mode: BrushMode::ModifyHeightMap { amount: 0.25 },
             })),
         }
@@ -102,8 +102,8 @@ impl BrushSection {
     pub fn sync_to_model(&mut self, ui: &mut Ui) {
         let brush = self.brush.lock().unwrap();
 
-        match brush.kind {
-            BrushKind::Circle { radius } => {
+        match brush.shape {
+            BrushShape::Circle { radius } => {
                 send_sync_message(
                     ui,
                     DropdownListMessage::selection(self.kind, MessageDirection::ToWidget, Some(0)),
@@ -114,7 +114,7 @@ impl BrushSection {
                     NumericUpDownMessage::value(self.radius, MessageDirection::ToWidget, radius),
                 );
             }
-            BrushKind::Rectangle { width, length } => {
+            BrushShape::Rectangle { width, length } => {
                 send_sync_message(
                     ui,
                     DropdownListMessage::selection(self.kind, MessageDirection::ToWidget, Some(1)),
@@ -158,10 +158,10 @@ impl BrushSection {
                 if message.destination() == self.kind {
                     match selection {
                         0 => {
-                            brush.kind = BrushKind::Circle { radius: 1.0 };
+                            brush.shape = BrushShape::Circle { radius: 1.0 };
                         }
                         1 => {
-                            brush.kind = BrushKind::Rectangle {
+                            brush.shape = BrushShape::Rectangle {
                                 width: 0.5,
                                 length: 0.5,
                             }
@@ -182,13 +182,13 @@ impl BrushSection {
                 }
             }
             UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) => {
-                match &mut brush.kind {
-                    BrushKind::Circle { radius } => {
+                match &mut brush.shape {
+                    BrushShape::Circle { radius } => {
                         if message.destination() == self.radius {
                             *radius = *value;
                         }
                     }
-                    BrushKind::Rectangle { width, length } => {
+                    BrushShape::Rectangle { width, length } => {
                         if message.destination() == self.length {
                             *length = *value;
                         } else if message.destination() == self.width {
