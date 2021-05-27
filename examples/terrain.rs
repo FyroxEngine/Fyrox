@@ -27,7 +27,7 @@ use rg3d::{
         base::BaseBuilder,
         light::{BaseLightBuilder, PointLightBuilder},
         node::Node,
-        terrain::{Brush, BrushKind, BrushMode, LayerDefinition, TerrainBuilder},
+        terrain::{Brush, BrushMode, BrushShape, LayerDefinition, TerrainBuilder},
         transform::TransformBuilder,
         Scene,
     },
@@ -107,14 +107,14 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
         // Pull terrain.
         terrain.draw(&Brush {
             center: Vector3::new(x, 0.0, z),
-            kind: BrushKind::Circle { radius },
+            shape: BrushShape::Circle { radius },
             mode: BrushMode::ModifyHeightMap { amount: height },
         });
 
         // Draw rock texture on top.
         terrain.draw(&Brush {
             center: Vector3::new(x, 0.0, z),
-            kind: BrushKind::Circle { radius },
+            shape: BrushShape::Circle { radius },
             mode: BrushMode::DrawOnMask {
                 layer: 1,
                 alpha: 1.0,

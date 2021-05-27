@@ -1,20 +1,16 @@
 //! Everything related to terrains.
 
-#![allow(missing_docs)] // Temporary
-
-use crate::core::arrayvec::ArrayVec;
-use crate::core::math::ray::Ray;
-use crate::core::math::ray_rect_intersection;
-use crate::core::visitor::PodVecView;
-use crate::resource::texture::TextureWrapMode;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
-        math::{aabb::AxisAlignedBoundingBox, Rect, TriangleDefinition},
+        arrayvec::ArrayVec,
+        math::{
+            aabb::AxisAlignedBoundingBox, ray::Ray, ray_rect_intersection, Rect, TriangleDefinition,
+        },
         pool::Handle,
-        visitor::prelude::*,
+        visitor::{prelude::*, PodVecView},
     },
-    resource::texture::{Texture, TextureKind, TexturePixelKind},
+    resource::texture::{Texture, TextureKind, TexturePixelKind, TextureWrapMode},
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
@@ -26,28 +22,39 @@ use crate::{
         node::Node,
     },
 };
-use std::cmp::Ordering;
 use std::{
     cell::Cell,
+    cmp::Ordering,
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
     ops::{Deref, DerefMut},
     sync::{Arc, RwLock},
 };
 
+/// Layers is a set of textures for rendering + mask texture to exclude some pixels from
+/// rendering. Terrain can have as many layers as you want, but each layer slightly decreses
+/// performance, so keep amount of layers on reasonable level (1 - 5 should be enough for most
+/// cases).
 #[derive(Default, Debug, Clone, Visit)]
 pub struct Layer {
+    /// Diffuse texture is a texture with main image.
     pub diffuse_texture: Option<Texture>,
+    /// Normal texture provides per-pixel normals.
     pub normal_texture: Option<Texture>,
+    /// Specular texture provides per-pixel specular factor.
     pub specular_texture: Option<Texture>,
+    /// Roughness texture provides per-pixel roughness factor.
     pub roughness_texture: Option<Texture>,
+    /// Height texture provides per-pixel offset for parallax mapping.
     pub height_texture: Option<Texture>,
+    /// Mask texture allows you to exclude some pixel of the layer from rendering.
     pub mask: Option<Texture>,
+    /// Tile factor defines how many time textures (except mask) will be repeated.
     pub tile_factor: Vector2<f32>,
 }
 
 impl Layer {
-    pub fn batch_id(&self, data_key: u64) -> u64 {
+    pub(in crate) fn batch_id(&self, data_key: u64) -> u64 {
         let mut hasher = DefaultHasher::new();
 
         data_key.hash(&mut hasher);
@@ -69,6 +76,11 @@ impl Layer {
     }
 }
 
+/// Chunk is smaller block of a terrain. Terrain can have as many chunks as you need.
+/// Can't we just use one big chunk? Well, potentially yes. However in practice, it
+/// is very limiting because you need to have very huge mask texture and most of wide-spread
+/// GPUs have 16k texture size limit. Multiple chunks provide different LODs to renderer
+/// so distant chunks can be rendered with low details reducing GPU load.
 #[derive(Debug, Clone)]
 pub struct Chunk {
     heightmap: Vec<f32>,
@@ -119,6 +131,8 @@ impl Default for Chunk {
 }
 
 impl Chunk {
+    /// Updates vertex and index buffers needed for rendering. In most cases there is no need
+    /// to call this method manually, engine will automatically call it when needed.
     pub fn update(&mut self) {
         if self.dirty.get() {
             let mut surface_data = self.surface_data.write().unwrap();
@@ -180,50 +194,63 @@ impl Chunk {
         }
     }
 
+    /// Returns a reference to a slice with layers of the chunk.
     pub fn layers(&self) -> &[Layer] {
         &self.layers
     }
 
+    /// Returns a mutable reference to a slice with layers of the chunk.
     pub fn layers_mut(&mut self) -> &mut [Layer] {
         &mut self.layers
     }
 
+    /// Adds new layer to the chunk. It is possible to have different layer count per chunk
+    /// in the same terrain, however it seems to not have practical usage, so try to keep
+    /// equal layer count per each chunk in your terrains.
     pub fn add_layer(&mut self, layer: Layer) {
         self.layers.push(layer);
         self.dirty.set(true);
     }
 
+    /// Removes given layers from the chunk.
     pub fn remove_layer(&mut self, layer: usize) -> Layer {
         let layer = self.layers.remove(layer);
         self.dirty.set(true);
         layer
     }
 
+    /// Tries to remove last layer from the chunk.
     pub fn pop_layer(&mut self) -> Option<Layer> {
         let layer = self.layers.pop();
         self.dirty.set(true);
         layer
     }
 
+    /// Inserts new layer at given position in the chunk.
     pub fn insert_layer(&mut self, layer: Layer, index: usize) {
         self.layers.insert(index, layer);
         self.dirty.set(true);
     }
 
+    /// Returns position of the chunk in local 2D coordinates relative to origin of the
+    /// terrain.
     pub fn local_position(&self) -> Vector2<f32> {
         map_to_local(self.position)
     }
 
+    /// Returns a reference to height map.
     pub fn heightmap(&self) -> &[f32] {
         &self.heightmap
     }
 
+    /// Sets new height map. New height map must be equal with size of current.
     pub fn set_heightmap(&mut self, heightmap: Vec<f32>) {
         assert_eq!(self.heightmap.len(), heightmap.len());
         self.heightmap = heightmap;
         self.dirty.set(true);
     }
 
+    /// Returns data for rendering (vertex and index buffers).
     pub fn data(&self) -> Arc<RwLock<SurfaceData>> {
         self.surface_data.clone()
     }
@@ -234,14 +261,20 @@ fn map_to_local(v: Vector3<f32>) -> Vector2<f32> {
     Vector2::new(v.x, v.z)
 }
 
+/// Ray-terrain intersection result.  
 #[derive(Debug)]
 pub struct TerrainRayCastResult {
+    /// World-space position of impact point.
     pub position: Vector3<f32>,
+    /// World-space normal of triangle at impact point.
     pub normal: Vector3<f32>,
+    /// Index of a chunk that was hit.
     pub chunk_index: usize,
+    /// Time of impact. Usually in [0; 1] range where 0 - origin of a ray, 1 - its end.
     pub toi: f32,
 }
 
+/// See module docs.
 #[derive(Visit, Debug, Default)]
 pub struct Terrain {
     width: f32,
@@ -283,22 +316,28 @@ fn project(global_transform: Matrix4<f32>, p: Vector3<f32>) -> Option<Vector2<f3
 }
 
 impl Terrain {
+    /// Returns width of the terrain in local coordinates.
     pub fn width(&self) -> f32 {
         self.width
     }
 
+    /// Returns length of the terrain in local coordinates.
     pub fn length(&self) -> f32 {
         self.length
     }
 
+    /// Returns a reference to chunks of the terrain.
     pub fn chunks_ref(&self) -> &[Chunk] {
         &self.chunks
     }
 
+    /// Returns a mutable reference to chunks of the terrain.
     pub fn chunks_mut(&mut self) -> &mut [Chunk] {
         &mut self.chunks
     }
 
+    /// Creates raw copy of the terrain. Do not use this method directly, use
+    /// Graph::copy_node.
     pub fn raw_copy(&self) -> Self {
         Self {
             width: self.width,
@@ -314,6 +353,8 @@ impl Terrain {
         }
     }
 
+    /// Returns pre-cached bounding axis-aligned bounding box of the terrain. Keep in mind that
+    /// if you're modified terrain, bounding box will be recalculated and it is not fast.
     pub fn bounding_box(&self) -> AxisAlignedBoundingBox {
         if self.bounding_box_dirty.get() {
             let mut max_height = -f32::MAX;
@@ -344,6 +385,8 @@ impl Terrain {
         project(self.global_transform(), p)
     }
 
+    /// Multi-functional drawing method. It uses given brush to modify terrain, see Brush docs for
+    /// more info.
     pub fn draw(&mut self, brush: &Brush) {
         let center = project(self.global_transform(), brush.center).unwrap();
 
@@ -358,14 +401,14 @@ impl Terrain {
                             let pixel_position = chunk.local_position()
                                 + Vector2::new(kx * chunk.width, kz * chunk.length);
 
-                            let k = match brush.kind {
-                                BrushKind::Circle { radius } => {
+                            let k = match brush.shape {
+                                BrushShape::Circle { radius } => {
                                     1.0 - ((center - pixel_position).norm() / radius).powf(2.0)
                                 }
-                                BrushKind::Rectangle { .. } => 1.0,
+                                BrushShape::Rectangle { .. } => 1.0,
                             };
 
-                            if brush.kind.contains(center, pixel_position) {
+                            if brush.shape.contains(center, pixel_position) {
                                 chunk.heightmap[(z * chunk.width_point_count + x) as usize] +=
                                     k * amount;
 
@@ -399,14 +442,14 @@ impl Terrain {
                             let pixel_position =
                                 chunk_position + Vector2::new(kx * chunk.width, kz * chunk.length);
 
-                            let k = match brush.kind {
-                                BrushKind::Circle { radius } => {
+                            let k = match brush.shape {
+                                BrushShape::Circle { radius } => {
                                     1.0 - ((center - pixel_position).norm() / radius).powf(4.0)
                                 }
-                                BrushKind::Rectangle { .. } => 1.0,
+                                BrushShape::Rectangle { .. } => 1.0,
                             };
 
-                            if brush.kind.contains(center, pixel_position) {
+                            if brush.shape.contains(center, pixel_position) {
                                 // We can draw on mask directly, without any problems because it has R8 pixel format.
                                 let data = texture_data_mut.data_mut();
                                 let pixel = &mut data[(z * texture_width + x) as usize];
@@ -419,6 +462,12 @@ impl Terrain {
         }
     }
 
+    /// Casts a ray and looks for intersections with the terrain. This method collects all results in
+    /// given array with optional sorting by time-of-impact.
+    ///
+    /// # Performance
+    ///
+    /// This method isn't well optimized, it could be optimized 2-5x times. This is a TODO for now.
     pub fn raycast<const DIM: usize>(
         &self,
         ray: Ray,
@@ -518,12 +567,15 @@ impl Terrain {
         !results.is_empty()
     }
 
+    /// Updates terrain's chunks. There is no need to call this method in normal circumstances,
+    /// engine will automatically call this method when needed.
     pub fn update(&mut self) {
         for chunk in self.chunks.iter_mut() {
             chunk.update();
         }
     }
 
+    /// Creates new layer with given parameters, but does **not** add it to any chunk.
     pub fn create_layer(&self, tile_factor: Vector2<f32>, value: u8) -> Layer {
         let chunk_length = self.length / self.length_chunks as f32;
         let chunk_width = self.width / self.width_chunks as f32;
@@ -542,17 +594,28 @@ impl Terrain {
     }
 }
 
+/// Shape of a brush.
 #[derive(Copy, Clone)]
-pub enum BrushKind {
-    Circle { radius: f32 },
-    Rectangle { width: f32, length: f32 },
+pub enum BrushShape {
+    /// Circle with given radius.
+    Circle {
+        /// Radius of the circle.
+        radius: f32,
+    },
+    /// Rectange with given width and height.
+    Rectangle {
+        /// Width of the rectangle.
+        width: f32,
+        /// Length of the rectangle.
+        length: f32,
+    },
 }
 
-impl BrushKind {
-    pub fn contains(&self, brush_center: Vector2<f32>, pixel_position: Vector2<f32>) -> bool {
+impl BrushShape {
+    fn contains(&self, brush_center: Vector2<f32>, pixel_position: Vector2<f32>) -> bool {
         match *self {
-            BrushKind::Circle { radius } => (brush_center - pixel_position).norm() < radius,
-            BrushKind::Rectangle { width, length } => Rect::new(
+            BrushShape::Circle { radius } => (brush_center - pixel_position).norm() < radius,
+            BrushShape::Rectangle { width, length } => Rect::new(
                 brush_center.x - width * 0.5,
                 brush_center.y - length * 0.5,
                 width,
@@ -563,36 +626,53 @@ impl BrushKind {
     }
 }
 
+/// Paint mode of a brush. It defines operation that will be performed on the terrain.
 #[derive(Clone, PartialEq, PartialOrd)]
 pub enum BrushMode {
+    /// Modifies height map.
     ModifyHeightMap {
         /// An offset for height map.
         amount: f32,
     },
+    /// Draws on a given layer.
     DrawOnMask {
         /// A layer to draw on.
         layer: usize,
-        /// A value to put on mask.
+        /// A value to put on mask. Range is [-1.0; 1.0] where negative values "erase"
+        /// values from mask, and positive - paints.
         alpha: f32,
     },
 }
 
+/// Brush is used to modify terrain. It supports multiple shapes and modes.
 #[derive(Clone)]
 pub struct Brush {
+    /// Center of the brush.
     pub center: Vector3<f32>,
-    pub kind: BrushKind,
+    /// Shape of the brush.
+    pub shape: BrushShape,
+    /// Paint mode of the brush.
     pub mode: BrushMode,
 }
 
+/// Layer definition for a terrain builder. It defines set of textures that will be
+/// used across every layer of every chunk of a terrain.
 pub struct LayerDefinition {
+    /// Diffuse texture is a texture with main image.
     pub diffuse_texture: Option<Texture>,
+    /// Normal texture provides per-pixel normals.
     pub normal_texture: Option<Texture>,
+    /// Specular texture provides per-pixel specular factor.
     pub specular_texture: Option<Texture>,
+    /// Roughness texture provides per-pixel roughness factor.
     pub roughness_texture: Option<Texture>,
+    /// Height texture provides per-pixel offset for parallax mapping.
     pub height_texture: Option<Texture>,
+    /// Tile factor defines how many time textures will be repeated.
     pub tile_factor: Vector2<f32>,
 }
 
+/// Terrain builder allows you to quickly build a terrain with required features.
 pub struct TerrainBuilder {
     base_builder: BaseBuilder,
     width: f32,
@@ -639,6 +719,7 @@ fn make_surface_data() -> Arc<RwLock<SurfaceData>> {
 }
 
 impl TerrainBuilder {
+    /// Creates new builder instance.
     pub fn new(base_builder: BaseBuilder) -> Self {
         Self {
             base_builder,
@@ -652,41 +733,55 @@ impl TerrainBuilder {
         }
     }
 
+    /// Sets desired terrain height in local coordinates.
     pub fn with_width(mut self, width: f32) -> Self {
         self.width = width;
         self
     }
 
+    /// Sets desired terrain length in local coordinates.
     pub fn with_length(mut self, length: f32) -> Self {
         self.length = length;
         self
     }
 
+    /// Sets desired mask resolution in pixels per unit. For example you have width = height = 16
+    /// and you set resolution to 4 - then mask will have width = height = 4*16 = 64x64 pixels.
     pub fn with_mask_resolution(mut self, resolution: f32) -> Self {
         self.mask_resolution = resolution;
         self
     }
 
+    /// Sets desired terrain width subdivision. The value passed in should correlate with desired
+    /// width of the terrain. For example if you have small terrain, 2 chunks will be enough, however
+    /// if you have huge terrain, the value should be 8+.
     pub fn with_width_chunks(mut self, count: usize) -> Self {
         self.width_chunks = count.max(1);
         self
     }
 
+    /// Sets desired terrain length subdivision. The value passed in should correlate with desired
+    /// length of the terrain. For example if you have small terrain, 2 chunks will be enough, however
+    /// if you have huge terrain, the value should be 8+.
     pub fn with_length_chunks(mut self, count: usize) -> Self {
         self.length_chunks = count.max(1);
         self
     }
 
+    /// Sets desired height map resolution in dots per unit. For example you have width = height = 16
+    /// and you set resolution to 4 - then height map will have width = height = 4*16 = 64x64 dots.
     pub fn with_height_map_resolution(mut self, resolution: f32) -> Self {
         self.height_map_resolution = resolution;
         self
     }
 
+    /// Sets desired layers that will be used for each chunk in the terrain.
     pub fn with_layers(mut self, layers: Vec<LayerDefinition>) -> Self {
         self.layers = layers;
         self
     }
 
+    /// Build terrain node.
     pub fn build_node(self) -> Node {
         let mut chunks = Vec::new();
         let chunk_length = self.length / self.length_chunks as f32;
@@ -749,6 +844,7 @@ impl TerrainBuilder {
         Node::Terrain(terrain)
     }
 
+    /// Builds terrain node and adds it to given graph.
     pub fn build(self, graph: &mut Graph) -> Handle<Node> {
         graph.add_node(self.build_node())
     }
