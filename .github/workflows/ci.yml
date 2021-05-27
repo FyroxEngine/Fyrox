@@ -10,6 +10,15 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - name: Install rg3d
+      run: |
+           if exists rg3d\ (
+             cd rg3d
+             git pull
+             cd ..\
+           ) else (
+             git clone https://github.com/rg3dengine/rg3d
+           )		   
     - name: Build
       run: cargo check --verbose
     - name: Test
@@ -20,6 +29,16 @@ jobs:
     runs-on: macos-latest
 
     steps:
+     - name: Install rg3d
+      run: |
+           if [[ -f rg3d/ ]]
+           then
+             cd rg3d
+             git pull
+             cd ..\
+           else
+             git clone https://github.com/rg3dengine/rg3d
+           fi
     - uses: actions/checkout@v2
     - name: Build
       run: cargo check --verbose
@@ -30,6 +49,16 @@ jobs:
     name: Linux CI
     runs-on: ubuntu-latest
     steps:
+     - name: Install rg3d
+      run: |
+           if [[ -f rg3d/ ]]
+           then
+             cd rg3d
+             git pull
+             cd ..\
+           else
+             git clone https://github.com/rg3dengine/rg3d
+           fi
     - name: Install Dependencies
       run: sudo apt-get install libasound2-dev libudev-dev pkg-config
     - uses: actions/checkout@v2
