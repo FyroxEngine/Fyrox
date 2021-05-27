@@ -20,7 +20,6 @@ jobs:
              git clone https://github.com/rg3dengine/rg3d
            }
            cd rusty-editor
-           rm -r rg3d
     - name: Build
       run: cargo check --verbose
     - name: Test
@@ -42,7 +41,6 @@ jobs:
              git clone https://github.com/rg3dengine/rg3d             
            fi           
            cd rusty-editor
-           rm -r rg3d
     - uses: actions/checkout@v2
     - name: Build
       run: cargo check --verbose
@@ -64,7 +62,6 @@ jobs:
              git clone https://github.com/rg3dengine/rg3d             
            fi           
            cd rusty-editor
-           rm -r rg3d
     - name: Install Dependencies
       run: sudo apt-get install libasound2-dev libudev-dev pkg-config
     - uses: actions/checkout@v2
