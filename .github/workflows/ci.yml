@@ -45,13 +45,13 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Install Dependencies
-        run: https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | s
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
       - name: Build
         run: |
-             cd examples/wasm 
+             cd examples/wasm
              wasm-pack build --target web
       - name: Test
-        run: | 
+        run: |
              cd examples/wasm
              wasm-pack test --headless --chrome
              wasm-pack test --headless --firefox
