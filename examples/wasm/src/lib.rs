@@ -270,8 +270,10 @@ struct InputController {
     rotate_right: bool,
 }
 
+// Rename `main` to `main_js` as workaround for tests
+// https://github.com/rustwasm/wasm-bindgen/issues/2206
 #[wasm_bindgen]
-pub fn main() {
+pub fn main_js() {
     set_once();
 
     let event_loop = EventLoop::new();
