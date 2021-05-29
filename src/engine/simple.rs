@@ -72,6 +72,7 @@ impl<State: 'static> Framework<State> {
     }
 
     /// Sets desired title of game's window.
+    #[must_use]
     pub fn title<S: AsRef<str>>(mut self, title: S) -> Self {
         self.title = title.as_ref().to_owned();
         self
@@ -79,6 +80,7 @@ impl<State: 'static> Framework<State> {
 
     /// Defines initializer function that will be called once after engine's initialization
     /// allowing you to initialize the state your game.
+    #[must_use]
     pub fn init<I>(mut self, on_init: I) -> Self
     where
         I: FnOnce(&mut GameEngine) -> State + 'static,
@@ -89,6 +91,7 @@ impl<State: 'static> Framework<State> {
 
     /// Defines a function that will contain game logic. It has stabilized update rate of
     /// 60 Hz.
+    #[must_use]
     pub fn tick<T>(mut self, on_tick: T) -> Self
     where
         T: FnMut(&mut GameEngine, Option<&mut State>, f32) + 'static,
@@ -98,6 +101,7 @@ impl<State: 'static> Framework<State> {
     }
 
     /// Defines a function that will be called when there is any message from user interface.
+    #[must_use]
     pub fn ui_message<U>(mut self, on_ui_message: U) -> Self
     where
         U: FnMut(&mut GameEngine, Option<&mut State>, UiMessage) + 'static,
@@ -107,6 +111,7 @@ impl<State: 'static> Framework<State> {
     }
 
     /// Defines a function that will be called when a device event has occurred.
+    #[must_use]
     pub fn device_event<D>(mut self, on_device_event: D) -> Self
     where
         D: FnMut(&mut GameEngine, Option<&mut State>, DeviceId, DeviceEvent) + 'static,
@@ -116,6 +121,7 @@ impl<State: 'static> Framework<State> {
     }
 
     /// Defines a function that will be called when a window event has occurred.
+    #[must_use]
     pub fn window_event<W: FnMut(&mut GameEngine, Option<&mut State>, WindowEvent) + 'static>(
         mut self,
         on_window_event: W,
