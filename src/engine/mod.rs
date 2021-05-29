@@ -5,6 +5,7 @@
 
 pub mod error;
 pub mod resource_manager;
+pub mod simple;
 
 use crate::{
     core::{
