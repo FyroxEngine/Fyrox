@@ -22,13 +22,13 @@ use rg3d::{
     },
 };
 
-struct GameSceneLoader {
+struct SceneLoader {
     scene: Scene2d,
     camera: Handle<Node>,
     spot_light: Handle<Node>,
 }
 
-impl GameSceneLoader {
+impl SceneLoader {
     fn load_with(resource_manager: ResourceManager) -> Self {
         let mut scene = Scene2d::new();
 
@@ -92,7 +92,7 @@ struct InputController {
     move_right: bool,
 }
 
-struct State {
+struct Game {
     input_controller: InputController,
     scene: Handle<Scene2d>,
     camera: Handle<Node>,
@@ -100,10 +100,22 @@ struct State {
     debug_text: Handle<UiNode>,
 }
 
-impl State {
-    pub fn new(engine: &mut GameEngine) -> Self {
+impl GameState for Game {
+    fn init(engine: &mut GameEngine) -> Self
+    where
+        Self: Sized,
+    {
+        // Prepare resource manager - it must be notified where to search textures. When engine
+        // loads model resource it automatically tries to load textures it uses. But since most
+        // model formats store absolute paths, we can't use them as direct path to load texture
+        // instead we telling engine to search textures in given folder.
+        engine
+            .resource_manager
+            .state()
+            .set_textures_path("examples/data");
+
         // Create test scene.
-        let loader = GameSceneLoader::load_with(engine.resource_manager.clone());
+        let loader = SceneLoader::load_with(engine.resource_manager.clone());
 
         Self {
             // Create input controller - it will hold information about needed actions.
@@ -124,82 +136,66 @@ impl State {
                 .build(&mut engine.user_interface.build_ctx()),
         }
     }
+
+    fn on_tick(&mut self, engine: &mut GameEngine, _dt: f32) {
+        let mut offset = Vector2::default();
+        if self.input_controller.move_forward {
+            offset.y -= 10.0
+        }
+        if self.input_controller.move_backward {
+            offset.y += 10.0
+        }
+        if self.input_controller.move_left {
+            offset.x -= 10.0
+        }
+        if self.input_controller.move_right {
+            offset.x += 10.0
+        }
+
+        let graph = &mut engine.scenes2d[self.scene].graph;
+
+        if let Some(offset) = offset.try_normalize(f32::EPSILON) {
+            graph[self.camera].local_transform_mut().offset(offset);
+        }
+
+        graph[self.spot_light]
+            .local_transform_mut()
+            .turn(10.0f32.to_radians());
+
+        engine.user_interface.send_message(TextMessage::text(
+            self.debug_text,
+            MessageDirection::ToWidget,
+            format!("Example - 2D\n{}", engine.renderer.get_statistics()),
+        ));
+    }
+
+    fn on_window_event(&mut self, _engine: &mut GameEngine, event: WindowEvent) {
+        if let WindowEvent::KeyboardInput { input, .. } = event {
+            // Handle key input events via `WindowEvent`, not via `DeviceEvent` (#32)
+            if let Some(key_code) = input.virtual_keycode {
+                match key_code {
+                    VirtualKeyCode::W => {
+                        self.input_controller.move_forward = input.state == ElementState::Pressed
+                    }
+                    VirtualKeyCode::S => {
+                        self.input_controller.move_backward = input.state == ElementState::Pressed
+                    }
+                    VirtualKeyCode::A => {
+                        self.input_controller.move_left = input.state == ElementState::Pressed
+                    }
+                    VirtualKeyCode::D => {
+                        self.input_controller.move_right = input.state == ElementState::Pressed
+                    }
+                    _ => (),
+                }
+            }
+        }
+    }
 }
 
 fn main() {
-    Framework::new()
+    Framework::<Game>::new()
         .unwrap()
         .title("Example - 2D")
-        .init(|engine| {
-            // Prepare resource manager - it must be notified where to search textures. When engine
-            // loads model resource it automatically tries to load textures it uses. But since most
-            // model formats store absolute paths, we can't use them as direct path to load texture
-            // instead we telling engine to search textures in given folder.
-            engine
-                .resource_manager
-                .state()
-                .set_textures_path("examples/data");
-
-            State::new(engine)
-        })
-        .window_event(|_, state, event| {
-            let state = state.unwrap();
-
-            if let WindowEvent::KeyboardInput { input, .. } = event {
-                // Handle key input events via `WindowEvent`, not via `DeviceEvent` (#32)
-                if let Some(key_code) = input.virtual_keycode {
-                    match key_code {
-                        VirtualKeyCode::W => {
-                            state.input_controller.move_forward =
-                                input.state == ElementState::Pressed
-                        }
-                        VirtualKeyCode::S => {
-                            state.input_controller.move_backward =
-                                input.state == ElementState::Pressed
-                        }
-                        VirtualKeyCode::A => {
-                            state.input_controller.move_left = input.state == ElementState::Pressed
-                        }
-                        VirtualKeyCode::D => {
-                            state.input_controller.move_right = input.state == ElementState::Pressed
-                        }
-                        _ => (),
-                    }
-                }
-            }
-        })
-        .tick(|engine, state, _| {
-            let state = state.unwrap();
-
-            let mut offset = Vector2::default();
-            if state.input_controller.move_forward {
-                offset.y -= 10.0
-            }
-            if state.input_controller.move_backward {
-                offset.y += 10.0
-            }
-            if state.input_controller.move_left {
-                offset.x -= 10.0
-            }
-            if state.input_controller.move_right {
-                offset.x += 10.0
-            }
-
-            let graph = &mut engine.scenes2d[state.scene].graph;
-
-            if let Some(offset) = offset.try_normalize(f32::EPSILON) {
-                graph[state.camera].local_transform_mut().offset(offset);
-            }
-
-            graph[state.spot_light]
-                .local_transform_mut()
-                .turn(10.0f32.to_radians());
-
-            engine.user_interface.send_message(TextMessage::text(
-                state.debug_text,
-                MessageDirection::ToWidget,
-                format!("Example - 2D\n{}", engine.renderer.get_statistics()),
-            ));
-        })
         .run();
 }

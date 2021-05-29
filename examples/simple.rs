@@ -133,7 +133,7 @@ struct InputController {
     rotate_right: bool,
 }
 
-struct State {
+struct Game {
     scene: Handle<Scene>,
     model_handle: Handle<Node>,
     walk_animation: Handle<Animation>,
@@ -142,109 +142,95 @@ struct State {
     model_angle: f32,
 }
 
-impl State {
-    pub fn new(loader: GameSceneLoader, engine: &mut GameEngine) -> Self {
-        // We will rotate model using keyboard input.
-        let mut model_angle = 180.0f32.to_radians();
+impl GameState for Game {
+    fn init(engine: &mut GameEngine) -> Self
+    where
+        Self: Sized,
+    {
+        // Prepare resource manager - it must be notified where to search textures. When engine
+        // loads model resource it automatically tries to load textures it uses. But since most
+        // model formats store absolute paths, we can't use them as direct path to load texture
+        // instead we telling engine to search textures in given folder.
+        engine
+            .resource_manager
+            .state()
+            .set_textures_path("examples/data");
 
-        // Create input controller - it will hold information about needed actions.
-        let mut input_controller = InputController {
-            rotate_left: false,
-            rotate_right: false,
-        };
+        let scene = rg3d::core::futures::executor::block_on(GameSceneLoader::load_with(
+            engine.resource_manager.clone(),
+        ));
 
         Self {
             debug_text: TextBuilder::new(WidgetBuilder::new())
                 .build(&mut engine.user_interface.build_ctx()),
-            scene: engine.scenes.add(loader.scene),
-            model_handle: loader.model_handle,
-            walk_animation: loader.walk_animation,
-            input_controller,
-            model_angle,
+            scene: engine.scenes.add(scene.scene),
+            model_handle: scene.model_handle,
+            walk_animation: scene.walk_animation,
+            // Create input controller - it will hold information about needed actions.
+            input_controller: InputController {
+                rotate_left: false,
+                rotate_right: false,
+            },
+            // We will rotate model using keyboard input.
+            model_angle: 180.0f32.to_radians(),
+        }
+    }
+
+    fn on_tick(&mut self, engine: &mut GameEngine, _dt: f32) {
+        let scene = &mut engine.scenes[self.scene];
+
+        // Our animation must be applied to scene explicitly, otherwise
+        // it will have no effect.
+        scene
+            .animations
+            .get_mut(self.walk_animation)
+            .get_pose()
+            .apply(&mut scene.graph);
+
+        // Rotate model according to input controller state
+        if self.input_controller.rotate_left {
+            self.model_angle -= 5.0f32.to_radians();
+        } else if self.input_controller.rotate_right {
+            self.model_angle += 5.0f32.to_radians();
+        }
+
+        scene.graph[self.model_handle]
+            .local_transform_mut()
+            .set_rotation(UnitQuaternion::from_axis_angle(
+                &Vector3::y_axis(),
+                self.model_angle,
+            ));
+
+        engine.user_interface.send_message(TextMessage::text(
+            self.debug_text,
+            MessageDirection::ToWidget,
+            format!(
+                "Example 01 - Simple Scene\nUse [A][D] keys to rotate model.\nFPS: {}",
+                engine.renderer.get_statistics().frames_per_second
+            ),
+        ));
+    }
+
+    fn on_window_event(&mut self, _engine: &mut GameEngine, event: WindowEvent) {
+        if let WindowEvent::KeyboardInput { input, .. } = event {
+            if let Some(key_code) = input.virtual_keycode {
+                match key_code {
+                    VirtualKeyCode::A => {
+                        self.input_controller.rotate_left = input.state == ElementState::Pressed
+                    }
+                    VirtualKeyCode::D => {
+                        self.input_controller.rotate_right = input.state == ElementState::Pressed
+                    }
+                    _ => (),
+                }
+            }
         }
     }
 }
 
 fn main() {
-    // Framework is a simple wrapper that initializes engine and hides game loop details, allowing
-    // you to focus only on important things.
-    Framework::new()
+    Framework::<Game>::new()
         .unwrap()
         .title("Example 01 - Simple")
-        // Define game state initializer function.
-        .init(|engine| {
-            // Prepare resource manager - it must be notified where to search textures. When engine
-            // loads model resource it automatically tries to load textures it uses. But since most
-            // model formats store absolute paths, we can't use them as direct path to load texture
-            // instead we telling engine to search textures in given folder.
-            engine
-                .resource_manager
-                .state()
-                .set_textures_path("examples/data");
-
-            let scene = rg3d::core::futures::executor::block_on(GameSceneLoader::load_with(
-                engine.resource_manager.clone(),
-            ));
-
-            State::new(scene, engine)
-        })
-        // Define a function that will be called when game's window is received an event.
-        .window_event(|engine, state, event| {
-            let state = state.unwrap();
-
-            if let WindowEvent::KeyboardInput { input, .. } = event {
-                if let Some(key_code) = input.virtual_keycode {
-                    match key_code {
-                        VirtualKeyCode::A => {
-                            state.input_controller.rotate_left =
-                                input.state == ElementState::Pressed
-                        }
-                        VirtualKeyCode::D => {
-                            state.input_controller.rotate_right =
-                                input.state == ElementState::Pressed
-                        }
-                        _ => (),
-                    }
-                }
-            }
-        })
-        // Define a function that will be responsible for game logic. It will be called
-        // at fixed rate of 60 Hz.
-        .tick(|engine, state, dt| {
-            let state = state.unwrap();
-            let scene = &mut engine.scenes[state.scene];
-
-            // Our animation must be applied to scene explicitly, otherwise
-            // it will have no effect.
-            scene
-                .animations
-                .get_mut(state.walk_animation)
-                .get_pose()
-                .apply(&mut scene.graph);
-
-            // Rotate model according to input controller state.
-            if state.input_controller.rotate_left {
-                state.model_angle -= 5.0f32.to_radians();
-            } else if state.input_controller.rotate_right {
-                state.model_angle += 5.0f32.to_radians();
-            }
-
-            scene.graph[state.model_handle]
-                .local_transform_mut()
-                .set_rotation(UnitQuaternion::from_axis_angle(
-                    &Vector3::y_axis(),
-                    state.model_angle,
-                ));
-
-            engine.user_interface.send_message(TextMessage::text(
-                state.debug_text,
-                MessageDirection::ToWidget,
-                format!(
-                    "Example 01 - Simple Scene\nUse [A][D] keys to rotate model.\nFPS: {}",
-                    engine.renderer.get_statistics().frames_per_second
-                ),
-            ));
-        })
-        // Finally, run the game.
         .run();
 }

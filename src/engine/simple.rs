@@ -31,25 +31,50 @@ pub type UiMessage = crate::gui::message::UiMessage<(), StubNode>;
 
 #[doc(hidden)]
 pub mod prelude {
-    pub use super::{Framework, GameEngine, UiBuildContext, UiMessage, UiNode};
+    pub use super::{Framework, GameEngine, GameState, UiBuildContext, UiMessage, UiNode};
+}
+
+/// A trait for your game state, it contains all possible methods which will be called in
+/// various situations. Every method, except `init` is optional.
+pub trait GameState: 'static {
+    /// An initializer function that will be called once after engine's initialization
+    /// allowing you to initialize the state your game.
+    fn init(engine: &mut GameEngine) -> Self
+    where
+        Self: Sized;
+
+    /// Defines a function that will contain game logic. It has stabilized update rate of
+    /// 60 Hz.
+    fn on_tick(&mut self, _engine: &mut GameEngine, _dt: f32) {}
+
+    /// Defines a function that will be called when there is any message from user interface.
+    fn on_ui_message(&mut self, _engine: &mut GameEngine, _message: UiMessage) {}
+
+    /// Defines a function that will be called when a device event has occurred.
+    fn on_device_event(
+        &mut self,
+        _engine: &mut GameEngine,
+        _device_id: DeviceId,
+        _event: DeviceEvent,
+    ) {
+    }
+
+    /// Defines a function that will be called when a window event has occurred.
+    fn on_window_event(&mut self, _engine: &mut GameEngine, _event: WindowEvent) {}
+
+    /// Defines a function that will be called when game is about to close.
+    fn on_exit(&mut self, _engine: &mut GameEngine) {}
 }
 
 /// See module docs.
-pub struct Framework<State> {
+pub struct Framework<State: GameState> {
     engine: GameEngine,
     title: String,
     event_loop: EventLoop<()>,
-    on_init: Option<Box<dyn FnOnce(&mut GameEngine) -> State>>,
-    on_tick: Option<Box<dyn FnMut(&mut GameEngine, Option<&mut State>, f32) + 'static>>,
-    on_ui_message: Option<Box<dyn FnMut(&mut GameEngine, Option<&mut State>, UiMessage) + 'static>>,
-    on_device_event: Option<
-        Box<dyn FnMut(&mut GameEngine, Option<&mut State>, DeviceId, DeviceEvent) + 'static>,
-    >,
-    on_window_event:
-        Option<Box<dyn FnMut(&mut GameEngine, Option<&mut State>, WindowEvent) + 'static>>,
+    state: State,
 }
 
-impl<State: 'static> Framework<State> {
+impl<State: GameState> Framework<State> {
     /// Creates new framework instance. Framework is a simple wrapper that initializes game
     /// engine and hides game loop details, allowing you to focus only on important things.
     pub fn new() -> Result<Self, EngineError> {
@@ -57,17 +82,13 @@ impl<State: 'static> Framework<State> {
 
         let window_builder = WindowBuilder::new().with_title("Game").with_resizable(true);
 
-        let engine = GameEngine::new(window_builder, &event_loop, false)?;
+        let mut engine = GameEngine::new(window_builder, &event_loop, false)?;
 
         Ok(Self {
             title: "Game".to_owned(),
+            state: State::init(&mut engine),
             engine,
             event_loop,
-            on_init: None,
-            on_tick: None,
-            on_ui_message: None,
-            on_device_event: None,
-            on_window_event: None,
         })
     }
 
@@ -78,67 +99,11 @@ impl<State: 'static> Framework<State> {
         self
     }
 
-    /// Defines initializer function that will be called once after engine's initialization
-    /// allowing you to initialize the state your game.
-    #[must_use]
-    pub fn init<I>(mut self, on_init: I) -> Self
-    where
-        I: FnOnce(&mut GameEngine) -> State + 'static,
-    {
-        self.on_init = Some(Box::new(on_init));
-        self
-    }
-
-    /// Defines a function that will contain game logic. It has stabilized update rate of
-    /// 60 Hz.
-    #[must_use]
-    pub fn tick<T>(mut self, on_tick: T) -> Self
-    where
-        T: FnMut(&mut GameEngine, Option<&mut State>, f32) + 'static,
-    {
-        self.on_tick = Some(Box::new(on_tick));
-        self
-    }
-
-    /// Defines a function that will be called when there is any message from user interface.
-    #[must_use]
-    pub fn ui_message<U>(mut self, on_ui_message: U) -> Self
-    where
-        U: FnMut(&mut GameEngine, Option<&mut State>, UiMessage) + 'static,
-    {
-        self.on_ui_message = Some(Box::new(on_ui_message));
-        self
-    }
-
-    /// Defines a function that will be called when a device event has occurred.
-    #[must_use]
-    pub fn device_event<D>(mut self, on_device_event: D) -> Self
-    where
-        D: FnMut(&mut GameEngine, Option<&mut State>, DeviceId, DeviceEvent) + 'static,
-    {
-        self.on_device_event = Some(Box::new(on_device_event));
-        self
-    }
-
-    /// Defines a function that will be called when a window event has occurred.
-    #[must_use]
-    pub fn window_event<W: FnMut(&mut GameEngine, Option<&mut State>, WindowEvent) + 'static>(
-        mut self,
-        on_window_event: W,
-    ) -> Self {
-        self.on_window_event = Some(Box::new(on_window_event));
-        self
-    }
-
     /// Runs a framework and your game. This function is never returns.
     pub fn run(self) -> ! {
         let mut engine = self.engine;
         engine.get_window().set_title(&self.title);
-        let mut state = self.on_init.map(|init| init(&mut engine));
-        let mut on_tick = self.on_tick;
-        let mut on_ui_message = self.on_ui_message;
-        let mut on_device_event = self.on_device_event;
-        let mut on_window_event = self.on_window_event;
+        let mut state = self.state;
         let clock = Instant::now();
         let fixed_timestep = 1.0 / 60.0;
         let mut elapsed_time = 0.0;
@@ -151,17 +116,13 @@ impl<State: 'static> Framework<State> {
                         dt -= fixed_timestep;
                         elapsed_time += fixed_timestep;
 
-                        if let Some(tick) = on_tick.as_mut() {
-                            tick(&mut engine, state.as_mut(), fixed_timestep);
-                        }
+                        state.on_tick(&mut engine, fixed_timestep);
 
                         engine.update(fixed_timestep);
                     }
 
                     while let Some(ui_msg) = engine.user_interface.poll_message() {
-                        if let Some(handler) = on_ui_message.as_mut() {
-                            handler(&mut engine, state.as_mut(), ui_msg);
-                        }
+                        state.on_ui_message(&mut engine, ui_msg);
                     }
 
                     engine.get_window().request_redraw();
@@ -182,15 +143,12 @@ impl<State: 'static> Framework<State> {
                         engine.user_interface.process_os_event(&os_event);
                     }
 
-                    if let Some(handler) = on_window_event.as_mut() {
-                        handler(&mut engine, state.as_mut(), event);
-                    }
+                    state.on_window_event(&mut engine, event);
                 }
                 Event::DeviceEvent { device_id, event } => {
-                    if let Some(handler) = on_device_event.as_mut() {
-                        handler(&mut engine, state.as_mut(), device_id, event);
-                    }
+                    state.on_device_event(&mut engine, device_id, event);
                 }
+                Event::LoopDestroyed => state.on_exit(&mut engine),
                 _ => *control_flow = ControlFlow::Poll,
             })
     }
