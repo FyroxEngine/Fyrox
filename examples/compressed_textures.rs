@@ -5,8 +5,6 @@
 
 extern crate rg3d;
 
-pub mod shared;
-
 use rg3d::{
     core::{algebra::Vector2, color::Color},
     engine::{resource_manager::TextureImportOptions, simple::prelude::*},
