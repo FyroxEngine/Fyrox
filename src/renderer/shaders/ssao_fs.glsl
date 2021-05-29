@@ -42,7 +42,7 @@ void main() {
         vec3 position = GetViewSpacePosition(offset.xy);
 
         float rangeCheck = smoothstep(0.0, 1.0, radius / abs(fragPos.z - position.z));
-        occlusion += rangeCheck * ((position.z > samplePoint.z + 0.001) ? 1.0 : 0.0);
+        occlusion += rangeCheck * ((position.z > samplePoint.z + 0.04) ? 1.0 : 0.0);
     }
 
     finalOcclusion = 1.0 - occlusion / float(KERNEL_SIZE);

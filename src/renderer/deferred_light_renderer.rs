@@ -479,7 +479,7 @@ impl DeferredLightRenderer {
         } = args;
 
         let viewport = Rect::new(0, 0, gbuffer.width, gbuffer.height);
-        let frustum = Frustum::from(camera.view_projection_matrix()).unwrap();
+        let frustum = Frustum::from(camera.view_projection_matrix()).unwrap_or_default();
 
         let frame_matrix = Matrix4::new_orthographic(
             0.0,

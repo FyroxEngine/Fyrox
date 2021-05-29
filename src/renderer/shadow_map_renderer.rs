@@ -90,15 +90,13 @@ impl SpotShadowMapRenderer {
                         ShadowMapPrecision::Full => PixelKind::D32,
                         ShadowMapPrecision::Half => PixelKind::D16,
                     },
-                    MinificationFilter::Nearest,
-                    MagnificationFilter::Nearest,
+                    MinificationFilter::Linear,
+                    MagnificationFilter::Linear,
                     1,
                     None,
                 )?;
                 texture
                     .bind_mut(state, 0)
-                    .set_magnification_filter(MagnificationFilter::Linear)
-                    .set_minification_filter(MinificationFilter::Linear)
                     .set_wrap(Coordinate::T, WrapMode::ClampToEdge)
                     .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
                     .set_border_color(Color::WHITE);
@@ -323,15 +321,13 @@ impl PointShadowMapRenderer {
                     state,
                     kind,
                     PixelKind::F16,
-                    MinificationFilter::Nearest,
-                    MagnificationFilter::Nearest,
+                    MinificationFilter::Linear,
+                    MagnificationFilter::Linear,
                     1,
                     None,
                 )?;
                 texture
                     .bind_mut(state, 0)
-                    .set_minification_filter(MinificationFilter::Linear)
-                    .set_magnification_filter(MagnificationFilter::Linear)
                     .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
                     .set_wrap(Coordinate::T, WrapMode::ClampToEdge)
                     .set_wrap(Coordinate::R, WrapMode::ClampToEdge);

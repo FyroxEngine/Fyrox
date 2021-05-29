@@ -7,6 +7,7 @@
 extern crate rg3d;
 
 use rg3d::{
+    animation::Animation,
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector3},
         color::Color,
@@ -23,31 +24,29 @@ use rg3d::{
         text::TextBuilder,
         widget::WidgetBuilder,
     },
-    resource::texture::CompressionOptions,
-    scene::mesh::surface::{SurfaceBuilder, SurfaceData},
+    resource::texture::{CompressionOptions, TextureWrapMode},
     scene::{
         base::BaseBuilder,
-        camera::CameraBuilder,
+        camera::{CameraBuilder, SkyBox},
+        graph::Graph,
         light::{BaseLightBuilder, PointLightBuilder},
-        mesh::MeshBuilder,
+        mesh::{
+            surface::{SurfaceBuilder, SurfaceData},
+            MeshBuilder,
+        },
         node::Node,
         transform::TransformBuilder,
         Scene,
     },
+    sound::{
+        buffer::SoundBuffer,
+        source::{generic::GenericSourceBuilder, Status},
+    },
     utils::translate_event,
 };
-
-use rg3d::animation::Animation;
-use rg3d::resource::texture::TextureWrapMode;
-use rg3d::scene::camera::SkyBox;
-use rg3d::scene::graph::Graph;
-use rg3d::sound::buffer::SoundBuffer;
-use rg3d::sound::source::generic::GenericSourceBuilder;
-use rg3d::sound::source::Status;
-use std::sync::Mutex;
 use std::{
     panic,
-    sync::{Arc, RwLock},
+    sync::{Arc, Mutex, RwLock},
 };
 
 // Create our own engine type aliases. These specializations are needed

@@ -133,7 +133,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                     .try_normalize(std::f32::EPSILON)
                     .unwrap()
                     // Use non-uniform distribution to shuffle points inside hemisphere.
-                    .scale(scale * rng.gen_range(0.0..1.0));
+                    .scale(scale);
                 }
                 kernel
             },
