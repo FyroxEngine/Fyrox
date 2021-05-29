@@ -7,7 +7,7 @@ extern crate rg3d;
 
 use rg3d::{
     core::{algebra::Vector2, color::Color},
-    engine::{resource_manager::TextureImportOptions, simple::prelude::*},
+    engine::{framework::prelude::*, resource_manager::TextureImportOptions},
     gui::{image::ImageBuilder, widget::WidgetBuilder},
     resource::texture::CompressionOptions,
     utils::into_gui_texture,

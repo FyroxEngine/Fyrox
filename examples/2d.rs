@@ -8,7 +8,7 @@ extern crate rg3d;
 
 use rg3d::{
     core::{algebra::Vector2, pool::Handle},
-    engine::{resource_manager::ResourceManager, simple::prelude::*},
+    engine::{framework::prelude::*, resource_manager::ResourceManager},
     event::{ElementState, VirtualKeyCode, WindowEvent},
     gui::{
         message::{MessageDirection, TextMessage},

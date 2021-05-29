@@ -1,6 +1,6 @@
 use rg3d::{
     core::color::{Color, Hsv},
-    engine::simple::prelude::*,
+    engine::framework::prelude::*,
 };
 
 struct Game {

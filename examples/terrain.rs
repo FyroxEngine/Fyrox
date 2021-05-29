@@ -12,7 +12,7 @@ use rg3d::{
         pool::Handle,
         rand::Rng,
     },
-    engine::{resource_manager::ResourceManager, simple::prelude::*},
+    engine::{framework::prelude::*, resource_manager::ResourceManager},
     event::{ElementState, VirtualKeyCode, WindowEvent},
     gui::{
         message::{MessageDirection, TextMessage},

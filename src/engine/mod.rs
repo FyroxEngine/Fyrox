@@ -4,8 +4,8 @@
 #![warn(missing_docs)]
 
 pub mod error;
+pub mod framework;
 pub mod resource_manager;
-pub mod simple;
 
 use crate::{
     core::{

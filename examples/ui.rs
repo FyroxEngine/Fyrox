@@ -3,7 +3,7 @@
 //! Difficulty: Easy
 //!
 //! This example shows how to use user interface system of engine. It is
-//! based on simple.rs example because UI will be used to operate on
+//! based on framework example because UI will be used to operate on
 //! model.
 
 extern crate rg3d;

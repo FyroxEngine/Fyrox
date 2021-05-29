@@ -16,7 +16,7 @@ use rg3d::{
         color::Color,
         pool::Handle,
     },
-    engine::{resource_manager::ResourceManager, simple::prelude::*},
+    engine::{framework::prelude::*, resource_manager::ResourceManager},
     event::{ElementState, VirtualKeyCode, WindowEvent},
     gui::{
         message::{MessageDirection, TextMessage},
