@@ -513,7 +513,10 @@ impl Editor {
 
                 println!("Editor settings were loaded successfully!");
 
-                match engine.renderer.set_quality_settings(&settings.graphics) {
+                match engine
+                    .renderer
+                    .set_quality_settings(&settings.graphics.quality)
+                {
                     Ok(_) => {
                         println!("Graphics settings were applied successfully!");
                     }
@@ -1413,8 +1416,8 @@ impl Editor {
 
             let camera = scene.graph[editor_scene.camera_controller.camera].as_camera_mut();
 
-            camera.set_z_near(self.settings.z_near);
-            camera.set_z_far(self.settings.z_far);
+            camera.set_z_near(self.settings.graphics.z_near);
+            camera.set_z_far(self.settings.graphics.z_far);
 
             // Create new render target if preview frame has changed its size.
             let (rt_width, rt_height) = if let TextureKind::Rectangle { width, height } =
@@ -1551,11 +1554,11 @@ impl Editor {
                 &scene.graph,
                 &mut scene.drawing_context,
                 editor_scene,
-                self.settings.show_tbn,
-                self.settings.show_bounds,
+                self.settings.debugging.show_tbn,
+                self.settings.debugging.show_bounds,
             );
 
-            if self.settings.show_physics {
+            if self.settings.debugging.show_physics {
                 editor_scene
                     .physics
                     .draw(&mut scene.drawing_context, &scene.graph);
