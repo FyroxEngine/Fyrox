@@ -22,15 +22,6 @@ pub mod settings;
 pub mod sidebar;
 pub mod world_outliner;
 
-use crate::interaction::terrain::TerrainInteractionMode;
-use crate::scene::commands::graph::LoadModelCommand;
-use crate::scene::commands::mesh::SetMeshTextureCommand;
-use crate::scene::commands::particle_system::SetParticleSystemTextureCommand;
-use crate::scene::commands::sprite::SetSpriteTextureCommand;
-use crate::scene::commands::{
-    make_delete_selection_command, PasteCommand, SceneCommand, SceneContext,
-};
-use crate::scene::{EditorScene, Selection};
 use crate::{
     asset::{AssetBrowser, AssetKind},
     camera::CameraController,
@@ -38,22 +29,31 @@ use crate::{
     configurator::Configurator,
     gui::{BuildContext, EditorUiMessage, EditorUiNode, Ui, UiMessage, UiNode},
     interaction::{
+        move_mode::MoveInteractionMode,
         navmesh::{
             data_model::{Navmesh, NavmeshTriangle, NavmeshVertex},
             EditNavmeshMode, NavmeshPanel,
         },
-        InteractionMode, InteractionModeKind, InteractionModeTrait, MoveInteractionMode,
-        RotateInteractionMode, ScaleInteractionMode, SelectInteractionMode,
+        terrain::TerrainInteractionMode,
+        InteractionMode, InteractionModeKind, InteractionModeTrait, RotateInteractionMode,
+        ScaleInteractionMode, SelectInteractionMode,
     },
     light::LightPanel,
     log::Log,
     menu::{Menu, MenuContext},
     physics::Physics,
+    scene::{
+        commands::{
+            graph::LoadModelCommand, make_delete_selection_command, mesh::SetMeshTextureCommand,
+            particle_system::SetParticleSystemTextureCommand, sprite::SetSpriteTextureCommand,
+            PasteCommand, SceneCommand, SceneContext,
+        },
+        EditorScene, Selection,
+    },
     settings::Settings,
     sidebar::SideBar,
     world_outliner::WorldOutliner,
 };
-use rg3d::scene::mesh::buffer::{VertexAttributeUsage, VertexReadTrait};
 use rg3d::{
     core::{
         algebra::{Point3, Vector2},
@@ -88,7 +88,13 @@ use rg3d::{
         Thickness,
     },
     resource::texture::{Texture, TextureKind, TextureState},
-    scene::{base::BaseBuilder, graph::Graph, node::Node, Line, Scene, SceneDrawingContext},
+    scene::{
+        base::BaseBuilder,
+        graph::Graph,
+        mesh::buffer::{VertexAttributeUsage, VertexReadTrait},
+        node::Node,
+        Line, Scene, SceneDrawingContext,
+    },
     utils::{into_gui_texture, translate_cursor_icon, translate_event},
 };
 use std::{

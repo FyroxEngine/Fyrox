@@ -1,29 +1,33 @@
-use crate::scene::commands::navmesh::{
-    AddNavmeshCommand, AddNavmeshEdgeCommand, ConnectNavmeshEdgesCommand, DeleteNavmeshCommand,
-    DeleteNavmeshVertexCommand, MoveNavmeshVertexCommand,
-};
-use crate::scene::commands::CommandGroup;
-use crate::scene::commands::{ChangeSelectionCommand, SceneCommand};
-use crate::scene::{EditorScene, Selection};
 use crate::{
     gui::{BuildContext, UiMessage, UiNode},
     interaction::{
         calculate_gizmo_distance_scaling,
-        navmesh::data_model::{Navmesh, NavmeshEdge, NavmeshEntity, NavmeshVertex},
-        navmesh::selection::NavmeshSelection,
-        InteractionModeTrait, MoveGizmo,
+        move_mode::MoveGizmo,
+        navmesh::{
+            data_model::{Navmesh, NavmeshEdge, NavmeshEntity, NavmeshVertex},
+            selection::NavmeshSelection,
+        },
+        InteractionModeTrait,
+    },
+    scene::{
+        commands::{
+            navmesh::{
+                AddNavmeshCommand, AddNavmeshEdgeCommand, ConnectNavmeshEdgesCommand,
+                DeleteNavmeshCommand, DeleteNavmeshVertexCommand, MoveNavmeshVertexCommand,
+            },
+            ChangeSelectionCommand, CommandGroup, SceneCommand,
+        },
+        EditorScene, Selection,
     },
     send_sync_message, GameEngine, Message, MSG_SYNC_FLAG,
 };
-use rg3d::core::scope_profile;
-use rg3d::gui::stack_panel::StackPanelBuilder;
-use rg3d::gui::Orientation;
 use rg3d::{
     core::{
         algebra::{Vector2, Vector3},
         color::Color,
         math::ray::CylinderKind,
         pool::Handle,
+        scope_profile,
     },
     gui::{
         border::BorderBuilder,
@@ -35,10 +39,11 @@ use rg3d::{
         message::{
             ButtonMessage, KeyCode, ListViewMessage, MessageDirection, UiMessageData, WidgetMessage,
         },
+        stack_panel::StackPanelBuilder,
         text::TextBuilder,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
-        Thickness, VerticalAlignment,
+        Orientation, Thickness, VerticalAlignment,
     },
     scene::{camera::Camera, node::Node},
 };
