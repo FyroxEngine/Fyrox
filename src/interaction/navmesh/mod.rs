@@ -1,10 +1,10 @@
-use crate::interaction::move_mode::MovePlaneKind;
+use crate::interaction::gizmo::move_gizmo::MoveGizmo;
+use crate::interaction::plane::PlaneKind;
 use crate::settings::Settings;
 use crate::{
     gui::{BuildContext, UiMessage, UiNode},
     interaction::{
         calculate_gizmo_distance_scaling,
-        move_mode::MoveGizmo,
         navmesh::{
             data_model::{Navmesh, NavmeshEdge, NavmeshEntity, NavmeshVertex},
             selection::NavmeshSelection,
@@ -361,7 +361,7 @@ pub struct EditNavmeshMode {
     move_gizmo: MoveGizmo,
     message_sender: Sender<Message>,
     drag_context: Option<DragContext>,
-    plane_kind: MovePlaneKind,
+    plane_kind: PlaneKind,
 }
 
 impl EditNavmeshMode {
@@ -375,7 +375,7 @@ impl EditNavmeshMode {
             move_gizmo: MoveGizmo::new(editor_scene, engine),
             message_sender,
             drag_context: None,
-            plane_kind: MovePlaneKind::X,
+            plane_kind: PlaneKind::X,
         }
     }
 }

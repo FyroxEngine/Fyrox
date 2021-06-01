@@ -18,8 +18,10 @@ use rg3d::{
     scene::{graph::Graph, node::Node},
 };
 
+pub mod gizmo;
 pub mod move_mode;
 pub mod navmesh;
+pub mod plane;
 pub mod rotate_mode;
 pub mod scale_mode;
 pub mod select_mode;
