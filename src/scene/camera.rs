@@ -268,7 +268,7 @@ impl Camera {
         let viewport = self.viewport_pixels(screen_size);
         let proj = self.view_projection_matrix()
             * Vector4::new(world_pos.x, world_pos.y, world_pos.z, 1.0);
-        if proj.w != 0.0 {
+        if proj.w != 0.0 && proj.z >= 0.0 {
             let k = (1.0 / proj.w) * 0.5;
             Some(Vector2::new(
                 viewport.x() as f32 + viewport.w() as f32 * (proj.x * k + 0.5),
