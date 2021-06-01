@@ -39,6 +39,7 @@ pub mod move_mode;
 struct SwitchEntry {
     tree_item: Handle<UiNode>,
     section: Handle<UiNode>,
+    kind: SettingsSectionKind,
 }
 
 pub struct SettingsWindow {
@@ -50,6 +51,14 @@ pub struct SettingsWindow {
     move_mode_section: MoveModeSection,
     debugging_section: DebuggingSection,
     section_switches: Vec<SwitchEntry>,
+    sections_root: Handle<UiNode>,
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub enum SettingsSectionKind {
+    Graphics,
+    Debugging,
+    MoveModeSettings,
 }
 
 #[derive(Deserialize, Serialize, PartialEq, Clone, Default)]
@@ -152,48 +161,51 @@ impl SettingsWindow {
         let debugging_section = DebuggingSection::new(ctx, &settings.debugging);
         let move_mode_section = MoveModeSection::new(ctx, &settings.move_mode_settings);
 
+        let sections_root;
         let graphics_section_item;
         let debugging_section_item;
         let move_mode_section_item;
         let section = GridBuilder::new(
             WidgetBuilder::new()
                 .on_row(1)
-                .with_child(
-                    TreeRootBuilder::new(WidgetBuilder::new().on_column(0).on_row(0))
-                        .with_items(vec![
-                            {
-                                graphics_section_item = TreeBuilder::new(WidgetBuilder::new())
-                                    .with_content(
-                                        TextBuilder::new(WidgetBuilder::new())
-                                            .with_text("Graphics")
-                                            .build(ctx),
-                                    )
-                                    .build(ctx);
-                                graphics_section_item
-                            },
-                            {
-                                debugging_section_item = TreeBuilder::new(WidgetBuilder::new())
-                                    .with_content(
-                                        TextBuilder::new(WidgetBuilder::new())
-                                            .with_text("Debugging")
-                                            .build(ctx),
-                                    )
-                                    .build(ctx);
-                                debugging_section_item
-                            },
-                            {
-                                move_mode_section_item = TreeBuilder::new(WidgetBuilder::new())
-                                    .with_content(
-                                        TextBuilder::new(WidgetBuilder::new())
-                                            .with_text("Move Interaction Mode")
-                                            .build(ctx),
-                                    )
-                                    .build(ctx);
-                                move_mode_section_item
-                            },
-                        ])
-                        .build(ctx),
-                )
+                .with_child({
+                    sections_root =
+                        TreeRootBuilder::new(WidgetBuilder::new().on_column(0).on_row(0))
+                            .with_items(vec![
+                                {
+                                    graphics_section_item = TreeBuilder::new(WidgetBuilder::new())
+                                        .with_content(
+                                            TextBuilder::new(WidgetBuilder::new())
+                                                .with_text("Graphics")
+                                                .build(ctx),
+                                        )
+                                        .build(ctx);
+                                    graphics_section_item
+                                },
+                                {
+                                    debugging_section_item = TreeBuilder::new(WidgetBuilder::new())
+                                        .with_content(
+                                            TextBuilder::new(WidgetBuilder::new())
+                                                .with_text("Debugging")
+                                                .build(ctx),
+                                        )
+                                        .build(ctx);
+                                    debugging_section_item
+                                },
+                                {
+                                    move_mode_section_item = TreeBuilder::new(WidgetBuilder::new())
+                                        .with_content(
+                                            TextBuilder::new(WidgetBuilder::new())
+                                                .with_text("Move Interaction Mode")
+                                                .build(ctx),
+                                        )
+                                        .build(ctx);
+                                    move_mode_section_item
+                                },
+                            ])
+                            .build(ctx);
+                    sections_root
+                })
                 .with_child(
                     BorderBuilder::new(WidgetBuilder::new().on_row(0).on_column(1).with_children(
                         &[
@@ -214,14 +226,17 @@ impl SettingsWindow {
             SwitchEntry {
                 tree_item: graphics_section_item,
                 section: graphics_section.section,
+                kind: SettingsSectionKind::Graphics,
             },
             SwitchEntry {
                 tree_item: debugging_section_item,
                 section: debugging_section.section,
+                kind: SettingsSectionKind::Debugging,
             },
             SwitchEntry {
                 tree_item: move_mode_section_item,
                 section: move_mode_section.section,
+                kind: SettingsSectionKind::MoveModeSettings,
             },
         ];
 
@@ -281,6 +296,7 @@ impl SettingsWindow {
             .build(ctx);
 
         Self {
+            sections_root,
             section_switches,
             window,
             sender,
@@ -292,12 +308,24 @@ impl SettingsWindow {
         }
     }
 
-    pub fn open(&self, ui: &Ui, settings: &Settings) {
+    pub fn open(&self, ui: &Ui, settings: &Settings, section: Option<SettingsSectionKind>) {
         ui.send_message(WindowMessage::open(
             self.window,
             MessageDirection::ToWidget,
             true,
         ));
+
+        if let Some(section) = section {
+            for entry in self.section_switches.iter() {
+                if entry.kind == section {
+                    ui.send_message(TreeRootMessage::select(
+                        self.sections_root,
+                        MessageDirection::ToWidget,
+                        vec![entry.tree_item],
+                    ));
+                }
+            }
+        }
 
         self.sync_to_model(ui, settings);
     }
@@ -315,22 +343,18 @@ impl SettingsWindow {
         message: &UiMessage,
         editor_scene: &EditorScene,
         engine: &mut GameEngine,
-        in_settings: &mut Settings,
+        settings: &mut Settings,
     ) {
         scope_profile!();
 
-        let mut settings = in_settings.clone();
+        let old_settings = settings.clone();
 
-        self.graphics_section.handle_message(
-            message,
-            editor_scene,
-            engine,
-            &mut in_settings.graphics,
-        );
+        self.graphics_section
+            .handle_message(message, editor_scene, engine, &mut settings.graphics);
         self.debugging_section
-            .handle_message(message, &mut in_settings.debugging);
+            .handle_message(message, &mut settings.debugging);
         self.move_mode_section
-            .handle_message(message, &mut in_settings.move_mode_settings);
+            .handle_message(message, &mut settings.move_mode_settings);
 
         match message.data() {
             UiMessageData::Button(ButtonMessage::Click) => {
@@ -340,7 +364,7 @@ impl SettingsWindow {
                         MessageDirection::ToWidget,
                     ));
                 } else if message.destination() == self.default {
-                    settings = Default::default();
+                    *settings = Default::default();
                     self.sync_to_model(&engine.user_interface, &settings);
                 }
             }
@@ -361,9 +385,7 @@ impl SettingsWindow {
         }
 
         // Apply only if anything changed.
-        if &settings != in_settings {
-            *in_settings = settings.clone();
-
+        if settings != &old_settings {
             if settings.graphics.quality != engine.renderer.get_quality_settings() {
                 if let Err(e) = engine
                     .renderer

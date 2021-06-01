@@ -1,3 +1,4 @@
+use crate::settings::Settings;
 use crate::{
     interaction::InteractionModeTrait,
     scene::{
@@ -205,6 +206,7 @@ impl InteractionModeTrait for TerrainInteractionMode {
         editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
         frame_size: Vector2<f32>,
+        _settings: &Settings,
     ) {
         if let Selection::Graph(selection) = &editor_scene.selection {
             if selection.is_single_selection() {

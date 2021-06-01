@@ -1,16 +1,20 @@
+use crate::camera::CameraController;
 use crate::{
     interaction::{calculate_gizmo_distance_scaling, InteractionModeTrait},
     scene::{
         commands::{graph::MoveNodeCommand, ChangeSelectionCommand, CommandGroup, SceneCommand},
         EditorScene, GraphSelection, Selection,
     },
+    settings::Settings,
     GameEngine, Message,
 };
+use rg3d::core::algebra::Point3;
+use rg3d::core::math::Matrix4Ext;
 use rg3d::{
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
         color::Color,
-        math::{plane::Plane, Matrix4Ext},
+        math::plane::Plane,
         pool::Handle,
     },
     scene::{
@@ -27,8 +31,7 @@ use rg3d::{
 use std::sync::{mpsc::Sender, Arc, RwLock};
 
 #[derive(Copy, Clone, Debug)]
-pub enum MoveGizmoMode {
-    None,
+pub enum MovePlaneKind {
     X,
     Y,
     Z,
@@ -37,8 +40,41 @@ pub enum MoveGizmoMode {
     ZX,
 }
 
+impl MovePlaneKind {
+    fn make_plane(self, look_direction: Vector3<f32>) -> Plane {
+        match self {
+            MovePlaneKind::X => Plane::from_normal_and_point(
+                &Vector3::new(0.0, look_direction.y, look_direction.z),
+                &Default::default(),
+            ),
+            MovePlaneKind::Y => Plane::from_normal_and_point(
+                &Vector3::new(look_direction.x, 0.0, look_direction.z),
+                &Default::default(),
+            ),
+            MovePlaneKind::Z => Plane::from_normal_and_point(
+                &Vector3::new(look_direction.x, look_direction.y, 0.0),
+                &Default::default(),
+            ),
+            MovePlaneKind::YZ => Plane::from_normal_and_point(&Vector3::x(), &Default::default()),
+            MovePlaneKind::ZX => Plane::from_normal_and_point(&Vector3::y(), &Default::default()),
+            MovePlaneKind::XY => Plane::from_normal_and_point(&Vector3::z(), &Default::default()),
+        }
+        .unwrap_or_default()
+    }
+
+    fn project_point(self, point: Vector3<f32>) -> Vector3<f32> {
+        match self {
+            MovePlaneKind::X => Vector3::new(point.x, 0.0, 0.0),
+            MovePlaneKind::Y => Vector3::new(0.0, point.y, 0.0),
+            MovePlaneKind::Z => Vector3::new(0.0, 0.0, point.z),
+            MovePlaneKind::XY => Vector3::new(point.x, point.y, 0.0),
+            MovePlaneKind::YZ => Vector3::new(0.0, point.y, point.z),
+            MovePlaneKind::ZX => Vector3::new(point.x, 0.0, point.z),
+        }
+    }
+}
+
 pub struct MoveGizmo {
-    mode: MoveGizmoMode,
     pub origin: Handle<Node>,
     x_arrow: Handle<Node>,
     y_arrow: Handle<Node>,
@@ -186,7 +222,6 @@ impl MoveGizmo {
         graph.link_nodes(zx_plane, origin);
 
         Self {
-            mode: MoveGizmoMode::None,
             origin,
             x_arrow,
             y_arrow,
@@ -200,9 +235,7 @@ impl MoveGizmo {
         }
     }
 
-    pub fn set_mode(&mut self, mode: MoveGizmoMode, graph: &mut Graph) {
-        self.mode = mode;
-
+    pub fn apply_mode(&mut self, mode: Option<MovePlaneKind>, graph: &mut Graph) {
         // Restore initial colors first.
         graph[self.x_axis].as_mesh_mut().set_color(Color::RED);
         graph[self.x_arrow].as_mesh_mut().set_color(Color::RED);
@@ -214,63 +247,62 @@ impl MoveGizmo {
         graph[self.yz_plane].as_mesh_mut().set_color(Color::RED);
         graph[self.xy_plane].as_mesh_mut().set_color(Color::BLUE);
 
-        let yellow = Color::opaque(255, 255, 0);
-        match self.mode {
-            MoveGizmoMode::X => {
-                graph[self.x_axis].as_mesh_mut().set_color(yellow);
-                graph[self.x_arrow].as_mesh_mut().set_color(yellow);
+        if let Some(mode) = mode {
+            let yellow = Color::opaque(255, 255, 0);
+            match mode {
+                MovePlaneKind::X => {
+                    graph[self.x_axis].as_mesh_mut().set_color(yellow);
+                    graph[self.x_arrow].as_mesh_mut().set_color(yellow);
+                }
+                MovePlaneKind::Y => {
+                    graph[self.y_axis].as_mesh_mut().set_color(yellow);
+                    graph[self.y_arrow].as_mesh_mut().set_color(yellow);
+                }
+                MovePlaneKind::Z => {
+                    graph[self.z_axis].as_mesh_mut().set_color(yellow);
+                    graph[self.z_arrow].as_mesh_mut().set_color(yellow);
+                }
+                MovePlaneKind::XY => {
+                    graph[self.xy_plane].as_mesh_mut().set_color(yellow);
+                }
+                MovePlaneKind::YZ => {
+                    graph[self.yz_plane].as_mesh_mut().set_color(yellow);
+                }
+                MovePlaneKind::ZX => {
+                    graph[self.zx_plane].as_mesh_mut().set_color(yellow);
+                }
             }
-            MoveGizmoMode::Y => {
-                graph[self.y_axis].as_mesh_mut().set_color(yellow);
-                graph[self.y_arrow].as_mesh_mut().set_color(yellow);
-            }
-            MoveGizmoMode::Z => {
-                graph[self.z_axis].as_mesh_mut().set_color(yellow);
-                graph[self.z_arrow].as_mesh_mut().set_color(yellow);
-            }
-            MoveGizmoMode::XY => {
-                graph[self.xy_plane].as_mesh_mut().set_color(yellow);
-            }
-            MoveGizmoMode::YZ => {
-                graph[self.yz_plane].as_mesh_mut().set_color(yellow);
-            }
-            MoveGizmoMode::ZX => {
-                graph[self.zx_plane].as_mesh_mut().set_color(yellow);
-            }
-            _ => (),
         }
     }
 
     pub fn handle_pick(
         &mut self,
         picked: Handle<Node>,
-        editor_scene: &EditorScene,
-        engine: &mut GameEngine,
-    ) -> bool {
-        let graph = &mut engine.scenes[editor_scene.scene].graph;
-
-        if picked == self.x_axis || picked == self.x_arrow {
-            self.set_mode(MoveGizmoMode::X, graph);
-            true
+        graph: &mut Graph,
+    ) -> Option<MovePlaneKind> {
+        let mode = if picked == self.x_axis || picked == self.x_arrow {
+            Some(MovePlaneKind::X)
         } else if picked == self.y_axis || picked == self.y_arrow {
-            self.set_mode(MoveGizmoMode::Y, graph);
-            true
+            Some(MovePlaneKind::Y)
         } else if picked == self.z_axis || picked == self.z_arrow {
-            self.set_mode(MoveGizmoMode::Z, graph);
-            true
+            Some(MovePlaneKind::Z)
         } else if picked == self.zx_plane {
-            self.set_mode(MoveGizmoMode::ZX, graph);
-            true
+            Some(MovePlaneKind::ZX)
         } else if picked == self.xy_plane {
-            self.set_mode(MoveGizmoMode::XY, graph);
-            true
+            Some(MovePlaneKind::XY)
         } else if picked == self.yz_plane {
-            self.set_mode(MoveGizmoMode::YZ, graph);
-            true
+            Some(MovePlaneKind::YZ)
         } else {
-            self.set_mode(MoveGizmoMode::None, graph);
-            false
-        }
+            None
+        };
+
+        self.apply_mode(mode, graph);
+
+        mode
+    }
+
+    pub fn transform<'a>(&self, graph: &'a mut Graph) -> &'a mut Transform {
+        graph[self.origin].local_transform_mut()
     }
 
     pub fn calculate_offset(
@@ -281,6 +313,7 @@ impl MoveGizmo {
         mouse_position: Vector2<f32>,
         engine: &GameEngine,
         frame_size: Vector2<f32>,
+        plane_kind: MovePlaneKind,
     ) -> Vector3<f32> {
         let scene = &engine.scenes[editor_scene.scene];
         let graph = &scene.graph;
@@ -304,27 +337,26 @@ impl MoveGizmo {
                 .transform_vector(&(node_global_transform.position() - camera.global_position()));
 
             // Select plane by current active mode.
-            let plane = match self.mode {
-                MoveGizmoMode::None => return Vector3::default(),
-                MoveGizmoMode::X => Plane::from_normal_and_point(
+            let plane = match plane_kind {
+                MovePlaneKind::X => Plane::from_normal_and_point(
                     &Vector3::new(0.0, dlook.y, dlook.z),
                     &Vector3::default(),
                 ),
-                MoveGizmoMode::Y => Plane::from_normal_and_point(
+                MovePlaneKind::Y => Plane::from_normal_and_point(
                     &Vector3::new(dlook.x, 0.0, dlook.z),
                     &Vector3::default(),
                 ),
-                MoveGizmoMode::Z => Plane::from_normal_and_point(
+                MovePlaneKind::Z => Plane::from_normal_and_point(
                     &Vector3::new(dlook.x, dlook.y, 0.0),
                     &Vector3::default(),
                 ),
-                MoveGizmoMode::YZ => {
+                MovePlaneKind::YZ => {
                     Plane::from_normal_and_point(&Vector3::x(), &Vector3::default())
                 }
-                MoveGizmoMode::ZX => {
+                MovePlaneKind::ZX => {
                     Plane::from_normal_and_point(&Vector3::y(), &Vector3::default())
                 }
-                MoveGizmoMode::XY => {
+                MovePlaneKind::XY => {
                     Plane::from_normal_and_point(&Vector3::z(), &Vector3::default())
                 }
             }
@@ -334,14 +366,13 @@ impl MoveGizmo {
             if let Some(initial_point) = initial_ray.plane_intersection_point(&plane) {
                 if let Some(next_point) = offset_ray.plane_intersection_point(&plane) {
                     let delta = next_point - initial_point;
-                    let offset = match self.mode {
-                        MoveGizmoMode::None => unreachable!(),
-                        MoveGizmoMode::X => Vector3::new(delta.x, 0.0, 0.0),
-                        MoveGizmoMode::Y => Vector3::new(0.0, delta.y, 0.0),
-                        MoveGizmoMode::Z => Vector3::new(0.0, 0.0, delta.z),
-                        MoveGizmoMode::XY => Vector3::new(delta.x, delta.y, 0.0),
-                        MoveGizmoMode::YZ => Vector3::new(0.0, delta.y, delta.z),
-                        MoveGizmoMode::ZX => Vector3::new(delta.x, 0.0, delta.z),
+                    let offset = match plane_kind {
+                        MovePlaneKind::X => Vector3::new(delta.x, 0.0, 0.0),
+                        MovePlaneKind::Y => Vector3::new(0.0, delta.y, 0.0),
+                        MovePlaneKind::Z => Vector3::new(0.0, 0.0, delta.z),
+                        MovePlaneKind::XY => Vector3::new(delta.x, delta.y, 0.0),
+                        MovePlaneKind::YZ => Vector3::new(0.0, delta.y, delta.z),
+                        MovePlaneKind::ZX => Vector3::new(delta.x, 0.0, delta.z),
                     };
                     // Make sure offset will be in local coordinates.
                     return node_local_transform.transform_vector(&offset);
@@ -350,10 +381,6 @@ impl MoveGizmo {
         }
 
         Vector3::default()
-    }
-
-    pub fn transform<'a>(&self, graph: &'a mut Graph) -> &'a mut Transform {
-        graph[self.origin].local_transform_mut()
     }
 
     pub fn sync_transform(
@@ -377,10 +404,139 @@ impl MoveGizmo {
     }
 }
 
+struct Entry {
+    node_handle: Handle<Node>,
+    initial_offset_gizmo_space: Vector3<f32>,
+    initial_local_position: Vector3<f32>,
+    initial_parent_inv_global_transform: Matrix4<f32>,
+    new_local_position: Vector3<f32>,
+}
+
+struct MoveContext {
+    plane: Plane,
+    objects: Vec<Entry>,
+    plane_kind: MovePlaneKind,
+    gizmo_inv_transform: Matrix4<f32>,
+    gizmo_local_transform: Matrix4<f32>,
+}
+
+impl MoveContext {
+    pub fn from_graph_selection(
+        selection: &GraphSelection,
+        graph: &Graph,
+        move_gizmo: &MoveGizmo,
+        camera_controller: &CameraController,
+        plane_kind: MovePlaneKind,
+        mouse_pos: Vector2<f32>,
+        frame_size: Vector2<f32>,
+    ) -> Self {
+        let gizmo_origin = &graph[move_gizmo.origin];
+
+        let gizmo_inv_transform = gizmo_origin
+            .global_transform()
+            .try_inverse()
+            .unwrap_or_default();
+
+        let look_direction =
+            gizmo_inv_transform.transform_vector(&graph[camera_controller.camera].look_vector());
+
+        let plane = plane_kind.make_plane(look_direction);
+
+        let plane_point = plane_kind.project_point(
+            camera_controller
+                .pick_on_plane(plane, graph, mouse_pos, frame_size, gizmo_inv_transform)
+                .unwrap_or_default(),
+        );
+
+        Self {
+            plane,
+            objects: selection
+                .root_nodes(graph)
+                .iter()
+                .map(|&node_handle| {
+                    let node = &graph[node_handle];
+                    Entry {
+                        node_handle,
+                        initial_offset_gizmo_space: gizmo_inv_transform
+                            .transform_point(&Point3::from(node.global_position()))
+                            .coords
+                            - plane_point,
+                        new_local_position: **node.local_transform().position(),
+                        initial_local_position: **node.local_transform().position(),
+                        initial_parent_inv_global_transform: if node.parent().is_some() {
+                            graph[node.parent()]
+                                .global_transform()
+                                .try_inverse()
+                                .unwrap_or_default()
+                        } else {
+                            Matrix4::identity()
+                        },
+                    }
+                })
+                .collect(),
+            gizmo_local_transform: gizmo_origin.local_transform().matrix(),
+            gizmo_inv_transform,
+            plane_kind,
+        }
+    }
+
+    pub fn update(
+        &mut self,
+        graph: &Graph,
+        camera_controller: &CameraController,
+        settings: &Settings,
+        mouse_position: Vector2<f32>,
+        frame_size: Vector2<f32>,
+    ) {
+        if let Some(picked_position_gizmo_space) = camera_controller
+            .pick_on_plane(
+                self.plane,
+                graph,
+                mouse_position,
+                frame_size,
+                self.gizmo_inv_transform,
+            )
+            .map(|p| self.plane_kind.project_point(p))
+        {
+            for entry in self.objects.iter_mut() {
+                let mut new_local_position = entry.initial_local_position
+                    + entry.initial_parent_inv_global_transform.transform_vector(
+                        &self.gizmo_local_transform.transform_vector(
+                            &(picked_position_gizmo_space + entry.initial_offset_gizmo_space),
+                        ),
+                    );
+
+                // Snap to grid if needed.
+                if settings.move_mode_settings.grid_snapping {
+                    fn round_to_step(x: f32, step: f32) -> f32 {
+                        x - x % step
+                    }
+
+                    new_local_position = Vector3::new(
+                        round_to_step(
+                            new_local_position.x,
+                            settings.move_mode_settings.x_snap_step,
+                        ),
+                        round_to_step(
+                            new_local_position.y,
+                            settings.move_mode_settings.y_snap_step,
+                        ),
+                        round_to_step(
+                            new_local_position.z,
+                            settings.move_mode_settings.z_snap_step,
+                        ),
+                    );
+                }
+
+                entry.new_local_position = new_local_position;
+            }
+        }
+    }
+}
+
 pub struct MoveInteractionMode {
-    initial_positions: Vec<Vector3<f32>>,
+    move_context: Option<MoveContext>,
     move_gizmo: MoveGizmo,
-    interacting: bool,
     message_sender: Sender<Message>,
 }
 
@@ -391,9 +547,8 @@ impl MoveInteractionMode {
         message_sender: Sender<Message>,
     ) -> Self {
         Self {
-            initial_positions: Default::default(),
+            move_context: None,
             move_gizmo: MoveGizmo::new(editor_scene, engine),
-            interacting: false,
             message_sender,
         }
     }
@@ -409,10 +564,9 @@ impl InteractionModeTrait for MoveInteractionMode {
     ) {
         let graph = &mut engine.scenes[editor_scene.scene].graph;
 
-        // Pick gizmo nodes.
         let camera = editor_scene.camera_controller.camera;
         let camera_pivot = editor_scene.camera_controller.pivot;
-        let editor_node = editor_scene.camera_controller.pick(
+        if let Some(result) = editor_scene.camera_controller.pick(
             mouse_pos,
             graph,
             editor_scene.root,
@@ -421,17 +575,19 @@ impl InteractionModeTrait for MoveInteractionMode {
             |handle, _| {
                 handle != camera && handle != camera_pivot && handle != self.move_gizmo.origin
             },
-        );
-
-        if self
-            .move_gizmo
-            .handle_pick(editor_node, editor_scene, engine)
-        {
-            let graph = &mut engine.scenes[editor_scene.scene].graph;
-
-            if let Selection::Graph(selection) = &editor_scene.selection {
-                self.interacting = true;
-                self.initial_positions = selection.local_positions(graph);
+        ) {
+            if let Some(plane_kind) = self.move_gizmo.handle_pick(result.node, graph) {
+                if let Selection::Graph(selection) = &editor_scene.selection {
+                    self.move_context = Some(MoveContext::from_graph_selection(
+                        selection,
+                        graph,
+                        &self.move_gizmo,
+                        &editor_scene.camera_controller,
+                        plane_kind,
+                        mouse_pos,
+                        frame_size,
+                    ));
+                }
             }
         }
     }
@@ -445,55 +601,69 @@ impl InteractionModeTrait for MoveInteractionMode {
     ) {
         let graph = &mut engine.scenes[editor_scene.scene].graph;
 
-        if self.interacting {
-            if let Selection::Graph(selection) = &editor_scene.selection {
-                if !selection.is_empty() {
-                    self.interacting = false;
-                    let current_positions = selection.local_positions(graph);
-                    if current_positions != self.initial_positions {
-                        let commands = CommandGroup::from(
-                            selection
-                                .nodes()
-                                .iter()
-                                .zip(current_positions.iter().zip(self.initial_positions.iter()))
-                                .map(|(&node, (&new_pos, &old_pos))| {
-                                    SceneCommand::MoveNode(MoveNodeCommand::new(
-                                        node, old_pos, new_pos,
-                                    ))
-                                })
-                                .collect::<Vec<SceneCommand>>(),
-                        );
-                        // Commit changes.
-                        self.message_sender
-                            .send(Message::DoSceneCommand(SceneCommand::CommandGroup(
-                                commands,
-                            )))
-                            .unwrap();
-                    }
+        if let Some(move_context) = self.move_context.take() {
+            let mut changed = false;
+
+            for initial_state in move_context.objects.iter() {
+                if **graph[initial_state.node_handle]
+                    .local_transform()
+                    .position()
+                    != initial_state.initial_local_position
+                {
+                    changed = true;
+                    break;
                 }
             }
-        } else {
-            let picked = editor_scene.camera_controller.pick(
-                mouse_pos,
-                graph,
-                editor_scene.root,
-                frame_size,
-                false,
-                |_, _| true,
-            );
 
-            let new_selection =
-                if engine.user_interface.keyboard_modifiers().control && picked.is_some() {
-                    if let Selection::Graph(selection) = &editor_scene.selection {
+            if changed {
+                let commands = CommandGroup::from(
+                    move_context
+                        .objects
+                        .iter()
+                        .map(|initial_state| {
+                            SceneCommand::MoveNode(MoveNodeCommand::new(
+                                initial_state.node_handle,
+                                initial_state.initial_local_position,
+                                **graph[initial_state.node_handle]
+                                    .local_transform()
+                                    .position(),
+                            ))
+                        })
+                        .collect::<Vec<SceneCommand>>(),
+                );
+
+                // Commit changes.
+                self.message_sender
+                    .send(Message::DoSceneCommand(SceneCommand::CommandGroup(
+                        commands,
+                    )))
+                    .unwrap();
+            }
+        } else {
+            let new_selection = editor_scene
+                .camera_controller
+                .pick(
+                    mouse_pos,
+                    graph,
+                    editor_scene.root,
+                    frame_size,
+                    false,
+                    |_, _| true,
+                )
+                .map(|result| {
+                    if let (Selection::Graph(selection), true) = (
+                        &editor_scene.selection,
+                        engine.user_interface.keyboard_modifiers().control,
+                    ) {
                         let mut selection = selection.clone();
-                        selection.insert_or_exclude(picked);
+                        selection.insert_or_exclude(result.node);
                         Selection::Graph(selection)
                     } else {
-                        Selection::Graph(GraphSelection::single_or_empty(picked))
+                        Selection::Graph(GraphSelection::single_or_empty(result.node))
                     }
-                } else {
-                    Selection::Graph(GraphSelection::single_or_empty(picked))
-                };
+                })
+                .unwrap_or_else(|| Selection::Graph(GraphSelection::default()));
+
             if new_selection != editor_scene.selection {
                 self.message_sender
                     .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
@@ -506,25 +676,29 @@ impl InteractionModeTrait for MoveInteractionMode {
 
     fn on_mouse_move(
         &mut self,
-        mouse_offset: Vector2<f32>,
+        _mouse_offset: Vector2<f32>,
         mouse_position: Vector2<f32>,
-        camera: Handle<Node>,
+        _camera: Handle<Node>,
         editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
         frame_size: Vector2<f32>,
+        settings: &Settings,
     ) {
-        if self.interacting {
-            if let Selection::Graph(selection) = &editor_scene.selection {
-                let node_offset = self.move_gizmo.calculate_offset(
-                    editor_scene,
-                    camera,
-                    mouse_offset,
-                    mouse_position,
-                    engine,
-                    frame_size,
-                );
+        if let Some(move_context) = self.move_context.as_mut() {
+            let graph = &mut engine.scenes[editor_scene.scene].graph;
 
-                selection.offset(&mut engine.scenes[editor_scene.scene].graph, node_offset);
+            move_context.update(
+                graph,
+                &editor_scene.camera_controller,
+                settings,
+                mouse_position,
+                frame_size,
+            );
+
+            for entry in move_context.objects.iter() {
+                graph[entry.node_handle]
+                    .local_transform_mut()
+                    .set_position(entry.new_local_position);
             }
         }
     }

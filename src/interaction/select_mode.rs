@@ -2,6 +2,7 @@ use crate::gui::UiNode;
 use crate::interaction::InteractionModeTrait;
 use crate::scene::commands::{ChangeSelectionCommand, SceneCommand};
 use crate::scene::{EditorScene, GraphSelection, Selection};
+use crate::settings::Settings;
 use crate::{GameEngine, Message};
 use rg3d::core::algebra::Vector2;
 use rg3d::core::math::aabb::AxisAlignedBoundingBox;
@@ -143,6 +144,7 @@ impl InteractionModeTrait for SelectInteractionMode {
         _editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
         _frame_size: Vector2<f32>,
+        _settings: &Settings,
     ) {
         let ui = &mut engine.user_interface;
         let width = mouse_position.x - self.click_pos.x;

@@ -75,7 +75,7 @@ pub struct Menu {
     open_settings: Handle<UiNode>,
     configure: Handle<UiNode>,
     light_panel: Handle<UiNode>,
-    settings: SettingsWindow,
+    pub settings: SettingsWindow,
     configure_message: Handle<UiNode>,
     log_panel: Handle<UiNode>,
     create: Handle<UiNode>,
@@ -759,7 +759,8 @@ impl Menu {
                 } else if message.destination() == self.log_panel {
                     switch_window_state(ctx.log_panel, &mut ctx.engine.user_interface, false);
                 } else if message.destination() == self.open_settings {
-                    self.settings.open(&ctx.engine.user_interface, ctx.settings);
+                    self.settings
+                        .open(&ctx.engine.user_interface, ctx.settings, None);
                 } else if message.destination() == self.configure {
                     if ctx.editor_scene.is_none() {
                         ctx.engine

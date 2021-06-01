@@ -1,7 +1,9 @@
 use crate::rg3d::core::math::Matrix4Ext;
+use rg3d::core::algebra::Matrix4;
+use rg3d::core::math::plane::Plane;
 use rg3d::{
     core::{
-        algebra::{UnitQuaternion, Vector2, Vector3},
+        algebra::{Point3, UnitQuaternion, Vector2, Vector3},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
     },
@@ -32,9 +34,16 @@ pub struct CameraController {
     scene_context: PickContext,
 }
 
+#[derive(Clone)]
+pub struct CameraPickResult {
+    pub position: Vector3<f32>,
+    pub node: Handle<Node>,
+    pub toi: f32,
+}
+
 #[derive(Default)]
 struct PickContext {
-    pick_list: Vec<(Handle<Node>, f32)>,
+    pick_list: Vec<CameraPickResult>,
     pick_index: usize,
     old_selection_hash: u64,
     old_cursor_pos: Vector2<f32>,
@@ -180,7 +189,7 @@ impl CameraController {
         screen_size: Vector2<f32>,
         editor_only: bool,
         mut filter: F,
-    ) -> Handle<Node>
+    ) -> Option<CameraPickResult>
     where
         F: FnMut(Handle<Node>, &Node) -> bool,
     {
@@ -236,7 +245,18 @@ impl CameraController {
                         let da = points[0].metric_distance(&object_space_ray.origin);
                         let db = points[1].metric_distance(&object_space_ray.origin);
                         let closest_distance = da.min(db);
-                        context.pick_list.push((handle, closest_distance));
+                        context.pick_list.push(CameraPickResult {
+                            position: node
+                                .global_transform()
+                                .transform_point(&Point3::from(if da < db {
+                                    points[0]
+                                } else {
+                                    points[1]
+                                }))
+                                .coords,
+                            node: handle,
+                            toi: closest_distance,
+                        });
                     }
                 }
             }
@@ -244,11 +264,11 @@ impl CameraController {
             // Make sure closest will be selected first.
             context
                 .pick_list
-                .sort_by(|&(_, a), (_, b)| a.partial_cmp(b).unwrap());
+                .sort_by(|a, b| a.toi.partial_cmp(&b.toi).unwrap());
 
             let mut hasher = DefaultHasher::new();
-            for (handle, _) in context.pick_list.iter() {
-                handle.hash(&mut hasher);
+            for result in context.pick_list.iter() {
+                result.node.hash(&mut hasher);
             }
             let selection_hash = hasher.finish();
             if selection_hash == context.old_selection_hash && cursor_pos == context.old_cursor_pos
@@ -267,12 +287,30 @@ impl CameraController {
             context.old_cursor_pos = cursor_pos;
 
             if !context.pick_list.is_empty() {
-                if let Some(&(handle, _)) = context.pick_list.get(context.pick_index) {
-                    return handle;
+                if let Some(result) = context.pick_list.get(context.pick_index) {
+                    return Some(result.clone());
                 }
             }
         }
 
-        Handle::NONE
+        None
+    }
+
+    pub fn pick_on_plane(
+        &self,
+        plane: Plane,
+        graph: &Graph,
+        mouse_position: Vector2<f32>,
+        viewport_size: Vector2<f32>,
+        transform: Matrix4<f32>,
+    ) -> Option<Vector3<f32>> {
+        if let Node::Camera(camera) = &graph[self.camera] {
+            camera
+                .make_ray(mouse_position, viewport_size)
+                .transform(transform)
+                .plane_intersection_point(&plane)
+        } else {
+            unreachable!()
+        }
     }
 }

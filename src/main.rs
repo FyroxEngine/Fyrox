@@ -22,6 +22,7 @@ pub mod settings;
 pub mod sidebar;
 pub mod world_outliner;
 
+use crate::settings::SettingsSectionKind;
 use crate::{
     asset::{AssetBrowser, AssetKind},
     camera::CameraController,
@@ -382,35 +383,47 @@ impl ScenePreview {
 }
 
 impl ScenePreview {
-    fn handle_ui_message(&mut self, message: &UiMessage) {
+    fn handle_ui_message(&mut self, message: &UiMessage, ui: &Ui) {
         scope_profile!();
 
-        if let UiMessageData::Button(ButtonMessage::Click) = &message.data() {
-            if message.destination() == self.scale_mode {
-                self.sender
-                    .send(Message::SetInteractionMode(InteractionModeKind::Scale))
-                    .unwrap();
-            } else if message.destination() == self.rotate_mode {
-                self.sender
-                    .send(Message::SetInteractionMode(InteractionModeKind::Rotate))
-                    .unwrap();
-            } else if message.destination() == self.move_mode {
-                self.sender
-                    .send(Message::SetInteractionMode(InteractionModeKind::Move))
-                    .unwrap();
-            } else if message.destination() == self.select_mode {
-                self.sender
-                    .send(Message::SetInteractionMode(InteractionModeKind::Select))
-                    .unwrap();
-            } else if message.destination() == self.navmesh_mode {
-                self.sender
-                    .send(Message::SetInteractionMode(InteractionModeKind::Navmesh))
-                    .unwrap();
-            } else if message.destination() == self.terrain_mode {
-                self.sender
-                    .send(Message::SetInteractionMode(InteractionModeKind::Terrain))
-                    .unwrap();
+        match &message.data() {
+            UiMessageData::Button(ButtonMessage::Click) => {
+                if message.destination() == self.scale_mode {
+                    self.sender
+                        .send(Message::SetInteractionMode(InteractionModeKind::Scale))
+                        .unwrap();
+                } else if message.destination() == self.rotate_mode {
+                    self.sender
+                        .send(Message::SetInteractionMode(InteractionModeKind::Rotate))
+                        .unwrap();
+                } else if message.destination() == self.move_mode {
+                    self.sender
+                        .send(Message::SetInteractionMode(InteractionModeKind::Move))
+                        .unwrap();
+                } else if message.destination() == self.select_mode {
+                    self.sender
+                        .send(Message::SetInteractionMode(InteractionModeKind::Select))
+                        .unwrap();
+                } else if message.destination() == self.navmesh_mode {
+                    self.sender
+                        .send(Message::SetInteractionMode(InteractionModeKind::Navmesh))
+                        .unwrap();
+                } else if message.destination() == self.terrain_mode {
+                    self.sender
+                        .send(Message::SetInteractionMode(InteractionModeKind::Terrain))
+                        .unwrap();
+                }
             }
+            UiMessageData::Widget(WidgetMessage::MouseDown { button, .. }) => {
+                if ui.is_node_child_of(message.destination(), self.move_mode)
+                    && *button == MouseButton::Right
+                {
+                    self.sender
+                        .send(Message::OpenSettings(SettingsSectionKind::MoveModeSettings))
+                        .unwrap();
+                }
+            }
+            _ => {}
         }
     }
 }
@@ -436,6 +449,7 @@ pub enum Message {
     Exit {
         force: bool,
     },
+    OpenSettings(SettingsSectionKind),
 }
 
 pub fn make_scene_file_filter() -> Rc<RefCell<Filter>> {
@@ -869,7 +883,8 @@ impl Editor {
             self.light_panel
                 .handle_ui_message(message, editor_scene, engine);
 
-            self.preview.handle_ui_message(message);
+            self.preview
+                .handle_ui_message(message, &engine.user_interface);
 
             let frame_size = engine
                 .user_interface
@@ -947,6 +962,7 @@ impl Editor {
                                     editor_scene,
                                     engine,
                                     frame_size,
+                                    &self.settings,
                                 );
                             }
                             self.preview.last_mouse_pos = Some(pos);
@@ -1074,15 +1090,16 @@ impl Editor {
                                                 .screen_bounds();
                                             let rel_pos = cursor_pos - screen_bounds.position;
                                             let graph = &engine.scenes[editor_scene.scene].graph;
-                                            let handle = editor_scene.camera_controller.pick(
-                                                rel_pos,
-                                                graph,
-                                                editor_scene.root,
-                                                frame_size,
-                                                false,
-                                                |_, _| true,
-                                            );
-                                            if handle.is_some() {
+                                            if let Some(result) =
+                                                editor_scene.camera_controller.pick(
+                                                    rel_pos,
+                                                    graph,
+                                                    editor_scene.root,
+                                                    frame_size,
+                                                    false,
+                                                    |_, _| true,
+                                                )
+                                            {
                                                 let tex = engine
                                                     .resource_manager
                                                     .request_texture(&relative_path);
@@ -1090,14 +1107,15 @@ impl Editor {
                                                 let texture = texture.state();
                                                 if let TextureState::Ok(_) = *texture {
                                                     match &mut engine.scenes[editor_scene.scene]
-                                                        .graph[handle]
+                                                        .graph[result.node]
                                                     {
                                                         Node::Mesh(_) => {
                                                             self.message_sender
                                                                 .send(Message::DoSceneCommand(
                                                                     SceneCommand::SetMeshTexture(
                                                                         SetMeshTextureCommand::new(
-                                                                            handle, tex,
+                                                                            result.node,
+                                                                            tex,
                                                                         ),
                                                                     ),
                                                                 ))
@@ -1108,7 +1126,7 @@ impl Editor {
                                                                         .send(Message::DoSceneCommand(
                                                                             SceneCommand::SetSpriteTexture(
                                                                                 SetSpriteTextureCommand::new(
-                                                                                    handle, Some(tex),
+                                                                                    result.node, Some(tex),
                                                                                 ),
                                                                             ),
                                                                         ))
@@ -1119,7 +1137,7 @@ impl Editor {
                                                                     .send(Message::DoSceneCommand(
                                                                         SceneCommand::SetParticleSystemTexture(
                                                                             SetParticleSystemTextureCommand::new(
-                                                                                handle, Some(tex),
+                                                                                result.node, Some(tex),
                                                                             ),
                                                                         ),
                                                                     ))
@@ -1400,6 +1418,11 @@ impl Editor {
                         .send(Message::Log(format!("New working directory and path to textures were successfully set:\n\tWD: {:?}\n\tTP: {:?}", working_directory, relative_tex_path))).unwrap();
 
                     needs_sync = true;
+                }
+                Message::OpenSettings(section) => {
+                    self.menu
+                        .settings
+                        .open(&engine.user_interface, &self.settings, Some(section));
                 }
             }
         }

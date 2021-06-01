@@ -1,3 +1,4 @@
+use crate::settings::Settings;
 use crate::{
     interaction::{
         move_mode::MoveInteractionMode, navmesh::EditNavmeshMode,
@@ -49,6 +50,7 @@ pub trait InteractionModeTrait {
         editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
         frame_size: Vector2<f32>,
+        settings: &Settings,
     );
 
     fn update(
@@ -174,6 +176,7 @@ impl InteractionModeTrait for InteractionMode {
         editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
         frame_size: Vector2<f32>,
+        settings: &Settings,
     ) {
         scope_profile!();
 
@@ -185,7 +188,8 @@ impl InteractionModeTrait for InteractionMode {
             camera,
             editor_scene,
             engine,
-            frame_size
+            frame_size,
+            settings
         )
     }
 

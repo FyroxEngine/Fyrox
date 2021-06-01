@@ -1,3 +1,5 @@
+use crate::interaction::move_mode::MovePlaneKind;
+use crate::settings::Settings;
 use crate::{
     gui::{BuildContext, UiMessage, UiNode},
     interaction::{
@@ -359,6 +361,7 @@ pub struct EditNavmeshMode {
     move_gizmo: MoveGizmo,
     message_sender: Sender<Message>,
     drag_context: Option<DragContext>,
+    plane_kind: MovePlaneKind,
 }
 
 impl EditNavmeshMode {
@@ -372,6 +375,7 @@ impl EditNavmeshMode {
             move_gizmo: MoveGizmo::new(editor_scene, engine),
             message_sender,
             drag_context: None,
+            plane_kind: MovePlaneKind::X,
         }
     }
 }
@@ -393,23 +397,28 @@ impl InteractionModeTrait for EditNavmeshMode {
             let camera = editor_scene.camera_controller.camera;
             let camera_pivot = editor_scene.camera_controller.pivot;
             let gizmo_origin = self.move_gizmo.origin;
-            let editor_node = editor_scene.camera_controller.pick(
-                mouse_pos,
-                &scene.graph,
-                editor_scene.root,
-                frame_size,
-                true,
-                |handle, _| handle != camera && handle != camera_pivot && handle != gizmo_origin,
-            );
+            let editor_node = editor_scene
+                .camera_controller
+                .pick(
+                    mouse_pos,
+                    &scene.graph,
+                    editor_scene.root,
+                    frame_size,
+                    true,
+                    |handle, _| {
+                        handle != camera && handle != camera_pivot && handle != gizmo_origin
+                    },
+                )
+                .map(|r| r.node)
+                .unwrap_or_default();
 
-            if self
-                .move_gizmo
-                .handle_pick(editor_node, editor_scene, engine)
-            {
+            let graph = &mut engine.scenes[editor_scene.scene].graph;
+            if let Some(plane_kind) = self.move_gizmo.handle_pick(editor_node, graph) {
                 let mut initial_positions = HashMap::new();
                 for (handle, vertex) in navmesh.vertices.pair_iter() {
                     initial_positions.insert(handle, vertex.position);
                 }
+                self.plane_kind = plane_kind;
                 self.drag_context = Some(DragContext::MoveSelection { initial_positions });
             } else {
                 let mut new_selection = if engine.user_interface.keyboard_modifiers().shift {
@@ -531,6 +540,7 @@ impl InteractionModeTrait for EditNavmeshMode {
         editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
         frame_size: Vector2<f32>,
+        _settings: &Settings,
     ) {
         if editor_scene.navmeshes.is_valid_handle(self.navmesh) && self.drag_context.is_some() {
             let offset = self.move_gizmo.calculate_offset(
@@ -540,6 +550,7 @@ impl InteractionModeTrait for EditNavmeshMode {
                 mouse_position,
                 engine,
                 frame_size,
+                self.plane_kind,
             );
 
             let navmesh = &mut editor_scene.navmeshes[self.navmesh];

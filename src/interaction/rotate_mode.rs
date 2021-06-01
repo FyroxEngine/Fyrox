@@ -1,3 +1,4 @@
+use crate::settings::Settings;
 use crate::{
     interaction::{calculate_gizmo_distance_scaling, InteractionModeTrait},
     scene::{
@@ -276,7 +277,7 @@ impl InteractionModeTrait for RotateInteractionMode {
         // Pick gizmo nodes.
         let camera = editor_scene.camera_controller.camera;
         let camera_pivot = editor_scene.camera_controller.pivot;
-        let editor_node = editor_scene.camera_controller.pick(
+        if let Some(result) = editor_scene.camera_controller.pick(
             mouse_pos,
             graph,
             editor_scene.root,
@@ -285,16 +286,16 @@ impl InteractionModeTrait for RotateInteractionMode {
             |handle, _| {
                 handle != camera && handle != camera_pivot && handle != self.rotation_gizmo.origin
             },
-        );
-
-        if self
-            .rotation_gizmo
-            .handle_pick(editor_node, editor_scene, engine)
-        {
-            let graph = &mut engine.scenes[editor_scene.scene].graph;
-            if let Selection::Graph(selection) = &editor_scene.selection {
-                self.interacting = true;
-                self.initial_rotations = selection.local_rotations(graph);
+        ) {
+            if self
+                .rotation_gizmo
+                .handle_pick(result.node, editor_scene, engine)
+            {
+                let graph = &mut engine.scenes[editor_scene.scene].graph;
+                if let Selection::Graph(selection) = &editor_scene.selection {
+                    self.interacting = true;
+                    self.initial_rotations = selection.local_rotations(graph);
+                }
             }
         }
     }
@@ -338,26 +339,30 @@ impl InteractionModeTrait for RotateInteractionMode {
                 }
             }
         } else {
-            let picked = editor_scene.camera_controller.pick(
-                mouse_pos,
-                graph,
-                editor_scene.root,
-                frame_size,
-                false,
-                |_, _| true,
-            );
-            let new_selection =
-                if engine.user_interface.keyboard_modifiers().control && picked.is_some() {
-                    if let Selection::Graph(selection) = &editor_scene.selection {
+            let new_selection = editor_scene
+                .camera_controller
+                .pick(
+                    mouse_pos,
+                    graph,
+                    editor_scene.root,
+                    frame_size,
+                    false,
+                    |_, _| true,
+                )
+                .map(|result| {
+                    if let (Selection::Graph(selection), true) = (
+                        &editor_scene.selection,
+                        engine.user_interface.keyboard_modifiers().control,
+                    ) {
                         let mut selection = selection.clone();
-                        selection.insert_or_exclude(picked);
+                        selection.insert_or_exclude(result.node);
                         Selection::Graph(selection)
                     } else {
-                        Selection::Graph(GraphSelection::single_or_empty(picked))
+                        Selection::Graph(GraphSelection::single_or_empty(result.node))
                     }
-                } else {
-                    Selection::Graph(GraphSelection::single_or_empty(picked))
-                };
+                })
+                .unwrap_or_else(|| Selection::Graph(GraphSelection::default()));
+
             if new_selection != editor_scene.selection {
                 self.message_sender
                     .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
@@ -376,6 +381,7 @@ impl InteractionModeTrait for RotateInteractionMode {
         editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
         frame_size: Vector2<f32>,
+        _settings: &Settings,
     ) {
         if let Selection::Graph(selection) = &editor_scene.selection {
             if self.interacting {
