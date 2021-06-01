@@ -120,7 +120,7 @@ impl InteractionModeTrait for SelectInteractionMode {
 
         let new_selection = Selection::Graph(graph_selection);
 
-        if !new_selection.is_empty() && new_selection != editor_scene.selection {
+        if new_selection != editor_scene.selection {
             self.message_sender
                 .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
                     ChangeSelectionCommand::new(new_selection, editor_scene.selection.clone()),
