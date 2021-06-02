@@ -22,7 +22,6 @@ use rg3d::{
     gui::{
         grid::{Column, GridBuilder, Row},
         message::{MessageDirection, ProgressBarMessage, TextMessage, WidgetMessage},
-        node::StubNode,
         progress_bar::ProgressBarBuilder,
         text::TextBuilder,
         widget::WidgetBuilder,
@@ -34,12 +33,6 @@ use std::sync::{Arc, Mutex};
 
 use crate::shared::create_camera;
 
-// Create our own engine type aliases. These specializations are needed
-// because engine provides a way to extend UI with custom nodes and messages.
-type GameEngine = rg3d::engine::Engine<(), StubNode>;
-type UiNode = rg3d::gui::node::UINode<(), StubNode>;
-type BuildContext<'a> = rg3d::gui::BuildContext<'a, (), StubNode>;
-
 struct Interface {
     root: Handle<UiNode>,
     debug_text: Handle<UiNode>,
@@ -47,7 +40,7 @@ struct Interface {
     progress_text: Handle<UiNode>,
 }
 
-fn create_ui(ctx: &mut BuildContext, screen_size: Vector2<f32>) -> Interface {
+fn create_ui(ctx: &mut UiBuildContext, screen_size: Vector2<f32>) -> Interface {
     let debug_text;
     let progress_bar;
     let progress_text;
