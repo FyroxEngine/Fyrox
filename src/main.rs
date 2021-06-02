@@ -57,6 +57,7 @@ use crate::{
     sidebar::SideBar,
     world_outliner::WorldOutliner,
 };
+use rg3d::gui::file_browser::FileBrowserMode;
 use rg3d::{
     core::{
         algebra::{Point3, Vector2},
@@ -468,6 +469,9 @@ pub fn make_save_file_selector(ctx: &mut BuildContext) -> Handle<UiNode> {
             .with_title(WindowTitle::Text("Save Scene As".into()))
             .open(false),
     )
+    .with_mode(FileBrowserMode::Save {
+        default_file_name: PathBuf::from("unnamed.rgs"),
+    })
     .with_path("./")
     .with_filter(make_scene_file_filter())
     .build(ctx)
