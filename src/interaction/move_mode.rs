@@ -77,7 +77,10 @@ impl MoveContext {
                         initial_offset_gizmo_space: gizmo_inv_transform
                             .transform_point(&Point3::from(node.global_position()))
                             .coords
-                            - plane_point,
+                            - plane_point
+                            - gizmo_inv_transform.transform_vector(
+                                &(node.global_position() - gizmo_origin.global_position()),
+                            ),
                         new_local_position: **node.local_transform().position(),
                         initial_local_position: **node.local_transform().position(),
                         initial_parent_inv_global_transform: if node.parent().is_some() {
