@@ -29,8 +29,8 @@ inflate = "0.4.5"
 serde = { version = "^1.0.0", features = ["derive"], optional = true }
 lazy_static = "1.4.0"
 ddsfile = "0.4.0"
-rapier3d = {version = "0.8" }
-rapier2d = {version = "0.8" }
+rapier3d = {version = "0.9" }
+rapier2d = {version = "0.9" }
 rayon = "1.5.0"
 tbc = "0.3.0"
 bitflags = "1.2.1"

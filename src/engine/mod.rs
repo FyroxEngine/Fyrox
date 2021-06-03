@@ -297,20 +297,7 @@ macro_rules! define_rapier_handle {
         impl Visit for $type_name {
             fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
                 visitor.enter_region(name)?;
-
-                if self.0.visit("Id", visitor).is_err() && visitor.is_reading() {
-                    // Backward compatibility.
-                    let mut generation: u64 = 0;
-                    let mut index: u64 = 0;
-
-                    index.visit("Index", visitor)?;
-                    generation.visit("Generation", visitor)?;
-
-                    self.0 = crate::core::uuid::Uuid::from_bytes(
-                        unsafe { std::mem::transmute::<_, [u8;16]>([index, generation])}
-                    );
-                }
-
+                self.0.visit("Id", visitor)?;
                 visitor.leave_region()
             }
         }

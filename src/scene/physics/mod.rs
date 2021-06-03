@@ -8,7 +8,7 @@ use crate::{
         math::{aabb::AxisAlignedBoundingBox, ray::Ray},
         pool::{ErasedHandle, Handle},
         uuid::Uuid,
-        visitor::{Visit, VisitResult, Visitor},
+        visitor::prelude::*,
         BiDirHashMap,
     },
     engine::{ColliderHandle, JointHandle, PhysicsBinder, RigidBodyHandle},
@@ -26,10 +26,11 @@ use crate::{
         raw_mesh::{RawMeshBuilder, RawVertex},
     },
 };
+use rapier3d::dynamics::{IslandManager, RigidBodyType};
 use rapier3d::{
     dynamics::{
-        BallJoint, BodyStatus, CCDSolver, FixedJoint, IntegrationParameters, Joint, JointParams,
-        JointSet, PrismaticJoint, RevoluteJoint, RigidBody, RigidBodyBuilder, RigidBodySet,
+        BallJoint, CCDSolver, FixedJoint, IntegrationParameters, Joint, JointParams, JointSet,
+        PrismaticJoint, RevoluteJoint, RigidBody, RigidBodyBuilder, RigidBodySet,
     },
     geometry::{
         BroadPhase, Collider, ColliderBuilder, ColliderSet, InteractionGroups, NarrowPhase,
@@ -125,6 +126,9 @@ pub struct Physics {
     pub narrow_phase: NarrowPhase,
     /// A continuous collision detection solver.
     pub ccd_solver: CCDSolver,
+    /// Structure responsible for maintaining the set of active rigid-bodies, and putting non-moving
+    /// rigid-bodies to sleep to save computation times.
+    pub islands: IslandManager,
 
     /// A set of rigid bodies.
     bodies: RigidBodySet,
@@ -260,6 +264,7 @@ impl Physics {
             broad_phase: BroadPhase::new(),
             narrow_phase: NarrowPhase::new(),
             ccd_solver: CCDSolver::new(),
+            islands: IslandManager::new(),
             bodies: RigidBodySet::new(),
             colliders: ColliderSet::new(),
             joints: JointSet::new(),
@@ -291,8 +296,8 @@ impl Physics {
         }
 
         for (_, collider) in self.colliders.iter() {
-            let body = self.bodies.get(collider.parent()).unwrap();
-            let collider_local_tranform = collider.position_wrt_parent().to_homogeneous();
+            let body = self.bodies.get(collider.parent().unwrap()).unwrap();
+            let collider_local_tranform = collider.position_wrt_parent().unwrap().to_homogeneous();
             let transform = body.position().to_homogeneous() * collider_local_tranform;
             if let Some(trimesh) = collider.shape().as_trimesh() {
                 let trimesh: &TriMesh = trimesh;
@@ -467,7 +472,7 @@ impl Physics {
     /// TODO
     pub fn collider_parent(&self, collider: &ColliderHandle) -> Option<&RigidBodyHandle> {
         self.collider(collider)
-            .and_then(|c| self.body_handle_map.key_of(&c.parent()))
+            .and_then(|c| self.body_handle_map.key_of(&c.parent().unwrap()))
     }
 
     pub(in crate) fn step(&mut self) {
@@ -476,6 +481,7 @@ impl Physics {
         self.pipeline.step(
             &self.gravity,
             &self.integration_parameters,
+            &mut self.islands,
             &mut self.broad_phase,
             &mut self.narrow_phase,
             &mut self.bodies,
@@ -495,7 +501,12 @@ impl Physics {
             .bodies
             .iter()
             .enumerate()
-            .map(|(i, (h, _))| (h, rapier3d::dynamics::RigidBodyHandle::from_raw_parts(i, 0)))
+            .map(|(i, (h, _))| {
+                (
+                    h,
+                    rapier3d::dynamics::RigidBodyHandle::from_raw_parts(i as u32, 0),
+                )
+            })
             .collect::<HashMap<_, _>>();
 
         let mut body_handle_map = BiDirHashMap::default();
@@ -507,7 +518,12 @@ impl Physics {
             .colliders
             .iter()
             .enumerate()
-            .map(|(i, (h, _))| (h, rapier3d::geometry::ColliderHandle::from_raw_parts(i, 0)))
+            .map(|(i, (h, _))| {
+                (
+                    h,
+                    rapier3d::geometry::ColliderHandle::from_raw_parts(i as u32, 0),
+                )
+            })
             .collect::<HashMap<_, _>>();
 
         let mut collider_handle_map = BiDirHashMap::default();
@@ -519,7 +535,12 @@ impl Physics {
             .joints
             .iter()
             .enumerate()
-            .map(|(i, (h, _))| (h, rapier3d::dynamics::JointHandle::from_raw_parts(i, 0)))
+            .map(|(i, (h, _))| {
+                (
+                    h,
+                    rapier3d::dynamics::JointHandle::from_raw_parts(i as u32, 0),
+                )
+            })
             .collect::<HashMap<_, _>>();
 
         let mut joint_handle_map = BiDirHashMap::default();
@@ -703,7 +724,7 @@ impl Physics {
         let shape = Self::make_trimesh(root, graph);
         let tri_mesh = ColliderBuilder::new(shape).friction(0.0).build();
         let (global_rotation, global_position) = graph.isometric_global_rotation_position(root);
-        let body = RigidBodyBuilder::new(BodyStatus::Static)
+        let body = RigidBodyBuilder::new(RigidBodyType::Static)
             .position(Isometry3 {
                 rotation: global_rotation,
                 translation: Translation {
@@ -725,7 +746,7 @@ impl Physics {
         let terrain = graph[terrain_handle].as_terrain();
         let shape = Self::make_heightfield(terrain);
         let heightfield = ColliderBuilder::new(shape)
-            .position_wrt_parent(Isometry3 {
+            .position(Isometry3 {
                 rotation: UnitQuaternion::default(),
                 translation: Translation {
                     vector: Vector3::new(terrain.width() * 0.5, 0.0, terrain.length() * 0.5),
@@ -735,7 +756,7 @@ impl Physics {
             .build();
         let (global_rotation, global_position) =
             graph.isometric_global_rotation_position(terrain_handle);
-        let body = RigidBodyBuilder::new(BodyStatus::Static)
+        let body = RigidBodyBuilder::new(RigidBodyType::Static)
             .position(Isometry3 {
                 rotation: global_rotation,
                 translation: Translation {
@@ -759,7 +780,7 @@ impl Physics {
         // likely end up in panic because of invalid handle stored in internal acceleration
         // structure. This could be fixed by delaying deleting of bodies/collider to the end
         // of the frame.
-        query.update(&self.bodies, &self.colliders);
+        query.update(&self.islands, &self.bodies, &self.colliders);
 
         query_buffer.clear();
         let ray = rapier3d::geometry::Ray::new(
@@ -776,7 +797,7 @@ impl Physics {
             true,
             opts.groups,
             None, // TODO
-            |handle, _, intersection| {
+            |handle, intersection| {
                 query_buffer.push(Intersection {
                     collider: self.collider_handle_map.key_of(&handle).cloned().unwrap(),
                     normal: intersection.normal,
@@ -830,7 +851,7 @@ impl Physics {
                         let collider =
                             ColliderBuilder::new(Self::make_trimesh(associated_node, graph))
                                 .build();
-                        self.colliders.insert(
+                        self.colliders.insert_with_parent(
                             collider,
                             self.body_handle_map
                                 .value_of(&desc.parent)
@@ -852,7 +873,7 @@ impl Physics {
                 }
             } else {
                 let (collider, parent) = desc.convert_to_collider();
-                self.colliders.insert(
+                self.colliders.insert_with_parent(
                     collider,
                     self.body_handle_map.value_of(&parent).cloned().unwrap(),
                     &mut self.bodies,
@@ -1006,10 +1027,11 @@ impl Physics {
         let bodies = &mut self.bodies;
         let colliders = &mut self.colliders;
         let joints = &mut self.joints;
+        let islands = &mut self.islands;
         let result = self
             .body_handle_map
             .value_of(rigid_body)
-            .and_then(|&h| bodies.remove(h, colliders, joints));
+            .and_then(|&h| bodies.remove(h, islands, colliders, joints));
         if let Some(body) = result.as_ref() {
             for collider in body.colliders() {
                 self.collider_handle_map.remove_by_value(collider);
@@ -1025,7 +1047,7 @@ impl Physics {
         collider: Collider,
         rigid_body: &RigidBodyHandle,
     ) -> ColliderHandle {
-        let handle = self.colliders.insert(
+        let handle = self.colliders.insert_with_parent(
             collider,
             *self.body_handle_map.value_of(rigid_body).unwrap(),
             &mut self.bodies,
@@ -1039,10 +1061,11 @@ impl Physics {
     pub fn remove_collider(&mut self, collider_handle: &ColliderHandle) -> Option<Collider> {
         let bodies = &mut self.bodies;
         let colliders = &mut self.colliders;
+        let islands = &mut self.islands;
         let result = self
             .collider_handle_map
             .value_of(collider_handle)
-            .and_then(|&h| colliders.remove(h, bodies, true));
+            .and_then(|&h| colliders.remove(h, islands, bodies, true));
         self.collider_handle_map.remove_by_key(collider_handle);
         result
     }
@@ -1072,10 +1095,11 @@ impl Physics {
     pub fn remove_joint(&mut self, joint_handle: &JointHandle, wake_up: bool) -> Option<Joint> {
         let bodies = &mut self.bodies;
         let joints = &mut self.joints;
+        let islands = &mut self.islands;
         let result = self
             .joint_handle_map
             .value_of(joint_handle)
-            .and_then(|&h| joints.remove(h, bodies, wake_up));
+            .and_then(|&h| joints.remove(h, islands, bodies, wake_up));
         self.joint_handle_map.remove_by_key(joint_handle);
         result
     }
@@ -1084,19 +1108,20 @@ impl Physics {
 #[derive(Copy, Clone, Debug)]
 #[repr(u32)]
 #[doc(hidden)]
-pub enum BodyStatusDesc {
+pub enum RigidBodyTypeDesc {
     Dynamic = 0,
     Static = 1,
-    Kinematic = 2,
+    KinematicPositionBased = 2,
+    KinematicVelocityBased = 3,
 }
 
-impl Default for BodyStatusDesc {
+impl Default for RigidBodyTypeDesc {
     fn default() -> Self {
         Self::Dynamic
     }
 }
 
-impl BodyStatusDesc {
+impl RigidBodyTypeDesc {
     fn id(self) -> u32 {
         self as u32
     }
@@ -1105,13 +1130,14 @@ impl BodyStatusDesc {
         match id {
             0 => Ok(Self::Dynamic),
             1 => Ok(Self::Static),
-            2 => Ok(Self::Kinematic),
+            2 => Ok(Self::KinematicPositionBased),
+            3 => Ok(Self::KinematicVelocityBased),
             _ => Err(format!("Invalid body status id {}!", id)),
         }
     }
 }
 
-impl Visit for BodyStatusDesc {
+impl Visit for RigidBodyTypeDesc {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut id = self.id();
         id.visit(name, visitor)?;
@@ -1122,22 +1148,24 @@ impl Visit for BodyStatusDesc {
     }
 }
 
-impl From<BodyStatus> for BodyStatusDesc {
-    fn from(s: BodyStatus) -> Self {
+impl From<RigidBodyType> for RigidBodyTypeDesc {
+    fn from(s: RigidBodyType) -> Self {
         match s {
-            BodyStatus::Dynamic => Self::Dynamic,
-            BodyStatus::Static => Self::Static,
-            BodyStatus::Kinematic => Self::Kinematic,
+            RigidBodyType::Dynamic => Self::Dynamic,
+            RigidBodyType::Static => Self::Static,
+            RigidBodyType::KinematicPositionBased => Self::KinematicPositionBased,
+            RigidBodyType::KinematicVelocityBased => Self::KinematicVelocityBased,
         }
     }
 }
 
-impl Into<BodyStatus> for BodyStatusDesc {
-    fn into(self) -> BodyStatus {
+impl Into<RigidBodyType> for RigidBodyTypeDesc {
+    fn into(self) -> RigidBodyType {
         match self {
-            BodyStatusDesc::Dynamic => BodyStatus::Dynamic,
-            BodyStatusDesc::Static => BodyStatus::Static,
-            BodyStatusDesc::Kinematic => BodyStatus::Kinematic,
+            RigidBodyTypeDesc::Dynamic => RigidBodyType::Dynamic,
+            RigidBodyTypeDesc::Static => RigidBodyType::Static,
+            RigidBodyTypeDesc::KinematicPositionBased => RigidBodyType::KinematicPositionBased,
+            RigidBodyTypeDesc::KinematicVelocityBased => RigidBodyType::KinematicVelocityBased,
         }
     }
 }
@@ -1150,7 +1178,7 @@ pub struct RigidBodyDesc<C> {
     pub linvel: Vector3<f32>,
     pub angvel: Vector3<f32>,
     pub sleeping: bool,
-    pub status: BodyStatusDesc,
+    pub status: RigidBodyTypeDesc,
     pub colliders: Vec<C>,
     pub mass: f32,
     pub x_rotation_locked: bool,
@@ -1190,7 +1218,7 @@ impl<C: Hash + Clone + Eq> RigidBodyDesc<C> {
             rotation: body.position().rotation,
             linvel: *body.linvel(),
             angvel: *body.angvel(),
-            status: body.body_status().into(),
+            status: body.body_type().into(),
             sleeping: body.is_sleeping(),
             colliders: body
                 .colliders()
@@ -1214,7 +1242,7 @@ impl<C: Hash + Clone + Eq> RigidBodyDesc<C> {
                 rotation: self.rotation,
             })
             .additional_mass(self.mass)
-            .linvel(self.linvel.x, self.linvel.y, self.linvel.z)
+            .linvel(self.linvel)
             .angvel(AngVector::new(self.angvel.x, self.angvel.y, self.angvel.z))
             .restrict_rotations(
                 self.x_rotation_locked,
@@ -1631,8 +1659,33 @@ pub struct ColliderDesc<R> {
     pub is_sensor: bool,
     pub translation: Vector3<f32>,
     pub rotation: UnitQuaternion<f32>,
-    pub collision_groups: u32,
-    pub solver_groups: u32,
+    pub collision_groups: InteractionGroupsDesc,
+    pub solver_groups: InteractionGroupsDesc,
+}
+
+#[doc(hidden)]
+#[derive(Visit, Debug, Clone, Copy)]
+pub struct InteractionGroupsDesc {
+    pub memberships: u32,
+    pub filter: u32,
+}
+
+impl Default for InteractionGroupsDesc {
+    fn default() -> Self {
+        Self {
+            memberships: u32::MAX,
+            filter: u32::MAX,
+        }
+    }
+}
+
+impl From<InteractionGroups> for InteractionGroupsDesc {
+    fn from(g: InteractionGroups) -> Self {
+        Self {
+            memberships: g.memberships,
+            filter: g.filter,
+        }
+    }
 }
 
 impl<R: Default> Default for ColliderDesc<R> {
@@ -1646,8 +1699,8 @@ impl<R: Default> Default for ColliderDesc<R> {
             is_sensor: false,
             translation: Default::default(),
             rotation: Default::default(),
-            collision_groups: u32::MAX,
-            solver_groups: u32::MAX,
+            collision_groups: Default::default(),
+            solver_groups: Default::default(),
         }
     }
 }
@@ -1659,15 +1712,18 @@ impl<R: Hash + Clone + Eq> ColliderDesc<R> {
     ) -> Self {
         Self {
             shape: ColliderShapeDesc::from_collider_shape(collider.shape()),
-            parent: handle_map.key_of(&collider.parent()).cloned().unwrap(),
-            friction: collider.friction,
+            parent: handle_map
+                .key_of(&collider.parent().unwrap())
+                .cloned()
+                .unwrap(),
+            friction: collider.friction(),
             density: collider.density(),
-            restitution: collider.restitution,
+            restitution: collider.restitution(),
             is_sensor: collider.is_sensor(),
-            translation: collider.position_wrt_parent().translation.vector,
-            rotation: collider.position_wrt_parent().rotation,
-            collision_groups: collider.collision_groups().0,
-            solver_groups: collider.solver_groups().0,
+            translation: collider.position_wrt_parent().unwrap().translation.vector,
+            rotation: collider.position_wrt_parent().unwrap().rotation,
+            collision_groups: collider.collision_groups().into(),
+            solver_groups: collider.solver_groups().into(),
         }
     }
 
@@ -1675,14 +1731,20 @@ impl<R: Hash + Clone + Eq> ColliderDesc<R> {
         let mut builder = ColliderBuilder::new(self.shape.into_collider_shape())
             .friction(self.friction)
             .restitution(self.restitution)
-            .position_wrt_parent(Isometry3 {
+            .position(Isometry3 {
                 translation: Translation3 {
                     vector: self.translation,
                 },
                 rotation: self.rotation,
             })
-            .solver_groups(InteractionGroups(self.solver_groups))
-            .collision_groups(InteractionGroups(self.collision_groups))
+            .solver_groups(InteractionGroups::new(
+                self.solver_groups.memberships,
+                self.solver_groups.filter,
+            ))
+            .collision_groups(InteractionGroups::new(
+                self.collision_groups.memberships,
+                self.collision_groups.memberships,
+            ))
             .sensor(self.is_sensor);
         if let Some(density) = self.density {
             builder = builder.density(density);
@@ -1702,8 +1764,8 @@ impl<R: 'static + Visit + Default> Visit for ColliderDesc<R> {
         self.is_sensor.visit("IsSensor", visitor)?;
         self.translation.visit("Translation", visitor)?;
         self.rotation.visit("Rotation", visitor)?;
-        self.collision_groups.visit("CollisionGroups", visitor)?;
-        self.solver_groups.visit("SolverGroups", visitor)?;
+        let _ = self.collision_groups.visit("CollisionGroups", visitor);
+        let _ = self.solver_groups.visit("SolverGroups", visitor);
         self.density.visit("Density", visitor)?;
 
         visitor.leave_region()
@@ -2051,10 +2113,10 @@ impl JointParamsDesc {
                 local_anchor2: v.local_anchor2.coords,
             }),
             JointParams::FixedJoint(v) => Self::FixedJoint(FixedJointDesc {
-                local_anchor1_translation: v.local_anchor1.translation.vector,
-                local_anchor1_rotation: v.local_anchor1.rotation,
-                local_anchor2_translation: v.local_anchor2.translation.vector,
-                local_anchor2_rotation: v.local_anchor2.rotation,
+                local_anchor1_translation: v.local_frame1.translation.vector,
+                local_anchor1_rotation: v.local_frame1.rotation,
+                local_anchor2_translation: v.local_frame2.translation.vector,
+                local_anchor2_rotation: v.local_frame2.rotation,
             }),
             JointParams::PrismaticJoint(v) => Self::PrismaticJoint(PrismaticJointDesc {
                 local_anchor1: v.local_anchor1.coords,
@@ -2142,17 +2204,7 @@ impl Visit for PhysicsDesc {
                 }
                 hash_map
             };
-            if body_handle_map.visit("BodyHandleMap", visitor).is_err() {
-                body_handle_map = (0..self.bodies.len())
-                    .map(|i| {
-                        let bytes = unsafe { std::mem::transmute::<_, [u8; 16]>([i as u64, 0u64]) };
-                        (
-                            RigidBodyHandle::from(Uuid::from_bytes(bytes)),
-                            ErasedHandle::new(i as u32, 0),
-                        )
-                    })
-                    .collect();
-            }
+            body_handle_map.visit("BodyHandleMap", visitor)?;
             if visitor.is_reading() {
                 self.body_handle_map = BiDirHashMap::from(
                     body_handle_map
@@ -2161,8 +2213,8 @@ impl Visit for PhysicsDesc {
                             (
                                 *k,
                                 rapier3d::dynamics::RigidBodyHandle::from_raw_parts(
-                                    v.index() as usize,
-                                    v.generation() as u64,
+                                    v.index(),
+                                    v.generation(),
                                 ),
                             )
                         })
@@ -2182,20 +2234,7 @@ impl Visit for PhysicsDesc {
                 }
                 hash_map
             };
-            if collider_handle_map
-                .visit("ColliderHandleMap", visitor)
-                .is_err()
-            {
-                collider_handle_map = (0..self.colliders.len())
-                    .map(|i| {
-                        let bytes = unsafe { std::mem::transmute::<_, [u8; 16]>([i as u64, 0u64]) };
-                        (
-                            ColliderHandle::from(Uuid::from_bytes(bytes)),
-                            ErasedHandle::new(i as u32, 0),
-                        )
-                    })
-                    .collect();
-            }
+            collider_handle_map.visit("ColliderHandleMap", visitor)?;
             if visitor.is_reading() {
                 self.collider_handle_map = BiDirHashMap::from(
                     collider_handle_map
@@ -2204,8 +2243,8 @@ impl Visit for PhysicsDesc {
                             (
                                 *k,
                                 rapier3d::geometry::ColliderHandle::from_raw_parts(
-                                    v.index() as usize,
-                                    v.generation() as u64,
+                                    v.index(),
+                                    v.generation(),
                                 ),
                             )
                         })
@@ -2225,17 +2264,7 @@ impl Visit for PhysicsDesc {
                 }
                 hash_map
             };
-            if joint_handle_map.visit("JointHandleMap", visitor).is_err() {
-                joint_handle_map = (0..self.joints.len())
-                    .map(|i| {
-                        let bytes = unsafe { std::mem::transmute::<_, [u8; 16]>([i as u64, 0u64]) };
-                        (
-                            JointHandle::from(Uuid::from_bytes(bytes)),
-                            ErasedHandle::new(i as u32, 0),
-                        )
-                    })
-                    .collect();
-            }
+            joint_handle_map.visit("JointHandleMap", visitor)?;
             if visitor.is_reading() {
                 self.joint_handle_map = BiDirHashMap::from(
                     joint_handle_map
@@ -2244,8 +2273,8 @@ impl Visit for PhysicsDesc {
                             (
                                 *k,
                                 rapier3d::dynamics::JointHandle::from_raw_parts(
-                                    v.index() as usize,
-                                    v.generation() as u64,
+                                    v.index(),
+                                    v.generation(),
                                 ),
                             )
                         })
