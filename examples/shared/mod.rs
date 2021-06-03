@@ -652,13 +652,12 @@ impl Player {
 
         let collider = body.colliders()[0];
         let mut has_ground_contact = false;
-        if let Some(iterator) = scene.physics.narrow_phase.contacts_with(collider) {
-            'outer_loop: for (_, _, contact) in iterator {
-                for manifold in contact.manifolds.iter() {
-                    if manifold.local_n1.y > 0.7 {
-                        has_ground_contact = true;
-                        break 'outer_loop;
-                    }
+
+        'outer_loop: for contact in scene.physics.narrow_phase.contacts_with(collider) {
+            for manifold in contact.manifolds.iter() {
+                if manifold.local_n1.y > 0.7 {
+                    has_ground_contact = true;
+                    break 'outer_loop;
                 }
             }
         }
