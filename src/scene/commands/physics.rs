@@ -508,8 +508,12 @@ define_collider_command!(SetColliderIsSensorCommand("Set Collider Is Sensor", bo
     std::mem::swap(&mut collider.is_sensor, &mut self.value);
 });
 
-define_collider_command!(SetColliderCollisionGroupsCommand("Set Collider Collision Groups", u32) where fn swap(self, physics, collider) {
-    std::mem::swap(&mut collider.collision_groups, &mut self.value);
+define_collider_command!(SetColliderCollisionGroupsMembershipsCommand("Set Collider Collision Groups Memberships", u32) where fn swap(self, physics, collider) {
+    std::mem::swap(&mut collider.collision_groups.memberships, &mut self.value);
+});
+
+define_collider_command!(SetColliderCollisionGroupsFilterCommand("Set Collider Collision Groups Filter", u32) where fn swap(self, physics, collider) {
+    std::mem::swap(&mut collider.collision_groups.filter, &mut self.value);
 });
 
 define_collider_variant_command!(SetCylinderHalfHeightCommand("Set Cylinder Half Height", f32) where fn swap(self, physics, Cylinder, cylinder) {

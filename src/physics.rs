@@ -61,7 +61,7 @@ impl Physics {
                 linvel: *b.linvel(),
                 angvel: *b.angvel(),
                 sleeping: b.is_sleeping(),
-                status: b.body_status().into(),
+                status: b.body_type().into(),
                 // Filled later.
                 colliders: vec![],
                 mass: b.mass(),
@@ -87,15 +87,15 @@ impl Physics {
         for (h, c) in scene.physics.colliders().iter() {
             let pool_handle = colliders.spawn(ColliderDesc {
                 shape: ColliderShapeDesc::from_collider_shape(c.shape()),
-                parent: ErasedHandle::from(*body_map.get(&c.parent()).unwrap()),
-                friction: c.friction,
+                parent: ErasedHandle::from(*body_map.get(&c.parent().unwrap()).unwrap()),
+                friction: c.friction(),
                 density: c.density(),
-                restitution: c.restitution,
+                restitution: c.restitution(),
                 is_sensor: c.is_sensor(),
-                translation: c.position_wrt_parent().translation.vector,
-                rotation: c.position_wrt_parent().rotation,
-                collision_groups: c.collision_groups().0,
-                solver_groups: c.solver_groups().0,
+                translation: c.position_wrt_parent().unwrap().translation.vector,
+                rotation: c.position_wrt_parent().unwrap().rotation,
+                collision_groups: c.collision_groups().into(),
+                solver_groups: c.solver_groups().into(),
             });
 
             collider_map.insert(h, pool_handle);
@@ -190,7 +190,7 @@ impl Physics {
             engine_body_handle_rapier_map.insert(
                 engine_handle,
                 // Rapier3D handle will become just a simple index.
-                rg3d::physics::dynamics::RigidBodyHandle::from_raw_parts(i, 0),
+                rg3d::physics::dynamics::RigidBodyHandle::from_raw_parts(i as u32, 0),
             );
             editor_body_handle_to_engine_map.insert(handle, engine_handle);
         }
@@ -231,7 +231,7 @@ impl Physics {
             engine_collider_handle_rapier_map.insert(
                 engine_handle,
                 // Rapier3D handle will become just a simple index.
-                rg3d::physics::geometry::ColliderHandle::from_raw_parts(i, 0),
+                rg3d::physics::geometry::ColliderHandle::from_raw_parts(i as u32, 0),
             );
             editor_collider_handle_to_engine_map.insert(handle, engine_handle);
         }
@@ -252,8 +252,8 @@ impl Physics {
                     is_sensor: c.is_sensor,
                     translation: c.translation,
                     rotation: c.rotation,
-                    collision_groups: c.collision_groups,
-                    solver_groups: c.solver_groups,
+                    collision_groups: c.collision_groups.into(),
+                    solver_groups: c.solver_groups.into(),
                 }
             })
             .collect();
@@ -265,7 +265,7 @@ impl Physics {
                 .cloned()
                 .unwrap();
             let body = &self.bodies[editor_handle];
-            bodies[dense_handle.into_raw_parts().0].colliders = body
+            bodies[dense_handle.into_raw_parts().0 as usize].colliders = body
                 .colliders
                 .iter()
                 .map(|&collider_sparse| {
@@ -295,7 +295,7 @@ impl Physics {
             engine_joint_handle_rapier_map.insert(
                 engine_handle,
                 // Rapier3D handle will become just a simple index.
-                rg3d::physics::dynamics::JointHandle::from_raw_parts(i, 0),
+                rg3d::physics::dynamics::JointHandle::from_raw_parts(i as u32, 0),
             );
         }
         let joints = self

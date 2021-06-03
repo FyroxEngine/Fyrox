@@ -3,9 +3,9 @@ use crate::{
     physics::Collider,
     scene::commands::{
         physics::{
-            SetColliderCollisionGroupsCommand, SetColliderFrictionCommand,
-            SetColliderIsSensorCommand, SetColliderPositionCommand, SetColliderRestitutionCommand,
-            SetColliderRotationCommand,
+            SetColliderCollisionGroupsFilterCommand, SetColliderCollisionGroupsMembershipsCommand,
+            SetColliderFrictionCommand, SetColliderIsSensorCommand, SetColliderPositionCommand,
+            SetColliderRestitutionCommand, SetColliderRotationCommand,
         },
         SceneCommand,
     },
@@ -169,7 +169,7 @@ impl ColliderSection {
             NumericUpDownMessage::value(
                 self.collision_groups,
                 MessageDirection::ToWidget,
-                (collider.collision_groups >> 16) as f32,
+                collider.collision_groups.memberships as f32,
             ),
         );
 
@@ -178,7 +178,7 @@ impl ColliderSection {
             NumericUpDownMessage::value(
                 self.collision_mask,
                 MessageDirection::ToWidget,
-                (collider.collision_groups & 0x0000FFFF) as f32,
+                collider.collision_groups.filter as f32,
             ),
         );
     }
@@ -209,21 +209,23 @@ impl ColliderSection {
                             ))
                             .unwrap();
                     } else if message.destination() == self.collision_mask {
-                        let mask = (collider.collision_groups & 0xFFFF0000) | value as u32;
+                        let mask = collider.collision_groups.filter | (value as u32);
                         self.sender
                             .send(Message::DoSceneCommand(
-                                SceneCommand::SetColliderCollisionGroups(
-                                    SetColliderCollisionGroupsCommand::new(handle, mask),
+                                SceneCommand::SetColliderCollisionGroupsFilter(
+                                    SetColliderCollisionGroupsFilterCommand::new(handle, mask),
                                 ),
                             ))
                             .unwrap();
                     } else if message.destination() == self.collision_groups {
                         let groups =
-                            (collider.collision_groups & 0x0000FFFF) | ((value as u32) << 16);
+                            (collider.collision_groups.memberships & 0x0000FFFF) | value as u32;
                         self.sender
                             .send(Message::DoSceneCommand(
-                                SceneCommand::SetColliderCollisionGroups(
-                                    SetColliderCollisionGroupsCommand::new(handle, groups),
+                                SceneCommand::SetColliderCollisionGroupsMemberships(
+                                    SetColliderCollisionGroupsMembershipsCommand::new(
+                                        handle, groups,
+                                    ),
                                 ),
                             ))
                             .unwrap();

@@ -46,9 +46,9 @@ use rg3d::{
         graph::Graph,
         node::Node,
         physics::{
-            BallDesc, BallJointDesc, BodyStatusDesc, CapsuleDesc, ColliderShapeDesc, ConeDesc,
-            CuboidDesc, CylinderDesc, FixedJointDesc, HeightfieldDesc, JointParamsDesc,
-            PrismaticJointDesc, RevoluteJointDesc, RoundCylinderDesc, SegmentDesc, TriangleDesc,
+            BallDesc, BallJointDesc, CapsuleDesc, ColliderShapeDesc, ConeDesc, CuboidDesc,
+            CylinderDesc, FixedJointDesc, HeightfieldDesc, JointParamsDesc, PrismaticJointDesc,
+            RevoluteJointDesc, RigidBodyTypeDesc, RoundCylinderDesc, SegmentDesc, TriangleDesc,
             TrimeshDesc,
         },
     },
@@ -120,7 +120,8 @@ impl PhysicsSection {
                                     make_dropdown_list_option(ctx, "None"),
                                     make_dropdown_list_option(ctx, "Dynamic"),
                                     make_dropdown_list_option(ctx, "Static"),
-                                    make_dropdown_list_option(ctx, "Kinematic"),
+                                    make_dropdown_list_option(ctx, "KinematicPositionBased"),
+                                    make_dropdown_list_option(ctx, "KinematicVelocityBased"),
                                 ])
                                 .build(ctx);
                                 body
@@ -243,9 +244,10 @@ impl PhysicsSection {
                     if let Some(&body_handle) = editor_scene.physics.binder.value_of(&node_handle) {
                         let body = &editor_scene.physics.bodies[body_handle];
                         body_index = match body.status {
-                            BodyStatusDesc::Dynamic => 1,
-                            BodyStatusDesc::Static => 2,
-                            BodyStatusDesc::Kinematic => 3,
+                            RigidBodyTypeDesc::Dynamic => 1,
+                            RigidBodyTypeDesc::Static => 2,
+                            RigidBodyTypeDesc::KinematicPositionBased => 3,
+                            RigidBodyTypeDesc::KinematicVelocityBased => 4,
                         };
                         for (h, j) in editor_scene.physics.joints.pair_iter() {
                             if j.body1 == body_handle.into() {
@@ -557,13 +559,14 @@ impl PhysicsSection {
                         .unwrap();
                 }
             }
-            1 | 2 | 3 => {
+            1 | 2 | 3 | 4 => {
                 let mut current_status = 0;
                 if let Some(&body) = editor_scene.physics.binder.value_of(&node_handle) {
                     current_status = match editor_scene.physics.bodies[body].status {
-                        BodyStatusDesc::Dynamic => 1,
-                        BodyStatusDesc::Static => 2,
-                        BodyStatusDesc::Kinematic => 3,
+                        RigidBodyTypeDesc::Dynamic => 1,
+                        RigidBodyTypeDesc::Static => 2,
+                        RigidBodyTypeDesc::KinematicPositionBased => 3,
+                        RigidBodyTypeDesc::KinematicVelocityBased => 4,
                     };
                 }
 
@@ -574,9 +577,10 @@ impl PhysicsSection {
                         position: node.global_position(),
                         rotation: **node.local_transform().rotation(),
                         status: match index {
-                            1 => BodyStatusDesc::Dynamic,
-                            2 => BodyStatusDesc::Static,
-                            3 => BodyStatusDesc::Kinematic,
+                            1 => RigidBodyTypeDesc::Dynamic,
+                            2 => RigidBodyTypeDesc::Static,
+                            3 => RigidBodyTypeDesc::KinematicPositionBased,
+                            4 => RigidBodyTypeDesc::KinematicVelocityBased,
                             _ => unreachable!(),
                         },
                         ..Default::default()
