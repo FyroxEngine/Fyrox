@@ -1,8 +1,10 @@
-use crate::scene::commands::physics::{SetBallJointAnchor1Command, SetBallJointAnchor2Command};
-use crate::scene::commands::SceneCommand;
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::Joint,
+    scene::commands::{
+        physics::{SetBallJointAnchor1Command, SetBallJointAnchor2Command},
+        SceneCommand,
+    },
     send_sync_message,
     sidebar::{make_text_mark, make_vec3_input_field, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
@@ -14,7 +16,7 @@ use rg3d::{
         message::{MessageDirection, UiMessageData, Vec3EditorMessage},
         widget::WidgetBuilder,
     },
-    scene::physics::BallJointDesc,
+    scene::physics::desc::BallJointDesc,
 };
 use std::sync::mpsc::Sender;
 

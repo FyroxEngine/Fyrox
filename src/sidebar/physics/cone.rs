@@ -16,7 +16,7 @@ use rg3d::{
         message::{MessageDirection, NumericUpDownMessage, UiMessageData},
         widget::WidgetBuilder,
     },
-    scene::physics::ConeDesc,
+    scene::physics::desc::ConeDesc,
 };
 use std::sync::mpsc::Sender;
 

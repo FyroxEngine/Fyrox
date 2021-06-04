@@ -29,7 +29,7 @@ use rg3d::{
         widget::WidgetBuilder,
         HorizontalAlignment, VerticalAlignment,
     },
-    scene::{graph::Graph, node::Node, physics::JointParamsDesc},
+    scene::{graph::Graph, node::Node, physics::desc::JointParamsDesc},
 };
 use std::sync::mpsc::Sender;
 

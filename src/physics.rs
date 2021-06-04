@@ -1,4 +1,3 @@
-use rg3d::scene::mesh::buffer::{VertexAttributeUsage, VertexReadTrait};
 use rg3d::{
     core::{
         algebra::{Isometry3, Point3, Translation, Translation3, Vector3},
@@ -11,8 +10,9 @@ use rg3d::{
     engine::{ColliderHandle, JointHandle, RigidBodyHandle},
     scene::{
         graph::Graph,
+        mesh::buffer::{VertexAttributeUsage, VertexReadTrait},
         node::Node,
-        physics::{
+        physics::desc::{
             ColliderDesc, ColliderShapeDesc, JointDesc, JointParamsDesc, PhysicsDesc, RigidBodyDesc,
         },
         Line, Scene, SceneDrawingContext,
@@ -53,13 +53,13 @@ impl Physics {
         let mut body_map = HashMap::new();
 
         let mut body_handle_map = HashMap::new();
-        for (h, b) in scene.physics.bodies().iter() {
+        for (h, b) in scene.physics.bodies.inner_ref().iter() {
             let rotation_locked = b.is_rotation_locked();
             let pool_handle = bodies.spawn(RigidBodyDesc {
                 position: b.position().translation.vector,
                 rotation: b.position().rotation,
-                linvel: *b.linvel(),
-                angvel: *b.angvel(),
+                lin_vel: *b.linvel(),
+                ang_vel: *b.angvel(),
                 sleeping: b.is_sleeping(),
                 status: b.body_type().into(),
                 // Filled later.
@@ -76,7 +76,13 @@ impl Physics {
             // Remember initial handle of a body.
             body_handle_map.insert(
                 pool_handle,
-                scene.physics.body_handle_map().key_of(&h).cloned().unwrap(),
+                scene
+                    .physics
+                    .bodies
+                    .handle_map()
+                    .key_of(&h)
+                    .cloned()
+                    .unwrap(),
             );
         }
 
@@ -84,7 +90,7 @@ impl Physics {
         let mut collider_map = HashMap::new();
 
         let mut collider_handle_map = HashMap::new();
-        for (h, c) in scene.physics.colliders().iter() {
+        for (h, c) in scene.physics.colliders.inner_ref().iter() {
             let pool_handle = colliders.spawn(ColliderDesc {
                 shape: ColliderShapeDesc::from_collider_shape(c.shape()),
                 parent: ErasedHandle::from(*body_map.get(&c.parent().unwrap()).unwrap()),
@@ -103,7 +109,8 @@ impl Physics {
                 pool_handle,
                 scene
                     .physics
-                    .collider_handle_map()
+                    .colliders
+                    .handle_map()
                     .key_of(&h)
                     .cloned()
                     .unwrap(),
@@ -113,10 +120,12 @@ impl Physics {
         for (&old, &new) in body_map.iter() {
             bodies[new].colliders = scene
                 .physics
-                .body(
+                .bodies
+                .get(
                     &scene
                         .physics
-                        .body_handle_map()
+                        .bodies
+                        .handle_map()
                         .key_of(&old)
                         .cloned()
                         .unwrap(),
@@ -131,7 +140,7 @@ impl Physics {
         let mut joints: Pool<Joint> = Pool::new();
 
         let mut joint_handle_map = HashMap::new();
-        for (h, j) in scene.physics.joints().iter() {
+        for (h, j) in scene.physics.joints.inner_ref().iter() {
             let pool_handle = joints.spawn(JointDesc {
                 body1: ErasedHandle::from(*body_map.get(&j.body1).unwrap()),
                 body2: ErasedHandle::from(*body_map.get(&j.body2).unwrap()),
@@ -141,7 +150,8 @@ impl Physics {
                 pool_handle,
                 scene
                     .physics
-                    .joint_handle_map()
+                    .joints
+                    .handle_map()
                     .key_of(&h)
                     .cloned()
                     .unwrap(),
@@ -153,7 +163,8 @@ impl Physics {
         for (&node, body) in scene.physics_binder.forward_map().iter() {
             let body_handle = scene
                 .physics
-                .body_handle_map()
+                .bodies
+                .handle_map()
                 .value_of(body)
                 .cloned()
                 .unwrap();
@@ -202,8 +213,8 @@ impl Physics {
                 RigidBodyDesc {
                     position: r.position,
                     rotation: r.rotation,
-                    linvel: r.linvel,
-                    angvel: r.angvel,
+                    lin_vel: r.lin_vel,
+                    ang_vel: r.ang_vel,
                     sleeping: r.sleeping,
                     status: r.status,
                     // Filled later.

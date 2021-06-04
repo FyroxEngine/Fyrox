@@ -45,7 +45,7 @@ use rg3d::{
     scene::{
         graph::Graph,
         node::Node,
-        physics::{
+        physics::desc::{
             BallDesc, BallJointDesc, CapsuleDesc, ColliderShapeDesc, ConeDesc, CuboidDesc,
             CylinderDesc, FixedJointDesc, HeightfieldDesc, JointParamsDesc, PrismaticJointDesc,
             RevoluteJointDesc, RigidBodyTypeDesc, RoundCylinderDesc, SegmentDesc, TriangleDesc,

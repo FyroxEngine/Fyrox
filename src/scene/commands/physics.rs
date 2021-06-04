@@ -1,15 +1,17 @@
-use crate::Physics;
 use crate::{
     command::Command,
     physics::{Collider, Joint, RigidBody},
     scene::commands::SceneContext,
+    Physics,
 };
-use rg3d::core::algebra::{UnitQuaternion, Vector3};
 use rg3d::{
-    core::pool::{ErasedHandle, Handle, Ticket},
+    core::{
+        algebra::{UnitQuaternion, Vector3},
+        pool::{ErasedHandle, Handle, Ticket},
+    },
     scene::{
         node::Node,
-        physics::{ColliderShapeDesc, JointParamsDesc},
+        physics::desc::{ColliderShapeDesc, JointParamsDesc},
     },
 };
 

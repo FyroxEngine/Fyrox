@@ -12,7 +12,7 @@ use rg3d::{
         message::{MessageDirection, NumericUpDownMessage, UiMessageData},
         widget::WidgetBuilder,
     },
-    scene::physics::BallDesc,
+    scene::physics::desc::BallDesc,
 };
 use std::sync::mpsc::Sender;
 
