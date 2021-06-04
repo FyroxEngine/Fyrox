@@ -1141,12 +1141,12 @@ impl Scene {
         let graph = &mut self.graph;
         let physics = &mut self.physics;
         self.physics_binder
-            .retain(|node, body| graph.is_valid_handle(*node) && physics.contains_body(body));
+            .retain(|node, body| graph.is_valid_handle(*node) && physics.bodies.contains(body));
 
         // Sync node positions with assigned physics bodies
         if self.physics_binder.enabled {
             for (&node_handle, body) in self.physics_binder.forward_map().iter() {
-                let body = physics.body_mut(body).unwrap();
+                let body = physics.bodies.get_mut(body).unwrap();
                 let node = &mut self.graph[node_handle];
                 match node.physics_binding {
                     PhysicsBinding::NodeWithBody => {

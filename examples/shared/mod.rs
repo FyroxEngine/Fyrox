@@ -567,7 +567,7 @@ impl Player {
             .unwrap_or(Vector3::default());
         let is_moving = velocity.norm_squared() > 0.0;
 
-        let body = scene.physics.body_mut(&self.body).unwrap();
+        let body = scene.physics.bodies.get_mut(&self.body).unwrap();
 
         let mut new_y_vel = None;
         while let Some(event) = scene
