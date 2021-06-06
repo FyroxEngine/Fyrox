@@ -14,6 +14,15 @@ pub struct RigidBodyContainer {
     pub(super) handle_map: BiDirHashMap<RigidBodyHandle, rapier3d::dynamics::RigidBodyHandle>,
 }
 
+impl Default for RigidBodyContainer {
+    fn default() -> Self {
+        Self {
+            set: RigidBodySet::new(),
+            handle_map: Default::default(),
+        }
+    }
+}
+
 impl RigidBodyContainer {
     /// Creates new rigid body container.
     pub fn new() -> Self {
@@ -122,6 +131,11 @@ impl RigidBodyContainer {
     /// Returns a length of the container.
     pub fn len(&self) -> usize {
         self.set.len()
+    }
+
+    /// Returns true if the container is empty.
+    pub fn is_empty(&self) -> bool {
+        self.set.is_empty()
     }
 
     /// Returns a reference to inner set.

@@ -14,6 +14,15 @@ pub struct JointContainer {
     pub(super) handle_map: BiDirHashMap<JointHandle, rapier3d::dynamics::JointHandle>,
 }
 
+impl Default for JointContainer {
+    fn default() -> Self {
+        Self {
+            set: JointSet::new(),
+            handle_map: Default::default(),
+        }
+    }
+}
+
 impl JointContainer {
     /// Creates new joint container.
     pub fn new() -> Self {
@@ -124,6 +133,11 @@ impl JointContainer {
     /// Returns a length of the container.
     pub fn len(&self) -> usize {
         self.set.len()
+    }
+
+    /// Returns true if the container is empty.
+    pub fn is_empty(&self) -> bool {
+        self.set.is_empty()
     }
 
     /// Returns a reference to inner set.

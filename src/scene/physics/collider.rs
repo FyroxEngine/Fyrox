@@ -16,6 +16,15 @@ pub struct ColliderContainer {
     pub(super) handle_map: BiDirHashMap<ColliderHandle, rapier3d::geometry::ColliderHandle>,
 }
 
+impl Default for ColliderContainer {
+    fn default() -> Self {
+        Self {
+            set: ColliderSet::new(),
+            handle_map: Default::default(),
+        }
+    }
+}
+
 impl ColliderContainer {
     /// Creates new collider container.
     pub fn new() -> Self {
@@ -125,6 +134,11 @@ impl ColliderContainer {
     /// Returns a length of the container.
     pub fn len(&self) -> usize {
         self.set.len()
+    }
+
+    /// Returns true if the container is empty.
+    pub fn is_empty(&self) -> bool {
+        self.set.is_empty()
     }
 
     /// Returns a reference to inner set.
