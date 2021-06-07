@@ -98,7 +98,7 @@ impl DebuggingSection {
     }
 
     pub fn handle_message(&mut self, message: &UiMessage, settings: &mut DebuggingSettings) {
-        if let &UiMessageData::CheckBox(CheckBoxMessage::Check(Some(value))) = message.data() {
+        if let UiMessageData::CheckBox(CheckBoxMessage::Check(Some(value))) = *message.data() {
             if message.destination() == self.show_bounds {
                 settings.show_bounds = value;
             } else if message.destination() == self.show_tbn {

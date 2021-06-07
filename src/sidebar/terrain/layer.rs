@@ -51,7 +51,7 @@ fn send_image_sync_message(ui: &Ui, image: Handle<UiNode>, texture: Option<Textu
         ImageMessage::texture(
             image,
             MessageDirection::ToWidget,
-            texture.map(|t| into_gui_texture(t)),
+            texture.map(into_gui_texture),
         ),
     );
 }

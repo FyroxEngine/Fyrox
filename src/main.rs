@@ -1,6 +1,10 @@
 #![forbid(unsafe_code)]
 #![allow(irrefutable_let_patterns)]
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::large_enum_variant)]
+// These are useless.
 #![allow(clippy::upper_case_acronyms)]
+#![allow(clippy::inconsistent_struct_constructor)]
 
 extern crate rg3d;
 #[macro_use]

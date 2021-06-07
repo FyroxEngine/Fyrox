@@ -103,27 +103,24 @@ impl ItemContextMenu {
     ) {
         scope_profile!();
 
-        match message.data() {
-            UiMessageData::MenuItem(MenuItemMessage::Click) => {
-                if message.destination() == self.delete_selection {
-                    sender
-                        .send(Message::DoSceneCommand(make_delete_selection_command(
-                            editor_scene,
-                            engine,
-                        )))
-                        .unwrap();
-                } else if message.destination() == self.copy_selection {
-                    if let Selection::Graph(graph_selection) = &editor_scene.selection {
-                        editor_scene.clipboard.fill_from_selection(
-                            graph_selection,
-                            editor_scene.scene,
-                            &editor_scene.physics,
-                            engine,
-                        );
-                    }
+        if let UiMessageData::MenuItem(MenuItemMessage::Click) = message.data() {
+            if message.destination() == self.delete_selection {
+                sender
+                    .send(Message::DoSceneCommand(make_delete_selection_command(
+                        editor_scene,
+                        engine,
+                    )))
+                    .unwrap();
+            } else if message.destination() == self.copy_selection {
+                if let Selection::Graph(graph_selection) = &editor_scene.selection {
+                    editor_scene.clipboard.fill_from_selection(
+                        graph_selection,
+                        editor_scene.scene,
+                        &editor_scene.physics,
+                        engine,
+                    );
                 }
             }
-            _ => (),
         }
     }
 }

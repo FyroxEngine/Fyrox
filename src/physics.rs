@@ -263,8 +263,8 @@ impl Physics {
                     is_sensor: c.is_sensor,
                     translation: c.translation,
                     rotation: c.rotation,
-                    collision_groups: c.collision_groups.into(),
-                    solver_groups: c.solver_groups.into(),
+                    collision_groups: c.collision_groups,
+                    solver_groups: c.solver_groups,
                 }
             })
             .collect();

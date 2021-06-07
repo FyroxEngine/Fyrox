@@ -367,30 +367,26 @@ impl AssetBrowser {
                 }
                 // Get all supported assets from folder and generate previews for them.
                 if let Ok(dir_iter) = std::fs::read_dir(path) {
-                    for p in dir_iter {
-                        if let Ok(entry) = p {
-                            fn check_ext(ext: &OsStr) -> bool {
-                                let ext = ext.to_string_lossy().to_lowercase();
-                                matches!(
-                                    ext.as_str(),
-                                    "rgs" | "fbx" | "jpg" | "tga" | "png" | "bmp" | "ogg" | "wav"
-                                )
-                            }
+                    for entry in dir_iter.flatten() {
+                        fn check_ext(ext: &OsStr) -> bool {
+                            let ext = ext.to_string_lossy().to_lowercase();
+                            matches!(
+                                ext.as_str(),
+                                "rgs" | "fbx" | "jpg" | "tga" | "png" | "bmp" | "ogg" | "wav"
+                            )
+                        }
 
-                            let entry_path = entry.path();
-                            if !entry_path.is_dir()
-                                && entry_path.extension().map_or(false, check_ext)
-                            {
-                                let content = AssetItemBuilder::new(WidgetBuilder::new())
-                                    .with_path(entry_path)
-                                    .build(&mut ui.build_ctx(), engine.resource_manager.clone());
-                                self.items.push(content);
-                                ui.send_message(WidgetMessage::link(
-                                    content,
-                                    MessageDirection::ToWidget,
-                                    self.content_panel,
-                                ));
-                            }
+                        let entry_path = entry.path();
+                        if !entry_path.is_dir() && entry_path.extension().map_or(false, check_ext) {
+                            let content = AssetItemBuilder::new(WidgetBuilder::new())
+                                .with_path(entry_path)
+                                .build(&mut ui.build_ctx(), engine.resource_manager.clone());
+                            self.items.push(content);
+                            ui.send_message(WidgetMessage::link(
+                                content,
+                                MessageDirection::ToWidget,
+                                self.content_panel,
+                            ));
                         }
                     }
                 }

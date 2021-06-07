@@ -112,8 +112,8 @@ impl MoveModeSection {
         message: &UiMessage,
         settings: &mut MoveInteractionModeSettings,
     ) {
-        match message.data() {
-            &UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) => {
+        match *message.data() {
+            UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) => {
                 if message.destination() == self.x_snap_step {
                     settings.x_snap_step = value;
                 } else if message.destination() == self.y_snap_step {
@@ -122,7 +122,7 @@ impl MoveModeSection {
                     settings.z_snap_step = value;
                 }
             }
-            &UiMessageData::CheckBox(CheckBoxMessage::Check(Some(value))) => {
+            UiMessageData::CheckBox(CheckBoxMessage::Check(Some(value))) => {
                 if message.destination() == self.snapping {
                     settings.grid_snapping = value;
                 }

@@ -178,9 +178,9 @@ impl MoveGizmo {
             x_axis,
             y_axis,
             z_axis,
-            zx_plane,
-            yz_plane,
             xy_plane,
+            yz_plane,
+            zx_plane,
         }
     }
 

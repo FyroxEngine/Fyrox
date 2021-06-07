@@ -233,7 +233,7 @@ impl InteractionModeTrait for TerrainInteractionMode {
                             match &mut brush_copy.mode {
                                 BrushMode::ModifyHeightMap { amount } => {
                                     if engine.user_interface.keyboard_modifiers().shift {
-                                        *amount = *amount * -1.0;
+                                        *amount *= -1.0;
                                     }
                                 }
                                 BrushMode::DrawOnMask { alpha, .. } => {
