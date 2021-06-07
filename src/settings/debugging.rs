@@ -104,7 +104,7 @@ impl DebuggingSection {
             } else if message.destination() == self.show_tbn {
                 settings.show_tbn = value;
             } else if message.destination() == self.show_physics {
-                settings.show_tbn = value;
+                settings.show_physics = value;
             }
         }
     }
