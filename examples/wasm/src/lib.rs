@@ -181,16 +181,17 @@ pub async fn create_camera(
 async fn create_scene(resource_manager: ResourceManager, context: Arc<Mutex<SceneContext>>) {
     let mut scene = Scene::new();
 
-    let music = GenericSourceBuilder::new(
-        resource_manager
-            .request_sound_buffer("data/music.ogg", false)
-            .await
-            .unwrap()
-            .into(),
-    )
-    .with_status(Status::Playing)
-    .build_source()
-    .unwrap();
+    let music = GenericSourceBuilder::new()
+        .with_buffer(
+            resource_manager
+                .request_sound_buffer("data/music.ogg", false)
+                .await
+                .unwrap()
+                .into(),
+        )
+        .with_status(Status::Playing)
+        .build_source()
+        .unwrap();
 
     scene.sound_context.state().add_source(music);
 

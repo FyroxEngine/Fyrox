@@ -145,7 +145,7 @@ impl GenericSource {
         // so it can be reused later on if needed.
         if let Some(mut buffer) = self.buffer.as_ref().and_then(|b| b.lock().ok()) {
             if let SoundBuffer::Streaming(ref mut streaming) = *buffer {
-                streaming.use_count.saturating_sub(1);
+                streaming.use_count = streaming.use_count.saturating_sub(1);
             }
         }
 
