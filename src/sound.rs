@@ -1,7 +1,9 @@
-use crate::scene::EditorScene;
+use crate::scene::commands::{ChangeSelectionCommand, SceneCommand};
 use crate::{
-    gui::{BuildContext, Ui, UiNode},
-    GameEngine, Message,
+    gui::UiMessage,
+    gui::{BuildContext, UiNode},
+    scene::{EditorScene, Selection},
+    send_sync_message, utils, GameEngine, Message,
 };
 use rg3d::{
     core::pool::Handle,
@@ -9,15 +11,34 @@ use rg3d::{
         border::BorderBuilder,
         decorator::DecoratorBuilder,
         list_view::ListViewBuilder,
+        message::UiMessageData,
         message::{ListViewMessage, MessageDirection},
         text::TextBuilder,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
     },
-    sound::{context::SoundContext, source::SoundSource},
+    sound::source::SoundSource,
 };
-use std::rc::Rc;
-use std::sync::mpsc::Sender;
+use std::{rc::Rc, sync::mpsc::Sender};
+
+#[derive(Debug, Clone)]
+pub struct SoundSelection {
+    sources: Vec<Handle<SoundSource>>,
+}
+
+impl SoundSelection {
+    pub fn sources(&self) -> &[Handle<SoundSource>] {
+        &self.sources
+    }
+}
+
+impl PartialEq for SoundSelection {
+    fn eq(&self, other: &Self) -> bool {
+        utils::is_slice_equal_permutation(self.sources(), other.sources())
+    }
+}
+
+impl Eq for SoundSelection {}
 
 pub struct SoundPanel {
     pub window: Handle<UiNode>,
@@ -53,11 +74,10 @@ impl SoundPanel {
                     .unwrap();
 
                 if sources.pair_iter().all(|(h, _)| h != associated_source) {
-                    ui.send_message(ListViewMessage::remove_item(
-                        self.sounds,
-                        MessageDirection::ToWidget,
-                        item,
-                    ));
+                    send_sync_message(
+                        ui,
+                        ListViewMessage::remove_item(self.sounds, MessageDirection::ToWidget, item),
+                    );
                 }
             }
         } else if sources.alive_count() > list_view_items.len() {
@@ -82,15 +102,56 @@ impl SoundPanel {
                             ),
                     ))
                     .build(&mut ui.build_ctx());
-                    ui.send_message(ListViewMessage::add_item(
-                        self.sounds,
-                        MessageDirection::ToWidget,
-                        item,
-                    ));
+                    send_sync_message(
+                        ui,
+                        ListViewMessage::add_item(self.sounds, MessageDirection::ToWidget, item),
+                    );
                 }
             }
         }
     }
 
-    pub fn handle_ui_message(&mut self, sender: &Sender<Message>) {}
+    pub fn handle_ui_message(
+        &mut self,
+        sender: &Sender<Message>,
+        editor_scene: &EditorScene,
+        message: &UiMessage,
+        engine: &GameEngine,
+    ) {
+        let ui = &engine.user_interface;
+        let list_view_items = ui.node(self.sounds).as_list_view().items();
+
+        match message.data() {
+            UiMessageData::ListView(ListViewMessage::SelectionChanged(selection)) => {
+                if message.destination() == self.sounds
+                    && message.direction() == MessageDirection::FromWidget
+                {
+                    let new_selection = match selection {
+                        None => Default::default(),
+                        Some(index) => {
+                            // TODO: Implement multi-selection when ListView will have multi-selection support.
+                            Selection::Sound(SoundSelection {
+                                sources: vec![*ui
+                                    .node(list_view_items[*index])
+                                    .user_data_ref::<Handle<SoundSource>>()
+                                    .unwrap()],
+                            })
+                        }
+                    };
+
+                    if new_selection != editor_scene.selection {
+                        sender
+                            .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
+                                ChangeSelectionCommand::new(
+                                    new_selection,
+                                    editor_scene.selection.clone(),
+                                ),
+                            )))
+                            .unwrap();
+                    }
+                }
+            }
+            _ => (),
+        }
+    }
 }

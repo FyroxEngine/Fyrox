@@ -1,7 +1,3 @@
-use crate::scene::commands::sound::AddSoundSourceCommand;
-use crate::scene::commands::terrain::{
-    ModifyTerrainHeightCommand, ModifyTerrainLayerMaskCommand, SetTerrainLayerTextureCommand,
-};
 use crate::{
     command::Command,
     physics::{Collider, Joint, RigidBody},
@@ -57,11 +53,15 @@ use crate::{
                 SetRevoluteJointAnchor2Command, SetRevoluteJointAxis1Command,
                 SetRevoluteJointAxis2Command,
             },
+            sound::{AddSoundSourceCommand, DeleteSoundSourceCommand},
             sprite::{
                 SetSpriteColorCommand, SetSpriteRotationCommand, SetSpriteSizeCommand,
                 SetSpriteTextureCommand,
             },
-            terrain::{AddTerrainLayerCommand, DeleteTerrainLayerCommand},
+            terrain::{
+                AddTerrainLayerCommand, DeleteTerrainLayerCommand, ModifyTerrainHeightCommand,
+                ModifyTerrainLayerMaskCommand, SetTerrainLayerTextureCommand,
+            },
         },
         EditorScene, GraphSelection, Selection,
     },
@@ -230,6 +230,7 @@ pub enum SceneCommand {
 
     // Sound commands.
     AddSoundSource(AddSoundSourceCommand),
+    DeleteSoundSource(DeleteSoundSourceCommand),
 }
 
 pub struct SceneContext<'a> {
@@ -346,6 +347,7 @@ macro_rules! static_dispatch {
             SceneCommand::ModifyTerrainHeight(v) => v.$func($($args),*),
             SceneCommand::ModifyTerrainLayerMask(v) => v.$func($($args),*),
             SceneCommand::AddSoundSource(v) => v.$func($($args),*),
+            SceneCommand::DeleteSoundSource(v) => v.$func($($args),*),
         }
     };
 }
@@ -515,6 +517,7 @@ impl ChangeSelectionCommand {
                 Selection::None => "Change Selection: None",
                 Selection::Graph(_) => "Change Selection: Graph",
                 Selection::Navmesh(_) => "Change Selection: Navmesh",
+                Selection::Sound(_) => "Change Selection: Sound",
             }
             .to_owned(),
             new_selection,

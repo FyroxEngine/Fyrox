@@ -25,8 +25,11 @@ pub mod scene;
 pub mod settings;
 pub mod sidebar;
 pub mod sound;
+pub mod utils;
 pub mod world_outliner;
 
+use crate::scene::commands::sound::DeleteSoundSourceCommand;
+use crate::scene::commands::CommandGroup;
 use crate::settings::SettingsSectionKind;
 use crate::sound::SoundPanel;
 use crate::{
@@ -898,7 +901,8 @@ impl Editor {
                 },
             );
 
-            self.sound_panel.handle_ui_message(&self.message_sender);
+            self.sound_panel
+                .handle_ui_message(&self.message_sender, editor_scene, message, engine);
 
             self.sidebar
                 .handle_ui_message(message, editor_scene, engine);
@@ -1074,14 +1078,37 @@ impl Editor {
                                     }
                                 }
                                 KeyCode::Delete => {
-                                    if !editor_scene.selection.is_empty()
-                                        && matches!(editor_scene.selection, Selection::Graph(_))
-                                    {
-                                        self.message_sender
-                                            .send(Message::DoSceneCommand(
-                                                make_delete_selection_command(editor_scene, engine),
-                                            ))
-                                            .unwrap();
+                                    if !editor_scene.selection.is_empty() {
+                                        match editor_scene.selection {
+                                            Selection::Graph(_) => {
+                                                self.message_sender
+                                                    .send(Message::DoSceneCommand(
+                                                        make_delete_selection_command(
+                                                            editor_scene,
+                                                            engine,
+                                                        ),
+                                                    ))
+                                                    .unwrap();
+                                            }
+                                            Selection::Sound(ref selection) => {
+                                                self.message_sender.send(Message::DoSceneCommand(
+                                                    SceneCommand::CommandGroup(CommandGroup::from(
+                                                        selection
+                                                            .sources()
+                                                            .iter()
+                                                            .map(|&source| {
+                                                                SceneCommand::DeleteSoundSource(
+                                                                    DeleteSoundSourceCommand::new(
+                                                                        source,
+                                                                    ),
+                                                                )
+                                                            })
+                                                            .collect::<Vec<_>>(),
+                                                    )),
+                                                )).unwrap();
+                                            }
+                                            _ => (),
+                                        }
                                     }
                                 }
                                 _ => (),

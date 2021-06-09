@@ -3,7 +3,8 @@ use crate::{
     interaction::navmesh::{data_model::Navmesh, selection::NavmeshSelection},
     physics::Physics,
     scene::clipboard::Clipboard,
-    GameEngine,
+    sound::SoundSelection,
+    utils, GameEngine,
 };
 use rg3d::{
     core::{
@@ -143,6 +144,7 @@ pub enum Selection {
     None,
     Graph(GraphSelection),
     Navmesh(NavmeshSelection),
+    Sound(SoundSelection),
 }
 
 impl Default for Selection {
@@ -157,6 +159,7 @@ impl Selection {
             Selection::None => true,
             Selection::Graph(graph) => graph.is_empty(),
             Selection::Navmesh(navmesh) => navmesh.is_empty(),
+            Selection::Sound(sound) => sound.sources().is_empty(),
         }
     }
 }
@@ -168,25 +171,7 @@ pub struct GraphSelection {
 
 impl PartialEq for GraphSelection {
     fn eq(&self, other: &Self) -> bool {
-        if self.nodes.is_empty() && !other.nodes.is_empty() {
-            false
-        } else {
-            // Selection is equal even when order of elements is different.
-            // TODO: Find a way to do this faster.
-            for &node in self.nodes.iter() {
-                let mut found = false;
-                for &other_node in other.nodes.iter() {
-                    if other_node == node {
-                        found = true;
-                        break;
-                    }
-                }
-                if !found {
-                    return false;
-                }
-            }
-            true
-        }
+        utils::is_slice_equal_permutation(self.nodes(), other.nodes())
     }
 }
 
