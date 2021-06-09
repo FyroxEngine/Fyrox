@@ -36,7 +36,8 @@ fn main() {
     let sine_wave_buffer = SoundBuffer::new_generic(sine_wave).unwrap();
 
     // Create generic source (without spatial effects) using that buffer.
-    let source = GenericSourceBuilder::new(sine_wave_buffer)
+    let source = GenericSourceBuilder::new()
+        .with_buffer(sine_wave_buffer)
         .with_status(Status::Playing)
         .with_looping(true)
         .build_source()

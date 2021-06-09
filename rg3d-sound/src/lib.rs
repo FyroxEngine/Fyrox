@@ -34,7 +34,8 @@
 //!
 //!  let sound_buffer = SoundBuffer::new_generic(rg3d_sound::futures::executor::block_on(DataSource::from_file("sound.wav")).unwrap()).unwrap();
 //!
-//!  let source = GenericSourceBuilder::new(sound_buffer)
+//!  let source = GenericSourceBuilder::new()
+//!     .with_buffer(sound_buffer)
 //!     .with_status(Status::Playing)
 //!     .build_source()
 //!     .unwrap();

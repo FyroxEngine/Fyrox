@@ -18,7 +18,8 @@
 //! use rg3d_sound::context::SoundContext;
 //!
 //! fn make_source(context: &mut SoundContext, buffer: Arc<Mutex<SoundBuffer>>) -> Handle<SoundSource> {
-//!     let source = GenericSourceBuilder::new(buffer)
+//!     let source = GenericSourceBuilder::new()
+//!        .with_buffer(buffer)
 //!        .with_status(Status::Playing)
 //!        .build_source()
 //!        .unwrap();
@@ -41,6 +42,7 @@ use std::{
 /// See module info.
 #[derive(Debug, Clone)]
 pub struct GenericSource {
+    name: String,
     buffer: Option<Arc<Mutex<SoundBuffer>>>,
     // Read position in the buffer. Differs from `playback_pos` if buffer is streaming.
     // In case of streaming buffer its maximum value will be some fixed value which is
@@ -77,6 +79,7 @@ pub struct GenericSource {
 impl Default for GenericSource {
     fn default() -> Self {
         Self {
+            name: Default::default(),
             buffer: None,
             buf_read_pos: 0.0,
             playback_pos: 0.0,
@@ -119,6 +122,16 @@ fn position_to_index(position: f64, channel_count: usize) -> usize {
 }
 
 impl GenericSource {
+    /// Sets new name of the sound source.
+    pub fn set_name<N: AsRef<str>>(&mut self, name: N) {
+        self.name = name.as_ref().to_owned();
+    }
+
+    /// Returns the name of the sound source.
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
     /// Changes buffer of source. Returns old buffer. Source will continue playing from beginning, old
     /// position will be discarded.
     pub fn set_buffer(
@@ -128,21 +141,31 @@ impl GenericSource {
         self.buf_read_pos = 0.0;
         self.playback_pos = 0.0;
 
+        // If we already have streaming buffer assigned make sure to decrease use count
+        // so it can be reused later on if needed.
+        if let Some(mut buffer) = self.buffer.as_ref().and_then(|b| b.lock().ok()) {
+            if let SoundBuffer::Streaming(ref mut streaming) = *buffer {
+                streaming.use_count.saturating_sub(1);
+            }
+        }
+
+        let mut locked_buffer = buffer.lock()?;
+
         // Check new buffer if streaming - it must not be used by anyone else.
-        if let SoundBuffer::Streaming(ref mut streaming) = *buffer.lock()? {
+        if let SoundBuffer::Streaming(ref mut streaming) = *locked_buffer {
             if streaming.use_count != 0 {
                 return Err(SoundError::StreamingBufferAlreadyInUse);
             }
             streaming.use_count += 1;
         }
 
-        // If we already have streaming buffer assigned make sure to decrease use count
-        // so it can be reused later on if needed.
-        if let Some(mut buffer) = self.buffer.as_ref().and_then(|b| b.lock().ok()) {
-            if let SoundBuffer::Streaming(ref mut streaming) = *buffer {
-                streaming.use_count -= 1;
-            }
-        }
+        // Make sure to recalculate resampling multiplier, otherwise sound will play incorrectly.
+        let device_sample_rate = f64::from(crate::context::SAMPLE_RATE);
+        let sample_rate = locked_buffer.sample_rate() as f64;
+        let channel_count = locked_buffer.channel_count() as f64;
+        self.resampling_multiplier = sample_rate / device_sample_rate * channel_count;
+
+        drop(locked_buffer);
 
         Ok(self.buffer.replace(buffer))
     }
@@ -379,6 +402,7 @@ impl Visit for GenericSource {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
+        let _ = self.name.visit("Name", visitor);
         self.buffer.visit("Buffer", visitor)?;
         self.buf_read_pos.visit("BufReadPos", visitor)?;
         self.playback_pos.visit("PlaybackPos", visitor)?;
@@ -406,7 +430,8 @@ impl Visit for GenericSource {
 /// use rg3d_sound::source::{Status, SoundSource};
 ///
 /// fn make_generic_source(buffer: Arc<Mutex<SoundBuffer>>) -> GenericSource {
-///     GenericSourceBuilder::new(buffer)
+///     GenericSourceBuilder::new()
+///         .with_buffer(buffer)
 ///         .with_status(Status::Playing)
 ///         .with_gain(0.5)
 ///         .with_looping(true)
@@ -416,7 +441,8 @@ impl Visit for GenericSource {
 /// }
 ///
 /// fn make_source(buffer: Arc<Mutex<SoundBuffer>>) -> SoundSource {
-///     GenericSourceBuilder::new(buffer)
+///     GenericSourceBuilder::new()
+///         .with_buffer(buffer)
 ///         .with_status(Status::Playing)
 ///         .with_gain(0.5)
 ///         .with_looping(true)
@@ -426,9 +452,10 @@ impl Visit for GenericSource {
 /// }
 /// ```
 pub struct GenericSourceBuilder {
-    buffer: Arc<Mutex<SoundBuffer>>,
+    buffer: Option<Arc<Mutex<SoundBuffer>>>,
     gain: f32,
     pitch: f32,
+    name: String,
     panning: f32,
     looping: bool,
     status: Status,
@@ -437,16 +464,23 @@ pub struct GenericSourceBuilder {
 
 impl GenericSourceBuilder {
     /// Creates new generic source builder with specified buffer.
-    pub fn new(buffer: Arc<Mutex<SoundBuffer>>) -> Self {
+    pub fn new() -> Self {
         Self {
-            buffer,
+            buffer: None,
             gain: 1.0,
             pitch: 1.0,
+            name: Default::default(),
             panning: 0.0,
             looping: false,
             status: Status::Stopped,
             play_once: false,
         }
+    }
+
+    /// Sets desired sound buffer to play.
+    pub fn with_buffer(mut self, buffer: Arc<Mutex<SoundBuffer>>) -> Self {
+        self.buffer = Some(buffer);
+        self
     }
 
     /// See `set_gain` of GenericSource
@@ -485,31 +519,32 @@ impl GenericSourceBuilder {
         self
     }
 
+    /// Sets desired name of the source.
+    pub fn with_name<N: AsRef<str>>(mut self, name: N) -> Self {
+        self.name = name.as_ref().to_owned();
+        self
+    }
+
     /// Creates new instance of generic sound source. May fail if buffer is invalid.
     pub fn build(self) -> Result<GenericSource, SoundError> {
-        let device_sample_rate = f64::from(crate::context::SAMPLE_RATE);
-        let mut locked_buffer = self.buffer.lock()?;
-        if let SoundBuffer::Streaming(ref mut streaming) = *locked_buffer {
-            if streaming.use_count != 0 {
-                return Err(SoundError::StreamingBufferAlreadyInUse);
-            }
-            streaming.use_count += 1;
-        }
-        let sample_rate = locked_buffer.sample_rate() as f64;
-        let channel_count = locked_buffer.channel_count() as f64;
-        let resampling_multiplier = sample_rate / device_sample_rate * channel_count;
-        Ok(GenericSource {
-            resampling_multiplier,
-            buffer: Some(self.buffer.clone()),
+        let mut source = GenericSource {
+            buffer: self.buffer.clone(),
             gain: self.gain,
             pitch: self.pitch as f64,
             play_once: self.play_once,
             panning: self.panning,
             status: self.status,
             looping: self.looping,
+            name: self.name,
             frame_samples: Default::default(),
             ..Default::default()
-        })
+        };
+
+        if let Some(buffer) = self.buffer {
+            source.set_buffer(buffer)?;
+        }
+
+        Ok(source)
     }
 
     /// Creates new instance of sound source of `Generic` variant.

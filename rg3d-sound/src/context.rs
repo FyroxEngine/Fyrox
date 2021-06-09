@@ -10,6 +10,7 @@
 //! once the level is loaded you just set master gain of main menu context and it will no longer produce any
 //! sounds, only your level will do.  
 
+use crate::pool::Ticket;
 use crate::{
     effects::{Effect, EffectRenderTrait},
     listener::Listener,
@@ -107,6 +108,29 @@ pub struct State {
 }
 
 impl State {
+    /// Extracts a source from the context and reserves its handle. It is used to temporarily take
+    /// ownership over source, and then put node back using given ticket.
+    pub fn take_reserve(
+        &mut self,
+        handle: Handle<SoundSource>,
+    ) -> (Ticket<SoundSource>, SoundSource) {
+        self.sources.take_reserve(handle)
+    }
+
+    /// Puts source back by given ticket.
+    pub fn put_back(
+        &mut self,
+        ticket: Ticket<SoundSource>,
+        node: SoundSource,
+    ) -> Handle<SoundSource> {
+        self.sources.put_back(ticket, node)
+    }
+
+    /// Makes source handle vacant again.
+    pub fn forget_ticket(&mut self, ticket: Ticket<SoundSource>) {
+        self.sources.forget_ticket(ticket)
+    }
+
     /// Sets new distance model.
     pub fn set_distance_model(&mut self, distance_model: DistanceModel) {
         self.distance_model = distance_model;

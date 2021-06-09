@@ -24,7 +24,8 @@ fn main() {
     .unwrap();
 
     // Create flat source (without spatial effects) using that buffer.
-    let source = GenericSourceBuilder::new(waterfall_buffer)
+    let source = GenericSourceBuilder::new()
+        .with_buffer(waterfall_buffer)
         .with_status(Status::Playing)
         .with_looping(true)
         .build_source()

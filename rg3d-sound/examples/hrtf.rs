@@ -37,7 +37,8 @@ fn main() {
     )
     .unwrap();
     let source = SpatialSourceBuilder::new(
-        GenericSourceBuilder::new(sound_buffer)
+        GenericSourceBuilder::new()
+            .with_buffer(sound_buffer)
             .with_status(Status::Playing)
             .build()
             .unwrap(),
@@ -50,7 +51,8 @@ fn main() {
     )
     .unwrap();
     let source = SpatialSourceBuilder::new(
-        GenericSourceBuilder::new(sound_buffer)
+        GenericSourceBuilder::new()
+            .with_buffer(sound_buffer)
             .with_status(Status::Playing)
             .with_looping(true)
             .build()

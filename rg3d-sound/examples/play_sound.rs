@@ -27,7 +27,8 @@ fn main() {
     .unwrap();
 
     // Create generic source (without spatial effects) using that buffer.
-    let source = GenericSourceBuilder::new(door_open_buffer)
+    let source = GenericSourceBuilder::new()
+        .with_buffer(door_open_buffer)
         .with_status(Status::Playing)
         .build_source()
         .unwrap();

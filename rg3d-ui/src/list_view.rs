@@ -50,6 +50,25 @@ impl<M: MessageData, C: Control<M, C>> ListView<M, C> {
         &self.items
     }
 
+    fn fix_selection(&self, ui: &UserInterface<M, C>) {
+        // Check if current selection is out-of-bounds.
+        if let Some(selected_index) = self.selected_index {
+            if selected_index >= self.items.len() {
+                let new_selection = if self.items.is_empty() {
+                    None
+                } else {
+                    Some(self.items.len() - 1)
+                };
+
+                ui.send_message(ListViewMessage::selection(
+                    self.handle,
+                    MessageDirection::ToWidget,
+                    new_selection,
+                ));
+            }
+        }
+    }
+
     fn sync_decorators(&self, ui: &UserInterface<M, C>) {
         if let Some(selected_index) = self.selected_index {
             for (i, &container) in self.item_containers.iter().enumerate() {
@@ -169,23 +188,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ListView<M, C> {
                         self.item_containers = item_containers;
                         self.items = items.clone();
 
-                        // Check if current selection is out-of-bounds.
-                        if let Some(selected_index) = self.selected_index {
-                            if selected_index >= self.items.len() {
-                                let new_selection = if self.items.is_empty() {
-                                    None
-                                } else {
-                                    Some(self.items.len() - 1)
-                                };
-
-                                ui.send_message(ListViewMessage::selection(
-                                    self.handle,
-                                    MessageDirection::ToWidget,
-                                    new_selection,
-                                ));
-                            }
-                        }
-
+                        self.fix_selection(ui);
                         self.sync_decorators(ui);
                     }
                     &ListViewMessage::AddItem(item) => {
@@ -193,7 +196,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ListView<M, C> {
                             generate_item_container(&mut ui.build_ctx(), item, self.items.len());
 
                         ui.send_message(WidgetMessage::link(
-                            item,
+                            item_container,
                             MessageDirection::ToWidget,
                             self.panel,
                         ));
@@ -206,6 +209,21 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ListView<M, C> {
                             self.selected_index = selection;
                             self.sync_decorators(ui);
                             ui.send_message(message.reverse());
+                        }
+                    }
+                    &ListViewMessage::RemoveItem(item) => {
+                        if let Some(item_position) = self.items.iter().position(|i| *i == item) {
+                            self.items.remove(item_position);
+
+                            let container = ui.node(item).parent();
+
+                            ui.send_message(WidgetMessage::remove(
+                                container,
+                                MessageDirection::ToWidget,
+                            ));
+
+                            self.fix_selection(ui);
+                            self.sync_decorators(ui);
                         }
                     }
                 }

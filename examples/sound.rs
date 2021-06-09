@@ -165,7 +165,8 @@ fn main() {
                             let source = ctx
                                 .add_source(
                                     SpatialSourceBuilder::new(
-                                        GenericSourceBuilder::new(foot_step.into())
+                                        GenericSourceBuilder::new()
+                                            .with_buffer(foot_step.into())
                                             // rg3d-sound provides built-in way to create temporary sounds that will die immediately
                                             // after first play. This is very useful for foot step sounds.
                                             .with_play_once(true)

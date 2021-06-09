@@ -29,7 +29,8 @@ fn main() {
 
     // Create spatial source - spatial sources can be positioned in space.
     let source = SpatialSourceBuilder::new(
-        GenericSourceBuilder::new(drop_buffer)
+        GenericSourceBuilder::new()
+            .with_buffer(drop_buffer)
             .with_looping(true)
             .with_status(Status::Playing)
             .build()
