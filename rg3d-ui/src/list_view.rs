@@ -98,16 +98,9 @@ impl<M: MessageData, C: Control<M, C>> ListView<M, C> {
 #[derive(Clone)]
 pub struct ListViewItem<M: MessageData, C: Control<M, C>> {
     widget: Widget<M, C>,
-    index: usize,
 }
 
 crate::define_widget_deref!(ListViewItem<M, C>);
-
-impl<M: MessageData, C: Control<M, C>> ListViewItem<M, C> {
-    pub fn index(&self) -> usize {
-        self.index
-    }
-}
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for ListViewItem<M, C> {
     fn draw(&self, drawing_context: &mut DrawingContext) {
@@ -128,17 +121,27 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ListViewItem<M, C> {
     ) {
         self.widget.handle_routed_message(ui, message);
 
-        let items_control =
+        let parent_list_view =
             self.find_by_criteria_up(ui, |node| matches!(node, UINode::ListView(_)));
 
         if let UiMessageData::Widget(WidgetMessage::MouseUp { .. }) = &message.data() {
             if !message.handled() {
+                let self_index = if let UINode::ListView(list_view) = ui.node(parent_list_view) {
+                    list_view
+                        .item_containers
+                        .iter()
+                        .position(|c| *c == self.handle)
+                        .expect("ListViewItem must be used as a child of ListView")
+                } else {
+                    unreachable!();
+                };
+
                 // Explicitly set selection on parent items control. This will send
                 // SelectionChanged message and all items will react.
                 ui.send_message(ListViewMessage::selection(
-                    items_control,
+                    parent_list_view,
                     MessageDirection::ToWidget,
-                    Some(self.index),
+                    Some(self_index),
                 ));
                 message.set_handled(true);
             }
@@ -192,8 +195,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ListView<M, C> {
                         self.sync_decorators(ui);
                     }
                     &ListViewMessage::AddItem(item) => {
-                        let item_container =
-                            generate_item_container(&mut ui.build_ctx(), item, self.items.len());
+                        let item_container = generate_item_container(&mut ui.build_ctx(), item);
 
                         ui.send_message(WidgetMessage::link(
                             item_container,
@@ -214,6 +216,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ListView<M, C> {
                     &ListViewMessage::RemoveItem(item) => {
                         if let Some(item_position) = self.items.iter().position(|i| *i == item) {
                             self.items.remove(item_position);
+                            self.item_containers.remove(item_position);
 
                             let container = ui.node(item).parent();
 
@@ -312,11 +315,9 @@ impl<M: MessageData, C: Control<M, C>> ListViewBuilder<M, C> {
 fn generate_item_container<M: MessageData, C: Control<M, C>>(
     ctx: &mut BuildContext<M, C>,
     item: Handle<UINode<M, C>>,
-    index: usize,
 ) -> Handle<UINode<M, C>> {
     let item = ListViewItem {
         widget: WidgetBuilder::new().with_child(item).build(),
-        index,
     };
 
     ctx.add_node(UINode::ListViewItem(item))
@@ -328,7 +329,6 @@ fn generate_item_containers<M: MessageData, C: Control<M, C>>(
 ) -> Vec<Handle<UINode<M, C>>> {
     items
         .iter()
-        .enumerate()
-        .map(|(index, &item)| generate_item_container(ctx, item, index))
+        .map(|&item| generate_item_container(ctx, item))
         .collect()
 }
