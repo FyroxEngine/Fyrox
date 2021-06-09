@@ -24,9 +24,11 @@ pub mod preview;
 pub mod scene;
 pub mod settings;
 pub mod sidebar;
+pub mod sound;
 pub mod world_outliner;
 
 use crate::settings::SettingsSectionKind;
+use crate::sound::SoundPanel;
 use crate::{
     asset::{AssetBrowser, AssetKind},
     camera::CameraController,
@@ -496,6 +498,7 @@ struct Editor {
     exit_message_box: Handle<UiNode>,
     save_file_selector: Handle<UiNode>,
     light_panel: LightPanel,
+    sound_panel: SoundPanel,
     menu: Menu,
     exit: bool,
     configurator: Configurator,
@@ -561,12 +564,12 @@ impl Editor {
         let light_panel = LightPanel::new(engine);
 
         let ctx = &mut engine.user_interface.build_ctx();
-        let node_editor =
-            SideBar::new(ctx, message_sender.clone(), engine.resource_manager.clone());
+        let sidebar = SideBar::new(ctx, message_sender.clone(), engine.resource_manager.clone());
         let navmesh_panel = NavmeshPanel::new(ctx, message_sender.clone());
         let world_outliner = WorldOutliner::new(ctx, message_sender.clone());
         let command_stack_viewer =
             CommandStackViewer::new(ctx, engine.resource_manager.clone(), message_sender.clone());
+        let sound_panel = SoundPanel::new(ctx);
         let log = Log::new(ctx);
 
         let root_grid = GridBuilder::new(
@@ -585,9 +588,21 @@ impl Editor {
                                             splitter: 0.25,
                                             tiles: [
                                                 TileBuilder::new(WidgetBuilder::new())
-                                                    .with_content(TileContent::Window(
-                                                        world_outliner.window,
-                                                    ))
+                                                    .with_content(TileContent::VerticalTiles {
+                                                        splitter: 0.6,
+                                                        tiles: [
+                                                            TileBuilder::new(WidgetBuilder::new())
+                                                                .with_content(TileContent::Window(
+                                                                    world_outliner.window,
+                                                                ))
+                                                                .build(ctx),
+                                                            TileBuilder::new(WidgetBuilder::new())
+                                                                .with_content(TileContent::Window(
+                                                                    sound_panel.window,
+                                                                ))
+                                                                .build(ctx),
+                                                        ],
+                                                    })
                                                     .build(ctx),
                                                 TileBuilder::new(WidgetBuilder::new())
                                                     .with_content(TileContent::HorizontalTiles {
@@ -600,7 +615,7 @@ impl Editor {
                                                                 .build(ctx),
                                                             TileBuilder::new(WidgetBuilder::new())
                                                                 .with_content(TileContent::Window(
-                                                                    node_editor.window,
+                                                                    sidebar.window,
                                                                 ))
                                                                 .build(ctx),
                                                         ],
@@ -687,7 +702,8 @@ impl Editor {
 
         let mut editor = Self {
             navmesh_panel,
-            sidebar: node_editor,
+            sidebar,
+            sound_panel,
             preview,
             scene: None,
             command_stack: CommandStack::new(false),
@@ -881,6 +897,8 @@ impl Editor {
                     unreachable!()
                 },
             );
+
+            self.sound_panel.handle_ui_message(&self.message_sender);
 
             self.sidebar
                 .handle_ui_message(message, editor_scene, engine);
@@ -1226,6 +1244,7 @@ impl Editor {
             self.world_outliner.sync_to_model(editor_scene, engine);
             self.sidebar.sync_to_model(editor_scene, engine);
             self.navmesh_panel.sync_to_model(editor_scene, engine);
+            self.sound_panel.sync_to_model(editor_scene, engine);
             self.command_stack_viewer.sync_to_model(
                 &mut self.command_stack,
                 &SceneContext {

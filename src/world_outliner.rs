@@ -486,7 +486,7 @@ impl WorldOutliner {
         let scroll_view;
         let window = WindowBuilder::new(WidgetBuilder::new())
             .can_minimize(false)
-            .with_title(WindowTitle::text("World Outliner"))
+            .with_title(WindowTitle::text("Scene Graph"))
             .with_content(
                 GridBuilder::new(
                     WidgetBuilder::new()

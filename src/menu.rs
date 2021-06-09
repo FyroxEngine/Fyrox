@@ -1,4 +1,5 @@
 use crate::scene::commands::graph::AddNodeCommand;
+use crate::scene::commands::sound::AddSoundSourceCommand;
 use crate::scene::commands::{PasteCommand, SceneCommand};
 use crate::settings::Settings;
 use crate::{
@@ -10,6 +11,8 @@ use crate::{
     GameEngine, Message,
 };
 use rg3d::scene::terrain::{LayerDefinition, TerrainBuilder};
+use rg3d::sound::source::generic::GenericSourceBuilder;
+use rg3d::sound::source::spatial::SpatialSourceBuilder;
 use rg3d::{
     core::{
         algebra::{Matrix4, Vector2},
@@ -69,6 +72,8 @@ pub struct Menu {
     create_camera: Handle<UiNode>,
     create_sprite: Handle<UiNode>,
     create_particle_system: Handle<UiNode>,
+    create_sound_source: Handle<UiNode>,
+    create_spatial_sound_source: Handle<UiNode>,
     sidebar: Handle<UiNode>,
     world_outliner: Handle<UiNode>,
     asset_browser: Handle<UiNode>,
@@ -140,6 +145,8 @@ impl Menu {
         let light_panel;
         let log_panel;
         let create_pivot;
+        let create_sound_source;
+        let create_spatial_sound_source;
         let ctx = &mut engine.user_interface.build_ctx();
         let configure_message = MessageBoxBuilder::new(
             WindowBuilder::new(WidgetBuilder::new().with_width(250.0).with_height(150.0))
@@ -197,6 +204,25 @@ impl Menu {
                                     .with_content(MenuItemContent::text("Quad"))
                                     .build(ctx);
                             create_quad
+                        },
+                    ])
+                    .build(ctx),
+                MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
+                    .with_content(MenuItemContent::text("Sound"))
+                    .with_items(vec![
+                        {
+                            create_sound_source =
+                                MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
+                                    .with_content(MenuItemContent::text("2D Source"))
+                                    .build(ctx);
+                            create_sound_source
+                        },
+                        {
+                            create_spatial_sound_source =
+                                MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
+                                    .with_content(MenuItemContent::text("3D Source"))
+                                    .build(ctx);
+                            create_spatial_sound_source
                         },
                     ])
                     .build(ctx),
@@ -459,6 +485,8 @@ impl Menu {
             log_panel,
             create_pivot,
             create_terrain,
+            create_sound_source,
+            create_spatial_sound_source,
             create,
             edit,
         }
@@ -634,6 +662,31 @@ impl Menu {
                     self.message_sender
                         .send(Message::DoSceneCommand(SceneCommand::AddNode(
                             AddNodeCommand::new(node),
+                        )))
+                        .unwrap();
+                } else if message.destination() == self.create_sound_source {
+                    let source = GenericSourceBuilder::new()
+                        .with_name("2D Source")
+                        .build_source()
+                        .unwrap();
+
+                    self.message_sender
+                        .send(Message::DoSceneCommand(SceneCommand::AddSoundSource(
+                            AddSoundSourceCommand::new(source),
+                        )))
+                        .unwrap();
+                } else if message.destination() == self.create_spatial_sound_source {
+                    let source = SpatialSourceBuilder::new(
+                        GenericSourceBuilder::new()
+                            .with_name("3D Source")
+                            .build()
+                            .unwrap(),
+                    )
+                    .build_source();
+
+                    self.message_sender
+                        .send(Message::DoSceneCommand(SceneCommand::AddSoundSource(
+                            AddSoundSourceCommand::new(source),
                         )))
                         .unwrap();
                 } else if message.destination() == self.create_particle_system {

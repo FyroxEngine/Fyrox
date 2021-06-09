@@ -1,3 +1,4 @@
+use crate::scene::commands::sound::AddSoundSourceCommand;
 use crate::scene::commands::terrain::{
     ModifyTerrainHeightCommand, ModifyTerrainLayerMaskCommand, SetTerrainLayerTextureCommand,
 };
@@ -81,6 +82,7 @@ pub mod mesh;
 pub mod navmesh;
 pub mod particle_system;
 pub mod physics;
+pub mod sound;
 pub mod sprite;
 pub mod terrain;
 
@@ -225,6 +227,9 @@ pub enum SceneCommand {
     SetTerrainLayerTexture(SetTerrainLayerTextureCommand),
     ModifyTerrainHeight(ModifyTerrainHeightCommand),
     ModifyTerrainLayerMask(ModifyTerrainLayerMaskCommand),
+
+    // Sound commands.
+    AddSoundSource(AddSoundSourceCommand),
 }
 
 pub struct SceneContext<'a> {
@@ -340,6 +345,7 @@ macro_rules! static_dispatch {
             SceneCommand::SetTerrainLayerTexture(v) => v.$func($($args),*),
             SceneCommand::ModifyTerrainHeight(v) => v.$func($($args),*),
             SceneCommand::ModifyTerrainLayerMask(v) => v.$func($($args),*),
+            SceneCommand::AddSoundSource(v) => v.$func($($args),*),
         }
     };
 }
