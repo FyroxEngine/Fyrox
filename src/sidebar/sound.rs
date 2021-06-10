@@ -1,3 +1,5 @@
+use crate::scene::commands::sound::SetSpatialSoundSourcePositionCommand;
+use crate::scene::commands::SceneCommand;
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     send_sync_message,
@@ -64,7 +66,15 @@ impl SoundSection {
         if let SoundSource::Spatial(spatial) = source {
             match *message.data() {
                 UiMessageData::Vec3Editor(Vec3EditorMessage::Value(value)) => {
-                    if spatial.position() != value {}
+                    if spatial.position() != value {
+                        sender
+                            .send(Message::DoSceneCommand(
+                                SceneCommand::SetSpatialSoundSourcePosition(
+                                    SetSpatialSoundSourcePositionCommand::new(handle, value),
+                                ),
+                            ))
+                            .unwrap();
+                    }
                 }
                 _ => {}
             }
