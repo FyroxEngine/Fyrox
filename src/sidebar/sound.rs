@@ -1,28 +1,46 @@
-use crate::scene::commands::sound::SetSpatialSoundSourcePositionCommand;
-use crate::scene::commands::SceneCommand;
 use crate::{
-    gui::{BuildContext, Ui, UiMessage, UiNode},
+    asset::AssetKind,
+    gui::{BuildContext, EditorUiNode, Ui, UiMessage, UiNode},
+    make_relative_path,
+    scene::commands::{
+        sound::{
+            SetSoundSourceBufferCommand, SetSoundSourceGainCommand, SetSoundSourceLoopingCommand,
+            SetSoundSourceNameCommand, SetSoundSourcePitchCommand, SetSoundSourcePlayOnceCommand,
+            SetSpatialSoundSourcePositionCommand,
+        },
+        SceneCommand,
+    },
     send_sync_message,
-    sidebar::{make_text_mark, make_vec3_input_field, COLUMN_WIDTH, ROW_HEIGHT},
+    sidebar::{
+        make_bool_input_field, make_f32_input_field, make_text_mark, make_vec3_input_field,
+        COLUMN_WIDTH, ROW_HEIGHT,
+    },
     Message,
 };
 use rg3d::{
-    core::{pool::Handle, scope_profile},
+    core::{futures::executor::block_on, pool::Handle, scope_profile},
+    engine::resource_manager::ResourceManager,
     gui::{
         grid::{Column, GridBuilder, Row},
-        message::{MessageDirection, UiMessageData, Vec3EditorMessage},
+        message::{
+            CheckBoxMessage, MessageDirection, NumericUpDownMessage, TextBoxMessage, UiMessageData,
+            Vec3EditorMessage, WidgetMessage,
+        },
+        stack_panel::StackPanelBuilder,
+        text_box::TextBoxBuilder,
         widget::WidgetBuilder,
+        Thickness, VerticalAlignment,
     },
-    sound::source::SoundSource,
+    sound::source::{spatial::SpatialSource, SoundSource},
 };
 use std::sync::mpsc::Sender;
 
-pub struct SoundSection {
+struct SpatialSection {
     pub section: Handle<UiNode>,
     position: Handle<UiNode>,
 }
 
-impl SoundSection {
+impl SpatialSection {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let position;
         let section = GridBuilder::new(
@@ -41,17 +59,206 @@ impl SoundSection {
         Self { section, position }
     }
 
-    pub fn sync_to_model(&mut self, source: &SoundSource, ui: &mut Ui) {
-        if let SoundSource::Spatial(spatial) = source {
-            send_sync_message(
-                ui,
-                Vec3EditorMessage::value(
-                    self.position,
-                    MessageDirection::ToWidget,
-                    spatial.position(),
-                ),
-            );
+    pub fn sync_to_model(&mut self, spatial: &SpatialSource, ui: &mut Ui) {
+        send_sync_message(
+            ui,
+            Vec3EditorMessage::value(
+                self.position,
+                MessageDirection::ToWidget,
+                spatial.position(),
+            ),
+        );
+    }
+
+    pub fn handle_message(
+        &mut self,
+        message: &UiMessage,
+        sender: &Sender<Message>,
+        spatial: &SpatialSource,
+        handle: Handle<SoundSource>,
+    ) {
+        scope_profile!();
+
+        match *message.data() {
+            UiMessageData::Vec3Editor(Vec3EditorMessage::Value(value)) => {
+                if spatial.position() != value {
+                    sender
+                        .send(Message::DoSceneCommand(
+                            SceneCommand::SetSpatialSoundSourcePosition(
+                                SetSpatialSoundSourcePositionCommand::new(handle, value),
+                            ),
+                        ))
+                        .unwrap();
+                }
+            }
+            _ => {}
         }
+    }
+}
+
+pub struct SoundSection {
+    pub section: Handle<UiNode>,
+    spatial_section: SpatialSection,
+    gain: Handle<UiNode>,
+    buffer: Handle<UiNode>,
+    name: Handle<UiNode>,
+    pitch: Handle<UiNode>,
+    looping: Handle<UiNode>,
+    play_once: Handle<UiNode>,
+}
+
+impl SoundSection {
+    pub fn new(ctx: &mut BuildContext) -> Self {
+        let spatial_section = SpatialSection::new(ctx);
+
+        let gain;
+        let buffer;
+        let name;
+        let pitch;
+        let looping;
+        let play_once;
+        let section = StackPanelBuilder::new(
+            WidgetBuilder::new()
+                .with_child(
+                    GridBuilder::new(
+                        WidgetBuilder::new()
+                            .with_child(make_text_mark(ctx, "Gain", 0))
+                            .with_child({
+                                gain = make_f32_input_field(ctx, 0, 0.0, f32::MAX, 0.1);
+                                gain
+                            })
+                            .with_child(make_text_mark(ctx, "Buffer", 1))
+                            .with_child({
+                                buffer = TextBoxBuilder::new(
+                                    WidgetBuilder::new()
+                                        .on_row(1)
+                                        .on_column(1)
+                                        .with_allow_drop(true)
+                                        .with_margin(Thickness::uniform(1.0)),
+                                )
+                                .with_editable(false)
+                                .with_text("<None>")
+                                .with_vertical_text_alignment(VerticalAlignment::Center)
+                                .build(ctx);
+                                buffer
+                            })
+                            .with_child(make_text_mark(ctx, "Name", 2))
+                            .with_child({
+                                name = TextBoxBuilder::new(
+                                    WidgetBuilder::new()
+                                        .on_row(2)
+                                        .on_column(1)
+                                        .with_margin(Thickness::uniform(1.0)),
+                                )
+                                .with_text("<None>")
+                                .with_vertical_text_alignment(VerticalAlignment::Center)
+                                .build(ctx);
+                                name
+                            })
+                            .with_child(make_text_mark(ctx, "Pitch", 3))
+                            .with_child({
+                                pitch = make_f32_input_field(ctx, 3, 0.0, f32::MAX, 0.1);
+                                pitch
+                            })
+                            .with_child(make_text_mark(ctx, "Looping", 4))
+                            .with_child({
+                                looping = make_bool_input_field(ctx, 4);
+                                looping
+                            })
+                            .with_child(make_text_mark(ctx, "Play Once", 5))
+                            .with_child({
+                                play_once = make_bool_input_field(ctx, 5);
+                                play_once
+                            }),
+                    )
+                    .add_column(Column::strict(COLUMN_WIDTH))
+                    .add_column(Column::stretch())
+                    .add_row(Row::strict(ROW_HEIGHT))
+                    .add_row(Row::strict(ROW_HEIGHT))
+                    .add_row(Row::strict(ROW_HEIGHT))
+                    .add_row(Row::strict(ROW_HEIGHT))
+                    .add_row(Row::strict(ROW_HEIGHT))
+                    .add_row(Row::strict(ROW_HEIGHT))
+                    .build(ctx),
+                )
+                .with_child(spatial_section.section),
+        )
+        .build(ctx);
+
+        Self {
+            section,
+            spatial_section,
+            gain,
+            name,
+            pitch,
+            buffer,
+            looping,
+            play_once,
+        }
+    }
+
+    pub fn sync_to_model(&mut self, source: &SoundSource, ui: &mut Ui) {
+        send_sync_message(
+            ui,
+            WidgetMessage::visibility(
+                self.spatial_section.section,
+                MessageDirection::ToWidget,
+                matches!(source, SoundSource::Spatial(_)),
+            ),
+        );
+
+        if let SoundSource::Spatial(spatial) = source {
+            self.spatial_section.sync_to_model(spatial, ui);
+        }
+
+        send_sync_message(
+            ui,
+            NumericUpDownMessage::value(
+                self.pitch,
+                MessageDirection::ToWidget,
+                source.pitch() as f32,
+            ),
+        );
+        send_sync_message(
+            ui,
+            NumericUpDownMessage::value(self.gain, MessageDirection::ToWidget, source.gain()),
+        );
+        send_sync_message(
+            ui,
+            TextBoxMessage::text(self.name, MessageDirection::ToWidget, source.name_owned()),
+        );
+        send_sync_message(
+            ui,
+            TextBoxMessage::text(
+                self.buffer,
+                MessageDirection::ToWidget,
+                source
+                    .buffer()
+                    .and_then(|b| {
+                        let locked_buffer = b.lock().unwrap();
+                        locked_buffer
+                            .external_data_path()
+                            .map(|p| p.to_string_lossy().to_string())
+                    })
+                    .unwrap_or_else(|| "<None>".to_owned()),
+            ),
+        );
+        send_sync_message(
+            ui,
+            CheckBoxMessage::checked(
+                self.play_once,
+                MessageDirection::ToWidget,
+                Some(source.is_play_once()),
+            ),
+        );
+        send_sync_message(
+            ui,
+            CheckBoxMessage::checked(
+                self.looping,
+                MessageDirection::ToWidget,
+                Some(source.is_looping()),
+            ),
+        );
     }
 
     pub fn handle_message(
@@ -60,24 +267,102 @@ impl SoundSection {
         sender: &Sender<Message>,
         source: &SoundSource,
         handle: Handle<SoundSource>,
+        ui: &Ui,
+        resource_manager: ResourceManager,
     ) {
         scope_profile!();
 
+        if message.direction() != MessageDirection::FromWidget {
+            return;
+        }
+
         if let SoundSource::Spatial(spatial) = source {
-            match *message.data() {
-                UiMessageData::Vec3Editor(Vec3EditorMessage::Value(value)) => {
-                    if spatial.position() != value {
-                        sender
-                            .send(Message::DoSceneCommand(
-                                SceneCommand::SetSpatialSoundSourcePosition(
-                                    SetSpatialSoundSourcePositionCommand::new(handle, value),
-                                ),
-                            ))
-                            .unwrap();
+            self.spatial_section
+                .handle_message(message, sender, spatial, handle);
+        }
+
+        match message.data() {
+            &UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) => {
+                if source.gain() != value && message.destination() == self.gain {
+                    sender
+                        .send(Message::DoSceneCommand(SceneCommand::SetSoundSourceGain(
+                            SetSoundSourceGainCommand::new(handle, value),
+                        )))
+                        .unwrap();
+                } else if source.pitch() as f32 != value && message.destination() == self.pitch {
+                    sender
+                        .send(Message::DoSceneCommand(SceneCommand::SetSoundSourcePitch(
+                            SetSoundSourcePitchCommand::new(handle, value as f64),
+                        )))
+                        .unwrap();
+                }
+            }
+            &UiMessageData::CheckBox(CheckBoxMessage::Check(Some(value))) => {
+                if source.is_play_once() != value && message.destination() == self.play_once {
+                    sender
+                        .send(Message::DoSceneCommand(
+                            SceneCommand::SetSoundSourcePlayOnce(
+                                SetSoundSourcePlayOnceCommand::new(handle, value),
+                            ),
+                        ))
+                        .unwrap();
+                } else if source.is_looping() != value && message.destination() == self.looping {
+                    sender
+                        .send(Message::DoSceneCommand(
+                            SceneCommand::SetSoundSourceLooping(SetSoundSourceLoopingCommand::new(
+                                handle, value,
+                            )),
+                        ))
+                        .unwrap();
+                }
+            }
+            UiMessageData::TextBox(TextBoxMessage::Text(text)) => {
+                if message.destination() == self.name && source.name() != text {
+                    sender
+                        .send(Message::DoSceneCommand(SceneCommand::SetSoundSourceName(
+                            SetSoundSourceNameCommand::new(handle, text.clone()),
+                        )))
+                        .unwrap();
+                }
+            }
+            UiMessageData::Widget(WidgetMessage::Drop(dropped)) => {
+                if message.destination() == self.buffer {
+                    // Set buffer.
+                    if let UiNode::User(EditorUiNode::AssetItem(item)) = ui.node(*dropped) {
+                        // Make sure all resources loaded with relative paths only.
+                        // This will make scenes portable.
+                        let relative_path = make_relative_path(&item.path);
+
+                        match item.kind {
+                            AssetKind::Sound => {
+                                if let Ok(buffer) = block_on(
+                                    resource_manager.request_sound_buffer(&relative_path, false),
+                                ) {
+                                    sender
+                                        .send(Message::DoSceneCommand(
+                                            SceneCommand::SetSoundSourceBuffer(
+                                                SetSoundSourceBufferCommand::new(
+                                                    handle,
+                                                    Some(buffer.into()),
+                                                ),
+                                            ),
+                                        ))
+                                        .unwrap();
+                                } else {
+                                    sender
+                                        .send(Message::Log(format!(
+                                            "Unable to load sound buffer {}!",
+                                            relative_path.display()
+                                        )))
+                                        .unwrap();
+                                }
+                            }
+                            _ => (),
+                        }
                     }
                 }
-                _ => {}
             }
+            _ => {}
         }
     }
 }

@@ -389,6 +389,8 @@ impl SideBar {
                                 &self.sender,
                                 state.source(first),
                                 first,
+                                &mut engine.user_interface,
+                                engine.resource_manager.clone(),
                             );
                         }
                     }
