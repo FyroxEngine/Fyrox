@@ -105,6 +105,7 @@ pub struct State {
     renderer: Renderer,
     effects: Pool<Effect>,
     distance_model: DistanceModel,
+    paused: bool,
 }
 
 impl State {
@@ -129,6 +130,16 @@ impl State {
     /// Makes source handle vacant again.
     pub fn forget_ticket(&mut self, ticket: Ticket<SoundSource>) {
         self.sources.forget_ticket(ticket)
+    }
+
+    /// Pause/unpause the sound context. Paused context won't play any sounds.
+    pub fn pause(&mut self, pause: bool) {
+        self.paused = pause;
+    }
+
+    /// Returns true if the sound context is paused, false - otherwise.
+    pub fn is_paused(&self) -> bool {
+        self.paused
     }
 
     /// Sets new distance model.
@@ -236,42 +247,49 @@ impl State {
     pub(crate) fn render(&mut self, master_gain: f32, buf: &mut [(f32, f32)]) {
         let last_time = rg3d_core::instant::Instant::now();
 
-        for i in 0..self.sources.get_capacity() {
-            if let Some(source) = self.sources.at(i) {
-                if source.is_play_once() && source.status() == Status::Stopped {
-                    self.sources.free(self.sources.handle_from_index(i));
+        if !self.paused {
+            for i in 0..self.sources.get_capacity() {
+                if let Some(source) = self.sources.at(i) {
+                    if source.is_play_once() && source.status() == Status::Stopped {
+                        self.sources.free(self.sources.handle_from_index(i));
+                    }
                 }
             }
-        }
 
-        for source in self
-            .sources
-            .iter_mut()
-            .filter(|s| s.status() == Status::Playing)
-        {
-            source.render(buf.len());
+            for source in self
+                .sources
+                .iter_mut()
+                .filter(|s| s.status() == Status::Playing)
+            {
+                source.render(buf.len());
 
-            match self.renderer {
-                Renderer::Default => {
-                    // Simple rendering path. Much faster (4-5 times) than HRTF path.
-                    render_source_default(source, &self.listener, self.distance_model, buf);
-                }
-                Renderer::HrtfRenderer(ref mut hrtf_renderer) => {
-                    hrtf_renderer.render_source(source, &self.listener, self.distance_model, buf);
+                match self.renderer {
+                    Renderer::Default => {
+                        // Simple rendering path. Much faster (4-5 times) than HRTF path.
+                        render_source_default(source, &self.listener, self.distance_model, buf);
+                    }
+                    Renderer::HrtfRenderer(ref mut hrtf_renderer) => {
+                        hrtf_renderer.render_source(
+                            source,
+                            &self.listener,
+                            self.distance_model,
+                            buf,
+                        );
+                    }
                 }
             }
-        }
 
-        for effect in self.effects.iter_mut() {
-            effect.render(&self.sources, &self.listener, self.distance_model, buf);
-        }
+            for effect in self.effects.iter_mut() {
+                effect.render(&self.sources, &self.listener, self.distance_model, buf);
+            }
 
-        let global_gain = self.master_gain * master_gain;
+            let global_gain = self.master_gain * master_gain;
 
-        // Apply master gain to be able to control total sound volume.
-        for (left, right) in buf {
-            *left *= global_gain;
-            *right *= global_gain;
+            // Apply master gain to be able to control total sound volume.
+            for (left, right) in buf {
+                *left *= global_gain;
+                *right *= global_gain;
+            }
         }
 
         self.render_duration = rg3d_core::instant::Instant::now() - last_time;
@@ -301,6 +319,7 @@ impl SoundContext {
                 renderer: Renderer::Default,
                 effects: Pool::new(),
                 distance_model: DistanceModel::InverseDistance,
+                paused: false,
             }))),
         }
     }
@@ -364,6 +383,7 @@ impl Visit for State {
         self.sources.visit("Sources", visitor)?;
         self.effects.visit("Effects", visitor)?;
         self.renderer.visit("Renderer", visitor)?;
+        let _ = self.paused.visit("Paused", visitor);
 
         let mut distance_model = self.distance_model as u32;
         distance_model.visit("DistanceModel", visitor)?;

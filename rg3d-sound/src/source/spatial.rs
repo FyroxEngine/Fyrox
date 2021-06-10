@@ -53,8 +53,8 @@ pub struct SpatialSource {
 
 impl SpatialSource {
     /// Sets position of source in world space.
-    pub fn set_position(&mut self, position: &Vector3<f32>) -> &mut Self {
-        self.position = *position;
+    pub fn set_position(&mut self, position: Vector3<f32>) -> &mut Self {
+        self.position = position;
         self
     }
 

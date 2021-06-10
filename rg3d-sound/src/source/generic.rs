@@ -132,11 +132,16 @@ impl GenericSource {
         &self.name
     }
 
+    /// Returns the name of the sound source.
+    pub fn name_owned(&self) -> String {
+        self.name.to_owned()
+    }
+
     /// Changes buffer of source. Returns old buffer. Source will continue playing from beginning, old
     /// position will be discarded.
     pub fn set_buffer(
         &mut self,
-        buffer: Arc<Mutex<SoundBuffer>>,
+        buffer: Option<Arc<Mutex<SoundBuffer>>>,
     ) -> Result<Option<Arc<Mutex<SoundBuffer>>>, SoundError> {
         self.buf_read_pos = 0.0;
         self.playback_pos = 0.0;
@@ -149,25 +154,25 @@ impl GenericSource {
             }
         }
 
-        let mut locked_buffer = buffer.lock()?;
+        if let Some(buffer) = buffer.as_ref() {
+            let mut locked_buffer = buffer.lock()?;
 
-        // Check new buffer if streaming - it must not be used by anyone else.
-        if let SoundBuffer::Streaming(ref mut streaming) = *locked_buffer {
-            if streaming.use_count != 0 {
-                return Err(SoundError::StreamingBufferAlreadyInUse);
+            // Check new buffer if streaming - it must not be used by anyone else.
+            if let SoundBuffer::Streaming(ref mut streaming) = *locked_buffer {
+                if streaming.use_count != 0 {
+                    return Err(SoundError::StreamingBufferAlreadyInUse);
+                }
+                streaming.use_count += 1;
             }
-            streaming.use_count += 1;
+
+            // Make sure to recalculate resampling multiplier, otherwise sound will play incorrectly.
+            let device_sample_rate = f64::from(crate::context::SAMPLE_RATE);
+            let sample_rate = locked_buffer.sample_rate() as f64;
+            let channel_count = locked_buffer.channel_count() as f64;
+            self.resampling_multiplier = sample_rate / device_sample_rate * channel_count;
         }
 
-        // Make sure to recalculate resampling multiplier, otherwise sound will play incorrectly.
-        let device_sample_rate = f64::from(crate::context::SAMPLE_RATE);
-        let sample_rate = locked_buffer.sample_rate() as f64;
-        let channel_count = locked_buffer.channel_count() as f64;
-        self.resampling_multiplier = sample_rate / device_sample_rate * channel_count;
-
-        drop(locked_buffer);
-
-        Ok(self.buffer.replace(buffer))
+        Ok(std::mem::replace(&mut self.buffer, buffer))
     }
 
     /// Returns current buffer if any.
@@ -540,9 +545,7 @@ impl GenericSourceBuilder {
             ..Default::default()
         };
 
-        if let Some(buffer) = self.buffer {
-            source.set_buffer(buffer)?;
-        }
+        source.set_buffer(self.buffer)?;
 
         Ok(source)
     }

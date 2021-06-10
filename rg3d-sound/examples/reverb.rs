@@ -89,7 +89,7 @@ fn main() {
             let rotation_matrix =
                 UnitQuaternion::from_axis_angle(&axis, angle.to_radians()).to_homogeneous();
             sound.set_position(
-                &rotation_matrix
+                rotation_matrix
                     .transform_point(&Point3::new(0.0, 0.0, 1.0))
                     .coords,
             );
