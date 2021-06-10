@@ -107,6 +107,7 @@ pub struct TextBox<M: MessageData, C: Control<M, C>> {
     filter: Option<Rc<RefCell<FilterCallback>>>,
     commit_mode: TextCommitMode,
     multiline: bool,
+    editable: bool,
 }
 
 impl<M: MessageData, C: Control<M, C>> Debug for TextBox<M, C> {
@@ -555,7 +556,9 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
             match &message.data() {
                 UiMessageData::Widget(msg) => match msg {
                     &WidgetMessage::Text(symbol)
-                        if !ui.keyboard_modifiers().control && !ui.keyboard_modifiers().alt =>
+                        if !ui.keyboard_modifiers().control
+                            && !ui.keyboard_modifiers().alt
+                            && self.editable =>
                     {
                         let insert = if let Some(filter) = self.filter.as_ref() {
                             let filter = &mut *filter.borrow_mut();
@@ -600,7 +603,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
                                 ui.keyboard_modifiers().shift,
                             );
                         }
-                        KeyCode::Delete if !message.handled() => {
+                        KeyCode::Delete if !message.handled() && self.editable => {
                             if let Some(range) = self.selection_range {
                                 self.remove_range(ui, range);
                                 self.selection_range = None;
@@ -609,7 +612,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
                             }
                             message.set_handled(true);
                         }
-                        KeyCode::NumpadEnter | KeyCode::Return => {
+                        KeyCode::NumpadEnter | KeyCode::Return if self.editable => {
                             if self.multiline {
                                 self.insert_char('\n', ui);
                             } else if self.commit_mode == TextCommitMode::LostFocusPlusEnter {
@@ -621,7 +624,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
                                 self.has_focus = false;
                             }
                         }
-                        KeyCode::Backspace => {
+                        KeyCode::Backspace if self.editable => {
                             if let Some(range) = self.selection_range {
                                 self.remove_range(ui, range);
                                 self.selection_range = None;
@@ -791,6 +794,7 @@ pub struct TextBoxBuilder<M: MessageData, C: Control<M, C>> {
     wrap: bool,
     commit_mode: TextCommitMode,
     multiline: bool,
+    editable: bool,
 }
 
 impl<M: MessageData, C: Control<M, C>> TextBoxBuilder<M, C> {
@@ -807,6 +811,7 @@ impl<M: MessageData, C: Control<M, C>> TextBoxBuilder<M, C> {
             wrap: false,
             commit_mode: TextCommitMode::LostFocusPlusEnter,
             multiline: false,
+            editable: true,
         }
     }
 
@@ -860,6 +865,11 @@ impl<M: MessageData, C: Control<M, C>> TextBoxBuilder<M, C> {
         self
     }
 
+    pub fn with_editable(mut self, editable: bool) -> Self {
+        self.editable = editable;
+        self
+    }
+
     pub fn build(mut self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
         if self.widget_builder.foreground.is_none() {
             self.widget_builder.foreground = Some(BRUSH_TEXT);
@@ -894,6 +904,7 @@ impl<M: MessageData, C: Control<M, C>> TextBoxBuilder<M, C> {
             filter: self.filter,
             commit_mode: self.commit_mode,
             multiline: self.multiline,
+            editable: self.editable,
         };
 
         ctx.add_node(UINode::TextBox(text_box))
