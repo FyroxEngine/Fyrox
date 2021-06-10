@@ -291,11 +291,23 @@ impl SideBar {
                     );
                 }
 
+                send_sync_message(
+                    ui,
+                    WidgetMessage::visibility(
+                        self.sound_section.section,
+                        MessageDirection::ToWidget,
+                        true,
+                    ),
+                );
+
                 if selection.is_single_selection() {
                     if let Some(first) = selection.first() {
                         let state = scene.sound_context.state();
-                        self.sound_section
-                            .sync_to_model(state.source(first), &mut engine.user_interface);
+
+                        if state.is_valid_handle(first) {
+                            self.sound_section
+                                .sync_to_model(state.source(first), &mut engine.user_interface);
+                        }
                     }
                 }
             }
@@ -371,12 +383,14 @@ impl SideBar {
                 if selection.is_single_selection() {
                     if let Some(first) = selection.first() {
                         let state = scene.sound_context.state();
-                        self.sound_section.handle_message(
-                            message,
-                            &self.sender,
-                            state.source(first),
-                            first,
-                        );
+                        if state.is_valid_handle(first) {
+                            self.sound_section.handle_message(
+                                message,
+                                &self.sender,
+                                state.source(first),
+                                first,
+                            );
+                        }
                     }
                 }
             }

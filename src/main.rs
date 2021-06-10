@@ -29,7 +29,7 @@ pub mod utils;
 pub mod world_outliner;
 
 use crate::scene::commands::sound::DeleteSoundSourceCommand;
-use crate::scene::commands::CommandGroup;
+use crate::scene::commands::{ChangeSelectionCommand, CommandGroup};
 use crate::settings::SettingsSectionKind;
 use crate::sound::SoundPanel;
 use crate::{
@@ -1091,21 +1091,33 @@ impl Editor {
                                                     .unwrap();
                                             }
                                             Selection::Sound(ref selection) => {
-                                                self.message_sender.send(Message::DoSceneCommand(
-                                                    SceneCommand::CommandGroup(CommandGroup::from(
-                                                        selection
-                                                            .sources()
-                                                            .iter()
-                                                            .map(|&source| {
-                                                                SceneCommand::DeleteSoundSource(
-                                                                    DeleteSoundSourceCommand::new(
-                                                                        source,
-                                                                    ),
-                                                                )
-                                                            })
-                                                            .collect::<Vec<_>>(),
-                                                    )),
-                                                )).unwrap();
+                                                let mut commands = selection
+                                                    .sources()
+                                                    .iter()
+                                                    .map(|&source| {
+                                                        SceneCommand::DeleteSoundSource(
+                                                            DeleteSoundSourceCommand::new(source),
+                                                        )
+                                                    })
+                                                    .collect::<Vec<_>>();
+
+                                                commands.insert(
+                                                    0,
+                                                    SceneCommand::ChangeSelection(
+                                                        ChangeSelectionCommand::new(
+                                                            Selection::None,
+                                                            editor_scene.selection.clone(),
+                                                        ),
+                                                    ),
+                                                );
+
+                                                self.message_sender
+                                                    .send(Message::DoSceneCommand(
+                                                        SceneCommand::CommandGroup(
+                                                            CommandGroup::from(commands),
+                                                        ),
+                                                    ))
+                                                    .unwrap();
                                             }
                                             _ => (),
                                         }
