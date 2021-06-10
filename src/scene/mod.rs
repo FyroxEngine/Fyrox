@@ -162,6 +162,15 @@ impl Selection {
             Selection::Sound(sound) => sound.sources().is_empty(),
         }
     }
+
+    pub fn is_single_selection(&self) -> bool {
+        match self {
+            Selection::None => false,
+            Selection::Graph(graph) => graph.is_single_selection(),
+            Selection::Navmesh(navmesh) => navmesh.is_single_selection(),
+            Selection::Sound(sound) => sound.is_single_selection(),
+        }
+    }
 }
 
 #[derive(Debug, Default, Clone, Eq)]

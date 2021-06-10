@@ -30,6 +30,14 @@ impl SoundSelection {
     pub fn sources(&self) -> &[Handle<SoundSource>] {
         &self.sources
     }
+
+    pub fn is_single_selection(&self) -> bool {
+        self.sources.len() == 1
+    }
+
+    pub fn first(&self) -> Option<Handle<SoundSource>> {
+        self.sources.first().cloned()
+    }
 }
 
 impl PartialEq for SoundSelection {

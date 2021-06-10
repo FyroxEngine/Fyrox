@@ -1,8 +1,13 @@
+use crate::get_set_swap;
 use crate::{command::Command, scene::commands::SceneContext};
+use rg3d::core::algebra::Vector3;
+use rg3d::sound::buffer::SoundBuffer;
+use rg3d::sound::context::SoundContext;
 use rg3d::{
     core::pool::{Handle, Ticket},
     sound::source::SoundSource,
 };
+use std::sync::{Arc, Mutex};
 
 #[derive(Debug)]
 pub struct AddSoundSourceCommand {
@@ -115,3 +120,122 @@ impl<'a> Command<'a> for DeleteSoundSourceCommand {
         }
     }
 }
+
+macro_rules! define_sound_source_command {
+    ($name:ident($human_readable_name:expr, $value_type:ty) where fn swap($self:ident, $source:ident) $apply_method:block ) => {
+        #[derive(Debug)]
+        pub struct $name {
+            handle: Handle<SoundSource>,
+            value: $value_type,
+        }
+
+        impl $name {
+            pub fn new(handle: Handle<SoundSource>, value: $value_type) -> Self {
+                Self { handle, value }
+            }
+
+            fn swap(&mut $self, sound_context: &SoundContext) {
+                let mut state = sound_context.state();
+                let $source = state.source_mut($self.handle);
+                $apply_method
+            }
+        }
+
+        impl<'a> Command<'a> for $name {
+            type Context = SceneContext<'a>;
+
+            fn name(&mut self, _context: &Self::Context) -> String {
+                $human_readable_name.to_owned()
+            }
+
+            fn execute(&mut self, context: &mut Self::Context) {
+                self.swap(&context.scene.sound_context);
+            }
+
+            fn revert(&mut self, context: &mut Self::Context) {
+                self.swap(&context.scene.sound_context);
+            }
+        }
+    };
+}
+
+macro_rules! define_spatial_sound_source_command {
+    ($name:ident($human_readable_name:expr, $value_type:ty) where fn swap($self:ident, $source:ident) $apply_method:block ) => {
+        #[derive(Debug)]
+        pub struct $name {
+            handle: Handle<SoundSource>,
+            value: $value_type,
+        }
+
+        impl $name {
+            pub fn new(handle: Handle<SoundSource>, value: $value_type) -> Self {
+                Self { handle, value }
+            }
+
+            fn swap(&mut $self, sound_context: &SoundContext) {
+                let mut state = sound_context.state();
+                if let SoundSource::Spatial($source) = state.source_mut($self.handle) {
+                    $apply_method
+                } else {
+                    unreachable!();
+                }
+            }
+        }
+
+        impl<'a> Command<'a> for $name {
+            type Context = SceneContext<'a>;
+
+            fn name(&mut self, _context: &Self::Context) -> String {
+                $human_readable_name.to_owned()
+            }
+
+            fn execute(&mut self, context: &mut Self::Context) {
+                self.swap(&context.scene.sound_context);
+            }
+
+            fn revert(&mut self, context: &mut Self::Context) {
+                self.swap(&context.scene.sound_context);
+            }
+        }
+    };
+}
+
+define_sound_source_command!(SetSoundSourceGainCommand("Set Sound Source Gain", f32) where fn swap(self, source) {
+    get_set_swap!(self, source, gain, set_gain);
+});
+
+define_sound_source_command!(SetSoundSourceBufferCommand("Set Sound Source Buffer", Option<Arc<Mutex<SoundBuffer>>>) where fn swap(self, source) {
+    get_set_swap!(self, source, buffer, set_buffer);
+});
+
+define_sound_source_command!(SetSoundSourceNameCommand("Set Sound Source Name", String) where fn swap(self, source) {
+    get_set_swap!(self, source, name_owned, set_name);
+});
+
+define_sound_source_command!(SetSoundSourcePitchCommand("Set Sound Source Pitch", f64) where fn swap(self, source) {
+    get_set_swap!(self, source, pitch, set_pitch);
+});
+
+define_sound_source_command!(SetSoundSourceLoopingCommand("Set Sound Source Looping", bool) where fn swap(self, source) {
+    get_set_swap!(self, source, is_looping, set_looping);
+});
+
+define_sound_source_command!(SetSoundSourcePlayOnceCommand("Set Sound Source Play Once", bool) where fn swap(self, source) {
+    get_set_swap!(self, source, is_play_once, set_play_once);
+});
+
+define_spatial_sound_source_command!(SetSpatialSoundSourcePositionCommand("Set Spatial Sound Source Position", Vector3<f32>) where fn swap(self, source) {
+    get_set_swap!(self, source, position, set_position);
+});
+
+define_spatial_sound_source_command!(SetSpatialSoundSourceRadiusCommand("Set Spatial Sound Source Radius", f32) where fn swap(self, source) {
+    get_set_swap!(self, source, radius, set_radius);
+});
+
+define_spatial_sound_source_command!(SetSpatialSoundSourceRolloffFactorCommand("Set Spatial Sound Source Rolloff Factor", f32) where fn swap(self, source) {
+    get_set_swap!(self, source, rolloff_factor, set_rolloff_factor);
+});
+
+define_spatial_sound_source_command!(SetSpatialSoundSourceMaxDistanceCommand("Set Spatial Sound Source Max Distance", f32) where fn swap(self, source) {
+    get_set_swap!(self, source, max_distance, set_max_distance);
+});

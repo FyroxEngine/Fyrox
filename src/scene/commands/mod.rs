@@ -54,6 +54,13 @@ use crate::{
                 SetRevoluteJointAxis2Command,
             },
             sound::{AddSoundSourceCommand, DeleteSoundSourceCommand},
+            sound::{
+                SetSoundSourceBufferCommand, SetSoundSourceGainCommand,
+                SetSoundSourceLoopingCommand, SetSoundSourceNameCommand,
+                SetSoundSourcePitchCommand, SetSoundSourcePlayOnceCommand,
+                SetSpatialSoundSourceMaxDistanceCommand, SetSpatialSoundSourcePositionCommand,
+                SetSpatialSoundSourceRadiusCommand, SetSpatialSoundSourceRolloffFactorCommand,
+            },
             sprite::{
                 SetSpriteColorCommand, SetSpriteRotationCommand, SetSpriteSizeCommand,
                 SetSpriteTextureCommand,
@@ -92,7 +99,7 @@ macro_rules! get_set_swap {
         match $host {
             host => {
                 let old = host.$get();
-                host.$set($self.value.clone());
+                let _ = host.$set($self.value.clone());
                 $self.value = old;
             }
         }
@@ -231,6 +238,16 @@ pub enum SceneCommand {
     // Sound commands.
     AddSoundSource(AddSoundSourceCommand),
     DeleteSoundSource(DeleteSoundSourceCommand),
+    SetSoundSourceGain(SetSoundSourceGainCommand),
+    SetSoundSourceBuffer(SetSoundSourceBufferCommand),
+    SetSoundSourceName(SetSoundSourceNameCommand),
+    SetSoundSourcePitch(SetSoundSourcePitchCommand),
+    SetSoundSourceLooping(SetSoundSourceLoopingCommand),
+    SetSoundSourcePlayOnce(SetSoundSourcePlayOnceCommand),
+    SetSpatialSoundSourcePosition(SetSpatialSoundSourcePositionCommand),
+    SetSpatialSoundSourceRadius(SetSpatialSoundSourceRadiusCommand),
+    SetSpatialSoundSourceRolloffFactor(SetSpatialSoundSourceRolloffFactorCommand),
+    SetSpatialSoundSourceMaxDistance(SetSpatialSoundSourceMaxDistanceCommand),
 }
 
 pub struct SceneContext<'a> {
@@ -348,6 +365,16 @@ macro_rules! static_dispatch {
             SceneCommand::ModifyTerrainLayerMask(v) => v.$func($($args),*),
             SceneCommand::AddSoundSource(v) => v.$func($($args),*),
             SceneCommand::DeleteSoundSource(v) => v.$func($($args),*),
+            SceneCommand::SetSoundSourceGain(v) => v.$func($($args),*),
+            SceneCommand::SetSoundSourceBuffer(v) => v.$func($($args),*),
+            SceneCommand::SetSoundSourceName(v) => v.$func($($args),*),
+            SceneCommand::SetSoundSourcePitch(v) => v.$func($($args),*),
+            SceneCommand::SetSoundSourceLooping(v) => v.$func($($args),*),
+            SceneCommand::SetSoundSourcePlayOnce(v) => v.$func($($args),*),
+            SceneCommand::SetSpatialSoundSourcePosition(v) => v.$func($($args),*),
+            SceneCommand::SetSpatialSoundSourceRadius(v) => v.$func($($args),*),
+            SceneCommand::SetSpatialSoundSourceRolloffFactor(v) => v.$func($($args),*),
+            SceneCommand::SetSpatialSoundSourceMaxDistance(v) => v.$func($($args),*),
         }
     };
 }
