@@ -219,6 +219,11 @@ impl State {
         self.sources.borrow(handle)
     }
 
+    /// Checks whether a handle to a sound source is valid or not.
+    pub fn is_valid_handle(&self, handle: Handle<SoundSource>) -> bool {
+        self.sources.is_valid_handle(handle)
+    }
+
     /// Returns mutable reference to sound source at given handle. If handle is invalid, this method will panic.
     pub fn source_mut(&mut self, handle: Handle<SoundSource>) -> &mut SoundSource {
         self.sources.borrow_mut(handle)
