@@ -1,3 +1,7 @@
+use crate::scene::commands::sound::{
+    SetSpatialSoundSourceMaxDistanceCommand, SetSpatialSoundSourceRadiusCommand,
+    SetSpatialSoundSourceRolloffFactorCommand,
+};
 use crate::{
     asset::AssetKind,
     gui::{BuildContext, EditorUiNode, Ui, UiMessage, UiNode},
@@ -38,25 +42,55 @@ use std::sync::mpsc::Sender;
 struct SpatialSection {
     pub section: Handle<UiNode>,
     position: Handle<UiNode>,
+    radius: Handle<UiNode>,
+    rolloff_factor: Handle<UiNode>,
+    max_distance: Handle<UiNode>,
 }
 
 impl SpatialSection {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let position;
+        let radius;
+        let rolloff_factor;
+        let max_distance;
         let section = GridBuilder::new(
             WidgetBuilder::new()
                 .with_child(make_text_mark(ctx, "Position", 0))
                 .with_child({
                     position = make_vec3_input_field(ctx, 0);
                     position
+                })
+                .with_child(make_text_mark(ctx, "Radius", 1))
+                .with_child({
+                    radius = make_f32_input_field(ctx, 1, 0.0, f32::MAX, 0.1);
+                    radius
+                })
+                .with_child(make_text_mark(ctx, "Rolloff Factor", 2))
+                .with_child({
+                    rolloff_factor = make_f32_input_field(ctx, 2, 0.0, f32::MAX, 0.1);
+                    rolloff_factor
+                })
+                .with_child(make_text_mark(ctx, "Max Distance", 3))
+                .with_child({
+                    max_distance = make_f32_input_field(ctx, 3, 0.0, f32::MAX, 0.1);
+                    max_distance
                 }),
         )
         .add_column(Column::strict(COLUMN_WIDTH))
         .add_column(Column::stretch())
         .add_row(Row::strict(ROW_HEIGHT))
+        .add_row(Row::strict(ROW_HEIGHT))
+        .add_row(Row::strict(ROW_HEIGHT))
+        .add_row(Row::strict(ROW_HEIGHT))
         .build(ctx);
 
-        Self { section, position }
+        Self {
+            section,
+            position,
+            radius,
+            rolloff_factor,
+            max_distance,
+        }
     }
 
     pub fn sync_to_model(&mut self, spatial: &SpatialSource, ui: &mut Ui) {
@@ -66,6 +100,27 @@ impl SpatialSection {
                 self.position,
                 MessageDirection::ToWidget,
                 spatial.position(),
+            ),
+        );
+
+        send_sync_message(
+            ui,
+            NumericUpDownMessage::value(self.radius, MessageDirection::ToWidget, spatial.radius()),
+        );
+        send_sync_message(
+            ui,
+            NumericUpDownMessage::value(
+                self.rolloff_factor,
+                MessageDirection::ToWidget,
+                spatial.rolloff_factor(),
+            ),
+        );
+        send_sync_message(
+            ui,
+            NumericUpDownMessage::value(
+                self.max_distance,
+                MessageDirection::ToWidget,
+                spatial.max_distance(),
             ),
         );
     }
@@ -81,11 +136,42 @@ impl SpatialSection {
 
         match *message.data() {
             UiMessageData::Vec3Editor(Vec3EditorMessage::Value(value)) => {
-                if spatial.position() != value {
+                if spatial.position() != value && message.destination() == self.position {
                     sender
                         .send(Message::DoSceneCommand(
                             SceneCommand::SetSpatialSoundSourcePosition(
                                 SetSpatialSoundSourcePositionCommand::new(handle, value),
+                            ),
+                        ))
+                        .unwrap();
+                }
+            }
+            UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) => {
+                if spatial.radius() != value && message.destination() == self.radius {
+                    sender
+                        .send(Message::DoSceneCommand(
+                            SceneCommand::SetSpatialSoundSourceRadius(
+                                SetSpatialSoundSourceRadiusCommand::new(handle, value),
+                            ),
+                        ))
+                        .unwrap();
+                } else if spatial.rolloff_factor() != value
+                    && message.destination() == self.rolloff_factor
+                {
+                    sender
+                        .send(Message::DoSceneCommand(
+                            SceneCommand::SetSpatialSoundSourceRolloffFactor(
+                                SetSpatialSoundSourceRolloffFactorCommand::new(handle, value),
+                            ),
+                        ))
+                        .unwrap();
+                } else if spatial.max_distance() != value
+                    && message.destination() == self.max_distance
+                {
+                    sender
+                        .send(Message::DoSceneCommand(
+                            SceneCommand::SetSpatialSoundSourceMaxDistance(
+                                SetSpatialSoundSourceMaxDistanceCommand::new(handle, value),
                             ),
                         ))
                         .unwrap();
