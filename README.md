@@ -4,17 +4,13 @@ Scene editor for [rg3d engine](https://github.com/rg3dengine/rg3d).
 
 [![CI Status](https://github.com/rg3dengine/rusty-editor/actions/workflows/ci.yml/badge.svg)](https://github.com/rg3dengine/rusty-editor/actions/workflows/ci.yml)
 
-## Motivation
-
-rg3d engine getting bigger, but still does not have scene editor what makes creation of scenes harder - you have to use 3d editors (like Blender, 3ds Max, etc.) to create scenes in them, no need to say that this looks like "hack" instead of normal solution. This editor is planned to be relatively small; not tied to any type of game. It will be used to compose scene from existing 3d models, setup physics, and all such stuff.
-
 ## Limitations
 
 It should be noted that this editor is the **scene** editor, it does **not** allow you to run your game inside like many other editors do (Unreal Engine, Unity, etc.). This fact means that each prototyping iteration of your game will take more time. Having the ability to run game inside editor would be nice indeed, but this is too much work for one person and I just don't want to spend time on this.
 
 ## How to build
 
-Fresh build:
+Clean build:
 
 ```shell
 git clone https://github.com/mrDIMAS/rg3d
@@ -63,6 +59,7 @@ let mut scene = Scene::default();
 // model file, so any scene can be used directly as resource.
 let root = resource_manager
 	.request_model("your_scene.rgs")
+	.await
 	.unwrap()
 	.lock()
 	.unwrap()
@@ -80,7 +77,7 @@ use rg3d::core::visitor::Visitor;
 use rg3d::scene::Scene;
 
 // Load scene
-let mut scene = Scene::from_file("your_scene.rgs", &mut engine.resource_manager.lock().unwrap()).unwrap();
+let mut scene = Scene::from_file("your_scene.rgs", &mut engine.resource_manager.lock().unwrap()).await.unwrap();
 
 ...
 
@@ -94,8 +91,13 @@ let scene_handle = engine.scenes.add(scene);
 - [x] Interaction modes.
 	- [x] Select.
 	- [x] Move.
+	  	- [x] Grid snapping
 	- [x] Scale.
+	    - [ ] Grid snapping
 	- [x] Rotate.
+		- [ ] Grid snapping
+	- [x] Navmesh
+	- [x] Terrain
 - [x] Undo/redo.
 - [x] Camera controller.
 - [x] Save scene.
@@ -122,21 +124,26 @@ let scene_handle = engine.scenes.add(scene);
 			- [x] Sphere
 			- [x] Cone
 			- [x] Cylinder
+			- [x] Quad
 		- [x] Light
 		  	- [x] Directional light
 			- [x] Spot light
 			- [x] Point light
+        - [x] Sounds
+            - [x] 2D
+            - [x] 3D
 		- [x] Particle system
 		- [x] Camera
 		- [x] Sprite
 		- [x] Pivot
+		- [x] Terrain
 - [ ] World outliner
 	- [x] Syncing with graph.
 	- [x] Syncing selection with scene selection and vice versa.
 	- [x] Drag'n'drop hierarchy edit.
 	- [x] Icons for nodes
 	- [x] Visibility switch
-	- [ ] Nodes context menu
+	- [x] Nodes context menu
 - [ ] Node properties editor
 	- [x] Base node
 		- [x] Name
@@ -144,6 +151,7 @@ let scene_handle = engine.scenes.add(scene);
 		- [x] Rotation
 		- [x] Scale
 		- [x] Physical body
+		- [x] Physical binding
 	- [x] Light node
 		- [x] Cast shadows
 		- [x] Enable scatter
@@ -204,10 +212,23 @@ let scene_handle = engine.scenes.add(scene);
   that will allow to edit them using mouse. Currently, editing is performed by setting values directly in side bar.
 - [ ] Curve editor - many parameters can be expressed as a curve, we need a way to edit such curves.
 - [ ] Sound - we need a way to add/remove/edit sounds.
-	- [ ] Properties  	
-- [ ] Navmesh editor
+    - [ ] Move via Move interaction mode
+	- [x] Properties  	
+- [x] Navmesh editor
+- [x] Terrain editor
+    - [x] Push/pull 
+	- [x] Draw on mask
+	- [x] Add/remove layers
 - [x] Configurator
   	- [x] History
+- [x] Settings window
+    - [x] Graphics 
+	- [x] Debugging
+	- [x] Move interaction mode
+	- [ ] Rotate interaction mode
+	- [ ] Scale interaction mode	
+	- [ ] Navmesh interaction mode	
+	- [ ] Terrain interaction mode	
 - [x] Asset browser.
 	- [x] Asset previewer
 	- [x] Folder view
