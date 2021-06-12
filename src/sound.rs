@@ -117,6 +117,31 @@ impl SoundPanel {
                 }
             }
         }
+
+        // Sync selection.
+        send_sync_message(
+            ui,
+            ListViewMessage::selection(
+                self.sounds,
+                MessageDirection::ToWidget,
+                if let Selection::Sound(selection) = &editor_scene.selection {
+                    if let Some(first) = selection.first() {
+                        ui.node(self.sounds)
+                            .as_list_view()
+                            .items()
+                            .iter()
+                            .position(|i| {
+                                *ui.node(*i).user_data_ref::<Handle<SoundSource>>().unwrap()
+                                    == first
+                            })
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                },
+            ),
+        )
     }
 
     pub fn handle_ui_message(
