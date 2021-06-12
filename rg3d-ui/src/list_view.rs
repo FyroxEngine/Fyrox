@@ -70,24 +70,25 @@ impl<M: MessageData, C: Control<M, C>> ListView<M, C> {
     }
 
     fn sync_decorators(&self, ui: &UserInterface<M, C>) {
-        if let Some(selected_index) = self.selected_index {
-            for (i, &container) in self.item_containers.iter().enumerate() {
-                let select = i == selected_index;
-                if let UINode::ListViewItem(container) = ui.node(container) {
-                    let mut stack = container.children().to_vec();
-                    while let Some(handle) = stack.pop() {
-                        let node = ui.node(handle);
-                        match node {
-                            UINode::ListView(_) => {}
-                            UINode::Decorator(_) => {
-                                ui.send_message(DecoratorMessage::select(
-                                    handle,
-                                    MessageDirection::ToWidget,
-                                    select,
-                                ));
-                            }
-                            _ => stack.extend_from_slice(node.children()),
+        for (i, &container) in self.item_containers.iter().enumerate() {
+            let select = match self.selected_index {
+                None => false,
+                Some(selected_index) => i == selected_index,
+            };
+            if let UINode::ListViewItem(container) = ui.node(container) {
+                let mut stack = container.children().to_vec();
+                while let Some(handle) = stack.pop() {
+                    let node = ui.node(handle);
+                    match node {
+                        UINode::ListView(_) => {}
+                        UINode::Decorator(_) => {
+                            ui.send_message(DecoratorMessage::select(
+                                handle,
+                                MessageDirection::ToWidget,
+                                select,
+                            ));
                         }
+                        _ => stack.extend_from_slice(node.children()),
                     }
                 }
             }
