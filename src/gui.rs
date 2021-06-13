@@ -1,4 +1,9 @@
-use crate::{asset::AssetItem, load_image, world_outliner::SceneItem};
+use crate::{
+    asset::AssetItem,
+    load_image,
+    sound::{SoundItem, SoundItemMessage},
+    world_outliner::SceneItem,
+};
 use rg3d::{
     core::{algebra::Vector2, pool::Handle},
     engine::resource_manager::ResourceManager,
@@ -34,6 +39,7 @@ pub enum EditorUiMessage {
     AssetItem(AssetItemMessage),
     SceneItem(SceneItemMessage),
     DeletableItem(DeletableItemMessage),
+    SoundItem(SoundItemMessage),
 }
 
 impl MessageData for EditorUiMessage {}
@@ -197,6 +203,7 @@ pub enum EditorUiNode {
     AssetItem(AssetItem),
     SceneItem(SceneItem),
     EmitterItem(DeletableItem<usize>),
+    SoundItem(SoundItem),
 }
 
 macro_rules! static_dispatch {
@@ -205,6 +212,7 @@ macro_rules! static_dispatch {
             EditorUiNode::AssetItem(v) => v.$func($($args),*),
             EditorUiNode::SceneItem(v) => v.$func($($args),*),
             EditorUiNode::EmitterItem(v) => v.$func($($args),*),
+            EditorUiNode::SoundItem(v) => v.$func($($args),*),
         }
     }
 }

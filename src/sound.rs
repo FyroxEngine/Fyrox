@@ -1,8 +1,12 @@
-use crate::scene::commands::{ChangeSelectionCommand, SceneCommand};
 use crate::{
-    gui::UiMessage,
-    gui::{BuildContext, UiNode},
-    scene::{EditorScene, Selection},
+    gui::{
+        BuildContext, CustomWidget, EditorUiMessage, EditorUiNode, Ui, UiMessage, UiNode,
+        UiWidgetBuilder,
+    },
+    scene::{
+        commands::{ChangeSelectionCommand, SceneCommand},
+        EditorScene, Selection,
+    },
     send_sync_message, utils, GameEngine, Message,
 };
 use rg3d::{
@@ -11,15 +15,19 @@ use rg3d::{
         border::BorderBuilder,
         decorator::DecoratorBuilder,
         list_view::ListViewBuilder,
-        message::UiMessageData,
-        message::{ListViewMessage, MessageDirection},
+        message::{ListViewMessage, MessageDirection, TextMessage, UiMessageData},
+        node::UINode,
         text::TextBuilder,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
+        Control, NodeHandleMapping, UserInterface,
     },
     sound::source::SoundSource,
 };
-use std::{rc::Rc, sync::mpsc::Sender};
+use std::{
+    ops::{Deref, DerefMut},
+    sync::mpsc::Sender,
+};
 
 #[derive(Debug, Clone)]
 pub struct SoundSelection {
@@ -48,9 +56,115 @@ impl PartialEq for SoundSelection {
 
 impl Eq for SoundSelection {}
 
+#[derive(Clone, Debug)]
+pub struct SoundItem {
+    widget: CustomWidget,
+    text: Handle<UiNode>,
+    sound_source: Handle<SoundSource>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum SoundItemMessage {
+    Name(String),
+}
+
+impl Deref for SoundItem {
+    type Target = CustomWidget;
+
+    fn deref(&self) -> &Self::Target {
+        &self.widget
+    }
+}
+
+impl DerefMut for SoundItem {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.widget
+    }
+}
+
+impl Control<EditorUiMessage, EditorUiNode> for SoundItem {
+    fn resolve(&mut self, node_map: &NodeHandleMapping<EditorUiMessage, EditorUiNode>) {
+        node_map.resolve(&mut self.text)
+    }
+
+    fn handle_routed_message(
+        &mut self,
+        ui: &mut UserInterface<EditorUiMessage, EditorUiNode>,
+        message: &mut UiMessage,
+    ) {
+        if let UiMessageData::User(EditorUiMessage::SoundItem(SoundItemMessage::Name(name))) =
+            message.data()
+        {
+            ui.send_message(TextMessage::text(
+                self.text,
+                MessageDirection::ToWidget,
+                make_item_name(name, self.sound_source),
+            ));
+        }
+    }
+}
+
+pub struct SoundItemBuilder {
+    widget_builder: UiWidgetBuilder,
+    name: String,
+    sound_source: Handle<SoundSource>,
+}
+
+fn make_item_name(name: &str, handle: Handle<SoundSource>) -> String {
+    format!("{} ({}:{})", name, handle.index(), handle.generation())
+}
+
+impl SoundItemBuilder {
+    pub fn new(widget_builder: UiWidgetBuilder) -> Self {
+        Self {
+            widget_builder,
+            name: Default::default(),
+            sound_source: Default::default(),
+        }
+    }
+
+    pub fn with_name(mut self, name: String) -> Self {
+        self.name = name;
+        self
+    }
+
+    pub fn with_sound_source(mut self, source: Handle<SoundSource>) -> Self {
+        self.sound_source = source;
+        self
+    }
+
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+        let text;
+        let decorator =
+            DecoratorBuilder::new(BorderBuilder::new(WidgetBuilder::new().with_child({
+                text = TextBuilder::new(WidgetBuilder::new())
+                    .with_text(make_item_name(&self.name, self.sound_source))
+                    .build(ctx);
+                text
+            })))
+            .build(ctx);
+
+        let node = UiNode::User(EditorUiNode::SoundItem(SoundItem {
+            widget: self.widget_builder.with_child(decorator).build(),
+            text,
+            sound_source: self.sound_source,
+        }));
+
+        ctx.add_node(node)
+    }
+}
+
 pub struct SoundPanel {
     pub window: Handle<UiNode>,
     sounds: Handle<UiNode>,
+}
+
+fn fetch_source(handle: Handle<UiNode>, ui: &Ui) -> Handle<SoundSource> {
+    if let UINode::User(EditorUiNode::SoundItem(item)) = ui.node(handle) {
+        item.sound_source
+    } else {
+        unreachable!()
+    }
 }
 
 impl SoundPanel {
@@ -76,10 +190,7 @@ impl SoundPanel {
         if sources.alive_count() < list_view_items.len() {
             // A source was removed.
             for &item in list_view_items.iter() {
-                let associated_source = *ui
-                    .node(item)
-                    .user_data_ref::<Handle<SoundSource>>()
-                    .unwrap();
+                let associated_source = fetch_source(item, ui);
 
                 if sources.pair_iter().all(|(h, _)| h != associated_source) {
                     send_sync_message(
@@ -93,23 +204,12 @@ impl SoundPanel {
             for (handle, source) in context_state.sources().pair_iter() {
                 if list_view_items
                     .iter()
-                    .all(|i| *ui.node(*i).user_data_ref::<Handle<SoundSource>>().unwrap() != handle)
+                    .all(|i| fetch_source(*i, ui) != handle)
                 {
-                    let item = DecoratorBuilder::new(BorderBuilder::new(
-                        WidgetBuilder::new()
-                            .with_user_data(Rc::new(handle))
-                            .with_child(
-                                TextBuilder::new(WidgetBuilder::new())
-                                    .with_text(format!(
-                                        "{} ({}:{})",
-                                        source.name(),
-                                        handle.index(),
-                                        handle.generation()
-                                    ))
-                                    .build(&mut ui.build_ctx()),
-                            ),
-                    ))
-                    .build(&mut ui.build_ctx());
+                    let item = SoundItemBuilder::new(WidgetBuilder::new())
+                        .with_name(source.name_owned())
+                        .with_sound_source(handle)
+                        .build(&mut ui.build_ctx());
                     send_sync_message(
                         ui,
                         ListViewMessage::add_item(self.sounds, MessageDirection::ToWidget, item),
@@ -130,10 +230,7 @@ impl SoundPanel {
                             .as_list_view()
                             .items()
                             .iter()
-                            .position(|i| {
-                                *ui.node(*i).user_data_ref::<Handle<SoundSource>>().unwrap()
-                                    == first
-                            })
+                            .position(|i| fetch_source(*i, ui) == first)
                     } else {
                         None
                     }
@@ -141,7 +238,19 @@ impl SoundPanel {
                     None
                 },
             ),
-        )
+        );
+
+        // Sync sound names.
+        for item in ui.node(self.sounds).as_list_view().items() {
+            let associated_source = fetch_source(*item, ui);
+            ui.send_message(UiMessage::user(
+                *item,
+                MessageDirection::ToWidget,
+                EditorUiMessage::SoundItem(SoundItemMessage::Name(
+                    context_state.source(associated_source).name_owned(),
+                )),
+            ));
+        }
     }
 
     pub fn handle_ui_message(
@@ -164,10 +273,7 @@ impl SoundPanel {
                         Some(index) => {
                             // TODO: Implement multi-selection when ListView will have multi-selection support.
                             Selection::Sound(SoundSelection {
-                                sources: vec![*ui
-                                    .node(list_view_items[*index])
-                                    .user_data_ref::<Handle<SoundSource>>()
-                                    .unwrap()],
+                                sources: vec![fetch_source(list_view_items[*index], ui)],
                             })
                         }
                     };
