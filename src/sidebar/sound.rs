@@ -147,7 +147,7 @@ impl SpatialSection {
                 }
             }
             UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) => {
-                if spatial.radius() != value && message.destination() == self.radius {
+                if spatial.radius().ne(&value) && message.destination() == self.radius {
                     sender
                         .send(Message::DoSceneCommand(
                             SceneCommand::SetSpatialSoundSourceRadius(
@@ -155,7 +155,7 @@ impl SpatialSection {
                             ),
                         ))
                         .unwrap();
-                } else if spatial.rolloff_factor() != value
+                } else if spatial.rolloff_factor().ne(&value)
                     && message.destination() == self.rolloff_factor
                 {
                     sender
@@ -165,7 +165,7 @@ impl SpatialSection {
                             ),
                         ))
                         .unwrap();
-                } else if spatial.max_distance() != value
+                } else if spatial.max_distance().ne(&value)
                     && message.destination() == self.max_distance
                 {
                     sender
@@ -369,13 +369,14 @@ impl SoundSection {
 
         match message.data() {
             &UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) => {
-                if source.gain() != value && message.destination() == self.gain {
+                if source.gain().ne(&value) && message.destination() == self.gain {
                     sender
                         .send(Message::DoSceneCommand(SceneCommand::SetSoundSourceGain(
                             SetSoundSourceGainCommand::new(handle, value),
                         )))
                         .unwrap();
-                } else if source.pitch() as f32 != value && message.destination() == self.pitch {
+                } else if (source.pitch() as f32).ne(&value) && message.destination() == self.pitch
+                {
                     sender
                         .send(Message::DoSceneCommand(SceneCommand::SetSoundSourcePitch(
                             SetSoundSourcePitchCommand::new(handle, value as f64),
@@ -419,31 +420,28 @@ impl SoundSection {
                         // This will make scenes portable.
                         let relative_path = make_relative_path(&item.path);
 
-                        match item.kind {
-                            AssetKind::Sound => {
-                                if let Ok(buffer) = block_on(
-                                    resource_manager.request_sound_buffer(&relative_path, false),
-                                ) {
-                                    sender
-                                        .send(Message::DoSceneCommand(
-                                            SceneCommand::SetSoundSourceBuffer(
-                                                SetSoundSourceBufferCommand::new(
-                                                    handle,
-                                                    Some(buffer.into()),
-                                                ),
+                        if item.kind == AssetKind::Sound {
+                            if let Ok(buffer) = block_on(
+                                resource_manager.request_sound_buffer(&relative_path, false),
+                            ) {
+                                sender
+                                    .send(Message::DoSceneCommand(
+                                        SceneCommand::SetSoundSourceBuffer(
+                                            SetSoundSourceBufferCommand::new(
+                                                handle,
+                                                Some(buffer.into()),
                                             ),
-                                        ))
-                                        .unwrap();
-                                } else {
-                                    sender
-                                        .send(Message::Log(format!(
-                                            "Unable to load sound buffer {}!",
-                                            relative_path.display()
-                                        )))
-                                        .unwrap();
-                                }
+                                        ),
+                                    ))
+                                    .unwrap();
+                            } else {
+                                sender
+                                    .send(Message::Log(format!(
+                                        "Unable to load sound buffer {}!",
+                                        relative_path.display()
+                                    )))
+                                    .unwrap();
                             }
-                            _ => (),
                         }
                     }
                 }

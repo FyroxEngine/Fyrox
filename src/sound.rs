@@ -24,6 +24,7 @@ use rg3d::{
     },
     sound::source::SoundSource,
 };
+use std::cmp::Ordering;
 use std::{
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
@@ -187,35 +188,47 @@ impl SoundPanel {
         let context_state = context.state();
         let sources = context_state.sources();
 
-        if sources.alive_count() < list_view_items.len() {
-            // A source was removed.
-            for &item in list_view_items.iter() {
-                let associated_source = fetch_source(item, ui);
+        match sources.alive_count().cmp(&list_view_items.len()) {
+            Ordering::Less => {
+                // A source was removed.
+                for &item in list_view_items.iter() {
+                    let associated_source = fetch_source(item, ui);
 
-                if sources.pair_iter().all(|(h, _)| h != associated_source) {
-                    send_sync_message(
-                        ui,
-                        ListViewMessage::remove_item(self.sounds, MessageDirection::ToWidget, item),
-                    );
+                    if sources.pair_iter().all(|(h, _)| h != associated_source) {
+                        send_sync_message(
+                            ui,
+                            ListViewMessage::remove_item(
+                                self.sounds,
+                                MessageDirection::ToWidget,
+                                item,
+                            ),
+                        );
+                    }
                 }
             }
-        } else if sources.alive_count() > list_view_items.len() {
-            // A source was added.
-            for (handle, source) in context_state.sources().pair_iter() {
-                if list_view_items
-                    .iter()
-                    .all(|i| fetch_source(*i, ui) != handle)
-                {
-                    let item = SoundItemBuilder::new(WidgetBuilder::new())
-                        .with_name(source.name_owned())
-                        .with_sound_source(handle)
-                        .build(&mut ui.build_ctx());
-                    send_sync_message(
-                        ui,
-                        ListViewMessage::add_item(self.sounds, MessageDirection::ToWidget, item),
-                    );
+            Ordering::Greater => {
+                // A source was added.
+                for (handle, source) in context_state.sources().pair_iter() {
+                    if list_view_items
+                        .iter()
+                        .all(|i| fetch_source(*i, ui) != handle)
+                    {
+                        let item = SoundItemBuilder::new(WidgetBuilder::new())
+                            .with_name(source.name_owned())
+                            .with_sound_source(handle)
+                            .build(&mut ui.build_ctx());
+                        send_sync_message(
+                            ui,
+                            ListViewMessage::add_item(
+                                self.sounds,
+                                MessageDirection::ToWidget,
+                                item,
+                            ),
+                        );
+                    }
                 }
             }
+            _ => (),
         }
 
         // Sync selection.
@@ -263,34 +276,33 @@ impl SoundPanel {
         let ui = &engine.user_interface;
         let list_view_items = ui.node(self.sounds).as_list_view().items();
 
-        match message.data() {
-            UiMessageData::ListView(ListViewMessage::SelectionChanged(selection)) => {
-                if message.destination() == self.sounds
-                    && message.direction() == MessageDirection::FromWidget
-                {
-                    let new_selection = match selection {
-                        None => Default::default(),
-                        Some(index) => {
-                            // TODO: Implement multi-selection when ListView will have multi-selection support.
-                            Selection::Sound(SoundSelection {
-                                sources: vec![fetch_source(list_view_items[*index], ui)],
-                            })
-                        }
-                    };
-
-                    if new_selection != editor_scene.selection {
-                        sender
-                            .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
-                                ChangeSelectionCommand::new(
-                                    new_selection,
-                                    editor_scene.selection.clone(),
-                                ),
-                            )))
-                            .unwrap();
+        if let UiMessageData::ListView(ListViewMessage::SelectionChanged(selection)) =
+            message.data()
+        {
+            if message.destination() == self.sounds
+                && message.direction() == MessageDirection::FromWidget
+            {
+                let new_selection = match selection {
+                    None => Default::default(),
+                    Some(index) => {
+                        // TODO: Implement multi-selection when ListView will have multi-selection support.
+                        Selection::Sound(SoundSelection {
+                            sources: vec![fetch_source(list_view_items[*index], ui)],
+                        })
                     }
+                };
+
+                if new_selection != editor_scene.selection {
+                    sender
+                        .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
+                            ChangeSelectionCommand::new(
+                                new_selection,
+                                editor_scene.selection.clone(),
+                            ),
+                        )))
+                        .unwrap();
                 }
             }
-            _ => (),
         }
     }
 }
