@@ -1,4 +1,6 @@
-use crate::scene::mesh::buffer::{GeometryBuffer, VertexBuffer};
+use crate::renderer::skybox_shader::SkyboxShader;
+use crate::scene::mesh::buffer::GeometryBuffer;
+use crate::scene::mesh::buffer::VertexBuffer;
 use crate::scene::mesh::vertex::SimpleVertex;
 use crate::{
     core::{
@@ -241,6 +243,7 @@ pub struct DeferredLightRenderer {
     sphere: SurfaceData,
     skybox: SurfaceData,
     flat_shader: FlatShader,
+    skybox_shader: SkyboxShader,
     spot_shadow_map_renderer: SpotShadowMapRenderer,
     point_shadow_map_renderer: PointShadowMapRenderer,
     light_volume: LightVolumeRenderer,
@@ -401,6 +404,7 @@ impl DeferredLightRenderer {
             ),
             sphere: SurfaceData::make_sphere(6, 6, 1.0, &Matrix4::identity()),
             flat_shader: FlatShader::new(state)?,
+            skybox_shader: SkyboxShader::new(state)?,
             spot_shadow_map_renderer: SpotShadowMapRenderer::new(
                 state,
                 settings.spot_shadow_map_size,
@@ -525,42 +529,33 @@ impl DeferredLightRenderer {
             let scale = Matrix4::new_nonuniform_scaling(&Vector3::new(size, size, size));
             let wvp = Matrix4::new_translation(&camera.global_position()) * scale;
 
-            // TODO: Ideally this should be drawn in a single draw call using cube map.
-            // Cubemaps still not supported so we'll draw this as six separate planes for now.
-            for (face, texture) in skybox
-                .textures()
-                .iter()
-                .enumerate()
-                .filter_map(|(face, tex)| tex.clone().map(|tex| (face, tex)))
-            {
-                if let Some(gpu_texture) = textures.get(state, &texture) {
-                    let shader = &self.flat_shader;
-                    pass_stats += gbuffer
-                        .final_frame
-                        .draw_part(
-                            geometry_cache.get(state, &self.skybox),
-                            state,
-                            viewport,
-                            &shader.program,
-                            DrawParameters {
-                                cull_face: CullFace::Back,
-                                culling: false,
-                                color_write: Default::default(),
-                                depth_write: false,
-                                stencil_test: false,
-                                depth_test: false,
-                                blend: false,
-                            },
-                            face * 2,
-                            2,
-                            |program_binding| {
-                                program_binding
-                                    .set_texture(&shader.diffuse_texture, &gpu_texture)
-                                    .set_matrix4(&shader.wvp_matrix, &(view_projection * wvp));
-                            },
-                        )
-                        .unwrap();
-                }
+            if let Some(gpu_texture) = textures.get(state, &skybox.cubemap().clone().unwrap()) {
+                let shader = &self.skybox_shader;
+                pass_stats += gbuffer
+                    .final_frame
+                    .draw_part(
+                        geometry_cache.get(state, &self.skybox),
+                        state,
+                        viewport,
+                        &shader.program,
+                        DrawParameters {
+                            cull_face: CullFace::Back,
+                            culling: false,
+                            color_write: Default::default(),
+                            depth_write: false,
+                            stencil_test: false,
+                            depth_test: false,
+                            blend: false,
+                        },
+                        0,
+                        12,
+                        |program_binding| {
+                            program_binding
+                                .set_texture(&shader.cubemap_texture, &gpu_texture)
+                                .set_matrix4(&shader.wvp_matrix, &(view_projection * wvp));
+                        },
+                    )
+                    .unwrap();
             }
         }
 
