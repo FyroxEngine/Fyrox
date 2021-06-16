@@ -511,24 +511,27 @@ impl SkyBox {
     /// provided correcponding side will be black.
     /// It will fail if provided face's kind is not TextureKind::Rectangle
     pub fn create_cubemap(&mut self) -> Result<(), SkyBoxError> {
-        let mut kind = TextureKind::Rectangle {
-            width: 1,
-            height: 1,
-        };
-        let mut bytes_per_face = 1;
-        let mut pixel_kind = TexturePixelKind::R8;
-
-        if let Some(face) = self
+        let (kind, pixel_kind, bytes_per_face) = self
             .textures()
             .iter()
             .skip_while(|face| face.is_none())
             .next()
-            .map(|face| face.clone().unwrap())
-        {
-            kind = face.data_ref().kind();
-            bytes_per_face = face.data_ref().data().len();
-            pixel_kind = face.data_ref().pixel_kind();
-        }
+            .map_or(
+                (
+                    TextureKind::Rectangle {
+                        width: 1,
+                        height: 1,
+                    },
+                    TexturePixelKind::R8,
+                    1,
+                ),
+                |face| {
+                    let face = face.clone().unwrap();
+                    let data = face.data_ref();
+
+                    (data.kind(), data.pixel_kind(), data.data().len())
+                },
+            );
 
         let (width, height) = match kind {
             TextureKind::Rectangle { width, height } => (width, height),
