@@ -66,6 +66,7 @@ use crate::{
     sidebar::SideBar,
     world_outliner::WorldOutliner,
 };
+use rg3d::engine::resource_manager::MaterialSearchOptions;
 use rg3d::gui::file_browser::FileBrowserMode;
 use rg3d::{
     core::{
@@ -137,6 +138,10 @@ lazy_static! {
     /// Working directory can be changed multiple time during runtime, but we
     /// load some resources (images mostly) from editors resource folder.
     static ref STARTUP_WORKING_DIR: Mutex<PathBuf> = Mutex::new(std::env::current_dir().unwrap());
+}
+
+lazy_static! {
+    pub static ref TEXTURES_DIR: Mutex<PathBuf> = Mutex::new(Default::default());
 }
 
 pub fn load_image<P: AsRef<Path>>(
@@ -1402,6 +1407,9 @@ impl Editor {
                         rg3d::core::futures::executor::block_on(Scene::from_file(
                             &scene_path,
                             engine.resource_manager.clone(),
+                            &MaterialSearchOptions::MaterialsDirectory(
+                                TEXTURES_DIR.lock().unwrap().clone(),
+                            ),
                         ))
                     };
                     match result {
@@ -1468,10 +1476,7 @@ impl Editor {
 
                     let relative_tex_path = make_relative_path(textures_path);
 
-                    engine
-                        .resource_manager
-                        .state()
-                        .set_textures_path(relative_tex_path.clone());
+                    *TEXTURES_DIR.lock().unwrap() = relative_tex_path.clone();
 
                     engine.resource_manager.state().purge_unused_resources();
 
@@ -1724,8 +1729,6 @@ fn main() {
         .with_resizable(true);
 
     let mut engine = GameEngine::new(window_builder, &event_loop, true).unwrap();
-
-    engine.resource_manager.state().set_textures_path("data");
 
     let mut editor = Editor::new(&mut engine);
     let clock = Instant::now();

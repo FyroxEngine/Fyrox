@@ -4,6 +4,7 @@ use crate::{
 };
 use rg3d::core::color::Color;
 use rg3d::core::scope_profile;
+use rg3d::engine::resource_manager::MaterialSearchOptions;
 use rg3d::scene::Line;
 use rg3d::{
     core::{
@@ -285,7 +286,11 @@ impl PreviewPanel {
 
     pub async fn set_model(&mut self, model: &Path, engine: &mut GameEngine) {
         self.clear(engine);
-        if let Ok(model) = engine.resource_manager.request_model(model).await {
+        if let Ok(model) = engine
+            .resource_manager
+            .request_model(model, MaterialSearchOptions::RecursiveUp)
+            .await
+        {
             let scene = &mut engine.scenes[self.scene];
             self.model = model.instantiate_geometry(scene);
             self.fit_to_model(scene);
