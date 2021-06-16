@@ -559,13 +559,19 @@ impl Graph {
                                     .set_scaling_pivot(**resource_local_transform.scaling_pivot());
                             }
 
-                            if let (Node::Mesh(mesh), Node::Mesh(resource_mesh)) =
-                                (node, resource_node)
-                            {
-                                mesh.clear_surfaces();
-                                for resource_surface in resource_mesh.surfaces() {
-                                    mesh.add_surface(resource_surface.clone());
+                            match (node, resource_node) {
+                                (Node::Mesh(mesh), Node::Mesh(resource_mesh)) => {
+                                    mesh.clear_surfaces();
+                                    for resource_surface in resource_mesh.surfaces() {
+                                        mesh.add_surface(resource_surface.clone());
+                                    }
                                 }
+                                (Node::Camera(camera), _) => {
+                                    if let Some(skybox) = camera.skybox_mut() {
+                                        skybox.create_cubemap().ok();
+                                    }
+                                }
+                                _ => {}
                             }
                         }
                     }
