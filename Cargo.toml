@@ -35,6 +35,7 @@ rayon = "1.5.0"
 tbc = "0.3.0"
 bitflags = "1.2.1"
 glow = "0.10"
+walkdir = "2"
 
 [dev-dependencies]
 imageproc = "0.22.0"

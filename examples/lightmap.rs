@@ -11,6 +11,7 @@ pub mod shared;
 
 use crate::shared::create_camera;
 use rg3d::core::futures;
+use rg3d::engine::resource_manager::MaterialSearchOptions;
 use rg3d::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
@@ -245,7 +246,10 @@ fn create_scene_async(
                 // There is no difference between scene created in rusty-editor and any other
                 // model file, so any scene can be used directly as resource.
                 let root = resource_manager
-                    .request_model("examples/data/Sponza.rgs")
+                    .request_model(
+                        "examples/data/sponza/Sponza.rgs",
+                        MaterialSearchOptions::RecursiveUp,
+                    )
                     .await
                     .unwrap()
                     .instantiate(&mut scene)
@@ -272,9 +276,13 @@ fn create_scene_async(
                     context.lock().unwrap().data = Some(GameScene { scene, root });
                 }
             } else {
-                let scene = Scene::from_file(LIGHTMAP_SCENE_PATH, resource_manager)
-                    .await
-                    .unwrap();
+                let scene = Scene::from_file(
+                    LIGHTMAP_SCENE_PATH,
+                    resource_manager,
+                    &MaterialSearchOptions::RecursiveUp,
+                )
+                .await
+                .unwrap();
                 let root = scene.graph[scene.graph.get_root()].children()[0];
 
                 context.lock().unwrap().data = Some(GameScene { scene, root });
@@ -299,15 +307,6 @@ fn main() {
         .with_resizable(true);
 
     let mut engine = GameEngine::new(window_builder, &event_loop, true).unwrap();
-
-    // Prepare resource manager - it must be notified where to search textures. When engine
-    // loads model resource it automatically tries to load textures it uses. But since most
-    // model formats store absolute paths, we can't use them as direct path to load texture
-    // instead we telling engine to search textures in given folder.
-    engine
-        .resource_manager
-        .state()
-        .set_textures_path("examples/data");
 
     // Create simple user interface that will show some useful info.
     let window = engine.get_window();

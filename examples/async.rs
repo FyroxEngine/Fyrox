@@ -32,6 +32,7 @@ use rg3d::{
 use std::sync::{Arc, Mutex};
 
 use crate::shared::create_camera;
+use rg3d::engine::resource_manager::MaterialSearchOptions;
 
 struct Interface {
     root: Handle<UiNode>,
@@ -128,7 +129,10 @@ impl SceneLoader {
         // models it is very efficient because single vertex and index buffer can be used
         // for all models instances, so memory footprint on GPU will be lower.
         let model_resource = resource_manager
-            .request_model("examples/data/mutant.FBX")
+            .request_model(
+                "examples/data/mutant/mutant.FBX",
+                MaterialSearchOptions::RecursiveUp,
+            )
             .await
             .unwrap();
 
@@ -150,7 +154,10 @@ impl SceneLoader {
         // Add simple animation for our model. Animations are loaded from model resources -
         // this is because animation is a set of skeleton bones with their own transforms.
         let walk_animation_resource = resource_manager
-            .request_model("examples/data/walk.fbx")
+            .request_model(
+                "examples/data/mutant/walk.fbx",
+                MaterialSearchOptions::RecursiveUp,
+            )
             .await
             .unwrap();
 
@@ -230,15 +237,6 @@ impl GameState for Game {
     where
         Self: Sized,
     {
-        // Prepare resource manager - it must be notified where to search textures. When engine
-        // loads model resource it automatically tries to load textures it uses. But since most
-        // model formats store absolute paths, we can't use them as direct path to load texture
-        // instead we telling engine to search textures in given folder.
-        engine
-            .resource_manager
-            .state()
-            .set_textures_path("examples/data");
-
         // Create simple user interface that will show some useful info.
         let window = engine.get_window();
         let screen_size = window.inner_size().to_logical(window.scale_factor());

@@ -105,15 +105,6 @@ impl GameState for Game {
     where
         Self: Sized,
     {
-        // Prepare resource manager - it must be notified where to search textures. When engine
-        // loads model resource it automatically tries to load textures it uses. But since most
-        // model formats store absolute paths, we can't use them as direct path to load texture
-        // instead we telling engine to search textures in given folder.
-        engine
-            .resource_manager
-            .state()
-            .set_textures_path("examples/data");
-
         // Create test scene.
         let loader = SceneLoader::load_with(engine.resource_manager.clone());
 

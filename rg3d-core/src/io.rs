@@ -56,3 +56,31 @@ pub async fn load_file<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, FileLoadError
         }
     }
 }
+
+pub async fn exists<P: AsRef<Path>>(path: P) -> bool {
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        path.as_ref().exists()
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        use wasm_bindgen::JsCast;
+        use wasm_bindgen_futures::JsFuture;
+
+        match web_sys::window() {
+            Some(window) => {
+                if let Ok(resp_value) =
+                    JsFuture::from(window.fetch_with_str(path.as_ref().to_str().unwrap())).await
+                {
+                    let resp: web_sys::Response = resp_value.dyn_into().unwrap();
+
+                    resp.status() == 200
+                } else {
+                    false
+                }
+            }
+            None => false,
+        }
+    }
+}

@@ -6,6 +6,7 @@
 
 extern crate rg3d;
 
+use rg3d::engine::resource_manager::MaterialSearchOptions;
 use rg3d::{
     animation::Animation,
     core::{
@@ -215,8 +216,9 @@ async fn create_scene(resource_manager: ResourceManager, context: Arc<Mutex<Scen
     .build(&mut scene.graph);
 
     let (model_resource, walk_animation_resource) = rg3d::core::futures::join!(
-        resource_manager.request_model("data/mutant.FBX"),
-        resource_manager.request_model("data/walk.fbx")
+        resource_manager
+            .request_model("data/mutant/mutant.FBX", MaterialSearchOptions::RecursiveUp),
+        resource_manager.request_model("data/mutant/walk.fbx", MaterialSearchOptions::RecursiveUp)
     );
 
     // Instantiate model on scene - but only geometry, without any animations.
@@ -292,10 +294,6 @@ pub fn main_js() {
     engine.resource_manager.state().set_textures_import_options(
         TextureImportOptions::default().with_compression(CompressionOptions::NoCompression),
     );
-    engine
-        .resource_manager
-        .state()
-        .set_textures_path("data/textures");
 
     let load_context = Arc::new(Mutex::new(SceneContext { data: None }));
 

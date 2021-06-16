@@ -17,6 +17,7 @@
 //!
 //! Currently only FBX (common format in game industry for storing complex 3d models)
 //! and RGS (native rusty-editor format) formats are supported.
+use crate::engine::resource_manager::MaterialSearchOptions;
 use crate::{
     animation::Animation,
     core::{
@@ -48,6 +49,7 @@ pub(in crate) enum NodeMapping {
 pub struct ModelData {
     pub(in crate) path: PathBuf,
     pub(in crate) mapping: NodeMapping,
+    material_search_options: MaterialSearchOptions,
     scene: Scene,
 }
 
@@ -187,6 +189,7 @@ impl Default for ModelData {
         Self {
             path: PathBuf::new(),
             mapping: NodeMapping::UseNames,
+            material_search_options: Default::default(),
             scene: Scene::new(),
         }
     }
@@ -241,6 +244,7 @@ impl ModelData {
     pub(in crate) async fn load<P: AsRef<Path>>(
         path: P,
         resource_manager: ResourceManager,
+        material_search_options: MaterialSearchOptions,
     ) -> Result<Self, ModelLoadError> {
         let extension = path
             .as_ref()
@@ -256,7 +260,13 @@ impl ModelData {
                     let root = scene.graph.get_root();
                     scene.graph[root].set_name(filename.to_string_lossy().to_string());
                 }
-                fbx::load_to_scene(&mut scene, resource_manager, path.as_ref()).await?;
+                fbx::load_to_scene(
+                    &mut scene,
+                    resource_manager,
+                    path.as_ref(),
+                    &material_search_options,
+                )
+                .await?;
                 // Set NodeMapping::UseNames as mapping here because FBX does not have
                 // any persistent unique ids, and we have to use names.
                 (scene, NodeMapping::UseNames)
@@ -264,7 +274,7 @@ impl ModelData {
             // Scene can be used directly as model resource. Such scenes can be created from
             // rusty-editor (https://github.com/mrDIMAS/rusty-editor) for example.
             "rgs" => (
-                Scene::from_file(path.as_ref(), resource_manager).await?,
+                Scene::from_file(path.as_ref(), resource_manager, &material_search_options).await?,
                 NodeMapping::UseHandles,
             ),
             // TODO: Add more formats.
@@ -280,6 +290,7 @@ impl ModelData {
             path: path.as_ref().to_owned(),
             scene,
             mapping,
+            material_search_options,
         })
     }
 
@@ -294,5 +305,11 @@ impl ModelData {
     /// no node was found.
     pub fn find_node_by_name(&self, name: &str) -> Handle<Node> {
         self.scene.graph.find_by_name_from_root(name)
+    }
+
+    /// Returns material search options that were passed during the creation
+    /// of the model resource.
+    pub fn material_search_options(&self) -> &MaterialSearchOptions {
+        &self.material_search_options
     }
 }

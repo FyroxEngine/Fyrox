@@ -2,12 +2,6 @@
 //!
 //! Navigation mesh is a set of convex polygons which is used for path finding in complex
 //! environment.
-//!
-//! # Limitations
-//!
-//! Current implementation can only build paths from vertex to vertex in mesh, it can't
-//! search path from arbitrary point in polygon to other point in other polygon. It can
-//! be added pretty easily, but requires some extensive tests. This is still TODO.
 
 #![warn(missing_docs)]
 

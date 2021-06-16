@@ -16,6 +16,7 @@ pub mod sprite;
 pub mod terrain;
 pub mod transform;
 
+use crate::engine::resource_manager::MaterialSearchOptions;
 use crate::{
     animation::AnimationContainer,
     core::{
@@ -1008,6 +1009,7 @@ impl Scene {
     pub async fn from_file<P: AsRef<Path>>(
         path: P,
         resource_manager: ResourceManager,
+        material_search_options: &MaterialSearchOptions,
     ) -> Result<Self, VisitError> {
         let mut scene = Scene::default();
         {
@@ -1019,9 +1021,10 @@ impl Scene {
         let mut resources = Vec::new();
         for node in scene.graph.linear_iter_mut() {
             if let Some(shallow_resource) = node.resource.clone() {
-                let resource = resource_manager
-                    .clone()
-                    .request_model(&shallow_resource.state().path());
+                let resource = resource_manager.clone().request_model(
+                    &shallow_resource.state().path(),
+                    material_search_options.clone(),
+                );
                 node.resource = Some(resource.clone());
                 resources.push(resource);
             }

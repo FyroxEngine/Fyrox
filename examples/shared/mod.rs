@@ -9,6 +9,7 @@ use rapier3d::{
     geometry::ColliderBuilder,
     na::{Isometry3, UnitQuaternion, Vector3},
 };
+use rg3d::engine::resource_manager::MaterialSearchOptions;
 use rg3d::{
     animation::{
         machine::{Machine, Parameter, PoseNode, State, Transition},
@@ -117,15 +118,6 @@ impl Game {
 
         let mut engine = GameEngine::new(window_builder, &event_loop, false).unwrap();
 
-        // Prepare resource manager - it must be notified where to search textures. When engine
-        // loads model resource it automatically tries to load textures it uses. But since most
-        // model formats store absolute paths, we can't use them as direct path to load texture
-        // instead we telling engine to search textures in given folder.
-        engine
-            .resource_manager
-            .state()
-            .set_textures_path("examples/data");
-
         engine
             .renderer
             .set_quality_settings(&fix_shadows_distance(QualitySettings::high()))
@@ -233,7 +225,7 @@ pub async fn load_animation<P: AsRef<Path>>(
     resource_manager: ResourceManager,
 ) -> Handle<Animation> {
     *resource_manager
-        .request_model(path)
+        .request_model(path, MaterialSearchOptions::RecursiveUp)
         .await
         .unwrap()
         .retarget_animations(model, scene)
@@ -299,7 +291,7 @@ impl LocomotionMachine {
         let mut machine = Machine::new();
 
         let (walk_animation, walk_state) = create_play_animation_state(
-            "examples/data/walk.fbx",
+            "examples/data/mutant/walk.fbx",
             "Walk",
             &mut machine,
             scene,
@@ -308,7 +300,7 @@ impl LocomotionMachine {
         )
         .await;
         let (_, idle_state) = create_play_animation_state(
-            "examples/data/idle.fbx",
+            "examples/data/mutant/idle.fbx",
             "Idle",
             &mut machine,
             scene,
@@ -319,7 +311,7 @@ impl LocomotionMachine {
 
         // Jump animation is a bit special - it must be non-looping.
         let (jump_animation, jump_state) = create_play_animation_state(
-            "examples/data/jump.fbx",
+            "examples/data/mutant/jump.fbx",
             "Jump",
             &mut machine,
             scene,
@@ -466,7 +458,10 @@ impl Player {
         // models it is very efficient because single vertex and index buffer can be used
         // for all models instances, so memory footprint on GPU will be lower.
         let model_resource = resource_manager
-            .request_model("examples/data/mutant.FBX")
+            .request_model(
+                "examples/data/mutant/mutant.FBX",
+                MaterialSearchOptions::RecursiveUp,
+            )
             .await
             .unwrap();
 
@@ -758,7 +753,10 @@ pub fn create_scene_async(resource_manager: ResourceManager) -> Arc<Mutex<SceneL
 
             // Load simple map.
             resource_manager
-                .request_model("examples/data/Sponza.fbx")
+                .request_model(
+                    "examples/data/sponza/Sponza.fbx",
+                    MaterialSearchOptions::RecursiveUp,
+                )
                 .await
                 .unwrap()
                 .instantiate_geometry(&mut scene);

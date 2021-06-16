@@ -113,9 +113,6 @@ pub struct ResourceManagerState {
     textures: Vec<TimedEntry<Texture>>,
     models: Vec<TimedEntry<Model>>,
     sound_buffers: Vec<TimedEntry<SharedSoundBuffer>>,
-    /// Path to textures, extensively used for resource files which stores path in weird
-    /// format (either relative or absolute) which is obviously not good for engine.
-    textures_path: PathBuf,
     textures_import_options: TextureImportOptions,
     #[cfg(not(target_arch = "wasm32"))]
     thread_pool: ThreadPool,
@@ -128,7 +125,6 @@ impl Default for ResourceManagerState {
             textures: Default::default(),
             models: Default::default(),
             sound_buffers: Default::default(),
-            textures_path: Default::default(),
             textures_import_options: Default::default(),
             #[cfg(not(target_arch = "wasm32"))]
             thread_pool: ThreadPool::new().unwrap(),
@@ -282,8 +278,13 @@ async fn load_texture(
     }
 }
 
-async fn load_model(model: Model, path: PathBuf, resource_manager: ResourceManager) {
-    match ModelData::load(&path, resource_manager).await {
+async fn load_model(
+    model: Model,
+    path: PathBuf,
+    resource_manager: ResourceManager,
+    material_search_options: MaterialSearchOptions,
+) {
+    match ModelData::load(&path, resource_manager, material_search_options).await {
         Ok(raw_model) => {
             Log::writeln(
                 MessageKind::Information,
@@ -372,7 +373,8 @@ async fn reload_texture(texture: Texture, path: PathBuf, compression: Compressio
 }
 
 async fn reload_model(model: Model, path: PathBuf, resource_manager: ResourceManager) {
-    match ModelData::load(&path, resource_manager).await {
+    let material_search_options = model.data_ref().material_search_options().clone();
+    match ModelData::load(&path, resource_manager, material_search_options).await {
         Ok(data) => {
             Log::writeln(
                 MessageKind::Information,
@@ -538,7 +540,11 @@ impl ResourceManager {
     ///
     /// Currently only FBX (common format in game industry for storing complex 3d models)
     /// and RGS (native rusty-editor format) formats are supported.
-    pub fn request_model<P: AsRef<Path>>(&self, path: P) -> Model {
+    pub fn request_model<P: AsRef<Path>>(
+        &self,
+        path: P,
+        material_search_options: MaterialSearchOptions,
+    ) -> Model {
         let mut state = self.state();
 
         if let Some(model) = state.find_model(path.as_ref()) {
@@ -557,12 +563,12 @@ impl ResourceManager {
 
         #[cfg(target_arch = "wasm32")]
         crate::core::wasm_bindgen_futures::spawn_local(async move {
-            load_model(model, path, resource_manager).await;
+            load_model(model, path, resource_manager, material_search_options).await;
         });
 
         #[cfg(not(target_arch = "wasm32"))]
         state.thread_pool.spawn_ok(async move {
-            load_model(model, path, resource_manager).await;
+            load_model(model, path, resource_manager, material_search_options).await;
         });
 
         result
@@ -778,13 +784,47 @@ where
     count
 }
 
+/// Defines a way of searching materials when loading a model resource.
+#[derive(Clone, Debug)]
+pub enum MaterialSearchOptions {
+    /// Search in specified materials directory. It is suitable for cases when
+    /// your model resource use shared textures.
+    ///
+    /// # Platform specific
+    ///
+    /// Works on every platform.
+    MaterialsDirectory(PathBuf),
+
+    /// Recursive-up search. It is suitable for cases when textures are placed
+    /// near your model resource. This is default option.
+    ///
+    /// # Platform specific
+    ///
+    /// Works on every platform.
+    RecursiveUp,
+
+    /// Global search starting from working directory. Slowest option with a lot of ambiguities -
+    /// it may load unexpected file in cases when there are two or more files with same name but
+    /// lying in different directories.
+    ///
+    /// # Platform specific
+    ///
+    /// WebAssembly - **not supported** due to lack of file system.
+    WorkingDirectory,
+}
+
+impl Default for MaterialSearchOptions {
+    fn default() -> Self {
+        Self::RecursiveUp
+    }
+}
+
 impl ResourceManagerState {
     pub(in crate::engine) fn new(upload_sender: TextureUploadSender) -> Self {
         Self {
             textures: Vec::new(),
             models: Vec::new(),
             sound_buffers: Vec::new(),
-            textures_path: PathBuf::from("data/textures/"),
             textures_import_options: Default::default(),
             #[cfg(not(target_arch = "wasm32"))]
             thread_pool: ThreadPool::new().unwrap(),
@@ -908,23 +948,6 @@ impl ResourceManagerState {
         }
     }
 
-    /// Returns current path where to search texture when loading complex model resources.
-    #[inline]
-    pub fn textures_path(&self) -> &Path {
-        self.textures_path.as_path()
-    }
-
-    /// Sets new path where engine should search textures when it loads a model from external
-    /// non-native format. Most 3d model formats uses absolute paths to textures, this is
-    /// bad for engine, because all paths to data must be in relative format, otherwise it
-    /// would be tightly coupled with environment where a model was made. This path should
-    /// lead to a folder where all textures are located. **CAVEAT** Sub-folders are **not**
-    /// supported!
-    #[inline]
-    pub fn set_textures_path<P: AsRef<Path>>(&mut self, path: P) {
-        self.textures_path = path.as_ref().to_owned();
-    }
-
     /// Immediately destroys all unused resources.
     pub fn purge_unused_resources(&mut self) {
         self.sound_buffers
@@ -1022,7 +1045,6 @@ impl Visit for ResourceManagerState {
             self.sound_buffers.iter().map(|m| m.value.clone()),
         ));
 
-        self.textures_path.visit("TexturesPath", visitor)?;
         self.textures.visit("Textures", visitor)?;
         self.models.visit("Models", visitor)?;
         self.sound_buffers.visit("SoundBuffers", visitor)?;

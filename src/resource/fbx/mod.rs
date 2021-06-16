@@ -10,6 +10,8 @@ mod document;
 pub mod error;
 mod scene;
 
+use crate::core::io;
+use crate::engine::resource_manager::MaterialSearchOptions;
 use crate::scene::mesh::buffer::{VertexAttributeUsage, VertexWriteTrait};
 use crate::scene::mesh::vertex::{AnimatedVertex, StaticVertex};
 use crate::{
@@ -51,6 +53,7 @@ use std::{
     path::Path,
     sync::{Arc, RwLock},
 };
+use walkdir::WalkDir;
 
 /// Input angles in degrees
 fn quat_from_euler(euler: Vector3<f32>) -> UnitQuaternion<f32> {
@@ -241,11 +244,13 @@ struct FbxSurfaceData {
     skin_data: Vec<VertexWeightSet>,
 }
 
-fn create_surfaces(
+async fn create_surfaces(
     fbx_scene: &FbxScene,
     data_set: Vec<FbxSurfaceData>,
     resource_manager: ResourceManager,
     model: &FbxModel,
+    model_path: &Path,
+    material_search_options: &MaterialSearchOptions,
 ) -> Result<Vec<Surface>, FbxError> {
     let mut surfaces = Vec::new();
 
@@ -266,7 +271,38 @@ fn create_surfaces(
                 let texture = fbx_scene.get(*texture_handle).as_texture()?;
                 let path = texture.get_file_path();
                 if let Some(filename) = path.file_name() {
-                    let texture_path = resource_manager.state().textures_path().join(&filename);
+                    let texture_path = match material_search_options {
+                        MaterialSearchOptions::MaterialsDirectory(directory) => {
+                            directory.join(filename)
+                        }
+                        MaterialSearchOptions::RecursiveUp => {
+                            let mut texture_path = Default::default();
+                            let mut path = model_path.to_owned();
+                            while let Some(parent) = path.parent() {
+                                let candidate = parent.join(filename);
+                                if io::exists(&candidate).await {
+                                    texture_path = candidate;
+                                    break;
+                                }
+                                path.pop();
+                            }
+                            texture_path
+                        }
+                        MaterialSearchOptions::WorkingDirectory => {
+                            let mut texture_path = Default::default();
+                            for dir in WalkDir::new(".").into_iter().flatten() {
+                                if dir.path().is_dir() {
+                                    let candidate = dir.path().join(filename);
+                                    if candidate.exists() {
+                                        texture_path = candidate;
+                                        break;
+                                    }
+                                }
+                            }
+                            texture_path
+                        }
+                    };
+
                     let texture = resource_manager.request_texture(texture_path.as_path());
                     match name.as_str() {
                         "AmbientColor" => (), // TODO: Add ambient occlusion (AO) map support.
@@ -287,12 +323,14 @@ fn create_surfaces(
     Ok(surfaces)
 }
 
-fn convert_mesh(
+async fn convert_mesh(
     base: BaseBuilder,
     fbx_scene: &FbxScene,
     resource_manager: ResourceManager,
     model: &FbxModel,
     graph: &mut Graph,
+    model_path: &Path,
+    material_search_options: &MaterialSearchOptions,
 ) -> Result<Handle<Node>, FbxError> {
     let geometric_transform = Matrix4::new_translation(&model.geometric_translation)
         * quat_from_euler(model.geometric_rotation).to_homogeneous()
@@ -364,7 +402,15 @@ fn convert_mesh(
             }
         }
 
-        let mut surfaces = create_surfaces(fbx_scene, data_set, resource_manager.clone(), model)?;
+        let mut surfaces = create_surfaces(
+            fbx_scene,
+            data_set,
+            resource_manager.clone(),
+            model,
+            model_path,
+            material_search_options,
+        )
+        .await?;
 
         if geom.tangents.is_none() {
             for surface in surfaces.iter_mut() {
@@ -406,19 +452,30 @@ fn convert_model_to_base(model: &FbxModel) -> BaseBuilder {
         )
 }
 
-fn convert_model(
+async fn convert_model(
     fbx_scene: &FbxScene,
     model: &FbxModel,
     resource_manager: ResourceManager,
     graph: &mut Graph,
     animations: &mut AnimationContainer,
     animation_handle: Handle<Animation>,
+    model_path: &Path,
+    material_search_options: &MaterialSearchOptions,
 ) -> Result<Handle<Node>, FbxError> {
     let base = convert_model_to_base(model);
 
     // Create node with correct kind.
     let node_handle = if !model.geoms.is_empty() {
-        convert_mesh(base, fbx_scene, resource_manager, model, graph)?
+        convert_mesh(
+            base,
+            fbx_scene,
+            resource_manager,
+            model,
+            graph,
+            model_path,
+            material_search_options,
+        )
+        .await?
     } else if model.light.is_some() {
         fbx_scene.get(model.light).as_light()?.convert(base, graph)
     } else {
@@ -499,10 +556,12 @@ fn convert_model(
 ///
 /// Converts FBX DOM to native engine representation.
 ///
-fn convert(
+async fn convert(
     fbx_scene: &FbxScene,
     resource_manager: ResourceManager,
     scene: &mut Scene,
+    model_path: &Path,
+    material_search_options: &MaterialSearchOptions,
 ) -> Result<(), FbxError> {
     let root = scene.graph.get_root();
     let animation_handle = scene.animations.add(Animation::default());
@@ -516,7 +575,10 @@ fn convert(
                 &mut scene.graph,
                 &mut scene.animations,
                 animation_handle,
-            )?;
+                model_path,
+                material_search_options,
+            )
+            .await?;
             scene.graph.link_nodes(node, root);
             fbx_model_to_node_map.insert(component_handle, node);
         }
@@ -591,6 +653,7 @@ pub async fn load_to_scene<P: AsRef<Path>>(
     scene: &mut Scene,
     resource_manager: ResourceManager,
     path: P,
+    material_search_options: &MaterialSearchOptions,
 ) -> Result<(), FbxError> {
     let start_time = Instant::now();
 
@@ -608,7 +671,14 @@ pub async fn load_to_scene<P: AsRef<Path>>(
     let dom_prepare_time = now.elapsed().as_millis();
 
     let now = Instant::now();
-    convert(&fbx_scene, resource_manager, scene)?;
+    convert(
+        &fbx_scene,
+        resource_manager,
+        scene,
+        path.as_ref(),
+        material_search_options,
+    )
+    .await?;
     let conversion_time = now.elapsed().as_millis();
 
     Log::writeln(MessageKind::Information,

@@ -11,6 +11,7 @@ extern crate rg3d;
 pub mod shared;
 
 use crate::shared::create_camera;
+use rg3d::engine::resource_manager::MaterialSearchOptions;
 use rg3d::scene::base::BaseBuilder;
 use rg3d::{
     core::{
@@ -66,7 +67,10 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     // There is no difference between scene created in rusty-editor and any other
     // model file, so any scene can be used directly as resource.
     resource_manager
-        .request_model("examples/data/test_scene.rgs")
+        .request_model(
+            "examples/data/test_scene.rgs",
+            MaterialSearchOptions::RecursiveUp,
+        )
         .await
         .unwrap()
         .instantiate(&mut scene)
@@ -88,15 +92,6 @@ fn main() {
         .with_resizable(true);
 
     let mut engine = GameEngine::new(window_builder, &event_loop, true).unwrap();
-
-    // Prepare resource manager - it must be notified where to search textures. When engine
-    // loads model resource it automatically tries to load textures it uses. But since most
-    // model formats store absolute paths, we can't use them as direct path to load texture
-    // instead we telling engine to search textures in given folder.
-    engine
-        .resource_manager
-        .state()
-        .set_textures_path("examples/data");
 
     // Create simple user interface that will show some useful info.
     let debug_text = create_ui(&mut engine.user_interface.build_ctx());

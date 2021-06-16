@@ -10,6 +10,7 @@ extern crate rg3d;
 pub mod shared;
 
 use crate::shared::create_camera;
+use rg3d::engine::resource_manager::MaterialSearchOptions;
 use rg3d::{
     animation::Animation,
     core::{
@@ -69,8 +70,14 @@ impl SceneLoader {
         // of it. In case of models it is very efficient because single vertex and index buffer
         // can be used for all models instances, so memory footprint on GPU will be lower.
         let (model_resource, walk_animation_resource) = rg3d::core::futures::join!(
-            resource_manager.request_model("examples/data/mutant.FBX"),
-            resource_manager.request_model("examples/data/walk.fbx")
+            resource_manager.request_model(
+                "examples/data/mutant/mutant.FBX",
+                MaterialSearchOptions::RecursiveUp
+            ),
+            resource_manager.request_model(
+                "examples/data/mutant/walk.fbx",
+                MaterialSearchOptions::RecursiveUp
+            )
         );
 
         let mut animations = Vec::new();
@@ -175,15 +182,6 @@ impl GameState for Game {
         let mut settings = QualitySettings::ultra();
         settings.point_shadows_distance = 1000.0;
         engine.renderer.set_quality_settings(&settings).unwrap();
-
-        // Prepare resource manager - it must be notified where to search textures. When engine
-        // loads model resource it automatically tries to load textures it uses. But since most
-        // model formats store absolute paths, we can't use them as direct path to load texture
-        // instead we telling engine to search textures in given folder.
-        engine
-            .resource_manager
-            .state()
-            .set_textures_path("examples/data");
 
         // Create test scene.
         let loader = rg3d::core::futures::executor::block_on(SceneLoader::load_with(
