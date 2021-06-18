@@ -372,8 +372,12 @@ async fn reload_texture(texture: Texture, path: PathBuf, compression: Compressio
     };
 }
 
-async fn reload_model(model: Model, path: PathBuf, resource_manager: ResourceManager) {
-    let material_search_options = model.data_ref().material_search_options().clone();
+async fn reload_model(
+    model: Model,
+    path: PathBuf,
+    resource_manager: ResourceManager,
+    material_search_options: MaterialSearchOptions,
+) {
     match ModelData::load(&path, resource_manager, material_search_options).await {
         Ok(data) => {
             Log::writeln(
@@ -670,16 +674,17 @@ impl ResourceManager {
             for model in models.iter().cloned() {
                 let this = this.clone();
                 let path = model.state().path().to_path_buf();
+                let material_search_options = model.data_ref().material_search_options().clone();
                 *model.state() = ResourceState::new_pending(path.clone());
 
                 #[cfg(target_arch = "wasm32")]
                 crate::core::wasm_bindgen_futures::spawn_local(async move {
-                    reload_model(model, path, this).await;
+                    reload_model(model, path, this, material_search_options).await;
                 });
 
                 #[cfg(not(target_arch = "wasm32"))]
                 state.thread_pool.spawn_ok(async move {
-                    reload_model(model, path, this).await;
+                    reload_model(model, path, this, material_search_options).await;
                 })
             }
 

@@ -123,14 +123,6 @@ fn save(game: &mut Game) {
     visitor.save_binary(Path::new(SAVE_FILE)).unwrap();
 }
 
-async fn load(game: &mut Game) {
-    if Path::new(SAVE_FILE).exists() {
-        // Loading a game is even simpler - just 2 lines.
-        let mut visitor = Visitor::load_binary(SAVE_FILE).await.unwrap();
-        game.visit("Game", &mut visitor).unwrap();
-    }
-}
-
 fn main() {
     let (mut game, event_loop) = Game::new("Example 06 - Save/load");
 
@@ -306,7 +298,13 @@ fn main() {
                                 // Save/load bound to classic F5 and F9 keys.
                                 match code {
                                     VirtualKeyCode::F5 => save(&mut game),
-                                    VirtualKeyCode::F9 => rg3d::core::futures::executor::block_on(load(&mut game)),
+                                    VirtualKeyCode::F9 => {
+                                        if Path::new(SAVE_FILE).exists() {
+                                            // Loading a game is even simpler - just 2 lines.
+                                            let mut visitor = rg3d::core::futures::executor::block_on(Visitor::load_binary(SAVE_FILE)).unwrap();
+                                            game.visit("Game", &mut visitor).unwrap();
+                                        }
+                                    },
                                     _ => ()
                                 };
                             }
