@@ -23,6 +23,7 @@ mod gbuffer;
 mod light_volume;
 mod particle_system_renderer;
 mod shadow_map_renderer;
+mod skybox_shader;
 mod sprite_renderer;
 mod ssao;
 mod ui_renderer;

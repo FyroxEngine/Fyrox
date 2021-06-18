@@ -215,42 +215,31 @@ impl Hash for AnimatedVertex {
     }
 }
 
-/// Simple vertex with position and single texture coordinates.
+/// Simple vertex with position.
 #[derive(Copy, Clone, Debug, Default)]
 #[repr(C)] // OpenGL expects this structure packed as in C
 pub struct SimpleVertex {
     /// Position of vertex in local coordinates.
     pub position: Vector3<f32>,
-    /// Texture coordinates.
-    pub tex_coord: Vector2<f32>,
 }
 
 impl SimpleVertex {
     /// Returns layout of the vertex.
     pub fn layout() -> &'static [VertexAttributeDescriptor] {
-        static LAYOUT: [VertexAttributeDescriptor; 2] = [
-            VertexAttributeDescriptor {
-                usage: VertexAttributeUsage::Position,
-                data_type: VertexAttributeDataType::F32,
-                size: 3,
-                divisor: 0,
-                shader_location: 0,
-            },
-            VertexAttributeDescriptor {
-                usage: VertexAttributeUsage::TexCoord0,
-                data_type: VertexAttributeDataType::F32,
-                size: 2,
-                divisor: 0,
-                shader_location: 1,
-            },
-        ];
+        static LAYOUT: [VertexAttributeDescriptor; 1] = [VertexAttributeDescriptor {
+            usage: VertexAttributeUsage::Position,
+            data_type: VertexAttributeDataType::F32,
+            size: 3,
+            divisor: 0,
+            shader_location: 0,
+        }];
         &LAYOUT
     }
 }
 
 impl PartialEq for SimpleVertex {
     fn eq(&self, other: &Self) -> bool {
-        self.position == other.position && self.tex_coord == other.tex_coord
+        self.position == other.position
     }
 }
 

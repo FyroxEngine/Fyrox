@@ -16,6 +16,7 @@
 
 use crate::core::algebra::{Matrix4, Vector2, Vector3, Vector4};
 use crate::core::pool::Handle;
+use crate::resource::texture::{TextureKind, TexturePixelKind};
 use crate::scene::graph::Graph;
 use crate::{
     core::{
@@ -399,6 +400,77 @@ impl CameraBuilder {
     }
 }
 
+/// SkyBox builder is used to create new skybox in declarative manner.
+pub struct SkyBoxBuilder {
+    /// Texture for front face.
+    pub front: Option<Texture>,
+    /// Texture for back face.
+    pub back: Option<Texture>,
+    /// Texture for left face.
+    pub left: Option<Texture>,
+    /// Texture for right face.
+    pub right: Option<Texture>,
+    /// Texture for top face.
+    pub top: Option<Texture>,
+    /// Texture for bottom face.
+    pub bottom: Option<Texture>,
+}
+
+impl SkyBoxBuilder {
+    /// Sets desired front face of cubemap.
+    pub fn with_front(mut self, texture: Texture) -> Self {
+        self.front = Some(texture);
+        self
+    }
+
+    /// Sets desired back face of cubemap.
+    pub fn with_back(mut self, texture: Texture) -> Self {
+        self.back = Some(texture);
+        self
+    }
+
+    /// Sets desired left face of cubemap.
+    pub fn with_left(mut self, texture: Texture) -> Self {
+        self.left = Some(texture);
+        self
+    }
+
+    /// Sets desired right face of cubemap.
+    pub fn with_right(mut self, texture: Texture) -> Self {
+        self.right = Some(texture);
+        self
+    }
+
+    /// Sets desired top face of cubemap.
+    pub fn with_top(mut self, texture: Texture) -> Self {
+        self.top = Some(texture);
+        self
+    }
+
+    /// Sets desired front face of cubemap.
+    pub fn with_bottom(mut self, texture: Texture) -> Self {
+        self.bottom = Some(texture);
+        self
+    }
+
+    /// Creates a new instance of skybox.
+    pub fn build(self) -> Result<SkyBox, SkyBoxError> {
+        let mut skybox = SkyBox {
+            left: self.left,
+            right: self.right,
+            top: self.top,
+            bottom: self.bottom,
+            front: self.front,
+            back: self.back,
+            cubemap: None,
+        };
+
+        skybox.create_cubemap()?;
+
+        Ok(skybox)
+    }
+}
+
 /// Skybox is a huge box around camera. Each face has its own texture, when textures are
 /// properly made, there is no seams and you get good decoration which contains static
 /// skies and/or some other objects (mountains, buildings, etc.). Usually skyboxes used
@@ -418,19 +490,82 @@ pub struct SkyBox {
     pub top: Option<Texture>,
     /// Texture for bottom face.
     pub bottom: Option<Texture>,
+    /// Cubemap texture
+    pub cubemap: Option<Texture>,
+}
+
+/// An error that may occur during skybox creation.
+#[derive(Debug)]
+pub enum SkyBoxError {
+    /// Texture kind is not TextureKind::Rectangle
+    UnsupportedTextureKind(TextureKind),
 }
 
 impl SkyBox {
-    /// Returns slice with all textures, where: 0 - Front, 1 - Back, 2 - Left, 3 - Right
-    /// 4 - Top, 5 - Bottom
-    pub fn textures(&self) -> [Option<Texture>; 6] {
+    /// Returns cubemap texture
+    pub fn cubemap(&self) -> Option<Texture> {
+        self.cubemap.clone()
+    }
+
+    /// Creates a cubemap using provided faces. If some face has not been
+    /// provided correcponding side will be black.
+    /// It will fail if provided face's kind is not TextureKind::Rectangle
+    pub fn create_cubemap(&mut self) -> Result<(), SkyBoxError> {
+        let (kind, pixel_kind, bytes_per_face) = self
+            .textures()
+            .iter()
+            .skip_while(|face| face.is_none())
+            .next()
+            .map_or(
+                (
+                    TextureKind::Rectangle {
+                        width: 1,
+                        height: 1,
+                    },
+                    TexturePixelKind::R8,
+                    1,
+                ),
+                |face| {
+                    let face = face.clone().unwrap();
+                    let data = face.data_ref();
+
+                    (data.kind(), data.pixel_kind(), data.data().len())
+                },
+            );
+
+        let (width, height) = match kind {
+            TextureKind::Rectangle { width, height } => (width, height),
+            _ => return Err(SkyBoxError::UnsupportedTextureKind(kind)),
+        };
+
+        let mut data = Vec::<u8>::with_capacity(bytes_per_face * 6);
+        for face in self.textures().iter() {
+            if let Some(f) = face.clone() {
+                data.extend(f.data_ref().data());
+            } else {
+                let black_face_data = vec![0; bytes_per_face];
+                data.extend(black_face_data);
+            }
+        }
+
+        let cubemap =
+            Texture::from_bytes(TextureKind::Cube { width, height }, pixel_kind, data, false);
+
+        self.cubemap = cubemap;
+
+        Ok(())
+    }
+
+    /// Returns slice with all textures, where: 0 - Left, 1 - Right, 2 - Top, 3 - Bottom
+    /// 4 - Front, 5 - Back
+    fn textures(&self) -> [Option<Texture>; 6] {
         [
-            self.front.clone(),
-            self.back.clone(),
             self.left.clone(),
             self.right.clone(),
             self.top.clone(),
             self.bottom.clone(),
+            self.front.clone(),
+            self.back.clone(),
         ]
     }
 }
@@ -439,12 +574,12 @@ impl Visit for SkyBox {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
-        self.front.visit("Front", visitor)?;
-        self.back.visit("Back", visitor)?;
         self.left.visit("Left", visitor)?;
         self.right.visit("Right", visitor)?;
         self.top.visit("Top", visitor)?;
         self.bottom.visit("Bottom", visitor)?;
+        self.front.visit("Front", visitor)?;
+        self.back.visit("Back", visitor)?;
 
         visitor.leave_region()
     }

@@ -777,7 +777,7 @@ impl TextureData {
         let pixel_count = match kind {
             TextureKind::Line { length } => length,
             TextureKind::Rectangle { width, height } => width * height,
-            TextureKind::Cube { width, height } => width * height,
+            TextureKind::Cube { width, height } => 6 * width * height,
             TextureKind::Volume {
                 width,
                 height,
@@ -817,7 +817,7 @@ impl TextureData {
                         ceil_div_4(width) * ceil_div_4(height) * block_size
                     }
                     TextureKind::Cube { width, height } => {
-                        ceil_div_4(width) * ceil_div_4(height) * block_size
+                        6 * ceil_div_4(width) * ceil_div_4(height) * block_size
                     }
                     TextureKind::Volume {
                         width,
