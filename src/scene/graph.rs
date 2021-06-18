@@ -559,19 +559,13 @@ impl Graph {
                                     .set_scaling_pivot(**resource_local_transform.scaling_pivot());
                             }
 
-                            match (node, resource_node) {
-                                (Node::Mesh(mesh), Node::Mesh(resource_mesh)) => {
-                                    mesh.clear_surfaces();
-                                    for resource_surface in resource_mesh.surfaces() {
-                                        mesh.add_surface(resource_surface.clone());
-                                    }
+                            if let (Node::Mesh(mesh), Node::Mesh(resource_mesh)) =
+                                (node, resource_node)
+                            {
+                                mesh.clear_surfaces();
+                                for resource_surface in resource_mesh.surfaces() {
+                                    mesh.add_surface(resource_surface.clone());
                                 }
-                                (Node::Camera(camera), _) => {
-                                    if let Some(skybox) = camera.skybox_mut() {
-                                        skybox.create_cubemap().ok();
-                                    }
-                                }
-                                _ => {}
                             }
                         }
                     }
@@ -727,6 +721,15 @@ impl Graph {
 
                         *bone_handle = copy;
                     }
+                }
+            }
+        }
+
+        // Update cube maps for sky boxes.
+        for node in self.linear_iter_mut() {
+            if let Node::Camera(camera) = node {
+                if let Some(skybox) = camera.skybox_mut() {
+                    skybox.create_cubemap().ok();
                 }
             }
         }
