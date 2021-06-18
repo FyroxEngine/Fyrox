@@ -7,6 +7,7 @@
 extern crate rg3d;
 
 use rg3d::engine::resource_manager::MaterialSearchOptions;
+use rg3d::scene::camera::SkyBoxBuilder;
 use rg3d::{
     animation::Animation,
     core::{
@@ -28,7 +29,7 @@ use rg3d::{
     resource::texture::{CompressionOptions, TextureWrapMode},
     scene::{
         base::BaseBuilder,
-        camera::{CameraBuilder, SkyBox},
+        camera::CameraBuilder,
         graph::Graph,
         light::{BaseLightBuilder, PointLightBuilder},
         mesh::{
@@ -150,18 +151,20 @@ pub async fn create_camera(
     );
 
     // Unwrap everything.
-    let skybox = SkyBox {
+    let skybox = SkyBoxBuilder {
         front: Some(front.unwrap()),
         back: Some(back.unwrap()),
         left: Some(left.unwrap()),
         right: Some(right.unwrap()),
         top: Some(top.unwrap()),
         bottom: Some(bottom.unwrap()),
-    };
+    }
+    .build()
+    .unwrap();
 
     // Set S and T coordinate wrap mode, ClampToEdge will remove any possible seams on edges
     // of the skybox.
-    for skybox_texture in skybox.textures().iter().filter_map(|t| t.clone()) {
+    if let Some(skybox_texture) = skybox.cubemap() {
         let mut data = skybox_texture.data_ref();
         data.set_s_wrap_mode(TextureWrapMode::ClampToEdge);
         data.set_t_wrap_mode(TextureWrapMode::ClampToEdge);

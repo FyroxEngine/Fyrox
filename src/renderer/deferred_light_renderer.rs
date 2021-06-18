@@ -1,33 +1,40 @@
-use crate::renderer::skybox_shader::SkyboxShader;
-use crate::scene::mesh::buffer::GeometryBuffer;
-use crate::scene::mesh::buffer::VertexBuffer;
-use crate::scene::mesh::vertex::SimpleVertex;
 use crate::{
     core::{
-        algebra::{Matrix4, Point3, Vector2, Vector3},
+        algebra::{Matrix4, Point3, Vector3},
         color::Color,
         math::{frustum::Frustum, Matrix4Ext, Rect, TriangleDefinition},
         scope_profile,
     },
-    renderer::framework::{
-        error::FrameworkError,
-        framebuffer::{CullFace, DrawParameters},
-        gpu_program::{GpuProgram, UniformLocation},
-        gpu_texture::GpuTexture,
-        state::{ColorMask, PipelineState, StencilFunc, StencilOp},
-    },
     renderer::{
         batch::BatchStorage,
         flat_shader::FlatShader,
+        framework::{
+            error::FrameworkError,
+            framebuffer::{CullFace, DrawParameters},
+            gpu_program::{GpuProgram, UniformLocation},
+            gpu_texture::GpuTexture,
+            state::{ColorMask, PipelineState, StencilFunc, StencilOp},
+        },
         gbuffer::GBuffer,
         light_volume::LightVolumeRenderer,
         shadow_map_renderer::{
             PointShadowMapRenderContext, PointShadowMapRenderer, SpotShadowMapRenderer,
         },
+        skybox_shader::SkyboxShader,
         ssao::ScreenSpaceAmbientOcclusionRenderer,
         GeometryCache, QualitySettings, RenderPassStatistics, TextureCache,
     },
-    scene::{camera::Camera, light::Light, mesh::surface::SurfaceData, node::Node, Scene},
+    scene::{
+        camera::Camera,
+        light::Light,
+        mesh::{
+            buffer::{GeometryBuffer, VertexBuffer},
+            surface::SurfaceData,
+            vertex::SimpleVertex,
+        },
+        node::Node,
+        Scene,
+    },
 };
 use std::{
     cell::RefCell,
