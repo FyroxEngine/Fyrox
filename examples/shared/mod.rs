@@ -85,8 +85,8 @@ pub async fn create_camera(
 
     // Set S and T coordinate wrap mode, ClampToEdge will remove any possible seams on edges
     // of the skybox.
-    for skybox_texture in skybox.cubemap() {
-        let mut data = skybox_texture.data_ref();
+    if let Some(cubemap) = skybox.cubemap() {
+        let mut data = cubemap.data_ref();
         data.set_s_wrap_mode(TextureWrapMode::ClampToEdge);
         data.set_t_wrap_mode(TextureWrapMode::ClampToEdge);
     }
