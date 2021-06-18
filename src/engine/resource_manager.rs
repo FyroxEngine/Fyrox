@@ -1,11 +1,8 @@
 //! Resource manager controls loading and lifetime of resource in the engine.
 
-#[cfg(not(target_arch = "wasm32"))]
-use crate::core::futures::executor::ThreadPool;
-use crate::core::instant;
-use crate::renderer::TextureUploadSender;
 use crate::{
-    core::visitor::{Visit, VisitResult, Visitor},
+    core::{futures::executor::ThreadPool, instant, visitor::prelude::*},
+    renderer::TextureUploadSender,
     resource::{
         model::{Model, ModelData},
         texture::{
@@ -790,7 +787,7 @@ where
 }
 
 /// Defines a way of searching materials when loading a model resource.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Visit)]
 pub enum MaterialSearchOptions {
     /// Search in specified materials directory. It is suitable for cases when
     /// your model resource use shared textures.

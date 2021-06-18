@@ -200,6 +200,9 @@ impl Visit for ModelData {
         visitor.enter_region(name)?;
 
         self.path.visit("Path", visitor)?;
+        let _ = self
+            .material_search_options
+            .visit("MaterialSearchOptions", visitor);
 
         visitor.leave_region()
     }
