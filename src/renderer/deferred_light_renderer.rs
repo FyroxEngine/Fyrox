@@ -272,104 +272,80 @@ impl DeferredLightRenderer {
             // Front
             SimpleVertex {
                 position: Vector3::new(-0.5, 0.5, -0.5),
-                tex_coord: Vector2::new(0.0, 0.0),
             },
             SimpleVertex {
                 position: Vector3::new(0.5, 0.5, -0.5),
-                tex_coord: Vector2::new(1.0, 0.0),
             },
             SimpleVertex {
                 position: Vector3::new(0.5, -0.5, -0.5),
-                tex_coord: Vector2::new(1.0, 1.0),
             },
             SimpleVertex {
                 position: Vector3::new(-0.5, -0.5, -0.5),
-                tex_coord: Vector2::new(0.0, 1.0),
             },
             // Back
             SimpleVertex {
                 position: Vector3::new(0.5, 0.5, 0.5),
-                tex_coord: Vector2::new(0.0, 0.0),
             },
             SimpleVertex {
                 position: Vector3::new(-0.5, 0.5, 0.5),
-                tex_coord: Vector2::new(1.0, 0.0),
             },
             SimpleVertex {
                 position: Vector3::new(-0.5, -0.5, 0.5),
-                tex_coord: Vector2::new(1.0, 1.0),
             },
             SimpleVertex {
                 position: Vector3::new(0.5, -0.5, 0.5),
-                tex_coord: Vector2::new(0.0, 1.0),
             },
             // Left
             SimpleVertex {
                 position: Vector3::new(0.5, 0.5, -0.5),
-                tex_coord: Vector2::new(0.0, 0.0),
             },
             SimpleVertex {
                 position: Vector3::new(0.5, 0.5, 0.5),
-                tex_coord: Vector2::new(1.0, 0.0),
             },
             SimpleVertex {
                 position: Vector3::new(0.5, -0.5, 0.5),
-                tex_coord: Vector2::new(1.0, 1.0),
             },
             SimpleVertex {
                 position: Vector3::new(0.5, -0.5, -0.5),
-                tex_coord: Vector2::new(0.0, 1.0),
             },
             // Right
             SimpleVertex {
                 position: Vector3::new(-0.5, 0.5, 0.5),
-                tex_coord: Vector2::new(0.0, 0.0),
             },
             SimpleVertex {
                 position: Vector3::new(-0.5, 0.5, -0.5),
-                tex_coord: Vector2::new(1.0, 0.0),
             },
             SimpleVertex {
                 position: Vector3::new(-0.5, -0.5, -0.5),
-                tex_coord: Vector2::new(1.0, 1.0),
             },
             SimpleVertex {
                 position: Vector3::new(-0.5, -0.5, 0.5),
-                tex_coord: Vector2::new(0.0, 1.0),
             },
             // Up
             SimpleVertex {
                 position: Vector3::new(-0.5, 0.5, 0.5),
-                tex_coord: Vector2::new(0.0, 0.0),
             },
             SimpleVertex {
                 position: Vector3::new(0.5, 0.5, 0.5),
-                tex_coord: Vector2::new(1.0, 0.0),
             },
             SimpleVertex {
                 position: Vector3::new(0.5, 0.5, -0.5),
-                tex_coord: Vector2::new(1.0, 1.0),
             },
             SimpleVertex {
                 position: Vector3::new(-0.5, 0.5, -0.5),
-                tex_coord: Vector2::new(0.0, 1.0),
             },
             // Down
             SimpleVertex {
                 position: Vector3::new(-0.5, -0.5, 0.5),
-                tex_coord: Vector2::new(0.0, 0.0),
             },
             SimpleVertex {
                 position: Vector3::new(0.5, -0.5, 0.5),
-                tex_coord: Vector2::new(1.0, 0.0),
             },
             SimpleVertex {
                 position: Vector3::new(0.5, -0.5, -0.5),
-                tex_coord: Vector2::new(1.0, 1.0),
             },
             SimpleVertex {
                 position: Vector3::new(-0.5, -0.5, -0.5),
-                tex_coord: Vector2::new(0.0, 1.0),
             },
         ];
 
@@ -526,7 +502,7 @@ impl DeferredLightRenderer {
         // Render skybox (if any).
         if let Some(skybox) = camera.skybox_ref() {
             let size = camera.z_far() / 2.0f32.sqrt();
-            let scale = Matrix4::new_nonuniform_scaling(&Vector3::new(size, size, size));
+            let scale = Matrix4::new_scaling(size);
             let wvp = Matrix4::new_translation(&camera.global_position()) * scale;
 
             if let Some(gpu_texture) = textures.get(state, &skybox.cubemap().clone().unwrap()) {
