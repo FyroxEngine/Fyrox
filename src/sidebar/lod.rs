@@ -1,33 +1,40 @@
-use crate::gui::{BuildContext, Ui, UiMessage, UiNode};
-use crate::scene::commands::lod::{
-    AddLodGroupLevelCommand, AddLodObjectCommand, ChangeLodRangeBeginCommand,
-    ChangeLodRangeEndCommand, RemoveLodGroupLevelCommand, RemoveLodObjectCommand,
+use crate::gui::make_dropdown_list_option;
+use crate::{
+    gui::{BuildContext, Ui, UiMessage, UiNode},
+    scene::commands::{
+        lod::{
+            AddLodGroupLevelCommand, AddLodObjectCommand, ChangeLodRangeBeginCommand,
+            ChangeLodRangeEndCommand, RemoveLodGroupLevelCommand, RemoveLodObjectCommand,
+        },
+        CommandGroup, SceneCommand,
+    },
+    send_sync_message,
+    sidebar::{make_text_mark, ROW_HEIGHT},
+    Message,
 };
-use crate::scene::commands::{CommandGroup, SceneCommand};
-use crate::sidebar::{make_dropdown_list_option, make_text_mark, ROW_HEIGHT};
-use crate::{send_sync_message, Message};
-use rg3d::core::pool::Handle;
-use rg3d::gui::border::BorderBuilder;
-use rg3d::gui::button::ButtonBuilder;
-use rg3d::gui::decorator::DecoratorBuilder;
-use rg3d::gui::grid::{Column, GridBuilder, Row};
-use rg3d::gui::list_view::ListViewBuilder;
-use rg3d::gui::message::{
-    ButtonMessage, ListViewMessage, MessageDirection, NumericUpDownMessage, TreeMessage,
-    TreeRootMessage, UiMessageData, WidgetMessage, WindowMessage,
+use rg3d::{
+    core::pool::Handle,
+    gui::{
+        border::BorderBuilder,
+        button::ButtonBuilder,
+        decorator::DecoratorBuilder,
+        grid::{Column, GridBuilder, Row},
+        list_view::ListViewBuilder,
+        message::{
+            ButtonMessage, ListViewMessage, MessageDirection, NumericUpDownMessage, TreeMessage,
+            TreeRootMessage, UiMessageData, WidgetMessage, WindowMessage,
+        },
+        numeric::NumericUpDownBuilder,
+        stack_panel::StackPanelBuilder,
+        text::TextBuilder,
+        tree::{TreeBuilder, TreeRootBuilder},
+        widget::WidgetBuilder,
+        window::{WindowBuilder, WindowTitle},
+        HorizontalAlignment, Orientation, Thickness,
+    },
+    scene::{graph::Graph, node::Node, Scene},
 };
-use rg3d::gui::numeric::NumericUpDownBuilder;
-use rg3d::gui::stack_panel::StackPanelBuilder;
-use rg3d::gui::text::TextBuilder;
-use rg3d::gui::tree::{TreeBuilder, TreeRootBuilder};
-use rg3d::gui::widget::WidgetBuilder;
-use rg3d::gui::window::{WindowBuilder, WindowTitle};
-use rg3d::gui::{HorizontalAlignment, Orientation, Thickness};
-use rg3d::scene::graph::Graph;
-use rg3d::scene::node::Node;
-use rg3d::scene::Scene;
-use std::rc::Rc;
-use std::sync::mpsc::Sender;
+use std::{rc::Rc, sync::mpsc::Sender};
 
 struct ChildSelector {
     window: Handle<UiNode>,

@@ -28,6 +28,7 @@ pub mod sound;
 pub mod utils;
 pub mod world_outliner;
 
+use crate::gui::make_dropdown_list_option;
 use crate::scene::commands::sound::DeleteSoundSourceCommand;
 use crate::scene::commands::{ChangeSelectionCommand, CommandGroup};
 use crate::settings::SettingsSectionKind;
@@ -67,7 +68,12 @@ use crate::{
     world_outliner::WorldOutliner,
 };
 use rg3d::engine::resource_manager::MaterialSearchOptions;
+use rg3d::gui::dropdown_list::DropdownListBuilder;
 use rg3d::gui::file_browser::FileBrowserMode;
+use rg3d::gui::message::{DropdownListMessage, TextBoxMessage};
+use rg3d::gui::text::TextBuilder;
+use rg3d::gui::text_box::TextBoxBuilder;
+use rg3d::gui::{HorizontalAlignment, Orientation, VerticalAlignment};
 use rg3d::{
     core::{
         algebra::{Point3, Vector2},
@@ -189,6 +195,257 @@ pub fn make_relative_path<P: AsRef<Path>>(path: P) -> PathBuf {
         .to_owned();
 
     rg3d::core::replace_slashes(relative_path)
+}
+
+pub struct ModelImportDialog {
+    // View
+    pub window: Handle<UiNode>,
+    options: Handle<UiNode>,
+    path_field: Handle<UiNode>,
+    path_selector: Handle<UiNode>,
+    select_path: Handle<UiNode>,
+    ok: Handle<UiNode>,
+    cancel: Handle<UiNode>,
+    path_selection_section: Handle<UiNode>,
+
+    // Data model
+    model_path: PathBuf,
+    material_search_options: MaterialSearchOptions,
+}
+
+impl ModelImportDialog {
+    pub fn new(ctx: &mut BuildContext) -> Self {
+        let options;
+        let select_path;
+        let path_field;
+        let ok;
+        let cancel;
+        let path_selection_section;
+        let window = WindowBuilder::new(WidgetBuilder::new().with_width(400.0).with_height(135.0))
+            .open(false)
+            .with_title(WindowTitle::text("Import Model"))
+            .with_content(
+                GridBuilder::new(
+                    WidgetBuilder::new()
+                        .with_child(
+                            TextBuilder::new(
+                                WidgetBuilder::new()
+                                    .on_row(0)
+                                    .with_margin(Thickness::uniform(1.0)),
+                            )
+                            .with_text("Please select the material search options.")
+                            .build(ctx),
+                        )
+                        .with_child(
+                            GridBuilder::new(
+                                WidgetBuilder::new()
+                                    .with_margin(Thickness::uniform(1.0))
+                                    .on_row(1)
+                                    .with_child(
+                                        TextBuilder::new(WidgetBuilder::new().on_column(0))
+                                            .with_text("Options")
+                                            .with_vertical_text_alignment(VerticalAlignment::Center)
+                                            .build(ctx),
+                                    )
+                                    .with_child({
+                                        options = DropdownListBuilder::new(
+                                            WidgetBuilder::new().on_column(1),
+                                        )
+                                        .with_items(vec![
+                                            make_dropdown_list_option(ctx, "Recursive Up"),
+                                            make_dropdown_list_option(ctx, "Materials Directory"),
+                                            make_dropdown_list_option(ctx, "Working Directory"),
+                                        ])
+                                        .with_selected(0)
+                                        .with_close_on_selection(true)
+                                        .build(ctx);
+                                        options
+                                    }),
+                            )
+                            .add_column(Column::strict(100.0))
+                            .add_column(Column::stretch())
+                            .add_row(Row::strict(26.0))
+                            .build(ctx),
+                        )
+                        .with_child({
+                            path_selection_section = GridBuilder::new(
+                                WidgetBuilder::new()
+                                    .with_margin(Thickness::uniform(1.0))
+                                    .on_row(2)
+                                    .with_visibility(false)
+                                    .with_child({
+                                        path_field = TextBoxBuilder::new(
+                                            WidgetBuilder::new().with_enabled(false).on_column(0),
+                                        )
+                                        .with_vertical_text_alignment(VerticalAlignment::Center)
+                                        .build(ctx);
+                                        path_field
+                                    })
+                                    .with_child({
+                                        select_path =
+                                            ButtonBuilder::new(WidgetBuilder::new().on_column(1))
+                                                .with_text("...")
+                                                .build(ctx);
+                                        select_path
+                                    }),
+                            )
+                            .add_column(Column::stretch())
+                            .add_column(Column::strict(26.0))
+                            .add_row(Row::strict(26.0))
+                            .build(ctx);
+                            path_selection_section
+                        })
+                        .with_child(
+                            StackPanelBuilder::new(
+                                WidgetBuilder::new()
+                                    .with_horizontal_alignment(HorizontalAlignment::Right)
+                                    .on_row(4)
+                                    .with_child({
+                                        ok = ButtonBuilder::new(
+                                            WidgetBuilder::new().with_width(100.0),
+                                        )
+                                        .with_text("OK")
+                                        .build(ctx);
+                                        ok
+                                    })
+                                    .with_child({
+                                        cancel = ButtonBuilder::new(
+                                            WidgetBuilder::new().with_width(100.0),
+                                        )
+                                        .with_text("Cancel")
+                                        .build(ctx);
+                                        cancel
+                                    }),
+                            )
+                            .with_orientation(Orientation::Horizontal)
+                            .build(ctx),
+                        ),
+                )
+                .add_row(Row::auto())
+                .add_row(Row::auto())
+                .add_row(Row::auto())
+                .add_row(Row::stretch())
+                .add_row(Row::strict(26.0))
+                .add_column(Column::stretch())
+                .build(ctx),
+            )
+            .build(ctx);
+
+        let path_selector = FileSelectorBuilder::new(
+            WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(500.0))
+                .open(false),
+        )
+        .with_filter(Rc::new(RefCell::new(|p: &Path| p.is_dir())))
+        .with_path(".")
+        .build(ctx);
+
+        Self {
+            window,
+            options,
+            ok,
+            cancel,
+            select_path,
+            path_selector,
+            path_field,
+            model_path: Default::default(),
+            path_selection_section,
+            material_search_options: MaterialSearchOptions::RecursiveUp,
+        }
+    }
+
+    pub fn set_working_directory(&mut self, engine: &mut GameEngine, dir: &Path) {
+        assert!(dir.is_dir());
+
+        engine
+            .user_interface
+            .send_message(FileSelectorMessage::root(
+                self.path_selector,
+                MessageDirection::ToWidget,
+                Some(dir.to_owned()),
+            ));
+    }
+
+    pub fn open(&mut self, model_path: PathBuf, ui: &Ui) {
+        self.model_path = model_path;
+
+        ui.send_message(WindowMessage::open_modal(
+            self.window,
+            MessageDirection::ToWidget,
+            true,
+        ));
+    }
+
+    pub fn handle_ui_message(&mut self, message: &UiMessage, ui: &Ui, sender: &Sender<Message>) {
+        match message.data() {
+            UiMessageData::Button(ButtonMessage::Click) => {
+                if message.destination() == self.ok {
+                    ui.send_message(WindowMessage::close(
+                        self.window,
+                        MessageDirection::ToWidget,
+                    ));
+
+                    sender
+                        .send(Message::DoSceneCommand(SceneCommand::LoadModel(
+                            LoadModelCommand::new(
+                                self.model_path.clone(),
+                                self.material_search_options.clone(),
+                            ),
+                        )))
+                        .unwrap();
+                } else if message.destination() == self.cancel {
+                    ui.send_message(WindowMessage::close(
+                        self.window,
+                        MessageDirection::ToWidget,
+                    ));
+                } else if message.destination() == self.select_path {
+                    ui.send_message(WindowMessage::open_modal(
+                        self.path_selector,
+                        MessageDirection::ToWidget,
+                        true,
+                    ));
+                }
+            }
+            UiMessageData::DropdownList(DropdownListMessage::SelectionChanged(Some(value)))
+                if message.destination() == self.options =>
+            {
+                let show_path_selection_options = match *value {
+                    0 => {
+                        self.material_search_options = MaterialSearchOptions::RecursiveUp;
+                        false
+                    }
+                    1 => {
+                        self.material_search_options =
+                            MaterialSearchOptions::MaterialsDirectory(PathBuf::from("."));
+                        true
+                    }
+                    2 => {
+                        self.material_search_options = MaterialSearchOptions::WorkingDirectory;
+                        false
+                    }
+                    _ => unreachable!(),
+                };
+
+                ui.send_message(WidgetMessage::visibility(
+                    self.path_selection_section,
+                    MessageDirection::ToWidget,
+                    show_path_selection_options,
+                ));
+            }
+            UiMessageData::FileSelector(FileSelectorMessage::Commit(path))
+                if message.destination() == self.path_selector =>
+            {
+                ui.send_message(TextBoxMessage::text(
+                    self.path_field,
+                    MessageDirection::ToWidget,
+                    path.to_string_lossy().to_string(),
+                ));
+
+                self.material_search_options =
+                    MaterialSearchOptions::MaterialsDirectory(path.clone());
+            }
+            _ => (),
+        }
+    }
 }
 
 impl ScenePreview {
@@ -515,6 +772,7 @@ struct Editor {
     validation_message_box: Handle<UiNode>,
     navmesh_panel: NavmeshPanel,
     settings: Settings,
+    model_import_dialog: ModelImportDialog,
 }
 
 impl Editor {
@@ -579,6 +837,7 @@ impl Editor {
             CommandStackViewer::new(ctx, engine.resource_manager.clone(), message_sender.clone());
         let sound_panel = SoundPanel::new(ctx);
         let log = Log::new(ctx);
+        let model_import_dialog = ModelImportDialog::new(ctx);
 
         let root_grid = GridBuilder::new(
             WidgetBuilder::new()
@@ -732,6 +991,7 @@ impl Editor {
             command_stack_viewer,
             validation_message_box,
             settings,
+            model_import_dialog,
         };
 
         editor.set_interaction_mode(Some(InteractionModeKind::Move), engine);
@@ -920,6 +1180,12 @@ impl Editor {
 
             self.preview
                 .handle_ui_message(message, &engine.user_interface);
+
+            self.model_import_dialog.handle_ui_message(
+                message,
+                &engine.user_interface,
+                &self.message_sender,
+            );
 
             let frame_size = engine
                 .user_interface
@@ -1142,14 +1408,8 @@ impl Editor {
 
                                     match item.kind {
                                         AssetKind::Model => {
-                                            // Import model.
-                                            self.message_sender
-                                                .send(Message::DoSceneCommand(
-                                                    SceneCommand::LoadModel(LoadModelCommand::new(
-                                                        relative_path,
-                                                    )),
-                                                ))
-                                                .unwrap();
+                                            self.model_import_dialog
+                                                .open(relative_path, &engine.user_interface);
                                         }
                                         AssetKind::Texture => {
                                             let cursor_pos =
@@ -1483,6 +1743,9 @@ impl Editor {
                     engine.renderer.flush();
 
                     self.asset_browser
+                        .set_working_directory(engine, &working_directory);
+
+                    self.model_import_dialog
                         .set_working_directory(engine, &working_directory);
 
                     self.message_sender

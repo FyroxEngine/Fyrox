@@ -1,17 +1,15 @@
+use crate::gui::make_dropdown_list_option;
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     send_sync_message,
-    sidebar::{
-        make_dropdown_list_option, make_f32_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT,
-    },
+    sidebar::{make_f32_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT},
 };
-use rg3d::gui::message::{DropdownListMessage, UiMessageData};
 use rg3d::{
     core::{pool::Handle, scope_profile},
     gui::{
         dropdown_list::DropdownListBuilder,
         grid::{Column, GridBuilder, Row},
-        message::{MessageDirection, NumericUpDownMessage},
+        message::{DropdownListMessage, MessageDirection, NumericUpDownMessage, UiMessageData},
         widget::WidgetBuilder,
     },
     scene::terrain::{Brush, BrushMode, BrushShape},

@@ -13,10 +13,8 @@ use rg3d::{
     core::{pool::Handle, scope_profile},
     engine::resource_manager::ResourceManager,
     gui::{
-        border::BorderBuilder,
         check_box::CheckBoxBuilder,
         color::ColorFieldBuilder,
-        decorator::DecoratorBuilder,
         message::{MessageDirection, WidgetMessage},
         numeric::NumericUpDownBuilder,
         scroll_viewer::ScrollViewerBuilder,
@@ -139,19 +137,6 @@ fn make_bool_input_field(ctx: &mut BuildContext, row: usize) -> Handle<UiNode> {
             .with_margin(Thickness::uniform(1.0))
             .on_column(1),
     )
-    .build(ctx)
-}
-
-fn make_dropdown_list_option(ctx: &mut BuildContext, name: &str) -> Handle<UiNode> {
-    DecoratorBuilder::new(BorderBuilder::new(
-        WidgetBuilder::new().with_height(26.0).with_child(
-            TextBuilder::new(WidgetBuilder::new())
-                .with_vertical_text_alignment(VerticalAlignment::Center)
-                .with_horizontal_text_alignment(HorizontalAlignment::Center)
-                .with_text(name)
-                .build(ctx),
-        ),
-    ))
     .build(ctx)
 }
 

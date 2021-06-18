@@ -1,7 +1,8 @@
-use crate::scene::commands::CommandGroup;
+use crate::gui::make_dropdown_list_option;
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::{Collider, Joint, RigidBody},
+    scene::commands::CommandGroup,
     scene::{
         commands::{
             physics::{
@@ -16,7 +17,7 @@ use crate::{
     },
     send_sync_message,
     sidebar::{
-        make_dropdown_list_option, make_text_mark,
+        make_text_mark,
         physics::{
             ball::BallSection, body::BodySection, capsule::CapsuleSection,
             collider::ColliderSection, cone::ConeSection, cuboid::CuboidSection,

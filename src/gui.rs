@@ -4,6 +4,8 @@ use crate::{
     sound::{SoundItem, SoundItemMessage},
     world_outliner::SceneItem,
 };
+use rg3d::gui::text::TextBuilder;
+use rg3d::gui::{HorizontalAlignment, VerticalAlignment};
 use rg3d::{
     core::{algebra::Vector2, pool::Handle},
     engine::resource_manager::ResourceManager,
@@ -32,6 +34,19 @@ pub enum SceneItemMessage {
     Name(String),
     /// Odd or even.
     Order(bool),
+}
+
+pub fn make_dropdown_list_option(ctx: &mut BuildContext, name: &str) -> Handle<UiNode> {
+    DecoratorBuilder::new(BorderBuilder::new(
+        WidgetBuilder::new().with_height(26.0).with_child(
+            TextBuilder::new(WidgetBuilder::new())
+                .with_vertical_text_alignment(VerticalAlignment::Center)
+                .with_horizontal_text_alignment(HorizontalAlignment::Center)
+                .with_text(name)
+                .build(ctx),
+        ),
+    ))
+    .build(ctx)
 }
 
 #[derive(Debug, Clone, PartialEq)]

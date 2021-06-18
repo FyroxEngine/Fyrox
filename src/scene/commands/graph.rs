@@ -1,15 +1,20 @@
-use crate::command::Command;
-use crate::physics::Physics;
-use crate::scene::commands::SceneContext;
-use crate::TEXTURES_DIR;
-use crate::{define_node_command, get_set_swap};
-use rg3d::animation::Animation;
-use rg3d::core::algebra::{UnitQuaternion, Vector3};
-use rg3d::core::pool::{Handle, Ticket};
-use rg3d::engine::resource_manager::MaterialSearchOptions;
-use rg3d::scene::base::PhysicsBinding;
-use rg3d::scene::graph::{Graph, SubGraph};
-use rg3d::scene::node::Node;
+use crate::{
+    command::Command, define_node_command, get_set_swap, physics::Physics,
+    scene::commands::SceneContext,
+};
+use rg3d::{
+    animation::Animation,
+    core::{
+        algebra::{UnitQuaternion, Vector3},
+        pool::{Handle, Ticket},
+    },
+    engine::resource_manager::MaterialSearchOptions,
+    scene::{
+        base::PhysicsBinding,
+        graph::{Graph, SubGraph},
+        node::Node,
+    },
+};
 use std::path::PathBuf;
 
 #[derive(Debug)]
@@ -271,16 +276,18 @@ pub struct LoadModelCommand {
     animations: Vec<Handle<Animation>>,
     sub_graph: Option<SubGraph>,
     animations_container: Vec<(Ticket<Animation>, Animation)>,
+    materials_search_options: MaterialSearchOptions,
 }
 
 impl LoadModelCommand {
-    pub fn new(path: PathBuf) -> Self {
+    pub fn new(path: PathBuf, materials_search_options: MaterialSearchOptions) -> Self {
         Self {
             path,
             model: Default::default(),
             animations: Default::default(),
             sub_graph: None,
             animations_container: Default::default(),
+            materials_search_options,
         }
     }
 }
@@ -295,12 +302,11 @@ impl<'a> Command<'a> for LoadModelCommand {
     fn execute(&mut self, context: &mut Self::Context) {
         if self.model.is_none() {
             // No model was loaded yet, do it.
-            if let Ok(model) =
-                rg3d::core::futures::executor::block_on(context.resource_manager.request_model(
-                    &self.path,
-                    MaterialSearchOptions::MaterialsDirectory(TEXTURES_DIR.lock().unwrap().clone()),
-                ))
-            {
+            if let Ok(model) = rg3d::core::futures::executor::block_on(
+                context
+                    .resource_manager
+                    .request_model(&self.path, self.materials_search_options.clone()),
+            ) {
                 let instance = model.instantiate(context.scene);
                 self.model = instance.root;
                 self.animations = instance.animations;

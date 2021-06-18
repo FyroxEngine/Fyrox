@@ -1,13 +1,11 @@
 use crate::{
-    gui::{BuildContext, Ui, UiMessage, UiNode},
+    gui::{make_dropdown_list_option, BuildContext, Ui, UiMessage, UiNode},
     scene::commands::{
         mesh::{SetMeshCastShadowsCommand, SetMeshRenderPathCommand},
         SceneCommand,
     },
     send_sync_message,
-    sidebar::{
-        make_bool_input_field, make_dropdown_list_option, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT,
-    },
+    sidebar::{make_bool_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
 };
 use rg3d::{

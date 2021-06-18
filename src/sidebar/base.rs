@@ -1,31 +1,41 @@
-use crate::gui::{BuildContext, Ui, UiMessage, UiNode};
-use crate::scene::commands::graph::{
-    MoveNodeCommand, RotateNodeCommand, ScaleNodeCommand, SetNameCommand, SetPhysicsBindingCommand,
-    SetTagCommand,
+use crate::gui::make_dropdown_list_option;
+use crate::{
+    gui::{BuildContext, Ui, UiMessage, UiNode},
+    scene::commands::{
+        graph::{
+            MoveNodeCommand, RotateNodeCommand, ScaleNodeCommand, SetNameCommand,
+            SetPhysicsBindingCommand, SetTagCommand,
+        },
+        lod::SetLodGroupCommand,
+        SceneCommand,
+    },
+    send_sync_message,
+    sidebar::{
+        lod::LodGroupEditor, make_text_mark, make_vec3_input_field, COLUMN_WIDTH, ROW_HEIGHT,
+    },
+    Message,
 };
-use crate::scene::commands::lod::SetLodGroupCommand;
-use crate::scene::commands::SceneCommand;
-use crate::sidebar::lod::LodGroupEditor;
-use crate::sidebar::{
-    make_dropdown_list_option, make_text_mark, make_vec3_input_field, COLUMN_WIDTH, ROW_HEIGHT,
+use rg3d::{
+    core::{
+        algebra::Vector3,
+        math::{quat_from_euler, RotationOrder, UnitQuaternionExt},
+        pool::Handle,
+    },
+    gui::{
+        button::ButtonBuilder,
+        dropdown_list::DropdownListBuilder,
+        grid::{Column, GridBuilder, Row},
+        message::{
+            ButtonMessage, DropdownListMessage, MessageDirection, TextBoxMessage, TextMessage,
+            UiMessageData, Vec3EditorMessage, WidgetMessage,
+        },
+        text::TextBuilder,
+        text_box::TextBoxBuilder,
+        widget::WidgetBuilder,
+        Thickness,
+    },
+    scene::{base::PhysicsBinding, node::Node},
 };
-use crate::{send_sync_message, Message};
-use rg3d::core::algebra::Vector3;
-use rg3d::core::math::{quat_from_euler, RotationOrder, UnitQuaternionExt};
-use rg3d::core::pool::Handle;
-use rg3d::gui::button::ButtonBuilder;
-use rg3d::gui::dropdown_list::DropdownListBuilder;
-use rg3d::gui::grid::{Column, GridBuilder, Row};
-use rg3d::gui::message::{
-    ButtonMessage, DropdownListMessage, MessageDirection, TextBoxMessage, TextMessage,
-    UiMessageData, Vec3EditorMessage, WidgetMessage,
-};
-use rg3d::gui::text::TextBuilder;
-use rg3d::gui::text_box::TextBoxBuilder;
-use rg3d::gui::widget::WidgetBuilder;
-use rg3d::gui::Thickness;
-use rg3d::scene::base::PhysicsBinding;
-use rg3d::scene::node::Node;
 use std::sync::mpsc::Sender;
 
 pub struct BaseSection {
