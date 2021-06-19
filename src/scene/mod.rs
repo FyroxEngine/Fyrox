@@ -16,7 +16,6 @@ pub mod sprite;
 pub mod terrain;
 pub mod transform;
 
-use crate::engine::resource_manager::MaterialSearchOptions;
 use crate::{
     animation::AnimationContainer,
     core::{
@@ -27,7 +26,10 @@ use crate::{
         pool::{Handle, Pool, PoolIterator, PoolIteratorMut, Ticket},
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
-    engine::{resource_manager::ResourceManager, PhysicsBinder},
+    engine::{
+        resource_manager::{MaterialSearchOptions, ResourceManager},
+        PhysicsBinder,
+    },
     resource::texture::Texture,
     scene::{
         base::PhysicsBinding,
@@ -1127,6 +1129,18 @@ impl Scene {
                 }
             }
         }
+
+        // We have to wait until skybox textures are all loaded, because we need to read their data
+        // to re-create cube map.
+        let mut skybox_textures = Vec::new();
+        for node in scene.graph.linear_iter() {
+            if let Node::Camera(camera) = node {
+                if let Some(skybox) = camera.skybox_ref() {
+                    skybox_textures.extend(skybox.textures().iter().filter_map(|t| t.clone()));
+                }
+            }
+        }
+        crate::core::futures::future::join_all(skybox_textures).await;
 
         // And do resolve to extract correct graphical data and so on.
         scene.resolve();

@@ -479,19 +479,19 @@ impl SkyBoxBuilder {
 #[derive(Debug, Clone, Default)]
 pub struct SkyBox {
     /// Texture for front face.
-    pub front: Option<Texture>,
+    pub(in crate) front: Option<Texture>,
     /// Texture for back face.
-    pub back: Option<Texture>,
+    pub(in crate) back: Option<Texture>,
     /// Texture for left face.
-    pub left: Option<Texture>,
+    pub(in crate) left: Option<Texture>,
     /// Texture for right face.
-    pub right: Option<Texture>,
+    pub(in crate) right: Option<Texture>,
     /// Texture for top face.
-    pub top: Option<Texture>,
+    pub(in crate) top: Option<Texture>,
     /// Texture for bottom face.
-    pub bottom: Option<Texture>,
+    pub(in crate) bottom: Option<Texture>,
     /// Cubemap texture
-    pub cubemap: Option<Texture>,
+    pub(in crate) cubemap: Option<Texture>,
 }
 
 /// An error that may occur during skybox creation.
@@ -558,7 +558,7 @@ impl SkyBox {
 
     /// Returns slice with all textures, where: 0 - Left, 1 - Right, 2 - Top, 3 - Bottom
     /// 4 - Front, 5 - Back
-    fn textures(&self) -> [Option<Texture>; 6] {
+    pub(in crate) fn textures(&self) -> [Option<Texture>; 6] {
         [
             self.left.clone(),
             self.right.clone(),
