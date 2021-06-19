@@ -1248,8 +1248,6 @@ impl Scene {
                         .vertex_buffer
                         .has_attribute(VertexAttributeUsage::TexCoord1)
                     {
-                        let free = data.vertex_buffer.find_free_shader_location();
-
                         data.vertex_buffer
                             .modify()
                             .add_attribute(
@@ -1258,7 +1256,7 @@ impl Scene {
                                     data_type: VertexAttributeDataType::F32,
                                     size: 2,
                                     divisor: 0,
-                                    shader_location: free,
+                                    shader_location: 6, // HACK: GBuffer renderer expects it to be at 6
                                 },
                                 Vector2::<f32>::default(),
                             )

@@ -215,8 +215,6 @@ pub fn generate_uv_meshes(
     };
 
     if !vertex_buffer_mut.has_attribute(VertexAttributeUsage::TexCoord1) {
-        let free = vertex_buffer_mut.find_free_shader_location();
-
         vertex_buffer_mut
             .add_attribute(
                 VertexAttributeDescriptor {
@@ -224,7 +222,7 @@ pub fn generate_uv_meshes(
                     data_type: VertexAttributeDataType::F32,
                     size: 2,
                     divisor: 0,
-                    shader_location: free,
+                    shader_location: 6, // HACK: GBuffer renderer expects it to be at 6
                 },
                 Vector2::<f32>::default(),
             )
