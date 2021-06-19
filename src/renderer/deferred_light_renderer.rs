@@ -512,7 +512,7 @@ impl DeferredLightRenderer {
             let scale = Matrix4::new_scaling(size);
             let wvp = Matrix4::new_translation(&camera.global_position()) * scale;
 
-            if let Some(gpu_texture) = textures.get(state, &skybox.cubemap().clone().unwrap()) {
+            if let Some(gpu_texture) = textures.get(state, &skybox.cubemap().unwrap()) {
                 let shader = &self.skybox_shader;
                 pass_stats += gbuffer
                     .final_frame

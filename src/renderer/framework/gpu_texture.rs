@@ -60,7 +60,7 @@ impl From<TextureKind> for GpuTextureKind {
 }
 
 impl GpuTextureKind {
-    fn to_texture_target(&self) -> u32 {
+    fn gl_texture_target(&self) -> u32 {
         match self {
             Self::Line { .. } => glow::TEXTURE_1D,
             Self::Rectangle { .. } => glow::TEXTURE_2D,
@@ -415,7 +415,7 @@ impl<'a> TextureBinding<'a> {
 
     pub fn set_minification_filter(self, min_filter: MinificationFilter) -> Self {
         unsafe {
-            let target = self.texture.kind.to_texture_target();
+            let target = self.texture.kind.gl_texture_target();
 
             self.state.gl.tex_parameter_i32(
                 target,
@@ -437,7 +437,7 @@ impl<'a> TextureBinding<'a> {
     pub fn set_magnification_filter(self, mag_filter: MagnificationFilter) -> Self {
         unsafe {
             self.state.gl.tex_parameter_i32(
-                self.texture.kind.to_texture_target(),
+                self.texture.kind.gl_texture_target(),
                 glow::TEXTURE_MAG_FILTER,
                 mag_filter.into_gl_value(),
             );
@@ -450,7 +450,7 @@ impl<'a> TextureBinding<'a> {
     pub fn set_wrap(self, coordinate: Coordinate, wrap: WrapMode) -> Self {
         unsafe {
             self.state.gl.tex_parameter_i32(
-                self.texture.kind.to_texture_target(),
+                self.texture.kind.gl_texture_target(),
                 coordinate.into_gl_value(),
                 wrap.into_gl_value(),
             );
@@ -471,7 +471,7 @@ impl<'a> TextureBinding<'a> {
             let color = [color.x, color.y, color.z, color.w];
 
             self.state.gl.tex_parameter_f32_slice(
-                self.texture.kind.to_texture_target(),
+                self.texture.kind.gl_texture_target(),
                 glow::TEXTURE_BORDER_COLOR,
                 &color,
             );
@@ -483,7 +483,7 @@ impl<'a> TextureBinding<'a> {
         unsafe {
             self.state
                 .gl
-                .generate_mipmap(self.texture.kind.to_texture_target());
+                .generate_mipmap(self.texture.kind.gl_texture_target());
         }
         self
     }
@@ -559,7 +559,7 @@ impl<'a> TextureBinding<'a> {
         self.texture.kind = kind;
         self.texture.pixel_kind = pixel_kind;
 
-        let target = kind.to_texture_target();
+        let target = kind.gl_texture_target();
 
         unsafe {
             self.state.set_texture(0, target, self.texture.texture);
@@ -813,7 +813,7 @@ impl GpuTexture {
     ) -> Result<Self, FrameworkError> {
         let mip_count = mip_count.max(1);
 
-        let target = kind.to_texture_target();
+        let target = kind.gl_texture_target();
 
         unsafe {
             let texture = state.gl.create_texture()?;
@@ -867,7 +867,7 @@ impl GpuTexture {
         state: &'a mut PipelineState,
         sampler_index: u32,
     ) -> TextureBinding<'a> {
-        state.set_texture(sampler_index, self.kind.to_texture_target(), self.texture);
+        state.set_texture(sampler_index, self.kind.gl_texture_target(), self.texture);
         TextureBinding {
             state,
             texture: self,
@@ -875,7 +875,7 @@ impl GpuTexture {
     }
 
     pub fn bind(&self, state: &mut PipelineState, sampler_index: u32) {
-        state.set_texture(sampler_index, self.kind.to_texture_target(), self.texture);
+        state.set_texture(sampler_index, self.kind.gl_texture_target(), self.texture);
     }
 
     pub fn kind(&self) -> GpuTextureKind {

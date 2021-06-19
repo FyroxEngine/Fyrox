@@ -634,13 +634,12 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
                         }
                         KeyCode::End => {
                             let text = self.formatted_text.borrow();
+                            let line = &text.get_lines()[self.caret_position.line];
                             if ui.keyboard_modifiers().control {
-                                let line = &text.get_lines()[self.caret_position.line];
                                 self.caret_position.line = text.get_lines().len() - 1;
                                 self.caret_position.offset = line.end - line.begin;
                                 self.selection_range = None;
                             } else if ui.keyboard_modifiers().shift {
-                                let line = &text.get_lines()[self.caret_position.line];
                                 let prev_position = self.caret_position;
                                 self.caret_position.offset = line.end - line.begin;
                                 self.selection_range = Some(SelectionRange {
@@ -651,7 +650,6 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
                                     },
                                 });
                             } else {
-                                let line = &text.get_lines()[self.caret_position.line];
                                 self.caret_position.offset = line.end - line.begin;
                                 self.selection_range = None;
                             }

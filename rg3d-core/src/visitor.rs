@@ -740,8 +740,8 @@ impl Visitor {
     }
 
     pub fn enter_region(&mut self, name: &str) -> VisitResult {
+        let node = self.nodes.borrow(self.current_node);
         if self.reading {
-            let node = self.nodes.borrow(self.current_node);
             let mut region = Handle::NONE;
             for child_handle in node.children.iter() {
                 let child = self.nodes.borrow(*child_handle);
@@ -758,7 +758,6 @@ impl Visitor {
             }
         } else {
             // Make sure that node does not exists already.
-            let node = self.nodes.borrow(self.current_node);
             for child_handle in node.children.iter() {
                 let child = self.nodes.borrow(*child_handle);
                 if child.name == name {

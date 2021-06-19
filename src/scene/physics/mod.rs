@@ -451,7 +451,7 @@ impl Physics {
         }
 
         PhysicsDesc {
-            integration_parameters: self.integration_parameters.clone().into(),
+            integration_parameters: self.integration_parameters.into(),
 
             bodies: self
                 .bodies

@@ -352,12 +352,9 @@ impl GenericSource {
 
         let samples = buffer.samples();
         if channel_count == 2 {
-            let left = samples[i];
-            let right = samples[i + 1];
-            (left, right)
+            (samples[i], samples[i + 1])
         } else {
-            let sample = samples[i];
-            (sample, sample)
+            (samples[i], samples[i])
         }
     }
 
@@ -465,6 +462,12 @@ pub struct GenericSourceBuilder {
     looping: bool,
     status: Status,
     play_once: bool,
+}
+
+impl Default for GenericSourceBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl GenericSourceBuilder {
