@@ -121,7 +121,7 @@ impl Clipboard {
     }
 
     pub fn paste(&mut self, dest_graph: &mut Graph, dest_physics: &mut Physics) -> DeepCloneResult {
-        assert_ne!(self.empty, true);
+        assert!(self.empty);
 
         deep_clone_nodes(
             self.graph[self.graph.get_root()].children(),

@@ -185,14 +185,13 @@ impl InteractionModeTrait for ScaleInteractionMode {
         engine: &mut GameEngine,
     ) {
         if let Selection::Graph(selection) = &editor_scene.selection {
+            let graph = &mut engine.scenes[editor_scene.scene].graph;
             if !editor_scene.selection.is_empty() {
-                let graph = &mut engine.scenes[editor_scene.scene].graph;
                 let scale =
                     calculate_gizmo_distance_scaling(graph, camera, self.scale_gizmo.origin);
                 self.scale_gizmo.sync_transform(graph, selection, scale);
                 self.scale_gizmo.set_visible(graph, true);
             } else {
-                let graph = &mut engine.scenes[editor_scene.scene].graph;
                 self.scale_gizmo.set_visible(graph, false);
             }
         }

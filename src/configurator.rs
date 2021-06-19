@@ -408,7 +408,7 @@ impl Configurator {
                         work_dir: self.work_dir.clone(),
                         textures_path: self.textures_path.clone(),
                     };
-                    if self.history.iter().position(|e| e == &new_entry).is_none() {
+                    if !self.history.iter().any(|e| e == &new_entry) {
                         self.history.push(new_entry);
 
                         let widget = make_history_entry_widget(
