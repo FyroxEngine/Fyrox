@@ -2013,7 +2013,7 @@ fn main() {
             }
         }
         Event::RedrawRequested(_) => {
-            engine.render(fixed_timestep).unwrap();
+            engine.render().unwrap();
         }
         Event::WindowEvent { event, .. } => {
             match event {
