@@ -1,14 +1,20 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <meta charset="utf-8">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>WASM Test</title>
+
+    <link rel="stylesheet" href="styles.css" />
+    <script type="module" defer src="main.js"></script>
   </head>
+
   <body>
     <noscript>This page contains webassembly and javascript content, please enable javascript in your browser.</noscript>
-    <script type="module">
-		import init from './pkg/wasm.js'
-		init().then(w => w.main_js())
-    </script>
+    <main id="main">
+      <button class="button-3d" id="button-start" type="button" role="button">
+        Start game with sound
+      </button>
+    </main>
   </body>
 </html>
