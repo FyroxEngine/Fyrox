@@ -769,12 +769,18 @@ impl Renderer {
         self.texture_cache.update(dt);
     }
 
+    pub(in crate) fn update(&mut self, dt: f32) {
+        // Update caches - this will remove timed out resources.
+        self.update_texture_cache(dt);
+        self.geometry_cache.update(dt);
+        self.renderer2d.update(dt);
+    }
+
     fn render_frame(
         &mut self,
         scenes: &SceneContainer,
         drawing_context: &DrawingContext,
         scenes2d: &Scene2dContainer,
-        dt: f32,
     ) -> Result<(), FrameworkError> {
         scope_profile!();
 
@@ -783,11 +789,6 @@ impl Renderer {
         // are created, but cache still thinks that resource is correctly bound, but it is different
         // object have same name.
         self.state.invalidate_resource_bindings_cache();
-
-        // Update caches - this will remove timed out resources.
-        self.update_texture_cache(dt);
-        self.geometry_cache.update(dt);
-
         self.statistics.begin_frame();
 
         let window_viewport = Rect::new(0, 0, self.frame_size.0 as i32, self.frame_size.1 as i32);
@@ -1005,7 +1006,6 @@ impl Renderer {
             scenes2d,
             &mut self.texture_cache,
             self.white_dummy.clone(),
-            dt,
         )?;
 
         // Render UI on top of everything.
@@ -1030,9 +1030,8 @@ impl Renderer {
         drawing_context: &DrawingContext,
         scenes2d: &Scene2dContainer,
         context: &glutin::WindowedContext<glutin::PossiblyCurrent>,
-        dt: f32,
     ) -> Result<(), FrameworkError> {
-        self.render_frame(scenes, drawing_context, scenes2d, dt)?;
+        self.render_frame(scenes, drawing_context, scenes2d)?;
         self.statistics.end_frame();
         context.swap_buffers()?;
         self.state.check_error();
@@ -1047,9 +1046,8 @@ impl Renderer {
         scenes: &SceneContainer,
         drawing_context: &DrawingContext,
         scenes2d: &Scene2dContainer,
-        dt: f32,
     ) -> Result<(), FrameworkError> {
-        self.render_frame(scenes, drawing_context, scenes2d, dt)?;
+        self.render_frame(scenes, drawing_context, scenes2d)?;
         self.statistics.end_frame();
         self.state.check_error();
         self.statistics.finalize();

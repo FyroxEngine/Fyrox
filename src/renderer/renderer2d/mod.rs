@@ -195,6 +195,10 @@ impl Renderer2d {
         })
     }
 
+    pub(in crate) fn update(&mut self, dt: f32) {
+        self.geometry_cache.update(dt);
+    }
+
     pub(in crate) fn render(
         &mut self,
         state: &mut PipelineState,
@@ -203,10 +207,7 @@ impl Renderer2d {
         scenes: &Scene2dContainer,
         texture_cache: &mut TextureCache,
         white_dummy: Rc<RefCell<GpuTexture>>,
-        dt: f32,
     ) -> Result<RenderPassStatistics, FrameworkError> {
-        self.geometry_cache.update(dt);
-
         let mut stats = RenderPassStatistics::default();
         let quad = self.geometry_cache.get(state, &self.quad);
 

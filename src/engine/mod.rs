@@ -184,6 +184,7 @@ impl<M: MessageData, C: Control<M, C>> Engine<M, C> {
         let window_size = Vector2::new(inner_size.width as f32, inner_size.height as f32);
 
         self.resource_manager.state().update(dt);
+        self.renderer.update(dt);
 
         for scene in self.scenes.iter_mut().filter(|s| s.enabled) {
             let frame_size = scene.render_target.as_ref().map_or(window_size, |rt| {
@@ -217,7 +218,7 @@ impl<M: MessageData, C: Control<M, C>> Engine<M, C> {
     /// Performs rendering of single frame, must be called from your game loop, otherwise you won't
     /// see anything.
     #[inline]
-    pub fn render(&mut self, dt: f32) -> Result<(), FrameworkError> {
+    pub fn render(&mut self) -> Result<(), FrameworkError> {
         self.user_interface.draw();
 
         #[cfg(not(target_arch = "wasm32"))]
@@ -227,7 +228,6 @@ impl<M: MessageData, C: Control<M, C>> Engine<M, C> {
                 &self.user_interface.get_drawing_context(),
                 &self.scenes2d,
                 &self.context,
-                dt,
             )
         }
         #[cfg(target_arch = "wasm32")]
@@ -236,7 +236,6 @@ impl<M: MessageData, C: Control<M, C>> Engine<M, C> {
                 &self.scenes,
                 &self.user_interface.get_drawing_context(),
                 &self.scenes2d,
-                dt,
             )
         }
     }

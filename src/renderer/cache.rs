@@ -1,3 +1,4 @@
+use crate::engine::resource_manager::DEFAULT_RESOURCE_LIFETIME;
 use crate::{
     core::scope_profile,
     renderer::{
@@ -111,7 +112,7 @@ impl GeometryCache {
 
             CacheEntry {
                 value: geometry_buffer,
-                time_to_live: 20.0,
+                time_to_live: DEFAULT_RESOURCE_LIFETIME,
                 value_hash: data_hash,
             }
         });
@@ -126,7 +127,7 @@ impl GeometryCache {
             geometry_buffer.value_hash = data_hash;
         }
 
-        geometry_buffer.time_to_live = 20.0;
+        geometry_buffer.time_to_live = DEFAULT_RESOURCE_LIFETIME;
         geometry_buffer
     }
 
@@ -166,7 +167,7 @@ impl TextureCache {
                     let entry = e.into_mut();
 
                     // Texture won't be destroyed while it used.
-                    entry.time_to_live = 20.0;
+                    entry.time_to_live = DEFAULT_RESOURCE_LIFETIME;
 
                     // Check if some value has changed in resource.
 
@@ -251,7 +252,7 @@ impl TextureCache {
 
                     e.insert(CacheEntry {
                         value: Rc::new(RefCell::new(gpu_texture)),
-                        time_to_live: 20.0,
+                        time_to_live: DEFAULT_RESOURCE_LIFETIME,
                         value_hash: texture.data_hash(),
                     })
                 }
@@ -269,6 +270,7 @@ impl TextureCache {
         for entry in self.map.values_mut() {
             entry.time_to_live -= dt;
         }
+
         self.map.retain(|_, v| v.time_to_live > 0.0);
     }
 

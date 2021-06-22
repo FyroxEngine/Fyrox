@@ -220,7 +220,7 @@ fn main() {
             }
             Event::RedrawRequested(_) => {
                 // Run renderer at max speed - it is not tied to game code.
-                game.engine.render(fixed_timestep).unwrap();
+                game.engine.render().unwrap();
             }
             Event::LoopDestroyed => {
                 println!("{:?}", rg3d::core::profiler::print());
