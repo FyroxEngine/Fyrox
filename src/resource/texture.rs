@@ -602,17 +602,32 @@ fn data_hash(data: &[u8]) -> u64 {
 }
 
 impl TextureData {
-    pub(in crate) async fn load_from_file<P: AsRef<Path>>(
-        path: P,
+    /// Tries to load a texture from given data. Use this method if you want to
+    /// load a texture from embedded data.
+    ///
+    /// # On-demand compression
+    ///
+    /// The data can be compressed if needed to improve performance on GPU side.
+    ///
+    /// # Important notes
+    ///
+    /// Textures loaded with this method won't be correctly serialized! It means
+    /// that if you'll made a scene with textures loaded with this method, and then
+    /// save a scene, then the engine won't be able to restore the textures if you'll
+    /// try to load the saved scene. This is essential limitation of this method,
+    /// because the engine does not know where to get the data of the texture at
+    /// loading. You should use `ResourceManager::request_texture` in majority of cases!
+    ///
+    /// Main use cases for this method are: procedural textures, icons for GUI.
+    pub fn load_from_memory(
+        data: &[u8],
         compression: CompressionOptions,
     ) -> Result<Self, TextureError> {
         // DDS is special. It can contain various kinds of textures as well as textures with
         // various pixel formats.
         //
         // TODO: Add support for DXGI formats.
-        let mut texture = if let Ok(dds) =
-            ddsfile::Dds::read(&mut Cursor::new(io::load_file(path.as_ref()).await?))
-        {
+        let mut texture = if let Ok(dds) = ddsfile::Dds::read(&mut Cursor::new(data)) {
             let d3dformat = dds
                 .get_d3d_format()
                 .ok_or(TextureError::UnsupportedFormat)?;
@@ -673,7 +688,6 @@ impl TextureData {
                 t_wrap_mode: TextureWrapMode::Repeat,
                 mip_count,
                 bytes,
-                path: path.as_ref().to_path_buf(),
                 kind: if dds.header.caps2 & Caps2::CUBEMAP == Caps2::CUBEMAP {
                     TextureKind::Cube {
                         width: dds.header.width,
@@ -691,14 +705,11 @@ impl TextureData {
                         height: dds.header.height,
                     }
                 },
-                anisotropy: 1.0,
-                serialize_content: false,
+                ..Default::default()
             }
         } else {
             // Commonly used formats are all rectangle textures.
-            let data = io::load_file(path.as_ref()).await?;
-
-            let dyn_img = image::load_from_memory(&data)?;
+            let dyn_img = image::load_from_memory(data)?;
 
             let width = dyn_img.width();
             let height = dyn_img.height();
@@ -723,7 +734,6 @@ impl TextureData {
                 kind: TextureKind::Rectangle { width, height },
                 data_hash: data_hash(&bytes),
                 bytes,
-                path: path.as_ref().to_path_buf(),
                 ..Default::default()
             }
         };
@@ -764,6 +774,22 @@ impl TextureData {
             }
         }
 
+        Ok(texture)
+    }
+
+    /// Tries to load a texture from a file.
+    ///
+    /// # Notes
+    ///
+    /// It is **not** public because you must use resource manager to load textures from external
+    /// resources.
+    pub(in crate) async fn load_from_file<P: AsRef<Path>>(
+        path: P,
+        compression: CompressionOptions,
+    ) -> Result<Self, TextureError> {
+        let data = io::load_file(path.as_ref()).await?;
+        let mut texture = Self::load_from_memory(&data, compression)?;
+        texture.path = path.as_ref().to_path_buf();
         Ok(texture)
     }
 
