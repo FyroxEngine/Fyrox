@@ -821,6 +821,13 @@ impl Default for MaterialSearchOptions {
     }
 }
 
+impl MaterialSearchOptions {
+    /// A helper to create MaterialsDirectory variant.
+    pub fn materials_directory<P: AsRef<Path>>(path: P) -> Self {
+        Self::MaterialsDirectory(path.as_ref().to_path_buf())
+    }
+}
+
 impl ResourceManagerState {
     pub(in crate::engine) fn new(upload_sender: TextureUploadSender) -> Self {
         Self {

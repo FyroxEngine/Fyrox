@@ -758,11 +758,11 @@ impl Renderer {
         let mut uploaded = 0;
         while let Ok(texture) = self.texture_upload_receiver.try_recv() {
             // Just "touch" texture in the cache and it will load texture to GPU.
-            let _ = self.texture_cache.get(&mut self.state, &texture);
-
-            uploaded += 1;
-            if uploaded >= THROUGHPUT {
-                break;
+            if self.texture_cache.get(&mut self.state, &texture).is_some() {
+                uploaded += 1;
+                if uploaded >= THROUGHPUT {
+                    break;
+                }
             }
         }
 
