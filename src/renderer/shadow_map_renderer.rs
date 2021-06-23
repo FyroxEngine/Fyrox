@@ -445,7 +445,7 @@ impl PointShadowMapRenderer {
             );
             let light_view_projection_matrix = light_projection_matrix * light_view_matrix;
 
-            let frustum = Frustum::from(light_view_projection_matrix).unwrap();
+            let frustum = Frustum::from(light_view_projection_matrix).unwrap_or_default();
 
             for batch in batch_storage.batches.iter() {
                 let geometry = geom_cache.get(state, &batch.data.read().unwrap());
