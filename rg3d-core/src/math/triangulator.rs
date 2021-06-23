@@ -66,11 +66,6 @@ impl fmt::Debug for Polygon {
 }
 
 fn is_ear(poly: &Polygon, prev: &Vertex, ear: &Vertex, next: &Vertex) -> bool {
-    // Check winding
-    if math::get_signed_triangle_area(prev.position, ear.position, next.position) >= 0.0 {
-        return false;
-    }
-
     // Check if other points are inside triangle
     let mut i = poly.head;
     loop {
