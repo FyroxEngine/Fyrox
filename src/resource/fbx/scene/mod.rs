@@ -1,9 +1,12 @@
-use crate::core::algebra::{Matrix4, Vector3};
 use crate::{
-    core::pool::{Handle, Pool, PoolPairIterator},
+    core::{
+        algebra::{Matrix4, Vector3},
+        pool::{Handle, Pool, PoolPairIterator},
+    },
     resource::fbx::{
         document::{attribute::FbxAttribute, FbxDocument, FbxNode, FbxNodeContainer},
         error::FbxError,
+        fix_index,
         scene::{
             animation::{FbxAnimationCurve, FbxAnimationCurveNode},
             geometry::FbxGeometry,
@@ -391,7 +394,8 @@ impl<T> FbxContainer<T> {
                 )?;
                 let index_array_node = nodes.get_by_name(index_node, "a")?;
                 for attribute in index_array_node.attributes() {
-                    index.push(attribute.as_i32()?);
+                    let idx = attribute.as_i32()?;
+                    index.push(if idx < 0 { fix_index(idx) as i32 } else { idx });
                 }
             }
         } else {
