@@ -251,6 +251,33 @@ impl Texture {
         }))
     }
 
+    /// Tries to load a texture from given data. Use this method if you want to
+    /// load a texture from embedded data.
+    ///
+    /// # On-demand compression
+    ///
+    /// The data can be compressed if needed to improve performance on GPU side.
+    ///
+    /// # Important notes
+    ///
+    /// Textures loaded with this method won't be correctly serialized! It means
+    /// that if you'll made a scene with textures loaded with this method, and then
+    /// save a scene, then the engine won't be able to restore the textures if you'll
+    /// try to load the saved scene. This is essential limitation of this method,
+    /// because the engine does not know where to get the data of the texture at
+    /// loading. You should use `ResourceManager::request_texture` in majority of cases!
+    ///
+    /// Main use cases for this method are: procedural textures, icons for GUI.
+    pub fn load_from_memory(
+        data: &[u8],
+        compression: CompressionOptions,
+    ) -> Result<Self, TextureError> {
+        Ok(Self::new(TextureState::Ok(TextureData::load_from_memory(
+            data,
+            compression,
+        )?)))
+    }
+
     /// Tries to create new texture from given parameters, it may fail only if size of data passed
     /// in does not match with required.
     pub fn from_bytes(
