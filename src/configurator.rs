@@ -2,22 +2,23 @@ use crate::{
     gui::{BuildContext, UiMessage, UiNode},
     GameEngine, Message, STARTUP_WORKING_DIR,
 };
-use rg3d::core::algebra::Vector2;
-use rg3d::core::scope_profile;
-use rg3d::core::visitor::{Visit, VisitResult, Visitor};
-use rg3d::gui::border::BorderBuilder;
-use rg3d::gui::decorator::DecoratorBuilder;
-use rg3d::gui::message::ListViewMessage;
 use rg3d::{
-    core::pool::Handle,
+    core::{
+        algebra::Vector2,
+        pool::Handle,
+        scope_profile,
+        visitor::{Visit, VisitResult, Visitor},
+    },
     gui::{
+        border::BorderBuilder,
         button::ButtonBuilder,
+        decorator::DecoratorBuilder,
         file_browser::FileSelectorBuilder,
         grid::{Column, GridBuilder, Row},
         list_view::ListViewBuilder,
         message::{
-            ButtonMessage, FileSelectorMessage, MessageDirection, TextBoxMessage, UiMessageData,
-            WidgetMessage, WindowMessage,
+            ButtonMessage, FileSelectorMessage, ListViewMessage, MessageDirection, TextBoxMessage,
+            UiMessageData, WidgetMessage, WindowMessage,
         },
         stack_panel::StackPanelBuilder,
         text::TextBuilder,

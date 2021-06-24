@@ -7,7 +7,6 @@ use crate::{
     preview::PreviewPanel,
     GameEngine,
 };
-use rg3d::gui::message::TextMessage;
 use rg3d::{
     core::{color::Color, pool::Handle, scope_profile},
     engine::resource_manager::ResourceManager,
@@ -18,7 +17,9 @@ use rg3d::{
         file_browser::FileBrowserBuilder,
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
-        message::{FileBrowserMessage, MessageDirection, UiMessageData, WidgetMessage},
+        message::{
+            FileBrowserMessage, MessageDirection, TextMessage, UiMessageData, WidgetMessage,
+        },
         scroll_viewer::ScrollViewerBuilder,
         text::TextBuilder,
         widget::WidgetBuilder,
@@ -148,11 +149,11 @@ impl AssetItemBuilder {
                 }
                 "fbx" | "rgs" => {
                     kind = AssetKind::Model;
-                    load_image("resources/model.png", resource_manager.clone())
+                    load_image(include_bytes!("../resources/model.png"))
                 }
                 "ogg" | "wav" => {
                     kind = AssetKind::Sound;
-                    load_image("resources/sound.png", resource_manager.clone())
+                    load_image(include_bytes!("../resources/sound.png"))
                 }
                 _ => None,
             })

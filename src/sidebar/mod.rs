@@ -11,7 +11,6 @@ use crate::{
 };
 use rg3d::{
     core::{pool::Handle, scope_profile},
-    engine::resource_manager::ResourceManager,
     gui::{
         check_box::CheckBoxBuilder,
         color::ColorFieldBuilder,
@@ -141,19 +140,14 @@ fn make_bool_input_field(ctx: &mut BuildContext, row: usize) -> Handle<UiNode> {
 }
 
 impl SideBar {
-    pub fn new(
-        ctx: &mut BuildContext,
-        sender: Sender<Message>,
-        resource_manager: ResourceManager,
-    ) -> Self {
+    pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
         let scroll_viewer;
 
         let base_section = BaseSection::new(ctx);
         let lod_editor = LodGroupEditor::new(ctx, sender.clone());
         let light_section = LightSection::new(ctx, sender.clone());
         let camera_section = CameraSection::new(ctx, sender.clone());
-        let particle_system_section =
-            ParticleSystemSection::new(ctx, sender.clone(), resource_manager);
+        let particle_system_section = ParticleSystemSection::new(ctx, sender.clone());
         let sprite_section = SpriteSection::new(ctx, sender.clone());
         let mesh_section = MeshSection::new(ctx, sender.clone());
         let physics_section = PhysicsSection::new(ctx, sender.clone());
@@ -247,11 +241,7 @@ impl SideBar {
                         self.lod_editor.sync_to_model(node, scene, ui);
                         self.light_section.sync_to_model(node, ui);
                         self.camera_section.sync_to_model(node, ui);
-                        self.particle_system_section.sync_to_model(
-                            node,
-                            ui,
-                            engine.resource_manager.clone(),
-                        );
+                        self.particle_system_section.sync_to_model(node, ui);
                         self.sprite_section.sync_to_model(node, ui);
                         self.mesh_section.sync_to_model(node, ui);
                         self.terrain_section.sync_to_model(node, ui);

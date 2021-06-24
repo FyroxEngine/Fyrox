@@ -2,10 +2,8 @@ use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     load_image, send_sync_message, Message,
 };
-use rg3d::core::scope_profile;
 use rg3d::{
-    core::{color::Color, pool::Handle},
-    engine::resource_manager::ResourceManager,
+    core::{color::Color, pool::Handle, scope_profile},
     gui::{
         brush::Brush,
         button::ButtonBuilder,
@@ -154,11 +152,7 @@ pub struct CommandStackViewer {
 }
 
 impl CommandStackViewer {
-    pub fn new(
-        ctx: &mut BuildContext,
-        resource_manager: ResourceManager,
-        sender: Sender<Message>,
-    ) -> Self {
+    pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
         let list;
         let undo;
         let redo;
@@ -183,10 +177,9 @@ impl CommandStackViewer {
                                                     .with_height(28.0)
                                                     .with_width(28.0),
                                             )
-                                            .with_opt_texture(load_image(
-                                                "resources/undo.png",
-                                                resource_manager.clone(),
-                                            ))
+                                            .with_opt_texture(load_image(include_bytes!(
+                                                "../resources/undo.png"
+                                            )))
                                             .build(ctx),
                                         )
                                         .build(ctx);
@@ -204,10 +197,9 @@ impl CommandStackViewer {
                                                     .with_height(28.0)
                                                     .with_width(28.0),
                                             )
-                                            .with_opt_texture(load_image(
-                                                "resources/redo.png",
-                                                resource_manager.clone(),
-                                            ))
+                                            .with_opt_texture(load_image(include_bytes!(
+                                                "../resources/redo.png"
+                                            )))
                                             .build(ctx),
                                         )
                                         .build(ctx);
@@ -222,10 +214,9 @@ impl CommandStackViewer {
                                                         .with_height(28.0)
                                                         .with_width(28.0),
                                                 )
-                                                .with_opt_texture(load_image(
-                                                    "resources/clear.png",
-                                                    resource_manager,
-                                                ))
+                                                .with_opt_texture(load_image(include_bytes!(
+                                                    "../resources/clear.png"
+                                                )))
                                                 .build(ctx),
                                             )
                                             .build(ctx);

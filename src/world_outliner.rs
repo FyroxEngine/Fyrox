@@ -1,12 +1,17 @@
-use crate::scene::commands::graph::{LinkNodesCommand, SetVisibleCommand};
-use crate::scene::commands::{make_delete_selection_command, ChangeSelectionCommand, SceneCommand};
-use crate::scene::{EditorScene, GraphSelection, Selection};
 use crate::{
     gui::{
         BuildContext, CustomWidget, EditorUiMessage, EditorUiNode, SceneItemMessage, Ui, UiMessage,
         UiNode,
     },
-    load_image, send_sync_message, GameEngine, Message,
+    load_image,
+    scene::{
+        commands::{
+            graph::{LinkNodesCommand, SetVisibleCommand},
+            make_delete_selection_command, ChangeSelectionCommand, SceneCommand,
+        },
+        EditorScene, GraphSelection, Selection,
+    },
+    send_sync_message, GameEngine, Message,
 };
 use rg3d::{
     core::{algebra::Vector2, pool::Handle, scope_profile},
@@ -216,13 +221,13 @@ impl Control<EditorUiMessage, EditorUiNode> for SceneItem {
                     if self.visibility != visibility && message.destination() == self.handle() {
                         self.visibility = visibility;
 
-                        let path = if visibility {
-                            "resources/visible.png"
+                        let image = if visibility {
+                            load_image(include_bytes!("../resources/visible.png"))
                         } else {
-                            "resources/invisible.png"
+                            load_image(include_bytes!("../resources/invisible.png"))
                         };
                         let image = ImageBuilder::new(WidgetBuilder::new())
-                            .with_opt_texture(load_image(path, self.resource_manager.clone()))
+                            .with_opt_texture(image)
                             .build(&mut ui.build_ctx());
                         ui.send_message(ButtonMessage::content(
                             self.visibility_toggle,
@@ -330,7 +335,7 @@ impl SceneItemBuilder {
         resource_manager: ResourceManager,
         node: &Node,
     ) -> Handle<UiNode> {
-        let visible_texture = load_image("resources/visible.png", resource_manager.clone());
+        let visible_texture = load_image(include_bytes!("../resources/visible.png"));
 
         let text_name;
         let visibility_toggle;
@@ -429,12 +434,10 @@ fn make_tree(
     resource_manager: ResourceManager,
     context_menu: Handle<UiNode>,
 ) -> Handle<UiNode> {
-    let icon_path = match node {
-        Node::Light(_) => "resources/light.png",
-        _ => "resources/cube.png",
+    let icon = match node {
+        Node::Light(_) => load_image(include_bytes!("../resources/light.png")),
+        _ => load_image(include_bytes!("../resources/cube.png")),
     };
-
-    let icon = load_image(icon_path, resource_manager.clone());
 
     SceneItemBuilder::new()
         .with_name(node.name().to_owned())

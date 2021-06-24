@@ -28,17 +28,15 @@ pub mod sound;
 pub mod utils;
 pub mod world_outliner;
 
-use crate::gui::make_dropdown_list_option;
-use crate::scene::commands::sound::DeleteSoundSourceCommand;
-use crate::scene::commands::{ChangeSelectionCommand, CommandGroup};
-use crate::settings::SettingsSectionKind;
-use crate::sound::SoundPanel;
 use crate::{
     asset::{AssetBrowser, AssetKind},
     camera::CameraController,
     command::{CommandStack, CommandStackViewer},
     configurator::Configurator,
-    gui::{BuildContext, EditorUiMessage, EditorUiNode, Ui, UiMessage, UiNode},
+    gui::{
+        make_dropdown_list_option, BuildContext, EditorUiMessage, EditorUiNode, Ui, UiMessage,
+        UiNode,
+    },
     interaction::{
         move_mode::MoveInteractionMode,
         navmesh::{
@@ -58,22 +56,17 @@ use crate::{
     scene::{
         commands::{
             graph::LoadModelCommand, make_delete_selection_command, mesh::SetMeshTextureCommand,
-            particle_system::SetParticleSystemTextureCommand, sprite::SetSpriteTextureCommand,
-            PasteCommand, SceneCommand, SceneContext,
+            particle_system::SetParticleSystemTextureCommand, sound::DeleteSoundSourceCommand,
+            sprite::SetSpriteTextureCommand, ChangeSelectionCommand, CommandGroup, PasteCommand,
+            SceneCommand, SceneContext,
         },
         EditorScene, Selection,
     },
-    settings::Settings,
+    settings::{Settings, SettingsSectionKind},
     sidebar::SideBar,
+    sound::SoundPanel,
     world_outliner::WorldOutliner,
 };
-use rg3d::engine::resource_manager::MaterialSearchOptions;
-use rg3d::gui::dropdown_list::DropdownListBuilder;
-use rg3d::gui::file_browser::FileBrowserMode;
-use rg3d::gui::message::{DropdownListMessage, TextBoxMessage};
-use rg3d::gui::text::TextBuilder;
-use rg3d::gui::text_box::TextBoxBuilder;
-use rg3d::gui::{HorizontalAlignment, Orientation, VerticalAlignment};
 use rg3d::{
     core::{
         algebra::{Point3, Vector2},
@@ -83,7 +76,7 @@ use rg3d::{
         scope_profile,
     },
     dpi::LogicalSize,
-    engine::resource_manager::ResourceManager,
+    engine::resource_manager::MaterialSearchOptions,
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
@@ -93,21 +86,25 @@ use rg3d::{
         canvas::CanvasBuilder,
         dock::{DockingManagerBuilder, TileBuilder, TileContent},
         draw,
-        file_browser::{FileSelectorBuilder, Filter},
+        dropdown_list::DropdownListBuilder,
+        file_browser::{FileBrowserMode, FileSelectorBuilder, Filter},
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
         message::{
             ButtonMessage, FileSelectorMessage, ImageMessage, KeyCode, MessageBoxMessage,
             MessageDirection, MouseButton, UiMessageData, WidgetMessage, WindowMessage,
         },
+        message::{DropdownListMessage, TextBoxMessage},
         messagebox::{MessageBoxBuilder, MessageBoxButtons, MessageBoxResult},
         stack_panel::StackPanelBuilder,
+        text::TextBuilder,
+        text_box::TextBoxBuilder,
         ttf::Font,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
-        Thickness,
+        HorizontalAlignment, Orientation, Thickness, VerticalAlignment,
     },
-    resource::texture::{Texture, TextureKind, TextureState},
+    resource::texture::{CompressionOptions, Texture, TextureKind, TextureState},
     scene::{
         base::BaseBuilder,
         graph::Graph,
@@ -150,22 +147,10 @@ lazy_static! {
     pub static ref TEXTURES_DIR: Mutex<PathBuf> = Mutex::new(Default::default());
 }
 
-pub fn load_image<P: AsRef<Path>>(
-    path: P,
-    resource_manager: ResourceManager,
-) -> Option<draw::SharedTexture> {
-    if let Ok(absolute_path) = STARTUP_WORKING_DIR
-        .lock()
-        .unwrap()
-        .join(path)
-        .canonicalize()
-    {
-        Some(into_gui_texture(
-            resource_manager.request_texture(&absolute_path),
-        ))
-    } else {
-        None
-    }
+pub fn load_image(data: &[u8]) -> Option<draw::SharedTexture> {
+    Some(into_gui_texture(
+        Texture::load_from_memory(data, CompressionOptions::NoCompression).ok()?,
+    ))
 }
 
 pub struct ScenePreview {
@@ -511,10 +496,9 @@ impl ScenePreview {
                                                     .with_width(32.0)
                                                     .with_height(32.0),
                                             )
-                                            .with_opt_texture(load_image(
-                                                "resources/select.png",
-                                                engine.resource_manager.clone(),
-                                            ))
+                                            .with_opt_texture(load_image(include_bytes!(
+                                                "../resources/select.png"
+                                            )))
                                             .build(ctx),
                                         )
                                         .build(ctx);
@@ -532,10 +516,9 @@ impl ScenePreview {
                                                     .with_width(32.0)
                                                     .with_height(32.0),
                                             )
-                                            .with_opt_texture(load_image(
-                                                "resources/move_arrow.png",
-                                                engine.resource_manager.clone(),
-                                            ))
+                                            .with_opt_texture(load_image(include_bytes!(
+                                                "../resources/move_arrow.png"
+                                            )))
                                             .build(ctx),
                                         )
                                         .build(ctx);
@@ -553,10 +536,9 @@ impl ScenePreview {
                                                     .with_width(32.0)
                                                     .with_height(32.0),
                                             )
-                                            .with_opt_texture(load_image(
-                                                "resources/rotate_arrow.png",
-                                                engine.resource_manager.clone(),
-                                            ))
+                                            .with_opt_texture(load_image(include_bytes!(
+                                                "../resources/rotate_arrow.png"
+                                            )))
                                             .build(ctx),
                                         )
                                         .build(ctx);
@@ -573,11 +555,9 @@ impl ScenePreview {
                                                     .with_width(32.0)
                                                     .with_height(32.0),
                                             )
-                                            .with_texture(into_gui_texture(
-                                                engine
-                                                    .resource_manager
-                                                    .request_texture("resources/scale_arrow.png"),
-                                            ))
+                                            .with_opt_texture(load_image(include_bytes!(
+                                                "../resources/scale_arrow.png"
+                                            )))
                                             .build(ctx),
                                         )
                                         .build(ctx);
@@ -594,11 +574,9 @@ impl ScenePreview {
                                                     .with_width(32.0)
                                                     .with_height(32.0),
                                             )
-                                            .with_texture(into_gui_texture(
-                                                engine
-                                                    .resource_manager
-                                                    .request_texture("resources/navmesh.png"),
-                                            ))
+                                            .with_opt_texture(load_image(include_bytes!(
+                                                "../resources/navmesh.png"
+                                            )))
                                             .build(ctx),
                                         )
                                         .build(ctx);
@@ -615,11 +593,9 @@ impl ScenePreview {
                                                     .with_width(32.0)
                                                     .with_height(32.0),
                                             )
-                                            .with_texture(into_gui_texture(
-                                                engine
-                                                    .resource_manager
-                                                    .request_texture("resources/terrain.png"),
-                                            ))
+                                            .with_opt_texture(load_image(include_bytes!(
+                                                "../resources/terrain.png"
+                                            )))
                                             .build(ctx),
                                         )
                                         .build(ctx);
@@ -830,11 +806,10 @@ impl Editor {
         let light_panel = LightPanel::new(engine);
 
         let ctx = &mut engine.user_interface.build_ctx();
-        let sidebar = SideBar::new(ctx, message_sender.clone(), engine.resource_manager.clone());
+        let sidebar = SideBar::new(ctx, message_sender.clone());
         let navmesh_panel = NavmeshPanel::new(ctx, message_sender.clone());
         let world_outliner = WorldOutliner::new(ctx, message_sender.clone());
-        let command_stack_viewer =
-            CommandStackViewer::new(ctx, engine.resource_manager.clone(), message_sender.clone());
+        let command_stack_viewer = CommandStackViewer::new(ctx, message_sender.clone());
         let sound_panel = SoundPanel::new(ctx);
         let log = Log::new(ctx);
         let model_import_dialog = ModelImportDialog::new(ctx);

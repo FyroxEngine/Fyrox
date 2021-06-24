@@ -4,11 +4,8 @@ use crate::{
     sound::{SoundItem, SoundItemMessage},
     world_outliner::SceneItem,
 };
-use rg3d::gui::text::TextBuilder;
-use rg3d::gui::{HorizontalAlignment, VerticalAlignment};
 use rg3d::{
     core::{algebra::Vector2, pool::Handle},
-    engine::resource_manager::ResourceManager,
     gui::{
         border::BorderBuilder,
         button::ButtonBuilder,
@@ -17,8 +14,9 @@ use rg3d::{
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
         message::{ButtonMessage, MessageData, MessageDirection, OsEvent, UiMessageData},
+        text::TextBuilder,
         widget::WidgetBuilder,
-        Control, NodeHandleMapping, Thickness,
+        Control, HorizontalAlignment, NodeHandleMapping, Thickness, VerticalAlignment,
     },
 };
 use std::ops::{Deref, DerefMut};
@@ -166,11 +164,7 @@ impl<D: Clone + 'static> DeletableItemBuilder<D> {
         self
     }
 
-    pub fn build(
-        self,
-        ctx: &mut BuildContext,
-        resource_manager: ResourceManager,
-    ) -> DeletableItem<D> {
+    pub fn build(self, ctx: &mut BuildContext) -> DeletableItem<D> {
         let delete = ButtonBuilder::new(WidgetBuilder::new().on_column(1))
             .with_content(
                 ButtonBuilder::new(
@@ -181,7 +175,7 @@ impl<D: Clone + 'static> DeletableItemBuilder<D> {
                 )
                 .with_content(
                     ImageBuilder::new(WidgetBuilder::new())
-                        .with_opt_texture(load_image("resources/cross.png", resource_manager))
+                        .with_opt_texture(load_image(include_bytes!("../resources/cross.png")))
                         .build(ctx),
                 )
                 .build(ctx),

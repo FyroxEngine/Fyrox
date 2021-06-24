@@ -16,7 +16,6 @@ use crate::{
 };
 use rg3d::{
     core::{pool::Handle, scope_profile},
-    engine::resource_manager::ResourceManager,
     gui::{
         button::ButtonBuilder,
         dropdown_list::DropdownListBuilder,
@@ -58,11 +57,7 @@ pub struct ParticleSystemSection {
     emitter_section: EmitterSection,
 }
 
-fn make_button_image(
-    ctx: &mut BuildContext,
-    resource_manager: ResourceManager,
-    path: &str,
-) -> Handle<UiNode> {
+fn make_button_image(ctx: &mut BuildContext, image_data: &[u8]) -> Handle<UiNode> {
     ButtonBuilder::new(
         WidgetBuilder::new()
             .with_width(ROW_HEIGHT - 11.0)
@@ -71,18 +66,14 @@ fn make_button_image(
     )
     .with_content(
         ImageBuilder::new(WidgetBuilder::new())
-            .with_opt_texture(load_image(path, resource_manager))
+            .with_opt_texture(load_image(image_data))
             .build(ctx),
     )
     .build(ctx)
 }
 
 impl ParticleSystemSection {
-    pub fn new(
-        ctx: &mut BuildContext,
-        sender: Sender<Message>,
-        resource_manager: ResourceManager,
-    ) -> Self {
+    pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
         let emitter_section = EmitterSection::new(ctx, sender.clone());
 
         let acceleration;
@@ -121,24 +112,21 @@ impl ParticleSystemSection {
                                                     .with_child({
                                                         add_box_emitter = make_button_image(
                                                             ctx,
-                                                            resource_manager.clone(),
-                                                            "resources/add_box_emitter.png",
+                                                            include_bytes!("../../../resources/add_box_emitter.png"),
                                                         );
                                                         add_box_emitter
                                                     })
                                                     .with_child({
                                                         add_sphere_emitter = make_button_image(
                                                             ctx,
-                                                            resource_manager.clone(),
-                                                            "resources/add_sphere_emitter.png",
+                                                            include_bytes!("../../../resources/add_sphere_emitter.png"),
                                                         );
                                                         add_sphere_emitter
                                                     })
                                                     .with_child({
                                                         add_cylinder_emitter = make_button_image(
                                                             ctx,
-                                                            resource_manager,
-                                                            "resources/add_cylinder_emitter.png",
+                                                         include_bytes!("../../../resources/add_cylinder_emitter.png"),
                                                         );
                                                         add_cylinder_emitter
                                                     }),
@@ -184,7 +172,7 @@ impl ParticleSystemSection {
         }
     }
 
-    pub fn sync_to_model(&mut self, node: &Node, ui: &mut Ui, resource_manager: ResourceManager) {
+    pub fn sync_to_model(&mut self, node: &Node, ui: &mut Ui) {
         send_sync_message(
             ui,
             WidgetMessage::visibility(
@@ -224,7 +212,7 @@ impl ParticleSystemSection {
                                 .build(ctx),
                         )
                         .with_data(i)
-                        .build(ctx, resource_manager.clone());
+                        .build(ctx);
                     ctx.add_node(UiNode::User(EditorUiNode::EmitterItem(item)))
                 })
                 .collect::<Vec<_>>();
