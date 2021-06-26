@@ -168,6 +168,16 @@ impl Graph {
         self.root
     }
 
+    /// Tries to borrow a node, returns Some(node) if the handle is valid, None - otherwise.
+    pub fn try_get(&self, handle: Handle<Node>) -> Option<&Node> {
+        self.pool.try_borrow(handle)
+    }
+
+    /// Tries to mutably borrow a node, returns Some(node) if the handle is valid, None - otherwise.
+    pub fn try_get_mut(&mut self, handle: Handle<Node>) -> Option<&mut Node> {
+        self.pool.try_borrow_mut(handle)
+    }
+
     /// Destroys node and its children recursively.
     ///
     /// # Notes

@@ -912,47 +912,95 @@ impl Physics {
             let desc = ColliderDesc::from_collider(collider, &resource_physics.bodies.handle_map());
             // Remap handle from resource to one that was created above.
             let remapped_parent = *link.bodies.get(&desc.parent).unwrap();
-            if let (ColliderShapeDesc::Trimesh(_), Some(associated_node)) =
-                (desc.shape, target_binder.node_of(remapped_parent))
-            {
-                if target_graph.is_valid_handle(associated_node) {
-                    // Restore data only for trimeshes.
-                    let collider =
-                        ColliderBuilder::new(Self::make_trimesh(associated_node, target_graph))
+            match desc.shape {
+                ColliderShapeDesc::Trimesh(_) => {
+                    if let Some(associated_node) = target_binder.node_of(remapped_parent) {
+                        if target_graph.is_valid_handle(associated_node) {
+                            let collider = ColliderBuilder::new(Self::make_trimesh(
+                                associated_node,
+                                target_graph,
+                            ))
                             .build();
-                    let new_handle = self.add_collider(collider, &remapped_parent);
+                            let new_handle = self.add_collider(collider, &remapped_parent);
+                            link.colliders.insert(
+                                new_handle,
+                                resource_physics
+                                    .colliders
+                                    .handle_map()
+                                    .key_of(&resource_handle)
+                                    .cloned()
+                                    .unwrap(),
+                            );
+
+                            Log::writeln(
+                                MessageKind::Information,
+                                format!(
+                                    "Geometry for trimesh {:?} was restored from node at handle {:?}!",
+                                    desc.parent, associated_node
+                                ),
+                            )
+                        } else {
+                            Log::writeln(MessageKind::Error, format!("Unable to get geometry for trimesh, node at handle {:?} does not exists!", associated_node))
+                        }
+                    }
+                }
+                ColliderShapeDesc::Heightfield(_) => {
+                    if let Some(associated_node) = target_binder.node_of(remapped_parent) {
+                        if let Some(Node::Terrain(terrain)) = target_graph.try_get(associated_node)
+                        {
+                            let collider =
+                                ColliderBuilder::new(Self::make_heightfield(terrain)).build();
+                            let new_handle = self.add_collider(collider, &remapped_parent);
+                            link.colliders.insert(
+                                new_handle,
+                                resource_physics
+                                    .colliders
+                                    .handle_map()
+                                    .key_of(&resource_handle)
+                                    .cloned()
+                                    .unwrap(),
+                            );
+
+                            Log::writeln(
+                                MessageKind::Information,
+                                format!(
+                                    "Geometry for height field {:?} was restored from node at handle {:?}!",
+                                    desc.parent, associated_node
+                                ),
+                            )
+                        } else {
+                            Log::writeln(
+                                MessageKind::Error,
+                                format!(
+                                    "Unable to get geometry for height field,\
+                             node at handle {:?} does not exists!",
+                                    associated_node
+                                ),
+                            )
+                        }
+                    } else {
+                        Log::writeln(
+                            MessageKind::Information,
+                            format!(
+                                "Unable to restore geometry for height field {:?} because it has no associated node in the scene!",
+                                desc.parent
+                            ),
+                        )
+                    }
+                }
+                _ => {
+                    let (new_collider, _) = desc.convert_to_collider();
+                    let new_handle = self.add_collider(new_collider, &remapped_parent);
                     link.colliders.insert(
-                        new_handle,
                         resource_physics
                             .colliders
                             .handle_map()
                             .key_of(&resource_handle)
                             .cloned()
                             .unwrap(),
+                        new_handle,
                     );
-
-                    Log::writeln(
-                        MessageKind::Information,
-                        format!(
-                            "Geometry for trimesh {:?} was restored from node at handle {:?}!",
-                            desc.parent, associated_node
-                        ),
-                    )
-                } else {
-                    Log::writeln(MessageKind::Error,format!("Unable to get geometry for trimesh, node at handle {:?} does not exists!", associated_node))
                 }
-            } else {
-                let (new_collider, _) = desc.convert_to_collider();
-                let new_handle = self.add_collider(new_collider, &remapped_parent);
-                link.colliders.insert(
-                    resource_physics
-                        .colliders
-                        .handle_map()
-                        .key_of(&resource_handle)
-                        .cloned()
-                        .unwrap(),
-                    new_handle,
-                );
             }
         }
 
