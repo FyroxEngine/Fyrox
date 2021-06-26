@@ -749,43 +749,103 @@ impl Physics {
         }
 
         for desc in phys_desc.colliders.drain(..) {
-            if let ColliderShapeDesc::Trimesh(_) = desc.shape {
-                // Trimeshes are special: we never store data for them, but only getting correct
-                // one from associated mesh in the scene.
-                if let Some(associated_node) = binder.node_of(desc.parent) {
-                    if graph.is_valid_handle(associated_node) {
-                        // Restore data only for trimeshes.
-                        let collider =
-                            ColliderBuilder::new(Self::make_trimesh(associated_node, graph))
-                                .build();
-                        self.colliders.set.insert_with_parent(
-                            collider,
-                            self.bodies
-                                .handle_map()
-                                .value_of(&desc.parent)
-                                .cloned()
-                                .unwrap(),
-                            &mut self.bodies.set,
-                        );
+            match desc.shape {
+                ColliderShapeDesc::Trimesh(_) => {
+                    // Trimeshes are special: we never store data for them, but only getting correct
+                    // one from associated mesh in the scene.
+                    if let Some(associated_node) = binder.node_of(desc.parent) {
+                        if graph.is_valid_handle(associated_node) {
+                            // Restore data only for trimeshes.
+                            let collider =
+                                ColliderBuilder::new(Self::make_trimesh(associated_node, graph))
+                                    .build();
+                            self.colliders.set.insert_with_parent(
+                                collider,
+                                self.bodies
+                                    .handle_map()
+                                    .value_of(&desc.parent)
+                                    .cloned()
+                                    .unwrap(),
+                                &mut self.bodies.set,
+                            );
 
-                        Log::writeln(
-                            MessageKind::Information,
-                            format!(
-                                "Geometry for trimesh {:?} was restored from node at handle {:?}!",
-                                desc.parent, associated_node
-                            ),
-                        )
-                    } else {
-                        Log::writeln(MessageKind::Error,format!("Unable to get geometry for trimesh, node at handle {:?} does not exists!", associated_node))
+                            Log::writeln(
+                                MessageKind::Information,
+                                format!(
+                                    "Geometry for trimesh {:?} was restored from node at handle {:?}!",
+                                    desc.parent, associated_node
+                                ),
+                            )
+                        } else {
+                            Log::writeln(
+                                MessageKind::Error,
+                                format!(
+                                    "Unable to get geometry for trimesh,\
+                             node at handle {:?} does not exists!",
+                                    associated_node
+                                ),
+                            )
+                        }
                     }
                 }
-            } else {
-                let (collider, parent) = desc.convert_to_collider();
-                self.colliders.set.insert_with_parent(
-                    collider,
-                    self.bodies.handle_map().value_of(&parent).cloned().unwrap(),
-                    &mut self.bodies.set,
-                );
+                ColliderShapeDesc::Heightfield(_) => {
+                    // Height fields are special: we never store data for them, but only getting correct
+                    // one from associated terrain in the scene.
+                    if let Some(associated_node) = binder.node_of(desc.parent) {
+                        if graph.is_valid_handle(associated_node) {
+                            if let Node::Terrain(terrain) = &graph[associated_node] {
+                                let heightfield = Self::make_heightfield(terrain);
+
+                                let collider = ColliderBuilder::new(heightfield).build();
+
+                                self.colliders.set.insert_with_parent(
+                                    collider,
+                                    self.bodies
+                                        .handle_map()
+                                        .value_of(&desc.parent)
+                                        .cloned()
+                                        .unwrap(),
+                                    &mut self.bodies.set,
+                                );
+
+                                Log::writeln(
+                                    MessageKind::Information,
+                                    format!(
+                                        "Geometry for height field {:?} was restored from node at handle {:?}!",
+                                        desc.parent, associated_node
+                                    ),
+                                )
+                            } else {
+                                Log::writeln(
+                                    MessageKind::Error,
+                                    format!(
+                                        "Unable to get geometry for height field,\
+                                 node at handle {:?} is not a terrain!",
+                                        associated_node
+                                    ),
+                                )
+                            }
+                        } else {
+                            Log::writeln(
+                                MessageKind::Error,
+                                format!(
+                                    "Unable to get geometry for height field,\
+                            node at handle {:?} does not exists!",
+                                    associated_node
+                                ),
+                            )
+                        }
+                    }
+                }
+                // Rest of colliders are independent.
+                _ => {
+                    let (collider, parent) = desc.convert_to_collider();
+                    self.colliders.set.insert_with_parent(
+                        collider,
+                        self.bodies.handle_map().value_of(&parent).cloned().unwrap(),
+                        &mut self.bodies.set,
+                    );
+                }
             }
         }
 
