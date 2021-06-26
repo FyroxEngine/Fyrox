@@ -1,3 +1,5 @@
+use rg3d::core::algebra::Matrix4;
+use rg3d::scene::mesh::surface::SurfaceData;
 use rg3d::{
     core::{
         algebra::{Isometry3, Point3, Translation, Translation3, Vector3},
@@ -45,6 +47,38 @@ pub struct Physics {
     body_handle_map: HashMap<Handle<RigidBody>, RigidBodyHandle>,
     collider_handle_map: HashMap<Handle<Collider>, ColliderHandle>,
     joint_handle_map: HashMap<Handle<Joint>, JointHandle>,
+}
+
+fn draw_mesh(
+    data: &SurfaceData,
+    transform: &Matrix4<f32>,
+    context: &mut SceneDrawingContext,
+    color: Color,
+) {
+    for triangle in data.geometry_buffer.triangles_ref() {
+        let a = transform.transform_point(&Point3::from(
+            data.vertex_buffer
+                .get(triangle[0] as usize)
+                .unwrap()
+                .read_3_f32(VertexAttributeUsage::Position)
+                .unwrap(),
+        ));
+        let b = transform.transform_point(&Point3::from(
+            data.vertex_buffer
+                .get(triangle[1] as usize)
+                .unwrap()
+                .read_3_f32(VertexAttributeUsage::Position)
+                .unwrap(),
+        ));
+        let c = transform.transform_point(&Point3::from(
+            data.vertex_buffer
+                .get(triangle[2] as usize)
+                .unwrap()
+                .read_3_f32(VertexAttributeUsage::Position)
+                .unwrap(),
+        ));
+        context.draw_triangle(a.coords, b.coords, c.coords, color);
+    }
 }
 
 impl Physics {
@@ -451,15 +485,7 @@ impl Physics {
                     context.draw_triangle(triangle.a, triangle.b, triangle.c, color);
                 }
                 ColliderShapeDesc::Trimesh(_) => {
-                    let mut node = Handle::NONE;
-                    for (&n, &b) in self.binder.forward_map().iter() {
-                        if b == parent {
-                            node = n;
-                            break;
-                        }
-                    }
-
-                    if node.is_some() {
+                    if let Some(node) = self.binder.key_of(&parent).cloned() {
                         let mut stack = vec![node];
                         while let Some(handle) = stack.pop() {
                             let node = &graph[handle];
@@ -470,37 +496,25 @@ impl Physics {
                                 for surface in mesh.surfaces() {
                                     let data = surface.data();
                                     let data = data.read().unwrap();
-                                    for triangle in data.geometry_buffer.triangles_ref() {
-                                        let a = transform.transform_point(&Point3::from(
-                                            data.vertex_buffer
-                                                .get(triangle[0] as usize)
-                                                .unwrap()
-                                                .read_3_f32(VertexAttributeUsage::Position)
-                                                .unwrap(),
-                                        ));
-                                        let b = transform.transform_point(&Point3::from(
-                                            data.vertex_buffer
-                                                .get(triangle[1] as usize)
-                                                .unwrap()
-                                                .read_3_f32(VertexAttributeUsage::Position)
-                                                .unwrap(),
-                                        ));
-                                        let c = transform.transform_point(&Point3::from(
-                                            data.vertex_buffer
-                                                .get(triangle[2] as usize)
-                                                .unwrap()
-                                                .read_3_f32(VertexAttributeUsage::Position)
-                                                .unwrap(),
-                                        ));
-                                        context.draw_triangle(a.coords, b.coords, c.coords, color);
-                                    }
+                                    draw_mesh(&data, &transform, context, color);
                                 }
                             }
                             stack.extend_from_slice(node.children());
                         }
                     }
                 }
-                ColliderShapeDesc::Heightfield(_) => {} // TODO
+                ColliderShapeDesc::Heightfield(_) => {
+                    if let Some(node) = self.binder.key_of(&parent).cloned() {
+                        if let Node::Terrain(terrain) = &graph[node] {
+                            let transform = terrain.global_transform();
+                            for chunk in terrain.chunks_ref() {
+                                let data = chunk.data();
+                                let data = data.read().unwrap();
+                                draw_mesh(&data, &transform, context, color);
+                            }
+                        }
+                    }
+                }
             }
         }
 
