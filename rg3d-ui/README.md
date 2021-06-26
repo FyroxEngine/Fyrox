@@ -65,7 +65,7 @@ rg3d-ui uses a bit unusual way of styling - you have to replace entire sub-graph
 
 ## Screenshots
 
-[![editor](https://raw.githubusercontent.com/mrDIMAS/rusty-editor/master/screenshots/latest.png)](https://github.com/mrDIMAS/rusty-editor/)
+[![editor](https://raw.githubusercontent.com/rg3dengine/rusty-editor/master/screenshots/latest.png)](https://github.com/mrDIMAS/rusty-editor/)
 
 ## Contributing
 
