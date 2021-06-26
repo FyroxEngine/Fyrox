@@ -382,7 +382,7 @@ impl PhysicsSection {
                                         8
                                     }
                                     ColliderShapeDesc::Heightfield(_) => {
-                                        // TODO
+                                        // Nothing to edit.
                                         9
                                     }
                                 };
@@ -507,7 +507,7 @@ impl PhysicsSection {
                         // Nothing to edit.
                     }
                     ColliderShapeDesc::Heightfield(_) => {
-                        // TODO
+                        // Nothing to edit.
                     }
                 };
             }
