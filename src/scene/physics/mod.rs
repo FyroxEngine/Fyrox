@@ -363,6 +363,18 @@ impl Physics {
                     transform,
                     Color::opaque(200, 200, 200),
                 );
+            } else if let Some(heightfield) = collider.shape().as_heightfield() {
+                for triangle in heightfield.triangles() {
+                    let a = transform.transform_point(&triangle.a);
+                    let b = transform.transform_point(&triangle.b);
+                    let c = transform.transform_point(&triangle.c);
+                    context.draw_triangle(
+                        a.coords,
+                        b.coords,
+                        c.coords,
+                        Color::opaque(200, 200, 200),
+                    );
+                }
             }
         }
     }
