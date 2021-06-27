@@ -1,3 +1,4 @@
+use crate::scene::commands::sound::MoveSpatialSoundSourceCommand;
 use crate::{
     command::Command,
     physics::{Collider, Joint, RigidBody},
@@ -238,6 +239,7 @@ pub enum SceneCommand {
     // Sound commands.
     AddSoundSource(AddSoundSourceCommand),
     DeleteSoundSource(DeleteSoundSourceCommand),
+    MoveSpatialSoundSource(MoveSpatialSoundSourceCommand),
     SetSoundSourceGain(SetSoundSourceGainCommand),
     SetSoundSourceBuffer(SetSoundSourceBufferCommand),
     SetSoundSourceName(SetSoundSourceNameCommand),
@@ -365,6 +367,7 @@ macro_rules! static_dispatch {
             SceneCommand::ModifyTerrainLayerMask(v) => v.$func($($args),*),
             SceneCommand::AddSoundSource(v) => v.$func($($args),*),
             SceneCommand::DeleteSoundSource(v) => v.$func($($args),*),
+            SceneCommand::MoveSpatialSoundSource(v) => v.$func($($args),*),
             SceneCommand::SetSoundSourceGain(v) => v.$func($($args),*),
             SceneCommand::SetSoundSourceBuffer(v) => v.$func($($args),*),
             SceneCommand::SetSoundSourceName(v) => v.$func($($args),*),

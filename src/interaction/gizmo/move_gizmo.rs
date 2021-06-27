@@ -1,6 +1,6 @@
 use crate::{
     interaction::plane::PlaneKind,
-    scene::{EditorScene, GraphSelection},
+    scene::{EditorScene, Selection},
     GameEngine,
 };
 use rg3d::{
@@ -19,6 +19,7 @@ use rg3d::{
         },
         node::Node,
         transform::{Transform, TransformBuilder},
+        Scene,
     },
 };
 use std::sync::{Arc, RwLock};
@@ -298,19 +299,30 @@ impl MoveGizmo {
         Vector3::default()
     }
 
-    pub fn sync_transform(
-        &self,
-        graph: &mut Graph,
-        selection: &GraphSelection,
-        scale: Vector3<f32>,
-    ) {
-        if let Some((rotation, position)) = selection.global_rotation_position(graph) {
-            graph[self.origin]
-                .set_visibility(true)
-                .local_transform_mut()
-                .set_rotation(rotation)
-                .set_position(position)
-                .set_scale(scale);
+    pub fn sync_transform(&self, scene: &mut Scene, selection: &Selection, scale: Vector3<f32>) {
+        let graph = &mut scene.graph;
+        match selection {
+            Selection::Graph(selection) => {
+                if let Some((rotation, position)) = selection.global_rotation_position(graph) {
+                    graph[self.origin]
+                        .set_visibility(true)
+                        .local_transform_mut()
+                        .set_rotation(rotation)
+                        .set_position(position)
+                        .set_scale(scale);
+                }
+            }
+            Selection::Sound(selection) => {
+                if let Some(center) = selection.center(&scene.sound_context) {
+                    graph[self.origin]
+                        .set_visibility(true)
+                        .local_transform_mut()
+                        .set_position(center)
+                        .set_rotation(Default::default())
+                        .set_scale(scale);
+                }
+            }
+            _ => (),
         }
     }
 

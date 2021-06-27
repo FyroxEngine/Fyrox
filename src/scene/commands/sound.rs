@@ -121,6 +121,58 @@ impl<'a> Command<'a> for DeleteSoundSourceCommand {
     }
 }
 
+#[derive(Debug)]
+pub struct MoveSpatialSoundSourceCommand {
+    source: Handle<SoundSource>,
+    old_position: Vector3<f32>,
+    new_position: Vector3<f32>,
+}
+
+impl MoveSpatialSoundSourceCommand {
+    pub fn new(
+        node: Handle<SoundSource>,
+        old_position: Vector3<f32>,
+        new_position: Vector3<f32>,
+    ) -> Self {
+        Self {
+            source: node,
+            old_position,
+            new_position,
+        }
+    }
+
+    fn swap(&mut self) -> Vector3<f32> {
+        let position = self.new_position;
+        std::mem::swap(&mut self.new_position, &mut self.old_position);
+        position
+    }
+
+    fn set_position(&self, sound_context: &SoundContext, position: Vector3<f32>) {
+        let mut state = sound_context.state();
+        if let SoundSource::Spatial(spatial) = state.source_mut(self.source) {
+            spatial.set_position(position);
+        }
+    }
+}
+
+impl<'a> Command<'a> for MoveSpatialSoundSourceCommand {
+    type Context = SceneContext<'a>;
+
+    fn name(&mut self, _context: &Self::Context) -> String {
+        "Move Spatial Sound Source".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut Self::Context) {
+        let position = self.swap();
+        self.set_position(&context.scene.sound_context, position);
+    }
+
+    fn revert(&mut self, context: &mut Self::Context) {
+        let position = self.swap();
+        self.set_position(&context.scene.sound_context, position);
+    }
+}
+
 macro_rules! define_sound_source_command {
     ($name:ident($human_readable_name:expr, $value_type:ty) where fn swap($self:ident, $source:ident) $apply_method:block ) => {
         #[derive(Debug)]
