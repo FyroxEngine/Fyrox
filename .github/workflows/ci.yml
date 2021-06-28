@@ -30,6 +30,8 @@ jobs:
     name: Linux CI
     runs-on: ubuntu-latest
     steps:
+    - name: Update
+      run: sudo apt update
     - name: Install Dependencies
       run: sudo apt-get install libasound2-dev libudev-dev pkg-config
     - uses: actions/checkout@v2
