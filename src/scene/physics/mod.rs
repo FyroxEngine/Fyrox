@@ -662,15 +662,15 @@ impl Physics {
         handle
     }
 
-    /// Creates new heightfield rigid body from given terrain scene node.
-    pub fn terrain_to_heightfield(
+    /// Creates new height field collider from given terrain scene node.
+    pub fn terrain_to_heightfield_collider(
         &mut self,
         terrain_handle: Handle<Node>,
         graph: &Graph,
-    ) -> RigidBodyHandle {
+    ) -> Collider {
         let terrain = graph[terrain_handle].as_terrain();
         let shape = Self::make_heightfield(terrain);
-        let heightfield = ColliderBuilder::new(shape)
+        ColliderBuilder::new(shape)
             .position(Isometry3 {
                 rotation: UnitQuaternion::default(),
                 translation: Translation {
@@ -678,7 +678,16 @@ impl Physics {
                 },
             })
             .friction(0.0)
-            .build();
+            .build()
+    }
+
+    /// Creates new height field rigid body from given terrain scene node.
+    pub fn terrain_to_heightfield(
+        &mut self,
+        terrain_handle: Handle<Node>,
+        graph: &Graph,
+    ) -> RigidBodyHandle {
+        let heightfield = self.terrain_to_heightfield_collider(terrain_handle, graph);
         let (global_rotation, global_position) =
             graph.isometric_global_rotation_position(terrain_handle);
         let body = RigidBodyBuilder::new(RigidBodyType::Static)
@@ -816,10 +825,9 @@ impl Physics {
                     // one from associated terrain in the scene.
                     if let Some(associated_node) = binder.node_of(desc.parent) {
                         if graph.is_valid_handle(associated_node) {
-                            if let Node::Terrain(terrain) = &graph[associated_node] {
-                                let heightfield = Self::make_heightfield(terrain);
-
-                                let collider = ColliderBuilder::new(heightfield).build();
+                            if let Node::Terrain(_) = &graph[associated_node] {
+                                let collider =
+                                    self.terrain_to_heightfield_collider(associated_node, graph);
 
                                 self.colliders.set.insert_with_parent(
                                     collider,
@@ -969,10 +977,10 @@ impl Physics {
                 }
                 ColliderShapeDesc::Heightfield(_) => {
                     if let Some(associated_node) = target_binder.node_of(remapped_parent) {
-                        if let Some(Node::Terrain(terrain)) = target_graph.try_get(associated_node)
-                        {
+                        if let Some(Node::Terrain(_)) = target_graph.try_get(associated_node) {
                             let collider =
-                                ColliderBuilder::new(Self::make_heightfield(terrain)).build();
+                                self.terrain_to_heightfield_collider(associated_node, target_graph);
+
                             let new_handle = self.add_collider(collider, &remapped_parent);
                             link.colliders.insert(
                                 new_handle,
