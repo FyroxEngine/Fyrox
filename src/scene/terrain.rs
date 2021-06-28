@@ -331,9 +331,19 @@ impl Terrain {
         self.width
     }
 
+    /// Returns amount of chunks along X axis.
+    pub fn width_chunk_count(&self) -> usize {
+        self.width_chunks as usize
+    }
+
     /// Returns length of the terrain in local coordinates.
     pub fn length(&self) -> f32 {
         self.length
+    }
+
+    /// Returns amount of chunks along Z axis
+    pub fn length_chunk_count(&self) -> usize {
+        self.length_chunks as usize
     }
 
     /// Returns a reference to chunks of the terrain.

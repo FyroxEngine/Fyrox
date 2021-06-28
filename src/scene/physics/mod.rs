@@ -1,5 +1,6 @@
 //! Contains all structures and methods to operate with physics world.
 
+use crate::core::algebra::Vector2;
 use crate::{
     core::{
         arrayvec::ArrayVec,
@@ -593,27 +594,37 @@ impl Physics {
 
     /// Creates height field shape from given terrain.
     pub fn make_heightfield(terrain: &Terrain) -> SharedShape {
+        assert!(!terrain.chunks_ref().is_empty());
+
         // Count rows and columns.
-        let mut nrows = 0;
-        let mut ncols = 0;
-        for chunk in terrain.chunks_ref() {
-            ncols += chunk.width_point_count();
-            nrows += chunk.length_point_count();
-        }
+        let first_chunk = terrain.chunks_ref().first().unwrap();
+        let chunk_size = Vector2::new(
+            first_chunk.width_point_count(),
+            first_chunk.length_point_count(),
+        );
+        let nrows = chunk_size.y * terrain.length_chunk_count() as u32;
+        let ncols = chunk_size.x * terrain.width_chunk_count() as u32;
 
         // Combine height map of each chunk into bigger one.
         let mut ox = 0;
         let mut oz = 0;
         let mut data = vec![0.0; (nrows * ncols) as usize];
-        for chunk in terrain.chunks_ref() {
-            for z in 0..chunk.length_point_count() {
-                for x in 0..chunk.width_point_count() {
-                    data[((oz + z) * ncols + ox + x) as usize] =
-                        chunk.heightmap()[(z * chunk.width_point_count() + x) as usize];
+        for cz in 0..terrain.length_chunk_count() {
+            for cx in 0..terrain.width_chunk_count() {
+                let chunk = &terrain.chunks_ref()[cz * terrain.width_chunk_count() + cx];
+
+                for z in 0..chunk.length_point_count() {
+                    for x in 0..chunk.width_point_count() {
+                        let value = chunk.heightmap()[(z * chunk.width_point_count() + x) as usize];
+                        data[((ox + x) * nrows + oz + z) as usize] = value;
+                    }
                 }
+
+                ox += chunk_size.x;
             }
-            ox += chunk.width_point_count();
-            oz += chunk.length_point_count();
+
+            ox = 0;
+            oz += chunk_size.y;
         }
 
         SharedShape::heightfield(
