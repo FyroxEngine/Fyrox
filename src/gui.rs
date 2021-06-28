@@ -175,7 +175,9 @@ impl<D: Clone + 'static> DeletableItemBuilder<D> {
                 )
                 .with_content(
                     ImageBuilder::new(WidgetBuilder::new())
-                        .with_opt_texture(load_image(include_bytes!("../resources/cross.png")))
+                        .with_opt_texture(load_image(include_bytes!(
+                            "../resources/embed/cross.png"
+                        )))
                         .build(ctx),
                 )
                 .build(ctx),

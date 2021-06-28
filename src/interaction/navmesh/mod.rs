@@ -391,7 +391,7 @@ impl InteractionModeTrait for EditNavmeshMode {
         if editor_scene.navmeshes.is_valid_handle(self.navmesh) {
             let navmesh = &editor_scene.navmeshes[self.navmesh];
             let scene = &mut engine.scenes[editor_scene.scene];
-            let camera: &Camera = &scene.graph[editor_scene.camera_controller.camera].as_camera();
+            let camera: &Camera = scene.graph[editor_scene.camera_controller.camera].as_camera();
             let ray = camera.make_ray(mouse_pos, frame_size);
 
             let camera = editor_scene.camera_controller.camera;

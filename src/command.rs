@@ -178,7 +178,7 @@ impl CommandStackViewer {
                                                     .with_width(28.0),
                                             )
                                             .with_opt_texture(load_image(include_bytes!(
-                                                "../resources/undo.png"
+                                                "../resources/embed/undo.png"
                                             )))
                                             .build(ctx),
                                         )
@@ -198,7 +198,7 @@ impl CommandStackViewer {
                                                     .with_width(28.0),
                                             )
                                             .with_opt_texture(load_image(include_bytes!(
-                                                "../resources/redo.png"
+                                                "../resources/embed/redo.png"
                                             )))
                                             .build(ctx),
                                         )
@@ -215,7 +215,7 @@ impl CommandStackViewer {
                                                         .with_width(28.0),
                                                 )
                                                 .with_opt_texture(load_image(include_bytes!(
-                                                    "../resources/clear.png"
+                                                    "../resources/embed/clear.png"
                                                 )))
                                                 .build(ctx),
                                             )

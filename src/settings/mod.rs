@@ -6,7 +6,7 @@ use crate::{
         graphics::{GraphicsSection, GraphicsSettings},
         move_mode::{MoveInteractionModeSettings, MoveModeSection},
     },
-    GameEngine, Message, STARTUP_WORKING_DIR,
+    GameEngine, Message, CONFIG_DIR,
 };
 use rg3d::{
     core::{pool::Handle, scope_profile},
@@ -90,7 +90,7 @@ impl Settings {
     const FILE_NAME: &'static str = "settings.ron";
 
     fn full_path() -> PathBuf {
-        STARTUP_WORKING_DIR.lock().unwrap().join(Self::FILE_NAME)
+        CONFIG_DIR.lock().unwrap().join(Self::FILE_NAME)
     }
 
     pub fn load() -> Result<Self, SettingsError> {
@@ -365,7 +365,7 @@ impl SettingsWindow {
                     ));
                 } else if message.destination() == self.default {
                     *settings = Default::default();
-                    self.sync_to_model(&engine.user_interface, &settings);
+                    self.sync_to_model(&engine.user_interface, settings);
                 }
             }
             UiMessageData::TreeRoot(TreeRootMessage::Selected(items)) => {

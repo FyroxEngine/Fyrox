@@ -3,7 +3,7 @@
 *.lock
 .idea
 /*.log
-*.txt
+/*.txt
 *.rgs
 /data
 history.bin

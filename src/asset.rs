@@ -149,11 +149,11 @@ impl AssetItemBuilder {
                 }
                 "fbx" | "rgs" => {
                     kind = AssetKind::Model;
-                    load_image(include_bytes!("../resources/model.png"))
+                    load_image(include_bytes!("../resources/embed/model.png"))
                 }
                 "ogg" | "wav" => {
                     kind = AssetKind::Sound;
-                    load_image(include_bytes!("../resources/sound.png"))
+                    load_image(include_bytes!("../resources/embed/sound.png"))
                 }
                 _ => None,
             })

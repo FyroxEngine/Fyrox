@@ -220,11 +220,10 @@ impl Control<EditorUiMessage, EditorUiNode> for SceneItem {
                 &SceneItemMessage::NodeVisibility(visibility) => {
                     if self.visibility != visibility && message.destination() == self.handle() {
                         self.visibility = visibility;
-
                         let image = if visibility {
-                            load_image(include_bytes!("../resources/visible.png"))
+                            load_image(include_bytes!("../resources/embed/visible.png"))
                         } else {
-                            load_image(include_bytes!("../resources/invisible.png"))
+                            load_image(include_bytes!("../resources/embed/invisible.png"))
                         };
                         let image = ImageBuilder::new(WidgetBuilder::new())
                             .with_opt_texture(image)
@@ -335,7 +334,7 @@ impl SceneItemBuilder {
         resource_manager: ResourceManager,
         node: &Node,
     ) -> Handle<UiNode> {
-        let visible_texture = load_image(include_bytes!("../resources/visible.png"));
+        let visible_texture = load_image(include_bytes!("../resources/embed/visible.png"));
 
         let text_name;
         let visibility_toggle;
@@ -435,8 +434,8 @@ fn make_tree(
     context_menu: Handle<UiNode>,
 ) -> Handle<UiNode> {
     let icon = match node {
-        Node::Light(_) => load_image(include_bytes!("../resources/light.png")),
-        _ => load_image(include_bytes!("../resources/cube.png")),
+        Node::Light(_) => load_image(include_bytes!("../resources/embed/light.png")),
+        _ => load_image(include_bytes!("../resources/embed/cube.png")),
     };
 
     SceneItemBuilder::new()

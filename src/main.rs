@@ -14,6 +14,7 @@ pub mod asset;
 pub mod camera;
 pub mod command;
 pub mod configurator;
+pub mod custom_dirs;
 pub mod gui;
 pub mod interaction;
 pub mod light;
@@ -67,6 +68,7 @@ use crate::{
     sound::SoundPanel,
     world_outliner::WorldOutliner,
 };
+
 use rg3d::{
     core::{
         algebra::{Point3, Vector2},
@@ -114,12 +116,14 @@ use rg3d::{
     },
     utils::{into_gui_texture, translate_cursor_icon, translate_event},
 };
+
 use std::{
     cell::RefCell,
-    fs::File,
+    fs,
     io::Write,
     path::{Path, PathBuf},
     rc::Rc,
+    str::from_utf8,
     sync::{
         mpsc::{self, Receiver, Sender},
         Mutex,
@@ -137,10 +141,43 @@ pub fn send_sync_message(ui: &Ui, mut msg: UiMessage) {
 type GameEngine = rg3d::engine::Engine<EditorUiMessage, EditorUiNode>;
 
 lazy_static! {
-    /// When editor starting, it remembers the path from where it was launched.
-    /// Working directory can be changed multiple time during runtime, but we
-    /// load some resources (images mostly) from editors resource folder.
-    static ref STARTUP_WORKING_DIR: Mutex<PathBuf> = Mutex::new(std::env::current_dir().unwrap());
+    // this checks release.toml debug handle and at
+    // the same time checks if programm is installed
+    static ref DEBUG_HANDLE: bool = {
+        let path = custom_dirs::resources_dir_test("release.toml");
+        let test = Path::new(&path).exists();
+
+        if test {
+            let file = fs::read(custom_dirs::resources_dir_test("release.toml")).unwrap();
+            let switch = from_utf8(&file).unwrap().parse::<toml::Value>().unwrap();
+
+            switch["debug-mode"].as_bool().unwrap()
+        } else {
+            true
+        }
+    };
+    // this constant gives DEBUG_HANDLE value to config_dir and data_dir
+    // functions and checks if config and data dir are created.
+    static ref TEST_EXISTENCE: bool = {
+        if !(*DEBUG_HANDLE) {
+            // we check if config and data dir exists
+            let path = custom_dirs::other_dir_test("");
+            let test = Path::new(&path).exists();
+
+            if !test {
+                // if there's aren't any, we create them.
+                fs::create_dir(custom_dirs::config_dir_test("")).unwrap();
+                fs::create_dir(custom_dirs::other_dir_test("")).unwrap();
+            }
+
+            true
+        } else {
+            false
+        }
+    };
+
+    static ref CONFIG_DIR: Mutex<PathBuf> = Mutex::new(custom_dirs::config_dir(""));
+    static ref DATA_DIR: Mutex<PathBuf> = Mutex::new(custom_dirs::other_dir(""));
 }
 
 lazy_static! {
@@ -497,7 +534,7 @@ impl ScenePreview {
                                                     .with_height(32.0),
                                             )
                                             .with_opt_texture(load_image(include_bytes!(
-                                                "../resources/select.png"
+                                                "../resources/embed/select.png"
                                             )))
                                             .build(ctx),
                                         )
@@ -517,7 +554,7 @@ impl ScenePreview {
                                                     .with_height(32.0),
                                             )
                                             .with_opt_texture(load_image(include_bytes!(
-                                                "../resources/move_arrow.png"
+                                                "../resources/embed/move_arrow.png"
                                             )))
                                             .build(ctx),
                                         )
@@ -537,7 +574,7 @@ impl ScenePreview {
                                                     .with_height(32.0),
                                             )
                                             .with_opt_texture(load_image(include_bytes!(
-                                                "../resources/rotate_arrow.png"
+                                                "../resources/embed/rotate_arrow.png"
                                             )))
                                             .build(ctx),
                                         )
@@ -556,7 +593,7 @@ impl ScenePreview {
                                                     .with_height(32.0),
                                             )
                                             .with_opt_texture(load_image(include_bytes!(
-                                                "../resources/scale_arrow.png"
+                                                "../resources/embed/scale_arrow.png"
                                             )))
                                             .build(ctx),
                                         )
@@ -575,7 +612,7 @@ impl ScenePreview {
                                                     .with_height(32.0),
                                             )
                                             .with_opt_texture(load_image(include_bytes!(
-                                                "../resources/navmesh.png"
+                                                "../resources/embed/navmesh.png"
                                             )))
                                             .build(ctx),
                                         )
@@ -594,7 +631,7 @@ impl ScenePreview {
                                                     .with_height(32.0),
                                             )
                                             .with_opt_texture(load_image(include_bytes!(
-                                                "../resources/terrain.png"
+                                                "../resources/embed/terrain.png"
                                             )))
                                             .build(ctx),
                                         )
@@ -756,7 +793,7 @@ impl Editor {
         let (message_sender, message_receiver) = mpsc::channel();
 
         *rg3d::gui::DEFAULT_FONT.0.lock().unwrap() = Font::from_memory(
-            include_bytes!("../resources/arial.ttf").to_vec(),
+            include_bytes!("../resources/embed/arial.ttf").to_vec(),
             14.0,
             Font::default_char_set(),
         )
@@ -2022,7 +2059,7 @@ fn main() {
         }
         Event::LoopDestroyed => {
             if let Ok(profiling_results) = rg3d::core::profiler::print() {
-                if let Ok(mut file) = File::create("profiling.log") {
+                if let Ok(mut file) = fs::File::create(custom_dirs::other_dir("profiling.log")) {
                     let _ = writeln!(file, "{}", profiling_results);
                 }
             }

@@ -112,21 +112,21 @@ impl ParticleSystemSection {
                                                     .with_child({
                                                         add_box_emitter = make_button_image(
                                                             ctx,
-                                                            include_bytes!("../../../resources/add_box_emitter.png"),
+                                                            include_bytes!("../../../resources/embed/add_box_emitter.png"),
                                                         );
                                                         add_box_emitter
                                                     })
                                                     .with_child({
                                                         add_sphere_emitter = make_button_image(
                                                             ctx,
-                                                            include_bytes!("../../../resources/add_sphere_emitter.png"),
+                                                            include_bytes!("../../../resources/embed/add_sphere_emitter.png"),
                                                         );
                                                         add_sphere_emitter
                                                     })
                                                     .with_child({
                                                         add_cylinder_emitter = make_button_image(
                                                             ctx,
-                                                         include_bytes!("../../../resources/add_cylinder_emitter.png"),
+                                                         include_bytes!("../../../resources/embed/add_cylinder_emitter.png"),
                                                         );
                                                         add_cylinder_emitter
                                                     }),
