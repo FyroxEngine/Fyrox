@@ -721,6 +721,11 @@ impl Renderer {
         self.backbuffer_clear_color = color;
     }
 
+    /// Returns a reference to current pipeline state.
+    pub fn pipeline_state(&mut self) -> &mut PipelineState {
+        &mut self.state
+    }
+
     pub(in crate) fn upload_sender(&self) -> TextureUploadSender {
         TextureUploadSender {
             sender: self.texture_upload_sender.clone(),
