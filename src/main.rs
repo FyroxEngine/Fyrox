@@ -20,6 +20,7 @@ pub mod interaction;
 pub mod light;
 pub mod log;
 pub mod menu;
+pub mod overlay;
 pub mod physics;
 pub mod preview;
 pub mod project_dirs;
@@ -70,6 +71,7 @@ use crate::{
     world_outliner::WorldOutliner,
 };
 
+use crate::overlay::OverlayRenderPass;
 use rg3d::{
     core::{
         algebra::{Point3, Vector2},
@@ -117,7 +119,6 @@ use rg3d::{
     },
     utils::{into_gui_texture, translate_cursor_icon, translate_event},
 };
-
 use std::{
     cell::RefCell,
     fs,
@@ -2006,6 +2007,9 @@ fn main() {
         .with_resizable(true);
 
     let mut engine = GameEngine::new(window_builder, &event_loop, true).unwrap();
+
+    let overlay_pass = OverlayRenderPass::new(engine.renderer.pipeline_state());
+    engine.renderer.add_render_pass(overlay_pass);
 
     let mut editor = Editor::new(&mut engine);
     let clock = Instant::now();
