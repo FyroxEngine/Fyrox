@@ -9,12 +9,12 @@
 extern crate rg3d;
 #[macro_use]
 extern crate lazy_static;
+extern crate directories;
 
 pub mod asset;
 pub mod camera;
 pub mod command;
 pub mod configurator;
-pub mod custom_dirs;
 pub mod gui;
 pub mod interaction;
 pub mod light;
@@ -22,6 +22,7 @@ pub mod log;
 pub mod menu;
 pub mod physics;
 pub mod preview;
+pub mod project_dirs;
 pub mod scene;
 pub mod settings;
 pub mod sidebar;
@@ -141,33 +142,32 @@ pub fn send_sync_message(ui: &Ui, mut msg: UiMessage) {
 type GameEngine = rg3d::engine::Engine<EditorUiMessage, EditorUiNode>;
 
 lazy_static! {
-    // this checks release.toml debug handle and at
-    // the same time checks if programm is installed
+    // This checks release.toml debug handle and at
+    // the same time checks if program is installed
     static ref DEBUG_HANDLE: bool = {
-        let path = custom_dirs::resources_dir_test("release.toml");
-        let test = Path::new(&path).exists();
-
-        if test {
-            let file = fs::read(custom_dirs::resources_dir_test("release.toml")).unwrap();
-            let switch = from_utf8(&file).unwrap().parse::<toml::Value>().unwrap();
-
-            switch["debug-mode"].as_bool().unwrap()
+        let release_toml = project_dirs::resources_dir("release.toml");
+        if release_toml.exists() {
+            let file = fs::read(release_toml).unwrap();
+            from_utf8(&file)
+                .unwrap()
+                .parse::<toml::Value>()
+                .unwrap()["debug-mode"]
+                .as_bool()
+                .unwrap()
         } else {
             true
         }
     };
-    // this constant gives DEBUG_HANDLE value to config_dir and data_dir
+
+    // This constant gives DEBUG_HANDLE value to config_dir and data_dir
     // functions and checks if config and data dir are created.
     static ref TEST_EXISTENCE: bool = {
         if !(*DEBUG_HANDLE) {
-            // we check if config and data dir exists
-            let path = custom_dirs::other_dir_test("");
-            let test = Path::new(&path).exists();
-
-            if !test {
-                // if there's aren't any, we create them.
-                fs::create_dir(custom_dirs::config_dir_test("")).unwrap();
-                fs::create_dir(custom_dirs::other_dir_test("")).unwrap();
+            // We check if config and data dir exists
+            if !project_dirs::data_dir("").exists() {
+                // If there's aren't any, we create them.
+                fs::create_dir(project_dirs::config_dir("")).unwrap();
+                fs::create_dir(project_dirs::data_dir("")).unwrap();
             }
 
             true
@@ -176,8 +176,8 @@ lazy_static! {
         }
     };
 
-    static ref CONFIG_DIR: Mutex<PathBuf> = Mutex::new(custom_dirs::config_dir(""));
-    static ref DATA_DIR: Mutex<PathBuf> = Mutex::new(custom_dirs::other_dir(""));
+    static ref CONFIG_DIR: Mutex<PathBuf> = Mutex::new(project_dirs::working_config_dir(""));
+    static ref DATA_DIR: Mutex<PathBuf> = Mutex::new(project_dirs::working_data_dir(""));
 }
 
 lazy_static! {
@@ -2059,7 +2059,9 @@ fn main() {
         }
         Event::LoopDestroyed => {
             if let Ok(profiling_results) = rg3d::core::profiler::print() {
-                if let Ok(mut file) = fs::File::create(custom_dirs::other_dir("profiling.log")) {
+                if let Ok(mut file) =
+                    fs::File::create(project_dirs::working_data_dir("profiling.log"))
+                {
                     let _ = writeln!(file, "{}", profiling_results);
                 }
             }
