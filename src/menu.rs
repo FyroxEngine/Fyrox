@@ -647,8 +647,9 @@ impl Menu {
                         )))
                         .unwrap();
                 } else if message.destination() == self.create_camera {
-                    let node =
-                        CameraBuilder::new(BaseBuilder::new().with_name("Camera")).build_node();
+                    let node = CameraBuilder::new(BaseBuilder::new().with_name("Camera"))
+                        .enabled(false)
+                        .build_node();
 
                     self.message_sender
                         .send(Message::DoSceneCommand(SceneCommand::AddNode(

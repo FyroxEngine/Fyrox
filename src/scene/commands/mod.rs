@@ -5,7 +5,7 @@ use crate::{
     scene::{
         clipboard::DeepCloneResult,
         commands::{
-            camera::{SetFovCommand, SetZFarCommand, SetZNearCommand},
+            camera::{SetCameraPreviewCommand, SetFovCommand, SetZFarCommand, SetZNearCommand},
             graph::{
                 AddNodeCommand, DeleteNodeCommand, DeleteSubGraphCommand, LinkNodesCommand,
                 LoadModelCommand, MoveNodeCommand, RotateNodeCommand, ScaleNodeCommand,
@@ -193,6 +193,7 @@ pub enum SceneCommand {
     SetFov(SetFovCommand),
     SetZNear(SetZNearCommand),
     SetZFar(SetZFarCommand),
+    SetCameraActive(SetCameraPreviewCommand),
 
     // Particle system commands.
     SetParticleSystemAcceleration(SetParticleSystemAccelerationCommand),
@@ -332,6 +333,7 @@ macro_rules! static_dispatch {
             SceneCommand::SetFov(v) => v.$func($($args),*),
             SceneCommand::SetZNear(v) => v.$func($($args),*),
             SceneCommand::SetZFar(v) => v.$func($($args),*),
+            SceneCommand::SetCameraActive(v) => v.$func($($args),*),
             SceneCommand::SetParticleSystemAcceleration(v) => v.$func($($args),*),
             SceneCommand::AddParticleSystemEmitter(v) => v.$func($($args),*),
             SceneCommand::SetEmitterNumericParameter(v) => v.$func($($args),*),

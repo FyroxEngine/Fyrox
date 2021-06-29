@@ -1,7 +1,7 @@
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     scene::commands::{
-        camera::{SetFovCommand, SetZFarCommand, SetZNearCommand},
+        camera::{SetCameraPreviewCommand, SetFovCommand, SetZFarCommand, SetZNearCommand},
         SceneCommand,
     },
     send_sync_message,
@@ -12,12 +12,16 @@ use rg3d::{
     core::{pool::Handle, scope_profile},
     gui::{
         grid::{Column, GridBuilder, Row},
-        message::{MessageDirection, NumericUpDownMessage, UiMessageData, WidgetMessage},
+        message::{
+            CheckBoxMessage, MessageDirection, NumericUpDownMessage, UiMessageData, WidgetMessage,
+        },
         widget::WidgetBuilder,
     },
     scene::node::Node,
 };
 use std::sync::mpsc::Sender;
+
+use super::make_bool_input_field;
 
 pub struct CameraSection {
     pub section: Handle<UiNode>,
@@ -25,6 +29,7 @@ pub struct CameraSection {
     z_near: Handle<UiNode>,
     z_far: Handle<UiNode>,
     sender: Sender<Message>,
+    preview: Handle<UiNode>,
 }
 
 impl CameraSection {
@@ -32,6 +37,7 @@ impl CameraSection {
         let fov;
         let z_near;
         let z_far;
+        let preview;
         let section = GridBuilder::new(
             WidgetBuilder::new()
                 .with_child(make_text_mark(ctx, "FOV", 0))
@@ -48,10 +54,16 @@ impl CameraSection {
                 .with_child({
                     z_far = make_f32_input_field(ctx, 2, 0.0, std::f32::MAX, 1.0);
                     z_far
+                })
+                .with_child(make_text_mark(ctx, "Preview", 3))
+                .with_child({
+                    preview = make_bool_input_field(ctx, 3);
+                    preview
                 }),
         )
         .add_column(Column::strict(COLUMN_WIDTH))
         .add_column(Column::stretch())
+        .add_row(Row::strict(ROW_HEIGHT))
         .add_row(Row::strict(ROW_HEIGHT))
         .add_row(Row::strict(ROW_HEIGHT))
         .add_row(Row::strict(ROW_HEIGHT))
@@ -63,6 +75,7 @@ impl CameraSection {
             z_near,
             z_far,
             sender,
+            preview,
         }
     }
 
@@ -91,6 +104,15 @@ impl CameraSection {
                 ui,
                 NumericUpDownMessage::value(self.z_far, MessageDirection::ToWidget, camera.z_far()),
             );
+
+            send_sync_message(
+                ui,
+                CheckBoxMessage::checked(
+                    self.preview,
+                    MessageDirection::ToWidget,
+                    Some(camera.is_enabled()),
+                ),
+            );
         }
     }
 
@@ -117,6 +139,15 @@ impl CameraSection {
                     self.sender
                         .send(Message::DoSceneCommand(SceneCommand::SetZNear(
                             SetZNearCommand::new(handle, value),
+                        )))
+                        .unwrap();
+                }
+            } else if let UiMessageData::CheckBox(CheckBoxMessage::Check(value)) = *message.data() {
+                if message.destination() == self.preview && camera.is_enabled().ne(&value.unwrap())
+                {
+                    self.sender
+                        .send(Message::DoSceneCommand(SceneCommand::SetCameraActive(
+                            SetCameraPreviewCommand::new(handle, value.unwrap_or(false)),
                         )))
                         .unwrap();
                 }
