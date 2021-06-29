@@ -8,13 +8,13 @@
 #![warn(missing_docs)]
 //#![deny(unsafe_code)]
 
+pub mod cache;
 pub mod debug_renderer;
 pub mod framework;
 pub mod renderer2d;
 
 mod batch;
 mod blur;
-mod cache;
 mod deferred_light_renderer;
 mod flat_shader;
 mod forward_renderer;
@@ -29,6 +29,7 @@ mod ssao;
 mod ui_renderer;
 
 use crate::renderer::cache::CacheEntry;
+use crate::scene::camera::Camera;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector3},
@@ -71,6 +72,7 @@ use crate::{
 };
 #[cfg(feature = "serde_integration")]
 use serde::{Deserialize, Serialize};
+use std::sync::{Arc, Mutex};
 use std::{
     cell::RefCell,
     collections::{hash_map::Entry, HashMap},
@@ -417,6 +419,7 @@ impl TextureUploadSender {
 /// See module docs.
 pub struct Renderer {
     backbuffer: FrameBuffer,
+    scene_render_passes: Vec<Arc<Mutex<dyn SceneRenderPass>>>,
     deferred_light_renderer: DeferredLightRenderer,
     flat_shader: FlatShader,
     sprite_renderer: SpriteRenderer,
@@ -499,6 +502,95 @@ fn make_ui_frame_buffer(
             texture: color_texture,
         }],
     )
+}
+
+/// A context for custom scene render passes.
+pub struct SceneRenderPassContext<'a, 'b> {
+    /// A pipeline state that is used as a wrapper to underlying graphics API.
+    pub pipeline_state: &'a mut PipelineState,
+
+    /// A texture cache that uploads engine's `Texture` as internal `GpuTexture` to GPU.
+    /// Use this to get a corresponding GPU texture by an instance of a `Texture`.
+    pub texture_cache: &'a mut TextureCache,
+
+    /// A geometry cache that uploads engine's `SurfaceData` as internal `GeometryBuffer` to GPU.
+    /// Use this to get a corresponding GPU geometry buffer (essentially it is just a VAO) by an
+    /// instance of a `SurfaceData`.
+    pub geometry_cache: &'a mut GeometryCache,
+
+    /// A storage that contains "pre-compiled" groups of render data (batches).
+    pub batch_storage: &'a BatchStorage,
+
+    /// Current quality settings of the renderer.
+    pub quality_settings: &'a QualitySettings,
+
+    /// Current framebuffer to which scene is being rendered to.
+    pub framebuffer: &'a mut FrameBuffer,
+
+    /// A scene being rendered.
+    pub scene: &'b Scene,
+
+    /// A camera from the scene that is used as "eyes".
+    pub camera: &'b Camera,
+
+    /// A viewport of the camera.
+    pub viewport: Rect<i32>,
+
+    /// A handle of the scene being rendered.
+    pub scene_handle: Handle<Scene>,
+
+    /// An 1x1 white pixel texture that could be used a stub when there is no texture.
+    pub white_dummy: Rc<RefCell<GpuTexture>>,
+
+    /// An 1x1 pixel texture with (0, 1, 0) vector that could be used a stub when
+    /// there is no normal map.
+    pub normal_dummy: Rc<RefCell<GpuTexture>>,
+
+    /// An 1x1 pixel with 0.5 specular factor texture that could be used a stub when
+    /// there is no specular map.
+    pub specular_dummy: Rc<RefCell<GpuTexture>>,
+
+    /// An 1x1 black cube map texture that could be used a stub when there is no environment
+    /// texture.
+    pub environment_dummy: Rc<RefCell<GpuTexture>>,
+
+    /// An 1x1 black pixel texture that could be used a stub when there is no texture.
+    pub black_dummy: Rc<RefCell<GpuTexture>>,
+
+    /// A texture with depth values from G-Buffer.
+    ///
+    /// # Important notes
+    ///
+    /// Keep in mind that G-Buffer cannot be modified in custom render passes, so you don't
+    /// have an ability to write to this texture. However you can still write to depth of
+    /// the frame buffer as you'd normally do.
+    pub depth_texture: Rc<RefCell<GpuTexture>>,
+
+    /// A texture with world-space normals from G-Buffer.
+    ///
+    /// # Important notes
+    ///
+    /// Keep in mind that G-Buffer cannot be modified in custom render passes, so you don't
+    /// have an ability to write to this texture.
+    pub normal_texture: Rc<RefCell<GpuTexture>>,
+
+    /// A texture with ambient lighting values from G-Buffer.
+    ///
+    /// # Important notes
+    ///
+    /// Keep in mind that G-Buffer cannot be modified in custom render passes, so you don't
+    /// have an ability to write to this texture.
+    pub ambient_texture: Rc<RefCell<GpuTexture>>,
+}
+
+/// A trait for custom scene rendering pass. It could be used to add your own rendering techniques.
+pub trait SceneRenderPass {
+    /// Main rendering method. It will be called for **each** scene registered in the engine, but
+    /// you are able to filter out scene by its handle.
+    fn render(
+        &mut self,
+        ctx: SceneRenderPassContext,
+    ) -> Result<RenderPassStatistics, FrameworkError>;
 }
 
 impl Renderer {
@@ -605,7 +697,13 @@ impl Renderer {
             texture_upload_receiver,
             texture_upload_sender,
             state,
+            scene_render_passes: Default::default(),
         })
+    }
+
+    /// Adds a custom render pass.
+    pub fn add_render_pass(&mut self, pass: Arc<Mutex<dyn SceneRenderPass>>) {
+        self.scene_render_passes.push(pass);
     }
 
     /// Returns statistics for last frame.
@@ -948,6 +1046,30 @@ impl Renderer {
                     &scene.drawing_context,
                     camera,
                 );
+
+                for render_pass in self.scene_render_passes.iter() {
+                    self.statistics +=
+                        render_pass.lock().unwrap().render(SceneRenderPassContext {
+                            pipeline_state: state,
+                            texture_cache: &mut self.texture_cache,
+                            geometry_cache: &mut self.geometry_cache,
+                            quality_settings: &self.quality_settings,
+                            batch_storage: &self.batch_storage,
+                            viewport,
+                            scene,
+                            camera,
+                            scene_handle,
+                            white_dummy: self.white_dummy.clone(),
+                            normal_dummy: self.normal_dummy.clone(),
+                            specular_dummy: self.specular_dummy.clone(),
+                            environment_dummy: self.environment_dummy.clone(),
+                            black_dummy: self.black_dummy.clone(),
+                            depth_texture: gbuffer.depth(),
+                            normal_texture: gbuffer.normal_texture(),
+                            ambient_texture: gbuffer.ambient_texture(),
+                            framebuffer: &mut gbuffer.final_frame,
+                        })?;
+                }
 
                 // Finally render everything into back buffer.
                 if scene.render_target.is_none() {

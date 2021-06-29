@@ -463,7 +463,7 @@ impl PointShadowMapRenderer {
                             Node::Mesh(mesh) => {
                                 mesh.cast_shadows() && mesh.is_intersect_frustum(graph, &frustum)
                             }
-                            Node::Terrain(terrain) => {
+                            Node::Terrain(_) => {
                                 // https://github.com/rg3dengine/rg3d/issues/117
                                 true
                             }

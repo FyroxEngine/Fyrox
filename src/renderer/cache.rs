@@ -1,6 +1,8 @@
-use crate::engine::resource_manager::DEFAULT_RESOURCE_LIFETIME;
+#![allow(missing_docs)] // TODO
+
 use crate::{
     core::scope_profile,
+    engine::resource_manager::DEFAULT_RESOURCE_LIFETIME,
     renderer::{
         batch::InstanceData,
         framework::{
@@ -44,7 +46,7 @@ impl<T> DerefMut for CacheEntry<T> {
 }
 
 #[derive(Default)]
-pub(in crate) struct GeometryCache {
+pub struct GeometryCache {
     map: HashMap<usize, CacheEntry<GeometryBuffer>>,
 }
 
@@ -146,7 +148,7 @@ impl GeometryCache {
 }
 
 #[derive(Default)]
-pub(in crate) struct TextureCache {
+pub struct TextureCache {
     pub(super) map: HashMap<usize, CacheEntry<Rc<RefCell<GpuTexture>>>>,
 }
 
