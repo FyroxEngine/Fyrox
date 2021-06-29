@@ -174,10 +174,15 @@ impl SpotShadowMapRenderer {
                 let node = &graph[instance.owner];
 
                 let visible = node.global_visibility() && {
-                    if let Node::Mesh(mesh) = node {
-                        mesh.cast_shadows() && mesh.is_intersect_frustum(graph, &frustum)
-                    } else {
-                        false
+                    match node {
+                        Node::Mesh(mesh) => {
+                            mesh.cast_shadows() && mesh.is_intersect_frustum(graph, &frustum)
+                        }
+                        Node::Terrain(_) => {
+                            // https://github.com/rg3dengine/rg3d/issues/117
+                            true
+                        }
+                        _ => false,
                     }
                 };
 
@@ -454,10 +459,15 @@ impl PointShadowMapRenderer {
                     let node = &graph[instance.owner];
 
                     let visible = node.global_visibility() && {
-                        if let Node::Mesh(mesh) = node {
-                            mesh.cast_shadows() && mesh.is_intersect_frustum(graph, &frustum)
-                        } else {
-                            false
+                        match node {
+                            Node::Mesh(mesh) => {
+                                mesh.cast_shadows() && mesh.is_intersect_frustum(graph, &frustum)
+                            }
+                            Node::Terrain(terrain) => {
+                                // https://github.com/rg3dengine/rg3d/issues/117
+                                true
+                            }
+                            _ => false,
                         }
                     };
 
