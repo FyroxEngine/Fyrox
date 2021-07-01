@@ -13,6 +13,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, UINode, UserInterface, VerticalAlignment,
     BRUSH_DARKER, BRUSH_TEXT,
 };
+use clipboard::ClipboardProvider;
 use std::{
     cell::RefCell,
     cmp::{self, Ordering},
@@ -255,6 +256,17 @@ impl<M: MessageData, C: Control<M, C>> TextBox<M, C> {
                 self.formatted_text.borrow().text(),
             ));
         }
+    }
+
+    fn insert_str(&mut self, str: &str, ui: &UserInterface<M, C>) {
+        let position = self.get_absolute_position(self.caret_position).unwrap_or(0);
+        self.formatted_text.borrow_mut().insert_str(str, position);
+        self.move_caret_x(str.chars().count(), HorizontalDirection::Right, false);
+        ui.send_message(TextBoxMessage::text(
+            self.handle,
+            MessageDirection::ToWidget,
+            self.formatted_text.borrow().text(),
+        ));
     }
 
     pub fn get_text_len(&self) -> usize {
@@ -685,6 +697,31 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
                                         offset: last_line.end - last_line.begin,
                                     },
                                 });
+                            }
+                        }
+                        KeyCode::C if ui.keyboard_modifiers().control => {
+                            if let Some(clipboard) = ui.clipboard_mut() {
+                                if let Some(selection_range) = self.selection_range.as_ref() {
+                                    if let (Some(begin), Some(end)) = (
+                                        self.get_absolute_position(selection_range.begin),
+                                        self.get_absolute_position(selection_range.end),
+                                    ) {
+                                        let _ = clipboard
+                                            .set_contents(String::from(&self.text()[begin..end]));
+                                    }
+                                }
+                            }
+                        }
+                        KeyCode::V if ui.keyboard_modifiers().control => {
+                            if let Some(clipboard) = ui.clipboard_mut() {
+                                if let Ok(content) = clipboard.get_contents() {
+                                    if let Some(selection_range) = self.selection_range {
+                                        self.remove_range(ui, selection_range);
+                                        self.selection_range = None;
+                                    }
+
+                                    self.insert_str(&content, ui);
+                                }
                             }
                         }
                         _ => (),

@@ -10,6 +10,7 @@
 
 #[macro_use]
 extern crate lazy_static;
+extern crate clipboard;
 extern crate fontdue;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -78,6 +79,7 @@ use crate::{
     ttf::{Font, SharedFont},
     widget::{Widget, WidgetBuilder},
 };
+use clipboard::{ClipboardContext, ClipboardProvider};
 use std::{
     cell::Cell,
     collections::{HashMap, HashSet, VecDeque},
@@ -468,6 +470,7 @@ pub struct UserInterface<M: MessageData, C: Control<M, C>> {
     cursor_icon: CursorIcon,
     visible_tooltips: Vec<TooltipEntry<M, C>>,
     preview_set: HashSet<Handle<UINode<M, C>>>,
+    clipboard: Option<ClipboardContext>,
 }
 
 lazy_static! {
@@ -573,6 +576,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
             cursor_icon: Default::default(),
             visible_tooltips: Default::default(),
             preview_set: Default::default(),
+            clipboard: ClipboardContext::new().ok(),
         };
         ui.root_canvas = ui.add_node(UINode::Canvas(Canvas::new(WidgetBuilder::new().build())));
         ui
@@ -771,6 +775,14 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         }
 
         &self.drawing_context
+    }
+
+    pub fn clipboard(&self) -> Option<&ClipboardContext> {
+        self.clipboard.as_ref()
+    }
+
+    pub fn clipboard_mut(&mut self) -> Option<&mut ClipboardContext> {
+        self.clipboard.as_mut()
     }
 
     pub fn arrange_node(&self, handle: Handle<UINode<M, C>>, final_rect: &Rect<f32>) -> bool {

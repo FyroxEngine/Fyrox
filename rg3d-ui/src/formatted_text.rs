@@ -171,11 +171,13 @@ impl FormattedText {
     }
 
     pub fn insert_char(&mut self, c: char, index: usize) -> &mut Self {
-        let c = c as u32;
-        if index == self.text.len() {
-            self.text.push(c);
-        } else {
-            self.text.insert(index, c);
+        self.text.insert(index, c as u32);
+        self
+    }
+
+    pub fn insert_str(&mut self, str: &str, position: usize) -> &mut Self {
+        for (i, char) in str.chars().enumerate() {
+            self.text.insert(position + i, char as u32);
         }
         self
     }
