@@ -395,7 +395,7 @@ impl InteractionModeTrait for MoveInteractionMode {
                 .camera_controller
                 .pick(
                     mouse_pos,
-                    &mut scene.graph,
+                    &scene.graph,
                     editor_scene.root,
                     frame_size,
                     false,
