@@ -33,7 +33,7 @@ jobs:
     - name: Update
       run: sudo apt update
     - name: Install Dependencies
-      run: sudo apt-get install libasound2-dev libudev-dev pkg-config xorg-dev
+      run: sudo apt-get install libasound2-dev libudev-dev pkg-config xorg-dev libxcb-shape0-dev libxcb-xfixes0-dev
     - uses: actions/checkout@v2
     - name: Build
       run: cargo check --verbose
