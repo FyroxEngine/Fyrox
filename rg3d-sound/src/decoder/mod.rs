@@ -60,7 +60,7 @@ impl Decoder {
 
     pub fn get_channel_count(&self) -> usize {
         match self {
-            Decoder::Wav(wav) => wav.channel_count,
+            Decoder::Wav(wav) => wav.channel_count(),
             Decoder::Ogg(ogg) => ogg.channel_count,
             Decoder::Null => 0,
         }
@@ -68,7 +68,7 @@ impl Decoder {
 
     pub fn get_sample_rate(&self) -> usize {
         match self {
-            Decoder::Wav(wav) => wav.sample_rate,
+            Decoder::Wav(wav) => wav.sample_rate(),
             Decoder::Ogg(ogg) => ogg.sample_rate,
             Decoder::Null => 0,
         }

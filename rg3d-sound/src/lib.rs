@@ -70,6 +70,7 @@ extern crate winapi;
 extern crate alsa_sys;
 
 // Generic crates.
+extern crate hound;
 extern crate lewton;
 extern crate rg3d_core;
 
