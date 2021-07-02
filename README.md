@@ -29,6 +29,12 @@ Writing a 3D Shooter using rg3d:
 - [Weapons](https://rg3d.rs/tutorials/2021/03/09/tutorial2.html)
 - [Bots and AI](https://rg3d.rs/tutorials/2021/03/11/tutorial3.html)
 
+**Important notes:**
+
+The engine is suitable for any kind of games, not only shooters, the fact that there are two 3d shooters that were made
+with the engine, and a set of tutorials about 3d shooters just means that @mrDIMAS loves 3d shooters. There will be more
+tutorials about games in different genre, but again - nothing stops you from making an RPG, RTS, rogue-like, etc.
+
 ## Screenshots
 
 These screenshots are from [Station Iapetus](https://github.com/mrDIMAS/StationIapetus) which is a commercial project
