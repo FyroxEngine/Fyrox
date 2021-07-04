@@ -279,8 +279,6 @@ impl FormattedText {
                     WrapMode::Word => {
                         if word_ended {
                             let word = word.take().unwrap();
-                            dbg!(word, current_line);
-
                             if word.width > self.constraint.x {
                                 // The word is longer than available constraints.
                                 // Push the word as a whole.
@@ -303,8 +301,6 @@ impl FormattedText {
                                 // to the line.
                                 current_line.width += word.width;
                                 current_line.end += word.length;
-                                dbg!(current_line.end, self.text.len(), self.constraint);
-                                assert!(current_line.end <= self.text.len());
                             }
                         }
 
