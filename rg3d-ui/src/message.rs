@@ -15,6 +15,7 @@
 
 use crate::core::algebra::{Vector2, Vector3};
 use crate::dock::SplitDirection;
+use crate::formatted_text::WrapMode;
 use crate::{
     brush::Brush,
     core::{
@@ -662,7 +663,7 @@ impl TextBoxMessage {
 #[derive(Debug, Clone, PartialEq)]
 pub enum TextMessage {
     Text(String),
-    Wrap(bool),
+    Wrap(WrapMode),
     Font(SharedFont),
     VerticalAlignment(VerticalAlignment),
     HorizontalAlignment(HorizontalAlignment),
@@ -670,7 +671,7 @@ pub enum TextMessage {
 
 impl TextMessage {
     define_constructor_unbound!(Text(TextMessage:Text) => fn text(String), layout: false);
-    define_constructor_unbound!(Text(TextMessage:Wrap) => fn wrap(bool), layout: false);
+    define_constructor_unbound!(Text(TextMessage:Wrap) => fn wrap(WrapMode), layout: false);
     define_constructor_unbound!(Text(TextMessage:Font) => fn font(SharedFont), layout: false);
     define_constructor_unbound!(Text(TextMessage:VerticalAlignment) => fn vertical_alignment(VerticalAlignment), layout: false);
     define_constructor_unbound!(Text(TextMessage:HorizontalAlignment) => fn horizontal_alignment(HorizontalAlignment), layout: false);

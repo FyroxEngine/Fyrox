@@ -39,6 +39,7 @@ use rg3d::{
     },
     sound::effects::{BaseEffect, Effect},
 };
+use rg3d_ui::formatted_text::WrapMode;
 use std::{
     path::Path,
     sync::{Arc, Mutex},
@@ -154,7 +155,7 @@ pub fn create_ui(ui: &mut BuildContext, screen_size: Vector2<f32>) -> Interface 
             .with_height(screen_size.y)
             .with_child({
                 debug_text = TextBuilder::new(WidgetBuilder::new().on_row(0).on_column(0))
-                    .with_wrap(true)
+                    .with_wrap(WrapMode::Word)
                     .build(ui);
                 debug_text
             })

@@ -1,4 +1,5 @@
 use crate::core::algebra::Vector2;
+use crate::formatted_text::WrapMode;
 use crate::message::MessageData;
 use crate::ttf::SharedFont;
 use crate::{
@@ -61,7 +62,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Text<M, C> {
                         self.invalidate_layout();
                     }
                     &TextMessage::Wrap(wrap) => {
-                        if self.formatted_text.borrow().is_wrap() != wrap {
+                        if self.formatted_text.borrow().wrap_mode() != wrap {
                             self.formatted_text.borrow_mut().set_wrap(wrap);
                             self.invalidate_layout();
                         }
@@ -100,8 +101,8 @@ impl<M: MessageData, C: Control<M, C>> Text<M, C> {
         }
     }
 
-    pub fn is_wrap(&self) -> bool {
-        self.formatted_text.borrow().is_wrap()
+    pub fn wrap_mode(&self) -> WrapMode {
+        self.formatted_text.borrow().wrap_mode()
     }
 
     pub fn text(&self) -> String {
@@ -127,7 +128,7 @@ pub struct TextBuilder<M: MessageData, C: Control<M, C>> {
     font: Option<SharedFont>,
     vertical_text_alignment: VerticalAlignment,
     horizontal_text_alignment: HorizontalAlignment,
-    wrap: bool,
+    wrap: WrapMode,
 }
 
 impl<M: MessageData, C: Control<M, C>> TextBuilder<M, C> {
@@ -138,7 +139,7 @@ impl<M: MessageData, C: Control<M, C>> TextBuilder<M, C> {
             font: None,
             vertical_text_alignment: VerticalAlignment::Top,
             horizontal_text_alignment: HorizontalAlignment::Left,
-            wrap: false,
+            wrap: WrapMode::NoWrap,
         }
     }
 
@@ -167,7 +168,7 @@ impl<M: MessageData, C: Control<M, C>> TextBuilder<M, C> {
         self
     }
 
-    pub fn with_wrap(mut self, wrap: bool) -> Self {
+    pub fn with_wrap(mut self, wrap: WrapMode) -> Self {
         self.wrap = wrap;
         self
     }

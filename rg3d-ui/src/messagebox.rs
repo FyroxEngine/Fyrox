@@ -1,3 +1,4 @@
+use crate::formatted_text::WrapMode;
 use crate::{
     button::ButtonBuilder,
     core::{algebra::Vector2, pool::Handle},
@@ -215,7 +216,7 @@ impl<'a, 'b, M: MessageData, C: Control<M, C>> MessageBoxBuilder<'b, M, C> {
                             WidgetBuilder::new().with_margin(Thickness::uniform(4.0)),
                         )
                         .with_text(self.text)
-                        .with_wrap(true)
+                        .with_wrap(WrapMode::Word)
                         .build(ctx);
                         text
                     })
@@ -241,7 +242,7 @@ impl<'a, 'b, M: MessageData, C: Control<M, C>> MessageBoxBuilder<'b, M, C> {
                     .with_child({
                         text = TextBuilder::new(WidgetBuilder::new())
                             .with_text(self.text)
-                            .with_wrap(true)
+                            .with_wrap(WrapMode::Word)
                             .build(ctx);
                         text
                     })
@@ -284,7 +285,7 @@ impl<'a, 'b, M: MessageData, C: Control<M, C>> MessageBoxBuilder<'b, M, C> {
                     .with_child({
                         text = TextBuilder::new(WidgetBuilder::new())
                             .with_text(self.text)
-                            .with_wrap(true)
+                            .with_wrap(WrapMode::Word)
                             .build(ctx);
                         text
                     })

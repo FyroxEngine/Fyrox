@@ -59,6 +59,19 @@ impl TextLine {
     }
 }
 
+/// Wrapping mode for formatted text.
+#[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug)]
+pub enum WrapMode {
+    /// No wrapping needed.
+    NoWrap,
+
+    /// Letter-based wrapping.
+    Letter,
+
+    /// Word-based wrapping.
+    Word,
+}
+
 #[derive(Clone, Debug)]
 pub struct FormattedText {
     font: Option<SharedFont>,
@@ -74,7 +87,13 @@ pub struct FormattedText {
     horizontal_alignment: HorizontalAlignment,
     brush: Brush,
     constraint: Vector2<f32>,
-    wrap: bool,
+    wrap: WrapMode,
+}
+
+#[derive(Copy, Clone, Debug)]
+struct Word {
+    width: f32,
+    length: usize,
 }
 
 impl FormattedText {
@@ -161,12 +180,12 @@ impl FormattedText {
         self
     }
 
-    pub fn set_wrap(&mut self, wrap: bool) -> &mut Self {
+    pub fn set_wrap(&mut self, wrap: WrapMode) -> &mut Self {
         self.wrap = wrap;
         self
     }
 
-    pub fn is_wrap(&self) -> bool {
+    pub fn wrap_mode(&self) -> WrapMode {
         self.wrap
     }
 
@@ -202,6 +221,7 @@ impl FormattedText {
         // Split on lines.
         let mut total_height = 0.0;
         let mut current_line = TextLine::new();
+        let mut word: Option<Word> = None;
         self.lines.clear();
         for (i, code) in self.text.iter().enumerate() {
             let advance = match font.glyph(*code) {
@@ -210,15 +230,91 @@ impl FormattedText {
             };
             let is_new_line = *code == u32::from(b'\n') || *code == u32::from(b'\r');
             let new_width = current_line.width + advance;
-            if self.wrap && new_width > self.constraint.x || is_new_line {
-                self.lines.push(current_line);
+            let is_white_space = char::from_u32(*code).map_or(false, |c| c.is_whitespace());
+            let word_ended = word.is_some() && is_white_space || i == self.text.len() - 1;
+
+            if self.wrap == WrapMode::Word && !is_white_space {
+                match word.as_mut() {
+                    Some(word) => {
+                        word.width += advance;
+                        word.length += 1;
+                    }
+                    None => {
+                        word = Some(Word {
+                            width: advance,
+                            length: 1,
+                        });
+                    }
+                };
+            }
+
+            if is_new_line {
+                if let Some(word) = word.take() {
+                    current_line.width += word.width;
+                    current_line.end += word.length;
+                }
+                self.lines.push(current_line.clone());
                 current_line.begin = if is_new_line { i + 1 } else { i };
-                current_line.end = current_line.begin + 1;
+                current_line.end = current_line.begin;
                 current_line.width = advance;
                 total_height += font.ascender();
             } else {
-                current_line.width = new_width;
-                current_line.end += 1;
+                match self.wrap {
+                    WrapMode::NoWrap => {
+                        current_line.width = new_width;
+                        current_line.end += 1;
+                    }
+                    WrapMode::Letter => {
+                        if new_width > self.constraint.x {
+                            self.lines.push(current_line.clone());
+                            current_line.begin = if is_new_line { i + 1 } else { i };
+                            current_line.end = current_line.begin + 1;
+                            current_line.width = advance;
+                            total_height += font.ascender();
+                        } else {
+                            current_line.width = new_width;
+                            current_line.end += 1;
+                        }
+                    }
+                    WrapMode::Word => {
+                        if word_ended {
+                            let word = word.take().unwrap();
+                            dbg!(word, current_line);
+
+                            if word.width > self.constraint.x {
+                                // The word is longer than available constraints.
+                                // Push the word as a whole.
+                                current_line.width += word.width;
+                                current_line.end += word.length;
+                                self.lines.push(current_line.clone());
+                                current_line.begin = current_line.end;
+                                current_line.width = 0.0;
+                                total_height += font.ascender();
+                            } else if current_line.width + word.width > self.constraint.x {
+                                // The word will exceed horizontal constraint, we have to
+                                // commit current line and move the word in the next line.
+                                self.lines.push(current_line.clone());
+                                current_line.begin = i - word.length;
+                                current_line.end = i;
+                                current_line.width = word.width;
+                                total_height += font.ascender();
+                            } else {
+                                // The word does not exceed horizontal constraint, append it
+                                // to the line.
+                                current_line.width += word.width;
+                                current_line.end += word.length;
+                                dbg!(current_line.end, self.text.len(), self.constraint);
+                                assert!(current_line.end <= self.text.len());
+                            }
+                        }
+
+                        // White-space characters are not part of word so pass them thru.
+                        if is_white_space {
+                            current_line.end += 1;
+                            current_line.width += advance;
+                        }
+                    }
+                }
             }
         }
         // Commit rest of text.
@@ -348,7 +444,7 @@ pub struct FormattedTextBuilder {
     text: String,
     vertical_alignment: VerticalAlignment,
     horizontal_alignment: HorizontalAlignment,
-    wrap: bool,
+    wrap: WrapMode,
 }
 
 impl Default for FormattedTextBuilder {
@@ -367,7 +463,7 @@ impl FormattedTextBuilder {
             vertical_alignment: VerticalAlignment::Top,
             brush: Brush::Solid(Color::WHITE),
             constraint: Vector2::new(128.0, 128.0),
-            wrap: false,
+            wrap: WrapMode::NoWrap,
         }
     }
 
@@ -381,7 +477,7 @@ impl FormattedTextBuilder {
         self
     }
 
-    pub fn with_wrap(mut self, wrap: bool) -> Self {
+    pub fn with_wrap(mut self, wrap: WrapMode) -> Self {
         self.wrap = wrap;
         self
     }

@@ -1,4 +1,5 @@
 use crate::draw::Draw;
+use crate::formatted_text::WrapMode;
 use crate::{
     brush::Brush,
     core::{algebra::Vector2, color::Color, math::Rect, pool::Handle},
@@ -371,13 +372,13 @@ impl<M: MessageData, C: Control<M, C>> TextBox<M, C> {
         self.formatted_text.borrow().text()
     }
 
-    pub fn set_wrap(&mut self, wrap: bool) -> &mut Self {
+    pub fn set_wrap(&mut self, wrap: WrapMode) -> &mut Self {
         self.formatted_text.borrow_mut().set_wrap(wrap);
         self
     }
 
-    pub fn is_wrap(&self) -> bool {
-        self.formatted_text.borrow().is_wrap()
+    pub fn wrap_mode(&self) -> WrapMode {
+        self.formatted_text.borrow().wrap_mode()
     }
 
     pub fn set_font(&mut self, font: SharedFont) -> &mut Self {
@@ -826,7 +827,7 @@ pub struct TextBoxBuilder<M: MessageData, C: Control<M, C>> {
     filter: Option<Rc<RefCell<FilterCallback>>>,
     vertical_alignment: VerticalAlignment,
     horizontal_alignment: HorizontalAlignment,
-    wrap: bool,
+    wrap: WrapMode,
     commit_mode: TextCommitMode,
     multiline: bool,
     editable: bool,
@@ -843,7 +844,7 @@ impl<M: MessageData, C: Control<M, C>> TextBoxBuilder<M, C> {
             filter: None,
             vertical_alignment: VerticalAlignment::Top,
             horizontal_alignment: HorizontalAlignment::Left,
-            wrap: false,
+            wrap: WrapMode::NoWrap,
             commit_mode: TextCommitMode::LostFocusPlusEnter,
             multiline: false,
             editable: true,
@@ -885,7 +886,7 @@ impl<M: MessageData, C: Control<M, C>> TextBoxBuilder<M, C> {
         self
     }
 
-    pub fn with_wrap(mut self, wrap: bool) -> Self {
+    pub fn with_wrap(mut self, wrap: WrapMode) -> Self {
         self.wrap = wrap;
         self
     }

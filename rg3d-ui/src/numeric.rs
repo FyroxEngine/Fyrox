@@ -2,6 +2,7 @@ use crate::border::BorderBuilder;
 use crate::brush::Brush;
 use crate::core::color::Color;
 use crate::decorator::DecoratorBuilder;
+use crate::formatted_text::WrapMode;
 use crate::utils::{make_arrow, ArrowDirection};
 use crate::{
     button::ButtonBuilder,
@@ -224,7 +225,7 @@ impl<M: MessageData, C: Control<M, C>> NumericUpDownBuilder<M, C> {
                     field = TextBoxBuilder::new(WidgetBuilder::new().on_row(0).on_column(0))
                         .with_vertical_text_alignment(VerticalAlignment::Center)
                         .with_horizontal_text_alignment(HorizontalAlignment::Left)
-                        .with_wrap(true)
+                        .with_wrap(WrapMode::Letter)
                         .with_text(self.value.to_string())
                         .build(ctx);
                     field

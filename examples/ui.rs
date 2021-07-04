@@ -45,6 +45,7 @@ use rg3d::{
     utils::translate_event,
     window::Fullscreen,
 };
+use rg3d_ui::formatted_text::WrapMode;
 use std::time::Instant;
 
 const DEFAULT_MODEL_ROTATION: f32 = 180.0;
@@ -158,7 +159,8 @@ fn create_ui(engine: &mut GameEngine) -> Interface {
                             .on_column(0)
                             .with_vertical_alignment(VerticalAlignment::Center),
                     )
-                    .with_text("Scale")
+                    .with_wrap(WrapMode::Word)
+                    .with_text("ScaleThisIsSomeCrazyAssLongString\nHere")
                     .build(ctx),
                 )
                 .with_child({
@@ -197,7 +199,7 @@ fn create_ui(engine: &mut GameEngine) -> Interface {
         .add_column(Column::strict(100.0))
         .add_column(Column::stretch())
         .add_row(Row::strict(30.0))
-        .add_row(Row::strict(30.0))
+        .add_row(Row::stretch())
         .add_row(Row::strict(30.0))
         .build(ctx),
     )
