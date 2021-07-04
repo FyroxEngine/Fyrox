@@ -2,6 +2,7 @@ use crate::{
     gui::{BuildContext, UiMessage, UiNode},
     GameEngine, Message, CONFIG_DIR,
 };
+use rg3d::gui::formatted_text::WrapMode;
 use rg3d::{
     core::{
         algebra::Vector2,
@@ -155,7 +156,7 @@ impl Configurator {
                     .with_child(
                         TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
                             .with_text(message)
-                            .with_wrap(true)
+                            .with_wrap(WrapMode::Word)
                             .build(ctx),
                     )
                     .with_child(

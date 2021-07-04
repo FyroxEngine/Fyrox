@@ -3,6 +3,7 @@ use crate::{
     GameEngine, Message,
 };
 use rg3d::core::scope_profile;
+use rg3d::gui::formatted_text::WrapMode;
 use rg3d::gui::{HorizontalAlignment, VerticalAlignment, BRUSH_BRIGHT};
 use rg3d::{
     core::{algebra::Vector2, pool::Handle},
@@ -109,7 +110,7 @@ impl Log {
         if let Message::Log(string) = message {
             let item = TextBuilder::new(WidgetBuilder::new())
                 .with_text(string.clone())
-                .with_wrap(true)
+                .with_wrap(WrapMode::Word)
                 .build(&mut engine.user_interface.build_ctx());
             engine
                 .user_interface

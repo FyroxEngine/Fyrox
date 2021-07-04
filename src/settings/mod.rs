@@ -8,6 +8,7 @@ use crate::{
     },
     GameEngine, Message, CONFIG_DIR,
 };
+use rg3d::gui::formatted_text::WrapMode;
 use rg3d::{
     core::{pool::Handle, scope_profile},
     gui::{
@@ -253,7 +254,7 @@ impl SettingsWindow {
                                     .with_margin(Thickness::uniform(1.0)),
                             )
                             .with_text(text)
-                            .with_wrap(true)
+                            .with_wrap(WrapMode::Word)
                             .build(ctx),
                         )
                         .with_child(section)
