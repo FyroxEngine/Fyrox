@@ -29,7 +29,7 @@ use crate::{
     resource::{Resource, ResourceData, ResourceState},
 };
 use ddsfile::{Caps2, D3DFormat};
-use image::{ColorType, DynamicImage, GenericImageView, ImageError};
+use image::{ColorType, DynamicImage, GenericImageView, ImageError, ImageFormat};
 use std::{
     borrow::Cow,
     collections::hash_map::DefaultHasher,
@@ -736,7 +736,11 @@ impl TextureData {
             }
         } else {
             // Commonly used formats are all rectangle textures.
-            let dyn_img = image::load_from_memory(data)?;
+            let dyn_img = image::load_from_memory(data)
+                // Try to load as TGA, this is needed because TGA is badly designed format and does not
+                // have an identifier in the beginning of the file (so called "magic") that allows quickly
+                // check if the file is really contains expected data.
+                .or_else(|_| image::load_from_memory_with_format(data, ImageFormat::Tga))?;
 
             let width = dyn_img.width();
             let height = dyn_img.height();
