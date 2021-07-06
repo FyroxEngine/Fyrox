@@ -253,7 +253,7 @@ impl FormattedText {
                     current_line.width += word.width;
                     current_line.end += word.length;
                 }
-                self.lines.push(current_line.clone());
+                self.lines.push(current_line);
                 current_line.begin = if is_new_line { i + 1 } else { i };
                 current_line.end = current_line.begin;
                 current_line.width = advance;
@@ -266,7 +266,7 @@ impl FormattedText {
                     }
                     WrapMode::Letter => {
                         if new_width > self.constraint.x {
-                            self.lines.push(current_line.clone());
+                            self.lines.push(current_line);
                             current_line.begin = if is_new_line { i + 1 } else { i };
                             current_line.end = current_line.begin + 1;
                             current_line.width = advance;
@@ -284,14 +284,14 @@ impl FormattedText {
                                 // Push the word as a whole.
                                 current_line.width += word.width;
                                 current_line.end += word.length;
-                                self.lines.push(current_line.clone());
+                                self.lines.push(current_line);
                                 current_line.begin = current_line.end;
                                 current_line.width = 0.0;
                                 total_height += font.ascender();
                             } else if current_line.width + word.width > self.constraint.x {
                                 // The word will exceed horizontal constraint, we have to
                                 // commit current line and move the word in the next line.
-                                self.lines.push(current_line.clone());
+                                self.lines.push(current_line);
                                 current_line.begin = i - word.length;
                                 current_line.end = i;
                                 current_line.width = word.width;
