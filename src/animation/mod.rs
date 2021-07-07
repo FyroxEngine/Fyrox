@@ -357,14 +357,14 @@ impl LocalPose {
             node: self.node,
             position: self.position.scale(weight),
             rotation: UnitQuaternion::identity().nlerp(&self.rotation, weight),
-            scale: Vector3::new(1.0, 1.0, 1.0), // TODO: Implement scale blending
+            scale: self.scale.scale(weight),
         }
     }
 
     pub fn blend_with(&mut self, other: &LocalPose, weight: f32) {
         self.position += other.position.scale(weight);
         self.rotation = self.rotation.nlerp(&other.rotation, weight);
-        // TODO: Implement scale blending
+        self.scale += other.scale.scale(weight);
     }
 
     pub fn position(&self) -> Vector3<f32> {
