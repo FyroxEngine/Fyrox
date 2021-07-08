@@ -1,18 +1,16 @@
-use crate::scene::commands::graph::AddNodeCommand;
-use crate::scene::commands::sound::AddSoundSourceCommand;
-use crate::scene::commands::{PasteCommand, SceneCommand};
-use crate::settings::Settings;
 use crate::{
     gui::{Ui, UiMessage, UiNode},
     make_save_file_selector, make_scene_file_filter,
-    scene::{EditorScene, Selection},
+    scene::{
+        commands::{
+            graph::AddNodeCommand, sound::AddSoundSourceCommand, PasteCommand, SceneCommand,
+        },
+        EditorScene, Selection,
+    },
     send_sync_message,
-    settings::SettingsWindow,
+    settings::{Settings, SettingsWindow},
     GameEngine, Message,
 };
-use rg3d::scene::terrain::{LayerDefinition, TerrainBuilder};
-use rg3d::sound::source::generic::GenericSourceBuilder;
-use rg3d::sound::source::spatial::SpatialSourceBuilder;
 use rg3d::{
     core::{
         algebra::{Matrix4, Vector2},
@@ -31,16 +29,23 @@ use rg3d::{
         window::{WindowBuilder, WindowTitle},
         Thickness,
     },
-    scene::mesh::surface::{Surface, SurfaceData},
     scene::{
         base::BaseBuilder,
         camera::CameraBuilder,
-        light::{BaseLightBuilder, DirectionalLightBuilder, PointLightBuilder, SpotLightBuilder},
-        mesh::{Mesh, MeshBuilder},
+        light::{
+            directional::DirectionalLightBuilder, point::PointLightBuilder, spot::SpotLightBuilder,
+            BaseLightBuilder,
+        },
+        mesh::{
+            surface::{Surface, SurfaceData},
+            Mesh, MeshBuilder,
+        },
         node::Node,
         particle_system::{BaseEmitterBuilder, ParticleSystemBuilder, SphereEmitterBuilder},
         sprite::SpriteBuilder,
+        terrain::{LayerDefinition, TerrainBuilder},
     },
+    sound::source::{generic::GenericSourceBuilder, spatial::SpatialSourceBuilder},
 };
 use std::sync::{mpsc::Sender, Arc, RwLock};
 
