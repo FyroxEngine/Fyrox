@@ -882,7 +882,7 @@ mod test {
         core::algebra::{Matrix4, Vector3},
         scene::{
             base::BaseBuilder,
-            light::{BaseLightBuilder, PointLightBuilder},
+            light::{point::PointLightBuilder, BaseLightBuilder},
             mesh::{
                 surface::{SurfaceBuilder, SurfaceData},
                 MeshBuilder,

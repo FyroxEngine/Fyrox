@@ -22,7 +22,7 @@ use rg3d::{
     rand::thread_rng,
     scene::{
         base::BaseBuilder,
-        light::{BaseLightBuilder, PointLightBuilder},
+        light::{point::PointLightBuilder, BaseLightBuilder},
         node::Node,
         terrain::{Brush, BrushMode, BrushShape, LayerDefinition, TerrainBuilder},
         transform::TransformBuilder,

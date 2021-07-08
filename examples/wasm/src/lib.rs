@@ -31,7 +31,7 @@ use rg3d::{
         base::BaseBuilder,
         camera::CameraBuilder,
         graph::Graph,
-        light::{BaseLightBuilder, PointLightBuilder},
+        light::{point::PointLightBuilder, BaseLightBuilder},
         mesh::{
             surface::{SurfaceBuilder, SurfaceData},
             MeshBuilder,

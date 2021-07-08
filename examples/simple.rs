@@ -26,7 +26,7 @@ use rg3d::{
     },
     scene::{
         base::BaseBuilder,
-        light::{BaseLightBuilder, PointLightBuilder},
+        light::{point::PointLightBuilder, BaseLightBuilder},
         mesh::{
             surface::{SurfaceBuilder, SurfaceData},
             MeshBuilder,

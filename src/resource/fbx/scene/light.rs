@@ -1,15 +1,16 @@
-use crate::scene::graph::Graph;
-use crate::scene::light::DirectionalLightBuilder;
-use crate::scene::node::Node;
-use crate::utils::log::MessageKind;
 use crate::{
     core::{color::Color, pool::Handle},
     resource::fbx::document::{FbxNode, FbxNodeContainer},
     scene::{
         base::BaseBuilder,
-        light::{BaseLightBuilder, PointLightBuilder, SpotLightBuilder},
+        graph::Graph,
+        light::{
+            directional::DirectionalLightBuilder, point::PointLightBuilder, spot::SpotLightBuilder,
+            BaseLightBuilder,
+        },
+        node::Node,
     },
-    utils::log::Log,
+    utils::log::{Log, MessageKind},
 };
 
 pub enum FbxLightType {
