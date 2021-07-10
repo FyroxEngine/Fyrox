@@ -181,10 +181,6 @@ lazy_static! {
     static ref DATA_DIR: Mutex<PathBuf> = Mutex::new(project_dirs::working_data_dir(""));
 }
 
-lazy_static! {
-    pub static ref TEXTURES_DIR: Mutex<PathBuf> = Mutex::new(Default::default());
-}
-
 pub fn load_image(data: &[u8]) -> Option<draw::SharedTexture> {
     Some(into_gui_texture(
         Texture::load_from_memory(data, CompressionOptions::NoCompression).ok()?,
@@ -727,14 +723,9 @@ pub enum Message {
     CloseScene,
     SetInteractionMode(InteractionModeKind),
     Log(String),
-    Configure {
-        working_directory: PathBuf,
-        textures_path: PathBuf,
-    },
+    Configure { working_directory: PathBuf },
     NewScene,
-    Exit {
-        force: bool,
-    },
+    Exit { force: bool },
     OpenSettings(SettingsSectionKind),
 }
 
@@ -1682,9 +1673,7 @@ impl Editor {
                         rg3d::core::futures::executor::block_on(Scene::from_file(
                             &scene_path,
                             engine.resource_manager.clone(),
-                            &MaterialSearchOptions::MaterialsDirectory(
-                                TEXTURES_DIR.lock().unwrap().clone(),
-                            ),
+                            &MaterialSearchOptions::UsePathDirectly,
                         ))
                     };
                     match result {
@@ -1739,19 +1728,12 @@ impl Editor {
 
                     self.set_scene(engine, scene, None);
                 }
-                Message::Configure {
-                    working_directory,
-                    textures_path,
-                } => {
+                Message::Configure { working_directory } => {
                     assert!(self.scene.is_none());
 
                     self.asset_browser.clear_preview(engine);
 
                     std::env::set_current_dir(working_directory.clone()).unwrap();
-
-                    let relative_tex_path = make_relative_path(textures_path);
-
-                    *TEXTURES_DIR.lock().unwrap() = relative_tex_path.clone();
 
                     engine.resource_manager.state().purge_unused_resources();
 
@@ -1764,7 +1746,11 @@ impl Editor {
                         .set_working_directory(engine, &working_directory);
 
                     self.message_sender
-                        .send(Message::Log(format!("New working directory and path to textures were successfully set:\n\tWD: {:?}\n\tTP: {:?}", working_directory, relative_tex_path))).unwrap();
+                        .send(Message::Log(format!(
+                            "New working directory was successfully set: {:?}",
+                            working_directory
+                        )))
+                        .unwrap();
 
                     needs_sync = true;
                 }

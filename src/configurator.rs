@@ -39,7 +39,6 @@ use std::{
 #[derive(Default, Eq, PartialEq)]
 struct HistoryEntry {
     work_dir: PathBuf,
-    textures_path: PathBuf,
 }
 
 impl Visit for HistoryEntry {
@@ -47,7 +46,6 @@ impl Visit for HistoryEntry {
         visitor.enter_region(name)?;
 
         self.work_dir.visit("WorkDir", visitor)?;
-        self.textures_path.visit("TexturesPath", visitor)?;
 
         visitor.leave_region()
     }
@@ -57,16 +55,12 @@ pub const HISTORY_PATH: &str = "history.bin";
 
 pub struct Configurator {
     pub window: Handle<UiNode>,
-    textures_dir_browser: Handle<UiNode>,
     work_dir_browser: Handle<UiNode>,
     select_work_dir: Handle<UiNode>,
-    select_textures_dir: Handle<UiNode>,
     ok: Handle<UiNode>,
     sender: Sender<Message>,
     work_dir: PathBuf,
-    textures_path: PathBuf,
     tb_work_dir: Handle<UiNode>,
-    tb_textures_path: Handle<UiNode>,
     lv_history: Handle<UiNode>,
     history: Vec<HistoryEntry>,
 }
@@ -74,7 +68,7 @@ pub struct Configurator {
 fn make_history_entry_widget(ctx: &mut BuildContext, entry: &HistoryEntry) -> Handle<UiNode> {
     DecoratorBuilder::new(BorderBuilder::new(
         WidgetBuilder::new()
-            .with_height(32.0)
+            .with_height(18.0)
             .with_margin(Thickness {
                 left: 1.0,
                 top: 0.0,
@@ -83,11 +77,7 @@ fn make_history_entry_widget(ctx: &mut BuildContext, entry: &HistoryEntry) -> Ha
             })
             .with_child(
                 TextBuilder::new(WidgetBuilder::new())
-                    .with_text(format!(
-                        "WD: {}\nTP: {}",
-                        entry.work_dir.display(),
-                        entry.textures_path.display()
-                    ))
+                    .with_text(format!("WD: {}", entry.work_dir.display(),))
                     .with_vertical_text_alignment(VerticalAlignment::Center)
                     .build(ctx),
             ),
@@ -98,20 +88,10 @@ fn make_history_entry_widget(ctx: &mut BuildContext, entry: &HistoryEntry) -> Ha
 impl Configurator {
     pub fn new(sender: Sender<Message>, ctx: &mut BuildContext) -> Self {
         let select_work_dir;
-        let select_textures_dir;
         let ok;
         let tb_work_dir;
-        let tb_textures_path;
 
         let filter = Rc::new(RefCell::new(|p: &Path| p.is_dir()));
-
-        let scene_browser = FileSelectorBuilder::new(
-            WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
-                .open(false)
-                .with_title(WindowTitle::Text("Select Textures Path".into())),
-        )
-        .with_filter(filter.clone())
-        .build(ctx);
 
         let folder_browser = FileSelectorBuilder::new(
             WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
@@ -132,7 +112,7 @@ impl Configurator {
         // Remove entries with invalid paths.
         history = history
             .into_iter()
-            .filter(|e| e.textures_path.exists() && e.work_dir.exists())
+            .filter(|e| e.work_dir.exists())
             .collect::<Vec<_>>();
 
         let message = "Please select the working directory and texture directory of \
@@ -195,42 +175,8 @@ impl Configurator {
                                     .with_text("...")
                                     .build(ctx);
                                     select_work_dir
-                                })
-                                .with_child(
-                                    TextBuilder::new(
-                                        WidgetBuilder::new()
-                                            .on_row(1)
-                                            .on_column(0)
-                                            .with_margin(Thickness::uniform(1.0))
-                                            .with_vertical_alignment(VerticalAlignment::Center),
-                                    )
-                                    .with_text("Textures Directory")
-                                    .build(ctx),
-                                )
-                                .with_child({
-                                    tb_textures_path = TextBoxBuilder::new(
-                                        WidgetBuilder::new()
-                                            .on_row(1)
-                                            .on_column(1)
-                                            .with_margin(Thickness::uniform(1.0)),
-                                    )
-                                    .with_vertical_text_alignment(VerticalAlignment::Center)
-                                    .build(ctx);
-                                    tb_textures_path
-                                })
-                                .with_child({
-                                    select_textures_dir = ButtonBuilder::new(
-                                        WidgetBuilder::new()
-                                            .on_row(1)
-                                            .on_column(2)
-                                            .with_margin(Thickness::uniform(1.0)),
-                                    )
-                                    .with_text("...")
-                                    .build(ctx);
-                                    select_textures_dir
                                 }),
                         )
-                        .add_row(Row::strict(25.0))
                         .add_row(Row::strict(25.0))
                         .add_column(Column::strict(120.0))
                         .add_column(Column::stretch())
@@ -293,25 +239,19 @@ impl Configurator {
 
         Self {
             window,
-            textures_dir_browser: scene_browser,
             work_dir_browser: folder_browser,
             select_work_dir,
-            select_textures_dir,
             ok,
             sender,
             tb_work_dir,
-            tb_textures_path,
             work_dir: Default::default(),
-            textures_path: Default::default(),
             lv_history,
             history,
         }
     }
 
     fn validate(&mut self, engine: &mut GameEngine) {
-        let is_valid_scene_path = self.textures_path.exists()
-            && self.work_dir.exists()
-            && self.textures_path.starts_with(&self.work_dir);
+        let is_valid_scene_path = self.work_dir.exists();
         engine.user_interface.send_message(WidgetMessage::enabled(
             self.ok,
             MessageDirection::ToWidget,
@@ -341,14 +281,8 @@ impl Configurator {
                 {
                     if let ListViewMessage::SelectionChanged(Some(index)) = *msg {
                         let entry = &self.history[index];
-                        self.textures_path = entry.textures_path.clone();
                         self.work_dir = entry.work_dir.clone();
 
-                        engine.user_interface.send_message(TextBoxMessage::text(
-                            self.tb_textures_path,
-                            MessageDirection::ToWidget,
-                            self.textures_path.to_string_lossy().to_string(),
-                        ));
                         engine.user_interface.send_message(TextBoxMessage::text(
                             self.tb_work_dir,
                             MessageDirection::ToWidget,
@@ -360,37 +294,13 @@ impl Configurator {
                 }
             }
             UiMessageData::FileSelector(FileSelectorMessage::Commit(path)) => {
-                if message.destination() == self.textures_dir_browser {
-                    if let Ok(textures_path) = path.clone().canonicalize() {
-                        self.textures_path = textures_path;
-                        engine.user_interface.send_message(TextBoxMessage::text(
-                            self.tb_textures_path,
-                            MessageDirection::ToWidget,
-                            self.textures_path.to_string_lossy().to_string(),
-                        ));
-
-                        self.validate(engine);
-                    }
-                } else if message.destination() == self.work_dir_browser {
+                if message.destination() == self.work_dir_browser {
                     if let Ok(work_dir) = path.clone().canonicalize() {
                         self.work_dir = work_dir;
-                        self.textures_path = self.work_dir.clone();
                         engine.user_interface.send_message(TextBoxMessage::text(
                             self.tb_work_dir,
                             MessageDirection::ToWidget,
                             self.work_dir.to_string_lossy().to_string(),
-                        ));
-                        engine
-                            .user_interface
-                            .send_message(FileSelectorMessage::root(
-                                self.textures_dir_browser,
-                                MessageDirection::ToWidget,
-                                Some(self.textures_path.clone()),
-                            ));
-                        engine.user_interface.send_message(TextBoxMessage::text(
-                            self.tb_textures_path,
-                            MessageDirection::ToWidget,
-                            self.textures_path.to_string_lossy().to_string(),
                         ));
 
                         self.validate(engine);
@@ -402,13 +312,11 @@ impl Configurator {
                     self.sender
                         .send(Message::Configure {
                             working_directory: self.work_dir.clone(),
-                            textures_path: self.textures_path.clone(),
                         })
                         .unwrap();
 
                     let new_entry = HistoryEntry {
                         work_dir: self.work_dir.clone(),
-                        textures_path: self.textures_path.clone(),
                     };
                     if !self.history.iter().any(|e| e == &new_entry) {
                         self.history.push(new_entry);
@@ -431,25 +339,6 @@ impl Configurator {
                         self.window,
                         MessageDirection::ToWidget,
                     ));
-                } else if message.destination() == self.select_textures_dir {
-                    engine
-                        .user_interface
-                        .send_message(WindowMessage::open_modal(
-                            self.textures_dir_browser,
-                            MessageDirection::ToWidget,
-                            true,
-                        ));
-                    if self.work_dir.exists() {
-                        // Once working directory was selected we can reduce amount of clicks
-                        // for user by setting initial path of scene selector to working dir.
-                        engine
-                            .user_interface
-                            .send_message(FileSelectorMessage::path(
-                                self.textures_dir_browser,
-                                MessageDirection::ToWidget,
-                                self.work_dir.clone(),
-                            ));
-                    }
                 } else if message.destination() == self.select_work_dir {
                     engine
                         .user_interface
