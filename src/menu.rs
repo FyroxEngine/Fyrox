@@ -722,6 +722,7 @@ impl Menu {
                             height_texture: None,
                             tile_factor: Vector2::new(10.0, 10.0),
                         }])
+                        .with_height_map_resolution(4.0)
                         .build_node();
 
                     self.message_sender
