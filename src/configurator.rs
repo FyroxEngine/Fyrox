@@ -77,7 +77,7 @@ fn make_history_entry_widget(ctx: &mut BuildContext, entry: &HistoryEntry) -> Ha
             })
             .with_child(
                 TextBuilder::new(WidgetBuilder::new())
-                    .with_text(format!("WD: {}", entry.work_dir.display(),))
+                    .with_text(format!("{}", entry.work_dir.display(),))
                     .with_vertical_text_alignment(VerticalAlignment::Center)
                     .build(ctx),
             ),
@@ -115,9 +115,9 @@ impl Configurator {
             .filter(|e| e.work_dir.exists())
             .collect::<Vec<_>>();
 
-        let message = "Please select the working directory and texture directory of \
-        your current project. The texture directory must be a subdirectory of the \
-        working directory.";
+        let message = "Please select the working directory of \
+        your current project. In most cases it will be the place where \
+        the binary of your project is located.";
 
         let lv_history;
         let window = WindowBuilder::new(
