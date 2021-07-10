@@ -45,7 +45,7 @@ enable_profiler = ["rg3d-core/enable_profiler"]
 serde_integration = ["glutin/serde", "serde"]
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-glutin = "0.26.0"
+glutin = "0.27.0"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 winit = { version = "0.25.0", features=["web-sys"] }
