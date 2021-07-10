@@ -301,6 +301,7 @@ async fn create_surfaces(
                             }
                             texture_path
                         }
+                        MaterialSearchOptions::UsePathDirectly => path.clone(),
                     };
 
                     let texture = resource_manager.request_texture(texture_path.as_path());

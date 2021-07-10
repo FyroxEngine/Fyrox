@@ -16,6 +16,7 @@ pub mod sprite;
 pub mod terrain;
 pub mod transform;
 
+use crate::engine::resource_manager::MaterialSearchOptions;
 use crate::{
     animation::AnimationContainer,
     core::{
@@ -26,10 +27,7 @@ use crate::{
         pool::{Handle, Pool, PoolIterator, PoolIteratorMut, Ticket},
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
-    engine::{
-        resource_manager::{MaterialSearchOptions, ResourceManager},
-        PhysicsBinder,
-    },
+    engine::{resource_manager::ResourceManager, PhysicsBinder},
     resource::texture::Texture,
     scene::{
         base::PhysicsBinding,
@@ -1008,6 +1006,12 @@ impl Scene {
 
     /// Tries to load scene from given file. File can contain any scene in native engine format.
     /// Such scenes can be made in rusty editor.
+    ///
+    /// # Important notes
+    ///
+    /// `material_search_options` in most cases should be `MaterialSearchOptions::UsePathDirectly` to be
+    /// able to load materials correctly, any other option will force engine to search materials
+    /// in different locations!
     pub async fn from_file<P: AsRef<Path>>(
         path: P,
         resource_manager: ResourceManager,
@@ -1023,10 +1027,18 @@ impl Scene {
         let mut resources = Vec::new();
         for node in scene.graph.linear_iter_mut() {
             if let Some(shallow_resource) = node.resource.clone() {
-                let resource = resource_manager.clone().request_model(
-                    &shallow_resource.state().path(),
-                    material_search_options.clone(),
-                );
+                let search_options =
+                    if material_search_options == &MaterialSearchOptions::UsePathDirectly {
+                        shallow_resource
+                            .data_ref()
+                            .material_search_options()
+                            .clone()
+                    } else {
+                        material_search_options.clone()
+                    };
+                let resource = resource_manager
+                    .clone()
+                    .request_model(&shallow_resource.state().path(), search_options);
                 node.resource = Some(resource.clone());
                 resources.push(resource);
             }

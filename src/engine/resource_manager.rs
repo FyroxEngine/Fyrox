@@ -787,7 +787,7 @@ where
 }
 
 /// Defines a way of searching materials when loading a model resource.
-#[derive(Clone, Debug, Visit)]
+#[derive(Clone, Debug, Visit, PartialEq)]
 pub enum MaterialSearchOptions {
     /// Search in specified materials directory. It is suitable for cases when
     /// your model resource use shared textures.
@@ -813,6 +813,15 @@ pub enum MaterialSearchOptions {
     ///
     /// WebAssembly - **not supported** due to lack of file system.
     WorkingDirectory,
+
+    /// Try to use paths stored in the model resource directly. This options has limited usage,
+    /// it is suitable to load animations, or any other model which does not have any materials.
+    ///
+    /// # Important notes
+    ///
+    /// RGS (native engine scenes) files should be loaded with this option by default, otherwise
+    /// the engine won't be able to correctly find materials.
+    UsePathDirectly,
 }
 
 impl Default for MaterialSearchOptions {

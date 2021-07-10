@@ -279,7 +279,7 @@ fn create_scene_async(
                 let scene = Scene::from_file(
                     LIGHTMAP_SCENE_PATH,
                     resource_manager,
-                    &MaterialSearchOptions::RecursiveUp,
+                    &MaterialSearchOptions::UsePathDirectly,
                 )
                 .await
                 .unwrap();
