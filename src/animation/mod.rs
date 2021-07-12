@@ -356,7 +356,7 @@ impl LocalPose {
         Self {
             node: self.node,
             position: self.position.scale(weight),
-            rotation: UnitQuaternion::identity().nlerp(&self.rotation, weight),
+            rotation: self.rotation.nlerp(&self.rotation, weight),
             scale: self.scale.scale(weight),
         }
     }
