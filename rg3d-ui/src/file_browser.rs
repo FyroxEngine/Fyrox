@@ -433,9 +433,9 @@ fn build_all<M: MessageData, C: Control<M, C>>(
 
             // Create items for disks.
             for disk in sysinfo::System::new_with_specifics(RefreshKind::new().with_disks_list())
-                .get_disks()
+                .disks()
                 .iter()
-                .map(|i| i.get_mount_point().to_string_lossy())
+                .map(|i| i.mount_point().to_string_lossy())
             {
                 let item = build_tree_item(disk.as_ref(), "", ctx);
 

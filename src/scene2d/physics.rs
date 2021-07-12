@@ -589,7 +589,7 @@ impl Physics {
                 .value_of(&desc.body2)
                 .cloned()
                 .unwrap();
-            self.joints.insert(&mut self.bodies, b1, b2, desc.params);
+            self.joints.insert(b1, b2, desc.params);
         }
     }
 
@@ -660,7 +660,6 @@ impl Physics {
         J: Into<JointParams>,
     {
         let handle = self.joints.insert(
-            &mut self.bodies,
             *self.body_handle_map.value_of(body1).unwrap(),
             *self.body_handle_map.value_of(body2).unwrap(),
             joint_params,

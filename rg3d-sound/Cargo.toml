@@ -1,6 +1,6 @@
 [package]
 name = "rg3d-sound"
-version = "0.22.0"
+version = "0.23.0"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 edition = "2018"
 license = "MIT"
@@ -12,7 +12,7 @@ documentation = "https://docs.rs/rg3d-sound"
 readme = "README.md"
 
 [dependencies]
-rg3d-core = { path = "../rg3d-core", version = "0.15.0" }
+rg3d-core = { path = "../rg3d-core", version = "0.16.0" }
 lewton = "0.10.2"
 hrtf = "0.6.0"
 hound = "3.4.0"
@@ -21,10 +21,10 @@ hound = "3.4.0"
 winapi = {version = "0.3.9", features = ["minwindef", "winnt", "windef", "winuser", "dsound", "synchapi", "winbase" ] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
-alsa-sys = { version = "0.3.0" }
+alsa-sys = { version = "0.3.1" }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-coreaudio-sys = { version = "0.2.5" }
+coreaudio-sys = { version = "0.2.8" }
 core-foundation-sys = { version = "0.8.2" }
 
 [features]

@@ -46,7 +46,7 @@ impl JointContainer {
         let body1 = *bodies.handle_map().value_of(body1).unwrap();
         let body2 = *bodies.handle_map().value_of(body2).unwrap();
 
-        let handle = self.set.insert(&mut bodies.set, body1, body2, joint_params);
+        let handle = self.set.insert(body1, body2, joint_params);
         let id = JointHandle::from(Uuid::new_v4());
         self.handle_map.insert(id, handle);
         id

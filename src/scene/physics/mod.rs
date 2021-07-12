@@ -893,9 +893,7 @@ impl Physics {
                 .value_of(&desc.body2)
                 .cloned()
                 .unwrap();
-            self.joints
-                .set
-                .insert(&mut self.bodies.set, b1, b2, desc.params);
+            self.joints.set.insert(b1, b2, desc.params);
         }
     }
 
