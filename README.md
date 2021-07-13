@@ -25,9 +25,12 @@ use my savings to drive development forward, I'm looking for any financial suppo
 ## Tutorials
 
 Writing a 3D Shooter using rg3d:
-- [Character controller](https://rg3d.rs/tutorials/2021/03/05/tutorial1.html)
-- [Weapons](https://rg3d.rs/tutorials/2021/03/09/tutorial2.html)
-- [Bots and AI](https://rg3d.rs/tutorials/2021/03/11/tutorial3.html)
+- [#1 Character controller](https://rg3d.rs/tutorials/2021/03/05/tutorial1.html)
+- [#2 Weapons](https://rg3d.rs/tutorials/2021/03/09/tutorial2.html)
+- [#3 Bots and AI](https://rg3d.rs/tutorials/2021/03/11/tutorial3.html)
+
+Writing a role-playing game using rg3d
+- [#1 Character controller](https://rg3d.rs/tutorials/2021/07/09/rpg-tutorial1.html)
 
 **Important notes:**
 
