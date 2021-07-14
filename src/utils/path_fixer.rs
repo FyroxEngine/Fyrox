@@ -1,34 +1,38 @@
 //! Special utility that allows you to fix paths to resources. It is very useful if you've
 //! moved a resource in a file system, but a scene has old path.
 
-use crate::gui::{Ui, UiMessage};
 use crate::{
-    gui::{BuildContext, UiNode},
+    gui::{BuildContext, Ui, UiMessage, UiNode},
     make_scene_file_filter,
 };
-use rg3d::core::futures::executor::block_on;
-use rg3d::core::visitor::{Visit, Visitor};
-use rg3d::gui::message::{
-    ButtonMessage, FileSelectorMessage, MessageDirection, UiMessageData, WindowMessage,
-};
-use rg3d::scene::Scene;
 use rg3d::{
-    core::pool::Handle,
+    core::{
+        futures::executor::block_on,
+        pool::Handle,
+        visitor::{Visit, Visitor},
+    },
     gui::{
         button::ButtonBuilder,
         file_browser::FileSelectorBuilder,
+        formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
         list_view::ListViewBuilder,
+        message::TextMessage,
+        message::{
+            ButtonMessage, FileSelectorMessage, MessageDirection, UiMessageData, WindowMessage,
+        },
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
         HorizontalAlignment, Orientation, Thickness,
     },
+    scene::Scene,
 };
 
 pub struct PathFixer {
     pub window: Handle<UiNode>,
+    scene_path: Handle<UiNode>,
     scene_selector: Handle<UiNode>,
     load_scene: Handle<UiNode>,
     scene: Option<Scene>,
@@ -45,13 +49,20 @@ impl PathFixer {
         .build(ctx);
 
         let load_scene;
+        let scene_path;
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(500.0))
             .with_title(WindowTitle::text("Path Fixer"))
             .open(false)
             .with_content(
                 GridBuilder::new(
                     WidgetBuilder::new()
-                        .with_child(TextBuilder::new(WidgetBuilder::new().on_row(0)).build(ctx))
+                        .with_child({
+                            scene_path = TextBuilder::new(WidgetBuilder::new().on_row(0))
+                                .with_text("No scene loaded!")
+                                .with_wrap(WrapMode::Word)
+                                .build(ctx);
+                            scene_path
+                        })
                         .with_child(ListViewBuilder::new(WidgetBuilder::new().on_row(1)).build(ctx))
                         .with_child(
                             StackPanelBuilder::new(
@@ -91,7 +102,7 @@ impl PathFixer {
                             .build(ctx),
                         ),
                 )
-                .add_row(Row::strict(28.0))
+                .add_row(Row::auto())
                 .add_row(Row::stretch())
                 .add_row(Row::strict(28.0))
                 .add_column(Column::stretch())
@@ -103,18 +114,42 @@ impl PathFixer {
             window,
             scene_selector,
             load_scene,
+            scene_path,
             scene: None,
         }
     }
 
     pub fn handle_ui_message(&mut self, message: &UiMessage, ui: &Ui) {
         match message.data() {
-            UiMessageData::FileSelector(FileSelectorMessage::Path(path)) => {
-                let mut scene = Scene::default();
-                if let Ok(mut visitor) = block_on(Visitor::load_binary(path)) {
-                    if scene.visit("Scene", &mut visitor).is_ok() {
-                        self.scene = Some(scene);
+            UiMessageData::FileSelector(FileSelectorMessage::Commit(path)) => {
+                if message.destination() == self.scene_selector {
+                    let mut scene = Scene::default();
+                    let message;
+                    match block_on(Visitor::load_binary(path)) {
+                        Ok(mut visitor) => {
+                            if let Err(e) = scene.visit("Scene", &mut visitor) {
+                                message = format!(
+                                    "Failed to load a scene {}\nReason: {}",
+                                    path.display(),
+                                    e
+                                );
+                            } else {
+                                self.scene = Some(scene);
+
+                                message = path.to_string_lossy().to_string();
+                            }
+                        }
+                        Err(e) => {
+                            message =
+                                format!("Failed to load a scene {}\nReason: {}", path.display(), e);
+                        }
                     }
+
+                    ui.send_message(TextMessage::text(
+                        self.scene_path,
+                        MessageDirection::ToWidget,
+                        message,
+                    ));
                 }
             }
             UiMessageData::Button(ButtonMessage::Click) => {
