@@ -1,3 +1,5 @@
+pub mod path_fixer;
+
 pub fn is_slice_equal_permutation<T: PartialEq>(a: &[T], b: &[T]) -> bool {
     if a.is_empty() && !b.is_empty() {
         false

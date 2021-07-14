@@ -55,6 +55,7 @@ use crate::{
     light::LightPanel,
     log::Log,
     menu::{Menu, MenuContext},
+    overlay::OverlayRenderPass,
     physics::Physics,
     scene::{
         commands::{
@@ -68,10 +69,9 @@ use crate::{
     settings::{Settings, SettingsSectionKind},
     sidebar::SideBar,
     sound::SoundPanel,
+    utils::path_fixer::PathFixer,
     world_outliner::WorldOutliner,
 };
-
-use crate::overlay::OverlayRenderPass;
 use rg3d::{
     core::{
         algebra::{Point3, Vector2},
@@ -778,6 +778,7 @@ struct Editor {
     navmesh_panel: NavmeshPanel,
     settings: Settings,
     model_import_dialog: ModelImportDialog,
+    path_fixer: PathFixer,
 }
 
 impl Editor {
@@ -973,6 +974,8 @@ impl Editor {
         .with_buttons(MessageBoxButtons::Ok)
         .build(ctx);
 
+        let path_fixer = PathFixer::new(ctx);
+
         let mut editor = Self {
             navmesh_panel,
             sidebar,
@@ -998,6 +1001,7 @@ impl Editor {
             validation_message_box,
             settings,
             model_import_dialog,
+            path_fixer,
         };
 
         editor.set_interaction_mode(Some(InteractionModeKind::Move), engine);
@@ -1151,12 +1155,15 @@ impl Editor {
                 light_panel: self.light_panel.window,
                 log_panel: self.log.window,
                 settings: &mut self.settings,
+                path_fixer: self.path_fixer.window,
             },
         );
 
         self.log.handle_ui_message(message, engine);
         self.asset_browser.handle_ui_message(message, engine);
         self.command_stack_viewer.handle_ui_message(message);
+        self.path_fixer
+            .handle_ui_message(message, &engine.user_interface);
 
         if let Some(editor_scene) = self.scene.as_mut() {
             self.navmesh_panel.handle_message(

@@ -90,6 +90,7 @@ pub struct Menu {
     log_panel: Handle<UiNode>,
     create: Handle<UiNode>,
     edit: Handle<UiNode>,
+    open_path_fixer: Handle<UiNode>,
 }
 
 pub struct MenuContext<'a, 'b> {
@@ -102,6 +103,7 @@ pub struct MenuContext<'a, 'b> {
     pub light_panel: Handle<UiNode>,
     pub log_panel: Handle<UiNode>,
     pub settings: &'b mut Settings,
+    pub path_fixer: Handle<UiNode>,
 }
 
 fn switch_window_state(window: Handle<UiNode>, ui: &mut Ui, center: bool) {
@@ -152,6 +154,7 @@ impl Menu {
         let create_pivot;
         let create_sound_source;
         let create_spatial_sound_source;
+        let open_path_fixer;
         let ctx = &mut engine.user_interface.build_ctx();
         let configure_message = MessageBoxBuilder::new(
             WindowBuilder::new(WidgetBuilder::new().with_width(250.0).with_height(150.0))
@@ -440,6 +443,16 @@ impl Menu {
                         },
                     ])
                     .build(ctx),
+                MenuItemBuilder::new(WidgetBuilder::new().with_margin(Thickness::right(10.0)))
+                    .with_content(MenuItemContent::text_with_shortcut("Utils", ""))
+                    .with_items(vec![{
+                        open_path_fixer =
+                            MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
+                                .with_content(MenuItemContent::text("Path Fixer"))
+                                .build(ctx);
+                        open_path_fixer
+                    }])
+                    .build(ctx),
             ])
             .build(ctx);
 
@@ -494,6 +507,7 @@ impl Menu {
             create_spatial_sound_source,
             create,
             edit,
+            open_path_fixer,
         }
     }
 
@@ -821,6 +835,14 @@ impl Menu {
                 } else if message.destination() == self.open_settings {
                     self.settings
                         .open(&ctx.engine.user_interface, ctx.settings, None);
+                } else if message.destination() == self.open_path_fixer {
+                    ctx.engine
+                        .user_interface
+                        .send_message(WindowMessage::open_modal(
+                            ctx.path_fixer,
+                            MessageDirection::ToWidget,
+                            true,
+                        ));
                 } else if message.destination() == self.configure {
                     if ctx.editor_scene.is_none() {
                         ctx.engine
