@@ -556,6 +556,11 @@ impl<M: MessageData, C: Control<M, C>> FileBrowserBuilder<M, C> {
         self
     }
 
+    pub fn with_opt_root(mut self, root: Option<PathBuf>) -> Self {
+        self.root = root;
+        self
+    }
+
     pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
         let BuildResult {
             root_items: items, ..
@@ -838,6 +843,7 @@ pub struct FileSelectorBuilder<M: MessageData, C: Control<M, C>> {
     filter: Option<Rc<RefCell<Filter>>>,
     mode: FileBrowserMode,
     path: PathBuf,
+    root: Option<PathBuf>,
 }
 
 impl<M: MessageData, C: Control<M, C>> FileSelectorBuilder<M, C> {
@@ -847,6 +853,7 @@ impl<M: MessageData, C: Control<M, C>> FileSelectorBuilder<M, C> {
             filter: None,
             mode: FileBrowserMode::Open,
             path: Default::default(),
+            root: None,
         }
     }
 
@@ -862,6 +869,11 @@ impl<M: MessageData, C: Control<M, C>> FileSelectorBuilder<M, C> {
 
     pub fn with_mode(mut self, mode: FileBrowserMode) -> Self {
         self.mode = mode;
+        self
+    }
+
+    pub fn with_root(mut self, root: PathBuf) -> Self {
+        self.root = Some(root);
         self
     }
 
@@ -920,6 +932,7 @@ impl<M: MessageData, C: Control<M, C>> FileSelectorBuilder<M, C> {
                                 .with_mode(self.mode)
                                 .with_opt_filter(self.filter)
                                 .with_path(self.path)
+                                .with_opt_root(self.root)
                                 .build(ctx);
                             browser
                         }),
