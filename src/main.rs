@@ -1163,7 +1163,7 @@ impl Editor {
         self.asset_browser.handle_ui_message(message, engine);
         self.command_stack_viewer.handle_ui_message(message);
         self.path_fixer
-            .handle_ui_message(message, &engine.user_interface);
+            .handle_ui_message(message, &mut engine.user_interface);
 
         if let Some(editor_scene) = self.scene.as_mut() {
             self.navmesh_panel.handle_message(
