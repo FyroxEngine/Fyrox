@@ -553,8 +553,14 @@ impl SkyBox {
     }
 
     /// Returns slice with all textures, where: 0 - Left, 1 - Right, 2 - Top, 3 - Bottom
-    /// 4 - Front, 5 - Back
-    pub(in crate) fn textures(&self) -> [Option<Texture>; 6] {
+    /// 4 - Front, 5 - Back.
+    ///
+    /// # Important notes.
+    ///
+    /// These textures are **not** used for rendering! The renderer uses cube map made of these
+    /// textures. Public access for these textures is needed in case you need to read internals
+    /// of the textures.
+    pub fn textures(&self) -> [Option<Texture>; 6] {
         [
             self.left.clone(),
             self.right.clone(),
