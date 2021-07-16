@@ -15,6 +15,7 @@
 
 use crate::core::algebra::{Vector2, Vector3};
 use crate::dock::SplitDirection;
+use crate::file_browser::Filter;
 use crate::formatted_text::WrapMode;
 use crate::{
     brush::Brush,
@@ -564,6 +565,7 @@ pub enum FileSelectorMessage {
     Path(PathBuf),
     Commit(PathBuf),
     Cancel,
+    Filter(Option<Filter>),
 }
 
 impl FileSelectorMessage {
@@ -571,6 +573,7 @@ impl FileSelectorMessage {
     define_constructor_unbound!(FileSelector(FileSelectorMessage:Root) => fn root(Option<PathBuf>), layout: false);
     define_constructor_unbound!(FileSelector(FileSelectorMessage:Path) => fn path(PathBuf), layout: false);
     define_constructor_unbound!(FileSelector(FileSelectorMessage:Cancel) => fn cancel(), layout: false);
+    define_constructor_unbound!(FileSelector(FileSelectorMessage:Filter) => fn filter(Option<Filter>), layout: false);
 }
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Ord, Eq, Hash, Debug)]
@@ -644,11 +647,13 @@ impl<M: MessageData, C: Control<M, C>> TreeRootMessage<M, C> {
 pub enum FileBrowserMessage {
     Root(Option<PathBuf>),
     Path(PathBuf),
+    Filter(Option<Filter>),
 }
 
 impl FileBrowserMessage {
     define_constructor_unbound!(FileBrowser(FileBrowserMessage:Root) => fn root(Option<PathBuf>), layout: false);
     define_constructor_unbound!(FileBrowser(FileBrowserMessage:Path) => fn path(PathBuf), layout: false);
+    define_constructor_unbound!(FileBrowser(FileBrowserMessage:Filter) => fn filter(Option<Filter>), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq)]

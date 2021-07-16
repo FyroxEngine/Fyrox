@@ -32,10 +32,30 @@ use std::{
 };
 
 use crate::text_box::TextCommitMode;
+use std::fmt::{Debug, Formatter};
 #[cfg(not(target_arch = "wasm32"))]
 use sysinfo::{DiskExt, RefreshKind, SystemExt};
 
-pub type Filter = dyn FnMut(&Path) -> bool;
+#[derive(Clone)]
+pub struct Filter(pub Rc<RefCell<dyn FnMut(&Path) -> bool>>);
+
+impl Filter {
+    pub fn new<F: FnMut(&Path) -> bool + 'static>(filter: F) -> Self {
+        Self(Rc::new(RefCell::new(filter)))
+    }
+}
+
+impl PartialEq for Filter {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(&*self.0, &*other.0)
+    }
+}
+
+impl Debug for Filter {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        write!(f, "Filter")
+    }
+}
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub enum FileBrowserMode {
@@ -51,13 +71,54 @@ pub struct FileBrowser<M: MessageData, C: Control<M, C>> {
     scroll_viewer: Handle<UINode<M, C>>,
     path: PathBuf,
     root: Option<PathBuf>,
-    filter: Option<Rc<RefCell<Filter>>>,
+    filter: Option<Filter>,
     mode: FileBrowserMode,
     file_name: Handle<UINode<M, C>>,
     file_name_value: PathBuf,
 }
 
 crate::define_widget_deref!(FileBrowser<M, C>);
+
+impl<M: MessageData, C: Control<M, C>> FileBrowser<M, C> {
+    fn rebuild_from_root(&mut self, ui: &mut UserInterface<M, C>) {
+        // Generate new tree contents.
+        let result = build_all(
+            self.root.as_ref(),
+            &self.path,
+            self.filter.clone(),
+            &mut ui.build_ctx(),
+        );
+
+        // Replace tree contents.
+        ui.send_message(TreeRootMessage::items(
+            self.tree_root,
+            MessageDirection::ToWidget,
+            result.root_items,
+        ));
+
+        if result.path_item.is_some() {
+            // Select item of new path.
+            ui.send_message(TreeRootMessage::select(
+                self.tree_root,
+                MessageDirection::ToWidget,
+                vec![result.path_item],
+            ));
+            // Bring item of new path into view.
+            ui.send_message(ScrollViewerMessage::bring_into_view(
+                self.scroll_viewer,
+                MessageDirection::ToWidget,
+                result.path_item,
+            ));
+        } else {
+            // Clear text field if path is invalid.
+            ui.send_message(TextBoxMessage::text(
+                self.path_text,
+                MessageDirection::ToWidget,
+                String::new(),
+            ));
+        }
+    }
+}
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileBrowser<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
@@ -143,42 +204,18 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileBrowser<M, C> {
                                 self.root = root.clone();
                                 self.path = root.clone().unwrap_or_default();
 
-                                // Generate new tree contents.
-                                let result = build_all(
-                                    self.root.as_ref(),
-                                    &self.path,
-                                    self.filter.clone(),
-                                    &mut ui.build_ctx(),
-                                );
+                                self.rebuild_from_root(ui);
+                            }
+                        }
+                        FileBrowserMessage::Filter(filter) => {
+                            let equal = match (&self.filter, filter) {
+                                (Some(current), Some(new)) => std::ptr::eq(&*new, &*current),
+                                _ => false,
+                            };
 
-                                // Replace tree contents.
-                                ui.send_message(TreeRootMessage::items(
-                                    self.tree_root,
-                                    MessageDirection::ToWidget,
-                                    result.root_items,
-                                ));
-
-                                if result.path_item.is_some() {
-                                    // Select item of new path.
-                                    ui.send_message(TreeRootMessage::select(
-                                        self.tree_root,
-                                        MessageDirection::ToWidget,
-                                        vec![result.path_item],
-                                    ));
-                                    // Bring item of new path into view.
-                                    ui.send_message(ScrollViewerMessage::bring_into_view(
-                                        self.scroll_viewer,
-                                        MessageDirection::ToWidget,
-                                        result.path_item,
-                                    ));
-                                } else {
-                                    // Clear text field if path is invalid.
-                                    ui.send_message(TextBoxMessage::text(
-                                        self.path_text,
-                                        MessageDirection::ToWidget,
-                                        String::new(),
-                                    ));
-                                }
+                            if !equal {
+                                self.filter = filter.clone();
+                                self.rebuild_from_root(ui);
                             }
                         }
                     }
@@ -214,7 +251,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileBrowser<M, C> {
                         for entry in dir_iter.flatten() {
                             let path = entry.path();
                             let build = if let Some(filter) = self.filter.as_ref() {
-                                filter.deref().borrow_mut().deref_mut()(&path)
+                                filter.deref().0.borrow_mut().deref_mut()(&path)
                             } else {
                                 true
                             };
@@ -388,7 +425,7 @@ struct BuildResult<M: MessageData, C: Control<M, C>> {
 fn build_all<M: MessageData, C: Control<M, C>>(
     root: Option<&PathBuf>,
     final_path: &Path,
-    filter: Option<Rc<RefCell<Filter>>>,
+    filter: Option<Filter>,
     ctx: &mut BuildContext<M, C>,
 ) -> BuildResult<M, C> {
     let mut dest_path = PathBuf::new();
@@ -474,7 +511,7 @@ fn build_all<M: MessageData, C: Control<M, C>>(
                 let path = entry.path();
                 if filter
                     .as_ref()
-                    .map_or(true, |f| f.deref().borrow_mut().deref_mut()(&path))
+                    .map_or(true, |f| f.deref().0.borrow_mut().deref_mut()(&path))
                 {
                     let item = build_tree_item(&path, &full_path, ctx);
                     if parent.is_some() {
@@ -506,7 +543,7 @@ fn build_all<M: MessageData, C: Control<M, C>>(
 pub struct FileBrowserBuilder<M: MessageData, C: Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     path: PathBuf,
-    filter: Option<Rc<RefCell<Filter>>>,
+    filter: Option<Filter>,
     root: Option<PathBuf>,
     mode: FileBrowserMode,
 }
@@ -522,12 +559,12 @@ impl<M: MessageData, C: Control<M, C>> FileBrowserBuilder<M, C> {
         }
     }
 
-    pub fn with_filter(mut self, filter: Rc<RefCell<Filter>>) -> Self {
+    pub fn with_filter(mut self, filter: Filter) -> Self {
         self.filter = Some(filter);
         self
     }
 
-    pub fn with_opt_filter(mut self, filter: Option<Rc<RefCell<Filter>>>) -> Self {
+    pub fn with_opt_filter(mut self, filter: Option<Filter>) -> Self {
         self.filter = filter;
         self
     }
@@ -813,6 +850,13 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileSelector<M, C> {
                                 root.clone(),
                             ));
                         }
+                        FileSelectorMessage::Filter(filter) => {
+                            ui.send_message(FileBrowserMessage::filter(
+                                self.browser,
+                                MessageDirection::ToWidget,
+                                filter.clone(),
+                            ));
+                        }
                     }
                 }
             }
@@ -840,7 +884,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileSelector<M, C> {
 
 pub struct FileSelectorBuilder<M: MessageData, C: Control<M, C>> {
     window_builder: WindowBuilder<M, C>,
-    filter: Option<Rc<RefCell<Filter>>>,
+    filter: Option<Filter>,
     mode: FileBrowserMode,
     path: PathBuf,
     root: Option<PathBuf>,
@@ -857,7 +901,7 @@ impl<M: MessageData, C: Control<M, C>> FileSelectorBuilder<M, C> {
         }
     }
 
-    pub fn with_filter(mut self, filter: Rc<RefCell<Filter>>) -> Self {
+    pub fn with_filter(mut self, filter: Filter) -> Self {
         self.filter = Some(filter);
         self
     }
