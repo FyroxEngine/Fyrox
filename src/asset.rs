@@ -7,6 +7,7 @@ use crate::{
     preview::PreviewPanel,
     GameEngine,
 };
+use rg3d::gui::file_browser::Filter;
 use rg3d::{
     core::{color::Color, pool::Handle, scope_profile},
     engine::resource_manager::ResourceManager,
@@ -30,11 +31,9 @@ use rg3d::{
     utils::into_gui_texture,
 };
 use std::{
-    cell::RefCell,
     ffi::OsStr,
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
-    rc::Rc,
 };
 
 #[derive(Debug, Clone)]
@@ -242,7 +241,7 @@ impl AssetBrowser {
                                         folder_browser = FileBrowserBuilder::new(
                                             WidgetBuilder::new().on_column(0),
                                         )
-                                        .with_filter(Rc::new(RefCell::new(|p: &Path| p.is_dir())))
+                                        .with_filter(Filter::new(|p: &Path| p.is_dir()))
                                         .build(&mut ctx);
                                         folder_browser
                                     }),

@@ -2,7 +2,6 @@ use crate::{
     gui::{BuildContext, UiMessage, UiNode},
     GameEngine, Message, CONFIG_DIR,
 };
-use rg3d::gui::formatted_text::WrapMode;
 use rg3d::{
     core::{
         algebra::Vector2,
@@ -14,7 +13,8 @@ use rg3d::{
         border::BorderBuilder,
         button::ButtonBuilder,
         decorator::DecoratorBuilder,
-        file_browser::FileSelectorBuilder,
+        file_browser::{FileSelectorBuilder, Filter},
+        formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
         list_view::ListViewBuilder,
         message::{
@@ -30,9 +30,7 @@ use rg3d::{
     },
 };
 use std::{
-    cell::RefCell,
     path::{Path, PathBuf},
-    rc::Rc,
     sync::mpsc::Sender,
 };
 
@@ -91,7 +89,7 @@ impl Configurator {
         let ok;
         let tb_work_dir;
 
-        let filter = Rc::new(RefCell::new(|p: &Path| p.is_dir()));
+        let filter = Filter::new(|p: &Path| p.is_dir());
 
         let folder_browser = FileSelectorBuilder::new(
             WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))

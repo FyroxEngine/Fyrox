@@ -120,11 +120,9 @@ use rg3d::{
     utils::{into_gui_texture, translate_cursor_icon, translate_event},
 };
 use std::{
-    cell::RefCell,
     fs,
     io::Write,
     path::{Path, PathBuf},
-    rc::Rc,
     str::from_utf8,
     sync::{
         mpsc::{self, Receiver, Sender},
@@ -354,7 +352,7 @@ impl ModelImportDialog {
             WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(500.0))
                 .open(false),
         )
-        .with_filter(Rc::new(RefCell::new(|p: &Path| p.is_dir())))
+        .with_filter(Filter::new(|p: &Path| p.is_dir()))
         .with_path(".")
         .build(ctx);
 
@@ -729,14 +727,14 @@ pub enum Message {
     OpenSettings(SettingsSectionKind),
 }
 
-pub fn make_scene_file_filter() -> Rc<RefCell<Filter>> {
-    Rc::new(RefCell::new(|p: &Path| {
+pub fn make_scene_file_filter() -> Filter {
+    Filter::new(|p: &Path| {
         if let Some(ext) = p.extension() {
             ext.to_string_lossy().as_ref() == "rgs"
         } else {
             p.is_dir()
         }
-    }))
+    })
 }
 
 pub fn make_save_file_selector(ctx: &mut BuildContext) -> Handle<UiNode> {
@@ -1590,6 +1588,8 @@ impl Editor {
 
         while let Ok(message) = self.message_receiver.try_recv() {
             self.log.handle_message(&message, engine);
+            self.path_fixer
+                .handle_message(&message, &mut engine.user_interface);
 
             match message {
                 Message::DoSceneCommand(command) => {
@@ -1741,6 +1741,11 @@ impl Editor {
                     self.asset_browser.clear_preview(engine);
 
                     std::env::set_current_dir(working_directory.clone()).unwrap();
+
+                    engine.get_window().set_title(&format!(
+                        "rusty-editor: {}",
+                        working_directory.to_string_lossy().to_string()
+                    ));
 
                     engine.resource_manager.state().purge_unused_resources();
 

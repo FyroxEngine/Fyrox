@@ -3,9 +3,9 @@
 
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
-    make_scene_file_filter,
+    make_scene_file_filter, Message,
 };
-use rg3d::gui::message::WidgetMessage;
+use rg3d::core::replace_slashes;
 use rg3d::{
     core::{
         color::Color,
@@ -24,7 +24,7 @@ use rg3d::{
         list_view::ListViewBuilder,
         message::{
             ButtonMessage, FileSelectorMessage, ListViewMessage, MessageDirection, TextMessage,
-            UiMessageData, WindowMessage,
+            UiMessageData, WidgetMessage, WindowMessage,
         },
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
@@ -32,7 +32,7 @@ use rg3d::{
         window::{WindowBuilder, WindowTitle},
         HorizontalAlignment, Orientation, Thickness, VerticalAlignment,
     },
-    resource::{model::Model, texture::Texture},
+    resource::{model::Model, texture::Texture, ResourceData},
     scene::{light::Light, node::Node, Scene},
 };
 use std::{
@@ -43,19 +43,22 @@ use std::{
 
 pub struct PathFixer {
     pub window: Handle<UiNode>,
+    scene_path_value: PathBuf,
     scene_path: Handle<UiNode>,
     scene_selector: Handle<UiNode>,
     load_scene: Handle<UiNode>,
     scene: Option<Scene>,
-    scene_resources: Vec<SceneResource>,
+    orphaned_scene_resources: Vec<SceneResource>,
     resources_list: Handle<UiNode>,
     cancel: Handle<UiNode>,
     ok: Handle<UiNode>,
     selection: Option<usize>,
     fix: Handle<UiNode>,
     resource_path: Handle<UiNode>,
+    new_path_selector: Handle<UiNode>,
 }
 
+#[derive(Clone)]
 enum SceneResource {
     Model(Model),
     Texture(Texture),
@@ -67,6 +70,13 @@ impl SceneResource {
         match self {
             SceneResource::Model(model) => model.state().path().to_path_buf(),
             SceneResource::Texture(texture) => texture.state().path().to_path_buf(),
+        }
+    }
+
+    fn set_path(&mut self, path: PathBuf) {
+        match self {
+            SceneResource::Model(model) => model.data_ref().set_path(path),
+            SceneResource::Texture(texture) => texture.data_ref().set_path(path),
         }
     }
 
@@ -100,6 +110,15 @@ impl PathFixer {
                 .with_title(WindowTitle::Text("Select a scene for diagnostics".into())),
         )
         .with_filter(make_scene_file_filter())
+        .build(ctx);
+
+        let new_path_selector = FileSelectorBuilder::new(
+            WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
+                .open(false)
+                .with_title(WindowTitle::Text(
+                    "Select a new path to the resource".into(),
+                )),
+        )
         .build(ctx);
 
         let load_scene;
@@ -213,13 +232,15 @@ impl PathFixer {
             load_scene,
             scene_path,
             scene: None,
-            scene_resources: Default::default(),
+            orphaned_scene_resources: Default::default(),
             resources_list,
             ok,
             cancel,
             resource_path,
             fix,
             selection: None,
+            new_path_selector,
+            scene_path_value: Default::default(),
         }
     }
 
@@ -324,44 +345,31 @@ impl PathFixer {
                                 }
 
                                 // Turn hash map into vec to be able to index it.
-                                self.scene_resources =
-                                    scene_resources.into_iter().collect::<Vec<_>>();
+                                self.orphaned_scene_resources = scene_resources
+                                    .into_iter()
+                                    .filter(|r| !r.path().exists())
+                                    .collect::<Vec<_>>();
 
                                 let ctx = &mut ui.build_ctx();
                                 let items = self
-                                    .scene_resources
+                                    .orphaned_scene_resources
                                     .iter()
-                                    .filter_map(|r| {
-                                        let path = r.path();
-                                        if !path.exists() {
-                                            Some(
-                                                DecoratorBuilder::new(BorderBuilder::new(
+                                    .map(|r| {
+                                        DecoratorBuilder::new(BorderBuilder::new(
+                                            WidgetBuilder::new().with_height(22.0).with_child(
+                                                TextBuilder::new(
                                                     WidgetBuilder::new()
-                                                        .with_height(22.0)
-                                                        .with_child(
-                                                            TextBuilder::new(
-                                                                WidgetBuilder::new()
-                                                                    .with_margin(
-                                                                        Thickness::uniform(1.0),
-                                                                    )
-                                                                    .with_foreground(Brush::Solid(
-                                                                        Color::RED,
-                                                                    )),
-                                                            )
-                                                            .with_vertical_text_alignment(
-                                                                VerticalAlignment::Center,
-                                                            )
-                                                            .with_text(
-                                                                path.to_string_lossy().to_string(),
-                                                            )
-                                                            .build(ctx),
-                                                        ),
-                                                ))
+                                                        .with_margin(Thickness::uniform(1.0))
+                                                        .with_foreground(Brush::Solid(Color::RED)),
+                                                )
+                                                .with_vertical_text_alignment(
+                                                    VerticalAlignment::Center,
+                                                )
+                                                .with_text(r.path().to_string_lossy().to_string())
                                                 .build(ctx),
-                                            )
-                                        } else {
-                                            None
-                                        }
+                                            ),
+                                        ))
+                                        .build(ctx)
                                     })
                                     .collect::<Vec<_>>();
 
@@ -377,6 +385,7 @@ impl PathFixer {
                                 ));
 
                                 self.scene = Some(scene);
+                                self.scene_path_value = path.clone();
 
                                 message = format!("Scene: {}", path.display());
                             }
@@ -392,6 +401,36 @@ impl PathFixer {
                         MessageDirection::ToWidget,
                         message,
                     ));
+                } else if message.destination() == self.new_path_selector {
+                    if let Some(selection) = self.selection {
+                        let new_path = replace_slashes(path);
+                        let text = new_path.to_string_lossy().to_string();
+
+                        self.orphaned_scene_resources[selection].set_path(new_path);
+
+                        let item = ui.node(self.resources_list).as_list_view().items()[selection];
+                        let item_text =
+                            ui.find_by_criteria_down(item, &|n| matches!(n, UiNode::Text(_)));
+
+                        assert!(item_text.is_some());
+
+                        ui.send_message(WidgetMessage::foreground(
+                            item_text,
+                            MessageDirection::ToWidget,
+                            Brush::Solid(Color::GREEN),
+                        ));
+                        ui.send_message(TextMessage::text(
+                            item_text,
+                            MessageDirection::ToWidget,
+                            text.clone(),
+                        ));
+
+                        ui.send_message(TextMessage::text(
+                            self.resource_path,
+                            MessageDirection::ToWidget,
+                            text,
+                        ));
+                    }
                 }
             }
             UiMessageData::Button(ButtonMessage::Click) => {
@@ -412,7 +451,57 @@ impl PathFixer {
                         MessageDirection::ToWidget,
                     ));
 
-                    // TODO: Apply changes.
+                    if let Some(mut scene) = self.scene.take() {
+                        let mut visitor = Visitor::new();
+                        scene
+                            .visit("Scene", &mut visitor)
+                            .expect("Unable to visit a scene!");
+                        visitor
+                            .save_binary(&self.scene_path_value)
+                            .expect("Unable to save a scene!");
+                    }
+
+                    ui.send_message(TextMessage::text(
+                        self.scene_path,
+                        MessageDirection::ToWidget,
+                        "No scene loaded!".to_owned(),
+                    ));
+                    ui.send_message(ListViewMessage::items(
+                        self.resources_list,
+                        MessageDirection::ToWidget,
+                        Default::default(),
+                    ));
+                    ui.send_message(TextMessage::text(
+                        self.resource_path,
+                        MessageDirection::ToWidget,
+                        Default::default(),
+                    ));
+                    ui.send_message(WidgetMessage::enabled(
+                        self.fix,
+                        MessageDirection::ToWidget,
+                        false,
+                    ));
+                } else if message.destination() == self.fix {
+                    if let Some(selection) = self.selection {
+                        // Pop parts of the path one by one until existing found.
+                        let mut resource_path = self.orphaned_scene_resources[selection].path();
+                        while !resource_path.exists() {
+                            resource_path.pop();
+                        }
+
+                        // Set it as a path for the selector to reduce amount of clicks needed.
+                        ui.send_message(FileSelectorMessage::path(
+                            self.new_path_selector,
+                            MessageDirection::ToWidget,
+                            resource_path,
+                        ));
+
+                        ui.send_message(WindowMessage::open_modal(
+                            self.new_path_selector,
+                            MessageDirection::ToWidget,
+                            true,
+                        ));
+                    }
                 }
             }
             UiMessageData::ListView(ListViewMessage::SelectionChanged(selection)) => {
@@ -425,7 +514,7 @@ impl PathFixer {
                             MessageDirection::ToWidget,
                             format!(
                                 "Resource: {}",
-                                self.scene_resources[*selection].path().display()
+                                self.orphaned_scene_resources[*selection].path().display()
                             ),
                         ))
                     } else {
@@ -444,6 +533,21 @@ impl PathFixer {
                 }
             }
             _ => {}
+        }
+    }
+
+    pub fn handle_message(&mut self, message: &Message, ui: &mut Ui) {
+        if let Message::Configure { working_directory } = message {
+            ui.send_message(FileSelectorMessage::root(
+                self.new_path_selector,
+                MessageDirection::ToWidget,
+                Some(working_directory.to_owned()),
+            ));
+            ui.send_message(FileSelectorMessage::root(
+                self.scene_selector,
+                MessageDirection::ToWidget,
+                Some(working_directory.to_owned()),
+            ));
         }
     }
 }
