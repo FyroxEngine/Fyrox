@@ -115,6 +115,11 @@ impl GenericBuffer {
         self.external_source_path.as_deref()
     }
 
+    /// Sets new path for external data source.
+    pub fn set_external_data_path(&mut self, path: Option<PathBuf>) -> Option<PathBuf> {
+        std::mem::replace(&mut self.external_source_path, path)
+    }
+
     /// Checks if buffer is empty or not.
     #[inline]
     pub fn is_empty(&self) -> bool {

@@ -22,6 +22,9 @@ pub mod texture;
 pub trait ResourceData: 'static + Default + Debug + Visit + Send {
     /// Returns path of resource data.
     fn path(&self) -> Cow<Path>;
+
+    /// Sets new path to resource data.
+    fn set_path(&mut self, path: PathBuf);
 }
 
 /// A trait for resource load error.

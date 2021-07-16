@@ -182,6 +182,10 @@ impl ResourceData for ModelData {
     fn path(&self) -> Cow<Path> {
         Cow::Borrowed(&self.path)
     }
+
+    fn set_path(&mut self, path: PathBuf) {
+        self.path = path;
+    }
 }
 
 impl Default for ModelData {

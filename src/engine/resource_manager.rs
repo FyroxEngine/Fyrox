@@ -94,6 +94,10 @@ impl ResourceData for Arc<Mutex<SoundBuffer>> {
             .map(|p| Cow::Owned(p.to_owned()))
             .unwrap_or_else(|| Cow::Owned(Path::new("").to_owned()))
     }
+
+    fn set_path(&mut self, path: PathBuf) {
+        self.lock().unwrap().set_external_data_path(Some(path));
+    }
 }
 
 /// Type alias for sound buffer resource.
