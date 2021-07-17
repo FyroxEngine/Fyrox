@@ -35,6 +35,7 @@ use rg3d::{
     resource::{model::Model, texture::Texture, ResourceData},
     scene::{light::Light, node::Node, Scene},
 };
+use std::path::Path;
 use std::{
     collections::HashSet,
     hash::{Hash, Hasher},
@@ -56,6 +57,7 @@ pub struct PathFixer {
     fix: Handle<UiNode>,
     resource_path: Handle<UiNode>,
     new_path_selector: Handle<UiNode>,
+    auto_fix: Handle<UiNode>,
 }
 
 #[derive(Clone)]
@@ -102,6 +104,19 @@ impl PartialEq for SceneResource {
 
 impl Eq for SceneResource {}
 
+fn find_file(name: &Path) -> Vec<PathBuf> {
+    let mut files = Vec::new();
+    for dir in rg3d::walkdir::WalkDir::new(".").into_iter().flatten() {
+        let path = dir.path();
+        if let Some(file_name) = path.file_name() {
+            if file_name == name {
+                files.push(path.to_owned());
+            }
+        }
+    }
+    files
+}
+
 impl PathFixer {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let scene_selector = FileSelectorBuilder::new(
@@ -126,6 +141,7 @@ impl PathFixer {
         let resources_list;
         let cancel;
         let ok;
+        let auto_fix;
         let fix;
         let resource_path;
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(400.0).with_height(500.0))
@@ -193,6 +209,16 @@ impl PathFixer {
                                         load_scene
                                     })
                                     .with_child({
+                                        auto_fix = ButtonBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_width(100.0)
+                                                .with_margin(Thickness::uniform(1.0)),
+                                        )
+                                        .with_text("Auto Fix")
+                                        .build(ctx);
+                                        auto_fix
+                                    })
+                                    .with_child({
                                         ok = ButtonBuilder::new(
                                             WidgetBuilder::new()
                                                 .with_width(100.0)
@@ -240,8 +266,37 @@ impl PathFixer {
             fix,
             selection: None,
             new_path_selector,
+            auto_fix,
             scene_path_value: Default::default(),
         }
+    }
+
+    fn fix_path(&mut self, index: usize, new_path: PathBuf, ui: &Ui) {
+        let text = new_path.to_string_lossy().to_string();
+
+        self.orphaned_scene_resources[index].set_path(new_path);
+
+        let item = ui.node(self.resources_list).as_list_view().items()[index];
+        let item_text = ui.find_by_criteria_down(item, &|n| matches!(n, UiNode::Text(_)));
+
+        assert!(item_text.is_some());
+
+        ui.send_message(WidgetMessage::foreground(
+            item_text,
+            MessageDirection::ToWidget,
+            Brush::Solid(Color::GREEN),
+        ));
+        ui.send_message(TextMessage::text(
+            item_text,
+            MessageDirection::ToWidget,
+            text.clone(),
+        ));
+
+        ui.send_message(TextMessage::text(
+            self.resource_path,
+            MessageDirection::ToWidget,
+            text,
+        ));
     }
 
     pub fn handle_ui_message(&mut self, message: &UiMessage, ui: &mut Ui) {
@@ -403,33 +458,7 @@ impl PathFixer {
                     ));
                 } else if message.destination() == self.new_path_selector {
                     if let Some(selection) = self.selection {
-                        let new_path = replace_slashes(path);
-                        let text = new_path.to_string_lossy().to_string();
-
-                        self.orphaned_scene_resources[selection].set_path(new_path);
-
-                        let item = ui.node(self.resources_list).as_list_view().items()[selection];
-                        let item_text =
-                            ui.find_by_criteria_down(item, &|n| matches!(n, UiNode::Text(_)));
-
-                        assert!(item_text.is_some());
-
-                        ui.send_message(WidgetMessage::foreground(
-                            item_text,
-                            MessageDirection::ToWidget,
-                            Brush::Solid(Color::GREEN),
-                        ));
-                        ui.send_message(TextMessage::text(
-                            item_text,
-                            MessageDirection::ToWidget,
-                            text.clone(),
-                        ));
-
-                        ui.send_message(TextMessage::text(
-                            self.resource_path,
-                            MessageDirection::ToWidget,
-                            text,
-                        ));
+                        self.fix_path(selection, replace_slashes(path), ui);
                     }
                 }
             }
@@ -485,15 +514,12 @@ impl PathFixer {
                     if let Some(selection) = self.selection {
                         // Try to find a resource by its file name.
                         let mut resource_path = self.orphaned_scene_resources[selection].path();
-                        for dir in rg3d::walkdir::WalkDir::new(".").into_iter().flatten() {
-                            let path = dir.path();
-                            if let (Some(file_name), Some(res_file_name)) =
-                                (path.file_name(), resource_path.file_name())
-                            {
-                                if file_name == res_file_name {
-                                    resource_path = path.to_owned();
-                                    break;
-                                }
+
+                        if let Some(file_name) = resource_path.file_name() {
+                            let candidates = find_file(file_name.as_ref());
+                            // Skip ambiguous file paths.
+                            if candidates.len() == 1 {
+                                resource_path = candidates.first().unwrap().clone();
                             }
                         }
 
@@ -514,6 +540,19 @@ impl PathFixer {
                             MessageDirection::ToWidget,
                             true,
                         ));
+                    }
+                } else if message.destination() == self.auto_fix {
+                    for (i, orphaned_resource) in
+                        self.orphaned_scene_resources.clone().iter().enumerate()
+                    {
+                        if let Some(file_name) = orphaned_resource.path().file_name() {
+                            let candidates = find_file(file_name.as_ref());
+                            // Skip ambiguous file paths.
+                            if candidates.len() == 1 {
+                                let new_path = candidates.first().unwrap().clone();
+                                self.fix_path(i, new_path, ui);
+                            }
+                        }
                     }
                 }
             }
