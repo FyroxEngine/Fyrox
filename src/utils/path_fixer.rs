@@ -483,8 +483,21 @@ impl PathFixer {
                     ));
                 } else if message.destination() == self.fix {
                     if let Some(selection) = self.selection {
-                        // Pop parts of the path one by one until existing found.
+                        // Try to find a resource by its file name.
                         let mut resource_path = self.orphaned_scene_resources[selection].path();
+                        for dir in rg3d::walkdir::WalkDir::new(".").into_iter().flatten() {
+                            let path = dir.path();
+                            if let (Some(file_name), Some(res_file_name)) =
+                                (path.file_name(), resource_path.file_name())
+                            {
+                                if file_name == res_file_name {
+                                    resource_path = path.to_owned();
+                                    break;
+                                }
+                            }
+                        }
+
+                        // Pop parts of the path one by one until existing found.
                         while !resource_path.exists() {
                             resource_path.pop();
                         }
