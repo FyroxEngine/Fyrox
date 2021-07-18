@@ -550,7 +550,7 @@ impl PathFixer {
                             // Skip ambiguous file paths.
                             if candidates.len() == 1 {
                                 let new_path = candidates.first().unwrap().clone();
-                                self.fix_path(i, new_path, ui);
+                                self.fix_path(i, replace_slashes(new_path), ui);
                             }
                         }
                     }
