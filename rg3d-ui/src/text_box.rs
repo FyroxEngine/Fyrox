@@ -831,6 +831,7 @@ pub struct TextBoxBuilder<M: MessageData, C: Control<M, C>> {
     commit_mode: TextCommitMode,
     multiline: bool,
     editable: bool,
+    mask_char: Option<char>,
 }
 
 impl<M: MessageData, C: Control<M, C>> TextBoxBuilder<M, C> {
@@ -848,6 +849,7 @@ impl<M: MessageData, C: Control<M, C>> TextBoxBuilder<M, C> {
             commit_mode: TextCommitMode::LostFocusPlusEnter,
             multiline: false,
             editable: true,
+            mask_char: None,
         }
     }
 
@@ -906,6 +908,11 @@ impl<M: MessageData, C: Control<M, C>> TextBoxBuilder<M, C> {
         self
     }
 
+    pub fn with_mask_char(mut self, mask_char: Option<char>) -> Self {
+        self.mask_char = mask_char;
+        self
+    }
+
     pub fn build(mut self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
         if self.widget_builder.foreground.is_none() {
             self.widget_builder.foreground = Some(BRUSH_TEXT);
@@ -930,6 +937,7 @@ impl<M: MessageData, C: Control<M, C>> TextBoxBuilder<M, C> {
                     .with_horizontal_alignment(self.horizontal_alignment)
                     .with_vertical_alignment(self.vertical_alignment)
                     .with_wrap(self.wrap)
+                    .with_mask_char(self.mask_char)
                     .build(),
             ),
             selection_range: None,
