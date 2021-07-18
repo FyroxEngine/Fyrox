@@ -88,6 +88,7 @@ pub struct FormattedText {
     brush: Brush,
     constraint: Vector2<f32>,
     wrap: WrapMode,
+    mask_char: Option<char>,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -218,12 +219,21 @@ impl FormattedText {
             return Vector2::default();
         };
 
+        let masked_text: Vec<u32>;
+        let text: &Vec<u32> = if let Some(mask_char) = self.mask_char {
+            masked_text = (0..self.text.len()).map(|_| mask_char as u32).collect();
+            &masked_text
+        } else {
+            &self.text
+        };
+
+
         // Split on lines.
         let mut total_height = 0.0;
         let mut current_line = TextLine::new();
         let mut word: Option<Word> = None;
         self.lines.clear();
-        for (i, code) in self.text.iter().enumerate() {
+        for (i, code) in text.iter().enumerate() {
             let advance = match font.glyph(*code) {
                 Some(glyph) => glyph.advance,
                 None => font.height(),
@@ -231,7 +241,7 @@ impl FormattedText {
             let is_new_line = *code == u32::from(b'\n') || *code == u32::from(b'\r');
             let new_width = current_line.width + advance;
             let is_white_space = char::from_u32(*code).map_or(false, |c| c.is_whitespace());
-            let word_ended = word.is_some() && is_white_space || i == self.text.len() - 1;
+            let word_ended = word.is_some() && is_white_space || i == text.len() - 1;
 
             if self.wrap == WrapMode::Word && !is_white_space {
                 match word.as_mut() {
@@ -315,14 +325,14 @@ impl FormattedText {
         }
         // Commit rest of text.
         if current_line.begin != current_line.end {
-            for code in self.text.iter().skip(current_line.end) {
+            for code in text.iter().skip(current_line.end) {
                 let advance = match font.glyph(*code) {
                     Some(glyph) => glyph.advance,
                     None => font.height(),
                 };
                 current_line.width += advance;
             }
-            current_line.end = self.text.len();
+            current_line.end = text.len();
             self.lines.push(current_line);
             total_height += font.ascender();
         }
@@ -382,7 +392,7 @@ impl FormattedText {
             cursor.x = line.x_offset;
 
             for code_index in line.begin..line.end {
-                let code = self.text[code_index];
+                let code = text[code_index];
 
                 match font.glyph(code) {
                     Some(glyph) => {
@@ -441,6 +451,7 @@ pub struct FormattedTextBuilder {
     vertical_alignment: VerticalAlignment,
     horizontal_alignment: HorizontalAlignment,
     wrap: WrapMode,
+    mask_char: Option<char>,
 }
 
 impl Default for FormattedTextBuilder {
@@ -460,6 +471,7 @@ impl FormattedTextBuilder {
             brush: Brush::Solid(Color::WHITE),
             constraint: Vector2::new(128.0, 128.0),
             wrap: WrapMode::NoWrap,
+            mask_char: None
         }
     }
 
@@ -498,6 +510,16 @@ impl FormattedTextBuilder {
         self
     }
 
+    pub fn with_mask_char(mut self, mask_char: char) -> Self {
+        self.mask_char = Some(mask_char);
+        self
+    }
+
+    pub fn with_no_mask_char(mut self) -> Self {
+        self.mask_char = None;
+        self
+    }
+
     pub fn build(self) -> FormattedText {
         FormattedText {
             font: self.font,
@@ -509,6 +531,7 @@ impl FormattedTextBuilder {
             brush: self.brush,
             constraint: self.constraint,
             wrap: self.wrap,
+            mask_char: self.mask_char,
         }
     }
 }
