@@ -722,7 +722,7 @@ impl Graph {
                                 MessageKind::Error,
                                 format!(
                                     "Unable to find bone with name {} \
-                                                 starting from node {} in the graph!",
+                                                 starting from node {} in the graph! Bone handle will be removed!",
                                     graph[*bone_handle].name(),
                                     graph[root_handle].name()
                                 ),
@@ -731,6 +731,9 @@ impl Graph {
 
                         *bone_handle = copy;
                     }
+
+                    // Remove invalid handles to prevent panicking.
+                    surface.bones.retain(|h| h.is_some())
                 }
             }
         }
