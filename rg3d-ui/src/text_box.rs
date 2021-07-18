@@ -908,13 +908,8 @@ impl<M: MessageData, C: Control<M, C>> TextBoxBuilder<M, C> {
         self
     }
 
-    pub fn with_mask_char(mut self, mask_char: char) -> Self {
-        self.mask_char = Some(mask_char);
-        self
-    }
-
-    pub fn with_no_mask_char(mut self) -> Self {
-        self.mask_char = None;
+    pub fn with_mask_char(mut self, mask_char: Option<char>) -> Self {
+        self.mask_char = mask_char;
         self
     }
 
@@ -929,23 +924,22 @@ impl<M: MessageData, C: Control<M, C>> TextBoxBuilder<M, C> {
             self.widget_builder.cursor = Some(CursorIcon::Text);
         }
 
-        let mut formatted_text_builder = FormattedTextBuilder::new()
-                    .with_text(self.text)
-                    .with_font(self.font.unwrap_or_else(|| crate::DEFAULT_FONT.clone()))
-                    .with_horizontal_alignment(self.horizontal_alignment)
-                    .with_vertical_alignment(self.vertical_alignment)
-                    .with_wrap(self.wrap);
-        if let Some(mask_char) = self.mask_char {
-            formatted_text_builder = formatted_text_builder.with_mask_char(mask_char);
-        }
-
         let text_box = TextBox {
             widget: self.widget_builder.build(),
             caret_position: Position::default(),
             caret_visible: false,
             blink_timer: 0.0,
             blink_interval: 0.5,
-            formatted_text: RefCell::new(formatted_text_builder.build()),
+            formatted_text: RefCell::new(
+                FormattedTextBuilder::new()
+                    .with_text(self.text)
+                    .with_font(self.font.unwrap_or_else(|| crate::DEFAULT_FONT.clone()))
+                    .with_horizontal_alignment(self.horizontal_alignment)
+                    .with_vertical_alignment(self.vertical_alignment)
+                    .with_wrap(self.wrap)
+                    .with_mask_char(self.mask_char)
+                    .build(),
+            ),
             selection_range: None,
             selecting: false,
             selection_brush: self.selection_brush,

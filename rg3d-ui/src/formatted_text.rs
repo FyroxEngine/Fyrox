@@ -227,7 +227,6 @@ impl FormattedText {
             &self.text
         };
 
-
         // Split on lines.
         let mut total_height = 0.0;
         let mut current_line = TextLine::new();
@@ -471,7 +470,7 @@ impl FormattedTextBuilder {
             brush: Brush::Solid(Color::WHITE),
             constraint: Vector2::new(128.0, 128.0),
             wrap: WrapMode::NoWrap,
-            mask_char: None
+            mask_char: None,
         }
     }
 
@@ -510,13 +509,8 @@ impl FormattedTextBuilder {
         self
     }
 
-    pub fn with_mask_char(mut self, mask_char: char) -> Self {
-        self.mask_char = Some(mask_char);
-        self
-    }
-
-    pub fn with_no_mask_char(mut self) -> Self {
-        self.mask_char = None;
+    pub fn with_mask_char(mut self, mask_char: Option<char>) -> Self {
+        self.mask_char = mask_char;
         self
     }
 
