@@ -20,6 +20,7 @@ use rg3d::{
     },
     engine::{framework::prelude::*, resource_manager::ResourceManager},
     event::{ElementState, VirtualKeyCode, WindowEvent},
+    event_loop::ControlFlow,
     gui::{
         message::{MessageDirection, TextMessage},
         text::TextBuilder,
@@ -202,7 +203,7 @@ impl GameState for Game {
         }
     }
 
-    fn on_tick(&mut self, engine: &mut GameEngine, _dt: f32) {
+    fn on_tick(&mut self, engine: &mut GameEngine, _dt: f32, _: &mut ControlFlow) {
         // Use stored scene handle to borrow a mutable reference of scene in
         // engine.
         let scene = &mut engine.scenes[self.scene];

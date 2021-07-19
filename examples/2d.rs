@@ -10,6 +10,7 @@ use rg3d::{
     core::{algebra::Vector2, pool::Handle},
     engine::{framework::prelude::*, resource_manager::ResourceManager},
     event::{ElementState, VirtualKeyCode, WindowEvent},
+    event_loop::ControlFlow,
     gui::{
         message::{MessageDirection, TextMessage},
         text::TextBuilder,
@@ -128,7 +129,7 @@ impl GameState for Game {
         }
     }
 
-    fn on_tick(&mut self, engine: &mut GameEngine, _dt: f32) {
+    fn on_tick(&mut self, engine: &mut GameEngine, _dt: f32, _: &mut ControlFlow) {
         let mut offset = Vector2::default();
         if self.input_controller.move_forward {
             offset.y -= 10.0
