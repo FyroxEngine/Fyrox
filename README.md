@@ -78,7 +78,9 @@ There are many examples covering various aspects of the engine. Also don't hesit
 	- Soft shadows.
 	- Volumetric light (spot, point).
 	- Instancing - render lots of objects without any overhead.
-	- FXAA
+	- Fast Approximate Anti-Aliasing (FXAA)
+	- Parallax mapping.
+- Custom shaders and rendering techniques.
 - Render in texture.
 - Sky box.
 - 2D support.
