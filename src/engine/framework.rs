@@ -44,8 +44,8 @@ pub trait GameState: 'static {
         Self: Sized;
 
     /// Defines a function that will contain game logic. It has stabilized update rate of
-    /// 60 Hz.
-    fn on_tick(&mut self, _engine: &mut GameEngine, _dt: f32) {}
+    /// 60 Hz. Callee can alter control flow of the game by modifying _control_flow parameter.
+    fn on_tick(&mut self, _engine: &mut GameEngine, _dt: f32, _control_flow: &mut ControlFlow) {}
 
     /// Defines a function that will be called when there is any message from user interface.
     fn on_ui_message(&mut self, _engine: &mut GameEngine, _message: UiMessage) {}
@@ -116,7 +116,7 @@ impl<State: GameState> Framework<State> {
                         dt -= fixed_timestep;
                         elapsed_time += fixed_timestep;
 
-                        state.on_tick(&mut engine, fixed_timestep);
+                        state.on_tick(&mut engine, fixed_timestep, control_flow);
 
                         engine.update(fixed_timestep);
                     }
