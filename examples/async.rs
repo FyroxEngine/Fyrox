@@ -19,6 +19,7 @@ use rg3d::{
     },
     engine::{framework::prelude::*, resource_manager::ResourceManager},
     event::{ElementState, VirtualKeyCode, WindowEvent},
+    event_loop::ControlFlow,
     gui::{
         grid::{Column, GridBuilder, Row},
         message::{MessageDirection, ProgressBarMessage, TextMessage, WidgetMessage},
@@ -257,7 +258,7 @@ impl GameState for Game {
         }
     }
 
-    fn on_tick(&mut self, engine: &mut GameEngine, _dt: f32) {
+    fn on_tick(&mut self, engine: &mut GameEngine, _dt: f32, _: &mut ControlFlow) {
         // Check each frame if our scene is created - here we just trying to lock context
         // without blocking, it is important for main thread to be functional while other
         // thread still loading data.
