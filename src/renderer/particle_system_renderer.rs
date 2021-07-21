@@ -54,7 +54,7 @@ impl ParticleSystemShader {
 
 pub struct ParticleSystemRenderer {
     shader: ParticleSystemShader,
-    draw_data: particle_system::DrawData,
+    draw_data: particle_system::draw::DrawData,
     geometry_buffer: GeometryBuffer,
     sorted_particles: Vec<u32>,
 }
@@ -76,7 +76,7 @@ impl ParticleSystemRenderer {
     pub fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
         let geometry_buffer = GeometryBufferBuilder::new(ElementKind::Triangle)
             .with_buffer_builder(
-                BufferBuilder::new::<crate::scene::particle_system::Vertex>(
+                BufferBuilder::new::<crate::scene::particle_system::draw::Vertex>(
                     GeometryBufferKind::DynamicDraw,
                     None,
                 )

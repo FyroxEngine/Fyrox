@@ -236,6 +236,15 @@ impl Color {
             a: alpha,
         }
     }
+
+    pub fn with_new_alpha(self, a: u8) -> Self {
+        Self {
+            r: self.r,
+            g: self.g,
+            b: self.b,
+            a,
+        }
+    }
 }
 
 impl Visit for Color {
