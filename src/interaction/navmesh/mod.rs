@@ -220,11 +220,14 @@ impl NavmeshPanel {
                 WidgetMessage::enabled(self.connect, MessageDirection::ToWidget, false),
             );
 
+            self.selected = Handle::NONE;
+
             None
         };
 
         let mut message =
             ListViewMessage::selection(self.navmeshes, MessageDirection::ToWidget, new_selection);
+
         message.flags = MSG_SYNC_FLAG;
         engine.user_interface.send_message(message);
 
