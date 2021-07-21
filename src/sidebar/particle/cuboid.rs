@@ -18,7 +18,7 @@ use rg3d::{
         message::{MessageDirection, NumericUpDownMessage, UiMessageData},
         widget::WidgetBuilder,
     },
-    scene::{node::Node, particle_system::BoxEmitter},
+    scene::{node::Node, particle_system::emitter::cuboid::CuboidEmitter},
 };
 use std::sync::mpsc::Sender;
 
@@ -69,7 +69,7 @@ impl BoxSection {
         }
     }
 
-    pub fn sync_to_model(&mut self, box_emitter: &BoxEmitter, ui: &mut Ui) {
+    pub fn sync_to_model(&mut self, box_emitter: &CuboidEmitter, ui: &mut Ui) {
         send_sync_message(
             ui,
             NumericUpDownMessage::value(
@@ -101,7 +101,7 @@ impl BoxSection {
     pub fn handle_message(
         &mut self,
         message: &UiMessage,
-        box_emitter: &BoxEmitter,
+        box_emitter: &CuboidEmitter,
         handle: Handle<Node>,
         emitter_index: usize,
     ) {

@@ -41,7 +41,10 @@ use rg3d::{
             Mesh, MeshBuilder,
         },
         node::Node,
-        particle_system::{BaseEmitterBuilder, ParticleSystemBuilder, SphereEmitterBuilder},
+        particle_system::{
+            emitter::base::BaseEmitterBuilder, emitter::sphere::SphereEmitterBuilder,
+            ParticleSystemBuilder,
+        },
         sprite::SpriteBuilder,
         terrain::{LayerDefinition, TerrainBuilder},
     },

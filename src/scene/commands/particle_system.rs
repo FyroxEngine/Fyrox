@@ -5,7 +5,7 @@ use rg3d::{
     scene::{
         graph::Graph,
         node::Node,
-        particle_system::{Emitter, ParticleLimit, ParticleSystem},
+        particle_system::{emitter::Emitter, ParticleLimit, ParticleSystem},
     },
 };
 
@@ -343,15 +343,15 @@ define_emitter_variant_command!(SetCylinderEmitterHeightCommand("Set Cylinder Em
     get_set_swap!(self, cylinder, height, set_height);
 });
 
-define_emitter_variant_command!(SetBoxEmitterHalfWidthCommand("Set Box Emitter Half Width", f32) where fn swap(self, emitter, Box, box_emitter) {
+define_emitter_variant_command!(SetBoxEmitterHalfWidthCommand("Set Box Emitter Half Width", f32) where fn swap(self, emitter, Cuboid, box_emitter) {
     get_set_swap!(self, box_emitter, half_width, set_half_width);
 });
 
-define_emitter_variant_command!(SetBoxEmitterHalfHeightCommand("Set Box Emitter Half Height", f32) where fn swap(self, emitter, Box, box_emitter) {
+define_emitter_variant_command!(SetBoxEmitterHalfHeightCommand("Set Box Emitter Half Height", f32) where fn swap(self, emitter, Cuboid, box_emitter) {
     get_set_swap!(self, box_emitter, half_height, set_half_height);
 });
 
-define_emitter_variant_command!(SetBoxEmitterHalfDepthCommand("Set Box Emitter Half Depth", f32) where fn swap(self, emitter, Box, box_emitter) {
+define_emitter_variant_command!(SetBoxEmitterHalfDepthCommand("Set Box Emitter Half Depth", f32) where fn swap(self, emitter, Cuboid, box_emitter) {
     get_set_swap!(self, box_emitter, half_depth, set_half_depth);
 });
 

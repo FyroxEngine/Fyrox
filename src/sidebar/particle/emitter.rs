@@ -30,7 +30,7 @@ use rg3d::{
     },
     scene::{
         node::Node,
-        particle_system::{Emitter, ParticleLimit},
+        particle_system::{emitter::Emitter, ParticleLimit},
     },
 };
 use std::sync::mpsc::Sender;
@@ -330,7 +330,7 @@ impl EmitterSection {
 
         match emitter {
             Emitter::Unknown => unreachable!(),
-            Emitter::Box(box_emitter) => {
+            Emitter::Cuboid(box_emitter) => {
                 toggle_visibility(ui, self.box_section.section, true);
                 self.box_section.sync_to_model(box_emitter, ui);
             }
@@ -354,7 +354,7 @@ impl EmitterSection {
     ) {
         match emitter {
             Emitter::Unknown => unreachable!(),
-            Emitter::Box(box_emitter) => {
+            Emitter::Cuboid(box_emitter) => {
                 self.box_section
                     .handle_message(message, box_emitter, handle, emitter_index);
             }

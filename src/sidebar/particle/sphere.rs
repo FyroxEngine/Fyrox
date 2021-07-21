@@ -12,7 +12,7 @@ use rg3d::{
         message::{MessageDirection, NumericUpDownMessage, UiMessageData},
         widget::WidgetBuilder,
     },
-    scene::{node::Node, particle_system::SphereEmitter},
+    scene::{node::Node, particle_system::emitter::sphere::SphereEmitter},
 };
 use std::sync::mpsc::Sender;
 

@@ -15,7 +15,7 @@ use rg3d::{
         message::{MessageDirection, NumericUpDownMessage, UiMessageData},
         widget::WidgetBuilder,
     },
-    scene::{node::Node, particle_system::CylinderEmitter},
+    scene::{node::Node, particle_system::emitter::cylinder::CylinderEmitter},
 };
 use std::sync::mpsc::Sender;
 

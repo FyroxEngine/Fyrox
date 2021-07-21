@@ -1,13 +1,17 @@
-use crate::scene::commands::particle_system::{
-    AddParticleSystemEmitterCommand, DeleteEmitterCommand, SetParticleSystemAccelerationCommand,
-};
-use crate::scene::commands::SceneCommand;
 use crate::{
     gui::{
         BuildContext, DeletableItemBuilder, DeletableItemMessage, EditorUiMessage, EditorUiNode,
         Ui, UiMessage, UiNode,
     },
-    load_image, send_sync_message,
+    load_image,
+    scene::commands::{
+        particle_system::{
+            AddParticleSystemEmitterCommand, DeleteEmitterCommand,
+            SetParticleSystemAccelerationCommand,
+        },
+        SceneCommand,
+    },
+    send_sync_message,
     sidebar::{
         make_text_mark, make_vec3_input_field, particle::emitter::EmitterSection, COLUMN_WIDTH,
         ROW_HEIGHT,
@@ -32,9 +36,9 @@ use rg3d::{
     },
     scene::{
         node::Node,
-        particle_system::{
-            BaseEmitterBuilder, BoxEmitterBuilder, CylinderEmitterBuilder, Emitter,
-            SphereEmitterBuilder,
+        particle_system::emitter::{
+            base::BaseEmitterBuilder, cuboid::CuboidEmitterBuilder,
+            cylinder::CylinderEmitterBuilder, sphere::SphereEmitterBuilder, Emitter,
         },
     },
 };
@@ -203,7 +207,7 @@ impl ParticleSystemSection {
                             TextBuilder::new(WidgetBuilder::new())
                                 .with_text(match e {
                                     Emitter::Unknown => unreachable!(),
-                                    Emitter::Box(_) => "Box",
+                                    Emitter::Cuboid(_) => "Box",
                                     Emitter::Sphere(_) => "Sphere",
                                     Emitter::Cylinder(_) => "Cylinder",
                                 })
@@ -287,7 +291,8 @@ impl ParticleSystemSection {
                                 SceneCommand::AddParticleSystemEmitter(
                                     AddParticleSystemEmitterCommand::new(
                                         handle,
-                                        BoxEmitterBuilder::new(BaseEmitterBuilder::new()).build(),
+                                        CuboidEmitterBuilder::new(BaseEmitterBuilder::new())
+                                            .build(),
                                     ),
                                 ),
                             ))
