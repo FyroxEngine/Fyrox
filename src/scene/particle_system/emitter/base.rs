@@ -13,10 +13,12 @@ pub struct BaseEmitter {
     position: Vector3<f32>,
     /// Particle spawn rate in unit-per-second. If < 0, spawns `max_particles`,
     /// spawns nothing if `max_particles` < 0
+    #[visit(rename = "SpawnRate")]
     particle_spawn_rate: u32,
     /// Maximum amount of particles emitter can emit. Unlimited if < 0
     max_particles: ParticleLimit,
     /// Range of initial lifetime of a particle
+    #[visit(rename = "LifeTime")]
     lifetime: NumericRange,
     /// Range of initial size of a particle
     size: NumericRange,
@@ -34,6 +36,7 @@ pub struct BaseEmitter {
     rotation: NumericRange,
     pub(crate) alive_particles: Cell<u32>,
     time: f32,
+    #[visit(skip)]
     pub(crate) particles_to_spawn: u32,
     resurrect_particles: bool,
     spawned_particles: u64,

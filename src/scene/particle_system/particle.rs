@@ -8,8 +8,10 @@ use std::cell::Cell;
 #[derive(Clone, Debug, Visit)]
 pub struct Particle {
     /// Position of particle in local coordinates.
+    #[visit(rename = "Pos")]
     pub position: Vector3<f32>,
     /// Velocity of particle in local coordinates.
+    #[visit(rename = "Vel")]
     pub velocity: Vector3<f32>,
     /// Size of particle.
     pub size: f32,
@@ -17,6 +19,7 @@ pub struct Particle {
     /// Modifier for size which will be added to size each update tick.
     pub size_modifier: f32,
     /// Particle is alive if lifetime > 0
+    #[visit(rename = "LifeTime")]
     pub(super) lifetime: f32,
     /// Lifetime at the moment when particle was created.
     pub initial_lifetime: f32,

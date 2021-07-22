@@ -25,7 +25,7 @@ pub trait Emit {
 }
 
 /// See module docs.
-#[derive(Debug, Visit)]
+#[derive(Debug)]
 pub enum Emitter {
     /// Unknown kind here is just to have ability to implement Default trait,
     /// must not be used at runtime!
@@ -70,6 +70,18 @@ macro_rules! static_dispatch {
             Emitter::Cylinder(v) => v.$func($($args),*),
         }
     };
+}
+
+impl Visit for Emitter {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        let mut kind_id: i32 = self.id();
+        kind_id.visit("KindId", visitor)?;
+        if visitor.is_reading() {
+            *self = Emitter::new(kind_id)?;
+        }
+
+        static_dispatch!(self, visit, name, visitor)
+    }
 }
 
 impl Emit for Emitter {

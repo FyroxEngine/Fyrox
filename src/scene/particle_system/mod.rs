@@ -100,12 +100,35 @@ pub mod emitter;
 pub mod particle;
 
 /// Particle limit for emitter.
-#[derive(Copy, Clone, Debug, Visit)]
+#[derive(Copy, Clone, Debug)]
 pub enum ParticleLimit {
     /// No limit in amount of particles.
     Unlimited,
     /// Strict limit in amount of particles.
     Strict(u32),
+}
+
+impl Visit for ParticleLimit {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        let mut amount = match self {
+            Self::Unlimited => -1,
+            Self::Strict(value) => *value as i32,
+        };
+
+        amount.visit("Amount", visitor)?;
+
+        if visitor.is_reading() {
+            *self = if amount < 0 {
+                Self::Unlimited
+            } else {
+                Self::Strict(amount as u32)
+            };
+        }
+
+        visitor.leave_region()
+    }
 }
 
 /// See module docs.
@@ -118,6 +141,7 @@ pub struct ParticleSystem {
     pub emitters: Vec<Emitter>,
     texture: Option<Texture>,
     acceleration: Vector3<f32>,
+    #[visit(rename = "ColorGradient")]
     color_over_lifetime: Option<ColorGradient>,
 }
 
