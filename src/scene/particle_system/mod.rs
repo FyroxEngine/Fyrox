@@ -25,7 +25,10 @@
 //! Simple smoke effect can be create like so:
 //!
 //! ```
-//! use rg3d::scene::particle_system::{SphereEmitter, ParticleSystemBuilder, Emitter, BaseEmitterBuilder, SphereEmitterBuilder};
+//! use rg3d::scene::particle_system::{
+//!     emitter::sphere::SphereEmitter, ParticleSystemBuilder, emitter::Emitter,
+//!     emitter::base::BaseEmitterBuilder, emitter::sphere::SphereEmitterBuilder
+//! };
 //! use rg3d::engine::resource_manager::ResourceManager;
 //! use rg3d::core::algebra::Vector3;
 //! use rg3d::scene::graph::Graph;
