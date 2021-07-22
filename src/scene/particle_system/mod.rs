@@ -376,6 +376,7 @@ pub struct ParticleSystemBuilder {
     emitters: Vec<Emitter>,
     texture: Option<Texture>,
     acceleration: Vector3<f32>,
+    particles: Vec<Particle>,
     color_over_lifetime: Option<ColorGradient>,
 }
 
@@ -386,6 +387,7 @@ impl ParticleSystemBuilder {
             base_builder,
             emitters: Default::default(),
             texture: None,
+            particles: Default::default(),
             acceleration: Vector3::new(0.0, -9.81, 0.0),
             color_over_lifetime: None,
         }
@@ -421,10 +423,17 @@ impl ParticleSystemBuilder {
         self
     }
 
+    /// Sets an initial set of particles that not belongs to any emitter. This method
+    /// could be useful if you need a custom position/velocity/etc. of each particle.
+    pub fn with_particles(mut self, particles: Vec<Particle>) -> Self {
+        self.particles = particles;
+        self
+    }
+
     fn build_particle_system(self) -> ParticleSystem {
         ParticleSystem {
             base: self.base_builder.build_base(),
-            particles: Vec::new(),
+            particles: self.particles,
             free_particles: Vec::new(),
             emitters: self.emitters,
             texture: self.texture.clone(),
