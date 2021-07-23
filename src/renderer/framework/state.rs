@@ -37,12 +37,49 @@ impl Display for PipelineStatistics {
     }
 }
 
+#[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Ord, Hash)]
+#[repr(u32)]
+pub enum DepthFunc {
+    /// Never passes.
+    Never = glow::NEVER,
+
+    /// Passes if the incoming depth value is less than the stored depth value.
+    Less = glow::LESS,
+
+    /// Passes if the incoming depth value is equal to the stored depth value.
+    Equal = glow::EQUAL,
+
+    /// Passes if the incoming depth value is less than or equal to the stored depth value.
+    LessOrEqual = glow::LEQUAL,
+
+    /// Passes if the incoming depth value is greater than the stored depth value.
+    Greater = glow::GREATER,
+
+    /// Passes if the incoming depth value is not equal to the stored depth value.
+    NotEqual = glow::NOTEQUAL,
+
+    /// Passes if the incoming depth value is greater than or equal to the stored depth value.
+    GreaterOrEqual = glow::GEQUAL,
+
+    /// Always passes.
+    Always = glow::ALWAYS,
+}
+
+impl Default for DepthFunc {
+    fn default() -> Self {
+        Self::LessOrEqual
+    }
+}
+
 pub struct PipelineState {
     pub gl: glow::Context,
 
     blend: bool,
+
     depth_test: bool,
     depth_write: bool,
+    depth_func: DepthFunc,
+
     color_write: ColorMask,
     stencil_test: bool,
     cull_face: CullFace,
@@ -153,7 +190,7 @@ impl Default for StencilOp {
 impl PipelineState {
     pub fn new(context: glow::Context) -> Self {
         unsafe {
-            context.depth_func(glow::LEQUAL);
+            context.depth_func(DepthFunc::default() as u32);
         }
 
         Self {
@@ -161,6 +198,7 @@ impl PipelineState {
             blend: false,
             depth_test: false,
             depth_write: true,
+            depth_func: Default::default(),
             color_write: Default::default(),
             stencil_test: false,
             cull_face: CullFace::Back,
@@ -358,6 +396,16 @@ impl PipelineState {
             unsafe {
                 self.gl
                     .blend_func(self.blend_src_factor, self.blend_dst_factor);
+            }
+        }
+    }
+
+    pub fn set_depth_func(&mut self, depth_func: DepthFunc) {
+        if self.depth_func != depth_func {
+            self.depth_func = depth_func;
+
+            unsafe {
+                self.gl.depth_func(depth_func as u32);
             }
         }
     }
