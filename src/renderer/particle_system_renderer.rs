@@ -182,15 +182,10 @@ impl ParticleSystemRenderer {
                 blend: true,
             };
 
-            let diffuse_texture = if let Some(texture) = particle_system.texture_ref() {
-                if let Some(texture) = texture_cache.get(state, texture) {
-                    texture
-                } else {
-                    white_dummy.clone()
-                }
-            } else {
-                white_dummy.clone()
-            };
+            let diffuse_texture = particle_system
+                .texture_ref()
+                .and_then(|t| texture_cache.get(state, t))
+                .unwrap_or_else(|| white_dummy.clone());
 
             statistics += framebuffer.draw(
                 &self.geometry_buffer,

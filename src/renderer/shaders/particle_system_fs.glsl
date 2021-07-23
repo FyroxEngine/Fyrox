@@ -13,13 +13,14 @@ float toProjSpace(float z)
 {
     float far = projParams.x;
     float near = projParams.y;
-    return (far * near) / (far - z * (far + near));
+    return (far * near) / (far - z * (far - near));
 }
 
 void main()
 {
     float sceneDepth = toProjSpace(texture(depthBufferTexture, gl_FragCoord.xy * invScreenSize).r);
-    float depthOpacity = clamp((sceneDepth - gl_FragCoord.z / gl_FragCoord.w) * 2.0f, 0.0, 1.0);
+    float fragmentDepth = toProjSpace(gl_FragCoord.z);
+    float depthOpacity = smoothstep((sceneDepth - fragmentDepth) * 2.5, 0.0, 1.0);
     FragColor = color * texture(diffuseTexture, texCoord).r;
     FragColor.a *= depthOpacity;
 }
