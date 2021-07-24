@@ -146,6 +146,8 @@ pub struct ParticleSystem {
     acceleration: Vector3<f32>,
     #[visit(rename = "ColorGradient")]
     color_over_lifetime: Option<ColorGradient>,
+    #[visit(optional)] // Backward compatibility.
+    soft_boundary_sharpness_factor: f32,
 }
 
 impl Deref for ParticleSystem {
@@ -173,6 +175,7 @@ impl ParticleSystem {
             texture: self.texture.clone(),
             acceleration: self.acceleration,
             color_over_lifetime: self.color_over_lifetime.clone(),
+            soft_boundary_sharpness_factor: self.soft_boundary_sharpness_factor,
         }
     }
 
@@ -190,6 +193,19 @@ impl ParticleSystem {
     /// Sets new "color curve" that will evaluate color over lifetime.
     pub fn set_color_over_lifetime_gradient(&mut self, gradient: ColorGradient) {
         self.color_over_lifetime = Some(gradient)
+    }
+
+    /// Return current soft boundary sharpness factor.
+    pub fn soft_boundary_sharpness_factor(&self) -> f32 {
+        self.soft_boundary_sharpness_factor
+    }
+
+    /// Sets soft boundary sharpness factor. This value defines how wide soft boundary will be.
+    /// The greater the factor is the more thin the boundary will be, and vice versa. This
+    /// parameter allows you to manipulate particle "softness" - the engine automatically adds
+    /// fading to those pixels of a particle which is close enough to other geometry in a scene.
+    pub fn set_soft_boundary_sharpness_factor(&mut self, factor: f32) {
+        self.soft_boundary_sharpness_factor = factor;
     }
 
     /// Removes all generated particles.
@@ -378,6 +394,7 @@ pub struct ParticleSystemBuilder {
     acceleration: Vector3<f32>,
     particles: Vec<Particle>,
     color_over_lifetime: Option<ColorGradient>,
+    soft_boundary_sharpness_factor: f32,
 }
 
 impl ParticleSystemBuilder {
@@ -390,6 +407,7 @@ impl ParticleSystemBuilder {
             particles: Default::default(),
             acceleration: Vector3::new(0.0, -9.81, 0.0),
             color_over_lifetime: None,
+            soft_boundary_sharpness_factor: 2.5,
         }
     }
 
@@ -408,6 +426,12 @@ impl ParticleSystemBuilder {
     /// Sets desired texture for particle system.
     pub fn with_opt_texture(mut self, texture: Option<Texture>) -> Self {
         self.texture = texture;
+        self
+    }
+
+    /// Sets desired soft boundary sharpness factor.
+    pub fn with_soft_boundary_sharpness_factor(mut self, factor: f32) -> Self {
+        self.soft_boundary_sharpness_factor = factor;
         self
     }
 
@@ -439,6 +463,7 @@ impl ParticleSystemBuilder {
             texture: self.texture.clone(),
             acceleration: self.acceleration,
             color_over_lifetime: self.color_over_lifetime,
+            soft_boundary_sharpness_factor: self.soft_boundary_sharpness_factor,
         }
     }
 

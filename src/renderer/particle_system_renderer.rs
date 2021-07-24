@@ -26,6 +26,7 @@ struct ParticleSystemShader {
     depth_buffer_texture: UniformLocation,
     inv_screen_size: UniformLocation,
     proj_params: UniformLocation,
+    soft_boundary_sharpness_factor: UniformLocation,
 }
 
 impl ParticleSystemShader {
@@ -47,6 +48,8 @@ impl ParticleSystemShader {
             depth_buffer_texture: program.uniform_location(state, "depthBufferTexture")?,
             inv_screen_size: program.uniform_location(state, "invScreenSize")?,
             proj_params: program.uniform_location(state, "projParams")?,
+            soft_boundary_sharpness_factor: program
+                .uniform_location(state, "softBoundarySharpnessFactor")?,
             program,
         })
     }
@@ -202,7 +205,11 @@ impl ParticleSystemRenderer {
                         .set_matrix4(&self.shader.view_projection_matrix, &view_proj)
                         .set_matrix4(&self.shader.world_matrix, &global_transform)
                         .set_vector2(&self.shader.inv_screen_size, &inv_screen_size)
-                        .set_vector2(&self.shader.proj_params, &proj_params);
+                        .set_vector2(&self.shader.proj_params, &proj_params)
+                        .set_float(
+                            &self.shader.soft_boundary_sharpness_factor,
+                            particle_system.soft_boundary_sharpness_factor(),
+                        );
                 },
             );
         }
