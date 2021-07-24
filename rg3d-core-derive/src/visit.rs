@@ -90,12 +90,12 @@ fn create_field_visits<'a>(
                 None => name,
             };
 
-            (ident, name)
+            (ident, name, field.optional)
         })
         .collect::<Vec<_>>();
 
     let mut no_dup = HashSet::new();
-    for name in visit_args.iter().map(|(_ident, name)| name) {
+    for name in visit_args.iter().map(|(_, name, _)| name) {
         if !no_dup.insert(name) {
             panic!("duplicate visiting names detected!");
         }
@@ -103,9 +103,15 @@ fn create_field_visits<'a>(
 
     visit_args
         .iter()
-        .map(|(ident, name)| {
-            quote! {
-                #ident.visit(#name, visitor)?;
+        .map(|(ident, name, optional)| {
+            if *optional {
+                quote! {
+                    #ident.visit(#name, visitor).ok();
+                }
+            } else {
+                quote! {
+                    #ident.visit(#name, visitor)?;
+                }
             }
         })
         .collect::<Vec<_>>()

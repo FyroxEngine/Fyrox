@@ -23,9 +23,14 @@ pub struct FieldArgs {
     /// `#[visit(skip)]`: skip on read and write
     #[darling(default)]
     pub skip: bool,
+
     /// `#[visit(rename = "..")]`: force reading/writing as this name
     #[darling(default)]
     pub rename: Option<String>,
+
+    /// `#[visit(optional)]`: ignore missing field
+    #[darling(default)]
+    pub optional: bool,
 }
 
 #[derive(FromVariant)]
