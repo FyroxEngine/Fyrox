@@ -497,6 +497,7 @@ struct DecalShader {
     normal_texture: UniformLocation,
     inv_view_proj: UniformLocation,
     inv_world_decal: UniformLocation,
+    normal_matrix_decal: UniformLocation,
     resolution: UniformLocation,
     program: GpuProgram,
 }
@@ -516,6 +517,7 @@ impl DecalShader {
             inv_view_proj: program.uniform_location(state, "invViewProj")?,
             inv_world_decal: program.uniform_location(state, "invWorldDecal")?,
             resolution: program.uniform_location(state, "resolution")?,
+            normal_matrix_decal: program.uniform_location(state, "normalMatrixDecal")?,
             program,
         })
     }
@@ -938,6 +940,8 @@ impl GBuffer {
 
             let world_view_proj = initial_view_projection * decal.global_transform();
 
+            let normal_matrix_decal = decal.global_transform().fixed_resize::<3, 3>(0.0);
+
             statistics += self.framebuffer.draw(
                 unit_cube,
                 state,
@@ -960,6 +964,7 @@ impl GBuffer {
                             &shader.inv_world_decal,
                             &decal.global_transform().try_inverse().unwrap_or_default(),
                         )
+                        .set_matrix3(&shader.normal_matrix_decal, &normal_matrix_decal)
                         .set_vector2(&shader.resolution, &resolution)
                         .set_texture(&shader.scene_depth, &depth)
                         .set_texture(&shader.diffuse_texture, &diffuse_texture)
