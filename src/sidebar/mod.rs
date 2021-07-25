@@ -1,3 +1,4 @@
+use crate::sidebar::decal::DecalSection;
 use crate::{
     gui::{BuildContext, UiMessage, UiNode},
     scene::{EditorScene, Selection},
@@ -29,6 +30,7 @@ use std::sync::mpsc::Sender;
 
 mod base;
 mod camera;
+mod decal;
 mod light;
 mod lod;
 mod mesh;
@@ -54,6 +56,7 @@ pub struct SideBar {
     mesh_section: MeshSection,
     physics_section: PhysicsSection,
     sound_section: SoundSection,
+    decal_section: DecalSection,
     pub terrain_section: TerrainSection,
 }
 
@@ -153,6 +156,7 @@ impl SideBar {
         let physics_section = PhysicsSection::new(ctx, sender.clone());
         let terrain_section = TerrainSection::new(ctx);
         let sound_section = SoundSection::new(ctx);
+        let decal_section = DecalSection::new(ctx);
 
         let window = WindowBuilder::new(WidgetBuilder::new())
             .can_minimize(false)
@@ -170,6 +174,7 @@ impl SideBar {
                                 terrain_section.section,
                                 physics_section.section,
                                 sound_section.section,
+                                decal_section.section,
                             ]))
                             .build(ctx),
                         )
@@ -193,6 +198,7 @@ impl SideBar {
             physics_section,
             terrain_section,
             sound_section,
+            decal_section,
         }
     }
 
@@ -243,6 +249,7 @@ impl SideBar {
                         self.camera_section.sync_to_model(node, ui);
                         self.particle_system_section.sync_to_model(node, ui);
                         self.sprite_section.sync_to_model(node, ui);
+                        self.decal_section.sync_to_model(node, ui);
                         self.mesh_section.sync_to_model(node, ui);
                         self.terrain_section.sync_to_model(node, ui);
                         self.physics_section.sync_to_model(editor_scene, engine);
@@ -253,6 +260,7 @@ impl SideBar {
                 for &section in &[
                     self.base_section.section,
                     self.sprite_section.section,
+                    self.decal_section.section,
                     self.light_section.section,
                     self.camera_section.section,
                     self.particle_system_section.section,
@@ -324,6 +332,13 @@ impl SideBar {
                         );
                         self.sprite_section
                             .handle_message(message, node, node_handle);
+                        self.decal_section.handle_message(
+                            message,
+                            &mut engine.user_interface,
+                            engine.resource_manager.clone(),
+                            node_handle,
+                            &self.sender,
+                        );
                         self.mesh_section.handle_message(message, node, node_handle);
                         self.terrain_section.handle_message(
                             message,

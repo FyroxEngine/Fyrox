@@ -1,4 +1,3 @@
-use crate::scene::commands::sound::MoveSpatialSoundSourceCommand;
 use crate::{
     command::Command,
     physics::{Collider, Joint, RigidBody},
@@ -6,6 +5,7 @@ use crate::{
         clipboard::DeepCloneResult,
         commands::{
             camera::{SetCameraPreviewCommand, SetFovCommand, SetZFarCommand, SetZNearCommand},
+            decal::{SetDecalDiffuseTextureCommand, SetDecalNormalTextureCommand},
             graph::{
                 AddNodeCommand, DeleteNodeCommand, DeleteSubGraphCommand, LinkNodesCommand,
                 LoadModelCommand, MoveNodeCommand, RotateNodeCommand, ScaleNodeCommand,
@@ -54,8 +54,8 @@ use crate::{
                 SetRevoluteJointAnchor2Command, SetRevoluteJointAxis1Command,
                 SetRevoluteJointAxis2Command,
             },
-            sound::{AddSoundSourceCommand, DeleteSoundSourceCommand},
             sound::{
+                AddSoundSourceCommand, DeleteSoundSourceCommand, MoveSpatialSoundSourceCommand,
                 SetSoundSourceBufferCommand, SetSoundSourceGainCommand,
                 SetSoundSourceLoopingCommand, SetSoundSourceNameCommand,
                 SetSoundSourcePitchCommand, SetSoundSourcePlayOnceCommand,
@@ -83,6 +83,7 @@ use rg3d::{
 use std::{collections::HashMap, sync::mpsc::Sender};
 
 pub mod camera;
+pub mod decal;
 pub mod graph;
 pub mod light;
 pub mod lod;
@@ -251,6 +252,10 @@ pub enum SceneCommand {
     SetSpatialSoundSourceRadius(SetSpatialSoundSourceRadiusCommand),
     SetSpatialSoundSourceRolloffFactor(SetSpatialSoundSourceRolloffFactorCommand),
     SetSpatialSoundSourceMaxDistance(SetSpatialSoundSourceMaxDistanceCommand),
+
+    // Decal commands.
+    SetDecalDiffuseTexture(SetDecalDiffuseTextureCommand),
+    SetDecalNormalTexture(SetDecalNormalTextureCommand),
 }
 
 pub struct SceneContext<'a> {
@@ -380,6 +385,8 @@ macro_rules! static_dispatch {
             SceneCommand::SetSpatialSoundSourceRadius(v) => v.$func($($args),*),
             SceneCommand::SetSpatialSoundSourceRolloffFactor(v) => v.$func($($args),*),
             SceneCommand::SetSpatialSoundSourceMaxDistance(v) => v.$func($($args),*),
+            SceneCommand::SetDecalDiffuseTexture(v) => v.$func($($args),*),
+            SceneCommand::SetDecalNormalTexture(v) => v.$func($($args),*),
         }
     };
 }
