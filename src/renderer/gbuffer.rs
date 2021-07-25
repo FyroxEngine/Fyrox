@@ -1,22 +1,24 @@
-use crate::bitflags::bitflags;
-use crate::core::arrayvec::ArrayVec;
-use crate::renderer::framework::gpu_program::GpuProgramBinding;
+use crate::core::algebra::{Matrix4, Vector2};
+use crate::scene::mesh::surface::SurfaceData;
+use crate::scene::node::Node;
 use crate::{
-    core::{algebra::Vector4, color::Color, math::Rect, scope_profile},
-    renderer::framework::{
-        error::FrameworkError,
-        framebuffer::{Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer},
-        gpu_program::{GpuProgram, UniformLocation},
-        gpu_texture::{
-            Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
-            PixelKind, WrapMode,
-        },
-        state::PipelineState,
-    },
+    bitflags::bitflags,
+    core::{algebra::Vector4, arrayvec::ArrayVec, color::Color, math::Rect, scope_profile},
     renderer::{
         batch::{BatchStorage, InstanceData, MatrixStorage, BONE_MATRICES_COUNT},
+        framework::{
+            error::FrameworkError,
+            framebuffer::{Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer},
+            gpu_program::{GpuProgram, GpuProgramBinding, UniformLocation},
+            gpu_texture::{
+                Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
+                PixelKind, WrapMode,
+            },
+            state::PipelineState,
+        },
         GeometryCache, RenderPassStatistics, TextureCache,
     },
+    scene::graph::Graph,
     scene::{camera::Camera, mesh::RenderPath},
 };
 use glow::HasContext;
@@ -484,6 +486,39 @@ pub struct GBuffer {
     pub height: i32,
     matrix_storage: MatrixStorage,
     instance_data_set: Vec<InstanceData>,
+    cube: SurfaceData,
+    decal_shader: DecalShader,
+}
+
+struct DecalShader {
+    world_view_projection: UniformLocation,
+    scene_depth: UniformLocation,
+    diffuse_texture: UniformLocation,
+    normal_texture: UniformLocation,
+    inv_view_proj: UniformLocation,
+    inv_world_decal: UniformLocation,
+    resolution: UniformLocation,
+    program: GpuProgram,
+}
+
+impl DecalShader {
+    pub fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
+        let fragment_source = include_str!("shaders/decal_fs.glsl");
+        let vertex_source = include_str!("shaders/decal_vs.glsl");
+
+        let program =
+            GpuProgram::from_source(state, "DecalShader", vertex_source, fragment_source)?;
+        Ok(Self {
+            world_view_projection: program.uniform_location(state, "worldViewProjection")?,
+            scene_depth: program.uniform_location(state, "sceneDepth")?,
+            diffuse_texture: program.uniform_location(state, "diffuseTexture")?,
+            normal_texture: program.uniform_location(state, "normalTexture")?,
+            inv_view_proj: program.uniform_location(state, "invViewProj")?,
+            inv_world_decal: program.uniform_location(state, "invWorldDecal")?,
+            resolution: program.uniform_location(state, "resolution")?,
+            program,
+        })
+    }
 }
 
 pub(in crate) struct GBufferRenderContext<'a, 'b> {
@@ -493,7 +528,10 @@ pub(in crate) struct GBufferRenderContext<'a, 'b> {
     pub batch_storage: &'a BatchStorage,
     pub texture_cache: &'a mut TextureCache,
     pub environment_dummy: Rc<RefCell<GpuTexture>>,
+    pub white_dummy: Rc<RefCell<GpuTexture>>,
+    pub normal_dummy: Rc<RefCell<GpuTexture>>,
     pub use_parallax_mapping: bool,
+    pub graph: &'b Graph,
 }
 
 impl GBuffer {
@@ -638,6 +676,8 @@ impl GBuffer {
             final_frame,
             matrix_storage: MatrixStorage::new(state)?,
             instance_data_set: Default::default(),
+            decal_shader: DecalShader::new(state)?,
+            cube: SurfaceData::make_cube(Matrix4::identity()),
         })
     }
 
@@ -675,6 +715,9 @@ impl GBuffer {
             texture_cache,
             environment_dummy,
             use_parallax_mapping,
+            white_dummy,
+            normal_dummy,
+            graph,
         } = args;
 
         let viewport = Rect::new(0, 0, self.width, self.height);
@@ -863,6 +906,66 @@ impl GBuffer {
                     )
                 };
             }
+        }
+
+        let inv_view_proj = initial_view_projection.try_inverse().unwrap_or_default();
+        let depth = self.depth();
+        let resolution = Vector2::new(self.width as f32, self.height as f32);
+
+        // Render decals after because we need to modify diffuse texture of G-Buffer and use depth texture
+        // for rendering. We'll render in the G-Buffer, but depth will be used from final frame, since
+        // decals do not modify depth (only diffuse and normal maps).
+        let unit_cube = geom_cache.get(state, &self.cube);
+        for decal in graph.linear_iter().filter_map(|n| {
+            if let Node::Decal(d) = n {
+                Some(d)
+            } else {
+                None
+            }
+        }) {
+            let shader = &self.decal_shader;
+            let program = &self.decal_shader.program;
+
+            let diffuse_texture = decal
+                .diffuse_texture()
+                .and_then(|t| texture_cache.get(state, t))
+                .unwrap_or_else(|| white_dummy.clone());
+
+            let normal_texture = decal
+                .normal_texture()
+                .and_then(|t| texture_cache.get(state, t))
+                .unwrap_or_else(|| normal_dummy.clone());
+
+            let world_view_proj = initial_view_projection * decal.global_transform();
+
+            statistics += self.framebuffer.draw(
+                unit_cube,
+                state,
+                viewport,
+                program,
+                &DrawParameters {
+                    cull_face: CullFace::Back,
+                    culling: false,
+                    color_write: Default::default(),
+                    depth_write: false,
+                    stencil_test: false,
+                    depth_test: false,
+                    blend: true,
+                },
+                |program_binding| {
+                    program_binding
+                        .set_matrix4(&shader.world_view_projection, &world_view_proj)
+                        .set_matrix4(&shader.inv_view_proj, &inv_view_proj)
+                        .set_matrix4(
+                            &shader.inv_world_decal,
+                            &decal.global_transform().try_inverse().unwrap_or_default(),
+                        )
+                        .set_vector2(&shader.resolution, &resolution)
+                        .set_texture(&shader.scene_depth, &depth)
+                        .set_texture(&shader.diffuse_texture, &diffuse_texture)
+                        .set_texture(&shader.normal_texture, &normal_texture);
+                },
+            );
         }
 
         // Copy depth-stencil from gbuffer to final frame buffer.

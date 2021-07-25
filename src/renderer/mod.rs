@@ -987,6 +987,9 @@ impl Renderer {
                     texture_cache: &mut self.texture_cache,
                     environment_dummy: self.environment_dummy.clone(),
                     use_parallax_mapping: self.quality_settings.use_parallax_mapping,
+                    normal_dummy: self.normal_dummy.clone(),
+                    white_dummy: self.white_dummy.clone(),
+                    graph,
                 });
 
                 let (pass_stats, light_stats) =

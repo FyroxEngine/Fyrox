@@ -2,6 +2,7 @@
 //!
 //! Node is enumeration of possible types of scene nodes.
 
+use crate::scene::decal::Decal;
 use crate::scene::terrain::Terrain;
 use crate::{
     core::define_is_as,
@@ -25,6 +26,7 @@ macro_rules! static_dispatch {
             Node::ParticleSystem(v) => v.$func($($args),*),
             Node::Sprite(v) => v.$func($($args),*),
             Node::Terrain(v) => v.$func($($args),*),
+            Node::Decal(v) => v.$func($($args),*),
         }
     };
 }
@@ -58,6 +60,8 @@ pub enum Node {
     ParticleSystem(ParticleSystem),
     /// See Terrain node docs.
     Terrain(Terrain),
+    /// See Decal node docs.
+    Decal(Decal),
 }
 
 macro_rules! static_dispatch_deref {
@@ -70,6 +74,7 @@ macro_rules! static_dispatch_deref {
             Node::ParticleSystem(v) => v,
             Node::Sprite(v) => v,
             Node::Terrain(v) => v,
+            Node::Decal(v) => v,
         }
     };
 }
@@ -105,6 +110,7 @@ impl Node {
             4 => Ok(Self::Sprite(Default::default())),
             5 => Ok(Self::ParticleSystem(Default::default())),
             6 => Ok(Self::Terrain(Default::default())),
+            7 => Ok(Self::Decal(Default::default())),
             _ => Err(format!("Invalid node kind {}", id)),
         }
     }
@@ -119,6 +125,7 @@ impl Node {
             Self::Sprite(_) => 4,
             Self::ParticleSystem(_) => 5,
             Self::Terrain(_) => 6,
+            Self::Decal(_) => 7,
         }
     }
 
@@ -134,6 +141,7 @@ impl Node {
             Node::Sprite(v) => Node::Sprite(v.raw_copy()),
             Node::ParticleSystem(v) => Node::ParticleSystem(v.raw_copy()),
             Node::Terrain(v) => Node::Terrain(v.raw_copy()),
+            Node::Decal(v) => Node::Decal(v.raw_copy()),
         }
     }
 
@@ -143,4 +151,5 @@ impl Node {
     define_is_as!(Node : ParticleSystem -> ref ParticleSystem => fn is_particle_system, fn as_particle_system, fn as_particle_system_mut);
     define_is_as!(Node : Sprite -> ref Sprite => fn is_sprite, fn as_sprite, fn as_sprite_mut);
     define_is_as!(Node : Terrain -> ref Terrain => fn is_terrain, fn as_terrain, fn as_terrain_mut);
+    define_is_as!(Node : Decal -> ref Decal => fn is_decal, fn as_decal, fn as_decal_mut);
 }

@@ -6,6 +6,7 @@
 
 pub mod base;
 pub mod camera;
+pub mod decal;
 pub mod graph;
 pub mod light;
 pub mod mesh;
