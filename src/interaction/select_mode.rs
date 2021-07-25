@@ -100,6 +100,7 @@ impl InteractionModeTrait for SelectInteractionMode {
                 Node::Camera(_) => AxisAlignedBoundingBox::unit(),
                 Node::Mesh(mesh) => mesh.bounding_box(),
                 Node::Sprite(_) => AxisAlignedBoundingBox::unit(),
+                Node::Decal(_) => AxisAlignedBoundingBox::unit(),
                 Node::ParticleSystem(_) => AxisAlignedBoundingBox::unit(),
                 Node::Terrain(ref terrain) => terrain.bounding_box(),
             };

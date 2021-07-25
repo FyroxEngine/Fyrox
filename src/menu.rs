@@ -11,6 +11,7 @@ use crate::{
     settings::{Settings, SettingsWindow},
     GameEngine, Message,
 };
+use rg3d::scene::decal::DecalBuilder;
 use rg3d::{
     core::{
         algebra::{Matrix4, Vector2},
@@ -69,6 +70,7 @@ pub struct Menu {
     create_sphere: Handle<UiNode>,
     create_cylinder: Handle<UiNode>,
     create_quad: Handle<UiNode>,
+    create_decal: Handle<UiNode>,
     create_point_light: Handle<UiNode>,
     create_spot_light: Handle<UiNode>,
     create_directional_light: Handle<UiNode>,
@@ -145,6 +147,7 @@ impl Menu {
         let exit;
         let create_camera;
         let create_sprite;
+        let create_decal;
         let create_particle_system;
         let create_terrain;
         let sidebar;
@@ -290,6 +293,13 @@ impl Menu {
                             .with_content(MenuItemContent::text("Terrain"))
                             .build(ctx);
                     create_terrain
+                },
+                {
+                    create_decal =
+                        MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
+                            .with_content(MenuItemContent::text("Decal"))
+                            .build(ctx);
+                    create_decal
                 },
             ])
             .build(ctx);
@@ -511,6 +521,7 @@ impl Menu {
             create,
             edit,
             open_path_fixer,
+            create_decal,
         }
     }
 
@@ -741,6 +752,15 @@ impl Menu {
                         }])
                         .with_height_map_resolution(4.0)
                         .build_node();
+
+                    self.message_sender
+                        .send(Message::DoSceneCommand(SceneCommand::AddNode(
+                            AddNodeCommand::new(node),
+                        )))
+                        .unwrap();
+                } else if message.destination() == self.create_decal {
+                    let node =
+                        DecalBuilder::new(BaseBuilder::new().with_name("Decal")).build_node();
 
                     self.message_sender
                         .send(Message::DoSceneCommand(SceneCommand::AddNode(

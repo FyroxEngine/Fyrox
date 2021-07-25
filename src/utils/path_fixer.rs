@@ -367,6 +367,18 @@ impl PathFixer {
                                                     .insert(SceneResource::Texture(texture));
                                             }
                                         }
+                                        Node::Decal(decal) => {
+                                            if let Some(texture) = decal.diffuse_texture() {
+                                                scene_resources.insert(SceneResource::Texture(
+                                                    texture.clone(),
+                                                ));
+                                            }
+                                            if let Some(texture) = decal.normal_texture() {
+                                                scene_resources.insert(SceneResource::Texture(
+                                                    texture.clone(),
+                                                ));
+                                            }
+                                        }
                                         Node::ParticleSystem(particle_system) => {
                                             if let Some(texture) = particle_system.texture() {
                                                 scene_resources

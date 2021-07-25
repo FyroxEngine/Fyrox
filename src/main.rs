@@ -1821,6 +1821,7 @@ impl Editor {
                         Node::Sprite(_) => AxisAlignedBoundingBox::unit(),
                         Node::ParticleSystem(_) => AxisAlignedBoundingBox::unit(),
                         Node::Terrain(ref terrain) => terrain.bounding_box(),
+                        Node::Decal(_) => AxisAlignedBoundingBox::unit(),
                     };
                     scene
                         .drawing_context
