@@ -1131,6 +1131,16 @@ impl Scene {
                         }
                     }
                 }
+                Node::Decal(decal) => {
+                    decal.set_diffuse_texture(map_texture(
+                        decal.diffuse_texture_value(),
+                        resource_manager.clone(),
+                    ));
+                    decal.set_normal_texture(map_texture(
+                        decal.normal_texture_value(),
+                        resource_manager.clone(),
+                    ));
+                }
                 _ => (),
             }
         }

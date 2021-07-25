@@ -67,6 +67,11 @@ impl Decal {
         self.diffuse_texture.as_ref()
     }
 
+    /// Returns current diffuse texture.
+    pub fn diffuse_texture_value(&self) -> Option<Texture> {
+        self.diffuse_texture.clone()
+    }
+
     /// Sets new normal texture.
     pub fn set_normal_texture(&mut self, normal_texture: Option<Texture>) -> Option<Texture> {
         std::mem::replace(&mut self.normal_texture, normal_texture)
@@ -75,6 +80,11 @@ impl Decal {
     /// Returns current normal texture.
     pub fn normal_texture(&self) -> Option<&Texture> {
         self.normal_texture.as_ref()
+    }
+
+    /// Returns current normal texture.
+    pub fn normal_texture_value(&self) -> Option<Texture> {
+        self.normal_texture.clone()
     }
 }
 
