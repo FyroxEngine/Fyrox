@@ -48,5 +48,5 @@ void main()
 
     vec3 rawNormal = (texture(normalTexture, decalTexCoord) * 2.0 - 1.0).xyz;
     vec3 worldSpaceNormal = tangentToWorld * rawNormal;
-    outNormalMap = vec4(worldSpaceNormal * 0.5 + 0.5, 1.0);
+    outNormalMap = vec4(worldSpaceNormal * 0.5 + 0.5, outDiffuseMap.a);
 }
