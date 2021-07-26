@@ -11,7 +11,6 @@ pub struct DecalShader {
     pub normal_texture: UniformLocation,
     pub inv_view_proj: UniformLocation,
     pub inv_world_decal: UniformLocation,
-    pub normal_matrix_decal: UniformLocation,
     pub resolution: UniformLocation,
     pub program: GpuProgram,
 }
@@ -31,7 +30,6 @@ impl DecalShader {
             inv_view_proj: program.uniform_location(state, "invViewProj")?,
             inv_world_decal: program.uniform_location(state, "invWorldDecal")?,
             resolution: program.uniform_location(state, "resolution")?,
-            normal_matrix_decal: program.uniform_location(state, "normalMatrixDecal")?,
             program,
         })
     }

@@ -463,8 +463,6 @@ impl GBuffer {
 
             let world_view_proj = initial_view_projection * decal.global_transform();
 
-            let normal_matrix_decal = decal.global_transform().fixed_resize::<3, 3>(0.0);
-
             statistics += self.framebuffer.draw(
                 unit_cube,
                 state,
@@ -487,7 +485,6 @@ impl GBuffer {
                             &shader.inv_world_decal,
                             &decal.global_transform().try_inverse().unwrap_or_default(),
                         )
-                        .set_matrix3(&shader.normal_matrix_decal, &normal_matrix_decal)
                         .set_vector2(&shader.resolution, &resolution)
                         .set_texture(&shader.scene_depth, &depth)
                         .set_texture(&shader.diffuse_texture, &diffuse_texture)

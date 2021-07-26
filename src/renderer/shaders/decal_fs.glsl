@@ -4,7 +4,6 @@ uniform sampler2D sceneDepth;
 uniform sampler2D diffuseTexture;
 uniform sampler2D normalTexture;
 uniform mat4 invViewProj;
-uniform mat3 normalMatrixDecal;
 uniform mat4 invWorldDecal;
 uniform vec2 resolution;
 
@@ -38,13 +37,16 @@ void main()
 
     outDiffuseMap = texture(diffuseTexture, decalTexCoord);
 
-    vec3 dFdxWp = dFdx(sceneWorldPosition);
-    vec3 dFdyWp = dFdy(sceneWorldPosition);
+    vec3 fragmentTangent = dFdx(sceneWorldPosition);
+    vec3 fragmentBinormal = dFdy(sceneWorldPosition);
+    vec3 fragmentNormal = cross(fragmentTangent, fragmentBinormal);
 
-    mat3 tangentSpace;
-    tangentSpace[0] = normalize(normalMatrixDecal * dFdyWp); // Tangent
-    tangentSpace[1] = normalize(normalMatrixDecal * dFdxWp); // Binormal
-    tangentSpace[2] = normalize(normalMatrixDecal * cross(dFdyWp, dFdxWp)); // Normal
+    mat3 tangentToWorld;
+    tangentToWorld[0] = normalize(fragmentTangent); // Tangent
+    tangentToWorld[1] = normalize(fragmentBinormal); // Binormal
+    tangentToWorld[2] = normalize(fragmentNormal); // Normal
 
-    outNormalMap = vec4(tangentSpace * (texture(normalTexture, decalTexCoord) * 2.0 - 1.0).xyz, 1.0);
+    vec3 rawNormal = (texture(normalTexture, decalTexCoord) * 2.0 - 1.0).xyz;
+    vec3 worldSpaceNormal = tangentToWorld * rawNormal;
+    outNormalMap = vec4(worldSpaceNormal * 0.5 + 0.5, 1.0);
 }
