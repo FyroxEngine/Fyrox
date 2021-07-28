@@ -226,6 +226,32 @@ impl FrameBuffer {
         state.set_framebuffer(self.id());
 
         unsafe {
+            // Special route for default buffer.
+            if self.fbo == Default::default() {
+                let mut mask = 0;
+
+                if let Some(color) = color {
+                    state.set_color_write(ColorMask::default());
+                    state.set_clear_color(color);
+                    mask |= glow::COLOR_BUFFER_BIT;
+                }
+                if let Some(depth) = depth {
+                    state.set_depth_write(true);
+                    state.set_clear_depth(depth);
+                    mask |= glow::DEPTH_BUFFER_BIT;
+                }
+                if let Some(stencil) = stencil {
+                    state.set_stencil_mask(0xFFFF_FFFF);
+                    state.set_clear_stencil(stencil);
+                    mask |= glow::STENCIL_BUFFER_BIT;
+                }
+
+                unsafe {
+                    state.gl.clear(mask);
+                }
+            }
+
+            // Custom routes for specific frame buffer attachments.
             if let Some(depth_stencil) = self.depth_attachment.as_ref() {
                 state.set_depth_write(true);
                 state.set_stencil_mask(0xFFFF_FFFF);
