@@ -246,9 +246,7 @@ impl FrameBuffer {
                     mask |= glow::STENCIL_BUFFER_BIT;
                 }
 
-                unsafe {
-                    state.gl.clear(mask);
-                }
+                state.gl.clear(mask);
             }
 
             // Custom routes for specific frame buffer attachments.
