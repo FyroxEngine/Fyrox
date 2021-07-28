@@ -129,7 +129,7 @@ impl SceneRenderPass for OverlayRenderPass {
                         .set_matrix4(&shader.world_matrix, &world_matrix)
                         .set_vector3(&shader.camera_side_vector, &camera_side)
                         .set_vector3(&shader.camera_up_vector, &camera_up)
-                        .set_float(&shader.size, 0.33)
+                        .set_f32(&shader.size, 0.33)
                         .set_texture(&shader.diffuse_texture, &icon);
                 },
             );

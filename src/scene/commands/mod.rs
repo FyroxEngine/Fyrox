@@ -1,3 +1,6 @@
+use crate::scene::commands::decal::{SetDecalColorCommand, SetDecalLayerIndexCommand};
+use crate::scene::commands::mesh::SetMeshDecalLayerIndexCommand;
+use crate::scene::commands::terrain::SetTerrainDecalLayerIndexCommand;
 use crate::{
     command::Command,
     physics::{Collider, Joint, RigidBody},
@@ -220,6 +223,7 @@ pub enum SceneCommand {
     SetMeshTexture(SetMeshTextureCommand),
     SetMeshCastShadows(SetMeshCastShadowsCommand),
     SetMeshRenderPath(SetMeshRenderPathCommand),
+    SetMeshDecalLayerIndex(SetMeshDecalLayerIndexCommand),
 
     // Navmesh commands.
     AddNavmesh(AddNavmeshCommand),
@@ -237,6 +241,7 @@ pub enum SceneCommand {
     SetTerrainLayerTexture(SetTerrainLayerTextureCommand),
     ModifyTerrainHeight(ModifyTerrainHeightCommand),
     ModifyTerrainLayerMask(ModifyTerrainLayerMaskCommand),
+    SetTerrainDecalLayerIndex(SetTerrainDecalLayerIndexCommand),
 
     // Sound commands.
     AddSoundSource(AddSoundSourceCommand),
@@ -256,6 +261,8 @@ pub enum SceneCommand {
     // Decal commands.
     SetDecalDiffuseTexture(SetDecalDiffuseTextureCommand),
     SetDecalNormalTexture(SetDecalNormalTextureCommand),
+    SetDecalColor(SetDecalColorCommand),
+    SetDecalLayerIndex(SetDecalLayerIndexCommand),
 }
 
 pub struct SceneContext<'a> {
@@ -358,6 +365,7 @@ macro_rules! static_dispatch {
             SceneCommand::SetMeshTexture(v) => v.$func($($args),*),
             SceneCommand::SetMeshCastShadows(v) => v.$func($($args),*),
             SceneCommand::SetMeshRenderPath(v) => v.$func($($args),*),
+            SceneCommand::SetMeshDecalLayerIndex(v) => v.$func($($args),*),
             SceneCommand::AddNavmesh(v) => v.$func($($args),*),
             SceneCommand::DeleteNavmesh(v) => v.$func($($args),*),
             SceneCommand::MoveNavmeshVertex(v) => v.$func($($args),*),
@@ -372,6 +380,7 @@ macro_rules! static_dispatch {
             SceneCommand::SetTerrainLayerTexture(v) => v.$func($($args),*),
             SceneCommand::ModifyTerrainHeight(v) => v.$func($($args),*),
             SceneCommand::ModifyTerrainLayerMask(v) => v.$func($($args),*),
+            SceneCommand::SetTerrainDecalLayerIndex(v) => v.$func($($args),*),
             SceneCommand::AddSoundSource(v) => v.$func($($args),*),
             SceneCommand::DeleteSoundSource(v) => v.$func($($args),*),
             SceneCommand::MoveSpatialSoundSource(v) => v.$func($($args),*),
@@ -387,6 +396,8 @@ macro_rules! static_dispatch {
             SceneCommand::SetSpatialSoundSourceMaxDistance(v) => v.$func($($args),*),
             SceneCommand::SetDecalDiffuseTexture(v) => v.$func($($args),*),
             SceneCommand::SetDecalNormalTexture(v) => v.$func($($args),*),
+            SceneCommand::SetDecalColor(v) => v.$func($($args),*),
+            SceneCommand::SetDecalLayerIndex(v) => v.$func($($args),*),
         }
     };
 }

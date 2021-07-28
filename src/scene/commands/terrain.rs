@@ -1,7 +1,7 @@
-use crate::{command::Command, scene::commands::SceneContext};
-use rg3d::resource::texture::Texture;
+use crate::{command::Command, define_node_command, get_set_swap, scene::commands::SceneContext};
 use rg3d::{
     core::{algebra::Vector2, pool::Handle},
+    resource::texture::Texture,
     scene::{graph::Graph, node::Node, terrain::Layer},
 };
 
@@ -277,3 +277,7 @@ impl<'a> Command<'a> for ModifyTerrainLayerMaskCommand {
         self.swap(context);
     }
 }
+
+define_node_command!(SetTerrainDecalLayerIndexCommand("Set Terrain Decal Layer Index", u8) where fn swap(self, node) {
+    get_set_swap!(self, node.as_terrain_mut(), decal_layer_index, set_decal_layer_index);
+});

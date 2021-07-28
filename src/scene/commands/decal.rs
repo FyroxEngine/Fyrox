@@ -15,3 +15,11 @@ define_node_command!(SetDecalDiffuseTextureCommand("Set Decal Diffuse Texture", 
 define_node_command!(SetDecalNormalTextureCommand("Set Decal Normal Texture", Option<Texture>) where fn swap(self, node) {
     get_set_swap!(self, node.as_decal_mut(), normal_texture_value, set_normal_texture);
 });
+
+define_node_command!(SetDecalColorCommand("Set Decal Color", Color) where fn swap(self, node) {
+    get_set_swap!(self, node.as_decal_mut(), color, set_color);
+});
+
+define_node_command!(SetDecalLayerIndexCommand("Set Decal Layer Index", u8) where fn swap(self, node) {
+    get_set_swap!(self, node.as_decal_mut(), layer, set_layer);
+});

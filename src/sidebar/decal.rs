@@ -1,36 +1,44 @@
-use crate::scene::commands::decal::{SetDecalDiffuseTextureCommand, SetDecalNormalTextureCommand};
 use crate::{
     gui::{BuildContext, EditorUiNode, Ui, UiMessage, UiNode},
     make_relative_path,
     scene::commands::{
-        terrain::{SetTerrainLayerTextureCommand, TerrainLayerTextureKind},
+        decal::{
+            SetDecalColorCommand, SetDecalDiffuseTextureCommand, SetDecalLayerIndexCommand,
+            SetDecalNormalTextureCommand,
+        },
         SceneCommand,
     },
     send_sync_message,
-    sidebar::{make_text_mark, COLUMN_WIDTH, ROW_HEIGHT},
+    sidebar::{
+        make_color_input_field, make_int_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT,
+    },
     Message,
 };
-use rg3d::gui::Thickness;
 use rg3d::{
     core::{pool::Handle, scope_profile},
     engine::resource_manager::ResourceManager,
     gui::{
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
-        message::{ImageMessage, MessageDirection, UiMessageData, WidgetMessage},
+        message::{
+            ColorFieldMessage, ImageMessage, MessageDirection, NumericUpDownMessage, UiMessageData,
+            WidgetMessage,
+        },
         widget::WidgetBuilder,
+        Thickness,
     },
     resource::texture::Texture,
-    scene::{node::Node, terrain::Layer},
+    scene::node::Node,
     utils::into_gui_texture,
 };
-use std::path::PathBuf;
 use std::sync::mpsc::Sender;
 
 pub struct DecalSection {
     pub section: Handle<UiNode>,
     diffuse_texture: Handle<UiNode>,
     normal_texture: Handle<UiNode>,
+    color: Handle<UiNode>,
+    layer_index: Handle<UiNode>,
 }
 
 fn make_texture_field(ctx: &mut BuildContext, row: usize) -> Handle<UiNode> {
@@ -59,6 +67,8 @@ impl DecalSection {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let diffuse_texture;
         let normal_texture;
+        let color;
+        let layer_index;
         let section = GridBuilder::new(
             WidgetBuilder::new()
                 .with_child(make_text_mark(ctx, "Diffuse Texture", 0))
@@ -70,10 +80,22 @@ impl DecalSection {
                 .with_child({
                     normal_texture = make_texture_field(ctx, 1);
                     normal_texture
+                })
+                .with_child(make_text_mark(ctx, "Color", 2))
+                .with_child({
+                    color = make_color_input_field(ctx, 2);
+                    color
+                })
+                .with_child(make_text_mark(ctx, "LayerIndex", 3))
+                .with_child({
+                    layer_index = make_int_input_field(ctx, 3, 0, 255, 1);
+                    layer_index
                 }),
         )
         .add_column(Column::strict(COLUMN_WIDTH))
         .add_column(Column::stretch())
+        .add_row(Row::strict(ROW_HEIGHT))
+        .add_row(Row::strict(ROW_HEIGHT))
         .add_row(Row::strict(ROW_HEIGHT))
         .add_row(Row::strict(ROW_HEIGHT))
         .build(ctx);
@@ -82,6 +104,8 @@ impl DecalSection {
             section,
             diffuse_texture,
             normal_texture,
+            color,
+            layer_index,
         }
     }
 
@@ -94,6 +118,18 @@ impl DecalSection {
         if let Node::Decal(decal) = node {
             send_image_sync_message(ui, self.diffuse_texture, decal.diffuse_texture_value());
             send_image_sync_message(ui, self.normal_texture, decal.normal_texture_value());
+            send_sync_message(
+                ui,
+                NumericUpDownMessage::value(
+                    self.layer_index,
+                    MessageDirection::ToWidget,
+                    decal.layer() as f32,
+                ),
+            );
+            send_sync_message(
+                ui,
+                ColorFieldMessage::color(self.color, MessageDirection::ToWidget, decal.color()),
+            );
         }
     }
 
@@ -107,48 +143,71 @@ impl DecalSection {
     ) {
         scope_profile!();
 
-        if let UiMessageData::Widget(WidgetMessage::Drop(handle)) = *message.data() {
-            if let UiNode::User(EditorUiNode::AssetItem(item)) = ui.node(handle) {
-                let relative_path = make_relative_path(&item.path);
+        match *message.data() {
+            UiMessageData::Widget(WidgetMessage::Drop(handle)) => {
+                if let UiNode::User(EditorUiNode::AssetItem(item)) = ui.node(handle) {
+                    let relative_path = make_relative_path(&item.path);
 
-                if message.destination() == self.diffuse_texture {
-                    let texture = resource_manager.request_texture(relative_path);
+                    if message.destination() == self.diffuse_texture {
+                        let texture = resource_manager.request_texture(relative_path);
 
-                    sender
-                        .send(Message::DoSceneCommand(
-                            SceneCommand::SetDecalDiffuseTexture(
-                                SetDecalDiffuseTextureCommand::new(
-                                    node_handle,
-                                    Some(texture.clone()),
+                        sender
+                            .send(Message::DoSceneCommand(
+                                SceneCommand::SetDecalDiffuseTexture(
+                                    SetDecalDiffuseTextureCommand::new(
+                                        node_handle,
+                                        Some(texture.clone()),
+                                    ),
                                 ),
-                            ),
-                        ))
-                        .unwrap();
+                            ))
+                            .unwrap();
 
-                    ui.send_message(ImageMessage::texture(
-                        self.diffuse_texture,
-                        MessageDirection::ToWidget,
-                        Some(into_gui_texture(texture)),
-                    ));
-                } else if message.destination() == self.normal_texture {
-                    let texture = resource_manager.request_texture(relative_path);
+                        ui.send_message(ImageMessage::texture(
+                            self.diffuse_texture,
+                            MessageDirection::ToWidget,
+                            Some(into_gui_texture(texture)),
+                        ));
+                    } else if message.destination() == self.normal_texture {
+                        let texture = resource_manager.request_texture(relative_path);
 
-                    sender
-                        .send(Message::DoSceneCommand(
-                            SceneCommand::SetDecalNormalTexture(SetDecalNormalTextureCommand::new(
-                                node_handle,
-                                Some(texture.clone()),
-                            )),
-                        ))
-                        .unwrap();
+                        sender
+                            .send(Message::DoSceneCommand(
+                                SceneCommand::SetDecalNormalTexture(
+                                    SetDecalNormalTextureCommand::new(
+                                        node_handle,
+                                        Some(texture.clone()),
+                                    ),
+                                ),
+                            ))
+                            .unwrap();
 
-                    ui.send_message(ImageMessage::texture(
-                        self.normal_texture,
-                        MessageDirection::ToWidget,
-                        Some(into_gui_texture(texture)),
-                    ));
+                        ui.send_message(ImageMessage::texture(
+                            self.normal_texture,
+                            MessageDirection::ToWidget,
+                            Some(into_gui_texture(texture)),
+                        ));
+                    }
                 }
             }
+            UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value))
+                if message.destination() == self.layer_index =>
+            {
+                sender
+                    .send(Message::DoSceneCommand(SceneCommand::SetDecalLayerIndex(
+                        SetDecalLayerIndexCommand::new(node_handle, value.clamp(0.0, 255.0) as u8),
+                    )))
+                    .unwrap();
+            }
+            UiMessageData::ColorField(ColorFieldMessage::Color(color))
+                if message.destination() == self.color =>
+            {
+                sender
+                    .send(Message::DoSceneCommand(SceneCommand::SetDecalColor(
+                        SetDecalColorCommand::new(node_handle, color),
+                    )))
+                    .unwrap();
+            }
+            _ => {}
         }
     }
 }

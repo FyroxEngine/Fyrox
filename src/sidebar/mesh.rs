@@ -1,3 +1,5 @@
+use crate::scene::commands::mesh::SetMeshDecalLayerIndexCommand;
+use crate::sidebar::make_int_input_field;
 use crate::{
     gui::{make_dropdown_list_option, BuildContext, Ui, UiMessage, UiNode},
     scene::commands::{
@@ -8,6 +10,7 @@ use crate::{
     sidebar::{make_bool_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
 };
+use rg3d::gui::message::NumericUpDownMessage;
 use rg3d::{
     core::{pool::Handle, scope_profile},
     gui::{
@@ -27,6 +30,7 @@ pub struct MeshSection {
     pub section: Handle<UiNode>,
     cast_shadows: Handle<UiNode>,
     render_path: Handle<UiNode>,
+    decal_layer_index: Handle<UiNode>,
     sender: Sender<Message>,
 }
 
@@ -34,6 +38,7 @@ impl MeshSection {
     pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
         let cast_shadows;
         let render_path;
+        let decal_layer_index;
         let section = GridBuilder::new(
             WidgetBuilder::new()
                 .with_child(make_text_mark(ctx, "Cast Shadows", 0))
@@ -56,10 +61,16 @@ impl MeshSection {
                     ])
                     .build(ctx);
                     render_path
+                })
+                .with_child(make_text_mark(ctx, "Decal Layer Index", 2))
+                .with_child({
+                    decal_layer_index = make_int_input_field(ctx, 2, 0, 255, 1);
+                    decal_layer_index
                 }),
         )
         .add_column(Column::strict(COLUMN_WIDTH))
         .add_column(Column::stretch())
+        .add_row(Row::strict(ROW_HEIGHT))
         .add_row(Row::strict(ROW_HEIGHT))
         .add_row(Row::strict(ROW_HEIGHT))
         .build(ctx);
@@ -69,6 +80,7 @@ impl MeshSection {
             cast_shadows,
             render_path,
             sender,
+            decal_layer_index,
         }
     }
 
@@ -99,6 +111,15 @@ impl MeshSection {
                     self.render_path,
                     MessageDirection::ToWidget,
                     Some(variant),
+                ),
+            );
+
+            send_sync_message(
+                ui,
+                NumericUpDownMessage::value(
+                    self.decal_layer_index,
+                    MessageDirection::ToWidget,
+                    mesh.decal_layer_index() as f32,
                 ),
             );
         }
@@ -136,6 +157,21 @@ impl MeshSection {
                                 )))
                                 .unwrap();
                         }
+                    }
+                }
+                UiMessageData::NumericUpDown(NumericUpDownMessage::Value(index))
+                    if message.destination() == self.decal_layer_index =>
+                {
+                    let index = index.clamp(0.0, 255.0) as u8;
+
+                    if index != mesh.decal_layer_index() {
+                        self.sender
+                            .send(Message::DoSceneCommand(
+                                SceneCommand::SetMeshDecalLayerIndex(
+                                    SetMeshDecalLayerIndexCommand::new(handle, index),
+                                ),
+                            ))
+                            .unwrap();
                     }
                 }
                 _ => {}

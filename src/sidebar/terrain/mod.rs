@@ -1,3 +1,5 @@
+use crate::scene::commands::terrain::SetTerrainDecalLayerIndexCommand;
+use crate::sidebar::{make_int_input_field, make_text_mark, COLUMN_WIDTH};
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     scene::{
@@ -8,6 +10,7 @@ use crate::{
     sidebar::{terrain::brush::BrushSection, terrain::layer::LayerSection, ROW_HEIGHT},
     Message,
 };
+use rg3d::gui::message::NumericUpDownMessage;
 use rg3d::{
     core::{algebra::Vector2, pool::Handle, scope_profile},
     engine::resource_manager::ResourceManager,
@@ -38,6 +41,7 @@ pub struct TerrainSection {
     remove_layer: Handle<UiNode>,
     current_layer: Option<usize>,
     layer_section: LayerSection,
+    decal_layer_index: Handle<UiNode>,
 }
 
 impl TerrainSection {
@@ -48,6 +52,7 @@ impl TerrainSection {
         let layers;
         let add_layer;
         let remove_layer;
+        let decal_layer_index;
         let section = StackPanelBuilder::new(
             WidgetBuilder::new()
                 .with_child(
@@ -88,6 +93,20 @@ impl TerrainSection {
                     .add_column(Column::stretch())
                     .build(ctx),
                 )
+                .with_child(
+                    GridBuilder::new(
+                        WidgetBuilder::new()
+                            .with_child(make_text_mark(ctx, "Decal Layer Index", 0))
+                            .with_child({
+                                decal_layer_index = make_int_input_field(ctx, 0, 0, 255, 1);
+                                decal_layer_index
+                            }),
+                    )
+                    .add_row(Row::strict(ROW_HEIGHT))
+                    .add_column(Column::strict(COLUMN_WIDTH))
+                    .add_column(Column::stretch())
+                    .build(ctx),
+                )
                 .with_child(brush_section.section)
                 .with_child(layer_section.section),
         )
@@ -101,6 +120,7 @@ impl TerrainSection {
             brush_section,
             remove_layer,
             layer_section,
+            decal_layer_index,
             current_layer: None,
         }
     }
@@ -131,11 +151,19 @@ impl TerrainSection {
                 })
                 .collect::<Vec<_>>();
 
-            ui.send_message(ListViewMessage::items(
-                self.layers,
-                MessageDirection::ToWidget,
-                layer_items,
-            ));
+            send_sync_message(
+                ui,
+                ListViewMessage::items(self.layers, MessageDirection::ToWidget, layer_items),
+            );
+
+            send_sync_message(
+                ui,
+                NumericUpDownMessage::value(
+                    self.decal_layer_index,
+                    MessageDirection::ToWidget,
+                    terrain.decal_layer_index() as f32,
+                ),
+            );
 
             self.layer_section.sync_to_model(
                 self.current_layer
@@ -172,7 +200,7 @@ impl TerrainSection {
         }
         drop(brush);
 
-        if let Node::Terrain(_) = node {
+        if let Node::Terrain(terrain) = node {
             match *message.data() {
                 UiMessageData::Button(ButtonMessage::Click) => {
                     if message.destination() == self.add_layer {
@@ -195,6 +223,21 @@ impl TerrainSection {
                     if message.destination() == self.layers && self.current_layer != layer_index {
                         self.current_layer = layer_index;
                         self.sync_to_model(node, ui);
+                    }
+                }
+                UiMessageData::NumericUpDown(NumericUpDownMessage::Value(index))
+                    if message.destination() == self.decal_layer_index =>
+                {
+                    let index = index.clamp(0.0, 255.0) as u8;
+
+                    if index != terrain.decal_layer_index() {
+                        sender
+                            .send(Message::DoSceneCommand(
+                                SceneCommand::SetTerrainDecalLayerIndex(
+                                    SetTerrainDecalLayerIndexCommand::new(handle, index),
+                                ),
+                            ))
+                            .unwrap();
                     }
                 }
                 _ => {}

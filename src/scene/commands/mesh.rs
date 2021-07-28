@@ -76,3 +76,7 @@ define_node_command!(SetMeshCastShadowsCommand("Set Mesh Cast Shadows", bool) wh
 define_node_command!(SetMeshRenderPathCommand("Set Mesh Render Path", RenderPath) where fn swap(self, node) {
     get_set_swap!(self, node.as_mesh_mut(), render_path, set_render_path);
 });
+
+define_node_command!(SetMeshDecalLayerIndexCommand("Set Mesh Decal Layer Index", u8) where fn swap(self, node) {
+    get_set_swap!(self, node.as_mesh_mut(), decal_layer_index, set_decal_layer_index);
+});
