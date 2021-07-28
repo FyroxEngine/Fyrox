@@ -6,6 +6,7 @@ uniform sampler2D normalTexture;
 uniform mat4 invViewProj;
 uniform mat4 invWorldDecal;
 uniform vec2 resolution;
+uniform vec4 color;
 
 layout(location = 0) out vec4 outDiffuseMap;
 layout(location = 1) out vec4 outNormalMap;
@@ -35,7 +36,7 @@ void main()
 
     vec2 decalTexCoord = decalSpacePosition.xz + 0.5;
 
-    outDiffuseMap = texture(diffuseTexture, decalTexCoord);
+    outDiffuseMap = color * texture(diffuseTexture, decalTexCoord);
 
     vec3 fragmentTangent = dFdx(sceneWorldPosition);
     vec3 fragmentBinormal = dFdy(sceneWorldPosition);

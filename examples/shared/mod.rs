@@ -10,7 +10,6 @@ use rapier3d::{
     na::{Isometry3, UnitQuaternion, Vector3},
 };
 use rg3d::engine::resource_manager::MaterialSearchOptions;
-use rg3d::scene::decal::DecalBuilder;
 use rg3d::{
     animation::{
         machine::{Machine, Parameter, PoseNode, State, Transition},
@@ -732,18 +731,6 @@ pub fn create_scene_async(resource_manager: ResourceManager) -> Arc<Mutex<SceneL
     std::thread::spawn(move || {
         rg3d::core::futures::executor::block_on(async move {
             let mut scene = Scene::new();
-
-            DecalBuilder::new(
-                BaseBuilder::new().with_local_transform(
-                    TransformBuilder::new()
-                        .with_local_scale(Vector3::new(3.0, 3.0, 3.0))
-                        .build(),
-                ),
-            )
-            .with_diffuse_texture(
-                resource_manager.request_texture("examples/data/MetalMesh_Base_Color.png"),
-            )
-            .build(&mut scene.graph);
 
             // Set ambient light.
             scene.ambient_lighting_color = Color::opaque(80, 80, 80);

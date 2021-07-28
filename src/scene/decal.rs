@@ -15,7 +15,7 @@
 //! means that unused decals (bullet holes for example) must be removed after some time.
 
 use crate::{
-    core::{pool::Handle, visitor::prelude::*},
+    core::{color::Color, pool::Handle, visitor::prelude::*},
     resource::texture::Texture,
     scene::{
         base::{Base, BaseBuilder},
@@ -31,6 +31,8 @@ pub struct Decal {
     base: Base,
     diffuse_texture: Option<Texture>,
     normal_texture: Option<Texture>,
+    #[visit(optional)] // Backward compatibility
+    color: Color,
 }
 
 impl Deref for Decal {
@@ -54,6 +56,7 @@ impl Decal {
             base: self.base.raw_copy(),
             diffuse_texture: self.diffuse_texture.clone(),
             normal_texture: self.normal_texture.clone(),
+            color: Color::opaque(255, 255, 255),
         }
     }
 
@@ -86,6 +89,16 @@ impl Decal {
     pub fn normal_texture_value(&self) -> Option<Texture> {
         self.normal_texture.clone()
     }
+
+    /// Sets new color for the decal.
+    pub fn set_color(&mut self, color: Color) {
+        self.color = color;
+    }
+
+    /// Returns current color of the decal.
+    pub fn color(&self) -> Color {
+        self.color
+    }
 }
 
 /// Allows you to create a Decal in a declarative manner.
@@ -93,6 +106,7 @@ pub struct DecalBuilder {
     base_builder: BaseBuilder,
     diffuse_texture: Option<Texture>,
     normal_texture: Option<Texture>,
+    color: Color,
 }
 
 impl DecalBuilder {
@@ -102,6 +116,7 @@ impl DecalBuilder {
             base_builder,
             diffuse_texture: None,
             normal_texture: None,
+            color: Color::opaque(255, 255, 255),
         }
     }
 
@@ -117,12 +132,19 @@ impl DecalBuilder {
         self
     }
 
+    /// Sets desired decal color.
+    pub fn with_color(mut self, color: Color) -> Self {
+        self.color = color;
+        self
+    }
+
     /// Creates new Decal node.
     pub fn build_node(self) -> Node {
         Node::Decal(Decal {
             base: self.base_builder.build_base(),
             diffuse_texture: self.diffuse_texture,
             normal_texture: self.normal_texture,
+            color: self.color,
         })
     }
 

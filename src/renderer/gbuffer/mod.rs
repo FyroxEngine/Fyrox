@@ -488,7 +488,8 @@ impl GBuffer {
                         .set_vector2(&shader.resolution, &resolution)
                         .set_texture(&shader.scene_depth, &depth)
                         .set_texture(&shader.diffuse_texture, &diffuse_texture)
-                        .set_texture(&shader.normal_texture, &normal_texture);
+                        .set_texture(&shader.normal_texture, &normal_texture)
+                        .set_color(&shader.color, &decal.color());
                 },
             );
         }
