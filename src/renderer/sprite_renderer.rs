@@ -146,9 +146,9 @@ impl SpriteRenderer {
                         .set_matrix4(&self.shader.world_matrix, &sprite.global_transform())
                         .set_vector3(&self.shader.camera_up_vector, &camera_up)
                         .set_vector3(&self.shader.camera_side_vector, &camera_side)
-                        .set_float(&self.shader.size, sprite.size())
+                        .set_f32(&self.shader.size, sprite.size())
                         .set_color(&self.shader.color, &sprite.color())
-                        .set_float(&self.shader.rotation, sprite.rotation());
+                        .set_f32(&self.shader.rotation, sprite.rotation());
                 },
             );
         }

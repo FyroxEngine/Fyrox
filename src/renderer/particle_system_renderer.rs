@@ -206,7 +206,7 @@ impl ParticleSystemRenderer {
                         .set_matrix4(&self.shader.world_matrix, &global_transform)
                         .set_vector2(&self.shader.inv_screen_size, &inv_screen_size)
                         .set_vector2(&self.shader.proj_params, &proj_params)
-                        .set_float(
+                        .set_f32(
                             &self.shader.soft_boundary_sharpness_factor,
                             particle_system.soft_boundary_sharpness_factor(),
                         );

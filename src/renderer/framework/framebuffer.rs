@@ -1,11 +1,10 @@
-use crate::renderer::framework::gpu_program::GpuProgramBinding;
 use crate::{
     core::{color::Color, math::Rect, scope_profile},
     renderer::framework::{
         error::FrameworkError,
         geometry_buffer::{DrawCallStatistics, GeometryBuffer},
-        gpu_program::GpuProgram,
-        gpu_texture::{CubeMapFace, GpuTexture, GpuTextureKind},
+        gpu_program::{GpuProgram, GpuProgramBinding},
+        gpu_texture::{CubeMapFace, GpuTexture, GpuTextureKind, PixelElementKind},
         state::{ColorMask, PipelineState},
     },
 };
@@ -223,29 +222,86 @@ impl FrameBuffer {
     ) {
         scope_profile!();
 
-        let mut mask = 0;
-
         state.set_viewport(viewport);
         state.set_framebuffer(self.id());
 
-        if let Some(color) = color {
-            state.set_color_write(ColorMask::default());
-            state.set_clear_color(color);
-            mask |= glow::COLOR_BUFFER_BIT;
-        }
-        if let Some(depth) = depth {
-            state.set_depth_write(true);
-            state.set_clear_depth(depth);
-            mask |= glow::DEPTH_BUFFER_BIT;
-        }
-        if let Some(stencil) = stencil {
-            state.set_stencil_mask(0xFFFF_FFFF);
-            state.set_clear_stencil(stencil);
-            mask |= glow::STENCIL_BUFFER_BIT;
-        }
-
         unsafe {
-            state.gl.clear(mask);
+            if let Some(depth_stencil) = self.depth_attachment.as_ref() {
+                state.set_depth_write(true);
+                state.set_stencil_mask(0xFFFF_FFFF);
+
+                match depth_stencil.kind {
+                    AttachmentKind::Color => unreachable!("depth cannot be color!"),
+                    AttachmentKind::DepthStencil => match (depth, stencil) {
+                        (Some(depth), Some(stencil)) => {
+                            state.gl.clear_buffer_depth_stencil(
+                                glow::DEPTH_STENCIL,
+                                0,
+                                depth,
+                                stencil,
+                            );
+                        }
+                        (Some(depth), None) => {
+                            let mut values = [depth];
+                            state.gl.clear_buffer_f32_slice(glow::DEPTH, 0, &mut values);
+                        }
+                        (None, Some(stencil)) => {
+                            let mut values = [stencil];
+                            state
+                                .gl
+                                .clear_buffer_i32_slice(glow::STENCIL, 0, &mut values);
+                        }
+                        (None, None) => {
+                            // Nothing to do
+                        }
+                    },
+                    AttachmentKind::Depth => {
+                        if let Some(depth) = depth {
+                            let mut values = [depth];
+                            state.gl.clear_buffer_f32_slice(glow::DEPTH, 0, &mut values);
+                        }
+                    }
+                }
+            }
+
+            if let Some(color) = color {
+                state.set_color_write(ColorMask::default());
+
+                for (i, attachment) in self.color_attachments.iter().enumerate() {
+                    match attachment.texture.borrow().pixel_kind().element_kind() {
+                        PixelElementKind::Float | PixelElementKind::NormalizedUnsignedInteger => {
+                            let mut fvalues = color.as_frgba();
+                            state.gl.clear_buffer_f32_slice(
+                                glow::COLOR,
+                                i as u32,
+                                &mut fvalues.data.0[0],
+                            )
+                        }
+                        PixelElementKind::Integer => {
+                            let mut values = [
+                                color.r as i32,
+                                color.g as i32,
+                                color.b as i32,
+                                color.a as i32,
+                            ];
+                            state
+                                .gl
+                                .clear_buffer_i32_slice(glow::COLOR, i as u32, &mut values);
+                        }
+                        PixelElementKind::UnsignedInteger => {
+                            let mut values = [
+                                color.r as u32,
+                                color.g as u32,
+                                color.b as u32,
+                                color.a as u32,
+                            ];
+                            state
+                                .gl
+                                .clear_buffer_u32_slice(glow::COLOR, i as u32, &mut values);
+                        }
+                    }
+                }
+            }
         }
     }
 

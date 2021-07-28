@@ -347,7 +347,7 @@ impl Renderer2d {
                             program_binding
                                 .set_matrix4(&shader.wvp_matrix, &view_projection)
                                 .set_texture(&shader.diffuse_texture, &batch.texture)
-                                .set_integer(&shader.light_count, light_count as i32)
+                                .set_i32(&shader.light_count, light_count as i32)
                                 .set_vector4_slice(&shader.light_color_radius, &light_color_radius)
                                 .set_vector4_slice(
                                     &shader.light_position_direction,

@@ -37,6 +37,7 @@ mod uber_shader;
 pub struct GBuffer {
     shaders: ArrayVec<UberShader, 9>,
     framebuffer: FrameBuffer,
+    decal_framebuffer: FrameBuffer,
     pub final_frame: FrameBuffer,
     pub width: i32,
     pub height: i32,
@@ -96,6 +97,7 @@ impl GBuffer {
             .bind_mut(state, 0)
             .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
             .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
+        let diffuse_texture = Rc::new(RefCell::new(diffuse_texture));
 
         let mut normal_texture = GpuTexture::new(
             state,
@@ -110,6 +112,7 @@ impl GBuffer {
             .bind_mut(state, 0)
             .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
             .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
+        let normal_texture = Rc::new(RefCell::new(normal_texture));
 
         let mut ambient_texture = GpuTexture::new(
             state,
@@ -125,24 +128,42 @@ impl GBuffer {
             .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
             .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
 
+        let mut decal_mask_texture = GpuTexture::new(
+            state,
+            GpuTextureKind::Rectangle { width, height },
+            PixelKind::R8UI,
+            MinificationFilter::Nearest,
+            MagnificationFilter::Nearest,
+            1,
+            None,
+        )?;
+        decal_mask_texture
+            .bind_mut(state, 0)
+            .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
+            .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
+
         let framebuffer = FrameBuffer::new(
             state,
             Some(Attachment {
                 kind: AttachmentKind::DepthStencil,
-                texture: depth_stencil,
+                texture: depth_stencil.clone(),
             }),
             vec![
                 Attachment {
                     kind: AttachmentKind::Color,
-                    texture: Rc::new(RefCell::new(diffuse_texture)),
+                    texture: diffuse_texture.clone(),
                 },
                 Attachment {
                     kind: AttachmentKind::Color,
-                    texture: Rc::new(RefCell::new(normal_texture)),
+                    texture: normal_texture.clone(),
                 },
                 Attachment {
                     kind: AttachmentKind::Color,
                     texture: Rc::new(RefCell::new(ambient_texture)),
+                },
+                Attachment {
+                    kind: AttachmentKind::Color,
+                    texture: Rc::new(RefCell::new(decal_mask_texture)),
                 },
             ],
         )?;
@@ -185,6 +206,21 @@ impl GBuffer {
             }],
         )?;
 
+        let decal_framebuffer = FrameBuffer::new(
+            state,
+            None,
+            vec![
+                Attachment {
+                    kind: AttachmentKind::Color,
+                    texture: diffuse_texture,
+                },
+                Attachment {
+                    kind: AttachmentKind::Color,
+                    texture: normal_texture,
+                },
+            ],
+        )?;
+
         let mut shaders = ArrayVec::<UberShader, 9>::new();
         for i in 0..(UberShaderFeatures::COUNT.bits() as usize) {
             shaders.push(UberShader::new(
@@ -203,6 +239,7 @@ impl GBuffer {
             instance_data_set: Default::default(),
             decal_shader: DecalShader::new(state)?,
             cube: SurfaceData::make_cube(Matrix4::identity()),
+            decal_framebuffer,
         })
     }
 
@@ -224,6 +261,10 @@ impl GBuffer {
 
     pub fn ambient_texture(&self) -> Rc<RefCell<GpuTexture>> {
         self.framebuffer.color_attachments()[2].texture.clone()
+    }
+
+    pub fn decal_mask_texture(&self) -> Rc<RefCell<GpuTexture>> {
+        self.framebuffer.color_attachments()[3].texture.clone()
     }
 
     #[must_use]
@@ -333,7 +374,8 @@ impl GBuffer {
                         .set_vector3(&shader.camera_position, &camera.global_position())
                         .set_bool(&shader.use_pom, batch.use_pom && use_parallax_mapping)
                         .set_bool(&shader.use_skeletal_animation, batch.is_skinned)
-                        .set_vector2(&shader.tex_coord_scale, &batch.tex_coord_scale);
+                        .set_vector2(&shader.tex_coord_scale, &batch.tex_coord_scale)
+                        .set_u32(&shader.layer_index, batch.decal_layer_index as u32);
 
                     let program_binding = if batch.use_lightmapping {
                         program_binding.set_texture(
@@ -357,7 +399,7 @@ impl GBuffer {
                                 shader.matrix_storage.as_ref().unwrap(),
                                 &matrix_storage.matrices_storage,
                             )
-                            .set_integer(
+                            .set_i32(
                                 shader.matrix_buffer_stride.as_ref().unwrap(),
                                 BONE_MATRICES_COUNT as i32,
                             )
@@ -435,6 +477,7 @@ impl GBuffer {
 
         let inv_view_proj = initial_view_projection.try_inverse().unwrap_or_default();
         let depth = self.depth();
+        let decal_mask = self.decal_mask_texture();
         let resolution = Vector2::new(self.width as f32, self.height as f32);
 
         // Render decals after because we need to modify diffuse texture of G-Buffer and use depth texture
@@ -463,7 +506,7 @@ impl GBuffer {
 
             let world_view_proj = initial_view_projection * decal.global_transform();
 
-            statistics += self.framebuffer.draw(
+            statistics += self.decal_framebuffer.draw(
                 unit_cube,
                 state,
                 viewport,
@@ -489,6 +532,8 @@ impl GBuffer {
                         .set_texture(&shader.scene_depth, &depth)
                         .set_texture(&shader.diffuse_texture, &diffuse_texture)
                         .set_texture(&shader.normal_texture, &normal_texture)
+                        .set_texture(&shader.decal_mask, &decal_mask)
+                        .set_u32(&shader.layer_index, decal.layer() as u32)
                         .set_color(&shader.color, &decal.color());
                 },
             );

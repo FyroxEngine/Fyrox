@@ -13,6 +13,8 @@ pub struct DecalShader {
     pub inv_world_decal: UniformLocation,
     pub resolution: UniformLocation,
     pub color: UniformLocation,
+    pub layer_index: UniformLocation,
+    pub decal_mask: UniformLocation,
     pub program: GpuProgram,
 }
 
@@ -32,6 +34,8 @@ impl DecalShader {
             inv_world_decal: program.uniform_location(state, "invWorldDecal")?,
             resolution: program.uniform_location(state, "resolution")?,
             color: program.uniform_location(state, "color")?,
+            layer_index: program.uniform_location(state, "layerIndex")?,
+            decal_mask: program.uniform_location(state, "decalMask")?,
             program,
         })
     }

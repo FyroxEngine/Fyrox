@@ -116,7 +116,7 @@ impl<'a> GpuProgramBinding<'a> {
     }
 
     #[inline(always)]
-    pub fn set_integer(self, location: &UniformLocation, value: i32) -> Self {
+    pub fn set_i32(self, location: &UniformLocation, value: i32) -> Self {
         unsafe {
             self.state.gl.uniform_1_i32(Some(&location.id), value);
         }
@@ -124,7 +124,15 @@ impl<'a> GpuProgramBinding<'a> {
     }
 
     #[inline(always)]
-    pub fn set_float(self, location: &UniformLocation, value: f32) -> Self {
+    pub fn set_u32(self, location: &UniformLocation, value: u32) -> Self {
+        unsafe {
+            self.state.gl.uniform_1_u32(Some(&location.id), value);
+        }
+        self
+    }
+
+    #[inline(always)]
+    pub fn set_f32(self, location: &UniformLocation, value: f32) -> Self {
         unsafe {
             self.state.gl.uniform_1_f32(Some(&location.id), value);
         }
@@ -162,7 +170,7 @@ impl<'a> GpuProgramBinding<'a> {
     }
 
     #[inline(always)]
-    pub fn set_integer_slice(self, location: &UniformLocation, value: &[i32]) -> Self {
+    pub fn set_i32_slice(self, location: &UniformLocation, value: &[i32]) -> Self {
         unsafe {
             self.state.gl.uniform_1_i32_slice(Some(&location.id), value);
         }
@@ -170,7 +178,7 @@ impl<'a> GpuProgramBinding<'a> {
     }
 
     #[inline(always)]
-    pub fn set_float_slice(self, location: &UniformLocation, value: &[f32]) -> Self {
+    pub fn set_f32_slice(self, location: &UniformLocation, value: &[f32]) -> Self {
         unsafe {
             self.state.gl.uniform_1_f32_slice(Some(&location.id), value);
         }

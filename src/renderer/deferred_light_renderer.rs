@@ -831,19 +831,19 @@ impl DeferredLightRenderer {
                                 .set_bool(&shader.soft_shadows, settings.spot_soft_shadows)
                                 .set_vector3(&shader.light_position, &light_position)
                                 .set_vector3(&shader.light_direction, &emit_direction)
-                                .set_float(&shader.light_radius, light_radius)
+                                .set_f32(&shader.light_radius, light_radius)
                                 .set_matrix4(&shader.inv_view_proj_matrix, &inv_view_projection)
                                 .set_color(&shader.light_color, &light.color())
-                                .set_float(
+                                .set_f32(
                                     &shader.half_hotspot_cone_angle_cos,
                                     (spot_light.hotspot_cone_angle() * 0.5).cos(),
                                 )
-                                .set_float(
+                                .set_f32(
                                     &shader.half_cone_angle_cos,
                                     (spot_light.full_cone_angle() * 0.5).cos(),
                                 )
                                 .set_matrix4(&shader.wvp_matrix, &frame_matrix)
-                                .set_float(
+                                .set_f32(
                                     &shader.shadow_map_inv_size,
                                     1.0 / (self.spot_shadow_map_renderer.cascade_size(cascade_index)
                                         as f32),
@@ -858,7 +858,7 @@ impl DeferredLightRenderer {
                                 )
                                 .set_texture(&shader.cookie_texture, &cookie_texture)
                                 .set_bool(&shader.cookie_enabled, cookie_enabled)
-                                .set_float(&shader.shadow_bias, spot_light.shadow_bias());
+                                .set_f32(&shader.shadow_bias, spot_light.shadow_bias());
                         },
                     )
                 }
@@ -878,12 +878,12 @@ impl DeferredLightRenderer {
                                 .set_bool(&shader.shadows_enabled, shadows_enabled)
                                 .set_bool(&shader.soft_shadows, settings.point_soft_shadows)
                                 .set_vector3(&shader.light_position, &light_position)
-                                .set_float(&shader.light_radius, light_radius)
+                                .set_f32(&shader.light_radius, light_radius)
                                 .set_matrix4(&shader.inv_view_proj_matrix, &inv_view_projection)
                                 .set_color(&shader.light_color, &light.color())
                                 .set_matrix4(&shader.wvp_matrix, &frame_matrix)
                                 .set_vector3(&shader.camera_position, &camera_global_position)
-                                .set_float(&shader.shadow_bias, point_light.shadow_bias())
+                                .set_f32(&shader.shadow_bias, point_light.shadow_bias())
                                 .set_texture(&shader.depth_sampler, &gbuffer_depth_map)
                                 .set_texture(&shader.color_sampler, &gbuffer_diffuse_map)
                                 .set_texture(&shader.normal_sampler, &gbuffer_normal_map)

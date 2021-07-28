@@ -2,6 +2,7 @@
 // file will be *automatically* included in all shaders!
 
 precision highp float;
+precision lowp usampler2D;
 
 // Tries to solve quadratic equation. Returns true iff there are any real roots.
 bool S_SolveQuadraticEq(float a, float b, float c, out float minT, out float maxT)

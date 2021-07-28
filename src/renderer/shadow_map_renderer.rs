@@ -87,7 +87,7 @@ impl SpotShadowMapRenderer {
                     state,
                     kind,
                     match precision {
-                        ShadowMapPrecision::Full => PixelKind::D32,
+                        ShadowMapPrecision::Full => PixelKind::D32F,
                         ShadowMapPrecision::Half => PixelKind::D16,
                     },
                     MinificationFilter::Linear,
@@ -300,7 +300,7 @@ impl PointShadowMapRenderer {
                     state,
                     kind,
                     match precision {
-                        ShadowMapPrecision::Full => PixelKind::D32,
+                        ShadowMapPrecision::Full => PixelKind::D32F,
                         ShadowMapPrecision::Half => PixelKind::D16,
                     },
                     MinificationFilter::Nearest,

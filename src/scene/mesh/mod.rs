@@ -72,6 +72,7 @@ pub struct Mesh {
     bounding_box_dirty: Cell<bool>,
     cast_shadows: bool,
     render_path: RenderPath,
+    decal_layer_index: u8,
 }
 
 impl Default for Mesh {
@@ -83,6 +84,7 @@ impl Default for Mesh {
             bounding_box_dirty: Cell::new(true),
             cast_shadows: true,
             render_path: RenderPath::Deferred,
+            decal_layer_index: 0,
         }
     }
 }
@@ -107,6 +109,7 @@ impl Visit for Mesh {
 
         self.base.visit("Common", visitor)?;
         self.cast_shadows.visit("CastShadows", visitor)?;
+        let _ = self.decal_layer_index.visit("DecalLayerIndex", visitor);
 
         let mut render_path = self.render_path as u32;
         render_path.visit("RenderPath", visitor)?;
@@ -296,6 +299,18 @@ impl Mesh {
         false
     }
 
+    /// Sets new decal layer index. It defines which decals will be applies to the mesh,
+    /// for example iff a decal has index == 0 and a mesh has index == 0, then decals will
+    /// be applied. This allows you to apply decals only on needed surfaces.
+    pub fn set_decal_layer_index(&mut self, index: u8) {
+        self.decal_layer_index = index;
+    }
+
+    /// Returns current decal index.
+    pub fn decal_layer_index(&self) -> u8 {
+        self.decal_layer_index
+    }
+
     /// Creates a raw copy of a mesh node.
     pub fn raw_copy(&self) -> Self {
         Self {
@@ -305,6 +320,7 @@ impl Mesh {
             bounding_box_dirty: self.bounding_box_dirty.clone(),
             cast_shadows: self.cast_shadows,
             render_path: self.render_path,
+            decal_layer_index: self.decal_layer_index,
         }
     }
 }
@@ -315,6 +331,7 @@ pub struct MeshBuilder {
     surfaces: Vec<Surface>,
     cast_shadows: bool,
     render_path: RenderPath,
+    decal_layer_index: u8,
 }
 
 impl MeshBuilder {
@@ -325,6 +342,7 @@ impl MeshBuilder {
             surfaces: Default::default(),
             cast_shadows: true,
             render_path: RenderPath::Deferred,
+            decal_layer_index: 0,
         }
     }
 
@@ -347,6 +365,12 @@ impl MeshBuilder {
         self
     }
 
+    /// Sets desired decal layer index.
+    pub fn with_decal_layer_index(mut self, decal_layer_index: u8) -> Self {
+        self.decal_layer_index = decal_layer_index;
+        self
+    }
+
     /// Creates new mesh.
     pub fn build_node(self) -> Node {
         Node::Mesh(Mesh {
@@ -356,6 +380,7 @@ impl MeshBuilder {
             bounding_box: Default::default(),
             bounding_box_dirty: Cell::new(true),
             render_path: self.render_path,
+            decal_layer_index: self.decal_layer_index,
         })
     }
 

@@ -3,10 +3,12 @@
 uniform sampler2D sceneDepth;
 uniform sampler2D diffuseTexture;
 uniform sampler2D normalTexture;
+uniform usampler2D decalMask;
 uniform mat4 invViewProj;
 uniform mat4 invWorldDecal;
 uniform vec2 resolution;
 uniform vec4 color;
+uniform uint layerIndex;
 
 layout(location = 0) out vec4 outDiffuseMap;
 layout(location = 1) out vec4 outNormalMap;
@@ -21,6 +23,13 @@ void main()
         (1.0 + screenPos.x) / 2.0 + (0.5 / resolution.x),
         (1.0 + screenPos.y) / 2.0 + (0.5 / resolution.y)
     );
+
+    uvec4 maskIndex = texture(decalMask, texCoord);
+
+    // Masking.
+    if (maskIndex.r != layerIndex) {
+        discard;
+    }
 
     float sceneDepth = texture(sceneDepth, texCoord).r;
 

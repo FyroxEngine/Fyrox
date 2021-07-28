@@ -59,6 +59,7 @@ pub struct Batch {
     pub is_terrain: bool,
     pub blend: bool,
     pub tex_coord_scale: Vector2<f32>,
+    pub decal_layer_index: u8,
     sort_index: u64,
 }
 
@@ -170,6 +171,7 @@ impl BatchStorage {
                                 use_lightmapping: surface.lightmap_texture_ref().is_some(),
                                 is_terrain: false,
                                 blend: false,
+                                decal_layer_index: mesh.decal_layer_index(),
                                 tex_coord_scale: Vector2::new(1.0, 1.0),
                             });
                             self.batches.last_mut().unwrap()
@@ -272,6 +274,7 @@ impl BatchStorage {
                                     is_terrain: true,
                                     blend: layer_index != 0,
                                     tex_coord_scale: layer.tile_factor,
+                                    decal_layer_index: terrain.decal_layer_index(),
                                 });
                                 self.batches.last_mut().unwrap()
                             };

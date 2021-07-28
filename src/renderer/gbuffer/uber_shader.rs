@@ -216,6 +216,7 @@ fn make_fragment_shader_source(features: UberShaderFeatures) -> String {
         layout(location = 0) out vec4 outColor;
         layout(location = 1) out vec4 outNormal;
         layout(location = 2) out vec4 outAmbient;
+        layout(location = 3) out uint outDecalMask;
 
         uniform sampler2D diffuseTexture;
         uniform sampler2D normalTexture;
@@ -226,6 +227,7 @@ fn make_fragment_shader_source(features: UberShaderFeatures) -> String {
         uniform vec3 cameraPosition;
         uniform bool usePOM;
         uniform vec2 texCoordScale;
+        uniform uint layerIndex;
     "#;
 
     source += r#"
@@ -311,6 +313,8 @@ fn make_fragment_shader_source(features: UberShaderFeatures) -> String {
         float roughness = texture(roughnessTexture, tc).r;
         vec3 reflectionTexCoord = reflect(toFragment, normalize(n.xyz));
         outColor = (1.0 - roughness) * outColor + roughness * vec4(texture(environmentMap, reflectionTexCoord).rgb, outColor.a);
+        
+        outDecalMask = layerIndex;
     "#;
 
     if features.contains(UberShaderFeatures::TERRAIN) {
@@ -347,6 +351,7 @@ pub struct UberShader {
     pub view_projection_matrix: Option<UniformLocation>,
     pub use_pom: UniformLocation,
     pub height_texture: UniformLocation,
+    pub layer_index: UniformLocation,
     // Non-instanced parts.
     pub world_matrix: Option<UniformLocation>,
     pub wvp_matrix: Option<UniformLocation>,
@@ -396,6 +401,7 @@ impl UberShader {
         Ok(Self {
             use_skeletal_animation: program.uniform_location(state, "useSkeletalAnimation")?,
             tex_coord_scale: program.uniform_location(state, "texCoordScale")?,
+            layer_index: program.uniform_location(state, "layerIndex")?,
             world_matrix: if !instancing {
                 Some(program.uniform_location(state, "worldMatrix")?)
             } else {

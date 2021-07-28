@@ -1,6 +1,3 @@
-// Keep this for now, some texture kind might be used in future.
-#![allow(dead_code)]
-
 use crate::{
     core::color::Color,
     renderer::framework::{error::FrameworkError, state::PipelineState},
@@ -74,7 +71,7 @@ impl GpuTextureKind {
 pub enum PixelKind {
     F32,
     F16,
-    D32,
+    D32F,
     D16,
     D24S8,
     RGBA8,
@@ -84,6 +81,7 @@ pub enum PixelKind {
     RG8,
     RG16,
     R8,
+    R8UI,
     R16,
     RGB16,
     RGBA16,
@@ -119,8 +117,15 @@ impl From<TexturePixelKind> for PixelKind {
     }
 }
 
+pub enum PixelElementKind {
+    Float,
+    NormalizedUnsignedInteger,
+    Integer,
+    UnsignedInteger,
+}
+
 impl PixelKind {
-    fn unpack_alignment(self) -> i32 {
+    pub fn unpack_alignment(self) -> i32 {
         match self {
             Self::RGBA16 | Self::RGB16 | Self::RGBA32F => 8,
             Self::RGBA8
@@ -130,10 +135,10 @@ impl PixelKind {
             | Self::RG16
             | Self::R16
             | Self::D24S8
-            | Self::D32
+            | Self::D32F
             | Self::F32 => 4,
             Self::RG8 | Self::D16 | Self::F16 => 2,
-            Self::R8 => 1,
+            Self::R8 | Self::R8UI => 1,
             Self::DXT1RGB
             | Self::DXT1RGBA
             | Self::DXT3RGBA
@@ -143,7 +148,7 @@ impl PixelKind {
         }
     }
 
-    fn is_compressed(self) -> bool {
+    pub fn is_compressed(self) -> bool {
         match self {
             Self::DXT1RGB
             | Self::DXT1RGBA
@@ -162,13 +167,41 @@ impl PixelKind {
             | Self::RG16
             | Self::R16
             | Self::D24S8
-            | Self::D32
+            | Self::D32F
             | Self::F32
             | Self::RG8
             | Self::D16
             | Self::F16
             | Self::R8
+            | Self::R8UI
             | Self::RGBA32F => false,
+        }
+    }
+
+    pub fn element_kind(self) -> PixelElementKind {
+        match self {
+            PixelKind::F32 | PixelKind::F16 | PixelKind::RGBA32F | PixelKind::D32F => {
+                PixelElementKind::Float
+            }
+            PixelKind::D16
+            | PixelKind::D24S8
+            | PixelKind::RGBA8
+            | PixelKind::RGB8
+            | PixelKind::BGRA8
+            | PixelKind::BGR8
+            | PixelKind::RG8
+            | PixelKind::RG16
+            | PixelKind::R8
+            | PixelKind::R16
+            | PixelKind::RGB16
+            | PixelKind::RGBA16
+            | PixelKind::DXT1RGB
+            | PixelKind::DXT1RGBA
+            | PixelKind::DXT3RGBA
+            | PixelKind::DXT5RGBA
+            | PixelKind::R8RGTC
+            | PixelKind::RG8RGTC => PixelElementKind::NormalizedUnsignedInteger,
+            PixelKind::R8UI => PixelElementKind::UnsignedInteger,
         }
     }
 }
@@ -202,11 +235,11 @@ fn image_3d_size_bytes(pixel_kind: PixelKind, width: usize, height: usize, depth
         | PixelKind::BGRA8
         | PixelKind::RG16
         | PixelKind::D24S8
-        | PixelKind::D32
+        | PixelKind::D32F
         | PixelKind::F32 => 4 * pixel_count,
         PixelKind::RGB8 | PixelKind::BGR8 => 3 * pixel_count,
         PixelKind::RG8 | PixelKind::R16 | PixelKind::D16 | PixelKind::F16 => 2 * pixel_count,
-        PixelKind::R8 => pixel_count,
+        PixelKind::R8 | PixelKind::R8UI => pixel_count,
         PixelKind::DXT1RGB | PixelKind::DXT1RGBA | PixelKind::R8RGTC => {
             let block_size = 8;
             ceil_div_4(width) * ceil_div_4(height) * ceil_div_4(depth) * block_size
@@ -228,11 +261,11 @@ fn image_2d_size_bytes(pixel_kind: PixelKind, width: usize, height: usize) -> us
         | PixelKind::BGRA8
         | PixelKind::RG16
         | PixelKind::D24S8
-        | PixelKind::D32
+        | PixelKind::D32F
         | PixelKind::F32 => 4 * pixel_count,
         PixelKind::RGB8 | PixelKind::BGR8 => 3 * pixel_count,
         PixelKind::RG8 | PixelKind::R16 | PixelKind::D16 | PixelKind::F16 => 2 * pixel_count,
-        PixelKind::R8 => pixel_count,
+        PixelKind::R8 | PixelKind::R8UI => pixel_count,
         PixelKind::DXT1RGB | PixelKind::DXT1RGBA | PixelKind::R8RGTC => {
             let block_size = 8;
             ceil_div_4(width) * ceil_div_4(height) * block_size
@@ -253,11 +286,11 @@ fn image_1d_size_bytes(pixel_kind: PixelKind, length: usize) -> usize {
         | PixelKind::BGRA8
         | PixelKind::RG16
         | PixelKind::D24S8
-        | PixelKind::D32
+        | PixelKind::D32F
         | PixelKind::F32 => 4 * length,
         PixelKind::RGB8 | PixelKind::BGR8 => 3 * length,
         PixelKind::RG8 | PixelKind::R16 | PixelKind::D16 | PixelKind::F16 => 2 * length,
-        PixelKind::R8 => length,
+        PixelKind::R8 | PixelKind::R8UI => length,
         PixelKind::DXT1RGB | PixelKind::DXT1RGBA | PixelKind::R8RGTC => {
             let block_size = 8;
             ceil_div_4(length) * block_size
@@ -567,7 +600,7 @@ impl<'a> TextureBinding<'a> {
             let (type_, format, internal_format) = match pixel_kind {
                 PixelKind::F32 => (glow::FLOAT, glow::RED, glow::R32F),
                 PixelKind::F16 => (glow::FLOAT, glow::RED, glow::R16F),
-                PixelKind::D32 => (glow::FLOAT, glow::DEPTH_COMPONENT, glow::DEPTH_COMPONENT32F),
+                PixelKind::D32F => (glow::FLOAT, glow::DEPTH_COMPONENT, glow::DEPTH_COMPONENT32F),
                 PixelKind::D16 => (
                     glow::UNSIGNED_SHORT,
                     glow::DEPTH_COMPONENT,
@@ -582,6 +615,7 @@ impl<'a> TextureBinding<'a> {
                 PixelKind::RGB8 => (glow::UNSIGNED_BYTE, glow::RGB, glow::RGB8),
                 PixelKind::RG8 => (glow::UNSIGNED_BYTE, glow::RG, glow::RG8),
                 PixelKind::R8 => (glow::UNSIGNED_BYTE, glow::RED, glow::R8),
+                PixelKind::R8UI => (glow::UNSIGNED_BYTE, glow::RED_INTEGER, glow::R8UI),
                 PixelKind::BGRA8 => (glow::UNSIGNED_BYTE, glow::BGRA, glow::RGBA8),
                 PixelKind::BGR8 => (glow::UNSIGNED_BYTE, glow::BGR, glow::RGB8),
                 PixelKind::RG16 => (glow::UNSIGNED_SHORT, glow::RG, glow::RG16),
@@ -904,6 +938,10 @@ impl GpuTexture {
 
     pub fn anisotropy(&self) -> f32 {
         self.anisotropy
+    }
+
+    pub fn pixel_kind(&self) -> PixelKind {
+        self.pixel_kind
     }
 }
 

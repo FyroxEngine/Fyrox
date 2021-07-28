@@ -33,6 +33,8 @@ pub struct Decal {
     normal_texture: Option<Texture>,
     #[visit(optional)] // Backward compatibility
     color: Color,
+    #[visit(optional)] // Backward compatibility
+    layer: u8,
 }
 
 impl Deref for Decal {
@@ -56,7 +58,8 @@ impl Decal {
             base: self.base.raw_copy(),
             diffuse_texture: self.diffuse_texture.clone(),
             normal_texture: self.normal_texture.clone(),
-            color: Color::opaque(255, 255, 255),
+            color: self.color,
+            layer: self.layer,
         }
     }
 
@@ -99,6 +102,20 @@ impl Decal {
     pub fn color(&self) -> Color {
         self.color
     }
+
+    /// Sets layer index of the decal. Layer index allows you to apply decals only on desired
+    /// surfaces. For example, static geometry could have `index == 0` and dynamic `index == 1`.
+    /// To "filter" decals all you need to do is to set appropriate layer index to decal, for
+    /// example blood splatter decal will have `index == 0` in this case. In case of dynamic
+    /// objects (like bots, etc.) index will be 1.
+    pub fn set_layer(&mut self, layer: u8) {
+        self.layer = layer;
+    }
+
+    /// Returns current layer index.
+    pub fn layer(&self) -> u8 {
+        self.layer
+    }
 }
 
 /// Allows you to create a Decal in a declarative manner.
@@ -107,6 +124,7 @@ pub struct DecalBuilder {
     diffuse_texture: Option<Texture>,
     normal_texture: Option<Texture>,
     color: Color,
+    layer: u8,
 }
 
 impl DecalBuilder {
@@ -117,6 +135,7 @@ impl DecalBuilder {
             diffuse_texture: None,
             normal_texture: None,
             color: Color::opaque(255, 255, 255),
+            layer: 0,
         }
     }
 
@@ -138,6 +157,12 @@ impl DecalBuilder {
         self
     }
 
+    /// Sets desired layer index.
+    pub fn with_layer(mut self, layer: u8) -> Self {
+        self.layer = layer;
+        self
+    }
+
     /// Creates new Decal node.
     pub fn build_node(self) -> Node {
         Node::Decal(Decal {
@@ -145,6 +170,7 @@ impl DecalBuilder {
             diffuse_texture: self.diffuse_texture,
             normal_texture: self.normal_texture,
             color: self.color,
+            layer: self.layer,
         })
     }
 

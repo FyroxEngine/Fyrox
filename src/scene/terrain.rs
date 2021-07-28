@@ -297,6 +297,8 @@ pub struct Terrain {
     length_chunks: u32,
     bounding_box_dirty: Cell<bool>,
     bounding_box: Cell<AxisAlignedBoundingBox>,
+    #[visit(optional)] // Backward compatibility
+    decal_layer_index: u8,
 }
 
 impl Deref for Terrain {
@@ -356,6 +358,18 @@ impl Terrain {
         &mut self.chunks
     }
 
+    /// Sets new decal layer index. It defines which decals will be applies to the mesh,
+    /// for example iff a decal has index == 0 and a mesh has index == 0, then decals will
+    /// be applied. This allows you to apply decals only on needed surfaces.
+    pub fn set_decal_layer_index(&mut self, index: u8) {
+        self.decal_layer_index = index;
+    }
+
+    /// Returns current decal index.
+    pub fn decal_layer_index(&self) -> u8 {
+        self.decal_layer_index
+    }
+
     /// Creates raw copy of the terrain. Do not use this method directly, use
     /// Graph::copy_node.
     pub fn raw_copy(&self) -> Self {
@@ -370,6 +384,7 @@ impl Terrain {
             length_chunks: self.length_chunks,
             bounding_box_dirty: Cell::new(true),
             bounding_box: Default::default(),
+            decal_layer_index: self.decal_layer_index,
         }
     }
 
@@ -702,6 +717,7 @@ pub struct TerrainBuilder {
     length_chunks: usize,
     height_map_resolution: f32,
     layers: Vec<LayerDefinition>,
+    decal_layer_index: u8,
 }
 
 fn make_divisible_by_2(n: u32) -> u32 {
@@ -750,6 +766,7 @@ impl TerrainBuilder {
             mask_resolution: 16.0,
             height_map_resolution: 8.0,
             layers: Default::default(),
+            decal_layer_index: 0,
         }
     }
 
@@ -798,6 +815,12 @@ impl TerrainBuilder {
     /// Sets desired layers that will be used for each chunk in the terrain.
     pub fn with_layers(mut self, layers: Vec<LayerDefinition>) -> Self {
         self.layers = layers;
+        self
+    }
+
+    /// Sets desired decal layer index.
+    pub fn with_decal_layer_index(mut self, decal_layer_index: u8) -> Self {
+        self.decal_layer_index = decal_layer_index;
         self
     }
 
@@ -859,6 +882,7 @@ impl TerrainBuilder {
             height_map_resolution: self.height_map_resolution,
             width_chunks: self.width_chunks as u32,
             length_chunks: self.length_chunks as u32,
+            decal_layer_index: self.decal_layer_index,
         };
 
         Node::Terrain(terrain)

@@ -331,7 +331,7 @@ impl UiRenderer {
                         .set_vector2(&shader.bounds_min, &cmd.bounds.position)
                         .set_vector2(&shader.bounds_max, &bounds_max)
                         .set_bool(&shader.is_font, is_font_texture)
-                        .set_integer(
+                        .set_i32(
                             &shader.brush_type,
                             match cmd.brush {
                                 Brush::Solid(_) => 0,
@@ -348,7 +348,7 @@ impl UiRenderer {
                         )
                         .set_vector2(&shader.gradient_origin, &gradient_origin)
                         .set_vector2(&shader.gradient_end, &gradient_end)
-                        .set_integer(
+                        .set_i32(
                             &shader.gradient_point_count,
                             match &cmd.brush {
                                 Brush::Solid(_) => 0,
@@ -356,7 +356,7 @@ impl UiRenderer {
                                 | Brush::RadialGradient { stops, .. } => stops.len() as i32,
                             },
                         )
-                        .set_float_slice(
+                        .set_f32_slice(
                             &shader.gradient_stops,
                             match &cmd.brush {
                                 Brush::Solid(_) => &raw_stops,
@@ -382,7 +382,7 @@ impl UiRenderer {
                                 }
                             },
                         )
-                        .set_float(&shader.opacity, cmd.opacity);
+                        .set_f32(&shader.opacity, cmd.opacity);
                 },
             )?;
         }

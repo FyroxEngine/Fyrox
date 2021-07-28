@@ -244,7 +244,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                     .set_texture(&shader.noise_sampler, noise)
                     .set_vector3_slice(&shader.kernel, kernel)
                     .set_vector2(&shader.noise_scale, &noise_scale)
-                    .set_float(&shader.radius, radius)
+                    .set_f32(&shader.radius, radius)
                     .set_matrix4(&shader.world_view_proj_matrix, &frame_matrix)
                     .set_matrix4(&shader.projection_matrix, &projection_matrix)
                     .set_matrix4(
