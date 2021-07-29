@@ -21,22 +21,26 @@
 //! access to pixels of render target.
 
 use crate::{
+    asset::{Resource, ResourceData, ResourceState},
     core::{
         futures::io::Error,
         io::{self, FileLoadError},
         visitor::{PodVecView, Visit, VisitError, VisitResult, Visitor},
     },
-    resource::{Resource, ResourceData, ResourceState},
 };
 use ddsfile::{Caps2, D3DFormat};
 use image::{ColorType, DynamicImage, GenericImageView, ImageError, ImageFormat};
 use std::{
     borrow::Cow,
     collections::hash_map::DefaultHasher,
+    future::Future,
     hash::{Hash, Hasher},
     io::Cursor,
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
+    pin::Pin,
+    sync::Arc,
+    task::{Context, Poll},
 };
 
 /// Texture kind.
@@ -228,7 +232,38 @@ impl Default for TextureData {
 }
 
 /// See module docs.
-pub type Texture = Resource<TextureData, TextureError>;
+#[derive(Default, Clone, Debug)]
+pub struct Texture(pub Resource<TextureData, TextureError>);
+
+impl Visit for Texture {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        self.0.visit(name, visitor)
+    }
+}
+
+impl Deref for Texture {
+    type Target = Resource<TextureData, TextureError>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for Texture {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl Future for Texture {
+    type Output = Result<Self, Option<Arc<TextureError>>>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        Pin::new(&mut self.0)
+            .poll(cx)
+            .map(|r| r.map(|_| self.clone()))
+    }
+}
 
 /// Texture state alias.
 pub type TextureState = ResourceState<TextureData, TextureError>;
@@ -238,7 +273,7 @@ impl Texture {
     /// to correct settings, after render target was created, it must not be modified, otherwise
     /// result is undefined.
     pub fn new_render_target(width: u32, height: u32) -> Self {
-        Self::new(TextureState::Ok(TextureData {
+        Self(Resource::new(TextureState::Ok(TextureData {
             path: Default::default(),
             // Render target will automatically set width and height before rendering.
             kind: TextureKind::Rectangle { width, height },
@@ -252,7 +287,7 @@ impl Texture {
             anisotropy: 1.0,
             serialize_content: false,
             data_hash: 0,
-        }))
+        })))
     }
 
     /// Tries to load a texture from given data. Use this method if you want to
@@ -276,10 +311,9 @@ impl Texture {
         data: &[u8],
         compression: CompressionOptions,
     ) -> Result<Self, TextureError> {
-        Ok(Self::new(TextureState::Ok(TextureData::load_from_memory(
-            data,
-            compression,
-        )?)))
+        Ok(Self(Resource::new(TextureState::Ok(
+            TextureData::load_from_memory(data, compression)?,
+        ))))
     }
 
     /// Tries to create new texture from given parameters, it may fail only if size of data passed
@@ -290,12 +324,9 @@ impl Texture {
         bytes: Vec<u8>,
         serialize_content: bool,
     ) -> Option<Self> {
-        Some(Self::new(TextureState::Ok(TextureData::from_bytes(
-            kind,
-            pixel_kind,
-            bytes,
-            serialize_content,
-        )?)))
+        Some(Self(Resource::new(TextureState::Ok(
+            TextureData::from_bytes(kind, pixel_kind, bytes, serialize_content)?,
+        ))))
     }
 }
 

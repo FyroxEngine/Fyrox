@@ -17,24 +17,26 @@
 //!
 //! Currently only FBX (common format in game industry for storing complex 3d models)
 //! and RGS (native rusty-editor format) formats are supported.
-use crate::engine::resource_manager::MaterialSearchOptions;
 use crate::{
     animation::Animation,
+    asset::{Resource, ResourceData},
     core::{
         pool::Handle,
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
-    engine::resource_manager::ResourceManager,
-    resource::{
-        fbx::{self, error::FbxError},
-        Resource, ResourceData,
-    },
+    engine::resource_manager::{MaterialSearchOptions, ResourceManager},
+    resource::fbx::{self, error::FbxError},
     scene::{node::Node, Scene},
     utils::log::{Log, MessageKind},
 };
 use std::{
     borrow::Cow,
+    future::Future,
+    ops::{Deref, DerefMut},
     path::{Path, PathBuf},
+    pin::Pin,
+    sync::Arc,
+    task::{Context, Poll},
 };
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
@@ -54,7 +56,38 @@ pub struct ModelData {
 }
 
 /// See module docs.
-pub type Model = Resource<ModelData, ModelLoadError>;
+#[derive(Default, Clone, Debug)]
+pub struct Model(pub Resource<ModelData, ModelLoadError>);
+
+impl Visit for Model {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        self.0.visit(name, visitor)
+    }
+}
+
+impl Deref for Model {
+    type Target = Resource<ModelData, ModelLoadError>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for Model {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl Future for Model {
+    type Output = Result<Self, Option<Arc<ModelLoadError>>>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        Pin::new(&mut self.0)
+            .poll(cx)
+            .map(|r| r.map(|_| self.clone()))
+    }
+}
 
 impl Model {
     /// Tries to instantiate model from given resource. Does not retarget available

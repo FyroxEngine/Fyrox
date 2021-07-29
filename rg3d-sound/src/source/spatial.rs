@@ -9,14 +9,14 @@
 //!
 //! ```no_run
 //! use std::sync::{Arc, Mutex};
-//! use rg3d_sound::buffer::SoundBuffer;
+//! use rg3d_sound::buffer::SoundBufferResource;
 //! use rg3d_sound::pool::Handle;
 //! use rg3d_sound::source::{SoundSource, Status};
 //! use rg3d_sound::source::generic::GenericSourceBuilder;
 //! use rg3d_sound::context::SoundContext;
 //! use rg3d_sound::source::spatial::SpatialSourceBuilder;
 //!
-//! fn make_source(context: &mut SoundContext, buffer: Arc<Mutex<SoundBuffer>>) -> Handle<SoundSource> {
+//! fn make_source(context: &mut SoundContext, buffer: SoundBufferResource) -> Handle<SoundSource> {
 //!     let source = SpatialSourceBuilder::new(GenericSourceBuilder::new()
 //!         .with_buffer(buffer)
 //!         .with_status(Status::Playing)

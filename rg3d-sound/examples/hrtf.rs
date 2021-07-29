@@ -1,10 +1,10 @@
 use rg3d_core::algebra::Point3;
-use rg3d_sound::engine::SoundEngine;
-use rg3d_sound::futures::executor::block_on;
 use rg3d_sound::{
     algebra::{UnitQuaternion, Vector3},
-    buffer::{DataSource, SoundBuffer},
+    buffer::{DataSource, SoundBufferResource},
     context::{self, SoundContext},
+    engine::SoundEngine,
+    futures::executor::block_on,
     hrtf::HrirSphere,
     renderer::{hrtf::HrtfRenderer, Renderer},
     source::{generic::GenericSourceBuilder, spatial::SpatialSourceBuilder, SoundSource, Status},
@@ -32,7 +32,7 @@ fn main() {
         .set_renderer(Renderer::HrtfRenderer(HrtfRenderer::new(hrir_sphere)));
 
     // Create some sounds.
-    let sound_buffer = SoundBuffer::new_generic(
+    let sound_buffer = SoundBufferResource::new_generic(
         block_on(DataSource::from_file("examples/data/door_open.wav")).unwrap(),
     )
     .unwrap();
@@ -46,7 +46,7 @@ fn main() {
     .build_source();
     context.state().add_source(source);
 
-    let sound_buffer = SoundBuffer::new_generic(
+    let sound_buffer = SoundBufferResource::new_generic(
         block_on(DataSource::from_file("examples/data/helicopter.wav")).unwrap(),
     )
     .unwrap();

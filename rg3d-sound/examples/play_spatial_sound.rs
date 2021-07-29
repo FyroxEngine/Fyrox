@@ -1,9 +1,9 @@
 use rg3d_core::futures::executor::block_on;
-use rg3d_sound::engine::SoundEngine;
 use rg3d_sound::{
     algebra::{Point3, UnitQuaternion, Vector3},
-    buffer::{DataSource, SoundBuffer},
+    buffer::{DataSource, SoundBufferResource},
     context::SoundContext,
+    engine::SoundEngine,
     pool::Handle,
     source::{generic::GenericSourceBuilder, spatial::SpatialSourceBuilder, SoundSource, Status},
 };
@@ -22,7 +22,7 @@ fn main() {
     engine.lock().unwrap().add_context(context.clone());
 
     // Load sound buffer.
-    let drop_buffer = SoundBuffer::new_generic(
+    let drop_buffer = SoundBufferResource::new_generic(
         block_on(DataSource::from_file("examples/data/drop.wav")).unwrap(),
     )
     .unwrap();

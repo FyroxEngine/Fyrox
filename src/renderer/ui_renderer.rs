@@ -1,4 +1,5 @@
 use crate::{
+    asset::Resource,
     core::{
         algebra::{Matrix4, Vector2, Vector4},
         color::Color,
@@ -279,14 +280,16 @@ impl UiRenderer {
                         .0
                         .downcast::<Mutex<TextureState>>()
                         .unwrap();
-                    if let Some(texture) = texture_cache.get(state, &Texture::from(tex)) {
+                    if let Some(texture) = texture_cache.get(state, &Texture(Resource::from(tex))) {
                         diffuse_texture = texture;
                     }
                     is_font_texture = true;
                 }
                 CommandTexture::Texture(texture) => {
                     if let Ok(texture) = texture.clone().0.downcast::<Mutex<TextureState>>() {
-                        if let Some(texture) = texture_cache.get(state, &Texture::from(texture)) {
+                        if let Some(texture) =
+                            texture_cache.get(state, &Texture(Resource::from(texture)))
+                        {
                             diffuse_texture = texture;
                         }
                     }

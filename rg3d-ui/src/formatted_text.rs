@@ -390,9 +390,7 @@ impl FormattedText {
         for line in self.lines.iter_mut() {
             cursor.x = line.x_offset;
 
-            for code_index in line.begin..line.end {
-                let code = text[code_index];
-
+            for &code in text.iter().take(line.end).skip(line.begin) {
                 match font.glyph(code) {
                     Some(glyph) => {
                         // Insert glyph

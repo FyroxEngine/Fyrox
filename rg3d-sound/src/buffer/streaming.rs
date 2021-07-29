@@ -13,11 +13,11 @@
 //!
 //! ```no_run
 //! use std::sync::{Mutex, Arc};
-//! use rg3d_sound::buffer::{SoundBuffer, DataSource};
+//! use rg3d_sound::buffer::{SoundBufferResource, DataSource};
 //!
-//! async fn make_streaming_buffer() -> Arc<Mutex<SoundBuffer>> {
+//! async fn make_streaming_buffer() -> SoundBufferResource {
 //!     let data_source = DataSource::from_file("some_long_sound.ogg").await.unwrap();
-//!     SoundBuffer::new_streaming(data_source).unwrap()
+//!     SoundBufferResource::new_streaming(data_source).unwrap()
 //! }
 //! ```
 //!
@@ -87,9 +87,9 @@ impl StreamingBuffer {
         };
 
         let external_source_path = if let DataSource::File { path, .. } = &source {
-            Some(path.clone())
+            path.clone()
         } else {
-            None
+            Default::default()
         };
 
         let mut decoder = Decoder::new(source)?;

@@ -2,7 +2,7 @@ use rg3d_sound::engine::SoundEngine;
 use rg3d_sound::futures::executor::block_on;
 use rg3d_sound::{
     algebra::{Point3, UnitQuaternion, Vector3},
-    buffer::{DataSource, SoundBuffer},
+    buffer::{DataSource, SoundBufferResource},
     context::{self, SoundContext},
     effects::{reverb::Reverb, BaseEffect, Effect, EffectInput},
     hrtf::HrirSphere,
@@ -39,7 +39,7 @@ fn main() {
     let reverb_handle = context.state().add_effect(Effect::Reverb(reverb));
 
     // Create some sounds.
-    let sound_buffer = SoundBuffer::new_generic(
+    let sound_buffer = SoundBufferResource::new_generic(
         block_on(DataSource::from_file("examples/data/door_open.wav")).unwrap(),
     )
     .unwrap();
@@ -60,7 +60,7 @@ fn main() {
         .effect_mut(reverb_handle)
         .add_input(EffectInput::direct(door_sound));
 
-    let sound_buffer = SoundBuffer::new_generic(
+    let sound_buffer = SoundBufferResource::new_generic(
         block_on(DataSource::from_file("examples/data/drop.wav")).unwrap(),
     )
     .unwrap();

@@ -1,6 +1,7 @@
 pub mod machine;
 
 use crate::{
+    asset::ResourceState,
     core::{
         algebra::{UnitQuaternion, Vector3},
         math::{clampf, wrapf},
@@ -10,7 +11,7 @@ use crate::{
         },
         visitor::{Visit, VisitResult, Visitor},
     },
-    resource::{model::Model, ResourceState},
+    resource::model::Model,
     scene::{graph::Graph, node::Node},
     utils::log::{Log, MessageKind},
 };

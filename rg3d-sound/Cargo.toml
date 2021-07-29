@@ -13,6 +13,7 @@ readme = "README.md"
 
 [dependencies]
 rg3d-core = { path = "../rg3d-core", version = "0.16.0" }
+rg3d-resource = { path = "../rg3d-resource", version = "0.1.0" }
 lewton = "0.10.2"
 hrtf = "0.6.0"
 hound = "3.4.0"

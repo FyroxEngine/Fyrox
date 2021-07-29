@@ -8,16 +8,20 @@
 //! is just inefficient memory-wise. Sound samples are very heavy: for example a mono sound that lasts
 //! just 1 second will take ~172 Kb of memory (with 44100 Hz sampling rate and float sample representation).
 
-use crate::buffer::{generic::GenericBuffer, streaming::StreamingBuffer};
-use rg3d_core::{
-    io::FileLoadError,
-    visitor::{Visit, VisitError, VisitResult, Visitor},
+use crate::{
+    buffer::{generic::GenericBuffer, streaming::StreamingBuffer},
+    futures::task::{Context, Poll},
 };
+use rg3d_core::{io::FileLoadError, visitor::prelude::*};
+use rg3d_resource::{Resource, ResourceData, ResourceState};
 use std::{
+    borrow::Cow,
+    future::Future,
     io::{Cursor, Read, Seek, SeekFrom},
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
-    sync::{Arc, Mutex},
+    pin::Pin,
+    sync::Arc,
 };
 
 pub mod generic;
@@ -111,9 +115,69 @@ impl Seek for DataSource {
     }
 }
 
-/// Sound buffer is a data source for sound sources. See module documentation for more info.
+/// An error that can occur during loading of sound buffer.
 #[derive(Debug)]
-pub enum SoundBuffer {
+pub enum SoundBufferLoadError {
+    /// TODO
+    Stub,
+}
+
+/// A shared sound buffer resource.
+#[derive(Clone, Debug, Default)]
+#[repr(transparent)]
+pub struct SoundBufferResource(pub Resource<SoundBufferState, SoundBufferLoadError>);
+
+impl Visit for SoundBufferResource {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        self.0.visit(name, visitor)
+    }
+}
+
+impl Deref for SoundBufferResource {
+    type Target = Resource<SoundBufferState, SoundBufferLoadError>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for SoundBufferResource {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl Future for SoundBufferResource {
+    type Output = Result<Self, Option<Arc<SoundBufferLoadError>>>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        Pin::new(&mut self.0)
+            .poll(cx)
+            .map(|r| r.map(|_| self.clone()))
+    }
+}
+
+impl SoundBufferResource {
+    /// Tries to create new streaming sound buffer from a given data source. Returns sound source
+    /// wrapped into Arc<Mutex<>> that can be directly used with sound sources.
+    pub fn new_streaming(data_source: DataSource) -> Result<Self, DataSource> {
+        Ok(Self(Resource::new(ResourceState::Ok(
+            SoundBufferState::Streaming(StreamingBuffer::new(data_source)?),
+        ))))
+    }
+
+    /// Tries to create new generic sound buffer from a given data source. Returns sound source
+    /// wrapped into Arc<Mutex<>> that can be directly used with sound sources.
+    pub fn new_generic(data_source: DataSource) -> Result<Self, DataSource> {
+        Ok(Self(Resource::new(ResourceState::Ok(
+            SoundBufferState::Generic(GenericBuffer::new(data_source)?),
+        ))))
+    }
+}
+
+/// Sound buffer is a data source for sound sources. See module documentation for more info.
+#[derive(Debug, Visit)]
+pub enum SoundBufferState {
     /// General-purpose buffer, usually contains all the data and allows random
     /// access to samples. It is also used to make streaming buffer via composition.
     Generic(GenericBuffer),
@@ -125,90 +189,56 @@ pub enum SoundBuffer {
     Streaming(StreamingBuffer),
 }
 
-impl Default for SoundBuffer {
-    fn default() -> Self {
-        SoundBuffer::Generic(Default::default())
-    }
-}
-
-impl SoundBuffer {
-    /// Tries to create new streaming sound buffer from a given data source. Returns sound source
-    /// wrapped into Arc<Mutex<>> that can be directly used with sound sources.
-    pub fn new_streaming(data_source: DataSource) -> Result<Arc<Mutex<Self>>, DataSource> {
-        Ok(Arc::new(Mutex::new(SoundBuffer::Streaming(
-            StreamingBuffer::new(data_source)?,
-        ))))
-    }
-
-    /// Tries to create new generic sound buffer from a given data source. Returns sound source
-    /// wrapped into Arc<Mutex<>> that can be directly used with sound sources.
-    pub fn new_generic(data_source: DataSource) -> Result<Arc<Mutex<Self>>, DataSource> {
-        Ok(Arc::new(Mutex::new(SoundBuffer::Generic(
-            GenericBuffer::new(data_source)?,
-        ))))
-    }
-
+impl SoundBufferState {
     /// Tries to create new streaming sound buffer from a given data source. It returns raw sound
     /// buffer that has to be wrapped into Arc<Mutex<>> for use with sound sources.
     pub fn raw_streaming(data_source: DataSource) -> Result<Self, DataSource> {
-        Ok(SoundBuffer::Streaming(StreamingBuffer::new(data_source)?))
+        Ok(Self::Streaming(StreamingBuffer::new(data_source)?))
     }
 
     /// Tries to create new generic sound buffer from a given data source. It returns raw sound
     /// buffer that has to be wrapped into Arc<Mutex<>> for use with sound sources.
     pub fn raw_generic(data_source: DataSource) -> Result<Self, DataSource> {
-        Ok(SoundBuffer::Generic(GenericBuffer::new(data_source)?))
+        Ok(Self::Generic(GenericBuffer::new(data_source)?))
     }
 }
 
-impl Deref for SoundBuffer {
+impl Default for SoundBufferState {
+    fn default() -> Self {
+        SoundBufferState::Generic(Default::default())
+    }
+}
+
+impl Deref for SoundBufferState {
     type Target = GenericBuffer;
 
     /// Returns shared reference to generic buffer for any enum variant. It is possible because
     /// streaming sound buffers are built on top of generic buffers.
     fn deref(&self) -> &Self::Target {
         match self {
-            SoundBuffer::Generic(v) => v,
-            SoundBuffer::Streaming(v) => v,
+            SoundBufferState::Generic(v) => v,
+            SoundBufferState::Streaming(v) => v,
         }
     }
 }
 
-impl DerefMut for SoundBuffer {
+impl DerefMut for SoundBufferState {
     /// Returns mutable reference to generic buffer for any enum variant. It is possible because
     /// streaming sound buffers are built on top of generic buffers.
     fn deref_mut(&mut self) -> &mut Self::Target {
         match self {
-            SoundBuffer::Generic(v) => v,
-            SoundBuffer::Streaming(v) => v,
+            SoundBufferState::Generic(v) => v,
+            SoundBufferState::Streaming(v) => v,
         }
     }
 }
 
-impl Visit for SoundBuffer {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
+impl ResourceData for SoundBufferState {
+    fn path(&self) -> Cow<Path> {
+        Cow::from(&self.external_source_path)
+    }
 
-        let mut kind: u8 = match self {
-            SoundBuffer::Generic(_) => 0,
-            SoundBuffer::Streaming(_) => 1,
-        };
-
-        kind.visit("Id", visitor)?;
-
-        if visitor.is_reading() {
-            *self = match kind {
-                0 => SoundBuffer::Generic(Default::default()),
-                1 => SoundBuffer::Streaming(Default::default()),
-                _ => return Err(VisitError::User("invalid buffer kind".to_string())),
-            }
-        }
-
-        match self {
-            SoundBuffer::Generic(generic) => generic.visit("Data", visitor)?,
-            SoundBuffer::Streaming(streaming) => streaming.visit("Data", visitor)?,
-        }
-
-        visitor.leave_region()
+    fn set_path(&mut self, path: PathBuf) {
+        self.external_source_path = path;
     }
 }

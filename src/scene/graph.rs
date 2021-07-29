@@ -23,6 +23,7 @@
 //! is used in skinning (animating 3d model by set of bones).
 
 use crate::{
+    asset::ResourceState,
     core::{
         algebra::{Matrix4, Rotation3, UnitQuaternion, Vector2, Vector3},
         math::{frustum::Frustum, Matrix4Ext},
@@ -33,7 +34,7 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
         VecExtensions,
     },
-    resource::{model::NodeMapping, ResourceState},
+    resource::model::NodeMapping,
     scene::{node::Node, transform::TransformBuilder, VisibilityCache},
     utils::log::{Log, MessageKind},
 };

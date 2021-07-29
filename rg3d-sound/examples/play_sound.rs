@@ -1,6 +1,6 @@
 use rg3d_sound::engine::SoundEngine;
 use rg3d_sound::{
-    buffer::{DataSource, SoundBuffer},
+    buffer::{DataSource, SoundBufferResource},
     context::SoundContext,
     pool::Handle,
     source::{generic::GenericSourceBuilder, SoundSource, Status},
@@ -18,7 +18,7 @@ fn main() {
     engine.lock().unwrap().add_context(context.clone());
 
     // Load sound buffer.
-    let door_open_buffer = SoundBuffer::new_generic(
+    let door_open_buffer = SoundBufferResource::new_generic(
         rg3d_sound::futures::executor::block_on(DataSource::from_file(
             "examples/data/door_open.wav",
         ))

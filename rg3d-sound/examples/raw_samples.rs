@@ -1,6 +1,6 @@
 use rg3d_sound::engine::SoundEngine;
 use rg3d_sound::{
-    buffer::{DataSource, SoundBuffer},
+    buffer::{DataSource, SoundBufferResource},
     context::SoundContext,
     source::{generic::GenericSourceBuilder, Status},
 };
@@ -33,7 +33,7 @@ fn main() {
         },
     };
 
-    let sine_wave_buffer = SoundBuffer::new_generic(sine_wave).unwrap();
+    let sine_wave_buffer = SoundBufferResource::new_generic(sine_wave).unwrap();
 
     // Create generic source (without spatial effects) using that buffer.
     let source = GenericSourceBuilder::new()

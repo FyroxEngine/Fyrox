@@ -1,6 +1,7 @@
 //! Resource manager controls loading and lifetime of resource in the engine.
 
 use crate::{
+    asset::{Resource, ResourceData, ResourceLoadError, ResourceState},
     core::{futures::executor::ThreadPool, instant, visitor::prelude::*},
     renderer::TextureUploadSender,
     resource::{
@@ -9,13 +10,11 @@ use crate::{
             CompressionOptions, Texture, TextureData, TextureError, TextureMagnificationFilter,
             TextureMinificationFilter, TexturePixelKind, TextureState, TextureWrapMode,
         },
-        Resource, ResourceData, ResourceLoadError, ResourceState,
     },
-    sound::buffer::{DataSource, SoundBuffer},
+    sound::buffer::{DataSource, SoundBufferLoadError, SoundBufferResource, SoundBufferState},
     utils::log::{Log, MessageKind},
 };
 use std::{
-    borrow::Cow,
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     sync::{Arc, Mutex, MutexGuard},
@@ -86,34 +85,11 @@ where
     }
 }
 
-impl ResourceData for Arc<Mutex<SoundBuffer>> {
-    fn path(&self) -> Cow<Path> {
-        self.lock()
-            .unwrap()
-            .external_data_path()
-            .map(|p| Cow::Owned(p.to_owned()))
-            .unwrap_or_else(|| Cow::Owned(Path::new("").to_owned()))
-    }
-
-    fn set_path(&mut self, path: PathBuf) {
-        self.lock().unwrap().set_external_data_path(Some(path));
-    }
-}
-
-/// Type alias for sound buffer resource.
-pub type SharedSoundBuffer = Resource<Arc<Mutex<SoundBuffer>>, ()>;
-
-impl Into<Arc<Mutex<SoundBuffer>>> for SharedSoundBuffer {
-    fn into(self) -> Arc<Mutex<SoundBuffer>> {
-        self.data_ref().clone()
-    }
-}
-
 /// See module docs.
 pub struct ResourceManagerState {
     textures: Vec<TimedEntry<Texture>>,
     models: Vec<TimedEntry<Model>>,
-    sound_buffers: Vec<TimedEntry<SharedSoundBuffer>>,
+    sound_buffers: Vec<TimedEntry<SoundBufferResource>>,
     textures_import_options: TextureImportOptions,
     #[cfg(not(target_arch = "wasm32"))]
     thread_pool: ThreadPool,
@@ -308,13 +284,13 @@ async fn load_model(
     }
 }
 
-async fn load_sound_buffer(resource: SharedSoundBuffer, path: PathBuf, stream: bool) {
+async fn load_sound_buffer(resource: SoundBufferResource, path: PathBuf, stream: bool) {
     match DataSource::from_file(&path).await {
         Ok(source) => {
             let buffer = if stream {
-                SoundBuffer::new_streaming(source)
+                SoundBufferState::raw_streaming(source)
             } else {
-                SoundBuffer::new_generic(source)
+                SoundBufferState::raw_generic(source)
             };
             match buffer {
                 Ok(sound_buffer) => {
@@ -325,7 +301,7 @@ async fn load_sound_buffer(resource: SharedSoundBuffer, path: PathBuf, stream: b
 
                     resource.state().commit(ResourceState::Ok(sound_buffer));
                 }
-                Err(_) => {
+                Err(_e) => {
                     Log::writeln(
                         MessageKind::Error,
                         format!("Unable to load sound buffer from {:?}!", path),
@@ -333,7 +309,7 @@ async fn load_sound_buffer(resource: SharedSoundBuffer, path: PathBuf, stream: b
 
                     resource.state().commit(ResourceState::LoadError {
                         path: path.clone(),
-                        error: Some(Arc::new(())),
+                        error: Some(Arc::new(SoundBufferLoadError::Stub)),
                     })
                 }
             }
@@ -343,7 +319,7 @@ async fn load_sound_buffer(resource: SharedSoundBuffer, path: PathBuf, stream: b
 
             resource.state().commit(ResourceState::LoadError {
                 path: path.clone(),
-                error: Some(Arc::new(())),
+                error: Some(Arc::new(SoundBufferLoadError::Stub)),
             })
         }
     }
@@ -402,16 +378,11 @@ async fn reload_model(
     };
 }
 
-async fn reload_sound_buffer(
-    resource: SharedSoundBuffer,
-    path: PathBuf,
-    stream: bool,
-    inner_buffer: Arc<Mutex<SoundBuffer>>,
-) {
+async fn reload_sound_buffer(resource: SoundBufferResource, path: PathBuf, stream: bool) {
     if let Ok(data_source) = DataSource::from_file(&path).await {
         let new_sound_buffer = match stream {
-            false => SoundBuffer::raw_generic(data_source),
-            true => SoundBuffer::raw_streaming(data_source),
+            false => SoundBufferState::raw_generic(data_source),
+            true => SoundBufferState::raw_streaming(data_source),
         };
         match new_sound_buffer {
             Ok(new_sound_buffer) => {
@@ -420,8 +391,7 @@ async fn reload_sound_buffer(
                     format!("Sound buffer {:?} successfully reloaded!", path,),
                 );
 
-                *inner_buffer.lock().unwrap() = new_sound_buffer;
-                resource.state().commit(ResourceState::Ok(inner_buffer));
+                resource.state().commit(ResourceState::Ok(new_sound_buffer));
             }
             Err(_) => {
                 Log::writeln(
@@ -431,7 +401,7 @@ async fn reload_sound_buffer(
 
                 resource.state().commit(ResourceState::LoadError {
                     path,
-                    error: Some(Arc::new(())),
+                    error: Some(Arc::new(SoundBufferLoadError::Stub)),
                 })
             }
         }
@@ -473,7 +443,9 @@ impl ResourceManager {
             return texture;
         }
 
-        let texture = Texture::new(ResourceState::new_pending(path.as_ref().to_owned()));
+        let texture = Texture(Resource::new(ResourceState::new_pending(
+            path.as_ref().to_owned(),
+        )));
         state.textures.push(TimedEntry {
             value: texture.clone(),
             time_to_live: DEFAULT_RESOURCE_LIFETIME,
@@ -556,7 +528,9 @@ impl ResourceManager {
             return model;
         }
 
-        let model = Model::new(ResourceState::new_pending(path.as_ref().to_owned()));
+        let model = Model(Resource::new(ResourceState::new_pending(
+            path.as_ref().to_owned(),
+        )));
         state.models.push(TimedEntry {
             value: model.clone(),
             time_to_live: DEFAULT_RESOURCE_LIFETIME,
@@ -586,14 +560,20 @@ impl ResourceManager {
     /// # Supported formats
     ///
     /// Currently only WAV (uncompressed) and OGG are supported.
-    pub fn request_sound_buffer<P: AsRef<Path>>(&self, path: P, stream: bool) -> SharedSoundBuffer {
+    pub fn request_sound_buffer<P: AsRef<Path>>(
+        &self,
+        path: P,
+        stream: bool,
+    ) -> SoundBufferResource {
         let mut state = self.state();
 
         if let Some(sound_buffer) = state.find_sound_buffer(path.as_ref()) {
             return sound_buffer;
         }
 
-        let resource = SharedSoundBuffer::new(ResourceState::new_pending(path.as_ref().to_owned()));
+        let resource = SoundBufferResource(Resource::new(ResourceState::new_pending(
+            path.as_ref().to_owned(),
+        )));
         state.sound_buffers.push(TimedEntry {
             value: resource.clone(),
             time_to_live: DEFAULT_RESOURCE_LIFETIME,
@@ -710,33 +690,28 @@ impl ResourceManager {
                 .sound_buffers
                 .iter()
                 .map(|b| b.value.clone())
-                .collect::<Vec<SharedSoundBuffer>>();
+                .collect::<Vec<SoundBufferResource>>();
 
             for resource in sound_buffers.iter().cloned() {
-                let (stream, path, inner_buffer) = {
-                    let inner_buffer_ref = resource.data_ref();
-                    let inner_buffer = inner_buffer_ref.lock().unwrap();
+                let (stream, path) = {
+                    let inner_buffer = resource.data_ref();
                     let stream = match *inner_buffer {
-                        SoundBuffer::Generic(_) => false,
-                        SoundBuffer::Streaming(_) => true,
+                        SoundBufferState::Generic(_) => false,
+                        SoundBufferState::Streaming(_) => true,
                     };
-                    (
-                        stream,
-                        inner_buffer.external_data_path().map(|p| p.to_owned()),
-                        inner_buffer_ref.clone(),
-                    )
+                    (stream, inner_buffer.external_data_path().to_path_buf())
                 };
-                if let Some(ext_path) = path {
-                    *resource.state() = ResourceState::new_pending(ext_path.clone());
+                if path != PathBuf::default() {
+                    *resource.state() = ResourceState::new_pending(path.clone());
 
                     #[cfg(target_arch = "wasm32")]
                     crate::core::wasm_bindgen_futures::spawn_local(async move {
-                        reload_sound_buffer(resource, ext_path, stream, inner_buffer).await;
+                        reload_sound_buffer(resource, path, stream).await;
                     });
 
                     #[cfg(not(target_arch = "wasm32"))]
                     state.thread_pool.spawn_ok(async move {
-                        reload_sound_buffer(resource, ext_path, stream, inner_buffer).await;
+                        reload_sound_buffer(resource, path, stream).await;
                     });
                 }
             }
@@ -759,28 +734,30 @@ impl ResourceManager {
     }
 }
 
-fn count_pending_resources<T, E>(resources: &[TimedEntry<Resource<T, E>>]) -> usize
+fn count_pending_resources<'a, T, E, I>(resources: I) -> usize
 where
     T: ResourceData,
     E: ResourceLoadError,
+    I: Iterator<Item = &'a Resource<T, E>>,
 {
     let mut count = 0;
-    for entry in resources.iter() {
-        if let ResourceState::Pending { .. } = *entry.value.state() {
+    for resource in resources {
+        if let ResourceState::Pending { .. } = *resource.state() {
             count += 1;
         }
     }
     count
 }
 
-fn count_loaded_resources<T, E>(resources: &[TimedEntry<Resource<T, E>>]) -> usize
+fn count_loaded_resources<'a, T, E, I>(resources: I) -> usize
 where
     T: ResourceData,
     E: ResourceLoadError,
+    I: Iterator<Item = &'a Resource<T, E>>,
 {
     let mut count = 0;
-    for entry in resources.iter() {
-        match *entry.value.state() {
+    for resource in resources {
+        match *resource.state() {
             ResourceState::LoadError { .. } | ResourceState::Ok(_) => {
                 count += 1;
             }
@@ -894,12 +871,12 @@ impl ResourceManagerState {
 
     /// Returns shared reference to list of sound buffers.
     #[inline]
-    pub fn sound_buffers(&self) -> &[TimedEntry<SharedSoundBuffer>] {
+    pub fn sound_buffers(&self) -> &[TimedEntry<SoundBufferResource>] {
         &self.sound_buffers
     }
 
     /// Tries to find sound buffer by its path. Returns None if no such sound buffer was found.
-    pub fn find_sound_buffer<P: AsRef<Path>>(&self, path: P) -> Option<SharedSoundBuffer> {
+    pub fn find_sound_buffer<P: AsRef<Path>>(&self, path: P) -> Option<SoundBufferResource> {
         for sound_buffer in self.sound_buffers.iter() {
             if sound_buffer.state().path() == path.as_ref() {
                 return Some(sound_buffer.value.clone());
@@ -910,32 +887,32 @@ impl ResourceManagerState {
 
     /// Returns total amount of textures in pending state.
     pub fn count_pending_textures(&self) -> usize {
-        count_pending_resources(&self.textures)
+        count_pending_resources(self.textures.iter().map(|e| &e.value.0))
     }
 
     /// Returns total amount of loaded textures (including textures, that failed to load).
     pub fn count_loaded_textures(&self) -> usize {
-        count_loaded_resources(&self.textures)
+        count_loaded_resources(self.textures.iter().map(|e| &e.value.0))
     }
 
     /// Returns total amount of sound buffers in pending state.
     pub fn count_pending_sound_buffers(&self) -> usize {
-        count_pending_resources(&self.sound_buffers)
+        count_pending_resources(self.sound_buffers.iter().map(|e| &e.value.0))
     }
 
     /// Returns total amount of loaded sound buffers (including sound buffers, that failed to load).
     pub fn count_loaded_sound_buffers(&self) -> usize {
-        count_loaded_resources(&self.sound_buffers)
+        count_loaded_resources(self.sound_buffers.iter().map(|e| &e.value.0))
     }
 
     /// Returns total amount of models in pending state.
     pub fn count_pending_models(&self) -> usize {
-        count_pending_resources(&self.models)
+        count_pending_resources(self.models.iter().map(|e| &e.value.0))
     }
 
     /// Returns total amount of loaded models (including models, that failed to load).
     pub fn count_loaded_models(&self) -> usize {
-        count_loaded_resources(&self.models)
+        count_loaded_resources(self.models.iter().map(|e| &e.value.0))
     }
 
     /// Returns total amount of resources in pending state.

@@ -41,5 +41,6 @@ pub use winit::*;
 
 pub use rapier3d as physics;
 pub use rg3d_core as core;
+pub use rg3d_resource as asset;
 pub use rg3d_sound as sound;
 pub use rg3d_ui as gui;

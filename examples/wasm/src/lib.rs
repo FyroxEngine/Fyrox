@@ -41,7 +41,7 @@ use rg3d::{
         Scene,
     },
     sound::{
-        buffer::SoundBuffer,
+        buffer::SoundBufferResource,
         source::{generic::GenericSourceBuilder, Status},
     },
     utils::translate_event,

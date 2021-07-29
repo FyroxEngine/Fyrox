@@ -9,6 +9,7 @@
 
 #![forbid(unsafe_code)]
 
+use crate::asset::Resource;
 use crate::scene::mesh::buffer::{VertexAttributeUsage, VertexFetchError, VertexReadTrait};
 use crate::{
     core::{
@@ -424,7 +425,7 @@ impl Lightmap {
 
             let lightmap = generate_lightmap(&instance, &instances, &lights, texels_per_unit);
             map.entry(instance.owner).or_default().push(LightmapEntry {
-                texture: Some(Texture::new(TextureState::Ok(lightmap))),
+                texture: Some(Texture(Resource::new(TextureState::Ok(lightmap)))),
                 lights: lights.iter().map(|light| light.handle()).collect(),
             });
 

@@ -12,11 +12,11 @@
 //!
 //! ```no_run
 //! use std::sync::{Mutex, Arc};
-//! use rg3d_sound::buffer::{SoundBuffer, DataSource};
+//! use rg3d_sound::buffer::{SoundBufferResource, DataSource};
 //!
-//! async fn make_buffer() -> Arc<Mutex<SoundBuffer>> {
+//! async fn make_buffer() -> SoundBufferResource {
 //!     let data_source = DataSource::from_file("sound.wav").await.unwrap();
-//!     SoundBuffer::new_generic(data_source).unwrap()
+//!     SoundBufferResource::new_generic(data_source).unwrap()
 //! }
 //! ```
 
@@ -34,7 +34,7 @@ pub struct GenericBuffer {
     pub(in crate) samples: Vec<f32>,
     pub(in crate) channel_count: usize,
     pub(in crate) sample_rate: usize,
-    pub(in crate) external_source_path: Option<PathBuf>,
+    pub(in crate) external_source_path: PathBuf,
 }
 
 impl Default for GenericBuffer {
@@ -43,7 +43,7 @@ impl Default for GenericBuffer {
             samples: Vec::new(),
             channel_count: 0,
             sample_rate: 0,
-            external_source_path: None,
+            external_source_path: Default::default(),
         }
     }
 }
@@ -84,15 +84,15 @@ impl GenericBuffer {
                         samples,
                         channel_count,
                         sample_rate,
-                        external_source_path: None,
+                        external_source_path: Default::default(),
                     })
                 }
             }
             _ => {
                 let external_source_path = if let DataSource::File { path, .. } = &source {
-                    Some(path.clone())
+                    path.clone()
                 } else {
-                    None
+                    Default::default()
                 };
 
                 let decoder = Decoder::new(source)?;
@@ -111,12 +111,12 @@ impl GenericBuffer {
     /// serialization needs where you just need to know which file needs to be reloaded from disk
     /// when you loading a saved game.
     #[inline]
-    pub fn external_data_path(&self) -> Option<&Path> {
-        self.external_source_path.as_deref()
+    pub fn external_data_path(&self) -> &Path {
+        &self.external_source_path
     }
 
     /// Sets new path for external data source.
-    pub fn set_external_data_path(&mut self, path: Option<PathBuf>) -> Option<PathBuf> {
+    pub fn set_external_data_path(&mut self, path: PathBuf) -> PathBuf {
         std::mem::replace(&mut self.external_source_path, path)
     }
 

@@ -26,13 +26,13 @@
 //!     context::SoundContext,
 //!     buffer::{
 //!         DataSource,
-//!         SoundBuffer
+//!         SoundBufferResource
 //!     },
 //! };
 //!
 //!  let context = SoundContext::new();
 //!
-//!  let sound_buffer = SoundBuffer::new_generic(rg3d_sound::futures::executor::block_on(DataSource::from_file("sound.wav")).unwrap()).unwrap();
+//!  let sound_buffer = SoundBufferResource::new_generic(rg3d_sound::futures::executor::block_on(DataSource::from_file("sound.wav")).unwrap()).unwrap();
 //!
 //!  let source = GenericSourceBuilder::new()
 //!     .with_buffer(sound_buffer)

@@ -472,7 +472,7 @@ pub fn into_any_arc<T: Any + Send + Sync>(
 
 /// Converts engine's optional texture "pointer" to rg3d-ui's.
 pub fn into_gui_texture(this: Texture) -> draw::SharedTexture {
-    draw::SharedTexture(this.into_inner())
+    draw::SharedTexture(this.0.into_inner())
 }
 
 /// "Transmutes" array of any sized type to a slice of bytes.

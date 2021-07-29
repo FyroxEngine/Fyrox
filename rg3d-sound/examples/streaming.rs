@@ -1,7 +1,7 @@
 use rg3d_sound::engine::SoundEngine;
 use rg3d_sound::futures::executor::block_on;
 use rg3d_sound::{
-    buffer::{DataSource, SoundBuffer},
+    buffer::{DataSource, SoundBufferResource},
     context::SoundContext,
     pool::Handle,
     source::{generic::GenericSourceBuilder, SoundSource, Status},
@@ -18,7 +18,7 @@ fn main() {
     engine.lock().unwrap().add_context(context.clone());
 
     // Load sound buffer.
-    let waterfall_buffer = SoundBuffer::new_streaming(
+    let waterfall_buffer = SoundBufferResource::new_streaming(
         block_on(DataSource::from_file("examples/data/waterfall.ogg")).unwrap(),
     )
     .unwrap();
