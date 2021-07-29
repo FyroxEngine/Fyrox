@@ -28,7 +28,7 @@
 //!
 //! ```
 
-use crate::buffer::{SoundBufferLoadError, SoundBufferState};
+use crate::buffer::SoundBufferState;
 use crate::{
     buffer::{streaming::StreamingBuffer, SoundBufferResource},
     error::SoundError,

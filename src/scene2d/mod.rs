@@ -1,4 +1,3 @@
-use crate::core::algebra::ComplexField;
 use crate::{
     core::{
         algebra::{Isometry2, Translation2, Vector2},
