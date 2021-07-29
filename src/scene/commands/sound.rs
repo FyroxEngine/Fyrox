@@ -1,7 +1,7 @@
 use crate::get_set_swap;
 use crate::{command::Command, scene::commands::SceneContext};
 use rg3d::core::algebra::Vector3;
-use rg3d::sound::buffer::SoundBuffer;
+use rg3d::sound::buffer::SoundBufferResource;
 use rg3d::sound::context::SoundContext;
 use rg3d::{
     core::pool::{Handle, Ticket},
@@ -256,7 +256,7 @@ define_sound_source_command!(SetSoundSourceGainCommand("Set Sound Source Gain", 
     get_set_swap!(self, source, gain, set_gain);
 });
 
-define_sound_source_command!(SetSoundSourceBufferCommand("Set Sound Source Buffer", Option<Arc<Mutex<SoundBuffer>>>) where fn swap(self, source) {
+define_sound_source_command!(SetSoundSourceBufferCommand("Set Sound Source Buffer", Option<SoundBufferResource>) where fn swap(self, source) {
     get_set_swap!(self, source, buffer, set_buffer);
 });
 

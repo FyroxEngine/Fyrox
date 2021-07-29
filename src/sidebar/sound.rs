@@ -320,11 +320,11 @@ impl SoundSection {
                 MessageDirection::ToWidget,
                 source
                     .buffer()
-                    .and_then(|b| {
-                        let locked_buffer = b.lock().unwrap();
-                        locked_buffer
+                    .map(|b| {
+                        b.data_ref()
                             .external_data_path()
-                            .map(|p| p.to_string_lossy().to_string())
+                            .to_string_lossy()
+                            .to_string()
                     })
                     .unwrap_or_else(|| "<None>".to_owned()),
             ),

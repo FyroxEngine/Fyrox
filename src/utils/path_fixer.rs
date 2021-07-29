@@ -7,6 +7,7 @@ use crate::{
 };
 use rg3d::core::replace_slashes;
 use rg3d::{
+    asset::ResourceData,
     core::{
         color::Color,
         futures::executor::block_on,
@@ -32,7 +33,7 @@ use rg3d::{
         window::{WindowBuilder, WindowTitle},
         HorizontalAlignment, Orientation, Thickness, VerticalAlignment,
     },
-    resource::{model::Model, texture::Texture, ResourceData},
+    resource::{model::Model, texture::Texture},
     scene::{light::Light, node::Node, Scene},
 };
 use std::path::Path;
