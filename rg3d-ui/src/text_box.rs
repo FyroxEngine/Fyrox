@@ -14,7 +14,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, UINode, UserInterface, VerticalAlignment,
     BRUSH_DARKER, BRUSH_TEXT,
 };
-use clipboard::ClipboardProvider;
+use copypasta::ClipboardProvider;
 use std::{
     cell::RefCell,
     cmp::{self, Ordering},

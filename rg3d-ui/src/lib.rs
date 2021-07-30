@@ -10,7 +10,7 @@
 
 #[macro_use]
 extern crate lazy_static;
-extern crate clipboard;
+extern crate copypasta;
 extern crate fontdue;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -79,7 +79,7 @@ use crate::{
     ttf::{Font, SharedFont},
     widget::{Widget, WidgetBuilder},
 };
-use clipboard::{ClipboardContext, ClipboardProvider};
+use copypasta::ClipboardContext;
 use std::{
     cell::Cell,
     collections::{HashMap, HashSet, VecDeque},
