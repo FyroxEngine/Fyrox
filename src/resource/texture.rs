@@ -21,7 +21,7 @@
 //! access to pixels of render target.
 
 use crate::{
-    asset::{Resource, ResourceData, ResourceState},
+    asset::{define_new_resource, Resource, ResourceData, ResourceState},
     core::{
         futures::io::Error,
         io::{self, FileLoadError},
@@ -33,14 +33,10 @@ use image::{ColorType, DynamicImage, GenericImageView, ImageError, ImageFormat};
 use std::{
     borrow::Cow,
     collections::hash_map::DefaultHasher,
-    future::Future,
     hash::{Hash, Hasher},
     io::Cursor,
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
-    pin::Pin,
-    sync::Arc,
-    task::{Context, Poll},
 };
 
 /// Texture kind.
@@ -231,39 +227,10 @@ impl Default for TextureData {
     }
 }
 
-/// See module docs.
-#[derive(Default, Clone, Debug)]
-pub struct Texture(pub Resource<TextureData, TextureError>);
-
-impl Visit for Texture {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        self.0.visit(name, visitor)
-    }
-}
-
-impl Deref for Texture {
-    type Target = Resource<TextureData, TextureError>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for Texture {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-impl Future for Texture {
-    type Output = Result<Self, Option<Arc<TextureError>>>;
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        Pin::new(&mut self.0)
-            .poll(cx)
-            .map(|r| r.map(|_| self.clone()))
-    }
-}
+define_new_resource!(
+    #[doc = "See module docs."],
+    Texture<TextureData, TextureError>
+);
 
 /// Texture state alias.
 pub type TextureState = ResourceState<TextureData, TextureError>;

@@ -11,7 +11,9 @@ use crate::{
             TextureMinificationFilter, TexturePixelKind, TextureState, TextureWrapMode,
         },
     },
-    sound::buffer::{DataSource, SoundBufferLoadError, SoundBufferResource, SoundBufferState},
+    sound::buffer::{
+        DataSource, SoundBufferResource, SoundBufferResourceLoadError, SoundBufferState,
+    },
     utils::log::{Log, MessageKind},
 };
 use std::{
@@ -309,7 +311,7 @@ async fn load_sound_buffer(resource: SoundBufferResource, path: PathBuf, stream:
 
                     resource.state().commit(ResourceState::LoadError {
                         path: path.clone(),
-                        error: Some(Arc::new(SoundBufferLoadError::Stub)),
+                        error: Some(Arc::new(SoundBufferResourceLoadError::Stub)),
                     })
                 }
             }
@@ -319,7 +321,7 @@ async fn load_sound_buffer(resource: SoundBufferResource, path: PathBuf, stream:
 
             resource.state().commit(ResourceState::LoadError {
                 path: path.clone(),
-                error: Some(Arc::new(SoundBufferLoadError::Stub)),
+                error: Some(Arc::new(SoundBufferResourceLoadError::Stub)),
             })
         }
     }
@@ -401,7 +403,7 @@ async fn reload_sound_buffer(resource: SoundBufferResource, path: PathBuf, strea
 
                 resource.state().commit(ResourceState::LoadError {
                     path,
-                    error: Some(Arc::new(SoundBufferLoadError::Stub)),
+                    error: Some(Arc::new(SoundBufferResourceLoadError::Stub)),
                 })
             }
         }

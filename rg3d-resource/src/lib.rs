@@ -304,3 +304,47 @@ impl<T: ResourceData, E: ResourceLoadError> Default for ResourceState<T, E> {
         Self::Ok(Default::default())
     }
 }
+
+/// Defines a new resource type via new-type wrapper.  
+#[macro_export]
+macro_rules! define_new_resource {
+    ($(#[$meta:meta])*, $name:ident<$state:ty, $error:ty>) => {
+        $(#[$meta])*
+        #[derive(Clone, Debug, Default)]
+        #[repr(transparent)]
+        pub struct $name(pub Resource<$state, $error>);
+
+        impl Visit for $name {
+            fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+                self.0.visit(name, visitor)
+            }
+        }
+
+        impl std::ops::Deref for $name {
+            type Target = Resource<$state, $error>;
+
+            fn deref(&self) -> &Self::Target {
+                &self.0
+            }
+        }
+
+        impl std::ops::DerefMut for $name {
+            fn deref_mut(&mut self) -> &mut Self::Target {
+                &mut self.0
+            }
+        }
+
+        impl std::future::Future for $name {
+            type Output = Result<Self, Option<std::sync::Arc<$error>>>;
+
+            fn poll(
+                mut self: std::pin::Pin<&mut Self>,
+                cx: &mut std::task::Context<'_>,
+            ) -> std::task::Poll<Self::Output> {
+                std::pin::Pin::new(&mut self.0)
+                    .poll(cx)
+                    .map(|r| r.map(|_| self.clone()))
+            }
+        }
+    };
+}

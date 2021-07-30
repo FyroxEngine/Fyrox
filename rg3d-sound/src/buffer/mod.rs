@@ -8,20 +8,14 @@
 //! is just inefficient memory-wise. Sound samples are very heavy: for example a mono sound that lasts
 //! just 1 second will take ~172 Kb of memory (with 44100 Hz sampling rate and float sample representation).
 
-use crate::{
-    buffer::{generic::GenericBuffer, streaming::StreamingBuffer},
-    futures::task::{Context, Poll},
-};
+use crate::buffer::{generic::GenericBuffer, streaming::StreamingBuffer};
 use rg3d_core::{io::FileLoadError, visitor::prelude::*};
-use rg3d_resource::{Resource, ResourceData, ResourceState};
+use rg3d_resource::{define_new_resource, Resource, ResourceData, ResourceState};
 use std::{
     borrow::Cow,
-    future::Future,
     io::{Cursor, Read, Seek, SeekFrom},
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
-    pin::Pin,
-    sync::Arc,
 };
 
 pub mod generic;
@@ -117,45 +111,15 @@ impl Seek for DataSource {
 
 /// An error that can occur during loading of sound buffer.
 #[derive(Debug)]
-pub enum SoundBufferLoadError {
+pub enum SoundBufferResourceLoadError {
     /// TODO
     Stub,
 }
 
-/// A shared sound buffer resource.
-#[derive(Clone, Debug, Default)]
-#[repr(transparent)]
-pub struct SoundBufferResource(pub Resource<SoundBufferState, SoundBufferLoadError>);
-
-impl Visit for SoundBufferResource {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        self.0.visit(name, visitor)
-    }
-}
-
-impl Deref for SoundBufferResource {
-    type Target = Resource<SoundBufferState, SoundBufferLoadError>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for SoundBufferResource {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-impl Future for SoundBufferResource {
-    type Output = Result<Self, Option<Arc<SoundBufferLoadError>>>;
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        Pin::new(&mut self.0)
-            .poll(cx)
-            .map(|r| r.map(|_| self.clone()))
-    }
-}
+define_new_resource!(
+    #[doc="A shared sound buffer resource."],
+    SoundBufferResource<SoundBufferState, SoundBufferResourceLoadError>
+);
 
 impl SoundBufferResource {
     /// Tries to create new streaming sound buffer from a given data source. Returns sound source
