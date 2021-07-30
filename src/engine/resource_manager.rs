@@ -311,7 +311,7 @@ async fn load_sound_buffer(resource: SoundBufferResource, path: PathBuf, stream:
 
                     resource.state().commit(ResourceState::LoadError {
                         path: path.clone(),
-                        error: Some(Arc::new(SoundBufferResourceLoadError::Stub)),
+                        error: Some(Arc::new(SoundBufferResourceLoadError::UnsupportedFormat)),
                     })
                 }
             }
@@ -321,7 +321,7 @@ async fn load_sound_buffer(resource: SoundBufferResource, path: PathBuf, stream:
 
             resource.state().commit(ResourceState::LoadError {
                 path: path.clone(),
-                error: Some(Arc::new(SoundBufferResourceLoadError::Stub)),
+                error: Some(Arc::new(SoundBufferResourceLoadError::UnsupportedFormat)),
             })
         }
     }
@@ -403,7 +403,7 @@ async fn reload_sound_buffer(resource: SoundBufferResource, path: PathBuf, strea
 
                 resource.state().commit(ResourceState::LoadError {
                     path,
-                    error: Some(Arc::new(SoundBufferResourceLoadError::Stub)),
+                    error: Some(Arc::new(SoundBufferResourceLoadError::UnsupportedFormat)),
                 })
             }
         }

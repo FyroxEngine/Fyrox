@@ -112,8 +112,7 @@ impl Seek for DataSource {
 /// An error that can occur during loading of sound buffer.
 #[derive(Debug)]
 pub enum SoundBufferResourceLoadError {
-    /// TODO
-    Stub,
+    UnsupportedFormat,
 }
 
 define_new_resource!(
