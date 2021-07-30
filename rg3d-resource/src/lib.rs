@@ -2,7 +2,7 @@
 
 //! Resource module contains all structures and method to manage resources.
 
-use crate::core::visitor::{Visit, VisitResult, Visitor};
+use crate::core::visitor::prelude::*;
 use std::{
     borrow::Cow,
     fmt::Debug,
@@ -66,36 +66,28 @@ impl<T: ResourceData, E: ResourceLoadError> Visit for ResourceState<T, E> {
         visitor.enter_region(name)?;
 
         let mut id = self.id();
-        // This branch may fail only on load (except some extreme conditions like out of memory).
-        if id.visit("Id", visitor).is_ok() {
-            if visitor.is_reading() {
-                *self = Self::from_id(id)?;
-            }
-            match self {
-                // Unreachable because resource must be .await_ed before serialization.
-                Self::Pending { .. } => unreachable!(),
-                // This may look strange if we attempting to save an invalid resource, but this may be
-                // actually useful - a resource may become loadable at the deserialization.
-                Self::LoadError { path, .. } => path.visit("Path", visitor)?,
-                Self::Ok(details) => details.visit("Details", visitor)?,
-            }
-
-            visitor.leave_region()
-        } else {
-            visitor.leave_region()?;
-
-            // Keep compatibility with old versions.
-            let mut details = T::default();
-            details.visit(name, visitor)?;
-
-            *self = Self::Ok(details);
-            Ok(())
+        id.visit("Id", visitor)?;
+        if visitor.is_reading() {
+            *self = Self::from_id(id)?;
         }
+
+        match self {
+            Self::Pending { path, .. } => panic!(
+                "Resource {} must be .await_ed before serialization",
+                path.display()
+            ),
+            // This may look strange if we attempting to save an invalid resource, but this may be
+            // actually useful - a resource may become loadable at the deserialization.
+            Self::LoadError { path, .. } => path.visit("Path", visitor)?,
+            Self::Ok(details) => details.visit("Details", visitor)?,
+        }
+
+        visitor.leave_region()
     }
 }
 
 /// See module docs.
-#[derive(Debug)]
+#[derive(Debug, Visit)]
 pub struct Resource<T: ResourceData, E: ResourceLoadError> {
     state: Option<Arc<Mutex<ResourceState<T, E>>>>,
 }
@@ -112,13 +104,13 @@ impl<'a, T: ResourceData, E: ResourceLoadError> Deref for ResourceDataRef<'a, T,
         match *self.guard {
             ResourceState::Pending { ref path, .. } => {
                 panic!(
-                    "attempt to get reference to resource data while it is not loaded! path is {}",
+                    "Attempt to get reference to resource data while it is not loaded! Path is {}",
                     path.display()
                 )
             }
             ResourceState::LoadError { ref path, .. } => {
                 panic!(
-                    "attempt to get reference to resource data which failed to load! path is {}",
+                    "Attempt to get reference to resource data which failed to load! Path is {}",
                     path.display()
                 )
             }
@@ -132,13 +124,13 @@ impl<'a, T: ResourceData, E: ResourceLoadError> DerefMut for ResourceDataRef<'a,
         match *self.guard {
             ResourceState::Pending { ref path, .. } => {
                 panic!(
-                    "attempt to get reference to resource data while it is not loaded! path is {}",
+                    "Attempt to get reference to resource data while it is not loaded! Path is {}",
                     path.display()
                 )
             }
             ResourceState::LoadError { ref path, .. } => {
                 panic!(
-                    "attempt to get reference to resource data which failed to load! path is {}",
+                    "Attempt to get reference to resource data which failed to load! Path is {}",
                     path.display()
                 )
             }
@@ -245,35 +237,6 @@ impl<T: ResourceData, E: ResourceLoadError> Future for Resource<T, E> {
             }
             ResourceState::LoadError { ref error, .. } => Poll::Ready(Err(error.clone())),
             ResourceState::Ok(_) => Poll::Ready(Ok(self.clone())),
-        }
-    }
-}
-
-impl<T, E> Visit for Resource<T, E>
-where
-    T: ResourceData,
-    E: ResourceLoadError,
-{
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        // This branch may fail only on load (except some extreme conditions like out of memory).
-        if self.state.visit("State", visitor).is_err() {
-            visitor.leave_region()?;
-
-            // Keep compatibility with old versions.
-
-            // Create default state here, since it is only for compatibility we don't care about
-            // redundant memory allocations.
-            let mut state = Arc::new(Mutex::new(ResourceState::Ok(Default::default())));
-
-            state.visit(name, visitor)?;
-
-            self.state = Some(state);
-
-            Ok(())
-        } else {
-            visitor.leave_region()
         }
     }
 }
