@@ -57,6 +57,14 @@ jobs:
              cd examples/wasm
              wasm-pack test --headless --chrome
              wasm-pack test --headless --firefox
+  docs:
+    name: Documentation CI
+    runs-on: windows-2019
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build Docs
+        run: |
+          rustup run stable cargo doc
 
 
   # MacOS 11 CI is currently in beta. Uncomment the below lines when it's out of beta.
