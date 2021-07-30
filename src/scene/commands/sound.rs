@@ -7,7 +7,6 @@ use rg3d::{
     core::pool::{Handle, Ticket},
     sound::source::SoundSource,
 };
-use std::sync::{Arc, Mutex};
 
 #[derive(Debug)]
 pub struct AddSoundSourceCommand {
