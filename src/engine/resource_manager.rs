@@ -113,19 +113,9 @@ impl Default for ResourceManagerState {
 }
 
 /// See module docs.
-#[derive(Clone)]
+#[derive(Clone, Visit)]
 pub struct ResourceManager {
     state: Option<Arc<Mutex<ResourceManagerState>>>,
-}
-
-impl Visit for ResourceManager {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.state.visit("State", visitor)?;
-
-        visitor.leave_region()
-    }
 }
 
 /// Allows you to define a set of defaults for every imported texture.
@@ -303,7 +293,7 @@ async fn load_sound_buffer(resource: SoundBufferResource, path: PathBuf, stream:
 
                     resource.state().commit(ResourceState::Ok(sound_buffer));
                 }
-                Err(_e) => {
+                Err(_) => {
                     Log::writeln(
                         MessageKind::Error,
                         format!("Unable to load sound buffer from {:?}!", path),
@@ -317,11 +307,14 @@ async fn load_sound_buffer(resource: SoundBufferResource, path: PathBuf, stream:
             }
         }
         Err(e) => {
-            Log::writeln(MessageKind::Error, format!("Invalid data source: {:?}", e));
+            Log::writeln(
+                MessageKind::Error,
+                format!("Invalid data source for sound buffer: {:?}", e),
+            );
 
             resource.state().commit(ResourceState::LoadError {
                 path: path.clone(),
-                error: Some(Arc::new(SoundBufferResourceLoadError::UnsupportedFormat)),
+                error: Some(Arc::new(SoundBufferResourceLoadError::Io(e))),
             })
         }
     }

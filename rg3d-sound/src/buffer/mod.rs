@@ -112,7 +112,10 @@ impl Seek for DataSource {
 /// An error that can occur during loading of sound buffer.
 #[derive(Debug)]
 pub enum SoundBufferResourceLoadError {
+    /// A format is not supported.
     UnsupportedFormat,
+    /// File load error.
+    Io(FileLoadError),
 }
 
 define_new_resource!(
