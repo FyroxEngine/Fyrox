@@ -59,6 +59,9 @@ pub struct ParticleSystemSection {
     sender: Sender<Message>,
     emitter_index: Option<usize>,
     emitter_section: EmitterSection,
+    play_pause: Handle<UiNode>,
+    stop: Handle<UiNode>,
+    restart: Handle<UiNode>,
 }
 
 fn make_button_image(ctx: &mut BuildContext, image_data: &[u8]) -> Handle<UiNode> {
@@ -80,6 +83,14 @@ impl ParticleSystemSection {
     pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
         let emitter_section = EmitterSection::new(ctx, sender.clone());
 
+        let box_emitter_img = include_bytes!("../../../resources/embed/add_box_emitter.png");
+        let sphere_emitter_img = include_bytes!("../../../resources/embed/add_sphere_emitter.png");
+        let cylinder_emitter_img =
+            include_bytes!("../../../resources/embed/add_cylinder_emitter.png");
+
+        let play_pause;
+        let stop;
+        let restart;
         let acceleration;
         let emitters;
         let add_box_emitter;
@@ -114,23 +125,21 @@ impl ParticleSystemSection {
                                                             .build(ctx),
                                                     )
                                                     .with_child({
-                                                        add_box_emitter = make_button_image(
-                                                            ctx,
-                                                            include_bytes!("../../../resources/embed/add_box_emitter.png"),
-                                                        );
+                                                        add_box_emitter =
+                                                            make_button_image(ctx, box_emitter_img);
                                                         add_box_emitter
                                                     })
                                                     .with_child({
                                                         add_sphere_emitter = make_button_image(
                                                             ctx,
-                                                            include_bytes!("../../../resources/embed/add_sphere_emitter.png"),
+                                                            sphere_emitter_img,
                                                         );
                                                         add_sphere_emitter
                                                     })
                                                     .with_child({
                                                         add_cylinder_emitter = make_button_image(
                                                             ctx,
-                                                         include_bytes!("../../../resources/embed/add_cylinder_emitter.png"),
+                                                            cylinder_emitter_img,
                                                         );
                                                         add_cylinder_emitter
                                                     }),
@@ -159,6 +168,46 @@ impl ParticleSystemSection {
                     .add_row(Row::strict(ROW_HEIGHT * 2.0))
                     .build(ctx),
                 )
+                .with_child(
+                    GridBuilder::new(
+                        WidgetBuilder::new()
+                            .with_child({
+                                restart = ButtonBuilder::new(
+                                    WidgetBuilder::new()
+                                        .on_column(0)
+                                        .with_margin(Thickness::uniform(1.0)),
+                                )
+                                .with_text("Restart")
+                                .build(ctx);
+                                restart
+                            })
+                            .with_child({
+                                play_pause = ButtonBuilder::new(
+                                    WidgetBuilder::new()
+                                        .on_column(1)
+                                        .with_margin(Thickness::uniform(1.0)),
+                                )
+                                .with_text("Play/Pause")
+                                .build(ctx);
+                                play_pause
+                            })
+                            .with_child({
+                                stop = ButtonBuilder::new(
+                                    WidgetBuilder::new()
+                                        .on_column(2)
+                                        .with_margin(Thickness::uniform(1.0)),
+                                )
+                                .with_text("Stop")
+                                .build(ctx);
+                                stop
+                            }),
+                    )
+                    .add_column(Column::stretch())
+                    .add_column(Column::stretch())
+                    .add_column(Column::stretch())
+                    .add_row(Row::strict(ROW_HEIGHT))
+                    .build(ctx),
+                )
                 .with_child(emitter_section.section),
         )
         .build(ctx);
@@ -173,6 +222,9 @@ impl ParticleSystemSection {
             sender,
             emitter_index: None,
             emitter_section,
+            stop,
+            play_pause,
+            restart,
         }
     }
 
@@ -254,7 +306,7 @@ impl ParticleSystemSection {
     pub fn handle_message(
         &mut self,
         message: &UiMessage,
-        node: &Node,
+        node: &mut Node,
         handle: Handle<Node>,
         ui: &Ui,
     ) {
@@ -321,6 +373,14 @@ impl ParticleSystemSection {
                                 ),
                             ))
                             .unwrap();
+                    } else if message.destination() == self.restart {
+                        particle_system.clear_particles();
+                    } else if message.destination() == self.stop {
+                        particle_system.set_enabled(false); // TODO: Do this via command.
+                        particle_system.clear_particles();
+                    } else if message.destination() == self.play_pause {
+                        let new_state = !particle_system.is_enabled();
+                        particle_system.set_enabled(new_state);
                     }
                 }
                 UiMessageData::User(EditorUiMessage::DeletableItem(

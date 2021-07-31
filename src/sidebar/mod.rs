@@ -306,18 +306,16 @@ impl SideBar {
     ) {
         scope_profile!();
 
-        let scene = &engine.scenes[editor_scene.scene];
-
         match &editor_scene.selection {
             Selection::Graph(selection) => {
-                let graph = &scene.graph;
-
                 if selection.is_single_selection() {
-                    let node_handle = selection.nodes()[0];
-                    let node = &graph[node_handle];
-
                     self.physics_section
                         .handle_ui_message(message, editor_scene, engine);
+
+                    let scene = &mut engine.scenes[editor_scene.scene];
+                    let graph = &mut scene.graph;
+                    let node_handle = selection.nodes()[0];
+                    let node = &mut graph[node_handle];
 
                     if message.direction() == MessageDirection::FromWidget {
                         self.light_section
@@ -340,24 +338,6 @@ impl SideBar {
                             &self.sender,
                         );
                         self.mesh_section.handle_message(message, node, node_handle);
-                        self.terrain_section.handle_message(
-                            message,
-                            &mut engine.user_interface,
-                            engine.resource_manager.clone(),
-                            node,
-                            graph,
-                            node_handle,
-                            &self.sender,
-                        );
-
-                        self.lod_editor.handle_ui_message(
-                            message,
-                            node_handle,
-                            node,
-                            scene,
-                            &mut engine.user_interface,
-                        );
-
                         self.base_section.handle_ui_message(
                             message,
                             &self.sender,
@@ -366,12 +346,29 @@ impl SideBar {
                             &mut engine.user_interface,
                             &mut self.lod_editor,
                         );
+
+                        self.terrain_section.handle_message(
+                            message,
+                            &mut engine.user_interface,
+                            engine.resource_manager.clone(),
+                            graph,
+                            node_handle,
+                            &self.sender,
+                        );
+
+                        self.lod_editor.handle_ui_message(
+                            message,
+                            node_handle,
+                            scene,
+                            &mut engine.user_interface,
+                        );
                     }
                 }
             }
             Selection::Sound(selection) => {
                 if selection.is_single_selection() {
                     if let Some(first) = selection.first() {
+                        let scene = &mut engine.scenes[editor_scene.scene];
                         let state = scene.sound_context.state();
                         if state.is_valid_handle(first) {
                             self.sound_section.handle_message(

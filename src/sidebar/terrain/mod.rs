@@ -180,12 +180,13 @@ impl TerrainSection {
         message: &UiMessage,
         ui: &mut Ui,
         resource_manager: ResourceManager,
-        node: &Node,
         graph: &Graph,
         handle: Handle<Node>,
         sender: &Sender<Message>,
     ) {
         scope_profile!();
+
+        let node = &graph[handle];
 
         if let Some(index) = self.current_layer {
             self.layer_section

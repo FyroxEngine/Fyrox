@@ -527,10 +527,11 @@ impl LodGroupEditor {
         &mut self,
         message: &UiMessage,
         node_handle: Handle<Node>,
-        node: &Node,
         scene: &Scene,
         ui: &mut Ui,
     ) {
+        let node = &scene.graph[node_handle];
+
         if let Some(lod_index) = self.current_lod_level {
             self.child_selector.handle_ui_message(
                 message,
