@@ -148,6 +148,8 @@ pub struct ParticleSystem {
     color_over_lifetime: Option<ColorGradient>,
     #[visit(optional)] // Backward compatibility.
     soft_boundary_sharpness_factor: f32,
+    #[visit(optional)] // Backward copmatibility.
+    enabled: bool,
 }
 
 impl Deref for ParticleSystem {
@@ -176,6 +178,7 @@ impl ParticleSystem {
             acceleration: self.acceleration,
             color_over_lifetime: self.color_over_lifetime.clone(),
             soft_boundary_sharpness_factor: self.soft_boundary_sharpness_factor,
+            enabled: self.enabled,
         }
     }
 
@@ -200,6 +203,17 @@ impl ParticleSystem {
         self.soft_boundary_sharpness_factor
     }
 
+    /// Enables or disables particle system. Disabled particle system remains in "frozen" state
+    /// until enabled again.
+    pub fn set_enabled(&mut self, enabled: bool) {
+        self.enabled = enabled;
+    }
+
+    /// Returns current particle system status.
+    pub fn is_enabled(&self) -> bool {
+        self.enabled
+    }
+
     /// Sets soft boundary sharpness factor. This value defines how wide soft boundary will be.
     /// The greater the factor is the more thin the boundary will be, and vice versa. This
     /// parameter allows you to manipulate particle "softness" - the engine automatically adds
@@ -221,6 +235,10 @@ impl ParticleSystem {
     /// changes their color, size, rotation, etc. This method should not be
     /// used directly, it will be automatically called by scene update.
     pub fn update(&mut self, dt: f32) {
+        if !self.enabled {
+            return;
+        }
+
         for emitter in self.emitters.iter_mut() {
             emitter.tick(dt);
         }
@@ -395,6 +413,7 @@ pub struct ParticleSystemBuilder {
     particles: Vec<Particle>,
     color_over_lifetime: Option<ColorGradient>,
     soft_boundary_sharpness_factor: f32,
+    enabled: bool,
 }
 
 impl ParticleSystemBuilder {
@@ -408,6 +427,7 @@ impl ParticleSystemBuilder {
             acceleration: Vector3::new(0.0, -9.81, 0.0),
             color_over_lifetime: None,
             soft_boundary_sharpness_factor: 2.5,
+            enabled: true,
         }
     }
 
@@ -454,6 +474,12 @@ impl ParticleSystemBuilder {
         self
     }
 
+    /// Sets initial particle system state.
+    pub fn with_enabled(mut self, enabled: bool) -> Self {
+        self.enabled = enabled;
+        self
+    }
+
     fn build_particle_system(self) -> ParticleSystem {
         ParticleSystem {
             base: self.base_builder.build_base(),
@@ -464,6 +490,7 @@ impl ParticleSystemBuilder {
             acceleration: self.acceleration,
             color_over_lifetime: self.color_over_lifetime,
             soft_boundary_sharpness_factor: self.soft_boundary_sharpness_factor,
+            enabled: self.enabled,
         }
     }
 
