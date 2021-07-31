@@ -1,4 +1,6 @@
-use crate::scene::commands::particle_system::SetEmitterPositionCommand;
+use crate::scene::commands::particle_system::{
+    SetEmitterPositionCommand, SetEmitterResurrectParticlesCommand,
+};
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     scene::commands::{
@@ -465,6 +467,23 @@ impl EmitterSection {
                                     emitter_index,
                                     parameter,
                                     final_value,
+                                ),
+                            ),
+                        ))
+                        .unwrap();
+                }
+            }
+            UiMessageData::CheckBox(CheckBoxMessage::Check(Some(value)))
+                if message.destination() == self.resurrect_particles =>
+            {
+                if emitter.is_particles_resurrects() != *value {
+                    self.sender
+                        .send(Message::DoSceneCommand(
+                            SceneCommand::SetEmitterResurrectParticles(
+                                SetEmitterResurrectParticlesCommand::new(
+                                    handle,
+                                    emitter_index,
+                                    *value,
                                 ),
                             ),
                         ))

@@ -1,5 +1,6 @@
 use crate::scene::commands::decal::{SetDecalColorCommand, SetDecalLayerIndexCommand};
 use crate::scene::commands::mesh::SetMeshDecalLayerIndexCommand;
+use crate::scene::commands::particle_system::SetEmitterResurrectParticlesCommand;
 use crate::scene::commands::terrain::SetTerrainDecalLayerIndexCommand;
 use crate::{
     command::Command,
@@ -212,6 +213,7 @@ pub enum SceneCommand {
     SetEmitterPosition(SetEmitterPositionCommand),
     SetParticleSystemTexture(SetParticleSystemTextureCommand),
     DeleteEmitter(DeleteEmitterCommand),
+    SetEmitterResurrectParticles(SetEmitterResurrectParticlesCommand),
 
     // Sprite commands.
     SetSpriteSize(SetSpriteSizeCommand),
@@ -398,6 +400,7 @@ macro_rules! static_dispatch {
             SceneCommand::SetDecalNormalTexture(v) => v.$func($($args),*),
             SceneCommand::SetDecalColor(v) => v.$func($($args),*),
             SceneCommand::SetDecalLayerIndex(v) => v.$func($($args),*),
+            SceneCommand::SetEmitterResurrectParticles(v) => v.$func($($args),*),
         }
     };
 }

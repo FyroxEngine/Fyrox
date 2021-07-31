@@ -358,3 +358,7 @@ define_emitter_variant_command!(SetBoxEmitterHalfDepthCommand("Set Box Emitter H
 define_emitter_command!(SetEmitterPositionCommand("Set Emitter Position", Vector3<f32>) where fn swap(self, emitter) {
     get_set_swap!(self, emitter, position, set_position);
 });
+
+define_emitter_command!(SetEmitterResurrectParticlesCommand("Set Emitter Resurrect Particles", bool) where fn swap(self, emitter) {
+    get_set_swap!(self, emitter, is_particles_resurrects, enable_particle_resurrection);
+});
