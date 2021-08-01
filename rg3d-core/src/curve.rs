@@ -1,56 +1,20 @@
 use crate::{
-    color::Color,
     math::{cubicf, lerpf},
     visitor::prelude::*,
 };
 use std::cmp::Ordering;
+use uuid::Uuid;
 
-pub trait Interpolatable: Sized + Clone + Copy + Default {
-    fn step(&self, other: &Self, t: f32) -> Self {
-        if t.eq(&1.0) {
-            *other
-        } else {
-            *self
-        }
-    }
-
-    fn lerp(&self, other: &Self, t: f32) -> Self;
-
-    fn cubic(&self, other: &Self, t: f32, m0: f32, m1: f32) -> Self;
-}
-
-impl Interpolatable for f32 {
-    fn lerp(&self, other: &Self, t: f32) -> Self {
-        lerpf(*self, *other, t)
-    }
-
-    // https://en.wikipedia.org/wiki/Cubic_Hermite_spline
-    fn cubic(&self, other: &Self, t: f32, m0: f32, m1: f32) -> Self {
-        cubicf(*self, *other, t, m0, m1)
+fn stepf(p0: f32, p1: f32, t: f32) -> f32 {
+    if t.eq(&1.0) {
+        p1
+    } else {
+        p0
     }
 }
 
-impl Interpolatable for Color {
-    fn lerp(&self, other: &Self, t: f32) -> Self {
-        let p1 = self.as_frgba();
-        let p2 = other.as_frgba();
-        let k = p1.lerp(&p2, t).scale(255.0);
-        Color::from_rgba(k.x as u8, k.y as u8, k.z as u8, k.w as u8)
-    }
-
-    fn cubic(&self, other: &Self, t: f32, m0: f32, m1: f32) -> Self {
-        let p0 = self.as_frgba();
-        let p1 = other.as_frgba();
-        let r = cubicf(p0.x, p1.x, t, m0, m1) * 255.0;
-        let g = cubicf(p0.y, p1.y, t, m0, m1) * 255.0;
-        let b = cubicf(p0.z, p1.z, t, m0, m1) * 255.0;
-        let a = cubicf(p0.w, p1.w, t, m0, m1) * 255.0;
-        Color::from_rgba(r as u8, g as u8, b as u8, a as u8)
-    }
-}
-
-#[derive(Visit)]
-pub enum CurvePointKind {
+#[derive(Visit, Clone, Debug, PartialEq)]
+pub enum CurveKeyKind {
     Constant,
     Linear,
     Cubic {
@@ -59,35 +23,51 @@ pub enum CurvePointKind {
     },
 }
 
-#[derive(Visit)]
-pub struct CurvePoint<T: Interpolatable> {
-    location: f32,
-    pub value: T,
-    pub kind: CurvePointKind,
+impl Default for CurveKeyKind {
+    fn default() -> Self {
+        Self::Constant
+    }
 }
 
-impl<T: Interpolatable> CurvePoint<T> {
-    pub fn interpolate(&self, other: &Self, t: f32) -> T {
-        match self.kind {
-            CurvePointKind::Constant => self.value.step(&other.value, t),
-            CurvePointKind::Linear => self.value.lerp(&other.value, t),
-            CurvePointKind::Cubic {
-                left_tangent,
-                right_tangent,
-            } => self
-                .value
-                .cubic(&other.value, t, left_tangent, right_tangent),
+#[derive(Visit, Clone, Default, Debug, PartialEq)]
+pub struct CurveKey {
+    pub id: Uuid,
+    location: f32,
+    pub value: f32,
+    pub kind: CurveKeyKind,
+}
+
+impl CurveKey {
+    pub fn new(location: f32, value: f32, kind: CurveKeyKind) -> Self {
+        Self {
+            id: Uuid::new_v4(),
+            location,
+            value,
+            kind,
         }
     }
 }
 
-#[derive(Visit, Default)]
-pub struct Curve<T: Interpolatable> {
-    points: Vec<CurvePoint<T>>,
+impl CurveKey {
+    pub fn interpolate(&self, other: &Self, t: f32) -> f32 {
+        match self.kind {
+            CurveKeyKind::Constant => stepf(self.value, other.value, t),
+            CurveKeyKind::Linear => lerpf(self.value, other.value, t),
+            CurveKeyKind::Cubic {
+                left_tangent,
+                right_tangent,
+            } => cubicf(self.value, other.value, t, left_tangent, right_tangent),
+        }
+    }
 }
 
-fn sort_points<T: Interpolatable>(points: &mut [CurvePoint<T>]) {
-    points.sort_by(|a, b| {
+#[derive(Visit, Default, Clone, Debug, PartialEq)]
+pub struct Curve {
+    keys: Vec<CurveKey>,
+}
+
+fn sort_keys(keys: &mut [CurveKey]) {
+    keys.sort_by(|a, b| {
         if a.location < b.location {
             Ordering::Less
         } else if a.location > b.location {
@@ -98,53 +78,56 @@ fn sort_points<T: Interpolatable>(points: &mut [CurvePoint<T>]) {
     });
 }
 
-impl<T: Interpolatable> From<Vec<CurvePoint<T>>> for Curve<T> {
-    fn from(mut points: Vec<CurvePoint<T>>) -> Self {
-        sort_points(&mut points);
-        Self { points }
+impl From<Vec<CurveKey>> for Curve {
+    fn from(mut keys: Vec<CurveKey>) -> Self {
+        sort_keys(&mut keys);
+        Self { keys }
     }
 }
 
-impl<T: Interpolatable> Curve<T> {
+impl Curve {
     pub fn clear(&mut self) {
-        self.points.clear()
+        self.keys.clear()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.points.is_empty()
+        self.keys.is_empty()
     }
 
-    pub fn add_point(&mut self, new_point: CurvePoint<T>) {
+    pub fn keys(&self) -> &[CurveKey] {
+        &self.keys
+    }
+
+    pub fn add_key(&mut self, new_key: CurveKey) {
         let mut insert_at = 0;
-        for (i, point) in self.points.iter().enumerate() {
-            if new_point.location < point.location {
+        for (i, key) in self.keys.iter().enumerate() {
+            if new_key.location < key.location {
                 insert_at = i;
                 break;
             }
         }
-        self.points.insert(insert_at, new_point);
+        self.keys.insert(insert_at, new_key);
     }
 
-    pub fn move_point(&mut self, point_id: usize, location: f32) {
-        if let Some(point) = self.points.get_mut(point_id) {
-            point.location = location;
-            sort_points(&mut self.points);
+    pub fn move_key(&mut self, key_id: usize, location: f32) {
+        if let Some(key) = self.keys.get_mut(key_id) {
+            key.location = location;
+            sort_keys(&mut self.keys);
         }
     }
 
-    pub fn value_at(&self, location: f32) -> T {
-        if self.points.is_empty() {
-            // stub - zero
+    pub fn value_at(&self, location: f32) -> f32 {
+        if self.keys.is_empty() {
+            // Stub - zero
             return Default::default();
-        } else if self.points.len() == 1 {
-            // single point - just return its value
-            return self.points.first().unwrap().value;
-        } else if self.points.len() == 2 {
-            // special case for two points (much faster than generic)
-            let pt_a = self.points.get(0).unwrap();
-            let pt_b = self.points.get(1).unwrap();
+        } else if self.keys.len() == 1 {
+            // Single key - just return its value
+            return self.keys.first().unwrap().value;
+        } else if self.keys.len() == 2 {
+            // Special case for two keys (much faster than generic)
+            let pt_a = self.keys.get(0).unwrap();
+            let pt_b = self.keys.get(1).unwrap();
             if location >= pt_a.location && location <= pt_b.location {
-                // linear interpolation
                 let span = pt_b.location - pt_a.location;
                 let t = (location - pt_a.location) / span;
                 return pt_a.interpolate(pt_b, t);
@@ -155,26 +138,25 @@ impl<T: Interpolatable> Curve<T> {
             }
         }
 
-        // generic case
-        // check for out-of-bounds
-        let first = self.points.first().unwrap();
-        let last = self.points.last().unwrap();
+        // Generic case - check for out-of-bounds
+        let first = self.keys.first().unwrap();
+        let last = self.keys.last().unwrap();
         if location <= first.location {
             first.value
         } else if location >= last.location {
             last.value
         } else {
-            // find span first
+            // Find span first
             let mut pt_a_index = 0;
-            for (i, pt) in self.points.iter().enumerate() {
+            for (i, pt) in self.keys.iter().enumerate() {
                 if location >= pt.location {
                     pt_a_index = i;
                 }
             }
             let pt_b_index = pt_a_index + 1;
 
-            let pt_a = self.points.get(pt_a_index).unwrap();
-            let pt_b = self.points.get(pt_b_index).unwrap();
+            let pt_a = self.keys.get(pt_a_index).unwrap();
+            let pt_b = self.keys.get(pt_b_index).unwrap();
 
             let span = pt_b.location - pt_a.location;
             let t = (location - pt_a.location) / span;

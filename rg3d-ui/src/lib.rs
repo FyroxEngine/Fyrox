@@ -16,8 +16,6 @@ extern crate fontdue;
 #[cfg(not(target_arch = "wasm32"))]
 extern crate sysinfo;
 
-use message::PopupMessage;
-use popup::Placement;
 pub use rg3d_core as core;
 
 pub mod border;
@@ -26,6 +24,7 @@ pub mod button;
 pub mod canvas;
 pub mod check_box;
 pub mod color;
+pub mod curve;
 pub mod decorator;
 pub mod dock;
 pub mod draw;
@@ -73,12 +72,14 @@ use crate::{
     draw::{CommandTexture, Draw, DrawingContext},
     message::{
         ButtonState, CursorIcon, KeyboardModifiers, MessageData, MessageDirection, MouseButton,
-        OsEvent, UiMessage, UiMessageData, WidgetMessage,
+        OsEvent, PopupMessage, UiMessage, UiMessageData, WidgetMessage,
     },
     node::UINode,
+    popup::Placement,
     ttf::{Font, SharedFont},
     widget::{Widget, WidgetBuilder},
 };
+
 use copypasta::ClipboardContext;
 use std::{
     cell::Cell,

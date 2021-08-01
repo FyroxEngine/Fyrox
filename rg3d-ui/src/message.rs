@@ -14,6 +14,7 @@
 //! internal library code can send such messages without a risk of breaking anything.
 
 use crate::core::algebra::{Vector2, Vector3};
+use crate::core::curve::{Curve, CurveKey};
 use crate::dock::SplitDirection;
 use crate::file_browser::Filter;
 use crate::formatted_text::WrapMode;
@@ -900,6 +901,16 @@ impl ColorFieldMessage {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub enum CurveEditorMessage {
+    Sync(Curve),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum CurveKeyMessage {
+    Sync(CurveKey),
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum UiMessageData<M: MessageData, C: Control<M, C>> {
     Widget(WidgetMessage<M, C>),
     Button(ButtonMessage<M, C>),
@@ -932,6 +943,8 @@ pub enum UiMessageData<M: MessageData, C: Control<M, C>> {
     ColorField(ColorFieldMessage),
     Expander(ExpanderMessage),
     SaturationBrightnessField(SaturationBrightnessFieldMessage),
+    CurveEditor(CurveEditorMessage),
+    CurveKey(CurveKeyMessage),
     User(M),
 }
 
