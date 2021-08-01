@@ -19,6 +19,7 @@ use std::path::{Path, PathBuf};
 
 pub mod color;
 pub mod color_gradient;
+pub mod curve;
 pub mod io;
 pub mod math;
 pub mod numeric_range;
