@@ -5,7 +5,7 @@ use crate::{
     check_box::CheckBox,
     color::{AlphaBar, ColorField, ColorPicker, HueBar, SaturationBrightnessField},
     core::{algebra::Vector2, define_is_as, pool::Handle},
-    curve::{key::CurveKey, CurveEditor},
+    curve::CurveEditor,
     decorator::Decorator,
     dock::{DockingManager, Tile},
     draw::DrawingContext,
@@ -80,7 +80,6 @@ pub enum UINode<M: MessageData, C: Control<M, C>> {
     VectorImage(VectorImage<M, C>),
     Expander(Expander<M, C>),
     CurveEditor(CurveEditor<M, C>),
-    CurveKey(CurveKey<M, C>),
     User(C),
 }
 
@@ -127,7 +126,6 @@ macro_rules! static_dispatch {
             UINode::VectorImage(v) => v.$func($($args),*),
             UINode::Expander(v) => v.$func($($args),*),
             UINode::CurveEditor(v) => v.$func($($args),*),
-            UINode::CurveKey(v) => v.$func($($args),*),
             UINode::User(v) => v.$func($($args),*),
         }
     };
@@ -186,7 +184,6 @@ impl<M: MessageData, C: Control<M, C>> UINode<M, C> {
     define_is_as!(UINode : VectorImage -> ref VectorImage<M, C> => fn is_vector_image, fn as_vector_image, fn as_vector_image_mut);
     define_is_as!(UINode : Expander -> ref Expander<M, C> => fn is_expander, fn as_expander, fn as_expander_mut);
     define_is_as!(UINode : CurveEditor -> ref CurveEditor<M, C> => fn is_curve_editor, fn as_curve_editor, fn as_curve_editor_mut);
-    define_is_as!(UINode : CurveKey -> ref CurveKey<M, C> => fn is_curve_key, fn as_curve_key, fn as_curve_key_mut);
     define_is_as!(UINode : User -> ref C => fn is_user, fn as_user, fn as_user_mut);
 }
 

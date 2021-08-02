@@ -18,9 +18,20 @@ pub enum CurveKeyKind {
     Constant,
     Linear,
     Cubic {
+        /// A `tan(angle)` of left tangent.
         left_tangent: f32,
+        /// A `tan(angle)` of right tangent.
         right_tangent: f32,
     },
+}
+
+impl CurveKeyKind {
+    pub fn new_cubic(left_angle_radians: f32, right_angle_radians: f32) -> Self {
+        Self::Cubic {
+            left_tangent: left_angle_radians.tan(),
+            right_tangent: right_angle_radians.tan(),
+        }
+    }
 }
 
 impl Default for CurveKeyKind {
@@ -49,6 +60,10 @@ impl CurveKey {
 }
 
 impl CurveKey {
+    pub fn location(&self) -> f32 {
+        self.location
+    }
+
     pub fn interpolate(&self, other: &Self, t: f32) -> f32 {
         match self.kind {
             CurveKeyKind::Constant => stepf(self.value, other.value, t),
@@ -68,10 +83,10 @@ pub struct Curve {
 
 fn sort_keys(keys: &mut [CurveKey]) {
     keys.sort_by(|a, b| {
-        if a.location < b.location {
-            Ordering::Less
-        } else if a.location > b.location {
+        if a.location > b.location {
             Ordering::Greater
+        } else if a.location < b.location {
+            Ordering::Less
         } else {
             Ordering::Equal
         }
@@ -99,14 +114,8 @@ impl Curve {
     }
 
     pub fn add_key(&mut self, new_key: CurveKey) {
-        let mut insert_at = 0;
-        for (i, key) in self.keys.iter().enumerate() {
-            if new_key.location < key.location {
-                insert_at = i;
-                break;
-            }
-        }
-        self.keys.insert(insert_at, new_key);
+        self.keys.push(new_key);
+        sort_keys(&mut self.keys);
     }
 
     pub fn move_key(&mut self, key_id: usize, location: f32) {

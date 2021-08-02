@@ -13,19 +13,18 @@
 //! However [WidgetMessage::GotFocus](enum.WidgetMessage.html) has "Direction: From UI" which means that only
 //! internal library code can send such messages without a risk of breaking anything.
 
-use crate::core::algebra::{Vector2, Vector3};
-use crate::core::curve::{Curve, CurveKey};
-use crate::dock::SplitDirection;
-use crate::file_browser::Filter;
-use crate::formatted_text::WrapMode;
 use crate::{
     brush::Brush,
     core::{
+        algebra::{Vector2, Vector3},
         color::{Color, Hsv},
+        curve::Curve,
         pool::Handle,
     },
-    dock::TileContent,
+    dock::{SplitDirection, TileContent},
     draw::SharedTexture,
+    file_browser::Filter,
+    formatted_text::WrapMode,
     messagebox::MessageBoxResult,
     popup::Placement,
     ttf::SharedFont,
@@ -903,11 +902,14 @@ impl ColorFieldMessage {
 #[derive(Debug, Clone, PartialEq)]
 pub enum CurveEditorMessage {
     Sync(Curve),
+    ViewPosition(Vector2<f32>),
+    Zoom(f32),
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum CurveKeyMessage {
-    Sync(CurveKey),
+impl CurveEditorMessage {
+    define_constructor_unbound!(CurveEditor(CurveEditorMessage:Sync) => fn sync(Curve), layout: false);
+    define_constructor_unbound!(CurveEditor(CurveEditorMessage:ViewPosition) => fn view_position(Vector2<f32>), layout: false);
+    define_constructor_unbound!(CurveEditor(CurveEditorMessage:Zoom) => fn zoom(f32), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -944,7 +946,6 @@ pub enum UiMessageData<M: MessageData, C: Control<M, C>> {
     Expander(ExpanderMessage),
     SaturationBrightnessField(SaturationBrightnessFieldMessage),
     CurveEditor(CurveEditorMessage),
-    CurveKey(CurveKeyMessage),
     User(M),
 }
 
