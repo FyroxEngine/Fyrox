@@ -1,11 +1,12 @@
-use crate::core::curve::CurveKeyKind;
+#![allow(dead_code)] // TODO
+
 use crate::{
     brush::Brush,
     core::{
-        algebra::{Matrix3, Point2, Vector2, Vector3},
+        algebra::{Matrix3, Point2, Vector2},
         color::Color,
-        curve::Curve,
-        math::Rect,
+        curve::{Curve, CurveKeyKind},
+        math::{cubicf, lerpf, Rect},
         pool::Handle,
     },
     curve::key::CurveKeyView,
@@ -17,8 +18,11 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UINode, UserInterface,
 };
-use rg3d_core::math::{cubicf, lerpf};
-use std::ops::{Deref, DerefMut};
+use std::collections::HashSet;
+use std::{
+    cell::Cell,
+    ops::{Deref, DerefMut},
+};
 
 pub mod key;
 
@@ -28,22 +32,25 @@ pub struct CurveEditor<M: MessageData, C: Control<M, C>> {
     keys: Vec<CurveKeyView>,
     zoom: f32,
     view_position: Vector2<f32>,
-    view_matrix: Matrix3<f32>,
+    // Transforms a point from local to view coordinates.
+    view_matrix: Cell<Matrix3<f32>>,
+    // Transforms a point from local to screen coordinates.
+    // View and screen coordinates are different:
+    //  - view is a local viewer of curve editor
+    //  - screen is global space
+    screen_matrix: Cell<Matrix3<f32>>,
+    // Transform a point from screen space (i.e. mouse position) to the
+    // local space (the space where all keys are)
+    inv_screen_matrix: Cell<Matrix3<f32>>,
     key_brush: Brush,
+    selected_key_brush: Brush,
     key_size: f32,
     grid_brush: Brush,
     operation_context: Option<OperationContext>,
+    selection: Option<Selection>,
 }
 
 crate::define_widget_deref!(CurveEditor<M, C>);
-
-fn to_screen_space(screen_bounds: Rect<f32>, pt: Vector2<f32>) -> Vector2<f32> {
-    Vector2::new(
-        screen_bounds.position.x + pt.x,
-        // Flip Y because in math origin is in lower left corner.
-        screen_bounds.position.y + screen_bounds.size.y - pt.y,
-    )
-}
 
 #[derive(Clone)]
 struct DragEntry {
@@ -66,8 +73,25 @@ enum OperationContext {
     },
 }
 
+#[derive(Clone)]
+enum Selection {
+    Keys { keys: HashSet<usize> },
+    LeftTangent { key: usize },
+    RightTangent { key: usize },
+}
+
+impl Selection {
+    fn single_key(key: usize) -> Self {
+        let mut keys = HashSet::new();
+        keys.insert(key);
+        Self::Keys { keys }
+    }
+}
+
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
     fn draw(&self, ctx: &mut DrawingContext) {
+        self.update_matrices();
+
         let screen_bounds = self.screen_bounds();
         // Draw background.
         ctx.push_rect_filled(&screen_bounds, None);
@@ -123,7 +147,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
         ctx.commit(screen_bounds, self.foreground(), CommandTexture::None, None);
 
         // Draw keys.
-        for key in self.keys.iter() {
+        for (i, key) in self.keys.iter().enumerate() {
             let origin = self.point_to_screen_space(key.position);
             let size = Vector2::new(self.key_size, self.key_size);
             let half_size = size.scale(0.5);
@@ -137,9 +161,19 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
                 ),
                 None,
             );
+            let mut selected = false;
+            if let Some(selection) = self.selection.as_ref() {
+                if let Selection::Keys { keys } = selection {
+                    selected = keys.contains(&i);
+                }
+            }
             ctx.commit(
                 screen_bounds,
-                self.key_brush.clone(),
+                if selected {
+                    self.selected_key_brush.clone()
+                } else {
+                    self.key_brush.clone()
+                },
                 CommandTexture::None,
                 None,
             );
@@ -156,7 +190,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
         if message.destination() == self.handle {
             match message.data() {
                 UiMessageData::Widget(msg) => match msg {
-                    WidgetMessage::MouseMove { pos, state } => {
+                    WidgetMessage::MouseMove { pos, .. } => {
                         if let Some(operation_context) = self.operation_context.as_ref() {
                             match operation_context {
                                 OperationContext::DragKeys { .. } => {}
@@ -166,26 +200,50 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
                                 } => {
                                     let delta = (pos - initial_mouse_pos).scale(1.0 / self.zoom);
                                     self.view_position = initial_view_pos + delta;
-                                    self.update_view_matrix();
+                                    self.update_matrices();
                                 }
                                 OperationContext::DragTangent { .. } => {}
                             }
                         }
                     }
                     WidgetMessage::MouseUp { .. } => {
-                        if let Some(context) = self.operation_context.take() {
+                        if let Some(_context) = self.operation_context.take() {
                             ui.release_mouse_capture();
                         }
                     }
-                    WidgetMessage::MouseDown { pos, button } => {
-                        if *button == MouseButton::Middle {
+                    WidgetMessage::MouseDown { pos, button } => match button {
+                        MouseButton::Left => {
+                            let picked = self.pick(*pos);
+
+                            if let Some(picked) = picked {
+                                if ui.keyboard_modifiers().control {
+                                    if let Some(selection) = self.selection.as_mut() {
+                                        match selection {
+                                            Selection::Keys { keys } => {
+                                                keys.insert(picked);
+                                            }
+                                            Selection::LeftTangent { .. }
+                                            | Selection::RightTangent { .. } => {
+                                                self.selection = Some(Selection::single_key(picked))
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    self.selection = Some(Selection::single_key(picked));
+                                }
+                            } else {
+                                self.selection = None;
+                            }
+                        }
+                        MouseButton::Middle => {
                             ui.capture_mouse(self.handle);
                             self.operation_context = Some(OperationContext::MoveView {
                                 initial_mouse_pos: *pos,
                                 initial_view_pos: self.view_position,
                             });
                         }
-                    }
+                        _ => (),
+                    },
                     WidgetMessage::MouseWheel { amount, .. } => {
                         let k = if *amount < 0.0 { 0.9 } else { 1.1 };
                         ui.send_message(CurveEditorMessage::zoom(
@@ -224,11 +282,9 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
                         }
                         CurveEditorMessage::ViewPosition(view_position) => {
                             self.view_position = *view_position;
-                            self.update_view_matrix();
                         }
                         CurveEditorMessage::Zoom(zoom) => {
                             self.zoom = *zoom;
-                            self.update_view_matrix();
                         }
                     }
                 }
@@ -239,28 +295,73 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
 }
 
 impl<M: MessageData, C: Control<M, C>> CurveEditor<M, C> {
-    fn update_view_matrix(&mut self) {
+    fn update_matrices(&self) {
         let vp = Vector2::new(self.view_position.x, -self.view_position.y);
-        self.view_matrix = Matrix3::new_nonuniform_scaling_wrt_point(
-            &Vector2::new(self.zoom, self.zoom),
-            &Point2::from(self.actual_size().scale(0.5)),
-        ) * Matrix3::new_translation(&vp);
+        self.view_matrix.set(
+            Matrix3::new_nonuniform_scaling_wrt_point(
+                &Vector2::new(self.zoom, self.zoom),
+                &Point2::from(self.actual_size().scale(0.5)),
+            ) * Matrix3::new_translation(&vp),
+        );
+
+        let screen_bounds = self.screen_bounds();
+        self.screen_matrix.set(
+            Matrix3::new_translation(&screen_bounds.position)
+                // Flip Y because in math origin is in lower left corner.
+                * Matrix3::new_translation(&Vector2::new(0.0, screen_bounds.h()))
+                * Matrix3::new_nonuniform_scaling(&Vector2::new(1.0, -1.0))
+                * self.view_matrix.get(),
+        );
+
+        self.inv_screen_matrix
+            .set(self.view_matrix.get().try_inverse().unwrap_or_default());
     }
 
-    /// Transform point into local view space.
-    fn point_to_view_space(&self, point: Vector2<f32>) -> Vector2<f32> {
+    /// Transforms a point to view space.
+    pub fn point_to_view_space(&self, point: Vector2<f32>) -> Vector2<f32> {
         self.view_matrix
+            .get()
             .transform_point(&Point2::from(point))
             .coords
     }
 
-    fn vec_to_view_space(&self, point: Vector2<f32>) -> Vector2<f32> {
-        (self.view_matrix * Vector3::new(point.x, point.y, 0.0)).xy()
+    /// Transforms a point to screen space.
+    pub fn point_to_screen_space(&self, point: Vector2<f32>) -> Vector2<f32> {
+        self.screen_matrix
+            .get()
+            .transform_point(&Point2::from(point))
+            .coords
     }
 
-    /// Transforms point on screen.
-    fn point_to_screen_space(&self, point: Vector2<f32>) -> Vector2<f32> {
-        to_screen_space(self.screen_bounds(), self.point_to_view_space(point))
+    /// Transforms a point to local space.
+    pub fn point_to_local_space(&self, point: Vector2<f32>) -> Vector2<f32> {
+        self.inv_screen_matrix
+            .get()
+            .transform_point(&Point2::from(point))
+            .coords
+    }
+
+    /// `pos` must be in screen space.
+    fn pick(&self, pos: Vector2<f32>) -> Option<usize> {
+        // Linear search is fine here, having a curve with thousands of
+        // points is insane anyway.
+        for (i, key) in self.keys.iter().enumerate() {
+            let screen_pos = self.point_to_screen_space(key.position);
+            let bounds = Rect::new(
+                screen_pos.x - self.key_size * 0.5,
+                screen_pos.y - self.key_size * 0.5,
+                self.key_size,
+                self.key_size,
+            );
+            if bounds.contains(pos) {
+                return Some(i);
+            }
+        }
+        None
+    }
+
+    fn clear_selection(&mut self) {
+        self.selection = None;
     }
 
     // TODO: Fix.
@@ -338,19 +439,21 @@ impl<M: MessageData, C: Control<M, C>> CurveEditorBuilder<M, C> {
             .map(|k| CurveKeyView::from(k))
             .collect::<Vec<_>>();
 
-        let mut editor = CurveEditor {
+        let editor = CurveEditor {
             widget: self.widget_builder.build(),
             keys,
             zoom: 1.0,
             view_position: Default::default(),
             view_matrix: Default::default(),
-            key_brush: Brush::Solid(Color::opaque(220, 220, 220)),
-            key_size: 5.0,
+            screen_matrix: Default::default(),
+            inv_screen_matrix: Default::default(),
+            key_brush: Brush::Solid(Color::opaque(140, 140, 140)),
+            selected_key_brush: Brush::Solid(Color::opaque(220, 220, 220)),
+            key_size: 7.0,
             operation_context: None,
             grid_brush: Brush::Solid(Color::from_rgba(130, 130, 130, 50)),
+            selection: None,
         };
-
-        editor.update_view_matrix();
 
         ctx.add_node(UINode::CurveEditor(editor))
     }
