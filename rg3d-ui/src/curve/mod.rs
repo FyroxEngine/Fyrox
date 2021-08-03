@@ -106,53 +106,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
         ctx.commit(screen_bounds, self.background(), CommandTexture::None, None);
 
         self.draw_grid(ctx);
-
-        // Draw curve.
-        if let Some(first) = self.keys.first() {
-            let screen_pos = self.point_to_screen_space(first.position);
-            ctx.push_line(Vector2::new(0.0, screen_pos.y), screen_pos, 1.0);
-        }
-        if let Some(last) = self.keys.last() {
-            let screen_pos = self.point_to_screen_space(last.position);
-            ctx.push_line(
-                screen_pos,
-                Vector2::new(screen_bounds.x() + screen_bounds.w(), screen_pos.y),
-                1.0,
-            );
-        }
-
-        for pair in self.keys.windows(2) {
-            let left = &pair[0];
-            let right = &pair[1];
-
-            let left_pos = self.point_to_screen_space(left.position);
-            let right_pos = self.point_to_screen_space(right.position);
-
-            match left.kind {
-                CurveKeyKind::Constant => {
-                    ctx.push_line(left_pos, Vector2::new(right_pos.x, left_pos.y), 1.0);
-                    ctx.push_line(Vector2::new(right_pos.x, left_pos.y), right_pos, 1.0);
-                }
-                CurveKeyKind::Linear => ctx.push_line(left_pos, right_pos, 1.0),
-                CurveKeyKind::Cubic {
-                    left_tangent,
-                    right_tangent,
-                } => {
-                    let steps = ((right_pos.x - left_pos.x).abs() / 5.0) as usize;
-                    let mut prev = left_pos;
-                    for i in 0..steps {
-                        let t = i as f32 / (steps - 1) as f32;
-                        let middle_x = lerpf(left_pos.x, right_pos.x, t);
-                        let middle_y =
-                            cubicf(left_pos.y, right_pos.y, t, left_tangent, right_tangent);
-                        let pt = Vector2::new(middle_x, middle_y);
-                        ctx.push_line(prev, pt, 1.0);
-                        prev = pt;
-                    }
-                }
-            }
-        }
-        ctx.commit(screen_bounds, self.foreground(), CommandTexture::None, None);
+        self.draw_curve(ctx);
 
         // Draw keys.
         for (i, key) in self.keys.iter().enumerate() {
@@ -258,7 +212,8 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
                                     } = &mut key.kind
                                     {
                                         let local_delta = pos - screen_key_pos;
-                                        let tangent = -local_delta.y / local_delta.x;
+                                        let tangent =
+                                            (-local_delta.y / local_delta.x).clamp(-10e6, 10e6);
 
                                         if *left {
                                             *left_tangent = tangent;
@@ -556,6 +511,56 @@ impl<M: MessageData, C: Control<M, C>> CurveEditor<M, C> {
             CommandTexture::None,
             None,
         );
+    }
+
+    fn draw_curve(&self, ctx: &mut DrawingContext) {
+        let screen_bounds = self.screen_bounds();
+
+        if let Some(first) = self.keys.first() {
+            let screen_pos = self.point_to_screen_space(first.position);
+            ctx.push_line(Vector2::new(0.0, screen_pos.y), screen_pos, 1.0);
+        }
+        if let Some(last) = self.keys.last() {
+            let screen_pos = self.point_to_screen_space(last.position);
+            ctx.push_line(
+                screen_pos,
+                Vector2::new(screen_bounds.x() + screen_bounds.w(), screen_pos.y),
+                1.0,
+            );
+        }
+
+        for pair in self.keys.windows(2) {
+            let left = &pair[0];
+            let right = &pair[1];
+
+            let left_pos = self.point_to_screen_space(left.position);
+            let right_pos = self.point_to_screen_space(right.position);
+
+            match left.kind {
+                CurveKeyKind::Constant => {
+                    ctx.push_line(left_pos, Vector2::new(right_pos.x, left_pos.y), 1.0);
+                    ctx.push_line(Vector2::new(right_pos.x, left_pos.y), right_pos, 1.0);
+                }
+                CurveKeyKind::Linear => ctx.push_line(left_pos, right_pos, 1.0),
+                CurveKeyKind::Cubic {
+                    left_tangent,
+                    right_tangent,
+                } => {
+                    let steps = ((right_pos.x - left_pos.x).abs() / 2.0) as usize;
+                    let mut prev = left_pos;
+                    for i in 0..steps {
+                        let t = i as f32 / (steps - 1) as f32;
+                        let middle_x = lerpf(left_pos.x, right_pos.x, t);
+                        let middle_y =
+                            cubicf(left_pos.y, right_pos.y, t, left_tangent, right_tangent);
+                        let pt = Vector2::new(middle_x, middle_y);
+                        ctx.push_line(prev, pt, 1.0);
+                        prev = pt;
+                    }
+                }
+            }
+        }
+        ctx.commit(screen_bounds, self.foreground(), CommandTexture::None, None);
     }
 }
 

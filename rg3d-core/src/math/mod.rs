@@ -408,11 +408,12 @@ pub fn lerpf(a: f32, b: f32, t: f32) -> f32 {
 pub fn cubicf(p0: f32, p1: f32, t: f32, m0: f32, m1: f32) -> f32 {
     let t2 = t * t;
     let t3 = t2 * t;
+    let scale = p1 - p0;
 
     (2.0 * t3 - 3.0 * t2 + 1.0) * p0
-        + (t3 - 2.0 * t2 + t) * m0
+        + (t3 - 2.0 * t2 + t) * m0 * scale
         + (-2.0 * t3 + 3.0 * t2) * p1
-        + (t3 - t2) * m1
+        + (t3 - t2) * m1 * scale
 }
 
 pub fn get_farthest_point(points: &[Vector3<f32>], dir: Vector3<f32>) -> Vector3<f32> {
