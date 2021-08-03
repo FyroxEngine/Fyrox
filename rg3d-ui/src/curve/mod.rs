@@ -69,8 +69,6 @@ enum OperationContext {
         initial_view_pos: Vector2<f32>,
     },
     DragTangent {
-        // In local coordinates.
-        initial_mouse_pos: Vector2<f32>,
         key: usize,
         left: bool,
     },
@@ -88,16 +86,6 @@ enum PickResult {
     Key(usize),
     LeftTangent(usize),
     RightTangent(usize),
-}
-
-impl PickResult {
-    fn key(self) -> usize {
-        match self {
-            PickResult::Key(k) => k,
-            PickResult::LeftTangent(k) => k,
-            PickResult::RightTangent(k) => k,
-        }
-    }
 }
 
 impl Selection {
@@ -191,7 +179,6 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
                     Selection::LeftTangent { key } | Selection::RightTangent { key } => {
                         selected = i == *key;
                     }
-                    _ => {}
                 }
             }
 
@@ -261,11 +248,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
                                     let delta = (pos - initial_mouse_pos).scale(1.0 / self.zoom);
                                     self.view_position = initial_view_pos + delta;
                                 }
-                                OperationContext::DragTangent {
-                                    initial_mouse_pos,
-                                    key,
-                                    left,
-                                } => {
+                                OperationContext::DragTangent { key, left } => {
                                     let key_pos = self.keys[*key].position;
                                     let screen_key_pos = self.point_to_screen_space(key_pos);
                                     let key = &mut self.keys[*key];
@@ -307,7 +290,6 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
                                     Selection::LeftTangent { key } => {
                                         self.operation_context =
                                             Some(OperationContext::DragTangent {
-                                                initial_mouse_pos: local_mouse_pos,
                                                 key: *key,
                                                 left: true,
                                             })
@@ -315,7 +297,6 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
                                     Selection::RightTangent { key } => {
                                         self.operation_context =
                                             Some(OperationContext::DragTangent {
-                                                initial_mouse_pos: local_mouse_pos,
                                                 key: *key,
                                                 left: false,
                                             })
@@ -541,10 +522,6 @@ impl<M: MessageData, C: Control<M, C>> CurveEditor<M, C> {
                     angle.sin() * self.handle_radius,
                 ),
         )
-    }
-
-    fn clear_selection(&mut self) {
-        self.selection = None;
     }
 
     // TODO: Fix.
