@@ -160,7 +160,7 @@ fn create_ui(engine: &mut GameEngine) -> Interface {
                             .with_vertical_alignment(VerticalAlignment::Center),
                     )
                     .with_wrap(WrapMode::Word)
-                    .with_text("ScaleThisIsSomeCrazyAssLongString\nHere")
+                    .with_text("Scale")
                     .build(ctx),
                 )
                 .with_child({
