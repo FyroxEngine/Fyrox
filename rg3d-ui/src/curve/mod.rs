@@ -1,27 +1,24 @@
-#![allow(dead_code)] // TODO
-
-use crate::message::ButtonState;
 use crate::{
     brush::Brush,
     core::{
         algebra::{Matrix3, Point2, Vector2},
         color::Color,
-        curve::{Curve, CurveKeyKind},
-        math::{cubicf, lerpf, Rect},
+        curve::{Curve, CurveKey, CurveKeyKind},
+        math::{cubicf, lerpf, wrap_angle, Rect},
         pool::Handle,
     },
     curve::key::CurveKeyView,
     draw::{CommandTexture, Draw, DrawingContext},
     message::{
-        CurveEditorMessage, MessageData, MessageDirection, MouseButton, UiMessage, UiMessageData,
-        WidgetMessage,
+        ButtonState, CurveEditorMessage, MessageData, MessageDirection, MouseButton, UiMessage,
+        UiMessageData, WidgetMessage,
     },
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UINode, UserInterface,
 };
-use std::collections::HashSet;
 use std::{
     cell::Cell,
+    collections::HashSet,
     ops::{Deref, DerefMut},
 };
 
@@ -49,6 +46,7 @@ pub struct CurveEditor<M: MessageData, C: Control<M, C>> {
     grid_brush: Brush,
     operation_context: Option<OperationContext>,
     selection: Option<Selection>,
+    handle_radius: f32,
 }
 
 crate::define_widget_deref!(CurveEditor<M, C>);
@@ -83,6 +81,23 @@ enum Selection {
     Keys { keys: HashSet<usize> },
     LeftTangent { key: usize },
     RightTangent { key: usize },
+}
+
+#[derive(Copy, Clone)]
+enum PickResult {
+    Key(usize),
+    LeftTangent(usize),
+    RightTangent(usize),
+}
+
+impl PickResult {
+    fn key(self) -> usize {
+        match self {
+            PickResult::Key(k) => k,
+            PickResult::LeftTangent(k) => k,
+            PickResult::RightTangent(k) => k,
+        }
+    }
 }
 
 impl Selection {
@@ -166,12 +181,41 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
                 ),
                 None,
             );
+
             let mut selected = false;
             if let Some(selection) = self.selection.as_ref() {
-                if let Selection::Keys { keys } = selection {
-                    selected = keys.contains(&i);
+                match selection {
+                    Selection::Keys { keys } => {
+                        selected = keys.contains(&i);
+                    }
+                    Selection::LeftTangent { key } | Selection::RightTangent { key } => {
+                        selected = i == *key;
+                    }
+                    _ => {}
                 }
             }
+
+            // Show tangents for Cubic keys.
+            if selected {
+                if let CurveKeyKind::Cubic {
+                    left_tangent,
+                    right_tangent,
+                } = key.kind
+                {
+                    let left_handle_pos = self.tangent_screen_position(
+                        wrap_angle(left_tangent.atan()) + std::f32::consts::PI,
+                        key.position,
+                    );
+                    ctx.push_line(origin, left_handle_pos, 1.0);
+                    ctx.push_circle(left_handle_pos, self.key_size * 0.5, 6, Default::default());
+
+                    let right_handle_pos = self
+                        .tangent_screen_position(wrap_angle(right_tangent.atan()), key.position);
+                    ctx.push_line(origin, right_handle_pos, 1.0);
+                    ctx.push_circle(right_handle_pos, self.key_size * 0.5, 6, Default::default());
+                }
+            }
+
             ctx.commit(
                 screen_bounds,
                 if selected {
@@ -217,8 +261,32 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
                                     let delta = (pos - initial_mouse_pos).scale(1.0 / self.zoom);
                                     self.view_position = initial_view_pos + delta;
                                 }
-                                OperationContext::DragTangent { .. } => {
-                                    // TODO
+                                OperationContext::DragTangent {
+                                    initial_mouse_pos,
+                                    key,
+                                    left,
+                                } => {
+                                    let key_pos = self.keys[*key].position;
+                                    let screen_key_pos = self.point_to_screen_space(key_pos);
+                                    let key = &mut self.keys[*key];
+                                    if let CurveKeyKind::Cubic {
+                                        left_tangent,
+                                        right_tangent,
+                                    } = &mut key.kind
+                                    {
+                                        let local_delta = pos - screen_key_pos;
+                                        let tangent = -local_delta.y / local_delta.x;
+
+                                        if *left {
+                                            *left_tangent = tangent;
+                                        } else {
+                                            *right_tangent = tangent;
+                                        }
+                                    } else {
+                                        unreachable!(
+                                            "attempt to edit tangents of non-cubic curve key!"
+                                        )
+                                    }
                                 }
                             }
                         } else if let Some(selection) = self.selection.as_ref() {
@@ -236,11 +304,21 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
                                             initial_mouse_pos: local_mouse_pos,
                                         });
                                     }
-                                    Selection::LeftTangent { .. } => {
-                                        // TODO
+                                    Selection::LeftTangent { key } => {
+                                        self.operation_context =
+                                            Some(OperationContext::DragTangent {
+                                                initial_mouse_pos: local_mouse_pos,
+                                                key: *key,
+                                                left: true,
+                                            })
                                     }
-                                    Selection::RightTangent { .. } => {
-                                        // TODO
+                                    Selection::RightTangent { key } => {
+                                        self.operation_context =
+                                            Some(OperationContext::DragTangent {
+                                                initial_mouse_pos: local_mouse_pos,
+                                                key: *key,
+                                                left: false,
+                                            })
                                     }
                                 }
                             }
@@ -250,40 +328,70 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
                         if let Some(context) = self.operation_context.take() {
                             ui.release_mouse_capture();
 
-                            match context {
-                                OperationContext::DragKeys { .. } => {
-                                    // Commit
-                                }
-                                OperationContext::DragTangent { .. } => { // TODO
-                                }
-                                _ => (),
+                            // Send modified curve back to user.
+                            if let OperationContext::DragKeys { .. }
+                            | OperationContext::DragTangent { .. } = context
+                            {
+                                let curve = Curve::from(
+                                    self.keys
+                                        .iter()
+                                        .map(|k| {
+                                            CurveKey::new(
+                                                k.position.x,
+                                                k.position.y,
+                                                k.kind.clone(),
+                                            )
+                                        })
+                                        .collect::<Vec<_>>(),
+                                );
+
+                                ui.send_message(CurveEditorMessage::sync(
+                                    self.handle,
+                                    MessageDirection::FromWidget,
+                                    curve,
+                                ));
                             }
                         }
                     }
                     WidgetMessage::MouseDown { pos, button } => match button {
                         MouseButton::Left => {
-                            let picked = self.pick(*pos);
+                            let pick_result = self.pick(*pos);
 
-                            if let Some(picked) = picked {
-                                if let Some(selection) = self.selection.as_mut() {
-                                    match selection {
-                                        Selection::Keys { keys } => {
-                                            if ui.keyboard_modifiers().control {
-                                                keys.insert(picked);
-                                            } else {
-                                                if !keys.contains(&picked) {
+                            if let Some(picked) = pick_result {
+                                match picked {
+                                    PickResult::Key(picked_key) => {
+                                        if let Some(selection) = self.selection.as_mut() {
+                                            match selection {
+                                                Selection::Keys { keys } => {
+                                                    if ui.keyboard_modifiers().control {
+                                                        keys.insert(picked_key);
+                                                    } else {
+                                                        if !keys.contains(&picked_key) {
+                                                            self.selection = Some(
+                                                                Selection::single_key(picked_key),
+                                                            );
+                                                        }
+                                                    }
+                                                }
+                                                Selection::LeftTangent { .. }
+                                                | Selection::RightTangent { .. } => {
                                                     self.selection =
-                                                        Some(Selection::single_key(picked));
+                                                        Some(Selection::single_key(picked_key))
                                                 }
                                             }
-                                        }
-                                        Selection::LeftTangent { .. }
-                                        | Selection::RightTangent { .. } => {
-                                            self.selection = Some(Selection::single_key(picked))
+                                        } else {
+                                            self.selection =
+                                                Some(Selection::single_key(picked_key));
                                         }
                                     }
-                                } else {
-                                    self.selection = Some(Selection::single_key(picked));
+                                    PickResult::LeftTangent(picked_key) => {
+                                        self.selection =
+                                            Some(Selection::LeftTangent { key: picked_key });
+                                    }
+                                    PickResult::RightTangent(picked_key) => {
+                                        self.selection =
+                                            Some(Selection::RightTangent { key: picked_key });
+                                    }
                                 }
                             } else {
                                 self.selection = None;
@@ -314,25 +422,11 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
                 {
                     match msg {
                         CurveEditorMessage::Sync(curve) => {
-                            let self_keys = self.keys.clone();
-                            if curve.keys().len() < self_keys.len() {
-                                // A key was deleted.
-                                for (i, key) in self_keys.iter().enumerate() {
-                                    if curve.keys().iter().all(|k| k.id != key.id) {
-                                        self.keys.remove(i);
-                                    }
-                                }
-                            } else if curve.keys().len() > self.keys.len() {
-                                // A key was added.
-                                for key in curve.keys() {
-                                    if !self.keys.iter().all(|k| k.id != key.id) {
-                                        let key_view = CurveKeyView::from(key);
-                                        self.keys.push(key_view);
-                                    }
-                                }
-                            }
-
-                            // Sync values.
+                            self.keys = curve
+                                .keys()
+                                .iter()
+                                .map(|k| CurveKeyView::from(k))
+                                .collect::<Vec<_>>();
                         }
                         CurveEditorMessage::ViewPosition(view_position) => {
                             self.view_position = *view_position;
@@ -396,7 +490,7 @@ impl<M: MessageData, C: Control<M, C>> CurveEditor<M, C> {
     }
 
     /// `pos` must be in screen space.
-    fn pick(&self, pos: Vector2<f32>) -> Option<usize> {
+    fn pick(&self, pos: Vector2<f32>) -> Option<PickResult> {
         // Linear search is fine here, having a curve with thousands of
         // points is insane anyway.
         for (i, key) in self.keys.iter().enumerate() {
@@ -408,10 +502,45 @@ impl<M: MessageData, C: Control<M, C>> CurveEditor<M, C> {
                 self.key_size,
             );
             if bounds.contains(pos) {
-                return Some(i);
+                return Some(PickResult::Key(i));
+            }
+
+            // Check tangents.
+            match key.kind {
+                CurveKeyKind::Cubic {
+                    left_tangent,
+                    right_tangent,
+                } => {
+                    let left_handle_pos = self.tangent_screen_position(
+                        wrap_angle(left_tangent.atan()) + std::f32::consts::PI,
+                        key.position,
+                    );
+
+                    if (left_handle_pos - pos).norm() <= self.key_size * 0.5 {
+                        return Some(PickResult::LeftTangent(i));
+                    }
+
+                    let right_handle_pos = self
+                        .tangent_screen_position(wrap_angle(right_tangent.atan()), key.position);
+
+                    if (right_handle_pos - pos).norm() <= self.key_size * 0.5 {
+                        return Some(PickResult::RightTangent(i));
+                    }
+                }
+                _ => (),
             }
         }
         None
+    }
+
+    fn tangent_screen_position(&self, angle: f32, key_position: Vector2<f32>) -> Vector2<f32> {
+        self.point_to_screen_space(
+            key_position
+                + Vector2::new(
+                    angle.cos() * self.handle_radius,
+                    angle.sin() * self.handle_radius,
+                ),
+        )
     }
 
     fn clear_selection(&mut self) {
@@ -504,6 +633,7 @@ impl<M: MessageData, C: Control<M, C>> CurveEditorBuilder<M, C> {
             key_brush: Brush::Solid(Color::opaque(140, 140, 140)),
             selected_key_brush: Brush::Solid(Color::opaque(220, 220, 220)),
             key_size: 7.0,
+            handle_radius: 30.0,
             operation_context: None,
             grid_brush: Brush::Solid(Color::from_rgba(130, 130, 130, 50)),
             selection: None,
