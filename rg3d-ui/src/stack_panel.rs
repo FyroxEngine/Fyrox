@@ -44,7 +44,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for StackPanel<M, C> {
     ) -> Vector2<f32> {
         scope_profile!();
 
-        let mut child_constraint = Vector2::new(std::f32::INFINITY, std::f32::INFINITY);
+        let mut child_constraint = Vector2::new(f32::INFINITY, f32::INFINITY);
 
         match self.orientation {
             Orientation::Vertical => {

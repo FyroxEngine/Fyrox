@@ -169,8 +169,8 @@ impl<M: MessageData, C: Control<M, C>> NumericUpDownBuilder<M, C> {
             widget_builder,
             value: 0.0,
             step: 0.1,
-            min_value: -std::f32::MAX,
-            max_value: std::f32::MAX,
+            min_value: -f32::MAX,
+            max_value: f32::MAX,
             precision: 3,
         }
     }

@@ -180,7 +180,7 @@ impl SurfaceData {
 
             // Gram-Schmidt orthogonalize
             let tangent = (t1 - normal.scale(normal.dot(&t1)))
-                .try_normalize(std::f32::EPSILON)
+                .try_normalize(f32::EPSILON)
                 .unwrap_or_else(|| Vector3::new(0.0, 1.0, 0.0));
             let handedness = normal.cross(&t1).dot(&t2).signum();
             view.write_4_f32(
@@ -907,7 +907,7 @@ impl VertexWeightSet {
     /// equal to 1.0, we must fix that to prevent weirdly looking results.
     pub fn normalize(&mut self) {
         let len = self.iter().fold(0.0, |qs, w| qs + w.value * w.value).sqrt();
-        if len >= std::f32::EPSILON {
+        if len >= f32::EPSILON {
             let k = 1.0 / len;
             for w in self.iter_mut() {
                 w.value *= k;

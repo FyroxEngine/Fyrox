@@ -287,14 +287,14 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
                                             ui.send_message(WidgetMessage::height(
                                                 self.splitter,
                                                 MessageDirection::ToWidget,
-                                                std::f32::INFINITY,
+                                                f32::INFINITY,
                                             ));
                                         }
                                         TileContent::VerticalTiles { .. } => {
                                             ui.send_message(WidgetMessage::width(
                                                 self.splitter,
                                                 MessageDirection::ToWidget,
-                                                std::f32::INFINITY,
+                                                f32::INFINITY,
                                             ));
                                             ui.send_message(WidgetMessage::height(
                                                 self.splitter,
@@ -904,14 +904,14 @@ impl<M: MessageData, C: Control<M, C>> TileBuilder<M, C> {
                     if let TileContent::HorizontalTiles { .. } = self.content {
                         DEFAULT_SPLITTER_SIZE
                     } else {
-                        std::f32::INFINITY
+                        f32::INFINITY
                     }
                 })
                 .with_height({
                     if let TileContent::VerticalTiles { .. } = self.content {
                         DEFAULT_SPLITTER_SIZE
                     } else {
-                        std::f32::INFINITY
+                        f32::INFINITY
                     }
                 })
                 .with_visibility(matches!(

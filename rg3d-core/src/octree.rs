@@ -35,7 +35,7 @@ impl Octree {
 
         // Inflate initial bounds by very low value to fix floating-point calculation
         // issues when splitting and checking intersection later on.
-        let inflation = 2.0 * std::f32::EPSILON;
+        let inflation = 2.0 * f32::EPSILON;
         bounds.inflate(Vector3::new(inflation, inflation, inflation));
 
         // Get initial list of indices.

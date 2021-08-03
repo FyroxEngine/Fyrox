@@ -164,7 +164,7 @@ impl<T: ResourceData, E: ResourceLoadError> Resource<T, E> {
 
     /// Returns exact amount of users of the resource.
     pub fn use_count(&self) -> usize {
-        Arc::strong_count(&self.state.as_ref().unwrap())
+        Arc::strong_count(self.state.as_ref().unwrap())
     }
 
     /// Returns a pointer as numeric value which can be used as a hash.

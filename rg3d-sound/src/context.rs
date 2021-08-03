@@ -350,7 +350,7 @@ impl SoundContext {
         self.state.as_ref().unwrap().lock().unwrap()
     }
 
-    /// Creates deep copy intead of shallow which is done by clone().
+    /// Creates deep copy instead of shallow which is done by clone().
     pub fn deep_clone(&self) -> SoundContext {
         SoundContext {
             state: Some(Arc::new(Mutex::new(self.state().clone()))),

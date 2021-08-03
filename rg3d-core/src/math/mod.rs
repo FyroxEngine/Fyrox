@@ -289,7 +289,7 @@ pub fn get_polygon_normal(polygon: &[Vector3<f32>]) -> Result<Vector3<f32>, &'st
     }
 
     normal
-        .try_normalize(std::f32::EPSILON)
+        .try_normalize(f32::EPSILON)
         .ok_or("Unable to get normal of degenerated polygon!")
 }
 
@@ -417,7 +417,7 @@ pub fn cubicf(p0: f32, p1: f32, t: f32, m0: f32, m1: f32) -> f32 {
 
 pub fn get_farthest_point(points: &[Vector3<f32>], dir: Vector3<f32>) -> Vector3<f32> {
     let mut n_farthest = 0;
-    let mut max_dot = -std::f32::MAX;
+    let mut max_dot = -f32::MAX;
     for (i, point) in points.iter().enumerate() {
         let dot = dir.dot(point);
         if dot > max_dot {
@@ -676,7 +676,7 @@ impl AsMut<[u32]> for TriangleDefinition {
 ///
 /// O(n) complexity.
 pub fn get_closest_point<P: PositionProvider>(points: &[P], point: Vector3<f32>) -> Option<usize> {
-    let mut closest_sqr_distance = std::f32::MAX;
+    let mut closest_sqr_distance = f32::MAX;
     let mut closest_index = None;
     for (i, vertex) in points.iter().enumerate() {
         let sqr_distance = (vertex.position() - point).norm_squared();
@@ -694,7 +694,7 @@ pub fn get_closest_point_triangles<P: PositionProvider>(
     triangle_indices: &[u32],
     point: Vector3<f32>,
 ) -> Option<usize> {
-    let mut closest_sqr_distance = std::f32::MAX;
+    let mut closest_sqr_distance = f32::MAX;
     let mut closest_index = None;
     for triangle_index in triangle_indices {
         let triangle = triangles.get(*triangle_index as usize).unwrap();
@@ -715,7 +715,7 @@ pub fn get_closest_point_triangle_set<P: PositionProvider>(
     triangles: &[TriangleDefinition],
     point: Vector3<f32>,
 ) -> Option<usize> {
-    let mut closest_sqr_distance = std::f32::MAX;
+    let mut closest_sqr_distance = f32::MAX;
     let mut closest_index = None;
     for triangle in triangles {
         for point_index in triangle.0.iter() {
@@ -776,7 +776,7 @@ impl SmoothAngle {
     }
 
     pub fn at_target(&self) -> bool {
-        (self.target - self.angle).abs() <= std::f32::EPSILON
+        (self.target - self.angle).abs() <= f32::EPSILON
     }
 
     pub fn distance(&self) -> f32 {

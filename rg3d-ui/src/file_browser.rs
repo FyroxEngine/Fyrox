@@ -460,7 +460,7 @@ fn build_all<M: MessageData, C: Control<M, C>>(
         } else {
             root.as_path()
         };
-        let item = build_tree_item(path, &Path::new(""), ctx);
+        let item = build_tree_item(path, Path::new(""), ctx);
         root_items.push(item);
         item
     } else {

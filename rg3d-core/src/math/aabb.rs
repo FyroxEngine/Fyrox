@@ -10,8 +10,8 @@ pub struct AxisAlignedBoundingBox {
 impl Default for AxisAlignedBoundingBox {
     fn default() -> Self {
         Self {
-            min: Vector3::new(std::f32::MAX, std::f32::MAX, std::f32::MAX),
-            max: Vector3::new(-std::f32::MAX, -std::f32::MAX, -std::f32::MAX),
+            min: Vector3::new(f32::MAX, f32::MAX, f32::MAX),
+            max: Vector3::new(-f32::MAX, -f32::MAX, -f32::MAX),
         }
     }
 }

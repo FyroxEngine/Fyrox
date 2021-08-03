@@ -66,7 +66,7 @@ impl DerefMut for StubEffect {
 pub enum Effect {
     /// Stub effect that does nothing.
     Stub(StubEffect),
-    /// Reberberation effect. See corresponding module for more info.
+    /// Reverberation effect. See corresponding module for more info.
     Reverb(Reverb),
 }
 

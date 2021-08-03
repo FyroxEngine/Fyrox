@@ -392,7 +392,7 @@ fn closest_point_index_in_triangle_and_adjacent(
 ) -> Option<usize> {
     let mut triangles = ArrayVec::<TriangleDefinition, 4>::new();
     triangles.push(triangle);
-    math::get_closest_point_triangle_set(&navmesh.pathfinder.vertices(), &triangles, to)
+    math::get_closest_point_triangle_set(navmesh.pathfinder.vertices(), &triangles, to)
 }
 
 impl NavmeshAgent {
@@ -502,7 +502,7 @@ impl NavmeshAgent {
                 let c = vertices[triangle[2] as usize].position;
 
                 // Ignore degenerated triangles.
-                if let Some(normal) = (c - a).cross(&(b - a)).try_normalize(std::f32::EPSILON) {
+                if let Some(normal) = (c - a).cross(&(b - a)).try_normalize(f32::EPSILON) {
                     // Calculate signed distance between triangle and segment's center.
                     let signed_distance = (center - a).dot(&normal);
 
@@ -535,7 +535,7 @@ impl NavmeshAgent {
         if let Some(source) = self.path.get(self.current as usize) {
             if let Some(destination) = self.path.get((self.current + 1) as usize) {
                 let ray = Ray::from_two_points(*source, *destination);
-                let d = ray.dir.try_normalize(std::f32::EPSILON).unwrap_or_default();
+                let d = ray.dir.try_normalize(f32::EPSILON).unwrap_or_default();
                 self.position += d.scale(self.speed * dt);
                 if ray.project_point(&self.position) >= 1.0 {
                     self.current += 1;

@@ -166,11 +166,11 @@ fn main() {
                                 .add_source(
                                     SpatialSourceBuilder::new(
                                         GenericSourceBuilder::new()
-                                            .with_buffer(foot_step.into())
+                                            .with_buffer(foot_step)
                                             // rg3d-sound provides built-in way to create temporary sounds that will die immediately
                                             // after first play. This is very useful for foot step sounds.
                                             .with_play_once(true)
-                                            // Every sound source must be explicity set to Playing status, otherwise it will be stopped.
+                                            // Every sound source must be explicitly set to Playing status, otherwise it will be stopped.
                                             .with_status(Status::Playing)
                                             .build()
                                             .unwrap()

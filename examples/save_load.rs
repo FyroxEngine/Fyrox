@@ -112,7 +112,7 @@ impl Visit for Game {
 }
 
 // For simplicity we'll be save (or load) game from hardcoded path.
-const SAVE_FILE: &'static str = "save.bin";
+const SAVE_FILE: &str = "save.bin";
 
 fn save(game: &mut Game) {
     // To save a game state all we need to do is to create new instance of Visitor

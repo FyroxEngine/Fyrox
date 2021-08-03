@@ -313,7 +313,7 @@ impl FormattedText {
                             }
                         }
 
-                        // White-space characters are not part of word so pass them thru.
+                        // White-space characters are not part of word so pass them through.
                         if is_white_space {
                             current_line.end += 1;
                             current_line.width += advance;

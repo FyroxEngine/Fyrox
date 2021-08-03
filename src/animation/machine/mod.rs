@@ -505,7 +505,7 @@ impl Transition {
     }
 
     pub fn is_done(&self) -> bool {
-        (self.transition_time - self.elapsed_time).abs() <= std::f32::EPSILON
+        (self.transition_time - self.elapsed_time).abs() <= f32::EPSILON
     }
 }
 
@@ -532,7 +532,7 @@ impl Default for LimitedEventQueue {
     fn default() -> Self {
         Self {
             queue: Default::default(),
-            limit: std::u32::MAX,
+            limit: u32::MAX,
         }
     }
 }

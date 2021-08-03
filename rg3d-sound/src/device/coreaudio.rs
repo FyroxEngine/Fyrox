@@ -43,7 +43,7 @@ fn check(error: OSStatus, msg: &str) -> Result<(), SoundError> {
     }
 }
 
-/// Callback function set on `AufioQueueNewOutput`
+/// Callback function set on `AudioQueueNewOutput`
 unsafe extern "C" fn audio_queue_callback(
     user_data: *mut c_void,
     queue: AudioQueueRef,

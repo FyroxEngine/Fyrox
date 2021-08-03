@@ -4,7 +4,7 @@
 //!
 //! HRTF stands for [Head-Related Transfer Function](https://en.wikipedia.org/wiki/Head-related_transfer_function)
 //! and can work only with spatial sounds. For each of such sound source after it was processed by HRTF you can
-//! defininitely tell from which locationsound came from. In other words HRTF improves perception of sound to
+//! definitely tell from which locationsound came from. In other words HRTF improves perception of sound to
 //! the level of real life.
 //!
 //! # HRIR Spheres

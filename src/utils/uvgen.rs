@@ -31,8 +31,8 @@ impl UvMesh {
     fn new(first_triangle: usize) -> Self {
         Self {
             triangles: vec![first_triangle],
-            uv_max: Vector2::new(-std::f32::MAX, -std::f32::MAX),
-            uv_min: Vector2::new(std::f32::MAX, std::f32::MAX),
+            uv_max: Vector2::new(-f32::MAX, -f32::MAX),
+            uv_min: Vector2::new(f32::MAX, f32::MAX),
         }
     }
 

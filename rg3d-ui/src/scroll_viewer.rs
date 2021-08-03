@@ -100,7 +100,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollViewer<M, C> {
                     if let UINode::ScrollBar(v_scroll_bar) = ui.node(self.v_scroll_bar) {
                         let old_value = v_scroll_bar.value();
                         let new_value = old_value - amount * 17.0;
-                        if (old_value - new_value).abs() > std::f32::EPSILON {
+                        if (old_value - new_value).abs() > f32::EPSILON {
                             message.set_handled(true);
                         }
                         ui.send_message(ScrollBarMessage::value(
@@ -162,7 +162,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollViewer<M, C> {
                             if let UINode::ScrollBar(scroll_bar) = ui.node(self.v_scroll_bar) {
                                 let visibility = (scroll_bar.max_value() - scroll_bar.min_value())
                                     .abs()
-                                    >= std::f32::EPSILON;
+                                    >= f32::EPSILON;
                                 ui.send_message(WidgetMessage::visibility(
                                     self.v_scroll_bar,
                                     MessageDirection::ToWidget,
@@ -175,7 +175,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollViewer<M, C> {
                             if let UINode::ScrollBar(scroll_bar) = ui.node(self.h_scroll_bar) {
                                 let visibility = (scroll_bar.max_value() - scroll_bar.min_value())
                                     .abs()
-                                    >= std::f32::EPSILON;
+                                    >= f32::EPSILON;
                                 ui.send_message(WidgetMessage::visibility(
                                     self.h_scroll_bar,
                                     MessageDirection::ToWidget,

@@ -605,7 +605,7 @@ impl DeferredLightRenderer {
             let raw_radius = match light {
                 Light::Spot(spot_light) => spot_light.distance(),
                 Light::Point(point_light) => point_light.radius(),
-                Light::Directional(_) => std::f32::MAX,
+                Light::Directional(_) => f32::MAX,
             };
 
             let light_position = light.global_position();
@@ -616,7 +616,7 @@ impl DeferredLightRenderer {
             let light_radius_vec = Vector3::new(light_r_inflate, light_r_inflate, light_r_inflate);
             let emit_direction = light
                 .up_vector()
-                .try_normalize(std::f32::EPSILON)
+                .try_normalize(f32::EPSILON)
                 .unwrap_or_else(Vector3::z);
 
             if !frustum.is_intersects_sphere(light_position, light_radius) {
@@ -659,7 +659,7 @@ impl DeferredLightRenderer {
 
                         let light_up_vec = light
                             .look_vector()
-                            .try_normalize(std::f32::EPSILON)
+                            .try_normalize(f32::EPSILON)
                             .unwrap_or_else(Vector3::y);
 
                         let light_view_matrix = Matrix4::look_at_rh(

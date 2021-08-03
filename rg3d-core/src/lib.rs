@@ -136,11 +136,11 @@ impl<K: Hash + Eq + Clone, V: Hash + Eq + Clone> BiDirHashMap<K, V> {
     }
 
     pub fn value_of(&self, node: &K) -> Option<&V> {
-        self.forward_map.get(&node)
+        self.forward_map.get(node)
     }
 
     pub fn key_of(&self, value: &V) -> Option<&K> {
-        self.backward_map.get(&value)
+        self.backward_map.get(value)
     }
 
     pub fn clear(&mut self) {

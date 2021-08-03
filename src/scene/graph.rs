@@ -1057,7 +1057,7 @@ impl Graph {
     /// Returns global scale matrix of a node.
     pub fn global_scale_matrix(&self, node: Handle<Node>) -> Matrix4<f32> {
         let node = &self[node];
-        let local_scale_matrix = Matrix4::new_nonuniform_scaling(&node.local_transform().scale());
+        let local_scale_matrix = Matrix4::new_nonuniform_scaling(node.local_transform().scale());
         if node.parent().is_some() {
             self.global_scale_matrix(node.parent()) * local_scale_matrix
         } else {

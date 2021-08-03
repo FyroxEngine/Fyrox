@@ -43,7 +43,7 @@ pub struct MixContext<'a> {
 }
 
 fn sample_to_i16(sample: f32) -> i16 {
-    const SCALE: f32 = std::i16::MAX as f32;
+    const SCALE: f32 = i16::MAX as f32;
     let clamped = if sample > 1.0 {
         1.0
     } else if sample < -1.0 {

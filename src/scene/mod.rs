@@ -690,7 +690,7 @@ impl SceneDrawingContext {
         let length = axis.norm();
 
         let z_axis = axis
-            .try_normalize(std::f32::EPSILON)
+            .try_normalize(f32::EPSILON)
             .unwrap_or_else(Vector3::z);
 
         let y_axis = z_axis
@@ -701,12 +701,12 @@ impl SceneDrawingContext {
                     Vector3::y()
                 }),
             )
-            .try_normalize(std::f32::EPSILON)
+            .try_normalize(f32::EPSILON)
             .unwrap_or_else(Vector3::y);
 
         let x_axis = z_axis
             .cross(&y_axis)
-            .try_normalize(std::f32::EPSILON)
+            .try_normalize(f32::EPSILON)
             .unwrap_or_else(Vector3::x); // CHECK
 
         let shaft_point = |u: f32, v: f32| -> Vector3<f32> {
@@ -1610,7 +1610,7 @@ impl VisibilityCache {
                                     let radius = match light {
                                         Light::Spot(spot_light) => spot_light.distance(),
                                         Light::Point(point_light) => point_light.radius(),
-                                        Light::Directional(_) => std::f32::MAX,
+                                        Light::Directional(_) => f32::MAX,
                                     };
 
                                     // Rough intersection check should cover most of the use cases,

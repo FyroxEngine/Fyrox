@@ -138,7 +138,7 @@ impl Profiler {
         offset: usize,
         full_time: f64,
     ) -> fmt::Result {
-        let sample = self.samples.get(&scope_mark).unwrap();
+        let sample = self.samples.get(scope_mark).unwrap();
 
         if scope_mark == &ENTRY_SCOPE_MARK {
             writeln!(buffer, "=========================================================================================================")?;
@@ -159,7 +159,7 @@ impl Profiler {
 
         for child_scope in self
             .samples
-            .get(&scope_mark)
+            .get(scope_mark)
             .as_ref()
             .unwrap()
             .children
@@ -185,7 +185,7 @@ impl Profiler {
         offset: usize,
         full_time: f64,
     ) -> fmt::Result {
-        let sample = self.samples.get(&scope_mark).unwrap();
+        let sample = self.samples.get(scope_mark).unwrap();
 
         if scope_mark == &ENTRY_SCOPE_MARK {
             writeln!(buffer,"=========================================================================================================")?;
@@ -208,7 +208,7 @@ impl Profiler {
         let mut hot_time = 0.0;
         for child_scope in self
             .samples
-            .get(&scope_mark)
+            .get(scope_mark)
             .as_ref()
             .unwrap()
             .children

@@ -122,7 +122,7 @@ fn prepare_next_face(
             for i in 0..vertex_per_face {
                 temp_vertices.push(vertices[fix_index(indices[i])]);
             }
-            triangulate(&temp_vertices, out_face_triangles);
+            triangulate(temp_vertices, out_face_triangles);
             for triangle in out_face_triangles.iter() {
                 out_triangles.push([
                     fix_index(indices[triangle[0]]),
@@ -524,7 +524,7 @@ async fn convert_model(
 
             track.add_key_frame(KeyFrame::new(time, translation, scale, rotation));
 
-            let mut next_time = std::f32::MAX;
+            let mut next_time = f32::MAX;
             for node in [lcl_translation, lcl_rotation, lcl_scale].iter().flatten() {
                 for &curve_handle in node.curves.iter() {
                     let curve_component = fbx_scene.get(curve_handle);
@@ -541,7 +541,7 @@ async fn convert_model(
                 }
             }
 
-            if next_time >= std::f32::MAX {
+            if next_time >= f32::MAX {
                 break;
             }
 

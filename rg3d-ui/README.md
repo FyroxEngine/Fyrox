@@ -11,7 +11,7 @@ Retained mode, general purpose, graphics API agnostic user interface library. In
 - Powerful layout system
 - Fully customizable - you can construct visual trees of any complexity: for example a tree view item can have any sub-widgets as contents.
 - GAPI-agnostic - this crate does not know anything about the rendering backend: it can be OpenGL, DirectX, Vulkan, Metal, or even built-in OS drawing API.
-- OS-agnostic - similar look of all widgets across all operation systems and window managers.
+- OS-agnostic - similar look of all widgets across all operating systems and window managers.
 - Extendable - full support of user-defined widgets.
 
 ## Widgets
@@ -50,13 +50,13 @@ Retained mode, general purpose, graphics API agnostic user interface library. In
 
 ## Limitations
 
-- Since this library is OS-, GAPI-agnostic it cannot create native OS' windows and it cannot render anything on screen. Instead it uses an internal draw buffer which holds a list of commands, which has to be interpreted in your game/app. This is very a flexible way, but it has some limitations: multiwindow (native) configuration is hard to implement, you have to implement your own UI renderer what can be difficult if you not familiar with anything like this.
+- Since this library is OS-, GAPI-agnostic it cannot create native OS' windows, and it cannot render anything on screen. Instead, it uses an internal draw buffer which holds a list of commands, which has to be interpreted in your game/app. This is very a flexible way, but it has some limitations: multiwindow (native) configuration is hard to implement, you have to implement your own UI renderer what can be difficult if you not familiar with anything like this.
 - There is still no keyboard navigation, it is planned but not with high priority.
 - No support for right-to-left text (arabic, hebrew, etc.)
 
 ## Performance
 
-- In general rg3d-ui is fast, however it can be slow if used incorrectly. Since this library uses a very complex layout system, it may work slow if there are lots of ui elements being moved (i.e. when scrolling). Hopefully it has built-in layout caching system and it relies on layout invalidation so it won't do layout calculations each frame - only if something significant changed (position, size, etc.).
+- In general rg3d-ui is fast, however it can be slow if used incorrectly. Since this library uses a very complex layout system, it may work slow if there are lots of ui elements being moved (i.e. when scrolling). Hopefully it has built-in layout caching system, and it relies on layout invalidation, so it won't do layout calculations each frame - only if something significant changed (position, size, etc.).
 - Batching of render commands can be difficult, because this library extensively uses clipping, and each clipping geometry has to be drawn into the stencil buffer as separate draw call. Rendering still has to be optimized, it is inefficient for now.
 
 ## Styling

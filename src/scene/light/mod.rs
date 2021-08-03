@@ -2,7 +2,7 @@
 //!
 //! Light sources arte basic building blocks of many scenes in games, it improves
 //! perception of scene and makes it look natural. rg3d engine supports three kinds
-//! of ligth sources:
+//! of light sources:
 //!
 //! 1) Directional - similar to sun in real life, its rays are parallel.
 //! 2) Spot - similar to flash light, it has cone light volume and circle spot.

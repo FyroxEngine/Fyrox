@@ -417,7 +417,7 @@ impl AnimationPose {
     pub fn apply(&self, graph: &mut Graph) {
         for (node, local_pose) in self.local_poses.iter() {
             if node.is_none() {
-                Log::writeln(MessageKind::Error, "Invalid node handle found for animation pose, most likely it means that animation retargetting failed!".to_owned());
+                Log::writeln(MessageKind::Error, "Invalid node handle found for animation pose, most likely it means that animation retargeting failed!".to_owned());
             } else {
                 graph[*node]
                     .local_transform_mut()
@@ -436,7 +436,7 @@ impl AnimationPose {
     {
         for (node, local_pose) in self.local_poses.iter() {
             if node.is_none() {
-                Log::writeln(MessageKind::Error, "Invalid node handle found for animation pose, most likely it means that animation retargetting failed!".to_owned());
+                Log::writeln(MessageKind::Error, "Invalid node handle found for animation pose, most likely it means that animation retargeting failed!".to_owned());
             } else {
                 callback(&mut graph[*node], *node, local_pose);
             }
@@ -539,7 +539,7 @@ impl Animation {
     }
 
     pub fn has_ended(&self) -> bool {
-        !self.looped && (self.time_position - self.length).abs() <= std::f32::EPSILON
+        !self.looped && (self.time_position - self.length).abs() <= f32::EPSILON
     }
 
     pub fn set_enabled(&mut self, enabled: bool) -> &mut Self {
@@ -656,14 +656,14 @@ impl Animation {
 
                         // Find corresponding track in resource using names of nodes, not
                         // original handles of instantiated nodes. We can't use original
-                        // handles here because animation can be targetted to a node that
+                        // handles here because animation can be targeted to a node that
                         // wasn't instantiated from animation resource. It can be instantiated
                         // from some other resource. For example you have a character with
                         // multiple animations. Character "lives" in its own file without animations
                         // but with skin. Each animation "lives" in its own file too, then
-                        // you did animation retargetting from animation resource to your character
+                        // you did animation retargeting from animation resource to your character
                         // instantiated model, which is essentially copies key frames to new
-                        // animation targetted to character instance.
+                        // animation targeted to character instance.
                         let mut found = false;
                         for ref_track in ref_animation.get_tracks().iter() {
                             if track_node.name()
