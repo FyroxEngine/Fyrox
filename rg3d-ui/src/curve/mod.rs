@@ -1,5 +1,6 @@
 #![allow(dead_code)] // TODO
 
+use crate::message::ButtonState;
 use crate::{
     brush::Brush,
     core::{
@@ -55,12 +56,14 @@ crate::define_widget_deref!(CurveEditor<M, C>);
 #[derive(Clone)]
 struct DragEntry {
     key: usize,
-    mouse_relative_offset: Vector2<f32>,
+    initial_position: Vector2<f32>,
 }
 
 #[derive(Clone)]
 enum OperationContext {
     DragKeys {
+        // In local coordinates.
+        initial_mouse_pos: Vector2<f32>,
         entries: Vec<DragEntry>,
     },
     MoveView {
@@ -68,6 +71,8 @@ enum OperationContext {
         initial_view_pos: Vector2<f32>,
     },
     DragTangent {
+        // In local coordinates.
+        initial_mouse_pos: Vector2<f32>,
         key: usize,
         left: bool,
     },
@@ -190,25 +195,69 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
         if message.destination() == self.handle {
             match message.data() {
                 UiMessageData::Widget(msg) => match msg {
-                    WidgetMessage::MouseMove { pos, .. } => {
+                    WidgetMessage::MouseMove { pos, state } => {
+                        let local_mouse_pos = self.point_to_local_space(*pos);
                         if let Some(operation_context) = self.operation_context.as_ref() {
                             match operation_context {
-                                OperationContext::DragKeys { .. } => {}
+                                OperationContext::DragKeys {
+                                    entries,
+                                    initial_mouse_pos,
+                                } => {
+                                    let mut local_delta = local_mouse_pos - initial_mouse_pos;
+                                    local_delta.y *= -1.0;
+                                    for entry in entries {
+                                        let key = &mut self.keys[entry.key];
+                                        key.position = entry.initial_position + local_delta;
+                                    }
+                                }
                                 OperationContext::MoveView {
                                     initial_mouse_pos,
                                     initial_view_pos,
                                 } => {
                                     let delta = (pos - initial_mouse_pos).scale(1.0 / self.zoom);
                                     self.view_position = initial_view_pos + delta;
-                                    self.update_matrices();
                                 }
-                                OperationContext::DragTangent { .. } => {}
+                                OperationContext::DragTangent { .. } => {
+                                    // TODO
+                                }
+                            }
+                        } else if let Some(selection) = self.selection.as_ref() {
+                            if state.left == ButtonState::Pressed {
+                                match selection {
+                                    Selection::Keys { keys } => {
+                                        self.operation_context = Some(OperationContext::DragKeys {
+                                            entries: keys
+                                                .iter()
+                                                .map(|k| DragEntry {
+                                                    key: *k,
+                                                    initial_position: self.keys[*k].position,
+                                                })
+                                                .collect::<Vec<_>>(),
+                                            initial_mouse_pos: local_mouse_pos,
+                                        });
+                                    }
+                                    Selection::LeftTangent { .. } => {
+                                        // TODO
+                                    }
+                                    Selection::RightTangent { .. } => {
+                                        // TODO
+                                    }
+                                }
                             }
                         }
                     }
                     WidgetMessage::MouseUp { .. } => {
-                        if let Some(_context) = self.operation_context.take() {
+                        if let Some(context) = self.operation_context.take() {
                             ui.release_mouse_capture();
+
+                            match context {
+                                OperationContext::DragKeys { .. } => {
+                                    // Commit
+                                }
+                                OperationContext::DragTangent { .. } => { // TODO
+                                }
+                                _ => (),
+                            }
                         }
                     }
                     WidgetMessage::MouseDown { pos, button } => match button {
@@ -216,16 +265,21 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
                             let picked = self.pick(*pos);
 
                             if let Some(picked) = picked {
-                                if ui.keyboard_modifiers().control {
-                                    if let Some(selection) = self.selection.as_mut() {
-                                        match selection {
-                                            Selection::Keys { keys } => {
+                                if let Some(selection) = self.selection.as_mut() {
+                                    match selection {
+                                        Selection::Keys { keys } => {
+                                            if ui.keyboard_modifiers().control {
                                                 keys.insert(picked);
+                                            } else {
+                                                if !keys.contains(&picked) {
+                                                    self.selection =
+                                                        Some(Selection::single_key(picked));
+                                                }
                                             }
-                                            Selection::LeftTangent { .. }
-                                            | Selection::RightTangent { .. } => {
-                                                self.selection = Some(Selection::single_key(picked))
-                                            }
+                                        }
+                                        Selection::LeftTangent { .. }
+                                        | Selection::RightTangent { .. } => {
+                                            self.selection = Some(Selection::single_key(picked))
                                         }
                                     }
                                 } else {
