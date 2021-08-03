@@ -369,7 +369,7 @@ impl PipelineState {
     }
 
     pub fn set_clear_depth(&mut self, depth: f32) {
-        if (self.clear_depth - depth).abs() > std::f32::EPSILON {
+        if (self.clear_depth - depth).abs() > f32::EPSILON {
             self.clear_depth = depth;
 
             unsafe {

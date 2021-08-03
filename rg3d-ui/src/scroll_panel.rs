@@ -30,12 +30,12 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollPanel<M, C> {
 
         let size_for_child = Vector2::new(
             if self.horizontal_scroll_allowed {
-                std::f32::INFINITY
+                f32::INFINITY
             } else {
                 available_size.x
             },
             if self.vertical_scroll_allowed {
-                std::f32::INFINITY
+                f32::INFINITY
             } else {
                 available_size.y
             },

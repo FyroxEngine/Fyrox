@@ -225,7 +225,7 @@ impl<M: MessageData, C: Control<M, C>> Engine<M, C> {
         {
             self.renderer.render_and_swap_buffers(
                 &self.scenes,
-                &self.user_interface.get_drawing_context(),
+                self.user_interface.get_drawing_context(),
                 &self.scenes2d,
                 &self.context,
             )

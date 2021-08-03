@@ -828,7 +828,7 @@ impl Renderer {
             frame_buffer,
             frame_width: ui.screen_size().x,
             frame_height: ui.screen_size().y,
-            drawing_context: &ui.draw(),
+            drawing_context: ui.draw(),
             white_dummy: self.white_dummy.clone(),
             texture_cache: &mut self.texture_cache,
         })?;
@@ -960,7 +960,7 @@ impl Renderer {
                     rt.key(),
                     CacheEntry {
                         value: gbuffer.frame_texture(),
-                        time_to_live: std::f32::INFINITY,
+                        time_to_live: f32::INFINITY,
                         value_hash: 0, // TODO
                     },
                 );

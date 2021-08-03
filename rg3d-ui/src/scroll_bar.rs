@@ -155,7 +155,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollBar<M, C> {
                     ScrollBarMessage::Value(value) => {
                         let old_value = self.value;
                         let new_value = math::clampf(value, self.min, self.max);
-                        if (new_value - old_value).abs() > std::f32::EPSILON {
+                        if (new_value - old_value).abs() > f32::EPSILON {
                             self.value = new_value;
                             self.invalidate_arrange();
 
@@ -184,7 +184,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollBar<M, C> {
                             }
                             let old_value = self.value;
                             let new_value = math::clampf(self.value, self.min, self.max);
-                            if (new_value - old_value).abs() > std::f32::EPSILON {
+                            if (new_value - old_value).abs() > f32::EPSILON {
                                 ui.send_message(ScrollBarMessage::value(
                                     self.handle(),
                                     MessageDirection::ToWidget,
@@ -209,7 +209,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollBar<M, C> {
                             }
                             let old_value = self.value;
                             let value = math::clampf(self.value, self.min, self.max);
-                            if (value - old_value).abs() > std::f32::EPSILON {
+                            if (value - old_value).abs() > f32::EPSILON {
                                 ui.send_message(ScrollBarMessage::value(
                                     self.handle(),
                                     MessageDirection::ToWidget,

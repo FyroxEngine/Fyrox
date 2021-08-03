@@ -1,7 +1,7 @@
 # Examples
 
 The engine contains examples for various aspects. Currently, there is not much, but I'm working on it. 
-It is better to run examples with the `--release` flag, because Debug is too slow. Also Debug may suffer from
+It is better to run examples with the `--release` flag, because Debug is too slow. Also, Debug may suffer from
 a "glitch" when model loads faster than its textures, it is due asynchronous resource loading.
 
 ## Example 01 - Simple Scene
@@ -53,7 +53,7 @@ Same as Example 03, but also has "save/load" functionality - F5 and F9 keys resp
 
 ## Example 07 - Sound
 
-Same as Example 04, but also has foot step sounds and a reverb effect.
+Same as Example 04, but also has footstep sounds and a reverb effect.
 
 ## Example 08 - Level of detail
 

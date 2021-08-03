@@ -732,8 +732,8 @@ impl<M: MessageData, C: Control<M, C>> WidgetBuilder<M, C> {
     pub fn new() -> Self {
         Self {
             name: Default::default(),
-            width: std::f32::NAN,
-            height: std::f32::NAN,
+            width: f32::NAN,
+            height: f32::NAN,
             vertical_alignment: VerticalAlignment::Stretch,
             horizontal_alignment: HorizontalAlignment::Stretch,
             max_size: None,
@@ -935,7 +935,7 @@ impl<M: MessageData, C: Control<M, C>> WidgetBuilder<M, C> {
             min_size: self.min_size.unwrap_or_default(),
             max_size: self
                 .max_size
-                .unwrap_or_else(|| Vector2::new(std::f32::INFINITY, std::f32::INFINITY)),
+                .unwrap_or_else(|| Vector2::new(f32::INFINITY, f32::INFINITY)),
             background: self.background.unwrap_or_else(|| BRUSH_PRIMARY.clone()),
             foreground: self.foreground.unwrap_or_else(|| BRUSH_FOREGROUND.clone()),
             row: self.row,

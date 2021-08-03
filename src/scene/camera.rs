@@ -508,7 +508,7 @@ impl SkyBox {
     }
 
     /// Creates a cubemap using provided faces. If some face has not been
-    /// provided correcponding side will be black.
+    /// provided corresponding side will be black.
     /// It will fail if provided face's kind is not TextureKind::Rectangle
     pub fn create_cubemap(&mut self) -> Result<(), SkyBoxError> {
         let (kind, pixel_kind, bytes_per_face) =

@@ -48,7 +48,7 @@ This library wouldn't have been ever created without work of these people. Thank
 5. [IRCAM Head-related impulse response database](http://recherche.ircam.fr/equipes/salles/listen/)
 6. [Reverb](https://ccrma.stanford.edu/~jos/pasp/Freeverb.html)
 7. [Overlap-add convolution](https://en.wikipedia.org/wiki/Overlap%E2%80%93add_method) - not used anymore due to significant distortions at segment boundary when impulse response changes.
-8. [Overlap-save convolution](https://dsp-nbsphinx.readthedocs.io/en/nbsphinx-experiment/nonrecursive_filters/segmented_convolution.html) - works much better when impulse response changes, there are only phase shift issues which are more less acceptable.
+8. [Overlap-save convolution](https://dsp-nbsphinx.readthedocs.io/en/nbsphinx-experiment/nonrecursive_filters/segmented_convolution.html) - works much better when impulse response changes, there are only phase shift issues which are more or less acceptable.
 9. [OpenAL Specification](https://www.openal.org/documentation/openal-1.1-specification.pdf) - distance models and general design considerations.
 10. http://csoundjournal.com/issue9/newHRTFOpcodes.html - some ideas to remove clicks in hrtf renderer
 11. https://phaidra.kug.ac.at/open/o:11024

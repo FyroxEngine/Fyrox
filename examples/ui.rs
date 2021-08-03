@@ -431,13 +431,13 @@ fn main() {
                             if ui_message.direction() == MessageDirection::FromWidget =>
                         {
                             // Some of our scroll bars has changed its value. Check which one.
-                            if let &ScrollBarMessage::Value(value) = msg {
+                            if let ScrollBarMessage::Value(value) = msg {
                                 // Each message has source - a handle of UI element that created this message.
                                 // It is used to understand from which UI element message has come.
                                 if ui_message.destination() == interface.scale {
-                                    model_scale = value;
+                                    model_scale = *value;
                                 } else if ui_message.destination() == interface.yaw {
-                                    model_angle = value;
+                                    model_angle = *value;
                                 }
                             }
                         }
@@ -464,9 +464,9 @@ fn main() {
                         UiMessageData::DropdownList(msg) => {
                             if let DropdownListMessage::SelectionChanged(idx) = msg {
                                 // Video mode has changed and we must change video mode to what user wants.
-                                if let &Some(idx) = idx {
+                                if let Some(idx) = idx {
                                     if ui_message.destination() == interface.resolutions {
-                                        let video_mode = interface.video_modes.get(idx).unwrap();
+                                        let video_mode = interface.video_modes.get(*idx).unwrap();
                                         engine.get_window().set_fullscreen(Some(
                                             Fullscreen::Exclusive(video_mode.clone()),
                                         ));

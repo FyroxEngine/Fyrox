@@ -206,7 +206,7 @@ impl AsyncLoaderContext {
         // Spawn separate thread which will create scene by loading various assets.
         std::thread::spawn(move || {
             // Scene will be loaded in separate thread.
-            futures::executor::block_on(SceneLoader::load_with(resource_manager, context.clone()))
+            futures::executor::block_on(SceneLoader::load_with(resource_manager, context))
         });
 
         // Immediately return shared context.

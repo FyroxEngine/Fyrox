@@ -318,7 +318,7 @@ pub struct DrawingContext {
 }
 
 fn get_line_thickness_vector(a: Vector2<f32>, b: Vector2<f32>, thickness: f32) -> Vector2<f32> {
-    if let Some(dir) = (b - a).try_normalize(std::f32::EPSILON) {
+    if let Some(dir) = (b - a).try_normalize(f32::EPSILON) {
         Vector2::new(dir.y, -dir.x).scale(thickness * 0.5)
     } else {
         Vector2::default()

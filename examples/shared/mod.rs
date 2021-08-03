@@ -501,7 +501,7 @@ impl Player {
         );
         scene.physics.add_collider(capsule, &body);
 
-        scene.physics_binder.bind(pivot, body.into());
+        scene.physics_binder.bind(pivot, body);
 
         context
             .lock()
@@ -512,7 +512,7 @@ impl Player {
             LocomotionMachine::new(scene, model_handle, resource_manager).await;
 
         Self {
-            body: body.into(),
+            body,
             pivot,
             model: model_handle,
             camera_pivot,
@@ -533,13 +533,13 @@ impl Player {
 
         let look_vector = pivot
             .look_vector()
-            .try_normalize(std::f32::EPSILON)
-            .unwrap_or(Vector3::z());
+            .try_normalize(f32::EPSILON)
+            .unwrap_or_else(Vector3::z);
 
         let side_vector = pivot
             .side_vector()
-            .try_normalize(std::f32::EPSILON)
-            .unwrap_or(Vector3::x());
+            .try_normalize(f32::EPSILON)
+            .unwrap_or_else(Vector3::x);
 
         let position = **pivot.local_transform().position();
 
@@ -560,9 +560,9 @@ impl Player {
 
         let speed = 2.0 * dt;
         let velocity = velocity
-            .try_normalize(std::f32::EPSILON)
-            .and_then(|v| Some(v.scale(speed)))
-            .unwrap_or(Vector3::default());
+            .try_normalize(f32::EPSILON)
+            .map(|v| v.scale(speed))
+            .unwrap_or_default();
         let is_moving = velocity.norm_squared() > 0.0;
 
         let body = scene.physics.bodies.get_mut(&self.body).unwrap();
@@ -766,7 +766,7 @@ pub fn create_scene_async(resource_manager: ResourceManager) -> Arc<Mutex<SceneL
 
             scene.graph.update_hierarchical_data();
 
-            // And create collision mesh so our character won't fall thru ground.
+            // And create collision mesh so our character won't fall through ground.
             let collision_mesh_handle = scene.graph.find_by_name_from_root("CollisionShape");
             let collision_mesh = &mut scene.graph[collision_mesh_handle];
 

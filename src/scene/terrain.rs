@@ -32,7 +32,7 @@ use std::{
 };
 
 /// Layers is a set of textures for rendering + mask texture to exclude some pixels from
-/// rendering. Terrain can have as many layers as you want, but each layer slightly decreses
+/// rendering. Terrain can have as many layers as you want, but each layer slightly decreases
 /// performance, so keep amount of layers on reasonable level (1 - 5 should be enough for most
 /// cases).
 #[derive(Default, Debug, Clone, Visit)]
@@ -637,7 +637,7 @@ pub enum BrushShape {
         /// Radius of the circle.
         radius: f32,
     },
-    /// Rectange with given width and height.
+    /// Rectangle with given width and height.
     Rectangle {
         /// Width of the rectangle.
         width: f32,

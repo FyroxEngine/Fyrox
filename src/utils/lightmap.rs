@@ -423,7 +423,7 @@ impl Lightmap {
                 return Err(LightmapGenerationError::Cancelled);
             }
 
-            let lightmap = generate_lightmap(&instance, &instances, &lights, texels_per_unit);
+            let lightmap = generate_lightmap(instance, &instances, &lights, texels_per_unit);
             map.entry(instance.owner).or_default().push(LightmapEntry {
                 texture: Some(Texture(Resource::new(TextureState::Ok(lightmap)))),
                 lights: lights.iter().map(|light| light.handle()).collect(),
@@ -678,7 +678,7 @@ fn generate_lightmap(
 ) -> TextureData {
     // We have to re-generate new set of world-space vertices because UV generator
     // may add new vertices on seams.
-    let atlas_size = estimate_size(&instance.data(), texels_per_unit);
+    let atlas_size = estimate_size(instance.data(), texels_per_unit);
     let scale = 1.0 / atlas_size as f32;
     let grid = Grid::new(instance.data(), (atlas_size / 32).max(4) as usize);
 

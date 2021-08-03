@@ -36,8 +36,8 @@ impl Default for PathVertex {
         Self {
             position: Default::default(),
             parent: None,
-            g_score: std::f32::MAX,
-            f_score: std::f32::MAX,
+            g_score: f32::MAX,
+            f_score: f32::MAX,
             state: PathVertexState::NonVisited,
             neighbours: Default::default(),
         }
@@ -62,8 +62,8 @@ impl PathVertex {
         Self {
             position,
             parent: None,
-            g_score: std::f32::MAX,
-            f_score: std::f32::MAX,
+            g_score: f32::MAX,
+            f_score: f32::MAX,
             state: PathVertexState::NonVisited,
             neighbours: Default::default(),
         }
@@ -75,8 +75,8 @@ impl PathVertex {
     }
 
     fn clear(&mut self) {
-        self.g_score = std::f32::MAX;
-        self.f_score = std::f32::MAX;
+        self.g_score = f32::MAX;
+        self.f_score = f32::MAX;
         self.state = PathVertexState::NonVisited;
         self.parent = None;
     }
@@ -236,7 +236,7 @@ impl PathFinder {
         let mut open_set_size = 1;
         while open_set_size > 0 {
             let mut current_index = 0;
-            let mut lowest_f_score = std::f32::MAX;
+            let mut lowest_f_score = f32::MAX;
             for (i, vertex) in self.vertices.iter().enumerate() {
                 if vertex.state == PathVertexState::Open && vertex.f_score < lowest_f_score {
                     current_index = i;

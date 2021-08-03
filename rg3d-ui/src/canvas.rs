@@ -22,7 +22,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Canvas<M, C> {
     ) -> Vector2<f32> {
         scope_profile!();
 
-        let size_for_child = Vector2::new(std::f32::INFINITY, std::f32::INFINITY);
+        let size_for_child = Vector2::new(f32::INFINITY, f32::INFINITY);
 
         for child_handle in self.widget.children() {
             ui.measure_node(*child_handle, size_for_child);

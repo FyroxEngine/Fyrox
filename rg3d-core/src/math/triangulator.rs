@@ -105,11 +105,11 @@ pub fn triangulate(vertices: &[Vector3<f32>], out_triangles: &mut Vec<[usize; 3]
         for i in 0..4 {
             let v = vertices[i];
             let v0 = vertices[(i + 3) % 4];
-            if let Some(left) = (v0 - v).try_normalize(std::f32::EPSILON) {
+            if let Some(left) = (v0 - v).try_normalize(f32::EPSILON) {
                 let v1 = vertices[(i + 2) % 4];
-                if let Some(diag) = (v1 - v).try_normalize(std::f32::EPSILON) {
+                if let Some(diag) = (v1 - v).try_normalize(f32::EPSILON) {
                     let v2 = vertices[(i + 1) % 4];
-                    if let Some(right) = (v2 - v).try_normalize(std::f32::EPSILON) {
+                    if let Some(right) = (v2 - v).try_normalize(f32::EPSILON) {
                         // Check for concave vertex
                         let angle = left.dot(&diag).acos() + right.dot(&diag).acos();
                         if angle > std::f32::consts::PI {
@@ -125,7 +125,7 @@ pub fn triangulate(vertices: &[Vector3<f32>], out_triangles: &mut Vec<[usize; 3]
     } else {
         // Ear-clipping for arbitrary polygon (requires one additional memory allocation, so
         // relatively slow)
-        if let Ok(normal) = math::get_polygon_normal(&vertices) {
+        if let Ok(normal) = math::get_polygon_normal(vertices) {
             let plane_class = math::classify_plane(normal);
             let mut polygon = Polygon {
                 vertices: vertices

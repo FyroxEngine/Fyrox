@@ -476,13 +476,13 @@ impl Physics {
             bodies: self
                 .bodies
                 .iter()
-                .map(|b| RigidBodyDesc::from_body(b, &self.colliders.handle_map()))
+                .map(|b| RigidBodyDesc::from_body(b, self.colliders.handle_map()))
                 .collect::<Vec<_>>(),
 
             colliders: self
                 .colliders
                 .iter()
-                .map(|c| ColliderDesc::from_collider(c, &self.bodies.handle_map()))
+                .map(|c| ColliderDesc::from_collider(c, self.bodies.handle_map()))
                 .collect::<Vec<_>>(),
 
             gravity: self.gravity,
@@ -490,7 +490,7 @@ impl Physics {
             joints: self
                 .joints
                 .iter()
-                .map(|j| JointDesc::from_joint(j, &self.bodies.handle_map()))
+                .map(|j| JointDesc::from_joint(j, self.bodies.handle_map()))
                 .collect::<Vec<_>>(),
 
             body_handle_map,
@@ -728,7 +728,7 @@ impl Physics {
             Point3::from(opts.ray.origin),
             opts.ray
                 .dir
-                .try_normalize(std::f32::EPSILON)
+                .try_normalize(f32::EPSILON)
                 .unwrap_or_default(),
         );
         query.intersections_with_ray(
@@ -921,7 +921,7 @@ impl Physics {
         for (resource_handle, body) in resource_physics.bodies.set.iter() {
             let desc = RigidBodyDesc::<ColliderHandle>::from_body(
                 body,
-                &resource_physics.colliders.handle_map(),
+                resource_physics.colliders.handle_map(),
             );
             let new_handle = self.add_body(desc.convert_to_body());
 
@@ -945,7 +945,7 @@ impl Physics {
 
         // Instantiate colliders.
         for (resource_handle, collider) in resource_physics.colliders.set.iter() {
-            let desc = ColliderDesc::from_collider(collider, &resource_physics.bodies.handle_map());
+            let desc = ColliderDesc::from_collider(collider, resource_physics.bodies.handle_map());
             // Remap handle from resource to one that was created above.
             let remapped_parent = *link.bodies.get(&desc.parent).unwrap();
             match desc.shape {
@@ -1044,7 +1044,7 @@ impl Physics {
         for (resource_handle, joint) in resource_physics.joints.set.iter() {
             let desc = JointDesc::<RigidBodyHandle>::from_joint(
                 joint,
-                &resource_physics.bodies.handle_map(),
+                resource_physics.bodies.handle_map(),
             );
             let new_body1_handle = link
                 .bodies

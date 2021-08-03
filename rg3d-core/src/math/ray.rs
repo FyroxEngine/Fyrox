@@ -29,8 +29,8 @@ pub struct IntersectionResult {
 
 impl IntersectionResult {
     pub fn from_slice(roots: &[f32]) -> Self {
-        let mut min = std::f32::MAX;
-        let mut max = -std::f32::MAX;
+        let mut min = f32::MAX;
+        let mut max = -f32::MAX;
         for n in roots {
             min = min.min(*n);
             max = max.max(*n);
@@ -300,7 +300,7 @@ impl Ray {
         kind: CylinderKind,
     ) -> Option<IntersectionResult> {
         let va = (*pb - *pa)
-            .try_normalize(std::f32::EPSILON)
+            .try_normalize(f32::EPSILON)
             .unwrap_or_else(|| Vector3::new(0.0, 1.0, 0.0));
         let vl = self.dir - va.scale(self.dir.dot(&va));
         let dp = self.origin - *pa;

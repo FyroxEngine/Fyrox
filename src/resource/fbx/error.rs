@@ -50,7 +50,7 @@ impl std::fmt::Display for FbxError {
             Self::InvalidPoolHandle => write!(f, "Invalid pool handle."),
             Self::UnexpectedType => write!(
                 f,
-                "Unexpected type. This means that invalid cast has occured in fbx component."
+                "Unexpected type. This means that invalid cast has occurred in fbx component."
             ),
             Self::IndexOutOfBounds => write!(f, "Index out of bounds."),
             Self::UnableToFindBone => write!(f, "Unable to find bone."),

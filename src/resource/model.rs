@@ -116,7 +116,7 @@ impl Model {
     /// Tries to retarget animations from given model resource to a node hierarchy starting
     /// from `root` on a given scene.
     ///
-    /// Animation retargetting allows you to "transfer" animation from a model to a model
+    /// Animation retargeting allows you to "transfer" animation from a model to a model
     /// instance on a scene. Imagine you have a character that should have multiple animations
     /// like idle, run, shoot, walk, etc. and you want to store each animation in a separate
     /// file. Then when you creating a character on a level you want to have all possible

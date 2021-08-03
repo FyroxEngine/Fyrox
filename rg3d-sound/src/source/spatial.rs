@@ -138,7 +138,7 @@ impl SpatialSource {
 
     pub(in crate) fn get_panning(&self, listener: &Listener) -> f32 {
         (self.position - listener.position())
-            .try_normalize(std::f32::EPSILON)
+            .try_normalize(f32::EPSILON)
             // Fallback to look axis will give zero panning which will result in even
             // gain in each channels (as if there was no panning at all).
             .unwrap_or_else(|| listener.look_axis())
@@ -149,7 +149,7 @@ impl SpatialSource {
         let to_self = self.position - listener.position();
 
         (listener.basis() * to_self)
-            .try_normalize(std::f32::EPSILON)
+            .try_normalize(f32::EPSILON)
             // This is ok to fallback to (0, 0, 1) vector because it's given
             // in listener coordinate system.
             .unwrap_or_else(|| Vector3::new(0.0, 0.0, 1.0))
@@ -187,7 +187,7 @@ impl Default for SpatialSource {
             generic: Default::default(),
             radius: 1.0,
             position: Vector3::new(0.0, 0.0, 0.0),
-            max_distance: std::f32::MAX,
+            max_distance: f32::MAX,
             rolloff_factor: 1.0,
             prev_left_samples: Default::default(),
             prev_right_samples: Default::default(),
@@ -214,7 +214,7 @@ impl SpatialSourceBuilder {
             generic,
             radius: 1.0,
             position: Vector3::new(0.0, 0.0, 0.0),
-            max_distance: std::f32::MAX,
+            max_distance: f32::MAX,
             rolloff_factor: 1.0,
         }
     }

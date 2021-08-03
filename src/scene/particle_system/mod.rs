@@ -148,7 +148,7 @@ pub struct ParticleSystem {
     color_over_lifetime: Option<ColorGradient>,
     #[visit(optional)] // Backward compatibility.
     soft_boundary_sharpness_factor: f32,
-    #[visit(optional)] // Backward copmatibility.
+    #[visit(optional)] // Backward compatibility.
     enabled: bool,
 }
 

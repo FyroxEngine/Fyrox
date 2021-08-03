@@ -490,7 +490,7 @@ impl<M: MessageData, C: Control<M, C>> CurveEditorBuilder<M, C> {
             .curve
             .keys()
             .iter()
-            .map(|k| CurveKeyView::from(k))
+            .map(CurveKeyView::from)
             .collect::<Vec<_>>();
 
         let editor = CurveEditor {
