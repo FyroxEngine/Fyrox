@@ -1,9 +1,7 @@
-use crate::core::algebra::Vector3;
-use crate::message::KeyCode;
 use crate::{
     brush::Brush,
     core::{
-        algebra::{Matrix3, Point2, Vector2},
+        algebra::{Matrix3, Point2, Vector2, Vector3},
         color::Color,
         curve::{Curve, CurveKey, CurveKeyKind},
         math::{cubicf, lerpf, wrap_angle, Rect},
@@ -11,15 +9,20 @@ use crate::{
     },
     curve::key::CurveKeyView,
     draw::{CommandTexture, Draw, DrawingContext},
+    menu::{MenuItemBuilder, MenuItemContent},
     message::{
-        ButtonState, CurveEditorMessage, MessageData, MessageDirection, MouseButton, UiMessage,
-        UiMessageData, WidgetMessage,
+        ButtonState, CurveEditorMessage, KeyCode, MenuItemMessage, MessageData, MessageDirection,
+        MouseButton, UiMessage, UiMessageData, WidgetMessage,
     },
+    popup::PopupBuilder,
+    stack_panel::StackPanelBuilder,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UINode, UserInterface,
 };
+use rg3d_core::uuid::Uuid;
 use std::{
     cell::Cell,
+    cmp::Ordering,
     collections::HashSet,
     ops::{Deref, DerefMut},
 };
@@ -49,9 +52,21 @@ pub struct CurveEditor<M: MessageData, C: Control<M, C>> {
     operation_context: Option<OperationContext>,
     selection: Option<Selection>,
     handle_radius: f32,
+    context_menu: ContextMenu<M, C>,
 }
 
 crate::define_widget_deref!(CurveEditor<M, C>);
+
+#[derive(Clone)]
+struct ContextMenu<M: MessageData, C: Control<M, C>> {
+    widget: Handle<UINode<M, C>>,
+    add_key: Handle<UINode<M, C>>,
+    remove: Handle<UINode<M, C>>,
+    key: Handle<UINode<M, C>>,
+    make_constant: Handle<UINode<M, C>>,
+    make_linear: Handle<UINode<M, C>>,
+    make_cubic: Handle<UINode<M, C>>,
+}
 
 #[derive(Clone)]
 struct DragEntry {
@@ -184,21 +199,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
                 UiMessageData::Widget(msg) => match msg {
                     WidgetMessage::KeyUp(key) => {
                         if let KeyCode::Delete = key {
-                            if let Some(selection) = self.selection.as_ref() {
-                                if let Selection::Keys { keys } = selection {
-                                    let mut new_keys = Vec::new();
-                                    for (i, key) in self.keys.iter().enumerate() {
-                                        if !keys.contains(&i) {
-                                            new_keys.push(key.clone());
-                                        }
-                                    }
-                                    self.keys = new_keys;
-                                    self.selection = None;
-
-                                    // Send modified curve back to user.
-                                    self.send_curve(ui);
-                                }
-                            }
+                            self.remove_selection(ui);
                         }
                     }
                     WidgetMessage::MouseMove { pos, state } => {
@@ -312,32 +313,41 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
                                                         keys.insert(picked_key);
                                                     }
                                                     if !keys.contains(&picked_key) {
-                                                        self.selection =
-                                                            Some(Selection::single_key(picked_key));
+                                                        self.set_selection(
+                                                            Some(Selection::single_key(picked_key)),
+                                                            ui,
+                                                        );
                                                     }
                                                 }
                                                 Selection::LeftTangent { .. }
-                                                | Selection::RightTangent { .. } => {
-                                                    self.selection =
-                                                        Some(Selection::single_key(picked_key))
-                                                }
+                                                | Selection::RightTangent { .. } => self
+                                                    .set_selection(
+                                                        Some(Selection::single_key(picked_key)),
+                                                        ui,
+                                                    ),
                                             }
                                         } else {
-                                            self.selection =
-                                                Some(Selection::single_key(picked_key));
+                                            self.set_selection(
+                                                Some(Selection::single_key(picked_key)),
+                                                ui,
+                                            );
                                         }
                                     }
                                     PickResult::LeftTangent(picked_key) => {
-                                        self.selection =
-                                            Some(Selection::LeftTangent { key: picked_key });
+                                        self.set_selection(
+                                            Some(Selection::LeftTangent { key: picked_key }),
+                                            ui,
+                                        );
                                     }
                                     PickResult::RightTangent(picked_key) => {
-                                        self.selection =
-                                            Some(Selection::RightTangent { key: picked_key });
+                                        self.set_selection(
+                                            Some(Selection::RightTangent { key: picked_key }),
+                                            ui,
+                                        );
                                     }
                                 }
                             } else {
-                                self.selection = None;
+                                self.set_selection(None, ui);
                             }
                         }
                         MouseButton::Middle => {
@@ -377,9 +387,64 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
                         CurveEditorMessage::Zoom(zoom) => {
                             self.zoom = *zoom;
                         }
+                        CurveEditorMessage::RemoveSelection => {
+                            self.remove_selection(ui);
+                        }
+                        CurveEditorMessage::ChangeSelectedKeysKind(kind) => {
+                            self.change_selected_keys_kind(kind.clone(), ui);
+                        }
+                        CurveEditorMessage::AddKey(screen_pos) => {
+                            let local_pos = self.point_to_local_space(*screen_pos);
+                            self.keys.push(CurveKeyView {
+                                position: local_pos,
+                                kind: CurveKeyKind::Linear,
+                                id: Uuid::new_v4(),
+                            });
+                            self.set_selection(None, ui);
+                            self.sort_keys();
+                        }
                     }
                 }
                 _ => {}
+            }
+        }
+    }
+
+    fn preview_message(&self, ui: &UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        if let UiMessageData::MenuItem(MenuItemMessage::Click) = message.data() {
+            if message.destination() == self.context_menu.remove {
+                ui.send_message(CurveEditorMessage::remove_selection(
+                    self.handle,
+                    MessageDirection::ToWidget,
+                ));
+            } else if message.destination() == self.context_menu.make_constant {
+                ui.send_message(CurveEditorMessage::change_selected_keys_kind(
+                    self.handle,
+                    MessageDirection::ToWidget,
+                    CurveKeyKind::Constant,
+                ));
+            } else if message.destination() == self.context_menu.make_linear {
+                ui.send_message(CurveEditorMessage::change_selected_keys_kind(
+                    self.handle,
+                    MessageDirection::ToWidget,
+                    CurveKeyKind::Linear,
+                ));
+            } else if message.destination() == self.context_menu.make_cubic {
+                ui.send_message(CurveEditorMessage::change_selected_keys_kind(
+                    self.handle,
+                    MessageDirection::ToWidget,
+                    CurveKeyKind::Cubic {
+                        left_tangent: 0.0,
+                        right_tangent: 0.0,
+                    },
+                ));
+            } else if message.destination() == self.context_menu.add_key {
+                let screen_pos = ui.node(self.context_menu.widget).screen_position();
+                ui.send_message(CurveEditorMessage::add_key(
+                    self.handle,
+                    MessageDirection::ToWidget,
+                    screen_pos,
+                ));
             }
         }
     }
@@ -454,6 +519,65 @@ impl<M: MessageData, C: Control<M, C>> CurveEditor<M, C> {
             .get()
             .transform_point(&Point2::from(point))
             .coords
+    }
+
+    fn sort_keys(&mut self) {
+        self.keys.sort_by(|a, b| {
+            if a.position.x < b.position.x {
+                Ordering::Less
+            } else if a.position.x > b.position.x {
+                Ordering::Greater
+            } else {
+                Ordering::Equal
+            }
+        })
+    }
+
+    fn set_selection(&mut self, selection: Option<Selection>, ui: &UserInterface<M, C>) {
+        self.selection = selection;
+
+        ui.send_message(WidgetMessage::enabled(
+            self.context_menu.remove,
+            MessageDirection::ToWidget,
+            self.selection.is_some(),
+        ));
+
+        ui.send_message(WidgetMessage::enabled(
+            self.context_menu.key,
+            MessageDirection::ToWidget,
+            self.selection.is_some(),
+        ));
+    }
+
+    fn remove_selection(&mut self, ui: &mut UserInterface<M, C>) {
+        if let Some(selection) = self.selection.as_ref() {
+            if let Selection::Keys { keys } = selection {
+                let mut new_keys = Vec::new();
+                for (i, key) in self.keys.iter().enumerate() {
+                    if !keys.contains(&i) {
+                        new_keys.push(key.clone());
+                    }
+                }
+                self.keys = new_keys;
+
+                self.set_selection(None, ui);
+
+                // Send modified curve back to user.
+                self.send_curve(ui);
+            }
+        }
+    }
+
+    fn change_selected_keys_kind(&mut self, kind: CurveKeyKind, ui: &mut UserInterface<M, C>) {
+        if let Some(selection) = self.selection.as_ref() {
+            if let Selection::Keys { keys } = selection {
+                for key in keys {
+                    self.keys[*key].kind = kind.clone();
+                }
+
+                self.send_curve(ui);
+            }
+        }
     }
 
     /// `pos` must be in screen space.
@@ -673,8 +797,65 @@ impl<M: MessageData, C: Control<M, C>> CurveEditorBuilder<M, C> {
             .map(CurveKeyView::from)
             .collect::<Vec<_>>();
 
+        let add_key;
+        let remove;
+        let make_constant;
+        let make_linear;
+        let make_cubic;
+        let key;
+        let context_menu = PopupBuilder::new(WidgetBuilder::new())
+            .with_content(
+                StackPanelBuilder::new(
+                    WidgetBuilder::new()
+                        .with_child({
+                            add_key = MenuItemBuilder::new(WidgetBuilder::new())
+                                .with_content(MenuItemContent::text("Add Key"))
+                                .build(ctx);
+                            add_key
+                        })
+                        .with_child({
+                            remove = MenuItemBuilder::new(WidgetBuilder::new().with_enabled(false))
+                                .with_content(MenuItemContent::text("Remove"))
+                                .build(ctx);
+                            remove
+                        })
+                        .with_child({
+                            key = MenuItemBuilder::new(WidgetBuilder::new().with_enabled(false))
+                                .with_content(MenuItemContent::text("Key..."))
+                                .with_items(vec![
+                                    {
+                                        make_constant = MenuItemBuilder::new(WidgetBuilder::new())
+                                            .with_content(MenuItemContent::text("Constant"))
+                                            .build(ctx);
+                                        make_constant
+                                    },
+                                    {
+                                        make_linear = MenuItemBuilder::new(WidgetBuilder::new())
+                                            .with_content(MenuItemContent::text("Linear"))
+                                            .build(ctx);
+                                        make_linear
+                                    },
+                                    {
+                                        make_cubic = MenuItemBuilder::new(WidgetBuilder::new())
+                                            .with_content(MenuItemContent::text("Cubic"))
+                                            .build(ctx);
+                                        make_cubic
+                                    },
+                                ])
+                                .build(ctx);
+                            key
+                        }),
+                )
+                .build(ctx),
+            )
+            .build(ctx);
+
         let editor = CurveEditor {
-            widget: self.widget_builder.build(),
+            widget: self
+                .widget_builder
+                .with_context_menu(context_menu)
+                .with_preview_messages(true)
+                .build(),
             keys,
             zoom: 1.0,
             view_position: Default::default(),
@@ -688,6 +869,15 @@ impl<M: MessageData, C: Control<M, C>> CurveEditorBuilder<M, C> {
             operation_context: None,
             grid_brush: Brush::Solid(Color::from_rgba(130, 130, 130, 50)),
             selection: None,
+            context_menu: ContextMenu {
+                widget: context_menu,
+                add_key,
+                remove,
+                make_constant,
+                make_linear,
+                make_cubic,
+                key,
+            },
         };
 
         ctx.add_node(UINode::CurveEditor(editor))

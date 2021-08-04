@@ -18,7 +18,7 @@ use crate::{
     core::{
         algebra::{Vector2, Vector3},
         color::{Color, Hsv},
-        curve::Curve,
+        curve::{Curve, CurveKeyKind},
         pool::Handle,
     },
     dock::{SplitDirection, TileContent},
@@ -904,12 +904,24 @@ pub enum CurveEditorMessage {
     Sync(Curve),
     ViewPosition(Vector2<f32>),
     Zoom(f32),
+
+    // Internal messages. Use only when you know what you're doing.
+    // These are internal because you must use Sync message to request changes
+    // in the curve editor.
+    ChangeSelectedKeysKind(CurveKeyKind),
+    RemoveSelection,
+    // Position in screen coordinates.
+    AddKey(Vector2<f32>),
 }
 
 impl CurveEditorMessage {
     define_constructor_unbound!(CurveEditor(CurveEditorMessage:Sync) => fn sync(Curve), layout: false);
     define_constructor_unbound!(CurveEditor(CurveEditorMessage:ViewPosition) => fn view_position(Vector2<f32>), layout: false);
     define_constructor_unbound!(CurveEditor(CurveEditorMessage:Zoom) => fn zoom(f32), layout: false);
+    // Internal. Use only when you know what you're doing.
+    define_constructor_unbound!(CurveEditor(CurveEditorMessage:RemoveSelection) => fn remove_selection(), layout: false);
+    define_constructor_unbound!(CurveEditor(CurveEditorMessage:ChangeSelectedKeysKind) => fn change_selected_keys_kind(CurveKeyKind), layout: false);
+    define_constructor_unbound!(CurveEditor(CurveEditorMessage:AddKey) => fn add_key(Vector2<f32>), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq)]

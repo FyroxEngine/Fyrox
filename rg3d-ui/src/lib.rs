@@ -477,7 +477,7 @@ pub struct UserInterface<M: MessageData, C: Control<M, C>> {
 lazy_static! {
     pub static ref DEFAULT_FONT: SharedFont = {
         let font_bytes = std::include_bytes!("./built_in_font.ttf").to_vec();
-        let font = Font::from_memory(font_bytes, 20.0, Font::default_char_set()).unwrap();
+        let font = Font::from_memory(font_bytes, 16.0, Font::default_char_set()).unwrap();
         Arc::new(Mutex::new(font)).into()
     };
 }
