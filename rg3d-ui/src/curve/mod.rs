@@ -211,7 +211,12 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
                                         right_tangent,
                                     } = &mut key.kind
                                     {
-                                        let local_delta = pos - screen_key_pos;
+                                        let mut local_delta = pos - screen_key_pos;
+                                        if *left {
+                                            local_delta.x = local_delta.x.min(f32::EPSILON);
+                                        } else {
+                                            local_delta.x = local_delta.x.max(f32::EPSILON);
+                                        }
                                         let tangent =
                                             (-local_delta.y / local_delta.x).clamp(-10e6, 10e6);
 
@@ -301,12 +306,10 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
                                                 Selection::Keys { keys } => {
                                                     if ui.keyboard_modifiers().control {
                                                         keys.insert(picked_key);
-                                                    } else {
-                                                        if !keys.contains(&picked_key) {
-                                                            self.selection = Some(
-                                                                Selection::single_key(picked_key),
-                                                            );
-                                                        }
+                                                    }
+                                                    if !keys.contains(&picked_key) {
+                                                        self.selection =
+                                                            Some(Selection::single_key(picked_key));
                                                     }
                                                 }
                                                 Selection::LeftTangent { .. }
@@ -361,7 +364,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
                             self.keys = curve
                                 .keys()
                                 .iter()
-                                .map(|k| CurveKeyView::from(k))
+                                .map(CurveKeyView::from)
                                 .collect::<Vec<_>>();
                         }
                         CurveEditorMessage::ViewPosition(view_position) => {
@@ -375,6 +378,25 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
                 _ => {}
             }
         }
+    }
+}
+
+fn draw_cubic(
+    left_pos: Vector2<f32>,
+    left_tangent: f32,
+    right_pos: Vector2<f32>,
+    right_tangent: f32,
+    steps: usize,
+    ctx: &mut DrawingContext,
+) {
+    let mut prev = left_pos;
+    for i in 0..steps {
+        let t = i as f32 / (steps - 1) as f32;
+        let middle_x = lerpf(left_pos.x, right_pos.x, t);
+        let middle_y = cubicf(left_pos.y, right_pos.y, t, left_tangent, right_tangent);
+        let pt = Vector2::new(middle_x, middle_y);
+        ctx.push_line(prev, pt, 1.0);
+        prev = pt;
     }
 }
 
@@ -442,28 +464,26 @@ impl<M: MessageData, C: Control<M, C>> CurveEditor<M, C> {
             }
 
             // Check tangents.
-            match key.kind {
-                CurveKeyKind::Cubic {
-                    left_tangent,
-                    right_tangent,
-                } => {
-                    let left_handle_pos = self.tangent_screen_position(
-                        wrap_angle(left_tangent.atan()) + std::f32::consts::PI,
-                        key.position,
-                    );
+            if let CurveKeyKind::Cubic {
+                left_tangent,
+                right_tangent,
+            } = key.kind
+            {
+                let left_handle_pos = self.tangent_screen_position(
+                    wrap_angle(left_tangent.atan()) + std::f32::consts::PI,
+                    key.position,
+                );
 
-                    if (left_handle_pos - pos).norm() <= self.key_size * 0.5 {
-                        return Some(PickResult::LeftTangent(i));
-                    }
-
-                    let right_handle_pos = self
-                        .tangent_screen_position(wrap_angle(right_tangent.atan()), key.position);
-
-                    if (right_handle_pos - pos).norm() <= self.key_size * 0.5 {
-                        return Some(PickResult::RightTangent(i));
-                    }
+                if (left_handle_pos - pos).norm() <= self.key_size * 0.5 {
+                    return Some(PickResult::LeftTangent(i));
                 }
-                _ => (),
+
+                let right_handle_pos =
+                    self.tangent_screen_position(wrap_angle(right_tangent.atan()), key.position);
+
+                if (right_handle_pos - pos).norm() <= self.key_size * 0.5 {
+                    return Some(PickResult::RightTangent(i));
+                }
             }
         }
         None
@@ -536,28 +556,58 @@ impl<M: MessageData, C: Control<M, C>> CurveEditor<M, C> {
             let left_pos = self.point_to_screen_space(left.position);
             let right_pos = self.point_to_screen_space(right.position);
 
-            match left.kind {
-                CurveKeyKind::Constant => {
+            let steps = ((right_pos.x - left_pos.x).abs() / 2.0) as usize;
+
+            match (&left.kind, &right.kind) {
+                // Constant-to-any is depicted as two straight lines.
+                (CurveKeyKind::Constant, CurveKeyKind::Constant)
+                | (CurveKeyKind::Constant, CurveKeyKind::Linear)
+                | (CurveKeyKind::Constant, CurveKeyKind::Cubic { .. }) => {
                     ctx.push_line(left_pos, Vector2::new(right_pos.x, left_pos.y), 1.0);
                     ctx.push_line(Vector2::new(right_pos.x, left_pos.y), right_pos, 1.0);
                 }
-                CurveKeyKind::Linear => ctx.push_line(left_pos, right_pos, 1.0),
-                CurveKeyKind::Cubic {
-                    left_tangent,
-                    right_tangent,
-                } => {
-                    let steps = ((right_pos.x - left_pos.x).abs() / 2.0) as usize;
-                    let mut prev = left_pos;
-                    for i in 0..steps {
-                        let t = i as f32 / (steps - 1) as f32;
-                        let middle_x = lerpf(left_pos.x, right_pos.x, t);
-                        let middle_y =
-                            cubicf(left_pos.y, right_pos.y, t, left_tangent, right_tangent);
-                        let pt = Vector2::new(middle_x, middle_y);
-                        ctx.push_line(prev, pt, 1.0);
-                        prev = pt;
-                    }
+
+                // Linear-to-any is depicted as a straight line.
+                (CurveKeyKind::Linear, CurveKeyKind::Constant)
+                | (CurveKeyKind::Linear, CurveKeyKind::Linear)
+                | (CurveKeyKind::Linear, CurveKeyKind::Cubic { .. }) => {
+                    ctx.push_line(left_pos, right_pos, 1.0)
                 }
+
+                // Cubic-to-constant and cubic-to-linear is depicted as Hermite spline with right tangent == 0.0.
+                (
+                    CurveKeyKind::Cubic {
+                        right_tangent: left_tangent,
+                        ..
+                    },
+                    CurveKeyKind::Constant,
+                )
+                | (
+                    CurveKeyKind::Cubic {
+                        right_tangent: left_tangent,
+                        ..
+                    },
+                    CurveKeyKind::Linear,
+                ) => draw_cubic(left_pos, *left_tangent, right_pos, 0.0, steps, ctx),
+
+                // Cubic-to-cubic is depicted as Hermite spline.
+                (
+                    CurveKeyKind::Cubic {
+                        right_tangent: left_tangent,
+                        ..
+                    },
+                    CurveKeyKind::Cubic {
+                        left_tangent: right_tangent,
+                        ..
+                    },
+                ) => draw_cubic(
+                    left_pos,
+                    *left_tangent,
+                    right_pos,
+                    *right_tangent,
+                    steps,
+                    ctx,
+                ),
             }
         }
         ctx.commit(screen_bounds, self.foreground(), CommandTexture::None, None);

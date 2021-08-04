@@ -65,13 +65,48 @@ impl CurveKey {
     }
 
     pub fn interpolate(&self, other: &Self, t: f32) -> f32 {
-        match self.kind {
-            CurveKeyKind::Constant => stepf(self.value, other.value, t),
-            CurveKeyKind::Linear => lerpf(self.value, other.value, t),
-            CurveKeyKind::Cubic {
-                left_tangent,
-                right_tangent,
-            } => cubicf(self.value, other.value, t, left_tangent, right_tangent),
+        match (&self.kind, &other.kind) {
+            // Constant-to-any
+            (CurveKeyKind::Constant, CurveKeyKind::Constant)
+            | (CurveKeyKind::Constant, CurveKeyKind::Linear)
+            | (CurveKeyKind::Constant, CurveKeyKind::Cubic { .. }) => {
+                stepf(self.value, other.value, t)
+            }
+
+            // Linear-to-any
+            (CurveKeyKind::Linear, CurveKeyKind::Constant)
+            | (CurveKeyKind::Linear, CurveKeyKind::Linear)
+            | (CurveKeyKind::Linear, CurveKeyKind::Cubic { .. }) => {
+                lerpf(self.value, other.value, t)
+            }
+
+            // Cubic-to-constant or cubic-to-linear
+            (
+                CurveKeyKind::Cubic {
+                    right_tangent: left_tangent,
+                    ..
+                },
+                CurveKeyKind::Constant,
+            )
+            | (
+                CurveKeyKind::Cubic {
+                    right_tangent: left_tangent,
+                    ..
+                },
+                CurveKeyKind::Linear,
+            ) => cubicf(self.value, other.value, t, *left_tangent, 0.0),
+
+            // Cubic-to-cubic
+            (
+                CurveKeyKind::Cubic {
+                    right_tangent: left_tangent,
+                    ..
+                },
+                CurveKeyKind::Cubic {
+                    left_tangent: right_tangent,
+                    ..
+                },
+            ) => cubicf(self.value, other.value, t, *left_tangent, *right_tangent),
         }
     }
 }
