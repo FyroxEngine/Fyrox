@@ -1,4 +1,5 @@
 use crate::core::algebra::Vector3;
+use crate::message::KeyCode;
 use crate::{
     brush::Brush,
     core::{
@@ -181,6 +182,25 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
         if message.destination() == self.handle {
             match message.data() {
                 UiMessageData::Widget(msg) => match msg {
+                    WidgetMessage::KeyUp(key) => {
+                        if let KeyCode::Delete = key {
+                            if let Some(selection) = self.selection.as_ref() {
+                                if let Selection::Keys { keys } = selection {
+                                    let mut new_keys = Vec::new();
+                                    for (i, key) in self.keys.iter().enumerate() {
+                                        if !keys.contains(&i) {
+                                            new_keys.push(key.clone());
+                                        }
+                                    }
+                                    self.keys = new_keys;
+                                    self.selection = None;
+
+                                    // Send modified curve back to user.
+                                    self.send_curve(ui);
+                                }
+                            }
+                        }
+                    }
                     WidgetMessage::MouseMove { pos, state } => {
                         let local_mouse_pos = self.point_to_local_space(*pos);
                         if let Some(operation_context) = self.operation_context.as_ref() {
@@ -274,24 +294,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
                             if let OperationContext::DragKeys { .. }
                             | OperationContext::DragTangent { .. } = context
                             {
-                                let curve = Curve::from(
-                                    self.keys
-                                        .iter()
-                                        .map(|k| {
-                                            CurveKey::new(
-                                                k.position.x,
-                                                k.position.y,
-                                                k.kind.clone(),
-                                            )
-                                        })
-                                        .collect::<Vec<_>>(),
-                                );
-
-                                ui.send_message(CurveEditorMessage::sync(
-                                    self.handle,
-                                    MessageDirection::FromWidget,
-                                    curve,
-                                ));
+                                self.send_curve(ui);
                             }
                         }
                     }
@@ -498,6 +501,21 @@ impl<M: MessageData, C: Control<M, C>> CurveEditor<M, C> {
     fn tangent_screen_position(&self, angle: f32, key_position: Vector2<f32>) -> Vector2<f32> {
         self.point_to_screen_space(key_position)
             + Vector2::new(angle.cos(), -angle.sin()).scale(self.handle_radius)
+    }
+
+    fn send_curve(&self, ui: &UserInterface<M, C>) {
+        let curve = Curve::from(
+            self.keys
+                .iter()
+                .map(|k| CurveKey::new(k.position.x, k.position.y, k.kind.clone()))
+                .collect::<Vec<_>>(),
+        );
+
+        ui.send_message(CurveEditorMessage::sync(
+            self.handle,
+            MessageDirection::FromWidget,
+            curve,
+        ));
     }
 
     // TODO: Fix.
