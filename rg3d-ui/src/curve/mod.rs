@@ -1,3 +1,4 @@
+use crate::core::algebra::Vector3;
 use crate::{
     brush::Brush,
     core::{
@@ -439,6 +440,11 @@ impl<M: MessageData, C: Control<M, C>> CurveEditor<M, C> {
             .coords
     }
 
+    /// Transforms a vector to screen space.
+    pub fn vector_to_screen_space(&self, vector: Vector2<f32>) -> Vector2<f32> {
+        (self.screen_matrix.get() * Vector3::new(vector.x, vector.y, 0.0)).xy()
+    }
+
     /// Transforms a point to local space.
     pub fn point_to_local_space(&self, point: Vector2<f32>) -> Vector2<f32> {
         self.inv_screen_matrix
@@ -490,13 +496,8 @@ impl<M: MessageData, C: Control<M, C>> CurveEditor<M, C> {
     }
 
     fn tangent_screen_position(&self, angle: f32, key_position: Vector2<f32>) -> Vector2<f32> {
-        self.point_to_screen_space(
-            key_position
-                + Vector2::new(
-                    angle.cos() * self.handle_radius,
-                    angle.sin() * self.handle_radius,
-                ),
-        )
+        self.point_to_screen_space(key_position)
+            + Vector2::new(angle.cos(), -angle.sin()).scale(self.handle_radius)
     }
 
     // TODO: Fix.
