@@ -240,7 +240,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
                                             local_delta.x = local_delta.x.max(f32::EPSILON);
                                         }
                                         let tangent =
-                                            (-local_delta.y / local_delta.x).clamp(-10e6, 10e6);
+                                            (local_delta.y / local_delta.x).clamp(-10e6, 10e6);
 
                                         if *left {
                                             *left_tangent = tangent;
@@ -624,7 +624,7 @@ impl<M: MessageData, C: Control<M, C>> CurveEditor<M, C> {
 
     fn tangent_screen_position(&self, angle: f32, key_position: Vector2<f32>) -> Vector2<f32> {
         self.point_to_screen_space(key_position)
-            + Vector2::new(angle.cos(), -angle.sin()).scale(self.handle_radius)
+            + Vector2::new(angle.cos(), angle.sin()).scale(self.handle_radius)
     }
 
     fn send_curve(&self, ui: &UserInterface<M, C>) {
