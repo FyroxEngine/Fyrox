@@ -329,7 +329,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
                             self.change_selected_keys_kind(kind.clone(), ui);
                         }
                         CurveEditorMessage::AddKey(screen_pos) => {
-                            let local_pos = self.point_to_local_space(*screen_pos);
+                            let local_pos = dbg!(self.point_to_local_space(*screen_pos));
                             self.keys.push(CurveKeyView {
                                 position: local_pos,
                                 kind: CurveKeyKind::Linear,
@@ -450,9 +450,13 @@ impl<M: MessageData, C: Control<M, C>> CurveEditor<M, C> {
 
     /// Transforms a point to local space.
     pub fn point_to_local_space(&self, point: Vector2<f32>) -> Vector2<f32> {
-        self.inv_screen_matrix
+        let mut p = point - self.screen_position();
+        p.y = self.actual_size().y - p.y;
+        self.view_matrix
             .get()
-            .transform_point(&Point2::from(point))
+            .try_inverse()
+            .unwrap_or_default()
+            .transform_point(&Point2::from(p))
             .coords
     }
 
