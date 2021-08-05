@@ -6,6 +6,7 @@ use crate::{
         curve::{Curve, CurveKey, CurveKeyKind},
         math::{cubicf, lerpf, wrap_angle, Rect},
         pool::Handle,
+        uuid::Uuid,
     },
     curve::key::CurveKeyView,
     draw::{CommandTexture, Draw, DrawingContext},
@@ -19,7 +20,6 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UINode, UserInterface,
 };
-use rg3d_core::uuid::Uuid;
 use std::{
     cell::Cell,
     cmp::Ordering,
@@ -116,75 +116,10 @@ impl Selection {
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
     fn draw(&self, ctx: &mut DrawingContext) {
         self.update_matrices();
-
-        let screen_bounds = self.screen_bounds();
-        // Draw background.
-        ctx.push_rect_filled(&screen_bounds, None);
-        ctx.commit(screen_bounds, self.background(), CommandTexture::None, None);
-
+        self.draw_background(ctx);
         self.draw_grid(ctx);
         self.draw_curve(ctx);
-
-        // Draw keys.
-        for (i, key) in self.keys.iter().enumerate() {
-            let origin = self.point_to_screen_space(key.position);
-            let size = Vector2::new(self.key_size, self.key_size);
-            let half_size = size.scale(0.5);
-
-            ctx.push_rect_filled(
-                &Rect::new(
-                    origin.x - half_size.x,
-                    origin.y - half_size.x,
-                    size.x,
-                    size.y,
-                ),
-                None,
-            );
-
-            let mut selected = false;
-            if let Some(selection) = self.selection.as_ref() {
-                match selection {
-                    Selection::Keys { keys } => {
-                        selected = keys.contains(&i);
-                    }
-                    Selection::LeftTangent { key } | Selection::RightTangent { key } => {
-                        selected = i == *key;
-                    }
-                }
-            }
-
-            // Show tangents for Cubic keys.
-            if selected {
-                if let CurveKeyKind::Cubic {
-                    left_tangent,
-                    right_tangent,
-                } = key.kind
-                {
-                    let left_handle_pos = self.tangent_screen_position(
-                        wrap_angle(left_tangent.atan()) + std::f32::consts::PI,
-                        key.position,
-                    );
-                    ctx.push_line(origin, left_handle_pos, 1.0);
-                    ctx.push_circle(left_handle_pos, self.key_size * 0.5, 6, Default::default());
-
-                    let right_handle_pos = self
-                        .tangent_screen_position(wrap_angle(right_tangent.atan()), key.position);
-                    ctx.push_line(origin, right_handle_pos, 1.0);
-                    ctx.push_circle(right_handle_pos, self.key_size * 0.5, 6, Default::default());
-                }
-            }
-
-            ctx.commit(
-                screen_bounds,
-                if selected {
-                    self.selected_key_brush.clone()
-                } else {
-                    self.key_brush.clone()
-                },
-                CommandTexture::None,
-                None,
-            );
-        }
+        self.draw_keys(ctx);
     }
 
     fn handle_routed_message(
@@ -642,6 +577,13 @@ impl<M: MessageData, C: Control<M, C>> CurveEditor<M, C> {
         ));
     }
 
+    fn draw_background(&self, ctx: &mut DrawingContext) {
+        let screen_bounds = self.screen_bounds();
+        // Draw background.
+        ctx.push_rect_filled(&screen_bounds, None);
+        ctx.commit(screen_bounds, self.background(), CommandTexture::None, None);
+    }
+
     // TODO: Fix.
     fn draw_grid(&self, ctx: &mut DrawingContext) {
         let screen_bounds = self.screen_bounds();
@@ -754,6 +696,99 @@ impl<M: MessageData, C: Control<M, C>> CurveEditor<M, C> {
             }
         }
         ctx.commit(screen_bounds, self.foreground(), CommandTexture::None, None);
+    }
+
+    fn draw_keys(&self, ctx: &mut DrawingContext) {
+        let screen_bounds = self.screen_bounds();
+
+        for (i, key) in self.keys.iter().enumerate() {
+            let origin = self.point_to_screen_space(key.position);
+            let size = Vector2::new(self.key_size, self.key_size);
+            let half_size = size.scale(0.5);
+
+            ctx.push_rect_filled(
+                &Rect::new(
+                    origin.x - half_size.x,
+                    origin.y - half_size.x,
+                    size.x,
+                    size.y,
+                ),
+                None,
+            );
+
+            let mut selected = false;
+            if let Some(selection) = self.selection.as_ref() {
+                match selection {
+                    Selection::Keys { keys } => {
+                        selected = keys.contains(&i);
+                    }
+                    Selection::LeftTangent { key } | Selection::RightTangent { key } => {
+                        selected = i == *key;
+                    }
+                }
+            }
+
+            // Show tangents for Cubic keys.
+            if selected {
+                let (show_left, show_right) = match self.keys.get(i.wrapping_sub(1)) {
+                    Some(left) => match (&left.kind, &key.kind) {
+                        (CurveKeyKind::Cubic { .. }, CurveKeyKind::Cubic { .. }) => (true, true),
+                        (CurveKeyKind::Linear, CurveKeyKind::Cubic { .. })
+                        | (CurveKeyKind::Constant, CurveKeyKind::Cubic { .. }) => (false, true),
+                        _ => (false, false),
+                    },
+                    None => match key.kind {
+                        CurveKeyKind::Cubic { .. } => (false, true),
+                        _ => ((false, false)),
+                    },
+                };
+
+                if let CurveKeyKind::Cubic {
+                    left_tangent,
+                    right_tangent,
+                } = key.kind
+                {
+                    if show_left {
+                        let left_handle_pos = self.tangent_screen_position(
+                            wrap_angle(left_tangent.atan()) + std::f32::consts::PI,
+                            key.position,
+                        );
+                        ctx.push_line(origin, left_handle_pos, 1.0);
+                        ctx.push_circle(
+                            left_handle_pos,
+                            self.key_size * 0.5,
+                            6,
+                            Default::default(),
+                        );
+                    }
+
+                    if show_right {
+                        let right_handle_pos = self.tangent_screen_position(
+                            wrap_angle(right_tangent.atan()),
+                            key.position,
+                        );
+                        ctx.push_line(origin, right_handle_pos, 1.0);
+                        ctx.push_circle(
+                            right_handle_pos,
+                            self.key_size * 0.5,
+                            6,
+                            Default::default(),
+                        );
+                    }
+                }
+            }
+
+            ctx.commit(
+                screen_bounds,
+                if selected {
+                    self.selected_key_brush.clone()
+                } else {
+                    self.key_brush.clone()
+                },
+                CommandTexture::None,
+                None,
+            );
+        }
     }
 }
 
