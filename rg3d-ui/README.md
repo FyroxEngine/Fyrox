@@ -46,6 +46,7 @@ Retained mode, general purpose, graphics API agnostic user interface library. In
 - [x] Menu item
 - [x] Message box
 - [x] Wrap panel
+- [x] Curve editor
 - [x] User defined widget
 
 ## Limitations
