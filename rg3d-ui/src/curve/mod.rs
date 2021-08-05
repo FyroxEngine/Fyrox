@@ -1,3 +1,4 @@
+use crate::core::math::inf_sup_cubicf;
 use crate::formatted_text::{FormattedText, FormattedTextBuilder};
 use crate::{
     brush::Brush,
@@ -70,6 +71,7 @@ struct ContextMenu<M: MessageData, C: Control<M, C>> {
     make_constant: Handle<UINode<M, C>>,
     make_linear: Handle<UINode<M, C>>,
     make_cubic: Handle<UINode<M, C>>,
+    zoom_to_fit: Handle<UINode<M, C>>,
 }
 
 #[derive(Clone)]
@@ -357,6 +359,91 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
                             self.set_selection(None, ui);
                             self.sort_keys();
                         }
+                        CurveEditorMessage::ZoomToFit => {
+                            let mut max_y = -f32::MAX;
+                            let mut min_y = f32::MAX;
+                            let mut max_x = -f32::MAX;
+                            let mut min_x = f32::MAX;
+
+                            let mut push = |x: f32, y: f32| {
+                                if x > max_x {
+                                    max_x = x;
+                                }
+                                if x < min_x {
+                                    min_x = x;
+                                }
+                                if y > max_y {
+                                    max_y = y;
+                                }
+                                if y < min_y {
+                                    min_y = y;
+                                }
+                            };
+
+                            for keys in self.keys.windows(2) {
+                                let left = &keys[0];
+                                let right = &keys[1];
+                                match (&left.kind, &right.kind) {
+                                    // Cubic-to-constant and cubic-to-linear is depicted as Hermite spline with right tangent == 0.0.
+                                    (
+                                        CurveKeyKind::Cubic {
+                                            right_tangent: left_tangent,
+                                            ..
+                                        },
+                                        CurveKeyKind::Constant,
+                                    )
+                                    | (
+                                        CurveKeyKind::Cubic {
+                                            right_tangent: left_tangent,
+                                            ..
+                                        },
+                                        CurveKeyKind::Linear,
+                                    ) => {
+                                        let (y0, y1) = inf_sup_cubicf(
+                                            left.position.y,
+                                            right.position.y,
+                                            *left_tangent,
+                                            0.0,
+                                        );
+                                        push(left.position.x, y0);
+                                        push(right.position.x, y1);
+                                    }
+
+                                    // Cubic-to-cubic is depicted as Hermite spline.
+                                    (
+                                        CurveKeyKind::Cubic {
+                                            right_tangent: left_tangent,
+                                            ..
+                                        },
+                                        CurveKeyKind::Cubic {
+                                            left_tangent: right_tangent,
+                                            ..
+                                        },
+                                    ) => {
+                                        let (y0, y1) = inf_sup_cubicf(
+                                            left.position.y,
+                                            right.position.y,
+                                            *left_tangent,
+                                            *right_tangent,
+                                        );
+                                        push(left.position.x, y0);
+                                        push(right.position.x, y1);
+                                    }
+                                    _ => {
+                                        push(left.position.x, left.position.y);
+                                        push(right.position.x, right.position.y);
+                                    }
+                                }
+                            }
+
+                            let min = Vector2::new(min_x, min_y);
+                            let max = Vector2::new(max_x, max_y);
+                            let center = (min + max).scale(0.5);
+
+                            let mut offset = self.actual_size().scale(0.5 * self.zoom);
+                            offset.y *= -1.0;
+                            self.view_position = center + offset;
+                        }
                     }
                 }
                 _ => {}
@@ -398,6 +485,11 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
                     self.handle,
                     MessageDirection::ToWidget,
                     screen_pos,
+                ));
+            } else if message.destination() == self.context_menu.zoom_to_fit {
+                ui.send_message(CurveEditorMessage::zoom_to_fit(
+                    self.handle,
+                    MessageDirection::ToWidget,
                 ));
             }
         }
@@ -918,6 +1010,7 @@ impl<M: MessageData, C: Control<M, C>> CurveEditorBuilder<M, C> {
         let make_linear;
         let make_cubic;
         let key;
+        let zoom_to_fit;
         let context_menu = PopupBuilder::new(WidgetBuilder::new())
             .with_content(
                 StackPanelBuilder::new(
@@ -959,6 +1052,12 @@ impl<M: MessageData, C: Control<M, C>> CurveEditorBuilder<M, C> {
                                 ])
                                 .build(ctx);
                             key
+                        })
+                        .with_child({
+                            zoom_to_fit = MenuItemBuilder::new(WidgetBuilder::new())
+                                .with_content(MenuItemContent::text("Zoom To Fit"))
+                                .build(ctx);
+                            zoom_to_fit
                         }),
                 )
                 .build(ctx),
@@ -1003,6 +1102,7 @@ impl<M: MessageData, C: Control<M, C>> CurveEditorBuilder<M, C> {
                 make_linear,
                 make_cubic,
                 key,
+                zoom_to_fit,
             },
         };
 

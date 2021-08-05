@@ -416,6 +416,32 @@ pub fn cubicf(p0: f32, p1: f32, t: f32, m0: f32, m1: f32) -> f32 {
         + (t3 - t2) * m1 * scale
 }
 
+pub fn cubicf_derivative(p0: f32, p1: f32, t: f32, m0: f32, m1: f32) -> f32 {
+    let t2 = t * t;
+    let scale = (p1 - p0).abs();
+
+    (6.0 * t2 - 6.0 * t) * p0
+        + (3.0 * t2 - 4.0 * t + 1.0) * m0 * scale
+        + (6.0 * t - 6.0 * t2) * p1
+        + (3.0 * t2 - 2.0 * t) * m1 * scale
+}
+
+pub fn inf_sup_cubicf(p0: f32, p1: f32, m0: f32, m1: f32) -> (f32, f32) {
+    // Find two `t`s where derivative of cubicf is zero - these will be
+    // extreme points of the spline. Then get the values at those `t`s
+    let d = -(9.0 * p0 * p0 + 6.0 * p0 * (-3.0 * p1 + m1 + m0) + 9.0 * p1 * p1
+        - 6.0 * p1 * (m1 + m0)
+        + m1 * m1
+        + m1 * m0
+        + m0 * m0)
+        .sqrt();
+    let k = 3.0 * (2.0 * p0 - 2.0 * p1 + m1 + m0);
+    let v = 3.0 * p0 - 3.0 * p1 + m1 + 2.0 * m0;
+    let t0 = (-d + v) / k;
+    let t1 = (d + v) / k;
+    (cubicf(p0, p1, t0, m0, m1), cubicf(p0, p1, t1, m0, m1))
+}
+
 pub fn get_farthest_point(points: &[Vector3<f32>], dir: Vector3<f32>) -> Vector3<f32> {
     let mut n_farthest = 0;
     let mut max_dot = -f32::MAX;
