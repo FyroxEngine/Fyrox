@@ -95,6 +95,12 @@ enum OperationContext {
         key: usize,
         left: bool,
     },
+    BoxSelection {
+        // In local coordinates.
+        initial_mouse_pos: Vector2<f32>,
+        min: Cell<Vector2<f32>>,
+        max: Cell<Vector2<f32>>,
+    },
 }
 
 #[derive(Clone)]
@@ -135,6 +141,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
         self.draw_grid(ctx);
         self.draw_curve(ctx);
         self.draw_keys(ctx);
+        self.draw_operation(ctx);
     }
 
     fn handle_routed_message(
@@ -202,56 +209,98 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
                                         )
                                     }
                                 }
-                            }
-                        } else if let Some(selection) = self.selection.as_ref() {
-                            if state.left == ButtonState::Pressed {
-                                match selection {
-                                    Selection::Keys { keys } => {
-                                        self.operation_context = Some(OperationContext::DragKeys {
-                                            entries: keys
-                                                .iter()
-                                                .map(|k| DragEntry {
-                                                    key: *k,
-                                                    initial_position: self.keys[*k].position,
-                                                })
-                                                .collect::<Vec<_>>(),
-                                            initial_mouse_pos: local_mouse_pos,
-                                        });
-                                    }
-                                    Selection::LeftTangent { key } => {
-                                        self.operation_context =
-                                            Some(OperationContext::DragTangent {
-                                                key: *key,
-                                                left: true,
-                                            })
-                                    }
-                                    Selection::RightTangent { key } => {
-                                        self.operation_context =
-                                            Some(OperationContext::DragTangent {
-                                                key: *key,
-                                                left: false,
-                                            })
-                                    }
+                                OperationContext::BoxSelection {
+                                    initial_mouse_pos,
+                                    min,
+                                    max,
+                                    ..
+                                } => {
+                                    min.set(local_mouse_pos.inf(initial_mouse_pos));
+                                    max.set(local_mouse_pos.sup(initial_mouse_pos));
                                 }
+                            }
+                        } else {
+                            if state.left == ButtonState::Pressed {
+                                if let Some(selection) = self.selection.as_ref() {
+                                    match selection {
+                                        Selection::Keys { keys } => {
+                                            self.operation_context =
+                                                Some(OperationContext::DragKeys {
+                                                    entries: keys
+                                                        .iter()
+                                                        .map(|k| DragEntry {
+                                                            key: *k,
+                                                            initial_position: self.keys[*k]
+                                                                .position,
+                                                        })
+                                                        .collect::<Vec<_>>(),
+                                                    initial_mouse_pos: local_mouse_pos,
+                                                });
+                                        }
+                                        Selection::LeftTangent { key } => {
+                                            self.operation_context =
+                                                Some(OperationContext::DragTangent {
+                                                    key: *key,
+                                                    left: true,
+                                                })
+                                        }
+                                        Selection::RightTangent { key } => {
+                                            self.operation_context =
+                                                Some(OperationContext::DragTangent {
+                                                    key: *key,
+                                                    left: false,
+                                                })
+                                        }
+                                    }
 
-                                if self.operation_context.is_some() {
-                                    ui.capture_mouse(self.handle);
+                                    if self.operation_context.is_some() {
+                                        ui.capture_mouse(self.handle);
+                                    }
+                                } else {
+                                    self.operation_context = Some(OperationContext::BoxSelection {
+                                        initial_mouse_pos: local_mouse_pos,
+                                        min: Default::default(),
+                                        max: Default::default(),
+                                    })
                                 }
                             }
                         }
                     }
-                    WidgetMessage::MouseUp { .. } => {
+                    WidgetMessage::MouseUp { pos, .. } => {
                         if let Some(context) = self.operation_context.take() {
                             ui.release_mouse_capture();
 
                             // Send modified curve back to user.
-                            if let OperationContext::DragKeys { .. }
-                            | OperationContext::DragTangent { .. } = context
-                            {
-                                // Ensure that the order of keys is correct.
-                                self.sort_keys();
+                            match context {
+                                OperationContext::DragKeys { .. }
+                                | OperationContext::DragTangent { .. } => {
+                                    // Ensure that the order of keys is correct.
+                                    self.sort_keys();
 
-                                self.send_curve(ui);
+                                    self.send_curve(ui);
+                                }
+                                OperationContext::BoxSelection { min, max, .. } => {
+                                    let min = min.get();
+                                    let max = max.get();
+
+                                    let rect =
+                                        Rect::new(min.x, min.y, max.x - min.x, max.y - min.y);
+
+                                    let mut selection = HashSet::default();
+                                    for (i, key) in self.keys.iter().enumerate() {
+                                        if rect.contains(key.position) {
+                                            selection.insert(i);
+                                        }
+                                    }
+
+                                    if !selection.is_empty() {
+                                        self.set_selection(
+                                            Some(Selection::Keys { keys: selection }),
+                                            ui,
+                                        );
+                                    }
+                                }
+                                _ => {}
                             }
                         }
                     }
@@ -960,6 +1009,24 @@ impl<M: MessageData, C: Control<M, C>> CurveEditor<M, C> {
                 CommandTexture::None,
                 None,
             );
+        }
+    }
+
+    fn draw_operation(&self, ctx: &mut DrawingContext) {
+        if let Some(op) = self.operation_context.as_ref() {
+            if let OperationContext::BoxSelection { min, max, .. } = op {
+                let min = self.point_to_screen_space(min.get());
+                let max = self.point_to_screen_space(max.get());
+                let rect = Rect::new(min.x, min.y, max.x - min.x, max.y - min.y);
+
+                ctx.push_rect(&rect, 1.0);
+                ctx.commit(
+                    self.screen_bounds(),
+                    Brush::Solid(Color::WHITE),
+                    CommandTexture::None,
+                    None,
+                );
+            }
         }
     }
 }
