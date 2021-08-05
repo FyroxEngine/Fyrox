@@ -1,3 +1,4 @@
+use crate::formatted_text::{FormattedText, FormattedTextBuilder};
 use crate::{
     brush::Brush,
     core::{
@@ -20,6 +21,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UINode, UserInterface,
 };
+use std::cell::RefCell;
 use std::{
     cell::Cell,
     cmp::Ordering,
@@ -33,6 +35,7 @@ pub mod key;
 pub struct CurveEditor<M: MessageData, C: Control<M, C>> {
     widget: Widget<M, C>,
     keys: Vec<CurveKeyView>,
+    draw_keys: RefCell<Vec<CurveKeyView>>,
     zoom: f32,
     view_position: Vector2<f32>,
     // Transforms a point from local to view coordinates.
@@ -53,6 +56,7 @@ pub struct CurveEditor<M: MessageData, C: Control<M, C>> {
     selection: Option<Selection>,
     handle_radius: f32,
     context_menu: ContextMenu<M, C>,
+    text: FormattedText,
 }
 
 crate::define_widget_deref!(CurveEditor<M, C>);
@@ -115,6 +119,15 @@ impl Selection {
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
     fn draw(&self, ctx: &mut DrawingContext) {
+        // We use separate array for drawing which syncs with main array of keys.
+        // This is needed to be able to sort keys by their location while
+        // preserve original keys location in memory.
+        let mut draw_keys = self.draw_keys.borrow_mut();
+        draw_keys.clear();
+        draw_keys.extend_from_slice(&self.keys);
+        sort_keys(&mut draw_keys);
+        drop(draw_keys);
+
         self.update_matrices();
         self.draw_background(ctx);
         self.draw_grid(ctx);
@@ -145,8 +158,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
                                     entries,
                                     initial_mouse_pos,
                                 } => {
-                                    let mut local_delta = local_mouse_pos - initial_mouse_pos;
-                                    local_delta.y *= -1.0;
+                                    let local_delta = local_mouse_pos - initial_mouse_pos;
                                     for entry in entries {
                                         let key = &mut self.keys[entry.key];
                                         key.position = entry.initial_position + local_delta;
@@ -219,6 +231,10 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
                                             })
                                     }
                                 }
+
+                                if self.operation_context.is_some() {
+                                    ui.capture_mouse(self.handle);
+                                }
                             }
                         }
                     }
@@ -230,6 +246,9 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
                             if let OperationContext::DragKeys { .. }
                             | OperationContext::DragTangent { .. } = context
                             {
+                                // Ensure that the order of keys is correct.
+                                self.sort_keys();
+
                                 self.send_curve(ui);
                             }
                         }
@@ -329,7 +348,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
                             self.change_selected_keys_kind(kind.clone(), ui);
                         }
                         CurveEditorMessage::AddKey(screen_pos) => {
-                            let local_pos = dbg!(self.point_to_local_space(*screen_pos));
+                            let local_pos = self.point_to_local_space(*screen_pos);
                             self.keys.push(CurveKeyView {
                                 position: local_pos,
                                 kind: CurveKeyKind::Linear,
@@ -404,6 +423,22 @@ fn draw_cubic(
     }
 }
 
+fn sort_keys(keys: &mut Vec<CurveKeyView>) {
+    keys.sort_by(|a, b| {
+        if a.position.x < b.position.x {
+            Ordering::Less
+        } else if a.position.x > b.position.x {
+            Ordering::Greater
+        } else {
+            Ordering::Equal
+        }
+    })
+}
+
+fn round_to_step(x: f32, step: f32) -> f32 {
+    x - x % step
+}
+
 impl<M: MessageData, C: Control<M, C>> CurveEditor<M, C> {
     fn update_matrices(&self) {
         let vp = Vector2::new(self.view_position.x, -self.view_position.y);
@@ -461,15 +496,7 @@ impl<M: MessageData, C: Control<M, C>> CurveEditor<M, C> {
     }
 
     fn sort_keys(&mut self) {
-        self.keys.sort_by(|a, b| {
-            if a.position.x < b.position.x {
-                Ordering::Less
-            } else if a.position.x > b.position.x {
-                Ordering::Greater
-            } else {
-                Ordering::Equal
-            }
-        })
+        sort_keys(&mut self.keys);
     }
 
     fn set_selection(&mut self, selection: Option<Selection>, ui: &UserInterface<M, C>) {
@@ -588,32 +615,54 @@ impl<M: MessageData, C: Control<M, C>> CurveEditor<M, C> {
         ctx.commit(screen_bounds, self.background(), CommandTexture::None, None);
     }
 
-    // TODO: Fix.
     fn draw_grid(&self, ctx: &mut DrawingContext) {
         let screen_bounds = self.screen_bounds();
 
-        // Draw grid.
-        let local_left_bottom = Point2::new(0.0, 0.0).coords;
-        let local_right_top = Point2::from(self.actual_size()).coords;
-        let mut y = local_left_bottom.y;
-        while y < local_right_top.y - local_left_bottom.y {
+        let step_size = 5.0;
+
+        let mut local_left_bottom = self.point_to_local_space(screen_bounds.left_top_corner());
+        local_left_bottom.x = round_to_step(local_left_bottom.x, step_size);
+        local_left_bottom.y = round_to_step(local_left_bottom.y, step_size);
+
+        let mut local_right_top = self.point_to_local_space(screen_bounds.right_bottom_corner());
+        local_right_top.x = round_to_step(local_right_top.x, step_size);
+        local_right_top.y = round_to_step(local_right_top.y, step_size);
+
+        let w = (local_right_top.x - local_left_bottom.x).abs();
+        let h = (local_right_top.y - local_left_bottom.y).abs();
+
+        let nw = ((w / step_size).ceil()) as usize;
+        let nh = ((h / step_size).ceil()) as usize;
+
+        for ny in 0..=nh {
+            let k = ny as f32 / (nh) as f32;
+            let y = local_left_bottom.y - k * h;
             ctx.push_line(
                 self.point_to_screen_space(Vector2::new(local_left_bottom.x, y)),
                 self.point_to_screen_space(Vector2::new(local_right_top.x, y)),
                 1.0,
             );
-            y += 5.0;
         }
 
-        let mut x = local_left_bottom.x;
-        while x < local_right_top.x - local_left_bottom.x {
+        for nx in 0..=nw {
+            let k = nx as f32 / (nw) as f32;
+            let x = local_left_bottom.x + k * w;
             ctx.push_line(
                 self.point_to_screen_space(Vector2::new(x, local_left_bottom.y)),
                 self.point_to_screen_space(Vector2::new(x, local_right_top.y)),
                 1.0,
             );
-            x += 5.0;
         }
+
+        // Draw main axes.
+        let vb = self.point_to_screen_space(Vector2::new(0.0, -10e6));
+        let ve = self.point_to_screen_space(Vector2::new(0.0, 10e6));
+        ctx.push_line(vb, ve, 2.0);
+
+        let hb = self.point_to_screen_space(Vector2::new(-10e6, 0.0));
+        let he = self.point_to_screen_space(Vector2::new(10e6, 0.0));
+        ctx.push_line(hb, he, 2.0);
+
         ctx.commit(
             screen_bounds,
             self.grid_brush.clone(),
@@ -624,12 +673,13 @@ impl<M: MessageData, C: Control<M, C>> CurveEditor<M, C> {
 
     fn draw_curve(&self, ctx: &mut DrawingContext) {
         let screen_bounds = self.screen_bounds();
+        let draw_keys = self.draw_keys.borrow();
 
-        if let Some(first) = self.keys.first() {
+        if let Some(first) = draw_keys.first() {
             let screen_pos = self.point_to_screen_space(first.position);
             ctx.push_line(Vector2::new(0.0, screen_pos.y), screen_pos, 1.0);
         }
-        if let Some(last) = self.keys.last() {
+        if let Some(last) = draw_keys.last() {
             let screen_pos = self.point_to_screen_space(last.position);
             ctx.push_line(
                 screen_pos,
@@ -638,7 +688,7 @@ impl<M: MessageData, C: Control<M, C>> CurveEditor<M, C> {
             );
         }
 
-        for pair in self.keys.windows(2) {
+        for pair in draw_keys.windows(2) {
             let left = &pair[0];
             let right = &pair[1];
 
@@ -704,8 +754,9 @@ impl<M: MessageData, C: Control<M, C>> CurveEditor<M, C> {
 
     fn draw_keys(&self, ctx: &mut DrawingContext) {
         let screen_bounds = self.screen_bounds();
+        let keys_to_draw = self.draw_keys.borrow();
 
-        for (i, key) in self.keys.iter().enumerate() {
+        for (i, key) in keys_to_draw.iter().enumerate() {
             let origin = self.point_to_screen_space(key.position);
             let size = Vector2::new(self.key_size, self.key_size);
             let half_size = size.scale(0.5);
@@ -734,7 +785,7 @@ impl<M: MessageData, C: Control<M, C>> CurveEditor<M, C> {
 
             // Show tangents for Cubic keys.
             if selected {
-                let (show_left, show_right) = match self.keys.get(i.wrapping_sub(1)) {
+                let (show_left, show_right) = match keys_to_draw.get(i.wrapping_sub(1)) {
                     Some(left) => match (&left.kind, &key.kind) {
                         (CurveKeyKind::Cubic { .. }, CurveKeyKind::Cubic { .. }) => (true, true),
                         (CurveKeyKind::Linear, CurveKeyKind::Cubic { .. })
@@ -828,7 +879,7 @@ impl<M: MessageData, C: Control<M, C>> CurveEditorBuilder<M, C> {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(mut self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
         let keys = self
             .curve
             .keys()
@@ -889,6 +940,10 @@ impl<M: MessageData, C: Control<M, C>> CurveEditorBuilder<M, C> {
             )
             .build(ctx);
 
+        if self.widget_builder.foreground.is_none() {
+            self.widget_builder.foreground = Some(Brush::Solid(Color::opaque(130, 130, 130)))
+        }
+
         let editor = CurveEditor {
             widget: self
                 .widget_builder
@@ -903,11 +958,15 @@ impl<M: MessageData, C: Control<M, C>> CurveEditorBuilder<M, C> {
             inv_screen_matrix: Default::default(),
             key_brush: Brush::Solid(Color::opaque(140, 140, 140)),
             selected_key_brush: Brush::Solid(Color::opaque(220, 220, 220)),
-            key_size: 7.0,
-            handle_radius: 30.0,
+            key_size: 8.0,
+            handle_radius: 36.0,
             operation_context: None,
-            grid_brush: Brush::Solid(Color::from_rgba(130, 130, 130, 50)),
+            grid_brush: Brush::Solid(Color::from_rgba(110, 110, 110, 50)),
             selection: None,
+            draw_keys: Default::default(),
+            text: FormattedTextBuilder::new()
+                .with_font(crate::DEFAULT_FONT.clone())
+                .build(),
             context_menu: ContextMenu {
                 widget: context_menu,
                 add_key,
