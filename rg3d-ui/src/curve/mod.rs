@@ -56,7 +56,7 @@ pub struct CurveEditor<M: MessageData, C: Control<M, C>> {
     selection: Option<Selection>,
     handle_radius: f32,
     context_menu: ContextMenu<M, C>,
-    text: FormattedText,
+    text: RefCell<FormattedText>,
 }
 
 crate::define_widget_deref!(CurveEditor<M, C>);
@@ -618,9 +618,10 @@ impl<M: MessageData, C: Control<M, C>> CurveEditor<M, C> {
     fn draw_grid(&self, ctx: &mut DrawingContext) {
         let screen_bounds = self.screen_bounds();
 
-        let step_size = 5.0;
+        let step_size = 40.0 / self.zoom.clamp(0.001, 1000.0);
 
         let mut local_left_bottom = self.point_to_local_space(screen_bounds.left_top_corner());
+        let local_left_bottom_n = local_left_bottom;
         local_left_bottom.x = round_to_step(local_left_bottom.x, step_size);
         local_left_bottom.y = round_to_step(local_left_bottom.y, step_size);
 
@@ -669,6 +670,30 @@ impl<M: MessageData, C: Control<M, C>> CurveEditor<M, C> {
             CommandTexture::None,
             None,
         );
+
+        // Draw values.
+        let mut text = self.text.borrow_mut();
+        for ny in 0..=nh {
+            let k = ny as f32 / (nh) as f32;
+            let y = local_left_bottom.y - k * h;
+            text.set_text(format!("{:.1}", y)).build();
+            ctx.draw_text(
+                screen_bounds,
+                self.point_to_screen_space(Vector2::new(local_left_bottom_n.x, y)),
+                &text,
+            );
+        }
+
+        for nx in 0..=nw {
+            let k = nx as f32 / (nw) as f32;
+            let x = local_left_bottom.x + k * w;
+            text.set_text(format!("{:.1}", x)).build();
+            ctx.draw_text(
+                screen_bounds,
+                self.point_to_screen_space(Vector2::new(x, 0.0)),
+                &text,
+            );
+        }
     }
 
     fn draw_curve(&self, ctx: &mut DrawingContext) {
@@ -964,9 +989,12 @@ impl<M: MessageData, C: Control<M, C>> CurveEditorBuilder<M, C> {
             grid_brush: Brush::Solid(Color::from_rgba(110, 110, 110, 50)),
             selection: None,
             draw_keys: Default::default(),
-            text: FormattedTextBuilder::new()
-                .with_font(crate::DEFAULT_FONT.clone())
-                .build(),
+            text: RefCell::new(
+                FormattedTextBuilder::new()
+                    .with_brush(Brush::Solid(Color::opaque(100, 100, 100)))
+                    .with_font(crate::DEFAULT_FONT.clone())
+                    .build(),
+            ),
             context_menu: ContextMenu {
                 widget: context_menu,
                 add_key,
