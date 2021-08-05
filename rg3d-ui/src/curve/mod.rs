@@ -759,7 +759,7 @@ impl<M: MessageData, C: Control<M, C>> CurveEditor<M, C> {
     fn draw_grid(&self, ctx: &mut DrawingContext) {
         let screen_bounds = self.screen_bounds();
 
-        let step_size = 40.0 / self.zoom.clamp(0.001, 1000.0);
+        let step_size = 50.0 / self.zoom.clamp(0.001, 1000.0);
 
         let mut local_left_bottom = self.point_to_local_space(screen_bounds.left_top_corner());
         let local_left_bottom_n = local_left_bottom;
@@ -780,8 +780,8 @@ impl<M: MessageData, C: Control<M, C>> CurveEditor<M, C> {
             let k = ny as f32 / (nh) as f32;
             let y = local_left_bottom.y - k * h;
             ctx.push_line(
-                self.point_to_screen_space(Vector2::new(local_left_bottom.x, y)),
-                self.point_to_screen_space(Vector2::new(local_right_top.x, y)),
+                self.point_to_screen_space(Vector2::new(local_left_bottom.x - step_size, y)),
+                self.point_to_screen_space(Vector2::new(local_right_top.x + step_size, y)),
                 1.0,
             );
         }
@@ -790,8 +790,8 @@ impl<M: MessageData, C: Control<M, C>> CurveEditor<M, C> {
             let k = nx as f32 / (nw) as f32;
             let x = local_left_bottom.x + k * w;
             ctx.push_line(
-                self.point_to_screen_space(Vector2::new(x, local_left_bottom.y)),
-                self.point_to_screen_space(Vector2::new(x, local_right_top.y)),
+                self.point_to_screen_space(Vector2::new(x, local_left_bottom.y + step_size)),
+                self.point_to_screen_space(Vector2::new(x, local_right_top.y - step_size)),
                 1.0,
             );
         }
