@@ -1,17 +1,16 @@
-use crate::core::math::inf_sup_cubicf;
-use crate::formatted_text::{FormattedText, FormattedTextBuilder};
 use crate::{
     brush::Brush,
     core::{
         algebra::{Matrix3, Point2, Vector2, Vector3},
         color::Color,
-        curve::{Curve, CurveKey, CurveKeyKind},
-        math::{cubicf, lerpf, wrap_angle, Rect},
+        curve::{Curve, CurveKeyKind},
+        math::{cubicf, inf_sup_cubicf, lerpf, wrap_angle, Rect},
         pool::Handle,
         uuid::Uuid,
     },
-    curve::key::CurveKeyView,
+    curve::key::{CurveKeyView, KeyContainer},
     draw::{CommandTexture, Draw, DrawingContext},
+    formatted_text::{FormattedText, FormattedTextBuilder},
     menu::{MenuItemBuilder, MenuItemContent},
     message::{
         ButtonState, CurveEditorMessage, KeyCode, MenuItemMessage, MessageData, MessageDirection,
@@ -22,10 +21,8 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UINode, UserInterface,
 };
-use std::cell::RefCell;
 use std::{
-    cell::Cell,
-    cmp::Ordering,
+    cell::{Cell, RefCell},
     collections::HashSet,
     ops::{Deref, DerefMut},
 };
@@ -35,8 +32,7 @@ pub mod key;
 #[derive(Clone)]
 pub struct CurveEditor<M: MessageData, C: Control<M, C>> {
     widget: Widget<M, C>,
-    keys: Vec<CurveKeyView>,
-    draw_keys: RefCell<Vec<CurveKeyView>>,
+    key_container: KeyContainer,
     zoom: f32,
     view_position: Vector2<f32>,
     // Transforms a point from local to view coordinates.
@@ -76,7 +72,7 @@ struct ContextMenu<M: MessageData, C: Control<M, C>> {
 
 #[derive(Clone)]
 struct DragEntry {
-    key: usize,
+    key: Uuid,
     initial_position: Vector2<f32>,
 }
 
@@ -105,7 +101,9 @@ enum OperationContext {
 
 #[derive(Clone)]
 enum Selection {
-    Keys { keys: HashSet<usize> },
+    Keys { keys: HashSet<Uuid> },
+    // It is ok to use index directly in case of tangents since
+    // we won't change position of keys so index will be valid.
     LeftTangent { key: usize },
     RightTangent { key: usize },
 }
@@ -118,7 +116,7 @@ enum PickResult {
 }
 
 impl Selection {
-    fn single_key(key: usize) -> Self {
+    fn single_key(key: Uuid) -> Self {
         let mut keys = HashSet::new();
         keys.insert(key);
         Self::Keys { keys }
@@ -127,15 +125,6 @@ impl Selection {
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
     fn draw(&self, ctx: &mut DrawingContext) {
-        // We use separate array for drawing which syncs with main array of keys.
-        // This is needed to be able to sort keys by their location while
-        // preserve original keys location in memory.
-        let mut draw_keys = self.draw_keys.borrow_mut();
-        draw_keys.clear();
-        draw_keys.extend_from_slice(&self.keys);
-        sort_keys(&mut draw_keys);
-        drop(draw_keys);
-
         self.update_matrices();
         self.draw_background(ctx);
         self.draw_grid(ctx);
@@ -169,9 +158,10 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
                                 } => {
                                     let local_delta = local_mouse_pos - initial_mouse_pos;
                                     for entry in entries {
-                                        let key = &mut self.keys[entry.key];
+                                        let key = self.key_container.key_mut(entry.key).unwrap();
                                         key.position = entry.initial_position + local_delta;
                                     }
+                                    self.sort_keys();
                                 }
                                 OperationContext::MoveView {
                                     initial_mouse_pos,
@@ -181,9 +171,10 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
                                     self.view_position = initial_view_pos + delta;
                                 }
                                 OperationContext::DragTangent { key, left } => {
-                                    let key_pos = self.keys[*key].position;
+                                    let key_pos =
+                                        self.key_container.key_index_ref(*key).unwrap().position;
                                     let screen_key_pos = self.point_to_screen_space(key_pos);
-                                    let key = &mut self.keys[*key];
+                                    let key = self.key_container.key_index_mut(*key).unwrap();
                                     if let CurveKeyKind::Cubic {
                                         left_tangent,
                                         right_tangent,
@@ -230,7 +221,10 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
                                                         .iter()
                                                         .map(|k| DragEntry {
                                                             key: *k,
-                                                            initial_position: self.keys[*k]
+                                                            initial_position: self
+                                                                .key_container
+                                                                .key_ref(*k)
+                                                                .unwrap()
                                                                 .position,
                                                         })
                                                         .collect::<Vec<_>>(),
@@ -266,7 +260,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
                             }
                         }
                     }
-                    WidgetMessage::MouseUp { pos, .. } => {
+                    WidgetMessage::MouseUp { .. } => {
                         if let Some(context) = self.operation_context.take() {
                             ui.release_mouse_capture();
 
@@ -287,9 +281,9 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
                                         Rect::new(min.x, min.y, max.x - min.x, max.y - min.y);
 
                                     let mut selection = HashSet::default();
-                                    for (i, key) in self.keys.iter().enumerate() {
+                                    for key in self.key_container.keys() {
                                         if rect.contains(key.position) {
-                                            selection.insert(i);
+                                            selection.insert(key.id);
                                         }
                                     }
 
@@ -311,15 +305,22 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
                             if let Some(picked) = pick_result {
                                 match picked {
                                     PickResult::Key(picked_key) => {
+                                        let picked_key_id = self
+                                            .key_container
+                                            .key_index_ref(picked_key)
+                                            .unwrap()
+                                            .id;
                                         if let Some(selection) = self.selection.as_mut() {
                                             match selection {
                                                 Selection::Keys { keys } => {
                                                     if ui.keyboard_modifiers().control {
-                                                        keys.insert(picked_key);
+                                                        keys.insert(picked_key_id);
                                                     }
-                                                    if !keys.contains(&picked_key) {
+                                                    if !keys.contains(&picked_key_id) {
                                                         self.set_selection(
-                                                            Some(Selection::single_key(picked_key)),
+                                                            Some(Selection::single_key(
+                                                                picked_key_id,
+                                                            )),
                                                             ui,
                                                         );
                                                     }
@@ -327,13 +328,13 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
                                                 Selection::LeftTangent { .. }
                                                 | Selection::RightTangent { .. } => self
                                                     .set_selection(
-                                                        Some(Selection::single_key(picked_key)),
+                                                        Some(Selection::single_key(picked_key_id)),
                                                         ui,
                                                     ),
                                             }
                                         } else {
                                             self.set_selection(
-                                                Some(Selection::single_key(picked_key)),
+                                                Some(Selection::single_key(picked_key_id)),
                                                 ui,
                                             );
                                         }
@@ -380,11 +381,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
                 {
                     match msg {
                         CurveEditorMessage::Sync(curve) => {
-                            self.keys = curve
-                                .keys()
-                                .iter()
-                                .map(CurveKeyView::from)
-                                .collect::<Vec<_>>();
+                            self.key_container = KeyContainer::from(curve);
                         }
                         CurveEditorMessage::ViewPosition(view_position) => {
                             self.view_position = *view_position;
@@ -400,7 +397,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
                         }
                         CurveEditorMessage::AddKey(screen_pos) => {
                             let local_pos = self.point_to_local_space(*screen_pos);
-                            self.keys.push(CurveKeyView {
+                            self.key_container.add(CurveKeyView {
                                 position: local_pos,
                                 kind: CurveKeyKind::Linear,
                                 id: Uuid::new_v4(),
@@ -429,7 +426,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
                                 }
                             };
 
-                            for keys in self.keys.windows(2) {
+                            for keys in self.key_container.keys().windows(2) {
                                 let left = &keys[0];
                                 let right = &keys[1];
                                 match (&left.kind, &right.kind) {
@@ -564,18 +561,6 @@ fn draw_cubic(
     }
 }
 
-fn sort_keys(keys: &mut Vec<CurveKeyView>) {
-    keys.sort_by(|a, b| {
-        if a.position.x < b.position.x {
-            Ordering::Less
-        } else if a.position.x > b.position.x {
-            Ordering::Greater
-        } else {
-            Ordering::Equal
-        }
-    })
-}
-
 fn round_to_step(x: f32, step: f32) -> f32 {
     x - x % step
 }
@@ -637,7 +622,7 @@ impl<M: MessageData, C: Control<M, C>> CurveEditor<M, C> {
     }
 
     fn sort_keys(&mut self) {
-        sort_keys(&mut self.keys);
+        self.key_container.sort_keys();
     }
 
     fn set_selection(&mut self, selection: Option<Selection>, ui: &UserInterface<M, C>) {
@@ -659,13 +644,9 @@ impl<M: MessageData, C: Control<M, C>> CurveEditor<M, C> {
     fn remove_selection(&mut self, ui: &mut UserInterface<M, C>) {
         if let Some(selection) = self.selection.as_ref() {
             if let Selection::Keys { keys } = selection {
-                let mut new_keys = Vec::new();
-                for (i, key) in self.keys.iter().enumerate() {
-                    if !keys.contains(&i) {
-                        new_keys.push(key.clone());
-                    }
+                for &id in keys {
+                    self.key_container.remove(id);
                 }
-                self.keys = new_keys;
 
                 self.set_selection(None, ui);
 
@@ -679,7 +660,7 @@ impl<M: MessageData, C: Control<M, C>> CurveEditor<M, C> {
         if let Some(selection) = self.selection.as_ref() {
             if let Selection::Keys { keys } = selection {
                 for key in keys {
-                    self.keys[*key].kind = kind.clone();
+                    self.key_container.key_mut(*key).unwrap().kind = kind.clone();
                 }
 
                 self.send_curve(ui);
@@ -691,7 +672,7 @@ impl<M: MessageData, C: Control<M, C>> CurveEditor<M, C> {
     fn pick(&self, pos: Vector2<f32>) -> Option<PickResult> {
         // Linear search is fine here, having a curve with thousands of
         // points is insane anyway.
-        for (i, key) in self.keys.iter().enumerate() {
+        for (i, key) in self.key_container.keys().iter().enumerate() {
             let screen_pos = self.point_to_screen_space(key.position);
             let bounds = Rect::new(
                 screen_pos.x - self.key_size * 0.5,
@@ -735,17 +716,10 @@ impl<M: MessageData, C: Control<M, C>> CurveEditor<M, C> {
     }
 
     fn send_curve(&self, ui: &UserInterface<M, C>) {
-        let curve = Curve::from(
-            self.keys
-                .iter()
-                .map(|k| CurveKey::new(k.position.x, k.position.y, k.kind.clone()))
-                .collect::<Vec<_>>(),
-        );
-
         ui.send_message(CurveEditorMessage::sync(
             self.handle,
             MessageDirection::FromWidget,
-            curve,
+            self.key_container.curve(),
         ));
     }
 
@@ -839,7 +813,7 @@ impl<M: MessageData, C: Control<M, C>> CurveEditor<M, C> {
 
     fn draw_curve(&self, ctx: &mut DrawingContext) {
         let screen_bounds = self.screen_bounds();
-        let draw_keys = self.draw_keys.borrow();
+        let draw_keys = self.key_container.keys();
 
         if let Some(first) = draw_keys.first() {
             let screen_pos = self.point_to_screen_space(first.position);
@@ -920,7 +894,7 @@ impl<M: MessageData, C: Control<M, C>> CurveEditor<M, C> {
 
     fn draw_keys(&self, ctx: &mut DrawingContext) {
         let screen_bounds = self.screen_bounds();
-        let keys_to_draw = self.draw_keys.borrow();
+        let keys_to_draw = self.key_container.keys();
 
         for (i, key) in keys_to_draw.iter().enumerate() {
             let origin = self.point_to_screen_space(key.position);
@@ -941,7 +915,7 @@ impl<M: MessageData, C: Control<M, C>> CurveEditor<M, C> {
             if let Some(selection) = self.selection.as_ref() {
                 match selection {
                     Selection::Keys { keys } => {
-                        selected = keys.contains(&i);
+                        selected = keys.contains(&key.id);
                     }
                     Selection::LeftTangent { key } | Selection::RightTangent { key } => {
                         selected = i == *key;
@@ -1064,12 +1038,7 @@ impl<M: MessageData, C: Control<M, C>> CurveEditorBuilder<M, C> {
     }
 
     pub fn build(mut self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
-        let keys = self
-            .curve
-            .keys()
-            .iter()
-            .map(CurveKeyView::from)
-            .collect::<Vec<_>>();
+        let keys = KeyContainer::from(&self.curve);
 
         let add_key;
         let remove;
@@ -1141,7 +1110,7 @@ impl<M: MessageData, C: Control<M, C>> CurveEditorBuilder<M, C> {
                 .with_context_menu(context_menu)
                 .with_preview_messages(true)
                 .build(),
-            keys,
+            key_container: keys,
             zoom: 1.0,
             view_position: Default::default(),
             view_matrix: Default::default(),
@@ -1154,7 +1123,6 @@ impl<M: MessageData, C: Control<M, C>> CurveEditorBuilder<M, C> {
             operation_context: None,
             grid_brush: Brush::Solid(Color::from_rgba(110, 110, 110, 50)),
             selection: None,
-            draw_keys: Default::default(),
             text: RefCell::new(
                 FormattedTextBuilder::new()
                     .with_brush(Brush::Solid(Color::opaque(100, 100, 100)))
