@@ -44,6 +44,7 @@ imageproc = "0.22.0"
 [features]
 enable_profiler = ["rg3d-core/enable_profiler"]
 serde_integration = ["glutin/serde", "serde"]
+enhanced-determinism = ["rapier3d/enhanced-determinism", "rapier2d/enhanced-determinism"]
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 glutin = "0.27.0"

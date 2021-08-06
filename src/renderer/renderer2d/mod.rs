@@ -6,7 +6,6 @@ use crate::{
         math::Rect,
         pool::Handle,
     },
-    physics::parry::utils::hashmap::Entry,
     renderer::{
         framework::{
             error::FrameworkError,
@@ -24,7 +23,11 @@ use crate::{
     scene2d::{light::Light, node::Node, Scene2d, Scene2dContainer},
     utils::log::{Log, MessageKind},
 };
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{
+    cell::RefCell,
+    collections::hash_map::{Entry, HashMap},
+    rc::Rc,
+};
 
 mod cache;
 
