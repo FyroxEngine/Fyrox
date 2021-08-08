@@ -96,3 +96,5 @@ impl Display for SoundError {
         }
     }
 }
+
+impl std::error::Error for SoundError {}
