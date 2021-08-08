@@ -42,6 +42,12 @@ pub struct Pool<T: Sized> {
     free_stack: Vec<u32>,
 }
 
+impl<T: PartialEq> PartialEq for Pool<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.records == other.records
+    }
+}
+
 /// Handle is some sort of non-owning reference to content in a pool. It stores
 /// index of object and additional information that allows to ensure that handle
 /// is still valid (points to the same object as when handle was created).
@@ -168,6 +174,12 @@ struct PoolRecord<T: Sized> {
     generation: u32,
     /// Actual payload.
     payload: Option<T>,
+}
+
+impl<T: PartialEq> PartialEq for PoolRecord<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.generation == other.generation && self.payload == other.payload
+    }
 }
 
 impl<T> Default for PoolRecord<T> {
