@@ -37,6 +37,7 @@ tbc = "0.3.0"
 bitflags = "1.2.1"
 glow = "0.10"
 walkdir = "2"
+thiserror = "1.0.26"
 
 [dev-dependencies]
 imageproc = "0.22.0"

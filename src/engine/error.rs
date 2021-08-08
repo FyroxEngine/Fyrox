@@ -3,13 +3,16 @@
 use crate::{renderer::framework::error::FrameworkError, sound::error::SoundError};
 
 /// See module docs.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum EngineError {
     /// Sound system error.
+    #[error(transparent)]
     Sound(SoundError),
     /// Rendering system error.
+    #[error(transparent)]
     Renderer(FrameworkError),
     /// Internal error.
+    #[error("Custom error: {0}")]
     Custom(String),
 }
 
