@@ -1,15 +1,24 @@
-use crate::core::pool::Handle;
-use crate::utils::behavior::{BehaviorNode, BehaviorTree};
+use crate::{
+    core::{pool::Handle, visitor::prelude::*},
+    utils::behavior::{BehaviorNode, BehaviorTree},
+};
 use std::cell::RefCell;
 
+#[derive(Debug, PartialEq, Visit)]
 pub struct LeafNode<B> {
-    pub behavior: RefCell<B>,
+    pub behavior: Option<RefCell<B>>,
+}
+
+impl<B> Default for LeafNode<B> {
+    fn default() -> Self {
+        Self { behavior: None }
+    }
 }
 
 impl<B> LeafNode<B> {
     pub fn new(behavior: B) -> Self {
         Self {
-            behavior: RefCell::new(behavior),
+            behavior: Some(RefCell::new(behavior)),
         }
     }
 

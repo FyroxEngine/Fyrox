@@ -3,13 +3,14 @@
 use crate::{
     core::{
         pool::{Handle, Pool},
-        visitor::Visit,
+        visitor::prelude::*,
     },
     utils::behavior::{
         composite::{CompositeNode, CompositeNodeKind},
         leaf::LeafNode,
     },
 };
+use std::fmt::Debug;
 
 pub mod composite;
 pub mod leaf;
@@ -20,25 +21,52 @@ pub enum Status {
     Running,
 }
 
-pub trait Behavior: Visit + Default {
+pub trait Behavior: Visit + Default + PartialEq + Debug {
     type Context;
 
     fn tick(&mut self, context: &mut Self::Context) -> Status;
 }
 
+#[derive(Debug, PartialEq, Visit)]
 pub struct RootNode<B> {
     child: Handle<BehaviorNode<B>>,
 }
 
+impl<B> Default for RootNode<B> {
+    fn default() -> Self {
+        Self {
+            child: Default::default(),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Visit)]
 pub enum BehaviorNode<B> {
+    Unknown,
     Root(RootNode<B>),
     Composite(CompositeNode<B>),
     Leaf(LeafNode<B>),
 }
 
+impl<B> Default for BehaviorNode<B> {
+    fn default() -> Self {
+        Self::Unknown
+    }
+}
+
+#[derive(Debug, PartialEq, Visit)]
 pub struct BehaviorTree<B> {
     nodes: Pool<BehaviorNode<B>>,
     root: Handle<BehaviorNode<B>>,
+}
+
+impl<B> Default for BehaviorTree<B> {
+    fn default() -> Self {
+        Self {
+            nodes: Default::default(),
+            root: Default::default(),
+        }
+    }
 }
 
 impl<B> BehaviorTree<B> {
@@ -103,7 +131,12 @@ impl<B> BehaviorTree<B> {
                     Status::Failure
                 }
             },
-            BehaviorNode::Leaf(ref leaf) => leaf.behavior.borrow_mut().tick(context),
+            BehaviorNode::Leaf(ref leaf) => {
+                leaf.behavior.as_ref().unwrap().borrow_mut().tick(context)
+            }
+            BehaviorNode::Unknown => {
+                unreachable!()
+            }
         }
     }
 
@@ -117,6 +150,7 @@ impl<B> BehaviorTree<B> {
 
 #[cfg(test)]
 mod test {
+    use crate::core::futures::executor::block_on;
     use crate::{
         core::visitor::prelude::*,
         utils::behavior::{
@@ -125,8 +159,12 @@ mod test {
             Behavior, BehaviorTree, Status,
         },
     };
+    use std::env;
+    use std::fs::File;
+    use std::io::Write;
+    use std::path::PathBuf;
 
-    #[derive(Default, Visit)]
+    #[derive(Debug, PartialEq, Default, Visit)]
     struct WalkAction;
 
     impl Behavior for WalkAction {
@@ -146,7 +184,7 @@ mod test {
         }
     }
 
-    #[derive(Default, Visit)]
+    #[derive(Debug, PartialEq, Default, Visit)]
     struct OpenDoorAction;
 
     impl Behavior for OpenDoorAction {
@@ -161,7 +199,7 @@ mod test {
         }
     }
 
-    #[derive(Default, Visit)]
+    #[derive(Debug, PartialEq, Default, Visit)]
     struct StepThroughAction;
 
     impl Behavior for StepThroughAction {
@@ -181,7 +219,7 @@ mod test {
         }
     }
 
-    #[derive(Default, Visit)]
+    #[derive(Debug, PartialEq, Default, Visit)]
     struct CloseDoorAction;
 
     impl Behavior for CloseDoorAction {
@@ -197,7 +235,7 @@ mod test {
         }
     }
 
-    #[derive(Visit)]
+    #[derive(Debug, PartialEq, Visit)]
     enum BotBehavior {
         None,
         Walk(WalkAction),
@@ -235,8 +273,7 @@ mod test {
         }
     }
 
-    #[test]
-    fn test_behavior() {
+    fn create_tree() -> BehaviorTree<BotBehavior> {
         let mut tree = BehaviorTree::new();
 
         let entry = CompositeNode::new(
@@ -252,6 +289,13 @@ mod test {
 
         tree.set_entry_node(entry);
 
+        tree
+    }
+
+    #[test]
+    fn test_behavior() {
+        let tree = create_tree();
+
         let mut ctx = Environment {
             distance_to_door: 3.0,
             door_opened: false,
@@ -261,5 +305,35 @@ mod test {
         while !ctx.done {
             tree.tick(&mut ctx);
         }
+    }
+
+    #[test]
+    fn test_behavior_save_load() {
+        let (bin, txt) = {
+            let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
+            let root = PathBuf::from(manifest_dir).join("test_output");
+            if !root.exists() {
+                std::fs::create_dir(&root).unwrap();
+            }
+            (
+                root.join(format!("{}.bin", "behavior_save_load")),
+                root.join(format!("{}.txt", "behavior_save_load")),
+            )
+        };
+
+        // Save
+        let mut saved_tree = create_tree();
+        let mut visitor = Visitor::new();
+        saved_tree.visit("Tree", &mut visitor).unwrap();
+        visitor.save_binary(bin.clone()).unwrap();
+        let mut file = File::create(&txt).unwrap();
+        file.write(visitor.save_text().as_bytes()).unwrap();
+
+        // Load
+        let mut visitor = block_on(Visitor::load_binary(bin)).unwrap();
+        let mut loaded_tree = BehaviorTree::<BotBehavior>::default();
+        loaded_tree.visit("Tree", &mut visitor).unwrap();
+
+        assert_eq!(saved_tree, loaded_tree);
     }
 }
