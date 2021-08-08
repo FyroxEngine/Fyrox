@@ -1,6 +1,6 @@
 [package]
 name = "rg3d-core"
-version = "0.16.0"
+version = "0.17.0"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 edition = "2018"
 license = "MIT"

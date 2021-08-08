@@ -1,6 +1,6 @@
 [package]
 name = "rg3d-sound"
-version = "0.23.0"
+version = "0.24.0"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 edition = "2018"
 license = "MIT"
@@ -12,7 +12,7 @@ documentation = "https://docs.rs/rg3d-sound"
 readme = "README.md"
 
 [dependencies]
-rg3d-core = { path = "../rg3d-core", version = "0.16.0" }
+rg3d-core = { path = "../rg3d-core", version = "0.17.0" }
 rg3d-resource = { path = "../rg3d-resource", version = "0.1.0" }
 lewton = "0.10.2"
 hrtf = "0.7.0"
