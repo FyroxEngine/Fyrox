@@ -39,7 +39,7 @@ pub enum Status {
 }
 
 /// A trait for user-defined actions for behavior tree.
-pub trait Behavior: Visit + Default + PartialEq + Debug {
+pub trait Behavior<'a>: Visit + Default + PartialEq + Debug {
     /// A context in which the behavior will be performed.
     type Context;
 
@@ -122,9 +122,9 @@ impl<B> BehaviorTree<B> {
         }
     }
 
-    fn tick_recursive<Ctx>(&self, handle: Handle<BehaviorNode<B>>, context: &mut Ctx) -> Status
+    fn tick_recursive<'a, Ctx>(&self, handle: Handle<BehaviorNode<B>>, context: &mut Ctx) -> Status
     where
-        B: Behavior<Context = Ctx>,
+        B: Behavior<'a, Context = Ctx>,
     {
         match self.nodes[handle] {
             BehaviorNode::Root(ref root) => {
@@ -173,9 +173,9 @@ impl<B> BehaviorTree<B> {
     }
 
     /// Performs a single update tick with given context.
-    pub fn tick<Ctx>(&self, context: &mut Ctx) -> Status
+    pub fn tick<'a, Ctx>(&self, context: &mut Ctx) -> Status
     where
-        B: Behavior<Context = Ctx>,
+        B: Behavior<'a, Context = Ctx>,
     {
         self.tick_recursive(self.root, context)
     }
@@ -196,7 +196,7 @@ mod test {
     #[derive(Debug, PartialEq, Default, Visit)]
     struct WalkAction;
 
-    impl Behavior for WalkAction {
+    impl<'a> Behavior<'a> for WalkAction {
         type Context = Environment;
 
         fn tick(&mut self, context: &mut Self::Context) -> Status {
@@ -216,7 +216,7 @@ mod test {
     #[derive(Debug, PartialEq, Default, Visit)]
     struct OpenDoorAction;
 
-    impl Behavior for OpenDoorAction {
+    impl<'a> Behavior<'a> for OpenDoorAction {
         type Context = Environment;
 
         fn tick(&mut self, context: &mut Self::Context) -> Status {
@@ -231,7 +231,7 @@ mod test {
     #[derive(Debug, PartialEq, Default, Visit)]
     struct StepThroughAction;
 
-    impl Behavior for StepThroughAction {
+    impl<'a> Behavior<'a> for StepThroughAction {
         type Context = Environment;
 
         fn tick(&mut self, context: &mut Self::Context) -> Status {
@@ -251,7 +251,7 @@ mod test {
     #[derive(Debug, PartialEq, Default, Visit)]
     struct CloseDoorAction;
 
-    impl Behavior for CloseDoorAction {
+    impl<'a> Behavior<'a> for CloseDoorAction {
         type Context = Environment;
 
         fn tick(&mut self, context: &mut Self::Context) -> Status {
@@ -288,7 +288,7 @@ mod test {
         done: bool,
     }
 
-    impl Behavior for BotBehavior {
+    impl<'a> Behavior<'a> for BotBehavior {
         type Context = Environment;
 
         fn tick(&mut self, context: &mut Self::Context) -> Status {
