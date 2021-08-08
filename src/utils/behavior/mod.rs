@@ -1,4 +1,17 @@
-#![allow(missing_docs)] // TODO
+#![warn(missing_docs)]
+
+//! Everything related to AI behavior and behavior trees.
+//!
+//! Behavior trees are simple but very powerful mechanism to implement artificial intelligence for
+//! games. The main concept is in its name. Tree is a set of connected nodes, where each node could
+//! have single parent and zero or more children nodes. Execution path of the tree is defined by the
+//! actions of the nodes. Behavior tree has a set of hard coded nodes as well as leaf nodes with
+//! user-defined logic. Hard coded nodes are: Sequence, Selector, Leaf. Leaf is special - it has
+//! custom method `tick` that can contain any logic you want.
+//!
+//! For more info see:
+//! - [Wikipedia article](https://en.wikipedia.org/wiki/Behavior_tree_(artificial_intelligence,_robotics_and_control)
+//! - [Gamasutra](https://www.gamasutra.com/blogs/ChrisSimpson/20140717/221339/Behavior_trees_for_AI_How_they_work.php)
 
 use crate::{
     core::{
@@ -15,18 +28,28 @@ use std::fmt::Debug;
 pub mod composite;
 pub mod leaf;
 
+/// Status of execution of behavior tree node.
 pub enum Status {
+    /// Action was successful.
     Success,
+    /// Failed to perform an action.
     Failure,
+    /// Need another iteration to perform an action.
     Running,
 }
 
+/// A trait for user-defined actions for behavior tree.
 pub trait Behavior: Visit + Default + PartialEq + Debug {
+    /// A context in which the behavior will be performed.
     type Context;
 
+    /// A function that will be called each frame depending on
+    /// the current execution path of the behavior tree it belongs
+    /// to.
     fn tick(&mut self, context: &mut Self::Context) -> Status;
 }
 
+/// Root node of the tree.
 #[derive(Debug, PartialEq, Visit)]
 pub struct RootNode<B> {
     child: Handle<BehaviorNode<B>>,
@@ -40,11 +63,16 @@ impl<B> Default for RootNode<B> {
     }
 }
 
+/// Possible variations of behavior nodes.
 #[derive(Debug, PartialEq, Visit)]
 pub enum BehaviorNode<B> {
+    #[doc(hidden)]
     Unknown,
+    /// Root node of the tree.
     Root(RootNode<B>),
+    /// Composite (sequence or selector) node of the tree.
     Composite(CompositeNode<B>),
+    /// A node with custom logic.
     Leaf(LeafNode<B>),
 }
 
@@ -54,6 +82,7 @@ impl<B> Default for BehaviorNode<B> {
     }
 }
 
+/// See module docs.
 #[derive(Debug, PartialEq, Visit)]
 pub struct BehaviorTree<B> {
     nodes: Pool<BehaviorNode<B>>,
@@ -70,6 +99,7 @@ impl<B> Default for BehaviorTree<B> {
 }
 
 impl<B> BehaviorTree<B> {
+    /// Creates new behavior tree with single root node.
     pub fn new() -> Self {
         let mut nodes = Pool::new();
         let root = nodes.spawn(BehaviorNode::Root(RootNode {
@@ -78,10 +108,12 @@ impl<B> BehaviorTree<B> {
         Self { nodes, root }
     }
 
+    /// Adds a node to the tree, returns its handle.
     pub fn add_node(&mut self, node: BehaviorNode<B>) -> Handle<BehaviorNode<B>> {
         self.nodes.spawn(node)
     }
 
+    /// Sets entry nodes of the tree. Execution will start from this node.
     pub fn set_entry_node(&mut self, entry: Handle<BehaviorNode<B>>) {
         if let BehaviorNode::Root(root) = &mut self.nodes[self.root] {
             root.child = entry;
@@ -140,6 +172,7 @@ impl<B> BehaviorTree<B> {
         }
     }
 
+    /// Performs a single update tick with given context.
     pub fn tick<Ctx>(&self, context: &mut Ctx) -> Status
     where
         B: Behavior<Context = Ctx>,
@@ -150,19 +183,15 @@ impl<B> BehaviorTree<B> {
 
 #[cfg(test)]
 mod test {
-    use crate::core::futures::executor::block_on;
     use crate::{
-        core::visitor::prelude::*,
+        core::{futures::executor::block_on, visitor::prelude::*},
         utils::behavior::{
             composite::{CompositeNode, CompositeNodeKind},
             leaf::LeafNode,
             Behavior, BehaviorTree, Status,
         },
     };
-    use std::env;
-    use std::fs::File;
-    use std::io::Write;
-    use std::path::PathBuf;
+    use std::{env, fs::File, io::Write, path::PathBuf};
 
     #[derive(Debug, PartialEq, Default, Visit)]
     struct WalkAction;

@@ -1,11 +1,25 @@
+//! Composite node is a container for children nodes. Composite node could be either
+//! `Sequence` or `Selector`. `Sequence` node will execute children nodes consecutively
+//! until `Status::Failure` is returned from any descendant node. In other words `Sequence`
+//! implement AND logical function. `Selector` node will execute children until `Status::Success`
+//! is returned from any descendant node. In other worlds `Selector` implement OR logical
+//! function.
+
 use crate::{
     core::{pool::Handle, visitor::prelude::*},
     utils::behavior::{BehaviorNode, BehaviorTree},
 };
 
+/// Defines exact behavior of the composite node.
 #[derive(Debug, PartialEq, Visit)]
 pub enum CompositeNodeKind {
+    /// `Sequence` node will execute children nodes consecutively
+    /// until `Status::Failure` is returned from any descendant node. In other words `Sequence`
+    /// implement AND logical function.
     Sequence,
+    /// `Selector` node will execute children until `Status::Success`
+    /// is returned from any descendant node. In other worlds `Selector` implement OR logical
+    /// function.
     Selector,
 }
 
@@ -15,9 +29,12 @@ impl Default for CompositeNodeKind {
     }
 }
 
+/// See module docs.
 #[derive(Debug, PartialEq, Visit)]
 pub struct CompositeNode<B> {
+    /// A set of children.
     pub children: Vec<Handle<BehaviorNode<B>>>,
+    /// Current kind of the node.
     pub kind: CompositeNodeKind,
 }
 
@@ -31,10 +48,12 @@ impl<B> Default for CompositeNode<B> {
 }
 
 impl<B> CompositeNode<B> {
+    /// Creates new composite node of given kind and set of children nodes.
     pub fn new(kind: CompositeNodeKind, children: Vec<Handle<BehaviorNode<B>>>) -> Self {
         Self { children, kind }
     }
 
+    /// Adds self to the tree and return handle to self.
     pub fn add(self, tree: &mut BehaviorTree<B>) -> Handle<BehaviorNode<B>> {
         tree.add_node(BehaviorNode::Composite(self))
     }
