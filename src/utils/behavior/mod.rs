@@ -24,6 +24,7 @@ use crate::{
     },
 };
 use std::fmt::Debug;
+use std::ops::{Index, IndexMut};
 
 pub mod composite;
 pub mod leaf;
@@ -172,12 +173,36 @@ impl<B> BehaviorTree<B> {
         }
     }
 
+    /// Tries to get a shared reference to a node by given handle.
+    pub fn node(&self, handle: Handle<BehaviorNode<B>>) -> Option<&BehaviorNode<B>> {
+        self.nodes.try_borrow(handle)
+    }
+
+    /// Tries to get a mutable reference to a node by given handle.
+    pub fn node_mut(&mut self, handle: Handle<BehaviorNode<B>>) -> Option<&mut BehaviorNode<B>> {
+        self.nodes.try_borrow_mut(handle)
+    }
+
     /// Performs a single update tick with given context.
     pub fn tick<'a, Ctx>(&self, context: &mut Ctx) -> Status
     where
         B: Behavior<'a, Context = Ctx>,
     {
         self.tick_recursive(self.root, context)
+    }
+}
+
+impl<B> Index<Handle<BehaviorNode<B>>> for BehaviorTree<B> {
+    type Output = BehaviorNode<B>;
+
+    fn index(&self, index: Handle<BehaviorNode<B>>) -> &Self::Output {
+        &self.nodes[index]
+    }
+}
+
+impl<B> IndexMut<Handle<BehaviorNode<B>>> for BehaviorTree<B> {
+    fn index_mut(&mut self, index: Handle<BehaviorNode<B>>) -> &mut Self::Output {
+        &mut self.nodes[index]
     }
 }
 
