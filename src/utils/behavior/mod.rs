@@ -140,7 +140,10 @@ impl<B> BehaviorTree<B> {
                     let mut all_succeeded = true;
                     for child in composite.children.iter() {
                         match self.tick_recursive(*child, context) {
-                            Status::Failure => all_succeeded = false,
+                            Status::Failure => {
+                                all_succeeded = false;
+                                break;
+                            }
                             Status::Running => {
                                 return Status::Running;
                             }
