@@ -1,7 +1,7 @@
 use crate::algebra::Vector3;
 use crate::visitor::{Visit, VisitResult, Visitor};
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Plane {
     pub normal: Vector3<f32>,
     pub d: f32,

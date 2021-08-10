@@ -5,7 +5,7 @@ use crate::{
 };
 use nalgebra::Point3;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Frustum {
     /// 0 - left, 1 - right, 2 - top, 3 - bottom, 4 - far, 5 - near
     planes: [Plane; 6],

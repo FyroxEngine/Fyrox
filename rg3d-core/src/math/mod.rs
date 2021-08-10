@@ -757,6 +757,7 @@ pub fn get_closest_point_triangle_set<P: PositionProvider>(
     closest_index
 }
 
+#[derive(Debug, PartialEq)]
 pub struct SmoothAngle {
     /// Current angle in radians.
     pub angle: f32,
