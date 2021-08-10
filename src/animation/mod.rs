@@ -849,6 +849,21 @@ impl AnimationContainer {
             animation.tick(dt);
         }
     }
+
+    /// Removes queued animation events from every animation in the container.
+    ///
+    /// # Potential use cases
+    ///
+    /// Sometimes there is a need to use animation events only from one frame,
+    /// in this case you should clear events each frame. This situation might come up
+    /// when you have multiple animations with signals, but at each frame not every
+    /// event gets processed. This might result in unwanted side effects, like multiple
+    /// attack events may result in huge damage in a single frame.
+    pub fn clear_animation_events(&mut self) {
+        for animation in self.pool.iter_mut() {
+            animation.events.clear();
+        }
+    }
 }
 
 impl Visit for AnimationContainer {

@@ -570,8 +570,8 @@ impl NavmeshAgent {
         self.target
     }
 
-    /// Warps agent to a new position.
-    pub fn warp(&mut self, new_position: Vector3<f32>) {
+    /// Sets new position of the agent.
+    pub fn set_position(&mut self, new_position: Vector3<f32>) {
         if new_position.metric_distance(&self.last_warp_position) >= self.recalculation_threshold {
             self.path_dirty = true;
             self.last_warp_position = new_position;
