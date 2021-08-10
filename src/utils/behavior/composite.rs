@@ -53,6 +53,22 @@ impl<B> CompositeNode<B> {
         Self { children, kind }
     }
 
+    /// Creates new sequence composite node with a set of children nodes.
+    pub fn new_sequence(children: Vec<Handle<BehaviorNode<B>>>) -> Self {
+        Self {
+            children,
+            kind: CompositeNodeKind::Sequence,
+        }
+    }
+
+    /// Creates new selector composite node with a set of children nodes.
+    pub fn new_selector(children: Vec<Handle<BehaviorNode<B>>>) -> Self {
+        Self {
+            children,
+            kind: CompositeNodeKind::Selector,
+        }
+    }
+
     /// Adds self to the tree and return handle to self.
     pub fn add(self, tree: &mut BehaviorTree<B>) -> Handle<BehaviorNode<B>> {
         tree.add_node(BehaviorNode::Composite(self))
