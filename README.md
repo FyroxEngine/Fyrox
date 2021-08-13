@@ -11,6 +11,8 @@
  
 A feature-rich, production-ready, general purpose 2D/3D game engine written in Rust with a scene editor.
 
+[![Video](pics/video.png)](https://www.youtube.com/watch?v=N8kmZ9aBtZs)
+
 ## Support
 
 If you want to support the development of the project, click the link below. I'm working on the project full time and
