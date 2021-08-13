@@ -51,6 +51,7 @@ pub struct Batch {
     pub roughness_texture: Rc<RefCell<GpuTexture>>,
     pub lightmap_texture: Rc<RefCell<GpuTexture>>,
     pub height_texture: Rc<RefCell<GpuTexture>>,
+    pub emission_texture: Rc<RefCell<GpuTexture>>,
     pub mask_texture: Rc<RefCell<GpuTexture>>,
     pub use_pom: bool,
     pub is_skinned: bool,
@@ -148,6 +149,11 @@ impl BatchStorage {
                             .and_then(|texture| texture_cache.get(state, texture))
                             .unwrap_or_else(|| black_dummy.clone());
 
+                        let emission_texture = surface
+                            .emission_texture_ref()
+                            .and_then(|texture| texture_cache.get(state, texture))
+                            .unwrap_or_else(|| black_dummy.clone());
+
                         let batch = if let Some(&batch_index) = self.batch_map.get(&key) {
                             self.batches.get_mut(batch_index).unwrap()
                         } else {
@@ -164,6 +170,7 @@ impl BatchStorage {
                                 roughness_texture: roughness_texture.clone(),
                                 lightmap_texture: lightmap_texture.clone(),
                                 height_texture: height_texture.clone(),
+                                emission_texture: emission_texture.clone(),
                                 mask_texture: white_dummy.clone(),
                                 is_skinned: !surface.bones.is_empty(),
                                 render_path: mesh.render_path(),
@@ -186,6 +193,7 @@ impl BatchStorage {
                         batch.roughness_texture = roughness_texture;
                         batch.lightmap_texture = lightmap_texture;
                         batch.height_texture = height_texture;
+                        batch.emission_texture = emission_texture;
                         batch.use_pom = surface.height_texture().is_some();
 
                         batch.instances.push(SurfaceInstance {
@@ -243,6 +251,12 @@ impl BatchStorage {
                                 .and_then(|texture| texture_cache.get(state, texture))
                                 .unwrap_or_else(|| black_dummy.clone());
 
+                            let emission_texture = layer
+                                .emission_texture
+                                .as_ref()
+                                .and_then(|texture| texture_cache.get(state, texture))
+                                .unwrap_or_else(|| black_dummy.clone());
+
                             let mask_texture = layer
                                 .mask
                                 .as_ref()
@@ -265,6 +279,7 @@ impl BatchStorage {
                                     roughness_texture: roughness_texture.clone(),
                                     lightmap_texture: lightmap_texture.clone(),
                                     height_texture: height_texture.clone(),
+                                    emission_texture: emission_texture.clone(),
                                     mask_texture: mask_texture.clone(),
                                     is_skinned: false,
                                     render_path: RenderPath::Deferred,
@@ -288,6 +303,7 @@ impl BatchStorage {
                             batch.roughness_texture = roughness_texture;
                             batch.lightmap_texture = lightmap_texture;
                             batch.height_texture = height_texture;
+                            batch.emission_texture = emission_texture;
                             batch.use_pom = layer.height_texture.is_some();
                             batch.mask_texture = mask_texture;
 

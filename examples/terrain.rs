@@ -64,6 +64,7 @@ impl SceneLoader {
                     specular_texture: None,
                     roughness_texture: None,
                     height_texture: None,
+                    emission_texture: None,
                     tile_factor: Vector2::new(10.0, 10.0),
                 },
                 LayerDefinition {
@@ -76,6 +77,7 @@ impl SceneLoader {
                     specular_texture: None,
                     roughness_texture: None,
                     height_texture: None,
+                    emission_texture: None,
                     tile_factor: Vector2::new(10.0, 10.0),
                 },
             ])

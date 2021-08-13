@@ -313,6 +313,7 @@ async fn create_surfaces(
                         // No idea why it can be different for normal maps.
                         "Bump" | "NormalMap" => surface.set_normal_texture(Some(texture)),
                         "DisplacementColor" => surface.set_height_texture(Some(texture)),
+                        "EmissiveColor" => surface.set_emission_texture(Some(texture)),
                         _ => (),
                     }
                 }

@@ -917,7 +917,7 @@ impl VertexWeightSet {
 }
 
 /// See module docs.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Surface {
     // Wrapped into option to be able to implement Default for serialization.
     // In normal conditions it must never be None!
@@ -928,6 +928,7 @@ pub struct Surface {
     specular_texture: Option<Texture>,
     roughness_texture: Option<Texture>,
     height_texture: Option<Texture>,
+    emission_texture: Option<Texture>,
     /// Temporal array for FBX conversion needs, it holds skinning data (weight + bone handle)
     /// and will be used to fill actual bone indices and weight in vertices that will be
     /// sent to GPU. The idea is very simple: GPU needs to know only indices of matrices of
@@ -940,44 +941,13 @@ pub struct Surface {
     color: Color,
 }
 
-/// Shallow copy of surface.
-///
-/// # Notes
-///
-/// Handles to bones must be remapped afterwards, so it is not advised
-/// to use this clone to clone surfaces.
-impl Clone for Surface {
-    fn clone(&self) -> Self {
-        Self {
-            data: self.data.clone(),
-            diffuse_texture: self.diffuse_texture.clone(),
-            normal_texture: self.normal_texture.clone(),
-            specular_texture: self.specular_texture.clone(),
-            roughness_texture: self.roughness_texture.clone(),
-            height_texture: self.height_texture.clone(),
-            bones: self.bones.clone(),
-            vertex_weights: Vec::new(), // Intentionally not copied.
-            color: self.color,
-            lightmap_texture: self.lightmap_texture.clone(),
-        }
-    }
-}
-
 impl Surface {
     /// Creates new surface instance with given data and without any texture.
     #[inline]
     pub fn new(data: Arc<RwLock<SurfaceData>>) -> Self {
         Self {
             data: Some(data),
-            diffuse_texture: None,
-            normal_texture: None,
-            specular_texture: None,
-            roughness_texture: None,
-            height_texture: None,
-            bones: Vec::new(),
-            vertex_weights: Vec::new(),
-            color: Color::WHITE,
-            lightmap_texture: None,
+            ..Default::default()
         }
     }
 
@@ -995,6 +965,7 @@ impl Surface {
             self.roughness_texture.as_ref(),
             self.lightmap_texture.as_ref(),
             self.height_texture.as_ref(),
+            self.emission_texture.as_ref(),
         ]
         .iter()
         .filter_map(|t| *t)
@@ -1119,6 +1090,24 @@ impl Surface {
         self.height_texture.as_ref()
     }
 
+    /// Sets new emission texture.
+    #[inline]
+    pub fn set_emission_texture(&mut self, tex: Option<Texture>) {
+        self.emission_texture = tex;
+    }
+
+    /// Returns emission texture.
+    #[inline]
+    pub fn emission_texture(&self) -> Option<Texture> {
+        self.emission_texture.clone()
+    }
+
+    /// Returns emission texture by ref.
+    #[inline]
+    pub fn emission_texture_ref(&self) -> Option<&Texture> {
+        self.emission_texture.as_ref()
+    }
+
     /// Sets color of surface. Keep in mind that alpha component is **not** compatible
     /// with deferred render path. You have to use forward render path if you need
     /// transparent surfaces.
@@ -1168,6 +1157,7 @@ pub struct SurfaceBuilder {
     specular_texture: Option<Texture>,
     roughness_texture: Option<Texture>,
     height_texture: Option<Texture>,
+    emission_texture: Option<Texture>,
     bones: Vec<Handle<Node>>,
     color: Color,
 }
@@ -1183,6 +1173,7 @@ impl SurfaceBuilder {
             specular_texture: None,
             roughness_texture: None,
             height_texture: None,
+            emission_texture: None,
             bones: Default::default(),
             color: Color::WHITE,
         }
@@ -1224,6 +1215,12 @@ impl SurfaceBuilder {
         self
     }
 
+    /// Sets desired roughness texture.
+    pub fn with_emission_texture(mut self, tex: Texture) -> Self {
+        self.emission_texture = Some(tex);
+        self
+    }
+
     /// Sets desired color of surface.
     pub fn with_color(mut self, color: Color) -> Self {
         self.color = color;
@@ -1246,6 +1243,7 @@ impl SurfaceBuilder {
             specular_texture: self.specular_texture,
             roughness_texture: self.roughness_texture,
             height_texture: self.height_texture,
+            emission_texture: self.emission_texture,
             vertex_weights: Default::default(),
             bones: self.bones,
             color: self.color,

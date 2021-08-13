@@ -223,6 +223,7 @@ fn make_fragment_shader_source(features: UberShaderFeatures) -> String {
         uniform sampler2D specularTexture;
         uniform sampler2D roughnessTexture;
         uniform sampler2D heightTexture;
+        uniform sampler2D emissionTexture;
         uniform samplerCube environmentMap;
         uniform vec3 cameraPosition;
         uniform bool usePOM;
@@ -274,16 +275,13 @@ fn make_fragment_shader_source(features: UberShaderFeatures) -> String {
         } else {
             tc = texCoord * texCoordScale;
         }
+        
+        outColor = diffuseColor * texture(diffuseTexture, tc);
     "#;
 
-    if features.contains(UberShaderFeatures::TERRAIN) {
-        source += r#"      
-        // No alpha test, we need alpha for blending.
-        outColor = diffuseColor * texture(diffuseTexture, tc);
-        "#;
-    } else {
+    // No alpha test in case of terrain support, we need alpha for blending.
+    if !features.contains(UberShaderFeatures::TERRAIN) {
         source += r#"
-        outColor = diffuseColor * texture(diffuseTexture, tc);
         // Alpha test.
         if (outColor.a < 0.5) {
             discard;
@@ -293,19 +291,15 @@ fn make_fragment_shader_source(features: UberShaderFeatures) -> String {
     }
 
     source += r#"
-        outColor = diffuseColor * texture(diffuseTexture, tc);
-        if (outColor.a < 0.5) {
-            discard;
-        }       
         vec4 n = normalize(texture(normalTexture, tc) * 2.0 - 1.0);
         outNormal.xyz = normalize(tangentSpace * n.xyz) * 0.5 + 0.5;
         outNormal.w = texture(specularTexture, tc).r;
         "#;
 
     if features.contains(UberShaderFeatures::LIGHTMAP) {
-        source += r#"outAmbient = vec4(texture(lightmapTexture, secondTexCoord).rgb, 1.0);"#;
+        source += r#"outAmbient = texture(emissionTexture, tc) + vec4(texture(lightmapTexture, secondTexCoord).rgb, 1.0);"#;
     } else {
-        source += r#"outAmbient = vec4(0.0, 0.0, 0.0, 1.0);"#;
+        source += r#"outAmbient = texture(emissionTexture, tc);"#;
     }
 
     source += r#"
@@ -351,6 +345,7 @@ pub struct UberShader {
     pub view_projection_matrix: Option<UniformLocation>,
     pub use_pom: UniformLocation,
     pub height_texture: UniformLocation,
+    pub emission_texture: UniformLocation,
     pub layer_index: UniformLocation,
     // Non-instanced parts.
     pub world_matrix: Option<UniformLocation>,
@@ -416,6 +411,7 @@ impl UberShader {
             normal_texture: program.uniform_location(state, "normalTexture")?,
             specular_texture: program.uniform_location(state, "specularTexture")?,
             roughness_texture: program.uniform_location(state, "roughnessTexture")?,
+            emission_texture: program.uniform_location(state, "emissionTexture")?,
             lightmap_texture: if lightmap {
                 Some(program.uniform_location(state, "lightmapTexture")?)
             } else {

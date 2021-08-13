@@ -371,6 +371,7 @@ impl GBuffer {
                         .set_texture(&shader.environment_map, &environment)
                         .set_texture(&shader.roughness_texture, &batch.roughness_texture)
                         .set_texture(&shader.height_texture, &batch.height_texture)
+                        .set_texture(&shader.emission_texture, &batch.emission_texture)
                         .set_vector3(&shader.camera_position, &camera.global_position())
                         .set_bool(&shader.use_pom, batch.use_pom && use_parallax_mapping)
                         .set_bool(&shader.use_skeletal_animation, batch.is_skinned)

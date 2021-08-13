@@ -47,6 +47,11 @@ pub struct Layer {
     pub roughness_texture: Option<Texture>,
     /// Height texture provides per-pixel offset for parallax mapping.
     pub height_texture: Option<Texture>,
+    /// Emission texture provides per-pixel lighting. It should be noted, that
+    /// such lighting won't affect surrounding pixels - in other words it won't
+    /// work as global illumination.
+    #[visit(optional)] // Backward compatibility.
+    pub emission_texture: Option<Texture>,
     /// Mask texture allows you to exclude some pixel of the layer from rendering.
     pub mask: Option<Texture>,
     /// Tile factor defines how many time textures (except mask) will be repeated.
@@ -65,6 +70,7 @@ impl Layer {
             self.specular_texture.as_ref(),
             self.roughness_texture.as_ref(),
             self.height_texture.as_ref(),
+            self.emission_texture.as_ref(),
         ]
         .iter()
         .filter_map(|t| *t)
@@ -623,6 +629,7 @@ impl Terrain {
             specular_texture: None,
             roughness_texture: None,
             height_texture: None,
+            emission_texture: None,
             mask: Some(create_layer_mask(mask_width, mask_height, value)),
             tile_factor,
         }
@@ -703,6 +710,10 @@ pub struct LayerDefinition {
     pub roughness_texture: Option<Texture>,
     /// Height texture provides per-pixel offset for parallax mapping.
     pub height_texture: Option<Texture>,
+    /// Emission texture provides per-pixel lighting. It should be noted, that
+    /// such lighting won't affect surrounding pixels - in other words it won't
+    /// work as global illumination.
+    pub emission_texture: Option<Texture>,
     /// Tile factor defines how many time textures will be repeated.
     pub tile_factor: Vector2<f32>,
 }
@@ -852,6 +863,7 @@ impl TerrainBuilder {
                                 specular_texture: definition.specular_texture.clone(),
                                 roughness_texture: definition.roughness_texture.clone(),
                                 height_texture: definition.height_texture.clone(),
+                                emission_texture: definition.emission_texture.clone(),
                                 // Base layer is opaque, every other by default - transparent.
                                 mask: Some(create_layer_mask(
                                     chunk_mask_width,
