@@ -748,6 +748,7 @@ impl Menu {
                             specular_texture: None,
                             roughness_texture: None,
                             height_texture: None,
+                            emission_texture: None,
                             tile_factor: Vector2::new(10.0, 10.0),
                         }])
                         .with_height_map_resolution(4.0)
