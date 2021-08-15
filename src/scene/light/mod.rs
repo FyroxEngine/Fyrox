@@ -235,6 +235,12 @@ impl BaseLight {
         self.scatter
     }
 
+    /// Returns current scatter factor in linear color space.
+    #[inline]
+    pub fn scatter_linear(&self) -> Vector3<f32> {
+        self.scatter.map(|v| v.powf(2.2))
+    }
+
     /// Enables or disables light scattering.
     #[inline]
     pub fn enable_scatter(&mut self, state: bool) {

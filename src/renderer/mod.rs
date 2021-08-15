@@ -19,6 +19,7 @@ mod deferred_light_renderer;
 mod flat_shader;
 mod forward_renderer;
 mod fxaa;
+mod gamma;
 mod gbuffer;
 mod light_volume;
 mod particle_system_renderer;
@@ -29,6 +30,7 @@ mod ssao;
 mod ui_renderer;
 
 use crate::renderer::cache::CacheEntry;
+use crate::renderer::gamma::GammaCorrectionPass;
 use crate::scene::camera::Camera;
 use crate::{
     core::{
@@ -416,6 +418,71 @@ impl TextureUploadSender {
     }
 }
 
+struct PostProcessingChain {
+    framebuffers: [FrameBuffer; 2],
+    swap: bool,
+}
+
+struct PostProcessingPair<'a> {
+    screen_texture: Rc<RefCell<GpuTexture>>,
+    framebuffer: &'a mut FrameBuffer,
+}
+
+impl PostProcessingChain {
+    fn new(state: &mut PipelineState, width: usize, height: usize) -> Result<Self, FrameworkError> {
+        fn make_framebuffer(
+            state: &mut PipelineState,
+            width: usize,
+            height: usize,
+        ) -> Result<FrameBuffer, FrameworkError> {
+            let frame_texture = GpuTexture::new(
+                state,
+                GpuTextureKind::Rectangle { width, height },
+                PixelKind::RGB10A2,
+                MinificationFilter::Nearest,
+                MagnificationFilter::Nearest,
+                1,
+                None,
+            )?;
+
+            FrameBuffer::new(
+                state,
+                None,
+                vec![Attachment {
+                    kind: AttachmentKind::Color,
+                    texture: Rc::new(RefCell::new(frame_texture)),
+                }],
+            )
+        }
+
+        Ok(Self {
+            framebuffers: [
+                make_framebuffer(state, width, height)?,
+                make_framebuffer(state, width, height)?,
+            ],
+            swap: false,
+        })
+    }
+
+    fn begin_pass(&mut self) -> PostProcessingPair {
+        let out = if self.swap {
+            PostProcessingPair {
+                screen_texture: self.framebuffers[0].color_attachments()[0].texture.clone(),
+                framebuffer: &mut self.framebuffers[1],
+            }
+        } else {
+            PostProcessingPair {
+                screen_texture: self.framebuffers[1].color_attachments()[0].texture.clone(),
+                framebuffer: &mut self.framebuffers[0],
+            }
+        };
+
+        self.swap = !self.swap;
+
+        out
+    }
+}
+
 /// See module docs.
 pub struct Renderer {
     backbuffer: FrameBuffer,
@@ -453,6 +520,8 @@ pub struct Renderer {
     renderer2d: Renderer2d,
     texture_upload_receiver: Receiver<Texture>,
     texture_upload_sender: Sender<Texture>,
+    post_processing_chain: PostProcessingChain,
+    gamma_correction_pass: GammaCorrectionPass,
     // TextureId -> FrameBuffer mapping. This mapping is used for temporal frame buffers
     // like ones used to render UI instances.
     ui_frame_buffers: HashMap<usize, FrameBuffer>,
@@ -694,6 +763,12 @@ impl Renderer {
             fxaa_renderer: FxaaRenderer::new(&mut state)?,
             statistics: Statistics::default(),
             renderer2d: Renderer2d::new(&mut state)?,
+            gamma_correction_pass: GammaCorrectionPass::new(&mut state)?,
+            post_processing_chain: PostProcessingChain::new(
+                &mut state,
+                frame_size.0 as usize,
+                frame_size.1 as usize,
+            )?,
             texture_upload_receiver,
             texture_upload_sender,
             state,
@@ -738,12 +813,20 @@ impl Renderer {
     ///
     /// Input values will be set to 1 pixel if new size is 0. Rendering cannot
     /// be performed into 0x0 texture.
-    pub fn set_frame_size(&mut self, new_size: (u32, u32)) {
-        self.deferred_light_renderer
-            .set_frame_size(&mut self.state, new_size)
-            .unwrap();
+    pub fn set_frame_size(&mut self, new_size: (u32, u32)) -> Result<(), FrameworkError> {
         self.frame_size.0 = new_size.0.max(1);
         self.frame_size.1 = new_size.1.max(1);
+
+        self.deferred_light_renderer
+            .set_frame_size(&mut self.state, new_size)?;
+
+        self.post_processing_chain = PostProcessingChain::new(
+            &mut self.state,
+            self.frame_size.0 as usize,
+            self.frame_size.1 as usize,
+        )?;
+
+        Ok(())
     }
 
     /// Returns current (width, height) pair of back buffer size.
@@ -905,6 +988,15 @@ impl Renderer {
 
         let backbuffer_width = self.frame_size.0 as f32;
         let backbuffer_height = self.frame_size.1 as f32;
+
+        let post_processing_pair = self.post_processing_chain.begin_pass();
+        post_processing_pair.framebuffer.clear(
+            &mut self.state,
+            window_viewport,
+            Some(Color::BLACK),
+            None,
+            None,
+        );
 
         for (scene_handle, scene) in scenes.pair_iter().filter(|(_, s)| s.enabled) {
             let graph = &scene.graph;
@@ -1086,12 +1178,12 @@ impl Renderer {
                             state,
                             viewport,
                             gbuffer.frame_texture(),
-                            &mut self.backbuffer,
+                            post_processing_pair.framebuffer,
                             &mut self.geometry_cache,
                         );
                     } else {
                         let shader = &self.flat_shader;
-                        self.statistics.geometry += self.backbuffer.draw(
+                        self.statistics.geometry += post_processing_pair.framebuffer.draw(
                             self.geometry_cache.get(state, &self.quad),
                             state,
                             viewport,
@@ -1131,14 +1223,26 @@ impl Renderer {
 
         self.statistics += self.renderer2d.render(
             &mut self.state,
-            &mut self.backbuffer,
+            post_processing_pair.framebuffer,
             Vector2::new(backbuffer_width, backbuffer_height),
             scenes2d,
             &mut self.texture_cache,
             self.white_dummy.clone(),
         )?;
 
-        // Render UI on top of everything.
+        drop(post_processing_pair);
+
+        let post_processing_pair = self.post_processing_chain.begin_pass();
+
+        self.statistics += self.gamma_correction_pass.render(
+            &mut self.state,
+            window_viewport,
+            post_processing_pair.screen_texture,
+            &mut self.backbuffer,
+            &mut self.geometry_cache,
+        );
+
+        // Render UI on top of everything without gamma correction.
         self.statistics += self.ui_renderer.render(UiRenderContext {
             state: &mut self.state,
             viewport: window_viewport,

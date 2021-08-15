@@ -288,3 +288,13 @@ vec2 S_ComputeParallaxTextureCoordinates(in sampler2D heightTexture, vec3 eyeVec
 
     return prev * weight + currentTexCoords * (1.0 - weight);
 }
+
+vec4 S_LinearToSRGB(vec4 color) {
+    vec3 rgb = pow(color.rgb, vec3(1.0 / 2.2));
+    return vec4(rgb, color.a);
+}
+
+vec4 S_SRGBToLinear(vec4 color) {
+    vec3 rgb = pow(color.rgb, vec3(2.2));
+    return vec4(rgb, color.a);
+}

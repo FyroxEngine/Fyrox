@@ -240,7 +240,10 @@ impl LightVolumeRenderer {
                             .set_vector3(&shader.light_position, &position)
                             .set_vector3(&shader.light_direction, &direction)
                             .set_texture(&shader.depth_sampler, &depth_map)
-                            .set_vector3(&shader.light_color, &light.color().as_frgba().xyz())
+                            .set_vector3(
+                                &shader.light_color,
+                                &light.color().srgb_to_linear_f32().xyz(),
+                            )
                             .set_vector3(&shader.scatter_factor, &light.scatter());
                     },
                 )
@@ -321,7 +324,10 @@ impl LightVolumeRenderer {
                             .set_vector3(&shader.light_position, &position)
                             .set_texture(&shader.depth_sampler, &depth_map)
                             .set_f32(&shader.light_radius, point.radius())
-                            .set_vector3(&shader.light_color, &light.color().as_frgba().xyz())
+                            .set_vector3(
+                                &shader.light_color,
+                                &light.color().srgb_to_linear_f32().xyz(),
+                            )
                             .set_vector3(&shader.scatter_factor, &light.scatter());
                     },
                 )

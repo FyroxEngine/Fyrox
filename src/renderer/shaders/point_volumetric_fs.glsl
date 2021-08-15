@@ -35,5 +35,5 @@ void main()
         }
     }
 
-    FragColor = vec4(lightColor * scatter, 1.0);
+    FragColor = vec4(lightColor * pow(scatter, vec3(2.2)), 1.0);
 }

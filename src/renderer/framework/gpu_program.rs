@@ -251,7 +251,18 @@ impl<'a> GpuProgramBinding<'a> {
     }
 
     #[inline(always)]
-    pub fn set_color(self, location: &UniformLocation, value: &Color) -> Self {
+    pub fn set_linear_color(self, location: &UniformLocation, value: &Color) -> Self {
+        unsafe {
+            let srgb_a = value.srgb_to_linear_f32();
+            self.state
+                .gl
+                .uniform_4_f32(Some(&location.id), srgb_a.x, srgb_a.y, srgb_a.z, srgb_a.w);
+        }
+        self
+    }
+
+    #[inline(always)]
+    pub fn set_srgb_color(self, location: &UniformLocation, value: &Color) -> Self {
         unsafe {
             let rgba = value.as_frgba();
             self.state

@@ -4,6 +4,7 @@
 //! Once you get familiar with the engine, you should **not** use the framework because it is too
 //! limiting and may slow you down.
 
+use crate::utils::log::{Log, MessageKind};
 use crate::{
     core::instant::Instant,
     engine::{error::EngineError, Engine},
@@ -134,7 +135,12 @@ impl<State: GameState> Framework<State> {
                     match event {
                         WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
                         WindowEvent::Resized(size) => {
-                            engine.renderer.set_frame_size(size.into());
+                            if let Err(e) = engine.renderer.set_frame_size(size.into()) {
+                                Log::writeln(
+                                    MessageKind::Error,
+                                    format!("Unable to set frame size: {:?}", e),
+                                );
+                            }
                         }
                         _ => (),
                     }

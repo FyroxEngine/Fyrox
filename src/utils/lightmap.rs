@@ -277,7 +277,7 @@ impl Lightmap {
                             .up_vector()
                             .try_normalize(std::f32::EPSILON)
                             .unwrap_or_else(Vector3::y),
-                        color: light.color().as_frgb(),
+                        color: light.color().srgb_to_linear().as_frgb(),
                     }))
                 }
                 Light::Spot(spot) => lights.push(LightDefinition::Spot(SpotLightDefinition {
@@ -285,7 +285,7 @@ impl Lightmap {
                     intensity: 1.0,
                     edge0: ((spot.hotspot_cone_angle() + spot.falloff_angle_delta()) * 0.5).cos(),
                     edge1: (spot.hotspot_cone_angle() * 0.5).cos(),
-                    color: light.color().as_frgb(),
+                    color: light.color().srgb_to_linear().as_frgb(),
                     direction: light
                         .up_vector()
                         .try_normalize(std::f32::EPSILON)
@@ -298,7 +298,7 @@ impl Lightmap {
                     handle,
                     intensity: 1.0,
                     position: light.global_position(),
-                    color: light.color().as_frgb(),
+                    color: light.color().srgb_to_linear().as_frgb(),
                     radius: point.radius(),
                     sqr_radius: point.radius() * point.radius(),
                 })),

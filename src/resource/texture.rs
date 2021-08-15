@@ -158,6 +158,7 @@ pub struct TextureData {
     anisotropy: f32,
     serialize_content: bool,
     data_hash: u64,
+    is_render_target: bool,
 }
 
 impl ResourceData for TextureData {
@@ -223,6 +224,7 @@ impl Default for TextureData {
             anisotropy: 16.0,
             serialize_content: false,
             data_hash: 0,
+            is_render_target: false,
         }
     }
 }
@@ -254,6 +256,7 @@ impl Texture {
             anisotropy: 1.0,
             serialize_content: false,
             data_hash: 0,
+            is_render_target: true,
         })))
     }
 
@@ -964,6 +967,11 @@ impl TextureData {
     /// Returns current data as immutable slice.
     pub fn data(&self) -> &[u8] {
         &self.bytes
+    }
+
+    /// Returns true if the texture is used as render target.
+    pub fn is_render_target(&self) -> bool {
+        self.is_render_target
     }
 
     /// Max samples for anisotropic filtering. Default value is 16.0 (max).

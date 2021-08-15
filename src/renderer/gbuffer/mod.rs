@@ -1,3 +1,10 @@
+//! GBuffer Layout:
+//!
+//! RT0: sRGBA8 - Diffuse color.
+//! RT1: RGBA8 - Normal (xyz) + specular (w)
+//! RT2: RGBA8 - Ambient light + emission
+//! RT3: R8UI - Decal mask
+
 use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector4},
@@ -87,7 +94,7 @@ impl GBuffer {
         let mut diffuse_texture = GpuTexture::new(
             state,
             GpuTextureKind::Rectangle { width, height },
-            PixelKind::RGBA8,
+            PixelKind::SRGBA8,
             MinificationFilter::Nearest,
             MagnificationFilter::Nearest,
             1,
@@ -187,7 +194,7 @@ impl GBuffer {
         let frame_texture = GpuTexture::new(
             state,
             GpuTextureKind::Rectangle { width, height },
-            PixelKind::RGBA8,
+            PixelKind::RGB10A2,
             MinificationFilter::Linear,
             MagnificationFilter::Linear,
             1,
@@ -434,7 +441,10 @@ impl GBuffer {
                             initial_view_projection
                         };
                         program_binding
-                            .set_color(shader.diffuse_color.as_ref().unwrap(), &instance.color)
+                            .set_linear_color(
+                                shader.diffuse_color.as_ref().unwrap(),
+                                &instance.color,
+                            )
                             .set_matrix4(
                                 shader.wvp_matrix.as_ref().unwrap(),
                                 &(view_projection * instance.world_transform),
@@ -535,7 +545,7 @@ impl GBuffer {
                         .set_texture(&shader.normal_texture, &normal_texture)
                         .set_texture(&shader.decal_mask, &decal_mask)
                         .set_u32(&shader.layer_index, decal.layer() as u32)
-                        .set_color(&shader.color, &decal.color());
+                        .set_linear_color(&shader.color, &decal.color());
                 },
             );
         }

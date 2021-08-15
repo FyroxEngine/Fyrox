@@ -22,6 +22,6 @@ void main()
     float sceneDepth = toProjSpace(texture(depthBufferTexture, gl_FragCoord.xy * invScreenSize).r);
     float fragmentDepth = toProjSpace(gl_FragCoord.z);
     float depthOpacity = smoothstep((sceneDepth - fragmentDepth) * softBoundarySharpnessFactor, 0.0, 1.0);
-    FragColor = color * texture(diffuseTexture, texCoord).r;
+    FragColor = color * S_SRGBToLinear(texture(diffuseTexture, texCoord)).r;
     FragColor.a *= depthOpacity;
 }

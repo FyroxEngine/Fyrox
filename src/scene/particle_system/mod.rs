@@ -334,12 +334,14 @@ impl ParticleSystem {
         for (i, particle_index) in sorted_particles.iter().enumerate() {
             let particle = self.particles.get(*particle_index as usize).unwrap();
 
+            let linear_color = particle.color.srgb_to_linear();
+
             draw_data.vertices.push(Vertex {
                 position: particle.position,
                 tex_coord: Vector2::default(),
                 size: particle.size,
                 rotation: particle.rotation,
-                color: particle.color,
+                color: linear_color,
             });
 
             draw_data.vertices.push(Vertex {
@@ -347,7 +349,7 @@ impl ParticleSystem {
                 tex_coord: Vector2::new(1.0, 0.0),
                 size: particle.size,
                 rotation: particle.rotation,
-                color: particle.color,
+                color: linear_color,
             });
 
             draw_data.vertices.push(Vertex {
@@ -355,7 +357,7 @@ impl ParticleSystem {
                 tex_coord: Vector2::new(1.0, 1.0),
                 size: particle.size,
                 rotation: particle.rotation,
-                color: particle.color,
+                color: linear_color,
             });
 
             draw_data.vertices.push(Vertex {
@@ -363,7 +365,7 @@ impl ParticleSystem {
                 tex_coord: Vector2::new(0.0, 1.0),
                 size: particle.size,
                 rotation: particle.rotation,
-                color: particle.color,
+                color: linear_color,
             });
 
             let base_index = (i * 4) as u32;

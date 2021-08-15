@@ -12,6 +12,7 @@ pub mod shared;
 
 use crate::shared::create_camera;
 use rg3d::engine::resource_manager::MaterialSearchOptions;
+use rg3d::utils::log::{Log, MessageKind};
 use rg3d::{
     animation::Animation,
     core::{
@@ -472,10 +473,15 @@ fn main() {
                                         ));
 
                                         // Due to some weird bug in winit it does not send Resized event.
-                                        engine.renderer.set_frame_size((
+                                        if let Err(e) = engine.renderer.set_frame_size((
                                             video_mode.size().width,
                                             video_mode.size().height,
-                                        ));
+                                        )) {
+                                            Log::writeln(
+                                                MessageKind::Error,
+                                                format!("Unable to set frame size: {:?}", e),
+                                            );
+                                        }
                                     }
                                 }
                             }
@@ -498,7 +504,12 @@ fn main() {
                         // It is very important to handle Resized event from window, because
                         // renderer knows nothing about window size - it must be notified
                         // directly when window size has changed.
-                        engine.renderer.set_frame_size(size.into());
+                        if let Err(e) = engine.renderer.set_frame_size(size.into()) {
+                            Log::writeln(
+                                MessageKind::Error,
+                                format!("Unable to set frame size: {:?}", e),
+                            );
+                        }
                     }
                     WindowEvent::KeyboardInput { input, .. } => {
                         if let Some(key_code) = input.virtual_keycode {

@@ -124,7 +124,7 @@ impl ForwardRenderer {
                                     &(view_projection * instance.world_transform),
                                 )
                                 .set_bool(&self.shader.use_skeletal_animation, batch.is_skinned)
-                                .set_color(&self.shader.color, &instance.color)
+                                .set_linear_color(&self.shader.color, &instance.color)
                                 .set_matrix4_array(
                                     &self.shader.bone_matrices,
                                     instance.bone_matrices.as_slice(),

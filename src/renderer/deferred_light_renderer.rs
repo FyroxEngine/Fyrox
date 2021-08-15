@@ -569,7 +569,7 @@ impl DeferredLightRenderer {
             |program_binding| {
                 program_binding
                     .set_matrix4(&self.ambient_light_shader.wvp_matrix, &frame_matrix)
-                    .set_color(&self.ambient_light_shader.ambient_color, &ambient_color)
+                    .set_linear_color(&self.ambient_light_shader.ambient_color, &ambient_color)
                     .set_texture(
                         &self.ambient_light_shader.diffuse_texture,
                         &gbuffer_diffuse_map,
@@ -833,7 +833,7 @@ impl DeferredLightRenderer {
                                 .set_vector3(&shader.light_direction, &emit_direction)
                                 .set_f32(&shader.light_radius, light_radius)
                                 .set_matrix4(&shader.inv_view_proj_matrix, &inv_view_projection)
-                                .set_color(&shader.light_color, &light.color())
+                                .set_linear_color(&shader.light_color, &light.color())
                                 .set_f32(
                                     &shader.half_hotspot_cone_angle_cos,
                                     (spot_light.hotspot_cone_angle() * 0.5).cos(),
@@ -880,7 +880,7 @@ impl DeferredLightRenderer {
                                 .set_vector3(&shader.light_position, &light_position)
                                 .set_f32(&shader.light_radius, light_radius)
                                 .set_matrix4(&shader.inv_view_proj_matrix, &inv_view_projection)
-                                .set_color(&shader.light_color, &light.color())
+                                .set_linear_color(&shader.light_color, &light.color())
                                 .set_matrix4(&shader.wvp_matrix, &frame_matrix)
                                 .set_vector3(&shader.camera_position, &camera_global_position)
                                 .set_f32(&shader.shadow_bias, point_light.shadow_bias())
@@ -919,7 +919,7 @@ impl DeferredLightRenderer {
                             program_binding
                                 .set_vector3(&shader.light_direction, &emit_direction)
                                 .set_matrix4(&shader.inv_view_proj_matrix, &inv_view_projection)
-                                .set_color(&shader.light_color, &light.color())
+                                .set_linear_color(&shader.light_color, &light.color())
                                 .set_matrix4(&shader.wvp_matrix, &frame_matrix)
                                 .set_vector3(&shader.camera_position, &camera_global_position)
                                 .set_texture(&shader.depth_sampler, &gbuffer_depth_map)

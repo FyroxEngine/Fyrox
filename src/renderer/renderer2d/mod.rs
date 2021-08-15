@@ -165,7 +165,7 @@ impl BatchStorage {
 
                 batch.instances.push(Instance {
                     gpu_data: InstanceData {
-                        color: sprite.color(),
+                        color: sprite.color().srgb_to_linear(),
                         world_matrix: sprite.global_transform()
                             * Matrix4::new_scaling(sprite.size()),
                     },
@@ -307,7 +307,7 @@ impl Renderer2d {
 
                     if viewport_f32.intersects_circle(position, radius) {
                         let light_num = light_count as usize;
-                        let color = light.color().as_frgb();
+                        let color = light.color().srgb_to_linear().as_frgb();
 
                         light_position_direction[light_num] =
                             Vector4::new(position.x, position.y, direction.x, direction.y);
