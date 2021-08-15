@@ -290,11 +290,17 @@ vec2 S_ComputeParallaxTextureCoordinates(in sampler2D heightTexture, vec3 eyeVec
 }
 
 vec4 S_LinearToSRGB(vec4 color) {
-    vec3 rgb = pow(color.rgb, vec3(1.0 / 2.2));
+    vec3 a = 12.92 * color.rgb;
+    vec3 b = 1.055 * pow(color.rgb, vec3(1.0 / 2.4)) - 0.055;
+    vec3 c = step(vec3(0.0031308), color.rgb);
+    vec3 rgb = mix(a, b, c);
     return vec4(rgb, color.a);
 }
 
 vec4 S_SRGBToLinear(vec4 color) {
-    vec3 rgb = pow(color.rgb, vec3(2.2));
+    vec3 a = color.rgb / 12.92;
+    vec3 b = pow((color.rgb + 0.055) / 1.055, vec3(2.4));
+    vec3 c = step(vec3(0.04045), color.rgb);
+    vec3 rgb = mix(a, b, c);
     return vec4(rgb, color.a);
 }
