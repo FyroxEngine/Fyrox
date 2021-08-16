@@ -210,6 +210,7 @@ impl<T: ResourceData, E: ResourceLoadError> From<Arc<Mutex<ResourceState<T, E>>>
     }
 }
 
+#[allow(clippy::from_over_into)]
 impl<T: ResourceData, E: ResourceLoadError> Into<Arc<Mutex<ResourceState<T, E>>>>
     for Resource<T, E>
 {

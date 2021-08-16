@@ -336,13 +336,13 @@ mod test {
         let entry = CompositeNode::new(
             CompositeNodeKind::Sequence,
             vec![
-                LeafNode::new(BotBehavior::Walk(WalkAction)).add(&mut tree),
-                LeafNode::new(BotBehavior::OpenDoor(OpenDoorAction)).add(&mut tree),
-                LeafNode::new(BotBehavior::StepThrough(StepThroughAction)).add(&mut tree),
-                LeafNode::new(BotBehavior::CloseDoor(CloseDoorAction)).add(&mut tree),
+                LeafNode::new(BotBehavior::Walk(WalkAction)).add_to(&mut tree),
+                LeafNode::new(BotBehavior::OpenDoor(OpenDoorAction)).add_to(&mut tree),
+                LeafNode::new(BotBehavior::StepThrough(StepThroughAction)).add_to(&mut tree),
+                LeafNode::new(BotBehavior::CloseDoor(CloseDoorAction)).add_to(&mut tree),
             ],
         )
-        .add(&mut tree);
+        .add_to(&mut tree);
 
         tree.set_entry_node(entry);
 
