@@ -32,15 +32,21 @@ impl SoundEngine {
             let state = engine.clone();
             move |buf| {
                 if let Ok(mut state) = state.lock() {
-                    let master_gain = state.master_gain;
-                    for context in state.contexts.iter_mut() {
-                        context.state().render(master_gain, buf);
-                    }
+                    state.render_inner(buf);
                 }
             }
         });
 
         engine
+    }
+
+    /// Creates new instance of a sound engine without running a device thread. The user must
+    /// periodically run [`Self::render`].
+    pub fn without_device() -> Arc<Mutex<Self>> {
+        Arc::new(Mutex::new(Self {
+            contexts: Default::default(),
+            master_gain: 1.0,
+        }))
     }
 
     /// Adds new context to the engine. Each context must be added to the engine to emit
@@ -76,6 +82,26 @@ impl SoundEngine {
     /// Returns global sound volume in [0; 1] range.
     pub fn master_gain(&self) -> f32 {
         self.master_gain
+    }
+
+    /// Returns the length of buf to be passed to [`Self::render()`].
+    pub fn render_buffer_len() -> usize {
+        SoundContext::SAMPLES_PER_CHANNEL
+    }
+
+    /// Renders the sound into buf. The buf must have at least [`Self::render_buffer_len()`]
+    /// elements. This method must be used if and only if the engine was created via
+    /// [`Self::without_device`].
+    pub fn render(&mut self, buf: &mut [(f32, f32)]) {
+        buf.fill((0.0, 0.0));
+        self.render_inner(buf);
+    }
+
+    fn render_inner(&mut self, buf: &mut [(f32, f32)]) {
+        let master_gain = self.master_gain;
+        for context in self.contexts.iter_mut() {
+            context.state().render(master_gain, buf);
+        }
     }
 }
 
