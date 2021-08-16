@@ -571,7 +571,7 @@ impl PathFixer {
             }
             UiMessageData::ListView(ListViewMessage::SelectionChanged(selection)) => {
                 if message.destination() == self.resources_list {
-                    self.selection = selection.clone();
+                    self.selection = *selection;
 
                     if let Some(selection) = selection {
                         ui.send_message(TextMessage::text(

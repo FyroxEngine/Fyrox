@@ -72,6 +72,7 @@ use crate::{
     utils::path_fixer::PathFixer,
     world_outliner::WorldOutliner,
 };
+use rg3d::utils::log::MessageKind;
 use rg3d::{
     core::{
         algebra::{Point3, Vector2},
@@ -2041,7 +2042,12 @@ fn main() {
                         .unwrap();
                 }
                 WindowEvent::Resized(size) => {
-                    engine.renderer.set_frame_size(size.into());
+                    if let Err(e) = engine.renderer.set_frame_size(size.into()) {
+                        rg3d::utils::log::Log::writeln(
+                            MessageKind::Error,
+                            format!("Failed to set renderer size! Reason: {:?}", e),
+                        );
+                    }
                     engine.user_interface.send_message(WidgetMessage::width(
                         editor.root_grid,
                         MessageDirection::ToWidget,

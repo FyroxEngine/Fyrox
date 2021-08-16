@@ -427,10 +427,7 @@ impl SoundSection {
                                 sender
                                     .send(Message::DoSceneCommand(
                                         SceneCommand::SetSoundSourceBuffer(
-                                            SetSoundSourceBufferCommand::new(
-                                                handle,
-                                                Some(buffer.into()),
-                                            ),
+                                            SetSoundSourceBufferCommand::new(handle, Some(buffer)),
                                         ),
                                     ))
                                     .unwrap();
