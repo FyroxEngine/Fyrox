@@ -92,6 +92,11 @@ impl SoundEngine {
     /// Renders the sound into buf. The buf must have at least [`Self::render_buffer_len()`]
     /// elements. This method must be used if and only if the engine was created via
     /// [`Self::without_device`].
+    ///
+    /// ## Deadlocks
+    ///
+    /// This method internally locks added sound contexts so it must be called when all the contexts
+    /// are unlocked or you'll get a deadlock.
     pub fn render(&mut self, buf: &mut [(f32, f32)]) {
         buf.fill((0.0, 0.0));
         self.render_inner(buf);
