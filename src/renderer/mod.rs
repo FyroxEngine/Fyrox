@@ -15,15 +15,15 @@ pub mod renderer2d;
 
 mod batch;
 mod blur;
-mod deferred_light_renderer;
 mod flat_shader;
 mod forward_renderer;
 mod fxaa;
 mod gamma;
 mod gbuffer;
+mod light;
 mod light_volume;
 mod particle_system_renderer;
-mod shadow_map_renderer;
+mod shadow;
 mod skybox_shader;
 mod sprite_renderer;
 mod ssao;
@@ -46,9 +46,6 @@ use crate::{
         batch::BatchStorage,
         cache::{GeometryCache, TextureCache},
         debug_renderer::DebugRenderer,
-        deferred_light_renderer::{
-            DeferredLightRenderer, DeferredRendererContext, LightingStatistics,
-        },
         flat_shader::FlatShader,
         forward_renderer::{ForwardRenderContext, ForwardRenderer},
         framework::{
@@ -62,6 +59,7 @@ use crate::{
         },
         fxaa::FxaaRenderer,
         gbuffer::{GBuffer, GBufferRenderContext},
+        light::{DeferredLightRenderer, DeferredRendererContext, LightingStatistics},
         particle_system_renderer::{ParticleSystemRenderContext, ParticleSystemRenderer},
         renderer2d::Renderer2d,
         sprite_renderer::{SpriteRenderContext, SpriteRenderer},

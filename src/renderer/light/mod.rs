@@ -11,14 +11,18 @@ use crate::{
         framework::{
             error::FrameworkError,
             framebuffer::{CullFace, DrawParameters},
-            gpu_program::{GpuProgram, UniformLocation},
             gpu_texture::GpuTexture,
             state::{ColorMask, PipelineState, StencilFunc, StencilOp},
         },
         gbuffer::GBuffer,
+        light::{
+            ambient::AmbientLightShader, directional::DirectionalLightShader,
+            point::PointLightShader, spot::SpotLightShader,
+        },
         light_volume::LightVolumeRenderer,
-        shadow_map_renderer::{
-            PointShadowMapRenderContext, PointShadowMapRenderer, SpotShadowMapRenderer,
+        shadow::{
+            point::{PointShadowMapRenderContext, PointShadowMapRenderer},
+            spot::SpotShadowMapRenderer,
         },
         skybox_shader::SkyboxShader,
         ssao::ScreenSpaceAmbientOcclusionRenderer,
@@ -43,14 +47,10 @@ use std::{
     rc::Rc,
 };
 
-struct AmbientLightShader {
-    program: GpuProgram,
-    wvp_matrix: UniformLocation,
-    diffuse_texture: UniformLocation,
-    ambient_color: UniformLocation,
-    ao_sampler: UniformLocation,
-    ambient_texture: UniformLocation,
-}
+pub mod ambient;
+pub mod directional;
+pub mod point;
+pub mod spot;
 
 #[derive(Copy, Clone, Default)]
 pub struct LightingStatistics {
@@ -87,160 +87,6 @@ impl Display for LightingStatistics {
             self.point_shadow_maps_rendered,
             self.spot_shadow_maps_rendered,
         )
-    }
-}
-
-impl AmbientLightShader {
-    fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
-        let fragment_source = include_str!("shaders/ambient_light_fs.glsl");
-        let vertex_source = include_str!("shaders/ambient_light_vs.glsl");
-        let program =
-            GpuProgram::from_source(state, "AmbientLightShader", vertex_source, fragment_source)?;
-        Ok(Self {
-            wvp_matrix: program.uniform_location(state, "worldViewProjection")?,
-            diffuse_texture: program.uniform_location(state, "diffuseTexture")?,
-            ambient_color: program.uniform_location(state, "ambientColor")?,
-            ao_sampler: program.uniform_location(state, "aoSampler")?,
-            ambient_texture: program.uniform_location(state, "ambientTexture")?,
-            program,
-        })
-    }
-}
-
-struct SpotLightShader {
-    program: GpuProgram,
-    wvp_matrix: UniformLocation,
-    depth_sampler: UniformLocation,
-    color_sampler: UniformLocation,
-    normal_sampler: UniformLocation,
-    spot_shadow_texture: UniformLocation,
-    cookie_enabled: UniformLocation,
-    cookie_texture: UniformLocation,
-    light_view_proj_matrix: UniformLocation,
-    shadows_enabled: UniformLocation,
-    soft_shadows: UniformLocation,
-    shadow_map_inv_size: UniformLocation,
-    light_position: UniformLocation,
-    light_radius: UniformLocation,
-    light_color: UniformLocation,
-    light_direction: UniformLocation,
-    half_hotspot_cone_angle_cos: UniformLocation,
-    half_cone_angle_cos: UniformLocation,
-    inv_view_proj_matrix: UniformLocation,
-    camera_position: UniformLocation,
-    shadow_bias: UniformLocation,
-    light_intensity: UniformLocation,
-}
-
-impl SpotLightShader {
-    fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
-        let fragment_source = include_str!("shaders/deferred_spot_light_fs.glsl");
-        let vertex_source = include_str!("shaders/deferred_light_vs.glsl");
-        let program =
-            GpuProgram::from_source(state, "DeferredLightShader", vertex_source, fragment_source)?;
-        Ok(Self {
-            wvp_matrix: program.uniform_location(state, "worldViewProjection")?,
-            depth_sampler: program.uniform_location(state, "depthTexture")?,
-            color_sampler: program.uniform_location(state, "colorTexture")?,
-            normal_sampler: program.uniform_location(state, "normalTexture")?,
-            spot_shadow_texture: program.uniform_location(state, "spotShadowTexture")?,
-            cookie_enabled: program.uniform_location(state, "cookieEnabled")?,
-            cookie_texture: program.uniform_location(state, "cookieTexture")?,
-            light_view_proj_matrix: program.uniform_location(state, "lightViewProjMatrix")?,
-            shadows_enabled: program.uniform_location(state, "shadowsEnabled")?,
-            soft_shadows: program.uniform_location(state, "softShadows")?,
-            shadow_map_inv_size: program.uniform_location(state, "shadowMapInvSize")?,
-            light_position: program.uniform_location(state, "lightPos")?,
-            light_radius: program.uniform_location(state, "lightRadius")?,
-            light_color: program.uniform_location(state, "lightColor")?,
-            light_direction: program.uniform_location(state, "lightDirection")?,
-            half_hotspot_cone_angle_cos: program
-                .uniform_location(state, "halfHotspotConeAngleCos")?,
-            half_cone_angle_cos: program.uniform_location(state, "halfConeAngleCos")?,
-            inv_view_proj_matrix: program.uniform_location(state, "invViewProj")?,
-            camera_position: program.uniform_location(state, "cameraPosition")?,
-            shadow_bias: program.uniform_location(state, "shadowBias")?,
-            light_intensity: program.uniform_location(state, "lightIntensity")?,
-            program,
-        })
-    }
-}
-
-struct PointLightShader {
-    program: GpuProgram,
-    wvp_matrix: UniformLocation,
-    depth_sampler: UniformLocation,
-    color_sampler: UniformLocation,
-    normal_sampler: UniformLocation,
-    point_shadow_texture: UniformLocation,
-    shadows_enabled: UniformLocation,
-    soft_shadows: UniformLocation,
-    light_position: UniformLocation,
-    light_radius: UniformLocation,
-    light_color: UniformLocation,
-    inv_view_proj_matrix: UniformLocation,
-    camera_position: UniformLocation,
-    shadow_bias: UniformLocation,
-    light_intensity: UniformLocation,
-}
-
-impl PointLightShader {
-    fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
-        let fragment_source = include_str!("shaders/deferred_point_light_fs.glsl");
-        let vertex_source = include_str!("shaders/deferred_light_vs.glsl");
-        let program =
-            GpuProgram::from_source(state, "DeferredLightShader", vertex_source, fragment_source)?;
-        Ok(Self {
-            wvp_matrix: program.uniform_location(state, "worldViewProjection")?,
-            depth_sampler: program.uniform_location(state, "depthTexture")?,
-            color_sampler: program.uniform_location(state, "colorTexture")?,
-            normal_sampler: program.uniform_location(state, "normalTexture")?,
-            point_shadow_texture: program.uniform_location(state, "pointShadowTexture")?,
-            shadows_enabled: program.uniform_location(state, "shadowsEnabled")?,
-            soft_shadows: program.uniform_location(state, "softShadows")?,
-            light_position: program.uniform_location(state, "lightPos")?,
-            light_radius: program.uniform_location(state, "lightRadius")?,
-            light_color: program.uniform_location(state, "lightColor")?,
-            inv_view_proj_matrix: program.uniform_location(state, "invViewProj")?,
-            camera_position: program.uniform_location(state, "cameraPosition")?,
-            shadow_bias: program.uniform_location(state, "shadowBias")?,
-            light_intensity: program.uniform_location(state, "lightIntensity")?,
-            program,
-        })
-    }
-}
-
-struct DirectionalLightShader {
-    program: GpuProgram,
-    wvp_matrix: UniformLocation,
-    depth_sampler: UniformLocation,
-    color_sampler: UniformLocation,
-    normal_sampler: UniformLocation,
-    light_direction: UniformLocation,
-    light_color: UniformLocation,
-    inv_view_proj_matrix: UniformLocation,
-    camera_position: UniformLocation,
-    light_intensity: UniformLocation,
-}
-
-impl DirectionalLightShader {
-    fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
-        let fragment_source = include_str!("shaders/deferred_directional_light_fs.glsl");
-        let vertex_source = include_str!("shaders/deferred_light_vs.glsl");
-        let program =
-            GpuProgram::from_source(state, "DeferredLightShader", vertex_source, fragment_source)?;
-        Ok(Self {
-            wvp_matrix: program.uniform_location(state, "worldViewProjection")?,
-            depth_sampler: program.uniform_location(state, "depthTexture")?,
-            color_sampler: program.uniform_location(state, "colorTexture")?,
-            normal_sampler: program.uniform_location(state, "normalTexture")?,
-            light_direction: program.uniform_location(state, "lightDirection")?,
-            light_color: program.uniform_location(state, "lightColor")?,
-            inv_view_proj_matrix: program.uniform_location(state, "invViewProj")?,
-            camera_position: program.uniform_location(state, "cameraPosition")?,
-            light_intensity: program.uniform_location(state, "lightIntensity")?,
-            program,
-        })
     }
 }
 
