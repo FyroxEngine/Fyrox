@@ -9,6 +9,7 @@ uniform vec3 lightDirection;
 uniform vec4 lightColor;
 uniform mat4 invViewProj;
 uniform vec3 cameraPosition;
+uniform float lightIntensity;
 
 in vec2 texCoord;
 out vec4 FragColor;
@@ -26,5 +27,5 @@ void main()
 
     FragColor = texture(colorTexture, texCoord);
     FragColor.xyz += 0.4 * specular;
-    FragColor *= lambertian * lightColor;
+    FragColor *= lightIntensity * lambertian * lightColor;
 }

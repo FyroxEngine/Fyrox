@@ -129,6 +129,7 @@ struct SpotLightShader {
     inv_view_proj_matrix: UniformLocation,
     camera_position: UniformLocation,
     shadow_bias: UniformLocation,
+    light_intensity: UniformLocation,
 }
 
 impl SpotLightShader {
@@ -159,7 +160,7 @@ impl SpotLightShader {
             inv_view_proj_matrix: program.uniform_location(state, "invViewProj")?,
             camera_position: program.uniform_location(state, "cameraPosition")?,
             shadow_bias: program.uniform_location(state, "shadowBias")?,
-
+            light_intensity: program.uniform_location(state, "lightIntensity")?,
             program,
         })
     }
@@ -180,6 +181,7 @@ struct PointLightShader {
     inv_view_proj_matrix: UniformLocation,
     camera_position: UniformLocation,
     shadow_bias: UniformLocation,
+    light_intensity: UniformLocation,
 }
 
 impl PointLightShader {
@@ -202,7 +204,7 @@ impl PointLightShader {
             inv_view_proj_matrix: program.uniform_location(state, "invViewProj")?,
             camera_position: program.uniform_location(state, "cameraPosition")?,
             shadow_bias: program.uniform_location(state, "shadowBias")?,
-
+            light_intensity: program.uniform_location(state, "lightIntensity")?,
             program,
         })
     }
@@ -218,6 +220,7 @@ struct DirectionalLightShader {
     light_color: UniformLocation,
     inv_view_proj_matrix: UniformLocation,
     camera_position: UniformLocation,
+    light_intensity: UniformLocation,
 }
 
 impl DirectionalLightShader {
@@ -235,6 +238,7 @@ impl DirectionalLightShader {
             light_color: program.uniform_location(state, "lightColor")?,
             inv_view_proj_matrix: program.uniform_location(state, "invViewProj")?,
             camera_position: program.uniform_location(state, "cameraPosition")?,
+            light_intensity: program.uniform_location(state, "lightIntensity")?,
             program,
         })
     }
@@ -858,7 +862,8 @@ impl DeferredLightRenderer {
                                 )
                                 .set_texture(&shader.cookie_texture, &cookie_texture)
                                 .set_bool(&shader.cookie_enabled, cookie_enabled)
-                                .set_f32(&shader.shadow_bias, spot_light.shadow_bias());
+                                .set_f32(&shader.shadow_bias, spot_light.shadow_bias())
+                                .set_f32(&shader.light_intensity, spot_light.intensity());
                         },
                     )
                 }
@@ -884,6 +889,7 @@ impl DeferredLightRenderer {
                                 .set_matrix4(&shader.wvp_matrix, &frame_matrix)
                                 .set_vector3(&shader.camera_position, &camera_global_position)
                                 .set_f32(&shader.shadow_bias, point_light.shadow_bias())
+                                .set_f32(&shader.light_intensity, point_light.intensity())
                                 .set_texture(&shader.depth_sampler, &gbuffer_depth_map)
                                 .set_texture(&shader.color_sampler, &gbuffer_diffuse_map)
                                 .set_texture(&shader.normal_sampler, &gbuffer_normal_map)
@@ -922,6 +928,7 @@ impl DeferredLightRenderer {
                                 .set_linear_color(&shader.light_color, &light.color())
                                 .set_matrix4(&shader.wvp_matrix, &frame_matrix)
                                 .set_vector3(&shader.camera_position, &camera_global_position)
+                                .set_f32(&shader.light_intensity, light.intensity())
                                 .set_texture(&shader.depth_sampler, &gbuffer_depth_map)
                                 .set_texture(&shader.color_sampler, &gbuffer_diffuse_map)
                                 .set_texture(&shader.normal_sampler, &gbuffer_normal_map);

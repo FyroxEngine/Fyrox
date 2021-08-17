@@ -20,6 +20,7 @@ uniform bool softShadows;
 uniform float shadowMapInvSize;
 uniform float shadowBias;
 uniform bool cookieEnabled;
+uniform float lightIntensity;
 
 in vec2 texCoord;
 out vec4 FragColor;
@@ -50,6 +51,6 @@ void main()
         cookieAttenuation = texture(cookieTexture, texCoords);
     }
 
-    FragColor = cookieAttenuation * coneFactor * lighting.attenuation * shadow *
+    FragColor = lightIntensity * cookieAttenuation * coneFactor * lighting.attenuation * shadow *
         (lightColor * lighting.specular * normalSpecular.w + lightColor * texture(colorTexture, texCoord));
 }

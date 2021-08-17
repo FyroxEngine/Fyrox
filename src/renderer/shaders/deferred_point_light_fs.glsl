@@ -13,6 +13,7 @@ uniform vec3 cameraPosition;
 uniform bool softShadows;
 uniform bool shadowsEnabled;
 uniform float shadowBias;
+uniform float lightIntensity;
 
 in vec2 texCoord;
 out vec4 FragColor;
@@ -32,6 +33,6 @@ void main()
     float shadow = S_PointShadow(
         shadowsEnabled, softShadows, lighting.distance, shadowBias, lighting.direction, pointShadowTexture);
 
-    FragColor = lighting.attenuation * shadow *
+    FragColor = lightIntensity * lighting.attenuation * shadow *
             (lightColor * lighting.specular * normalSpecular.w + lightColor * texture(colorTexture, texCoord));
 }

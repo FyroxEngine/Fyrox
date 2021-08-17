@@ -149,6 +149,7 @@ pub struct BaseLight {
     cast_shadows: bool,
     scatter: Vector3<f32>,
     scatter_enabled: bool,
+    intensity: f32,
 }
 
 impl Deref for BaseLight {
@@ -173,6 +174,7 @@ impl Default for BaseLight {
             cast_shadows: true,
             scatter: Vector3::new(DEFAULT_SCATTER_R, DEFAULT_SCATTER_G, DEFAULT_SCATTER_B),
             scatter_enabled: true,
+            intensity: 1.0,
         }
     }
 }
@@ -186,6 +188,7 @@ impl Visit for BaseLight {
         self.cast_shadows.visit("CastShadows", visitor)?;
         self.scatter.visit("ScatterFactor", visitor)?;
         self.scatter_enabled.visit("ScatterEnabled", visitor)?;
+        self.intensity.visit("Intensity", visitor)?;
 
         visitor.leave_region()
     }
@@ -235,6 +238,20 @@ impl BaseLight {
         self.scatter
     }
 
+    /// Sets new light intensity. Default is 1.0.
+    ///
+    /// Intensity is used for very bright light sources in HDR. For examples, sun
+    /// can be represented as directional light source with very high intensity.
+    /// Other lights, however, will remain relatively dim.
+    pub fn set_intensity(&mut self, intensity: f32) {
+        self.intensity = intensity;
+    }
+
+    /// Returns current intensity of the light.
+    pub fn intensity(&self) -> f32 {
+        self.intensity
+    }
+
     /// Returns current scatter factor in linear color space.
     #[inline]
     pub fn scatter_linear(&self) -> Vector3<f32> {
@@ -261,6 +278,7 @@ impl BaseLight {
             cast_shadows: self.cast_shadows,
             scatter: self.scatter,
             scatter_enabled: self.scatter_enabled,
+            intensity: self.intensity,
         }
     }
 }
@@ -273,6 +291,7 @@ pub struct BaseLightBuilder {
     cast_shadows: bool,
     scatter_factor: Vector3<f32>,
     scatter_enabled: bool,
+    intensity: f32,
 }
 
 impl BaseLightBuilder {
@@ -287,6 +306,7 @@ impl BaseLightBuilder {
             cast_shadows: true,
             scatter_factor: Vector3::new(DEFAULT_SCATTER_R, DEFAULT_SCATTER_G, DEFAULT_SCATTER_B),
             scatter_enabled: true,
+            intensity: 1.0,
         }
     }
 
@@ -314,6 +334,12 @@ impl BaseLightBuilder {
         self
     }
 
+    /// Sets desired light intensity.
+    pub fn with_intensity(mut self, intensity: f32) -> Self {
+        self.intensity = intensity;
+        self
+    }
+
     /// Creates new instance of base light.
     pub fn build(self) -> BaseLight {
         BaseLight {
@@ -322,6 +348,7 @@ impl BaseLightBuilder {
             cast_shadows: self.cast_shadows,
             scatter: self.scatter_factor,
             scatter_enabled: self.scatter_enabled,
+            intensity: self.intensity,
         }
     }
 }
