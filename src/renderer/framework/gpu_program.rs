@@ -59,6 +59,16 @@ unsafe fn create_shader(
 #[allow(clippy::let_and_return)]
 fn prepare_source_code(code: &str) -> String {
     let mut shared = "\n// include 'shared.glsl'\n".to_owned();
+
+    // HACK
+    #[cfg(target_arch = "wasm32")]
+    {
+        shared += r#"    
+            precision highp float;
+            precision lowp usampler2D;
+        "#;
+    }
+
     shared += include_str!("shaders/shared.glsl");
     shared += "\n// end of include\n";
 

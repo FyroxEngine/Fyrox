@@ -130,9 +130,9 @@ pub enum PixelElementKind {
 }
 
 impl PixelKind {
-    pub fn unpack_alignment(self) -> i32 {
+    pub fn unpack_alignment(self) -> Option<i32> {
         match self {
-            Self::RGBA16 | Self::RGBA16F | Self::RGB16 | Self::RGBA32F => 8,
+            Self::RGBA16 | Self::RGBA16F | Self::RGB16 | Self::RGBA32F => Some(8),
             Self::RGBA8
             | Self::SRGBA8
             | Self::RGB8
@@ -145,15 +145,15 @@ impl PixelKind {
             | Self::D32F
             | Self::F32
             | Self::R11G11B10F
-            | Self::RGB10A2 => 4,
-            Self::RG8 | Self::D16 | Self::F16 => 2,
-            Self::R8 | Self::R8UI => 1,
+            | Self::RGB10A2 => Some(4),
+            Self::RG8 | Self::D16 | Self::F16 => Some(2),
+            Self::R8 | Self::R8UI => Some(1),
             Self::DXT1RGB
             | Self::DXT1RGBA
             | Self::DXT3RGBA
             | Self::DXT5RGBA
             | Self::R8RGTC
-            | Self::RG8RGTC => unreachable!(),
+            | Self::RG8RGTC => None,
         }
     }
 
@@ -653,7 +653,11 @@ impl<'a> TextureBinding<'a> {
                 PixelKind::R16 => (glow::UNSIGNED_SHORT, glow::RED, glow::R16),
                 PixelKind::RGB16 => (glow::UNSIGNED_SHORT, glow::RGB, glow::RGB16),
                 PixelKind::RGBA16 => (glow::UNSIGNED_SHORT, glow::RGBA, glow::RGBA16),
-                PixelKind::RGB10A2 => (glow::UNSIGNED_BYTE, glow::RGBA, glow::RGB10_A2),
+                PixelKind::RGB10A2 => (
+                    glow::UNSIGNED_INT_2_10_10_10_REV,
+                    glow::RGBA,
+                    glow::RGB10_A2,
+                ),
                 PixelKind::DXT1RGB => (0, 0, GL_COMPRESSED_RGB_S3TC_DXT1_EXT),
                 PixelKind::DXT1RGBA => (0, 0, GL_COMPRESSED_RGBA_S3TC_DXT1_EXT),
                 PixelKind::DXT3RGBA => (0, 0, GL_COMPRESSED_RGBA_S3TC_DXT3_EXT),
@@ -667,12 +671,10 @@ impl<'a> TextureBinding<'a> {
 
             let is_compressed = pixel_kind.is_compressed();
 
-            // Compressed textures does not have such term as "unpack alignment", so we have to check
-            // for compressed textures here.
-            if !is_compressed {
+            if let Some(alignment) = pixel_kind.unpack_alignment() {
                 self.state
                     .gl
-                    .pixel_store_i32(glow::UNPACK_ALIGNMENT, pixel_kind.unpack_alignment());
+                    .pixel_store_i32(glow::UNPACK_ALIGNMENT, alignment);
             }
 
             let mut mip_byte_offset = 0;
