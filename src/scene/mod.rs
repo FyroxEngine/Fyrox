@@ -689,9 +689,7 @@ impl SceneDrawingContext {
         let axis = end - begin;
         let length = axis.norm();
 
-        let z_axis = axis
-            .try_normalize(f32::EPSILON)
-            .unwrap_or_else(Vector3::z);
+        let z_axis = axis.try_normalize(f32::EPSILON).unwrap_or_else(Vector3::z);
 
         let y_axis = z_axis
             .cross(
@@ -1449,6 +1447,11 @@ impl SceneContainer {
             pool: Pool::new(),
             sound_engine,
         }
+    }
+
+    /// Return true if given handle is valid and "points" to "alive" scene.
+    pub fn is_valid_handle(&self, handle: Handle<Scene>) -> bool {
+        self.pool.is_valid_handle(handle)
     }
 
     /// Returns pair iterator which yields (handle, scene_ref) pairs.

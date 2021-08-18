@@ -1061,6 +1061,10 @@ impl Renderer {
     ) -> Result<(), FrameworkError> {
         scope_profile!();
 
+        // Make sure to drop associated data for destroyed scenes.
+        self.scene_data_map
+            .retain(|h, _| scenes.is_valid_handle(*h));
+
         // We have to invalidate resource bindings cache because some textures or programs,
         // or other GL resources can be destroyed and then on their "names" some new resource
         // are created, but cache still thinks that resource is correctly bound, but it is different
