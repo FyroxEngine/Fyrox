@@ -188,7 +188,7 @@ impl Visit for BaseLight {
         self.cast_shadows.visit("CastShadows", visitor)?;
         self.scatter.visit("ScatterFactor", visitor)?;
         self.scatter_enabled.visit("ScatterEnabled", visitor)?;
-        self.intensity.visit("Intensity", visitor)?;
+        let _ = self.intensity.visit("Intensity", visitor); // Backward compatibility.
 
         visitor.leave_region()
     }
