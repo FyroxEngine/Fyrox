@@ -1,3 +1,4 @@
+use crate::asset::ResourceState;
 use crate::{
     asset::Resource,
     core::{
@@ -293,9 +294,14 @@ impl UiRenderer {
                 CommandTexture::Texture(texture) => {
                     if let Ok(texture) = texture.clone().0.downcast::<Mutex<TextureState>>() {
                         let resource = Resource::from(texture);
-                        is_render_target = resource.data_ref().is_render_target();
-                        if let Some(texture) = texture_cache.get(state, &Texture(resource)) {
-                            diffuse_texture = texture;
+                        let resource_state = resource.state();
+                        // Make sure that the texture is in correct state at this point.
+                        if let ResourceState::Ok(ref texture_data) = *resource_state {
+                            is_render_target = texture_data.is_render_target();
+                            drop(resource_state);
+                            if let Some(texture) = texture_cache.get(state, &Texture(resource)) {
+                                diffuse_texture = texture;
+                            }
                         }
                     }
                 }
