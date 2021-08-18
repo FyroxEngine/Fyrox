@@ -1,4 +1,5 @@
 use crate::core::algebra::{Isometry3, Translation};
+use crate::renderer::framework::framebuffer::FrameBuffer;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3},
@@ -121,6 +122,7 @@ impl LightVolumeRenderer {
         view_proj: Matrix4<f32>,
         viewport: Rect<i32>,
         graph: &Graph,
+        frame_buffer: &mut FrameBuffer,
     ) -> RenderPassStatistics {
         scope_profile!();
 
@@ -172,9 +174,8 @@ impl LightVolumeRenderer {
                     * Matrix4::new_nonuniform_scaling(&Vector3::new(k, spot.distance(), k));
                 let mvp = view_proj * light_shape_matrix;
 
-                gbuffer
-                    .final_frame
-                    .clear(state, viewport, None, None, Some(0));
+                // Clear stencil only.
+                frame_buffer.clear(state, viewport, None, None, Some(0));
 
                 state.set_stencil_mask(0xFFFF_FFFF);
                 state.set_stencil_func(StencilFunc {
@@ -188,7 +189,7 @@ impl LightVolumeRenderer {
                     zpass: glow::REPLACE,
                 });
 
-                stats += gbuffer.final_frame.draw(
+                stats += frame_buffer.draw(
                     geom_cache.get(state, &self.cone),
                     state,
                     viewport,
@@ -218,7 +219,7 @@ impl LightVolumeRenderer {
                 // so distant lights won't impact performance.
                 let shader = &self.spot_light_shader;
                 let depth_map = gbuffer.depth();
-                stats += gbuffer.final_frame.draw(
+                stats += frame_buffer.draw(
                     geom_cache.get(state, quad),
                     state,
                     viewport,
@@ -249,9 +250,7 @@ impl LightVolumeRenderer {
                 )
             }
             Light::Point(point) => {
-                gbuffer
-                    .final_frame
-                    .clear(state, viewport, None, None, Some(0));
+                frame_buffer.clear(state, viewport, None, None, Some(0));
 
                 state.set_stencil_mask(0xFFFF_FFFF);
                 state.set_stencil_func(StencilFunc {
@@ -273,7 +272,7 @@ impl LightVolumeRenderer {
                     * Matrix4::new_nonuniform_scaling(&Vector3::new(k, k, k));
                 let mvp = view_proj * light_shape_matrix;
 
-                stats += gbuffer.final_frame.draw(
+                stats += frame_buffer.draw(
                     geom_cache.get(state, &self.sphere),
                     state,
                     viewport,
@@ -303,7 +302,7 @@ impl LightVolumeRenderer {
                 // so distant lights won't impact performance.
                 let shader = &self.point_light_shader;
                 let depth_map = gbuffer.depth();
-                stats += gbuffer.final_frame.draw(
+                stats += frame_buffer.draw(
                     geom_cache.get(state, quad),
                     state,
                     viewport,

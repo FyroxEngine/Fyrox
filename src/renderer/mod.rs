@@ -6,11 +6,13 @@
 //! Renderer based on OpenGL 3.3+ Core.
 
 #![warn(missing_docs)]
-//#![deny(unsafe_code)]
+#![deny(unsafe_code)]
+
+#[allow(unsafe_code)]
+pub mod framework;
 
 pub mod cache;
 pub mod debug_renderer;
-pub mod framework;
 pub mod renderer2d;
 
 mod batch;
@@ -29,9 +31,7 @@ mod sprite_renderer;
 mod ssao;
 mod ui_renderer;
 
-use crate::renderer::cache::CacheEntry;
-use crate::renderer::gamma::GammaCorrectionPass;
-use crate::scene::camera::Camera;
+use crate::renderer::framework::gpu_texture::{Coordinate, WrapMode};
 use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector3},
@@ -44,7 +44,7 @@ use crate::{
     gui::{draw::DrawingContext, message::MessageData, Control, UserInterface},
     renderer::{
         batch::BatchStorage,
-        cache::{GeometryCache, TextureCache},
+        cache::{CacheEntry, GeometryCache, TextureCache},
         debug_renderer::DebugRenderer,
         flat_shader::FlatShader,
         forward_renderer::{ForwardRenderContext, ForwardRenderer},
@@ -58,6 +58,7 @@ use crate::{
             state::{PipelineState, PipelineStatistics},
         },
         fxaa::FxaaRenderer,
+        gamma::GammaCorrectionPass,
         gbuffer::{GBuffer, GBufferRenderContext},
         light::{DeferredLightRenderer, DeferredRendererContext, LightingStatistics},
         particle_system_renderer::{ParticleSystemRenderContext, ParticleSystemRenderer},
@@ -66,19 +67,21 @@ use crate::{
         ui_renderer::{UiRenderContext, UiRenderer},
     },
     resource::texture::{Texture, TextureKind},
-    scene::mesh::surface::SurfaceData,
-    scene::{node::Node, Scene, SceneContainer},
+    scene::{camera::Camera, mesh::surface::SurfaceData, node::Node, Scene, SceneContainer},
     scene2d::Scene2dContainer,
 };
+use glow::HasContext;
 #[cfg(feature = "serde_integration")]
 use serde::{Deserialize, Serialize};
-use std::sync::{Arc, Mutex};
 use std::{
     cell::RefCell,
     collections::{hash_map::Entry, HashMap},
     fmt::{Display, Formatter},
     rc::Rc,
-    sync::mpsc::{Receiver, Sender},
+    sync::{
+        mpsc::{Receiver, Sender},
+        Arc, Mutex,
+    },
 };
 
 /// Renderer statistics for one frame, also includes current frames per second
@@ -481,6 +484,97 @@ impl PostProcessingChain {
     }
 }
 
+struct AssociatedSceneData {
+    /// G-Buffer of the scene.
+    pub gbuffer: GBuffer,
+
+    /// Final frame of the scene.
+    pub scene_framebuffer: FrameBuffer,
+}
+
+impl AssociatedSceneData {
+    pub fn new(
+        state: &mut PipelineState,
+        width: usize,
+        height: usize,
+    ) -> Result<Self, FrameworkError> {
+        let mut final_frame_depth_stencil_texture = GpuTexture::new(
+            state,
+            GpuTextureKind::Rectangle { width, height },
+            PixelKind::D24S8,
+            MinificationFilter::Nearest,
+            MagnificationFilter::Nearest,
+            1,
+            None,
+        )?;
+        final_frame_depth_stencil_texture
+            .bind_mut(state, 0)
+            .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
+            .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
+
+        let final_frame_depth_stencil = Rc::new(RefCell::new(final_frame_depth_stencil_texture));
+
+        let frame_texture = GpuTexture::new(
+            state,
+            GpuTextureKind::Rectangle { width, height },
+            PixelKind::RGB10A2,
+            MinificationFilter::Linear,
+            MagnificationFilter::Linear,
+            1,
+            None,
+        )?;
+
+        let scene_framebuffer = FrameBuffer::new(
+            state,
+            Some(Attachment {
+                kind: AttachmentKind::DepthStencil,
+                texture: final_frame_depth_stencil,
+            }),
+            vec![Attachment {
+                kind: AttachmentKind::Color,
+                texture: Rc::new(RefCell::new(frame_texture)),
+            }],
+        )?;
+
+        Ok(Self {
+            gbuffer: GBuffer::new(state, width, height)?,
+            scene_framebuffer,
+        })
+    }
+
+    fn copy_depth_stencil_to_scene_framebuffer(&mut self, state: &mut PipelineState) {
+        // Copy depth-stencil from gbuffer to final frame buffer.
+        #[allow(unsafe_code)] // TODO: Move in PipelineState.
+        unsafe {
+            state.gl.bind_framebuffer(
+                glow::READ_FRAMEBUFFER,
+                Some(self.gbuffer.framebuffer().id()),
+            );
+            state
+                .gl
+                .bind_framebuffer(glow::DRAW_FRAMEBUFFER, Some(self.scene_framebuffer.id()));
+            state.gl.blit_framebuffer(
+                0,
+                0,
+                self.gbuffer.width,
+                self.gbuffer.height,
+                0,
+                0,
+                self.gbuffer.width,
+                self.gbuffer.height,
+                glow::DEPTH_BUFFER_BIT | glow::STENCIL_BUFFER_BIT,
+                glow::NEAREST,
+            );
+        }
+    }
+
+    pub fn scene_frame_texture(&self) -> Rc<RefCell<GpuTexture>> {
+        self.scene_framebuffer.color_attachments()[0]
+            .texture
+            .clone()
+    }
+}
+
 /// See module docs.
 pub struct Renderer {
     backbuffer: FrameBuffer,
@@ -507,8 +601,7 @@ pub struct Renderer {
     quality_settings: QualitySettings,
     /// Debug renderer instance can be used for debugging purposes
     pub debug_renderer: DebugRenderer,
-    /// Scene -> G-buffer mapping.
-    scene_to_gbuffer_map: HashMap<Handle<Scene>, GBuffer>,
+    scene_data_map: HashMap<Handle<Scene>, AssociatedSceneData>,
     backbuffer_clear_color: Color,
     texture_cache: TextureCache,
     geometry_cache: GeometryCache,
@@ -751,7 +844,7 @@ impl Renderer {
             particle_system_renderer: ParticleSystemRenderer::new(&mut state)?,
             quality_settings: settings,
             debug_renderer: DebugRenderer::new(&mut state)?,
-            scene_to_gbuffer_map: Default::default(),
+            scene_data_map: Default::default(),
             backbuffer_clear_color: Color::BLACK,
             texture_cache: Default::default(),
             geometry_cache: Default::default(),
@@ -1024,20 +1117,22 @@ impl Renderer {
                 &mut self.texture_cache,
             );
 
-            let gbuffer = self
-                .scene_to_gbuffer_map
+            let scene_associated_data = self
+                .scene_data_map
                 .entry(scene_handle)
-                .and_modify(|buf| {
-                    if buf.width != frame_size.x as i32 || buf.height != frame_size.y as i32 {
+                .and_modify(|data| {
+                    if data.gbuffer.width != frame_size.x as i32
+                        || data.gbuffer.height != frame_size.y as i32
+                    {
                         let width = (frame_size.x as usize).max(1);
                         let height = (frame_size.y as usize).max(1);
-                        *buf = GBuffer::new(state, width, height).unwrap();
+                        *data = AssociatedSceneData::new(state, width, height).unwrap();
                     }
                 })
                 .or_insert_with(|| {
                     let width = (frame_size.x as usize).max(1);
                     let height = (frame_size.y as usize).max(1);
-                    GBuffer::new(state, width, height).unwrap()
+                    AssociatedSceneData::new(state, width, height).unwrap()
                 });
 
             // If we specified a texture to draw to, we have to register it in texture cache
@@ -1049,7 +1144,7 @@ impl Renderer {
                 self.texture_cache.map.insert(
                     rt.key(),
                     CacheEntry {
-                        value: gbuffer.frame_texture(),
+                        value: scene_associated_data.scene_frame_texture(),
                         time_to_live: f32::INFINITY,
                         value_hash: 0, // TODO
                     },
@@ -1069,7 +1164,7 @@ impl Renderer {
             }) {
                 let viewport = camera.viewport_pixels(frame_size);
 
-                self.statistics += gbuffer.fill(GBufferRenderContext {
+                self.statistics += scene_associated_data.gbuffer.fill(GBufferRenderContext {
                     state,
                     camera,
                     geom_cache: &mut self.geometry_cache,
@@ -1082,31 +1177,42 @@ impl Renderer {
                     graph,
                 });
 
+                scene_associated_data.copy_depth_stencil_to_scene_framebuffer(state);
+
+                scene_associated_data.scene_framebuffer.clear(
+                    state,
+                    viewport,
+                    Some(Color::from_rgba(0, 0, 0, 0)),
+                    None, // Keep depth, we've just copied valid data in it.
+                    Some(0),
+                );
+
                 let (pass_stats, light_stats) =
                     self.deferred_light_renderer
                         .render(DeferredRendererContext {
                             state,
                             scene,
                             camera,
-                            gbuffer,
+                            gbuffer: &mut scene_associated_data.gbuffer,
                             white_dummy: self.white_dummy.clone(),
                             ambient_color: scene.ambient_lighting_color,
                             settings: &self.quality_settings,
                             textures: &mut self.texture_cache,
                             geometry_cache: &mut self.geometry_cache,
                             batch_storage: &self.batch_storage,
+                            frame_buffer: &mut scene_associated_data.scene_framebuffer,
                         });
 
                 self.statistics.lighting += light_stats;
                 self.statistics.geometry += pass_stats;
 
-                let depth = gbuffer.depth();
+                let depth = scene_associated_data.gbuffer.depth();
 
                 self.statistics +=
                     self.particle_system_renderer
                         .render(ParticleSystemRenderContext {
                             state,
-                            framebuffer: &mut gbuffer.final_frame,
+                            framebuffer: &mut scene_associated_data.scene_framebuffer,
                             graph,
                             camera,
                             white_dummy: self.white_dummy.clone(),
@@ -1119,7 +1225,7 @@ impl Renderer {
 
                 self.statistics += self.sprite_renderer.render(SpriteRenderContext {
                     state,
-                    framebuffer: &mut gbuffer.final_frame,
+                    framebuffer: &mut scene_associated_data.scene_framebuffer,
                     graph,
                     camera,
                     white_dummy: self.white_dummy.clone(),
@@ -1133,14 +1239,14 @@ impl Renderer {
                     camera,
                     geom_cache: &mut self.geometry_cache,
                     batch_storage: &self.batch_storage,
-                    framebuffer: &mut gbuffer.final_frame, // TODO: GBuffer **must not** contain final frame.
+                    framebuffer: &mut scene_associated_data.scene_framebuffer,
                     viewport,
                 });
 
                 self.statistics += self.debug_renderer.render(
                     state,
                     viewport,
-                    &mut gbuffer.final_frame,
+                    &mut scene_associated_data.scene_framebuffer,
                     &scene.drawing_context,
                     camera,
                 );
@@ -1162,10 +1268,10 @@ impl Renderer {
                             specular_dummy: self.specular_dummy.clone(),
                             environment_dummy: self.environment_dummy.clone(),
                             black_dummy: self.black_dummy.clone(),
-                            depth_texture: gbuffer.depth(),
-                            normal_texture: gbuffer.normal_texture(),
-                            ambient_texture: gbuffer.ambient_texture(),
-                            framebuffer: &mut gbuffer.final_frame,
+                            depth_texture: scene_associated_data.gbuffer.depth(),
+                            normal_texture: scene_associated_data.gbuffer.normal_texture(),
+                            ambient_texture: scene_associated_data.gbuffer.ambient_texture(),
+                            framebuffer: &mut scene_associated_data.scene_framebuffer,
                         })?;
                 }
 
@@ -1175,7 +1281,7 @@ impl Renderer {
                         self.statistics.geometry += self.fxaa_renderer.render(
                             state,
                             viewport,
-                            gbuffer.frame_texture(),
+                            scene_associated_data.scene_frame_texture(),
                             post_processing_pair.framebuffer,
                             &mut self.geometry_cache,
                         );
@@ -1211,7 +1317,10 @@ impl Renderer {
                                             0.0,
                                         ))
                                     })
-                                    .set_texture(&shader.diffuse_texture, &gbuffer.frame_texture());
+                                    .set_texture(
+                                        &shader.diffuse_texture,
+                                        &scene_associated_data.scene_frame_texture(),
+                                    );
                             },
                         );
                     }

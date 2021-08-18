@@ -1,3 +1,4 @@
+use crate::renderer::framework::framebuffer::FrameBuffer;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3},
@@ -117,6 +118,7 @@ pub(in crate) struct DeferredRendererContext<'a> {
     pub textures: &'a mut TextureCache,
     pub geometry_cache: &'a mut GeometryCache,
     pub batch_storage: &'a BatchStorage,
+    pub frame_buffer: &'a mut FrameBuffer,
 }
 
 impl DeferredLightRenderer {
@@ -313,6 +315,7 @@ impl DeferredLightRenderer {
             textures,
             geometry_cache,
             batch_storage,
+            frame_buffer,
         } = args;
 
         let viewport = Rect::new(0, 0, gbuffer.width, gbuffer.height);
@@ -348,14 +351,6 @@ impl DeferredLightRenderer {
             );
         }
 
-        gbuffer.final_frame.clear(
-            state,
-            viewport,
-            Some(Color::from_rgba(0, 0, 0, 0)),
-            None,
-            Some(0),
-        );
-
         // Render skybox (if any).
         if let Some(skybox) = camera.skybox_ref() {
             let size = camera.z_far() / 2.0f32.sqrt();
@@ -364,8 +359,7 @@ impl DeferredLightRenderer {
 
             if let Some(gpu_texture) = textures.get(state, &skybox.cubemap().unwrap()) {
                 let shader = &self.skybox_shader;
-                pass_stats += gbuffer
-                    .final_frame
+                pass_stats += frame_buffer
                     .draw_part(
                         geometry_cache.get(state, &self.skybox),
                         state,
@@ -402,7 +396,7 @@ impl DeferredLightRenderer {
         let gbuffer_ambient_map = gbuffer.ambient_texture();
         let ao_map = self.ssao_renderer.ao_map();
 
-        gbuffer.final_frame.draw(
+        frame_buffer.draw(
             geometry_cache.get(state, &self.quad),
             state,
             viewport,
@@ -573,7 +567,7 @@ impl DeferredLightRenderer {
 
             let sphere = geometry_cache.get(state, &self.sphere);
 
-            pass_stats += gbuffer.final_frame.draw(
+            pass_stats += frame_buffer.draw(
                 sphere,
                 state,
                 viewport,
@@ -606,7 +600,7 @@ impl DeferredLightRenderer {
                 ..Default::default()
             });
 
-            pass_stats += gbuffer.final_frame.draw(
+            pass_stats += frame_buffer.draw(
                 sphere,
                 state,
                 viewport,
@@ -668,7 +662,7 @@ impl DeferredLightRenderer {
 
                     light_stats.spot_lights_rendered += 1;
 
-                    gbuffer.final_frame.draw(
+                    frame_buffer.draw(
                         quad,
                         state,
                         viewport,
@@ -718,7 +712,7 @@ impl DeferredLightRenderer {
 
                     light_stats.point_lights_rendered += 1;
 
-                    gbuffer.final_frame.draw(
+                    frame_buffer.draw(
                         quad,
                         state,
                         viewport,
@@ -753,7 +747,7 @@ impl DeferredLightRenderer {
 
                     light_stats.directional_lights_rendered += 1;
 
-                    gbuffer.final_frame.draw(
+                    frame_buffer.draw(
                         quad,
                         state,
                         viewport,
@@ -796,6 +790,7 @@ impl DeferredLightRenderer {
                     view_projection,
                     viewport,
                     &scene.graph,
+                    frame_buffer,
                 );
             }
         }

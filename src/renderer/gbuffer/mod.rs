@@ -35,7 +35,6 @@ use crate::{
         camera::Camera, graph::Graph, mesh::surface::SurfaceData, mesh::RenderPath, node::Node,
     },
 };
-use glow::HasContext;
 use std::{cell::RefCell, rc::Rc};
 
 mod decal;
@@ -45,7 +44,6 @@ pub struct GBuffer {
     shaders: ArrayVec<UberShader, 9>,
     framebuffer: FrameBuffer,
     decal_framebuffer: FrameBuffer,
-    pub final_frame: FrameBuffer,
     pub width: i32,
     pub height: i32,
     matrix_storage: MatrixStorage,
@@ -175,44 +173,6 @@ impl GBuffer {
             ],
         )?;
 
-        let mut final_frame_depth_stencil_texture = GpuTexture::new(
-            state,
-            GpuTextureKind::Rectangle { width, height },
-            PixelKind::D24S8,
-            MinificationFilter::Nearest,
-            MagnificationFilter::Nearest,
-            1,
-            None,
-        )?;
-        final_frame_depth_stencil_texture
-            .bind_mut(state, 0)
-            .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
-            .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
-
-        let final_frame_depth_stencil = Rc::new(RefCell::new(final_frame_depth_stencil_texture));
-
-        let frame_texture = GpuTexture::new(
-            state,
-            GpuTextureKind::Rectangle { width, height },
-            PixelKind::RGB10A2,
-            MinificationFilter::Linear,
-            MagnificationFilter::Linear,
-            1,
-            None,
-        )?;
-
-        let final_frame = FrameBuffer::new(
-            state,
-            Some(Attachment {
-                kind: AttachmentKind::DepthStencil,
-                texture: final_frame_depth_stencil,
-            }),
-            vec![Attachment {
-                kind: AttachmentKind::Color,
-                texture: Rc::new(RefCell::new(frame_texture)),
-            }],
-        )?;
-
         let decal_framebuffer = FrameBuffer::new(
             state,
             None,
@@ -241,7 +201,6 @@ impl GBuffer {
             shaders,
             width: width as i32,
             height: height as i32,
-            final_frame,
             matrix_storage: MatrixStorage::new(state)?,
             instance_data_set: Default::default(),
             decal_shader: DecalShader::new(state)?,
@@ -250,8 +209,8 @@ impl GBuffer {
         })
     }
 
-    pub fn frame_texture(&self) -> Rc<RefCell<GpuTexture>> {
-        self.final_frame.color_attachments()[0].texture.clone()
+    pub fn framebuffer(&self) -> &FrameBuffer {
+        &self.framebuffer
     }
 
     pub fn depth(&self) -> Rc<RefCell<GpuTexture>> {
@@ -547,28 +506,6 @@ impl GBuffer {
                         .set_u32(&shader.layer_index, decal.layer() as u32)
                         .set_linear_color(&shader.color, &decal.color());
                 },
-            );
-        }
-
-        // Copy depth-stencil from gbuffer to final frame buffer.
-        unsafe {
-            state
-                .gl
-                .bind_framebuffer(glow::READ_FRAMEBUFFER, Some(self.framebuffer.id()));
-            state
-                .gl
-                .bind_framebuffer(glow::DRAW_FRAMEBUFFER, Some(self.final_frame.id()));
-            state.gl.blit_framebuffer(
-                0,
-                0,
-                self.width,
-                self.height,
-                0,
-                0,
-                self.width,
-                self.height,
-                glow::DEPTH_BUFFER_BIT | glow::STENCIL_BUFFER_BIT,
-                glow::NEAREST,
             );
         }
 

@@ -1,4 +1,5 @@
 use crate::core::algebra::Vector2;
+use crate::utils::array_as_u8_slice;
 use crate::{
     core::{algebra::Matrix4, arrayvec::ArrayVec, color::Color, pool::Handle, scope_profile},
     renderer::framework::{
@@ -393,12 +394,7 @@ impl MatrixStorage {
                 },
                 PixelKind::RGBA32F,
                 1,
-                Some(unsafe {
-                    std::slice::from_raw_parts(
-                        self.matrices.as_slice() as *const _ as *const u8,
-                        self.matrices.len() * std::mem::size_of::<Matrix4<f32>>(),
-                    )
-                }),
+                Some(array_as_u8_slice(&self.matrices)),
             )
             .unwrap();
     }
