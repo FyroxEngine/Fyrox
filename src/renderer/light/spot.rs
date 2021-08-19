@@ -34,7 +34,7 @@ impl SpotLightShader {
         let fragment_source = include_str!("../shaders/deferred_spot_light_fs.glsl");
         let vertex_source = include_str!("../shaders/deferred_light_vs.glsl");
         let program =
-            GpuProgram::from_source(state, "DeferredLightShader", vertex_source, fragment_source)?;
+            GpuProgram::from_source(state, "SpotLightShader", vertex_source, fragment_source)?;
         Ok(Self {
             wvp_matrix: program.uniform_location(state, "worldViewProjection")?,
             depth_sampler: program.uniform_location(state, "depthTexture")?,

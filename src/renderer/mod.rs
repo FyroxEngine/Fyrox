@@ -7,7 +7,10 @@
 
 #![warn(missing_docs)]
 #![deny(unsafe_code)]
+#![allow(dead_code)] // TODO
+#![allow(unused_variables)] // TODO
 
+// Framework is 100% unsafe internally due to FFI calls.
 #[allow(unsafe_code)]
 pub mod framework;
 
@@ -22,6 +25,7 @@ mod forward_renderer;
 mod fxaa;
 mod gamma;
 mod gbuffer;
+mod hdr;
 mod light;
 mod light_volume;
 mod particle_system_renderer;
@@ -31,7 +35,6 @@ mod sprite_renderer;
 mod ssao;
 mod ui_renderer;
 
-use crate::renderer::framework::gpu_texture::{Coordinate, WrapMode};
 use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector3},
@@ -53,13 +56,15 @@ use crate::{
             framebuffer::{Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer},
             geometry_buffer::DrawCallStatistics,
             gpu_texture::{
-                GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
+                Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
+                PixelKind, WrapMode,
             },
             state::{PipelineState, PipelineStatistics},
         },
         fxaa::FxaaRenderer,
         gamma::GammaCorrectionPass,
         gbuffer::{GBuffer, GBufferRenderContext},
+        hdr::HighDynamicRangeRenderer,
         light::{DeferredLightRenderer, DeferredRendererContext, LightingStatistics},
         particle_system_renderer::{ParticleSystemRenderContext, ParticleSystemRenderer},
         renderer2d::Renderer2d,
@@ -70,7 +75,7 @@ use crate::{
     scene::{camera::Camera, mesh::surface::SurfaceData, node::Node, Scene, SceneContainer},
     scene2d::Scene2dContainer,
 };
-use glow::HasContext;
+
 #[cfg(feature = "serde_integration")]
 use serde::{Deserialize, Serialize};
 use std::{
@@ -517,6 +522,7 @@ impl AssociatedSceneData {
         let frame_texture = GpuTexture::new(
             state,
             GpuTextureKind::Rectangle { width, height },
+            // Scene will be rendered in HDR render target.
             PixelKind::RGB10A2,
             MinificationFilter::Linear,
             MagnificationFilter::Linear,
@@ -543,29 +549,21 @@ impl AssociatedSceneData {
     }
 
     fn copy_depth_stencil_to_scene_framebuffer(&mut self, state: &mut PipelineState) {
-        // Copy depth-stencil from gbuffer to final frame buffer.
-        #[allow(unsafe_code)] // TODO: Move in PipelineState.
-        unsafe {
-            state.gl.bind_framebuffer(
-                glow::READ_FRAMEBUFFER,
-                Some(self.gbuffer.framebuffer().id()),
-            );
-            state
-                .gl
-                .bind_framebuffer(glow::DRAW_FRAMEBUFFER, Some(self.scene_framebuffer.id()));
-            state.gl.blit_framebuffer(
-                0,
-                0,
-                self.gbuffer.width,
-                self.gbuffer.height,
-                0,
-                0,
-                self.gbuffer.width,
-                self.gbuffer.height,
-                glow::DEPTH_BUFFER_BIT | glow::STENCIL_BUFFER_BIT,
-                glow::NEAREST,
-            );
-        }
+        state.blit_framebuffer(
+            self.gbuffer.framebuffer().id(),
+            self.scene_framebuffer.id(),
+            0,
+            0,
+            self.gbuffer.width,
+            self.gbuffer.height,
+            0,
+            0,
+            self.gbuffer.width,
+            self.gbuffer.height,
+            false,
+            true,
+            true,
+        );
     }
 
     pub fn scene_frame_texture(&self) -> Rc<RefCell<GpuTexture>> {
@@ -609,6 +607,7 @@ pub struct Renderer {
     forward_renderer: ForwardRenderer,
     fxaa_renderer: FxaaRenderer,
     renderer2d: Renderer2d,
+    hdr_renderer: HighDynamicRangeRenderer,
     texture_upload_receiver: Receiver<Texture>,
     texture_upload_sender: Sender<Texture>,
     post_processing_chain: PostProcessingChain,
@@ -854,6 +853,7 @@ impl Renderer {
             fxaa_renderer: FxaaRenderer::new(&mut state)?,
             statistics: Statistics::default(),
             renderer2d: Renderer2d::new(&mut state)?,
+            hdr_renderer: HighDynamicRangeRenderer::new(&mut state)?,
             gamma_correction_pass: GammaCorrectionPass::new(&mut state)?,
             post_processing_chain: PostProcessingChain::new(
                 &mut state,
@@ -1186,7 +1186,7 @@ impl Renderer {
                 scene_associated_data.scene_framebuffer.clear(
                     state,
                     viewport,
-                    Some(Color::from_rgba(0, 0, 0, 0)),
+                    Some(Color::from_rgba(0, 0, 0, 255)),
                     None, // Keep depth, we've just copied valid data in it.
                     Some(0),
                 );

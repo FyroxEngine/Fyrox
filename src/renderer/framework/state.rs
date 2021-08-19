@@ -3,7 +3,7 @@ use crate::{
     renderer::framework::framebuffer::{CullFace, DrawParameters},
     utils::log::{Log, MessageKind},
 };
-use glow::HasContext;
+use glow::{Framebuffer, HasContext};
 use std::fmt::{Display, Formatter};
 
 #[derive(Default, Copy, Clone)]
@@ -519,6 +519,52 @@ impl PipelineState {
                     self.gl.disable(glow::SCISSOR_TEST);
                 }
             }
+        }
+    }
+
+    pub fn blit_framebuffer(
+        &mut self,
+        source: Framebuffer,
+        dest: Framebuffer,
+        src_x0: i32,
+        src_y0: i32,
+        src_x1: i32,
+        src_y1: i32,
+        dst_x0: i32,
+        dst_y0: i32,
+        dst_x1: i32,
+        dst_y1: i32,
+        copy_color: bool,
+        copy_depth: bool,
+        copy_stencil: bool,
+    ) {
+        let mut mask = 0;
+        if copy_color {
+            mask |= glow::COLOR_BUFFER_BIT;
+        }
+        if copy_depth {
+            mask |= glow::DEPTH_BUFFER_BIT;
+        }
+        if copy_stencil {
+            mask |= glow::STENCIL_BUFFER_BIT;
+        }
+
+        unsafe {
+            self.gl
+                .bind_framebuffer(glow::READ_FRAMEBUFFER, Some(source));
+            self.gl.bind_framebuffer(glow::DRAW_FRAMEBUFFER, Some(dest));
+            self.gl.blit_framebuffer(
+                src_x0,
+                src_y0,
+                src_x1,
+                src_y1,
+                dst_x0,
+                dst_y0,
+                dst_x1,
+                dst_y1,
+                mask,
+                glow::NEAREST,
+            );
         }
     }
 
