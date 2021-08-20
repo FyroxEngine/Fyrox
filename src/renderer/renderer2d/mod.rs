@@ -307,7 +307,7 @@ impl Renderer2d {
 
                     if viewport_f32.intersects_circle(position, radius) {
                         let light_num = light_count as usize;
-                        let color = light.color().srgb_to_linear().as_frgb();
+                        let color = light.color().as_frgb();
 
                         light_position_direction[light_num] =
                             Vector4::new(position.x, position.y, direction.x, direction.y);

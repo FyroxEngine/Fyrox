@@ -5,9 +5,10 @@ use crate::renderer::framework::{
 };
 
 pub struct LuminanceShader {
-    program: GpuProgram,
-    frame_sampler: UniformLocation,
-    inv_size: UniformLocation,
+    pub program: GpuProgram,
+    pub frame_sampler: UniformLocation,
+    pub inv_size: UniformLocation,
+    pub wvp_matrix: UniformLocation,
 }
 
 impl LuminanceShader {
@@ -19,6 +20,7 @@ impl LuminanceShader {
             GpuProgram::from_source(state, "LuminanceShader", vertex_source, fragment_source)?;
 
         Ok(Self {
+            wvp_matrix: program.uniform_location(state, "worldViewProjection")?,
             frame_sampler: program.uniform_location(state, "frameSampler")?,
             inv_size: program.uniform_location(state, "invSize")?,
             program,

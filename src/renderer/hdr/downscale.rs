@@ -5,9 +5,10 @@ use crate::renderer::framework::{
 };
 
 pub struct DownscaleShader {
-    program: GpuProgram,
-    lum_sampler: UniformLocation,
-    inv_size: UniformLocation,
+    pub program: GpuProgram,
+    pub lum_sampler: UniformLocation,
+    pub inv_size: UniformLocation,
+    pub wvp_matrix: UniformLocation,
 }
 
 impl DownscaleShader {
@@ -19,6 +20,7 @@ impl DownscaleShader {
             GpuProgram::from_source(state, "DownscaleShader", vertex_source, fragment_source)?;
 
         Ok(Self {
+            wvp_matrix: program.uniform_location(state, "worldViewProjection")?,
             lum_sampler: program.uniform_location(state, "lumSampler")?,
             inv_size: program.uniform_location(state, "invSize")?,
             program,

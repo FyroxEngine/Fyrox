@@ -125,7 +125,7 @@ float S_InScatter(vec3 start, vec3 dir, vec3 lightPos, float d)
 
     // evaluate integral
     float s = 1.0 / sqrt(c - b*b);
-    float l = s * clamp((atan((d + b) * s) - atan(b*s)), 0.0, 1.0);
+    float l = clamp(s * (atan((d + b) * s) - atan(b*s)), 0.0, 100.0);
 
     return l;
 }

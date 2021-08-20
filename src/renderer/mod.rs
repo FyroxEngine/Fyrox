@@ -7,8 +7,6 @@
 
 #![warn(missing_docs)]
 #![deny(unsafe_code)]
-#![allow(dead_code)] // TODO
-#![allow(unused_variables)] // TODO
 
 // Framework is 100% unsafe internally due to FFI calls.
 #[allow(unsafe_code)]
@@ -23,7 +21,6 @@ mod blur;
 mod flat_shader;
 mod forward_renderer;
 mod fxaa;
-mod gamma;
 mod gbuffer;
 mod hdr;
 mod light;
@@ -62,7 +59,6 @@ use crate::{
             state::{PipelineState, PipelineStatistics},
         },
         fxaa::FxaaRenderer,
-        gamma::GammaCorrectionPass,
         gbuffer::{GBuffer, GBufferRenderContext},
         hdr::HighDynamicRangeRenderer,
         light::{DeferredLightRenderer, DeferredRendererContext, LightingStatistics},
@@ -76,6 +72,7 @@ use crate::{
     scene2d::Scene2dContainer,
 };
 
+use crate::renderer::framework::geometry_buffer::GeometryBuffer;
 #[cfg(feature = "serde_integration")]
 use serde::{Deserialize, Serialize};
 use std::{
@@ -424,77 +421,18 @@ impl TextureUploadSender {
     }
 }
 
-struct PostProcessingChain {
-    framebuffers: [FrameBuffer; 2],
-    swap: bool,
-}
-
-struct PostProcessingPair<'a> {
-    screen_texture: Rc<RefCell<GpuTexture>>,
-    framebuffer: &'a mut FrameBuffer,
-}
-
-impl PostProcessingChain {
-    fn new(state: &mut PipelineState, width: usize, height: usize) -> Result<Self, FrameworkError> {
-        fn make_framebuffer(
-            state: &mut PipelineState,
-            width: usize,
-            height: usize,
-        ) -> Result<FrameBuffer, FrameworkError> {
-            let frame_texture = GpuTexture::new(
-                state,
-                GpuTextureKind::Rectangle { width, height },
-                PixelKind::RGB10A2,
-                MinificationFilter::Nearest,
-                MagnificationFilter::Nearest,
-                1,
-                None,
-            )?;
-
-            FrameBuffer::new(
-                state,
-                None,
-                vec![Attachment {
-                    kind: AttachmentKind::Color,
-                    texture: Rc::new(RefCell::new(frame_texture)),
-                }],
-            )
-        }
-
-        Ok(Self {
-            framebuffers: [
-                make_framebuffer(state, width, height)?,
-                make_framebuffer(state, width, height)?,
-            ],
-            swap: false,
-        })
-    }
-
-    fn begin_pass(&mut self) -> PostProcessingPair {
-        let out = if self.swap {
-            PostProcessingPair {
-                screen_texture: self.framebuffers[0].color_attachments()[0].texture.clone(),
-                framebuffer: &mut self.framebuffers[1],
-            }
-        } else {
-            PostProcessingPair {
-                screen_texture: self.framebuffers[1].color_attachments()[0].texture.clone(),
-                framebuffer: &mut self.framebuffers[0],
-            }
-        };
-
-        self.swap = !self.swap;
-
-        out
-    }
-}
-
 struct AssociatedSceneData {
     /// G-Buffer of the scene.
     pub gbuffer: GBuffer,
 
-    /// Final frame of the scene.
-    pub scene_framebuffer: FrameBuffer,
+    /// Intermediate high dynamic range frame buffer.
+    pub hdr_scene_framebuffer: FrameBuffer,
+
+    /// Final frame of the scene. Tone mapped + gamma corrected.
+    pub ldr_scene_framebuffer: FrameBuffer,
+
+    /// Additional frame buffer for post processing.
+    pub ldr_temp_framebuffer: FrameBuffer,
 }
 
 impl AssociatedSceneData {
@@ -503,7 +441,7 @@ impl AssociatedSceneData {
         width: usize,
         height: usize,
     ) -> Result<Self, FrameworkError> {
-        let mut final_frame_depth_stencil_texture = GpuTexture::new(
+        let mut depth_stencil_texture = GpuTexture::new(
             state,
             GpuTextureKind::Rectangle { width, height },
             PixelKind::D24S8,
@@ -512,17 +450,17 @@ impl AssociatedSceneData {
             1,
             None,
         )?;
-        final_frame_depth_stencil_texture
+        depth_stencil_texture
             .bind_mut(state, 0)
             .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
             .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
 
-        let final_frame_depth_stencil = Rc::new(RefCell::new(final_frame_depth_stencil_texture));
+        let depth_stencil = Rc::new(RefCell::new(depth_stencil_texture));
 
-        let frame_texture = GpuTexture::new(
+        let hdr_frame_texture = GpuTexture::new(
             state,
             GpuTextureKind::Rectangle { width, height },
-            // Scene will be rendered in HDR render target.
+            // Intermediate scene frame will be rendered in HDR render target.
             PixelKind::RGBA16F,
             MinificationFilter::Linear,
             MagnificationFilter::Linear,
@@ -530,28 +468,76 @@ impl AssociatedSceneData {
             None,
         )?;
 
-        let scene_framebuffer = FrameBuffer::new(
+        let hdr_scene_framebuffer = FrameBuffer::new(
             state,
             Some(Attachment {
                 kind: AttachmentKind::DepthStencil,
-                texture: final_frame_depth_stencil,
+                texture: depth_stencil.clone(),
             }),
             vec![Attachment {
                 kind: AttachmentKind::Color,
-                texture: Rc::new(RefCell::new(frame_texture)),
+                texture: Rc::new(RefCell::new(hdr_frame_texture)),
+            }],
+        )?;
+
+        let ldr_frame_texture = GpuTexture::new(
+            state,
+            GpuTextureKind::Rectangle { width, height },
+            // Final scene frame is in standard sRGB space.
+            PixelKind::RGBA8,
+            MinificationFilter::Linear,
+            MagnificationFilter::Linear,
+            1,
+            None,
+        )?;
+
+        let ldr_scene_framebuffer = FrameBuffer::new(
+            state,
+            Some(Attachment {
+                kind: AttachmentKind::DepthStencil,
+                texture: depth_stencil.clone(),
+            }),
+            vec![Attachment {
+                kind: AttachmentKind::Color,
+                texture: Rc::new(RefCell::new(ldr_frame_texture)),
+            }],
+        )?;
+
+        let ldr_temp_texture = GpuTexture::new(
+            state,
+            GpuTextureKind::Rectangle { width, height },
+            // Final scene frame is in standard sRGB space.
+            PixelKind::RGBA8,
+            MinificationFilter::Linear,
+            MagnificationFilter::Linear,
+            1,
+            None,
+        )?;
+
+        let ldr_temp_framebuffer = FrameBuffer::new(
+            state,
+            Some(Attachment {
+                kind: AttachmentKind::DepthStencil,
+                texture: depth_stencil.clone(),
+            }),
+            vec![Attachment {
+                kind: AttachmentKind::Color,
+                texture: Rc::new(RefCell::new(ldr_temp_texture)),
             }],
         )?;
 
         Ok(Self {
             gbuffer: GBuffer::new(state, width, height)?,
-            scene_framebuffer,
+            hdr_scene_framebuffer,
+            ldr_scene_framebuffer,
+            ldr_temp_framebuffer,
         })
     }
 
     fn copy_depth_stencil_to_scene_framebuffer(&mut self, state: &mut PipelineState) {
         state.blit_framebuffer(
             self.gbuffer.framebuffer().id(),
-            self.scene_framebuffer.id(),
+            self.hdr_scene_framebuffer.id(),
             0,
             0,
             self.gbuffer.width,
@@ -566,8 +552,20 @@ impl AssociatedSceneData {
         );
     }
 
-    pub fn scene_frame_texture(&self) -> Rc<RefCell<GpuTexture>> {
-        self.scene_framebuffer.color_attachments()[0]
+    pub fn hdr_scene_frame_texture(&self) -> Rc<RefCell<GpuTexture>> {
+        self.hdr_scene_framebuffer.color_attachments()[0]
+            .texture
+            .clone()
+    }
+
+    pub fn ldr_scene_frame_texture(&self) -> Rc<RefCell<GpuTexture>> {
+        self.ldr_scene_framebuffer.color_attachments()[0]
+            .texture
+            .clone()
+    }
+
+    pub fn ldr_temp_frame_texture(&self) -> Rc<RefCell<GpuTexture>> {
+        self.ldr_temp_framebuffer.color_attachments()[0]
             .texture
             .clone()
     }
@@ -610,8 +608,6 @@ pub struct Renderer {
     hdr_renderer: HighDynamicRangeRenderer,
     texture_upload_receiver: Receiver<Texture>,
     texture_upload_sender: Sender<Texture>,
-    post_processing_chain: PostProcessingChain,
-    gamma_correction_pass: GammaCorrectionPass,
     // TextureId -> FrameBuffer mapping. This mapping is used for temporal frame buffers
     // like ones used to render UI instances.
     ui_frame_buffers: HashMap<usize, FrameBuffer>,
@@ -752,6 +748,49 @@ pub trait SceneRenderPass {
     ) -> Result<RenderPassStatistics, FrameworkError>;
 }
 
+fn blit_pixels(
+    state: &mut PipelineState,
+    framebuffer: &mut FrameBuffer,
+    texture: Rc<RefCell<GpuTexture>>,
+    shader: &FlatShader,
+    viewport: Rect<i32>,
+    quad: &GeometryBuffer,
+) -> DrawCallStatistics {
+    framebuffer.draw(
+        quad,
+        state,
+        viewport,
+        &shader.program,
+        &DrawParameters {
+            cull_face: CullFace::Back,
+            culling: false,
+            color_write: Default::default(),
+            depth_write: true,
+            stencil_test: false,
+            depth_test: false,
+            blend: false,
+        },
+        |program_binding| {
+            program_binding
+                .set_matrix4(&shader.wvp_matrix, &{
+                    Matrix4::new_orthographic(
+                        0.0,
+                        viewport.w() as f32,
+                        viewport.h() as f32,
+                        0.0,
+                        -1.0,
+                        1.0,
+                    ) * Matrix4::new_nonuniform_scaling(&Vector3::new(
+                        viewport.w() as f32,
+                        viewport.h() as f32,
+                        0.0,
+                    ))
+                })
+                .set_texture(&shader.diffuse_texture, &texture);
+        },
+    )
+}
+
 impl Renderer {
     pub(in crate) fn new(
         context: glow::Context,
@@ -854,12 +893,6 @@ impl Renderer {
             statistics: Statistics::default(),
             renderer2d: Renderer2d::new(&mut state)?,
             hdr_renderer: HighDynamicRangeRenderer::new(&mut state)?,
-            gamma_correction_pass: GammaCorrectionPass::new(&mut state)?,
-            post_processing_chain: PostProcessingChain::new(
-                &mut state,
-                frame_size.0 as usize,
-                frame_size.1 as usize,
-            )?,
             texture_upload_receiver,
             texture_upload_sender,
             state,
@@ -910,12 +943,6 @@ impl Renderer {
 
         self.deferred_light_renderer
             .set_frame_size(&mut self.state, new_size)?;
-
-        self.post_processing_chain = PostProcessingChain::new(
-            &mut self.state,
-            self.frame_size.0 as usize,
-            self.frame_size.1 as usize,
-        )?;
 
         Ok(())
     }
@@ -1084,15 +1111,6 @@ impl Renderer {
         let backbuffer_width = self.frame_size.0 as f32;
         let backbuffer_height = self.frame_size.1 as f32;
 
-        let post_processing_pair = self.post_processing_chain.begin_pass();
-        post_processing_pair.framebuffer.clear(
-            &mut self.state,
-            window_viewport,
-            Some(Color::BLACK),
-            None,
-            None,
-        );
-
         for (scene_handle, scene) in scenes.pair_iter().filter(|(_, s)| s.enabled) {
             let graph = &scene.graph;
 
@@ -1148,7 +1166,7 @@ impl Renderer {
                 self.texture_cache.map.insert(
                     rt.key(),
                     CacheEntry {
-                        value: scene_associated_data.scene_frame_texture(),
+                        value: scene_associated_data.ldr_scene_frame_texture(),
                         time_to_live: f32::INFINITY,
                         value_hash: 0, // TODO
                     },
@@ -1183,7 +1201,7 @@ impl Renderer {
 
                 scene_associated_data.copy_depth_stencil_to_scene_framebuffer(state);
 
-                scene_associated_data.scene_framebuffer.clear(
+                scene_associated_data.hdr_scene_framebuffer.clear(
                     state,
                     viewport,
                     Some(Color::from_rgba(0, 0, 0, 255)),
@@ -1204,7 +1222,7 @@ impl Renderer {
                             textures: &mut self.texture_cache,
                             geometry_cache: &mut self.geometry_cache,
                             batch_storage: &self.batch_storage,
-                            frame_buffer: &mut scene_associated_data.scene_framebuffer,
+                            frame_buffer: &mut scene_associated_data.hdr_scene_framebuffer,
                         });
 
                 self.statistics.lighting += light_stats;
@@ -1216,7 +1234,7 @@ impl Renderer {
                     self.particle_system_renderer
                         .render(ParticleSystemRenderContext {
                             state,
-                            framebuffer: &mut scene_associated_data.scene_framebuffer,
+                            framebuffer: &mut scene_associated_data.hdr_scene_framebuffer,
                             graph,
                             camera,
                             white_dummy: self.white_dummy.clone(),
@@ -1229,7 +1247,7 @@ impl Renderer {
 
                 self.statistics += self.sprite_renderer.render(SpriteRenderContext {
                     state,
-                    framebuffer: &mut scene_associated_data.scene_framebuffer,
+                    framebuffer: &mut scene_associated_data.hdr_scene_framebuffer,
                     graph,
                     camera,
                     white_dummy: self.white_dummy.clone(),
@@ -1243,17 +1261,9 @@ impl Renderer {
                     camera,
                     geom_cache: &mut self.geometry_cache,
                     batch_storage: &self.batch_storage,
-                    framebuffer: &mut scene_associated_data.scene_framebuffer,
+                    framebuffer: &mut scene_associated_data.hdr_scene_framebuffer,
                     viewport,
                 });
-
-                self.statistics += self.debug_renderer.render(
-                    state,
-                    viewport,
-                    &mut scene_associated_data.scene_framebuffer,
-                    &scene.drawing_context,
-                    camera,
-                );
 
                 for render_pass in self.scene_render_passes.iter() {
                     self.statistics +=
@@ -1275,83 +1285,75 @@ impl Renderer {
                             depth_texture: scene_associated_data.gbuffer.depth(),
                             normal_texture: scene_associated_data.gbuffer.normal_texture(),
                             ambient_texture: scene_associated_data.gbuffer.ambient_texture(),
-                            framebuffer: &mut scene_associated_data.scene_framebuffer,
+                            framebuffer: &mut scene_associated_data.hdr_scene_framebuffer,
                         })?;
                 }
 
-                // Finally render everything into back buffer.
+                // Convert high dynamic range frame to low dynamic range (sRGB) with tone mapping and gamma correction.
+                let quad = self.geometry_cache.get(state, &self.quad);
+                self.hdr_renderer.render(
+                    state,
+                    scene_associated_data.hdr_scene_frame_texture(),
+                    &mut scene_associated_data.ldr_scene_framebuffer,
+                    viewport,
+                    quad,
+                );
+
+                // Apply FXAA if needed.
+                if self.quality_settings.fxaa {
+                    self.statistics.geometry += self.fxaa_renderer.render(
+                        state,
+                        viewport,
+                        scene_associated_data.ldr_scene_frame_texture(),
+                        &mut scene_associated_data.ldr_temp_framebuffer,
+                        &mut self.geometry_cache,
+                    );
+
+                    let quad = self.geometry_cache.get(state, &self.quad);
+                    let temp_frame_texture = scene_associated_data.ldr_temp_frame_texture();
+                    self.statistics.geometry += blit_pixels(
+                        state,
+                        &mut scene_associated_data.ldr_scene_framebuffer,
+                        temp_frame_texture,
+                        &self.flat_shader,
+                        viewport,
+                        quad,
+                    );
+                }
+
+                // Render debug geometry in the LDR frame buffer.
+                self.statistics += self.debug_renderer.render(
+                    state,
+                    viewport,
+                    &mut scene_associated_data.ldr_scene_framebuffer,
+                    &scene.drawing_context,
+                    camera,
+                );
+
+                // Optionally render everything into back buffer.
                 if scene.render_target.is_none() {
-                    if self.quality_settings.fxaa {
-                        self.statistics.geometry += self.fxaa_renderer.render(
-                            state,
-                            viewport,
-                            scene_associated_data.scene_frame_texture(),
-                            post_processing_pair.framebuffer,
-                            &mut self.geometry_cache,
-                        );
-                    } else {
-                        let shader = &self.flat_shader;
-                        self.statistics.geometry += post_processing_pair.framebuffer.draw(
-                            self.geometry_cache.get(state, &self.quad),
-                            state,
-                            viewport,
-                            &self.flat_shader.program,
-                            &DrawParameters {
-                                cull_face: CullFace::Back,
-                                culling: false,
-                                color_write: Default::default(),
-                                depth_write: true,
-                                stencil_test: false,
-                                depth_test: false,
-                                blend: false,
-                            },
-                            |program_binding| {
-                                program_binding
-                                    .set_matrix4(&shader.wvp_matrix, &{
-                                        Matrix4::new_orthographic(
-                                            0.0,
-                                            viewport.w() as f32,
-                                            viewport.h() as f32,
-                                            0.0,
-                                            -1.0,
-                                            1.0,
-                                        ) * Matrix4::new_nonuniform_scaling(&Vector3::new(
-                                            viewport.w() as f32,
-                                            viewport.h() as f32,
-                                            0.0,
-                                        ))
-                                    })
-                                    .set_texture(
-                                        &shader.diffuse_texture,
-                                        &scene_associated_data.scene_frame_texture(),
-                                    );
-                            },
-                        );
-                    }
+                    let quad = self.geometry_cache.get(state, &self.quad);
+                    self.statistics.geometry += blit_pixels(
+                        state,
+                        &mut self.backbuffer,
+                        scene_associated_data.ldr_scene_frame_texture(),
+                        &self.flat_shader,
+                        viewport,
+                        quad,
+                    );
                 }
             }
         }
 
+        // TODO: 2D renderer requires its own HDR pipeline.
         self.statistics += self.renderer2d.render(
             &mut self.state,
-            post_processing_pair.framebuffer,
+            &mut self.backbuffer,
             Vector2::new(backbuffer_width, backbuffer_height),
             scenes2d,
             &mut self.texture_cache,
             self.white_dummy.clone(),
         )?;
-
-        drop(post_processing_pair);
-
-        let post_processing_pair = self.post_processing_chain.begin_pass();
-
-        self.statistics += self.gamma_correction_pass.render(
-            &mut self.state,
-            window_viewport,
-            post_processing_pair.screen_texture,
-            &mut self.backbuffer,
-            &mut self.geometry_cache,
-        );
 
         // Render UI on top of everything without gamma correction.
         self.statistics += self.ui_renderer.render(UiRenderContext {

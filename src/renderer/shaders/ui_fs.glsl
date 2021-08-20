@@ -3,7 +3,6 @@
 // IMPORTANT: UI is rendered in sRGB color space!
 
 uniform sampler2D diffuseTexture;
-uniform bool isRenderTarget;
 
 uniform bool isFont;
 uniform vec4 solidColor;
@@ -76,9 +75,6 @@ void main()
     }
 
     vec4 diffuseColor = texture(diffuseTexture, texCoord);
-    if (isRenderTarget) {
-        diffuseColor = S_LinearToSRGB(diffuseColor);
-    }
 
     if (isFont)
     {

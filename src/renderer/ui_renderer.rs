@@ -1,4 +1,3 @@
-use crate::asset::ResourceState;
 use crate::{
     asset::Resource,
     core::{
@@ -49,7 +48,6 @@ struct UiShader {
     bounds_min: UniformLocation,
     bounds_max: UniformLocation,
     opacity: UniformLocation,
-    is_render_target: UniformLocation,
 }
 
 impl UiShader {
@@ -72,7 +70,6 @@ impl UiShader {
             bounds_max: program.uniform_location(state, "boundsMax")?,
             resolution: program.uniform_location(state, "resolution")?,
             opacity: program.uniform_location(state, "opacity")?,
-            is_render_target: program.uniform_location(state, "isRenderTarget")?,
             program,
         })
     }
@@ -182,9 +179,6 @@ impl UiRenderer {
         for cmd in drawing_context.get_commands() {
             let mut diffuse_texture = white_dummy.clone();
             let mut is_font_texture = false;
-            // Render targets are in linear color space, so we must convert them to sRGB
-            // before drawing on screen.
-            let mut is_render_target = false;
 
             let mut clip_bounds = cmd.clip_bounds;
             clip_bounds.position.x = clip_bounds.position.x.floor();
@@ -294,14 +288,8 @@ impl UiRenderer {
                 CommandTexture::Texture(texture) => {
                     if let Ok(texture) = texture.clone().0.downcast::<Mutex<TextureState>>() {
                         let resource = Resource::from(texture);
-                        let resource_state = resource.state();
-                        // Make sure that the texture is in correct state at this point.
-                        if let ResourceState::Ok(ref texture_data) = *resource_state {
-                            is_render_target = texture_data.is_render_target();
-                            drop(resource_state);
-                            if let Some(texture) = texture_cache.get(state, &Texture(resource)) {
-                                diffuse_texture = texture;
-                            }
+                        if let Some(texture) = texture_cache.get(state, &Texture(resource)) {
+                            diffuse_texture = texture;
                         }
                     }
                 }
@@ -345,7 +333,6 @@ impl UiRenderer {
                         .set_vector2(&shader.bounds_min, &cmd.bounds.position)
                         .set_vector2(&shader.bounds_max, &bounds_max)
                         .set_bool(&shader.is_font, is_font_texture)
-                        .set_bool(&shader.is_render_target, is_render_target)
                         .set_i32(
                             &shader.brush_type,
                             match cmd.brush {
