@@ -433,6 +433,10 @@ struct AssociatedSceneData {
 
     /// Additional frame buffer for post processing.
     pub ldr_temp_framebuffer: FrameBuffer,
+
+    /// HDR renderer has be created per scene, because it contains
+    /// scene luminance.
+    pub hdr_renderer: HighDynamicRangeRenderer,
 }
 
 impl AssociatedSceneData {
@@ -528,6 +532,7 @@ impl AssociatedSceneData {
 
         Ok(Self {
             gbuffer: GBuffer::new(state, width, height)?,
+            hdr_renderer: HighDynamicRangeRenderer::new(state)?,
             hdr_scene_framebuffer,
             ldr_scene_framebuffer,
             ldr_temp_framebuffer,
@@ -605,7 +610,6 @@ pub struct Renderer {
     forward_renderer: ForwardRenderer,
     fxaa_renderer: FxaaRenderer,
     renderer2d: Renderer2d,
-    hdr_renderer: HighDynamicRangeRenderer,
     texture_upload_receiver: Receiver<Texture>,
     texture_upload_sender: Sender<Texture>,
     // TextureId -> FrameBuffer mapping. This mapping is used for temporal frame buffers
@@ -892,7 +896,6 @@ impl Renderer {
             fxaa_renderer: FxaaRenderer::new(&mut state)?,
             statistics: Statistics::default(),
             renderer2d: Renderer2d::new(&mut state)?,
-            hdr_renderer: HighDynamicRangeRenderer::new(&mut state)?,
             texture_upload_receiver,
             texture_upload_sender,
             state,
@@ -1291,7 +1294,7 @@ impl Renderer {
 
                 // Convert high dynamic range frame to low dynamic range (sRGB) with tone mapping and gamma correction.
                 let quad = self.geometry_cache.get(state, &self.quad);
-                self.hdr_renderer.render(
+                scene_associated_data.hdr_renderer.render(
                     state,
                     scene_associated_data.hdr_scene_frame_texture(),
                     &mut scene_associated_data.ldr_scene_framebuffer,
