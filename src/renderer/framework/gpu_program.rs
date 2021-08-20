@@ -353,7 +353,7 @@ impl GpuProgram {
     }
 
     pub fn bind<'a>(&self, state: &'a mut PipelineState) -> GpuProgramBinding<'a> {
-        state.set_program(self.id);
+        state.set_program(Some(self.id));
         GpuProgramBinding {
             state,
             active_sampler: 0,

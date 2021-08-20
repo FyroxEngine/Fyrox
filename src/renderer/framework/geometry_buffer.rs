@@ -1,7 +1,7 @@
-use crate::scene::mesh::buffer::{VertexAttributeDataType, VertexBuffer};
 use crate::{
     core::{math::TriangleDefinition, scope_profile},
     renderer::framework::{error::FrameworkError, state::PipelineState},
+    scene::mesh::buffer::{VertexAttributeDataType, VertexBuffer},
     utils::array_as_u8_slice,
 };
 use glow::HasContext;
@@ -20,9 +20,7 @@ struct NativeBuffer {
 impl Drop for NativeBuffer {
     fn drop(&mut self) {
         unsafe {
-            if self.id != Default::default() {
-                (*self.state).gl.delete_buffer(self.id);
-            }
+            (*self.state).gl.delete_buffer(self.id);
         }
     }
 }
@@ -299,7 +297,7 @@ impl GeometryBuffer {
 
         assert_eq!(buffer.element_size % size_of::<T>(), 0);
 
-        state.set_vertex_buffer_object(buffer.id);
+        state.set_vertex_buffer_object(Some(buffer.id));
 
         let size = data.len() * size_of::<T>();
         let usage = buffer.kind as u32;
@@ -322,7 +320,7 @@ impl GeometryBuffer {
     pub fn bind<'a>(&'a self, state: &'a mut PipelineState) -> GeometryBufferBinding<'a> {
         scope_profile!();
 
-        state.set_vertex_array_object(self.vertex_array_object);
+        state.set_vertex_array_object(Some(self.vertex_array_object));
 
         // Element buffer object binding is stored inside vertex array object, so
         // it does not modifies state.
@@ -422,7 +420,7 @@ impl BufferBuilder {
     fn build(self, state: &mut PipelineState) -> Result<NativeBuffer, FrameworkError> {
         let vbo = unsafe { state.gl.create_buffer()? };
 
-        state.set_vertex_buffer_object(vbo);
+        state.set_vertex_buffer_object(Some(vbo));
 
         if self.data_size > 0 {
             unsafe {
@@ -496,7 +494,7 @@ impl GeometryBufferBuilder {
         let vao = unsafe { state.gl.create_vertex_array()? };
         let ebo = unsafe { state.gl.create_buffer()? };
 
-        state.set_vertex_array_object(vao);
+        state.set_vertex_array_object(Some(vao));
 
         let mut buffers = Vec::new();
         for builder in self.buffers {

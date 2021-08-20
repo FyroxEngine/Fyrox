@@ -90,20 +90,20 @@ pub struct PipelineState {
     clear_depth: f32,
     scissor_test: bool,
 
-    framebuffer: glow::Framebuffer,
+    framebuffer: Option<glow::Framebuffer>,
     viewport: Rect<i32>,
 
     blend_src_factor: u32,
     blend_dst_factor: u32,
 
-    program: glow::Program,
+    program: Option<glow::Program>,
     texture_units: [TextureUnit; 32],
 
     stencil_func: StencilFunc,
     stencil_op: StencilOp,
 
-    vao: glow::VertexArray,
-    vbo: glow::Buffer,
+    vao: Option<glow::VertexArray>,
+    vbo: Option<glow::Buffer>,
 
     frame_statistics: PipelineStatistics,
 }
@@ -111,7 +111,7 @@ pub struct PipelineState {
 #[derive(Copy, Clone)]
 struct TextureUnit {
     target: u32,
-    texture: glow::Texture,
+    texture: Option<glow::Texture>,
 }
 
 impl Default for TextureUnit {
@@ -208,7 +208,7 @@ impl PipelineState {
             clear_stencil: 0,
             clear_depth: 1.0,
             scissor_test: false,
-            framebuffer: glow::Framebuffer::default(),
+            framebuffer: None,
             viewport: Rect::new(0, 0, 1, 1),
             blend_src_factor: glow::ONE,
             blend_dst_factor: glow::ZERO,
@@ -222,21 +222,15 @@ impl PipelineState {
         }
     }
 
-    pub fn set_framebuffer(&mut self, framebuffer: glow::Framebuffer) {
+    pub fn set_framebuffer(&mut self, framebuffer: Option<glow::Framebuffer>) {
         if self.framebuffer != framebuffer {
             self.framebuffer = framebuffer;
 
             self.frame_statistics.framebuffer_binding_changes += 1;
 
             unsafe {
-                self.gl.bind_framebuffer(
-                    glow::FRAMEBUFFER,
-                    if framebuffer == Default::default() {
-                        None
-                    } else {
-                        Some(self.framebuffer)
-                    },
-                )
+                self.gl
+                    .bind_framebuffer(glow::FRAMEBUFFER, self.framebuffer)
             }
         }
     }
@@ -410,23 +404,19 @@ impl PipelineState {
         }
     }
 
-    pub fn set_program(&mut self, program: glow::Program) {
+    pub fn set_program(&mut self, program: Option<glow::Program>) {
         if self.program != program {
             self.program = program;
 
             self.frame_statistics.program_binding_changes += 1;
 
             unsafe {
-                self.gl.use_program(if program == Default::default() {
-                    None
-                } else {
-                    Some(self.program)
-                });
+                self.gl.use_program(self.program);
             }
         }
     }
 
-    pub fn set_texture(&mut self, sampler_index: u32, target: u32, texture: glow::Texture) {
+    pub fn set_texture(&mut self, sampler_index: u32, target: u32, texture: Option<glow::Texture>) {
         let unit = self.texture_units.get_mut(sampler_index as usize).unwrap();
 
         if unit.target != target || unit.texture != texture {
@@ -437,14 +427,7 @@ impl PipelineState {
 
             unsafe {
                 self.gl.active_texture(glow::TEXTURE0 + sampler_index);
-                self.gl.bind_texture(
-                    target,
-                    if texture == Default::default() {
-                        None
-                    } else {
-                        Some(texture)
-                    },
-                );
+                self.gl.bind_texture(target, unit.texture);
             }
         }
     }
@@ -477,33 +460,26 @@ impl PipelineState {
         }
     }
 
-    pub fn set_vertex_array_object(&mut self, vao: glow::VertexArray) {
+    pub fn set_vertex_array_object(&mut self, vao: Option<glow::VertexArray>) {
         if self.vao != vao {
             self.vao = vao;
 
             self.frame_statistics.vao_binding_changes += 1;
 
             unsafe {
-                self.gl.bind_vertex_array(Some(vao));
+                self.gl.bind_vertex_array(self.vao);
             }
         }
     }
 
-    pub fn set_vertex_buffer_object(&mut self, vbo: glow::Buffer) {
+    pub fn set_vertex_buffer_object(&mut self, vbo: Option<glow::Buffer>) {
         if self.vbo != vbo {
             self.vbo = vbo;
 
             self.frame_statistics.vbo_binding_changes += 1;
 
             unsafe {
-                self.gl.bind_buffer(
-                    glow::ARRAY_BUFFER,
-                    if vbo == Default::default() {
-                        None
-                    } else {
-                        Some(vbo)
-                    },
-                );
+                self.gl.bind_buffer(glow::ARRAY_BUFFER, self.vbo);
             }
         }
     }
@@ -524,8 +500,8 @@ impl PipelineState {
 
     pub fn blit_framebuffer(
         &mut self,
-        source: Framebuffer,
-        dest: Framebuffer,
+        source: Option<Framebuffer>,
+        dest: Option<Framebuffer>,
         src_x0: i32,
         src_y0: i32,
         src_x1: i32,
@@ -550,9 +526,8 @@ impl PipelineState {
         }
 
         unsafe {
-            self.gl
-                .bind_framebuffer(glow::READ_FRAMEBUFFER, Some(source));
-            self.gl.bind_framebuffer(glow::DRAW_FRAMEBUFFER, Some(dest));
+            self.gl.bind_framebuffer(glow::READ_FRAMEBUFFER, source);
+            self.gl.bind_framebuffer(glow::DRAW_FRAMEBUFFER, dest);
             self.gl.blit_framebuffer(
                 src_x0,
                 src_y0,

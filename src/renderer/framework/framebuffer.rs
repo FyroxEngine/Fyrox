@@ -25,7 +25,7 @@ pub struct Attachment {
 
 pub struct FrameBuffer {
     state: *mut PipelineState,
-    fbo: glow::Framebuffer,
+    fbo: Option<glow::Framebuffer>,
     depth_attachment: Option<Attachment>,
     color_attachments: Vec<Attachment>,
 }
@@ -119,7 +119,7 @@ impl FrameBuffer {
         unsafe {
             let fbo = state.gl.create_framebuffer()?;
 
-            state.set_framebuffer(fbo);
+            state.set_framebuffer(Some(fbo));
 
             if let Some(depth_attachment) = depth_attachment.as_ref() {
                 let depth_attachment_kind = match depth_attachment.kind {
@@ -158,11 +158,11 @@ impl FrameBuffer {
                 return Err(FrameworkError::FailedToConstructFBO);
             }
 
-            state.set_framebuffer(glow::Framebuffer::default());
+            state.set_framebuffer(None);
 
             Ok(Self {
                 state,
-                fbo,
+                fbo: Some(fbo),
                 depth_attachment,
                 color_attachments,
             })
@@ -172,7 +172,7 @@ impl FrameBuffer {
     pub fn backbuffer(state: &mut PipelineState) -> Self {
         Self {
             state,
-            fbo: Default::default(),
+            fbo: None,
             depth_attachment: None,
             color_attachments: Default::default(),
         }
@@ -208,7 +208,8 @@ impl FrameBuffer {
         self
     }
 
-    pub fn id(&self) -> glow::Framebuffer {
+    /// None is possible only for back buffer.
+    pub fn id(&self) -> Option<glow::Framebuffer> {
         self.fbo
     }
 
@@ -379,7 +380,7 @@ impl FrameBuffer {
 }
 
 fn pre_draw<F: FnOnce(GpuProgramBinding<'_>)>(
-    fbo: glow::Framebuffer,
+    fbo: Option<glow::Framebuffer>,
     state: &mut PipelineState,
     viewport: Rect<i32>,
     program: &GpuProgram,
@@ -399,8 +400,8 @@ fn pre_draw<F: FnOnce(GpuProgramBinding<'_>)>(
 impl Drop for FrameBuffer {
     fn drop(&mut self) {
         unsafe {
-            if self.fbo != Default::default() {
-                (*self.state).gl.delete_framebuffer(self.fbo);
+            if let Some(id) = self.fbo {
+                (*self.state).gl.delete_framebuffer(id);
             }
         }
     }

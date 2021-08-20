@@ -624,7 +624,8 @@ impl<'a> TextureBinding<'a> {
         let target = kind.gl_texture_target();
 
         unsafe {
-            self.state.set_texture(0, target, self.texture.texture);
+            self.state
+                .set_texture(0, target, Some(self.texture.texture));
 
             let (type_, format, internal_format) = match pixel_kind {
                 PixelKind::F32 => (glow::FLOAT, glow::RED, glow::R32F),
@@ -937,7 +938,11 @@ impl GpuTexture {
         state: &'a mut PipelineState,
         sampler_index: u32,
     ) -> TextureBinding<'a> {
-        state.set_texture(sampler_index, self.kind.gl_texture_target(), self.texture);
+        state.set_texture(
+            sampler_index,
+            self.kind.gl_texture_target(),
+            Some(self.texture),
+        );
         TextureBinding {
             state,
             texture: self,
@@ -945,7 +950,11 @@ impl GpuTexture {
     }
 
     pub fn bind(&self, state: &mut PipelineState, sampler_index: u32) {
-        state.set_texture(sampler_index, self.kind.gl_texture_target(), self.texture);
+        state.set_texture(
+            sampler_index,
+            self.kind.gl_texture_target(),
+            Some(self.texture),
+        );
     }
 
     pub fn kind(&self) -> GpuTextureKind {
