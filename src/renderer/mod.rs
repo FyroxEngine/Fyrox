@@ -523,7 +523,7 @@ impl AssociatedSceneData {
             state,
             GpuTextureKind::Rectangle { width, height },
             // Scene will be rendered in HDR render target.
-            PixelKind::RGB10A2,
+            PixelKind::RGBA16F,
             MinificationFilter::Linear,
             MagnificationFilter::Linear,
             1,
