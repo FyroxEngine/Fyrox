@@ -594,7 +594,7 @@ impl AssociatedSceneData {
     }
 }
 
-pub fn make_viewport_matrix(viewport: Rect<i32>) -> Matrix4<f32> {
+pub(in crate) fn make_viewport_matrix(viewport: Rect<i32>) -> Matrix4<f32> {
     Matrix4::new_orthographic(
         0.0,
         viewport.w() as f32,

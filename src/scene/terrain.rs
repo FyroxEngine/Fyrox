@@ -726,6 +726,21 @@ pub struct LayerDefinition {
     pub tile_factor: Vector2<f32>,
 }
 
+impl Default for LayerDefinition {
+    fn default() -> Self {
+        Self {
+            diffuse_texture: None,
+            normal_texture: None,
+            specular_texture: None,
+            roughness_texture: None,
+            height_texture: None,
+            emission_texture: None,
+            emission_strength: 2.0,
+            tile_factor: Vector2::new(1.0, 1.0),
+        }
+    }
+}
+
 /// Terrain builder allows you to quickly build a terrain with required features.
 pub struct TerrainBuilder {
     base_builder: BaseBuilder,

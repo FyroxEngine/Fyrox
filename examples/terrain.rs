@@ -61,11 +61,8 @@ impl SceneLoader {
                     normal_texture: Some(
                         resource_manager.request_texture("examples/data/Grass_Normal.jpg"),
                     ),
-                    specular_texture: None,
-                    roughness_texture: None,
-                    height_texture: None,
-                    emission_texture: None,
                     tile_factor: Vector2::new(10.0, 10.0),
+                    ..Default::default()
                 },
                 LayerDefinition {
                     diffuse_texture: Some(
@@ -74,11 +71,8 @@ impl SceneLoader {
                     normal_texture: Some(
                         resource_manager.request_texture("examples/data/Rock_Normal.jpg"),
                     ),
-                    specular_texture: None,
-                    roughness_texture: None,
-                    height_texture: None,
-                    emission_texture: None,
                     tile_factor: Vector2::new(10.0, 10.0),
+                    ..Default::default()
                 },
             ])
             .build(&mut scene.graph);
