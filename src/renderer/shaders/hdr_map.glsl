@@ -11,7 +11,9 @@ void main() {
     vec4 hdrColor = texture(hdrSampler, texCoord);
 
     float lum = texture(lumSampler, vec2(0.5, 0.5)).r;
-    float exposure = 0.011 / max(lum, 0.001);
+
+    // 255 / 32768 = 0.00778
+    float exposure = 0.012 / max(lum, 0.00778);
 
     vec4 ldrColor = vec4(1.0) - exp(-hdrColor * exposure);
 
