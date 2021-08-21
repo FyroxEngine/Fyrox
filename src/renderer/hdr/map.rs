@@ -7,6 +7,7 @@ pub struct MapShader {
     pub wvp_matrix: UniformLocation,
     pub hdr_sampler: UniformLocation,
     pub lum_sampler: UniformLocation,
+    pub bloom_sampler: UniformLocation,
 }
 
 impl MapShader {
@@ -21,6 +22,7 @@ impl MapShader {
             wvp_matrix: program.uniform_location(state, "worldViewProjection")?,
             hdr_sampler: program.uniform_location(state, "hdrSampler")?,
             lum_sampler: program.uniform_location(state, "lumSampler")?,
+            bloom_sampler: program.uniform_location(state, "bloomSampler")?,
             program,
         })
     }

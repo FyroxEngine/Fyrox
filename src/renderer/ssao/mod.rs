@@ -16,10 +16,12 @@ use crate::{
         },
         state::PipelineState,
     },
-    renderer::{blur::Blur, gbuffer::GBuffer, GeometryCache, RenderPassStatistics},
+    renderer::{gbuffer::GBuffer, ssao::blur::Blur, GeometryCache, RenderPassStatistics},
     scene::mesh::surface::SurfaceData,
 };
 use std::{cell::RefCell, rc::Rc};
+
+mod blur;
 
 // Keep in sync with shader define.
 const KERNEL_SIZE: usize = 32;
@@ -43,8 +45,8 @@ struct Shader {
 
 impl Shader {
     pub fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
-        let fragment_source = include_str!("shaders/ssao_fs.glsl");
-        let vertex_source = include_str!("shaders/ssao_vs.glsl");
+        let fragment_source = include_str!("../shaders/ssao_fs.glsl");
+        let vertex_source = include_str!("../shaders/ssao_vs.glsl");
         let program = GpuProgram::from_source(state, "SsaoShader", vertex_source, fragment_source)?;
         Ok(Self {
             depth_sampler: program.uniform_location(state, "depthSampler")?,

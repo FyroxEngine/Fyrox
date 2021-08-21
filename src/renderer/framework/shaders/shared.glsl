@@ -301,3 +301,7 @@ vec4 S_SRGBToLinear(vec4 color) {
     vec3 rgb = mix(a, b, c);
     return vec4(rgb, color.a);
 }
+
+float S_Luminance(vec3 x) {
+    return dot(x, vec3(0.299, 0.587, 0.114));
+}

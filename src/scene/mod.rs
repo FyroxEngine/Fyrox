@@ -911,7 +911,7 @@ pub struct Scene {
     pub ambient_lighting_color: Color,
 
     /// Whether the scene will be updated and rendered or not. Default is true.
-    /// This flags is allows you to build a scene manager for your game. For example,
+    /// This flag allowing you to build a scene manager for your game. For example,
     /// you may have a scene for menu and one per level. Menu's scene is persistent,
     /// however you don't want it to be updated and renderer while you have a level
     /// loaded and playing a game. When you're start playing, just set `enabled` flag

@@ -1,9 +1,6 @@
+use crate::renderer::make_viewport_matrix;
 use crate::{
-    core::{
-        algebra::{Matrix4, Vector3},
-        math::Rect,
-        scope_profile,
-    },
+    core::{math::Rect, scope_profile},
     renderer::framework::{
         error::FrameworkError,
         framebuffer::{Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer},
@@ -27,10 +24,10 @@ struct Shader {
 
 impl Shader {
     fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
-        let fragment_source = include_str!("shaders/blur_fs.glsl");
-        let vertex_source = include_str!("shaders/blur_vs.glsl");
+        let fragment_source = include_str!("../shaders/blur_fs.glsl");
+        let vertex_source = include_str!("../shaders/blur_vs.glsl");
 
-        let program = GpuProgram::from_source(state, "FlatShader", vertex_source, fragment_source)?;
+        let program = GpuProgram::from_source(state, "BlurShader", vertex_source, fragment_source)?;
         Ok(Self {
             world_view_projection_matrix: program.uniform_location(state, "worldViewProjection")?,
             input_texture: program.uniform_location(state, "inputTexture")?,
@@ -120,18 +117,7 @@ impl Blur {
                 program_binding
                     .set_matrix4(
                         &shader.world_view_projection_matrix,
-                        &(Matrix4::new_orthographic(
-                            0.0,
-                            viewport.w() as f32,
-                            viewport.h() as f32,
-                            0.0,
-                            -1.0,
-                            1.0,
-                        ) * Matrix4::new_nonuniform_scaling(&Vector3::new(
-                            viewport.w() as f32,
-                            viewport.h() as f32,
-                            0.0,
-                        ))),
+                        &(make_viewport_matrix(viewport)),
                     )
                     .set_texture(&shader.input_texture, &input);
             },

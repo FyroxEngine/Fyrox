@@ -939,6 +939,7 @@ pub struct Surface {
     /// Array of handle to scene nodes which are used as bones.
     pub bones: Vec<Handle<Node>>,
     color: Color,
+    emission_strength: f32,
 }
 
 impl Surface {
@@ -1127,6 +1128,17 @@ impl Surface {
     pub fn bones(&self) -> &[Handle<Node>] {
         &self.bones
     }
+
+    /// Returns current emission strength.
+    pub fn emission_strength(&self) -> f32 {
+        self.emission_strength
+    }
+
+    /// Sets new emission strength. Emission strenght is applied to emission map making it either more
+    /// dim (< 1.0) or more bright (> 1.0).
+    pub fn set_emission_strength(&mut self, emission_strength: f32) {
+        self.emission_strength = emission_strength;
+    }
 }
 
 impl Visit for Surface {
@@ -1142,6 +1154,7 @@ impl Visit for Surface {
         self.color.visit("Color", visitor)?;
         self.bones.visit("Bones", visitor)?;
         self.lightmap_texture.visit("LightmapTexture", visitor)?;
+        let _ = self.emission_strength.visit("EmissionStrength", visitor);
         // self.vertex_weights intentionally not serialized!
 
         visitor.leave_region()
@@ -1160,6 +1173,7 @@ pub struct SurfaceBuilder {
     emission_texture: Option<Texture>,
     bones: Vec<Handle<Node>>,
     color: Color,
+    emission_strength: f32,
 }
 
 impl SurfaceBuilder {
@@ -1176,6 +1190,7 @@ impl SurfaceBuilder {
             emission_texture: None,
             bones: Default::default(),
             color: Color::WHITE,
+            emission_strength: 1.0,
         }
     }
 
@@ -1233,6 +1248,12 @@ impl SurfaceBuilder {
         self
     }
 
+    /// Sets desired emission strength.
+    pub fn with_emission_strength(mut self, emission_strength: f32) -> Self {
+        self.emission_strength = emission_strength;
+        self
+    }
+
     /// Creates new instance of surface.
     pub fn build(self) -> Surface {
         Surface {
@@ -1247,6 +1268,7 @@ impl SurfaceBuilder {
             vertex_weights: Default::default(),
             bones: self.bones,
             color: self.color,
+            emission_strength: self.emission_strength,
         }
     }
 }

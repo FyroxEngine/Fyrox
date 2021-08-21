@@ -2,6 +2,7 @@
 
 uniform sampler2D hdrSampler;
 uniform sampler2D lumSampler;
+uniform sampler2D bloomSampler;
 
 in vec2 texCoord;
 
@@ -9,6 +10,8 @@ out vec4 outLdrColor;
 
 void main() {
     vec4 hdrColor = texture(hdrSampler, texCoord);
+
+    hdrColor += texture(bloomSampler, texCoord);
 
     float lum = texture(lumSampler, vec2(0.5, 0.5)).r;
 

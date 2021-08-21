@@ -1,9 +1,10 @@
-//! Renderer is a "workhorse" of the engine, it draws scenes and user interface.
-//! For now there is almost no possibility to change pipeline of renderer, you
-//! can only modify quality settings. This will change in future to make renderer
-//! more flexible.
+//! Renderer is a "workhorse" of the engine, it draws scenes (both 3D and 2D), user interface,
+//! debug geometry and has an ability to add user-defined render passes. Current renderer
+//! implementation is not very flexible, but should cover 95% of use cases.
 //!
-//! Renderer based on OpenGL 3.3+ Core.
+//! # Implementation details
+//!
+//! Renderer is based on OpenGL 3.3+ Core.
 
 #![warn(missing_docs)]
 #![deny(unsafe_code)]
@@ -17,7 +18,7 @@ pub mod debug_renderer;
 pub mod renderer2d;
 
 mod batch;
-mod blur;
+mod bloom;
 mod flat_shader;
 mod forward_renderer;
 mod fxaa;
@@ -72,6 +73,7 @@ use crate::{
     scene2d::Scene2dContainer,
 };
 
+use crate::renderer::bloom::BloomRenderer;
 use crate::renderer::framework::geometry_buffer::GeometryBuffer;
 #[cfg(feature = "serde_integration")]
 use serde::{Deserialize, Serialize};
@@ -236,6 +238,9 @@ pub struct QualitySettings {
 
     /// Whether to use Parallax Mapping or not.
     pub use_parallax_mapping: bool,
+
+    /// Whether to use bloom effect.
+    pub use_bloom: bool,
 }
 
 impl Default for QualitySettings {
@@ -268,6 +273,8 @@ impl QualitySettings {
 
             fxaa: true,
 
+            use_bloom: true,
+
             use_parallax_mapping: false, // TODO: Enable when it is fixed!
         }
     }
@@ -294,6 +301,8 @@ impl QualitySettings {
             spot_shadow_map_precision: ShadowMapPrecision::Full,
 
             fxaa: true,
+
+            use_bloom: true,
 
             use_parallax_mapping: false, // TODO: Enable when it is fixed!
         }
@@ -322,6 +331,8 @@ impl QualitySettings {
 
             fxaa: true,
 
+            use_bloom: true,
+
             use_parallax_mapping: false,
         }
     }
@@ -348,6 +359,8 @@ impl QualitySettings {
             spot_shadow_map_precision: ShadowMapPrecision::Half,
 
             fxaa: false,
+
+            use_bloom: false,
 
             use_parallax_mapping: false,
         }
@@ -437,6 +450,10 @@ struct AssociatedSceneData {
     /// HDR renderer has be created per scene, because it contains
     /// scene luminance.
     pub hdr_renderer: HighDynamicRangeRenderer,
+
+    /// Bloom contains only overly bright pixels that creates light
+    /// bleeding effect (glow effect).
+    pub bloom_renderer: BloomRenderer,
 }
 
 impl AssociatedSceneData {
@@ -533,6 +550,7 @@ impl AssociatedSceneData {
         Ok(Self {
             gbuffer: GBuffer::new(state, width, height)?,
             hdr_renderer: HighDynamicRangeRenderer::new(state)?,
+            bloom_renderer: BloomRenderer::new(state, width, height)?,
             hdr_scene_framebuffer,
             ldr_scene_framebuffer,
             ldr_temp_framebuffer,
@@ -574,6 +592,21 @@ impl AssociatedSceneData {
             .texture
             .clone()
     }
+}
+
+pub fn make_viewport_matrix(viewport: Rect<i32>) -> Matrix4<f32> {
+    Matrix4::new_orthographic(
+        0.0,
+        viewport.w() as f32,
+        viewport.h() as f32,
+        0.0,
+        -1.0,
+        1.0,
+    ) * Matrix4::new_nonuniform_scaling(&Vector3::new(
+        viewport.w() as f32,
+        viewport.h() as f32,
+        0.0,
+    ))
 }
 
 /// See module docs.
@@ -1292,11 +1325,20 @@ impl Renderer {
                         })?;
                 }
 
-                // Convert high dynamic range frame to low dynamic range (sRGB) with tone mapping and gamma correction.
                 let quad = self.geometry_cache.get(state, &self.quad);
-                scene_associated_data.hdr_renderer.render(
+
+                // Prepare glow map.
+                self.statistics.geometry += scene_associated_data.bloom_renderer.render(
+                    state,
+                    quad,
+                    scene_associated_data.hdr_scene_frame_texture(),
+                );
+
+                // Convert high dynamic range frame to low dynamic range (sRGB) with tone mapping and gamma correction.
+                self.statistics.geometry += scene_associated_data.hdr_renderer.render(
                     state,
                     scene_associated_data.hdr_scene_frame_texture(),
+                    scene_associated_data.bloom_renderer.result(),
                     &mut scene_associated_data.ldr_scene_framebuffer,
                     viewport,
                     quad,

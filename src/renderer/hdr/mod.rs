@@ -234,6 +234,7 @@ impl HighDynamicRangeRenderer {
         &mut self,
         state: &mut PipelineState,
         hdr_scene_frame: Rc<RefCell<GpuTexture>>,
+        bloom_texture: Rc<RefCell<GpuTexture>>,
         ldr_framebuffer: &mut FrameBuffer,
         viewport: Rect<i32>,
         quad: &GeometryBuffer,
@@ -270,6 +271,7 @@ impl HighDynamicRangeRenderer {
                 program_binding
                     .set_matrix4(&shader.wvp_matrix, &frame_matrix)
                     .set_texture(&shader.lum_sampler, &avg_lum)
+                    .set_texture(&shader.bloom_sampler, &bloom_texture)
                     .set_texture(&shader.hdr_sampler, &hdr_scene_frame);
             },
         )
@@ -279,6 +281,7 @@ impl HighDynamicRangeRenderer {
         &mut self,
         state: &mut PipelineState,
         hdr_scene_frame: Rc<RefCell<GpuTexture>>,
+        bloom_texture: Rc<RefCell<GpuTexture>>,
         ldr_framebuffer: &mut FrameBuffer,
         viewport: Rect<i32>,
         quad: &GeometryBuffer,
@@ -287,7 +290,14 @@ impl HighDynamicRangeRenderer {
         stats += self.calculate_frame_luminance(state, hdr_scene_frame.clone(), quad);
         stats += self.calculate_avg_frame_luminance(state, quad);
         stats += self.adaptation(state, quad);
-        stats += self.map_hdr_to_ldr(state, hdr_scene_frame, ldr_framebuffer, viewport, quad);
+        stats += self.map_hdr_to_ldr(
+            state,
+            hdr_scene_frame,
+            bloom_texture,
+            ldr_framebuffer,
+            viewport,
+            quad,
+        );
         stats
     }
 }
