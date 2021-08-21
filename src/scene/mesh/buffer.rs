@@ -19,6 +19,7 @@ use crate::{
 };
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
+use std::mem::ManuallyDrop;
 use std::ops::{Deref, DerefMut, Index, IndexMut};
 use std::{marker::PhantomData, mem::MaybeUninit};
 
@@ -136,6 +137,22 @@ pub struct VertexAttribute {
     pub shader_location: u8,
 }
 
+/// VertexBuffer.data's memory layout
+#[derive(Clone, Debug)]
+pub struct MemoryLayout(std::alloc::Layout);
+
+impl Visit for MemoryLayout {
+    fn visit(&mut self, _name: &str, _visitor: &mut Visitor) -> VisitResult {
+        Ok(())
+    }
+}
+
+impl Default for MemoryLayout {
+    fn default() -> Self {
+        Self(std::alloc::Layout::from_size_align(0, 1).unwrap())
+    }
+}
+
 /// See module docs.
 #[derive(Clone, Visit, Default, Debug)]
 pub struct VertexBuffer {
@@ -145,6 +162,13 @@ pub struct VertexBuffer {
     vertex_count: u32,
     data: Vec<u8>,
     data_hash: u64,
+    memory_layout: MemoryLayout,
+}
+
+impl Drop for VertexBuffer {
+    fn drop(&mut self) {
+        self.replace_data(Vec::new()); // deallocate holding data
+    }
 }
 
 fn calculate_data_hash(data: &[u8]) -> u64 {
@@ -190,8 +214,7 @@ impl<'a> VertexBufferRefMut<'a> {
     pub fn push_vertex<T: Copy>(&mut self, vertex: &T) -> Result<(), ValidationError> {
         if std::mem::size_of::<T>() == self.vertex_buffer.vertex_size as usize {
             self.vertex_buffer
-                .data
-                .extend_from_slice(value_as_u8_slice(vertex));
+                .extend_data_from_slice(value_as_u8_slice(vertex));
             self.vertex_buffer.vertex_count += 1;
             Ok(())
         } else {
@@ -293,7 +316,7 @@ impl<'a> VertexBufferRefMut<'a> {
                 ..((n + 1) * self.vertex_buffer.vertex_size as usize)],
         )
         .unwrap();
-        self.vertex_buffer.data.extend_from_slice(temp.as_slice());
+        self.vertex_buffer.extend_data_from_slice(temp.as_slice());
         self.vertex_buffer.vertex_count += 1;
     }
 
@@ -337,7 +360,7 @@ impl<'a> VertexBufferRefMut<'a> {
                 new_data.extend_from_slice(&temp);
             }
 
-            self.vertex_buffer.data = new_data;
+            self.vertex_buffer.replace_data(new_data);
 
             self.vertex_buffer.vertex_size += std::mem::size_of::<T>() as u8;
 
@@ -382,6 +405,7 @@ impl VertexBuffer {
         let length = data.len() * std::mem::size_of::<T>();
         let capacity = data.capacity() * std::mem::size_of::<T>();
 
+        let memory_layout = MemoryLayout(std::alloc::Layout::array::<T>(data.len()).unwrap());
         let bytes =
             unsafe { Vec::<u8>::from_raw_parts(data.as_mut_ptr() as *mut u8, length, capacity) };
 
@@ -442,7 +466,37 @@ impl VertexBuffer {
             data: bytes,
             sparse_layout,
             dense_layout,
+            memory_layout,
         })
+    }
+
+    fn replace_data(&mut self, new_data: Vec<u8>) {
+        let mut new_data_ref: Vec<u8> = new_data;
+        let mut new_data_layout: MemoryLayout =
+            MemoryLayout(std::alloc::Layout::array::<u8>(new_data_ref.capacity()).unwrap());
+
+        std::mem::swap(&mut self.data, &mut new_data_ref);
+        std::mem::swap(&mut self.memory_layout, &mut new_data_layout);
+
+        if new_data_ref.capacity() != 0 {
+            let mut manualy_drop = ManuallyDrop::new(new_data_ref);
+            unsafe {
+                std::alloc::dealloc(manualy_drop.as_mut_ptr(), new_data_layout.0);
+            }
+        }
+    }
+
+    fn extend_data_from_slice(&mut self, other: &[u8]) {
+        if self.memory_layout.0.align() != 1 {
+            let mut temp = Vec::with_capacity(self.data.capacity());
+            temp.resize(self.data.len(), 0u8);
+            temp.copy_from_slice(self.data.as_slice());
+            temp.extend_from_slice(other);
+
+            self.replace_data(temp)
+        } else {
+            self.data.extend_from_slice(other)
+        }
     }
 
     /// Returns a reference to underlying data buffer slice.
