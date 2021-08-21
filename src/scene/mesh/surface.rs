@@ -917,7 +917,7 @@ impl VertexWeightSet {
 }
 
 /// See module docs.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 pub struct Surface {
     // Wrapped into option to be able to implement Default for serialization.
     // In normal conditions it must never be None!
@@ -940,6 +940,25 @@ pub struct Surface {
     pub bones: Vec<Handle<Node>>,
     color: Color,
     emission_strength: f32,
+}
+
+impl Default for Surface {
+    fn default() -> Self {
+        Self {
+            data: None,
+            diffuse_texture: None,
+            normal_texture: None,
+            lightmap_texture: None,
+            specular_texture: None,
+            roughness_texture: None,
+            height_texture: None,
+            emission_texture: None,
+            vertex_weights: Default::default(),
+            bones: Default::default(),
+            color: Default::default(),
+            emission_strength: 1.0,
+        }
+    }
 }
 
 impl Surface {
@@ -1135,7 +1154,8 @@ impl Surface {
     }
 
     /// Sets new emission strength. Emission strenght is applied to emission map making it either more
-    /// dim (< 1.0) or more bright (> 1.0).
+    /// dim (< 1.0) or more bright (> 1.0). The default is 2.0. Any value lower than 1.0 will prevent
+    /// glow effect.
     pub fn set_emission_strength(&mut self, emission_strength: f32) {
         self.emission_strength = emission_strength;
     }
@@ -1190,7 +1210,7 @@ impl SurfaceBuilder {
             emission_texture: None,
             bones: Default::default(),
             color: Color::WHITE,
-            emission_strength: 1.0,
+            emission_strength: 2.0,
         }
     }
 

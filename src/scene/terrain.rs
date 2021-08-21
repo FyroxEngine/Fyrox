@@ -52,6 +52,10 @@ pub struct Layer {
     /// work as global illumination.
     #[visit(optional)] // Backward compatibility.
     pub emission_texture: Option<Texture>,
+    /// Emission strength defines how bright emission map is. The default is 2.0.
+    /// Any value lower than 1.0 will prevent glow effect.
+    #[visit(optional)] // Backward compatibility.
+    pub emission_strength: f32,
     /// Mask texture allows you to exclude some pixel of the layer from rendering.
     pub mask: Option<Texture>,
     /// Tile factor defines how many time textures (except mask) will be repeated.
@@ -630,6 +634,7 @@ impl Terrain {
             roughness_texture: None,
             height_texture: None,
             emission_texture: None,
+            emission_strength: 2.0,
             mask: Some(create_layer_mask(mask_width, mask_height, value)),
             tile_factor,
         }
@@ -714,6 +719,9 @@ pub struct LayerDefinition {
     /// such lighting won't affect surrounding pixels - in other words it won't
     /// work as global illumination.
     pub emission_texture: Option<Texture>,
+    /// Emission strength defines how bright emission map is. The default is 2.0.
+    /// Any value lower than 1.0 will prevent glow effect.
+    pub emission_strength: f32,
     /// Tile factor defines how many time textures will be repeated.
     pub tile_factor: Vector2<f32>,
 }
@@ -864,6 +872,7 @@ impl TerrainBuilder {
                                 roughness_texture: definition.roughness_texture.clone(),
                                 height_texture: definition.height_texture.clone(),
                                 emission_texture: definition.emission_texture.clone(),
+                                emission_strength: definition.emission_strength,
                                 // Base layer is opaque, every other by default - transparent.
                                 mask: Some(create_layer_mask(
                                     chunk_mask_width,

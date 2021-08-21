@@ -229,6 +229,7 @@ fn make_fragment_shader_source(features: UberShaderFeatures) -> String {
         uniform bool usePOM;
         uniform vec2 texCoordScale;
         uniform uint layerIndex;
+        uniform float emissionStrength;
     "#;
 
     source += r#"
@@ -297,12 +298,14 @@ fn make_fragment_shader_source(features: UberShaderFeatures) -> String {
         "#;
 
     if features.contains(UberShaderFeatures::LIGHTMAP) {
-        source += r#"outAmbient = texture(emissionTexture, tc) + vec4(texture(lightmapTexture, secondTexCoord).rgb, 1.0);"#;
+        source += r#"outAmbient = emissionStrength * texture(emissionTexture, tc) + vec4(texture(lightmapTexture, secondTexCoord).rgb, 1.0);"#;
     } else {
-        source += r#"outAmbient = texture(emissionTexture, tc);"#;
+        source += r#"outAmbient = emissionStrength * texture(emissionTexture, tc);"#;
     }
 
     source += r#"
+        outAmbient.a = 1.0;
+    
         // reflection mapping
         float roughness = texture(roughnessTexture, tc).r;
         vec3 reflectionTexCoord = reflect(toFragment, normalize(n.xyz));
@@ -346,6 +349,7 @@ pub struct UberShader {
     pub use_pom: UniformLocation,
     pub height_texture: UniformLocation,
     pub emission_texture: UniformLocation,
+    pub emission_strength: UniformLocation,
     pub layer_index: UniformLocation,
     // Non-instanced parts.
     pub world_matrix: Option<UniformLocation>,
@@ -412,6 +416,7 @@ impl UberShader {
             specular_texture: program.uniform_location(state, "specularTexture")?,
             roughness_texture: program.uniform_location(state, "roughnessTexture")?,
             emission_texture: program.uniform_location(state, "emissionTexture")?,
+            emission_strength: program.uniform_location(state, "emissionStrength")?,
             lightmap_texture: if lightmap {
                 Some(program.uniform_location(state, "lightmapTexture")?)
             } else {

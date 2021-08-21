@@ -62,6 +62,7 @@ pub struct Batch {
     pub blend: bool,
     pub tex_coord_scale: Vector2<f32>,
     pub decal_layer_index: u8,
+    pub emission_strength: f32,
     sort_index: u64,
 }
 
@@ -179,6 +180,7 @@ impl BatchStorage {
                                 use_lightmapping: surface.lightmap_texture_ref().is_some(),
                                 is_terrain: false,
                                 blend: false,
+                                emission_strength: surface.emission_strength(),
                                 decal_layer_index: mesh.decal_layer_index(),
                                 tex_coord_scale: Vector2::new(1.0, 1.0),
                             });
@@ -290,6 +292,7 @@ impl BatchStorage {
                                     is_terrain: true,
                                     blend: layer_index != 0,
                                     tex_coord_scale: layer.tile_factor,
+                                    emission_strength: layer.emission_strength,
                                     decal_layer_index: terrain.decal_layer_index(),
                                 });
                                 self.batches.last_mut().unwrap()
