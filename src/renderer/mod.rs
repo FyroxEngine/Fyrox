@@ -550,7 +550,7 @@ impl AssociatedSceneData {
         Ok(Self {
             gbuffer: GBuffer::new(state, width, height)?,
             hdr_renderer: HighDynamicRangeRenderer::new(state)?,
-            bloom_renderer: BloomRenderer::new(state, width, height)?,
+            bloom_renderer: BloomRenderer::new(state, (width / 2).max(1), (height / 2).max(1))?,
             hdr_scene_framebuffer,
             ldr_scene_framebuffer,
             ldr_temp_framebuffer,
