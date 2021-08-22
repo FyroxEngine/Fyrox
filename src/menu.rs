@@ -743,13 +743,8 @@ impl Menu {
                 } else if message.destination() == self.create_terrain {
                     let node = TerrainBuilder::new(BaseBuilder::new().with_name("Terrain"))
                         .with_layers(vec![LayerDefinition {
-                            diffuse_texture: None,
-                            normal_texture: None,
-                            specular_texture: None,
-                            roughness_texture: None,
-                            height_texture: None,
-                            emission_texture: None,
                             tile_factor: Vector2::new(10.0, 10.0),
+                            ..Default::default()
                         }])
                         .with_height_map_resolution(4.0)
                         .build_node();
