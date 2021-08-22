@@ -956,7 +956,7 @@ impl Default for Surface {
             vertex_weights: Default::default(),
             bones: Default::default(),
             color: Default::default(),
-            emission_strength: 1.0,
+            emission_strength: 2.0,
         }
     }
 }
