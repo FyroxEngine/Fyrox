@@ -305,16 +305,29 @@ async fn create_surfaces(
                     };
 
                     let texture = resource_manager.request_texture(texture_path.as_path());
-                    match name.as_str() {
-                        "AmbientColor" => (), // TODO: Add ambient occlusion (AO) map support.
-                        "DiffuseColor" => surface.set_diffuse_texture(Some(texture)),
-                        "SpecularFactor" => surface.set_specular_texture(Some(texture)),
-                        "ShininessExponent" => surface.set_roughness_texture(Some(texture)),
-                        // No idea why it can be different for normal maps.
-                        "Bump" | "NormalMap" => surface.set_normal_texture(Some(texture)),
-                        "DisplacementColor" => surface.set_height_texture(Some(texture)),
-                        "EmissiveColor" => surface.set_emission_texture(Some(texture)),
-                        _ => (),
+
+                    // Make up your mind, Autodesk.
+                    // Handle all possible combinations of links to auto-import materials.
+                    if name.contains("AmbientColor") || name.contains("ambient_color") {
+                        // TODO: Add ambient occlusion (AO) map support.
+                    } else if name.contains("DiffuseColor") || name.contains("diffuse_color") {
+                        surface.set_diffuse_texture(Some(texture))
+                    } else if name.contains("SpecularFactor") || name.contains("specular_factor") {
+                        surface.set_specular_texture(Some(texture))
+                    } else if name.contains("RoughnessMap") || name.contains("roughness_map") {
+                        surface.set_roughness_texture(Some(texture))
+                    } else if name.contains("Bump")
+                        || name.contains("bump_map")
+                        || name.contains("NormalMap")
+                        || name.contains("normal_map")
+                    {
+                        surface.set_normal_texture(Some(texture))
+                    } else if name.contains("DisplacementColor")
+                        || name.contains("displacement_map")
+                    {
+                        surface.set_height_texture(Some(texture))
+                    } else if name.contains("EmissiveColor") || name.contains("emissive_map") {
+                        surface.set_emission_texture(Some(texture))
                     }
                 }
             }
