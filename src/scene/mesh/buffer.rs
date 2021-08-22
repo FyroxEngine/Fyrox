@@ -141,12 +141,6 @@ pub struct VertexAttribute {
 #[derive(Clone, Debug)]
 pub struct MemoryLayout(std::alloc::Layout);
 
-impl Visit for MemoryLayout {
-    fn visit(&mut self, _name: &str, _visitor: &mut Visitor) -> VisitResult {
-        Ok(())
-    }
-}
-
 impl Default for MemoryLayout {
     fn default() -> Self {
         Self(std::alloc::Layout::from_size_align(0, 1).unwrap())
@@ -162,6 +156,7 @@ pub struct VertexBuffer {
     vertex_count: u32,
     data: Vec<u8>,
     data_hash: u64,
+    #[visit(skip)]
     memory_layout: MemoryLayout,
 }
 
