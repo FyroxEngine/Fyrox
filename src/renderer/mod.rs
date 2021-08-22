@@ -1133,6 +1133,7 @@ impl Renderer {
         // are created, but cache still thinks that resource is correctly bound, but it is different
         // object have same name.
         self.state.invalidate_resource_bindings_cache();
+        let dt = self.statistics.capped_frame_time;
         self.statistics.begin_frame();
 
         let window_viewport = Rect::new(0, 0, self.frame_size.0 as i32, self.frame_size.1 as i32);
@@ -1342,6 +1343,7 @@ impl Renderer {
                     &mut scene_associated_data.ldr_scene_framebuffer,
                     viewport,
                     quad,
+                    dt,
                 );
 
                 // Apply FXAA if needed.

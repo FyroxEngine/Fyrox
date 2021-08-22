@@ -3,7 +3,7 @@ use crate::renderer::framework::framebuffer::{CullFace, DrawParameters};
 use crate::renderer::framework::geometry_buffer::{DrawCallStatistics, GeometryBuffer};
 use crate::renderer::hdr::adaptation::AdaptationChain;
 use crate::renderer::hdr::map::MapShader;
-use crate::renderer::RenderPassStatistics;
+use crate::renderer::{make_viewport_matrix, RenderPassStatistics};
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
@@ -198,6 +198,7 @@ impl HighDynamicRangeRenderer {
         &mut self,
         state: &mut PipelineState,
         quad: &GeometryBuffer,
+        dt: f32,
     ) -> DrawCallStatistics {
         let new_lum = self.downscale_chain.last().unwrap().texture();
         let ctx = self.adaptation_chain.begin();
@@ -224,7 +225,7 @@ impl HighDynamicRangeRenderer {
                     .set_matrix4(&shader.wvp_matrix, &matrix)
                     .set_texture(&shader.old_lum_sampler, &prev_lum)
                     .set_texture(&shader.new_lum_sampler, &new_lum)
-                    .set_f32(&shader.speed, 0.01) // TODO: Make configurable
+                    .set_f32(&shader.speed, 0.3 * dt) // TODO: Make configurable
                 ;
             },
         )
@@ -240,18 +241,7 @@ impl HighDynamicRangeRenderer {
         quad: &GeometryBuffer,
     ) -> DrawCallStatistics {
         let shader = &self.map_shader;
-        let frame_matrix = Matrix4::new_orthographic(
-            0.0,
-            viewport.w() as f32,
-            viewport.h() as f32,
-            0.0,
-            -1.0,
-            1.0,
-        ) * Matrix4::new_nonuniform_scaling(&Vector3::new(
-            viewport.w() as f32,
-            viewport.h() as f32,
-            0.0,
-        ));
+        let frame_matrix = make_viewport_matrix(viewport);
         let avg_lum = self.adaptation_chain.avg_lum_texture();
         ldr_framebuffer.draw(
             quad,
@@ -285,11 +275,12 @@ impl HighDynamicRangeRenderer {
         ldr_framebuffer: &mut FrameBuffer,
         viewport: Rect<i32>,
         quad: &GeometryBuffer,
+        dt: f32,
     ) -> RenderPassStatistics {
         let mut stats = RenderPassStatistics::default();
         stats += self.calculate_frame_luminance(state, hdr_scene_frame.clone(), quad);
         stats += self.calculate_avg_frame_luminance(state, quad);
-        stats += self.adaptation(state, quad);
+        stats += self.adaptation(state, quad, dt);
         stats += self.map_hdr_to_ldr(
             state,
             hdr_scene_frame,
