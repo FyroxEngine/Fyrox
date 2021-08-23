@@ -1344,6 +1344,10 @@ impl Renderer {
                     viewport,
                     quad,
                     dt,
+                    camera.exposure(),
+                    camera.color_grading_lut_ref(),
+                    camera.color_grading_enabled(),
+                    &mut self.texture_cache,
                 );
 
                 // Apply FXAA if needed.
