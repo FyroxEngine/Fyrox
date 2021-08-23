@@ -66,6 +66,7 @@ fn prepare_source_code(code: &str) -> String {
         shared += r#"    
             precision highp float;
             precision lowp usampler2D;
+            precision lowp sampler3D;
         "#;
     }
 

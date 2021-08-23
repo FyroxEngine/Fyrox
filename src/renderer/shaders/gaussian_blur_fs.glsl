@@ -16,13 +16,17 @@ void main()
 
     if (horizontal) {
         for(int i = 1; i < 5; ++i) {
-            result += texture(image, texCoord + vec2(pixelSize.x * i, 0.0)).rgb * weights[i];
-            result += texture(image, texCoord - vec2(pixelSize.x * i, 0.0)).rgb * weights[i];
+            float fi = float(i);
+
+            result += texture(image, texCoord + vec2(pixelSize.x * fi, 0.0)).rgb * weights[i];
+            result += texture(image, texCoord - vec2(pixelSize.x * fi, 0.0)).rgb * weights[i];
         }
     } else {
         for(int i = 1; i < 5; ++i) {
-            result += texture(image, texCoord + vec2(0.0, pixelSize.y * i)).rgb * weights[i];
-            result += texture(image, texCoord - vec2(0.0, pixelSize.y * i)).rgb * weights[i];
+            float fi = float(i);
+
+            result += texture(image, texCoord + vec2(0.0, pixelSize.y * fi)).rgb * weights[i];
+            result += texture(image, texCoord - vec2(0.0, pixelSize.y * fi)).rgb * weights[i];
         }
     }
 
