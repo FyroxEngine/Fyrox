@@ -16,7 +16,7 @@
 
 use crate::core::algebra::{Matrix4, Vector2, Vector3, Vector4};
 use crate::core::pool::Handle;
-use crate::resource::texture::{TextureKind, TexturePixelKind};
+use crate::resource::texture::{TextureError, TextureKind, TexturePixelKind, TextureWrapMode};
 use crate::scene::graph::Graph;
 use crate::{
     core::{
@@ -32,21 +32,65 @@ use crate::{
 };
 use rapier3d::na::Point3;
 use std::ops::{Deref, DerefMut};
+use std::sync::Arc;
+
+/// Exposure is a parameter that describes how many light should be collected for one
+/// frame. The higher the value, the more brighter the final frame will be and vice versa.
+#[derive(Visit, Copy, Clone, PartialEq, Debug)]
+pub enum Exposure {
+    /// Automatic exposure based on the frame luminance. High luminance values will result
+    /// in lower exposure levels and vice versa. This is default option.
+    ///
+    /// # Equation
+    ///
+    /// `exposure = key_value / clamp(avg_luminance, min_luminance, max_luminance)`
+    Auto {
+        /// A key value in the formula above. Default is 0.01556.
+        key_value: f32,
+        /// A min luminance value in the formula above. Default is 0.00778.
+        min_luminance: f32,
+        /// A max luminance value in the formula above. Default is 64.0.
+        max_luminance: f32,
+    },
+
+    /// Specific exposure level.
+    Manual(f32),
+}
+
+impl Default for Exposure {
+    fn default() -> Self {
+        Self::Auto {
+            key_value: 0.01556,
+            min_luminance: 0.00778,
+            max_luminance: 64.0,
+        }
+    }
+}
 
 /// See module docs.
-#[derive(Debug)]
+#[derive(Debug, Visit)]
 pub struct Camera {
     base: Base,
     fov: f32,
     z_near: f32,
     z_far: f32,
     viewport: Rect<f32>,
+    #[visit(skip)]
     view_matrix: Matrix4<f32>,
+    #[visit(skip)]
     projection_matrix: Matrix4<f32>,
     enabled: bool,
-    skybox: Option<Box<SkyBox>>,
+    sky_box: Option<Box<SkyBox>>,
     environment: Option<Texture>,
+    #[visit(optional)] // Backward compatibility.
+    exposure: Exposure,
+    #[visit(optional)] // Backward compatibility.
+    color_grading_lut: Option<ColorGradingLut>,
+    #[visit(optional)] // Backward compatibility.
+    color_grading_enabled: bool,
+
     /// Visibility cache allows you to quickly check if object is visible from the camera or not.
+    #[visit(skip)]
     pub visibility_cache: VisibilityCache,
 }
 
@@ -67,22 +111,6 @@ impl DerefMut for Camera {
 impl Default for Camera {
     fn default() -> Self {
         CameraBuilder::new(BaseBuilder::new()).build_camera()
-    }
-}
-
-impl Visit for Camera {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-        self.fov.visit("Fov", visitor)?;
-        self.z_near.visit("ZNear", visitor)?;
-        self.z_far.visit("ZFar", visitor)?;
-        self.viewport.visit("Viewport", visitor)?;
-        self.base.visit("Base", visitor)?;
-        self.enabled.visit("Enabled", visitor)?;
-        self.skybox.visit("SkyBox", visitor)?;
-        self.environment.visit("Environment", visitor)?;
-        // self.visibility_cache intentionally not serialized. It is valid only for one frame.
-        visitor.leave_region()
     }
 }
 
@@ -112,6 +140,10 @@ impl Camera {
     /// pixel values everytime when resolution changes.
     pub fn set_viewport(&mut self, viewport: Rect<f32>) -> &mut Self {
         self.viewport = viewport;
+        self.viewport.position.x = self.viewport.position.x.clamp(0.0, 1.0);
+        self.viewport.position.y = self.viewport.position.y.clamp(0.0, 1.0);
+        self.viewport.size.x = self.viewport.size.x.clamp(0.0, 1.0);
+        self.viewport.size.y = self.viewport.size.y.clamp(0.0, 1.0);
         self
     }
 
@@ -207,18 +239,18 @@ impl Camera {
 
     /// Sets new skybox. Could be None if no skybox needed.
     pub fn set_skybox(&mut self, skybox: Option<SkyBox>) -> &mut Self {
-        self.skybox = skybox.map(Box::new);
+        self.sky_box = skybox.map(Box::new);
         self
     }
 
     /// Return optional mutable reference to current skybox.
     pub fn skybox_mut(&mut self) -> Option<&mut SkyBox> {
-        self.skybox.as_deref_mut()
+        self.sky_box.as_deref_mut()
     }
 
     /// Return optional shared reference to current skybox.
     pub fn skybox_ref(&self) -> Option<&SkyBox> {
-        self.skybox.as_deref()
+        self.sky_box.as_deref()
     }
 
     /// Sets new environment.
@@ -292,11 +324,183 @@ impl Camera {
             view_matrix: self.view_matrix,
             projection_matrix: self.projection_matrix,
             enabled: self.enabled,
-            skybox: self.skybox.clone(),
+            sky_box: self.sky_box.clone(),
             environment: self.environment.clone(),
+            exposure: self.exposure,
+            color_grading_lut: self.color_grading_lut.clone(),
+            color_grading_enabled: self.color_grading_enabled,
             // No need to copy cache. It is valid only for one frame.
             visibility_cache: Default::default(),
         }
+    }
+
+    /// Sets new color grading LUT.
+    pub fn set_color_grading_map(&mut self, lut: Option<ColorGradingLut>) {
+        self.color_grading_lut = lut;
+    }
+
+    /// Returns current color grading map.
+    pub fn color_grading_lut(&self) -> Option<ColorGradingLut> {
+        self.color_grading_lut.clone()
+    }
+
+    /// Returns current color grading map by ref.
+    pub fn color_grading_lut_ref(&self) -> Option<&ColorGradingLut> {
+        self.color_grading_lut.as_ref()
+    }
+
+    /// Enables or disables color grading.
+    pub fn set_color_grading_enabled(&mut self, enable: bool) {
+        self.color_grading_enabled = enable;
+    }
+
+    /// Whether color grading enabled or not.
+    pub fn color_grading_enabled(&self) -> bool {
+        self.color_grading_enabled
+    }
+
+    /// Sets new exposure. See `Exposure` struct docs for more info.
+    pub fn set_exposure(&mut self, exposure: Exposure) {
+        self.exposure = exposure;
+    }
+
+    /// Returns current exposure value.
+    pub fn exposure(&self) -> Exposure {
+        self.exposure
+    }
+}
+
+/// All possible error that may occur during color grading look-up table creation.
+#[derive(Debug)]
+pub enum ColorGradingLutCreationError {
+    /// There is not enough data in provided texture to build LUT.
+    NotEnoughData {
+        /// Required amount of bytes.
+        required: usize,
+        /// Actual data size.
+        current: usize,
+    },
+    /// Pixel format is not supported. It must be either RGB8 or RGBA8.
+    InvalidPixelFormat(TexturePixelKind),
+    /// Texture error.
+    Texture(Option<Arc<TextureError>>),
+}
+
+/// Color grading look up table (LUT). Color grading is used to modify color space of the
+/// rendered frame; it maps one color space to another.
+#[derive(Visit, Clone, Default, Debug)]
+pub struct ColorGradingLut {
+    #[visit(skip)]
+    lut: Option<Texture>,
+    unwrapped_lut: Option<Texture>,
+}
+
+impl ColorGradingLut {
+    /// Creates 3D look-up texture from 2D strip.
+    ///
+    /// # Input Texture Requirements
+    ///
+    /// Width: 1024px
+    /// Height: 16px
+    /// Pixel Format: RGB8/RGBA8
+    pub async fn new(unwrapped_lut: Texture) -> Result<Self, ColorGradingLutCreationError> {
+        match unwrapped_lut.await {
+            Ok(unwrapped_lut) => {
+                let data = unwrapped_lut.data_ref();
+
+                if data.pixel_kind() != TexturePixelKind::RGBA8
+                    && data.pixel_kind() != TexturePixelKind::RGB8
+                {
+                    return Err(ColorGradingLutCreationError::InvalidPixelFormat(
+                        data.pixel_kind(),
+                    ));
+                }
+
+                let bytes = data.data();
+
+                const RGBA8_SIZE: usize = 16 * 16 * 16 * 4;
+                const RGB8_SIZE: usize = 16 * 16 * 16 * 3;
+
+                if data.pixel_kind() == TexturePixelKind::RGBA8 {
+                    if bytes.len() != RGBA8_SIZE {
+                        return Err(ColorGradingLutCreationError::NotEnoughData {
+                            required: RGBA8_SIZE,
+                            current: bytes.len(),
+                        });
+                    }
+                } else {
+                    if bytes.len() != RGB8_SIZE {
+                        return Err(ColorGradingLutCreationError::NotEnoughData {
+                            required: RGB8_SIZE,
+                            current: bytes.len(),
+                        });
+                    }
+                }
+
+                let pixel_size = if data.pixel_kind() == TexturePixelKind::RGBA8 {
+                    4
+                } else {
+                    3
+                };
+
+                let mut lut_bytes = Vec::with_capacity(16 * 16 * 16 * 3);
+
+                for z in 0..16 {
+                    for y in 0..16 {
+                        for x in 0..16 {
+                            let pixel_index = z * 16 + y * 16 * 16 + x;
+                            let pixel_byte_pos = pixel_index * pixel_size;
+
+                            lut_bytes.push(bytes[pixel_byte_pos]); // R
+                            lut_bytes.push(bytes[pixel_byte_pos + 1]); // G
+                            lut_bytes.push(bytes[pixel_byte_pos + 2]); // B
+                        }
+                    }
+                }
+
+                let lut = Texture::from_bytes(
+                    TextureKind::Volume {
+                        width: 16,
+                        height: 16,
+                        depth: 16,
+                    },
+                    TexturePixelKind::RGB8,
+                    lut_bytes,
+                    false,
+                )
+                .unwrap();
+
+                let mut lut_ref = lut.data_ref();
+
+                lut_ref.set_s_wrap_mode(TextureWrapMode::ClampToEdge);
+                lut_ref.set_t_wrap_mode(TextureWrapMode::ClampToEdge);
+
+                drop(lut_ref);
+                drop(data);
+
+                Ok(Self {
+                    lut: Some(lut),
+                    unwrapped_lut: Some(unwrapped_lut),
+                })
+            }
+            Err(e) => Err(ColorGradingLutCreationError::Texture(e)),
+        }
+    }
+
+    /// Returns color grading unwrapped look-up table. This is initial texture that was
+    /// used to create the look-up table.
+    pub fn unwrapped_lut(&self) -> Texture {
+        self.unwrapped_lut.clone().unwrap()
+    }
+
+    /// Returns 3D color grading look-up table ready for use on GPU.
+    pub fn lut(&self) -> Texture {
+        self.lut.clone().unwrap()
+    }
+
+    /// Returns 3D color grading look-up table by ref ready for use on GPU.
+    pub fn lut_ref(&self) -> &Texture {
+        self.lut.as_ref().unwrap()
     }
 }
 
@@ -311,6 +515,9 @@ pub struct CameraBuilder {
     enabled: bool,
     skybox: Option<SkyBox>,
     environment: Option<Texture>,
+    exposure: Exposure,
+    color_grading_lut: Option<ColorGradingLut>,
+    color_grading_enabled: bool,
 }
 
 impl CameraBuilder {
@@ -325,6 +532,9 @@ impl CameraBuilder {
             viewport: Rect::new(0.0, 0.0, 1.0, 1.0),
             skybox: None,
             environment: None,
+            exposure: Default::default(),
+            color_grading_lut: None,
+            color_grading_enabled: false,
         }
     }
 
@@ -370,6 +580,18 @@ impl CameraBuilder {
         self
     }
 
+    /// Sets desired color grading LUT.
+    pub fn with_color_grading_lut(mut self, lut: ColorGradingLut) -> Self {
+        self.color_grading_lut = Some(lut);
+        self
+    }
+
+    /// Sets whether color grading should be enabled or not.
+    pub fn with_color_grading_enabled(mut self, enabled: bool) -> Self {
+        self.color_grading_enabled = enabled;
+        self
+    }
+
     /// Creates new instance of camera.
     pub fn build_camera(self) -> Camera {
         Camera {
@@ -384,8 +606,11 @@ impl CameraBuilder {
             view_matrix: Matrix4::identity(),
             projection_matrix: Matrix4::identity(),
             visibility_cache: Default::default(),
-            skybox: self.skybox.map(Box::new),
+            sky_box: self.skybox.map(Box::new),
             environment: self.environment,
+            exposure: self.exposure,
+            color_grading_lut: self.color_grading_lut,
+            color_grading_enabled: self.color_grading_enabled,
         }
     }
 

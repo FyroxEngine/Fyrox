@@ -1,28 +1,29 @@
-use crate::core::algebra::Vector2;
-use crate::renderer::framework::framebuffer::{CullFace, DrawParameters};
-use crate::renderer::framework::geometry_buffer::{DrawCallStatistics, GeometryBuffer};
-use crate::renderer::hdr::adaptation::AdaptationChain;
-use crate::renderer::hdr::map::MapShader;
-use crate::renderer::{make_viewport_matrix, RenderPassStatistics};
 use crate::{
     core::{
-        algebra::{Matrix4, Vector3},
+        algebra::{Matrix4, Vector2, Vector3},
         color::Color,
         math::Rect,
     },
     renderer::{
+        cache::TextureCache,
         framework::{
             error::FrameworkError,
-            framebuffer::{Attachment, AttachmentKind, FrameBuffer},
+            framebuffer::{Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer},
+            geometry_buffer::{DrawCallStatistics, GeometryBuffer},
             gpu_texture::{
                 GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
             },
             state::PipelineState,
         },
         hdr::{
-            adaptation::AdaptationShader, downscale::DownscaleShader, luminance::LuminanceShader,
+            adaptation::{AdaptationChain, AdaptationShader},
+            downscale::DownscaleShader,
+            luminance::LuminanceShader,
+            map::MapShader,
         },
+        make_viewport_matrix, RenderPassStatistics,
     },
+    scene::camera::{ColorGradingLut, Exposure},
 };
 use std::{cell::RefCell, rc::Rc};
 
@@ -95,6 +96,7 @@ pub struct HighDynamicRangeRenderer {
     luminance_shader: LuminanceShader,
     downscale_shader: DownscaleShader,
     map_shader: MapShader,
+    stub_lut: Rc<RefCell<GpuTexture>>,
 }
 
 impl HighDynamicRangeRenderer {
@@ -114,6 +116,19 @@ impl HighDynamicRangeRenderer {
             luminance_shader: LuminanceShader::new(state)?,
             downscale_shader: DownscaleShader::new(state)?,
             map_shader: MapShader::new(state)?,
+            stub_lut: Rc::new(RefCell::new(GpuTexture::new(
+                state,
+                GpuTextureKind::Volume {
+                    width: 1,
+                    height: 1,
+                    depth: 1,
+                },
+                PixelKind::RGB8,
+                MinificationFilter::Linear,
+                MagnificationFilter::Linear,
+                1,
+                Some(&[0, 0, 0]),
+            )?)),
         })
     }
 
@@ -239,10 +254,19 @@ impl HighDynamicRangeRenderer {
         ldr_framebuffer: &mut FrameBuffer,
         viewport: Rect<i32>,
         quad: &GeometryBuffer,
+        exposure: Exposure,
+        color_grading_lut: Option<&ColorGradingLut>,
+        use_color_grading: bool,
+        texture_cache: &mut TextureCache,
     ) -> DrawCallStatistics {
         let shader = &self.map_shader;
         let frame_matrix = make_viewport_matrix(viewport);
         let avg_lum = self.adaptation_chain.avg_lum_texture();
+
+        let color_grading_lut_tex = color_grading_lut
+            .and_then(|l| texture_cache.get(state, l.lut_ref()))
+            .unwrap_or_else(|| self.stub_lut.clone());
+
         ldr_framebuffer.draw(
             quad,
             state,
@@ -258,11 +282,35 @@ impl HighDynamicRangeRenderer {
                 blend: false,
             },
             |program_binding| {
-                program_binding
+                let program_binding = program_binding
                     .set_matrix4(&shader.wvp_matrix, &frame_matrix)
                     .set_texture(&shader.lum_sampler, &avg_lum)
                     .set_texture(&shader.bloom_sampler, &bloom_texture)
-                    .set_texture(&shader.hdr_sampler, &hdr_scene_frame);
+                    .set_texture(&shader.hdr_sampler, &hdr_scene_frame)
+                    .set_bool(
+                        &shader.use_color_grading,
+                        use_color_grading && color_grading_lut.is_some(),
+                    )
+                    .set_texture(&shader.color_map_sampler, &color_grading_lut_tex);
+
+                match exposure {
+                    Exposure::Auto {
+                        key_value,
+                        min_luminance,
+                        max_luminance,
+                    } => {
+                        program_binding
+                            .set_bool(&shader.auto_exposure, true)
+                            .set_f32(&shader.key_value, key_value)
+                            .set_f32(&shader.min_luminance, min_luminance)
+                            .set_f32(&shader.max_luminance, max_luminance);
+                    }
+                    Exposure::Manual(fixed_exposure) => {
+                        program_binding
+                            .set_bool(&shader.auto_exposure, false)
+                            .set_f32(&shader.fixed_exposure, fixed_exposure);
+                    }
+                }
             },
         )
     }
@@ -276,6 +324,10 @@ impl HighDynamicRangeRenderer {
         viewport: Rect<i32>,
         quad: &GeometryBuffer,
         dt: f32,
+        exposure: Exposure,
+        color_grading_lut: Option<&ColorGradingLut>,
+        use_color_grading: bool,
+        texture_cache: &mut TextureCache,
     ) -> RenderPassStatistics {
         let mut stats = RenderPassStatistics::default();
         stats += self.calculate_frame_luminance(state, hdr_scene_frame.clone(), quad);
@@ -288,6 +340,10 @@ impl HighDynamicRangeRenderer {
             ldr_framebuffer,
             viewport,
             quad,
+            exposure,
+            color_grading_lut,
+            use_color_grading,
+            texture_cache,
         );
         stats
     }
