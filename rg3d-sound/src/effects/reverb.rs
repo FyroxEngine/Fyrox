@@ -177,7 +177,7 @@ impl Reverb {
     /// 2.0 here because left and right signals will be mixed together.
     const GAIN: f32 = 1.0 / (2.0 * Self::TOTAL_FILTERS_COUNT);
 
-    /// Creates new instance of reberb effect with cutoff frequency of ~11.2 kHz and
+    /// Creates new instance of reverb effect with cutoff frequency of ~11.2 kHz and
     /// 5 seconds decay time.
     pub fn new(base: BaseEffect) -> Self {
         let fc = 0.25615; // 11296 Hz at 44100 Hz sample rate

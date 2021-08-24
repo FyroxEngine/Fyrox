@@ -12,7 +12,7 @@ Sound library for games and interactive applications written in Rust.
 - WAV format support (non-compressed).
 - Vorbis/ogg support (using [lewton](https://crates.io/crates/lewton)).
 - [HRTF](https://en.wikipedia.org/wiki/Head-related_transfer_function) support for excellent positioning and binaural effects.
-- Reberb effect.
+- Reverb effect.
 
 ## Examples
 
