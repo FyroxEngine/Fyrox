@@ -939,7 +939,7 @@ pub struct Surface {
     /// Array of handle to scene nodes which are used as bones.
     pub bones: Vec<Handle<Node>>,
     color: Color,
-    emission_strength: f32,
+    emission_strength: Vector3<f32>,
 }
 
 impl Default for Surface {
@@ -956,7 +956,7 @@ impl Default for Surface {
             vertex_weights: Default::default(),
             bones: Default::default(),
             color: Default::default(),
-            emission_strength: 2.0,
+            emission_strength: Vector3::new(2.0, 2.0, 2.0),
         }
     }
 }
@@ -1149,14 +1149,14 @@ impl Surface {
     }
 
     /// Returns current emission strength.
-    pub fn emission_strength(&self) -> f32 {
+    pub fn emission_strength(&self) -> Vector3<f32> {
         self.emission_strength
     }
 
     /// Sets new emission strength. Emission strenght is applied to emission map making it either more
     /// dim (< 1.0) or more bright (> 1.0). The default is 2.0. Any value lower than 1.0 will prevent
     /// glow effect.
-    pub fn set_emission_strength(&mut self, emission_strength: f32) {
+    pub fn set_emission_strength(&mut self, emission_strength: Vector3<f32>) {
         self.emission_strength = emission_strength;
     }
 }
@@ -1193,7 +1193,7 @@ pub struct SurfaceBuilder {
     emission_texture: Option<Texture>,
     bones: Vec<Handle<Node>>,
     color: Color,
-    emission_strength: f32,
+    emission_strength: Vector3<f32>,
 }
 
 impl SurfaceBuilder {
@@ -1210,7 +1210,7 @@ impl SurfaceBuilder {
             emission_texture: None,
             bones: Default::default(),
             color: Color::WHITE,
-            emission_strength: 2.0,
+            emission_strength: Vector3::new(2.0, 2.0, 2.0),
         }
     }
 
@@ -1269,7 +1269,7 @@ impl SurfaceBuilder {
     }
 
     /// Sets desired emission strength.
-    pub fn with_emission_strength(mut self, emission_strength: f32) -> Self {
+    pub fn with_emission_strength(mut self, emission_strength: Vector3<f32>) -> Self {
         self.emission_strength = emission_strength;
         self
     }

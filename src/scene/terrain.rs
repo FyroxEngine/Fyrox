@@ -55,7 +55,7 @@ pub struct Layer {
     /// Emission strength defines how bright emission map is. The default is 2.0.
     /// Any value lower than 1.0 will prevent glow effect.
     #[visit(optional)] // Backward compatibility.
-    pub emission_strength: f32,
+    pub emission_strength: Vector3<f32>,
     /// Mask texture allows you to exclude some pixel of the layer from rendering.
     pub mask: Option<Texture>,
     /// Tile factor defines how many time textures (except mask) will be repeated.
@@ -634,7 +634,7 @@ impl Terrain {
             roughness_texture: None,
             height_texture: None,
             emission_texture: None,
-            emission_strength: 2.0,
+            emission_strength: Vector3::new(2.0, 2.0, 2.0),
             mask: Some(create_layer_mask(mask_width, mask_height, value)),
             tile_factor,
         }
@@ -721,7 +721,7 @@ pub struct LayerDefinition {
     pub emission_texture: Option<Texture>,
     /// Emission strength defines how bright emission map is. The default is 2.0.
     /// Any value lower than 1.0 will prevent glow effect.
-    pub emission_strength: f32,
+    pub emission_strength: Vector3<f32>,
     /// Tile factor defines how many time textures will be repeated.
     pub tile_factor: Vector2<f32>,
 }
@@ -735,7 +735,7 @@ impl Default for LayerDefinition {
             roughness_texture: None,
             height_texture: None,
             emission_texture: None,
-            emission_strength: 2.0,
+            emission_strength: Vector3::new(2.0, 2.0, 2.0),
             tile_factor: Vector2::new(1.0, 1.0),
         }
     }

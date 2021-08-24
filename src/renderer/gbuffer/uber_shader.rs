@@ -229,7 +229,7 @@ fn make_fragment_shader_source(features: UberShaderFeatures) -> String {
         uniform bool usePOM;
         uniform vec2 texCoordScale;
         uniform uint layerIndex;
-        uniform float emissionStrength;
+        uniform vec3 emissionStrength;
     "#;
 
     source += r#"
@@ -298,9 +298,9 @@ fn make_fragment_shader_source(features: UberShaderFeatures) -> String {
         "#;
 
     if features.contains(UberShaderFeatures::LIGHTMAP) {
-        source += r#"outAmbient = emissionStrength * texture(emissionTexture, tc) + vec4(texture(lightmapTexture, secondTexCoord).rgb, 1.0);"#;
+        source += r#"outAmbient = vec4(emissionStrength * texture(emissionTexture, tc).rgb, 0.0) + vec4(texture(lightmapTexture, secondTexCoord).rgb, 1.0);"#;
     } else {
-        source += r#"outAmbient = emissionStrength * texture(emissionTexture, tc);"#;
+        source += r#"outAmbient = vec4(emissionStrength * texture(emissionTexture, tc).rgb, 0.0);"#;
     }
 
     source += r#"

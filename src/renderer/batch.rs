@@ -1,4 +1,4 @@
-use crate::core::algebra::Vector2;
+use crate::core::algebra::{Vector2, Vector3};
 use crate::utils::array_as_u8_slice;
 use crate::{
     core::{algebra::Matrix4, arrayvec::ArrayVec, color::Color, pool::Handle, scope_profile},
@@ -62,7 +62,7 @@ pub struct Batch {
     pub blend: bool,
     pub tex_coord_scale: Vector2<f32>,
     pub decal_layer_index: u8,
-    pub emission_strength: f32,
+    pub emission_strength: Vector3<f32>,
     sort_index: u64,
 }
 

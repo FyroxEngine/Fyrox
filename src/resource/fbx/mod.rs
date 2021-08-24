@@ -326,7 +326,7 @@ async fn create_surfaces(
                         || name.contains("displacement_map")
                     {
                         surface.set_height_texture(Some(texture))
-                    } else if name.contains("EmissiveColor") || name.contains("emissive_map") {
+                    } else if name.contains("EmissiveColor") || name.contains("emit_color_map") {
                         surface.set_emission_texture(Some(texture))
                     }
                 }

@@ -342,7 +342,7 @@ impl GBuffer {
                         .set_bool(&shader.use_pom, batch.use_pom && use_parallax_mapping)
                         .set_bool(&shader.use_skeletal_animation, batch.is_skinned)
                         .set_vector2(&shader.tex_coord_scale, &batch.tex_coord_scale)
-                        .set_f32(&shader.emission_strength, batch.emission_strength)
+                        .set_vector3(&shader.emission_strength, &batch.emission_strength)
                         .set_u32(&shader.layer_index, batch.decal_layer_index as u32);
 
                     let program_binding = if batch.use_lightmapping {
