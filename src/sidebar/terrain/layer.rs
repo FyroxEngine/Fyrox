@@ -155,7 +155,7 @@ impl LayerSection {
                 };
 
                 if let Some((kind, field)) = kind_field {
-                    let texture = resource_manager.request_texture(relative_path);
+                    let texture = resource_manager.request_texture(relative_path, None);
 
                     sender
                         .send(Message::DoSceneCommand(

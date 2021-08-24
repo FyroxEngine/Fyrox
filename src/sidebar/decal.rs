@@ -149,7 +149,7 @@ impl DecalSection {
                     let relative_path = make_relative_path(&item.path);
 
                     if message.destination() == self.diffuse_texture {
-                        let texture = resource_manager.request_texture(relative_path);
+                        let texture = resource_manager.request_texture(relative_path, None);
 
                         sender
                             .send(Message::DoSceneCommand(
@@ -168,7 +168,7 @@ impl DecalSection {
                             Some(into_gui_texture(texture)),
                         ));
                     } else if message.destination() == self.normal_texture {
-                        let texture = resource_manager.request_texture(relative_path);
+                        let texture = resource_manager.request_texture(relative_path, None);
 
                         sender
                             .send(Message::DoSceneCommand(

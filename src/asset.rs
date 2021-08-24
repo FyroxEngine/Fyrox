@@ -144,7 +144,9 @@ impl AssetItemBuilder {
             .map(|ext| match ext.to_string_lossy().to_lowercase().as_ref() {
                 "jpg" | "tga" | "png" | "bmp" => {
                     kind = AssetKind::Texture;
-                    Some(into_gui_texture(resource_manager.request_texture(&path)))
+                    Some(into_gui_texture(
+                        resource_manager.request_texture(&path, None),
+                    ))
                 }
                 "fbx" | "rgs" => {
                     kind = AssetKind::Model;
