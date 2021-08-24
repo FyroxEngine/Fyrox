@@ -414,19 +414,21 @@ impl ColorGradingLut {
     ///
     /// ```no_run
     /// use rg3d::scene::camera::ColorGradingLut;
-    /// use rg3d::engine::resource_manager::TextureImportOptions;
+    /// use rg3d::engine::resource_manager::{TextureImportOptions, ResourceManager};
     /// use rg3d::resource::texture::CompressionOptions;
     ///
-    /// let lut = ColorGradingLut::new(resource_manager.request_texture(
-    /// 	"examples/data/warm_color_lut.jpg",
-    /// 	Some(
-    ///         // It is important to prevent engine from automatic texture compression.
-    ///         // LUT can be constructed **only** from uncompressed RGB8/RGBA8 texture.
-    /// 		TextureImportOptions::default().with_compression(CompressionOptions::NoCompression),
-    /// 	),
-    /// ))
-    /// .await
-    /// .unwrap();
+    /// async fn create_lut(resource_manager: ResourceManager) -> ColorGradingLut {
+    ///     ColorGradingLut::new(resource_manager.request_texture(
+    ///     	"examples/data/warm_color_lut.jpg",
+    ///     	Some(
+    ///            // It is important to prevent engine from automatic texture compression.
+    ///            // LUT can be constructed **only** from uncompressed RGB8/RGBA8 texture.
+    ///     		TextureImportOptions::default().with_compression(CompressionOptions::NoCompression),
+    ///     	),
+    ///     ))
+    ///     .await
+    ///     .unwrap()
+    /// }
     /// ```
     ///
     /// Then pass LUT to either CameraBuilder or to camera instance, and don't forget to enable
