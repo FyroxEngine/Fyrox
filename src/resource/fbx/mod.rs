@@ -304,7 +304,7 @@ async fn create_surfaces(
                         MaterialSearchOptions::UsePathDirectly => path.clone(),
                     };
 
-                    let texture = resource_manager.request_texture(texture_path.as_path());
+                    let texture = resource_manager.request_texture(texture_path.as_path(), None);
 
                     // Make up your mind, Autodesk.
                     // Handle all possible combinations of links to auto-import materials.

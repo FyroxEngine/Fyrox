@@ -423,6 +423,14 @@ impl ResourceManager {
     /// such texture during the rendering. If you need to access internals of the texture you have to get state first
     /// and then use pattern matching to get TextureData which contains actual texture data.
     ///
+    /// # Import options
+    ///
+    /// It is possible to define custom import options. Using import options you could set desired compression quality,
+    /// filtering, wrapping, etc. **IMPORTANT:** Import options take effect **only** at first loading of a texture,
+    /// this means that if you try to pass options when requesting loaded texture, they won't take effect.
+    ///
+    /// If None is passed as import options, then default import options from resource manager will be used.
+    ///
     /// # Async/.await
     ///
     /// Each Texture implements Future trait and can be used in async contexts.
@@ -431,7 +439,11 @@ impl ResourceManager {
     ///
     /// To load images and decode them, rg3d uses image create which supports following image
     /// formats: png, tga, bmp, dds, jpg, gif, tiff, dxt.
-    pub fn request_texture<P: AsRef<Path>>(&self, path: P) -> Texture {
+    pub fn request_texture<P: AsRef<Path>>(
+        &self,
+        path: P,
+        import_options: Option<TextureImportOptions>,
+    ) -> Texture {
         let mut state = self.state();
 
         if let Some(texture) = state.find_texture(path.as_ref()) {
@@ -446,7 +458,7 @@ impl ResourceManager {
             time_to_live: DEFAULT_RESOURCE_LIFETIME,
         });
         let result = texture.clone();
-        let options = state.textures_import_options.clone();
+        let options = import_options.unwrap_or_else(|| state.textures_import_options.clone());
         let path = path.as_ref().to_owned();
         let upload_sender = state
             .upload_sender

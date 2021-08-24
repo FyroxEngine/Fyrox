@@ -387,7 +387,11 @@ pub enum ColorGradingLutCreationError {
 }
 
 /// Color grading look up table (LUT). Color grading is used to modify color space of the
-/// rendered frame; it maps one color space to another.
+/// rendered frame; it maps one color space to another. It is widely used effect in games,
+/// you've probably noticed either "warmness" or "coldness" in colors in various scenes in
+/// games - this is achieved by color grading.
+///
+/// See more info here - https://docs.unrealengine.com/4.26/en-US/RenderingAndGraphics/PostProcessEffects/UsingLUTs/
 #[derive(Visit, Clone, Default, Debug)]
 pub struct ColorGradingLut {
     #[visit(skip)]
@@ -403,6 +407,30 @@ impl ColorGradingLut {
     /// Width: 1024px
     /// Height: 16px
     /// Pixel Format: RGB8/RGBA8
+    ///
+    /// # Usage
+    ///
+    /// Typical usage would be:
+    ///
+    /// ```no_run
+    /// use rg3d::scene::camera::ColorGradingLut;
+    /// use rg3d::engine::resource_manager::TextureImportOptions;
+    /// use rg3d::resource::texture::CompressionOptions;
+    ///
+    /// let lut = ColorGradingLut::new(resource_manager.request_texture(
+    /// 	"examples/data/warm_color_lut.jpg",
+    /// 	Some(
+    ///         // It is important to prevent engine from automatic texture compression.
+    ///         // LUT can be constructed **only** from uncompressed RGB8/RGBA8 texture.
+    /// 		TextureImportOptions::default().with_compression(CompressionOptions::NoCompression),
+    /// 	),
+    /// ))
+    /// .await
+    /// .unwrap();
+    /// ```
+    ///
+    /// Then pass LUT to either CameraBuilder or to camera instance, and don't forget to enable
+    /// color grading.
     pub async fn new(unwrapped_lut: Texture) -> Result<Self, ColorGradingLutCreationError> {
         match unwrapped_lut.await {
             Ok(unwrapped_lut) => {

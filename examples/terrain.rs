@@ -56,20 +56,22 @@ impl SceneLoader {
             .with_layers(vec![
                 LayerDefinition {
                     diffuse_texture: Some(
-                        resource_manager.request_texture("examples/data/Grass_DiffuseColor.jpg"),
+                        resource_manager
+                            .request_texture("examples/data/Grass_DiffuseColor.jpg", None),
                     ),
                     normal_texture: Some(
-                        resource_manager.request_texture("examples/data/Grass_Normal.jpg"),
+                        resource_manager.request_texture("examples/data/Grass_Normal.jpg", None),
                     ),
                     tile_factor: Vector2::new(10.0, 10.0),
                     ..Default::default()
                 },
                 LayerDefinition {
                     diffuse_texture: Some(
-                        resource_manager.request_texture("examples/data/Rock_DiffuseColor.jpg"),
+                        resource_manager
+                            .request_texture("examples/data/Rock_DiffuseColor.jpg", None),
                     ),
                     normal_texture: Some(
-                        resource_manager.request_texture("examples/data/Rock_Normal.jpg"),
+                        resource_manager.request_texture("examples/data/Rock_Normal.jpg", None),
                     ),
                     tile_factor: Vector2::new(10.0, 10.0),
                     ..Default::default()

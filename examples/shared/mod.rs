@@ -9,17 +9,20 @@ use rapier3d::{
     geometry::ColliderBuilder,
     na::{Isometry3, UnitQuaternion, Vector3},
 };
-use rg3d::engine::resource_manager::MaterialSearchOptions;
 use rg3d::{
     animation::{
         machine::{Machine, Parameter, PoseNode, State, Transition},
         Animation, AnimationSignal,
     },
     core::{algebra::Vector2, color::Color, math::SmoothAngle, pool::Handle},
-    engine::{resource_manager::ResourceManager, RigidBodyHandle},
+    engine::{
+        resource_manager::{MaterialSearchOptions, ResourceManager},
+        RigidBodyHandle,
+    },
     event::{DeviceEvent, ElementState, VirtualKeyCode},
     event_loop::EventLoop,
     gui::{
+        formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
         node::StubNode,
         progress_bar::ProgressBarBuilder,
@@ -39,7 +42,6 @@ use rg3d::{
     },
     sound::effects::{BaseEffect, Effect},
 };
-use rg3d_ui::formatted_text::WrapMode;
 use std::{
     path::Path,
     sync::{Arc, Mutex},
@@ -60,17 +62,30 @@ pub async fn create_camera(
 ) -> Handle<Node> {
     // Load skybox textures in parallel.
     let (front, back, left, right, top, bottom) = rg3d::core::futures::join!(
-        resource_manager
-            .request_texture("examples/data/skyboxes/DarkStormy/DarkStormyFront2048.png"),
-        resource_manager
-            .request_texture("examples/data/skyboxes/DarkStormy/DarkStormyBack2048.png"),
-        resource_manager
-            .request_texture("examples/data/skyboxes/DarkStormy/DarkStormyLeft2048.png"),
-        resource_manager
-            .request_texture("examples/data/skyboxes/DarkStormy/DarkStormyRight2048.png"),
-        resource_manager.request_texture("examples/data/skyboxes/DarkStormy/DarkStormyUp2048.png"),
-        resource_manager
-            .request_texture("examples/data/skyboxes/DarkStormy/DarkStormyDown2048.png")
+        resource_manager.request_texture(
+            "examples/data/skyboxes/DarkStormy/DarkStormyFront2048.png",
+            None
+        ),
+        resource_manager.request_texture(
+            "examples/data/skyboxes/DarkStormy/DarkStormyBack2048.png",
+            None
+        ),
+        resource_manager.request_texture(
+            "examples/data/skyboxes/DarkStormy/DarkStormyLeft2048.png",
+            None
+        ),
+        resource_manager.request_texture(
+            "examples/data/skyboxes/DarkStormy/DarkStormyRight2048.png",
+            None
+        ),
+        resource_manager.request_texture(
+            "examples/data/skyboxes/DarkStormy/DarkStormyUp2048.png",
+            None
+        ),
+        resource_manager.request_texture(
+            "examples/data/skyboxes/DarkStormy/DarkStormyDown2048.png",
+            None
+        )
     );
 
     // Unwrap everything.

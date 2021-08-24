@@ -142,12 +142,12 @@ pub async fn create_camera(
 ) -> Handle<Node> {
     // Load skybox textures in parallel.
     let (front, back, left, right, top, bottom) = rg3d::core::futures::join!(
-        resource_manager.request_texture("data/textures/DarkStormyFront.jpg"),
-        resource_manager.request_texture("data/textures/DarkStormyBack.jpg"),
-        resource_manager.request_texture("data/textures/DarkStormyLeft.jpg"),
-        resource_manager.request_texture("data/textures/DarkStormyRight.jpg"),
-        resource_manager.request_texture("data/textures/DarkStormyUp.jpg"),
-        resource_manager.request_texture("data/textures/DarkStormyDown.jpg")
+        resource_manager.request_texture("data/textures/DarkStormyFront.jpg", None),
+        resource_manager.request_texture("data/textures/DarkStormyBack.jpg", None),
+        resource_manager.request_texture("data/textures/DarkStormyLeft.jpg", None),
+        resource_manager.request_texture("data/textures/DarkStormyRight.jpg", None),
+        resource_manager.request_texture("data/textures/DarkStormyUp.jpg", None),
+        resource_manager.request_texture("data/textures/DarkStormyDown.jpg", None)
     );
 
     // Unwrap everything.
@@ -259,7 +259,7 @@ async fn create_scene(resource_manager: ResourceManager, context: Arc<Mutex<Scen
             25.0, 0.25, 25.0,
         ))),
     )))
-    .with_diffuse_texture(resource_manager.request_texture("data/textures/concrete.jpg"))
+    .with_diffuse_texture(resource_manager.request_texture("data/textures/concrete.jpg", None))
     .build()])
     .build(&mut scene.graph);
 

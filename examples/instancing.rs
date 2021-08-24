@@ -149,7 +149,7 @@ impl SceneLoader {
                 300.0, 0.25, 300.0,
             ))),
         )))
-        .with_diffuse_texture(resource_manager.request_texture("examples/data/concrete2.dds"))
+        .with_diffuse_texture(resource_manager.request_texture("examples/data/concrete2.dds", None))
         .build()])
         .build(&mut scene.graph);
 

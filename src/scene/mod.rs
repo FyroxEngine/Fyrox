@@ -942,7 +942,7 @@ impl Default for Scene {
 fn map_texture(tex: Option<Texture>, rm: ResourceManager) -> Option<Texture> {
     if let Some(shallow_texture) = tex {
         let shallow_texture = shallow_texture.state();
-        Some(rm.request_texture(shallow_texture.path()))
+        Some(rm.request_texture(shallow_texture.path(), None))
     } else {
         None
     }
