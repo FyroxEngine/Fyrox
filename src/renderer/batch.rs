@@ -246,7 +246,7 @@ impl BatchStorage {
                                 .roughness_texture
                                 .as_ref()
                                 .and_then(|texture| texture_cache.get(state, texture))
-                                .unwrap_or_else(|| black_dummy.clone());
+                                .unwrap_or_else(|| white_dummy.clone());
 
                             let height_texture = layer
                                 .height_texture

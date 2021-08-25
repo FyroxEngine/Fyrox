@@ -1,8 +1,10 @@
-use crate::bitflags::bitflags;
-use crate::renderer::framework::{
-    error::FrameworkError,
-    gpu_program::{GpuProgram, UniformLocation},
-    state::PipelineState,
+use crate::{
+    bitflags::bitflags,
+    renderer::framework::{
+        error::FrameworkError,
+        gpu_program::{GpuProgram, UniformLocation},
+        state::PipelineState,
+    },
 };
 
 fn make_vertex_shader_source(features: UberShaderFeatures) -> String {
@@ -216,15 +218,16 @@ fn make_fragment_shader_source(features: UberShaderFeatures) -> String {
         layout(location = 0) out vec4 outColor;
         layout(location = 1) out vec4 outNormal;
         layout(location = 2) out vec4 outAmbient;
-        layout(location = 3) out uint outDecalMask;
+        layout(location = 3) out vec4 outMaterial;
+        layout(location = 4) out uint outDecalMask;
 
         uniform sampler2D diffuseTexture;
         uniform sampler2D normalTexture;
-        uniform sampler2D specularTexture;
+        uniform sampler2D metallicTexture;
         uniform sampler2D roughnessTexture;
         uniform sampler2D heightTexture;
         uniform sampler2D emissionTexture;
-        uniform samplerCube environmentMap;
+        uniform sampler2D aoTexture;
         uniform vec3 cameraPosition;
         uniform bool usePOM;
         uniform vec2 texCoordScale;
@@ -293,23 +296,22 @@ fn make_fragment_shader_source(features: UberShaderFeatures) -> String {
 
     source += r#"
         vec4 n = normalize(texture(normalTexture, tc) * 2.0 - 1.0);
-        outNormal.xyz = normalize(tangentSpace * n.xyz) * 0.5 + 0.5;
-        outNormal.w = texture(specularTexture, tc).r;
+        outNormal = vec4(normalize(tangentSpace * n.xyz) * 0.5 + 0.5, 1.0);
+        
+        outMaterial.x = texture(metallicTexture, tc).r;
+        outMaterial.y = texture(roughnessTexture, tc).r;
+        outMaterial.z = texture(aoTexture, tc).r;
+        outMaterial.a = 1.0;
         "#;
 
     if features.contains(UberShaderFeatures::LIGHTMAP) {
-        source += r#"outAmbient = vec4(emissionStrength * texture(emissionTexture, tc).rgb, 0.0) + vec4(texture(lightmapTexture, secondTexCoord).rgb, 1.0);"#;
+        source += r#"outAmbient.xyz = emissionStrength * texture(emissionTexture, tc).rgb + texture(lightmapTexture, secondTexCoord).rgb;"#;
     } else {
-        source += r#"outAmbient = vec4(emissionStrength * texture(emissionTexture, tc).rgb, 0.0);"#;
+        source += r#"outAmbient.xyz = emissionStrength * texture(emissionTexture, tc).rgb;"#;
     }
 
     source += r#"
         outAmbient.a = 1.0;
-    
-        // reflection mapping
-        float roughness = texture(roughnessTexture, tc).r;
-        vec3 reflectionTexCoord = reflect(toFragment, normalize(n.xyz));
-        outColor = (1.0 - roughness) * outColor + roughness * vec4(texture(environmentMap, reflectionTexCoord).rgb, outColor.a);
         
         outDecalMask = layerIndex;
     "#;
@@ -318,9 +320,11 @@ fn make_fragment_shader_source(features: UberShaderFeatures) -> String {
         source += r#"   
         // In case of terrain we'll use alpha for blending.   
         float mask = texture(maskTexture, texCoord).r;
-        outColor.a *= mask;     
-        outAmbient.a *= mask;         
-        outNormal.a *= mask;        
+        
+        outColor.a = mask;     
+        outAmbient.a = mask;         
+        outNormal.a = mask;   
+        outMaterial.a = mask;     
         "#;
     }
 
@@ -333,22 +337,25 @@ fn make_fragment_shader_source(features: UberShaderFeatures) -> String {
 
 pub struct UberShader {
     pub program: GpuProgram,
-    pub use_skeletal_animation: UniformLocation,
+
+    // Samplers
     pub diffuse_texture: UniformLocation,
     pub normal_texture: UniformLocation,
-    pub specular_texture: UniformLocation,
+    pub metallic_texture: UniformLocation,
     pub roughness_texture: UniformLocation,
+    pub height_texture: UniformLocation,
+    pub emission_texture: UniformLocation,
+    pub ao_texture: UniformLocation,
+    // Params.
     pub tex_coord_scale: UniformLocation,
     pub lightmap_texture: Option<UniformLocation>,
+    pub use_skeletal_animation: UniformLocation,
     pub matrix_buffer_stride: Option<UniformLocation>,
     pub matrix_storage_size: Option<UniformLocation>,
     pub matrix_storage: Option<UniformLocation>,
-    pub environment_map: UniformLocation,
     pub camera_position: UniformLocation,
     pub view_projection_matrix: Option<UniformLocation>,
     pub use_pom: UniformLocation,
-    pub height_texture: UniformLocation,
-    pub emission_texture: UniformLocation,
     pub emission_strength: UniformLocation,
     pub layer_index: UniformLocation,
     // Non-instanced parts.
@@ -413,10 +420,11 @@ impl UberShader {
             },
             diffuse_texture: program.uniform_location(state, "diffuseTexture")?,
             normal_texture: program.uniform_location(state, "normalTexture")?,
-            specular_texture: program.uniform_location(state, "specularTexture")?,
+            metallic_texture: program.uniform_location(state, "metallicTexture")?,
             roughness_texture: program.uniform_location(state, "roughnessTexture")?,
             emission_texture: program.uniform_location(state, "emissionTexture")?,
             emission_strength: program.uniform_location(state, "emissionStrength")?,
+            ao_texture: program.uniform_location(state, "aoTexture")?,
             lightmap_texture: if lightmap {
                 Some(program.uniform_location(state, "lightmapTexture")?)
             } else {
@@ -437,7 +445,6 @@ impl UberShader {
             } else {
                 None
             },
-            environment_map: program.uniform_location(state, "environmentMap")?,
             camera_position: program.uniform_location(state, "cameraPosition")?,
             view_projection_matrix: if instancing {
                 Some(program.uniform_location(state, "viewProjectionMatrix")?)

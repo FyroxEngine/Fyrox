@@ -772,7 +772,7 @@ pub fn create_scene_async(resource_manager: ResourceManager) -> Arc<Mutex<SceneL
             // Load simple map.
             resource_manager
                 .request_model(
-                    "examples/data/sponza/Sponza.fbx",
+                    "examples/data/sponza/Sponza.rgs",
                     MaterialSearchOptions::RecursiveUp,
                 )
                 .await
@@ -780,17 +780,6 @@ pub fn create_scene_async(resource_manager: ResourceManager) -> Arc<Mutex<SceneL
                 .instantiate_geometry(&mut scene);
 
             scene.graph.update_hierarchical_data();
-
-            // And create collision mesh so our character won't fall through ground.
-            let collision_mesh_handle = scene.graph.find_by_name_from_root("CollisionShape");
-            let collision_mesh = &mut scene.graph[collision_mesh_handle];
-
-            collision_mesh.set_visibility(false);
-            // Create collision geometry from special mesh on the level.
-            let body = scene
-                .physics
-                .mesh_to_trimesh(collision_mesh_handle, &scene.graph);
-            scene.physics_binder.bind(collision_mesh_handle, body);
 
             // Finally create player.
             let player = Player::new(&mut scene, resource_manager, context.clone()).await;

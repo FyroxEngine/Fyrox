@@ -912,7 +912,7 @@ impl Renderer {
                 MinificationFilter::Linear,
                 MagnificationFilter::Linear,
                 1,
-                Some(&[32u8, 32u8, 32u8, 32u8]),
+                Some(&[0u8, 0u8, 0u8, 0u8]),
             )?)),
             quad: SurfaceData::make_unit_xy_quad(),
             ui_renderer: UiRenderer::new(&mut state)?,

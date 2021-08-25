@@ -1,9 +1,13 @@
 //! GBuffer Layout:
 //!
-//! RT0: sRGBA8 - Diffuse color.
-//! RT1: RGBA8 - Normal (xyz) + specular (w)
-//! RT2: RGBA8 - Ambient light + emission
-//! RT3: R8UI - Decal mask
+//! RT0: sRGBA8 - Diffuse color (xyz)
+//! RT1: RGBA8 - Normal (xyz)
+//! RT2: RGBA16F - Ambient light + emission (both in xyz)
+//! RT3: RGBA8 - Metallic (x) + Roughness (y) + Ambient Occlusion (z)
+//! RT4: R8UI - Decal mask (x)
+//!
+//! Every alpha channel is used for layer blending for terrains. This is inefficient, but for
+//! now I don't know better solution.
 
 use crate::{
     core::{
@@ -147,6 +151,20 @@ impl GBuffer {
             .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
             .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
 
+        let mut material_texture = GpuTexture::new(
+            state,
+            GpuTextureKind::Rectangle { width, height },
+            PixelKind::RGBA8,
+            MinificationFilter::Nearest,
+            MagnificationFilter::Nearest,
+            1,
+            None,
+        )?;
+        material_texture
+            .bind_mut(state, 0)
+            .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
+            .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
+
         let framebuffer = FrameBuffer::new(
             state,
             Some(Attachment {
@@ -165,6 +183,10 @@ impl GBuffer {
                 Attachment {
                     kind: AttachmentKind::Color,
                     texture: Rc::new(RefCell::new(ambient_texture)),
+                },
+                Attachment {
+                    kind: AttachmentKind::Color,
+                    texture: Rc::new(RefCell::new(material_texture)),
                 },
                 Attachment {
                     kind: AttachmentKind::Color,
@@ -229,8 +251,12 @@ impl GBuffer {
         self.framebuffer.color_attachments()[2].texture.clone()
     }
 
-    pub fn decal_mask_texture(&self) -> Rc<RefCell<GpuTexture>> {
+    pub fn material_texture(&self) -> Rc<RefCell<GpuTexture>> {
         self.framebuffer.color_attachments()[3].texture.clone()
+    }
+
+    pub fn decal_mask_texture(&self) -> Rc<RefCell<GpuTexture>> {
+        self.framebuffer.color_attachments()[4].texture.clone()
     }
 
     #[must_use]
@@ -245,11 +271,11 @@ impl GBuffer {
             geom_cache,
             batch_storage,
             texture_cache,
-            environment_dummy,
             use_parallax_mapping,
             white_dummy,
             normal_dummy,
             graph,
+            ..
         } = args;
 
         let viewport = Rect::new(0, 0, self.width, self.height);
@@ -281,11 +307,6 @@ impl GBuffer {
             let data = batch.data.read().unwrap();
             let geometry = geom_cache.get(state, &data);
             let use_instanced_rendering = batch.instances.len() > 1;
-
-            let environment = match camera.environment_ref() {
-                Some(texture) => texture_cache.get(state, texture).unwrap(),
-                None => environment_dummy.clone(),
-            };
 
             // Prepare batch info storage in case if we're rendering multiple objects
             // at once.
@@ -333,8 +354,7 @@ impl GBuffer {
                     let program_binding = program_binding
                         .set_texture(&shader.diffuse_texture, &batch.diffuse_texture)
                         .set_texture(&shader.normal_texture, &batch.normal_texture)
-                        .set_texture(&shader.specular_texture, &batch.metallic_texture)
-                        .set_texture(&shader.environment_map, &environment)
+                        .set_texture(&shader.metallic_texture, &batch.metallic_texture)
                         .set_texture(&shader.roughness_texture, &batch.roughness_texture)
                         .set_texture(&shader.height_texture, &batch.height_texture)
                         .set_texture(&shader.emission_texture, &batch.emission_texture)

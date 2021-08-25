@@ -312,7 +312,7 @@ async fn create_surfaces(
                         // TODO: Add ambient occlusion (AO) map support.
                     } else if name.contains("DiffuseColor") || name.contains("diffuse_color") {
                         surface.set_diffuse_texture(Some(texture))
-                    } else if name.contains("SpecularFactor") || name.contains("specular_factor") {
+                    } else if name.contains("MetalnessMap") || name.contains("metalness_map") {
                         surface.set_metallic_texture(Some(texture))
                     } else if name.contains("RoughnessMap") || name.contains("roughness_map") {
                         surface.set_roughness_texture(Some(texture))

@@ -3,7 +3,7 @@
 uniform sampler2D depthTexture;
 uniform sampler2D colorTexture;
 uniform sampler2D normalTexture;
-uniform samplerCube pointShadowTexture;
+uniform sampler2D materialTexture;
 
 uniform vec3 lightDirection;
 uniform vec4 lightColor;
@@ -16,16 +16,20 @@ out vec4 FragColor;
 
 void main()
 {
-    vec3 fragmentNormal = normalize(texture(normalTexture, texCoord).xyz * 2.0 - 1.0);
+    vec3 material = texture(materialTexture, texCoord).rgb;
+
     vec3 fragmentPosition = S_UnProject(vec3(texCoord, texture(depthTexture, texCoord).r), invViewProj);
-    float specularPower = 255.0 * texture(normalTexture, texCoord).w;
 
-    vec3 h = normalize(lightDirection + (cameraPosition - fragmentPosition));
-    float specular = pow(clamp(dot(fragmentNormal, h), 0.0, 1.0), specularPower);
+    TPBRContext ctx;
+    ctx.albedo = texture(colorTexture, texCoord).rgb;
+    ctx.fragmentToLight = lightDirection;
+    ctx.fragmentNormal = normalize(texture(normalTexture, texCoord).xyz * 2.0 - 1.0);
+    ctx.lightColor = lightColor.rgb;
+    ctx.metallic = material.x;
+    ctx.roughness = material.y;
+    ctx.viewVector = normalize(cameraPosition - fragmentPosition);
 
-    float lambertian = max(dot(fragmentNormal, lightDirection), 0.0);
+    vec3 lighting = S_PBR_CalculateLight(ctx);
 
-    FragColor = texture(colorTexture, texCoord);
-    FragColor.xyz += 0.4 * specular;
-    FragColor *= lightIntensity * lambertian * lightColor;
+    FragColor = vec4(lightIntensity * lighting, 1.0);
 }

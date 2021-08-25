@@ -15,4 +15,6 @@ void main()
     FragColor = (ambientColor + ambientPixel) * texture(diffuseTexture, texCoord);
     FragColor.rgb *= ambientOcclusion;
     FragColor.a = ambientPixel.a;
+
+    // TODO: Implement IBL.
 }

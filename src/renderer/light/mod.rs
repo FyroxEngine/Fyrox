@@ -393,6 +393,7 @@ impl DeferredLightRenderer {
         let gbuffer_depth_map = gbuffer.depth();
         let gbuffer_diffuse_map = gbuffer.diffuse_texture();
         let gbuffer_normal_map = gbuffer.normal_texture();
+        let gbuffer_material_map = gbuffer.material_texture();
         let gbuffer_ambient_map = gbuffer.ambient_texture();
         let ao_map = self.ssao_renderer.ao_map();
 
@@ -696,6 +697,7 @@ impl DeferredLightRenderer {
                                 .set_texture(&shader.depth_sampler, &gbuffer_depth_map)
                                 .set_texture(&shader.color_sampler, &gbuffer_diffuse_map)
                                 .set_texture(&shader.normal_sampler, &gbuffer_normal_map)
+                                .set_texture(&shader.material_sampler, &gbuffer_material_map)
                                 .set_texture(
                                     &shader.spot_shadow_texture,
                                     &self.spot_shadow_map_renderer.cascade_texture(cascade_index),
@@ -733,6 +735,7 @@ impl DeferredLightRenderer {
                                 .set_texture(&shader.depth_sampler, &gbuffer_depth_map)
                                 .set_texture(&shader.color_sampler, &gbuffer_diffuse_map)
                                 .set_texture(&shader.normal_sampler, &gbuffer_normal_map)
+                                .set_texture(&shader.material_sampler, &gbuffer_material_map)
                                 .set_texture(
                                     &shader.point_shadow_texture,
                                     &self
@@ -771,7 +774,8 @@ impl DeferredLightRenderer {
                                 .set_f32(&shader.light_intensity, light.intensity())
                                 .set_texture(&shader.depth_sampler, &gbuffer_depth_map)
                                 .set_texture(&shader.color_sampler, &gbuffer_diffuse_map)
-                                .set_texture(&shader.normal_sampler, &gbuffer_normal_map);
+                                .set_texture(&shader.normal_sampler, &gbuffer_normal_map)
+                                .set_texture(&shader.material_sampler, &gbuffer_material_map);
                         },
                     )
                 }
