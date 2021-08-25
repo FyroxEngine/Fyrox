@@ -1062,13 +1062,18 @@ impl Scene {
                             resource_manager.clone(),
                         ));
 
-                        surface.set_specular_texture(map_texture(
-                            surface.specular_texture(),
+                        surface.set_metallic_texture(map_texture(
+                            surface.metallic_texture(),
                             resource_manager.clone(),
                         ));
 
                         surface.set_roughness_texture(map_texture(
                             surface.roughness_texture(),
+                            resource_manager.clone(),
+                        ));
+
+                        surface.set_emission_texture(map_texture(
+                            surface.emission_texture(),
                             resource_manager.clone(),
                         ));
 
@@ -1112,8 +1117,8 @@ impl Scene {
                             layer.normal_texture =
                                 map_texture(layer.normal_texture.clone(), resource_manager.clone());
 
-                            layer.specular_texture = map_texture(
-                                layer.specular_texture.clone(),
+                            layer.metallic_texture = map_texture(
+                                layer.metallic_texture.clone(),
                                 resource_manager.clone(),
                             );
 
@@ -1124,6 +1129,11 @@ impl Scene {
 
                             layer.height_texture =
                                 map_texture(layer.height_texture.clone(), resource_manager.clone());
+
+                            layer.emission_texture = map_texture(
+                                layer.emission_texture.clone(),
+                                resource_manager.clone(),
+                            );
 
                             // Mask is not resolved because it is procedural texture.
                         }

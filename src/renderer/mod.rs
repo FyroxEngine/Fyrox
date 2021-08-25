@@ -626,8 +626,8 @@ pub struct Renderer {
     // something without normal map.
     normal_dummy: Rc<RefCell<GpuTexture>>,
     // Dummy one pixel texture used as stub when rendering something without a
-    // specular texture
-    specular_dummy: Rc<RefCell<GpuTexture>>,
+    // metallic texture. Default metalness is 0.0
+    metallic_dummy: Rc<RefCell<GpuTexture>>,
     ui_renderer: UiRenderer,
     statistics: Statistics,
     quad: SurfaceData,
@@ -738,9 +738,9 @@ pub struct SceneRenderPassContext<'a, 'b> {
     /// there is no normal map.
     pub normal_dummy: Rc<RefCell<GpuTexture>>,
 
-    /// An 1x1 pixel with 0.5 specular factor texture that could be used a stub when
-    /// there is no specular map.
-    pub specular_dummy: Rc<RefCell<GpuTexture>>,
+    /// An 1x1 pixel with 0.0 metalness factor texture that could be used a stub when
+    /// there is no metallic map.
+    pub metallic_dummy: Rc<RefCell<GpuTexture>>,
 
     /// An 1x1 black cube map texture that could be used a stub when there is no environment
     /// texture.
@@ -902,7 +902,7 @@ impl Renderer {
                 1,
                 Some(&[128u8, 128u8, 255u8, 255u8]),
             )?)),
-            specular_dummy: Rc::new(RefCell::new(GpuTexture::new(
+            metallic_dummy: Rc::new(RefCell::new(GpuTexture::new(
                 &mut state,
                 GpuTextureKind::Rectangle {
                     width: 1,
@@ -1172,7 +1172,7 @@ impl Renderer {
                 self.black_dummy.clone(),
                 self.white_dummy.clone(),
                 self.normal_dummy.clone(),
-                self.specular_dummy.clone(),
+                self.metallic_dummy.clone(),
                 &mut self.texture_cache,
             );
 
@@ -1316,7 +1316,7 @@ impl Renderer {
                             scene_handle,
                             white_dummy: self.white_dummy.clone(),
                             normal_dummy: self.normal_dummy.clone(),
-                            specular_dummy: self.specular_dummy.clone(),
+                            metallic_dummy: self.metallic_dummy.clone(),
                             environment_dummy: self.environment_dummy.clone(),
                             black_dummy: self.black_dummy.clone(),
                             depth_texture: scene_associated_data.gbuffer.depth(),

@@ -41,8 +41,8 @@ pub struct Layer {
     pub diffuse_texture: Option<Texture>,
     /// Normal texture provides per-pixel normals.
     pub normal_texture: Option<Texture>,
-    /// Specular texture provides per-pixel specular factor.
-    pub specular_texture: Option<Texture>,
+    /// Metallic texture provides per-pixel metalness factor.
+    pub metallic_texture: Option<Texture>,
     /// Roughness texture provides per-pixel roughness factor.
     pub roughness_texture: Option<Texture>,
     /// Height texture provides per-pixel offset for parallax mapping.
@@ -71,7 +71,7 @@ impl Layer {
         for texture in [
             self.diffuse_texture.as_ref(),
             self.normal_texture.as_ref(),
-            self.specular_texture.as_ref(),
+            self.metallic_texture.as_ref(),
             self.roughness_texture.as_ref(),
             self.height_texture.as_ref(),
             self.emission_texture.as_ref(),
@@ -630,7 +630,7 @@ impl Terrain {
         Layer {
             diffuse_texture: None,
             normal_texture: None,
-            specular_texture: None,
+            metallic_texture: None,
             roughness_texture: None,
             height_texture: None,
             emission_texture: None,
@@ -709,8 +709,8 @@ pub struct LayerDefinition {
     pub diffuse_texture: Option<Texture>,
     /// Normal texture provides per-pixel normals.
     pub normal_texture: Option<Texture>,
-    /// Specular texture provides per-pixel specular factor.
-    pub specular_texture: Option<Texture>,
+    /// Metallic texture provides per-pixel metalness factor.
+    pub metallic_texture: Option<Texture>,
     /// Roughness texture provides per-pixel roughness factor.
     pub roughness_texture: Option<Texture>,
     /// Height texture provides per-pixel offset for parallax mapping.
@@ -731,7 +731,7 @@ impl Default for LayerDefinition {
         Self {
             diffuse_texture: None,
             normal_texture: None,
-            specular_texture: None,
+            metallic_texture: None,
             roughness_texture: None,
             height_texture: None,
             emission_texture: None,
@@ -883,7 +883,7 @@ impl TerrainBuilder {
                             Layer {
                                 diffuse_texture: definition.diffuse_texture.clone(),
                                 normal_texture: definition.normal_texture.clone(),
-                                specular_texture: definition.specular_texture.clone(),
+                                metallic_texture: definition.metallic_texture.clone(),
                                 roughness_texture: definition.roughness_texture.clone(),
                                 height_texture: definition.height_texture.clone(),
                                 emission_texture: definition.emission_texture.clone(),

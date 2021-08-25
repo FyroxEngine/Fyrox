@@ -925,7 +925,7 @@ pub struct Surface {
     diffuse_texture: Option<Texture>,
     normal_texture: Option<Texture>,
     lightmap_texture: Option<Texture>,
-    specular_texture: Option<Texture>,
+    metallic_texture: Option<Texture>,
     roughness_texture: Option<Texture>,
     height_texture: Option<Texture>,
     emission_texture: Option<Texture>,
@@ -949,7 +949,7 @@ impl Default for Surface {
             diffuse_texture: None,
             normal_texture: None,
             lightmap_texture: None,
-            specular_texture: None,
+            metallic_texture: None,
             roughness_texture: None,
             height_texture: None,
             emission_texture: None,
@@ -981,7 +981,7 @@ impl Surface {
         for texture in [
             self.diffuse_texture.as_ref(),
             self.normal_texture.as_ref(),
-            self.specular_texture.as_ref(),
+            self.metallic_texture.as_ref(),
             self.roughness_texture.as_ref(),
             self.lightmap_texture.as_ref(),
             self.height_texture.as_ref(),
@@ -1040,20 +1040,20 @@ impl Surface {
 
     /// Sets new specular texture.
     #[inline]
-    pub fn set_specular_texture(&mut self, tex: Option<Texture>) {
-        self.specular_texture = tex;
+    pub fn set_metallic_texture(&mut self, tex: Option<Texture>) {
+        self.metallic_texture = tex;
     }
 
     /// Returns current specular texture.
     #[inline]
-    pub fn specular_texture(&self) -> Option<Texture> {
-        self.specular_texture.clone()
+    pub fn metallic_texture(&self) -> Option<Texture> {
+        self.metallic_texture.clone()
     }
 
     /// Returns current specular texture by ref.
     #[inline]
-    pub fn specular_texture_ref(&self) -> Option<&Texture> {
-        self.specular_texture.as_ref()
+    pub fn metallic_texture_ref(&self) -> Option<&Texture> {
+        self.metallic_texture.as_ref()
     }
 
     /// Sets new roughness texture.
@@ -1168,7 +1168,7 @@ impl Visit for Surface {
         self.data.visit("Data", visitor)?;
         self.normal_texture.visit("NormalTexture", visitor)?;
         self.diffuse_texture.visit("DiffuseTexture", visitor)?;
-        self.specular_texture.visit("SpecularTexture", visitor)?;
+        self.metallic_texture.visit("SpecularTexture", visitor)?;
         self.roughness_texture.visit("RoughnessTexture", visitor)?;
         self.height_texture.visit("HeightTexture", visitor)?;
         self.color.visit("Color", visitor)?;
@@ -1187,7 +1187,7 @@ pub struct SurfaceBuilder {
     diffuse_texture: Option<Texture>,
     normal_texture: Option<Texture>,
     lightmap_texture: Option<Texture>,
-    specular_texture: Option<Texture>,
+    metallic_texture: Option<Texture>,
     roughness_texture: Option<Texture>,
     height_texture: Option<Texture>,
     emission_texture: Option<Texture>,
@@ -1204,7 +1204,7 @@ impl SurfaceBuilder {
             diffuse_texture: None,
             normal_texture: None,
             lightmap_texture: None,
-            specular_texture: None,
+            metallic_texture: None,
             roughness_texture: None,
             height_texture: None,
             emission_texture: None,
@@ -1233,8 +1233,8 @@ impl SurfaceBuilder {
     }
 
     /// Sets desired specular texture.
-    pub fn with_specular_texture(mut self, tex: Texture) -> Self {
-        self.specular_texture = Some(tex);
+    pub fn with_metallic_texture(mut self, tex: Texture) -> Self {
+        self.metallic_texture = Some(tex);
         self
     }
 
@@ -1281,7 +1281,7 @@ impl SurfaceBuilder {
             diffuse_texture: self.diffuse_texture,
             normal_texture: self.normal_texture,
             lightmap_texture: self.lightmap_texture,
-            specular_texture: self.specular_texture,
+            metallic_texture: self.metallic_texture,
             roughness_texture: self.roughness_texture,
             height_texture: self.height_texture,
             emission_texture: self.emission_texture,

@@ -313,7 +313,7 @@ async fn create_surfaces(
                     } else if name.contains("DiffuseColor") || name.contains("diffuse_color") {
                         surface.set_diffuse_texture(Some(texture))
                     } else if name.contains("SpecularFactor") || name.contains("specular_factor") {
-                        surface.set_specular_texture(Some(texture))
+                        surface.set_metallic_texture(Some(texture))
                     } else if name.contains("RoughnessMap") || name.contains("roughness_map") {
                         surface.set_roughness_texture(Some(texture))
                     } else if name.contains("Bump")

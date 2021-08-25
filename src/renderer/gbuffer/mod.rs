@@ -333,7 +333,7 @@ impl GBuffer {
                     let program_binding = program_binding
                         .set_texture(&shader.diffuse_texture, &batch.diffuse_texture)
                         .set_texture(&shader.normal_texture, &batch.normal_texture)
-                        .set_texture(&shader.specular_texture, &batch.specular_texture)
+                        .set_texture(&shader.specular_texture, &batch.metallic_texture)
                         .set_texture(&shader.environment_map, &environment)
                         .set_texture(&shader.roughness_texture, &batch.roughness_texture)
                         .set_texture(&shader.height_texture, &batch.height_texture)

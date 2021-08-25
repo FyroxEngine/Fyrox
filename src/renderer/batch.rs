@@ -48,7 +48,7 @@ pub struct Batch {
     pub instances: Vec<SurfaceInstance>,
     pub diffuse_texture: Rc<RefCell<GpuTexture>>,
     pub normal_texture: Rc<RefCell<GpuTexture>>,
-    pub specular_texture: Rc<RefCell<GpuTexture>>,
+    pub metallic_texture: Rc<RefCell<GpuTexture>>,
     pub roughness_texture: Rc<RefCell<GpuTexture>>,
     pub lightmap_texture: Rc<RefCell<GpuTexture>>,
     pub height_texture: Rc<RefCell<GpuTexture>>,
@@ -93,7 +93,7 @@ impl BatchStorage {
         black_dummy: Rc<RefCell<GpuTexture>>,
         white_dummy: Rc<RefCell<GpuTexture>>,
         normal_dummy: Rc<RefCell<GpuTexture>>,
-        specular_dummy: Rc<RefCell<GpuTexture>>,
+        metallic_dummy: Rc<RefCell<GpuTexture>>,
         texture_cache: &mut TextureCache,
     ) {
         scope_profile!();
@@ -131,10 +131,10 @@ impl BatchStorage {
                             .and_then(|texture| texture_cache.get(state, texture))
                             .unwrap_or_else(|| normal_dummy.clone());
 
-                        let specular_texture = surface
-                            .specular_texture_ref()
+                        let metallic_texture = surface
+                            .metallic_texture_ref()
                             .and_then(|texture| texture_cache.get(state, texture))
-                            .unwrap_or_else(|| specular_dummy.clone());
+                            .unwrap_or_else(|| metallic_dummy.clone());
 
                         let roughness_texture = surface
                             .roughness_texture_ref()
@@ -168,7 +168,7 @@ impl BatchStorage {
                                 instances: self.buffers.pop().unwrap_or_default(),
                                 diffuse_texture: diffuse_texture.clone(),
                                 normal_texture: normal_texture.clone(),
-                                specular_texture: specular_texture.clone(),
+                                metallic_texture: metallic_texture.clone(),
                                 roughness_texture: roughness_texture.clone(),
                                 lightmap_texture: lightmap_texture.clone(),
                                 height_texture: height_texture.clone(),
@@ -192,7 +192,7 @@ impl BatchStorage {
                         // Update textures.
                         batch.diffuse_texture = diffuse_texture;
                         batch.normal_texture = normal_texture;
-                        batch.specular_texture = specular_texture;
+                        batch.metallic_texture = metallic_texture;
                         batch.roughness_texture = roughness_texture;
                         batch.lightmap_texture = lightmap_texture;
                         batch.height_texture = height_texture;
@@ -236,11 +236,11 @@ impl BatchStorage {
                                 .and_then(|texture| texture_cache.get(state, texture))
                                 .unwrap_or_else(|| normal_dummy.clone());
 
-                            let specular_texture = layer
-                                .specular_texture
+                            let metallic_texture = layer
+                                .metallic_texture
                                 .as_ref()
                                 .and_then(|texture| texture_cache.get(state, texture))
-                                .unwrap_or_else(|| specular_dummy.clone());
+                                .unwrap_or_else(|| metallic_dummy.clone());
 
                             let roughness_texture = layer
                                 .roughness_texture
@@ -278,7 +278,7 @@ impl BatchStorage {
                                     instances: self.buffers.pop().unwrap_or_default(),
                                     diffuse_texture: diffuse_texture.clone(),
                                     normal_texture: normal_texture.clone(),
-                                    specular_texture: specular_texture.clone(),
+                                    metallic_texture: metallic_texture.clone(),
                                     roughness_texture: roughness_texture.clone(),
                                     lightmap_texture: lightmap_texture.clone(),
                                     height_texture: height_texture.clone(),
@@ -303,7 +303,7 @@ impl BatchStorage {
                             // Update textures.
                             batch.diffuse_texture = diffuse_texture;
                             batch.normal_texture = normal_texture;
-                            batch.specular_texture = specular_texture;
+                            batch.metallic_texture = metallic_texture;
                             batch.roughness_texture = roughness_texture;
                             batch.lightmap_texture = lightmap_texture;
                             batch.height_texture = height_texture;
