@@ -95,7 +95,7 @@ impl<'a> Command<'a> for DeleteTerrainLayerCommand {
 pub enum TerrainLayerTextureKind {
     Diffuse,
     Normal,
-    Specular,
+    Metallic,
     Roughness,
     Height,
 }
@@ -131,7 +131,7 @@ impl SetTerrainLayerTextureCommand {
             let instance = match self.kind {
                 TerrainLayerTextureKind::Diffuse => &mut layer.diffuse_texture,
                 TerrainLayerTextureKind::Normal => &mut layer.normal_texture,
-                TerrainLayerTextureKind::Specular => &mut layer.specular_texture,
+                TerrainLayerTextureKind::Metallic => &mut layer.metallic_texture,
                 TerrainLayerTextureKind::Roughness => &mut layer.roughness_texture,
                 TerrainLayerTextureKind::Height => &mut layer.height_texture,
             };

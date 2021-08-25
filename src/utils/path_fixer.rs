@@ -351,7 +351,7 @@ impl PathFixer {
                                                     surface.normal_texture(),
                                                     surface.roughness_texture(),
                                                     surface.height_texture(),
-                                                    surface.specular_texture(),
+                                                    surface.metallic_texture(),
                                                 ]
                                                 .iter()
                                                 .flatten()
@@ -391,7 +391,7 @@ impl PathFixer {
                                                 for layer in first.layers() {
                                                     for texture in [
                                                         layer.diffuse_texture.clone(),
-                                                        layer.specular_texture.clone(),
+                                                        layer.metallic_texture.clone(),
                                                         layer.roughness_texture.clone(),
                                                         layer.height_texture.clone(),
                                                         layer.normal_texture.clone(),
