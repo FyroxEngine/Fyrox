@@ -207,6 +207,7 @@ impl<M: MessageData, C: Control<M, C>> PopupBuilder<M, C> {
                 .widget_builder
                 .with_child(body)
                 .with_visibility(false)
+                .with_handle_os_events(true)
                 .build(),
             placement: self.placement,
             stays_open: self.stays_open,

@@ -339,6 +339,8 @@ impl<'a, 'b, M: MessageData, C: Control<M, C>> MessageBoxBuilder<'b, M, C> {
             self.window_builder.widget_builder.min_size = Some(Vector2::new(200.0, 100.0));
         }
 
+        self.window_builder.widget_builder.handle_os_events = true;
+
         let is_open = self.window_builder.open;
 
         let message_box = MessageBox {
