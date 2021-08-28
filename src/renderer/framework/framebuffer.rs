@@ -267,14 +267,12 @@ impl FrameBuffer {
                             );
                         }
                         (Some(depth), None) => {
-                            let mut values = [depth];
-                            state.gl.clear_buffer_f32_slice(glow::DEPTH, 0, &mut values);
+                            let values = [depth];
+                            state.gl.clear_buffer_f32_slice(glow::DEPTH, 0, &values);
                         }
                         (None, Some(stencil)) => {
-                            let mut values = [stencil];
-                            state
-                                .gl
-                                .clear_buffer_i32_slice(glow::STENCIL, 0, &mut values);
+                            let values = [stencil];
+                            state.gl.clear_buffer_i32_slice(glow::STENCIL, 0, &values);
                         }
                         (None, None) => {
                             // Nothing to do
@@ -282,8 +280,8 @@ impl FrameBuffer {
                     },
                     AttachmentKind::Depth => {
                         if let Some(depth) = depth {
-                            let mut values = [depth];
-                            state.gl.clear_buffer_f32_slice(glow::DEPTH, 0, &mut values);
+                            let values = [depth];
+                            state.gl.clear_buffer_f32_slice(glow::DEPTH, 0, &values);
                         }
                     }
                 }
@@ -295,15 +293,15 @@ impl FrameBuffer {
                 for (i, attachment) in self.color_attachments.iter().enumerate() {
                     match attachment.texture.borrow().pixel_kind().element_kind() {
                         PixelElementKind::Float | PixelElementKind::NormalizedUnsignedInteger => {
-                            let mut fvalues = color.as_frgba();
+                            let fvalues = color.as_frgba();
                             state.gl.clear_buffer_f32_slice(
                                 glow::COLOR,
                                 i as u32,
-                                &mut fvalues.data.0[0],
+                                &fvalues.data.0[0],
                             )
                         }
                         PixelElementKind::Integer => {
-                            let mut values = [
+                            let values = [
                                 color.r as i32,
                                 color.g as i32,
                                 color.b as i32,
@@ -311,10 +309,10 @@ impl FrameBuffer {
                             ];
                             state
                                 .gl
-                                .clear_buffer_i32_slice(glow::COLOR, i as u32, &mut values);
+                                .clear_buffer_i32_slice(glow::COLOR, i as u32, &values);
                         }
                         PixelElementKind::UnsignedInteger => {
-                            let mut values = [
+                            let values = [
                                 color.r as u32,
                                 color.g as u32,
                                 color.b as u32,
@@ -322,7 +320,7 @@ impl FrameBuffer {
                             ];
                             state
                                 .gl
-                                .clear_buffer_u32_slice(glow::COLOR, i as u32, &mut values);
+                                .clear_buffer_u32_slice(glow::COLOR, i as u32, &values);
                         }
                     }
                 }

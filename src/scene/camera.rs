@@ -419,12 +419,12 @@ impl ColorGradingLut {
     ///
     /// async fn create_lut(resource_manager: ResourceManager) -> ColorGradingLut {
     ///     ColorGradingLut::new(resource_manager.request_texture(
-    ///     	"examples/data/warm_color_lut.jpg",
-    ///     	Some(
+    ///         "examples/data/warm_color_lut.jpg",
+    ///         Some(
     ///            // It is important to prevent engine from automatic texture compression.
     ///            // LUT can be constructed **only** from uncompressed RGB8/RGBA8 texture.
-    ///     		TextureImportOptions::default().with_compression(CompressionOptions::NoCompression),
-    ///     	),
+    ///             TextureImportOptions::default().with_compression(CompressionOptions::NoCompression),
+    ///         ),
     ///     ))
     ///     .await
     ///     .unwrap()
@@ -458,13 +458,11 @@ impl ColorGradingLut {
                             current: bytes.len(),
                         });
                     }
-                } else {
-                    if bytes.len() != RGB8_SIZE {
-                        return Err(ColorGradingLutCreationError::NotEnoughData {
-                            required: RGB8_SIZE,
-                            current: bytes.len(),
-                        });
-                    }
+                } else if bytes.len() != RGB8_SIZE {
+                    return Err(ColorGradingLutCreationError::NotEnoughData {
+                        required: RGB8_SIZE,
+                        current: bytes.len(),
+                    });
                 }
 
                 let pixel_size = if data.pixel_kind() == TexturePixelKind::RGBA8 {
