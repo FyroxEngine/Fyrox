@@ -8,11 +8,9 @@
 //! modelling software or just download some model you like and load it in engine. But since
 //! 3d model can contain multiple nodes, 3d model loading discussed in model resource section.
 
-use crate::scene::mesh::buffer::{VertexAttributeUsage, VertexReadTrait};
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3},
-        color::Color,
         math::{aabb::AxisAlignedBoundingBox, frustum::Frustum},
         pool::Handle,
         visitor::{Visit, VisitResult, Visitor},
@@ -20,7 +18,10 @@ use crate::{
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
-        mesh::surface::Surface,
+        mesh::{
+            buffer::{VertexAttributeUsage, VertexReadTrait},
+            surface::Surface,
+        },
         node::Node,
     },
 };
@@ -34,7 +35,7 @@ pub mod surface;
 pub mod vertex;
 
 /// Defines a path that should be used to render a mesh.
-#[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Ord, Hash, Debug)]
+#[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Ord, Hash, Debug, Visit)]
 #[repr(u32)]
 pub enum RenderPath {
     /// Deferred rendering has much better performance than Forward, but it does not support transparent
@@ -150,14 +151,6 @@ impl Mesh {
     pub fn add_surface(&mut self, surface: Surface) {
         self.surfaces.push(surface);
         self.bounding_box_dirty.set(true);
-    }
-
-    /// Applies given color to all surfaces.
-    #[inline]
-    pub fn set_color(&mut self, color: Color) {
-        for surface in self.surfaces.iter_mut() {
-            surface.set_color(color);
-        }
     }
 
     /// Returns true if mesh should cast shadows, false - otherwise.

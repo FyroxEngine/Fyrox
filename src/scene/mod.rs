@@ -18,6 +18,8 @@ pub mod terrain;
 pub mod transform;
 
 use crate::engine::resource_manager::MaterialSearchOptions;
+use crate::material::shader::SamplerFallback;
+use crate::material::PropertyValue;
 use crate::{
     animation::AnimationContainer,
     core::{
@@ -1052,33 +1054,11 @@ impl Scene {
             match node {
                 Node::Mesh(mesh) => {
                     for surface in mesh.surfaces_mut() {
-                        surface.set_diffuse_texture(map_texture(
-                            surface.diffuse_texture(),
-                            resource_manager.clone(),
-                        ));
-
-                        surface.set_normal_texture(map_texture(
-                            surface.normal_texture(),
-                            resource_manager.clone(),
-                        ));
-
-                        surface.set_metallic_texture(map_texture(
-                            surface.metallic_texture(),
-                            resource_manager.clone(),
-                        ));
-
-                        surface.set_roughness_texture(map_texture(
-                            surface.roughness_texture(),
-                            resource_manager.clone(),
-                        ));
-
-                        surface.set_emission_texture(map_texture(
-                            surface.emission_texture(),
-                            resource_manager.clone(),
-                        ));
-
-                        // Do not resolve lightmap texture here, it makes no sense anyway,
-                        // it will be resolved below.
+                        surface
+                            .material()
+                            .lock()
+                            .unwrap()
+                            .resolve(resource_manager.clone());
                     }
                 }
                 Node::Sprite(sprite) => {
@@ -1109,31 +1089,11 @@ impl Scene {
                 Node::Terrain(terrain) => {
                     for chunk in terrain.chunks_mut() {
                         for layer in chunk.layers_mut() {
-                            layer.diffuse_texture = map_texture(
-                                layer.diffuse_texture.clone(),
-                                resource_manager.clone(),
-                            );
-
-                            layer.normal_texture =
-                                map_texture(layer.normal_texture.clone(), resource_manager.clone());
-
-                            layer.metallic_texture = map_texture(
-                                layer.metallic_texture.clone(),
-                                resource_manager.clone(),
-                            );
-
-                            layer.roughness_texture = map_texture(
-                                layer.roughness_texture.clone(),
-                                resource_manager.clone(),
-                            );
-
-                            layer.height_texture =
-                                map_texture(layer.height_texture.clone(), resource_manager.clone());
-
-                            layer.emission_texture = map_texture(
-                                layer.emission_texture.clone(),
-                                resource_manager.clone(),
-                            );
+                            layer
+                                .material
+                                .lock()
+                                .unwrap()
+                                .resolve(resource_manager.clone());
 
                             // Mask is not resolved because it is procedural texture.
                         }
@@ -1326,7 +1286,18 @@ impl Scene {
             for (&handle, entries) in lightmap.map.iter_mut() {
                 if let Node::Mesh(mesh) = &mut self.graph[handle] {
                     for (entry, surface) in entries.iter_mut().zip(mesh.surfaces_mut()) {
-                        surface.set_lightmap_texture(entry.texture.clone());
+                        if let Err(_) = surface.material().lock().unwrap().set_property(
+                            "lightmapTexture",
+                            PropertyValue::Sampler {
+                                value: entry.texture.clone(),
+                                fallback: SamplerFallback::Black,
+                            },
+                        ) {
+                            Log::writeln(
+                                MessageKind::Error,
+                                format!("lightmapTexture material property is missing!"),
+                            )
+                        }
                     }
                 }
             }
@@ -1348,7 +1319,18 @@ impl Scene {
                     // This unwrap() call must never panic in normal conditions, because texture wrapped in Option
                     // only to implement Default trait to be serializable.
                     let texture = entry.texture.clone().unwrap();
-                    surface.set_lightmap_texture(Some(texture))
+                    if let Err(_) = surface.material().lock().unwrap().set_property(
+                        "lightmapTexture",
+                        PropertyValue::Sampler {
+                            value: Some(texture),
+                            fallback: SamplerFallback::Black,
+                        },
+                    ) {
+                        Log::writeln(
+                            MessageKind::Error,
+                            format!("lightmapTexture material property is missing!"),
+                        )
+                    }
                 }
             }
         }

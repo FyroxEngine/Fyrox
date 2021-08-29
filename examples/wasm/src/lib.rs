@@ -7,6 +7,8 @@
 extern crate rg3d;
 
 use rg3d::engine::resource_manager::MaterialSearchOptions;
+use rg3d::material::shader::SamplerFallback;
+use rg3d::material::{Material, PropertyValue};
 use rg3d::scene::camera::SkyBoxBuilder;
 use rg3d::{
     animation::Animation,
@@ -246,6 +248,17 @@ async fn create_scene(resource_manager: ResourceManager, context: Arc<Mutex<Scen
         .get(0)
         .unwrap();
 
+    let mut material = Material::standard();
+    material
+        .set_property(
+            "diffuseTexture",
+            PropertyValue::Sampler {
+                value: Some(resource_manager.request_texture("data/textures/concrete.jpg", None)),
+                fallback: SamplerFallback::White,
+            },
+        )
+        .unwrap();
+
     // Add floor.
     MeshBuilder::new(
         BaseBuilder::new().with_local_transform(
@@ -259,7 +272,7 @@ async fn create_scene(resource_manager: ResourceManager, context: Arc<Mutex<Scen
             25.0, 0.25, 25.0,
         ))),
     )))
-    .with_diffuse_texture(resource_manager.request_texture("data/textures/concrete.jpg", None))
+    .with_material(Arc::new(Mutex::new(material)))
     .build()])
     .build(&mut scene.graph);
 

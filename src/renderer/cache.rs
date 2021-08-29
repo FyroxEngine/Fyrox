@@ -1,5 +1,8 @@
 #![allow(missing_docs)] // TODO
 
+use crate::asset::ResourceState;
+use crate::material::shader::{Shader, ShaderState};
+use crate::renderer::framework::gpu_program::GpuProgram;
 use crate::{
     core::scope_profile,
     engine::resource_manager::DEFAULT_RESOURCE_LIFETIME,
@@ -261,6 +264,87 @@ impl TextureCache {
             };
 
             Some(entry.value.clone())
+        } else {
+            None
+        }
+    }
+
+    pub fn update(&mut self, dt: f32) {
+        scope_profile!();
+
+        for entry in self.map.values_mut() {
+            entry.time_to_live -= dt;
+        }
+
+        self.map.retain(|_, v| v.time_to_live > 0.0);
+    }
+
+    pub fn clear(&mut self) {
+        self.map.clear();
+    }
+
+    pub fn unload(&mut self, texture: Texture) {
+        self.map.remove(&texture.key());
+    }
+}
+
+pub struct ShaderSet {
+    pub map: HashMap<String, GpuProgram>,
+}
+
+impl ShaderSet {
+    pub fn new(state: &mut PipelineState, shader: &ShaderState) -> Option<Self> {
+        let mut map = HashMap::new();
+        for render_pass in shader.definition.passes.iter() {
+            match GpuProgram::from_source(
+                state,
+                &render_pass.name,
+                &render_pass.vertex_shader,
+                &render_pass.fragment_shader,
+            ) {
+                Ok(gpu_program) => {
+                    map.insert(render_pass.name.clone(), gpu_program);
+                }
+                Err(e) => {
+                    Log::writeln(
+                        MessageKind::Error,
+                        format!(
+                            "Failed to create {} shader' GPU program. Reason: {:?}",
+                            render_pass.name, e
+                        ),
+                    );
+                    return None;
+                }
+            };
+        }
+
+        Some(Self { map })
+    }
+}
+
+#[derive(Default)]
+pub struct ShaderCache {
+    pub(super) map: HashMap<usize, CacheEntry<ShaderSet>>,
+}
+
+impl ShaderCache {
+    pub fn get(&mut self, state: &mut PipelineState, shader: &Shader) -> Option<&ShaderSet> {
+        scope_profile!();
+
+        let key = shader.key();
+        let shader = shader.state();
+
+        if let ResourceState::Ok(shader_state) = shader.deref() {
+            let entry = match self.map.entry(key) {
+                Entry::Occupied(e) => e.into_mut(),
+                Entry::Vacant(e) => e.insert(CacheEntry {
+                    value: ShaderSet::new(state, shader_state)?,
+                    time_to_live: DEFAULT_RESOURCE_LIFETIME,
+                    value_hash: key as u64,
+                }),
+            };
+
+            Some(&entry.value)
         } else {
             None
         }

@@ -90,7 +90,7 @@ impl FxaaRenderer {
                 depth_test: false,
                 blend: false,
             },
-            |program_binding| {
+            |mut program_binding| {
                 program_binding
                     .set_matrix4(&self.shader.wvp_matrix, &frame_matrix)
                     .set_vector2(

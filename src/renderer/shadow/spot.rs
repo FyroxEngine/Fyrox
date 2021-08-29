@@ -1,4 +1,3 @@
-use crate::renderer::shadow::cascade_size;
 use crate::{
     core::{
         algebra::Matrix4,
@@ -6,49 +5,28 @@ use crate::{
         math::{frustum::Frustum, Rect},
         scope_profile,
     },
-    renderer::framework::{
-        error::FrameworkError,
-        framebuffer::{Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer},
-        gpu_program::{GpuProgram, UniformLocation},
-        gpu_texture::{
-            Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
-            PixelKind, WrapMode,
+    renderer::{
+        apply_material,
+        batch::BatchStorage,
+        cache::{ShaderCache, TextureCache},
+        framework::{
+            error::FrameworkError,
+            framebuffer::{Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer},
+            gpu_texture::{
+                Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
+                PixelKind, WrapMode,
+            },
+            state::{ColorMask, PipelineState},
         },
-        state::{ColorMask, PipelineState},
+        shadow::cascade_size,
+        GeometryCache, MaterialContext, RenderPassStatistics, ShadowMapPrecision,
     },
-    renderer::{batch::BatchStorage, GeometryCache, RenderPassStatistics, ShadowMapPrecision},
     scene::{graph::Graph, node::Node},
 };
 use std::{cell::RefCell, rc::Rc};
 
-struct SpotShadowMapShader {
-    program: GpuProgram,
-    bone_matrices: UniformLocation,
-    world_view_projection_matrix: UniformLocation,
-    use_skeletal_animation: UniformLocation,
-    diffuse_texture: UniformLocation,
-}
-
-impl SpotShadowMapShader {
-    pub fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
-        let fragment_source = include_str!("../shaders/spot_shadow_map_fs.glsl");
-        let vertex_source = include_str!("../shaders/spot_shadow_map_vs.glsl");
-        let program =
-            GpuProgram::from_source(state, "SpotShadowMapShader", vertex_source, fragment_source)?;
-        Ok(Self {
-            bone_matrices: program.uniform_location(state, "boneMatrices")?,
-            world_view_projection_matrix: program.uniform_location(state, "worldViewProjection")?,
-            use_skeletal_animation: program.uniform_location(state, "useSkeletalAnimation")?,
-            diffuse_texture: program.uniform_location(state, "diffuseTexture")?,
-
-            program,
-        })
-    }
-}
-
 pub struct SpotShadowMapRenderer {
     precision: ShadowMapPrecision,
-    shader: SpotShadowMapShader,
     // Three "cascades" for various use cases:
     //  0 - largest, for lights close to camera.
     //  1 - medium, for lights with medium distance to camera.
@@ -111,7 +89,6 @@ impl SpotShadowMapRenderer {
                 make_cascade(state, cascade_size(size, 1), precision)?,
                 make_cascade(state, cascade_size(size, 2), precision)?,
             ],
-            shader: SpotShadowMapShader::new(state)?,
         })
     }
 
@@ -144,6 +121,11 @@ impl SpotShadowMapRenderer {
         batches: &BatchStorage,
         geom_cache: &mut GeometryCache,
         cascade: usize,
+        shader_cache: &mut ShaderCache,
+        texture_cache: &mut TextureCache,
+        normal_dummy: Rc<RefCell<GpuTexture>>,
+        white_dummy: Rc<RefCell<GpuTexture>>,
+        black_dummy: Rc<RefCell<GpuTexture>>,
     ) -> RenderPassStatistics {
         scope_profile!();
 
@@ -158,54 +140,64 @@ impl SpotShadowMapRenderer {
         let frustum = Frustum::from(*light_view_projection).unwrap_or_default();
 
         for batch in batches.batches.iter() {
+            let material = batch.material.lock().unwrap();
             let geometry = geom_cache.get(state, &batch.data.read().unwrap());
 
-            for instance in batch.instances.iter() {
-                let node = &graph[instance.owner];
+            if let Some(shader_set) = shader_cache.get(state, material.shader()) {
+                if let Some(program) = shader_set.map.get("SpotShadow") {
+                    for instance in batch.instances.iter() {
+                        let node = &graph[instance.owner];
 
-                let visible = node.global_visibility() && {
-                    match node {
-                        Node::Mesh(mesh) => {
-                            mesh.cast_shadows() && mesh.is_intersect_frustum(graph, &frustum)
+                        let visible = node.global_visibility() && {
+                            match node {
+                                Node::Mesh(mesh) => {
+                                    mesh.cast_shadows()
+                                        && mesh.is_intersect_frustum(graph, &frustum)
+                                }
+                                Node::Terrain(_) => {
+                                    // https://github.com/rg3dengine/rg3d/issues/117
+                                    true
+                                }
+                                _ => false,
+                            }
+                        };
+
+                        if visible {
+                            statistics += framebuffer.draw(
+                                geometry,
+                                state,
+                                viewport,
+                                program,
+                                &DrawParameters {
+                                    cull_face: CullFace::Back,
+                                    culling: true,
+                                    color_write: ColorMask::all(false),
+                                    depth_write: true,
+                                    stencil_test: false,
+                                    depth_test: true,
+                                    blend: false,
+                                },
+                                |mut program_binding| {
+                                    apply_material(MaterialContext {
+                                        material: &*material,
+                                        program_binding: &mut program_binding,
+                                        texture_cache,
+                                        world_matrix: &instance.world_transform,
+                                        wvp_matrix: &(light_view_projection
+                                            * instance.world_transform),
+                                        bone_matrices: &instance.bone_matrices,
+                                        use_skeletal_animation: batch.is_skinned,
+                                        camera_position: &Default::default(),
+                                        use_pom: false,
+                                        light_position: &Default::default(),
+                                        normal_dummy: normal_dummy.clone(),
+                                        white_dummy: white_dummy.clone(),
+                                        black_dummy: black_dummy.clone(),
+                                    });
+                                },
+                            );
                         }
-                        Node::Terrain(_) => {
-                            // https://github.com/rg3dengine/rg3d/issues/117
-                            true
-                        }
-                        _ => false,
                     }
-                };
-
-                if visible {
-                    let shader = &self.shader;
-                    statistics += framebuffer.draw(
-                        geometry,
-                        state,
-                        viewport,
-                        &self.shader.program,
-                        &DrawParameters {
-                            cull_face: CullFace::Back,
-                            culling: true,
-                            color_write: ColorMask::all(false),
-                            depth_write: true,
-                            stencil_test: false,
-                            depth_test: true,
-                            blend: false,
-                        },
-                        |program_binding| {
-                            program_binding
-                                .set_matrix4(
-                                    &shader.world_view_projection_matrix,
-                                    &(light_view_projection * instance.world_transform),
-                                )
-                                .set_bool(&shader.use_skeletal_animation, batch.is_skinned)
-                                .set_matrix4_array(
-                                    &shader.bone_matrices,
-                                    instance.bone_matrices.as_slice(),
-                                )
-                                .set_texture(&shader.diffuse_texture, &batch.diffuse_texture);
-                        },
-                    );
                 }
             }
         }

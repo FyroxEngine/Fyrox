@@ -196,7 +196,7 @@ impl ParticleSystemRenderer {
                 viewport,
                 &self.shader.program,
                 &draw_params,
-                |program_binding| {
+                |mut program_binding| {
                     program_binding
                         .set_texture(&self.shader.depth_buffer_texture, &depth)
                         .set_texture(&self.shader.diffuse_texture, &diffuse_texture)

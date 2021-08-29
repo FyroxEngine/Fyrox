@@ -1,3 +1,4 @@
+use crate::renderer::cache::ShaderCache;
 use crate::renderer::framework::framebuffer::FrameBuffer;
 use crate::{
     core::{
@@ -112,13 +113,16 @@ pub(in crate) struct DeferredRendererContext<'a> {
     pub scene: &'a Scene,
     pub camera: &'a Camera,
     pub gbuffer: &'a mut GBuffer,
-    pub white_dummy: Rc<RefCell<GpuTexture>>,
     pub ambient_color: Color,
     pub settings: &'a QualitySettings,
     pub textures: &'a mut TextureCache,
     pub geometry_cache: &'a mut GeometryCache,
     pub batch_storage: &'a BatchStorage,
     pub frame_buffer: &'a mut FrameBuffer,
+    pub shader_cache: &'a mut ShaderCache,
+    pub normal_dummy: Rc<RefCell<GpuTexture>>,
+    pub white_dummy: Rc<RefCell<GpuTexture>>,
+    pub black_dummy: Rc<RefCell<GpuTexture>>,
 }
 
 impl DeferredLightRenderer {
@@ -309,6 +313,8 @@ impl DeferredLightRenderer {
             scene,
             camera,
             gbuffer,
+            shader_cache,
+            normal_dummy,
             white_dummy,
             ambient_color,
             settings,
@@ -316,6 +322,7 @@ impl DeferredLightRenderer {
             geometry_cache,
             batch_storage,
             frame_buffer,
+            black_dummy,
         } = args;
 
         let viewport = Rect::new(0, 0, gbuffer.width, gbuffer.height);
@@ -376,7 +383,7 @@ impl DeferredLightRenderer {
                         },
                         0,
                         12,
-                        |program_binding| {
+                        |mut program_binding| {
                             program_binding
                                 .set_texture(&shader.cubemap_texture, &gpu_texture)
                                 .set_matrix4(&shader.wvp_matrix, &(view_projection * wvp));
@@ -411,7 +418,7 @@ impl DeferredLightRenderer {
                 depth_test: false,
                 blend: true,
             },
-            |program_binding| {
+            |mut program_binding| {
                 program_binding
                     .set_matrix4(&self.ambient_light_shader.wvp_matrix, &frame_matrix)
                     .set_linear_color(&self.ambient_light_shader.ambient_color, &ambient_color)
@@ -522,6 +529,11 @@ impl DeferredLightRenderer {
                             batch_storage,
                             geometry_cache,
                             cascade_index,
+                            shader_cache,
+                            textures,
+                            normal_dummy.clone(),
+                            white_dummy.clone(),
+                            black_dummy.clone(),
                         );
 
                         light_stats.spot_shadow_maps_rendered += 1;
@@ -542,6 +554,11 @@ impl DeferredLightRenderer {
                                     geom_cache: geometry_cache,
                                     cascade: cascade_index,
                                     batch_storage,
+                                    shader_cache,
+                                    texture_cache: textures,
+                                    normal_dummy: normal_dummy.clone(),
+                                    white_dummy: white_dummy.clone(),
+                                    black_dummy: black_dummy.clone(),
                                 });
 
                         light_stats.point_shadow_maps_rendered += 1;
@@ -582,7 +599,7 @@ impl DeferredLightRenderer {
                     depth_test: true,
                     blend: false,
                 },
-                |program_binding| {
+                |mut program_binding| {
                     program_binding.set_matrix4(
                         &self.flat_shader.wvp_matrix,
                         &(view_projection
@@ -615,7 +632,7 @@ impl DeferredLightRenderer {
                     depth_test: true,
                     blend: false,
                 },
-                |program_binding| {
+                |mut program_binding| {
                     program_binding.set_matrix4(
                         &self.flat_shader.wvp_matrix,
                         &(view_projection
@@ -669,7 +686,7 @@ impl DeferredLightRenderer {
                         viewport,
                         &shader.program,
                         &draw_params,
-                        |program_binding| {
+                        |mut program_binding| {
                             program_binding
                                 .set_bool(&shader.shadows_enabled, shadows_enabled)
                                 .set_matrix4(&shader.light_view_proj_matrix, &light_view_projection)
@@ -720,7 +737,7 @@ impl DeferredLightRenderer {
                         viewport,
                         &shader.program,
                         &draw_params,
-                        |program_binding| {
+                        |mut program_binding| {
                             program_binding
                                 .set_bool(&shader.shadows_enabled, shadows_enabled)
                                 .set_bool(&shader.soft_shadows, settings.point_soft_shadows)
@@ -764,7 +781,7 @@ impl DeferredLightRenderer {
                             depth_test: false,
                             blend: true,
                         },
-                        |program_binding| {
+                        |mut program_binding| {
                             program_binding
                                 .set_vector3(&shader.light_direction, &emit_direction)
                                 .set_matrix4(&shader.inv_view_proj_matrix, &inv_view_projection)

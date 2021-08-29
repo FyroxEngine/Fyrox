@@ -10,6 +10,7 @@ pub mod shared;
 
 use crate::shared::create_camera;
 use rg3d::engine::resource_manager::MaterialSearchOptions;
+use rg3d::material::{Material, PropertyValue};
 use rg3d::utils::log::{Log, MessageKind};
 use rg3d::{
     core::{
@@ -42,6 +43,7 @@ use rg3d::{
     },
     utils::{navmesh::NavmeshAgent, translate_event},
 };
+use std::sync::Mutex;
 use std::{
     sync::{Arc, RwLock},
     time::Instant,
@@ -94,13 +96,29 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
         .unwrap()
         .instantiate_geometry(&mut scene);
 
+    let mut cursor_material = Material::standard();
+    cursor_material
+        .set_property(
+            "diffuseColor",
+            PropertyValue::Color(Color::opaque(255, 0, 0)),
+        )
+        .unwrap();
+
     let cursor = MeshBuilder::new(BaseBuilder::new())
         .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
             SurfaceData::make_sphere(10, 10, 0.1, &Matrix4::identity()),
         )))
-        .with_color(Color::opaque(255, 0, 0))
+        .with_material(Arc::new(Mutex::new(cursor_material)))
         .build()])
         .build(&mut scene.graph);
+
+    let mut agent_material = Material::standard();
+    agent_material
+        .set_property(
+            "diffuseColor",
+            PropertyValue::Color(Color::opaque(0, 200, 0)),
+        )
+        .unwrap();
 
     let agent = MeshBuilder::new(
         BaseBuilder::new().with_local_transform(
@@ -112,7 +130,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
         SurfaceData::make_sphere(10, 10, 0.2, &Matrix4::identity()),
     )))
-    .with_color(Color::opaque(0, 200, 0))
+    .with_material(Arc::new(Mutex::new(agent_material)))
     .build()])
     .build(&mut scene.graph);
 

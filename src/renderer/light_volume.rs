@@ -203,7 +203,7 @@ impl LightVolumeRenderer {
                         depth_test: true,
                         blend: false,
                     },
-                    |program_binding| {
+                    |mut program_binding| {
                         program_binding.set_matrix4(&self.flat_shader.wvp_matrix, &mvp);
                     },
                 );
@@ -233,7 +233,7 @@ impl LightVolumeRenderer {
                         depth_test: false,
                         blend: true,
                     },
-                    |program_binding| {
+                    |mut program_binding| {
                         program_binding
                             .set_matrix4(&shader.world_view_proj_matrix, &frame_matrix)
                             .set_matrix4(&shader.inv_proj, &inv_proj)
@@ -286,7 +286,7 @@ impl LightVolumeRenderer {
                         depth_test: true,
                         blend: false,
                     },
-                    |program_binding| {
+                    |mut program_binding| {
                         program_binding.set_matrix4(&self.flat_shader.wvp_matrix, &mvp);
                     },
                 );
@@ -316,7 +316,7 @@ impl LightVolumeRenderer {
                         depth_test: false,
                         blend: true,
                     },
-                    |program_binding| {
+                    |mut program_binding| {
                         program_binding
                             .set_matrix4(&shader.world_view_proj_matrix, &frame_matrix)
                             .set_matrix4(&shader.inv_proj, &inv_proj)

@@ -9,16 +9,18 @@
 //! Every alpha channel is used for layer blending for terrains. This is inefficient, but for
 //! now I don't know better solution.
 
+use crate::renderer::cache::ShaderCache;
+use crate::renderer::MaterialContext;
 use crate::{
     core::{
-        algebra::{Matrix4, Vector2, Vector4},
-        arrayvec::ArrayVec,
+        algebra::{Matrix4, Vector2},
         color::Color,
         math::Rect,
         scope_profile,
     },
     renderer::{
-        batch::{BatchStorage, InstanceData, MatrixStorage, BONE_MATRICES_COUNT},
+        apply_material,
+        batch::{BatchStorage, InstanceData, MatrixStorage},
         framework::{
             error::FrameworkError,
             framebuffer::{Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer},
@@ -29,10 +31,7 @@ use crate::{
             },
             state::PipelineState,
         },
-        gbuffer::{
-            decal::DecalShader,
-            uber_shader::{UberShader, UberShaderFeatures},
-        },
+        gbuffer::decal::DecalShader,
         GeometryCache, RenderPassStatistics, TextureCache,
     },
     scene::{
@@ -42,10 +41,8 @@ use crate::{
 use std::{cell::RefCell, rc::Rc};
 
 mod decal;
-mod uber_shader;
 
 pub struct GBuffer {
-    shaders: ArrayVec<UberShader, 9>,
     framebuffer: FrameBuffer,
     decal_framebuffer: FrameBuffer,
     pub width: i32,
@@ -62,9 +59,11 @@ pub(in crate) struct GBufferRenderContext<'a, 'b> {
     pub geom_cache: &'a mut GeometryCache,
     pub batch_storage: &'a BatchStorage,
     pub texture_cache: &'a mut TextureCache,
+    pub shader_cache: &'a mut ShaderCache,
     pub environment_dummy: Rc<RefCell<GpuTexture>>,
     pub white_dummy: Rc<RefCell<GpuTexture>>,
     pub normal_dummy: Rc<RefCell<GpuTexture>>,
+    pub black_dummy: Rc<RefCell<GpuTexture>>,
     pub use_parallax_mapping: bool,
     pub graph: &'b Graph,
 }
@@ -210,17 +209,8 @@ impl GBuffer {
             ],
         )?;
 
-        let mut shaders = ArrayVec::<UberShader, 9>::new();
-        for i in 0..(UberShaderFeatures::COUNT.bits() as usize) {
-            shaders.push(UberShader::new(
-                state,
-                UberShaderFeatures::from_bits(i as u32).unwrap(),
-            )?);
-        }
-
         Ok(Self {
             framebuffer,
-            shaders,
             width: width as i32,
             height: height as i32,
             matrix_storage: MatrixStorage::new(state)?,
@@ -271,9 +261,11 @@ impl GBuffer {
             geom_cache,
             batch_storage,
             texture_cache,
+            shader_cache,
             use_parallax_mapping,
             white_dummy,
             normal_dummy,
+            black_dummy,
             graph,
             ..
         } = args;
@@ -304,165 +296,57 @@ impl GBuffer {
             .iter()
             .filter(|b| b.render_path == RenderPath::Deferred)
         {
+            let material = batch.material.lock().unwrap();
             let data = batch.data.read().unwrap();
             let geometry = geom_cache.get(state, &data);
-            let use_instanced_rendering = batch.instances.len() > 1;
 
-            // Prepare batch info storage in case if we're rendering multiple objects
-            // at once.
-            if use_instanced_rendering {
-                self.matrix_storage.clear();
-                self.instance_data_set.clear();
-                for instance in batch.instances.iter() {
-                    if camera.visibility_cache.is_visible(instance.owner) {
-                        self.instance_data_set.push(InstanceData {
-                            color: instance.color,
-                            world: instance.world_transform,
-                            depth_offset: instance.depth_offset,
-                        });
-                        self.matrix_storage
-                            .push_slice(instance.bone_matrices.as_slice());
+            if camera
+                .visibility_cache
+                .is_visible(batch.instances.first().unwrap().owner)
+            {
+                if let Some(shader_set) = shader_cache.get(state, material.shader()) {
+                    if let Some(program) = shader_set.map.get("GBuffer") {
+                        for instance in batch.instances.iter() {
+                            let apply_uniforms = |mut program_binding: GpuProgramBinding| {
+                                let view_projection = if instance.depth_offset != 0.0 {
+                                    let mut projection = camera.projection_matrix();
+                                    projection[14] -= instance.depth_offset;
+                                    projection * camera.view_matrix()
+                                } else {
+                                    initial_view_projection
+                                };
+
+                                apply_material(MaterialContext {
+                                    material: &*material,
+                                    program_binding: &mut program_binding,
+                                    texture_cache,
+                                    world_matrix: &instance.world_transform,
+                                    wvp_matrix: &(view_projection * instance.world_transform),
+                                    bone_matrices: &instance.bone_matrices,
+                                    use_skeletal_animation: batch.is_skinned,
+                                    camera_position: &camera.global_position(),
+                                    use_pom: use_parallax_mapping,
+                                    light_position: &Default::default(),
+                                    normal_dummy: normal_dummy.clone(),
+                                    white_dummy: white_dummy.clone(),
+                                    black_dummy: black_dummy.clone(),
+                                });
+                            };
+
+                            params.blend = batch.blend;
+                            state.set_blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
+
+                            statistics += self.framebuffer.draw(
+                                geometry,
+                                state,
+                                viewport,
+                                program,
+                                &params,
+                                apply_uniforms,
+                            );
+                        }
                     }
                 }
-                // Every object from batch might be clipped.
-                if !self.instance_data_set.is_empty() {
-                    self.matrix_storage.update(state);
-                    geometry.set_buffer_data(state, 1, self.instance_data_set.as_slice());
-                }
-            }
-
-            // Select shader
-            let mut required_features = UberShaderFeatures::DEFAULT;
-            required_features.set(UberShaderFeatures::LIGHTMAP, batch.use_lightmapping);
-            required_features.set(UberShaderFeatures::TERRAIN, batch.is_terrain);
-            required_features.set(UberShaderFeatures::INSTANCING, use_instanced_rendering);
-
-            let shader = &self.shaders[required_features.bits() as usize];
-
-            let need_render = if use_instanced_rendering {
-                !self.instance_data_set.is_empty()
-            } else {
-                camera
-                    .visibility_cache
-                    .is_visible(batch.instances.first().unwrap().owner)
-            };
-
-            if need_render {
-                let matrix_storage = &self.matrix_storage;
-
-                let apply_uniforms = |program_binding: GpuProgramBinding| {
-                    let program_binding = program_binding
-                        .set_texture(&shader.diffuse_texture, &batch.diffuse_texture)
-                        .set_texture(&shader.normal_texture, &batch.normal_texture)
-                        .set_texture(&shader.metallic_texture, &batch.metallic_texture)
-                        .set_texture(&shader.roughness_texture, &batch.roughness_texture)
-                        .set_texture(&shader.height_texture, &batch.height_texture)
-                        .set_texture(&shader.emission_texture, &batch.emission_texture)
-                        .set_vector3(&shader.camera_position, &camera.global_position())
-                        .set_bool(&shader.use_pom, batch.use_pom && use_parallax_mapping)
-                        .set_bool(&shader.use_skeletal_animation, batch.is_skinned)
-                        .set_vector2(&shader.tex_coord_scale, &batch.tex_coord_scale)
-                        .set_vector3(&shader.emission_strength, &batch.emission_strength)
-                        .set_u32(&shader.layer_index, batch.decal_layer_index as u32);
-
-                    let program_binding = if batch.use_lightmapping {
-                        program_binding.set_texture(
-                            shader.lightmap_texture.as_ref().unwrap(),
-                            &batch.lightmap_texture,
-                        )
-                    } else {
-                        program_binding
-                    };
-
-                    let program_binding = if batch.is_terrain {
-                        program_binding
-                            .set_texture(shader.mask_texture.as_ref().unwrap(), &batch.mask_texture)
-                    } else {
-                        program_binding
-                    };
-
-                    if use_instanced_rendering {
-                        program_binding
-                            .set_texture(
-                                shader.matrix_storage.as_ref().unwrap(),
-                                &matrix_storage.matrices_storage,
-                            )
-                            .set_i32(
-                                shader.matrix_buffer_stride.as_ref().unwrap(),
-                                BONE_MATRICES_COUNT as i32,
-                            )
-                            .set_vector4(shader.matrix_storage_size.as_ref().unwrap(), {
-                                let kind = matrix_storage.matrices_storage.borrow().kind();
-                                let (w, h) =
-                                    if let GpuTextureKind::Rectangle { width, height } = kind {
-                                        (width, height)
-                                    } else {
-                                        unreachable!()
-                                    };
-                                &Vector4::new(
-                                    1.0 / (w as f32),
-                                    1.0 / (h as f32),
-                                    w as f32,
-                                    h as f32,
-                                )
-                            })
-                            .set_matrix4(
-                                shader.view_projection_matrix.as_ref().unwrap(),
-                                &camera.view_projection_matrix(),
-                            );
-                    } else {
-                        let instance = batch.instances.first().unwrap();
-
-                        let view_projection = if instance.depth_offset != 0.0 {
-                            let mut projection = camera.projection_matrix();
-                            projection[14] -= instance.depth_offset;
-                            projection * camera.view_matrix()
-                        } else {
-                            initial_view_projection
-                        };
-                        program_binding
-                            .set_linear_color(
-                                shader.diffuse_color.as_ref().unwrap(),
-                                &instance.color,
-                            )
-                            .set_matrix4(
-                                shader.wvp_matrix.as_ref().unwrap(),
-                                &(view_projection * instance.world_transform),
-                            )
-                            .set_matrix4_array(
-                                shader.bone_matrices.as_ref().unwrap(),
-                                instance.bone_matrices.as_slice(),
-                            )
-                            .set_matrix4(
-                                shader.world_matrix.as_ref().unwrap(),
-                                &instance.world_transform,
-                            );
-                    }
-                };
-
-                params.blend = batch.blend;
-                state.set_blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
-
-                statistics += if use_instanced_rendering {
-                    self.framebuffer.draw_instances(
-                        self.instance_data_set.len(),
-                        geometry,
-                        state,
-                        viewport,
-                        &shader.program,
-                        &params,
-                        apply_uniforms,
-                    )
-                } else {
-                    self.framebuffer.draw(
-                        geometry,
-                        state,
-                        viewport,
-                        &shader.program,
-                        &params,
-                        apply_uniforms,
-                    )
-                };
             }
         }
 
@@ -511,7 +395,7 @@ impl GBuffer {
                     depth_test: false,
                     blend: true,
                 },
-                |program_binding| {
+                |mut program_binding| {
                     program_binding
                         .set_matrix4(&shader.world_view_projection, &world_view_proj)
                         .set_matrix4(&shader.inv_view_proj, &inv_view_proj)

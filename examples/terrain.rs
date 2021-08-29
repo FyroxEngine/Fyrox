@@ -5,6 +5,8 @@ extern crate rg3d;
 pub mod shared;
 
 use crate::shared::create_camera;
+use rg3d::material::shader::SamplerFallback;
+use rg3d::material::{Material, PropertyValue};
 use rg3d::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
@@ -30,10 +32,77 @@ use rg3d::{
         Scene,
     },
 };
+use std::sync::{Arc, Mutex};
 
 struct SceneLoader {
     scene: Scene,
     model_handle: Handle<Node>,
+}
+
+fn create_grass_material(resource_manager: ResourceManager) -> Material {
+    let mut grass_material = Material::standard();
+    grass_material
+        .set_property("isTerrain", PropertyValue::Bool(true))
+        .unwrap();
+    grass_material
+        .set_property(
+            "diffuseTexture",
+            PropertyValue::Sampler {
+                value: Some(
+                    resource_manager.request_texture("examples/data/Grass_DiffuseColor.jpg", None),
+                ),
+                fallback: SamplerFallback::White,
+            },
+        )
+        .unwrap();
+    grass_material
+        .set_property(
+            "normalTexture",
+            PropertyValue::Sampler {
+                value: Some(
+                    resource_manager.request_texture("examples/data/Grass_Normal.jpg", None),
+                ),
+                fallback: SamplerFallback::Normal,
+            },
+        )
+        .unwrap();
+    grass_material
+        .set_property("layerIndex", PropertyValue::Int(0))
+        .unwrap();
+    grass_material
+}
+
+fn create_rock_material(resource_manager: ResourceManager) -> Material {
+    let mut grass_material = Material::standard();
+    grass_material
+        .set_property("isTerrain", PropertyValue::Bool(true))
+        .unwrap();
+    grass_material
+        .set_property(
+            "diffuseTexture",
+            PropertyValue::Sampler {
+                value: Some(
+                    resource_manager.request_texture("examples/data/Rock_DiffuseColor.jpg", None),
+                ),
+                fallback: SamplerFallback::White,
+            },
+        )
+        .unwrap();
+    grass_material
+        .set_property(
+            "normalTexture",
+            PropertyValue::Sampler {
+                value: Some(
+                    resource_manager.request_texture("examples/data/Rock_Normal.jpg", None),
+                ),
+                fallback: SamplerFallback::Normal,
+            },
+        )
+        .unwrap();
+    grass_material
+        .set_property("layerIndex", PropertyValue::Int(1))
+        .unwrap();
+    grass_material
 }
 
 impl SceneLoader {
@@ -55,24 +124,12 @@ impl SceneLoader {
         let terrain = TerrainBuilder::new(BaseBuilder::new())
             .with_layers(vec![
                 LayerDefinition {
-                    diffuse_texture: Some(
-                        resource_manager
-                            .request_texture("examples/data/Grass_DiffuseColor.jpg", None),
-                    ),
-                    normal_texture: Some(
-                        resource_manager.request_texture("examples/data/Grass_Normal.jpg", None),
-                    ),
+                    material: Arc::new(Mutex::new(create_grass_material(resource_manager.clone()))),
                     tile_factor: Vector2::new(10.0, 10.0),
                     ..Default::default()
                 },
                 LayerDefinition {
-                    diffuse_texture: Some(
-                        resource_manager
-                            .request_texture("examples/data/Rock_DiffuseColor.jpg", None),
-                    ),
-                    normal_texture: Some(
-                        resource_manager.request_texture("examples/data/Rock_Normal.jpg", None),
-                    ),
+                    material: Arc::new(Mutex::new(create_rock_material(resource_manager.clone()))),
                     tile_factor: Vector2::new(10.0, 10.0),
                     ..Default::default()
                 },

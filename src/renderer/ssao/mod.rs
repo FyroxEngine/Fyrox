@@ -239,7 +239,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                 depth_test: false,
                 blend: false,
             },
-            |program_binding| {
+            |mut program_binding| {
                 program_binding
                     .set_texture(&shader.depth_sampler, &gbuffer.depth())
                     .set_texture(&shader.normal_sampler, &gbuffer.normal_texture())

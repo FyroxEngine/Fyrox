@@ -13,7 +13,7 @@ extern crate image;
 extern crate inflate;
 extern crate lexical;
 extern crate rayon;
-#[cfg(feature = "serde_integration")]
+extern crate ron;
 extern crate serde;
 
 #[cfg(target_arch = "wasm32")]
@@ -24,6 +24,7 @@ extern crate imageproc;
 
 pub mod animation;
 pub mod engine;
+pub mod material;
 pub mod renderer;
 pub mod resource;
 pub mod scene;

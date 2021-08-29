@@ -33,6 +33,8 @@ mod sprite_renderer;
 mod ssao;
 mod ui_renderer;
 
+use crate::material::shader::SamplerFallback;
+use crate::renderer::cache::ShaderCache;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector3},
@@ -43,8 +45,10 @@ use crate::{
         scope_profile,
     },
     gui::{draw::DrawingContext, message::MessageData, Control, UserInterface},
+    material::{Material, PropertyValue},
     renderer::{
         batch::BatchStorage,
+        bloom::BloomRenderer,
         cache::{CacheEntry, GeometryCache, TextureCache},
         debug_renderer::DebugRenderer,
         flat_shader::FlatShader,
@@ -52,7 +56,8 @@ use crate::{
         framework::{
             error::FrameworkError,
             framebuffer::{Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer},
-            geometry_buffer::DrawCallStatistics,
+            geometry_buffer::{DrawCallStatistics, GeometryBuffer},
+            gpu_program::GpuProgramBinding,
             gpu_texture::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind, WrapMode,
@@ -72,10 +77,6 @@ use crate::{
     scene::{camera::Camera, mesh::surface::SurfaceData, node::Node, Scene, SceneContainer},
     scene2d::Scene2dContainer,
 };
-
-use crate::renderer::bloom::BloomRenderer;
-use crate::renderer::framework::geometry_buffer::GeometryBuffer;
-#[cfg(feature = "serde_integration")]
 use serde::{Deserialize, Serialize};
 use std::{
     cell::RefCell,
@@ -181,8 +182,7 @@ impl std::ops::AddAssign<RenderPassStatistics> for Statistics {
 }
 
 /// Shadow map precision allows you to select compromise between quality and performance.
-#[derive(Copy, Clone, Hash, PartialOrd, PartialEq, Eq, Ord, Debug)]
-#[cfg_attr(feature = "serde_integration", derive(Serialize, Deserialize))]
+#[derive(Copy, Clone, Hash, PartialOrd, PartialEq, Eq, Ord, Debug, Serialize, Deserialize)]
 pub enum ShadowMapPrecision {
     /// Shadow map will use 2 times less memory by switching to 16bit pixel format,
     /// but "shadow acne" may occur.
@@ -194,8 +194,7 @@ pub enum ShadowMapPrecision {
 
 /// Quality settings allows you to find optimal balance between performance and
 /// graphics quality.
-#[derive(Debug, Copy, Clone, PartialEq)]
-#[cfg_attr(feature = "serde_integration", derive(Serialize, Deserialize))]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub struct QualitySettings {
     /// Point shadows
     /// Size of cube map face of shadow map texture in pixels.
@@ -638,6 +637,7 @@ pub struct Renderer {
     scene_data_map: HashMap<Handle<Scene>, AssociatedSceneData>,
     backbuffer_clear_color: Color,
     texture_cache: TextureCache,
+    shader_cache: ShaderCache,
     geometry_cache: GeometryCache,
     batch_storage: BatchStorage,
     forward_renderer: ForwardRenderer,
@@ -807,7 +807,7 @@ fn blit_pixels(
             depth_test: false,
             blend: false,
         },
-        |program_binding| {
+        |mut program_binding| {
             program_binding
                 .set_matrix4(&shader.wvp_matrix, &{
                     Matrix4::new_orthographic(
@@ -826,6 +826,105 @@ fn blit_pixels(
                 .set_texture(&shader.diffuse_texture, &texture);
         },
     )
+}
+
+pub(in crate) struct MaterialContext<'a, 'b> {
+    pub material: &'a Material,
+    pub program_binding: &'a mut GpuProgramBinding<'b>,
+    pub texture_cache: &'a mut TextureCache,
+
+    // Built-in uniforms.
+    pub world_matrix: &'a Matrix4<f32>,
+    pub wvp_matrix: &'a Matrix4<f32>,
+    pub bone_matrices: &'a [Matrix4<f32>],
+    pub use_skeletal_animation: bool,
+    pub camera_position: &'a Vector3<f32>,
+    pub use_pom: bool,
+    pub light_position: &'a Vector3<f32>,
+
+    // Fallback samplers.
+    pub normal_dummy: Rc<RefCell<GpuTexture>>,
+    pub white_dummy: Rc<RefCell<GpuTexture>>,
+    pub black_dummy: Rc<RefCell<GpuTexture>>,
+}
+
+pub(in crate) fn apply_material(ctx: MaterialContext) {
+    // Apply values for built-in uniforms.
+    if let Some(location) = ctx.program_binding.uniform_location("rg3d_worldMatrix") {
+        ctx.program_binding.set_matrix4(&location, ctx.world_matrix);
+    }
+    if let Some(location) = ctx
+        .program_binding
+        .uniform_location("rg3d_worldViewProjection")
+    {
+        ctx.program_binding.set_matrix4(&location, ctx.wvp_matrix);
+    }
+    if let Some(location) = ctx.program_binding.uniform_location("rg3d_boneMatrices") {
+        ctx.program_binding
+            .set_matrix4_array(&location, ctx.bone_matrices);
+    }
+    if let Some(location) = ctx
+        .program_binding
+        .uniform_location("rg3d_useSkeletalAnimation")
+    {
+        ctx.program_binding
+            .set_bool(&location, ctx.use_skeletal_animation);
+    }
+    if let Some(location) = ctx.program_binding.uniform_location("rg3d_cameraPosition") {
+        ctx.program_binding
+            .set_vector3(&location, ctx.camera_position);
+    }
+    if let Some(location) = ctx.program_binding.uniform_location("rg3d_usePOM") {
+        ctx.program_binding.set_bool(&location, ctx.use_pom);
+    }
+    if let Some(location) = ctx.program_binding.uniform_location("rg3d_lightPosition") {
+        ctx.program_binding
+            .set_vector3(&location, ctx.light_position);
+    }
+
+    // Apply material properties.
+    for (name, value) in ctx.material.properties() {
+        if let Some(uniform) = ctx.program_binding.uniform_location(name) {
+            match value {
+                PropertyValue::Float(v) => {
+                    ctx.program_binding.set_f32(&uniform, *v);
+                }
+                PropertyValue::Int(v) => {
+                    ctx.program_binding.set_i32(&uniform, *v);
+                }
+                PropertyValue::UInt(v) => {
+                    ctx.program_binding.set_u32(&uniform, *v);
+                }
+                PropertyValue::Vector2(v) => {
+                    ctx.program_binding.set_vector2(&uniform, v);
+                }
+                PropertyValue::Vector3(v) => {
+                    ctx.program_binding.set_vector3(&uniform, v);
+                }
+                PropertyValue::Vector4(v) => {
+                    ctx.program_binding.set_vector4(&uniform, v);
+                }
+                PropertyValue::Color(v) => {
+                    ctx.program_binding.set_srgb_color(&uniform, v);
+                }
+                PropertyValue::Bool(v) => {
+                    ctx.program_binding.set_bool(&uniform, *v);
+                }
+                PropertyValue::Sampler { value, fallback } => {
+                    let texture = value
+                        .as_ref()
+                        .and_then(|t| ctx.texture_cache.get(ctx.program_binding.state, t))
+                        .unwrap_or_else(|| match fallback {
+                            SamplerFallback::White => ctx.white_dummy.clone(),
+                            SamplerFallback::Normal => ctx.normal_dummy.clone(),
+                            SamplerFallback::Black => ctx.black_dummy.clone(),
+                        });
+
+                    ctx.program_binding.set_texture(&uniform, &texture);
+                }
+            }
+        }
+    }
 }
 
 impl Renderer {
@@ -924,7 +1023,7 @@ impl Renderer {
             texture_cache: Default::default(),
             geometry_cache: Default::default(),
             batch_storage: Default::default(),
-            forward_renderer: ForwardRenderer::new(&mut state)?,
+            forward_renderer: ForwardRenderer::new(),
             ui_frame_buffers: Default::default(),
             fxaa_renderer: FxaaRenderer::new(&mut state)?,
             statistics: Statistics::default(),
@@ -932,6 +1031,7 @@ impl Renderer {
             texture_upload_receiver,
             texture_upload_sender,
             state,
+            shader_cache: ShaderCache::default(),
             scene_render_passes: Default::default(),
         })
     }
@@ -1169,10 +1269,7 @@ impl Renderer {
             self.batch_storage.generate_batches(
                 state,
                 graph,
-                self.black_dummy.clone(),
                 self.white_dummy.clone(),
-                self.normal_dummy.clone(),
-                self.metallic_dummy.clone(),
                 &mut self.texture_cache,
             );
 
@@ -1229,10 +1326,12 @@ impl Renderer {
                     geom_cache: &mut self.geometry_cache,
                     batch_storage: &self.batch_storage,
                     texture_cache: &mut self.texture_cache,
+                    shader_cache: &mut self.shader_cache,
                     environment_dummy: self.environment_dummy.clone(),
                     use_parallax_mapping: self.quality_settings.use_parallax_mapping,
                     normal_dummy: self.normal_dummy.clone(),
                     white_dummy: self.white_dummy.clone(),
+                    black_dummy: self.black_dummy.clone(),
                     graph,
                 });
 
@@ -1260,6 +1359,9 @@ impl Renderer {
                             geometry_cache: &mut self.geometry_cache,
                             batch_storage: &self.batch_storage,
                             frame_buffer: &mut scene_associated_data.hdr_scene_framebuffer,
+                            shader_cache: &mut self.shader_cache,
+                            normal_dummy: self.normal_dummy.clone(),
+                            black_dummy: self.black_dummy.clone(),
                         });
 
                 self.statistics.lighting += light_stats;
@@ -1297,9 +1399,15 @@ impl Renderer {
                     state,
                     camera,
                     geom_cache: &mut self.geometry_cache,
+                    texture_cache: &mut self.texture_cache,
+                    shader_cache: &mut self.shader_cache,
                     batch_storage: &self.batch_storage,
                     framebuffer: &mut scene_associated_data.hdr_scene_framebuffer,
                     viewport,
+                    quality_settings: &self.quality_settings,
+                    white_dummy: self.white_dummy.clone(),
+                    normal_dummy: self.normal_dummy.clone(),
+                    black_dummy: self.black_dummy.clone(),
                 });
 
                 for render_pass in self.scene_render_passes.iter() {

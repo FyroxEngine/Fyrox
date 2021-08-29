@@ -1,7 +1,12 @@
-use crate::core::algebra::{Vector2, Vector3};
-use crate::utils::array_as_u8_slice;
 use crate::{
-    core::{algebra::Matrix4, arrayvec::ArrayVec, color::Color, pool::Handle, scope_profile},
+    core::{
+        algebra::{Matrix4, Vector2},
+        arrayvec::ArrayVec,
+        color::Color,
+        pool::Handle,
+        scope_profile,
+    },
+    material::Material,
     renderer::framework::{
         error::FrameworkError,
         gpu_texture::{
@@ -15,7 +20,9 @@ use crate::{
         mesh::{surface::SurfaceData, RenderPath},
         node::Node,
     },
+    utils::array_as_u8_slice,
 };
+use std::sync::Mutex;
 use std::{
     cell::RefCell,
     collections::HashMap,
@@ -46,23 +53,14 @@ pub struct SurfaceInstance {
 pub struct Batch {
     pub data: Arc<RwLock<SurfaceData>>,
     pub instances: Vec<SurfaceInstance>,
-    pub diffuse_texture: Rc<RefCell<GpuTexture>>,
-    pub normal_texture: Rc<RefCell<GpuTexture>>,
-    pub metallic_texture: Rc<RefCell<GpuTexture>>,
-    pub roughness_texture: Rc<RefCell<GpuTexture>>,
-    pub lightmap_texture: Rc<RefCell<GpuTexture>>,
-    pub height_texture: Rc<RefCell<GpuTexture>>,
-    pub emission_texture: Rc<RefCell<GpuTexture>>,
+    pub material: Arc<Mutex<Material>>,
     pub mask_texture: Rc<RefCell<GpuTexture>>,
-    pub use_pom: bool,
     pub is_skinned: bool,
     pub render_path: RenderPath,
-    pub use_lightmapping: bool,
     pub is_terrain: bool,
     pub blend: bool,
     pub tex_coord_scale: Vector2<f32>,
     pub decal_layer_index: u8,
-    pub emission_strength: Vector3<f32>,
     sort_index: u64,
 }
 
@@ -90,10 +88,7 @@ impl BatchStorage {
         &mut self,
         state: &mut PipelineState,
         graph: &Graph,
-        black_dummy: Rc<RefCell<GpuTexture>>,
         white_dummy: Rc<RefCell<GpuTexture>>,
-        normal_dummy: Rc<RefCell<GpuTexture>>,
-        metallic_dummy: Rc<RefCell<GpuTexture>>,
         texture_cache: &mut TextureCache,
     ) {
         scope_profile!();
@@ -121,41 +116,6 @@ impl BatchStorage {
                         let data = surface.data();
                         let key = surface.batch_id();
 
-                        let diffuse_texture = surface
-                            .diffuse_texture_ref()
-                            .and_then(|texture| texture_cache.get(state, texture))
-                            .unwrap_or_else(|| white_dummy.clone());
-
-                        let normal_texture = surface
-                            .normal_texture_ref()
-                            .and_then(|texture| texture_cache.get(state, texture))
-                            .unwrap_or_else(|| normal_dummy.clone());
-
-                        let metallic_texture = surface
-                            .metallic_texture_ref()
-                            .and_then(|texture| texture_cache.get(state, texture))
-                            .unwrap_or_else(|| metallic_dummy.clone());
-
-                        let roughness_texture = surface
-                            .roughness_texture_ref()
-                            .and_then(|texture| texture_cache.get(state, texture))
-                            .unwrap_or_else(|| black_dummy.clone());
-
-                        let lightmap_texture = surface
-                            .lightmap_texture_ref()
-                            .and_then(|texture| texture_cache.get(state, texture))
-                            .unwrap_or_else(|| black_dummy.clone());
-
-                        let height_texture = surface
-                            .height_texture_ref()
-                            .and_then(|texture| texture_cache.get(state, texture))
-                            .unwrap_or_else(|| black_dummy.clone());
-
-                        let emission_texture = surface
-                            .emission_texture_ref()
-                            .and_then(|texture| texture_cache.get(state, texture))
-                            .unwrap_or_else(|| black_dummy.clone());
-
                         let batch = if let Some(&batch_index) = self.batch_map.get(&key) {
                             self.batches.get_mut(batch_index).unwrap()
                         } else {
@@ -164,40 +124,24 @@ impl BatchStorage {
                                 data,
                                 // Batches from meshes will be sorted using diffuse textures.
                                 // This will significantly reduce pipeline state changes.
-                                sort_index: (&*diffuse_texture.borrow()) as *const _ as u64,
+                                sort_index: surface.batch_id(),
                                 instances: self.buffers.pop().unwrap_or_default(),
-                                diffuse_texture: diffuse_texture.clone(),
-                                normal_texture: normal_texture.clone(),
-                                metallic_texture: metallic_texture.clone(),
-                                roughness_texture: roughness_texture.clone(),
-                                lightmap_texture: lightmap_texture.clone(),
-                                height_texture: height_texture.clone(),
-                                emission_texture: emission_texture.clone(),
+                                material: surface.material().clone(),
                                 mask_texture: white_dummy.clone(),
                                 is_skinned: !surface.bones.is_empty(),
                                 render_path: mesh.render_path(),
-                                use_pom: surface.height_texture_ref().is_some(),
-                                use_lightmapping: surface.lightmap_texture_ref().is_some(),
                                 is_terrain: false,
                                 blend: false,
-                                emission_strength: surface.emission_strength(),
                                 decal_layer_index: mesh.decal_layer_index(),
                                 tex_coord_scale: Vector2::new(1.0, 1.0),
                             });
                             self.batches.last_mut().unwrap()
                         };
 
-                        batch.sort_index = (&*diffuse_texture.borrow()) as *const _ as u64;
+                        batch.sort_index = surface.batch_id();
 
                         // Update textures.
-                        batch.diffuse_texture = diffuse_texture;
-                        batch.normal_texture = normal_texture;
-                        batch.metallic_texture = metallic_texture;
-                        batch.roughness_texture = roughness_texture;
-                        batch.lightmap_texture = lightmap_texture;
-                        batch.height_texture = height_texture;
-                        batch.emission_texture = emission_texture;
-                        batch.use_pom = surface.height_texture().is_some();
+                        batch.material = surface.material().clone();
 
                         batch.instances.push(SurfaceInstance {
                             world_transform: world,
@@ -210,7 +154,7 @@ impl BatchStorage {
                                         * bone_node.inv_bind_pose_transform()
                                 })
                                 .collect(),
-                            color: surface.color(),
+                            color: Default::default(), //TODO surface.color(),
                             owner: handle,
                             depth_offset: mesh.depth_offset_factor(),
                         });
@@ -224,42 +168,6 @@ impl BatchStorage {
                         for (layer_index, layer) in chunk.layers().iter().enumerate() {
                             let key = layer.batch_id(data_key);
 
-                            let diffuse_texture = layer
-                                .diffuse_texture
-                                .as_ref()
-                                .and_then(|texture| texture_cache.get(state, texture))
-                                .unwrap_or_else(|| white_dummy.clone());
-
-                            let normal_texture = layer
-                                .normal_texture
-                                .as_ref()
-                                .and_then(|texture| texture_cache.get(state, texture))
-                                .unwrap_or_else(|| normal_dummy.clone());
-
-                            let metallic_texture = layer
-                                .metallic_texture
-                                .as_ref()
-                                .and_then(|texture| texture_cache.get(state, texture))
-                                .unwrap_or_else(|| metallic_dummy.clone());
-
-                            let roughness_texture = layer
-                                .roughness_texture
-                                .as_ref()
-                                .and_then(|texture| texture_cache.get(state, texture))
-                                .unwrap_or_else(|| white_dummy.clone());
-
-                            let height_texture = layer
-                                .height_texture
-                                .as_ref()
-                                .and_then(|texture| texture_cache.get(state, texture))
-                                .unwrap_or_else(|| black_dummy.clone());
-
-                            let emission_texture = layer
-                                .emission_texture
-                                .as_ref()
-                                .and_then(|texture| texture_cache.get(state, texture))
-                                .unwrap_or_else(|| black_dummy.clone());
-
                             let mask_texture = layer
                                 .mask
                                 .as_ref()
@@ -267,7 +175,6 @@ impl BatchStorage {
                                 .unwrap_or_else(|| white_dummy.clone());
 
                             // TODO. Add support for lightmaps for terrains.
-                            let lightmap_texture = black_dummy.clone();
 
                             let batch = if let Some(&batch_index) = self.batch_map.get(&key) {
                                 self.batches.get_mut(batch_index).unwrap()
@@ -276,23 +183,14 @@ impl BatchStorage {
                                 self.batches.push(Batch {
                                     data: data.clone(),
                                     instances: self.buffers.pop().unwrap_or_default(),
-                                    diffuse_texture: diffuse_texture.clone(),
-                                    normal_texture: normal_texture.clone(),
-                                    metallic_texture: metallic_texture.clone(),
-                                    roughness_texture: roughness_texture.clone(),
-                                    lightmap_texture: lightmap_texture.clone(),
-                                    height_texture: height_texture.clone(),
-                                    emission_texture: emission_texture.clone(),
+                                    material: layer.material.clone(),
                                     mask_texture: mask_texture.clone(),
                                     is_skinned: false,
                                     render_path: RenderPath::Deferred,
-                                    use_pom: layer.height_texture.is_some(),
-                                    use_lightmapping: false, // TODO
                                     sort_index: layer_index as u64,
                                     is_terrain: true,
                                     blend: layer_index != 0,
                                     tex_coord_scale: layer.tile_factor,
-                                    emission_strength: layer.emission_strength,
                                     decal_layer_index: terrain.decal_layer_index(),
                                 });
                                 self.batches.last_mut().unwrap()
@@ -301,14 +199,7 @@ impl BatchStorage {
                             batch.sort_index = layer_index as u64;
 
                             // Update textures.
-                            batch.diffuse_texture = diffuse_texture;
-                            batch.normal_texture = normal_texture;
-                            batch.metallic_texture = metallic_texture;
-                            batch.roughness_texture = roughness_texture;
-                            batch.lightmap_texture = lightmap_texture;
-                            batch.height_texture = height_texture;
-                            batch.emission_texture = emission_texture;
-                            batch.use_pom = layer.height_texture.is_some();
+                            batch.material = layer.material.clone();
                             batch.mask_texture = mask_texture;
 
                             batch.instances.push(SurfaceInstance {

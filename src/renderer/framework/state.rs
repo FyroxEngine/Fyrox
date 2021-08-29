@@ -590,6 +590,10 @@ impl PipelineState {
                     format!("{} error has occurred! Stability is not guaranteed!", code),
                 );
 
+                for entry in self.gl.get_debug_message_log(64) {
+                    Log::writeln(MessageKind::Error, format!("OpenGL message: {:?}", entry))
+                }
+
                 true
             } else {
                 false

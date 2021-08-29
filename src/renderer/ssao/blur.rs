@@ -113,7 +113,7 @@ impl Blur {
                 depth_test: false,
                 blend: false,
             },
-            |program_binding| {
+            |mut program_binding| {
                 program_binding
                     .set_matrix4(
                         &shader.world_view_projection_matrix,

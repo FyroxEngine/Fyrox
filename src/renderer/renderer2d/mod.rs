@@ -346,7 +346,7 @@ impl Renderer2d {
                             depth_test: false,
                             blend: true,
                         },
-                        |program_binding| {
+                        |mut program_binding| {
                             program_binding
                                 .set_matrix4(&shader.wvp_matrix, &view_projection)
                                 .set_texture(&shader.diffuse_texture, &batch.texture)

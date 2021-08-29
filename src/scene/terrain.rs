@@ -1,5 +1,6 @@
 //! Everything related to terrains.
 
+use crate::material::Material;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
@@ -22,11 +23,10 @@ use crate::{
         node::Node,
     },
 };
+use std::sync::Mutex;
 use std::{
     cell::Cell,
     cmp::Ordering,
-    collections::hash_map::DefaultHasher,
-    hash::{Hash, Hasher},
     ops::{Deref, DerefMut},
     sync::{Arc, RwLock},
 };
@@ -37,25 +37,8 @@ use std::{
 /// cases).
 #[derive(Default, Debug, Clone, Visit)]
 pub struct Layer {
-    /// Diffuse texture is a texture with main image.
-    pub diffuse_texture: Option<Texture>,
-    /// Normal texture provides per-pixel normals.
-    pub normal_texture: Option<Texture>,
-    /// Metallic texture provides per-pixel metalness factor.
-    pub metallic_texture: Option<Texture>,
-    /// Roughness texture provides per-pixel roughness factor.
-    pub roughness_texture: Option<Texture>,
-    /// Height texture provides per-pixel offset for parallax mapping.
-    pub height_texture: Option<Texture>,
-    /// Emission texture provides per-pixel lighting. It should be noted, that
-    /// such lighting won't affect surrounding pixels - in other words it won't
-    /// work as global illumination.
-    #[visit(optional)] // Backward compatibility.
-    pub emission_texture: Option<Texture>,
-    /// Emission strength defines how bright emission map is. The default is 2.0.
-    /// Any value lower than 1.0 will prevent glow effect.
-    #[visit(optional)] // Backward compatibility.
-    pub emission_strength: Vector3<f32>,
+    /// Current material of the layer.
+    pub material: Arc<Mutex<Material>>,
     /// Mask texture allows you to exclude some pixel of the layer from rendering.
     pub mask: Option<Texture>,
     /// Tile factor defines how many time textures (except mask) will be repeated.
@@ -64,25 +47,7 @@ pub struct Layer {
 
 impl Layer {
     pub(in crate) fn batch_id(&self, data_key: u64) -> u64 {
-        let mut hasher = DefaultHasher::new();
-
-        data_key.hash(&mut hasher);
-
-        for texture in [
-            self.diffuse_texture.as_ref(),
-            self.normal_texture.as_ref(),
-            self.metallic_texture.as_ref(),
-            self.roughness_texture.as_ref(),
-            self.height_texture.as_ref(),
-            self.emission_texture.as_ref(),
-        ]
-        .iter()
-        .filter_map(|t| *t)
-        {
-            texture.key().hash(&mut hasher);
-        }
-
-        hasher.finish()
+        &*self.material as *const _ as u64 ^ data_key
     }
 }
 
@@ -628,13 +593,7 @@ impl Terrain {
         let mask_height = (chunk_length * self.mask_resolution) as u32;
 
         Layer {
-            diffuse_texture: None,
-            normal_texture: None,
-            metallic_texture: None,
-            roughness_texture: None,
-            height_texture: None,
-            emission_texture: None,
-            emission_strength: Vector3::new(2.0, 2.0, 2.0),
+            material: Arc::new(Mutex::new(Material::standard())),
             mask: Some(create_layer_mask(mask_width, mask_height, value)),
             tile_factor,
         }
@@ -705,23 +664,8 @@ pub struct Brush {
 /// Layer definition for a terrain builder. It defines set of textures that will be
 /// used across every layer of every chunk of a terrain.
 pub struct LayerDefinition {
-    /// Diffuse texture is a texture with main image.
-    pub diffuse_texture: Option<Texture>,
-    /// Normal texture provides per-pixel normals.
-    pub normal_texture: Option<Texture>,
-    /// Metallic texture provides per-pixel metalness factor.
-    pub metallic_texture: Option<Texture>,
-    /// Roughness texture provides per-pixel roughness factor.
-    pub roughness_texture: Option<Texture>,
-    /// Height texture provides per-pixel offset for parallax mapping.
-    pub height_texture: Option<Texture>,
-    /// Emission texture provides per-pixel lighting. It should be noted, that
-    /// such lighting won't affect surrounding pixels - in other words it won't
-    /// work as global illumination.
-    pub emission_texture: Option<Texture>,
-    /// Emission strength defines how bright emission map is. The default is 2.0.
-    /// Any value lower than 1.0 will prevent glow effect.
-    pub emission_strength: Vector3<f32>,
+    /// Material of the terrain layer.
+    pub material: Arc<Mutex<Material>>,
     /// Tile factor defines how many time textures will be repeated.
     pub tile_factor: Vector2<f32>,
 }
@@ -729,13 +673,7 @@ pub struct LayerDefinition {
 impl Default for LayerDefinition {
     fn default() -> Self {
         Self {
-            diffuse_texture: None,
-            normal_texture: None,
-            metallic_texture: None,
-            roughness_texture: None,
-            height_texture: None,
-            emission_texture: None,
-            emission_strength: Vector3::new(2.0, 2.0, 2.0),
+            material: Arc::new(Mutex::new(Material::standard())),
             tile_factor: Vector2::new(1.0, 1.0),
         }
     }
@@ -881,13 +819,7 @@ impl TerrainBuilder {
                         .enumerate()
                         .map(|(layer_index, definition)| {
                             Layer {
-                                diffuse_texture: definition.diffuse_texture.clone(),
-                                normal_texture: definition.normal_texture.clone(),
-                                metallic_texture: definition.metallic_texture.clone(),
-                                roughness_texture: definition.roughness_texture.clone(),
-                                height_texture: definition.height_texture.clone(),
-                                emission_texture: definition.emission_texture.clone(),
-                                emission_strength: definition.emission_strength,
+                                material: definition.material.clone(),
                                 // Base layer is opaque, every other by default - transparent.
                                 mask: Some(create_layer_mask(
                                     chunk_mask_width,

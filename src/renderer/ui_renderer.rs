@@ -237,7 +237,7 @@ impl UiRenderer {
                         depth_test: false,
                         blend: false,
                     },
-                    |program_binding| {
+                    |mut program_binding| {
                         program_binding.set_matrix4(&self.shader.wvp_matrix, &ortho);
                     },
                 );
@@ -325,7 +325,7 @@ impl UiRenderer {
                 params,
                 cmd.triangles.start,
                 cmd.triangles.end - cmd.triangles.start,
-                |program_binding| {
+                |mut program_binding| {
                     program_binding
                         .set_texture(&shader.diffuse_texture, &diffuse_texture)
                         .set_matrix4(&shader.wvp_matrix, &ortho)

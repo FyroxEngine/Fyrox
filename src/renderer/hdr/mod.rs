@@ -162,7 +162,7 @@ impl HighDynamicRangeRenderer {
                 depth_test: false,
                 blend: false,
             },
-            |program_binding| {
+            |mut program_binding| {
                 program_binding
                     .set_matrix4(&shader.wvp_matrix, &frame_matrix)
                     .set_vector2(&shader.inv_size, &Vector2::new(inv_size, inv_size))
@@ -196,7 +196,7 @@ impl HighDynamicRangeRenderer {
                     depth_test: false,
                     blend: false,
                 },
-                |program_binding| {
+                |mut program_binding| {
                     program_binding
                         .set_matrix4(&shader.wvp_matrix, &matrix)
                         .set_vector2(&shader.inv_size, &Vector2::new(inv_size, inv_size))
@@ -235,7 +235,7 @@ impl HighDynamicRangeRenderer {
                 depth_test: false,
                 blend: false,
             },
-            |program_binding| {
+            |mut program_binding| {
                 program_binding
                     .set_matrix4(&shader.wvp_matrix, &matrix)
                     .set_texture(&shader.old_lum_sampler, &prev_lum)
@@ -281,7 +281,7 @@ impl HighDynamicRangeRenderer {
                 depth_test: false,
                 blend: false,
             },
-            |program_binding| {
+            |mut program_binding| {
                 let program_binding = program_binding
                     .set_matrix4(&shader.wvp_matrix, &frame_matrix)
                     .set_texture(&shader.lum_sampler, &avg_lum)

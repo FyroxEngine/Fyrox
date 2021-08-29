@@ -140,7 +140,7 @@ impl SpriteRenderer {
                     depth_test: true,
                     blend: true,
                 },
-                |program_binding| {
+                |mut program_binding| {
                     program_binding
                         .set_texture(&self.shader.diffuse_texture, &diffuse_texture)
                         .set_matrix4(&self.shader.view_projection_matrix, &view_projection)

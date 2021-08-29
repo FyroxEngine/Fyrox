@@ -27,7 +27,7 @@ rg3d-resource = { path = "rg3d-resource", version = "0.1.1" }
 image = { version = "0.23", default-features = false, features = ["gif", "jpeg", "png", "tga", "tiff", "bmp"] }
 lexical = "5.2.2"
 inflate = "0.4.5"
-serde = { version = "^1.0.0", features = ["derive"], optional = true }
+serde = { version = "^1.0.0", features = ["derive"] }
 lazy_static = "1.4.0"
 ddsfile = "0.4.0"
 rapier3d = { version = "0.11" }
@@ -38,13 +38,13 @@ bitflags = "1.3.2"
 glow = "0.11"
 walkdir = "2.3.2"
 thiserror = "1.0.26"
+ron = "0.6.4"
 
 [dev-dependencies]
 imageproc = "0.22.0"
 
 [features]
 enable_profiler = ["rg3d-core/enable_profiler"]
-serde_integration = ["glutin/serde", "serde"]
 enhanced-determinism = ["rapier3d/enhanced-determinism", "rapier2d/enhanced-determinism"]
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

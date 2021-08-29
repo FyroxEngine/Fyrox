@@ -10,19 +10,18 @@ mod document;
 pub mod error;
 mod scene;
 
-use crate::core::io;
-use crate::engine::resource_manager::MaterialSearchOptions;
-use crate::scene::mesh::buffer::{VertexAttributeUsage, VertexWriteTrait};
-use crate::scene::mesh::vertex::{AnimatedVertex, StaticVertex};
+use crate::material::shader::SamplerFallback;
 use crate::{
     animation::{Animation, AnimationContainer, KeyFrame, Track},
-    core::instant::Instant,
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3, Vector4},
+        instant::Instant,
+        io,
         math::{self, triangulator::triangulate, RotationOrder},
         pool::Handle,
     },
-    engine::resource_manager::ResourceManager,
+    engine::resource_manager::{MaterialSearchOptions, ResourceManager},
+    material::PropertyValue,
     resource::fbx::{
         document::FbxDocument,
         error::FbxError,
@@ -35,7 +34,9 @@ use crate::{
         base::BaseBuilder,
         graph::Graph,
         mesh::{
+            buffer::{VertexAttributeUsage, VertexWriteTrait},
             surface::{Surface, SurfaceData, VertexWeightSet},
+            vertex::{AnimatedVertex, StaticVertex},
             MeshBuilder,
         },
         node::Node,
@@ -308,26 +309,45 @@ async fn create_surfaces(
 
                     // Make up your mind, Autodesk.
                     // Handle all possible combinations of links to auto-import materials.
-                    if name.contains("AmbientColor") || name.contains("ambient_color") {
-                        // TODO: Add ambient occlusion (AO) map support.
+                    let name_usage = if name.contains("AmbientColor")
+                        || name.contains("ambient_color")
+                    {
+                        Some(("aoTexture", SamplerFallback::White))
                     } else if name.contains("DiffuseColor") || name.contains("diffuse_color") {
-                        surface.set_diffuse_texture(Some(texture))
+                        Some(("diffuseTexture", SamplerFallback::White))
                     } else if name.contains("MetalnessMap") || name.contains("metalness_map") {
-                        surface.set_metallic_texture(Some(texture))
+                        Some(("metallicTexture", SamplerFallback::Black))
                     } else if name.contains("RoughnessMap") || name.contains("roughness_map") {
-                        surface.set_roughness_texture(Some(texture))
+                        Some(("roughnessTexture", SamplerFallback::White))
                     } else if name.contains("Bump")
                         || name.contains("bump_map")
                         || name.contains("NormalMap")
                         || name.contains("normal_map")
                     {
-                        surface.set_normal_texture(Some(texture))
+                        Some(("normalTexture", SamplerFallback::Normal))
                     } else if name.contains("DisplacementColor")
                         || name.contains("displacement_map")
                     {
-                        surface.set_height_texture(Some(texture))
+                        Some(("heightTexture", SamplerFallback::Black))
                     } else if name.contains("EmissiveColor") || name.contains("emit_color_map") {
-                        surface.set_emission_texture(Some(texture))
+                        Some(("emissionTexture", SamplerFallback::Black))
+                    } else {
+                        None
+                    };
+
+                    if let Some((property_name, usage)) = name_usage {
+                        surface
+                            .material()
+                            .lock()
+                            .unwrap()
+                            .set_property(
+                                property_name,
+                                PropertyValue::Sampler {
+                                    value: Some(texture),
+                                    fallback: usage,
+                                },
+                            )
+                            .unwrap();
                     }
                 }
             }
