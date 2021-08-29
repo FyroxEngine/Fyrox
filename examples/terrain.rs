@@ -126,12 +126,10 @@ impl SceneLoader {
                 LayerDefinition {
                     material: Arc::new(Mutex::new(create_grass_material(resource_manager.clone()))),
                     tile_factor: Vector2::new(10.0, 10.0),
-                    ..Default::default()
                 },
                 LayerDefinition {
                     material: Arc::new(Mutex::new(create_rock_material(resource_manager.clone()))),
                     tile_factor: Vector2::new(10.0, 10.0),
-                    ..Default::default()
                 },
             ])
             .build(&mut scene.graph);

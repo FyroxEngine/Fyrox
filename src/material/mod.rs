@@ -41,6 +41,12 @@ pub struct Material {
     properties: HashMap<String, PropertyValue>,
 }
 
+#[derive(Clone, Debug, thiserror::Error)]
+pub enum MaterialError {
+    #[error("Unable to find material property {}", property_name)]
+    NoSuchProperty { property_name: String },
+}
+
 impl Material {
     pub fn standard() -> Self {
         Self::from_shader(shader::STANDARD.clone(), None)
@@ -75,7 +81,7 @@ impl Material {
                             .clone()
                             .map(|rm| rm.request_texture(path, None))
                     }),
-                    fallback: usage.clone(),
+                    fallback: *usage,
                 },
             };
 
@@ -113,12 +119,14 @@ impl Material {
         &mut self,
         name: N,
         new_value: PropertyValue,
-    ) -> Result<(), ()> {
+    ) -> Result<(), MaterialError> {
         if let Some(value) = self.properties.get_mut(name.as_ref()) {
             *value = new_value;
             Ok(())
         } else {
-            Err(())
+            Err(MaterialError::NoSuchProperty {
+                property_name: name.as_ref().to_owned(),
+            })
         }
     }
 

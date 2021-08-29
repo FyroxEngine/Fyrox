@@ -1286,7 +1286,7 @@ impl Scene {
             for (&handle, entries) in lightmap.map.iter_mut() {
                 if let Node::Mesh(mesh) = &mut self.graph[handle] {
                     for (entry, surface) in entries.iter_mut().zip(mesh.surfaces_mut()) {
-                        if let Err(_) = surface.material().lock().unwrap().set_property(
+                        if let Err(e) = surface.material().lock().unwrap().set_property(
                             "lightmapTexture",
                             PropertyValue::Sampler {
                                 value: entry.texture.clone(),
@@ -1295,7 +1295,10 @@ impl Scene {
                         ) {
                             Log::writeln(
                                 MessageKind::Error,
-                                format!("lightmapTexture material property is missing!"),
+                                format!(
+                                    "Failed to apply light map texture to material. Reason {:?}",
+                                    e
+                                ),
                             )
                         }
                     }
@@ -1319,7 +1322,7 @@ impl Scene {
                     // This unwrap() call must never panic in normal conditions, because texture wrapped in Option
                     // only to implement Default trait to be serializable.
                     let texture = entry.texture.clone().unwrap();
-                    if let Err(_) = surface.material().lock().unwrap().set_property(
+                    if let Err(e) = surface.material().lock().unwrap().set_property(
                         "lightmapTexture",
                         PropertyValue::Sampler {
                             value: Some(texture),
@@ -1328,7 +1331,10 @@ impl Scene {
                     ) {
                         Log::writeln(
                             MessageKind::Error,
-                            format!("lightmapTexture material property is missing!"),
+                            format!(
+                                "Failed to apply light map texture to material. Reason {:?}",
+                                e
+                            ),
                         )
                     }
                 }
