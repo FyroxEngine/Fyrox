@@ -30,6 +30,7 @@ use crate::{
 };
 use ddsfile::{Caps2, D3DFormat};
 use image::{ColorType, DynamicImage, GenericImageView, ImageError, ImageFormat};
+use std::fmt::{Debug, Formatter};
 use std::{
     borrow::Cow,
     collections::hash_map::DefaultHasher,
@@ -143,12 +144,47 @@ impl Visit for TextureKind {
     }
 }
 
+#[derive(Default, Clone)]
+struct TextureBytes(Vec<u8>);
+
+impl Visit for TextureBytes {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        self.0.visit(name, visitor)
+    }
+}
+
+impl Debug for TextureBytes {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Texture has {} bytes", self.0.len())
+    }
+}
+
+impl From<Vec<u8>> for TextureBytes {
+    fn from(bytes: Vec<u8>) -> Self {
+        Self(bytes)
+    }
+}
+
+impl Deref for TextureBytes {
+    type Target = Vec<u8>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for TextureBytes {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 /// Actual texture data.
 #[derive(Debug)]
 pub struct TextureData {
     path: PathBuf,
     kind: TextureKind,
-    bytes: Vec<u8>,
+    bytes: TextureBytes,
     pixel_kind: TexturePixelKind,
     minification_filter: TextureMinificationFilter,
     magnification_filter: TextureMagnificationFilter,
@@ -214,7 +250,7 @@ impl Default for TextureData {
                 width: 0,
                 height: 0,
             },
-            bytes: Vec::new(),
+            bytes: Default::default(),
             pixel_kind: TexturePixelKind::RGBA8,
             minification_filter: TextureMinificationFilter::LinearMipMapLinear,
             magnification_filter: TextureMagnificationFilter::Linear,
@@ -246,7 +282,7 @@ impl Texture {
             path: Default::default(),
             // Render target will automatically set width and height before rendering.
             kind: TextureKind::Rectangle { width, height },
-            bytes: Vec::new(),
+            bytes: Default::default(),
             pixel_kind: TexturePixelKind::RGBA8,
             minification_filter: TextureMinificationFilter::Linear,
             magnification_filter: TextureMagnificationFilter::Linear,
@@ -719,7 +755,7 @@ impl TextureData {
                 s_wrap_mode: TextureWrapMode::Repeat,
                 t_wrap_mode: TextureWrapMode::Repeat,
                 mip_count,
-                bytes,
+                bytes: bytes.into(),
                 kind: if dds.header.caps2 & Caps2::CUBEMAP == Caps2::CUBEMAP {
                     TextureKind::Cube {
                         width: dds.header.width,
@@ -769,7 +805,7 @@ impl TextureData {
                 pixel_kind: kind,
                 kind: TextureKind::Rectangle { width, height },
                 data_hash: data_hash(&bytes),
-                bytes,
+                bytes: bytes.into(),
                 ..Default::default()
             }
         };
@@ -781,29 +817,31 @@ impl TextureData {
 
             match (texture.pixel_kind, compression) {
                 (TexturePixelKind::RGB8, CompressionOptions::Speed) => {
-                    texture.bytes = compress_bc1::<tbc::color::Rgb8>(&texture.bytes, w, h);
+                    texture.bytes = compress_bc1::<tbc::color::Rgb8>(&texture.bytes, w, h).into();
                     texture.pixel_kind = TexturePixelKind::DXT1RGB;
                 }
                 (TexturePixelKind::RGB8, CompressionOptions::Quality) => {
-                    texture.bytes = compress_bc3::<tbc::color::Rgb8>(&texture.bytes, w, h);
+                    texture.bytes = compress_bc3::<tbc::color::Rgb8>(&texture.bytes, w, h).into();
                     texture.pixel_kind = TexturePixelKind::DXT5RGBA;
                 }
                 (TexturePixelKind::RGBA8, CompressionOptions::Speed) => {
-                    texture.bytes = compress_bc1::<tbc::color::Rgba8>(&texture.bytes, w, h);
+                    texture.bytes = compress_bc1::<tbc::color::Rgba8>(&texture.bytes, w, h).into();
                     texture.pixel_kind = TexturePixelKind::DXT1RGBA;
                 }
                 (TexturePixelKind::RGBA8, CompressionOptions::Quality) => {
-                    texture.bytes = compress_bc3::<tbc::color::Rgba8>(&texture.bytes, w, h);
+                    texture.bytes = compress_bc3::<tbc::color::Rgba8>(&texture.bytes, w, h).into();
                     texture.pixel_kind = TexturePixelKind::DXT5RGBA;
                 }
                 (TexturePixelKind::R8, CompressionOptions::Speed)
                 | (TexturePixelKind::R8, CompressionOptions::Quality) => {
-                    texture.bytes = compress_r8_bc4::<tbc::color::Red8>(&texture.bytes, w, h);
+                    texture.bytes =
+                        compress_r8_bc4::<tbc::color::Red8>(&texture.bytes, w, h).into();
                     texture.pixel_kind = TexturePixelKind::R8RGTC;
                 }
                 (TexturePixelKind::RG8, CompressionOptions::Speed)
                 | (TexturePixelKind::RG8, CompressionOptions::Quality) => {
-                    texture.bytes = compress_rg8_bc4::<tbc::color::RedGreen8>(&texture.bytes, w, h);
+                    texture.bytes =
+                        compress_rg8_bc4::<tbc::color::RedGreen8>(&texture.bytes, w, h).into();
                     texture.pixel_kind = TexturePixelKind::RG8RGTC;
                 }
                 _ => (),
@@ -896,7 +934,7 @@ impl TextureData {
                 path: Default::default(),
                 kind,
                 data_hash: data_hash(&bytes),
-                bytes,
+                bytes: bytes.into(),
                 pixel_kind,
                 serialize_content,
                 ..Default::default()

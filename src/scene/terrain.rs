@@ -23,6 +23,8 @@ use crate::{
         node::Node,
     },
 };
+use std::collections::hash_map::DefaultHasher;
+use std::hash::Hasher;
 use std::sync::Mutex;
 use std::{
     cell::Cell,
@@ -45,7 +47,12 @@ pub struct Layer {
 
 impl Layer {
     pub(in crate) fn batch_id(&self, data_key: u64) -> u64 {
-        &*self.material as *const _ as u64 ^ data_key
+        let mut hasher = DefaultHasher::new();
+
+        hasher.write_u64(&*self.material as *const _ as u64);
+        hasher.write_u64(data_key);
+
+        hasher.finish()
     }
 }
 

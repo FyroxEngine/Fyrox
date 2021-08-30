@@ -16,11 +16,26 @@ use std::{
 
 pub const STANDARD_SHADER: &str = include_str!("standard.ron");
 
-#[derive(Default, Debug, Visit)]
+#[derive(Default, Debug)]
 pub struct ShaderState {
     path: PathBuf,
-    #[visit(skip)]
     pub definition: ShaderDefinition,
+}
+
+impl Visit for ShaderState {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.path.visit("Path", visitor)?;
+
+        if visitor.is_reading() {
+            if self.path == PathBuf::default() {
+                self.definition = ShaderDefinition::from_str(STANDARD_SHADER).unwrap();
+            }
+        }
+
+        visitor.leave_region()
+    }
 }
 
 #[derive(Deserialize, Debug, PartialEq, Clone, Copy, Visit)]
