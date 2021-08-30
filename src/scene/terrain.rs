@@ -584,15 +584,21 @@ impl Terrain {
     }
 
     /// Creates new layer with given parameters, but does **not** add it to any chunk.
-    pub fn create_layer(&self, value: u8) -> Layer {
+    pub fn create_layer<G: FnMut(Texture) -> Material>(
+        &self,
+        value: u8,
+        mut material_generator: G,
+    ) -> Layer {
         let chunk_length = self.length / self.length_chunks as f32;
         let chunk_width = self.width / self.width_chunks as f32;
         let mask_width = (chunk_width * self.mask_resolution) as u32;
         let mask_height = (chunk_length * self.mask_resolution) as u32;
 
+        let mask = create_layer_mask(mask_width, mask_height, value);
+
         Layer {
-            material: Arc::new(Mutex::new(Material::standard())),
-            mask: Some(create_layer_mask(mask_width, mask_height, value)),
+            material: Arc::new(Mutex::new(material_generator(mask.clone()))),
+            mask: Some(mask),
         }
     }
 }
