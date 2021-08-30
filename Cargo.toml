@@ -13,7 +13,7 @@ repository = "https://github.com/rg3dengine/rusty-editor"
 readme = "README.md"
 
 [dependencies]
-rg3d = { path = "../rg3d", features = ["serde_integration"] }
+rg3d = { path = "../rg3d" }
 lazy_static = "1.4.0"
 ron = "0.6.4"
 serde = "^1.0.0"

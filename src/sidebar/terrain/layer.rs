@@ -10,6 +10,7 @@ use crate::{
     Message,
 };
 use rg3d::gui::Thickness;
+use rg3d::material::{Material, PropertyValue};
 use rg3d::{
     core::{pool::Handle, scope_profile},
     engine::resource_manager::ResourceManager,
@@ -117,11 +118,43 @@ impl LayerSection {
         );
 
         if let Some(layer) = layer {
-            send_image_sync_message(ui, self.diffuse_texture, layer.diffuse_texture.clone());
-            send_image_sync_message(ui, self.normal_texture, layer.normal_texture.clone());
-            send_image_sync_message(ui, self.metallic_texture, layer.metallic_texture.clone());
-            send_image_sync_message(ui, self.roughness_texture, layer.roughness_texture.clone());
-            send_image_sync_message(ui, self.height_texture, layer.height_texture.clone());
+            fn read_texture(material: &Material, name: &str) -> Option<Texture> {
+                material.property_ref(name).and_then(|t| {
+                    if let PropertyValue::Sampler { value, .. } = t {
+                        value.clone()
+                    } else {
+                        None
+                    }
+                })
+            }
+
+            let material = layer.material.lock().unwrap();
+
+            send_image_sync_message(
+                ui,
+                self.diffuse_texture,
+                read_texture(&*material, "diffuseTexture"),
+            );
+            send_image_sync_message(
+                ui,
+                self.normal_texture,
+                read_texture(&*material, "normalTexture"),
+            );
+            send_image_sync_message(
+                ui,
+                self.metallic_texture,
+                read_texture(&*material, "metallicTexture"),
+            );
+            send_image_sync_message(
+                ui,
+                self.roughness_texture,
+                read_texture(&*material, "roughnessTexture"),
+            );
+            send_image_sync_message(
+                ui,
+                self.height_texture,
+                read_texture(&*material, "heightTexture"),
+            );
         }
     }
 

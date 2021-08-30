@@ -1,6 +1,7 @@
 use crate::settings::Settings;
 use crate::{
     interaction::InteractionModeTrait,
+    make_color_material,
     scene::{
         commands::{
             terrain::{ModifyTerrainHeightCommand, ModifyTerrainLayerMaskCommand},
@@ -78,7 +79,7 @@ impl BrushGizmo {
         .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
             SurfaceData::make_quad(&Matrix4::identity()),
         )))
-        .with_color(Color::from_rgba(0, 255, 0, 130))
+        .with_material(make_color_material(Color::from_rgba(0, 255, 0, 130)))
         .build()])
         .build(graph);
 

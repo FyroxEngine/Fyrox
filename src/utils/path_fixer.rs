@@ -6,6 +6,7 @@ use crate::{
     make_scene_file_filter, Message,
 };
 use rg3d::core::replace_slashes;
+use rg3d::material::PropertyValue;
 use rg3d::{
     asset::ResourceData,
     core::{
@@ -346,15 +347,23 @@ impl PathFixer {
                                         }
                                         Node::Mesh(mesh) => {
                                             for surface in mesh.surfaces() {
-                                                for texture in [
-                                                    surface.diffuse_texture(),
-                                                    surface.normal_texture(),
-                                                    surface.roughness_texture(),
-                                                    surface.height_texture(),
-                                                    surface.metallic_texture(),
-                                                ]
-                                                .iter()
-                                                .flatten()
+                                                for texture in surface
+                                                    .material()
+                                                    .lock()
+                                                    .unwrap()
+                                                    .properties()
+                                                    .values()
+                                                    .filter_map(|v| {
+                                                        if let PropertyValue::Sampler {
+                                                            value,
+                                                            ..
+                                                        } = v
+                                                        {
+                                                            value.clone()
+                                                        } else {
+                                                            None
+                                                        }
+                                                    })
                                                 {
                                                     scene_resources.insert(SceneResource::Texture(
                                                         texture.clone(),
@@ -389,15 +398,23 @@ impl PathFixer {
                                         Node::Terrain(terrain) => {
                                             if let Some(first) = terrain.chunks_ref().first() {
                                                 for layer in first.layers() {
-                                                    for texture in [
-                                                        layer.diffuse_texture.clone(),
-                                                        layer.metallic_texture.clone(),
-                                                        layer.roughness_texture.clone(),
-                                                        layer.height_texture.clone(),
-                                                        layer.normal_texture.clone(),
-                                                    ]
-                                                    .iter()
-                                                    .flatten()
+                                                    for texture in layer
+                                                        .material
+                                                        .lock()
+                                                        .unwrap()
+                                                        .properties()
+                                                        .values()
+                                                        .filter_map(|v| {
+                                                            if let PropertyValue::Sampler {
+                                                                value,
+                                                                ..
+                                                            } = v
+                                                            {
+                                                                value.clone()
+                                                            } else {
+                                                                None
+                                                            }
+                                                        })
                                                     {
                                                         scene_resources.insert(
                                                             SceneResource::Texture(texture.clone()),

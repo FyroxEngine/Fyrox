@@ -72,6 +72,8 @@ use crate::{
     utils::path_fixer::PathFixer,
     world_outliner::WorldOutliner,
 };
+use rg3d::material::{Material, PropertyValue};
+use rg3d::scene::mesh::Mesh;
 use rg3d::utils::log::MessageKind;
 use rg3d::{
     core::{
@@ -121,6 +123,7 @@ use rg3d::{
     },
     utils::{into_gui_texture, translate_cursor_icon, translate_event},
 };
+use std::sync::Arc;
 use std::{
     fs,
     io::Write,
@@ -185,6 +188,25 @@ pub fn load_image(data: &[u8]) -> Option<draw::SharedTexture> {
     Some(into_gui_texture(
         Texture::load_from_memory(data, CompressionOptions::NoCompression).ok()?,
     ))
+}
+
+pub fn make_color_material(color: Color) -> Arc<Mutex<Material>> {
+    let mut material = Material::standard();
+    material
+        .set_property("diffuseColor", PropertyValue::Color(color))
+        .unwrap();
+    Arc::new(Mutex::new(material))
+}
+
+pub fn set_mesh_diffuse_color(mesh: &mut Mesh, color: Color) {
+    for surface in mesh.surfaces() {
+        surface
+            .material()
+            .lock()
+            .unwrap()
+            .set_property("diffuseColor", PropertyValue::Color(color))
+            .unwrap();
+    }
 }
 
 pub struct ScenePreview {

@@ -1,4 +1,6 @@
 use crate::{command::Command, define_node_command, get_set_swap, scene::commands::SceneContext};
+use rg3d::material::shader::SamplerFallback;
+use rg3d::material::PropertyValue;
 use rg3d::{
     core::pool::Handle,
     resource::texture::Texture,
@@ -43,10 +45,33 @@ impl<'a> Command<'a> for SetMeshTextureCommand {
             let old_set = mesh
                 .surfaces_mut()
                 .iter()
-                .map(|s| s.diffuse_texture())
+                .map(|s| {
+                    s.material()
+                        .lock()
+                        .unwrap()
+                        .property_ref("diffuseTexture")
+                        .and_then(|p| {
+                            if let PropertyValue::Sampler { value, .. } = p {
+                                value.clone()
+                            } else {
+                                None
+                            }
+                        })
+                })
                 .collect();
             for surface in mesh.surfaces_mut() {
-                surface.set_diffuse_texture(Some(texture.clone()));
+                surface
+                    .material()
+                    .lock()
+                    .unwrap()
+                    .set_property(
+                        "diffuseTexture",
+                        PropertyValue::Sampler {
+                            value: Some(texture.clone()),
+                            fallback: SamplerFallback::White,
+                        },
+                    )
+                    .unwrap();
             }
             self.set = TextureSet::Multiple(old_set);
         } else {
@@ -57,10 +82,33 @@ impl<'a> Command<'a> for SetMeshTextureCommand {
     fn revert(&mut self, context: &mut Self::Context) {
         if let TextureSet::Multiple(set) = &self.set {
             let mesh: &mut Mesh = context.scene.graph[self.node].as_mesh_mut();
-            let new_value = mesh.surfaces_mut()[0].diffuse_texture().unwrap();
+            let new_value = mesh.surfaces_mut()[0]
+                .material()
+                .lock()
+                .unwrap()
+                .property_ref("diffuseTexture")
+                .and_then(|p| {
+                    if let PropertyValue::Sampler { value, .. } = p {
+                        value.clone()
+                    } else {
+                        None
+                    }
+                })
+                .unwrap();
             assert_eq!(mesh.surfaces_mut().len(), set.len());
             for (surface, old_texture) in mesh.surfaces_mut().iter_mut().zip(set) {
-                surface.set_diffuse_texture(old_texture.clone());
+                surface
+                    .material()
+                    .lock()
+                    .unwrap()
+                    .set_property(
+                        "diffuseTexture",
+                        PropertyValue::Sampler {
+                            value: old_texture.clone(),
+                            fallback: SamplerFallback::White,
+                        },
+                    )
+                    .unwrap();
             }
             self.set = TextureSet::Single(new_value);
         } else {

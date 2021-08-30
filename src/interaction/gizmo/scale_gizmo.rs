@@ -1,6 +1,7 @@
 use crate::{
+    make_color_material,
     scene::{EditorScene, GraphSelection},
-    GameEngine,
+    set_mesh_diffuse_color, GameEngine,
 };
 use rg3d::{
     core::{
@@ -68,7 +69,7 @@ fn make_scale_axis(
                         0.1, 0.1, 0.1,
                     ))),
                 )))
-                .with_color(color)
+                .with_material(make_color_material(color))
                 .build()])
                 .build(graph);
                 arrow
@@ -86,7 +87,7 @@ fn make_scale_axis(
     .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
         SurfaceData::make_cylinder(10, 0.015, 1.0, true, &Matrix4::identity()),
     )))
-    .with_color(color)
+    .with_material(make_color_material(color))
     .build()])
     .build(graph);
 
@@ -111,7 +112,7 @@ impl ScaleGizmo {
                 0.1, 0.1, 0.1,
             ))),
         )))
-        .with_color(Color::opaque(0, 255, 255))
+        .with_material(make_color_material(Color::opaque(0, 255, 255)))
         .build()])
         .build(graph);
 
@@ -155,33 +156,31 @@ impl ScaleGizmo {
         self.mode = mode;
 
         // Restore initial colors first.
-        graph[self.origin]
-            .as_mesh_mut()
-            .set_color(Color::opaque(0, 255, 255));
-        graph[self.x_axis].as_mesh_mut().set_color(Color::RED);
-        graph[self.x_arrow].as_mesh_mut().set_color(Color::RED);
-        graph[self.y_axis].as_mesh_mut().set_color(Color::GREEN);
-        graph[self.y_arrow].as_mesh_mut().set_color(Color::GREEN);
-        graph[self.z_axis].as_mesh_mut().set_color(Color::BLUE);
-        graph[self.z_arrow].as_mesh_mut().set_color(Color::BLUE);
+        set_mesh_diffuse_color(graph[self.origin].as_mesh_mut(), Color::opaque(0, 255, 255));
+        set_mesh_diffuse_color(graph[self.x_axis].as_mesh_mut(), Color::RED);
+        set_mesh_diffuse_color(graph[self.x_arrow].as_mesh_mut(), Color::RED);
+        set_mesh_diffuse_color(graph[self.y_axis].as_mesh_mut(), Color::GREEN);
+        set_mesh_diffuse_color(graph[self.y_arrow].as_mesh_mut(), Color::GREEN);
+        set_mesh_diffuse_color(graph[self.z_axis].as_mesh_mut(), Color::BLUE);
+        set_mesh_diffuse_color(graph[self.z_arrow].as_mesh_mut(), Color::BLUE);
 
         let yellow = Color::opaque(255, 255, 0);
         match self.mode {
             ScaleGizmoMode::None => (),
             ScaleGizmoMode::X => {
-                graph[self.x_axis].as_mesh_mut().set_color(yellow);
-                graph[self.x_arrow].as_mesh_mut().set_color(yellow);
+                set_mesh_diffuse_color(graph[self.x_axis].as_mesh_mut(), yellow);
+                set_mesh_diffuse_color(graph[self.x_arrow].as_mesh_mut(), yellow);
             }
             ScaleGizmoMode::Y => {
-                graph[self.y_axis].as_mesh_mut().set_color(yellow);
-                graph[self.y_arrow].as_mesh_mut().set_color(yellow);
+                set_mesh_diffuse_color(graph[self.y_axis].as_mesh_mut(), yellow);
+                set_mesh_diffuse_color(graph[self.y_arrow].as_mesh_mut(), yellow);
             }
             ScaleGizmoMode::Z => {
-                graph[self.z_axis].as_mesh_mut().set_color(yellow);
-                graph[self.z_arrow].as_mesh_mut().set_color(yellow);
+                set_mesh_diffuse_color(graph[self.z_axis].as_mesh_mut(), yellow);
+                set_mesh_diffuse_color(graph[self.z_arrow].as_mesh_mut(), yellow);
             }
             ScaleGizmoMode::Uniform => {
-                graph[self.origin].as_mesh_mut().set_color(yellow);
+                set_mesh_diffuse_color(graph[self.origin].as_mesh_mut(), yellow);
             }
         }
     }

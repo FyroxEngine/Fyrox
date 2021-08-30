@@ -123,7 +123,7 @@ impl SceneRenderPass for OverlayRenderPass {
                     depth_test: true,
                     blend: true,
                 },
-                |program_binding| {
+                |mut program_binding| {
                     program_binding
                         .set_matrix4(&shader.view_projection_matrix, &view_projection)
                         .set_matrix4(&shader.world_matrix, &world_matrix)

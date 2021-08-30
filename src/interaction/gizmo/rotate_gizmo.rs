@@ -1,6 +1,7 @@
 use crate::{
+    make_color_material,
     scene::{EditorScene, GraphSelection},
-    GameEngine,
+    set_mesh_diffuse_color, GameEngine,
 };
 use rg3d::{
     core::{
@@ -63,7 +64,7 @@ fn make_rotation_ribbon(
             &Matrix4::new_translation(&Vector3::new(0.0, -0.05, 0.0)),
         ),
     )))
-    .with_color(color)
+    .with_material(make_color_material(color))
     .build()])
     .build(graph)
 }
@@ -84,7 +85,7 @@ impl RotationGizmo {
         .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
             SurfaceData::make_sphere(10, 10, 0.1, &Matrix4::identity()),
         )))
-        .with_color(Color::opaque(100, 100, 100))
+        .with_material(make_color_material(Color::opaque(100, 100, 100)))
         .build()])
         .build(graph);
 
@@ -125,21 +126,21 @@ impl RotationGizmo {
         self.mode = mode;
 
         // Restore initial colors first.
-        graph[self.origin].as_mesh_mut().set_color(Color::WHITE);
-        graph[self.x_axis].as_mesh_mut().set_color(Color::RED);
-        graph[self.y_axis].as_mesh_mut().set_color(Color::GREEN);
-        graph[self.z_axis].as_mesh_mut().set_color(Color::BLUE);
+        set_mesh_diffuse_color(graph[self.origin].as_mesh_mut(), Color::WHITE);
+        set_mesh_diffuse_color(graph[self.x_axis].as_mesh_mut(), Color::RED);
+        set_mesh_diffuse_color(graph[self.y_axis].as_mesh_mut(), Color::GREEN);
+        set_mesh_diffuse_color(graph[self.z_axis].as_mesh_mut(), Color::BLUE);
 
         let yellow = Color::opaque(255, 255, 0);
         match self.mode {
             RotateGizmoMode::Pitch => {
-                graph[self.x_axis].as_mesh_mut().set_color(yellow);
+                set_mesh_diffuse_color(graph[self.x_axis].as_mesh_mut(), yellow);
             }
             RotateGizmoMode::Yaw => {
-                graph[self.y_axis].as_mesh_mut().set_color(yellow);
+                set_mesh_diffuse_color(graph[self.y_axis].as_mesh_mut(), yellow);
             }
             RotateGizmoMode::Roll => {
-                graph[self.z_axis].as_mesh_mut().set_color(yellow);
+                set_mesh_diffuse_color(graph[self.z_axis].as_mesh_mut(), yellow);
             }
         }
     }
