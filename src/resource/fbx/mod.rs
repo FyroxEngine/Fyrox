@@ -336,18 +336,15 @@ async fn create_surfaces(
                     };
 
                     if let Some((property_name, usage)) = name_usage {
-                        surface
-                            .material()
-                            .lock()
-                            .unwrap()
-                            .set_property(
-                                property_name,
-                                PropertyValue::Sampler {
-                                    value: Some(texture),
-                                    fallback: usage,
-                                },
-                            )
-                            .unwrap();
+                        if let Err(e) = surface.material().lock().unwrap().set_property(
+                            property_name,
+                            PropertyValue::Sampler {
+                                value: Some(texture),
+                                fallback: usage,
+                            },
+                        ) {
+                            Log::writeln(MessageKind::Error, format!("Unable to set material property {} for FBX material! Reason: {:?}", property_name, e));
+                        }
                     }
                 }
             }

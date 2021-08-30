@@ -300,13 +300,10 @@ impl GBuffer {
             let data = batch.data.read().unwrap();
             let geometry = geom_cache.get(state, &data);
 
-            if camera
-                .visibility_cache
-                .is_visible(batch.instances.first().unwrap().owner)
-            {
-                if let Some(shader_set) = shader_cache.get(state, material.shader()) {
-                    if let Some(program) = shader_set.map.get("GBuffer") {
-                        for instance in batch.instances.iter() {
+            if let Some(shader_set) = shader_cache.get(state, material.shader()) {
+                if let Some(program) = shader_set.map.get("GBuffer") {
+                    for instance in batch.instances.iter() {
+                        if camera.visibility_cache.is_visible(instance.owner) {
                             let apply_uniforms = |mut program_binding: GpuProgramBinding| {
                                 let view_projection = if instance.depth_offset != 0.0 {
                                     let mut projection = camera.projection_matrix();
