@@ -72,6 +72,7 @@ use crate::{
     utils::path_fixer::PathFixer,
     world_outliner::WorldOutliner,
 };
+use rg3d::material::shader::SamplerFallback;
 use rg3d::material::{Material, PropertyValue};
 use rg3d::scene::mesh::Mesh;
 use rg3d::utils::log::MessageKind;
@@ -207,6 +208,32 @@ pub fn set_mesh_diffuse_color(mesh: &mut Mesh, color: Color) {
             .set_property("diffuseColor", PropertyValue::Color(color))
             .unwrap();
     }
+}
+
+pub fn create_terrain_layer_material(layer_index: usize, mask: Texture) -> Material {
+    let mut material = Material::standard();
+    material
+        .set_property("isTerrain", PropertyValue::Bool(true))
+        .unwrap();
+    material
+        .set_property(
+            "maskTexture",
+            PropertyValue::Sampler {
+                value: Some(mask),
+                fallback: SamplerFallback::Black,
+            },
+        )
+        .unwrap();
+    material
+        .set_property("layerIndex", PropertyValue::UInt(layer_index as u32))
+        .unwrap();
+    material
+        .set_property(
+            "texCoordScale",
+            PropertyValue::Vector2(Vector2::new(10.0, 10.0)),
+        )
+        .unwrap();
+    material
 }
 
 pub struct ScenePreview {

@@ -1,6 +1,9 @@
-use crate::{command::Command, define_node_command, get_set_swap, scene::commands::SceneContext};
+use crate::{
+    command::Command, create_terrain_layer_material, define_node_command, get_set_swap,
+    scene::commands::SceneContext,
+};
 use rg3d::{
-    core::{algebra::Vector2, pool::Handle},
+    core::pool::Handle,
     material::{shader::SamplerFallback, PropertyValue},
     resource::texture::Texture,
     scene::{graph::Graph, node::Node, terrain::Layer},
@@ -21,7 +24,11 @@ impl AddTerrainLayerCommand {
             layers: terrain
                 .chunks_ref()
                 .iter()
-                .map(|_| terrain.create_layer(Vector2::new(10.0, 10.0), 0))
+                .map(|c| {
+                    terrain.create_layer(0, |mask| {
+                        create_terrain_layer_material(c.layers().len(), mask)
+                    })
+                })
                 .collect(),
         }
     }
