@@ -41,8 +41,6 @@ pub struct Layer {
     pub material: Arc<Mutex<Material>>,
     /// Mask texture allows you to exclude some pixel of the layer from rendering.
     pub mask: Option<Texture>,
-    /// Tile factor defines how many time textures (except mask) will be repeated.
-    pub tile_factor: Vector2<f32>,
 }
 
 impl Layer {
@@ -586,7 +584,7 @@ impl Terrain {
     }
 
     /// Creates new layer with given parameters, but does **not** add it to any chunk.
-    pub fn create_layer(&self, tile_factor: Vector2<f32>, value: u8) -> Layer {
+    pub fn create_layer(&self, value: u8) -> Layer {
         let chunk_length = self.length / self.length_chunks as f32;
         let chunk_width = self.width / self.width_chunks as f32;
         let mask_width = (chunk_width * self.mask_resolution) as u32;
@@ -595,7 +593,6 @@ impl Terrain {
         Layer {
             material: Arc::new(Mutex::new(Material::standard())),
             mask: Some(create_layer_mask(mask_width, mask_height, value)),
-            tile_factor,
         }
     }
 }
@@ -661,22 +658,10 @@ pub struct Brush {
     pub mode: BrushMode,
 }
 
-/// Layer definition for a terrain builder. It defines set of textures that will be
-/// used across every layer of every chunk of a terrain.
+/// Layer definition for a terrain builder.
 pub struct LayerDefinition {
-    /// Material of the terrain layer.
-    pub material: Arc<Mutex<Material>>,
-    /// Tile factor defines how many time textures will be repeated.
-    pub tile_factor: Vector2<f32>,
-}
-
-impl Default for LayerDefinition {
-    fn default() -> Self {
-        Self {
-            material: Arc::new(Mutex::new(Material::standard())),
-            tile_factor: Vector2::new(1.0, 1.0),
-        }
-    }
+    /// Material generator of the terrain layer.
+    pub material_generator: Box<dyn FnMut(usize, Texture) -> Material>,
 }
 
 /// Terrain builder allows you to quickly build a terrain with required features.
@@ -797,7 +782,7 @@ impl TerrainBuilder {
     }
 
     /// Build terrain node.
-    pub fn build_node(self) -> Node {
+    pub fn build_node(mut self) -> Node {
         let mut chunks = Vec::new();
         let chunk_length = self.length / self.length_chunks as f32;
         let chunk_width = self.width / self.width_chunks as f32;
@@ -815,18 +800,22 @@ impl TerrainBuilder {
                     heightmap: vec![0.0; (chunk_length_points * chunk_width_points) as usize],
                     layers: self
                         .layers
-                        .iter()
+                        .iter_mut()
                         .enumerate()
                         .map(|(layer_index, definition)| {
+                            let mask = create_layer_mask(
+                                chunk_mask_width,
+                                chunk_mask_height,
+                                if layer_index == 0 { 255 } else { 0 },
+                            );
+
                             Layer {
-                                material: definition.material.clone(),
+                                material: Arc::new(Mutex::new((definition.material_generator)(
+                                    layer_index,
+                                    mask.clone(),
+                                ))),
                                 // Base layer is opaque, every other by default - transparent.
-                                mask: Some(create_layer_mask(
-                                    chunk_mask_width,
-                                    chunk_mask_height,
-                                    if layer_index == 0 { 255 } else { 0 },
-                                )),
-                                tile_factor: definition.tile_factor,
+                                mask: Some(mask),
                             }
                         })
                         .collect(),

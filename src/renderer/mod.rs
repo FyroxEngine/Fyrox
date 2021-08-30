@@ -1266,12 +1266,7 @@ impl Renderer {
 
             let state = &mut self.state;
 
-            self.batch_storage.generate_batches(
-                state,
-                graph,
-                self.white_dummy.clone(),
-                &mut self.texture_cache,
-            );
+            self.batch_storage.generate_batches(graph);
 
             let scene_associated_data = self
                 .scene_data_map

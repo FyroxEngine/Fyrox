@@ -1,21 +1,17 @@
 #![allow(missing_docs)] // TODO
 
-use crate::asset::ResourceState;
-use crate::material::shader::{Shader, ShaderState};
-use crate::renderer::framework::gpu_program::GpuProgram;
 use crate::{
+    asset::ResourceState,
     core::scope_profile,
     engine::resource_manager::DEFAULT_RESOURCE_LIFETIME,
-    renderer::{
-        batch::InstanceData,
-        framework::{
-            geometry_buffer::{
-                AttributeDefinition, AttributeKind, BufferBuilder, ElementKind, GeometryBuffer,
-                GeometryBufferBuilder, GeometryBufferKind,
-            },
-            gpu_texture::{Coordinate, GpuTexture, PixelKind},
-            state::PipelineState,
+    material::shader::{Shader, ShaderState},
+    renderer::framework::{
+        geometry_buffer::{
+            BufferBuilder, ElementKind, GeometryBuffer, GeometryBufferBuilder, GeometryBufferKind,
         },
+        gpu_program::GpuProgram,
+        gpu_texture::{Coordinate, GpuTexture, PixelKind},
+        state::PipelineState,
     },
     resource::texture::{Texture, TextureState},
     scene::mesh::surface::SurfaceData,
@@ -66,48 +62,6 @@ impl GeometryCache {
                     &data.vertex_buffer,
                     GeometryBufferKind::StaticDraw,
                 ))
-                // Buffer for world and world-view-projection matrices per instance.
-                .with_buffer_builder(
-                    BufferBuilder::new::<InstanceData>(GeometryBufferKind::DynamicDraw, None)
-                        .with_attribute(AttributeDefinition {
-                            location: 7,
-                            kind: AttributeKind::UnsignedByte4,
-                            normalized: true,
-                            divisor: 1,
-                        })
-                        // World Matrix
-                        .with_attribute(AttributeDefinition {
-                            location: 8,
-                            kind: AttributeKind::Float4,
-                            normalized: false,
-                            divisor: 1,
-                        })
-                        .with_attribute(AttributeDefinition {
-                            location: 9,
-                            kind: AttributeKind::Float4,
-                            normalized: false,
-                            divisor: 1,
-                        })
-                        .with_attribute(AttributeDefinition {
-                            location: 10,
-                            kind: AttributeKind::Float4,
-                            normalized: false,
-                            divisor: 1,
-                        })
-                        .with_attribute(AttributeDefinition {
-                            location: 11,
-                            kind: AttributeKind::Float4,
-                            normalized: false,
-                            divisor: 1,
-                        })
-                        // Depth offset.
-                        .with_attribute(AttributeDefinition {
-                            location: 12,
-                            kind: AttributeKind::Float,
-                            normalized: false,
-                            divisor: 1,
-                        }),
-                )
                 .build(state)
                 .unwrap();
 

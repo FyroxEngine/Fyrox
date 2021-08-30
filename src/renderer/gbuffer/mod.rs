@@ -9,8 +9,6 @@
 //! Every alpha channel is used for layer blending for terrains. This is inefficient, but for
 //! now I don't know better solution.
 
-use crate::renderer::cache::ShaderCache;
-use crate::renderer::MaterialContext;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2},
@@ -20,7 +18,8 @@ use crate::{
     },
     renderer::{
         apply_material,
-        batch::{BatchStorage, InstanceData, MatrixStorage},
+        batch::BatchStorage,
+        cache::ShaderCache,
         framework::{
             error::FrameworkError,
             framebuffer::{Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer},
@@ -32,7 +31,7 @@ use crate::{
             state::PipelineState,
         },
         gbuffer::decal::DecalShader,
-        GeometryCache, RenderPassStatistics, TextureCache,
+        GeometryCache, MaterialContext, RenderPassStatistics, TextureCache,
     },
     scene::{
         camera::Camera, graph::Graph, mesh::surface::SurfaceData, mesh::RenderPath, node::Node,
@@ -47,8 +46,6 @@ pub struct GBuffer {
     decal_framebuffer: FrameBuffer,
     pub width: i32,
     pub height: i32,
-    matrix_storage: MatrixStorage,
-    instance_data_set: Vec<InstanceData>,
     cube: SurfaceData,
     decal_shader: DecalShader,
 }
@@ -60,6 +57,7 @@ pub(in crate) struct GBufferRenderContext<'a, 'b> {
     pub batch_storage: &'a BatchStorage,
     pub texture_cache: &'a mut TextureCache,
     pub shader_cache: &'a mut ShaderCache,
+    #[allow(dead_code)]
     pub environment_dummy: Rc<RefCell<GpuTexture>>,
     pub white_dummy: Rc<RefCell<GpuTexture>>,
     pub normal_dummy: Rc<RefCell<GpuTexture>>,
@@ -213,8 +211,6 @@ impl GBuffer {
             framebuffer,
             width: width as i32,
             height: height as i32,
-            matrix_storage: MatrixStorage::new(state)?,
-            instance_data_set: Default::default(),
             decal_shader: DecalShader::new(state)?,
             cube: SurfaceData::make_cube(Matrix4::identity()),
             decal_framebuffer,
