@@ -118,10 +118,10 @@ impl ShaderDefinition {
 }
 
 impl ShaderState {
-    pub async fn from_file(path: PathBuf) -> Result<Self, ShaderError> {
-        let content = io::load_file(&path).await?;
+    pub async fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, ShaderError> {
+        let content = io::load_file(path.as_ref()).await?;
         Ok(Self {
-            path,
+            path: path.as_ref().to_owned(),
             definition: ShaderDefinition::from_buf(content)?,
         })
     }
