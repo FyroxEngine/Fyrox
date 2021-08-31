@@ -1032,7 +1032,7 @@ where
 
 impl<T> Visit for Rc<T>
 where
-    T: Default + Visit + 'static,
+    T: Visit + 'static,
 {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
@@ -1053,12 +1053,12 @@ where
                 // Remember that we already visited data Rc store.
                 visitor.rc_map.insert(raw as u64, self.clone());
 
-                let raw = rc_to_raw(self.clone());
+                let raw = rc_to_raw(self);
                 unsafe { &mut *raw }.visit("RcData", visitor)?;
             }
         } else {
             // Take raw pointer to inner data.
-            let raw = rc_to_raw(self.clone());
+            let raw = rc_to_raw(self);
 
             // Save it as id.
             let mut index = raw as u64;
@@ -1078,7 +1078,7 @@ where
 
 impl<T> Visit for Mutex<T>
 where
-    T: Default + Visit + Send,
+    T: Visit + Send,
 {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         self.get_mut()?.visit(name, visitor)
@@ -1096,24 +1096,24 @@ where
 
 impl<T> Visit for RwLock<T>
 where
-    T: Default + Visit + Send,
+    T: Visit + Send,
 {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         self.write()?.visit(name, visitor)
     }
 }
 
-fn arc_to_raw<T>(arc: Arc<T>) -> *mut T {
-    &*arc as *const T as *mut T
+fn arc_to_raw<T>(arc: &Arc<T>) -> *mut T {
+    &**arc as *const T as *mut T
 }
 
-fn rc_to_raw<T>(rc: Rc<T>) -> *mut T {
-    &*rc as *const T as *mut T
+fn rc_to_raw<T>(rc: &Rc<T>) -> *mut T {
+    &**rc as *const T as *mut T
 }
 
 impl<T> Visit for Arc<T>
 where
-    T: Default + Visit + Send + Sync + 'static,
+    T: Visit + Send + Sync + 'static,
 {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
@@ -1134,12 +1134,12 @@ where
                 // Remember that we already visited data Rc store.
                 visitor.arc_map.insert(raw as u64, self.clone());
 
-                let raw = arc_to_raw(self.clone());
+                let raw = arc_to_raw(self);
                 unsafe { &mut *raw }.visit("ArcData", visitor)?;
             }
         } else {
             // Take raw pointer to inner data.
-            let raw = arc_to_raw(self.clone());
+            let raw = arc_to_raw(self);
 
             // Save it as id.
             let mut index = raw as u64;
@@ -1180,7 +1180,7 @@ where
                     let rc = Rc::new(T::default());
                     visitor.rc_map.insert(raw as u64, rc.clone());
 
-                    let raw = rc_to_raw(rc.clone());
+                    let raw = rc_to_raw(&rc);
                     unsafe { &mut *raw }.visit("RcData", visitor)?;
 
                     *self = Rc::downgrade(&rc);
@@ -1188,7 +1188,7 @@ where
             }
         } else if let Some(rc) = std::rc::Weak::upgrade(self) {
             // Take raw pointer to inner data.
-            let raw = rc_to_raw(rc.clone());
+            let raw = rc_to_raw(&rc);
 
             // Save it as id.
             let mut index = raw as u64;
@@ -1232,7 +1232,7 @@ where
                     let arc = Arc::new(T::default());
                     visitor.arc_map.insert(raw as u64, arc.clone());
 
-                    let raw = arc_to_raw(arc.clone());
+                    let raw = arc_to_raw(&arc);
                     unsafe { &mut *raw }.visit("ArcData", visitor)?;
 
                     *self = Arc::downgrade(&arc);
@@ -1240,7 +1240,7 @@ where
             }
         } else if let Some(arc) = std::sync::Weak::upgrade(self) {
             // Take raw pointer to inner data.
-            let raw = arc_to_raw(arc.clone());
+            let raw = arc_to_raw(&arc);
 
             // Save it as id.
             let mut index = raw as u64;
