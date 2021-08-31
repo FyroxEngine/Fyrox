@@ -1,21 +1,19 @@
-use crate::asset::{ResourceData, ResourceState};
-use crate::material::shader::SamplerFallback;
-use crate::resource::texture::{TextureData, TextureError};
 use crate::{
+    asset::ResourceState,
     core::{
         algebra::{Vector2, Vector3, Vector4},
         color::Color,
         visitor::prelude::*,
     },
     engine::resource_manager::ResourceManager,
-    material::shader::{PropertyKind, Shader},
+    material::shader::{PropertyKind, SamplerFallback, Shader},
     resource::texture::Texture,
 };
 use std::collections::HashMap;
 
 pub mod shader;
 
-#[derive(Debug, Visit)]
+#[derive(Debug, Visit, Clone)]
 pub enum PropertyValue {
     Float(f32),
     Int(i32),
@@ -23,8 +21,8 @@ pub enum PropertyValue {
     Vector2(Vector2<f32>),
     Vector3(Vector3<f32>),
     Vector4(Vector4<f32>),
-    Color(Color),
     Bool(bool),
+    Color(Color),
     Sampler {
         value: Option<Texture>,
         fallback: SamplerFallback,
@@ -47,6 +45,17 @@ pub struct Material {
 pub enum MaterialError {
     #[error("Unable to find material property {}", property_name)]
     NoSuchProperty { property_name: String },
+    #[error(
+        "Attempt to set a value of wrong type to {} property. Expected: {:?}, given {:?}",
+        property_name,
+        expected,
+        given
+    )]
+    TypeMismatch {
+        property_name: String,
+        expected: PropertyValue,
+        given: PropertyValue,
+    },
 }
 
 impl Material {
@@ -136,7 +145,50 @@ impl Material {
         new_value: PropertyValue,
     ) -> Result<(), MaterialError> {
         if let Some(value) = self.properties.get_mut(name.as_ref()) {
-            *value = new_value;
+            match (value, new_value) {
+                (
+                    PropertyValue::Sampler {
+                        value: old_value,
+                        fallback: old_fallback,
+                    },
+                    PropertyValue::Sampler { value, fallback },
+                ) => {
+                    *old_value = value;
+                    *old_fallback = fallback;
+                }
+                (PropertyValue::Float(old_value), PropertyValue::Float(value)) => {
+                    *old_value = value;
+                }
+                (PropertyValue::Int(old_value), PropertyValue::Int(value)) => {
+                    *old_value = value;
+                }
+                (PropertyValue::Bool(old_value), PropertyValue::Bool(value)) => {
+                    *old_value = value;
+                }
+                (PropertyValue::UInt(old_value), PropertyValue::UInt(value)) => {
+                    *old_value = value;
+                }
+                (PropertyValue::Vector2(old_value), PropertyValue::Vector2(value)) => {
+                    *old_value = value;
+                }
+                (PropertyValue::Vector3(old_value), PropertyValue::Vector3(value)) => {
+                    *old_value = value;
+                }
+                (PropertyValue::Vector4(old_value), PropertyValue::Vector4(value)) => {
+                    *old_value = value;
+                }
+                (PropertyValue::Color(old_value), PropertyValue::Color(value)) => {
+                    *old_value = value;
+                }
+                (value, new_value) => {
+                    return Err(MaterialError::TypeMismatch {
+                        property_name: name.as_ref().to_owned(),
+                        expected: value.clone(),
+                        given: new_value,
+                    })
+                }
+            }
+
             Ok(())
         } else {
             Err(MaterialError::NoSuchProperty {
