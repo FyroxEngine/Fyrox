@@ -1,3 +1,7 @@
+//! Material is a set of parameters for a shader. This module contains everything related to materials.
+//!
+//! See [Material struct docs](self::Material) for more info.
+
 use crate::{
     asset::ResourceState,
     core::{
@@ -13,16 +17,60 @@ use std::collections::HashMap;
 
 pub mod shader;
 
+/// A value of a property that will be used for rendering with a shader.
+///
+/// # Limitations
+///
+/// There is a limited set of possible types that can be passed to a shader, most of them are
+/// just simple data types.
 #[derive(Debug, Visit, Clone)]
 pub enum PropertyValue {
+    /// Real number.
     Float(f32),
+
+    /// Integer number.
     Int(i32),
+
+    /// Unsigned integer number.
     UInt(u32),
+
+    /// Two-dimensional vector.
     Vector2(Vector2<f32>),
+
+    /// Three-dimensional vector.
     Vector3(Vector3<f32>),
+
+    /// Four-dimensional vector.
     Vector4(Vector4<f32>),
+
+    /// Boolean value.
     Bool(bool),
+
+    /// An sRGB color.
+    ///
+    /// # Conversion
+    ///
+    /// The colors you see on your monitor are in sRGB color space, this is fine for simple cases
+    /// of rendering, but not for complex things like lighting. Such things require color to be
+    /// linear. Value of this variant will be automatically **converted to linear color space**
+    /// before it passed to shader.  
     Color(Color),
+
+    /// A texture with fallback option.
+    ///
+    /// # Fallback
+    ///
+    /// Sometimes you don't want to set a value to a sampler, or you even don't have the appropriate
+    /// one. There is fallback value that helps you with such situations, it defines a values that
+    /// will be fetched from a sampler when there is no texture.
+    ///
+    /// For example, standard shader has a lot of samplers defined: diffuse, normal, height, emission,
+    /// mask, metallic, roughness, etc. In some situations you may not have all the textures, you have
+    /// only diffuse texture, to keep rendering correct, each other property has appropriate fallback
+    /// value. Normal sampler - a normal vector pointing up (+Y), height - zero, emission - zero, etc.
+    ///
+    /// Fallback value is also helpful to catch missing textures, you'll definitely know the texture is
+    /// missing by very specific value in the fallback texture.
     Sampler {
         value: Option<Texture>,
         fallback: SamplerFallback,
@@ -35,6 +83,99 @@ impl Default for PropertyValue {
     }
 }
 
+/// Material defines a set of values for a shader. Materials usually contains textures (diffuse,
+/// normal, height, emission, etc. maps), numerical values (floats, integers), vectors, booleans,
+/// matrices and arrays of each type, except textures. Each parameter can be changed in runtime
+/// giving you the ability to create animated materials. However in practice, most materials are
+/// static, this means that once it created, it won't be changed anymore.
+///
+/// Please keep in mind that the actual "rules" of drawing an entity are stored in the shader,
+/// **material is only a storage** for specific uses of the shader.
+///
+/// Multiple materials can share the same shader, for example standard shader covers 95% of most
+/// common use cases and it is shared across multiple materials. The only difference are property
+/// values, for example you can draw multiple cubes using the same shader, but with different
+/// textures.
+///
+/// Material itself can be shared across multiple places as well as the shader. This gives you the
+/// ability to render multiple objects with the same material efficiently.
+///
+/// # Performance
+///
+/// It is very important re-use materials as much as possible, because the amount of materials used
+/// per frame significantly correlates with performance. The more unique materials you have per frame,
+/// the more work has to be done by the renderer and video driver to render a frame and the more time
+/// the frame will require for rendering, thus lowering your FPS.
+///
+/// # Examples
+///
+/// A material can only be created using a shader instance, every material must have a shader. The
+/// shader provides information about its properties, and this information is used to populate a set
+/// of properties with default values. Default values of each property defined in the shader.
+///
+/// ## Standard material
+///
+/// Usually standard shader is enough for most cases, `Material` even has a `.standard()` method to
+/// create a material with standard shader:
+///
+/// ```no_run
+/// use rg3d::{
+///     material::shader::{Shader, SamplerFallback},
+///     engine::resource_manager::ResourceManager,
+///     material::{Material, PropertyValue}
+/// };
+///
+/// fn create_brick_material(resource_manager: ResourceManager) -> Material {
+///     let mut material = Material::standard();
+///
+///     material.set_property(
+///         "diffuseTexture",
+///         PropertyValue::Sampler {
+///             value: Some(resource_manager.request_texture("Brick_DiffuseTexture.jpg", None)),
+///             fallback: SamplerFallback::White
+///         })
+///         .unwrap();
+///     
+///     material
+/// }
+/// ```
+///
+/// As you can see it is pretty simple with standard material, all you need is to set values to desired
+/// properties and you good to go. All you need to do is to apply the material, for example it could be
+/// mesh surface or some other place that supports materials. For the full list of properties of the
+/// standard shader see [shader module docs](crate::material::shader).
+///
+/// ## Custom material
+///
+/// Custom materials is a bit more complex, you need to get a shader instance using the resource manager
+/// and then create the material and populate it with a set of property values.
+///
+/// ```no_run
+/// use rg3d::{
+///     engine::resource_manager::ResourceManager,
+///     material::{Material, PropertyValue},
+///     core::algebra::Vector3
+/// };
+///
+/// async fn create_grass_material(resource_manager: ResourceManager) -> Material {
+///     let shader = resource_manager.request_shader("my_grass_shader.ron").await.unwrap();
+///     
+///     // Here we assume that the material really has the properties defined below.
+///     let mut material = Material::from_shader(shader, Some(resource_manager));
+///
+///     material.set_property(
+///         "windDirection",
+///         PropertyValue::Vector3(Vector3::new(1.0, 0.0, 0.5))
+///         )
+///         .unwrap();
+///
+///     material
+/// }
+/// ```
+///
+/// As you can see it is only a bit more hard that with the standard shader. The main difference here is
+/// that we using resource manager to get shader instance and the we just use the instance to create
+/// material instance. Then we populate properties as usual.
 #[derive(Default, Debug, Visit)]
 pub struct Material {
     shader: Shader,
