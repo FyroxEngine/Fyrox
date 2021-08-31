@@ -1007,6 +1007,17 @@ impl TextureData {
         &self.bytes
     }
 
+    /// Returns true if the texture is procedural, false - otherwise.
+    ///
+    /// # Notes
+    ///
+    /// Content of procedural textures is saved during serialization and they never resolved
+    /// on deserialization. Resolving here means a process of getting correct texture instance
+    /// by its path.
+    pub fn is_procedural(&self) -> bool {
+        self.serialize_content
+    }
+
     /// Returns true if the texture is used as render target.
     pub fn is_render_target(&self) -> bool {
         self.is_render_target

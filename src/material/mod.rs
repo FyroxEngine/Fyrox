@@ -1,4 +1,6 @@
+use crate::asset::{ResourceData, ResourceState};
 use crate::material::shader::SamplerFallback;
+use crate::resource::texture::{TextureData, TextureError};
 use crate::{
     core::{
         algebra::{Vector2, Vector3, Vector4},
@@ -103,10 +105,23 @@ impl Material {
                 ..
             } = value
             {
-                let shallow_texture = texture.state();
-                let path = shallow_texture.path().to_path_buf();
-                drop(shallow_texture);
-                *texture = resource_manager.request_texture(path, None);
+                let data = texture.state();
+                let path = data.path().to_path_buf();
+                match &*data {
+                    // Try to reload texture even if it failed to load.
+                    ResourceState::LoadError { .. } => {
+                        drop(data);
+                        *texture = resource_manager.request_texture(path, None);
+                    }
+                    ResourceState::Ok(texture_state) => {
+                        // Do not resolve procedural textures.
+                        if !texture_state.is_procedural() {
+                            drop(data);
+                            *texture = resource_manager.request_texture(path, None);
+                        }
+                    }
+                    ResourceState::Pending { .. } => {}
+                }
             }
         }
     }

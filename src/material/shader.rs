@@ -28,10 +28,8 @@ impl Visit for ShaderState {
 
         self.path.visit("Path", visitor)?;
 
-        if visitor.is_reading() {
-            if self.path == PathBuf::default() {
-                self.definition = ShaderDefinition::from_str(STANDARD_SHADER).unwrap();
-            }
+        if visitor.is_reading() && self.path == PathBuf::default() {
+            self.definition = ShaderDefinition::from_str(STANDARD_SHADER).unwrap();
         }
 
         visitor.leave_region()
