@@ -87,11 +87,20 @@ pub enum PropertyKind {
     /// Real number.
     Float(f32),
 
+    /// Real number array.
+    FloatArray(Vec<f32>),
+
     /// Integer number.
     Int(i32),
 
+    /// Integer number array.
+    IntArray(Vec<i32>),
+
     /// Natural number.
     UInt(u32),
+
+    /// Natural number array.
+    UIntArray(Vec<u32>),
 
     /// Boolean value.
     Bool(bool),
@@ -99,20 +108,38 @@ pub enum PropertyKind {
     /// Two-dimensional vector.
     Vector2(Vector2<f32>),
 
+    /// Two-dimensional vector array.
+    Vector2Array(Vec<Vector2<f32>>),
+
     /// Three-dimensional vector.
     Vector3(Vector3<f32>),
+
+    /// Three-dimensional vector array.
+    Vector3Array(Vec<Vector3<f32>>),
 
     /// Four-dimensional vector.
     Vector4(Vector4<f32>),
 
+    /// Four-dimensional vector array.
+    Vector4Array(Vec<Vector4<f32>>),
+
     /// 2x2 Matrix.
     Matrix2(Matrix2<f32>),
+
+    /// 2x2 Matrix array.
+    Matrix2Array(Vec<Matrix2<f32>>),
 
     /// 3x3 Matrix.
     Matrix3(Matrix3<f32>),
 
+    /// 3x3 Matrix array.
+    Matrix3Array(Vec<Matrix3<f32>>),
+
     /// 4x4 Matrix.
     Matrix4(Matrix4<f32>),
+
+    /// 4x4 Matrix array.
+    Matrix4Array(Vec<Matrix4<f32>>),
 
     /// An sRGB color.
     ///

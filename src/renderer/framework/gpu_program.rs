@@ -203,6 +203,14 @@ impl<'a> GpuProgramBinding<'a> {
     }
 
     #[inline(always)]
+    pub fn set_u32_slice(&mut self, location: &UniformLocation, value: &[u32]) -> &mut Self {
+        unsafe {
+            self.state.gl.uniform_1_u32_slice(Some(&location.id), value);
+        }
+        self
+    }
+
+    #[inline(always)]
     pub fn set_f32_slice(&mut self, location: &UniformLocation, value: &[f32]) -> &mut Self {
         unsafe {
             self.state.gl.uniform_1_f32_slice(Some(&location.id), value);

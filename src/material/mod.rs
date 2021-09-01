@@ -31,29 +31,56 @@ pub enum PropertyValue {
     /// Real number.
     Float(f32),
 
+    /// Real number array.
+    FloatArray(Vec<f32>),
+
     /// Integer number.
     Int(i32),
 
-    /// Unsigned integer number.
+    /// Integer number array.
+    IntArray(Vec<i32>),
+
+    /// Natural number.
     UInt(u32),
+
+    /// Natural number array.
+    UIntArray(Vec<u32>),
 
     /// Two-dimensional vector.
     Vector2(Vector2<f32>),
 
+    /// Two-dimensional vector array.
+    Vector2Array(Vec<Vector2<f32>>),
+
     /// Three-dimensional vector.
     Vector3(Vector3<f32>),
+
+    /// Three-dimensional vector array.
+    Vector3Array(Vec<Vector3<f32>>),
 
     /// Four-dimensional vector.
     Vector4(Vector4<f32>),
 
+    /// Four-dimensional vector array.
+    Vector4Array(Vec<Vector4<f32>>),
+
     /// 2x2 Matrix.
     Matrix2(Matrix2<f32>),
+
+    /// 2x2 Matrix array.
+    Matrix2Array(Vec<Matrix2<f32>>),
 
     /// 3x3 Matrix.
     Matrix3(Matrix3<f32>),
 
+    /// 3x3 Matrix array.
+    Matrix3Array(Vec<Matrix3<f32>>),
+
     /// 4x4 Matrix.
     Matrix4(Matrix4<f32>),
+
+    /// 4x4 Matrix array.
+    Matrix4Array(Vec<Matrix4<f32>>),
 
     /// Boolean value.
     Bool(bool),
@@ -374,6 +401,15 @@ impl Material {
                     }),
                     fallback: *usage,
                 },
+                PropertyKind::FloatArray(value) => PropertyValue::FloatArray(value.clone()),
+                PropertyKind::IntArray(value) => PropertyValue::IntArray(value.clone()),
+                PropertyKind::UIntArray(value) => PropertyValue::UIntArray(value.clone()),
+                PropertyKind::Vector2Array(value) => PropertyValue::Vector2Array(value.clone()),
+                PropertyKind::Vector3Array(value) => PropertyValue::Vector3Array(value.clone()),
+                PropertyKind::Vector4Array(value) => PropertyValue::Vector4Array(value.clone()),
+                PropertyKind::Matrix2Array(value) => PropertyValue::Matrix2Array(value.clone()),
+                PropertyKind::Matrix3Array(value) => PropertyValue::Matrix3Array(value.clone()),
+                PropertyKind::Matrix4Array(value) => PropertyValue::Matrix4Array(value.clone()),
             };
 
             property_values.insert(property_definition.name.clone(), value);

@@ -931,6 +931,33 @@ pub(in crate) fn apply_material(ctx: MaterialContext) {
 
                     ctx.program_binding.set_texture(&uniform, &texture);
                 }
+                PropertyValue::FloatArray(v) => {
+                    ctx.program_binding.set_f32_slice(&uniform, v);
+                }
+                PropertyValue::IntArray(v) => {
+                    ctx.program_binding.set_i32_slice(&uniform, v);
+                }
+                PropertyValue::UIntArray(v) => {
+                    ctx.program_binding.set_u32_slice(&uniform, v);
+                }
+                PropertyValue::Vector2Array(v) => {
+                    ctx.program_binding.set_vector2_slice(&uniform, v);
+                }
+                PropertyValue::Vector3Array(v) => {
+                    ctx.program_binding.set_vector3_slice(&uniform, v);
+                }
+                PropertyValue::Vector4Array(v) => {
+                    ctx.program_binding.set_vector4_slice(&uniform, v);
+                }
+                PropertyValue::Matrix2Array(v) => {
+                    ctx.program_binding.set_matrix2_array(&uniform, v);
+                }
+                PropertyValue::Matrix3Array(v) => {
+                    ctx.program_binding.set_matrix3_array(&uniform, v);
+                }
+                PropertyValue::Matrix4Array(v) => {
+                    ctx.program_binding.set_matrix4_array(&uniform, v);
+                }
             }
         }
     }
