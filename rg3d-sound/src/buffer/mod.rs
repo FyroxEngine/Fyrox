@@ -119,7 +119,7 @@ pub enum SoundBufferResourceLoadError {
 }
 
 define_new_resource!(
-    #[doc="A shared sound buffer resource."],
+    /// A shared sound buffer resource.
     SoundBufferResource<SoundBufferState, SoundBufferResourceLoadError>
 );
 

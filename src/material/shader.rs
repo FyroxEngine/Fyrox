@@ -1,3 +1,7 @@
+//! Shader is a script for graphics card. This module contains everything related to shaders.
+//!
+//! For more info see [`Shader`] struct docs.
+
 use crate::{
     asset::{define_new_resource, Resource, ResourceData, ResourceState},
     core::{
@@ -14,11 +18,20 @@ use std::{
     path::{Path, PathBuf},
 };
 
-pub const STANDARD_SHADER: &str = include_str!("standard.ron");
+/// A source code of the standard shader.
+pub const STANDARD_SHADER_SRC: &str = include_str!("standard.ron");
 
+/// Internal state of the shader.
+///
+/// # Notes
+///
+/// Usually you don't need to access internals of the shader, but there sometimes could be a need to
+/// read shader definition, to get supported passes and properties.
 #[derive(Default, Debug)]
 pub struct ShaderState {
     path: PathBuf,
+
+    /// Shader definition contains description of properties and render passes.
     pub definition: ShaderDefinition,
 }
 
@@ -29,17 +42,35 @@ impl Visit for ShaderState {
         self.path.visit("Path", visitor)?;
 
         if visitor.is_reading() && self.path == PathBuf::default() {
-            self.definition = ShaderDefinition::from_str(STANDARD_SHADER).unwrap();
+            self.definition = ShaderDefinition::from_str(STANDARD_SHADER_SRC).unwrap();
         }
 
         visitor.leave_region()
     }
 }
 
+/// A fallback value for the sampler.
+///
+/// # Notes
+///
+/// Sometimes you don't want to set a value to a sampler, or you even don't have the appropriate
+/// one. There is fallback value that helps you with such situations, it defines a values that
+/// will be fetched from a sampler when there is no texture.
+///
+/// For example, standard shader has a lot of samplers defined: diffuse, normal, height, emission,
+/// mask, metallic, roughness, etc. In some situations you may not have all the textures, you have
+/// only diffuse texture, to keep rendering correct, each other property has appropriate fallback
+/// value. Normal sampler - a normal vector pointing up (+Y), height - zero, emission - zero, etc.
+///
+/// Fallback value is also helpful to catch missing textures, you'll definitely know the texture is
+/// missing by very specific value in the fallback texture.
 #[derive(Deserialize, Debug, PartialEq, Clone, Copy, Visit)]
 pub enum SamplerFallback {
+    /// A 1x1px white texture.
     White,
+    /// A 1x1px texture with (0, 1, 0) vector.
     Normal,
+    /// A 1x1px black texture.
     Black,
 }
 
@@ -118,7 +149,7 @@ impl ShaderDefinition {
 }
 
 impl ShaderState {
-    pub async fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, ShaderError> {
+    pub(in crate) async fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, ShaderError> {
         let content = io::load_file(path.as_ref()).await?;
         Ok(Self {
             path: path.as_ref().to_owned(),
@@ -126,7 +157,7 @@ impl ShaderState {
         })
     }
 
-    pub fn from_str(str: &str) -> Result<Self, ShaderError> {
+    pub(in crate) fn from_str(str: &str) -> Result<Self, ShaderError> {
         Ok(Self {
             path: Default::default(),
             definition: ShaderDefinition::from_str(str)?,
@@ -144,9 +175,13 @@ impl ResourceData for ShaderState {
     }
 }
 
+/// A set of possible error variants that can occur during shader loading.
 #[derive(Debug)]
 pub enum ShaderError {
+    /// An i/o error has occurred.
     Io(FileLoadError),
+
+    /// A parsing error has occurred.
     ParseError(ron::Error),
 }
 
@@ -163,26 +198,164 @@ impl From<FileLoadError> for ShaderError {
 }
 
 define_new_resource!(
-    #[doc = "See module docs."],
+    /// Shader is a script for graphics adapter, it defines how to draw an object.
+    ///
+    /// # Structure
+    ///
+    /// Shader has rigid structure that could be described in this code snipped:
+    ///
+    /// ```ron
+    /// (
+    ///     // A set of properties, there could be any amount of properties.
+    ///     properties: [
+    ///         (
+    ///             // Each property must have a name. This name must match with respective
+    ///             // uniforms! That's is the whole point of having properties.
+    ///             name: "diffuseTexture",
+    ///
+    ///             // Value has limited set of possible variants.
+    ///             value: Sampler(default: None, fallback: White)
+    ///         )
+    ///     ],
+    ///
+    ///     // A set of render passes (see a section `Render pass` for more info)
+    ///     passes: [
+    ///         (
+    ///             // Name must match with the name of either standard render pass (see below) or
+    ///             // one of your passes.
+    ///             name: "Forward",
+    ///
+    ///             // Vertex shader code.
+    ///             vertex_shader:
+    ///                 r#"
+    ///                 #version 330 core
+    ///
+    ///                 layout(location = 0) in vec3 vertexPosition;
+    ///                 layout(location = 1) in vec2 vertexTexCoord;
+    ///
+    ///                 uniform mat4 rg3d_worldViewProjection;
+    ///
+    ///                 out vec2 texCoord;
+    ///
+    ///                 void main()
+    ///                 {
+    ///                     texCoord = vertexTexCoord;
+    ///                     gl_Position = rg3d_worldViewProjection * vertexPosition;
+    ///                 }
+    ///                 "#;
+    ///
+    ///             // Pixel shader code.
+    ///             pixel_shader:
+    ///                 r#"
+    ///                 #version 330 core
+    ///
+    ///                 // Note that the name of this uniform match the name of the property up above.
+    ///                 uniform sampler2D diffuseTexture;
+    ///
+    ///                 out vec4 FragColor;
+    ///
+    ///                 in vec2 texCoord;
+    ///
+    ///                 void main()
+    ///                 {
+    ///                     FragColor = diffuseColor * texture(diffuseTexture, texCoord);
+    ///                 }
+    ///                 "#;
+    ///         )
+    ///     ],
+    /// )
+    /// ```
+    ///
+    /// Shader should contain at least one render pass to actually do some job. A shader could not
+    /// have properties at all. Currently only vertex and fragment programs are supported. Each
+    /// program mush be written in GLSL. Comprehensive GLSL documentation can be found
+    /// [here](https://www.khronos.org/opengl/wiki/Core_Language_(GLSL))
+    ///
+    /// # Render pass
+    ///
+    /// Modern rendering is a very complex thing that requires drawing an object multiple times
+    /// with different "scripts". For example to draw an object with shadows you need to draw an
+    /// object twice: one directly in a render target, and one in a shadow map. Such stages called
+    /// render passes.
+    ///
+    /// Binding of shaders to render passes is done via names, each render pass has unique name.
+    ///
+    /// ## Predefined passes
+    ///
+    /// There are number of predefined render passes:
+    ///
+    /// - GBuffer - A pass that fills a set of render target sized textures with various data
+    /// about each rendered object. These textures then are used for physically-based lighting.
+    /// Use this pass when you want the standard lighting to work with your objects.
+    ///
+    /// - Forward - A pass that draws an object directly in render target. This pass is very
+    /// limiting, it does not support lighting, shadows, etc. It should be only used to render
+    /// translucent objects.
+    ///
+    /// - SpotShadow - A pass that emits depth values for an object, later this depth map will be
+    /// used to render shadows.
+    ///
+    /// - PointShadow - A pass that emits distance from a fragment to a point light, later this depth
+    /// map will be used to render shadows.
+    ///
+    /// # Built-in variables
+    ///
+    /// There are number of build-in variables that rg3d pass to each shader automatically:
+    ///
+    /// | Name                      | Type            | Description
+    /// |---------------------------|-----------------|--------------------------------------------
+    /// | rg3d_worldMatrix          | `Matrix4`       | Local-to-world transformation.
+    /// | rg3d_worldViewProjection  | `Matrix4`       | Local-to-clip-space transform.
+    /// | rg3d_boneMatrices         | `[Matrix4; 60]` | Array of bone matrices.
+    /// | rg3d_useSkeletalAnimation | `Vector3`       | Whether skinned meshes is rendering or not.
+    /// | rg3d_cameraPosition       | `Vector3`       | Position of the camera.
+    /// | rg3d_usePOM               | `bool`          | Whether to use parallax mapping or not.
+    /// | rg3d_lightPosition        | `Vector3`       | Light position.
+    ///
+    /// To use any of the variables, just define a uniform with appropriate name:
+    ///
+    /// ```glsl
+    /// uniform mat4 rg3d_worldMatrix;
+    /// uniform vec3 rg3d_cameraPosition;
+    /// ```
+    ///
+    /// This list will be extended in future releases.
+    ///
+    /// # Standard shader
+    ///
+    /// By default rg3d uses standard material for rendering, it covers 95% of uses cases and it is very
+    /// flexible. To get standard shader instance, use [`Shader::standard`]
+    ///
+    /// ```no_run
+    /// # use rg3d::material::shader::Shader;
+    ///
+    /// let standard_shader = Shader::standard();
+    /// ```
+    ///
+    /// Usually you don't need to get this shader manually, using of [Material::standard](super::Material::standard)
+    /// is enough.
     Shader<ShaderState, ShaderError>
 );
 
 impl Shader {
+    /// Creates new shader from given string. Input string must have the format defined in
+    /// examples for [`Shader`].
     pub fn from_str(str: &str) -> Result<Self, ShaderError> {
         Ok(Self(Resource::new(ResourceState::Ok(
             ShaderState::from_str(str)?,
         ))))
     }
 
-    fn standard() -> Self {
-        Self(Resource::new(ResourceState::Ok(
-            ShaderState::from_str(STANDARD_SHADER).unwrap(),
-        )))
+    /// Returns an instance of standard shader.
+    pub fn standard() -> Self {
+        STANDARD.clone()
     }
 }
 
 lazy_static! {
-    pub static ref STANDARD: Shader = Shader::standard();
+    static ref STANDARD: Shader = Shader(Resource::new(ResourceState::Ok(
+        ShaderState::from_str(STANDARD_SHADER_SRC).unwrap(),
+    )));
 }
 
 #[cfg(test)]

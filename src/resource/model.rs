@@ -51,7 +51,7 @@ pub struct ModelData {
 }
 
 define_new_resource!(
-    #[doc = "See module docs."],
+    /// See module docs.
     Model<ModelData, ModelLoadError>
 );
 

@@ -266,7 +266,7 @@ impl Default for TextureData {
 }
 
 define_new_resource!(
-    #[doc = "See module docs."],
+    /// See module docs.
     Texture<TextureData, TextureError>
 );
 

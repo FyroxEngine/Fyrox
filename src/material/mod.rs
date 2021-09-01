@@ -297,7 +297,7 @@ impl Material {
     /// }
     /// ```
     pub fn standard() -> Self {
-        Self::from_shader(shader::STANDARD.clone(), None)
+        Self::from_shader(Shader::standard(), None)
     }
 
     /// Creates a new material instance with given shader. Each property will have default values
@@ -371,7 +371,7 @@ impl Material {
         drop(data);
 
         Self {
-            shader: shader::STANDARD.clone(),
+            shader: Shader::standard(),
             properties: property_values,
         }
     }
@@ -440,7 +440,7 @@ impl Material {
     ///
     /// let mut material = Material::standard();
     ///
-    /// assert_eq!(material.set_property("diffuseColor", PropertyValue::Color(Color::WHITE)), Ok(()));
+    /// assert!(material.set_property("diffuseColor", PropertyValue::Color(Color::WHITE)).is_ok());
     /// ```
     pub fn set_property<N: AsRef<str>>(
         &mut self,

@@ -309,7 +309,7 @@ impl<T: ResourceData, E: ResourceLoadError> Default for ResourceState<T, E> {
 /// Defines a new resource type via new-type wrapper.  
 #[macro_export]
 macro_rules! define_new_resource {
-    ($(#[$meta:meta])*, $name:ident<$state:ty, $error:ty>) => {
+    ($(#[$meta:meta])* $name:ident<$state:ty, $error:ty>) => {
         $(#[$meta])*
         #[derive(Clone, Debug, Default)]
         #[repr(transparent)]
