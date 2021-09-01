@@ -4,6 +4,7 @@
 
 #![warn(missing_docs)]
 
+use crate::core::algebra::{Matrix2, Matrix3, Matrix4};
 use crate::{
     asset::ResourceState,
     core::{
@@ -44,6 +45,15 @@ pub enum PropertyValue {
 
     /// Four-dimensional vector.
     Vector4(Vector4<f32>),
+
+    /// 2x2 Matrix.
+    Matrix2(Matrix2<f32>),
+
+    /// 3x3 Matrix.
+    Matrix3(Matrix3<f32>),
+
+    /// 4x4 Matrix.
+    Matrix4(Matrix4<f32>),
 
     /// Boolean value.
     Bool(bool),
@@ -343,16 +353,15 @@ impl Material {
                 PropertyKind::Float(value) => PropertyValue::Float(*value),
                 PropertyKind::Int(value) => PropertyValue::Int(*value),
                 PropertyKind::UInt(value) => PropertyValue::UInt(*value),
-                PropertyKind::Vector2 { x, y } => PropertyValue::Vector2(Vector2::new(*x, *y)),
-                PropertyKind::Vector3 { x, y, z } => {
-                    PropertyValue::Vector3(Vector3::new(*x, *y, *z))
-                }
-                PropertyKind::Vector4 { x, y, z, w } => {
-                    PropertyValue::Vector4(Vector4::new(*x, *y, *z, *w))
-                }
+                PropertyKind::Vector2(value) => PropertyValue::Vector2(*value),
+                PropertyKind::Vector3(value) => PropertyValue::Vector3(*value),
+                PropertyKind::Vector4(value) => PropertyValue::Vector4(*value),
                 PropertyKind::Color { r, g, b, a } => {
                     PropertyValue::Color(Color::from_rgba(*r, *g, *b, *a))
                 }
+                PropertyKind::Matrix2(value) => PropertyValue::Matrix2(*value),
+                PropertyKind::Matrix3(value) => PropertyValue::Matrix3(*value),
+                PropertyKind::Matrix4(value) => PropertyValue::Matrix4(*value),
                 PropertyKind::Bool(value) => PropertyValue::Bool(*value),
                 PropertyKind::Sampler {
                     default,

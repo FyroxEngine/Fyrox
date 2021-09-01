@@ -2,6 +2,7 @@
 //!
 //! For more info see [`Shader`] struct docs.
 
+use crate::core::algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4};
 use crate::{
     asset::{define_new_resource, Resource, ResourceData, ResourceState},
     core::{
@@ -96,40 +97,22 @@ pub enum PropertyKind {
     Bool(bool),
 
     /// Two-dimensional vector.
-    Vector2 {
-        /// Default X value.
-        x: f32,
-
-        /// Default Y value.
-        y: f32,
-    },
+    Vector2(Vector2<f32>),
 
     /// Three-dimensional vector.
-    Vector3 {
-        /// Default X value.
-        x: f32,
-
-        /// Default Y value.
-        y: f32,
-
-        /// Default Z value.
-        z: f32,
-    },
+    Vector3(Vector3<f32>),
 
     /// Four-dimensional vector.
-    Vector4 {
-        /// Default X value.
-        x: f32,
+    Vector4(Vector4<f32>),
 
-        /// Default Y value.
-        y: f32,
+    /// 2x2 Matrix.
+    Matrix2(Matrix2<f32>),
 
-        /// Default Z value.
-        z: f32,
+    /// 3x3 Matrix.
+    Matrix3(Matrix3<f32>),
 
-        /// Default W value.
-        w: f32,
-    },
+    /// 4x4 Matrix.
+    Matrix4(Matrix4<f32>),
 
     /// An sRGB color.
     ///

@@ -904,6 +904,15 @@ pub(in crate) fn apply_material(ctx: MaterialContext) {
                 PropertyValue::Vector4(v) => {
                     ctx.program_binding.set_vector4(&uniform, v);
                 }
+                PropertyValue::Matrix2(v) => {
+                    ctx.program_binding.set_matrix2(&uniform, v);
+                }
+                PropertyValue::Matrix3(v) => {
+                    ctx.program_binding.set_matrix3(&uniform, v);
+                }
+                PropertyValue::Matrix4(v) => {
+                    ctx.program_binding.set_matrix4(&uniform, v);
+                }
                 PropertyValue::Color(v) => {
                     ctx.program_binding.set_srgb_color(&uniform, v);
                 }

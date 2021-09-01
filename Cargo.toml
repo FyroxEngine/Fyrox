@@ -20,7 +20,7 @@ opt-level = 0
 opt-level = 3
 
 [dependencies]
-rg3d-core = { path = "rg3d-core", version = "0.17.1" }
+rg3d-core = { path = "rg3d-core", version = "0.17.1", features = ["serde"] }
 rg3d-sound = { path = "rg3d-sound", version = "0.24.1" }
 rg3d-ui = { path = "rg3d-ui", version = "0.13.1" }
 rg3d-resource = { path = "rg3d-resource", version = "0.1.1" }

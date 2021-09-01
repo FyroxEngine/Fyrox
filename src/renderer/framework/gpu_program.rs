@@ -1,3 +1,4 @@
+use crate::core::algebra::Matrix2;
 use crate::{
     core::{
         algebra::{Matrix3, Matrix4, Vector2, Vector3, Vector4},
@@ -255,11 +256,53 @@ impl<'a> GpuProgramBinding<'a> {
     }
 
     #[inline(always)]
+    pub fn set_matrix2(&mut self, location: &UniformLocation, value: &Matrix2<f32>) -> &mut Self {
+        unsafe {
+            self.state
+                .gl
+                .uniform_matrix_2_f32_slice(Some(&location.id), false, value.as_slice());
+        }
+        self
+    }
+
+    #[inline(always)]
+    pub fn set_matrix2_array(
+        &mut self,
+        location: &UniformLocation,
+        value: &[Matrix2<f32>],
+    ) -> &mut Self {
+        unsafe {
+            self.state.gl.uniform_matrix_2_f32_slice(
+                Some(&location.id),
+                false,
+                std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 4),
+            );
+        }
+        self
+    }
+
+    #[inline(always)]
     pub fn set_matrix3(&mut self, location: &UniformLocation, value: &Matrix3<f32>) -> &mut Self {
         unsafe {
             self.state
                 .gl
                 .uniform_matrix_3_f32_slice(Some(&location.id), false, value.as_slice());
+        }
+        self
+    }
+
+    #[inline(always)]
+    pub fn set_matrix3_array(
+        &mut self,
+        location: &UniformLocation,
+        value: &[Matrix3<f32>],
+    ) -> &mut Self {
+        unsafe {
+            self.state.gl.uniform_matrix_3_f32_slice(
+                Some(&location.id),
+                false,
+                std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 9),
+            );
         }
         self
     }

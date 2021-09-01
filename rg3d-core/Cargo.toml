@@ -30,4 +30,5 @@ wasm-bindgen-futures = "0.4.26"
 js-sys = "0.3.53"
 
 [features]
+serde = ["nalgebra/serde-serialize"]
 enable_profiler = []
