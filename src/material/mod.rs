@@ -4,11 +4,10 @@
 
 #![warn(missing_docs)]
 
-use crate::core::algebra::{Matrix2, Matrix3, Matrix4};
 use crate::{
     asset::ResourceState,
     core::{
-        algebra::{Vector2, Vector3, Vector4},
+        algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
         color::Color,
         visitor::prelude::*,
     },
@@ -120,7 +119,7 @@ pub enum PropertyValue {
 }
 
 macro_rules! define_as {
-    ($(#[$meta:meta])*, $name:ident = $variant:ident -> $ty:ty) => {
+    ($(#[$meta:meta])* $name:ident = $variant:ident -> $ty:ty) => {
         $(#[$meta])*
         pub fn $name(&self) -> Option<$ty> {
             if let PropertyValue::$variant(v) = self {
@@ -132,38 +131,99 @@ macro_rules! define_as {
     };
 }
 
+macro_rules! define_as_ref {
+    ($(#[$meta:meta])* $name:ident = $variant:ident -> $ty:ty) => {
+        $(#[$meta])*
+        pub fn $name(&self) -> Option<&$ty> {
+            if let PropertyValue::$variant(v) = self {
+                Some(v)
+            } else {
+                None
+            }
+        }
+    };
+}
+
 impl PropertyValue {
     define_as!(
-        #[doc = "Tries to unwrap property value as float."],
+        /// Tries to unwrap property value as float.
         as_float = Float -> f32
     );
+    define_as_ref!(
+        /// Tries to unwrap property value as float array.
+        as_float_array = FloatArray -> [f32]
+    );
     define_as!(
-        #[doc = "Tries to unwrap property value as integer."],
+        /// Tries to unwrap property value as integer.
         as_int = Int -> i32
     );
-    define_as!(
-        #[doc = "Tries to unwrap property value as unsigned integer."],
-        as_uint = UInt -> u32
+    define_as_ref!(
+        /// Tries to unwrap property value as integer array.
+        as_int_array = IntArray -> [i32]
     );
     define_as!(
-        #[doc = "Tries to unwrap property value as boolean."],
+        /// Tries to unwrap property value as unsigned integer.
+        as_uint = UInt -> u32
+    );
+    define_as_ref!(
+        /// Tries to unwrap property value as unsigned integer array.
+        as_uint_array = UIntArray -> [u32]
+    );
+    define_as!(
+        /// Tries to unwrap property value as boolean.
         as_bool = Bool -> bool
     );
     define_as!(
-        #[doc = "Tries to unwrap property value as color."],
+        /// Tries to unwrap property value as color.
         as_color = Color -> Color
     );
     define_as!(
-        #[doc = "Tries to unwrap property value as two-dimensional vector."],
+        /// Tries to unwrap property value as two-dimensional vector.
         as_vector2 = Vector2 -> Vector2<f32>
     );
-    define_as!(
-        #[doc = "Tries to unwrap property value as three-dimensional vector."],
-        as_vector3 = Vector3 -> Vector3<f32>
+    define_as_ref!(
+        /// Tries to unwrap property value as two-dimensional vector array.
+        as_vector2_array = Vector2Array -> [Vector2<f32>]
     );
     define_as!(
-        #[doc = "Tries to unwrap property value as four-dimensional vector."],
+        /// Tries to unwrap property value as three-dimensional vector.
+        as_vector3 = Vector3 -> Vector3<f32>
+    );
+    define_as_ref!(
+        /// Tries to unwrap property value as three-dimensional vector array.
+        as_vector3_array = Vector3Array -> [Vector3<f32>]
+    );
+    define_as!(
+        /// Tries to unwrap property value as four-dimensional vector.
         as_vector4 = Vector4 -> Vector4<f32>
+    );
+    define_as_ref!(
+        /// Tries to unwrap property value as four-dimensional vector array.
+        as_vector4_array = Vector4Array -> [Vector4<f32>]
+    );
+    define_as!(
+        /// Tries to unwrap property value as 2x2 matrix.
+        as_matrix2 = Matrix2 -> Matrix2<f32>
+    );
+    define_as_ref!(
+        /// Tries to unwrap property value as 2x2 matrix array.
+        as_matrix2_array = Matrix2Array -> [Matrix2<f32>]
+    );
+    define_as!(
+        /// Tries to unwrap property value as 3x3 matrix.
+        as_matrix3 = Matrix3 -> Matrix3<f32>
+    );
+    define_as_ref!(
+        /// Tries to unwrap property value as 3x3 matrix array.
+        as_matrix3_array = Matrix3Array -> [Matrix3<f32>]
+    );
+    define_as!(
+        /// Tries to unwrap property value as 4x4 matrix.
+        as_matrix4 = Matrix4 -> Matrix4<f32>
+    );
+    define_as_ref!(
+        /// Tries to unwrap property value as 4x4 matrix array.
+        as_matrix4_array = Matrix4Array -> [Matrix4<f32>]
     );
 
     /// Tries to unwrap property value as texture.
