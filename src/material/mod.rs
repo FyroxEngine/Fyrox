@@ -72,13 +72,17 @@ pub enum PropertyValue {
     /// Fallback value is also helpful to catch missing textures, you'll definitely know the texture is
     /// missing by very specific value in the fallback texture.
     Sampler {
+        /// Actual value of the sampler. Could be [`None`], in this case `fallback` will be used.
         value: Option<Texture>,
+
+        /// Sampler fallback value.
         fallback: SamplerFallback,
     },
 }
 
 macro_rules! define_as {
-    ($name:ident = $variant:ident -> $ty:ty) => {
+    ($(#[$meta:meta])*, $name:ident = $variant:ident -> $ty:ty) => {
+        $(#[$meta])*
         pub fn $name(&self) -> Option<$ty> {
             if let PropertyValue::$variant(v) = self {
                 Some(*v)
@@ -90,15 +94,40 @@ macro_rules! define_as {
 }
 
 impl PropertyValue {
-    define_as!(as_float = Float -> f32);
-    define_as!(as_int = Int -> i32);
-    define_as!(as_uint = UInt -> u32);
-    define_as!(as_bool = Bool -> bool);
-    define_as!(as_color = Color -> Color);
-    define_as!(as_vector2 = Vector2 -> Vector2<f32>);
-    define_as!(as_vector3 = Vector3 -> Vector3<f32>);
-    define_as!(as_vector4 = Vector4 -> Vector4<f32>);
+    define_as!(
+        #[doc = "Tries to unwrap property value as float."],
+        as_float = Float -> f32
+    );
+    define_as!(
+        #[doc = "Tries to unwrap property value as integer."],
+        as_int = Int -> i32
+    );
+    define_as!(
+        #[doc = "Tries to unwrap property value as unsigned integer."],
+        as_uint = UInt -> u32
+    );
+    define_as!(
+        #[doc = "Tries to unwrap property value as boolean."],
+        as_bool = Bool -> bool
+    );
+    define_as!(
+        #[doc = "Tries to unwrap property value as color."],
+        as_color = Color -> Color
+    );
+    define_as!(
+        #[doc = "Tries to unwrap property value as two-dimensional vector."],
+        as_vector2 = Vector2 -> Vector2<f32>
+    );
+    define_as!(
+        #[doc = "Tries to unwrap property value as three-dimensional vector."],
+        as_vector3 = Vector3 -> Vector3<f32>
+    );
+    define_as!(
+        #[doc = "Tries to unwrap property value as four-dimensional vector."],
+        as_vector4 = Vector4 -> Vector4<f32>
+    );
 
+    /// Tries to unwrap property value as texture.
     pub fn as_sampler(&self) -> Option<Texture> {
         if let PropertyValue::Sampler { value, .. } = self {
             value.clone()
@@ -146,8 +175,8 @@ impl Default for PropertyValue {
 ///
 /// ## Standard material
 ///
-/// Usually standard shader is enough for most cases, `Material` even has a `.standard()` method to
-/// create a material with standard shader:
+/// Usually standard shader is enough for most cases, [`Material`] even has a [`Material::standard()`]
+/// method to create a material with standard shader:
 ///
 /// ```no_run
 /// use rg3d::{
@@ -174,7 +203,7 @@ impl Default for PropertyValue {
 /// As you can see it is pretty simple with standard material, all you need is to set values to desired
 /// properties and you good to go. All you need to do is to apply the material, for example it could be
 /// mesh surface or some other place that supports materials. For the full list of properties of the
-/// standard shader see [shader module docs](crate::material::shader).
+/// standard shader see [shader module docs](self::shader).
 ///
 /// ## Custom material
 ///
@@ -213,10 +242,17 @@ pub struct Material {
     properties: HashMap<String, PropertyValue>,
 }
 
+/// A set of possible errors that can occur when working with materials.
 #[derive(Clone, Debug, thiserror::Error)]
 pub enum MaterialError {
+    /// A property is missing.
     #[error("Unable to find material property {}", property_name)]
-    NoSuchProperty { property_name: String },
+    NoSuchProperty {
+        /// Name of the property.
+        property_name: String,
+    },
+
+    /// Attempt to set a value of wrong type to a property.
     #[error(
         "Attempt to set a value of wrong type to {} property. Expected: {:?}, given {:?}",
         property_name,
@@ -224,17 +260,78 @@ pub enum MaterialError {
         given
     )]
     TypeMismatch {
+        /// Name of the property.
         property_name: String,
+        /// Expected property value.
         expected: PropertyValue,
+        /// Given property value.
         given: PropertyValue,
     },
 }
 
 impl Material {
+    /// Creates a new instance of material with the standard shader. For the full list
+    /// of properties of the standard material see [shader module docs](self::shader).
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rg3d::{
+    ///     material::shader::{Shader, SamplerFallback},
+    ///     engine::resource_manager::ResourceManager,
+    ///     material::{Material, PropertyValue}
+    /// };
+    ///
+    /// fn create_brick_material(resource_manager: ResourceManager) -> Material {
+    ///     let mut material = Material::standard();
+    ///
+    ///     material.set_property(
+    ///         "diffuseTexture",
+    ///         PropertyValue::Sampler {
+    ///             value: Some(resource_manager.request_texture("Brick_DiffuseTexture.jpg", None)),
+    ///             fallback: SamplerFallback::White
+    ///         })
+    ///         .unwrap();
+    ///     
+    ///     material
+    /// }
+    /// ```
     pub fn standard() -> Self {
         Self::from_shader(shader::STANDARD.clone(), None)
     }
 
+    /// Creates a new material instance with given shader. Each property will have default values
+    /// defined in the shader.
+    ///
+    /// It is possible to pass resource manager as a second argument, it is needed to correctly resolve
+    /// default values of samplers in case if they are bound to some resources - shader's definition stores
+    /// only paths to textures. If you pass [`None`], no resolving will be done and every sampler will
+    /// have [`None`] as default value, which in its turn will force engine to use fallback sampler value.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use rg3d::{
+    ///     engine::resource_manager::ResourceManager,
+    ///     material::{Material, PropertyValue},
+    ///     core::algebra::Vector3
+    /// };
+    ///
+    /// async fn create_grass_material(resource_manager: ResourceManager) -> Material {
+    ///     let shader = resource_manager.request_shader("my_grass_shader.ron").await.unwrap();
+    ///     
+    ///     // Here we assume that the material really has the properties defined below.
+    ///     let mut material = Material::from_shader(shader, Some(resource_manager));
+    ///
+    ///     material.set_property(
+    ///         "windDirection",
+    ///         PropertyValue::Vector3(Vector3::new(1.0, 0.0, 0.5))
+    ///         )
+    ///         .unwrap();
+    ///
+    ///     material
+    /// }
+    /// ```
     pub fn from_shader(shader: Shader, resource_manager: Option<ResourceManager>) -> Self {
         let data = shader.data_ref();
 
@@ -279,7 +376,7 @@ impl Material {
         }
     }
 
-    pub fn resolve(&mut self, resource_manager: ResourceManager) {
+    pub(in crate) fn resolve(&mut self, resource_manager: ResourceManager) {
         for value in self.properties.values_mut() {
             if let PropertyValue::Sampler {
                 value: Some(texture),
@@ -307,10 +404,44 @@ impl Material {
         }
     }
 
+    /// Searches for a property with given name.
+    ///
+    /// # Complexity
+    ///
+    /// O(1)
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use rg3d::material::Material;
+    ///
+    /// let mut material = Material::standard();
+    ///
+    /// let color = material.property_ref("diffuseColor").unwrap().as_color();
+    /// ```
     pub fn property_ref<N: AsRef<str>>(&self, name: N) -> Option<&PropertyValue> {
         self.properties.get(name.as_ref())
     }
 
+    /// Sets new value of the property with given name.
+    ///
+    /// # Type checking
+    ///
+    /// A new value must have the same type as in shader, otherwise an error will be generated.
+    /// This helps to catch subtle bugs when you passing "almost" identical values to shader, like
+    /// signed and unsigned integers - both have positive values, but GPU is very strict of what
+    /// it expects as input value.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use rg3d::material::{Material, PropertyValue};
+    /// # use rg3d::core::color::Color;
+    ///
+    /// let mut material = Material::standard();
+    ///
+    /// assert_eq!(material.set_property("diffuseColor", PropertyValue::Color(Color::WHITE)), Ok(()));
+    /// ```
     pub fn set_property<N: AsRef<str>>(
         &mut self,
         name: N,
@@ -369,10 +500,12 @@ impl Material {
         }
     }
 
+    /// Returns a reference to current shader.
     pub fn shader(&self) -> &Shader {
         &self.shader
     }
 
+    /// Returns immutable reference to internal property storage.
     pub fn properties(&self) -> &HashMap<String, PropertyValue> {
         &self.properties
     }
