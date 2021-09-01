@@ -509,7 +509,13 @@ impl Material {
                 (PropertyValue::Float(old_value), PropertyValue::Float(value)) => {
                     *old_value = value;
                 }
+                (PropertyValue::FloatArray(old_value), PropertyValue::FloatArray(value)) => {
+                    *old_value = value;
+                }
                 (PropertyValue::Int(old_value), PropertyValue::Int(value)) => {
+                    *old_value = value;
+                }
+                (PropertyValue::IntArray(old_value), PropertyValue::IntArray(value)) => {
                     *old_value = value;
                 }
                 (PropertyValue::Bool(old_value), PropertyValue::Bool(value)) => {
@@ -518,13 +524,43 @@ impl Material {
                 (PropertyValue::UInt(old_value), PropertyValue::UInt(value)) => {
                     *old_value = value;
                 }
+                (PropertyValue::UIntArray(old_value), PropertyValue::UIntArray(value)) => {
+                    *old_value = value;
+                }
                 (PropertyValue::Vector2(old_value), PropertyValue::Vector2(value)) => {
+                    *old_value = value;
+                }
+                (PropertyValue::Vector2Array(old_value), PropertyValue::Vector2Array(value)) => {
                     *old_value = value;
                 }
                 (PropertyValue::Vector3(old_value), PropertyValue::Vector3(value)) => {
                     *old_value = value;
                 }
+                (PropertyValue::Vector3Array(old_value), PropertyValue::Vector3Array(value)) => {
+                    *old_value = value;
+                }
                 (PropertyValue::Vector4(old_value), PropertyValue::Vector4(value)) => {
+                    *old_value = value;
+                }
+                (PropertyValue::Vector4Array(old_value), PropertyValue::Vector4Array(value)) => {
+                    *old_value = value;
+                }
+                (PropertyValue::Matrix2(old_value), PropertyValue::Matrix2(value)) => {
+                    *old_value = value;
+                }
+                (PropertyValue::Matrix2Array(old_value), PropertyValue::Matrix2Array(value)) => {
+                    *old_value = value;
+                }
+                (PropertyValue::Matrix3(old_value), PropertyValue::Matrix3(value)) => {
+                    *old_value = value;
+                }
+                (PropertyValue::Matrix3Array(old_value), PropertyValue::Matrix3Array(value)) => {
+                    *old_value = value;
+                }
+                (PropertyValue::Matrix4(old_value), PropertyValue::Matrix4(value)) => {
+                    *old_value = value;
+                }
+                (PropertyValue::Matrix4Array(old_value), PropertyValue::Matrix4Array(value)) => {
                     *old_value = value;
                 }
                 (PropertyValue::Color(old_value), PropertyValue::Color(value)) => {
