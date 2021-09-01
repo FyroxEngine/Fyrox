@@ -77,6 +77,37 @@ pub enum PropertyValue {
     },
 }
 
+macro_rules! define_as {
+    ($name:ident = $variant:ident -> $ty:ty) => {
+        pub fn $name(&self) -> Option<$ty> {
+            if let PropertyValue::$variant(v) = self {
+                Some(*v)
+            } else {
+                None
+            }
+        }
+    };
+}
+
+impl PropertyValue {
+    define_as!(as_float = Float -> f32);
+    define_as!(as_int = Int -> i32);
+    define_as!(as_uint = UInt -> u32);
+    define_as!(as_bool = Bool -> bool);
+    define_as!(as_color = Color -> Color);
+    define_as!(as_vector2 = Vector2 -> Vector2<f32>);
+    define_as!(as_vector3 = Vector3 -> Vector3<f32>);
+    define_as!(as_vector4 = Vector4 -> Vector4<f32>);
+
+    pub fn as_sampler(&self) -> Option<Texture> {
+        if let PropertyValue::Sampler { value, .. } = self {
+            value.clone()
+        } else {
+            None
+        }
+    }
+}
+
 impl Default for PropertyValue {
     fn default() -> Self {
         Self::Float(0.0)
