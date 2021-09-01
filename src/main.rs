@@ -1798,7 +1798,7 @@ impl Editor {
                         working_directory.to_string_lossy().to_string()
                     ));
 
-                    engine.resource_manager.state().purge_unused_resources();
+                    engine.resource_manager.state().destroy_unused_resources();
 
                     engine.renderer.flush();
 
