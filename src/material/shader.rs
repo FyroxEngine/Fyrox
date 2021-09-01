@@ -80,35 +80,85 @@ impl Default for SamplerFallback {
     }
 }
 
+/// Shader property with default value.
 #[derive(Deserialize, Debug, PartialEq)]
 pub enum PropertyKind {
+    /// Real number.
     Float(f32),
+
+    /// Integer number.
     Int(i32),
+
+    /// Natural number.
     UInt(u32),
+
+    /// Boolean value.
     Bool(bool),
+
+    /// Two-dimensional vector.
     Vector2 {
+        /// Default X value.
         x: f32,
+
+        /// Default Y value.
         y: f32,
     },
+
+    /// Three-dimensional vector.
     Vector3 {
+        /// Default X value.
         x: f32,
+
+        /// Default Y value.
         y: f32,
+
+        /// Default Z value.
         z: f32,
     },
+
+    /// Four-dimensional vector.
     Vector4 {
+        /// Default X value.
         x: f32,
+
+        /// Default Y value.
         y: f32,
+
+        /// Default Z value.
         z: f32,
+
+        /// Default W value.
         w: f32,
     },
+
+    /// An sRGB color.
+    ///
+    /// # Conversion
+    ///
+    /// The colors you see on your monitor are in sRGB color space, this is fine for simple cases
+    /// of rendering, but not for complex things like lighting. Such things require color to be
+    /// linear. Value of this variant will be automatically **converted to linear color space**
+    /// before it passed to shader.  
     Color {
+        /// Default Red.
         r: u8,
+
+        /// Default Green.
         g: u8,
+
+        /// Default Blue.
         b: u8,
+
+        /// Default Alpha.
         a: u8,
     },
+
+    /// A texture.
     Sampler {
+        /// Optional path to default texture.
         default: Option<PathBuf>,
+
+        /// Default fallback value. See [`SamplerFallback`] for more info.
         fallback: SamplerFallback,
     },
 }
@@ -119,22 +169,32 @@ impl Default for PropertyKind {
     }
 }
 
+/// Shader property definition.
 #[derive(Default, Deserialize, Debug, PartialEq)]
 pub struct PropertyDefinition {
+    /// A name of the property.
     pub name: String,
+    /// A kind of property with default value.
     pub kind: PropertyKind,
 }
 
+/// A render pass definition. See [`Shader`] docs for more info about render passes.
 #[derive(Default, Deserialize, Debug, PartialEq)]
 pub struct RenderPassDefinition {
+    /// A name of render pass.
     pub name: String,
+    /// A source code of vertex shader.
     pub vertex_shader: String,
+    /// A source code of fragment shader.
     pub fragment_shader: String,
 }
 
+/// A definition of the shader.
 #[derive(Default, Deserialize, Debug, PartialEq)]
 pub struct ShaderDefinition {
+    /// A set of render passes.
     pub passes: Vec<RenderPassDefinition>,
+    /// A set of property definitions.
     pub properties: Vec<PropertyDefinition>,
 }
 

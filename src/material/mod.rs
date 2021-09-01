@@ -2,6 +2,8 @@
 //!
 //! See [Material struct docs](self::Material) for more info.
 
+#![warn(missing_docs)]
+
 use crate::{
     asset::ResourceState,
     core::{
