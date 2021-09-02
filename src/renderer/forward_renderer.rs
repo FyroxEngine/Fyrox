@@ -6,6 +6,7 @@
 //! For now it is used **only** to render transparent meshes (or any other mesh that has Forward render
 //! path).
 
+use crate::renderer::framework::state::{BlendFactor, BlendFunc};
 use crate::renderer::MaterialContext;
 use crate::{
     core::{math::Rect, scope_profile},
@@ -72,11 +73,12 @@ impl ForwardRenderer {
             depth_write: true,
             stencil_test: None,
             depth_test: true,
-            blend: true,
+            blend: Some(BlendFunc {
+                sfactor: BlendFactor::SrcAlpha,
+                dfactor: BlendFactor::OneMinusSrcAlpha,
+            }),
             stencil_op: Default::default(),
         };
-
-        state.set_blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
 
         let initial_view_projection = camera.view_projection_matrix();
 

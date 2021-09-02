@@ -1,3 +1,4 @@
+use crate::renderer::framework::state::{BlendFactor, BlendFunc};
 use crate::{
     core::{
         algebra::{Isometry3, Matrix4, Point3, Translation, Vector3},
@@ -193,7 +194,7 @@ impl LightVolumeRenderer {
                             mask: 0xFFFF_FFFF,
                         }),
                         depth_test: true,
-                        blend: false,
+                        blend: None,
                         stencil_op: StencilOp {
                             fail: glow::REPLACE,
                             zfail: glow::KEEP,
@@ -226,7 +227,10 @@ impl LightVolumeRenderer {
                             mask: 0xFFFF_FFFF,
                         }),
                         depth_test: false,
-                        blend: true,
+                        blend: Some(BlendFunc {
+                            sfactor: BlendFactor::One,
+                            dfactor: BlendFactor::One,
+                        }),
                         // Make sure to clean stencil buffer after drawing full screen quad.
                         stencil_op: StencilOp {
                             zpass: glow::ZERO,
@@ -275,7 +279,7 @@ impl LightVolumeRenderer {
                             mask: 0xFFFF_FFFF,
                         }),
                         depth_test: true,
-                        blend: false,
+                        blend: None,
                         stencil_op: StencilOp {
                             fail: glow::REPLACE,
                             zfail: glow::KEEP,
@@ -308,7 +312,10 @@ impl LightVolumeRenderer {
                             mask: 0xFFFF_FFFF,
                         }),
                         depth_test: false,
-                        blend: true,
+                        blend: Some(BlendFunc {
+                            sfactor: BlendFactor::One,
+                            dfactor: BlendFactor::One,
+                        }),
                         // Make sure to clean stencil buffer after drawing full screen quad.
                         stencil_op: StencilOp {
                             zpass: glow::ZERO,

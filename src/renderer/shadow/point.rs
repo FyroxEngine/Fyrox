@@ -264,7 +264,7 @@ impl PointShadowMapRenderer {
                                         depth_write: true,
                                         stencil_test: None,
                                         depth_test: true,
-                                        blend: false,
+                                        blend: None,
                                         stencil_op: Default::default(),
                                     },
                                     |mut program_binding| {

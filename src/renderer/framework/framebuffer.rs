@@ -1,4 +1,4 @@
-use crate::renderer::framework::state::{StencilFunc, StencilOp};
+use crate::renderer::framework::state::{BlendFunc, StencilFunc, StencilOp};
 use crate::{
     core::{color::Color, math::Rect, scope_profile},
     renderer::framework::{
@@ -44,7 +44,7 @@ pub struct DrawParameters {
     pub depth_write: bool,
     pub stencil_test: Option<StencilFunc>,
     pub depth_test: bool,
-    pub blend: bool,
+    pub blend: Option<BlendFunc>,
     pub stencil_op: StencilOp,
 }
 
@@ -56,7 +56,7 @@ impl Default for DrawParameters {
             depth_write: true,
             stencil_test: None,
             depth_test: true,
-            blend: false,
+            blend: None,
             stencil_op: Default::default(),
         }
     }

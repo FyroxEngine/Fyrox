@@ -9,6 +9,7 @@
 //! Every alpha channel is used for layer blending for terrains. This is inefficient, but for
 //! now I don't know better solution.
 
+use crate::renderer::framework::state::{BlendFactor, BlendFunc};
 use crate::{
     core::{
         algebra::{Matrix4, Vector2},
@@ -281,7 +282,7 @@ impl GBuffer {
             depth_write: true,
             stencil_test: None,
             depth_test: true,
-            blend: false,
+            blend: None,
             stencil_op: Default::default(),
         };
 
@@ -326,8 +327,7 @@ impl GBuffer {
                                 });
                             };
 
-                            params.blend = batch.blend;
-                            state.set_blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
+                            params.blend = batch.blend_func;
 
                             statistics += self.framebuffer.draw(
                                 geometry,
@@ -385,7 +385,10 @@ impl GBuffer {
                     depth_write: false,
                     stencil_test: None,
                     depth_test: false,
-                    blend: true,
+                    blend: Some(BlendFunc {
+                        sfactor: BlendFactor::SrcAlpha,
+                        dfactor: BlendFactor::OneMinusSrcAlpha,
+                    }),
                     stencil_op: Default::default(),
                 },
                 |mut program_binding| {

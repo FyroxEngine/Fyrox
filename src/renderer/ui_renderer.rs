@@ -1,3 +1,4 @@
+use crate::renderer::framework::state::{BlendFactor, BlendFunc};
 use crate::{
     asset::Resource,
     core::{
@@ -163,8 +164,6 @@ impl UiRenderer {
 
         let mut statistics = RenderPassStatistics::default();
 
-        state.set_blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
-
         self.geometry_buffer
             .set_buffer_data(state, 0, drawing_context.get_vertices());
 
@@ -222,7 +221,7 @@ impl UiRenderer {
                         depth_write: false,
                         stencil_test: None,
                         depth_test: false,
-                        blend: false,
+                        blend: None,
                         stencil_op: StencilOp {
                             zpass: glow::INCR,
                             ..Default::default()
@@ -299,7 +298,10 @@ impl UiRenderer {
                 depth_write: false,
                 stencil_test,
                 depth_test: false,
-                blend: true,
+                blend: Some(BlendFunc {
+                    sfactor: BlendFactor::SrcAlpha,
+                    dfactor: BlendFactor::OneMinusSrcAlpha,
+                }),
                 stencil_op: Default::default(),
             };
 

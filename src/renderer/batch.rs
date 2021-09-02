@@ -1,3 +1,4 @@
+use crate::renderer::framework::state::{BlendFactor, BlendFunc};
 use crate::{
     core::{algebra::Matrix4, arrayvec::ArrayVec, pool::Handle, scope_profile},
     material::Material,
@@ -28,7 +29,7 @@ pub struct Batch {
     pub material: Arc<Mutex<Material>>,
     pub is_skinned: bool,
     pub render_path: RenderPath,
-    pub blend: bool,
+    pub blend_func: Option<BlendFunc>,
     pub decal_layer_index: u8,
     sort_index: u64,
 }
@@ -92,7 +93,7 @@ impl BatchStorage {
                                 material: surface.material().clone(),
                                 is_skinned: !surface.bones.is_empty(),
                                 render_path: mesh.render_path(),
-                                blend: false,
+                                blend_func: None,
                                 decal_layer_index: mesh.decal_layer_index(),
                             });
                             self.batches.last_mut().unwrap()
@@ -136,7 +137,14 @@ impl BatchStorage {
                                     is_skinned: false,
                                     render_path: RenderPath::Deferred,
                                     sort_index: layer_index as u64,
-                                    blend: layer_index != 0,
+                                    blend_func: if layer_index != 0 {
+                                        Some(BlendFunc {
+                                            sfactor: BlendFactor::SrcAlpha,
+                                            dfactor: BlendFactor::OneMinusSrcAlpha,
+                                        })
+                                    } else {
+                                        None
+                                    },
                                     decal_layer_index: terrain.decal_layer_index(),
                                 });
                                 self.batches.last_mut().unwrap()

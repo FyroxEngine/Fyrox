@@ -71,6 +71,45 @@ impl Default for DepthFunc {
     }
 }
 
+#[derive(Copy, Clone, Hash, PartialOrd, PartialEq, Eq, Ord)]
+#[repr(u32)]
+pub enum BlendFactor {
+    Zero = glow::ZERO,
+    One = glow::ONE,
+    SrcColor = glow::SRC_COLOR,
+    OneMinusSrcColor = glow::ONE_MINUS_SRC_COLOR,
+    DstColor = glow::DST_COLOR,
+    OneMinusDstColor = glow::ONE_MINUS_DST_COLOR,
+    SrcAlpha = glow::SRC_ALPHA,
+    OneMinusSrcAlpha = glow::ONE_MINUS_SRC_ALPHA,
+    DstAlpha = glow::DST_ALPHA,
+    OneMinusDstAlpha = glow::ONE_MINUS_DST_ALPHA,
+    ConstantColor = glow::CONSTANT_COLOR,
+    OneMinusConstantColor = glow::ONE_MINUS_CONSTANT_COLOR,
+    ConstantAlpha = glow::CONSTANT_ALPHA,
+    OneMinusConstantAlpha = glow::ONE_MINUS_CONSTANT_ALPHA,
+    SrcAlphaSaturate = glow::SRC_ALPHA_SATURATE,
+    Src1Color = glow::SRC1_COLOR,
+    OneMinusSrc1Color = glow::ONE_MINUS_SRC1_COLOR,
+    Src1Alpha = glow::SRC1_ALPHA,
+    OneMinusSrc1Alpha = glow::ONE_MINUS_SRC1_ALPHA,
+}
+
+#[derive(Copy, Clone, PartialOrd, PartialEq, Ord, Eq, Hash)]
+pub struct BlendFunc {
+    pub sfactor: BlendFactor,
+    pub dfactor: BlendFactor,
+}
+
+impl Default for BlendFunc {
+    fn default() -> Self {
+        Self {
+            sfactor: BlendFactor::One,
+            dfactor: BlendFactor::Zero,
+        }
+    }
+}
+
 pub struct PipelineState {
     pub gl: glow::Context,
 
@@ -93,8 +132,7 @@ pub struct PipelineState {
     framebuffer: Option<glow::Framebuffer>,
     viewport: Rect<i32>,
 
-    blend_src_factor: u32,
-    blend_dst_factor: u32,
+    blend_func: BlendFunc,
 
     program: Option<glow::Program>,
     texture_units: [TextureUnit; 32],
@@ -211,9 +249,8 @@ impl PipelineState {
             clear_depth: 1.0,
             scissor_test: false,
             framebuffer: None,
+            blend_func: Default::default(),
             viewport: Rect::new(0, 0, 1, 1),
-            blend_src_factor: glow::ONE,
-            blend_dst_factor: glow::ZERO,
             program: Default::default(),
             texture_units: [Default::default(); 32],
             stencil_func: Default::default(),
@@ -384,14 +421,15 @@ impl PipelineState {
         }
     }
 
-    pub fn set_blend_func(&mut self, sfactor: u32, dfactor: u32) {
-        if self.blend_src_factor != sfactor || self.blend_dst_factor != dfactor {
-            self.blend_src_factor = sfactor;
-            self.blend_dst_factor = dfactor;
+    pub fn set_blend_func(&mut self, func: BlendFunc) {
+        if self.blend_func != func {
+            self.blend_func = func;
 
             unsafe {
-                self.gl
-                    .blend_func(self.blend_src_factor, self.blend_dst_factor);
+                self.gl.blend_func(
+                    self.blend_func.sfactor as u32,
+                    self.blend_func.dfactor as u32,
+                );
             }
         }
     }
@@ -561,7 +599,12 @@ impl PipelineState {
     }
 
     pub fn apply_draw_parameters(&mut self, draw_params: &DrawParameters) {
-        self.set_blend(draw_params.blend);
+        if let Some(blend_func) = draw_params.blend {
+            self.set_blend_func(blend_func);
+            self.set_blend(true);
+        } else {
+            self.set_blend(false);
+        }
         self.set_depth_test(draw_params.depth_test);
         self.set_depth_write(draw_params.depth_write);
         self.set_color_write(draw_params.color_write);

@@ -1,5 +1,6 @@
 use crate::renderer::cache::ShaderCache;
 use crate::renderer::framework::framebuffer::FrameBuffer;
+use crate::renderer::framework::state::{BlendFactor, BlendFunc};
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3},
@@ -378,7 +379,7 @@ impl DeferredLightRenderer {
                             depth_write: false,
                             stencil_test: None,
                             depth_test: false,
-                            blend: false,
+                            blend: None,
                             stencil_op: Default::default(),
                         },
                         0,
@@ -392,9 +393,6 @@ impl DeferredLightRenderer {
                     .unwrap();
             }
         }
-
-        state.set_blend(true);
-        state.set_blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
 
         // Ambient light.
         let gbuffer_depth_map = gbuffer.depth();
@@ -415,7 +413,10 @@ impl DeferredLightRenderer {
                 depth_write: false,
                 stencil_test: None,
                 depth_test: false,
-                blend: true,
+                blend: Some(BlendFunc {
+                    sfactor: BlendFactor::SrcAlpha,
+                    dfactor: BlendFactor::OneMinusSrcAlpha,
+                }),
                 stencil_op: Default::default(),
             },
             |mut program_binding| {
@@ -440,8 +441,6 @@ impl DeferredLightRenderer {
                     );
             },
         );
-
-        state.set_blend_func(glow::ONE, glow::ONE);
 
         for (light_handle, light) in scene.graph.pair_iter().filter_map(|(handle, node)| {
             if let Node::Light(light) = node {
@@ -594,7 +593,7 @@ impl DeferredLightRenderer {
                         ..Default::default()
                     },
                     depth_test: true,
-                    blend: false,
+                    blend: None,
                 },
                 |mut program_binding| {
                     program_binding.set_matrix4(
@@ -624,7 +623,7 @@ impl DeferredLightRenderer {
                         ..Default::default()
                     },
                     depth_test: true,
-                    blend: false,
+                    blend: None,
                 },
                 |mut program_binding| {
                     program_binding.set_matrix4(
@@ -649,7 +648,10 @@ impl DeferredLightRenderer {
                     ..Default::default()
                 },
                 depth_test: false,
-                blend: true,
+                blend: Some(BlendFunc {
+                    sfactor: BlendFactor::One,
+                    dfactor: BlendFactor::One,
+                }),
             };
 
             let quad = geometry_cache.get(state, &self.quad);
@@ -769,7 +771,10 @@ impl DeferredLightRenderer {
                             depth_write: false,
                             stencil_test: None,
                             depth_test: false,
-                            blend: true,
+                            blend: Some(BlendFunc {
+                                sfactor: BlendFactor::One,
+                                dfactor: BlendFactor::One,
+                            }),
                             stencil_op: Default::default(),
                         },
                         |mut program_binding| {

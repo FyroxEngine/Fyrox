@@ -110,7 +110,7 @@ impl Blur {
                 depth_write: false,
                 stencil_test: None,
                 depth_test: false,
-                blend: false,
+                blend: None,
                 stencil_op: Default::default(),
             },
             |mut program_binding| {

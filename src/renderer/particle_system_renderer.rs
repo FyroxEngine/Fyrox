@@ -1,3 +1,4 @@
+use crate::renderer::framework::state::{BlendFactor, BlendFunc};
 use crate::{
     core::{algebra::Vector2, math::Matrix4Ext, math::Rect, scope_profile},
     renderer::framework::{
@@ -143,8 +144,6 @@ impl ParticleSystemRenderer {
             texture_cache,
         } = args;
 
-        state.set_blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
-
         let inv_view = camera.inv_view_matrix().unwrap();
         let view_proj = camera.view_projection_matrix();
 
@@ -181,7 +180,10 @@ impl ParticleSystemRenderer {
                 depth_write: false,
                 stencil_test: None,
                 depth_test: true,
-                blend: true,
+                blend: Some(BlendFunc {
+                    sfactor: BlendFactor::SrcAlpha,
+                    dfactor: BlendFactor::OneMinusSrcAlpha,
+                }),
                 stencil_op: Default::default(),
             };
 
