@@ -194,24 +194,12 @@ impl UiRenderer {
                 clip_bounds.size.y as i32,
             );
 
-            let mut stencil_test = false;
+            let mut stencil_test = None;
 
             // Draw clipping geometry first if we have any. This is optional, because complex
             // clipping is very rare and in most cases scissor test will do the job.
             if let Some(clipping_geometry) = cmd.clipping_geometry.as_ref() {
                 backbuffer.clear(state, viewport, None, None, Some(0));
-
-                state.set_stencil_op(StencilOp {
-                    zpass: glow::INCR,
-                    ..Default::default()
-                });
-
-                state.set_stencil_func(StencilFunc {
-                    func: glow::ALWAYS,
-                    ..Default::default()
-                });
-
-                state.set_stencil_mask(0xFF);
 
                 self.clipping_geometry_buffer.set_buffer_data(
                     state,
@@ -232,9 +220,13 @@ impl UiRenderer {
                         cull_face: None,
                         color_write: ColorMask::all(false),
                         depth_write: false,
-                        stencil_test: false,
+                        stencil_test: None,
                         depth_test: false,
                         blend: false,
+                        stencil_op: StencilOp {
+                            zpass: glow::INCR,
+                            ..Default::default()
+                        },
                     },
                     |mut program_binding| {
                         program_binding.set_matrix4(&self.shader.wvp_matrix, &ortho);
@@ -242,15 +234,11 @@ impl UiRenderer {
                 );
 
                 // Make sure main geometry will be drawn only on marked pixels.
-                state.set_stencil_func(StencilFunc {
+                stencil_test = Some(StencilFunc {
                     func: glow::EQUAL,
                     ref_value: 1,
                     ..Default::default()
                 });
-
-                state.set_stencil_mask(0);
-
-                stencil_test = true;
             }
 
             match &cmd.texture {
@@ -312,6 +300,7 @@ impl UiRenderer {
                 stencil_test,
                 depth_test: false,
                 blend: true,
+                stencil_op: Default::default(),
             };
 
             let shader = &self.shader;

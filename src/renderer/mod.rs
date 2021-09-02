@@ -802,9 +802,10 @@ fn blit_pixels(
             cull_face: None,
             color_write: Default::default(),
             depth_write: true,
-            stencil_test: false,
+            stencil_test: None,
             depth_test: false,
             blend: false,
+            stencil_op: Default::default(),
         },
         |mut program_binding| {
             program_binding

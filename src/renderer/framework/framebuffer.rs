@@ -1,3 +1,4 @@
+use crate::renderer::framework::state::{StencilFunc, StencilOp};
 use crate::{
     core::{color::Color, math::Rect, scope_profile},
     renderer::framework::{
@@ -41,9 +42,10 @@ pub struct DrawParameters {
     pub cull_face: Option<CullFace>,
     pub color_write: ColorMask,
     pub depth_write: bool,
-    pub stencil_test: bool,
+    pub stencil_test: Option<StencilFunc>,
     pub depth_test: bool,
     pub blend: bool,
+    pub stencil_op: StencilOp,
 }
 
 impl Default for DrawParameters {
@@ -52,9 +54,10 @@ impl Default for DrawParameters {
             cull_face: Some(CullFace::Back),
             color_write: Default::default(),
             depth_write: true,
-            stencil_test: false,
+            stencil_test: None,
             depth_test: true,
             blend: false,
+            stencil_op: Default::default(),
         }
     }
 }

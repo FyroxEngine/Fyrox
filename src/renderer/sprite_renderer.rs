@@ -135,9 +135,10 @@ impl SpriteRenderer {
                     cull_face: Some(CullFace::Back),
                     color_write: Default::default(),
                     depth_write: false,
-                    stencil_test: false,
+                    stencil_test: None,
                     depth_test: true,
                     blend: true,
+                    stencil_op: Default::default(),
                 },
                 |mut program_binding| {
                     program_binding

@@ -178,18 +178,6 @@ impl LightVolumeRenderer {
                 // Clear stencil only.
                 frame_buffer.clear(state, viewport, None, None, Some(0));
 
-                state.set_stencil_mask(0xFFFF_FFFF);
-                state.set_stencil_func(StencilFunc {
-                    func: glow::EQUAL,
-                    ref_value: 0xFF,
-                    mask: 0xFFFF_FFFF,
-                });
-                state.set_stencil_op(StencilOp {
-                    fail: glow::REPLACE,
-                    zfail: glow::KEEP,
-                    zpass: glow::REPLACE,
-                });
-
                 stats += frame_buffer.draw(
                     geom_cache.get(state, &self.cone),
                     state,
@@ -199,20 +187,24 @@ impl LightVolumeRenderer {
                         cull_face: None,
                         color_write: ColorMask::all(false),
                         depth_write: false,
-                        stencil_test: true,
+                        stencil_test: Some(StencilFunc {
+                            func: glow::EQUAL,
+                            ref_value: 0xFF,
+                            mask: 0xFFFF_FFFF,
+                        }),
                         depth_test: true,
                         blend: false,
+                        stencil_op: StencilOp {
+                            fail: glow::REPLACE,
+                            zfail: glow::KEEP,
+                            zpass: glow::REPLACE,
+                            write_mask: 0xFFFF_FFFF,
+                        },
                     },
                     |mut program_binding| {
                         program_binding.set_matrix4(&self.flat_shader.wvp_matrix, &mvp);
                     },
                 );
-
-                // Make sure to clean stencil buffer after drawing full screen quad.
-                state.set_stencil_op(StencilOp {
-                    zpass: glow::ZERO,
-                    ..Default::default()
-                });
 
                 // Finally draw fullscreen quad, GPU will calculate scattering only on pixels that were
                 // marked in stencil buffer. For distant lights it will be very low amount of pixels and
@@ -228,9 +220,18 @@ impl LightVolumeRenderer {
                         cull_face: None,
                         color_write: Default::default(),
                         depth_write: false,
-                        stencil_test: true,
+                        stencil_test: Some(StencilFunc {
+                            func: glow::EQUAL,
+                            ref_value: 0xFF,
+                            mask: 0xFFFF_FFFF,
+                        }),
                         depth_test: false,
                         blend: true,
+                        // Make sure to clean stencil buffer after drawing full screen quad.
+                        stencil_op: StencilOp {
+                            zpass: glow::ZERO,
+                            ..Default::default()
+                        },
                     },
                     |mut program_binding| {
                         program_binding
@@ -251,18 +252,6 @@ impl LightVolumeRenderer {
             Light::Point(point) => {
                 frame_buffer.clear(state, viewport, None, None, Some(0));
 
-                state.set_stencil_mask(0xFFFF_FFFF);
-                state.set_stencil_func(StencilFunc {
-                    func: glow::EQUAL,
-                    ref_value: 0xFF,
-                    mask: 0xFFFF_FFFF,
-                });
-                state.set_stencil_op(StencilOp {
-                    fail: glow::REPLACE,
-                    zfail: glow::KEEP,
-                    zpass: glow::REPLACE,
-                });
-
                 // Radius bias is used to to slightly increase sphere radius to add small margin
                 // for fadeout effect. It is set to 5%.
                 let bias = 1.05;
@@ -280,20 +269,24 @@ impl LightVolumeRenderer {
                         cull_face: None,
                         color_write: ColorMask::all(false),
                         depth_write: false,
-                        stencil_test: true,
+                        stencil_test: Some(StencilFunc {
+                            func: glow::EQUAL,
+                            ref_value: 0xFF,
+                            mask: 0xFFFF_FFFF,
+                        }),
                         depth_test: true,
                         blend: false,
+                        stencil_op: StencilOp {
+                            fail: glow::REPLACE,
+                            zfail: glow::KEEP,
+                            zpass: glow::REPLACE,
+                            write_mask: 0xFFFF_FFFF,
+                        },
                     },
                     |mut program_binding| {
                         program_binding.set_matrix4(&self.flat_shader.wvp_matrix, &mvp);
                     },
                 );
-
-                // Make sure to clean stencil buffer after drawing full screen quad.
-                state.set_stencil_op(StencilOp {
-                    zpass: glow::ZERO,
-                    ..Default::default()
-                });
 
                 // Finally draw fullscreen quad, GPU will calculate scattering only on pixels that were
                 // marked in stencil buffer. For distant lights it will be very low amount of pixels and
@@ -309,9 +302,18 @@ impl LightVolumeRenderer {
                         cull_face: None,
                         color_write: Default::default(),
                         depth_write: false,
-                        stencil_test: true,
+                        stencil_test: Some(StencilFunc {
+                            func: glow::EQUAL,
+                            ref_value: 0xFF,
+                            mask: 0xFFFF_FFFF,
+                        }),
                         depth_test: false,
                         blend: true,
+                        // Make sure to clean stencil buffer after drawing full screen quad.
+                        stencil_op: StencilOp {
+                            zpass: glow::ZERO,
+                            ..Default::default()
+                        },
                     },
                     |mut program_binding| {
                         program_binding

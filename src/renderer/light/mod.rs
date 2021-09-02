@@ -376,9 +376,10 @@ impl DeferredLightRenderer {
                             cull_face: None,
                             color_write: Default::default(),
                             depth_write: false,
-                            stencil_test: false,
+                            stencil_test: None,
                             depth_test: false,
                             blend: false,
+                            stencil_op: Default::default(),
                         },
                         0,
                         12,
@@ -412,9 +413,10 @@ impl DeferredLightRenderer {
                 cull_face: None,
                 color_write: Default::default(),
                 depth_write: false,
-                stencil_test: false,
+                stencil_test: None,
                 depth_test: false,
                 blend: true,
+                stencil_op: Default::default(),
             },
             |mut program_binding| {
                 program_binding
@@ -571,15 +573,6 @@ impl DeferredLightRenderer {
                 };
 
             // Mark lighted areas in stencil buffer to do light calculations only on them.
-            state.set_stencil_mask(0xFFFF_FFFF);
-            state.set_stencil_func(StencilFunc {
-                func: glow::ALWAYS,
-                ..Default::default()
-            });
-            state.set_stencil_op(StencilOp {
-                zfail: glow::INCR,
-                ..Default::default()
-            });
 
             let sphere = geometry_cache.get(state, &self.sphere);
 
@@ -592,7 +585,14 @@ impl DeferredLightRenderer {
                     cull_face: Some(CullFace::Front),
                     color_write: ColorMask::all(false),
                     depth_write: false,
-                    stencil_test: true,
+                    stencil_test: Some(StencilFunc {
+                        func: glow::ALWAYS,
+                        ..Default::default()
+                    }),
+                    stencil_op: StencilOp {
+                        zfail: glow::INCR,
+                        ..Default::default()
+                    },
                     depth_test: true,
                     blend: false,
                 },
@@ -605,15 +605,6 @@ impl DeferredLightRenderer {
                     );
                 },
             );
-
-            state.set_stencil_func(StencilFunc {
-                func: glow::ALWAYS,
-                ..Default::default()
-            });
-            state.set_stencil_op(StencilOp {
-                zfail: glow::DECR,
-                ..Default::default()
-            });
 
             pass_stats += frame_buffer.draw(
                 sphere,
@@ -624,7 +615,14 @@ impl DeferredLightRenderer {
                     cull_face: Some(CullFace::Back),
                     color_write: ColorMask::all(false),
                     depth_write: false,
-                    stencil_test: true,
+                    stencil_test: Some(StencilFunc {
+                        func: glow::ALWAYS,
+                        ..Default::default()
+                    }),
+                    stencil_op: StencilOp {
+                        zfail: glow::DECR,
+                        ..Default::default()
+                    },
                     depth_test: true,
                     blend: false,
                 },
@@ -638,20 +636,18 @@ impl DeferredLightRenderer {
                 },
             );
 
-            state.set_stencil_func(StencilFunc {
-                func: glow::NOTEQUAL,
-                ..Default::default()
-            });
-            state.set_stencil_op(StencilOp {
-                zpass: glow::ZERO,
-                ..Default::default()
-            });
-
             let draw_params = DrawParameters {
                 cull_face: None,
                 color_write: Default::default(),
                 depth_write: false,
-                stencil_test: true,
+                stencil_test: Some(StencilFunc {
+                    func: glow::NOTEQUAL,
+                    ..Default::default()
+                }),
+                stencil_op: StencilOp {
+                    zpass: glow::ZERO,
+                    ..Default::default()
+                },
                 depth_test: false,
                 blend: true,
             };
@@ -771,9 +767,10 @@ impl DeferredLightRenderer {
                             cull_face: None,
                             color_write: Default::default(),
                             depth_write: false,
-                            stencil_test: false,
+                            stencil_test: None,
                             depth_test: false,
                             blend: true,
+                            stencil_op: Default::default(),
                         },
                         |mut program_binding| {
                             program_binding

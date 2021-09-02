@@ -172,9 +172,10 @@ impl SpotShadowMapRenderer {
                                     cull_face: Some(CullFace::Back),
                                     color_write: ColorMask::all(false),
                                     depth_write: true,
-                                    stencil_test: false,
+                                    stencil_test: None,
                                     depth_test: true,
                                     blend: false,
+                                    stencil_op: Default::default(),
                                 },
                                 |mut program_binding| {
                                     apply_material(MaterialContext {

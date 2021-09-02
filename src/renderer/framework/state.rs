@@ -175,6 +175,7 @@ pub struct StencilOp {
     pub fail: u32,
     pub zfail: u32,
     pub zpass: u32,
+    pub write_mask: u32,
 }
 
 impl Default for StencilOp {
@@ -183,6 +184,7 @@ impl Default for StencilOp {
             fail: glow::KEEP,
             zfail: glow::KEEP,
             zpass: glow::KEEP,
+            write_mask: 0xFFFF_FFFF,
         }
     }
 }
@@ -456,6 +458,8 @@ impl PipelineState {
                     self.stencil_op.zfail,
                     self.stencil_op.zpass,
                 );
+
+                self.gl.stencil_mask(self.stencil_op.write_mask);
             }
         }
     }
@@ -561,7 +565,16 @@ impl PipelineState {
         self.set_depth_test(draw_params.depth_test);
         self.set_depth_write(draw_params.depth_write);
         self.set_color_write(draw_params.color_write);
-        self.set_stencil_test(draw_params.stencil_test);
+
+        if let Some(stencil_func) = draw_params.stencil_test {
+            self.set_stencil_test(true);
+            self.set_stencil_func(stencil_func);
+        } else {
+            self.set_stencil_test(false);
+        }
+
+        self.set_stencil_op(draw_params.stencil_op);
+
         if let Some(cull_face) = draw_params.cull_face {
             self.set_cull_face(cull_face);
             self.set_culling(true);

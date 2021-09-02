@@ -234,9 +234,10 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                 cull_face: None,
                 color_write: Default::default(),
                 depth_write: false,
-                stencil_test: false,
+                stencil_test: None,
                 depth_test: false,
                 blend: false,
+                stencil_op: Default::default(),
             },
             |mut program_binding| {
                 program_binding

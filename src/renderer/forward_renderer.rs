@@ -70,9 +70,10 @@ impl ForwardRenderer {
             cull_face: Some(CullFace::Back),
             color_write: Default::default(),
             depth_write: true,
-            stencil_test: false,
+            stencil_test: None,
             depth_test: true,
             blend: true,
+            stencil_op: Default::default(),
         };
 
         state.set_blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
