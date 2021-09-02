@@ -1,3 +1,4 @@
+use rg3d::renderer::framework::state::{BlendFactor, BlendFunc};
 use rg3d::{
     core::{algebra::Matrix4, math::Matrix4Ext},
     renderer::{
@@ -120,7 +121,10 @@ impl SceneRenderPass for OverlayRenderPass {
                     depth_write: false,
                     stencil_test: None,
                     depth_test: true,
-                    blend: true,
+                    blend: Some(BlendFunc {
+                        sfactor: BlendFactor::SrcAlpha,
+                        dfactor: BlendFactor::OneMinusSrcAlpha,
+                    }),
                     stencil_op: Default::default(),
                 },
                 |mut program_binding| {
