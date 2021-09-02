@@ -998,3 +998,37 @@ impl<M: MessageData, C: Control<M, C>> FileSelectorBuilder<M, C> {
         ctx.add_node(UINode::FileSelector(file_selector))
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        core::{algebra::Vector2, pool::Handle},
+        file_browser::{build_tree, find_tree},
+        node::StubNode,
+        tree::TreeRootBuilder,
+        widget::WidgetBuilder,
+        UserInterface,
+    };
+    use std::{path::PathBuf, rc::Rc};
+
+    #[test]
+    fn test_find_tree() {
+        let mut ui = UserInterface::<(), StubNode>::new(Vector2::new(100.0, 100.0));
+
+        let root = TreeRootBuilder::new(
+            WidgetBuilder::new().with_user_data(Rc::new(PathBuf::from("test"))),
+        )
+        .build(&mut ui.build_ctx());
+
+        let path = build_tree(root, true, "./test/path1", "./test", &mut ui);
+
+        while ui.poll_message().is_some() {}
+
+        // This passes.
+        assert_eq!(find_tree(root, &"./test/path1", &ui), path);
+
+        // This expected to fail
+        // https://github.com/rust-lang/rust/issues/31374
+        assert_eq!(find_tree(root, &"test/path1", &ui), Handle::NONE);
+    }
+}
