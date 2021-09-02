@@ -648,12 +648,18 @@ pub enum FileBrowserMessage {
     Root(Option<PathBuf>),
     Path(PathBuf),
     Filter(Option<Filter>),
+    Add(PathBuf),
+    Remove(PathBuf),
+    Rescan,
 }
 
 impl FileBrowserMessage {
     define_constructor_unbound!(FileBrowser(FileBrowserMessage:Root) => fn root(Option<PathBuf>), layout: false);
     define_constructor_unbound!(FileBrowser(FileBrowserMessage:Path) => fn path(PathBuf), layout: false);
     define_constructor_unbound!(FileBrowser(FileBrowserMessage:Filter) => fn filter(Option<Filter>), layout: false);
+    define_constructor_unbound!(FileBrowser(FileBrowserMessage:Add) => fn add(PathBuf), layout: false);
+    define_constructor_unbound!(FileBrowser(FileBrowserMessage:Remove) => fn remove(PathBuf), layout: false);
+    define_constructor_unbound!(FileBrowser(FileBrowserMessage:Rescan) => fn rescan(), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -997,7 +1003,7 @@ impl MessageDirection {
     }
 }
 
-pub trait MessageData: 'static + Debug + Clone + PartialEq {}
+pub trait MessageData: 'static + Debug + Clone + PartialEq + Send {}
 
 /// Message is basic communication element that is used to deliver information to UI nodes
 /// or to user code.

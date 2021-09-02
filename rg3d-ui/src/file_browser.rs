@@ -24,24 +24,29 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, Thickness,
     UserInterface, VerticalAlignment,
 };
+use core::time;
 use std::{
-    cell::RefCell,
+    borrow::BorrowMut,
+    cell,
     ops::{Deref, DerefMut},
     path::{Component, Path, PathBuf, Prefix},
     rc::Rc,
+    sync::{mpsc, Arc, Mutex},
+    thread,
 };
 
 use crate::text_box::TextCommitMode;
+use notify::Watcher;
 use std::fmt::{Debug, Formatter};
 #[cfg(not(target_arch = "wasm32"))]
 use sysinfo::{DiskExt, RefreshKind, SystemExt};
 
 #[derive(Clone)]
-pub struct Filter(pub Rc<RefCell<dyn FnMut(&Path) -> bool>>);
+pub struct Filter(pub Arc<Mutex<dyn FnMut(&Path) -> bool + Send>>);
 
 impl Filter {
-    pub fn new<F: FnMut(&Path) -> bool + 'static>(filter: F) -> Self {
-        Self(Rc::new(RefCell::new(filter)))
+    pub fn new<F: FnMut(&Path) -> bool + 'static + Send>(filter: F) -> Self {
+        Self(Arc::new(Mutex::new(filter)))
     }
 }
 
@@ -75,6 +80,8 @@ pub struct FileBrowser<M: MessageData, C: Control<M, C>> {
     mode: FileBrowserMode,
     file_name: Handle<UINode<M, C>>,
     file_name_value: PathBuf,
+    #[allow(clippy::type_complexity)]
+    watcher: Rc<cell::Cell<Option<(notify::RecommendedWatcher, thread::JoinHandle<()>)>>>,
 }
 
 crate::define_widget_deref!(FileBrowser<M, C>);
@@ -142,15 +149,10 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileBrowser<M, C> {
                             if message.direction() == MessageDirection::ToWidget
                                 && &self.path != path
                             {
-                                // Skip parts of path until we get existing.
-                                let mut existing_path = path.to_owned();
-                                while !existing_path.exists() {
-                                    if !existing_path.pop() {
-                                        break;
-                                    }
-                                }
+                                let existing_path = ignore_nonexistent_sub_dirs(path);
 
                                 let mut item = find_tree(self.tree_root, &existing_path, ui);
+
                                 if item.is_none() {
                                     // Generate new tree contents.
                                     let result = build_all(
@@ -201,10 +203,27 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileBrowser<M, C> {
                         }
                         FileBrowserMessage::Root(root) => {
                             if &self.root != root {
+                                let watcher_replacment = match self.watcher.replace(None) {
+                                    Some((mut watcher, converter)) => {
+                                        let current_root = match &self.root {
+                                            Some(path) => path.clone(),
+                                            None => self.path.clone(),
+                                        };
+                                        let _ = watcher.unwatch(current_root);
+                                        let new_root = match &root {
+                                            Some(path) => path.clone(),
+                                            None => self.path.clone(),
+                                        };
+                                        let _ = watcher
+                                            .watch(new_root, notify::RecursiveMode::Recursive);
+                                        Some((watcher, converter))
+                                    }
+                                    None => None,
+                                };
                                 self.root = root.clone();
                                 self.path = root.clone().unwrap_or_default();
-
                                 self.rebuild_from_root(ui);
+                                self.watcher.replace(watcher_replacment);
                             }
                         }
                         FileBrowserMessage::Filter(filter) => {
@@ -212,11 +231,35 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileBrowser<M, C> {
                                 (Some(current), Some(new)) => std::ptr::eq(&*new, &*current),
                                 _ => false,
                             };
-
                             if !equal {
                                 self.filter = filter.clone();
                                 self.rebuild_from_root(ui);
                             }
+                        }
+                        FileBrowserMessage::Add(path) => {
+                            if let Some(filter) = self.filter.as_mut() {
+                                if !filter.0.borrow_mut().deref_mut().lock().unwrap()(path) {
+                                    return;
+                                }
+                            }
+                            let mut parent_path = path.clone();
+                            parent_path.pop();
+                            let existing_parent_node = find_tree(self.tree_root, &parent_path, ui);
+                            if existing_parent_node.is_some() {
+                                build_tree(
+                                    existing_parent_node,
+                                    existing_parent_node == self.tree_root,
+                                    path,
+                                    &parent_path,
+                                    ui,
+                                );
+                            }
+                        }
+                        FileBrowserMessage::Remove(_path) => {
+                            println!("FileBrowserMessage::Remove Received and Ignored");
+                        }
+                        FileBrowserMessage::Rescan => {
+                            println!("FileBrowserMessage::Rescan Received and Ignored");
                         }
                     }
                 }
@@ -250,8 +293,8 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileBrowser<M, C> {
                     if let Ok(dir_iter) = std::fs::read_dir(&parent_path) {
                         for entry in dir_iter.flatten() {
                             let path = entry.path();
-                            let build = if let Some(filter) = self.filter.as_ref() {
-                                filter.deref().0.borrow_mut().deref_mut()(&path)
+                            let build = if let Some(filter) = self.filter.as_mut() {
+                                filter.0.borrow_mut().deref_mut().lock().unwrap()(&path)
                             } else {
                                 true
                             };
@@ -330,6 +373,16 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileBrowser<M, C> {
     }
 }
 
+fn ignore_nonexistent_sub_dirs(path: &Path) -> PathBuf {
+    let mut existing_path = path.to_owned();
+    while !existing_path.exists() {
+        if !existing_path.pop() {
+            break;
+        }
+    }
+    existing_path
+}
+
 fn find_tree<M: MessageData, C: Control<M, C>, P: AsRef<Path>>(
     node: Handle<UINode<M, C>>,
     path: &P,
@@ -397,8 +450,17 @@ fn build_tree<M: MessageData, C: Control<M, C>, P: AsRef<Path>>(
     parent_path: P,
     ui: &mut UserInterface<M, C>,
 ) -> Handle<UINode<M, C>> {
-    let tree = build_tree_item(path, parent_path, &mut ui.build_ctx());
+    let subtree = build_tree_item(path, parent_path, &mut ui.build_ctx());
+    insert_subtree_in_parent(ui, parent, is_parent_root, subtree);
+    subtree
+}
 
+fn insert_subtree_in_parent<M: MessageData, C: Control<M, C>>(
+    ui: &mut UserInterface<M, C>,
+    parent: Handle<UINode<M, C>>,
+    is_parent_root: bool,
+    tree: Handle<UINode<M, C>>,
+) {
     if is_parent_root {
         ui.send_message(TreeRootMessage::add_item(
             parent,
@@ -412,8 +474,6 @@ fn build_tree<M: MessageData, C: Control<M, C>, P: AsRef<Path>>(
             tree,
         ));
     }
-
-    tree
 }
 
 struct BuildResult<M: MessageData, C: Control<M, C>> {
@@ -425,7 +485,7 @@ struct BuildResult<M: MessageData, C: Control<M, C>> {
 fn build_all<M: MessageData, C: Control<M, C>>(
     root: Option<&PathBuf>,
     final_path: &Path,
-    filter: Option<Filter>,
+    mut filter: Option<Filter>,
     ctx: &mut BuildContext<M, C>,
 ) -> BuildResult<M, C> {
     let mut dest_path = PathBuf::new();
@@ -509,10 +569,10 @@ fn build_all<M: MessageData, C: Control<M, C>>(
         if let Ok(dir_iter) = std::fs::read_dir(&full_path) {
             for entry in dir_iter.flatten() {
                 let path = entry.path();
-                if filter
-                    .as_ref()
-                    .map_or(true, |f| f.deref().0.borrow_mut().deref_mut()(&path))
-                {
+                #[allow(clippy::blocks_in_if_conditions)]
+                if filter.as_mut().map_or(true, |f| {
+                    f.0.borrow_mut().deref_mut().lock().unwrap()(&path)
+                }) {
                     let item = build_tree_item(&path, &full_path, ctx);
                     if parent.is_some() {
                         Tree::add_item(parent, item, ctx);
@@ -582,7 +642,7 @@ impl<M: MessageData, C: Control<M, C>> FileBrowserBuilder<M, C> {
     /// during construction stage - there is not enough layout information to do so. You
     /// can send FileBrowserMessage::Path right after creation and it will bring tree item
     /// into view without any problems. It is possible because all widgets were created at
-    /// that moment and layout system can give correct offsets to bring item into view.  
+    /// that moment and layout system can give correct offsets to bring item into view.
     pub fn with_path<P: AsRef<Path>>(mut self, path: P) -> Self {
         self.path = path.as_ref().to_owned();
         self
@@ -721,8 +781,13 @@ impl<M: MessageData, C: Control<M, C>> FileBrowserBuilder<M, C> {
             FileBrowserMode::Open => Default::default(),
         };
 
+        let widget = self.widget_builder.with_child(grid).build();
+        let the_path = match &self.root {
+            Some(path) => path.clone(),
+            _ => self.path.clone(),
+        };
         let browser = FileBrowser {
-            widget: self.widget_builder.with_child(grid).build(),
+            widget,
             tree_root,
             path_text,
             path: match self.mode {
@@ -742,9 +807,79 @@ impl<M: MessageData, C: Control<M, C>> FileBrowserBuilder<M, C> {
             scroll_viewer,
             root: self.root,
             file_name,
+            watcher: Rc::new(cell::Cell::new(None)),
         };
+        let watcher = browser.watcher.clone();
+        let filebrowser_node = UINode::FileBrowser(browser);
+        let node = ctx.add_node(filebrowser_node);
+        watcher.replace(setup_filebrowser_fs_watcher(
+            ctx.ui.sender(),
+            node,
+            the_path,
+        ));
+        node
+    }
+}
 
-        ctx.add_node(UINode::FileBrowser(browser))
+fn setup_filebrowser_fs_watcher<M: MessageData, C: Control<M, C>>(
+    ui_sender: mpsc::Sender<UiMessage<M, C>>,
+    filebrowser_widget_handle: Handle<UINode<M, C>>,
+    the_path: PathBuf,
+) -> Option<(notify::RecommendedWatcher, thread::JoinHandle<()>)> {
+    let (tx, rx) = mpsc::channel();
+    match notify::watcher(tx, time::Duration::from_secs(1)) {
+        Ok(mut watcher) => {
+            #[allow(clippy::while_let_loop)]
+            let watcher_conversion_thread = std::thread::spawn(move || loop {
+                println!("Waiting for FS Watcher Event....");
+                match rx.recv() {
+                    Ok(event) => match event {
+                        notify::DebouncedEvent::NoticeRemove(path)
+                        | notify::DebouncedEvent::Remove(path) => {
+                            println!("Sent Remove Message");
+                            match ui_sender.send(FileBrowserMessage::remove(
+                                filebrowser_widget_handle,
+                                MessageDirection::ToWidget,
+                                path,
+                            )) {
+                                Ok(_) => println!("Successfully sent Remove message"),
+                                Err(_) => println!("Failed to Send Remove Message"),
+                            }
+                        }
+                        notify::DebouncedEvent::Create(path) => {
+                            println!("Sent Create Message");
+                            let _ = ui_sender.send(FileBrowserMessage::add(
+                                filebrowser_widget_handle,
+                                MessageDirection::ToWidget,
+                                path,
+                            ));
+                        }
+                        notify::DebouncedEvent::Rescan | notify::DebouncedEvent::Error(_, _) => {
+                            println!("Sent Rescan Message");
+                            let _ = ui_sender.send(FileBrowserMessage::rescan(
+                                filebrowser_widget_handle,
+                                MessageDirection::ToWidget,
+                            ));
+                        }
+                        _ => {
+                            println!("Ignored FS Watcher Event");
+                            ()
+                        }
+                    },
+                    Err(_) => {
+                        println!("Breaking out of FS Watcher Event Loop");
+                        break;
+                    }
+                };
+            });
+            println!(
+                "Starting FS Event watch on Path: {}",
+                the_path.to_str().unwrap()
+            );
+            let _ = watcher.watch(the_path, notify::RecursiveMode::Recursive);
+            Some((watcher, watcher_conversion_thread))
+        }
+        Err(_) => None,
     }
 }
 
