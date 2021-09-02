@@ -13,7 +13,7 @@ use crate::{
     renderer::{
         framework::{
             error::FrameworkError,
-            framebuffer::{CullFace, DrawParameters, FrameBuffer},
+            framebuffer::{DrawParameters, FrameBuffer},
             geometry_buffer::{
                 AttributeDefinition, AttributeKind, BufferBuilder, ElementKind, GeometryBuffer,
                 GeometryBufferBuilder, GeometryBufferKind,
@@ -229,8 +229,7 @@ impl UiRenderer {
                     viewport,
                     &self.shader.program,
                     &DrawParameters {
-                        cull_face: CullFace::Back,
-                        culling: false,
+                        cull_face: None,
                         color_write: ColorMask::all(false),
                         depth_write: false,
                         stencil_test: false,
@@ -307,8 +306,7 @@ impl UiRenderer {
             };
 
             let params = DrawParameters {
-                cull_face: CullFace::Back,
-                culling: false,
+                cull_face: None,
                 color_write: ColorMask::all(true),
                 depth_write: false,
                 stencil_test,

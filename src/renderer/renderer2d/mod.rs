@@ -9,7 +9,7 @@ use crate::{
     renderer::{
         framework::{
             error::FrameworkError,
-            framebuffer::{Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer},
+            framebuffer::{Attachment, AttachmentKind, DrawParameters, FrameBuffer},
             gpu_program::{GpuProgram, UniformLocation},
             gpu_texture::{
                 GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
@@ -338,8 +338,7 @@ impl Renderer2d {
                         viewport,
                         &shader.program,
                         &DrawParameters {
-                            cull_face: CullFace::Back,
-                            culling: false,
+                            cull_face: None,
                             color_write: Default::default(),
                             depth_write: false,
                             stencil_test: false,

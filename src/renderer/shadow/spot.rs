@@ -169,8 +169,7 @@ impl SpotShadowMapRenderer {
                                 viewport,
                                 program,
                                 &DrawParameters {
-                                    cull_face: CullFace::Back,
-                                    culling: true,
+                                    cull_face: Some(CullFace::Back),
                                     color_write: ColorMask::all(false),
                                     depth_write: true,
                                     stencil_test: false,

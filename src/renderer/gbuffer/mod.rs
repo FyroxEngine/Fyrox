@@ -276,8 +276,7 @@ impl GBuffer {
         );
 
         let mut params = DrawParameters {
-            cull_face: CullFace::Back,
-            culling: true,
+            cull_face: Some(CullFace::Back),
             color_write: Default::default(),
             depth_write: true,
             stencil_test: false,
@@ -380,8 +379,7 @@ impl GBuffer {
                 viewport,
                 program,
                 &DrawParameters {
-                    cull_face: CullFace::Back,
-                    culling: false,
+                    cull_face: None,
                     color_write: Default::default(),
                     depth_write: false,
                     stencil_test: false,

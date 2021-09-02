@@ -2,7 +2,7 @@ use crate::{
     core::{algebra::Vector2, math::Matrix4Ext, math::Rect, scope_profile},
     renderer::framework::{
         error::FrameworkError,
-        framebuffer::{CullFace, DrawParameters, FrameBuffer},
+        framebuffer::{DrawParameters, FrameBuffer},
         geometry_buffer::{
             AttributeDefinition, AttributeKind, BufferBuilder, ElementKind, GeometryBuffer,
             GeometryBufferBuilder, GeometryBufferKind,
@@ -176,8 +176,7 @@ impl ParticleSystemRenderer {
             let global_transform = node.global_transform();
 
             let draw_params = DrawParameters {
-                cull_face: CullFace::Front,
-                culling: false,
+                cull_face: None,
                 color_write: Default::default(),
                 depth_write: false,
                 stencil_test: false,

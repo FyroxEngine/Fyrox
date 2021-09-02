@@ -31,23 +31,14 @@ pub struct FrameBuffer {
 }
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug)]
+#[repr(u32)]
 pub enum CullFace {
-    Back,
-    Front,
-}
-
-impl CullFace {
-    pub fn into_gl_value(self) -> u32 {
-        match self {
-            Self::Front => glow::FRONT,
-            Self::Back => glow::BACK,
-        }
-    }
+    Back = glow::BACK,
+    Front = glow::FRONT,
 }
 
 pub struct DrawParameters {
-    pub cull_face: CullFace,
-    pub culling: bool,
+    pub cull_face: Option<CullFace>,
     pub color_write: ColorMask,
     pub depth_write: bool,
     pub stencil_test: bool,
@@ -58,8 +49,7 @@ pub struct DrawParameters {
 impl Default for DrawParameters {
     fn default() -> Self {
         Self {
-            cull_face: CullFace::Back,
-            culling: true,
+            cull_face: Some(CullFace::Back),
             color_write: Default::default(),
             depth_write: true,
             stencil_test: false,

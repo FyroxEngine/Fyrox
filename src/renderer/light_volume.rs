@@ -1,21 +1,22 @@
-use crate::core::algebra::{Isometry3, Translation};
-use crate::renderer::framework::framebuffer::FrameBuffer;
 use crate::{
     core::{
-        algebra::{Matrix4, Point3, Vector3},
+        algebra::{Isometry3, Matrix4, Point3, Translation, Vector3},
         math::Rect,
         pool::Handle,
         scope_profile,
     },
-    renderer::framework::{
-        error::FrameworkError,
-        framebuffer::{CullFace, DrawParameters},
-        gpu_program::{GpuProgram, UniformLocation},
-        state::{ColorMask, PipelineState, StencilFunc, StencilOp},
+    renderer::{
+        flat_shader::FlatShader,
+        framework::{
+            error::FrameworkError,
+            framebuffer::{DrawParameters, FrameBuffer},
+            gpu_program::{GpuProgram, UniformLocation},
+            state::{ColorMask, PipelineState, StencilFunc, StencilOp},
+        },
+        gbuffer::GBuffer,
+        GeometryCache, RenderPassStatistics,
     },
-    renderer::{flat_shader::FlatShader, gbuffer::GBuffer, GeometryCache, RenderPassStatistics},
-    scene::mesh::surface::SurfaceData,
-    scene::{graph::Graph, light::Light, node::Node},
+    scene::{graph::Graph, light::Light, mesh::surface::SurfaceData, node::Node},
 };
 
 struct SpotLightShader {
@@ -195,8 +196,7 @@ impl LightVolumeRenderer {
                     viewport,
                     &self.flat_shader.program,
                     &DrawParameters {
-                        cull_face: CullFace::Back,
-                        culling: false,
+                        cull_face: None,
                         color_write: ColorMask::all(false),
                         depth_write: false,
                         stencil_test: true,
@@ -225,8 +225,7 @@ impl LightVolumeRenderer {
                     viewport,
                     &shader.program,
                     &DrawParameters {
-                        cull_face: CullFace::Back,
-                        culling: false,
+                        cull_face: None,
                         color_write: Default::default(),
                         depth_write: false,
                         stencil_test: true,
@@ -278,8 +277,7 @@ impl LightVolumeRenderer {
                     viewport,
                     &self.flat_shader.program,
                     &DrawParameters {
-                        cull_face: CullFace::Back,
-                        culling: false,
+                        cull_face: None,
                         color_write: ColorMask::all(false),
                         depth_write: false,
                         stencil_test: true,
@@ -308,8 +306,7 @@ impl LightVolumeRenderer {
                     viewport,
                     &shader.program,
                     &DrawParameters {
-                        cull_face: CullFace::Back,
-                        culling: false,
+                        cull_face: None,
                         color_write: Default::default(),
                         depth_write: false,
                         stencil_test: true,

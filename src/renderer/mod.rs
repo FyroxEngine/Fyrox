@@ -55,7 +55,7 @@ use crate::{
         forward_renderer::{ForwardRenderContext, ForwardRenderer},
         framework::{
             error::FrameworkError,
-            framebuffer::{Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer},
+            framebuffer::{Attachment, AttachmentKind, DrawParameters, FrameBuffer},
             geometry_buffer::{DrawCallStatistics, GeometryBuffer},
             gpu_program::GpuProgramBinding,
             gpu_texture::{
@@ -799,8 +799,7 @@ fn blit_pixels(
         viewport,
         &shader.program,
         &DrawParameters {
-            cull_face: CullFace::Back,
-            culling: false,
+            cull_face: None,
             color_write: Default::default(),
             depth_write: true,
             stencil_test: false,

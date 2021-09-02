@@ -67,8 +67,7 @@ impl ForwardRenderer {
         } = args;
 
         let params = DrawParameters {
-            cull_face: CullFace::Back,
-            culling: true,
+            cull_face: Some(CullFace::Back),
             color_write: Default::default(),
             depth_write: true,
             stencil_test: false,

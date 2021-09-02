@@ -373,8 +373,7 @@ impl DeferredLightRenderer {
                         viewport,
                         &shader.program,
                         DrawParameters {
-                            cull_face: CullFace::Back,
-                            culling: false,
+                            cull_face: None,
                             color_write: Default::default(),
                             depth_write: false,
                             stencil_test: false,
@@ -410,8 +409,7 @@ impl DeferredLightRenderer {
             viewport,
             &self.ambient_light_shader.program,
             &DrawParameters {
-                cull_face: CullFace::Back,
-                culling: false,
+                cull_face: None,
                 color_write: Default::default(),
                 depth_write: false,
                 stencil_test: false,
@@ -591,8 +589,7 @@ impl DeferredLightRenderer {
                 viewport,
                 &self.flat_shader.program,
                 &DrawParameters {
-                    cull_face: CullFace::Front,
-                    culling: true,
+                    cull_face: Some(CullFace::Front),
                     color_write: ColorMask::all(false),
                     depth_write: false,
                     stencil_test: true,
@@ -624,8 +621,7 @@ impl DeferredLightRenderer {
                 viewport,
                 &self.flat_shader.program,
                 &DrawParameters {
-                    cull_face: CullFace::Back,
-                    culling: true,
+                    cull_face: Some(CullFace::Back),
                     color_write: ColorMask::all(false),
                     depth_write: false,
                     stencil_test: true,
@@ -652,8 +648,7 @@ impl DeferredLightRenderer {
             });
 
             let draw_params = DrawParameters {
-                cull_face: CullFace::Back,
-                culling: false,
+                cull_face: None,
                 color_write: Default::default(),
                 depth_write: false,
                 stencil_test: true,
@@ -773,8 +768,7 @@ impl DeferredLightRenderer {
                         viewport,
                         &shader.program,
                         &DrawParameters {
-                            cull_face: CullFace::Back,
-                            culling: false,
+                            cull_face: None,
                             color_write: Default::default(),
                             depth_write: false,
                             stencil_test: false,

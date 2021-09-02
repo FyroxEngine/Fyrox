@@ -4,7 +4,7 @@ use crate::{
         bloom::blur::GaussianBlur,
         framework::{
             error::FrameworkError,
-            framebuffer::{Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer},
+            framebuffer::{Attachment, AttachmentKind, DrawParameters, FrameBuffer},
             geometry_buffer::GeometryBuffer,
             gpu_program::{GpuProgram, UniformLocation},
             gpu_texture::{
@@ -116,8 +116,7 @@ impl BloomRenderer {
             viewport,
             &shader.program,
             &DrawParameters {
-                cull_face: CullFace::Back,
-                culling: false,
+                cull_face: None,
                 color_write: Default::default(),
                 depth_write: false,
                 stencil_test: false,

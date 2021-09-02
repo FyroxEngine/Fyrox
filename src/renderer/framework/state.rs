@@ -323,7 +323,7 @@ impl PipelineState {
         if self.cull_face != cull_face {
             self.cull_face = cull_face;
 
-            unsafe { self.gl.cull_face(self.cull_face.into_gl_value()) }
+            unsafe { self.gl.cull_face(self.cull_face as u32) }
         }
     }
 
@@ -562,8 +562,12 @@ impl PipelineState {
         self.set_depth_write(draw_params.depth_write);
         self.set_color_write(draw_params.color_write);
         self.set_stencil_test(draw_params.stencil_test);
-        self.set_cull_face(draw_params.cull_face);
-        self.set_culling(draw_params.culling);
+        if let Some(cull_face) = draw_params.cull_face {
+            self.set_cull_face(cull_face);
+            self.set_culling(true);
+        } else {
+            self.set_culling(false);
+        }
     }
 
     pub fn pipeline_statistics(&self) -> PipelineStatistics {

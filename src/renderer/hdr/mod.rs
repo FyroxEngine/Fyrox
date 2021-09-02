@@ -8,7 +8,7 @@ use crate::{
         cache::TextureCache,
         framework::{
             error::FrameworkError,
-            framebuffer::{Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer},
+            framebuffer::{Attachment, AttachmentKind, DrawParameters, FrameBuffer},
             geometry_buffer::{DrawCallStatistics, GeometryBuffer},
             gpu_texture::{
                 GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
@@ -154,8 +154,7 @@ impl HighDynamicRangeRenderer {
             ),
             &shader.program,
             &DrawParameters {
-                cull_face: CullFace::Back,
-                culling: false,
+                cull_face: None,
                 color_write: Default::default(),
                 depth_write: false,
                 stencil_test: false,
@@ -188,8 +187,7 @@ impl HighDynamicRangeRenderer {
                 Rect::new(0, 0, lum_buffer.size as i32, lum_buffer.size as i32),
                 &shader.program,
                 &DrawParameters {
-                    cull_face: CullFace::Back,
-                    culling: false,
+                    cull_face: None,
                     color_write: Default::default(),
                     depth_write: false,
                     stencil_test: false,
@@ -227,8 +225,7 @@ impl HighDynamicRangeRenderer {
             viewport,
             &shader.program,
             &DrawParameters {
-                cull_face: CullFace::Back,
-                culling: false,
+                cull_face: None,
                 color_write: Default::default(),
                 depth_write: false,
                 stencil_test: false,
@@ -273,8 +270,7 @@ impl HighDynamicRangeRenderer {
             viewport,
             &shader.program,
             &DrawParameters {
-                cull_face: CullFace::Back,
-                culling: false,
+                cull_face: None,
                 color_write: Default::default(),
                 depth_write: false,
                 stencil_test: false,

@@ -132,8 +132,7 @@ impl SpriteRenderer {
                 viewport,
                 &self.shader.program,
                 &DrawParameters {
-                    cull_face: CullFace::Back,
-                    culling: true,
+                    cull_face: Some(CullFace::Back),
                     color_write: Default::default(),
                     depth_write: false,
                     stencil_test: false,
