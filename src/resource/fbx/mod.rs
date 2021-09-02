@@ -274,15 +274,15 @@ async fn create_surfaces(
                 if let Some(filename) = path.file_name() {
                     let texture_path = match material_search_options {
                         MaterialSearchOptions::MaterialsDirectory(directory) => {
-                            directory.join(filename)
+                            Some(directory.join(filename))
                         }
                         MaterialSearchOptions::RecursiveUp => {
-                            let mut texture_path = Default::default();
+                            let mut texture_path = None;
                             let mut path = model_path.to_owned();
                             while let Some(parent) = path.parent() {
                                 let candidate = parent.join(filename);
                                 if io::exists(&candidate).await {
-                                    texture_path = candidate;
+                                    texture_path = Some(candidate);
                                     break;
                                 }
                                 path.pop();
@@ -290,61 +290,80 @@ async fn create_surfaces(
                             texture_path
                         }
                         MaterialSearchOptions::WorkingDirectory => {
-                            let mut texture_path = Default::default();
+                            let mut texture_path = None;
                             for dir in WalkDir::new(".").into_iter().flatten() {
                                 if dir.path().is_dir() {
                                     let candidate = dir.path().join(filename);
                                     if candidate.exists() {
-                                        texture_path = candidate;
+                                        texture_path = Some(candidate);
                                         break;
                                     }
                                 }
                             }
                             texture_path
                         }
-                        MaterialSearchOptions::UsePathDirectly => path.clone(),
+                        MaterialSearchOptions::UsePathDirectly => Some(path.clone()),
                     };
 
-                    let texture = resource_manager.request_texture(texture_path.as_path(), None);
+                    if let Some(texture_path) = texture_path {
+                        let texture =
+                            resource_manager.request_texture(texture_path.as_path(), None);
 
-                    // Make up your mind, Autodesk.
-                    // Handle all possible combinations of links to auto-import materials.
-                    let name_usage = if name.contains("AmbientColor")
-                        || name.contains("ambient_color")
-                    {
-                        Some(("aoTexture", SamplerFallback::White))
-                    } else if name.contains("DiffuseColor") || name.contains("diffuse_color") {
-                        Some(("diffuseTexture", SamplerFallback::White))
-                    } else if name.contains("MetalnessMap") || name.contains("metalness_map") {
-                        Some(("metallicTexture", SamplerFallback::Black))
-                    } else if name.contains("RoughnessMap") || name.contains("roughness_map") {
-                        Some(("roughnessTexture", SamplerFallback::White))
-                    } else if name.contains("Bump")
-                        || name.contains("bump_map")
-                        || name.contains("NormalMap")
-                        || name.contains("normal_map")
-                    {
-                        Some(("normalTexture", SamplerFallback::Normal))
-                    } else if name.contains("DisplacementColor")
-                        || name.contains("displacement_map")
-                    {
-                        Some(("heightTexture", SamplerFallback::Black))
-                    } else if name.contains("EmissiveColor") || name.contains("emit_color_map") {
-                        Some(("emissionTexture", SamplerFallback::Black))
-                    } else {
-                        None
-                    };
+                        // Make up your mind, Autodesk.
+                        // Handle all possible combinations of links to auto-import materials.
+                        let name_usage = if name.contains("AmbientColor")
+                            || name.contains("ambient_color")
+                        {
+                            Some(("aoTexture", SamplerFallback::White))
+                        } else if name.contains("DiffuseColor") || name.contains("diffuse_color") {
+                            Some(("diffuseTexture", SamplerFallback::White))
+                        } else if name.contains("MetalnessMap") || name.contains("metalness_map") {
+                            Some(("metallicTexture", SamplerFallback::Black))
+                        } else if name.contains("RoughnessMap") || name.contains("roughness_map") {
+                            Some(("roughnessTexture", SamplerFallback::White))
+                        } else if name.contains("Bump")
+                            || name.contains("bump_map")
+                            || name.contains("NormalMap")
+                            || name.contains("normal_map")
+                        {
+                            Some(("normalTexture", SamplerFallback::Normal))
+                        } else if name.contains("DisplacementColor")
+                            || name.contains("displacement_map")
+                        {
+                            Some(("heightTexture", SamplerFallback::Black))
+                        } else if name.contains("EmissiveColor") || name.contains("emit_color_map")
+                        {
+                            Some(("emissionTexture", SamplerFallback::Black))
+                        } else {
+                            None
+                        };
 
-                    if let Some((property_name, usage)) = name_usage {
-                        if let Err(e) = surface.material().lock().unwrap().set_property(
-                            property_name,
-                            PropertyValue::Sampler {
-                                value: Some(texture),
-                                fallback: usage,
-                            },
-                        ) {
-                            Log::writeln(MessageKind::Error, format!("Unable to set material property {} for FBX material! Reason: {:?}", property_name, e));
+                        if let Some((property_name, usage)) = name_usage {
+                            if let Err(e) = surface.material().lock().unwrap().set_property(
+                                property_name,
+                                PropertyValue::Sampler {
+                                    value: Some(texture),
+                                    fallback: usage,
+                                },
+                            ) {
+                                Log::writeln(
+                                    MessageKind::Error,
+                                    format!(
+                                        "Unable to set material property {}\
+                                 for FBX material! Reason: {:?}",
+                                        property_name, e
+                                    ),
+                                );
+                            }
                         }
+                    } else {
+                        Log::writeln(
+                            MessageKind::Warning,
+                            format!(
+                                "Unable to find a texture {:?} for 3D model {:?} using {:?} option!",
+                                filename, model_path, material_search_options
+                            ),
+                        );
                     }
                 }
             }
