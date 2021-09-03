@@ -537,6 +537,8 @@ mod test {
     fn test_shader_load() {
         let code = r##"
             (
+                name: "TestShader",
+            
                 properties: [
                     (
                         name: "diffuseTexture",
@@ -577,6 +579,7 @@ mod test {
         let data = shader.data_ref();
 
         let reference_definition = ShaderDefinition {
+            name: "TestShader".to_owned(),
             properties: vec![PropertyDefinition {
                 name: "diffuseTexture".to_string(),
                 kind: PropertyKind::Sampler {
