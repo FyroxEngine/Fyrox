@@ -21,7 +21,10 @@ use std::{
 };
 
 /// A source code of the standard shader.
-pub const STANDARD_SHADER_SRC: &str = include_str!("standard.ron");
+pub const STANDARD_SHADER_SRC: &str = include_str!("standard/standard.ron");
+
+/// A source code of the standard terrain shader.
+pub const STANDARD_TERRAIN_SHADER_SRC: &str = include_str!("standard/terrain.ron");
 
 /// Internal state of the shader.
 ///
@@ -205,6 +208,8 @@ pub struct RenderPassDefinition {
 /// A definition of the shader.
 #[derive(Default, Deserialize, Debug, PartialEq)]
 pub struct ShaderDefinition {
+    /// A name of the shader.
+    pub name: String,
     /// A set of render passes.
     pub passes: Vec<RenderPassDefinition>,
     /// A set of property definitions.
@@ -502,11 +507,22 @@ impl Shader {
     pub fn standard() -> Self {
         STANDARD.clone()
     }
+
+    /// Returns an instance of standard terrain shader.
+    pub fn standard_terrain() -> Self {
+        STANDARD_TERRAIN.clone()
+    }
 }
 
 lazy_static! {
     static ref STANDARD: Shader = Shader(Resource::new(ResourceState::Ok(
         ShaderState::from_str(STANDARD_SHADER_SRC).unwrap(),
+    )));
+}
+
+lazy_static! {
+    static ref STANDARD_TERRAIN: Shader = Shader(Resource::new(ResourceState::Ok(
+        ShaderState::from_str(STANDARD_TERRAIN_SHADER_SRC).unwrap(),
     )));
 }
 

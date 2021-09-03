@@ -45,11 +45,7 @@ fn setup_layer_material(
     diffuse_texture: &str,
     normal_texture: &str,
     mask: Texture,
-    layer_index: usize,
 ) {
-    material
-        .set_property("isTerrain", PropertyValue::Bool(true))
-        .unwrap();
     material
         .set_property(
             "diffuseTexture",
@@ -76,9 +72,6 @@ fn setup_layer_material(
                 fallback: SamplerFallback::Black,
             },
         )
-        .unwrap();
-    material
-        .set_property("layerIndex", PropertyValue::UInt(layer_index as u32))
         .unwrap();
     material
         .set_property(
@@ -109,15 +102,14 @@ impl SceneLoader {
                 LayerDefinition {
                     material_generator: {
                         let resource_manager = resource_manager.clone();
-                        Box::new(move |layer_index, mask| {
-                            let mut material = Material::standard();
+                        Box::new(move |_, mask| {
+                            let mut material = Material::standard_terrain();
                             setup_layer_material(
                                 &mut material,
                                 resource_manager.clone(),
                                 "examples/data/Grass_DiffuseColor.jpg",
                                 "examples/data/Grass_NormalColor.jpg",
                                 mask,
-                                layer_index,
                             );
                             material
                         })
@@ -126,15 +118,14 @@ impl SceneLoader {
                 LayerDefinition {
                     material_generator: {
                         let resource_manager = resource_manager.clone();
-                        Box::new(move |layer_index, mask| {
-                            let mut material = Material::standard();
+                        Box::new(move |_, mask| {
+                            let mut material = Material::standard_terrain();
                             setup_layer_material(
                                 &mut material,
                                 resource_manager.clone(),
                                 "examples/data/Rock_DiffuseColor.jpg",
                                 "examples/data/Rock_Normal.jpg",
                                 mask,
-                                layer_index,
                             );
                             material
                         })

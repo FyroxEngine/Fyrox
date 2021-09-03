@@ -401,6 +401,11 @@ impl Material {
         Self::from_shader(Shader::standard(), None)
     }
 
+    /// Creates new instance of standard terrain material.
+    pub fn standard_terrain() -> Self {
+        Self::from_shader(Shader::standard_terrain(), None)
+    }
+
     /// Creates a new material instance with given shader. Each property will have default values
     /// defined in the shader.
     ///
@@ -480,7 +485,7 @@ impl Material {
         drop(data);
 
         Self {
-            shader: Shader::standard(),
+            shader,
             draw_parameters: Default::default(),
             properties: property_values,
         }

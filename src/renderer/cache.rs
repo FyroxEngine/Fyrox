@@ -256,9 +256,10 @@ impl ShaderSet {
     pub fn new(state: &mut PipelineState, shader: &ShaderState) -> Option<Self> {
         let mut map = HashMap::new();
         for render_pass in shader.definition.passes.iter() {
+            let program_name = format!("{}_{}", shader.definition.name, render_pass.name);
             match GpuProgram::from_source(
                 state,
-                &render_pass.name,
+                &program_name,
                 &render_pass.vertex_shader,
                 &render_pass.fragment_shader,
             ) {
@@ -276,7 +277,7 @@ impl ShaderSet {
                         MessageKind::Error,
                         format!(
                             "Failed to create {} shader' GPU program. Reason: {:?}",
-                            render_pass.name, e
+                            program_name, e
                         ),
                     );
                     return None;
