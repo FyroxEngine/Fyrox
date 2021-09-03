@@ -210,11 +210,8 @@ pub fn set_mesh_diffuse_color(mesh: &mut Mesh, color: Color) {
     }
 }
 
-pub fn create_terrain_layer_material(layer_index: usize, mask: Texture) -> Material {
-    let mut material = Material::standard();
-    material
-        .set_property("isTerrain", PropertyValue::Bool(true))
-        .unwrap();
+pub fn create_terrain_layer_material(mask: Texture) -> Material {
+    let mut material = Material::standard_terrain();
     material
         .set_property(
             "maskTexture",
@@ -223,9 +220,6 @@ pub fn create_terrain_layer_material(layer_index: usize, mask: Texture) -> Mater
                 fallback: SamplerFallback::Black,
             },
         )
-        .unwrap();
-    material
-        .set_property("layerIndex", PropertyValue::UInt(layer_index as u32))
         .unwrap();
     material
         .set_property(
