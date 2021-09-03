@@ -62,6 +62,25 @@
     passes: [
         (
             name: "GBuffer",
+            draw_parameters: DrawParameters(
+                cull_face: Some(Back),
+                color_write: ColorMask(
+                    red: true,
+                    green: true,
+                    blue: true,
+                    alpha: true,
+                ),
+                depth_write: true,
+                stencil_test: None,
+                depth_test: true,
+                blend: None,
+                stencil_op: StencilOp(
+                    fail: Keep,
+                    zfail: Keep,
+                    zpass: Keep,
+                    write_mask: 0xFFFF_FFFF,
+                ),
+            ),
             vertex_shader:
                 r#"
                 #version 330 core
@@ -228,8 +247,30 @@
                 "#,
         ),
         (
-           name: "Forward",
-           vertex_shader:
+            name: "Forward",
+            draw_parameters: DrawParameters(
+                cull_face: Some(Back),
+                color_write: ColorMask(
+                    red: true,
+                    green: true,
+                    blue: true,
+                    alpha: true,
+                ),
+                depth_write: true,
+                stencil_test: None,
+                depth_test: true,
+                blend: Some(BlendFunc(
+                    sfactor: SrcAlpha,
+                    dfactor: OneMinusSrcAlpha,
+                )),
+                stencil_op: StencilOp(
+                    fail: Keep,
+                    zfail: Keep,
+                    zpass: Keep,
+                    write_mask: 0xFFFF_FFFF,
+                ),
+            ),
+            vertex_shader:
                r#"
                 #version 330 core
 
@@ -291,6 +332,26 @@
         (
             name: "SpotShadow",
 
+            draw_parameters: DrawParameters (
+                cull_face: Some(Back),
+                color_write: ColorMask(
+                    red: false,
+                    green: false,
+                    blue: false,
+                    alpha: false,
+                ),
+                depth_write: true,
+                stencil_test: None,
+                depth_test: true,
+                blend: None,
+                stencil_op: StencilOp(
+                    fail: Keep,
+                    zfail: Keep,
+                    zpass: Keep,
+                    write_mask: 0xFFFF_FFFF,
+                ),
+            ),
+
             vertex_shader:
                 r#"
                 #version 330 core
@@ -345,6 +406,26 @@
         ),
         (
             name: "PointShadow",
+
+            draw_parameters: DrawParameters (
+                cull_face: Some(Back),
+                color_write: ColorMask(
+                    red: true,
+                    green: true,
+                    blue: true,
+                    alpha: true,
+                ),
+                depth_write: true,
+                stencil_test: None,
+                depth_test: true,
+                blend: None,
+                stencil_op: StencilOp(
+                    fail: Keep,
+                    zfail: Keep,
+                    zpass: Keep,
+                    write_mask: 0xFFFF_FFFF,
+                ),
+            ),
 
             vertex_shader:
                 r#"

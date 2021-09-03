@@ -4,6 +4,7 @@
 
 #![warn(missing_docs)]
 
+use crate::renderer::framework::framebuffer::DrawParameters;
 use crate::{
     asset::ResourceState,
     core::{
@@ -338,6 +339,7 @@ impl Default for PropertyValue {
 #[derive(Default, Debug, Visit)]
 pub struct Material {
     shader: Shader,
+    draw_parameters: DrawParameters,
     properties: HashMap<String, PropertyValue>,
 }
 
@@ -479,6 +481,7 @@ impl Material {
 
         Self {
             shader: Shader::standard(),
+            draw_parameters: Default::default(),
             properties: property_values,
         }
     }

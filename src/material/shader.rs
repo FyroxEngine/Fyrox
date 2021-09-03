@@ -3,6 +3,7 @@
 //! For more info see [`Shader`] struct docs.
 
 use crate::core::algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4};
+use crate::renderer::framework::framebuffer::DrawParameters;
 use crate::{
     asset::{define_new_resource, Resource, ResourceData, ResourceState},
     core::{
@@ -193,6 +194,8 @@ pub struct PropertyDefinition {
 pub struct RenderPassDefinition {
     /// A name of render pass.
     pub name: String,
+    /// A set of parameters that will be used in a render pass.
+    pub draw_parameters: DrawParameters,
     /// A source code of vertex shader.
     pub vertex_shader: String,
     /// A source code of fragment shader.
@@ -295,6 +298,44 @@ define_new_resource!(
     ///             // one of your passes.
     ///             name: "Forward",
     ///
+    ///             // A set of parameters that regulate renderer pipeline state.
+    ///             // This is mandatory field of each render pass.
+    ///             draw_parameters: DrawParameters(
+    ///                 // A face to cull. Either Front or Back.
+    ///                 cull_face: Some(Back),
+    ///
+    ///                 // Color mask. Defines which colors should be written to render target.
+    ///                 color_write: ColorMask(
+    ///                     red: true,
+    ///                     green: true,
+    ///                     blue: true,
+    ///                     alpha: true,
+    ///                 ),
+    ///
+    ///                 // Whether to modify depth buffer or not.
+    ///                 depth_write: true,
+    ///
+    ///                 // Whether to use stencil test or not.
+    ///                 stencil_test: None,
+    ///
+    ///                 // Whether to perform depth test when drawing.
+    ///                 depth_test: true,
+    ///
+    ///                 // Blending options.
+    ///                 blend: Some(BlendFunc(
+    ///                     sfactor: SrcAlpha,
+    ///                     dfactor: OneMinusSrcAlpha,
+    ///                 )),
+    ///
+    ///                 // Stencil options.
+    ///                 stencil_op: StencilOp(
+    ///                     fail: Keep,
+    ///                     zfail: Keep,
+    ///                     zpass: Keep,
+    ///                     write_mask: 0xFFFF_FFFF,
+    ///                 ),
+    ///             ),
+    ///
     ///             // Vertex shader code.
     ///             vertex_shader:
     ///                 r#"
@@ -391,6 +432,47 @@ define_new_resource!(
     ///
     /// This list will be extended in future releases.
     ///
+    /// # Drawing parameters
+    ///
+    /// Drawing parameters defines which GPU functions to use and at which state. For example, to render
+    /// transparent objects you need to enable blending with specific blending rules. Or you need to disable
+    /// culling to draw objects from both sides. This is when draw parameters comes in handy.
+    ///
+    /// There are relatively large list of drawing parameters and it could confuse a person who didn't get
+    /// used to work with graphics. The following list should help you to use drawing parameters correctly.
+    ///
+    /// - cull_face
+    ///     - Defines which side of polygon should be culled.
+    ///     - **Possible values:** `None`, [Some(CullFace::XXX)](crate::renderer::framework::state::CullFace)
+    ///
+    /// - color_write:
+    ///     - Defines which components of color should be written to a render target
+    ///     - **Possible values:** [ColorMask](crate::renderer::framework::state::ColorMask)(...)
+    ///
+    ///  - depth_write:
+    ///     - Whether to modify depth buffer or not.
+    ///     - **Possible values:** `true/false`
+    ///
+    ///  - stencil_test:
+    ///     - Whether to use stencil test or not.
+    ///     - **Possible values:**
+    ///         - `None`
+    ///         - Some([StencilFunc](crate::renderer::framework::state::StencilFunc))
+    ///
+    ///  - depth_test:
+    ///      - Whether to perform depth test when drawing.
+    ///      - **Possible values:** `true/false`
+    ///
+    ///   - blend:
+    ///      - Blending options.
+    ///      - **Possible values:**
+    ///         - `None`
+    ///         - Some([BlendFunc](crate::renderer::framework::state::BlendFunc))
+    ///
+    ///   - stencil_op:
+    ///      - Stencil options.
+    ///      - **Possible values:** [StencilOp](crate::renderer::framework::state::StencilOp)
+    ///
     /// # Standard shader
     ///
     /// By default rg3d uses standard material for rendering, it covers 95% of uses cases and it is very
@@ -449,6 +531,25 @@ mod test {
                 passes: [
                     (
                         name: "GBuffer",
+                        draw_parameters: DrawParameters(
+                            cull_face: Some(Back),
+                            color_write: ColorMask(
+                                red: true,
+                                green: true,
+                                blue: true,
+                                alpha: true,
+                            ),
+                            depth_write: true,
+                            stencil_test: None,
+                            depth_test: true,
+                            blend: None,
+                            stencil_op: StencilOp(
+                                fail: Keep,
+                                zfail: Keep,
+                                zpass: Keep,
+                                write_mask: 0xFFFF_FFFF,
+                            ),
+                        ),
                         vertex_shader: "<CODE>",
                         fragment_shader: "<CODE>",
                     ),
@@ -469,6 +570,7 @@ mod test {
             }],
             passes: vec![RenderPassDefinition {
                 name: "GBuffer".to_string(),
+                draw_parameters: Default::default(),
                 vertex_shader: "<CODE>".to_string(),
                 fragment_shader: "<CODE>".to_string(),
             }],

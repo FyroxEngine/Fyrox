@@ -1,6 +1,6 @@
 use crate::renderer::cache::ShaderCache;
 use crate::renderer::framework::framebuffer::FrameBuffer;
-use crate::renderer::framework::state::{BlendFactor, BlendFunc};
+use crate::renderer::framework::state::{BlendFactor, BlendFunc, CompareFunc, StencilAction};
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3},
@@ -585,11 +585,11 @@ impl DeferredLightRenderer {
                     color_write: ColorMask::all(false),
                     depth_write: false,
                     stencil_test: Some(StencilFunc {
-                        func: glow::ALWAYS,
+                        func: CompareFunc::Always,
                         ..Default::default()
                     }),
                     stencil_op: StencilOp {
-                        zfail: glow::INCR,
+                        zfail: StencilAction::Incr,
                         ..Default::default()
                     },
                     depth_test: true,
@@ -615,11 +615,11 @@ impl DeferredLightRenderer {
                     color_write: ColorMask::all(false),
                     depth_write: false,
                     stencil_test: Some(StencilFunc {
-                        func: glow::ALWAYS,
+                        func: CompareFunc::Always,
                         ..Default::default()
                     }),
                     stencil_op: StencilOp {
-                        zfail: glow::DECR,
+                        zfail: StencilAction::Decr,
                         ..Default::default()
                     },
                     depth_test: true,
@@ -640,11 +640,11 @@ impl DeferredLightRenderer {
                 color_write: Default::default(),
                 depth_write: false,
                 stencil_test: Some(StencilFunc {
-                    func: glow::NOTEQUAL,
+                    func: CompareFunc::NotEqual,
                     ..Default::default()
                 }),
                 stencil_op: StencilOp {
-                    zpass: glow::ZERO,
+                    zpass: StencilAction::Zero,
                     ..Default::default()
                 },
                 depth_test: false,

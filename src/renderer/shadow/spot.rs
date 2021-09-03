@@ -143,60 +143,59 @@ impl SpotShadowMapRenderer {
             let material = batch.material.lock().unwrap();
             let geometry = geom_cache.get(state, &batch.data.read().unwrap());
 
-            if let Some(shader_set) = shader_cache.get(state, material.shader()) {
-                if let Some(program) = shader_set.map.get("SpotShadow") {
-                    for instance in batch.instances.iter() {
-                        let node = &graph[instance.owner];
+            if let Some(render_pass) = shader_cache
+                .get(state, material.shader())
+                .and_then(|shader_set| shader_set.render_passes.get("SpotShadow"))
+            {
+                for instance in batch.instances.iter() {
+                    let node = &graph[instance.owner];
 
-                        let visible = node.global_visibility() && {
-                            match node {
-                                Node::Mesh(mesh) => {
-                                    mesh.cast_shadows()
-                                        && mesh.is_intersect_frustum(graph, &frustum)
-                                }
-                                Node::Terrain(_) => {
-                                    // https://github.com/rg3dengine/rg3d/issues/117
-                                    true
-                                }
-                                _ => false,
+                    let visible = node.global_visibility() && {
+                        match node {
+                            Node::Mesh(mesh) => {
+                                mesh.cast_shadows() && mesh.is_intersect_frustum(graph, &frustum)
                             }
-                        };
-
-                        if visible {
-                            statistics += framebuffer.draw(
-                                geometry,
-                                state,
-                                viewport,
-                                program,
-                                &DrawParameters {
-                                    cull_face: Some(CullFace::Back),
-                                    color_write: ColorMask::all(false),
-                                    depth_write: true,
-                                    stencil_test: None,
-                                    depth_test: true,
-                                    blend: None,
-                                    stencil_op: Default::default(),
-                                },
-                                |mut program_binding| {
-                                    apply_material(MaterialContext {
-                                        material: &*material,
-                                        program_binding: &mut program_binding,
-                                        texture_cache,
-                                        world_matrix: &instance.world_transform,
-                                        wvp_matrix: &(light_view_projection
-                                            * instance.world_transform),
-                                        bone_matrices: &instance.bone_matrices,
-                                        use_skeletal_animation: batch.is_skinned,
-                                        camera_position: &Default::default(),
-                                        use_pom: false,
-                                        light_position: &Default::default(),
-                                        normal_dummy: normal_dummy.clone(),
-                                        white_dummy: white_dummy.clone(),
-                                        black_dummy: black_dummy.clone(),
-                                    });
-                                },
-                            );
+                            Node::Terrain(_) => {
+                                // https://github.com/rg3dengine/rg3d/issues/117
+                                true
+                            }
+                            _ => false,
                         }
+                    };
+
+                    if visible {
+                        statistics += framebuffer.draw(
+                            geometry,
+                            state,
+                            viewport,
+                            &render_pass.program,
+                            &DrawParameters {
+                                cull_face: Some(CullFace::Back),
+                                color_write: ColorMask::all(false),
+                                depth_write: true,
+                                stencil_test: None,
+                                depth_test: true,
+                                blend: None,
+                                stencil_op: Default::default(),
+                            },
+                            |mut program_binding| {
+                                apply_material(MaterialContext {
+                                    material: &*material,
+                                    program_binding: &mut program_binding,
+                                    texture_cache,
+                                    world_matrix: &instance.world_transform,
+                                    wvp_matrix: &(light_view_projection * instance.world_transform),
+                                    bone_matrices: &instance.bone_matrices,
+                                    use_skeletal_animation: batch.is_skinned,
+                                    camera_position: &Default::default(),
+                                    use_pom: false,
+                                    light_position: &Default::default(),
+                                    normal_dummy: normal_dummy.clone(),
+                                    white_dummy: white_dummy.clone(),
+                                    black_dummy: black_dummy.clone(),
+                                });
+                            },
+                        );
                     }
                 }
             }

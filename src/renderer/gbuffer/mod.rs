@@ -9,7 +9,6 @@
 //! Every alpha channel is used for layer blending for terrains. This is inefficient, but for
 //! now I don't know better solution.
 
-use crate::renderer::framework::state::{BlendFactor, BlendFunc};
 use crate::{
     core::{
         algebra::{Matrix4, Vector2},
@@ -23,13 +22,13 @@ use crate::{
         cache::ShaderCache,
         framework::{
             error::FrameworkError,
-            framebuffer::{Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer},
+            framebuffer::{Attachment, AttachmentKind, DrawParameters, FrameBuffer},
             gpu_program::GpuProgramBinding,
             gpu_texture::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind, WrapMode,
             },
-            state::PipelineState,
+            state::{BlendFactor, BlendFunc, PipelineState},
         },
         gbuffer::decal::DecalShader,
         GeometryCache, MaterialContext, RenderPassStatistics, TextureCache,
@@ -276,16 +275,6 @@ impl GBuffer {
             Some(0),
         );
 
-        let mut params = DrawParameters {
-            cull_face: Some(CullFace::Back),
-            color_write: Default::default(),
-            depth_write: true,
-            stencil_test: None,
-            depth_test: true,
-            blend: None,
-            stencil_op: Default::default(),
-        };
-
         let initial_view_projection = camera.view_projection_matrix();
 
         for batch in batch_storage
@@ -297,47 +286,46 @@ impl GBuffer {
             let data = batch.data.read().unwrap();
             let geometry = geom_cache.get(state, &data);
 
-            if let Some(shader_set) = shader_cache.get(state, material.shader()) {
-                if let Some(program) = shader_set.map.get("GBuffer") {
-                    for instance in batch.instances.iter() {
-                        if camera.visibility_cache.is_visible(instance.owner) {
-                            let apply_uniforms = |mut program_binding: GpuProgramBinding| {
-                                let view_projection = if instance.depth_offset != 0.0 {
-                                    let mut projection = camera.projection_matrix();
-                                    projection[14] -= instance.depth_offset;
-                                    projection * camera.view_matrix()
-                                } else {
-                                    initial_view_projection
-                                };
-
-                                apply_material(MaterialContext {
-                                    material: &*material,
-                                    program_binding: &mut program_binding,
-                                    texture_cache,
-                                    world_matrix: &instance.world_transform,
-                                    wvp_matrix: &(view_projection * instance.world_transform),
-                                    bone_matrices: &instance.bone_matrices,
-                                    use_skeletal_animation: batch.is_skinned,
-                                    camera_position: &camera.global_position(),
-                                    use_pom: use_parallax_mapping,
-                                    light_position: &Default::default(),
-                                    normal_dummy: normal_dummy.clone(),
-                                    white_dummy: white_dummy.clone(),
-                                    black_dummy: black_dummy.clone(),
-                                });
+            if let Some(render_pass) = shader_cache
+                .get(state, material.shader())
+                .and_then(|shader_set| shader_set.render_passes.get("GBuffer"))
+            {
+                for instance in batch.instances.iter() {
+                    if camera.visibility_cache.is_visible(instance.owner) {
+                        let apply_uniforms = |mut program_binding: GpuProgramBinding| {
+                            let view_projection = if instance.depth_offset != 0.0 {
+                                let mut projection = camera.projection_matrix();
+                                projection[14] -= instance.depth_offset;
+                                projection * camera.view_matrix()
+                            } else {
+                                initial_view_projection
                             };
 
-                            params.blend = batch.blend_func;
+                            apply_material(MaterialContext {
+                                material: &*material,
+                                program_binding: &mut program_binding,
+                                texture_cache,
+                                world_matrix: &instance.world_transform,
+                                wvp_matrix: &(view_projection * instance.world_transform),
+                                bone_matrices: &instance.bone_matrices,
+                                use_skeletal_animation: batch.is_skinned,
+                                camera_position: &camera.global_position(),
+                                use_pom: use_parallax_mapping,
+                                light_position: &Default::default(),
+                                normal_dummy: normal_dummy.clone(),
+                                white_dummy: white_dummy.clone(),
+                                black_dummy: black_dummy.clone(),
+                            });
+                        };
 
-                            statistics += self.framebuffer.draw(
-                                geometry,
-                                state,
-                                viewport,
-                                program,
-                                &params,
-                                apply_uniforms,
-                            );
-                        }
+                        statistics += self.framebuffer.draw(
+                            geometry,
+                            state,
+                            viewport,
+                            &render_pass.program,
+                            &render_pass.draw_params,
+                            apply_uniforms,
+                        );
                     }
                 }
             }

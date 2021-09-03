@@ -1,4 +1,4 @@
-use crate::renderer::framework::state::{BlendFactor, BlendFunc};
+use crate::renderer::framework::state::{BlendFactor, BlendFunc, CompareFunc, StencilAction};
 use crate::{
     core::{
         algebra::{Isometry3, Matrix4, Point3, Translation, Vector3},
@@ -189,16 +189,16 @@ impl LightVolumeRenderer {
                         color_write: ColorMask::all(false),
                         depth_write: false,
                         stencil_test: Some(StencilFunc {
-                            func: glow::EQUAL,
+                            func: CompareFunc::Equal,
                             ref_value: 0xFF,
                             mask: 0xFFFF_FFFF,
                         }),
                         depth_test: true,
                         blend: None,
                         stencil_op: StencilOp {
-                            fail: glow::REPLACE,
-                            zfail: glow::KEEP,
-                            zpass: glow::REPLACE,
+                            fail: StencilAction::Replace,
+                            zfail: StencilAction::Keep,
+                            zpass: StencilAction::Replace,
                             write_mask: 0xFFFF_FFFF,
                         },
                     },
@@ -222,7 +222,7 @@ impl LightVolumeRenderer {
                         color_write: Default::default(),
                         depth_write: false,
                         stencil_test: Some(StencilFunc {
-                            func: glow::EQUAL,
+                            func: CompareFunc::Equal,
                             ref_value: 0xFF,
                             mask: 0xFFFF_FFFF,
                         }),
@@ -233,7 +233,7 @@ impl LightVolumeRenderer {
                         }),
                         // Make sure to clean stencil buffer after drawing full screen quad.
                         stencil_op: StencilOp {
-                            zpass: glow::ZERO,
+                            zpass: StencilAction::Zero,
                             ..Default::default()
                         },
                     },
@@ -274,16 +274,16 @@ impl LightVolumeRenderer {
                         color_write: ColorMask::all(false),
                         depth_write: false,
                         stencil_test: Some(StencilFunc {
-                            func: glow::EQUAL,
+                            func: CompareFunc::Equal,
                             ref_value: 0xFF,
                             mask: 0xFFFF_FFFF,
                         }),
                         depth_test: true,
                         blend: None,
                         stencil_op: StencilOp {
-                            fail: glow::REPLACE,
-                            zfail: glow::KEEP,
-                            zpass: glow::REPLACE,
+                            fail: StencilAction::Replace,
+                            zfail: StencilAction::Keep,
+                            zpass: StencilAction::Replace,
                             write_mask: 0xFFFF_FFFF,
                         },
                     },
@@ -307,7 +307,7 @@ impl LightVolumeRenderer {
                         color_write: Default::default(),
                         depth_write: false,
                         stencil_test: Some(StencilFunc {
-                            func: glow::EQUAL,
+                            func: CompareFunc::Equal,
                             ref_value: 0xFF,
                             mask: 0xFFFF_FFFF,
                         }),
@@ -318,7 +318,7 @@ impl LightVolumeRenderer {
                         }),
                         // Make sure to clean stencil buffer after drawing full screen quad.
                         stencil_op: StencilOp {
-                            zpass: glow::ZERO,
+                            zpass: StencilAction::Zero,
                             ..Default::default()
                         },
                     },

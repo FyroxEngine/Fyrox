@@ -1,9 +1,10 @@
 use crate::{
-    core::{color::Color, math::Rect},
+    core::{color::Color, math::Rect, visitor::prelude::*},
     renderer::framework::framebuffer::{CullFace, DrawParameters},
     utils::log::{Log, MessageKind},
 };
 use glow::{Framebuffer, HasContext};
+use serde::Deserialize;
 use std::fmt::{Display, Formatter};
 
 #[derive(Default, Copy, Clone)]
@@ -37,41 +38,41 @@ impl Display for PipelineStatistics {
     }
 }
 
-#[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Ord, Hash)]
+#[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Ord, Hash, Visit, Deserialize, Debug)]
 #[repr(u32)]
-pub enum DepthFunc {
+pub enum CompareFunc {
     /// Never passes.
     Never = glow::NEVER,
 
-    /// Passes if the incoming depth value is less than the stored depth value.
+    /// Passes if the incoming value is less than the stored value.
     Less = glow::LESS,
 
-    /// Passes if the incoming depth value is equal to the stored depth value.
+    /// Passes if the incoming value is equal to the stored value.
     Equal = glow::EQUAL,
 
-    /// Passes if the incoming depth value is less than or equal to the stored depth value.
+    /// Passes if the incoming value is less than or equal to the stored value.
     LessOrEqual = glow::LEQUAL,
 
-    /// Passes if the incoming depth value is greater than the stored depth value.
+    /// Passes if the incoming value is greater than the stored value.
     Greater = glow::GREATER,
 
-    /// Passes if the incoming depth value is not equal to the stored depth value.
+    /// Passes if the incoming value is not equal to the stored value.
     NotEqual = glow::NOTEQUAL,
 
-    /// Passes if the incoming depth value is greater than or equal to the stored depth value.
+    /// Passes if the incoming value is greater than or equal to the stored value.
     GreaterOrEqual = glow::GEQUAL,
 
     /// Always passes.
     Always = glow::ALWAYS,
 }
 
-impl Default for DepthFunc {
+impl Default for CompareFunc {
     fn default() -> Self {
         Self::LessOrEqual
     }
 }
 
-#[derive(Copy, Clone, Hash, PartialOrd, PartialEq, Eq, Ord)]
+#[derive(Copy, Clone, Hash, PartialOrd, PartialEq, Eq, Ord, Deserialize, Visit, Debug)]
 #[repr(u32)]
 pub enum BlendFactor {
     Zero = glow::ZERO,
@@ -95,7 +96,13 @@ pub enum BlendFactor {
     OneMinusSrc1Alpha = glow::ONE_MINUS_SRC1_ALPHA,
 }
 
-#[derive(Copy, Clone, PartialOrd, PartialEq, Ord, Eq, Hash)]
+impl Default for BlendFactor {
+    fn default() -> Self {
+        Self::Zero
+    }
+}
+
+#[derive(Copy, Clone, PartialOrd, PartialEq, Ord, Eq, Hash, Deserialize, Visit, Debug)]
 pub struct BlendFunc {
     pub sfactor: BlendFactor,
     pub dfactor: BlendFactor,
@@ -117,7 +124,7 @@ pub struct PipelineState {
 
     depth_test: bool,
     depth_write: bool,
-    depth_func: DepthFunc,
+    depth_func: CompareFunc,
 
     color_write: ColorMask,
     stencil_test: bool,
@@ -161,7 +168,7 @@ impl Default for TextureUnit {
     }
 }
 
-#[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug)]
+#[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Deserialize, Visit)]
 pub struct ColorMask {
     pub red: bool,
     pub green: bool,
@@ -191,9 +198,9 @@ impl ColorMask {
     }
 }
 
-#[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug)]
+#[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Deserialize, Visit)]
 pub struct StencilFunc {
-    pub func: u32,
+    pub func: CompareFunc,
     pub ref_value: u32,
     pub mask: u32,
 }
@@ -201,27 +208,67 @@ pub struct StencilFunc {
 impl Default for StencilFunc {
     fn default() -> Self {
         Self {
-            func: glow::ALWAYS,
+            func: CompareFunc::Always,
             ref_value: 0,
             mask: 0xFFFF_FFFF,
         }
     }
 }
 
-#[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug)]
+#[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Deserialize, Visit)]
+#[repr(u32)]
+pub enum StencilAction {
+    /// Keeps the current value.
+    Keep = glow::KEEP,
+
+    /// Sets the stencil buffer value to 0.
+    Zero = glow::ZERO,
+
+    /// Sets the stencil buffer value to ref value.
+    Replace = glow::REPLACE,
+
+    /// Increments the current stencil buffer value.
+    /// Clamps to the maximum representable unsigned value.
+    Incr = glow::INCR,
+
+    /// Increments the current stencil buffer value.
+    /// Wraps stencil buffer value to zero when incrementing the maximum representable
+    /// unsigned value.
+    IncrWrap = glow::INCR_WRAP,
+
+    /// Decrements the current stencil buffer value.
+    /// Clamps to 0.
+    Decr = glow::DECR,
+
+    /// Decrements the current stencil buffer value.
+    /// Wraps stencil buffer value to the maximum representable unsigned value when
+    /// decrementing a stencil buffer value of zero.
+    DecrWrap = glow::DECR_WRAP,
+
+    /// Bitwise inverts the current stencil buffer value.
+    Invert = glow::INVERT,
+}
+
+impl Default for StencilAction {
+    fn default() -> Self {
+        Self::Keep
+    }
+}
+
+#[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Deserialize, Visit)]
 pub struct StencilOp {
-    pub fail: u32,
-    pub zfail: u32,
-    pub zpass: u32,
+    pub fail: StencilAction,
+    pub zfail: StencilAction,
+    pub zpass: StencilAction,
     pub write_mask: u32,
 }
 
 impl Default for StencilOp {
     fn default() -> Self {
         Self {
-            fail: glow::KEEP,
-            zfail: glow::KEEP,
-            zpass: glow::KEEP,
+            fail: Default::default(),
+            zfail: Default::default(),
+            zpass: Default::default(),
             write_mask: 0xFFFF_FFFF,
         }
     }
@@ -230,7 +277,7 @@ impl Default for StencilOp {
 impl PipelineState {
     pub fn new(context: glow::Context) -> Self {
         unsafe {
-            context.depth_func(DepthFunc::default() as u32);
+            context.depth_func(CompareFunc::default() as u32);
         }
 
         Self {
@@ -434,7 +481,7 @@ impl PipelineState {
         }
     }
 
-    pub fn set_depth_func(&mut self, depth_func: DepthFunc) {
+    pub fn set_depth_func(&mut self, depth_func: CompareFunc) {
         if self.depth_func != depth_func {
             self.depth_func = depth_func;
 
@@ -478,7 +525,7 @@ impl PipelineState {
 
             unsafe {
                 self.gl.stencil_func(
-                    self.stencil_func.func,
+                    self.stencil_func.func as u32,
                     self.stencil_func.ref_value as i32,
                     self.stencil_func.mask,
                 );
@@ -492,9 +539,9 @@ impl PipelineState {
 
             unsafe {
                 self.gl.stencil_op(
-                    self.stencil_op.fail,
-                    self.stencil_op.zfail,
-                    self.stencil_op.zpass,
+                    self.stencil_op.fail as u32,
+                    self.stencil_op.zfail as u32,
+                    self.stencil_op.zpass as u32,
                 );
 
                 self.gl.stencil_mask(self.stencil_op.write_mask);

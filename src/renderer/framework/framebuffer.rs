@@ -1,15 +1,15 @@
-use crate::renderer::framework::state::{BlendFunc, StencilFunc, StencilOp};
 use crate::{
-    core::{color::Color, math::Rect, scope_profile},
+    core::{color::Color, math::Rect, scope_profile, visitor::prelude::*},
     renderer::framework::{
         error::FrameworkError,
         geometry_buffer::{DrawCallStatistics, GeometryBuffer},
         gpu_program::{GpuProgram, GpuProgramBinding},
         gpu_texture::{CubeMapFace, GpuTexture, GpuTextureKind, PixelElementKind},
-        state::{ColorMask, PipelineState},
+        state::{BlendFunc, ColorMask, PipelineState, StencilFunc, StencilOp},
     },
 };
 use glow::HasContext;
+use serde::Deserialize;
 use std::{cell::RefCell, rc::Rc};
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug)]
@@ -31,13 +31,20 @@ pub struct FrameBuffer {
     color_attachments: Vec<Attachment>,
 }
 
-#[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug)]
+#[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Deserialize, Visit)]
 #[repr(u32)]
 pub enum CullFace {
     Back = glow::BACK,
     Front = glow::FRONT,
 }
 
+impl Default for CullFace {
+    fn default() -> Self {
+        Self::Back
+    }
+}
+
+#[derive(Deserialize, Visit, Debug, PartialEq, Clone)]
 pub struct DrawParameters {
     pub cull_face: Option<CullFace>,
     pub color_write: ColorMask,

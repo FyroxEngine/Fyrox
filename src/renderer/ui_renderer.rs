@@ -1,4 +1,4 @@
-use crate::renderer::framework::state::{BlendFactor, BlendFunc};
+use crate::renderer::framework::state::{BlendFactor, BlendFunc, CompareFunc, StencilAction};
 use crate::{
     asset::Resource,
     core::{
@@ -223,7 +223,7 @@ impl UiRenderer {
                         depth_test: false,
                         blend: None,
                         stencil_op: StencilOp {
-                            zpass: glow::INCR,
+                            zpass: StencilAction::Incr,
                             ..Default::default()
                         },
                     },
@@ -234,7 +234,7 @@ impl UiRenderer {
 
                 // Make sure main geometry will be drawn only on marked pixels.
                 stencil_test = Some(StencilFunc {
-                    func: glow::EQUAL,
+                    func: CompareFunc::Equal,
                     ref_value: 1,
                     ..Default::default()
                 });

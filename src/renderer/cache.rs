@@ -1,5 +1,6 @@
 #![allow(missing_docs)] // TODO
 
+use crate::renderer::framework::framebuffer::DrawParameters;
 use crate::{
     asset::ResourceState,
     core::scope_profile,
@@ -242,8 +243,13 @@ impl TextureCache {
     }
 }
 
+pub struct RenderPassData {
+    pub program: GpuProgram,
+    pub draw_params: DrawParameters,
+}
+
 pub struct ShaderSet {
-    pub map: HashMap<String, GpuProgram>,
+    pub render_passes: HashMap<String, RenderPassData>,
 }
 
 impl ShaderSet {
@@ -257,7 +263,13 @@ impl ShaderSet {
                 &render_pass.fragment_shader,
             ) {
                 Ok(gpu_program) => {
-                    map.insert(render_pass.name.clone(), gpu_program);
+                    map.insert(
+                        render_pass.name.clone(),
+                        RenderPassData {
+                            program: gpu_program,
+                            draw_params: render_pass.draw_parameters.clone(),
+                        },
+                    );
                 }
                 Err(e) => {
                     Log::writeln(
@@ -272,7 +284,7 @@ impl ShaderSet {
             };
         }
 
-        Some(Self { map })
+        Some(Self { render_passes: map })
     }
 }
 
