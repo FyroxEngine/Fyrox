@@ -11,8 +11,6 @@
  
 A feature-rich, production-ready, general purpose 2D/3D game engine written in Rust with a scene editor.
 
-[![Video](pics/video.png)](https://www.youtube.com/watch?v=N8kmZ9aBtZs)
-
 ## Support
 
 If you want to support the development of the project, click the link below. I'm working on the project full time and
@@ -24,6 +22,158 @@ use my savings to drive development forward, I'm looking for any financial suppo
 
 [Join the Discord server](https://discord.gg/xENF5Uh)
 
+## Features
+
+[![Video](pics/video.png)](https://www.youtube.com/watch?v=N8kmZ9aBtZs)
+
+### General
+
+- Exceptional safety, reliability, and speed.
+- PC (Windows, Linux, macOS) and [Web (WebAssembly) support](https://rg3d.rs/assets/webexample/index.html).
+- Modern 3D rendering pipeline.
+- Comprehensive [documentation](https://docs.rs/rg3d).
+- 2D support.
+- [Scene editor](https://github.com/rg3dengine/rusty-editor/).
+- Fast iterative compilation.
+- Classic object-oriented design.
+- Lots of examples.
+
+### Rendering
+
+- Custom shaders, materials, and rendering techniques.
+- Physically-based rendering.
+- Metallic workflow.
+- High dynamic range (HDR) rendering.
+- Tone mapping.
+- Color grading.
+- Auto-exposure.
+- Gamma correction.
+- Deferred shading.
+- Directional light.
+- Point lights + shadows.
+- Spotlights + shadows.
+- Screen-Space Ambient Occlusion (SSAO).
+- Soft shadows.
+- Volumetric light (spot, point).
+- Batching.
+- Instancing.
+- Fast Approximate Anti-Aliasing (FXAA).
+- Normal mapping.
+- Parallax mapping.
+- Render in texture.
+- Forward rendering for transparent objects.
+- Sky box.
+- Deferred decals.
+- Multi-camera rendering.
+- Lightmapping.
+- Soft particles.
+- Fully customizable vertex format.
+
+### Scene
+
+- Multiple scenes.
+- Full-featured scene graph.
+- Level-of-detail (LOD) support.
+- Various scene nodes.
+  - Pivot.
+  - Camera.
+  - Decal.
+  - Mesh.
+  - Particle system.
+  - Sprite.
+  - Multilayer terrain.
+- Skinning.
+
+### Sound
+
+- [High quality binaural sound with HRTF support](https://github.com/rg3dengine/rg3d/tree/master/rg3d-sound).
+- Generic and spatial sound sources.
+- Built-in streaming for large sounds.
+- Raw samples playback support.
+- WAV format support.
+- Vorbis/ogg support.
+- HRTF support for excellent positioning and binaural effects.
+- Reverb effect.
+
+### Serialization
+
+- Powerful serialization system
+- Almost every entity of the engine can be serialized
+- No need to write your own serialization.
+
+### Animation
+
+- Animation blending state machine - similar to Mecanim in Unity Engine.
+- Animation retargetting - allows you to remap animation from one model to another.
+
+### Asset management
+
+- Advanced asset manager.
+- Fully asynchronous asset loading.
+- PNG, JPG, TGA, DDS, etc. textures.
+- FBX models loader.
+- WAV, OGG sound formats.
+- Compressed textures support (DXT1, DXT3, DTX5).
+
+### Artificial Intelligence (AI)
+
+- A* pathfinder.
+- Navmesh.
+- Behavior trees.
+
+### User Interface (UI)
+
+- [Advanced node-based UI](https://github.com/mrDIMAS/rg3d/tree/master/rg3d-ui) with lots of widgets.
+- More than 32 widgets
+- Powerful layout system.
+- Full TTF/OTF fonts support.
+- Based on message passing.
+- Fully customizable.
+- GAPI-agnostic.
+- OS-agnostic.
+- Button widget.
+- Border widget.
+- Canvas widget.
+- Color picker widget.
+- Color field widget.
+- Check box widget.
+- Decorator widget.
+- Drop-down list widget.
+- Grid widget.
+- Image widget.
+- List view widget.
+- Popup widget.
+- Progress bar widget.
+- Scroll bar widget.
+- Scroll panel widget.
+- Scroll viewer widget.
+- Stack panel widget.
+- Tab control widget.
+- Text widget.
+- Text box widget.
+- Tree widget.
+- Window widget.
+- File browser widget.
+- File selector widget.
+- Docking manager widget.
+- NumericUpDown widget.
+- Vector3<f32> editor widget.
+- Menu widget.
+- Menu item widget.
+- Message box widget.
+- Wrap panel widget.
+- Curve editor widget.
+- User defined widget.
+
+### Physics
+
+- Advanced physics (thanks to the [rapier](https://github.com/dimforge/rapier) physics engine)
+- Rigid bodies.
+- Rich set of various colliders.
+- Joints.
+- Ray cast.
+- Many other useful features.
+
 ## Tutorials
 
 Writing a 3D Shooter using rg3d:
@@ -33,12 +183,6 @@ Writing a 3D Shooter using rg3d:
 
 Writing a role-playing game using rg3d
 - [#1 Character controller](https://rg3d.rs/tutorials/2021/07/09/rpg-tutorial1.html)
-
-**Important notes:**
-
-The engine is suitable for any kind of games, not only shooters, the fact that there are two 3d shooters that were made
-with the engine, and a set of tutorials about 3d shooters just means that @mrDIMAS loves 3d shooters. There will be more
-tutorials about games in different genre, but again - nothing stops you from making an RPG, RTS, rogue-like, etc.
 
 ## Screenshots
 
@@ -64,84 +208,6 @@ There are many examples covering various aspects of the engine. Also don't hesit
 ## [Editor](https://github.com/mrDIMAS/rusty-editor/)
 
 [![editor](https://raw.githubusercontent.com/mrDIMAS/rusty-editor/master/screenshots/latest.png)](https://github.com/mrDIMAS/rusty-editor/)
-
-## Features
-
-- Exceptional safety, reliability, and speed.
-- PC (Windows, Linux, macOS) and Web (WebAssembly) support - [Check online example](https://rg3d.rs/assets/webexample/index.html).
-- Deferred shading.
-	- Renderer based on OpenGL 3.3 Core (released in 2010) which means that your game will run on almost
-	  any relatively modern GPU. 
-	- Directional light.
-	- Point light + shadows.
-	- Spot light + shadows.
-	- Bump mapping.
-	- Screen-Space Ambient Occlusion (SSAO).
-	- Soft shadows.
-	- Volumetric light (spot, point).
-	- Instancing - render lots of objects without any overhead.
-	- Fast Approximate Anti-Aliasing (FXAA)
-	- Parallax mapping.
-- Custom shaders and rendering techniques.
-- Render in texture.
-- Sky box.
-- 2D support.
-- Multi-camera rendering.
-- Multiple scenes.
-- Lightmap generator.
-- Fully customizable vertex format.
-- Level-of-detail (LOD) support.
-- Scene graph with pivot, camera, mesh, light, particle system, sprite nodes.
-- Built-in save/load - save/load the state of the engine in one call.
-- [High quality binaural sound with HRTF support](https://github.com/mrDIMAS/rg3d/tree/master/rg3d-sound).
-- Skinning.
-- Particle systems with soft particles.
-- A* pathfinder.
-- Navmesh.
-- FBX Loader.
-- Full TTF/OTF fonts support (thanks to [fontdue](https://github.com/mooman219/fontdue) and [ttf-parser](https://github.com/RazrFalcon/ttf-parser) crates).
-- PNG, JPG, TGA, DDS, etc. textures (thanks to [image](https://github.com/image-rs/image) crate).
-- Compressed textures support (DXT1, DXT3, DTX5)
-- [Advanced node-based UI](https://github.com/mrDIMAS/rg3d/tree/master/rg3d-ui) with lots of widgets.
-- Animation blending state machine - similar to Mecanim in Unity Engine.
-- Animation retargetting - allows you to remap animation from one model to another.
-- Async asset management (textures, models, sound buffers).
-- Advanced physics (thanks to the [rapier](https://github.com/dimforge/rapier) physics engine)
-    - Rigid bodies.
-    - Rich set of various colliders.
-    - Joints.
-    - Ray cast.
-    - Many other useful features.
-- [Core library](https://github.com/mrDIMAS/rg3d/tree/master/rg3d-core).
-- Fast iterative compilation 
-	- Debug: ~3 seconds
-	- Release: ~8 seconds
-- Lots of examples.
-
-## Frequently asked questions
-
-**Q:** Does rg3d use ECS?
-
-**A:** No. It uses generational pools (arenas) which are optimized for efficient
-memory management to retain more static type safety.
-
-**Q:** Examples running too slow on my PC, FPS is too low, help!
-
-**A:** First, make sure you run examples on the discrete GPU, not on a built-in of your CPU. Built-in GPUs
-are very slow and not suitable for rg3d. Second, make sure your discrete GPU is powerful enough to run 
-modern games at a decent frame rate.
-
-## Supported Operating Systems
-
-- Windows - **full support**
-- Linux - **full support**
-- macOS - **full support**
-- WebAssembly - **full support**
-- Android - **not supported**
-
-## Compiler version
-
-rg3d requires the latest stable Rust compiler.
 
 ## Contributing
 

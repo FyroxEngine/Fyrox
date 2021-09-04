@@ -11,6 +11,8 @@ pub mod shared;
 
 use crate::shared::create_camera;
 use rg3d::engine::resource_manager::MaterialSearchOptions;
+use rg3d::material::shader::SamplerFallback;
+use rg3d::material::{Material, PropertyValue};
 use rg3d::{
     animation::Animation,
     core::{
@@ -40,7 +42,7 @@ use rg3d::{
         Scene,
     },
 };
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 
 struct SceneLoader {
     scene: Scene,
@@ -136,6 +138,20 @@ impl SceneLoader {
         .with_radius(100.0)
         .build(&mut scene.graph);
 
+        let mut material = Material::standard();
+
+        material
+            .set_property(
+                "diffuseTexture",
+                PropertyValue::Sampler {
+                    value: Some(
+                        resource_manager.request_texture("examples/data/concrete2.dds", None),
+                    ),
+                    fallback: SamplerFallback::White,
+                },
+            )
+            .unwrap();
+
         // Add floor.
         MeshBuilder::new(
             BaseBuilder::new().with_local_transform(
@@ -149,7 +165,7 @@ impl SceneLoader {
                 300.0, 0.25, 300.0,
             ))),
         )))
-        .with_diffuse_texture(resource_manager.request_texture("examples/data/concrete2.dds"))
+        .with_material(Arc::new(Mutex::new(material)))
         .build()])
         .build(&mut scene.graph);
 

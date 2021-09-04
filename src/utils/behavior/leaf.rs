@@ -29,7 +29,7 @@ impl<B> LeafNode<B> {
     }
 
     /// Adds self to given behavior tree and returns handle to self.
-    pub fn add(self, tree: &mut BehaviorTree<B>) -> Handle<BehaviorNode<B>> {
+    pub fn add_to(self, tree: &mut BehaviorTree<B>) -> Handle<BehaviorNode<B>> {
         tree.add_node(BehaviorNode::Leaf(self))
     }
 }

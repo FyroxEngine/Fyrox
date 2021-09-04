@@ -8,7 +8,7 @@ use crate::{
     rand::Rng,
     renderer::framework::{
         error::FrameworkError,
-        framebuffer::{Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer},
+        framebuffer::{Attachment, AttachmentKind, DrawParameters, FrameBuffer},
         gpu_program::{GpuProgram, UniformLocation},
         gpu_texture::{
             Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
@@ -16,10 +16,12 @@ use crate::{
         },
         state::PipelineState,
     },
-    renderer::{blur::Blur, gbuffer::GBuffer, GeometryCache, RenderPassStatistics},
+    renderer::{gbuffer::GBuffer, ssao::blur::Blur, GeometryCache, RenderPassStatistics},
     scene::mesh::surface::SurfaceData,
 };
 use std::{cell::RefCell, rc::Rc};
+
+mod blur;
 
 // Keep in sync with shader define.
 const KERNEL_SIZE: usize = 32;
@@ -43,8 +45,8 @@ struct Shader {
 
 impl Shader {
     pub fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
-        let fragment_source = include_str!("shaders/ssao_fs.glsl");
-        let vertex_source = include_str!("shaders/ssao_vs.glsl");
+        let fragment_source = include_str!("../shaders/ssao_fs.glsl");
+        let vertex_source = include_str!("../shaders/ssao_vs.glsl");
         let program = GpuProgram::from_source(state, "SsaoShader", vertex_source, fragment_source)?;
         Ok(Self {
             depth_sampler: program.uniform_location(state, "depthSampler")?,
@@ -229,15 +231,15 @@ impl ScreenSpaceAmbientOcclusionRenderer {
             viewport,
             &shader.program,
             &DrawParameters {
-                cull_face: CullFace::Back,
-                culling: false,
+                cull_face: None,
                 color_write: Default::default(),
                 depth_write: false,
-                stencil_test: false,
+                stencil_test: None,
                 depth_test: false,
-                blend: false,
+                blend: None,
+                stencil_op: Default::default(),
             },
-            |program_binding| {
+            |mut program_binding| {
                 program_binding
                     .set_texture(&shader.depth_sampler, &gbuffer.depth())
                     .set_texture(&shader.normal_sampler, &gbuffer.normal_texture())

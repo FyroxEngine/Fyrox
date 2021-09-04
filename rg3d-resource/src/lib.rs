@@ -210,6 +210,7 @@ impl<T: ResourceData, E: ResourceLoadError> From<Arc<Mutex<ResourceState<T, E>>>
     }
 }
 
+#[allow(clippy::from_over_into)]
 impl<T: ResourceData, E: ResourceLoadError> Into<Arc<Mutex<ResourceState<T, E>>>>
     for Resource<T, E>
 {
@@ -308,7 +309,7 @@ impl<T: ResourceData, E: ResourceLoadError> Default for ResourceState<T, E> {
 /// Defines a new resource type via new-type wrapper.  
 #[macro_export]
 macro_rules! define_new_resource {
-    ($(#[$meta:meta])*, $name:ident<$state:ty, $error:ty>) => {
+    ($(#[$meta:meta])* $name:ident<$state:ty, $error:ty>) => {
         $(#[$meta])*
         #[derive(Clone, Debug, Default)]
         #[repr(transparent)]

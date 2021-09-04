@@ -8,5 +8,5 @@ in vec3 texCoord;
 
 void main()
 {
-    FragColor = texture(cubemapTexture, texCoord);
+    FragColor = S_SRGBToLinear(texture(cubemapTexture, texCoord));
 }

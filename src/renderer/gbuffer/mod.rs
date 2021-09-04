@@ -1,48 +1,51 @@
+//! GBuffer Layout:
+//!
+//! RT0: sRGBA8 - Diffuse color (xyz)
+//! RT1: RGBA8 - Normal (xyz)
+//! RT2: RGBA16F - Ambient light + emission (both in xyz)
+//! RT3: RGBA8 - Metallic (x) + Roughness (y) + Ambient Occlusion (z)
+//! RT4: R8UI - Decal mask (x)
+//!
+//! Every alpha channel is used for layer blending for terrains. This is inefficient, but for
+//! now I don't know better solution.
+
 use crate::{
     core::{
-        algebra::{Matrix4, Vector2, Vector4},
-        arrayvec::ArrayVec,
+        algebra::{Matrix4, Vector2},
         color::Color,
         math::Rect,
         scope_profile,
     },
     renderer::{
-        batch::{BatchStorage, InstanceData, MatrixStorage, BONE_MATRICES_COUNT},
+        apply_material,
+        batch::BatchStorage,
+        cache::shader::ShaderCache,
         framework::{
             error::FrameworkError,
-            framebuffer::{Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer},
+            framebuffer::{Attachment, AttachmentKind, DrawParameters, FrameBuffer},
             gpu_program::GpuProgramBinding,
             gpu_texture::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind, WrapMode,
             },
-            state::PipelineState,
+            state::{BlendFactor, BlendFunc, PipelineState},
         },
-        gbuffer::{
-            decal::DecalShader,
-            uber_shader::{UberShader, UberShaderFeatures},
-        },
-        GeometryCache, RenderPassStatistics, TextureCache,
+        gbuffer::decal::DecalShader,
+        GeometryCache, MaterialContext, RenderPassStatistics, TextureCache,
     },
     scene::{
         camera::Camera, graph::Graph, mesh::surface::SurfaceData, mesh::RenderPath, node::Node,
     },
 };
-use glow::HasContext;
 use std::{cell::RefCell, rc::Rc};
 
 mod decal;
-mod uber_shader;
 
 pub struct GBuffer {
-    shaders: ArrayVec<UberShader, 9>,
     framebuffer: FrameBuffer,
     decal_framebuffer: FrameBuffer,
-    pub final_frame: FrameBuffer,
     pub width: i32,
     pub height: i32,
-    matrix_storage: MatrixStorage,
-    instance_data_set: Vec<InstanceData>,
     cube: SurfaceData,
     decal_shader: DecalShader,
 }
@@ -53,9 +56,12 @@ pub(in crate) struct GBufferRenderContext<'a, 'b> {
     pub geom_cache: &'a mut GeometryCache,
     pub batch_storage: &'a BatchStorage,
     pub texture_cache: &'a mut TextureCache,
+    pub shader_cache: &'a mut ShaderCache,
+    #[allow(dead_code)]
     pub environment_dummy: Rc<RefCell<GpuTexture>>,
     pub white_dummy: Rc<RefCell<GpuTexture>>,
     pub normal_dummy: Rc<RefCell<GpuTexture>>,
+    pub black_dummy: Rc<RefCell<GpuTexture>>,
     pub use_parallax_mapping: bool,
     pub graph: &'b Graph,
 }
@@ -87,7 +93,7 @@ impl GBuffer {
         let mut diffuse_texture = GpuTexture::new(
             state,
             GpuTextureKind::Rectangle { width, height },
-            PixelKind::RGBA8,
+            PixelKind::SRGBA8,
             MinificationFilter::Nearest,
             MagnificationFilter::Nearest,
             1,
@@ -117,7 +123,7 @@ impl GBuffer {
         let mut ambient_texture = GpuTexture::new(
             state,
             GpuTextureKind::Rectangle { width, height },
-            PixelKind::RGBA8,
+            PixelKind::RGBA16F,
             MinificationFilter::Nearest,
             MagnificationFilter::Nearest,
             1,
@@ -138,6 +144,20 @@ impl GBuffer {
             None,
         )?;
         decal_mask_texture
+            .bind_mut(state, 0)
+            .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
+            .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
+
+        let mut material_texture = GpuTexture::new(
+            state,
+            GpuTextureKind::Rectangle { width, height },
+            PixelKind::RGBA8,
+            MinificationFilter::Nearest,
+            MagnificationFilter::Nearest,
+            1,
+            None,
+        )?;
+        material_texture
             .bind_mut(state, 0)
             .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
             .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
@@ -163,47 +183,13 @@ impl GBuffer {
                 },
                 Attachment {
                     kind: AttachmentKind::Color,
+                    texture: Rc::new(RefCell::new(material_texture)),
+                },
+                Attachment {
+                    kind: AttachmentKind::Color,
                     texture: Rc::new(RefCell::new(decal_mask_texture)),
                 },
             ],
-        )?;
-
-        let mut final_frame_depth_stencil_texture = GpuTexture::new(
-            state,
-            GpuTextureKind::Rectangle { width, height },
-            PixelKind::D24S8,
-            MinificationFilter::Nearest,
-            MagnificationFilter::Nearest,
-            1,
-            None,
-        )?;
-        final_frame_depth_stencil_texture
-            .bind_mut(state, 0)
-            .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
-            .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
-
-        let final_frame_depth_stencil = Rc::new(RefCell::new(final_frame_depth_stencil_texture));
-
-        let frame_texture = GpuTexture::new(
-            state,
-            GpuTextureKind::Rectangle { width, height },
-            PixelKind::RGBA8,
-            MinificationFilter::Linear,
-            MagnificationFilter::Linear,
-            1,
-            None,
-        )?;
-
-        let final_frame = FrameBuffer::new(
-            state,
-            Some(Attachment {
-                kind: AttachmentKind::DepthStencil,
-                texture: final_frame_depth_stencil,
-            }),
-            vec![Attachment {
-                kind: AttachmentKind::Color,
-                texture: Rc::new(RefCell::new(frame_texture)),
-            }],
         )?;
 
         let decal_framebuffer = FrameBuffer::new(
@@ -221,30 +207,18 @@ impl GBuffer {
             ],
         )?;
 
-        let mut shaders = ArrayVec::<UberShader, 9>::new();
-        for i in 0..(UberShaderFeatures::COUNT.bits() as usize) {
-            shaders.push(UberShader::new(
-                state,
-                UberShaderFeatures::from_bits(i as u32).unwrap(),
-            )?);
-        }
-
         Ok(Self {
             framebuffer,
-            shaders,
             width: width as i32,
             height: height as i32,
-            final_frame,
-            matrix_storage: MatrixStorage::new(state)?,
-            instance_data_set: Default::default(),
             decal_shader: DecalShader::new(state)?,
             cube: SurfaceData::make_cube(Matrix4::identity()),
             decal_framebuffer,
         })
     }
 
-    pub fn frame_texture(&self) -> Rc<RefCell<GpuTexture>> {
-        self.final_frame.color_attachments()[0].texture.clone()
+    pub fn framebuffer(&self) -> &FrameBuffer {
+        &self.framebuffer
     }
 
     pub fn depth(&self) -> Rc<RefCell<GpuTexture>> {
@@ -263,8 +237,12 @@ impl GBuffer {
         self.framebuffer.color_attachments()[2].texture.clone()
     }
 
-    pub fn decal_mask_texture(&self) -> Rc<RefCell<GpuTexture>> {
+    pub fn material_texture(&self) -> Rc<RefCell<GpuTexture>> {
         self.framebuffer.color_attachments()[3].texture.clone()
+    }
+
+    pub fn decal_mask_texture(&self) -> Rc<RefCell<GpuTexture>> {
+        self.framebuffer.color_attachments()[4].texture.clone()
     }
 
     #[must_use]
@@ -279,11 +257,13 @@ impl GBuffer {
             geom_cache,
             batch_storage,
             texture_cache,
-            environment_dummy,
+            shader_cache,
             use_parallax_mapping,
             white_dummy,
             normal_dummy,
+            black_dummy,
             graph,
+            ..
         } = args;
 
         let viewport = Rect::new(0, 0, self.width, self.height);
@@ -295,16 +275,6 @@ impl GBuffer {
             Some(0),
         );
 
-        let mut params = DrawParameters {
-            cull_face: CullFace::Back,
-            culling: true,
-            color_write: Default::default(),
-            depth_write: true,
-            stencil_test: false,
-            depth_test: true,
-            blend: false,
-        };
-
         let initial_view_projection = camera.view_projection_matrix();
 
         for batch in batch_storage
@@ -312,167 +282,52 @@ impl GBuffer {
             .iter()
             .filter(|b| b.render_path == RenderPath::Deferred)
         {
+            let material = batch.material.lock().unwrap();
             let data = batch.data.read().unwrap();
             let geometry = geom_cache.get(state, &data);
-            let use_instanced_rendering = batch.instances.len() > 1;
 
-            let environment = match camera.environment_ref() {
-                Some(texture) => texture_cache.get(state, texture).unwrap(),
-                None => environment_dummy.clone(),
-            };
-
-            // Prepare batch info storage in case if we're rendering multiple objects
-            // at once.
-            if use_instanced_rendering {
-                self.matrix_storage.clear();
-                self.instance_data_set.clear();
+            if let Some(render_pass) = shader_cache
+                .get(state, material.shader())
+                .and_then(|shader_set| shader_set.render_passes.get("GBuffer"))
+            {
                 for instance in batch.instances.iter() {
                     if camera.visibility_cache.is_visible(instance.owner) {
-                        self.instance_data_set.push(InstanceData {
-                            color: instance.color,
-                            world: instance.world_transform,
-                            depth_offset: instance.depth_offset,
-                        });
-                        self.matrix_storage
-                            .push_slice(instance.bone_matrices.as_slice());
-                    }
-                }
-                // Every object from batch might be clipped.
-                if !self.instance_data_set.is_empty() {
-                    self.matrix_storage.update(state);
-                    geometry.set_buffer_data(state, 1, self.instance_data_set.as_slice());
-                }
-            }
+                        let apply_uniforms = |mut program_binding: GpuProgramBinding| {
+                            let view_projection = if instance.depth_offset != 0.0 {
+                                let mut projection = camera.projection_matrix();
+                                projection[14] -= instance.depth_offset;
+                                projection * camera.view_matrix()
+                            } else {
+                                initial_view_projection
+                            };
 
-            // Select shader
-            let mut required_features = UberShaderFeatures::DEFAULT;
-            required_features.set(UberShaderFeatures::LIGHTMAP, batch.use_lightmapping);
-            required_features.set(UberShaderFeatures::TERRAIN, batch.is_terrain);
-            required_features.set(UberShaderFeatures::INSTANCING, use_instanced_rendering);
-
-            let shader = &self.shaders[required_features.bits() as usize];
-
-            let need_render = if use_instanced_rendering {
-                !self.instance_data_set.is_empty()
-            } else {
-                camera
-                    .visibility_cache
-                    .is_visible(batch.instances.first().unwrap().owner)
-            };
-
-            if need_render {
-                let matrix_storage = &self.matrix_storage;
-
-                let apply_uniforms = |program_binding: GpuProgramBinding| {
-                    let program_binding = program_binding
-                        .set_texture(&shader.diffuse_texture, &batch.diffuse_texture)
-                        .set_texture(&shader.normal_texture, &batch.normal_texture)
-                        .set_texture(&shader.specular_texture, &batch.specular_texture)
-                        .set_texture(&shader.environment_map, &environment)
-                        .set_texture(&shader.roughness_texture, &batch.roughness_texture)
-                        .set_texture(&shader.height_texture, &batch.height_texture)
-                        .set_texture(&shader.emission_texture, &batch.emission_texture)
-                        .set_vector3(&shader.camera_position, &camera.global_position())
-                        .set_bool(&shader.use_pom, batch.use_pom && use_parallax_mapping)
-                        .set_bool(&shader.use_skeletal_animation, batch.is_skinned)
-                        .set_vector2(&shader.tex_coord_scale, &batch.tex_coord_scale)
-                        .set_u32(&shader.layer_index, batch.decal_layer_index as u32);
-
-                    let program_binding = if batch.use_lightmapping {
-                        program_binding.set_texture(
-                            shader.lightmap_texture.as_ref().unwrap(),
-                            &batch.lightmap_texture,
-                        )
-                    } else {
-                        program_binding
-                    };
-
-                    let program_binding = if batch.is_terrain {
-                        program_binding
-                            .set_texture(shader.mask_texture.as_ref().unwrap(), &batch.mask_texture)
-                    } else {
-                        program_binding
-                    };
-
-                    if use_instanced_rendering {
-                        program_binding
-                            .set_texture(
-                                shader.matrix_storage.as_ref().unwrap(),
-                                &matrix_storage.matrices_storage,
-                            )
-                            .set_i32(
-                                shader.matrix_buffer_stride.as_ref().unwrap(),
-                                BONE_MATRICES_COUNT as i32,
-                            )
-                            .set_vector4(shader.matrix_storage_size.as_ref().unwrap(), {
-                                let kind = matrix_storage.matrices_storage.borrow().kind();
-                                let (w, h) =
-                                    if let GpuTextureKind::Rectangle { width, height } = kind {
-                                        (width, height)
-                                    } else {
-                                        unreachable!()
-                                    };
-                                &Vector4::new(
-                                    1.0 / (w as f32),
-                                    1.0 / (h as f32),
-                                    w as f32,
-                                    h as f32,
-                                )
-                            })
-                            .set_matrix4(
-                                shader.view_projection_matrix.as_ref().unwrap(),
-                                &camera.view_projection_matrix(),
-                            );
-                    } else {
-                        let instance = batch.instances.first().unwrap();
-
-                        let view_projection = if instance.depth_offset != 0.0 {
-                            let mut projection = camera.projection_matrix();
-                            projection[14] -= instance.depth_offset;
-                            projection * camera.view_matrix()
-                        } else {
-                            initial_view_projection
+                            apply_material(MaterialContext {
+                                material: &*material,
+                                program_binding: &mut program_binding,
+                                texture_cache,
+                                world_matrix: &instance.world_transform,
+                                wvp_matrix: &(view_projection * instance.world_transform),
+                                bone_matrices: &instance.bone_matrices,
+                                use_skeletal_animation: batch.is_skinned,
+                                camera_position: &camera.global_position(),
+                                use_pom: use_parallax_mapping,
+                                light_position: &Default::default(),
+                                normal_dummy: normal_dummy.clone(),
+                                white_dummy: white_dummy.clone(),
+                                black_dummy: black_dummy.clone(),
+                            });
                         };
-                        program_binding
-                            .set_color(shader.diffuse_color.as_ref().unwrap(), &instance.color)
-                            .set_matrix4(
-                                shader.wvp_matrix.as_ref().unwrap(),
-                                &(view_projection * instance.world_transform),
-                            )
-                            .set_matrix4_array(
-                                shader.bone_matrices.as_ref().unwrap(),
-                                instance.bone_matrices.as_slice(),
-                            )
-                            .set_matrix4(
-                                shader.world_matrix.as_ref().unwrap(),
-                                &instance.world_transform,
-                            );
+
+                        statistics += self.framebuffer.draw(
+                            geometry,
+                            state,
+                            viewport,
+                            &render_pass.program,
+                            &render_pass.draw_params,
+                            apply_uniforms,
+                        );
                     }
-                };
-
-                params.blend = batch.blend;
-                state.set_blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
-
-                statistics += if use_instanced_rendering {
-                    self.framebuffer.draw_instances(
-                        self.instance_data_set.len(),
-                        geometry,
-                        state,
-                        viewport,
-                        &shader.program,
-                        &params,
-                        apply_uniforms,
-                    )
-                } else {
-                    self.framebuffer.draw(
-                        geometry,
-                        state,
-                        viewport,
-                        &shader.program,
-                        &params,
-                        apply_uniforms,
-                    )
-                };
+                }
             }
         }
 
@@ -513,15 +368,18 @@ impl GBuffer {
                 viewport,
                 program,
                 &DrawParameters {
-                    cull_face: CullFace::Back,
-                    culling: false,
+                    cull_face: None,
                     color_write: Default::default(),
                     depth_write: false,
-                    stencil_test: false,
+                    stencil_test: None,
                     depth_test: false,
-                    blend: true,
+                    blend: Some(BlendFunc {
+                        sfactor: BlendFactor::SrcAlpha,
+                        dfactor: BlendFactor::OneMinusSrcAlpha,
+                    }),
+                    stencil_op: Default::default(),
                 },
-                |program_binding| {
+                |mut program_binding| {
                     program_binding
                         .set_matrix4(&shader.world_view_projection, &world_view_proj)
                         .set_matrix4(&shader.inv_view_proj, &inv_view_proj)
@@ -535,30 +393,8 @@ impl GBuffer {
                         .set_texture(&shader.normal_texture, &normal_texture)
                         .set_texture(&shader.decal_mask, &decal_mask)
                         .set_u32(&shader.layer_index, decal.layer() as u32)
-                        .set_color(&shader.color, &decal.color());
+                        .set_linear_color(&shader.color, &decal.color());
                 },
-            );
-        }
-
-        // Copy depth-stencil from gbuffer to final frame buffer.
-        unsafe {
-            state
-                .gl
-                .bind_framebuffer(glow::READ_FRAMEBUFFER, Some(self.framebuffer.id()));
-            state
-                .gl
-                .bind_framebuffer(glow::DRAW_FRAMEBUFFER, Some(self.final_frame.id()));
-            state.gl.blit_framebuffer(
-                0,
-                0,
-                self.width,
-                self.height,
-                0,
-                0,
-                self.width,
-                self.height,
-                glow::DEPTH_BUFFER_BIT | glow::STENCIL_BUFFER_BIT,
-                glow::NEAREST,
             );
         }
 

@@ -7,7 +7,7 @@ use crate::{
     core::{algebra::Vector3, math::Rect, scope_profile},
     renderer::framework::{
         error::FrameworkError,
-        framebuffer::{CullFace, DrawParameters, FrameBuffer},
+        framebuffer::{DrawParameters, FrameBuffer},
         geometry_buffer::{
             AttributeDefinition, AttributeKind, BufferBuilder, ElementKind, GeometryBuffer,
             GeometryBufferBuilder, GeometryBufferKind,
@@ -117,15 +117,15 @@ impl DebugRenderer {
             viewport,
             &self.shader.program,
             &DrawParameters {
-                cull_face: CullFace::Back,
-                culling: false,
+                cull_face: None,
                 color_write: Default::default(),
                 depth_write: false,
-                stencil_test: false,
+                stencil_test: None,
                 depth_test: true,
-                blend: false,
+                blend: None,
+                stencil_op: Default::default(),
             },
-            |program_binding| {
+            |mut program_binding| {
                 program_binding
                     .set_matrix4(&self.shader.wvp_matrix, &camera.view_projection_matrix());
             },

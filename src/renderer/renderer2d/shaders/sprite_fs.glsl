@@ -36,5 +36,5 @@ void main()
         lighting += lightColor * (distanceAttenuation * directionalAttenuation);
     }
 
-    FragColor = vec4(lighting, 1.0) * color * texture(diffuseTexture, texCoord);
+    FragColor = vec4(lighting, 1.0) * color * S_SRGBToLinear(texture(diffuseTexture, texCoord));
 }

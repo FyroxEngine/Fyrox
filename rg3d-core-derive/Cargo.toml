@@ -14,11 +14,11 @@ proc-macro = true
 
 [dependencies]
 convert_case = "0.4.0"
-proc-macro2 = "1.0.26"
+proc-macro2 = "1.0.28"
 quote = "1.0.9"
-syn = "1.0.71"
+syn = "1.0.74"
 darling = "0.13.0"
 
 [dev-dependencies]
 rg3d-core = { path = "../rg3d-core" }
-futures = "0.3.14"
+futures = "0.3.16"

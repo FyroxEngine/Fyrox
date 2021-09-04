@@ -18,6 +18,8 @@ pub mod terrain;
 pub mod transform;
 
 use crate::engine::resource_manager::MaterialSearchOptions;
+use crate::material::shader::SamplerFallback;
+use crate::material::PropertyValue;
 use crate::{
     animation::AnimationContainer,
     core::{
@@ -689,9 +691,7 @@ impl SceneDrawingContext {
         let axis = end - begin;
         let length = axis.norm();
 
-        let z_axis = axis
-            .try_normalize(f32::EPSILON)
-            .unwrap_or_else(Vector3::z);
+        let z_axis = axis.try_normalize(f32::EPSILON).unwrap_or_else(Vector3::z);
 
         let y_axis = z_axis
             .cross(
@@ -913,7 +913,7 @@ pub struct Scene {
     pub ambient_lighting_color: Color,
 
     /// Whether the scene will be updated and rendered or not. Default is true.
-    /// This flags is allows you to build a scene manager for your game. For example,
+    /// This flag allowing you to build a scene manager for your game. For example,
     /// you may have a scene for menu and one per level. Menu's scene is persistent,
     /// however you don't want it to be updated and renderer while you have a level
     /// loaded and playing a game. When you're start playing, just set `enabled` flag
@@ -944,7 +944,7 @@ impl Default for Scene {
 fn map_texture(tex: Option<Texture>, rm: ResourceManager) -> Option<Texture> {
     if let Some(shallow_texture) = tex {
         let shallow_texture = shallow_texture.state();
-        Some(rm.request_texture(shallow_texture.path()))
+        Some(rm.request_texture(shallow_texture.path(), None))
     } else {
         None
     }
@@ -1054,28 +1054,11 @@ impl Scene {
             match node {
                 Node::Mesh(mesh) => {
                     for surface in mesh.surfaces_mut() {
-                        surface.set_diffuse_texture(map_texture(
-                            surface.diffuse_texture(),
-                            resource_manager.clone(),
-                        ));
-
-                        surface.set_normal_texture(map_texture(
-                            surface.normal_texture(),
-                            resource_manager.clone(),
-                        ));
-
-                        surface.set_specular_texture(map_texture(
-                            surface.specular_texture(),
-                            resource_manager.clone(),
-                        ));
-
-                        surface.set_roughness_texture(map_texture(
-                            surface.roughness_texture(),
-                            resource_manager.clone(),
-                        ));
-
-                        // Do not resolve lightmap texture here, it makes no sense anyway,
-                        // it will be resolved below.
+                        surface
+                            .material()
+                            .lock()
+                            .unwrap()
+                            .resolve(resource_manager.clone());
                     }
                 }
                 Node::Sprite(sprite) => {
@@ -1106,26 +1089,11 @@ impl Scene {
                 Node::Terrain(terrain) => {
                     for chunk in terrain.chunks_mut() {
                         for layer in chunk.layers_mut() {
-                            layer.diffuse_texture = map_texture(
-                                layer.diffuse_texture.clone(),
-                                resource_manager.clone(),
-                            );
-
-                            layer.normal_texture =
-                                map_texture(layer.normal_texture.clone(), resource_manager.clone());
-
-                            layer.specular_texture = map_texture(
-                                layer.specular_texture.clone(),
-                                resource_manager.clone(),
-                            );
-
-                            layer.roughness_texture = map_texture(
-                                layer.roughness_texture.clone(),
-                                resource_manager.clone(),
-                            );
-
-                            layer.height_texture =
-                                map_texture(layer.height_texture.clone(), resource_manager.clone());
+                            layer
+                                .material
+                                .lock()
+                                .unwrap()
+                                .resolve(resource_manager.clone());
 
                             // Mask is not resolved because it is procedural texture.
                         }
@@ -1318,7 +1286,21 @@ impl Scene {
             for (&handle, entries) in lightmap.map.iter_mut() {
                 if let Node::Mesh(mesh) = &mut self.graph[handle] {
                     for (entry, surface) in entries.iter_mut().zip(mesh.surfaces_mut()) {
-                        surface.set_lightmap_texture(entry.texture.clone());
+                        if let Err(e) = surface.material().lock().unwrap().set_property(
+                            "lightmapTexture",
+                            PropertyValue::Sampler {
+                                value: entry.texture.clone(),
+                                fallback: SamplerFallback::Black,
+                            },
+                        ) {
+                            Log::writeln(
+                                MessageKind::Error,
+                                format!(
+                                    "Failed to apply light map texture to material. Reason {:?}",
+                                    e
+                                ),
+                            )
+                        }
                     }
                 }
             }
@@ -1340,7 +1322,21 @@ impl Scene {
                     // This unwrap() call must never panic in normal conditions, because texture wrapped in Option
                     // only to implement Default trait to be serializable.
                     let texture = entry.texture.clone().unwrap();
-                    surface.set_lightmap_texture(Some(texture))
+                    if let Err(e) = surface.material().lock().unwrap().set_property(
+                        "lightmapTexture",
+                        PropertyValue::Sampler {
+                            value: Some(texture),
+                            fallback: SamplerFallback::Black,
+                        },
+                    ) {
+                        Log::writeln(
+                            MessageKind::Error,
+                            format!(
+                                "Failed to apply light map texture to material. Reason {:?}",
+                                e
+                            ),
+                        )
+                    }
                 }
             }
         }
@@ -1449,6 +1445,11 @@ impl SceneContainer {
             pool: Pool::new(),
             sound_engine,
         }
+    }
+
+    /// Return true if given handle is valid and "points" to "alive" scene.
+    pub fn is_valid_handle(&self, handle: Handle<Scene>) -> bool {
+        self.pool.is_valid_handle(handle)
     }
 
     /// Returns pair iterator which yields (handle, scene_ref) pairs.

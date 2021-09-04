@@ -38,6 +38,7 @@ use crate::{
 };
 use std::ops::{Deref, DerefMut};
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone)]
 pub enum UINode<M: MessageData, C: Control<M, C>> {
     Border(Border<M, C>),

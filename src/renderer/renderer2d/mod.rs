@@ -1,5 +1,6 @@
 //! A renderer responsible for drawing 2D scenes.
 
+use crate::renderer::framework::state::{BlendFactor, BlendFunc};
 use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector4},
@@ -9,7 +10,7 @@ use crate::{
     renderer::{
         framework::{
             error::FrameworkError,
-            framebuffer::{Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer},
+            framebuffer::{Attachment, AttachmentKind, DrawParameters, FrameBuffer},
             gpu_program::{GpuProgram, UniformLocation},
             gpu_texture::{
                 GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
@@ -165,7 +166,7 @@ impl BatchStorage {
 
                 batch.instances.push(Instance {
                     gpu_data: InstanceData {
-                        color: sprite.color(),
+                        color: sprite.color().srgb_to_linear(),
                         world_matrix: sprite.global_transform()
                             * Matrix4::new_scaling(sprite.size()),
                     },
@@ -338,15 +339,18 @@ impl Renderer2d {
                         viewport,
                         &shader.program,
                         &DrawParameters {
-                            cull_face: CullFace::Back,
-                            culling: false,
+                            cull_face: None,
                             color_write: Default::default(),
                             depth_write: false,
-                            stencil_test: false,
+                            stencil_test: None,
                             depth_test: false,
-                            blend: true,
+                            blend: Some(BlendFunc {
+                                sfactor: BlendFactor::SrcAlpha,
+                                dfactor: BlendFactor::OneMinusSrcAlpha,
+                            }),
+                            stencil_op: Default::default(),
                         },
-                        |program_binding| {
+                        |mut program_binding| {
                             program_binding
                                 .set_matrix4(&shader.wvp_matrix, &view_projection)
                                 .set_texture(&shader.diffuse_texture, &batch.texture)

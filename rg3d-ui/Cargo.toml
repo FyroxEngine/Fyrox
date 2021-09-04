@@ -13,7 +13,7 @@ readme = "README.md"
 [dependencies]
 rg3d-core = { path = "../rg3d-core", version = "0.17.1" }
 lazy_static = "1.4.0"
-copypasta = "0.7"
+copypasta = "0.7.1"
 fontdue = "0.5.2"
 notify = "4.0"
 ###uuid = { version = "0.8", features = ["v4"] }

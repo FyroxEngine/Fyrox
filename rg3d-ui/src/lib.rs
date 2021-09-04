@@ -325,6 +325,11 @@ where
     /// Provides a way to respond to OS specific events. Can be useful to detect if a key or mouse
     /// button was pressed. This method significantly differs from `handle_message` because os events
     /// are not dispatched - they'll be passed to this method in any case.
+    ///
+    /// ## Important notes
+    ///
+    /// Due to performance reasons, you **must** set `.with_handle_os_messages(true)` in widget builder to
+    /// force library to call `handle_os_event`!
     fn handle_os_event(
         &mut self,
         _self_handle: Handle<UINode<M, C>>,
@@ -1705,12 +1710,14 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         for i in 0..self.nodes.get_capacity() {
             let handle = self.nodes.handle_from_index(i);
 
-            if self.nodes.is_valid_handle(handle) {
-                let (ticket, mut node) = self.nodes.take_reserve(handle);
+            if let Some(node_ref) = self.nodes.try_borrow(handle) {
+                if node_ref.handle_os_events {
+                    let (ticket, mut node) = self.nodes.take_reserve(handle);
 
-                node.handle_os_event(handle, self, event);
+                    node.handle_os_event(handle, self, event);
 
-                self.nodes.put_back(ticket, node);
+                    self.nodes.put_back(ticket, node);
+                }
             }
         }
 

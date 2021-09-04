@@ -9,5 +9,5 @@ in vec2 texCoord;
 
 void main()
 {
-    FragColor = color * texture(diffuseTexture, texCoord).r;
+    FragColor = color * S_SRGBToLinear(texture(diffuseTexture, texCoord)).r;
 }

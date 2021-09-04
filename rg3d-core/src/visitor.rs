@@ -15,17 +15,17 @@ pub mod prelude {
     pub use super::{Visit, VisitResult, Visitor};
 }
 
-use crate::io::FileLoadError;
-
-use crate::algebra::{Complex, UnitComplex};
 use crate::{
-    algebra::{Matrix3, Matrix4, Quaternion, UnitQuaternion, Vector2, Vector3, Vector4},
-    io,
+    algebra::{
+        Complex, Matrix2, Matrix3, Matrix4, Quaternion, UnitComplex, UnitQuaternion, Vector2,
+        Vector3, Vector4,
+    },
+    io::{self, FileLoadError},
     pool::{Handle, Pool},
     replace_slashes,
 };
+
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-use std::io::Cursor;
 use std::{
     any::Any,
     cell::{Cell, RefCell},
@@ -33,7 +33,7 @@ use std::{
     fmt::{Display, Formatter},
     fs::File,
     hash::Hash,
-    io::{BufWriter, Read, Write},
+    io::{BufWriter, Cursor, Read, Write},
     ops::DerefMut,
     path::{Path, PathBuf},
     rc::Rc,
@@ -68,6 +68,7 @@ pub enum FieldKind {
         element_size: u32,
         bytes: Vec<u8>,
     },
+    Matrix2(Matrix2<f32>),
 }
 
 pub trait Pod: Copy {
@@ -259,6 +260,13 @@ impl FieldKind {
                     type_id, element_size, base64_encoded
                 )
             }
+            Self::Matrix2(data) => {
+                let mut out = String::from("<mat2 = ");
+                for f in data.iter() {
+                    out += format!("{}; ", f).as_str();
+                }
+                out
+            }
         }
     }
 }
@@ -316,6 +324,7 @@ impl_field_data!(Vector2<f32>, FieldKind::Vector2);
 impl_field_data!(Vector4<f32>, FieldKind::Vector4);
 impl_field_data!(Uuid, FieldKind::Uuid);
 impl_field_data!(UnitComplex<f32>, FieldKind::UnitComplex);
+impl_field_data!(Matrix2<f32>, FieldKind::Matrix2);
 
 impl<'a> Visit for Data<'a> {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
@@ -555,6 +564,12 @@ impl Field {
                 file.write_u64::<LittleEndian>(bytes.len() as u64)?;
                 file.write_all(bytes)?;
             }
+            FieldKind::Matrix2(data) => {
+                file.write_u8(22)?;
+                for f in data.iter() {
+                    file.write_f32::<LittleEndian>(*f)?;
+                }
+            }
         }
         Ok(())
     }
@@ -647,6 +662,13 @@ impl Field {
                         bytes,
                     }
                 }
+                22 => FieldKind::Matrix2({
+                    let mut f = [0.0f32; 3];
+                    for n in &mut f {
+                        *n = file.read_f32::<LittleEndian>()?;
+                    }
+                    Matrix2::from_row_slice(&f)
+                }),
                 _ => return Err(VisitError::UnknownFieldType(id)),
             },
         ))
@@ -1032,7 +1054,7 @@ where
 
 impl<T> Visit for Rc<T>
 where
-    T: Default + Visit + 'static,
+    T: Visit + 'static,
 {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
@@ -1053,12 +1075,12 @@ where
                 // Remember that we already visited data Rc store.
                 visitor.rc_map.insert(raw as u64, self.clone());
 
-                let raw = rc_to_raw(self.clone());
+                let raw = rc_to_raw(self);
                 unsafe { &mut *raw }.visit("RcData", visitor)?;
             }
         } else {
             // Take raw pointer to inner data.
-            let raw = rc_to_raw(self.clone());
+            let raw = rc_to_raw(self);
 
             // Save it as id.
             let mut index = raw as u64;
@@ -1078,7 +1100,7 @@ where
 
 impl<T> Visit for Mutex<T>
 where
-    T: Default + Visit + Send,
+    T: Visit + Send,
 {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         self.get_mut()?.visit(name, visitor)
@@ -1096,24 +1118,24 @@ where
 
 impl<T> Visit for RwLock<T>
 where
-    T: Default + Visit + Send,
+    T: Visit + Send,
 {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         self.write()?.visit(name, visitor)
     }
 }
 
-fn arc_to_raw<T>(arc: Arc<T>) -> *mut T {
-    &*arc as *const T as *mut T
+fn arc_to_raw<T>(arc: &Arc<T>) -> *mut T {
+    &**arc as *const T as *mut T
 }
 
-fn rc_to_raw<T>(rc: Rc<T>) -> *mut T {
-    &*rc as *const T as *mut T
+fn rc_to_raw<T>(rc: &Rc<T>) -> *mut T {
+    &**rc as *const T as *mut T
 }
 
 impl<T> Visit for Arc<T>
 where
-    T: Default + Visit + Send + Sync + 'static,
+    T: Visit + Send + Sync + 'static,
 {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
@@ -1134,12 +1156,12 @@ where
                 // Remember that we already visited data Rc store.
                 visitor.arc_map.insert(raw as u64, self.clone());
 
-                let raw = arc_to_raw(self.clone());
+                let raw = arc_to_raw(self);
                 unsafe { &mut *raw }.visit("ArcData", visitor)?;
             }
         } else {
             // Take raw pointer to inner data.
-            let raw = arc_to_raw(self.clone());
+            let raw = arc_to_raw(self);
 
             // Save it as id.
             let mut index = raw as u64;
@@ -1180,7 +1202,7 @@ where
                     let rc = Rc::new(T::default());
                     visitor.rc_map.insert(raw as u64, rc.clone());
 
-                    let raw = rc_to_raw(rc.clone());
+                    let raw = rc_to_raw(&rc);
                     unsafe { &mut *raw }.visit("RcData", visitor)?;
 
                     *self = Rc::downgrade(&rc);
@@ -1188,7 +1210,7 @@ where
             }
         } else if let Some(rc) = std::rc::Weak::upgrade(self) {
             // Take raw pointer to inner data.
-            let raw = rc_to_raw(rc.clone());
+            let raw = rc_to_raw(&rc);
 
             // Save it as id.
             let mut index = raw as u64;
@@ -1232,7 +1254,7 @@ where
                     let arc = Arc::new(T::default());
                     visitor.arc_map.insert(raw as u64, arc.clone());
 
-                    let raw = arc_to_raw(arc.clone());
+                    let raw = arc_to_raw(&arc);
                     unsafe { &mut *raw }.visit("ArcData", visitor)?;
 
                     *self = Arc::downgrade(&arc);
@@ -1240,7 +1262,7 @@ where
             }
         } else if let Some(arc) = std::sync::Weak::upgrade(self) {
             // Take raw pointer to inner data.
-            let raw = arc_to_raw(arc.clone());
+            let raw = arc_to_raw(&arc);
 
             // Save it as id.
             let mut index = raw as u64;

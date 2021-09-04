@@ -1,3 +1,4 @@
+use crate::renderer::framework::state::{BlendFactor, BlendFunc, CompareFunc, StencilAction};
 use crate::{
     asset::Resource,
     core::{
@@ -13,7 +14,7 @@ use crate::{
     renderer::{
         framework::{
             error::FrameworkError,
-            framebuffer::{CullFace, DrawParameters, FrameBuffer},
+            framebuffer::{DrawParameters, FrameBuffer},
             geometry_buffer::{
                 AttributeDefinition, AttributeKind, BufferBuilder, ElementKind, GeometryBuffer,
                 GeometryBufferBuilder, GeometryBufferKind,
@@ -163,8 +164,6 @@ impl UiRenderer {
 
         let mut statistics = RenderPassStatistics::default();
 
-        state.set_blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
-
         self.geometry_buffer
             .set_buffer_data(state, 0, drawing_context.get_vertices());
 
@@ -194,24 +193,12 @@ impl UiRenderer {
                 clip_bounds.size.y as i32,
             );
 
-            let mut stencil_test = false;
+            let mut stencil_test = None;
 
             // Draw clipping geometry first if we have any. This is optional, because complex
             // clipping is very rare and in most cases scissor test will do the job.
             if let Some(clipping_geometry) = cmd.clipping_geometry.as_ref() {
                 backbuffer.clear(state, viewport, None, None, Some(0));
-
-                state.set_stencil_op(StencilOp {
-                    zpass: glow::INCR,
-                    ..Default::default()
-                });
-
-                state.set_stencil_func(StencilFunc {
-                    func: glow::ALWAYS,
-                    ..Default::default()
-                });
-
-                state.set_stencil_mask(0xFF);
 
                 self.clipping_geometry_buffer.set_buffer_data(
                     state,
@@ -229,29 +216,28 @@ impl UiRenderer {
                     viewport,
                     &self.shader.program,
                     &DrawParameters {
-                        cull_face: CullFace::Back,
-                        culling: false,
+                        cull_face: None,
                         color_write: ColorMask::all(false),
                         depth_write: false,
-                        stencil_test: false,
+                        stencil_test: None,
                         depth_test: false,
-                        blend: false,
+                        blend: None,
+                        stencil_op: StencilOp {
+                            zpass: StencilAction::Incr,
+                            ..Default::default()
+                        },
                     },
-                    |program_binding| {
+                    |mut program_binding| {
                         program_binding.set_matrix4(&self.shader.wvp_matrix, &ortho);
                     },
                 );
 
                 // Make sure main geometry will be drawn only on marked pixels.
-                state.set_stencil_func(StencilFunc {
-                    func: glow::EQUAL,
+                stencil_test = Some(StencilFunc {
+                    func: CompareFunc::Equal,
                     ref_value: 1,
                     ..Default::default()
                 });
-
-                state.set_stencil_mask(0);
-
-                stencil_test = true;
             }
 
             match &cmd.texture {
@@ -287,9 +273,8 @@ impl UiRenderer {
                 }
                 CommandTexture::Texture(texture) => {
                     if let Ok(texture) = texture.clone().0.downcast::<Mutex<TextureState>>() {
-                        if let Some(texture) =
-                            texture_cache.get(state, &Texture(Resource::from(texture)))
-                        {
+                        let resource = Resource::from(texture);
+                        if let Some(texture) = texture_cache.get(state, &Texture(resource)) {
                             diffuse_texture = texture;
                         }
                     }
@@ -308,13 +293,16 @@ impl UiRenderer {
             };
 
             let params = DrawParameters {
-                cull_face: CullFace::Back,
-                culling: false,
+                cull_face: None,
                 color_write: ColorMask::all(true),
                 depth_write: false,
                 stencil_test,
                 depth_test: false,
-                blend: true,
+                blend: Some(BlendFunc {
+                    sfactor: BlendFactor::SrcAlpha,
+                    dfactor: BlendFactor::OneMinusSrcAlpha,
+                }),
+                stencil_op: Default::default(),
             };
 
             let shader = &self.shader;
@@ -326,7 +314,7 @@ impl UiRenderer {
                 params,
                 cmd.triangles.start,
                 cmd.triangles.end - cmd.triangles.start,
-                |program_binding| {
+                |mut program_binding| {
                     program_binding
                         .set_texture(&shader.diffuse_texture, &diffuse_texture)
                         .set_matrix4(&shader.wvp_matrix, &ortho)
@@ -342,7 +330,7 @@ impl UiRenderer {
                                 Brush::RadialGradient { .. } => 2,
                             },
                         )
-                        .set_color(
+                        .set_srgb_color(
                             &shader.solid_color,
                             &match cmd.brush {
                                 Brush::Solid(color) => color,

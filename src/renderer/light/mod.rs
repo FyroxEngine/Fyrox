@@ -7,18 +7,26 @@ use crate::{
     },
     renderer::{
         batch::BatchStorage,
+        cache::shader::ShaderCache,
         flat_shader::FlatShader,
         framework::{
             error::FrameworkError,
-            framebuffer::{CullFace, DrawParameters},
-            gpu_program::{GpuProgram, UniformLocation},
+            framebuffer::{CullFace, DrawParameters, FrameBuffer},
             gpu_texture::GpuTexture,
-            state::{ColorMask, PipelineState, StencilFunc, StencilOp},
+            state::{
+                BlendFactor, BlendFunc, ColorMask, CompareFunc, PipelineState, StencilAction,
+                StencilFunc, StencilOp,
+            },
         },
         gbuffer::GBuffer,
+        light::{
+            ambient::AmbientLightShader, directional::DirectionalLightShader,
+            point::PointLightShader, spot::SpotLightShader,
+        },
         light_volume::LightVolumeRenderer,
-        shadow_map_renderer::{
-            PointShadowMapRenderContext, PointShadowMapRenderer, SpotShadowMapRenderer,
+        shadow::{
+            point::{PointShadowMapRenderContext, PointShadowMapRenderer},
+            spot::SpotShadowMapRenderer,
         },
         skybox_shader::SkyboxShader,
         ssao::ScreenSpaceAmbientOcclusionRenderer,
@@ -43,14 +51,10 @@ use std::{
     rc::Rc,
 };
 
-struct AmbientLightShader {
-    program: GpuProgram,
-    wvp_matrix: UniformLocation,
-    diffuse_texture: UniformLocation,
-    ambient_color: UniformLocation,
-    ao_sampler: UniformLocation,
-    ambient_texture: UniformLocation,
-}
+pub mod ambient;
+pub mod directional;
+pub mod point;
+pub mod spot;
 
 #[derive(Copy, Clone, Default)]
 pub struct LightingStatistics {
@@ -90,156 +94,6 @@ impl Display for LightingStatistics {
     }
 }
 
-impl AmbientLightShader {
-    fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
-        let fragment_source = include_str!("shaders/ambient_light_fs.glsl");
-        let vertex_source = include_str!("shaders/ambient_light_vs.glsl");
-        let program =
-            GpuProgram::from_source(state, "AmbientLightShader", vertex_source, fragment_source)?;
-        Ok(Self {
-            wvp_matrix: program.uniform_location(state, "worldViewProjection")?,
-            diffuse_texture: program.uniform_location(state, "diffuseTexture")?,
-            ambient_color: program.uniform_location(state, "ambientColor")?,
-            ao_sampler: program.uniform_location(state, "aoSampler")?,
-            ambient_texture: program.uniform_location(state, "ambientTexture")?,
-            program,
-        })
-    }
-}
-
-struct SpotLightShader {
-    program: GpuProgram,
-    wvp_matrix: UniformLocation,
-    depth_sampler: UniformLocation,
-    color_sampler: UniformLocation,
-    normal_sampler: UniformLocation,
-    spot_shadow_texture: UniformLocation,
-    cookie_enabled: UniformLocation,
-    cookie_texture: UniformLocation,
-    light_view_proj_matrix: UniformLocation,
-    shadows_enabled: UniformLocation,
-    soft_shadows: UniformLocation,
-    shadow_map_inv_size: UniformLocation,
-    light_position: UniformLocation,
-    light_radius: UniformLocation,
-    light_color: UniformLocation,
-    light_direction: UniformLocation,
-    half_hotspot_cone_angle_cos: UniformLocation,
-    half_cone_angle_cos: UniformLocation,
-    inv_view_proj_matrix: UniformLocation,
-    camera_position: UniformLocation,
-    shadow_bias: UniformLocation,
-}
-
-impl SpotLightShader {
-    fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
-        let fragment_source = include_str!("shaders/deferred_spot_light_fs.glsl");
-        let vertex_source = include_str!("shaders/deferred_light_vs.glsl");
-        let program =
-            GpuProgram::from_source(state, "DeferredLightShader", vertex_source, fragment_source)?;
-        Ok(Self {
-            wvp_matrix: program.uniform_location(state, "worldViewProjection")?,
-            depth_sampler: program.uniform_location(state, "depthTexture")?,
-            color_sampler: program.uniform_location(state, "colorTexture")?,
-            normal_sampler: program.uniform_location(state, "normalTexture")?,
-            spot_shadow_texture: program.uniform_location(state, "spotShadowTexture")?,
-            cookie_enabled: program.uniform_location(state, "cookieEnabled")?,
-            cookie_texture: program.uniform_location(state, "cookieTexture")?,
-            light_view_proj_matrix: program.uniform_location(state, "lightViewProjMatrix")?,
-            shadows_enabled: program.uniform_location(state, "shadowsEnabled")?,
-            soft_shadows: program.uniform_location(state, "softShadows")?,
-            shadow_map_inv_size: program.uniform_location(state, "shadowMapInvSize")?,
-            light_position: program.uniform_location(state, "lightPos")?,
-            light_radius: program.uniform_location(state, "lightRadius")?,
-            light_color: program.uniform_location(state, "lightColor")?,
-            light_direction: program.uniform_location(state, "lightDirection")?,
-            half_hotspot_cone_angle_cos: program
-                .uniform_location(state, "halfHotspotConeAngleCos")?,
-            half_cone_angle_cos: program.uniform_location(state, "halfConeAngleCos")?,
-            inv_view_proj_matrix: program.uniform_location(state, "invViewProj")?,
-            camera_position: program.uniform_location(state, "cameraPosition")?,
-            shadow_bias: program.uniform_location(state, "shadowBias")?,
-
-            program,
-        })
-    }
-}
-
-struct PointLightShader {
-    program: GpuProgram,
-    wvp_matrix: UniformLocation,
-    depth_sampler: UniformLocation,
-    color_sampler: UniformLocation,
-    normal_sampler: UniformLocation,
-    point_shadow_texture: UniformLocation,
-    shadows_enabled: UniformLocation,
-    soft_shadows: UniformLocation,
-    light_position: UniformLocation,
-    light_radius: UniformLocation,
-    light_color: UniformLocation,
-    inv_view_proj_matrix: UniformLocation,
-    camera_position: UniformLocation,
-    shadow_bias: UniformLocation,
-}
-
-impl PointLightShader {
-    fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
-        let fragment_source = include_str!("shaders/deferred_point_light_fs.glsl");
-        let vertex_source = include_str!("shaders/deferred_light_vs.glsl");
-        let program =
-            GpuProgram::from_source(state, "DeferredLightShader", vertex_source, fragment_source)?;
-        Ok(Self {
-            wvp_matrix: program.uniform_location(state, "worldViewProjection")?,
-            depth_sampler: program.uniform_location(state, "depthTexture")?,
-            color_sampler: program.uniform_location(state, "colorTexture")?,
-            normal_sampler: program.uniform_location(state, "normalTexture")?,
-            point_shadow_texture: program.uniform_location(state, "pointShadowTexture")?,
-            shadows_enabled: program.uniform_location(state, "shadowsEnabled")?,
-            soft_shadows: program.uniform_location(state, "softShadows")?,
-            light_position: program.uniform_location(state, "lightPos")?,
-            light_radius: program.uniform_location(state, "lightRadius")?,
-            light_color: program.uniform_location(state, "lightColor")?,
-            inv_view_proj_matrix: program.uniform_location(state, "invViewProj")?,
-            camera_position: program.uniform_location(state, "cameraPosition")?,
-            shadow_bias: program.uniform_location(state, "shadowBias")?,
-
-            program,
-        })
-    }
-}
-
-struct DirectionalLightShader {
-    program: GpuProgram,
-    wvp_matrix: UniformLocation,
-    depth_sampler: UniformLocation,
-    color_sampler: UniformLocation,
-    normal_sampler: UniformLocation,
-    light_direction: UniformLocation,
-    light_color: UniformLocation,
-    inv_view_proj_matrix: UniformLocation,
-    camera_position: UniformLocation,
-}
-
-impl DirectionalLightShader {
-    fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
-        let fragment_source = include_str!("shaders/deferred_directional_light_fs.glsl");
-        let vertex_source = include_str!("shaders/deferred_light_vs.glsl");
-        let program =
-            GpuProgram::from_source(state, "DeferredLightShader", vertex_source, fragment_source)?;
-        Ok(Self {
-            wvp_matrix: program.uniform_location(state, "worldViewProjection")?,
-            depth_sampler: program.uniform_location(state, "depthTexture")?,
-            color_sampler: program.uniform_location(state, "colorTexture")?,
-            normal_sampler: program.uniform_location(state, "normalTexture")?,
-            light_direction: program.uniform_location(state, "lightDirection")?,
-            light_color: program.uniform_location(state, "lightColor")?,
-            inv_view_proj_matrix: program.uniform_location(state, "invViewProj")?,
-            camera_position: program.uniform_location(state, "cameraPosition")?,
-            program,
-        })
-    }
-}
-
 pub struct DeferredLightRenderer {
     pub ssao_renderer: ScreenSpaceAmbientOcclusionRenderer,
     spot_light_shader: SpotLightShader,
@@ -261,12 +115,16 @@ pub(in crate) struct DeferredRendererContext<'a> {
     pub scene: &'a Scene,
     pub camera: &'a Camera,
     pub gbuffer: &'a mut GBuffer,
-    pub white_dummy: Rc<RefCell<GpuTexture>>,
     pub ambient_color: Color,
     pub settings: &'a QualitySettings,
     pub textures: &'a mut TextureCache,
     pub geometry_cache: &'a mut GeometryCache,
     pub batch_storage: &'a BatchStorage,
+    pub frame_buffer: &'a mut FrameBuffer,
+    pub shader_cache: &'a mut ShaderCache,
+    pub normal_dummy: Rc<RefCell<GpuTexture>>,
+    pub white_dummy: Rc<RefCell<GpuTexture>>,
+    pub black_dummy: Rc<RefCell<GpuTexture>>,
 }
 
 impl DeferredLightRenderer {
@@ -457,12 +315,16 @@ impl DeferredLightRenderer {
             scene,
             camera,
             gbuffer,
+            shader_cache,
+            normal_dummy,
             white_dummy,
             ambient_color,
             settings,
             textures,
             geometry_cache,
             batch_storage,
+            frame_buffer,
+            black_dummy,
         } = args;
 
         let viewport = Rect::new(0, 0, gbuffer.width, gbuffer.height);
@@ -498,14 +360,6 @@ impl DeferredLightRenderer {
             );
         }
 
-        gbuffer.final_frame.clear(
-            state,
-            viewport,
-            Some(Color::from_rgba(0, 0, 0, 0)),
-            None,
-            Some(0),
-        );
-
         // Render skybox (if any).
         if let Some(skybox) = camera.skybox_ref() {
             let size = camera.z_far() / 2.0f32.sqrt();
@@ -514,25 +368,24 @@ impl DeferredLightRenderer {
 
             if let Some(gpu_texture) = textures.get(state, &skybox.cubemap().unwrap()) {
                 let shader = &self.skybox_shader;
-                pass_stats += gbuffer
-                    .final_frame
+                pass_stats += frame_buffer
                     .draw_part(
                         geometry_cache.get(state, &self.skybox),
                         state,
                         viewport,
                         &shader.program,
                         DrawParameters {
-                            cull_face: CullFace::Back,
-                            culling: false,
+                            cull_face: None,
                             color_write: Default::default(),
                             depth_write: false,
-                            stencil_test: false,
+                            stencil_test: None,
                             depth_test: false,
-                            blend: false,
+                            blend: None,
+                            stencil_op: Default::default(),
                         },
                         0,
                         12,
-                        |program_binding| {
+                        |mut program_binding| {
                             program_binding
                                 .set_texture(&shader.cubemap_texture, &gpu_texture)
                                 .set_matrix4(&shader.wvp_matrix, &(view_projection * wvp));
@@ -542,34 +395,35 @@ impl DeferredLightRenderer {
             }
         }
 
-        state.set_blend(true);
-        state.set_blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
-
         // Ambient light.
         let gbuffer_depth_map = gbuffer.depth();
         let gbuffer_diffuse_map = gbuffer.diffuse_texture();
         let gbuffer_normal_map = gbuffer.normal_texture();
+        let gbuffer_material_map = gbuffer.material_texture();
         let gbuffer_ambient_map = gbuffer.ambient_texture();
         let ao_map = self.ssao_renderer.ao_map();
 
-        gbuffer.final_frame.draw(
+        frame_buffer.draw(
             geometry_cache.get(state, &self.quad),
             state,
             viewport,
             &self.ambient_light_shader.program,
             &DrawParameters {
-                cull_face: CullFace::Back,
-                culling: false,
+                cull_face: None,
                 color_write: Default::default(),
                 depth_write: false,
-                stencil_test: false,
+                stencil_test: None,
                 depth_test: false,
-                blend: true,
+                blend: Some(BlendFunc {
+                    sfactor: BlendFactor::SrcAlpha,
+                    dfactor: BlendFactor::OneMinusSrcAlpha,
+                }),
+                stencil_op: Default::default(),
             },
-            |program_binding| {
+            |mut program_binding| {
                 program_binding
                     .set_matrix4(&self.ambient_light_shader.wvp_matrix, &frame_matrix)
-                    .set_color(&self.ambient_light_shader.ambient_color, &ambient_color)
+                    .set_linear_color(&self.ambient_light_shader.ambient_color, &ambient_color)
                     .set_texture(
                         &self.ambient_light_shader.diffuse_texture,
                         &gbuffer_diffuse_map,
@@ -588,8 +442,6 @@ impl DeferredLightRenderer {
                     );
             },
         );
-
-        state.set_blend_func(glow::ONE, glow::ONE);
 
         for (light_handle, light) in scene.graph.pair_iter().filter_map(|(handle, node)| {
             if let Node::Light(light) = node {
@@ -677,6 +529,11 @@ impl DeferredLightRenderer {
                             batch_storage,
                             geometry_cache,
                             cascade_index,
+                            shader_cache,
+                            textures,
+                            normal_dummy.clone(),
+                            white_dummy.clone(),
+                            black_dummy.clone(),
                         );
 
                         light_stats.spot_shadow_maps_rendered += 1;
@@ -697,6 +554,11 @@ impl DeferredLightRenderer {
                                     geom_cache: geometry_cache,
                                     cascade: cascade_index,
                                     batch_storage,
+                                    shader_cache,
+                                    texture_cache: textures,
+                                    normal_dummy: normal_dummy.clone(),
+                                    white_dummy: white_dummy.clone(),
+                                    black_dummy: black_dummy.clone(),
                                 });
 
                         light_stats.point_shadow_maps_rendered += 1;
@@ -711,33 +573,30 @@ impl DeferredLightRenderer {
                 };
 
             // Mark lighted areas in stencil buffer to do light calculations only on them.
-            state.set_stencil_mask(0xFFFF_FFFF);
-            state.set_stencil_func(StencilFunc {
-                func: glow::ALWAYS,
-                ..Default::default()
-            });
-            state.set_stencil_op(StencilOp {
-                zfail: glow::INCR,
-                ..Default::default()
-            });
 
             let sphere = geometry_cache.get(state, &self.sphere);
 
-            pass_stats += gbuffer.final_frame.draw(
+            pass_stats += frame_buffer.draw(
                 sphere,
                 state,
                 viewport,
                 &self.flat_shader.program,
                 &DrawParameters {
-                    cull_face: CullFace::Front,
-                    culling: true,
+                    cull_face: Some(CullFace::Front),
                     color_write: ColorMask::all(false),
                     depth_write: false,
-                    stencil_test: true,
+                    stencil_test: Some(StencilFunc {
+                        func: CompareFunc::Always,
+                        ..Default::default()
+                    }),
+                    stencil_op: StencilOp {
+                        zfail: StencilAction::Incr,
+                        ..Default::default()
+                    },
                     depth_test: true,
-                    blend: false,
+                    blend: None,
                 },
-                |program_binding| {
+                |mut program_binding| {
                     program_binding.set_matrix4(
                         &self.flat_shader.wvp_matrix,
                         &(view_projection
@@ -747,30 +606,27 @@ impl DeferredLightRenderer {
                 },
             );
 
-            state.set_stencil_func(StencilFunc {
-                func: glow::ALWAYS,
-                ..Default::default()
-            });
-            state.set_stencil_op(StencilOp {
-                zfail: glow::DECR,
-                ..Default::default()
-            });
-
-            pass_stats += gbuffer.final_frame.draw(
+            pass_stats += frame_buffer.draw(
                 sphere,
                 state,
                 viewport,
                 &self.flat_shader.program,
                 &DrawParameters {
-                    cull_face: CullFace::Back,
-                    culling: true,
+                    cull_face: Some(CullFace::Back),
                     color_write: ColorMask::all(false),
                     depth_write: false,
-                    stencil_test: true,
+                    stencil_test: Some(StencilFunc {
+                        func: CompareFunc::Always,
+                        ..Default::default()
+                    }),
+                    stencil_op: StencilOp {
+                        zfail: StencilAction::Decr,
+                        ..Default::default()
+                    },
                     depth_test: true,
-                    blend: false,
+                    blend: None,
                 },
-                |program_binding| {
+                |mut program_binding| {
                     program_binding.set_matrix4(
                         &self.flat_shader.wvp_matrix,
                         &(view_projection
@@ -779,24 +635,24 @@ impl DeferredLightRenderer {
                     );
                 },
             );
-
-            state.set_stencil_func(StencilFunc {
-                func: glow::NOTEQUAL,
-                ..Default::default()
-            });
-            state.set_stencil_op(StencilOp {
-                zpass: glow::ZERO,
-                ..Default::default()
-            });
 
             let draw_params = DrawParameters {
-                cull_face: CullFace::Back,
-                culling: false,
+                cull_face: None,
                 color_write: Default::default(),
                 depth_write: false,
-                stencil_test: true,
+                stencil_test: Some(StencilFunc {
+                    func: CompareFunc::NotEqual,
+                    ..Default::default()
+                }),
+                stencil_op: StencilOp {
+                    zpass: StencilAction::Zero,
+                    ..Default::default()
+                },
                 depth_test: false,
-                blend: true,
+                blend: Some(BlendFunc {
+                    sfactor: BlendFactor::One,
+                    dfactor: BlendFactor::One,
+                }),
             };
 
             let quad = geometry_cache.get(state, &self.quad);
@@ -818,13 +674,13 @@ impl DeferredLightRenderer {
 
                     light_stats.spot_lights_rendered += 1;
 
-                    gbuffer.final_frame.draw(
+                    frame_buffer.draw(
                         quad,
                         state,
                         viewport,
                         &shader.program,
                         &draw_params,
-                        |program_binding| {
+                        |mut program_binding| {
                             program_binding
                                 .set_bool(&shader.shadows_enabled, shadows_enabled)
                                 .set_matrix4(&shader.light_view_proj_matrix, &light_view_projection)
@@ -833,7 +689,7 @@ impl DeferredLightRenderer {
                                 .set_vector3(&shader.light_direction, &emit_direction)
                                 .set_f32(&shader.light_radius, light_radius)
                                 .set_matrix4(&shader.inv_view_proj_matrix, &inv_view_projection)
-                                .set_color(&shader.light_color, &light.color())
+                                .set_linear_color(&shader.light_color, &light.color())
                                 .set_f32(
                                     &shader.half_hotspot_cone_angle_cos,
                                     (spot_light.hotspot_cone_angle() * 0.5).cos(),
@@ -852,13 +708,15 @@ impl DeferredLightRenderer {
                                 .set_texture(&shader.depth_sampler, &gbuffer_depth_map)
                                 .set_texture(&shader.color_sampler, &gbuffer_diffuse_map)
                                 .set_texture(&shader.normal_sampler, &gbuffer_normal_map)
+                                .set_texture(&shader.material_sampler, &gbuffer_material_map)
                                 .set_texture(
                                     &shader.spot_shadow_texture,
                                     &self.spot_shadow_map_renderer.cascade_texture(cascade_index),
                                 )
                                 .set_texture(&shader.cookie_texture, &cookie_texture)
                                 .set_bool(&shader.cookie_enabled, cookie_enabled)
-                                .set_f32(&shader.shadow_bias, spot_light.shadow_bias());
+                                .set_f32(&shader.shadow_bias, spot_light.shadow_bias())
+                                .set_f32(&shader.light_intensity, spot_light.intensity());
                         },
                     )
                 }
@@ -867,26 +725,28 @@ impl DeferredLightRenderer {
 
                     light_stats.point_lights_rendered += 1;
 
-                    gbuffer.final_frame.draw(
+                    frame_buffer.draw(
                         quad,
                         state,
                         viewport,
                         &shader.program,
                         &draw_params,
-                        |program_binding| {
+                        |mut program_binding| {
                             program_binding
                                 .set_bool(&shader.shadows_enabled, shadows_enabled)
                                 .set_bool(&shader.soft_shadows, settings.point_soft_shadows)
                                 .set_vector3(&shader.light_position, &light_position)
                                 .set_f32(&shader.light_radius, light_radius)
                                 .set_matrix4(&shader.inv_view_proj_matrix, &inv_view_projection)
-                                .set_color(&shader.light_color, &light.color())
+                                .set_linear_color(&shader.light_color, &light.color())
                                 .set_matrix4(&shader.wvp_matrix, &frame_matrix)
                                 .set_vector3(&shader.camera_position, &camera_global_position)
                                 .set_f32(&shader.shadow_bias, point_light.shadow_bias())
+                                .set_f32(&shader.light_intensity, point_light.intensity())
                                 .set_texture(&shader.depth_sampler, &gbuffer_depth_map)
                                 .set_texture(&shader.color_sampler, &gbuffer_diffuse_map)
                                 .set_texture(&shader.normal_sampler, &gbuffer_normal_map)
+                                .set_texture(&shader.material_sampler, &gbuffer_material_map)
                                 .set_texture(
                                     &shader.point_shadow_texture,
                                     &self
@@ -901,30 +761,35 @@ impl DeferredLightRenderer {
 
                     light_stats.directional_lights_rendered += 1;
 
-                    gbuffer.final_frame.draw(
+                    frame_buffer.draw(
                         quad,
                         state,
                         viewport,
                         &shader.program,
                         &DrawParameters {
-                            cull_face: CullFace::Back,
-                            culling: false,
+                            cull_face: None,
                             color_write: Default::default(),
                             depth_write: false,
-                            stencil_test: false,
+                            stencil_test: None,
                             depth_test: false,
-                            blend: true,
+                            blend: Some(BlendFunc {
+                                sfactor: BlendFactor::One,
+                                dfactor: BlendFactor::One,
+                            }),
+                            stencil_op: Default::default(),
                         },
-                        |program_binding| {
+                        |mut program_binding| {
                             program_binding
                                 .set_vector3(&shader.light_direction, &emit_direction)
                                 .set_matrix4(&shader.inv_view_proj_matrix, &inv_view_projection)
-                                .set_color(&shader.light_color, &light.color())
+                                .set_linear_color(&shader.light_color, &light.color())
                                 .set_matrix4(&shader.wvp_matrix, &frame_matrix)
                                 .set_vector3(&shader.camera_position, &camera_global_position)
+                                .set_f32(&shader.light_intensity, light.intensity())
                                 .set_texture(&shader.depth_sampler, &gbuffer_depth_map)
                                 .set_texture(&shader.color_sampler, &gbuffer_diffuse_map)
-                                .set_texture(&shader.normal_sampler, &gbuffer_normal_map);
+                                .set_texture(&shader.normal_sampler, &gbuffer_normal_map)
+                                .set_texture(&shader.material_sampler, &gbuffer_material_map);
                         },
                     )
                 }
@@ -943,6 +808,7 @@ impl DeferredLightRenderer {
                     view_projection,
                     viewport,
                     &scene.graph,
+                    frame_buffer,
                 );
             }
         }

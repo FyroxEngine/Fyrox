@@ -39,7 +39,7 @@ impl GameState for Game {
         .with_texture(into_gui_texture(
             engine
                 .resource_manager
-                .request_texture("examples/data/MetalMesh_Base_Color.png"),
+                .request_texture("examples/data/MetalMesh_Base_Color.png", None),
         ))
         .build(&mut engine.user_interface.build_ctx());
 
@@ -52,7 +52,7 @@ impl GameState for Game {
         .with_texture(into_gui_texture(
             engine
                 .resource_manager
-                .request_texture("examples/data/R8Texture.png"),
+                .request_texture("examples/data/R8Texture.png", None),
         ))
         .build(&mut engine.user_interface.build_ctx());
 

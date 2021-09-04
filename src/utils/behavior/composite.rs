@@ -70,7 +70,7 @@ impl<B> CompositeNode<B> {
     }
 
     /// Adds self to the tree and return handle to self.
-    pub fn add(self, tree: &mut BehaviorTree<B>) -> Handle<BehaviorNode<B>> {
+    pub fn add_to(self, tree: &mut BehaviorTree<B>) -> Handle<BehaviorNode<B>> {
         tree.add_node(BehaviorNode::Composite(self))
     }
 }

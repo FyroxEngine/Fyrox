@@ -1,3 +1,4 @@
+use crate::core::algebra::Matrix2;
 use crate::{
     core::{
         algebra::{Matrix3, Matrix4, Vector2, Vector3, Vector4},
@@ -59,6 +60,17 @@ unsafe fn create_shader(
 #[allow(clippy::let_and_return)]
 fn prepare_source_code(code: &str) -> String {
     let mut shared = "\n// include 'shared.glsl'\n".to_owned();
+
+    // HACK
+    #[cfg(target_arch = "wasm32")]
+    {
+        shared += r#"    
+            precision highp float;
+            precision lowp usampler2D;
+            precision lowp sampler3D;
+        "#;
+    }
+
     shared += include_str!("shaders/shared.glsl");
     shared += "\n// end of include\n";
 
@@ -83,17 +95,30 @@ fn prepare_source_code(code: &str) -> String {
 }
 
 pub struct GpuProgramBinding<'a> {
-    state: &'a mut PipelineState,
+    pub state: &'a mut PipelineState,
     active_sampler: u32,
+    id: glow::Program,
 }
 
 impl<'a> GpuProgramBinding<'a> {
+    pub fn uniform_location(&self, name: &str) -> Option<UniformLocation> {
+        unsafe {
+            self.state
+                .gl
+                .get_uniform_location(self.id, name)
+                .map(|l| UniformLocation {
+                    id: l,
+                    thread_mark: Default::default(),
+                })
+        }
+    }
+
     #[inline(always)]
     pub fn set_texture(
-        mut self,
+        &mut self,
         location: &UniformLocation,
         texture: &Rc<RefCell<GpuTexture>>,
-    ) -> Self {
+    ) -> &mut Self {
         unsafe {
             self.state
                 .gl
@@ -105,7 +130,7 @@ impl<'a> GpuProgramBinding<'a> {
     }
 
     #[inline(always)]
-    pub fn set_bool(self, location: &UniformLocation, value: bool) -> Self {
+    pub fn set_bool(&mut self, location: &UniformLocation, value: bool) -> &mut Self {
         unsafe {
             self.state.gl.uniform_1_i32(
                 Some(&location.id),
@@ -116,7 +141,7 @@ impl<'a> GpuProgramBinding<'a> {
     }
 
     #[inline(always)]
-    pub fn set_i32(self, location: &UniformLocation, value: i32) -> Self {
+    pub fn set_i32(&mut self, location: &UniformLocation, value: i32) -> &mut Self {
         unsafe {
             self.state.gl.uniform_1_i32(Some(&location.id), value);
         }
@@ -124,7 +149,7 @@ impl<'a> GpuProgramBinding<'a> {
     }
 
     #[inline(always)]
-    pub fn set_u32(self, location: &UniformLocation, value: u32) -> Self {
+    pub fn set_u32(&mut self, location: &UniformLocation, value: u32) -> &mut Self {
         unsafe {
             self.state.gl.uniform_1_u32(Some(&location.id), value);
         }
@@ -132,7 +157,7 @@ impl<'a> GpuProgramBinding<'a> {
     }
 
     #[inline(always)]
-    pub fn set_f32(self, location: &UniformLocation, value: f32) -> Self {
+    pub fn set_f32(&mut self, location: &UniformLocation, value: f32) -> &mut Self {
         unsafe {
             self.state.gl.uniform_1_f32(Some(&location.id), value);
         }
@@ -140,7 +165,7 @@ impl<'a> GpuProgramBinding<'a> {
     }
 
     #[inline(always)]
-    pub fn set_vector2(self, location: &UniformLocation, value: &Vector2<f32>) -> Self {
+    pub fn set_vector2(&mut self, location: &UniformLocation, value: &Vector2<f32>) -> &mut Self {
         unsafe {
             self.state
                 .gl
@@ -150,7 +175,7 @@ impl<'a> GpuProgramBinding<'a> {
     }
 
     #[inline(always)]
-    pub fn set_vector3(self, location: &UniformLocation, value: &Vector3<f32>) -> Self {
+    pub fn set_vector3(&mut self, location: &UniformLocation, value: &Vector3<f32>) -> &mut Self {
         unsafe {
             self.state
                 .gl
@@ -160,7 +185,7 @@ impl<'a> GpuProgramBinding<'a> {
     }
 
     #[inline(always)]
-    pub fn set_vector4(self, location: &UniformLocation, value: &Vector4<f32>) -> Self {
+    pub fn set_vector4(&mut self, location: &UniformLocation, value: &Vector4<f32>) -> &mut Self {
         unsafe {
             self.state
                 .gl
@@ -170,7 +195,7 @@ impl<'a> GpuProgramBinding<'a> {
     }
 
     #[inline(always)]
-    pub fn set_i32_slice(self, location: &UniformLocation, value: &[i32]) -> Self {
+    pub fn set_i32_slice(&mut self, location: &UniformLocation, value: &[i32]) -> &mut Self {
         unsafe {
             self.state.gl.uniform_1_i32_slice(Some(&location.id), value);
         }
@@ -178,7 +203,15 @@ impl<'a> GpuProgramBinding<'a> {
     }
 
     #[inline(always)]
-    pub fn set_f32_slice(self, location: &UniformLocation, value: &[f32]) -> Self {
+    pub fn set_u32_slice(&mut self, location: &UniformLocation, value: &[u32]) -> &mut Self {
+        unsafe {
+            self.state.gl.uniform_1_u32_slice(Some(&location.id), value);
+        }
+        self
+    }
+
+    #[inline(always)]
+    pub fn set_f32_slice(&mut self, location: &UniformLocation, value: &[f32]) -> &mut Self {
         unsafe {
             self.state.gl.uniform_1_f32_slice(Some(&location.id), value);
         }
@@ -186,7 +219,11 @@ impl<'a> GpuProgramBinding<'a> {
     }
 
     #[inline(always)]
-    pub fn set_vector2_slice(self, location: &UniformLocation, value: &[Vector2<f32>]) -> Self {
+    pub fn set_vector2_slice(
+        &mut self,
+        location: &UniformLocation,
+        value: &[Vector2<f32>],
+    ) -> &mut Self {
         unsafe {
             self.state.gl.uniform_2_f32_slice(
                 Some(&location.id),
@@ -197,7 +234,11 @@ impl<'a> GpuProgramBinding<'a> {
     }
 
     #[inline(always)]
-    pub fn set_vector3_slice(self, location: &UniformLocation, value: &[Vector3<f32>]) -> Self {
+    pub fn set_vector3_slice(
+        &mut self,
+        location: &UniformLocation,
+        value: &[Vector3<f32>],
+    ) -> &mut Self {
         unsafe {
             self.state.gl.uniform_3_f32_slice(
                 Some(&location.id),
@@ -208,7 +249,11 @@ impl<'a> GpuProgramBinding<'a> {
     }
 
     #[inline(always)]
-    pub fn set_vector4_slice(self, location: &UniformLocation, value: &[Vector4<f32>]) -> Self {
+    pub fn set_vector4_slice(
+        &mut self,
+        location: &UniformLocation,
+        value: &[Vector4<f32>],
+    ) -> &mut Self {
         unsafe {
             self.state.gl.uniform_4_f32_slice(
                 Some(&location.id),
@@ -219,7 +264,33 @@ impl<'a> GpuProgramBinding<'a> {
     }
 
     #[inline(always)]
-    pub fn set_matrix3(self, location: &UniformLocation, value: &Matrix3<f32>) -> Self {
+    pub fn set_matrix2(&mut self, location: &UniformLocation, value: &Matrix2<f32>) -> &mut Self {
+        unsafe {
+            self.state
+                .gl
+                .uniform_matrix_2_f32_slice(Some(&location.id), false, value.as_slice());
+        }
+        self
+    }
+
+    #[inline(always)]
+    pub fn set_matrix2_array(
+        &mut self,
+        location: &UniformLocation,
+        value: &[Matrix2<f32>],
+    ) -> &mut Self {
+        unsafe {
+            self.state.gl.uniform_matrix_2_f32_slice(
+                Some(&location.id),
+                false,
+                std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 4),
+            );
+        }
+        self
+    }
+
+    #[inline(always)]
+    pub fn set_matrix3(&mut self, location: &UniformLocation, value: &Matrix3<f32>) -> &mut Self {
         unsafe {
             self.state
                 .gl
@@ -229,7 +300,23 @@ impl<'a> GpuProgramBinding<'a> {
     }
 
     #[inline(always)]
-    pub fn set_matrix4(self, location: &UniformLocation, value: &Matrix4<f32>) -> Self {
+    pub fn set_matrix3_array(
+        &mut self,
+        location: &UniformLocation,
+        value: &[Matrix3<f32>],
+    ) -> &mut Self {
+        unsafe {
+            self.state.gl.uniform_matrix_3_f32_slice(
+                Some(&location.id),
+                false,
+                std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 9),
+            );
+        }
+        self
+    }
+
+    #[inline(always)]
+    pub fn set_matrix4(&mut self, location: &UniformLocation, value: &Matrix4<f32>) -> &mut Self {
         unsafe {
             self.state
                 .gl
@@ -239,7 +326,11 @@ impl<'a> GpuProgramBinding<'a> {
     }
 
     #[inline(always)]
-    pub fn set_matrix4_array(self, location: &UniformLocation, value: &[Matrix4<f32>]) -> Self {
+    pub fn set_matrix4_array(
+        &mut self,
+        location: &UniformLocation,
+        value: &[Matrix4<f32>],
+    ) -> &mut Self {
         unsafe {
             self.state.gl.uniform_matrix_4_f32_slice(
                 Some(&location.id),
@@ -251,7 +342,18 @@ impl<'a> GpuProgramBinding<'a> {
     }
 
     #[inline(always)]
-    pub fn set_color(self, location: &UniformLocation, value: &Color) -> Self {
+    pub fn set_linear_color(&mut self, location: &UniformLocation, value: &Color) -> &mut Self {
+        unsafe {
+            let srgb_a = value.srgb_to_linear_f32();
+            self.state
+                .gl
+                .uniform_4_f32(Some(&location.id), srgb_a.x, srgb_a.y, srgb_a.z, srgb_a.w);
+        }
+        self
+    }
+
+    #[inline(always)]
+    pub fn set_srgb_color(&mut self, location: &UniformLocation, value: &Color) -> &mut Self {
         unsafe {
             let rgba = value.as_frgba();
             self.state
@@ -332,10 +434,11 @@ impl GpuProgram {
     }
 
     pub fn bind<'a>(&self, state: &'a mut PipelineState) -> GpuProgramBinding<'a> {
-        state.set_program(self.id);
+        state.set_program(Some(self.id));
         GpuProgramBinding {
             state,
             active_sampler: 0,
+            id: self.id,
         }
     }
 }

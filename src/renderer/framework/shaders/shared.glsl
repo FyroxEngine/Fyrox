@@ -1,8 +1,7 @@
 // Shared functions for all shaders in the engine. Contents of this
 // file will be *automatically* included in all shaders!
 
-precision highp float;
-precision lowp usampler2D;
+const float PI = 3.14159;
 
 // Tries to solve quadratic equation. Returns true iff there are any real roots.
 bool S_SolveQuadraticEq(float a, float b, float c, out float minT, out float maxT)
@@ -33,7 +32,7 @@ bool S_SolveQuadraticEq(float a, float b, float c, out float minT, out float max
 float S_LightDistanceAttenuation(float distance, float radius)
 {
     float attenuation = clamp(1.0 - distance * distance / (radius * radius), 0.0, 1.0);
-    return attenuation * attenuation;
+    return attenuation;
 }
 
 // Projects world space position (typical use case) by given matrix.
@@ -60,58 +59,84 @@ vec3 S_UnProject(vec3 screenPos, mat4 matrix)
     return position.xyz / position.w;
 }
 
-// Calculates specular factor using Blinn-Phong model.
-float S_SpecularFactor(vec3 lightVector, vec3 cameraPosition, vec3 fragmentPosition, vec3 fragmentNormal, float power)
+float S_DistributionGGX(vec3 N, vec3 H, float roughness)
 {
-    vec3 v = cameraPosition - fragmentPosition;
-    vec3 h = normalize(lightVector + v);
-    return pow(clamp(dot(fragmentNormal, h), 0.0, 1.0), power);
+    float a = roughness * roughness;
+    float a2 = a * a;
+    float NdotH = max(dot(N, H), 0.0);
+    float NdotH2 = NdotH * NdotH;
+
+    float nom = a2;
+    float denom = (NdotH2 * (a2 - 1.0) + 1.0);
+    denom = PI * denom * denom;
+
+    return nom / denom;
 }
 
-// Blinn-Phong lighting model input parameters.
-struct TBlinnPhongContext {
-    // Light position in world coordinates.
-    vec3 lightPosition;
-    float lightRadius;
-    vec3 fragmentNormal;
-    // Fragment position on world coordinates.
-    vec3 fragmentPosition;
-    vec3 cameraPosition;
-    float specularPower;
-};
-
-// Blinn-Phong lighting output parameters.
-struct TBlinnPhong {
-    // Total "brightness" of fragment.
-    float attenuation;
-    // Specular component of lighting.
-    float specular;
-    // Distance from light to fragment.
-    float distance;
-    // Normalized vector from fragment position to light.
-    // It can be useful if you need this vector later on,
-    // for other calculations.
-    vec3 direction;
-};
-
-// Calculates lighting parameters for point light using Blinn-Phong model.
-// This function also suitable for calculations of spot lighting, because
-// spot light is a point light but with defined lighting cone.
-TBlinnPhong S_BlinnPhong(TBlinnPhongContext ctx)
+float S_GeometrySchlickGGX(float NdotV, float roughness)
 {
-    vec3 lightVector = ctx.lightPosition - ctx.fragmentPosition;
-    float distance = length(lightVector);
-    lightVector = lightVector / distance;
+    float r = (roughness + 1.0);
+    float k = (r * r) / 8.0;
 
-    float specular = S_SpecularFactor(lightVector, ctx.cameraPosition, ctx.fragmentPosition, ctx.fragmentNormal, ctx.specularPower);
+    float nom = NdotV;
+    float denom = NdotV * (1.0 - k) + k;
 
-    float lambertian = max(dot(ctx.fragmentNormal, lightVector), 0.0);
+    return nom / denom;
+}
 
-    float distance_attenuation = S_LightDistanceAttenuation(distance, ctx.lightRadius);
+// Calculates occlusion factor using given material properties (normal + roughness),
+// viewer position (V) and light-to-fragment vector (L).
+float S_GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
+{
+    float NdotV = max(dot(N, V), 0.0);
+    float NdotL = max(dot(N, L), 0.0);
+    float ggx2 = S_GeometrySchlickGGX(NdotV, roughness);
+    float ggx1 = S_GeometrySchlickGGX(NdotL, roughness);
 
-    float attenuation = lambertian * distance_attenuation;
+    return ggx1 * ggx2;
+}
 
-    return TBlinnPhong(attenuation, specular, distance, lightVector);
+// Fresnel law approximation using Fresnel-Schlick formula.
+vec3 S_FresnelSchlick(float cosTheta, vec3 F0)
+{
+    return F0 + (1.0 - F0) * pow(max(1.0 - cosTheta, 0.0), 5.0);
+}
+
+struct TPBRContext {
+    vec3 lightColor;
+    vec3 viewVector;
+    vec3 fragmentToLight;
+    vec3 fragmentNormal;
+    float metallic;
+    float roughness;
+    vec3 albedo;
+};
+
+// Calculates physically-correct lighting using provided light and fragment parameters.
+// Does not apply any distance or direction attenuation! Attenuation depends on the
+// light source and appied in separate shaders.
+vec3 S_PBR_CalculateLight(TPBRContext ctx) {
+    vec3 F0 = mix(vec3(0.04), ctx.albedo, ctx.metallic);
+
+    vec3 L = ctx.fragmentToLight;
+    vec3 H = normalize(ctx.viewVector + L);
+
+    // Cook-Torrance BRDF
+    float NDF = S_DistributionGGX(ctx.fragmentNormal, H, ctx.roughness);
+    float G = S_GeometrySmith(ctx.fragmentNormal, ctx.viewVector, L, ctx.roughness);
+    vec3 F = S_FresnelSchlick(max(dot(H, ctx.viewVector), 0.0), F0);
+
+    vec3 numerator = NDF * G * F;
+    float denominator = 4.0 * max(dot(ctx.fragmentNormal, ctx.viewVector), 0.0) * max(dot(ctx.fragmentNormal, L), 0.0) + 0.001; // 0.001 to prevent divide by zero.
+    vec3 specular = numerator / denominator;
+
+    vec3 kS = F;
+    vec3 kD = vec3(1.0) - kS;
+    kD *= 1.0 - ctx.metallic;
+
+    float NdotL = max(dot(ctx.fragmentNormal, L), 0.0);
+
+    return (kD * ctx.albedo / PI + specular) * ctx.lightColor * NdotL;
 }
 
 // Returns scatter amount for given parameters.
@@ -287,4 +312,24 @@ vec2 S_ComputeParallaxTextureCoordinates(in sampler2D heightTexture, vec3 eyeVec
     float weight = nextH / (nextH - prevH);
 
     return prev * weight + currentTexCoords * (1.0 - weight);
+}
+
+vec4 S_LinearToSRGB(vec4 color) {
+    vec3 a = 12.92 * color.rgb;
+    vec3 b = 1.055 * pow(color.rgb, vec3(1.0 / 2.4)) - 0.055;
+    vec3 c = step(vec3(0.0031308), color.rgb);
+    vec3 rgb = mix(a, b, c);
+    return vec4(rgb, color.a);
+}
+
+vec4 S_SRGBToLinear(vec4 color) {
+    vec3 a = color.rgb / 12.92;
+    vec3 b = pow((color.rgb + 0.055) / 1.055, vec3(2.4));
+    vec3 c = step(vec3(0.04045), color.rgb);
+    vec3 rgb = mix(a, b, c);
+    return vec4(rgb, color.a);
+}
+
+float S_Luminance(vec3 x) {
+    return dot(x, vec3(0.299, 0.587, 0.114));
 }

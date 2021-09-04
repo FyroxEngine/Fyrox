@@ -3,6 +3,7 @@
 uniform sampler2D depthTexture;
 uniform sampler2D colorTexture;
 uniform sampler2D normalTexture;
+uniform sampler2D materialTexture;
 uniform sampler2D spotShadowTexture;
 uniform sampler2D cookieTexture;
 
@@ -20,36 +21,44 @@ uniform bool softShadows;
 uniform float shadowMapInvSize;
 uniform float shadowBias;
 uniform bool cookieEnabled;
+uniform float lightIntensity;
 
 in vec2 texCoord;
 out vec4 FragColor;
 
 void main()
 {
-    vec4 normalSpecular = texture(normalTexture, texCoord);
+    vec3 material = texture(materialTexture, texCoord).rgb;
 
-    TBlinnPhongContext ctx;
-    ctx.lightPosition = lightPos;
-    ctx.lightRadius = lightRadius;
-    ctx.fragmentNormal = normalize(normalSpecular.xyz * 2.0 - 1.0);
-    ctx.fragmentPosition = S_UnProject(vec3(texCoord, texture(depthTexture, texCoord).r), invViewProj);
-    ctx.cameraPosition = cameraPosition;
-    ctx.specularPower = 80.0;
-    TBlinnPhong lighting = S_BlinnPhong(ctx);
+    vec3 fragmentPosition = S_UnProject(vec3(texCoord, texture(depthTexture, texCoord).r), invViewProj);
+    vec3 fragmentToLight = lightPos - fragmentPosition;
+    float distance = length(fragmentToLight);
 
-    float spotAngleCos = dot(lightDirection, lighting.direction);
+    TPBRContext ctx;
+    ctx.albedo = texture(colorTexture, texCoord).rgb;
+    ctx.fragmentToLight = fragmentToLight / distance;
+    ctx.fragmentNormal = normalize(texture(normalTexture, texCoord).xyz * 2.0 - 1.0);
+    ctx.lightColor = lightColor.rgb;
+    ctx.metallic = material.x;
+    ctx.roughness = material.y;
+    ctx.viewVector = normalize(cameraPosition - fragmentPosition);
+
+    vec3 lighting = S_PBR_CalculateLight(ctx);
+
+    float distanceAttenuation = S_LightDistanceAttenuation(distance, lightRadius);
+
+    float spotAngleCos = dot(lightDirection, ctx.fragmentToLight);
     float coneFactor = smoothstep(halfConeAngleCos, halfHotspotConeAngleCos, spotAngleCos);
 
     float shadow = S_SpotShadowFactor(
-        shadowsEnabled, softShadows, shadowBias, ctx.fragmentPosition,
+        shadowsEnabled, softShadows, shadowBias, fragmentPosition,
             lightViewProjMatrix, shadowMapInvSize, spotShadowTexture);
 
     vec4 cookieAttenuation = vec4(1.0);
     if (cookieEnabled) {
-        vec2 texCoords = S_Project(ctx.fragmentPosition, lightViewProjMatrix).xy;
+        vec2 texCoords = S_Project(fragmentPosition, lightViewProjMatrix).xy;
         cookieAttenuation = texture(cookieTexture, texCoords);
     }
 
-    FragColor = cookieAttenuation * coneFactor * lighting.attenuation * shadow *
-        (lightColor * lighting.specular * normalSpecular.w + lightColor * texture(colorTexture, texCoord));
+    FragColor = cookieAttenuation * vec4(distanceAttenuation * lightIntensity * coneFactor * shadow * lighting, 1.0);
 }

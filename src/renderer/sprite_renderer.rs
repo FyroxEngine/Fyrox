@@ -1,3 +1,4 @@
+use crate::renderer::framework::state::{BlendFactor, BlendFunc};
 use crate::{
     core::{math::Matrix4Ext, math::Rect, scope_profile},
     renderer::framework::{
@@ -29,7 +30,8 @@ impl SpriteShader {
     pub fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/sprite_fs.glsl");
         let vertex_source = include_str!("shaders/sprite_vs.glsl");
-        let program = GpuProgram::from_source(state, "FlatShader", vertex_source, fragment_source)?;
+        let program =
+            GpuProgram::from_source(state, "SpriteShader", vertex_source, fragment_source)?;
         Ok(Self {
             view_projection_matrix: program.uniform_location(state, "viewProjectionMatrix")?,
             world_matrix: program.uniform_location(state, "worldMatrix")?,
@@ -87,8 +89,6 @@ impl SpriteRenderer {
             geom_map,
         } = args;
 
-        state.set_blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
-
         let initial_view_projection = camera.view_projection_matrix();
 
         let inv_view = camera.inv_view_matrix().unwrap();
@@ -131,15 +131,18 @@ impl SpriteRenderer {
                 viewport,
                 &self.shader.program,
                 &DrawParameters {
-                    cull_face: CullFace::Back,
-                    culling: true,
+                    cull_face: Some(CullFace::Back),
                     color_write: Default::default(),
                     depth_write: false,
-                    stencil_test: false,
+                    stencil_test: None,
                     depth_test: true,
-                    blend: true,
+                    blend: Some(BlendFunc {
+                        sfactor: BlendFactor::SrcAlpha,
+                        dfactor: BlendFactor::OneMinusSrcAlpha,
+                    }),
+                    stencil_op: Default::default(),
                 },
-                |program_binding| {
+                |mut program_binding| {
                     program_binding
                         .set_texture(&self.shader.diffuse_texture, &diffuse_texture)
                         .set_matrix4(&self.shader.view_projection_matrix, &view_projection)
@@ -147,7 +150,7 @@ impl SpriteRenderer {
                         .set_vector3(&self.shader.camera_up_vector, &camera_up)
                         .set_vector3(&self.shader.camera_side_vector, &camera_side)
                         .set_f32(&self.shader.size, sprite.size())
-                        .set_color(&self.shader.color, &sprite.color())
+                        .set_linear_color(&self.shader.color, &sprite.color())
                         .set_f32(&self.shader.rotation, sprite.rotation());
                 },
             );

@@ -192,6 +192,30 @@ impl Color {
         Self { r, g, b, a }
     }
 
+    #[must_use]
+    pub fn srgb_to_linear(self) -> Self {
+        let r = ((self.r as f32 / 255.0).powf(2.2).clamp(0.0, 1.0) * 255.0) as u8;
+        let g = ((self.g as f32 / 255.0).powf(2.2).clamp(0.0, 1.0) * 255.0) as u8;
+        let b = ((self.b as f32 / 255.0).powf(2.2).clamp(0.0, 1.0) * 255.0) as u8;
+        Self::from_rgba(r, g, b, self.a)
+    }
+
+    #[must_use]
+    pub fn srgb_to_linear_f32(self) -> Vector4<f32> {
+        let r = (self.r as f32 / 255.0).powf(2.2).clamp(0.0, 1.0);
+        let g = (self.g as f32 / 255.0).powf(2.2).clamp(0.0, 1.0);
+        let b = (self.b as f32 / 255.0).powf(2.2).clamp(0.0, 1.0);
+        Vector4::new(r, g, b, self.a as f32 / 255.0)
+    }
+
+    #[must_use]
+    pub fn linear_to_srgb(self) -> Self {
+        let r = ((self.r as f32 / 255.0).powf(1.0 / 2.2).clamp(0.0, 1.0) * 255.0) as u8;
+        let g = ((self.g as f32 / 255.0).powf(1.0 / 2.2).clamp(0.0, 1.0) * 255.0) as u8;
+        let b = ((self.b as f32 / 255.0).powf(1.0 / 2.2).clamp(0.0, 1.0) * 255.0) as u8;
+        Self::from_rgba(r, g, b, self.a)
+    }
+
     pub fn as_frgba(self) -> Vector4<f32> {
         Vector4::new(
             f32::from(self.r) / 255.0,

@@ -12,6 +12,7 @@ pub mod shared;
 
 use crate::shared::{create_ui, fix_shadows_distance, Game, GameScene};
 use rg3d::core::algebra::Vector2;
+use rg3d::utils::log::{Log, MessageKind};
 use rg3d::{
     animation::AnimationSignal,
     event::{Event, VirtualKeyCode, WindowEvent},
@@ -232,7 +233,9 @@ fn main() {
                         // It is very important to handle Resized event from window, because
                         // renderer knows nothing about window size - it must be notified
                         // directly when window size has changed.
-                        game.engine.renderer.set_frame_size(size.into());
+                        if let Err(e) = game.engine.renderer.set_frame_size(size.into()) {
+                            Log::writeln(MessageKind::Error, format!("Unable to set frame size: {:?}", e));
+                        }
 
                         // Root UI node should be resized too, otherwise progress bar will stay
                         // in wrong position after resize.

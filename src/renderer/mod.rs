@@ -1,35 +1,38 @@
-//! Renderer is a "workhorse" of the engine, it draws scenes and user interface.
-//! For now there is almost no possibility to change pipeline of renderer, you
-//! can only modify quality settings. This will change in future to make renderer
-//! more flexible.
+//! Renderer is a "workhorse" of the engine, it draws scenes (both 3D and 2D), user interface,
+//! debug geometry and has an ability to add user-defined render passes. Current renderer
+//! implementation is not very flexible, but should cover 95% of use cases.
 //!
-//! Renderer based on OpenGL 3.3+ Core.
+//! # Implementation details
+//!
+//! Renderer is based on OpenGL 3.3+ Core.
 
 #![warn(missing_docs)]
-//#![deny(unsafe_code)]
+#![deny(unsafe_code)]
+
+// Framework is 100% unsafe internally due to FFI calls.
+#[allow(unsafe_code)]
+pub mod framework;
 
 pub mod cache;
 pub mod debug_renderer;
-pub mod framework;
 pub mod renderer2d;
 
 mod batch;
-mod blur;
-mod deferred_light_renderer;
+mod bloom;
 mod flat_shader;
 mod forward_renderer;
 mod fxaa;
 mod gbuffer;
+mod hdr;
+mod light;
 mod light_volume;
 mod particle_system_renderer;
-mod shadow_map_renderer;
+mod shadow;
 mod skybox_shader;
 mod sprite_renderer;
 mod ssao;
 mod ui_renderer;
 
-use crate::renderer::cache::CacheEntry;
-use crate::scene::camera::Camera;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector3},
@@ -40,45 +43,49 @@ use crate::{
         scope_profile,
     },
     gui::{draw::DrawingContext, message::MessageData, Control, UserInterface},
+    material::{shader::SamplerFallback, Material, PropertyValue},
     renderer::{
         batch::BatchStorage,
-        cache::{GeometryCache, TextureCache},
+        bloom::BloomRenderer,
+        cache::shader::ShaderCache,
+        cache::{geometry::GeometryCache, texture::TextureCache, CacheEntry},
         debug_renderer::DebugRenderer,
-        deferred_light_renderer::{
-            DeferredLightRenderer, DeferredRendererContext, LightingStatistics,
-        },
         flat_shader::FlatShader,
         forward_renderer::{ForwardRenderContext, ForwardRenderer},
         framework::{
             error::FrameworkError,
-            framebuffer::{Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer},
-            geometry_buffer::DrawCallStatistics,
+            framebuffer::{Attachment, AttachmentKind, DrawParameters, FrameBuffer},
+            geometry_buffer::{DrawCallStatistics, GeometryBuffer},
+            gpu_program::GpuProgramBinding,
             gpu_texture::{
-                GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
+                Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
+                PixelKind, WrapMode,
             },
             state::{PipelineState, PipelineStatistics},
         },
         fxaa::FxaaRenderer,
         gbuffer::{GBuffer, GBufferRenderContext},
+        hdr::HighDynamicRangeRenderer,
+        light::{DeferredLightRenderer, DeferredRendererContext, LightingStatistics},
         particle_system_renderer::{ParticleSystemRenderContext, ParticleSystemRenderer},
         renderer2d::Renderer2d,
         sprite_renderer::{SpriteRenderContext, SpriteRenderer},
         ui_renderer::{UiRenderContext, UiRenderer},
     },
     resource::texture::{Texture, TextureKind},
-    scene::mesh::surface::SurfaceData,
-    scene::{node::Node, Scene, SceneContainer},
+    scene::{camera::Camera, mesh::surface::SurfaceData, node::Node, Scene, SceneContainer},
     scene2d::Scene2dContainer,
 };
-#[cfg(feature = "serde_integration")]
 use serde::{Deserialize, Serialize};
-use std::sync::{Arc, Mutex};
 use std::{
     cell::RefCell,
     collections::{hash_map::Entry, HashMap},
     fmt::{Display, Formatter},
     rc::Rc,
-    sync::mpsc::{Receiver, Sender},
+    sync::{
+        mpsc::{Receiver, Sender},
+        Arc, Mutex,
+    },
 };
 
 /// Renderer statistics for one frame, also includes current frames per second
@@ -174,8 +181,7 @@ impl std::ops::AddAssign<RenderPassStatistics> for Statistics {
 }
 
 /// Shadow map precision allows you to select compromise between quality and performance.
-#[derive(Copy, Clone, Hash, PartialOrd, PartialEq, Eq, Ord, Debug)]
-#[cfg_attr(feature = "serde_integration", derive(Serialize, Deserialize))]
+#[derive(Copy, Clone, Hash, PartialOrd, PartialEq, Eq, Ord, Debug, Serialize, Deserialize)]
 pub enum ShadowMapPrecision {
     /// Shadow map will use 2 times less memory by switching to 16bit pixel format,
     /// but "shadow acne" may occur.
@@ -187,8 +193,7 @@ pub enum ShadowMapPrecision {
 
 /// Quality settings allows you to find optimal balance between performance and
 /// graphics quality.
-#[derive(Debug, Copy, Clone, PartialEq)]
-#[cfg_attr(feature = "serde_integration", derive(Serialize, Deserialize))]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub struct QualitySettings {
     /// Point shadows
     /// Size of cube map face of shadow map texture in pixels.
@@ -231,6 +236,9 @@ pub struct QualitySettings {
 
     /// Whether to use Parallax Mapping or not.
     pub use_parallax_mapping: bool,
+
+    /// Whether to use bloom effect.
+    pub use_bloom: bool,
 }
 
 impl Default for QualitySettings {
@@ -263,6 +271,8 @@ impl QualitySettings {
 
             fxaa: true,
 
+            use_bloom: true,
+
             use_parallax_mapping: false, // TODO: Enable when it is fixed!
         }
     }
@@ -289,6 +299,8 @@ impl QualitySettings {
             spot_shadow_map_precision: ShadowMapPrecision::Full,
 
             fxaa: true,
+
+            use_bloom: true,
 
             use_parallax_mapping: false, // TODO: Enable when it is fixed!
         }
@@ -317,6 +329,8 @@ impl QualitySettings {
 
             fxaa: true,
 
+            use_bloom: true,
+
             use_parallax_mapping: false,
         }
     }
@@ -343,6 +357,8 @@ impl QualitySettings {
             spot_shadow_map_precision: ShadowMapPrecision::Half,
 
             fxaa: false,
+
+            use_bloom: false,
 
             use_parallax_mapping: false,
         }
@@ -416,6 +432,181 @@ impl TextureUploadSender {
     }
 }
 
+struct AssociatedSceneData {
+    /// G-Buffer of the scene.
+    pub gbuffer: GBuffer,
+
+    /// Intermediate high dynamic range frame buffer.
+    pub hdr_scene_framebuffer: FrameBuffer,
+
+    /// Final frame of the scene. Tone mapped + gamma corrected.
+    pub ldr_scene_framebuffer: FrameBuffer,
+
+    /// Additional frame buffer for post processing.
+    pub ldr_temp_framebuffer: FrameBuffer,
+
+    /// HDR renderer has be created per scene, because it contains
+    /// scene luminance.
+    pub hdr_renderer: HighDynamicRangeRenderer,
+
+    /// Bloom contains only overly bright pixels that creates light
+    /// bleeding effect (glow effect).
+    pub bloom_renderer: BloomRenderer,
+}
+
+impl AssociatedSceneData {
+    pub fn new(
+        state: &mut PipelineState,
+        width: usize,
+        height: usize,
+    ) -> Result<Self, FrameworkError> {
+        let mut depth_stencil_texture = GpuTexture::new(
+            state,
+            GpuTextureKind::Rectangle { width, height },
+            PixelKind::D24S8,
+            MinificationFilter::Nearest,
+            MagnificationFilter::Nearest,
+            1,
+            None,
+        )?;
+        depth_stencil_texture
+            .bind_mut(state, 0)
+            .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
+            .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
+
+        let depth_stencil = Rc::new(RefCell::new(depth_stencil_texture));
+
+        let hdr_frame_texture = GpuTexture::new(
+            state,
+            GpuTextureKind::Rectangle { width, height },
+            // Intermediate scene frame will be rendered in HDR render target.
+            PixelKind::RGBA16F,
+            MinificationFilter::Linear,
+            MagnificationFilter::Linear,
+            1,
+            None,
+        )?;
+
+        let hdr_scene_framebuffer = FrameBuffer::new(
+            state,
+            Some(Attachment {
+                kind: AttachmentKind::DepthStencil,
+                texture: depth_stencil.clone(),
+            }),
+            vec![Attachment {
+                kind: AttachmentKind::Color,
+                texture: Rc::new(RefCell::new(hdr_frame_texture)),
+            }],
+        )?;
+
+        let ldr_frame_texture = GpuTexture::new(
+            state,
+            GpuTextureKind::Rectangle { width, height },
+            // Final scene frame is in standard sRGB space.
+            PixelKind::RGBA8,
+            MinificationFilter::Linear,
+            MagnificationFilter::Linear,
+            1,
+            None,
+        )?;
+
+        let ldr_scene_framebuffer = FrameBuffer::new(
+            state,
+            Some(Attachment {
+                kind: AttachmentKind::DepthStencil,
+                texture: depth_stencil.clone(),
+            }),
+            vec![Attachment {
+                kind: AttachmentKind::Color,
+                texture: Rc::new(RefCell::new(ldr_frame_texture)),
+            }],
+        )?;
+
+        let ldr_temp_texture = GpuTexture::new(
+            state,
+            GpuTextureKind::Rectangle { width, height },
+            // Final scene frame is in standard sRGB space.
+            PixelKind::RGBA8,
+            MinificationFilter::Linear,
+            MagnificationFilter::Linear,
+            1,
+            None,
+        )?;
+
+        let ldr_temp_framebuffer = FrameBuffer::new(
+            state,
+            Some(Attachment {
+                kind: AttachmentKind::DepthStencil,
+                texture: depth_stencil,
+            }),
+            vec![Attachment {
+                kind: AttachmentKind::Color,
+                texture: Rc::new(RefCell::new(ldr_temp_texture)),
+            }],
+        )?;
+
+        Ok(Self {
+            gbuffer: GBuffer::new(state, width, height)?,
+            hdr_renderer: HighDynamicRangeRenderer::new(state)?,
+            bloom_renderer: BloomRenderer::new(state, width, height)?,
+            hdr_scene_framebuffer,
+            ldr_scene_framebuffer,
+            ldr_temp_framebuffer,
+        })
+    }
+
+    fn copy_depth_stencil_to_scene_framebuffer(&mut self, state: &mut PipelineState) {
+        state.blit_framebuffer(
+            self.gbuffer.framebuffer().id(),
+            self.hdr_scene_framebuffer.id(),
+            0,
+            0,
+            self.gbuffer.width,
+            self.gbuffer.height,
+            0,
+            0,
+            self.gbuffer.width,
+            self.gbuffer.height,
+            false,
+            true,
+            true,
+        );
+    }
+
+    pub fn hdr_scene_frame_texture(&self) -> Rc<RefCell<GpuTexture>> {
+        self.hdr_scene_framebuffer.color_attachments()[0]
+            .texture
+            .clone()
+    }
+
+    pub fn ldr_scene_frame_texture(&self) -> Rc<RefCell<GpuTexture>> {
+        self.ldr_scene_framebuffer.color_attachments()[0]
+            .texture
+            .clone()
+    }
+
+    pub fn ldr_temp_frame_texture(&self) -> Rc<RefCell<GpuTexture>> {
+        self.ldr_temp_framebuffer.color_attachments()[0]
+            .texture
+            .clone()
+    }
+}
+
+pub(in crate) fn make_viewport_matrix(viewport: Rect<i32>) -> Matrix4<f32> {
+    Matrix4::new_orthographic(
+        0.0,
+        viewport.w() as f32,
+        viewport.h() as f32,
+        0.0,
+        -1.0,
+        1.0,
+    ) * Matrix4::new_nonuniform_scaling(&Vector3::new(
+        viewport.w() as f32,
+        viewport.h() as f32,
+        0.0,
+    ))
+}
+
 /// See module docs.
 pub struct Renderer {
     backbuffer: FrameBuffer,
@@ -433,8 +624,8 @@ pub struct Renderer {
     // something without normal map.
     normal_dummy: Rc<RefCell<GpuTexture>>,
     // Dummy one pixel texture used as stub when rendering something without a
-    // specular texture
-    specular_dummy: Rc<RefCell<GpuTexture>>,
+    // metallic texture. Default metalness is 0.0
+    metallic_dummy: Rc<RefCell<GpuTexture>>,
     ui_renderer: UiRenderer,
     statistics: Statistics,
     quad: SurfaceData,
@@ -442,10 +633,10 @@ pub struct Renderer {
     quality_settings: QualitySettings,
     /// Debug renderer instance can be used for debugging purposes
     pub debug_renderer: DebugRenderer,
-    /// Scene -> G-buffer mapping.
-    scene_to_gbuffer_map: HashMap<Handle<Scene>, GBuffer>,
+    scene_data_map: HashMap<Handle<Scene>, AssociatedSceneData>,
     backbuffer_clear_color: Color,
     texture_cache: TextureCache,
+    shader_cache: ShaderCache,
     geometry_cache: GeometryCache,
     batch_storage: BatchStorage,
     forward_renderer: ForwardRenderer,
@@ -546,9 +737,9 @@ pub struct SceneRenderPassContext<'a, 'b> {
     /// there is no normal map.
     pub normal_dummy: Rc<RefCell<GpuTexture>>,
 
-    /// An 1x1 pixel with 0.5 specular factor texture that could be used a stub when
-    /// there is no specular map.
-    pub specular_dummy: Rc<RefCell<GpuTexture>>,
+    /// An 1x1 pixel with 0.0 metalness factor texture that could be used a stub when
+    /// there is no metallic map.
+    pub metallic_dummy: Rc<RefCell<GpuTexture>>,
 
     /// An 1x1 black cube map texture that could be used a stub when there is no environment
     /// texture.
@@ -591,6 +782,184 @@ pub trait SceneRenderPass {
         &mut self,
         ctx: SceneRenderPassContext,
     ) -> Result<RenderPassStatistics, FrameworkError>;
+}
+
+fn blit_pixels(
+    state: &mut PipelineState,
+    framebuffer: &mut FrameBuffer,
+    texture: Rc<RefCell<GpuTexture>>,
+    shader: &FlatShader,
+    viewport: Rect<i32>,
+    quad: &GeometryBuffer,
+) -> DrawCallStatistics {
+    framebuffer.draw(
+        quad,
+        state,
+        viewport,
+        &shader.program,
+        &DrawParameters {
+            cull_face: None,
+            color_write: Default::default(),
+            depth_write: true,
+            stencil_test: None,
+            depth_test: false,
+            blend: None,
+            stencil_op: Default::default(),
+        },
+        |mut program_binding| {
+            program_binding
+                .set_matrix4(&shader.wvp_matrix, &{
+                    Matrix4::new_orthographic(
+                        0.0,
+                        viewport.w() as f32,
+                        viewport.h() as f32,
+                        0.0,
+                        -1.0,
+                        1.0,
+                    ) * Matrix4::new_nonuniform_scaling(&Vector3::new(
+                        viewport.w() as f32,
+                        viewport.h() as f32,
+                        0.0,
+                    ))
+                })
+                .set_texture(&shader.diffuse_texture, &texture);
+        },
+    )
+}
+
+pub(in crate) struct MaterialContext<'a, 'b> {
+    pub material: &'a Material,
+    pub program_binding: &'a mut GpuProgramBinding<'b>,
+    pub texture_cache: &'a mut TextureCache,
+
+    // Built-in uniforms.
+    pub world_matrix: &'a Matrix4<f32>,
+    pub wvp_matrix: &'a Matrix4<f32>,
+    pub bone_matrices: &'a [Matrix4<f32>],
+    pub use_skeletal_animation: bool,
+    pub camera_position: &'a Vector3<f32>,
+    pub use_pom: bool,
+    pub light_position: &'a Vector3<f32>,
+
+    // Fallback samplers.
+    pub normal_dummy: Rc<RefCell<GpuTexture>>,
+    pub white_dummy: Rc<RefCell<GpuTexture>>,
+    pub black_dummy: Rc<RefCell<GpuTexture>>,
+}
+
+pub(in crate) fn apply_material(ctx: MaterialContext) {
+    // Apply values for built-in uniforms.
+    if let Some(location) = ctx.program_binding.uniform_location("rg3d_worldMatrix") {
+        ctx.program_binding.set_matrix4(&location, ctx.world_matrix);
+    }
+    if let Some(location) = ctx
+        .program_binding
+        .uniform_location("rg3d_worldViewProjection")
+    {
+        ctx.program_binding.set_matrix4(&location, ctx.wvp_matrix);
+    }
+    if let Some(location) = ctx.program_binding.uniform_location("rg3d_boneMatrices") {
+        ctx.program_binding
+            .set_matrix4_array(&location, ctx.bone_matrices);
+    }
+    if let Some(location) = ctx
+        .program_binding
+        .uniform_location("rg3d_useSkeletalAnimation")
+    {
+        ctx.program_binding
+            .set_bool(&location, ctx.use_skeletal_animation);
+    }
+    if let Some(location) = ctx.program_binding.uniform_location("rg3d_cameraPosition") {
+        ctx.program_binding
+            .set_vector3(&location, ctx.camera_position);
+    }
+    if let Some(location) = ctx.program_binding.uniform_location("rg3d_usePOM") {
+        ctx.program_binding.set_bool(&location, ctx.use_pom);
+    }
+    if let Some(location) = ctx.program_binding.uniform_location("rg3d_lightPosition") {
+        ctx.program_binding
+            .set_vector3(&location, ctx.light_position);
+    }
+
+    // Apply material properties.
+    for (name, value) in ctx.material.properties() {
+        if let Some(uniform) = ctx.program_binding.uniform_location(name) {
+            match value {
+                PropertyValue::Float(v) => {
+                    ctx.program_binding.set_f32(&uniform, *v);
+                }
+                PropertyValue::Int(v) => {
+                    ctx.program_binding.set_i32(&uniform, *v);
+                }
+                PropertyValue::UInt(v) => {
+                    ctx.program_binding.set_u32(&uniform, *v);
+                }
+                PropertyValue::Vector2(v) => {
+                    ctx.program_binding.set_vector2(&uniform, v);
+                }
+                PropertyValue::Vector3(v) => {
+                    ctx.program_binding.set_vector3(&uniform, v);
+                }
+                PropertyValue::Vector4(v) => {
+                    ctx.program_binding.set_vector4(&uniform, v);
+                }
+                PropertyValue::Matrix2(v) => {
+                    ctx.program_binding.set_matrix2(&uniform, v);
+                }
+                PropertyValue::Matrix3(v) => {
+                    ctx.program_binding.set_matrix3(&uniform, v);
+                }
+                PropertyValue::Matrix4(v) => {
+                    ctx.program_binding.set_matrix4(&uniform, v);
+                }
+                PropertyValue::Color(v) => {
+                    ctx.program_binding.set_srgb_color(&uniform, v);
+                }
+                PropertyValue::Bool(v) => {
+                    ctx.program_binding.set_bool(&uniform, *v);
+                }
+                PropertyValue::Sampler { value, fallback } => {
+                    let texture = value
+                        .as_ref()
+                        .and_then(|t| ctx.texture_cache.get(ctx.program_binding.state, t))
+                        .unwrap_or_else(|| match fallback {
+                            SamplerFallback::White => ctx.white_dummy.clone(),
+                            SamplerFallback::Normal => ctx.normal_dummy.clone(),
+                            SamplerFallback::Black => ctx.black_dummy.clone(),
+                        });
+
+                    ctx.program_binding.set_texture(&uniform, &texture);
+                }
+                PropertyValue::FloatArray(v) => {
+                    ctx.program_binding.set_f32_slice(&uniform, v);
+                }
+                PropertyValue::IntArray(v) => {
+                    ctx.program_binding.set_i32_slice(&uniform, v);
+                }
+                PropertyValue::UIntArray(v) => {
+                    ctx.program_binding.set_u32_slice(&uniform, v);
+                }
+                PropertyValue::Vector2Array(v) => {
+                    ctx.program_binding.set_vector2_slice(&uniform, v);
+                }
+                PropertyValue::Vector3Array(v) => {
+                    ctx.program_binding.set_vector3_slice(&uniform, v);
+                }
+                PropertyValue::Vector4Array(v) => {
+                    ctx.program_binding.set_vector4_slice(&uniform, v);
+                }
+                PropertyValue::Matrix2Array(v) => {
+                    ctx.program_binding.set_matrix2_array(&uniform, v);
+                }
+                PropertyValue::Matrix3Array(v) => {
+                    ctx.program_binding.set_matrix3_array(&uniform, v);
+                }
+                PropertyValue::Matrix4Array(v) => {
+                    ctx.program_binding.set_matrix4_array(&uniform, v);
+                }
+            }
+        }
+    }
 }
 
 impl Renderer {
@@ -667,7 +1036,7 @@ impl Renderer {
                 1,
                 Some(&[128u8, 128u8, 255u8, 255u8]),
             )?)),
-            specular_dummy: Rc::new(RefCell::new(GpuTexture::new(
+            metallic_dummy: Rc::new(RefCell::new(GpuTexture::new(
                 &mut state,
                 GpuTextureKind::Rectangle {
                     width: 1,
@@ -677,19 +1046,19 @@ impl Renderer {
                 MinificationFilter::Linear,
                 MagnificationFilter::Linear,
                 1,
-                Some(&[32u8, 32u8, 32u8, 32u8]),
+                Some(&[0u8, 0u8, 0u8, 0u8]),
             )?)),
             quad: SurfaceData::make_unit_xy_quad(),
             ui_renderer: UiRenderer::new(&mut state)?,
             particle_system_renderer: ParticleSystemRenderer::new(&mut state)?,
             quality_settings: settings,
             debug_renderer: DebugRenderer::new(&mut state)?,
-            scene_to_gbuffer_map: Default::default(),
+            scene_data_map: Default::default(),
             backbuffer_clear_color: Color::BLACK,
             texture_cache: Default::default(),
             geometry_cache: Default::default(),
             batch_storage: Default::default(),
-            forward_renderer: ForwardRenderer::new(&mut state)?,
+            forward_renderer: ForwardRenderer::new(),
             ui_frame_buffers: Default::default(),
             fxaa_renderer: FxaaRenderer::new(&mut state)?,
             statistics: Statistics::default(),
@@ -697,6 +1066,7 @@ impl Renderer {
             texture_upload_receiver,
             texture_upload_sender,
             state,
+            shader_cache: ShaderCache::default(),
             scene_render_passes: Default::default(),
         })
     }
@@ -738,12 +1108,14 @@ impl Renderer {
     ///
     /// Input values will be set to 1 pixel if new size is 0. Rendering cannot
     /// be performed into 0x0 texture.
-    pub fn set_frame_size(&mut self, new_size: (u32, u32)) {
-        self.deferred_light_renderer
-            .set_frame_size(&mut self.state, new_size)
-            .unwrap();
+    pub fn set_frame_size(&mut self, new_size: (u32, u32)) -> Result<(), FrameworkError> {
         self.frame_size.0 = new_size.0.max(1);
         self.frame_size.1 = new_size.1.max(1);
+
+        self.deferred_light_renderer
+            .set_frame_size(&mut self.state, new_size)?;
+
+        Ok(())
     }
 
     /// Returns current (width, height) pair of back buffer size.
@@ -887,11 +1259,16 @@ impl Renderer {
     ) -> Result<(), FrameworkError> {
         scope_profile!();
 
+        // Make sure to drop associated data for destroyed scenes.
+        self.scene_data_map
+            .retain(|h, _| scenes.is_valid_handle(*h));
+
         // We have to invalidate resource bindings cache because some textures or programs,
         // or other GL resources can be destroyed and then on their "names" some new resource
         // are created, but cache still thinks that resource is correctly bound, but it is different
         // object have same name.
         self.state.invalidate_resource_bindings_cache();
+        let dt = self.statistics.capped_frame_time;
         self.statistics.begin_frame();
 
         let window_viewport = Rect::new(0, 0, self.frame_size.0 as i32, self.frame_size.1 as i32);
@@ -924,30 +1301,24 @@ impl Renderer {
 
             let state = &mut self.state;
 
-            self.batch_storage.generate_batches(
-                state,
-                graph,
-                self.black_dummy.clone(),
-                self.white_dummy.clone(),
-                self.normal_dummy.clone(),
-                self.specular_dummy.clone(),
-                &mut self.texture_cache,
-            );
+            self.batch_storage.generate_batches(graph);
 
-            let gbuffer = self
-                .scene_to_gbuffer_map
+            let scene_associated_data = self
+                .scene_data_map
                 .entry(scene_handle)
-                .and_modify(|buf| {
-                    if buf.width != frame_size.x as i32 || buf.height != frame_size.y as i32 {
+                .and_modify(|data| {
+                    if data.gbuffer.width != frame_size.x as i32
+                        || data.gbuffer.height != frame_size.y as i32
+                    {
                         let width = (frame_size.x as usize).max(1);
                         let height = (frame_size.y as usize).max(1);
-                        *buf = GBuffer::new(state, width, height).unwrap();
+                        *data = AssociatedSceneData::new(state, width, height).unwrap();
                     }
                 })
                 .or_insert_with(|| {
                     let width = (frame_size.x as usize).max(1);
                     let height = (frame_size.y as usize).max(1);
-                    GBuffer::new(state, width, height).unwrap()
+                    AssociatedSceneData::new(state, width, height).unwrap()
                 });
 
             // If we specified a texture to draw to, we have to register it in texture cache
@@ -959,7 +1330,7 @@ impl Renderer {
                 self.texture_cache.map.insert(
                     rt.key(),
                     CacheEntry {
-                        value: gbuffer.frame_texture(),
+                        value: scene_associated_data.ldr_scene_frame_texture(),
                         time_to_live: f32::INFINITY,
                         value_hash: 0, // TODO
                     },
@@ -979,18 +1350,30 @@ impl Renderer {
             }) {
                 let viewport = camera.viewport_pixels(frame_size);
 
-                self.statistics += gbuffer.fill(GBufferRenderContext {
+                self.statistics += scene_associated_data.gbuffer.fill(GBufferRenderContext {
                     state,
                     camera,
                     geom_cache: &mut self.geometry_cache,
                     batch_storage: &self.batch_storage,
                     texture_cache: &mut self.texture_cache,
+                    shader_cache: &mut self.shader_cache,
                     environment_dummy: self.environment_dummy.clone(),
                     use_parallax_mapping: self.quality_settings.use_parallax_mapping,
                     normal_dummy: self.normal_dummy.clone(),
                     white_dummy: self.white_dummy.clone(),
+                    black_dummy: self.black_dummy.clone(),
                     graph,
                 });
+
+                scene_associated_data.copy_depth_stencil_to_scene_framebuffer(state);
+
+                scene_associated_data.hdr_scene_framebuffer.clear(
+                    state,
+                    viewport,
+                    Some(Color::from_rgba(0, 0, 0, 255)),
+                    None, // Keep depth, we've just copied valid data in it.
+                    Some(0),
+                );
 
                 let (pass_stats, light_stats) =
                     self.deferred_light_renderer
@@ -998,25 +1381,29 @@ impl Renderer {
                             state,
                             scene,
                             camera,
-                            gbuffer,
+                            gbuffer: &mut scene_associated_data.gbuffer,
                             white_dummy: self.white_dummy.clone(),
                             ambient_color: scene.ambient_lighting_color,
                             settings: &self.quality_settings,
                             textures: &mut self.texture_cache,
                             geometry_cache: &mut self.geometry_cache,
                             batch_storage: &self.batch_storage,
+                            frame_buffer: &mut scene_associated_data.hdr_scene_framebuffer,
+                            shader_cache: &mut self.shader_cache,
+                            normal_dummy: self.normal_dummy.clone(),
+                            black_dummy: self.black_dummy.clone(),
                         });
 
                 self.statistics.lighting += light_stats;
                 self.statistics.geometry += pass_stats;
 
-                let depth = gbuffer.depth();
+                let depth = scene_associated_data.gbuffer.depth();
 
                 self.statistics +=
                     self.particle_system_renderer
                         .render(ParticleSystemRenderContext {
                             state,
-                            framebuffer: &mut gbuffer.final_frame,
+                            framebuffer: &mut scene_associated_data.hdr_scene_framebuffer,
                             graph,
                             camera,
                             white_dummy: self.white_dummy.clone(),
@@ -1029,7 +1416,7 @@ impl Renderer {
 
                 self.statistics += self.sprite_renderer.render(SpriteRenderContext {
                     state,
-                    framebuffer: &mut gbuffer.final_frame,
+                    framebuffer: &mut scene_associated_data.hdr_scene_framebuffer,
                     graph,
                     camera,
                     white_dummy: self.white_dummy.clone(),
@@ -1042,18 +1429,16 @@ impl Renderer {
                     state,
                     camera,
                     geom_cache: &mut self.geometry_cache,
+                    texture_cache: &mut self.texture_cache,
+                    shader_cache: &mut self.shader_cache,
                     batch_storage: &self.batch_storage,
-                    framebuffer: &mut gbuffer.final_frame, // TODO: GBuffer **must not** contain final frame.
+                    framebuffer: &mut scene_associated_data.hdr_scene_framebuffer,
                     viewport,
+                    quality_settings: &self.quality_settings,
+                    white_dummy: self.white_dummy.clone(),
+                    normal_dummy: self.normal_dummy.clone(),
+                    black_dummy: self.black_dummy.clone(),
                 });
-
-                self.statistics += self.debug_renderer.render(
-                    state,
-                    viewport,
-                    &mut gbuffer.final_frame,
-                    &scene.drawing_context,
-                    camera,
-                );
 
                 for render_pass in self.scene_render_passes.iter() {
                     self.statistics +=
@@ -1069,66 +1454,87 @@ impl Renderer {
                             scene_handle,
                             white_dummy: self.white_dummy.clone(),
                             normal_dummy: self.normal_dummy.clone(),
-                            specular_dummy: self.specular_dummy.clone(),
+                            metallic_dummy: self.metallic_dummy.clone(),
                             environment_dummy: self.environment_dummy.clone(),
                             black_dummy: self.black_dummy.clone(),
-                            depth_texture: gbuffer.depth(),
-                            normal_texture: gbuffer.normal_texture(),
-                            ambient_texture: gbuffer.ambient_texture(),
-                            framebuffer: &mut gbuffer.final_frame,
+                            depth_texture: scene_associated_data.gbuffer.depth(),
+                            normal_texture: scene_associated_data.gbuffer.normal_texture(),
+                            ambient_texture: scene_associated_data.gbuffer.ambient_texture(),
+                            framebuffer: &mut scene_associated_data.hdr_scene_framebuffer,
                         })?;
                 }
 
-                // Finally render everything into back buffer.
+                let quad = self.geometry_cache.get(state, &self.quad);
+
+                // Prepare glow map.
+                self.statistics.geometry += scene_associated_data.bloom_renderer.render(
+                    state,
+                    quad,
+                    scene_associated_data.hdr_scene_frame_texture(),
+                );
+
+                // Convert high dynamic range frame to low dynamic range (sRGB) with tone mapping and gamma correction.
+                self.statistics.geometry += scene_associated_data.hdr_renderer.render(
+                    state,
+                    scene_associated_data.hdr_scene_frame_texture(),
+                    scene_associated_data.bloom_renderer.result(),
+                    &mut scene_associated_data.ldr_scene_framebuffer,
+                    viewport,
+                    quad,
+                    dt,
+                    camera.exposure(),
+                    camera.color_grading_lut_ref(),
+                    camera.color_grading_enabled(),
+                    &mut self.texture_cache,
+                );
+
+                // Apply FXAA if needed.
+                if self.quality_settings.fxaa {
+                    self.statistics.geometry += self.fxaa_renderer.render(
+                        state,
+                        viewport,
+                        scene_associated_data.ldr_scene_frame_texture(),
+                        &mut scene_associated_data.ldr_temp_framebuffer,
+                        &mut self.geometry_cache,
+                    );
+
+                    let quad = self.geometry_cache.get(state, &self.quad);
+                    let temp_frame_texture = scene_associated_data.ldr_temp_frame_texture();
+                    self.statistics.geometry += blit_pixels(
+                        state,
+                        &mut scene_associated_data.ldr_scene_framebuffer,
+                        temp_frame_texture,
+                        &self.flat_shader,
+                        viewport,
+                        quad,
+                    );
+                }
+
+                // Render debug geometry in the LDR frame buffer.
+                self.statistics += self.debug_renderer.render(
+                    state,
+                    viewport,
+                    &mut scene_associated_data.ldr_scene_framebuffer,
+                    &scene.drawing_context,
+                    camera,
+                );
+
+                // Optionally render everything into back buffer.
                 if scene.render_target.is_none() {
-                    if self.quality_settings.fxaa {
-                        self.statistics.geometry += self.fxaa_renderer.render(
-                            state,
-                            viewport,
-                            gbuffer.frame_texture(),
-                            &mut self.backbuffer,
-                            &mut self.geometry_cache,
-                        );
-                    } else {
-                        let shader = &self.flat_shader;
-                        self.statistics.geometry += self.backbuffer.draw(
-                            self.geometry_cache.get(state, &self.quad),
-                            state,
-                            viewport,
-                            &self.flat_shader.program,
-                            &DrawParameters {
-                                cull_face: CullFace::Back,
-                                culling: false,
-                                color_write: Default::default(),
-                                depth_write: true,
-                                stencil_test: false,
-                                depth_test: false,
-                                blend: false,
-                            },
-                            |program_binding| {
-                                program_binding
-                                    .set_matrix4(&shader.wvp_matrix, &{
-                                        Matrix4::new_orthographic(
-                                            0.0,
-                                            viewport.w() as f32,
-                                            viewport.h() as f32,
-                                            0.0,
-                                            -1.0,
-                                            1.0,
-                                        ) * Matrix4::new_nonuniform_scaling(&Vector3::new(
-                                            viewport.w() as f32,
-                                            viewport.h() as f32,
-                                            0.0,
-                                        ))
-                                    })
-                                    .set_texture(&shader.diffuse_texture, &gbuffer.frame_texture());
-                            },
-                        );
-                    }
+                    let quad = self.geometry_cache.get(state, &self.quad);
+                    self.statistics.geometry += blit_pixels(
+                        state,
+                        &mut self.backbuffer,
+                        scene_associated_data.ldr_scene_frame_texture(),
+                        &self.flat_shader,
+                        viewport,
+                        quad,
+                    );
                 }
             }
         }
 
+        // TODO: 2D renderer requires its own HDR pipeline.
         self.statistics += self.renderer2d.render(
             &mut self.state,
             &mut self.backbuffer,
@@ -1138,7 +1544,7 @@ impl Renderer {
             self.white_dummy.clone(),
         )?;
 
-        // Render UI on top of everything.
+        // Render UI on top of everything without gamma correction.
         self.statistics += self.ui_renderer.render(UiRenderContext {
             state: &mut self.state,
             viewport: window_viewport,

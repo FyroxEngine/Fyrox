@@ -9,17 +9,20 @@ use rapier3d::{
     geometry::ColliderBuilder,
     na::{Isometry3, UnitQuaternion, Vector3},
 };
-use rg3d::engine::resource_manager::MaterialSearchOptions;
 use rg3d::{
     animation::{
         machine::{Machine, Parameter, PoseNode, State, Transition},
         Animation, AnimationSignal,
     },
     core::{algebra::Vector2, color::Color, math::SmoothAngle, pool::Handle},
-    engine::{resource_manager::ResourceManager, RigidBodyHandle},
+    engine::{
+        resource_manager::{MaterialSearchOptions, ResourceManager},
+        RigidBodyHandle,
+    },
     event::{DeviceEvent, ElementState, VirtualKeyCode},
     event_loop::EventLoop,
     gui::{
+        formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
         node::StubNode,
         progress_bar::ProgressBarBuilder,
@@ -39,7 +42,6 @@ use rg3d::{
     },
     sound::effects::{BaseEffect, Effect},
 };
-use rg3d_ui::formatted_text::WrapMode;
 use std::{
     path::Path,
     sync::{Arc, Mutex},
@@ -60,17 +62,30 @@ pub async fn create_camera(
 ) -> Handle<Node> {
     // Load skybox textures in parallel.
     let (front, back, left, right, top, bottom) = rg3d::core::futures::join!(
-        resource_manager
-            .request_texture("examples/data/skyboxes/DarkStormy/DarkStormyFront2048.png"),
-        resource_manager
-            .request_texture("examples/data/skyboxes/DarkStormy/DarkStormyBack2048.png"),
-        resource_manager
-            .request_texture("examples/data/skyboxes/DarkStormy/DarkStormyLeft2048.png"),
-        resource_manager
-            .request_texture("examples/data/skyboxes/DarkStormy/DarkStormyRight2048.png"),
-        resource_manager.request_texture("examples/data/skyboxes/DarkStormy/DarkStormyUp2048.png"),
-        resource_manager
-            .request_texture("examples/data/skyboxes/DarkStormy/DarkStormyDown2048.png")
+        resource_manager.request_texture(
+            "examples/data/skyboxes/DarkStormy/DarkStormyFront2048.png",
+            None
+        ),
+        resource_manager.request_texture(
+            "examples/data/skyboxes/DarkStormy/DarkStormyBack2048.png",
+            None
+        ),
+        resource_manager.request_texture(
+            "examples/data/skyboxes/DarkStormy/DarkStormyLeft2048.png",
+            None
+        ),
+        resource_manager.request_texture(
+            "examples/data/skyboxes/DarkStormy/DarkStormyRight2048.png",
+            None
+        ),
+        resource_manager.request_texture(
+            "examples/data/skyboxes/DarkStormy/DarkStormyUp2048.png",
+            None
+        ),
+        resource_manager.request_texture(
+            "examples/data/skyboxes/DarkStormy/DarkStormyDown2048.png",
+            None
+        )
     );
 
     // Unwrap everything.
@@ -757,7 +772,7 @@ pub fn create_scene_async(resource_manager: ResourceManager) -> Arc<Mutex<SceneL
             // Load simple map.
             resource_manager
                 .request_model(
-                    "examples/data/sponza/Sponza.fbx",
+                    "examples/data/sponza/Sponza.rgs",
                     MaterialSearchOptions::RecursiveUp,
                 )
                 .await
@@ -765,17 +780,6 @@ pub fn create_scene_async(resource_manager: ResourceManager) -> Arc<Mutex<SceneL
                 .instantiate_geometry(&mut scene);
 
             scene.graph.update_hierarchical_data();
-
-            // And create collision mesh so our character won't fall through ground.
-            let collision_mesh_handle = scene.graph.find_by_name_from_root("CollisionShape");
-            let collision_mesh = &mut scene.graph[collision_mesh_handle];
-
-            collision_mesh.set_visibility(false);
-            // Create collision geometry from special mesh on the level.
-            let body = scene
-                .physics
-                .mesh_to_trimesh(collision_mesh_handle, &scene.graph);
-            scene.physics_binder.bind(collision_mesh_handle, body);
 
             // Finally create player.
             let player = Player::new(&mut scene, resource_manager, context.clone()).await;

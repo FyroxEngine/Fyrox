@@ -383,7 +383,11 @@ impl<M: MessageData, C: Control<M, C>> MenuBuilder<M, C> {
         .build(ctx);
 
         let menu = Menu {
-            widget: self.widget_builder.with_child(back).build(),
+            widget: self
+                .widget_builder
+                .with_handle_os_events(true)
+                .with_child(back)
+                .build(),
             active: false,
         };
 

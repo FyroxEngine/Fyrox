@@ -1,14 +1,15 @@
 use crate::{
-    core::{color::Color, math::Rect, scope_profile},
+    core::{color::Color, math::Rect, scope_profile, visitor::prelude::*},
     renderer::framework::{
         error::FrameworkError,
         geometry_buffer::{DrawCallStatistics, GeometryBuffer},
         gpu_program::{GpuProgram, GpuProgramBinding},
         gpu_texture::{CubeMapFace, GpuTexture, GpuTextureKind, PixelElementKind},
-        state::{ColorMask, PipelineState},
+        state::{BlendFunc, ColorMask, PipelineState, StencilFunc, StencilOp},
     },
 };
 use glow::HasContext;
+use serde::Deserialize;
 use std::{cell::RefCell, rc::Rc};
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug)]
@@ -25,46 +26,45 @@ pub struct Attachment {
 
 pub struct FrameBuffer {
     state: *mut PipelineState,
-    fbo: glow::Framebuffer,
+    fbo: Option<glow::Framebuffer>,
     depth_attachment: Option<Attachment>,
     color_attachments: Vec<Attachment>,
 }
 
-#[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug)]
+#[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Deserialize, Visit)]
+#[repr(u32)]
 pub enum CullFace {
-    Back,
-    Front,
+    Back = glow::BACK,
+    Front = glow::FRONT,
 }
 
-impl CullFace {
-    pub fn into_gl_value(self) -> u32 {
-        match self {
-            Self::Front => glow::FRONT,
-            Self::Back => glow::BACK,
-        }
+impl Default for CullFace {
+    fn default() -> Self {
+        Self::Back
     }
 }
 
+#[derive(Deserialize, Visit, Debug, PartialEq, Clone)]
 pub struct DrawParameters {
-    pub cull_face: CullFace,
-    pub culling: bool,
+    pub cull_face: Option<CullFace>,
     pub color_write: ColorMask,
     pub depth_write: bool,
-    pub stencil_test: bool,
+    pub stencil_test: Option<StencilFunc>,
     pub depth_test: bool,
-    pub blend: bool,
+    pub blend: Option<BlendFunc>,
+    pub stencil_op: StencilOp,
 }
 
 impl Default for DrawParameters {
     fn default() -> Self {
         Self {
-            cull_face: CullFace::Back,
-            culling: true,
+            cull_face: Some(CullFace::Back),
             color_write: Default::default(),
             depth_write: true,
-            stencil_test: false,
+            stencil_test: None,
             depth_test: true,
-            blend: false,
+            blend: None,
+            stencil_op: Default::default(),
         }
     }
 }
@@ -119,7 +119,7 @@ impl FrameBuffer {
         unsafe {
             let fbo = state.gl.create_framebuffer()?;
 
-            state.set_framebuffer(fbo);
+            state.set_framebuffer(Some(fbo));
 
             if let Some(depth_attachment) = depth_attachment.as_ref() {
                 let depth_attachment_kind = match depth_attachment.kind {
@@ -158,11 +158,11 @@ impl FrameBuffer {
                 return Err(FrameworkError::FailedToConstructFBO);
             }
 
-            state.set_framebuffer(glow::Framebuffer::default());
+            state.set_framebuffer(None);
 
             Ok(Self {
                 state,
-                fbo,
+                fbo: Some(fbo),
                 depth_attachment,
                 color_attachments,
             })
@@ -172,7 +172,7 @@ impl FrameBuffer {
     pub fn backbuffer(state: &mut PipelineState) -> Self {
         Self {
             state,
-            fbo: Default::default(),
+            fbo: None,
             depth_attachment: None,
             color_attachments: Default::default(),
         }
@@ -208,7 +208,8 @@ impl FrameBuffer {
         self
     }
 
-    pub fn id(&self) -> glow::Framebuffer {
+    /// None is possible only for back buffer.
+    pub fn id(&self) -> Option<glow::Framebuffer> {
         self.fbo
     }
 
@@ -266,14 +267,12 @@ impl FrameBuffer {
                             );
                         }
                         (Some(depth), None) => {
-                            let mut values = [depth];
-                            state.gl.clear_buffer_f32_slice(glow::DEPTH, 0, &mut values);
+                            let values = [depth];
+                            state.gl.clear_buffer_f32_slice(glow::DEPTH, 0, &values);
                         }
                         (None, Some(stencil)) => {
-                            let mut values = [stencil];
-                            state
-                                .gl
-                                .clear_buffer_i32_slice(glow::STENCIL, 0, &mut values);
+                            let values = [stencil];
+                            state.gl.clear_buffer_i32_slice(glow::STENCIL, 0, &values);
                         }
                         (None, None) => {
                             // Nothing to do
@@ -281,8 +280,8 @@ impl FrameBuffer {
                     },
                     AttachmentKind::Depth => {
                         if let Some(depth) = depth {
-                            let mut values = [depth];
-                            state.gl.clear_buffer_f32_slice(glow::DEPTH, 0, &mut values);
+                            let values = [depth];
+                            state.gl.clear_buffer_f32_slice(glow::DEPTH, 0, &values);
                         }
                     }
                 }
@@ -294,15 +293,15 @@ impl FrameBuffer {
                 for (i, attachment) in self.color_attachments.iter().enumerate() {
                     match attachment.texture.borrow().pixel_kind().element_kind() {
                         PixelElementKind::Float | PixelElementKind::NormalizedUnsignedInteger => {
-                            let mut fvalues = color.as_frgba();
+                            let fvalues = color.as_frgba();
                             state.gl.clear_buffer_f32_slice(
                                 glow::COLOR,
                                 i as u32,
-                                &mut fvalues.data.0[0],
+                                &fvalues.data.0[0],
                             )
                         }
                         PixelElementKind::Integer => {
-                            let mut values = [
+                            let values = [
                                 color.r as i32,
                                 color.g as i32,
                                 color.b as i32,
@@ -310,10 +309,10 @@ impl FrameBuffer {
                             ];
                             state
                                 .gl
-                                .clear_buffer_i32_slice(glow::COLOR, i as u32, &mut values);
+                                .clear_buffer_i32_slice(glow::COLOR, i as u32, &values);
                         }
                         PixelElementKind::UnsignedInteger => {
-                            let mut values = [
+                            let values = [
                                 color.r as u32,
                                 color.g as u32,
                                 color.b as u32,
@@ -321,7 +320,7 @@ impl FrameBuffer {
                             ];
                             state
                                 .gl
-                                .clear_buffer_u32_slice(glow::COLOR, i as u32, &mut values);
+                                .clear_buffer_u32_slice(glow::COLOR, i as u32, &values);
                         }
                     }
                 }
@@ -379,7 +378,7 @@ impl FrameBuffer {
 }
 
 fn pre_draw<F: FnOnce(GpuProgramBinding<'_>)>(
-    fbo: glow::Framebuffer,
+    fbo: Option<glow::Framebuffer>,
     state: &mut PipelineState,
     viewport: Rect<i32>,
     program: &GpuProgram,
@@ -399,8 +398,8 @@ fn pre_draw<F: FnOnce(GpuProgramBinding<'_>)>(
 impl Drop for FrameBuffer {
     fn drop(&mut self) {
         unsafe {
-            if self.fbo != Default::default() {
-                (*self.state).gl.delete_framebuffer(self.fbo);
+            if let Some(id) = self.fbo {
+                (*self.state).gl.delete_framebuffer(id);
             }
         }
     }

@@ -51,7 +51,7 @@ impl SceneLoader {
                             .build(),
                     ),
                 )
-                .with_texture(resource_manager.request_texture("examples/data/starship.png"))
+                .with_texture(resource_manager.request_texture("examples/data/starship.png", None))
                 .with_size(sprite_size)
                 .build(&mut scene.graph);
             }

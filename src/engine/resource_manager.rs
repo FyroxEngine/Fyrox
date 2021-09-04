@@ -2,7 +2,8 @@
 
 use crate::{
     asset::{Resource, ResourceData, ResourceLoadError, ResourceState},
-    core::{futures::executor::ThreadPool, instant, visitor::prelude::*},
+    core::{futures::executor::ThreadPool, instant, visitor::prelude::*, VecExtensions},
+    material::shader::{Shader, ShaderState},
     renderer::TextureUploadSender,
     resource::{
         model::{Model, ModelData},
@@ -87,11 +88,156 @@ where
     }
 }
 
+/// Generic container for any resource in the engine. Main purpose of the container is to
+/// track resources life time and remove unused timed-out resources. It also provides useful
+/// methods to search resources, count loaded or pending, wait until all resources are loading,
+/// etc.
+#[derive(Default, Visit)]
+pub struct ResourceContainer<T> {
+    resources: Vec<TimedEntry<T>>,
+}
+
+impl<T, R, E> ResourceContainer<T>
+where
+    T: Deref<Target = Resource<R, E>>,
+    R: ResourceData,
+    E: ResourceLoadError,
+{
+    /// Adds a new resource in the container.
+    pub fn push(&mut self, resource: T) {
+        self.resources.push(TimedEntry {
+            value: resource,
+            time_to_live: DEFAULT_RESOURCE_LIFETIME,
+        });
+    }
+
+    /// Tries to find a resources by its path. Returns None if no resource was found.
+    ///
+    /// # Complexity
+    ///
+    /// O(n)
+    pub fn find<P: AsRef<Path>>(&self, path: P) -> Option<&T> {
+        for resource in self.resources.iter() {
+            if resource.state().path() == path.as_ref() {
+                return Some(&resource.value);
+            }
+        }
+        None
+    }
+
+    /// Tracks life time of resource and removes unused resources after some time of idling.
+    pub fn update(&mut self, dt: f32) {
+        self.resources.retain_mut(|resource| {
+            // One usage means that the resource has single owner, and that owner
+            // is this container. Such resources have limited life time, if the time
+            // runs out before it gets shared again, the resource will be deleted.
+            if resource.use_count() <= 1 {
+                resource.time_to_live -= dt;
+                if resource.time_to_live <= 0.0 {
+                    Log::writeln(
+                        MessageKind::Information,
+                        format!(
+                            "Resource {:?} destroyed because it not used anymore!",
+                            resource.state().path()
+                        ),
+                    );
+
+                    false
+                } else {
+                    // Keep resource alive for short period of time.
+                    true
+                }
+            } else {
+                // Make sure to reset timer if a resource is used by more than one owner.
+                resource.time_to_live = DEFAULT_RESOURCE_LIFETIME;
+
+                // Keep resource alive while it has more than one owner.
+                true
+            }
+        });
+    }
+
+    /// Returns total amount of resources in the container.
+    pub fn len(&self) -> usize {
+        self.resources.len()
+    }
+
+    /// Returns true if container has no resources.
+    pub fn is_empty(&self) -> bool {
+        self.resources.is_empty()
+    }
+
+    /// Creates an iterator over resources in the container.
+    pub fn iter(&self) -> impl Iterator<Item = &T> {
+        self.resources.iter().map(|entry| &entry.value)
+    }
+
+    /// Immediately destroys all resources in the container that are not used anywhere else.
+    pub fn destroy_unused(&mut self) {
+        self.resources
+            .retain(|resource| resource.value.use_count() > 1);
+    }
+
+    /// Returns total amount of resources that still loading.
+    pub fn count_pending_resources(&self) -> usize {
+        self.resources.iter().fold(0, |counter, resource| {
+            if let ResourceState::Pending { .. } = *resource.state() {
+                counter + 1
+            } else {
+                counter
+            }
+        })
+    }
+
+    /// Returns total amount of completely loaded resources.
+    pub fn count_loaded_resources(&self) -> usize {
+        self.resources.iter().fold(0, |counter, resource| {
+            if let ResourceState::Ok(_) = *resource.state() {
+                counter + 1
+            } else {
+                counter
+            }
+        })
+    }
+
+    /// Locks current thread until every resource is loaded (or failed to load).
+    ///
+    /// # Platform specific
+    ///
+    /// WASM: WebAssembly uses simple loop to wait for all resources, which means
+    /// full load of single CPU core.
+    pub fn wait(&self) {
+        #[cfg(target_arch = "wasm32")]
+        {
+            // In case of WebAssembly, spin until everything is loaded.
+            loop {
+                let mut loaded_count = 0;
+                for resource in self.resources.iter() {
+                    if !matches!(*resource.value.state(), ResourceState::Pending { .. }) {
+                        loaded_count += 1;
+                    }
+                }
+                if loaded_count == self.resources.len() {
+                    break;
+                }
+            }
+        }
+
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            crate::core::futures::executor::block_on(crate::core::futures::future::join_all(
+                self.resources.iter().map(|t| t.value.clone()),
+            ));
+        }
+    }
+}
+
 /// See module docs.
 pub struct ResourceManagerState {
-    textures: Vec<TimedEntry<Texture>>,
-    models: Vec<TimedEntry<Model>>,
-    sound_buffers: Vec<TimedEntry<SoundBufferResource>>,
+    textures: ResourceContainer<Texture>,
+    models: ResourceContainer<Model>,
+    sound_buffers: ResourceContainer<SoundBufferResource>,
+    shaders: ResourceContainer<Shader>,
     textures_import_options: TextureImportOptions,
     #[cfg(not(target_arch = "wasm32"))]
     thread_pool: ThreadPool,
@@ -104,6 +250,7 @@ impl Default for ResourceManagerState {
             textures: Default::default(),
             models: Default::default(),
             sound_buffers: Default::default(),
+            shaders: Default::default(),
             textures_import_options: Default::default(),
             #[cfg(not(target_arch = "wasm32"))]
             thread_pool: ThreadPool::new().unwrap(),
@@ -276,6 +423,30 @@ async fn load_model(
     }
 }
 
+async fn load_shader(shader: Shader, path: PathBuf) {
+    match ShaderState::from_file(&path).await {
+        Ok(shader_state) => {
+            Log::writeln(
+                MessageKind::Information,
+                format!("Shader {:?} is loaded!", path),
+            );
+
+            shader.state().commit(ResourceState::Ok(shader_state));
+        }
+        Err(error) => {
+            Log::writeln(
+                MessageKind::Error,
+                format!("Unable to load model from {:?}! Reason {:?}", path, error),
+            );
+
+            shader.state().commit(ResourceState::LoadError {
+                path,
+                error: Some(Arc::new(error)),
+            });
+        }
+    }
+}
+
 async fn load_sound_buffer(resource: SoundBufferResource, path: PathBuf, stream: bool) {
     match DataSource::from_file(&path).await {
         Ok(source) => {
@@ -344,35 +515,6 @@ async fn reload_texture(texture: Texture, path: PathBuf, compression: Compressio
     };
 }
 
-async fn reload_model(
-    model: Model,
-    path: PathBuf,
-    resource_manager: ResourceManager,
-    material_search_options: MaterialSearchOptions,
-) {
-    match ModelData::load(&path, resource_manager, material_search_options).await {
-        Ok(data) => {
-            Log::writeln(
-                MessageKind::Information,
-                format!("Model {:?} successfully reloaded!", path,),
-            );
-
-            model.state().commit(ResourceState::Ok(data));
-        }
-        Err(e) => {
-            Log::writeln(
-                MessageKind::Error,
-                format!("Unable to reload {:?} model! Reason: {:?}", path, e),
-            );
-
-            model.state().commit(ResourceState::LoadError {
-                path,
-                error: Some(Arc::new(e)),
-            })
-        }
-    };
-}
-
 async fn reload_sound_buffer(resource: SoundBufferResource, path: PathBuf, stream: bool) {
     if let Ok(data_source) = DataSource::from_file(&path).await {
         let new_sound_buffer = match stream {
@@ -423,6 +565,14 @@ impl ResourceManager {
     /// such texture during the rendering. If you need to access internals of the texture you have to get state first
     /// and then use pattern matching to get TextureData which contains actual texture data.
     ///
+    /// # Import options
+    ///
+    /// It is possible to define custom import options. Using import options you could set desired compression quality,
+    /// filtering, wrapping, etc. **IMPORTANT:** Import options take effect **only** at first loading of a texture,
+    /// this means that if you try to pass options when requesting loaded texture, they won't take effect.
+    ///
+    /// If None is passed as import options, then default import options from resource manager will be used.
+    ///
     /// # Async/.await
     ///
     /// Each Texture implements Future trait and can be used in async contexts.
@@ -431,22 +581,24 @@ impl ResourceManager {
     ///
     /// To load images and decode them, rg3d uses image create which supports following image
     /// formats: png, tga, bmp, dds, jpg, gif, tiff, dxt.
-    pub fn request_texture<P: AsRef<Path>>(&self, path: P) -> Texture {
+    pub fn request_texture<P: AsRef<Path>>(
+        &self,
+        path: P,
+        import_options: Option<TextureImportOptions>,
+    ) -> Texture {
         let mut state = self.state();
 
-        if let Some(texture) = state.find_texture(path.as_ref()) {
-            return texture;
+        if let Some(texture) = state.textures.find(path.as_ref()) {
+            return texture.clone();
         }
 
         let texture = Texture(Resource::new(ResourceState::new_pending(
             path.as_ref().to_owned(),
         )));
-        state.textures.push(TimedEntry {
-            value: texture.clone(),
-            time_to_live: DEFAULT_RESOURCE_LIFETIME,
-        });
+        state.textures.push(texture.clone());
+
         let result = texture.clone();
-        let options = state.textures_import_options.clone();
+        let options = import_options.unwrap_or_else(|| state.textures_import_options.clone());
         let path = path.as_ref().to_owned();
         let upload_sender = state
             .upload_sender
@@ -475,7 +627,7 @@ impl ResourceManager {
         path: P,
     ) -> Result<(), TextureRegistrationError> {
         let mut state = self.state();
-        if state.find_texture(path.as_ref()).is_some() {
+        if state.textures.find(path.as_ref()).is_some() {
             Err(TextureRegistrationError::AlreadyRegistered)
         } else {
             let mut texture_state = texture.state();
@@ -486,10 +638,7 @@ impl ResourceManager {
                         Err(TextureRegistrationError::Texture(e))
                     } else {
                         std::mem::drop(texture_state);
-                        state.textures.push(TimedEntry {
-                            value: texture,
-                            time_to_live: DEFAULT_RESOURCE_LIFETIME,
-                        });
+                        state.textures.push(texture);
                         Ok(())
                     }
                 }
@@ -519,17 +668,14 @@ impl ResourceManager {
     ) -> Model {
         let mut state = self.state();
 
-        if let Some(model) = state.find_model(path.as_ref()) {
-            return model;
+        if let Some(model) = state.models.find(path.as_ref()) {
+            return model.clone();
         }
 
         let model = Model(Resource::new(ResourceState::new_pending(
             path.as_ref().to_owned(),
         )));
-        state.models.push(TimedEntry {
-            value: model.clone(),
-            time_to_live: DEFAULT_RESOURCE_LIFETIME,
-        });
+        state.models.push(model.clone());
 
         let result = model.clone();
         let path = path.as_ref().to_owned();
@@ -562,17 +708,14 @@ impl ResourceManager {
     ) -> SoundBufferResource {
         let mut state = self.state();
 
-        if let Some(sound_buffer) = state.find_sound_buffer(path.as_ref()) {
-            return sound_buffer;
+        if let Some(sound_buffer) = state.sound_buffers.find(path.as_ref()) {
+            return sound_buffer.clone();
         }
 
         let resource = SoundBufferResource(Resource::new(ResourceState::new_pending(
             path.as_ref().to_owned(),
         )));
-        state.sound_buffers.push(TimedEntry {
-            value: resource.clone(),
-            time_to_live: DEFAULT_RESOURCE_LIFETIME,
-        });
+        state.sound_buffers.push(resource.clone());
         let result = resource.clone();
         let path = path.as_ref().to_owned();
 
@@ -589,6 +732,41 @@ impl ResourceManager {
         result
     }
 
+    /// Tries to load a new shader resource from given path or get instance of existing, if any.
+    /// This method is asynchronous, it immediately returns a shader which can be shared across
+    /// multiple places, the loading may fail, but it is internal state of the shader.
+    ///
+    /// # Async/.await
+    ///
+    /// Each shader implements Future trait and can be used in async contexts.
+    pub fn request_shader<P: AsRef<Path>>(&self, path: P) -> Shader {
+        let mut state = self.state();
+
+        if let Some(shader) = state.shaders.find(path.as_ref()) {
+            return shader.clone();
+        }
+
+        let shader = Shader(Resource::new(ResourceState::new_pending(
+            path.as_ref().to_owned(),
+        )));
+        state.shaders.push(shader.clone());
+
+        let result = shader.clone();
+        let path = path.as_ref().to_owned();
+
+        #[cfg(target_arch = "wasm32")]
+        crate::core::wasm_bindgen_futures::spawn_local(async move {
+            load_shader(shader, path).await;
+        });
+
+        #[cfg(not(target_arch = "wasm32"))]
+        state.thread_pool.spawn_ok(async move {
+            load_shader(shader, path).await;
+        });
+
+        result
+    }
+
     /// Reloads every loaded texture. This method is asynchronous, internally it uses thread pool
     /// to run reload on separate thread per texture.
     pub async fn reload_textures(&self) {
@@ -596,11 +774,7 @@ impl ResourceManager {
         let textures = {
             let state = self.state();
 
-            let textures = state
-                .textures
-                .iter()
-                .map(|e| e.value.clone())
-                .collect::<Vec<Texture>>();
+            let textures = state.textures.iter().cloned().collect::<Vec<Texture>>();
 
             for resource in textures.iter().cloned() {
                 let path = resource.state().path().to_path_buf();
@@ -641,11 +815,7 @@ impl ResourceManager {
             let this = self.clone();
             let state = self.state();
 
-            let models = state
-                .models
-                .iter()
-                .map(|m| m.value.clone())
-                .collect::<Vec<Model>>();
+            let models = state.models.iter().cloned().collect::<Vec<_>>();
 
             for model in models.iter().cloned() {
                 let this = this.clone();
@@ -655,12 +825,12 @@ impl ResourceManager {
 
                 #[cfg(target_arch = "wasm32")]
                 crate::core::wasm_bindgen_futures::spawn_local(async move {
-                    reload_model(model, path, this, material_search_options).await;
+                    load_model(model, path, this, material_search_options).await;
                 });
 
                 #[cfg(not(target_arch = "wasm32"))]
                 state.thread_pool.spawn_ok(async move {
-                    reload_model(model, path, this, material_search_options).await;
+                    load_model(model, path, this, material_search_options).await;
                 })
             }
 
@@ -675,6 +845,40 @@ impl ResourceManager {
         );
     }
 
+    /// Reloads every loaded shader. This method is asynchronous, internally it uses thread pool
+    /// to run reload on separate thread per shader.
+    pub async fn reload_shaders(&self) {
+        let shaders = {
+            let state = self.state();
+
+            let shaders = state.shaders.iter().cloned().collect::<Vec<_>>();
+
+            for shader in shaders.iter().cloned() {
+                let path = shader.state().path().to_path_buf();
+                *shader.state() = ResourceState::new_pending(path.clone());
+
+                #[cfg(target_arch = "wasm32")]
+                crate::core::wasm_bindgen_futures::spawn_local(async move {
+                    load_shader(shader, path).await;
+                });
+
+                #[cfg(not(target_arch = "wasm32"))]
+                state.thread_pool.spawn_ok(async move {
+                    load_shader(shader, path).await;
+                })
+            }
+
+            shaders
+        };
+
+        crate::core::futures::future::join_all(shaders).await;
+
+        Log::writeln(
+            MessageKind::Information,
+            "All shader resources reloaded!".to_owned(),
+        );
+    }
+
     /// Reloads every loaded sound buffer. This method is asynchronous, internally it uses thread pool
     /// to run reload on separate thread per sound buffer.
     pub async fn reload_sound_buffers(&self) {
@@ -684,7 +888,7 @@ impl ResourceManager {
             let sound_buffers = state
                 .sound_buffers
                 .iter()
-                .map(|b| b.value.clone())
+                .cloned()
                 .collect::<Vec<SoundBufferResource>>();
 
             for resource in sound_buffers.iter().cloned() {
@@ -724,42 +928,10 @@ impl ResourceManager {
         crate::core::futures::join!(
             self.reload_textures(),
             self.reload_models(),
-            self.reload_sound_buffers()
+            self.reload_sound_buffers(),
+            self.reload_shaders()
         );
     }
-}
-
-fn count_pending_resources<'a, T, E, I>(resources: I) -> usize
-where
-    T: ResourceData,
-    E: ResourceLoadError,
-    I: Iterator<Item = &'a Resource<T, E>>,
-{
-    let mut count = 0;
-    for resource in resources {
-        if let ResourceState::Pending { .. } = *resource.state() {
-            count += 1;
-        }
-    }
-    count
-}
-
-fn count_loaded_resources<'a, T, E, I>(resources: I) -> usize
-where
-    T: ResourceData,
-    E: ResourceLoadError,
-    I: Iterator<Item = &'a Resource<T, E>>,
-{
-    let mut count = 0;
-    for resource in resources {
-        match *resource.state() {
-            ResourceState::LoadError { .. } | ResourceState::Ok(_) => {
-                count += 1;
-            }
-            _ => {}
-        }
-    }
-    count
 }
 
 /// Defines a way of searching materials when loading a model resource.
@@ -816,9 +988,10 @@ impl MaterialSearchOptions {
 impl ResourceManagerState {
     pub(in crate::engine) fn new(upload_sender: TextureUploadSender) -> Self {
         Self {
-            textures: Vec::new(),
-            models: Vec::new(),
-            sound_buffers: Vec::new(),
+            textures: Default::default(),
+            models: Default::default(),
+            sound_buffers: Default::default(),
+            shaders: Default::default(),
             textures_import_options: Default::default(),
             #[cfg(not(target_arch = "wasm32"))]
             thread_pool: ThreadPool::new().unwrap(),
@@ -832,101 +1005,49 @@ impl ResourceManagerState {
         self.textures_import_options = options;
     }
 
-    /// Returns shared reference to list of available textures.
+    /// Returns a reference to textures container.
     #[inline]
-    pub fn textures(&self) -> &[TimedEntry<Texture>] {
+    pub fn textures(&self) -> &ResourceContainer<Texture> {
         &self.textures
     }
 
-    /// Tries to find texture by its path. Returns None if no such texture was found.
-    pub fn find_texture<P: AsRef<Path>>(&self, path: P) -> Option<Texture> {
-        for texture_entry in self.textures.iter() {
-            if texture_entry.state().path() == path.as_ref() {
-                return Some(texture_entry.value.clone());
-            }
-        }
-        None
-    }
-
-    /// Returns shared reference to list of available models.
+    /// Returns a reference to shaders container.
     #[inline]
-    pub fn models(&self) -> &[TimedEntry<Model>] {
+    pub fn models(&self) -> &ResourceContainer<Model> {
         &self.models
     }
 
-    /// Tries to find model by its path. Returns None if no such model was found.
-    pub fn find_model<P: AsRef<Path>>(&self, path: P) -> Option<Model> {
-        for model in self.models.iter() {
-            if model.state().path() == path.as_ref() {
-                return Some(model.value.clone());
-            }
-        }
-        None
-    }
-
-    /// Returns shared reference to list of sound buffers.
+    /// Returns a reference to sound buffers container.
     #[inline]
-    pub fn sound_buffers(&self) -> &[TimedEntry<SoundBufferResource>] {
+    pub fn sound_buffers(&self) -> &ResourceContainer<SoundBufferResource> {
         &self.sound_buffers
     }
 
-    /// Tries to find sound buffer by its path. Returns None if no such sound buffer was found.
-    pub fn find_sound_buffer<P: AsRef<Path>>(&self, path: P) -> Option<SoundBufferResource> {
-        for sound_buffer in self.sound_buffers.iter() {
-            if sound_buffer.state().path() == path.as_ref() {
-                return Some(sound_buffer.value.clone());
-            }
-        }
-        None
-    }
-
-    /// Returns total amount of textures in pending state.
-    pub fn count_pending_textures(&self) -> usize {
-        count_pending_resources(self.textures.iter().map(|e| &e.value.0))
-    }
-
-    /// Returns total amount of loaded textures (including textures, that failed to load).
-    pub fn count_loaded_textures(&self) -> usize {
-        count_loaded_resources(self.textures.iter().map(|e| &e.value.0))
-    }
-
-    /// Returns total amount of sound buffers in pending state.
-    pub fn count_pending_sound_buffers(&self) -> usize {
-        count_pending_resources(self.sound_buffers.iter().map(|e| &e.value.0))
-    }
-
-    /// Returns total amount of loaded sound buffers (including sound buffers, that failed to load).
-    pub fn count_loaded_sound_buffers(&self) -> usize {
-        count_loaded_resources(self.sound_buffers.iter().map(|e| &e.value.0))
-    }
-
-    /// Returns total amount of models in pending state.
-    pub fn count_pending_models(&self) -> usize {
-        count_pending_resources(self.models.iter().map(|e| &e.value.0))
-    }
-
-    /// Returns total amount of loaded models (including models, that failed to load).
-    pub fn count_loaded_models(&self) -> usize {
-        count_loaded_resources(self.models.iter().map(|e| &e.value.0))
+    /// Returns a reference to shaders container.
+    #[inline]
+    pub fn shaders(&self) -> &ResourceContainer<Shader> {
+        &self.shaders
     }
 
     /// Returns total amount of resources in pending state.
     pub fn count_pending_resources(&self) -> usize {
-        self.count_pending_textures()
-            + self.count_pending_sound_buffers()
-            + self.count_pending_models()
+        self.textures.count_pending_resources()
+            + self.sound_buffers.count_pending_resources()
+            + self.models.count_pending_resources()
+            + self.shaders.count_pending_resources()
     }
 
     /// Returns total amount of loaded resources.
     pub fn count_loaded_resources(&self) -> usize {
-        self.count_loaded_textures()
-            + self.count_loaded_sound_buffers()
-            + self.count_loaded_models()
+        self.textures.count_loaded_resources()
+            + self.sound_buffers.count_loaded_resources()
+            + self.models.count_loaded_resources()
+            + self.shaders.count_loaded_resources()
     }
 
     /// Returns total amount of registered resources.
     pub fn count_registered_resources(&self) -> usize {
-        self.textures.len() + self.sound_buffers.len() + self.models.len()
+        self.textures.len() + self.sound_buffers.len() + self.models.len() + self.shaders.len()
     }
 
     /// Returns percentage of loading progress. This method is useful to show progress on
@@ -943,85 +1064,18 @@ impl ResourceManagerState {
     }
 
     /// Immediately destroys all unused resources.
-    pub fn purge_unused_resources(&mut self) {
-        self.sound_buffers
-            .retain(|buffer| buffer.value.use_count() > 1);
-        self.models.retain(|buffer| buffer.value.use_count() > 1);
-        self.textures.retain(|buffer| buffer.value.use_count() > 1);
-    }
-
-    fn update_textures(&mut self, dt: f32) {
-        for texture in self.textures.iter_mut() {
-            if matches!(*texture.state(), ResourceState::Ok(_)) {
-                texture.time_to_live -= dt;
-                if texture.use_count() > 1 {
-                    texture.time_to_live = DEFAULT_RESOURCE_LIFETIME;
-                }
-            }
-        }
-        self.textures.retain(|texture| {
-            let retain = texture.time_to_live > 0.0;
-            if !retain && texture.state().path().exists() {
-                Log::writeln(
-                    MessageKind::Information,
-                    format!(
-                        "Texture resource {:?} destroyed because it not used anymore!",
-                        texture.state().path()
-                    ),
-                );
-            }
-            retain
-        });
-    }
-
-    fn update_model(&mut self, dt: f32) {
-        for model in self.models.iter_mut() {
-            model.time_to_live -= dt;
-            if model.use_count() > 1 {
-                model.time_to_live = DEFAULT_RESOURCE_LIFETIME;
-            }
-        }
-        self.models.retain(|model| {
-            let retain = model.time_to_live > 0.0;
-            if !retain && model.state().path().exists() {
-                Log::writeln(
-                    MessageKind::Information,
-                    format!(
-                        "Model resource {:?} destroyed because it not used anymore!",
-                        model.state().path()
-                    ),
-                );
-            }
-            retain
-        });
-    }
-
-    fn update_sound_buffers(&mut self, dt: f32) {
-        for buffer in self.sound_buffers.iter_mut() {
-            buffer.time_to_live -= dt;
-            if buffer.use_count() > 1 {
-                buffer.time_to_live = DEFAULT_RESOURCE_LIFETIME;
-            }
-        }
-        self.sound_buffers.retain(|buffer| {
-            let retain = buffer.time_to_live > 0.0;
-            if !retain {
-                Log::writeln(
-                    MessageKind::Information,
-                    format!(
-                        "Sound resource {:?} destroyed because it not used anymore!",
-                        buffer.state().path()
-                    ),
-                );
-            }
-            retain
-        });
+    pub fn destroy_unused_resources(&mut self) {
+        self.sound_buffers.destroy_unused();
+        self.models.destroy_unused();
+        self.textures.destroy_unused();
+        self.shaders.destroy_unused();
     }
 
     pub(in crate) fn update(&mut self, dt: f32) {
-        self.update_textures(dt);
-        self.update_model(dt);
-        self.update_sound_buffers(dt);
+        self.textures.update(dt);
+        self.models.update(dt);
+        self.sound_buffers.update(dt);
+        self.shaders.update(dt);
     }
 }
 
@@ -1029,19 +1083,15 @@ impl Visit for ResourceManagerState {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
-        crate::core::futures::executor::block_on(crate::core::futures::future::join_all(
-            self.textures.iter().map(|t| t.value.clone()),
-        ));
-        crate::core::futures::executor::block_on(crate::core::futures::future::join_all(
-            self.models.iter().map(|m| m.value.clone()),
-        ));
-        crate::core::futures::executor::block_on(crate::core::futures::future::join_all(
-            self.sound_buffers.iter().map(|m| m.value.clone()),
-        ));
+        self.textures.wait();
+        self.models.wait();
+        self.sound_buffers.wait();
+        self.shaders.wait();
 
         self.textures.visit("Textures", visitor)?;
         self.models.visit("Models", visitor)?;
         self.sound_buffers.visit("SoundBuffers", visitor)?;
+        self.shaders.visit("Shaders", visitor)?;
 
         visitor.leave_region()
     }

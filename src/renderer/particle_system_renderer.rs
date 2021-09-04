@@ -1,8 +1,9 @@
+use crate::renderer::framework::state::{BlendFactor, BlendFunc};
 use crate::{
     core::{algebra::Vector2, math::Matrix4Ext, math::Rect, scope_profile},
     renderer::framework::{
         error::FrameworkError,
-        framebuffer::{CullFace, DrawParameters, FrameBuffer},
+        framebuffer::{DrawParameters, FrameBuffer},
         geometry_buffer::{
             AttributeDefinition, AttributeKind, BufferBuilder, ElementKind, GeometryBuffer,
             GeometryBufferBuilder, GeometryBufferKind,
@@ -143,8 +144,6 @@ impl ParticleSystemRenderer {
             texture_cache,
         } = args;
 
-        state.set_blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
-
         let inv_view = camera.inv_view_matrix().unwrap();
         let view_proj = camera.view_projection_matrix();
 
@@ -176,13 +175,16 @@ impl ParticleSystemRenderer {
             let global_transform = node.global_transform();
 
             let draw_params = DrawParameters {
-                cull_face: CullFace::Front,
-                culling: false,
+                cull_face: None,
                 color_write: Default::default(),
                 depth_write: false,
-                stencil_test: false,
+                stencil_test: None,
                 depth_test: true,
-                blend: true,
+                blend: Some(BlendFunc {
+                    sfactor: BlendFactor::SrcAlpha,
+                    dfactor: BlendFactor::OneMinusSrcAlpha,
+                }),
+                stencil_op: Default::default(),
             };
 
             let diffuse_texture = particle_system
@@ -196,7 +198,7 @@ impl ParticleSystemRenderer {
                 viewport,
                 &self.shader.program,
                 &draw_params,
-                |program_binding| {
+                |mut program_binding| {
                     program_binding
                         .set_texture(&self.shader.depth_buffer_texture, &depth)
                         .set_texture(&self.shader.diffuse_texture, &diffuse_texture)

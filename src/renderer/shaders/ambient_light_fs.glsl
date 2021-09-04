@@ -11,6 +11,10 @@ in vec2 texCoord;
 void main()
 {
     float ambientOcclusion = texture(aoSampler, texCoord).r;
-    FragColor = (ambientColor + texture(ambientTexture, texCoord)) * texture(diffuseTexture, texCoord);
+    vec4 ambientPixel = texture(ambientTexture, texCoord);
+    FragColor = (ambientColor + ambientPixel) * texture(diffuseTexture, texCoord);
     FragColor.rgb *= ambientOcclusion;
+    FragColor.a = ambientPixel.a;
+
+    // TODO: Implement IBL.
 }

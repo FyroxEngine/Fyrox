@@ -1,20 +1,23 @@
-use crate::core::algebra::{Isometry3, Translation};
+use crate::renderer::framework::state::{BlendFactor, BlendFunc, CompareFunc, StencilAction};
 use crate::{
     core::{
-        algebra::{Matrix4, Point3, Vector3},
+        algebra::{Isometry3, Matrix4, Point3, Translation, Vector3},
         math::Rect,
         pool::Handle,
         scope_profile,
     },
-    renderer::framework::{
-        error::FrameworkError,
-        framebuffer::{CullFace, DrawParameters},
-        gpu_program::{GpuProgram, UniformLocation},
-        state::{ColorMask, PipelineState, StencilFunc, StencilOp},
+    renderer::{
+        flat_shader::FlatShader,
+        framework::{
+            error::FrameworkError,
+            framebuffer::{DrawParameters, FrameBuffer},
+            gpu_program::{GpuProgram, UniformLocation},
+            state::{ColorMask, PipelineState, StencilFunc, StencilOp},
+        },
+        gbuffer::GBuffer,
+        GeometryCache, RenderPassStatistics,
     },
-    renderer::{flat_shader::FlatShader, gbuffer::GBuffer, GeometryCache, RenderPassStatistics},
-    scene::mesh::surface::SurfaceData,
-    scene::{graph::Graph, light::Light, node::Node},
+    scene::{graph::Graph, light::Light, mesh::surface::SurfaceData, node::Node},
 };
 
 struct SpotLightShader {
@@ -121,6 +124,7 @@ impl LightVolumeRenderer {
         view_proj: Matrix4<f32>,
         viewport: Rect<i32>,
         graph: &Graph,
+        frame_buffer: &mut FrameBuffer,
     ) -> RenderPassStatistics {
         scope_profile!();
 
@@ -172,67 +176,68 @@ impl LightVolumeRenderer {
                     * Matrix4::new_nonuniform_scaling(&Vector3::new(k, spot.distance(), k));
                 let mvp = view_proj * light_shape_matrix;
 
-                gbuffer
-                    .final_frame
-                    .clear(state, viewport, None, None, Some(0));
+                // Clear stencil only.
+                frame_buffer.clear(state, viewport, None, None, Some(0));
 
-                state.set_stencil_mask(0xFFFF_FFFF);
-                state.set_stencil_func(StencilFunc {
-                    func: glow::EQUAL,
-                    ref_value: 0xFF,
-                    mask: 0xFFFF_FFFF,
-                });
-                state.set_stencil_op(StencilOp {
-                    fail: glow::REPLACE,
-                    zfail: glow::KEEP,
-                    zpass: glow::REPLACE,
-                });
-
-                stats += gbuffer.final_frame.draw(
+                stats += frame_buffer.draw(
                     geom_cache.get(state, &self.cone),
                     state,
                     viewport,
                     &self.flat_shader.program,
                     &DrawParameters {
-                        cull_face: CullFace::Back,
-                        culling: false,
+                        cull_face: None,
                         color_write: ColorMask::all(false),
                         depth_write: false,
-                        stencil_test: true,
+                        stencil_test: Some(StencilFunc {
+                            func: CompareFunc::Equal,
+                            ref_value: 0xFF,
+                            mask: 0xFFFF_FFFF,
+                        }),
                         depth_test: true,
-                        blend: false,
+                        blend: None,
+                        stencil_op: StencilOp {
+                            fail: StencilAction::Replace,
+                            zfail: StencilAction::Keep,
+                            zpass: StencilAction::Replace,
+                            write_mask: 0xFFFF_FFFF,
+                        },
                     },
-                    |program_binding| {
+                    |mut program_binding| {
                         program_binding.set_matrix4(&self.flat_shader.wvp_matrix, &mvp);
                     },
                 );
-
-                // Make sure to clean stencil buffer after drawing full screen quad.
-                state.set_stencil_op(StencilOp {
-                    zpass: glow::ZERO,
-                    ..Default::default()
-                });
 
                 // Finally draw fullscreen quad, GPU will calculate scattering only on pixels that were
                 // marked in stencil buffer. For distant lights it will be very low amount of pixels and
                 // so distant lights won't impact performance.
                 let shader = &self.spot_light_shader;
                 let depth_map = gbuffer.depth();
-                stats += gbuffer.final_frame.draw(
+                stats += frame_buffer.draw(
                     geom_cache.get(state, quad),
                     state,
                     viewport,
                     &shader.program,
                     &DrawParameters {
-                        cull_face: CullFace::Back,
-                        culling: false,
+                        cull_face: None,
                         color_write: Default::default(),
                         depth_write: false,
-                        stencil_test: true,
+                        stencil_test: Some(StencilFunc {
+                            func: CompareFunc::Equal,
+                            ref_value: 0xFF,
+                            mask: 0xFFFF_FFFF,
+                        }),
                         depth_test: false,
-                        blend: true,
+                        blend: Some(BlendFunc {
+                            sfactor: BlendFactor::One,
+                            dfactor: BlendFactor::One,
+                        }),
+                        // Make sure to clean stencil buffer after drawing full screen quad.
+                        stencil_op: StencilOp {
+                            zpass: StencilAction::Zero,
+                            ..Default::default()
+                        },
                     },
-                    |program_binding| {
+                    |mut program_binding| {
                         program_binding
                             .set_matrix4(&shader.world_view_proj_matrix, &frame_matrix)
                             .set_matrix4(&shader.inv_proj, &inv_proj)
@@ -240,27 +245,16 @@ impl LightVolumeRenderer {
                             .set_vector3(&shader.light_position, &position)
                             .set_vector3(&shader.light_direction, &direction)
                             .set_texture(&shader.depth_sampler, &depth_map)
-                            .set_vector3(&shader.light_color, &light.color().as_frgba().xyz())
+                            .set_vector3(
+                                &shader.light_color,
+                                &light.color().srgb_to_linear_f32().xyz(),
+                            )
                             .set_vector3(&shader.scatter_factor, &light.scatter());
                     },
                 )
             }
             Light::Point(point) => {
-                gbuffer
-                    .final_frame
-                    .clear(state, viewport, None, None, Some(0));
-
-                state.set_stencil_mask(0xFFFF_FFFF);
-                state.set_stencil_func(StencilFunc {
-                    func: glow::EQUAL,
-                    ref_value: 0xFF,
-                    mask: 0xFFFF_FFFF,
-                });
-                state.set_stencil_op(StencilOp {
-                    fail: glow::REPLACE,
-                    zfail: glow::KEEP,
-                    zpass: glow::REPLACE,
-                });
+                frame_buffer.clear(state, viewport, None, None, Some(0));
 
                 // Radius bias is used to to slightly increase sphere radius to add small margin
                 // for fadeout effect. It is set to 5%.
@@ -270,58 +264,75 @@ impl LightVolumeRenderer {
                     * Matrix4::new_nonuniform_scaling(&Vector3::new(k, k, k));
                 let mvp = view_proj * light_shape_matrix;
 
-                stats += gbuffer.final_frame.draw(
+                stats += frame_buffer.draw(
                     geom_cache.get(state, &self.sphere),
                     state,
                     viewport,
                     &self.flat_shader.program,
                     &DrawParameters {
-                        cull_face: CullFace::Back,
-                        culling: false,
+                        cull_face: None,
                         color_write: ColorMask::all(false),
                         depth_write: false,
-                        stencil_test: true,
+                        stencil_test: Some(StencilFunc {
+                            func: CompareFunc::Equal,
+                            ref_value: 0xFF,
+                            mask: 0xFFFF_FFFF,
+                        }),
                         depth_test: true,
-                        blend: false,
+                        blend: None,
+                        stencil_op: StencilOp {
+                            fail: StencilAction::Replace,
+                            zfail: StencilAction::Keep,
+                            zpass: StencilAction::Replace,
+                            write_mask: 0xFFFF_FFFF,
+                        },
                     },
-                    |program_binding| {
+                    |mut program_binding| {
                         program_binding.set_matrix4(&self.flat_shader.wvp_matrix, &mvp);
                     },
                 );
-
-                // Make sure to clean stencil buffer after drawing full screen quad.
-                state.set_stencil_op(StencilOp {
-                    zpass: glow::ZERO,
-                    ..Default::default()
-                });
 
                 // Finally draw fullscreen quad, GPU will calculate scattering only on pixels that were
                 // marked in stencil buffer. For distant lights it will be very low amount of pixels and
                 // so distant lights won't impact performance.
                 let shader = &self.point_light_shader;
                 let depth_map = gbuffer.depth();
-                stats += gbuffer.final_frame.draw(
+                stats += frame_buffer.draw(
                     geom_cache.get(state, quad),
                     state,
                     viewport,
                     &shader.program,
                     &DrawParameters {
-                        cull_face: CullFace::Back,
-                        culling: false,
+                        cull_face: None,
                         color_write: Default::default(),
                         depth_write: false,
-                        stencil_test: true,
+                        stencil_test: Some(StencilFunc {
+                            func: CompareFunc::Equal,
+                            ref_value: 0xFF,
+                            mask: 0xFFFF_FFFF,
+                        }),
                         depth_test: false,
-                        blend: true,
+                        blend: Some(BlendFunc {
+                            sfactor: BlendFactor::One,
+                            dfactor: BlendFactor::One,
+                        }),
+                        // Make sure to clean stencil buffer after drawing full screen quad.
+                        stencil_op: StencilOp {
+                            zpass: StencilAction::Zero,
+                            ..Default::default()
+                        },
                     },
-                    |program_binding| {
+                    |mut program_binding| {
                         program_binding
                             .set_matrix4(&shader.world_view_proj_matrix, &frame_matrix)
                             .set_matrix4(&shader.inv_proj, &inv_proj)
                             .set_vector3(&shader.light_position, &position)
                             .set_texture(&shader.depth_sampler, &depth_map)
                             .set_f32(&shader.light_radius, point.radius())
-                            .set_vector3(&shader.light_color, &light.color().as_frgba().xyz())
+                            .set_vector3(
+                                &shader.light_color,
+                                &light.color().srgb_to_linear_f32().xyz(),
+                            )
                             .set_vector3(&shader.scatter_factor, &light.scatter());
                     },
                 )

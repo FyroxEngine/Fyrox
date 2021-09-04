@@ -11,6 +11,7 @@ pub mod shared;
 use crate::shared::create_camera;
 
 use rg3d::core::algebra::{UnitQuaternion, Vector3};
+use rg3d::utils::log::{Log, MessageKind};
 use rg3d::{
     core::{color::Color, pool::Handle},
     engine::resource_manager::{MaterialSearchOptions, ResourceManager},
@@ -247,7 +248,9 @@ fn main() {
                         // It is very important to handle Resized event from window, because
                         // renderer knows nothing about window size - it must be notified
                         // directly when window size has changed.
-                        engine.renderer.set_frame_size(size.into());
+                        if let Err(e) = engine.renderer.set_frame_size(size.into()) {
+                            Log::writeln(MessageKind::Error, format!("Unable to set frame size: {:?}", e));
+                        }
                     }
                     WindowEvent::KeyboardInput { input, .. } => {
                         if let Some(key_code) = input.virtual_keycode {

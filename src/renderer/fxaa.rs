@@ -6,7 +6,7 @@ use crate::{
     },
     renderer::framework::{
         error::FrameworkError,
-        framebuffer::{CullFace, DrawParameters},
+        framebuffer::DrawParameters,
         gpu_program::{GpuProgram, UniformLocation},
         gpu_texture::GpuTexture,
         state::PipelineState,
@@ -82,15 +82,15 @@ impl FxaaRenderer {
             viewport,
             &self.shader.program,
             &DrawParameters {
-                cull_face: CullFace::Back,
-                culling: false,
+                cull_face: None,
                 color_write: Default::default(),
                 depth_write: false,
-                stencil_test: false,
+                stencil_test: None,
                 depth_test: false,
-                blend: false,
+                blend: None,
+                stencil_op: Default::default(),
             },
-            |program_binding| {
+            |mut program_binding| {
                 program_binding
                     .set_matrix4(&self.shader.wvp_matrix, &frame_matrix)
                     .set_vector2(

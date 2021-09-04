@@ -1,6 +1,9 @@
 #version 330 core
 
+// IMPORTANT: UI is rendered in sRGB color space!
+
 uniform sampler2D diffuseTexture;
+
 uniform bool isFont;
 uniform vec4 solidColor;
 uniform float opacity;
@@ -71,13 +74,15 @@ void main()
         fragColor = mix(gradientColors[current], gradientColors[next], mix_factor);
     }
 
+    vec4 diffuseColor = texture(diffuseTexture, texCoord);
+
     if (isFont)
     {
-        fragColor.a *= texture(diffuseTexture, texCoord).r;
+        fragColor.a *= diffuseColor.r;
     }
     else
     {
-        fragColor *= texture(diffuseTexture, texCoord);
+        fragColor *= diffuseColor;
     }
 
     fragColor.a *= opacity;

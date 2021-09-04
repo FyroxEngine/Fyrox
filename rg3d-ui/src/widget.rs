@@ -62,6 +62,7 @@ pub struct Widget<M: MessageData, C: Control<M, C>> {
     tooltip_time: f32,
     context_menu: Handle<UINode<M, C>>,
     pub(in crate) preview_messages: bool,
+    pub(in crate) handle_os_events: bool,
 
     /// Layout. Interior mutability is a must here because layout performed in
     /// a series of recursive calls.
@@ -720,6 +721,7 @@ pub struct WidgetBuilder<M: MessageData, C: Control<M, C>> {
     pub tooltip_time: f32,
     pub context_menu: Handle<UINode<M, C>>,
     pub preview_messages: bool,
+    pub handle_os_events: bool,
 }
 
 impl<M: MessageData, C: Control<M, C>> Default for WidgetBuilder<M, C> {
@@ -759,11 +761,17 @@ impl<M: MessageData, C: Control<M, C>> WidgetBuilder<M, C> {
             tooltip_time: 1.0,
             context_menu: Handle::default(),
             preview_messages: false,
+            handle_os_events: false,
         }
     }
 
     pub fn with_preview_messages(mut self, state: bool) -> Self {
         self.preview_messages = state;
+        self
+    }
+
+    pub fn with_handle_os_events(mut self, state: bool) -> Self {
+        self.handle_os_events = state;
         self
     }
 
@@ -969,6 +977,7 @@ impl<M: MessageData, C: Control<M, C>> WidgetBuilder<M, C> {
             tooltip_time: self.tooltip_time,
             context_menu: self.context_menu,
             preview_messages: self.preview_messages,
+            handle_os_events: self.handle_os_events,
         }
     }
 }
