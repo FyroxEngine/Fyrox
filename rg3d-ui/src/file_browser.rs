@@ -237,8 +237,20 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileBrowser<M, C> {
                             }
                         }
                         FileBrowserMessage::Add(path) => {
+                            let path = match self.root {
+                                Some(ref root) => {
+                                    let remove_prefix = if *root == PathBuf::from(".") {
+                                        std::env::current_dir().unwrap()
+                                    } else {
+                                        root.clone()
+                                    };
+                                    PathBuf::from("./")
+                                        .join(path.strip_prefix(remove_prefix).unwrap_or(path))
+                                }
+                                None => path.clone(),
+                            };
                             if let Some(filter) = self.filter.as_mut() {
-                                if !filter.0.borrow_mut().deref_mut().lock().unwrap()(path) {
+                                if !filter.0.borrow_mut().deref_mut().lock().unwrap()(&path) {
                                     return;
                                 }
                             }
@@ -246,13 +258,26 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileBrowser<M, C> {
                             parent_path.pop();
                             let existing_parent_node = find_tree(self.tree_root, &parent_path, ui);
                             if existing_parent_node.is_some() {
-                                build_tree(
-                                    existing_parent_node,
-                                    existing_parent_node == self.tree_root,
-                                    path,
-                                    &parent_path,
-                                    ui,
-                                );
+                                match ui.node(existing_parent_node) {
+                                    UINode::Tree(tree) => {
+                                        if tree.expanded() {
+                                            build_tree(
+                                                existing_parent_node,
+                                                existing_parent_node == self.tree_root,
+                                                path,
+                                                parent_path,
+                                                ui,
+                                            );
+                                        } else if !tree.expander_shown() {
+                                            ui.send_message(TreeMessage::set_expander_shown(
+                                                tree.handle(),
+                                                MessageDirection::ToWidget,
+                                                true,
+                                            ))
+                                        }
+                                    }
+                                    _ => todo!(),
+                                }
                             }
                         }
                         FileBrowserMessage::Remove(_path) => {
@@ -394,12 +419,13 @@ fn find_tree<M: MessageData, C: Control<M, C>, P: AsRef<Path>>(
             let tree_path = tree.user_data_ref::<PathBuf>().unwrap();
             if tree_path == path.as_ref() {
                 tree_handle = node;
-            }
-            for &item in tree.items() {
-                let tree = find_tree(item, path, ui);
-                if tree.is_some() {
-                    tree_handle = tree;
-                    break;
+            } else {
+                for &item in tree.items() {
+                    let tree = find_tree(item, path, ui);
+                    if tree.is_some() {
+                        tree_handle = tree;
+                        break;
+                    }
                 }
             }
         }
@@ -834,8 +860,7 @@ fn setup_filebrowser_fs_watcher<M: MessageData, C: Control<M, C>>(
                 println!("Waiting for FS Watcher Event....");
                 match rx.recv() {
                     Ok(event) => match event {
-                        notify::DebouncedEvent::NoticeRemove(path)
-                        | notify::DebouncedEvent::Remove(path) => {
+                        notify::DebouncedEvent::Remove(path) => {
                             println!("Sent Remove Message");
                             match ui_sender.send(FileBrowserMessage::remove(
                                 filebrowser_widget_handle,
@@ -861,9 +886,24 @@ fn setup_filebrowser_fs_watcher<M: MessageData, C: Control<M, C>>(
                                 MessageDirection::ToWidget,
                             ));
                         }
-                        _ => {
-                            println!("Ignored FS Watcher Event");
-                            ()
+                        notify::DebouncedEvent::NoticeRemove(_) => {
+                            println!(
+                                "FileBrowser: Ignored Superfluous NoticeRemove FS Watcher Event"
+                            );
+                        }
+                        notify::DebouncedEvent::NoticeWrite(_) => {
+                            println!(
+                                "FileBrowser: Ignored Superfluous NoticeWrite FS Watcher Event"
+                            );
+                        }
+                        notify::DebouncedEvent::Write(_) => {
+                            println!("FileBrowser: Ignored Superfluous Write FS Watcher Event");
+                        }
+                        notify::DebouncedEvent::Chmod(_) => {
+                            println!("FileBrowser: Ignored Superfluous Chmod FS Watcher Event");
+                        }
+                        notify::DebouncedEvent::Rename(_, _) => {
+                            println!("FileBrowser: Ignored Superfluous Rename FS Watcher Event");
                         }
                     },
                     Err(_) => {

@@ -166,6 +166,9 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tree<M, C> {
                                 }
                             }
                         }
+                        &TreeMessage::SetExpanderShown(show) => {
+                            self.always_show_expander = show;
+                        }
                         &TreeMessage::AddItem(item) => {
                             ui.send_message(WidgetMessage::link(
                                 item,
@@ -258,6 +261,14 @@ impl<M: MessageData, C: Control<M, C>> Tree<M, C> {
             let panel = tree.panel;
             ctx.link(item, panel);
         }
+    }
+
+    pub fn expanded(&self) -> bool {
+        self.is_expanded
+    }
+
+    pub fn expander_shown(&self) -> bool {
+        self.always_show_expander
     }
 }
 

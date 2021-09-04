@@ -597,16 +597,18 @@ pub enum TreeMessage<M: MessageData, C: Control<M, C>> {
     },
     AddItem(Handle<UINode<M, C>>),
     RemoveItem(Handle<UINode<M, C>>),
+    SetExpanderShown(bool),
     SetItems(Vec<Handle<UINode<M, C>>>),
     // Private, do not use. For internal needs only. Use TreeRootMessage::Selected.
     Select(SelectionState),
 }
 
 impl<M: MessageData, C: Control<M, C>> TreeMessage<M, C> {
+    define_constructor!(Tree(TreeMessage:Expand) => fn expand(expand: bool, expansion_strategy: TreeExpansionStrategy), layout: false);
     define_constructor!(Tree(TreeMessage:AddItem) => fn add_item(Handle<UINode<M, C>>), layout: false);
     define_constructor!(Tree(TreeMessage:RemoveItem) => fn remove_item(Handle<UINode<M, C>>), layout: false);
+    define_constructor!(Tree(TreeMessage:SetExpanderShown) => fn set_expander_shown(bool), layout: false);
     define_constructor!(Tree(TreeMessage:SetItems) => fn set_items(Vec<Handle<UINode<M, C>>>), layout: false);
-    define_constructor!(Tree(TreeMessage:Expand) => fn expand(expand: bool, expansion_strategy: TreeExpansionStrategy), layout: false);
 
     pub(in crate) fn select(
         destination: Handle<UINode<M, C>>,
