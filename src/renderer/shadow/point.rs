@@ -8,7 +8,7 @@ use crate::{
     renderer::{
         apply_material,
         batch::BatchStorage,
-        cache::{ShaderCache, TextureCache},
+        cache::{shader::ShaderCache, texture::TextureCache},
         framework::{
             error::FrameworkError,
             framebuffer::{Attachment, AttachmentKind, FrameBuffer},

@@ -5,7 +5,7 @@ use crate::{
         math::Rect,
     },
     renderer::{
-        cache::TextureCache,
+        cache::texture::TextureCache,
         framework::{
             error::FrameworkError,
             framebuffer::{Attachment, AttachmentKind, DrawParameters, FrameBuffer},

@@ -33,8 +33,6 @@ mod sprite_renderer;
 mod ssao;
 mod ui_renderer;
 
-use crate::material::shader::SamplerFallback;
-use crate::renderer::cache::ShaderCache;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector3},
@@ -45,11 +43,12 @@ use crate::{
         scope_profile,
     },
     gui::{draw::DrawingContext, message::MessageData, Control, UserInterface},
-    material::{Material, PropertyValue},
+    material::{shader::SamplerFallback, Material, PropertyValue},
     renderer::{
         batch::BatchStorage,
         bloom::BloomRenderer,
-        cache::{CacheEntry, GeometryCache, TextureCache},
+        cache::shader::ShaderCache,
+        cache::{geometry::GeometryCache, texture::TextureCache, CacheEntry},
         debug_renderer::DebugRenderer,
         flat_shader::FlatShader,
         forward_renderer::{ForwardRenderContext, ForwardRenderer},

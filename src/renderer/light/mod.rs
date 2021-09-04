@@ -1,6 +1,3 @@
-use crate::renderer::cache::ShaderCache;
-use crate::renderer::framework::framebuffer::FrameBuffer;
-use crate::renderer::framework::state::{BlendFactor, BlendFunc, CompareFunc, StencilAction};
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3},
@@ -10,12 +7,16 @@ use crate::{
     },
     renderer::{
         batch::BatchStorage,
+        cache::shader::ShaderCache,
         flat_shader::FlatShader,
         framework::{
             error::FrameworkError,
-            framebuffer::{CullFace, DrawParameters},
+            framebuffer::{CullFace, DrawParameters, FrameBuffer},
             gpu_texture::GpuTexture,
-            state::{ColorMask, PipelineState, StencilFunc, StencilOp},
+            state::{
+                BlendFactor, BlendFunc, ColorMask, CompareFunc, PipelineState, StencilAction,
+                StencilFunc, StencilOp,
+            },
         },
         gbuffer::GBuffer,
         light::{

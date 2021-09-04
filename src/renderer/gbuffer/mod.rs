@@ -19,7 +19,7 @@ use crate::{
     renderer::{
         apply_material,
         batch::BatchStorage,
-        cache::ShaderCache,
+        cache::shader::ShaderCache,
         framework::{
             error::FrameworkError,
             framebuffer::{Attachment, AttachmentKind, DrawParameters, FrameBuffer},
