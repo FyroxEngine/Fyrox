@@ -774,11 +774,7 @@ impl ResourceManager {
         let textures = {
             let state = self.state();
 
-            let textures = state
-                .textures
-                .iter()
-                .map(|e| e.clone())
-                .collect::<Vec<Texture>>();
+            let textures = state.textures.iter().cloned().collect::<Vec<Texture>>();
 
             for resource in textures.iter().cloned() {
                 let path = resource.state().path().to_path_buf();
@@ -819,7 +815,7 @@ impl ResourceManager {
             let this = self.clone();
             let state = self.state();
 
-            let models = state.models.iter().map(|m| m.clone()).collect::<Vec<_>>();
+            let models = state.models.iter().cloned().collect::<Vec<_>>();
 
             for model in models.iter().cloned() {
                 let this = this.clone();
@@ -855,7 +851,7 @@ impl ResourceManager {
         let shaders = {
             let state = self.state();
 
-            let shaders = state.shaders.iter().map(|m| m.clone()).collect::<Vec<_>>();
+            let shaders = state.shaders.iter().cloned().collect::<Vec<_>>();
 
             for shader in shaders.iter().cloned() {
                 let path = shader.state().path().to_path_buf();
@@ -892,7 +888,7 @@ impl ResourceManager {
             let sound_buffers = state
                 .sound_buffers
                 .iter()
-                .map(|b| b.clone())
+                .cloned()
                 .collect::<Vec<SoundBufferResource>>();
 
             for resource in sound_buffers.iter().cloned() {
