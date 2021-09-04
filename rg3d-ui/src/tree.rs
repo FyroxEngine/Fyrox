@@ -45,14 +45,12 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tree<M, C> {
     fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
         let size = self.widget.arrange_override(ui, final_size);
 
-        if !self.always_show_expander {
-            let expander_visibility = !self.items.is_empty();
-            ui.send_message(WidgetMessage::visibility(
-                self.expander,
-                MessageDirection::ToWidget,
-                expander_visibility,
-            ));
-        }
+        let expander_visibility = !self.items.is_empty() || self.always_show_expander;
+        ui.send_message(WidgetMessage::visibility(
+            self.expander,
+            MessageDirection::ToWidget,
+            expander_visibility,
+        ));
 
         size
     }
@@ -168,6 +166,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tree<M, C> {
                         }
                         &TreeMessage::SetExpanderShown(show) => {
                             self.always_show_expander = show;
+                            self.invalidate_arrange();
                         }
                         &TreeMessage::AddItem(item) => {
                             ui.send_message(WidgetMessage::link(
@@ -319,15 +318,12 @@ impl<M: MessageData, C: Control<M, C>> TreeBuilder<M, C> {
     }
 
     pub fn build_tree(self, ctx: &mut BuildContext<M, C>) -> Tree<M, C> {
-        let expander = ButtonBuilder::new(
-            WidgetBuilder::new()
-                .with_width(20.0)
-                .with_visibility(self.always_show_expander || !self.items.is_empty())
-                .on_row(0)
-                .on_column(0),
-        )
-        .with_text(if self.is_expanded { "-" } else { "+" })
-        .build(ctx);
+        let expander = build_expander_button(
+            self.always_show_expander,
+            !self.items.is_empty(),
+            self.is_expanded,
+            ctx,
+        );
 
         if self.content.is_some() {
             ctx[self.content].set_row(0).set_column(1);
@@ -410,6 +406,23 @@ impl<M: MessageData, C: Control<M, C>> TreeBuilder<M, C> {
         let tree = self.build_tree(ctx);
         ctx.add_node(UINode::Tree(tree))
     }
+}
+
+fn build_expander_button<M: MessageData, C: Control<M, C>>(
+    always_show_expander: bool,
+    items_populated: bool,
+    is_expanded: bool,
+    ctx: &mut BuildContext<M, C>,
+) -> Handle<UINode<M, C>> {
+    ButtonBuilder::new(
+        WidgetBuilder::new()
+            .with_width(20.0)
+            .with_visibility(always_show_expander || items_populated)
+            .on_row(0)
+            .on_column(0),
+    )
+    .with_text(if is_expanded { "-" } else { "+" })
+    .build(ctx)
 }
 
 #[derive(Debug, Clone)]
