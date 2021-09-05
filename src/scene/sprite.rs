@@ -1,27 +1,61 @@
 //! Contains all structures and methods to create and manage sprites.
 //!
-//! Sprite is billboard which always faces towards camera. It can be used
-//! as a "model" for bullets, and so on.
-//!
-//! # Performance
-//!
-//! Huge amount of sprites may cause performance issues, also uou should
-//! not use sprites to make particle systems, use ParticleSystem instead.
+//! For more info see [`Sprite`].
 
-use crate::core::pool::Handle;
-use crate::scene::graph::Graph;
-use crate::scene::node::Node;
 use crate::{
     core::{
         color::Color,
+        pool::Handle,
         visitor::{Visit, VisitResult, Visitor},
     },
     resource::texture::Texture,
-    scene::base::{Base, BaseBuilder},
+    scene::{
+        base::{Base, BaseBuilder},
+        graph::Graph,
+        node::Node,
+    },
 };
 use std::ops::{Deref, DerefMut};
 
-/// See module docs.
+/// Sprite is billboard which always faces towards camera. It can be used as a "model" for bullets, and so on.
+///
+/// # Implementation details
+///
+/// Sprite is just a ready-to-use mesh with special material that ensures that the orientation of the faces
+/// in the mesh is always on camera. Nothing stops you from implementing this manually using [Mesh](super::mesh::Mesh),
+/// it could be done by using Forward render pass. You may need this for custom effects. Current implementation
+/// is very simple, but still covers 95% of use cases.
+///
+/// # Depth sorting
+///
+/// Sprites are **not** depth-sorted so there could be some blending issues if multiple sprites are stacked one behind
+/// another.
+///
+/// # Performance
+///
+/// Huge amount of sprites may cause performance issues, also you should not use sprites to make particle systems,
+/// use [ParticleSystem](super::particle_system::ParticleSystem) instead.
+///
+/// # Example
+///
+/// ```rust
+/// use rg3d::{
+///     scene::{
+///         node::Node,
+///         sprite::SpriteBuilder,
+///         base::BaseBuilder,
+///         graph::Graph
+///     },
+///     engine::resource_manager::ResourceManager,
+///     core::pool::{Handle},
+/// };
+///
+/// fn create_smoke(resource_manager: ResourceManager, graph: &mut Graph) -> Handle<Node> {
+///     SpriteBuilder::new(BaseBuilder::new())
+///         .with_texture(resource_manager.request_texture("smoke.png", None))
+///         .build(graph)
+/// }
+/// ```
 #[derive(Debug)]
 pub struct Sprite {
     base: Base,
@@ -63,8 +97,10 @@ impl Sprite {
         }
     }
 
-    /// Sets new size of sprite. Since sprite is always square, size
-    /// defines half of width or height, so actual size will be doubled.    
+    /// Sets new size of sprite. Since sprite is always square, size defines half of width or height, so actual size
+    /// will be doubled. Default value is 0.2.    
+    ///
+    /// Negative values could be used to "inverse" the image on the sprite.
     pub fn set_size(&mut self, size: f32) {
         self.size = size;
     }
@@ -74,7 +110,7 @@ impl Sprite {
         self.size
     }
 
-    /// Sets new color of sprite.
+    /// Sets new color of sprite. Default is White.
     pub fn set_color(&mut self, color: Color) {
         self.color = color;
     }
@@ -84,7 +120,7 @@ impl Sprite {
         self.color
     }
 
-    /// Sets rotation around "look" axis in radians.
+    /// Sets rotation around "look" axis in radians. Default is 0.0.
     pub fn set_rotation(&mut self, rotation: f32) {
         self.rotation = rotation;
     }
@@ -94,19 +130,17 @@ impl Sprite {
         self.rotation
     }
 
-    /// Sets new texture for sprite.
+    /// Sets new texture for sprite. Default is None.
     pub fn set_texture(&mut self, texture: Option<Texture>) {
         self.texture = texture;
     }
 
-    /// Returns current texture of sprite. Can be None if sprite has
-    /// no texture.
+    /// Returns current texture of sprite. Can be None if sprite has no texture.
     pub fn texture(&self) -> Option<Texture> {
         self.texture.clone()
     }
 
-    /// Returns current texture of sprite by ref. Can be None if sprite has
-    /// no texture.
+    /// Returns current texture of sprite by ref. Can be None if sprite has no texture.
     pub fn texture_ref(&self) -> Option<&Texture> {
         self.texture.as_ref()
     }
