@@ -278,9 +278,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileBrowser<M, C> {
                                 ))
                             }
                         }
-                        FileBrowserMessage::Rescan => {
-                            println!("FileBrowserMessage::Rescan Received and Ignored");
-                        }
+                        FileBrowserMessage::Rescan => (),
                     }
                 }
             }
@@ -882,22 +880,16 @@ fn setup_filebrowser_fs_watcher<M: MessageData, C: Control<M, C>>(
         Ok(mut watcher) => {
             #[allow(clippy::while_let_loop)]
             let watcher_conversion_thread = std::thread::spawn(move || loop {
-                println!("Waiting for FS Watcher Event....");
                 match rx.recv() {
                     Ok(event) => match event {
                         notify::DebouncedEvent::Remove(path) => {
-                            println!("Sent Remove Message");
-                            match ui_sender.send(FileBrowserMessage::remove(
+                            let _ = ui_sender.send(FileBrowserMessage::remove(
                                 filebrowser_widget_handle,
                                 MessageDirection::ToWidget,
                                 path,
-                            )) {
-                                Ok(_) => println!("Successfully sent Remove message"),
-                                Err(_) => println!("Failed to Send Remove Message"),
-                            }
+                            ));
                         }
                         notify::DebouncedEvent::Create(path) => {
-                            println!("Sent Create Message");
                             let _ = ui_sender.send(FileBrowserMessage::add(
                                 filebrowser_widget_handle,
                                 MessageDirection::ToWidget,
@@ -905,42 +897,22 @@ fn setup_filebrowser_fs_watcher<M: MessageData, C: Control<M, C>>(
                             ));
                         }
                         notify::DebouncedEvent::Rescan | notify::DebouncedEvent::Error(_, _) => {
-                            println!("Sent Rescan Message");
                             let _ = ui_sender.send(FileBrowserMessage::rescan(
                                 filebrowser_widget_handle,
                                 MessageDirection::ToWidget,
                             ));
                         }
-                        notify::DebouncedEvent::NoticeRemove(_) => {
-                            println!(
-                                "FileBrowser: Ignored Superfluous NoticeRemove FS Watcher Event"
-                            );
-                        }
-                        notify::DebouncedEvent::NoticeWrite(_) => {
-                            println!(
-                                "FileBrowser: Ignored Superfluous NoticeWrite FS Watcher Event"
-                            );
-                        }
-                        notify::DebouncedEvent::Write(_) => {
-                            println!("FileBrowser: Ignored Superfluous Write FS Watcher Event");
-                        }
-                        notify::DebouncedEvent::Chmod(_) => {
-                            println!("FileBrowser: Ignored Superfluous Chmod FS Watcher Event");
-                        }
-                        notify::DebouncedEvent::Rename(_, _) => {
-                            println!("FileBrowser: Ignored Superfluous Rename FS Watcher Event");
-                        }
+                        notify::DebouncedEvent::NoticeRemove(_) => (),
+                        notify::DebouncedEvent::NoticeWrite(_) => (),
+                        notify::DebouncedEvent::Write(_) => (),
+                        notify::DebouncedEvent::Chmod(_) => (),
+                        notify::DebouncedEvent::Rename(_, _) => (),
                     },
                     Err(_) => {
-                        println!("Breaking out of FS Watcher Event Loop");
                         break;
                     }
                 };
             });
-            println!(
-                "Starting FS Event watch on Path: {}",
-                the_path.to_str().unwrap()
-            );
             let _ = watcher.watch(the_path, notify::RecursiveMode::Recursive);
             Some((watcher, watcher_conversion_thread))
         }

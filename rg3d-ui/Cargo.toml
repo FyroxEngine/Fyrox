@@ -16,7 +16,6 @@ lazy_static = "1.4.0"
 copypasta = "0.7.1"
 fontdue = "0.5.2"
 notify = "4.0"
-###uuid = { version = "0.8", features = ["v4"] }
 
 [features]
 enable_profiler = ["rg3d-core/enable_profiler"]
