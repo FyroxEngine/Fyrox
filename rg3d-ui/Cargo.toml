@@ -15,6 +15,7 @@ rg3d-core = { path = "../rg3d-core", version = "0.17.1" }
 lazy_static = "1.4.0"
 copypasta = "0.7.1"
 fontdue = "0.5.2"
+notify = "4.0"
 
 [features]
 enable_profiler = ["rg3d-core/enable_profiler"]
