@@ -2,6 +2,8 @@
 //!
 //! For more info see [`Node`]
 
+#![warn(missing_docs)]
+
 use crate::{
     core::{
         define_is_as,

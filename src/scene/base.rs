@@ -1,10 +1,6 @@
 //! Contains all structures and methods to create and manage base scene graph nodes.
 //!
-//! Base scene graph node is a simplest possible node, it is used to build more complex
-//! ones using composition. It contains all fundamental properties for each scene graph
-//! nodes, like local and global transforms, name, lifetime, etc. Base node is a building
-//! block for all complex node hierarchies - it contains list of children and handle to
-//! parent node.
+//! For more info see [`Base`]
 
 use crate::{
     core::{
@@ -27,9 +23,14 @@ pub enum PhysicsBinding {
     /// This is default binding.
     NodeWithBody = 0,
 
-    /// Forces engine to sync transform of a rigid body with its associated node.
-    /// This could be useful for specific situations like add "hit boxes"
-    /// to a character.
+    /// Forces engine to sync transform of a rigid body with its associated node. This could be useful for
+    /// specific situations like add "hit boxes" to a character.
+    ///
+    /// # Use cases
+    ///
+    /// This option has limited usage, but the most common is to create hit boxes. To do that create kinematic
+    /// rigid bodies with appropriate colliders and set [`PhysicsBinding::BodyWithNode`] binding to make them
+    /// move together with parent nodes.
     BodyWithNode = 1,
 }
 
@@ -65,7 +66,7 @@ impl Visit for PhysicsBinding {
 /// Normalized distance is a distance in (0; 1) range where 0 - closest to camera,
 /// 1 - farthest. Real distance can be obtained by multiplying normalized distance
 /// with z_far of current projection matrix.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Visit)]
 pub struct LevelOfDetail {
     begin: f32,
     end: f32,
@@ -119,18 +120,6 @@ impl LevelOfDetail {
     }
 }
 
-impl Visit for LevelOfDetail {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.begin.visit("Begin", visitor)?;
-        self.end.visit("End", visitor)?;
-        self.objects.visit("Objects", visitor)?;
-
-        visitor.leave_region()
-    }
-}
-
 /// LOD (Level-Of-Detail) group is a set of cascades (levels), where each cascade takes specific
 /// distance range. Each cascade contains list of objects that should or shouldn't be rendered
 /// if distance satisfy cascade range. LOD may significantly improve performance if your scene
@@ -141,20 +130,10 @@ impl Visit for LevelOfDetail {
 /// Lod group must contain non-overlapping cascades, each cascade with its own set of objects
 /// that belongs to level of detail. Engine does not care if you create overlapping cascades,
 /// it is your responsibility to create non-overlapping cascades.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Visit)]
 pub struct LodGroup {
     /// Set of cascades.
     pub levels: Vec<LevelOfDetail>,
-}
-
-impl Visit for LodGroup {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.levels.visit("Levels", visitor)?;
-
-        visitor.leave_region()
-    }
 }
 
 /// Mobility defines a group for scene node which has direct impact on performance
@@ -221,7 +200,25 @@ impl Visit for Mobility {
     }
 }
 
-/// See module docs.
+/// Base scene graph node is a simplest possible node, it is used to build more complex ones using composition.
+/// It contains all fundamental properties for each scene graph nodes, like local and global transforms, name,
+/// lifetime, etc. Base node is a building block for all complex node hierarchies - it contains list of children
+/// and handle to parent node.
+///
+/// # Example
+///
+/// ```
+/// use rg3d::scene::base::BaseBuilder;
+/// use rg3d::scene::graph::Graph;
+/// use rg3d::scene::node::Node;
+/// use rg3d::core::pool::Handle;
+///
+/// fn create_base_node(graph: &mut Graph) -> Handle<Node> {
+///     BaseBuilder::new()
+///         .with_name("BaseNode")
+///         .build(graph)
+/// }
+/// ```
 #[derive(Debug)]
 pub struct Base {
     name: String,
@@ -231,20 +228,20 @@ pub struct Base {
     pub(in crate) parent: Handle<Node>,
     pub(in crate) children: Vec<Handle<Node>>,
     pub(in crate) global_transform: Cell<Matrix4<f32>>,
-    /// Bone-specific matrix. Non-serializable.
+    // Bone-specific matrix. Non-serializable.
     pub(in crate) inv_bind_pose_transform: Matrix4<f32>,
-    /// A resource from which this node was instantiated from, can work in pair
-    /// with `original` handle to get corresponding node from resource.
+    // A resource from which this node was instantiated from, can work in pair
+    // with `original` handle to get corresponding node from resource.
     pub(in crate) resource: Option<Model>,
-    /// Handle to node in scene of model resource from which this node
-    /// was instantiated from.
+    // Handle to node in scene of model resource from which this node
+    // was instantiated from.
     pub(in crate) original_handle_in_resource: Handle<Node>,
-    /// When `true` it means that this node is instance of `resource`.
-    /// More precisely - this node is root of whole descendant nodes
-    /// hierarchy which was instantiated from resource.
+    // When `true` it means that this node is instance of `resource`.
+    // More precisely - this node is root of whole descendant nodes
+    // hierarchy which was instantiated from resource.
     pub(in crate) is_resource_instance_root: bool,
-    /// Maximum amount of Some(time) that node will "live" or None
-    /// if node has undefined lifetime.
+    // Maximum amount of Some(time) that node will "live" or None
+    // if node has undefined lifetime.
     pub(in crate) lifetime: Option<f32>,
     depth_offset: f32,
     lod_group: Option<LodGroup>,
@@ -354,19 +351,21 @@ impl Base {
         self.visibility
     }
 
-    /// Returns combined visibility of an node. This is the final visibility of a node.
-    /// Global visibility calculated using visibility of all parent nodes until root one,
-    /// so if some parent node upper on tree is invisible then all its children will be
-    /// invisible. It defines if object will be rendered. It is *not* the same as real
-    /// visibility point of view of some camera. To check if object is visible from some
-    /// camera, use frustum visibility check. However this still can't tell you if object
-    /// is behind obstacle or not.
+    /// Returns combined visibility of an node. This is the final visibility of a node. Global visibility calculated
+    /// using visibility of all parent nodes until root one, so if some parent node upper on tree is invisible then
+    /// all its children will be invisible. It defines if object will be rendered. It is *not* the same as real
+    /// visibility from point of view of a camera. To check if object is visible from some camera, use
+    /// [VisibilityCache](super::VisibilityCache). However this still can't tell you if object is behind obstacle or not.
     pub fn global_visibility(&self) -> bool {
         self.global_visibility.get()
     }
 
-    /// Handle to node in scene of model resource from which this node
-    /// was instantiated from.
+    /// Handle to node in scene of model resource from which this node was instantiated from.
+    ///
+    /// # Notes
+    ///
+    /// This handle is extensively used to fetch information about the state of node in the resource
+    /// to sync properties of instance with its original in the resource.
     pub fn original_handle_in_resource(&self) -> Handle<Node> {
         self.original_handle_in_resource
     }
@@ -376,33 +375,29 @@ impl Base {
         self.global_transform.get().position()
     }
 
-    /// Returns "look" vector of global transform basis, in most cases return vector
-    /// will be non-normalized.
+    /// Returns "look" vector of global transform basis, in most cases return vector will be non-normalized.
     pub fn look_vector(&self) -> Vector3<f32> {
         self.global_transform.get().look()
     }
 
-    /// Returns "side" vector of global transform basis, in most cases return vector
-    /// will be non-normalized.
+    /// Returns "side" vector of global transform basis, in most cases return vector will be non-normalized.
     pub fn side_vector(&self) -> Vector3<f32> {
         self.global_transform.get().side()
     }
 
-    /// Returns "up" vector of global transform basis, in most cases return vector
-    /// will be non-normalized.
+    /// Returns "up" vector of global transform basis, in most cases return vector will be non-normalized.
     pub fn up_vector(&self) -> Vector3<f32> {
         self.global_transform.get().up()
     }
 
-    /// Sets depth range offset factor. It allows you to move depth range by given
-    /// value. This can be used to draw weapons on top of other stuff in scene.
+    /// Sets depth range offset factor. It allows you to move depth range by given value. This can be used
+    /// to draw weapons on top of other stuff in scene.
     ///
     /// # Details
     ///
-    /// This value is used to modify projection matrix before render node.
-    /// Element m\[4\]\[3\] of projection matrix usually set to -1 to which makes w coordinate
-    /// of in homogeneous space to be -z_fragment for further perspective divide. We can
-    /// abuse this to shift z of fragment by some value.
+    /// This value is used to modify projection matrix before render node. Element m\[4\]\[3\] of projection
+    /// matrix usually set to -1 to which makes w coordinate of in homogeneous space to be -z_fragment for
+    /// further perspective divide. We can abuse this to shift z of fragment by some value.
     pub fn set_depth_offset_factor(&mut self, factor: f32) {
         self.depth_offset = factor.abs().min(1.0).max(0.0);
     }
