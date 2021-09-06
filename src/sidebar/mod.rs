@@ -20,7 +20,7 @@ use rg3d::{
         scroll_viewer::ScrollViewerBuilder,
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
-        vec::Vec3EditorBuilder,
+        vec::vec3::Vec3EditorBuilder,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
         HorizontalAlignment, Thickness, VerticalAlignment,

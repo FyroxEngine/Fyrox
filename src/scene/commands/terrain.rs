@@ -24,7 +24,7 @@ impl AddTerrainLayerCommand {
             layers: terrain
                 .chunks_ref()
                 .iter()
-                .map(|c| terrain.create_layer(0, |mask| create_terrain_layer_material(mask)))
+                .map(|_| terrain.create_layer(0, |mask| create_terrain_layer_material(mask)))
                 .collect(),
         }
     }
