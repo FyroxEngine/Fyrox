@@ -1,35 +1,34 @@
-use crate::core::algebra::Vector3;
-use crate::message::{MessageData, MessageDirection};
 use crate::{
-    border::BorderBuilder,
-    brush::Brush,
-    core::{color::Color, pool::Handle},
+    core::{algebra::Vector4, color::Color, pool::Handle},
     grid::{Column, GridBuilder, Row},
-    message::{NumericUpDownMessage, UiMessage, UiMessageData, Vec3EditorMessage},
+    message::{
+        MessageData, MessageDirection, NumericUpDownMessage, UiMessage, UiMessageData,
+        Vec4EditorMessage,
+    },
     node::UINode,
-    numeric::NumericUpDownBuilder,
-    text::TextBuilder,
-    BuildContext, Control, NodeHandleMapping, Thickness, UserInterface, VerticalAlignment, Widget,
-    WidgetBuilder,
+    vec::{make_mark, make_numeric_input},
+    BuildContext, Control, NodeHandleMapping, UserInterface, Widget, WidgetBuilder,
 };
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone)]
-pub struct Vec3Editor<M: MessageData, C: Control<M, C>> {
+pub struct Vec4Editor<M: MessageData, C: Control<M, C>> {
     widget: Widget<M, C>,
     x_field: Handle<UINode<M, C>>,
     y_field: Handle<UINode<M, C>>,
     z_field: Handle<UINode<M, C>>,
-    value: Vector3<f32>,
+    w_field: Handle<UINode<M, C>>,
+    value: Vector4<f32>,
 }
 
-crate::define_widget_deref!(Vec3Editor<M, C>);
+crate::define_widget_deref!(Vec4Editor<M, C>);
 
-impl<M: MessageData, C: Control<M, C>> Control<M, C> for Vec3Editor<M, C> {
+impl<M: MessageData, C: Control<M, C>> Control<M, C> for Vec4Editor<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
         node_map.resolve(&mut self.x_field);
         node_map.resolve(&mut self.y_field);
         node_map.resolve(&mut self.z_field);
+        node_map.resolve(&mut self.w_field);
     }
 
     fn handle_routed_message(
@@ -44,26 +43,32 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Vec3Editor<M, C> {
                 if message.direction() == MessageDirection::FromWidget =>
             {
                 if message.destination() == self.x_field {
-                    ui.send_message(Vec3EditorMessage::value(
+                    ui.send_message(Vec4EditorMessage::value(
                         self.handle(),
                         MessageDirection::ToWidget,
-                        Vector3::new(value, self.value.y, self.value.z),
+                        Vector4::new(value, self.value.y, self.value.z, self.value.w),
                     ));
                 } else if message.destination() == self.y_field {
-                    ui.send_message(Vec3EditorMessage::value(
+                    ui.send_message(Vec4EditorMessage::value(
                         self.handle(),
                         MessageDirection::ToWidget,
-                        Vector3::new(self.value.x, value, self.value.z),
+                        Vector4::new(self.value.x, value, self.value.z, self.value.w),
                     ));
                 } else if message.destination() == self.z_field {
-                    ui.send_message(Vec3EditorMessage::value(
+                    ui.send_message(Vec4EditorMessage::value(
                         self.handle(),
                         MessageDirection::ToWidget,
-                        Vector3::new(self.value.x, self.value.y, value),
+                        Vector4::new(self.value.x, self.value.y, value, self.value.w),
+                    ));
+                } else if message.destination() == self.w_field {
+                    ui.send_message(Vec4EditorMessage::value(
+                        self.handle(),
+                        MessageDirection::ToWidget,
+                        Vector4::new(self.value.x, self.value.y, self.value.z, value),
                     ));
                 }
             }
-            UiMessageData::Vec3Editor(Vec3EditorMessage::Value(value))
+            UiMessageData::Vec4Editor(Vec4EditorMessage::Value(value))
                 if message.direction() == MessageDirection::ToWidget =>
             {
                 let mut changed = false;
@@ -94,6 +99,15 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Vec3Editor<M, C> {
                     ));
                     changed = true;
                 }
+                if self.value.w != value.w {
+                    self.value.w = value.w;
+                    ui.send_message(NumericUpDownMessage::value(
+                        self.w_field,
+                        MessageDirection::ToWidget,
+                        value.w,
+                    ));
+                    changed = true;
+                }
                 if changed {
                     ui.send_message(message.reverse());
                 }
@@ -103,52 +117,12 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Vec3Editor<M, C> {
     }
 }
 
-pub struct Vec3EditorBuilder<M: MessageData, C: Control<M, C>> {
+pub struct Vec4EditorBuilder<M: MessageData, C: Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
-    value: Vector3<f32>,
+    value: Vector4<f32>,
 }
 
-pub fn make_numeric_input<M: MessageData, C: Control<M, C>>(
-    ctx: &mut BuildContext<M, C>,
-    column: usize,
-) -> Handle<UINode<M, C>> {
-    NumericUpDownBuilder::new(
-        WidgetBuilder::new()
-            .on_row(0)
-            .on_column(column)
-            .with_margin(Thickness {
-                left: 1.0,
-                top: 0.0,
-                right: 1.0,
-                bottom: 0.0,
-            }),
-    )
-    .build(ctx)
-}
-
-pub fn make_mark<M: MessageData, C: Control<M, C>>(
-    ctx: &mut BuildContext<M, C>,
-    text: &str,
-    column: usize,
-    color: Color,
-) -> Handle<UINode<M, C>> {
-    BorderBuilder::new(
-        WidgetBuilder::new()
-            .on_row(0)
-            .on_column(column)
-            .with_background(Brush::Solid(color))
-            .with_foreground(Brush::Solid(Color::TRANSPARENT))
-            .with_child(
-                TextBuilder::new(WidgetBuilder::new())
-                    .with_vertical_text_alignment(VerticalAlignment::Center)
-                    .with_text(text)
-                    .build(ctx),
-            ),
-    )
-    .build(ctx)
-}
-
-impl<M: MessageData, C: Control<M, C>> Vec3EditorBuilder<M, C> {
+impl<M: MessageData, C: Control<M, C>> Vec4EditorBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
@@ -156,7 +130,7 @@ impl<M: MessageData, C: Control<M, C>> Vec3EditorBuilder<M, C> {
         }
     }
 
-    pub fn with_value(mut self, value: Vector3<f32>) -> Self {
+    pub fn with_value(mut self, value: Vector4<f32>) -> Self {
         self.value = value;
         self
     }
@@ -165,6 +139,7 @@ impl<M: MessageData, C: Control<M, C>> Vec3EditorBuilder<M, C> {
         let x_field;
         let y_field;
         let z_field;
+        let w_field;
         let grid = GridBuilder::new(
             WidgetBuilder::new()
                 .with_child(make_mark(ctx, "X", 0, Color::opaque(120, 0, 0)))
@@ -181,6 +156,11 @@ impl<M: MessageData, C: Control<M, C>> Vec3EditorBuilder<M, C> {
                 .with_child({
                     z_field = make_numeric_input(ctx, 5);
                     z_field
+                })
+                .with_child(make_mark(ctx, "W", 6, Color::opaque(120, 0, 120)))
+                .with_child({
+                    w_field = make_numeric_input(ctx, 7);
+                    w_field
                 }),
         )
         .add_row(Row::stretch())
@@ -190,16 +170,19 @@ impl<M: MessageData, C: Control<M, C>> Vec3EditorBuilder<M, C> {
         .add_column(Column::stretch())
         .add_column(Column::auto())
         .add_column(Column::stretch())
+        .add_column(Column::auto())
+        .add_column(Column::stretch())
         .build(ctx);
 
-        let node = Vec3Editor {
+        let node = Vec4Editor {
             widget: self.widget_builder.with_child(grid).build(),
             x_field,
             y_field,
             z_field,
+            w_field,
             value: self.value,
         };
 
-        ctx.add_node(UINode::Vec3Editor(node))
+        ctx.add_node(UINode::Vec4Editor(node))
     }
 }

@@ -13,6 +13,7 @@
 //! However [WidgetMessage::GotFocus](enum.WidgetMessage.html) has "Direction: From UI" which means that only
 //! internal library code can send such messages without a risk of breaking anything.
 
+use crate::core::algebra::Vector4;
 use crate::{
     brush::Brush,
     core::{
@@ -747,12 +748,30 @@ impl NumericUpDownMessage {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub enum Vec2EditorMessage {
+    Value(Vector2<f32>),
+}
+
+impl Vec2EditorMessage {
+    define_constructor_unbound!(Vec2Editor(Vec2EditorMessage:Value) => fn value(Vector2<f32>), layout: false);
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Vec3EditorMessage {
     Value(Vector3<f32>),
 }
 
 impl Vec3EditorMessage {
     define_constructor_unbound!(Vec3Editor(Vec3EditorMessage:Value) => fn value(Vector3<f32>), layout: false);
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Vec4EditorMessage {
+    Value(Vector4<f32>),
+}
+
+impl Vec4EditorMessage {
+    define_constructor_unbound!(Vec4Editor(Vec4EditorMessage:Value) => fn value(Vector4<f32>), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -951,7 +970,9 @@ pub enum UiMessageData<M: MessageData, C: Control<M, C>> {
     FileSelector(FileSelectorMessage),
     TextBox(TextBoxMessage),
     NumericUpDown(NumericUpDownMessage),
+    Vec2Editor(Vec2EditorMessage),
     Vec3Editor(Vec3EditorMessage),
+    Vec4Editor(Vec4EditorMessage),
     Menu(MenuMessage),
     MenuItem(MenuItemMessage),
     MessageBox(MessageBoxMessage),

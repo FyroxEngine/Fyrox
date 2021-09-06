@@ -29,7 +29,7 @@ use crate::{
     text::Text,
     text_box::TextBox,
     tree::{Tree, TreeRoot},
-    vec::Vec3Editor,
+    vec::{vec2::Vec2Editor, vec3::Vec3Editor, vec4::Vec4Editor},
     vector_image::VectorImage,
     widget::Widget,
     window::Window,
@@ -72,7 +72,9 @@ pub enum UINode<M: MessageData, C: Control<M, C>> {
     FileSelector(FileSelector<M, C>),
     DockingManager(DockingManager<M, C>),
     Tile(Tile<M, C>),
+    Vec2Editor(Vec2Editor<M, C>),
     Vec3Editor(Vec3Editor<M, C>),
+    Vec4Editor(Vec4Editor<M, C>),
     NumericUpDown(NumericUpDown<M, C>),
     Menu(Menu<M, C>),
     MenuItem(MenuItem<M, C>),
@@ -119,7 +121,9 @@ macro_rules! static_dispatch {
             UINode::FileSelector(v) => v.$func($($args),*),
             UINode::DockingManager(v) => v.$func($($args),*),
             UINode::Tile(v) => v.$func($($args),*),
+            UINode::Vec2Editor(v) => v.$func($($args),*),
             UINode::Vec3Editor(v) => v.$func($($args),*),
+            UINode::Vec4Editor(v) => v.$func($($args),*),
             UINode::NumericUpDown(v) => v.$func($($args),*),
             UINode::Menu(v) => v.$func($($args),*),
             UINode::MenuItem(v) => v.$func($($args),*),
@@ -176,7 +180,9 @@ impl<M: MessageData, C: Control<M, C>> UINode<M, C> {
     define_is_as!(UINode : FileSelector -> ref FileSelector<M, C> => fn is_file_selector, fn as_file_selector, fn as_file_selector_mut);
     define_is_as!(UINode : DockingManager -> ref DockingManager<M, C> => fn is_docking_manager, fn as_docking_manager, fn as_docking_manager_mut);
     define_is_as!(UINode : Tile -> ref Tile<M, C> => fn is_tile, fn as_tile, fn as_tile_mut);
+    define_is_as!(UINode : Vec2Editor -> ref Vec2Editor<M, C> => fn is_vec2_editor, fn as_vec2_editor, fn as_vec2_editor_mut);
     define_is_as!(UINode : Vec3Editor -> ref Vec3Editor<M, C> => fn is_vec3_editor, fn as_vec3_editor, fn as_vec3_editor_mut);
+    define_is_as!(UINode : Vec4Editor -> ref Vec4Editor<M, C> => fn is_vec4_editor, fn as_vec4_editor, fn as_vec4_editor_mut);
     define_is_as!(UINode : NumericUpDown -> ref NumericUpDown<M, C> => fn is_numeric_up_down, fn as_numeric_up_down, fn as_numeric_up_down_mut);
     define_is_as!(UINode : Menu -> ref Menu<M, C> => fn is_menu, fn as_menu, fn as_menu_mut);
     define_is_as!(UINode : MenuItem -> ref MenuItem<M, C> => fn is_menu_item, fn as_menu_item, fn as_menu_item_mut);
