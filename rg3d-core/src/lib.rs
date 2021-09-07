@@ -13,6 +13,7 @@ pub use rand;
 pub use uuid;
 
 use crate::visitor::{Visit, VisitResult, Visitor};
+use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::path::{Path, PathBuf};
@@ -126,6 +127,14 @@ impl<K: Hash + Eq + Clone, V: Hash + Eq + Clone> BiDirHashMap<K, V> {
         }
     }
 
+    pub fn contains_key<Q: ?Sized>(&self, key: &Q) -> bool
+    where
+        K: Borrow<Q>,
+        Q: Hash + Eq,
+    {
+        self.forward_map.contains_key(key)
+    }
+
     pub fn remove_by_value(&mut self, value: &V) -> Option<K> {
         if let Some(key) = self.backward_map.remove(value) {
             self.forward_map.remove(&key);
@@ -135,12 +144,28 @@ impl<K: Hash + Eq + Clone, V: Hash + Eq + Clone> BiDirHashMap<K, V> {
         }
     }
 
+    pub fn contains_value<Q: ?Sized>(&self, value: &Q) -> bool
+    where
+        V: Borrow<Q>,
+        Q: Hash + Eq,
+    {
+        self.backward_map.contains_key(value)
+    }
+
     pub fn value_of(&self, node: &K) -> Option<&V> {
         self.forward_map.get(node)
     }
 
     pub fn key_of(&self, value: &V) -> Option<&K> {
         self.backward_map.get(value)
+    }
+
+    pub fn len(&self) -> usize {
+        self.forward_map.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.forward_map.is_empty()
     }
 
     pub fn clear(&mut self) {
