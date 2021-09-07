@@ -1,23 +1,26 @@
-use crate::scene::commands::mesh::SetMeshDecalLayerIndexCommand;
-use crate::sidebar::make_int_input_field;
+use crate::sidebar::make_section;
 use crate::{
     gui::{make_dropdown_list_option, BuildContext, Ui, UiMessage, UiNode},
     scene::commands::{
-        mesh::{SetMeshCastShadowsCommand, SetMeshRenderPathCommand},
+        mesh::{
+            SetMeshCastShadowsCommand, SetMeshDecalLayerIndexCommand, SetMeshRenderPathCommand,
+        },
         SceneCommand,
     },
     send_sync_message,
-    sidebar::{make_bool_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT},
+    sidebar::{
+        make_bool_input_field, make_int_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT,
+    },
     Message,
 };
-use rg3d::gui::message::NumericUpDownMessage;
 use rg3d::{
     core::{pool::Handle, scope_profile},
     gui::{
         dropdown_list::DropdownListBuilder,
         grid::{Column, GridBuilder, Row},
         message::{
-            CheckBoxMessage, DropdownListMessage, MessageDirection, UiMessageData, WidgetMessage,
+            CheckBoxMessage, DropdownListMessage, MessageDirection, NumericUpDownMessage,
+            UiMessageData, WidgetMessage,
         },
         widget::WidgetBuilder,
         Thickness,
@@ -32,6 +35,7 @@ pub struct MeshSection {
     render_path: Handle<UiNode>,
     decal_layer_index: Handle<UiNode>,
     sender: Sender<Message>,
+    surfaces_list: Handle<UiNode>,
 }
 
 impl MeshSection {
@@ -39,41 +43,54 @@ impl MeshSection {
         let cast_shadows;
         let render_path;
         let decal_layer_index;
-        let section = GridBuilder::new(
-            WidgetBuilder::new()
-                .with_child(make_text_mark(ctx, "Cast Shadows", 0))
-                .with_child({
-                    cast_shadows = make_bool_input_field(ctx, 0);
-                    cast_shadows
-                })
-                .with_child(make_text_mark(ctx, "Render Path", 1))
-                .with_child({
-                    render_path = DropdownListBuilder::new(
-                        WidgetBuilder::new()
-                            .on_row(1)
-                            .on_column(1)
-                            .with_margin(Thickness::uniform(1.0)),
-                    )
-                    .with_close_on_selection(true)
-                    .with_items(vec![
-                        make_dropdown_list_option(ctx, "Deferred"),
-                        make_dropdown_list_option(ctx, "Forward"),
-                    ])
-                    .build(ctx);
-                    render_path
-                })
-                .with_child(make_text_mark(ctx, "Decal Layer Index", 2))
-                .with_child({
-                    decal_layer_index = make_int_input_field(ctx, 2, 0, 255, 1);
-                    decal_layer_index
-                }),
-        )
-        .add_column(Column::strict(COLUMN_WIDTH))
-        .add_column(Column::stretch())
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .build(ctx);
+        let surfaces_list;
+        let section = make_section(
+            "Mesh Properties",
+            GridBuilder::new(
+                WidgetBuilder::new()
+                    .with_child(make_text_mark(ctx, "Cast Shadows", 0))
+                    .with_child({
+                        cast_shadows = make_bool_input_field(ctx, 0);
+                        cast_shadows
+                    })
+                    .with_child(make_text_mark(ctx, "Render Path", 1))
+                    .with_child({
+                        render_path = DropdownListBuilder::new(
+                            WidgetBuilder::new()
+                                .on_row(1)
+                                .on_column(1)
+                                .with_margin(Thickness::uniform(1.0)),
+                        )
+                        .with_close_on_selection(true)
+                        .with_items(vec![
+                            make_dropdown_list_option(ctx, "Deferred"),
+                            make_dropdown_list_option(ctx, "Forward"),
+                        ])
+                        .build(ctx);
+                        render_path
+                    })
+                    .with_child(make_text_mark(ctx, "Decal Layer Index", 2))
+                    .with_child({
+                        decal_layer_index = make_int_input_field(ctx, 2, 0, 255, 1);
+                        decal_layer_index
+                    })
+                    .with_child(make_text_mark(ctx, "Surfaces", 3))
+                    .with_child({
+                        surfaces_list =
+                            DropdownListBuilder::new(WidgetBuilder::new().on_row(3).on_column(1))
+                                .build(ctx);
+                        surfaces_list
+                    }),
+            )
+            .add_column(Column::strict(COLUMN_WIDTH))
+            .add_column(Column::stretch())
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .build(ctx),
+            ctx,
+        );
 
         Self {
             section,
@@ -81,6 +98,7 @@ impl MeshSection {
             render_path,
             sender,
             decal_layer_index,
+            surfaces_list,
         }
     }
 
@@ -122,6 +140,27 @@ impl MeshSection {
                     mesh.decal_layer_index() as f32,
                 ),
             );
+
+            if mesh.surfaces().len() != ui.node(self.surfaces_list).as_dropdown_list().items().len()
+            {
+                let items = mesh
+                    .surfaces()
+                    .iter()
+                    .enumerate()
+                    .map(|(n, _)| {
+                        make_dropdown_list_option(&mut ui.build_ctx(), &format!("Surface {}", n))
+                    })
+                    .collect();
+
+                send_sync_message(
+                    ui,
+                    DropdownListMessage::items(
+                        self.surfaces_list,
+                        MessageDirection::ToWidget,
+                        items,
+                    ),
+                );
+            }
         }
     }
 

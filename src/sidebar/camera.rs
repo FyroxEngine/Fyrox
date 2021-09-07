@@ -22,6 +22,7 @@ use rg3d::{
 use std::sync::mpsc::Sender;
 
 use super::make_bool_input_field;
+use crate::sidebar::make_section;
 
 pub struct CameraSection {
     pub section: Handle<UiNode>,
@@ -38,36 +39,40 @@ impl CameraSection {
         let z_near;
         let z_far;
         let preview;
-        let section = GridBuilder::new(
-            WidgetBuilder::new()
-                .with_child(make_text_mark(ctx, "FOV", 0))
-                .with_child({
-                    fov = make_f32_input_field(ctx, 0, 0.0, std::f32::consts::PI, 0.01);
-                    fov
-                })
-                .with_child(make_text_mark(ctx, "Z Near", 1))
-                .with_child({
-                    z_near = make_f32_input_field(ctx, 1, 0.0, std::f32::MAX, 0.01);
-                    z_near
-                })
-                .with_child(make_text_mark(ctx, "Z Far", 2))
-                .with_child({
-                    z_far = make_f32_input_field(ctx, 2, 0.0, std::f32::MAX, 1.0);
-                    z_far
-                })
-                .with_child(make_text_mark(ctx, "Preview", 3))
-                .with_child({
-                    preview = make_bool_input_field(ctx, 3);
-                    preview
-                }),
-        )
-        .add_column(Column::strict(COLUMN_WIDTH))
-        .add_column(Column::stretch())
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .build(ctx);
+        let section = make_section(
+            "Camera Section",
+            GridBuilder::new(
+                WidgetBuilder::new()
+                    .with_child(make_text_mark(ctx, "FOV", 0))
+                    .with_child({
+                        fov = make_f32_input_field(ctx, 0, 0.0, std::f32::consts::PI, 0.01);
+                        fov
+                    })
+                    .with_child(make_text_mark(ctx, "Z Near", 1))
+                    .with_child({
+                        z_near = make_f32_input_field(ctx, 1, 0.0, std::f32::MAX, 0.01);
+                        z_near
+                    })
+                    .with_child(make_text_mark(ctx, "Z Far", 2))
+                    .with_child({
+                        z_far = make_f32_input_field(ctx, 2, 0.0, std::f32::MAX, 1.0);
+                        z_far
+                    })
+                    .with_child(make_text_mark(ctx, "Preview", 3))
+                    .with_child({
+                        preview = make_bool_input_field(ctx, 3);
+                        preview
+                    }),
+            )
+            .add_column(Column::strict(COLUMN_WIDTH))
+            .add_column(Column::stretch())
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .build(ctx),
+            ctx,
+        );
 
         Self {
             section,

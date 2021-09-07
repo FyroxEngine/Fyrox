@@ -1,4 +1,5 @@
 use crate::gui::make_dropdown_list_option;
+use crate::sidebar::make_section;
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     scene::commands::{
@@ -64,120 +65,124 @@ impl BaseSection {
         let create_lod_group;
         let remove_lod_group;
         let edit_lod_group;
-        let section = GridBuilder::new(
-            WidgetBuilder::new()
-                .with_child(make_text_mark(ctx, "Name", 0))
-                .with_child({
-                    node_name = TextBoxBuilder::new(
-                        WidgetBuilder::new()
-                            .on_row(0)
-                            .on_column(1)
-                            .with_margin(Thickness::uniform(1.0)),
-                    )
-                    .build(ctx);
-                    node_name
-                })
-                .with_child(make_text_mark(ctx, "Position", 1))
-                .with_child({
-                    position = make_vec3_input_field(ctx, 1);
-                    position
-                })
-                .with_child(make_text_mark(ctx, "Rotation", 2))
-                .with_child({
-                    rotation = make_vec3_input_field(ctx, 2);
-                    rotation
-                })
-                .with_child(make_text_mark(ctx, "Scale", 3))
-                .with_child({
-                    scale = make_vec3_input_field(ctx, 3);
-                    scale
-                })
-                .with_child(make_text_mark(ctx, "Resource", 4))
-                .with_child({
-                    resource =
-                        TextBuilder::new(WidgetBuilder::new().on_column(1).on_row(4)).build(ctx);
-                    resource
-                })
-                .with_child(make_text_mark(ctx, "Tag", 5))
-                .with_child({
-                    tag =
-                        TextBoxBuilder::new(WidgetBuilder::new().on_column(1).on_row(5)).build(ctx);
-                    tag
-                })
-                .with_child(make_text_mark(ctx, "Physics Binding", 6))
-                .with_child({
-                    physics_binding = DropdownListBuilder::new(
-                        WidgetBuilder::new()
-                            .on_row(6)
-                            .on_column(1)
-                            .with_margin(Thickness::uniform(1.0)),
-                    )
-                    .with_close_on_selection(true)
-                    .with_items(vec![
-                        make_dropdown_list_option(ctx, "Node With Body"),
-                        make_dropdown_list_option(ctx, "Body With Node"),
-                    ])
-                    .build(ctx);
-                    physics_binding
-                })
-                .with_child(make_text_mark(ctx, "LOD Group", 7))
-                .with_child(
-                    GridBuilder::new(
-                        WidgetBuilder::new()
-                            .on_row(7)
-                            .on_column(1)
-                            .with_child({
-                                create_lod_group = ButtonBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_margin(Thickness::uniform(1.0))
-                                        .on_column(0),
-                                )
-                                .with_text("Create Group")
-                                .build(ctx);
-                                create_lod_group
-                            })
-                            .with_child({
-                                remove_lod_group = ButtonBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_enabled(false)
-                                        .with_margin(Thickness::uniform(1.0))
-                                        .on_column(1),
-                                )
-                                .with_text("Remove Group")
-                                .build(ctx);
-                                remove_lod_group
-                            })
-                            .with_child({
-                                edit_lod_group = ButtonBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_enabled(false)
-                                        .with_margin(Thickness::uniform(1.0))
-                                        .on_column(2),
-                                )
-                                .with_text("Edit Group...")
-                                .build(ctx);
-                                edit_lod_group
-                            }),
-                    )
-                    .add_row(Row::stretch())
-                    .add_column(Column::stretch())
-                    .add_column(Column::stretch())
-                    .add_column(Column::stretch())
-                    .build(ctx),
-                ),
-        )
-        .add_column(Column::strict(COLUMN_WIDTH))
-        .add_column(Column::stretch())
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::stretch())
-        .build(ctx);
+        let section = make_section(
+            "Node Properties",
+            GridBuilder::new(
+                WidgetBuilder::new()
+                    .with_child(make_text_mark(ctx, "Name", 0))
+                    .with_child({
+                        node_name = TextBoxBuilder::new(
+                            WidgetBuilder::new()
+                                .on_row(0)
+                                .on_column(1)
+                                .with_margin(Thickness::uniform(1.0)),
+                        )
+                        .build(ctx);
+                        node_name
+                    })
+                    .with_child(make_text_mark(ctx, "Position", 1))
+                    .with_child({
+                        position = make_vec3_input_field(ctx, 1);
+                        position
+                    })
+                    .with_child(make_text_mark(ctx, "Rotation", 2))
+                    .with_child({
+                        rotation = make_vec3_input_field(ctx, 2);
+                        rotation
+                    })
+                    .with_child(make_text_mark(ctx, "Scale", 3))
+                    .with_child({
+                        scale = make_vec3_input_field(ctx, 3);
+                        scale
+                    })
+                    .with_child(make_text_mark(ctx, "Resource", 4))
+                    .with_child({
+                        resource = TextBuilder::new(WidgetBuilder::new().on_column(1).on_row(4))
+                            .build(ctx);
+                        resource
+                    })
+                    .with_child(make_text_mark(ctx, "Tag", 5))
+                    .with_child({
+                        tag = TextBoxBuilder::new(WidgetBuilder::new().on_column(1).on_row(5))
+                            .build(ctx);
+                        tag
+                    })
+                    .with_child(make_text_mark(ctx, "Physics Binding", 6))
+                    .with_child({
+                        physics_binding = DropdownListBuilder::new(
+                            WidgetBuilder::new()
+                                .on_row(6)
+                                .on_column(1)
+                                .with_margin(Thickness::uniform(1.0)),
+                        )
+                        .with_close_on_selection(true)
+                        .with_items(vec![
+                            make_dropdown_list_option(ctx, "Node With Body"),
+                            make_dropdown_list_option(ctx, "Body With Node"),
+                        ])
+                        .build(ctx);
+                        physics_binding
+                    })
+                    .with_child(make_text_mark(ctx, "LOD Group", 7))
+                    .with_child(
+                        GridBuilder::new(
+                            WidgetBuilder::new()
+                                .on_row(7)
+                                .on_column(1)
+                                .with_child({
+                                    create_lod_group = ButtonBuilder::new(
+                                        WidgetBuilder::new()
+                                            .with_margin(Thickness::uniform(1.0))
+                                            .on_column(0),
+                                    )
+                                    .with_text("Create Group")
+                                    .build(ctx);
+                                    create_lod_group
+                                })
+                                .with_child({
+                                    remove_lod_group = ButtonBuilder::new(
+                                        WidgetBuilder::new()
+                                            .with_enabled(false)
+                                            .with_margin(Thickness::uniform(1.0))
+                                            .on_column(1),
+                                    )
+                                    .with_text("Remove Group")
+                                    .build(ctx);
+                                    remove_lod_group
+                                })
+                                .with_child({
+                                    edit_lod_group = ButtonBuilder::new(
+                                        WidgetBuilder::new()
+                                            .with_enabled(false)
+                                            .with_margin(Thickness::uniform(1.0))
+                                            .on_column(2),
+                                    )
+                                    .with_text("Edit Group...")
+                                    .build(ctx);
+                                    edit_lod_group
+                                }),
+                        )
+                        .add_row(Row::stretch())
+                        .add_column(Column::stretch())
+                        .add_column(Column::stretch())
+                        .add_column(Column::stretch())
+                        .build(ctx),
+                    ),
+            )
+            .add_column(Column::strict(COLUMN_WIDTH))
+            .add_column(Column::stretch())
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::stretch())
+            .build(ctx),
+            ctx,
+        );
 
         Self {
             section,

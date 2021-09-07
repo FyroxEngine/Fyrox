@@ -1,3 +1,4 @@
+use crate::sidebar::make_section;
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::RigidBody,
@@ -25,18 +26,22 @@ pub struct BodySection {
 impl BodySection {
     pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
         let mass;
-        let section = GridBuilder::new(
-            WidgetBuilder::new()
-                .with_child(make_text_mark(ctx, "Mass", 0))
-                .with_child({
-                    mass = make_f32_input_field(ctx, 0, 0.0, std::f32::MAX, 0.1);
-                    mass
-                }),
-        )
-        .add_column(Column::strict(COLUMN_WIDTH))
-        .add_column(Column::stretch())
-        .add_row(Row::strict(ROW_HEIGHT))
-        .build(ctx);
+        let section = make_section(
+            "Body Properties",
+            GridBuilder::new(
+                WidgetBuilder::new()
+                    .with_child(make_text_mark(ctx, "Mass", 0))
+                    .with_child({
+                        mass = make_f32_input_field(ctx, 0, 0.0, std::f32::MAX, 0.1);
+                        mass
+                    }),
+            )
+            .add_column(Column::strict(COLUMN_WIDTH))
+            .add_column(Column::stretch())
+            .add_row(Row::strict(ROW_HEIGHT))
+            .build(ctx),
+            ctx,
+        );
 
         Self {
             section,

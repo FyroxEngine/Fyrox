@@ -1,3 +1,4 @@
+use crate::sidebar::make_section;
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::Collider,
@@ -54,54 +55,58 @@ impl ColliderSection {
         let collision_groups;
         let collision_mask;
         let is_sensor;
-        let section = GridBuilder::new(
-            WidgetBuilder::new()
-                .with_child(make_text_mark(ctx, "Friction", 0))
-                .with_child({
-                    friction = make_f32_input_field(ctx, 0, 0.0, std::f32::MAX, 0.1);
-                    friction
-                })
-                .with_child(make_text_mark(ctx, "Restitution", 1))
-                .with_child({
-                    restitution = make_f32_input_field(ctx, 1, 0.0, std::f32::MAX, 0.1);
-                    restitution
-                })
-                .with_child(make_text_mark(ctx, "Collider Position", 2))
-                .with_child({
-                    position = make_vec3_input_field(ctx, 2);
-                    position
-                })
-                .with_child(make_text_mark(ctx, "Collider Rotation", 3))
-                .with_child({
-                    rotation = make_vec3_input_field(ctx, 3);
-                    rotation
-                })
-                .with_child(make_text_mark(ctx, "Collision Groups", 4))
-                .with_child({
-                    collision_groups = make_int_input_field(ctx, 4, 0, u16::MAX as i32, 1);
-                    collision_groups
-                })
-                .with_child(make_text_mark(ctx, "Collision Mask", 5))
-                .with_child({
-                    collision_mask = make_int_input_field(ctx, 5, 0, u16::MAX as i32, 1);
-                    collision_mask
-                })
-                .with_child(make_text_mark(ctx, "Is Sensor", 6))
-                .with_child({
-                    is_sensor = make_bool_input_field(ctx, 6);
-                    is_sensor
-                }),
-        )
-        .add_column(Column::strict(COLUMN_WIDTH))
-        .add_column(Column::stretch())
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .build(ctx);
+        let section = make_section(
+            "Collider Properties",
+            GridBuilder::new(
+                WidgetBuilder::new()
+                    .with_child(make_text_mark(ctx, "Friction", 0))
+                    .with_child({
+                        friction = make_f32_input_field(ctx, 0, 0.0, std::f32::MAX, 0.1);
+                        friction
+                    })
+                    .with_child(make_text_mark(ctx, "Restitution", 1))
+                    .with_child({
+                        restitution = make_f32_input_field(ctx, 1, 0.0, std::f32::MAX, 0.1);
+                        restitution
+                    })
+                    .with_child(make_text_mark(ctx, "Collider Position", 2))
+                    .with_child({
+                        position = make_vec3_input_field(ctx, 2);
+                        position
+                    })
+                    .with_child(make_text_mark(ctx, "Collider Rotation", 3))
+                    .with_child({
+                        rotation = make_vec3_input_field(ctx, 3);
+                        rotation
+                    })
+                    .with_child(make_text_mark(ctx, "Collision Groups", 4))
+                    .with_child({
+                        collision_groups = make_int_input_field(ctx, 4, 0, u16::MAX as i32, 1);
+                        collision_groups
+                    })
+                    .with_child(make_text_mark(ctx, "Collision Mask", 5))
+                    .with_child({
+                        collision_mask = make_int_input_field(ctx, 5, 0, u16::MAX as i32, 1);
+                        collision_mask
+                    })
+                    .with_child(make_text_mark(ctx, "Is Sensor", 6))
+                    .with_child({
+                        is_sensor = make_bool_input_field(ctx, 6);
+                        is_sensor
+                    }),
+            )
+            .add_column(Column::strict(COLUMN_WIDTH))
+            .add_column(Column::stretch())
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .build(ctx),
+            ctx,
+        );
 
         Self {
             section,

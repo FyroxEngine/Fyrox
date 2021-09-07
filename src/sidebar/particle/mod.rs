@@ -1,3 +1,4 @@
+use crate::sidebar::make_section;
 use crate::{
     gui::{
         BuildContext, DeletableItemBuilder, DeletableItemMessage, EditorUiMessage, EditorUiNode,
@@ -96,121 +97,128 @@ impl ParticleSystemSection {
         let add_box_emitter;
         let add_sphere_emitter;
         let add_cylinder_emitter;
-        let section = StackPanelBuilder::new(
-            WidgetBuilder::new()
-                .with_child(
-                    GridBuilder::new(
-                        WidgetBuilder::new()
-                            .with_child(make_text_mark(ctx, "Acceleration", 0))
-                            .with_child({
-                                acceleration = make_vec3_input_field(ctx, 0);
-                                acceleration
-                            })
-                            .with_child(make_text_mark(ctx, "Emitters", 1))
-                            .with_child(
-                                GridBuilder::new(
-                                    WidgetBuilder::new()
-                                        .on_row(1)
-                                        .on_column(1)
-                                        .with_child(
-                                            StackPanelBuilder::new(
-                                                WidgetBuilder::new()
-                                                    .on_row(0)
-                                                    .with_child(
-                                                        TextBuilder::new(WidgetBuilder::new())
-                                                            .with_text("Add Emitter: ")
-                                                            .with_vertical_text_alignment(
-                                                                VerticalAlignment::Center,
-                                                            )
-                                                            .build(ctx),
-                                                    )
-                                                    .with_child({
-                                                        add_box_emitter =
-                                                            make_button_image(ctx, box_emitter_img);
-                                                        add_box_emitter
-                                                    })
-                                                    .with_child({
-                                                        add_sphere_emitter = make_button_image(
-                                                            ctx,
-                                                            sphere_emitter_img,
-                                                        );
-                                                        add_sphere_emitter
-                                                    })
-                                                    .with_child({
-                                                        add_cylinder_emitter = make_button_image(
-                                                            ctx,
-                                                            cylinder_emitter_img,
-                                                        );
-                                                        add_cylinder_emitter
-                                                    }),
+        let section = make_section(
+            "Particle System Properties",
+            StackPanelBuilder::new(
+                WidgetBuilder::new()
+                    .with_child(
+                        GridBuilder::new(
+                            WidgetBuilder::new()
+                                .with_child(make_text_mark(ctx, "Acceleration", 0))
+                                .with_child({
+                                    acceleration = make_vec3_input_field(ctx, 0);
+                                    acceleration
+                                })
+                                .with_child(make_text_mark(ctx, "Emitters", 1))
+                                .with_child(
+                                    GridBuilder::new(
+                                        WidgetBuilder::new()
+                                            .on_row(1)
+                                            .on_column(1)
+                                            .with_child(
+                                                StackPanelBuilder::new(
+                                                    WidgetBuilder::new()
+                                                        .on_row(0)
+                                                        .with_child(
+                                                            TextBuilder::new(WidgetBuilder::new())
+                                                                .with_text("Add Emitter: ")
+                                                                .with_vertical_text_alignment(
+                                                                    VerticalAlignment::Center,
+                                                                )
+                                                                .build(ctx),
+                                                        )
+                                                        .with_child({
+                                                            add_box_emitter = make_button_image(
+                                                                ctx,
+                                                                box_emitter_img,
+                                                            );
+                                                            add_box_emitter
+                                                        })
+                                                        .with_child({
+                                                            add_sphere_emitter = make_button_image(
+                                                                ctx,
+                                                                sphere_emitter_img,
+                                                            );
+                                                            add_sphere_emitter
+                                                        })
+                                                        .with_child({
+                                                            add_cylinder_emitter =
+                                                                make_button_image(
+                                                                    ctx,
+                                                                    cylinder_emitter_img,
+                                                                );
+                                                            add_cylinder_emitter
+                                                        }),
+                                                )
+                                                .with_orientation(Orientation::Horizontal)
+                                                .build(ctx),
                                             )
-                                            .with_orientation(Orientation::Horizontal)
-                                            .build(ctx),
-                                        )
-                                        .with_child({
-                                            emitters = DropdownListBuilder::new(
-                                                WidgetBuilder::new().on_row(1),
-                                            )
-                                            .with_close_on_selection(true)
-                                            .build(ctx);
-                                            emitters
-                                        }),
-                                )
-                                .add_row(Row::strict(ROW_HEIGHT))
-                                .add_row(Row::strict(ROW_HEIGHT))
-                                .add_column(Column::stretch())
-                                .build(ctx),
-                            ),
+                                            .with_child({
+                                                emitters = DropdownListBuilder::new(
+                                                    WidgetBuilder::new().on_row(1),
+                                                )
+                                                .with_close_on_selection(true)
+                                                .build(ctx);
+                                                emitters
+                                            }),
+                                    )
+                                    .add_row(Row::strict(ROW_HEIGHT))
+                                    .add_row(Row::strict(ROW_HEIGHT))
+                                    .add_column(Column::stretch())
+                                    .build(ctx),
+                                ),
+                        )
+                        .add_column(Column::strict(COLUMN_WIDTH))
+                        .add_column(Column::stretch())
+                        .add_row(Row::strict(ROW_HEIGHT))
+                        .add_row(Row::strict(ROW_HEIGHT * 2.0))
+                        .build(ctx),
                     )
-                    .add_column(Column::strict(COLUMN_WIDTH))
-                    .add_column(Column::stretch())
-                    .add_row(Row::strict(ROW_HEIGHT))
-                    .add_row(Row::strict(ROW_HEIGHT * 2.0))
-                    .build(ctx),
-                )
-                .with_child(
-                    GridBuilder::new(
-                        WidgetBuilder::new()
-                            .with_child({
-                                restart = ButtonBuilder::new(
-                                    WidgetBuilder::new()
-                                        .on_column(0)
-                                        .with_margin(Thickness::uniform(1.0)),
-                                )
-                                .with_text("Restart")
-                                .build(ctx);
-                                restart
-                            })
-                            .with_child({
-                                play_pause = ButtonBuilder::new(
-                                    WidgetBuilder::new()
-                                        .on_column(1)
-                                        .with_margin(Thickness::uniform(1.0)),
-                                )
-                                .with_text("Play/Pause")
-                                .build(ctx);
-                                play_pause
-                            })
-                            .with_child({
-                                stop = ButtonBuilder::new(
-                                    WidgetBuilder::new()
-                                        .on_column(2)
-                                        .with_margin(Thickness::uniform(1.0)),
-                                )
-                                .with_text("Stop")
-                                .build(ctx);
-                                stop
-                            }),
+                    .with_child(
+                        GridBuilder::new(
+                            WidgetBuilder::new()
+                                .with_child({
+                                    restart = ButtonBuilder::new(
+                                        WidgetBuilder::new()
+                                            .on_column(0)
+                                            .with_margin(Thickness::uniform(1.0)),
+                                    )
+                                    .with_text("Restart")
+                                    .build(ctx);
+                                    restart
+                                })
+                                .with_child({
+                                    play_pause = ButtonBuilder::new(
+                                        WidgetBuilder::new()
+                                            .on_column(1)
+                                            .with_margin(Thickness::uniform(1.0)),
+                                    )
+                                    .with_text("Play/Pause")
+                                    .build(ctx);
+                                    play_pause
+                                })
+                                .with_child({
+                                    stop = ButtonBuilder::new(
+                                        WidgetBuilder::new()
+                                            .on_column(2)
+                                            .with_margin(Thickness::uniform(1.0)),
+                                    )
+                                    .with_text("Stop")
+                                    .build(ctx);
+                                    stop
+                                }),
+                        )
+                        .add_column(Column::stretch())
+                        .add_column(Column::stretch())
+                        .add_column(Column::stretch())
+                        .add_row(Row::strict(ROW_HEIGHT))
+                        .build(ctx),
                     )
-                    .add_column(Column::stretch())
-                    .add_column(Column::stretch())
-                    .add_column(Column::stretch())
-                    .add_row(Row::strict(ROW_HEIGHT))
-                    .build(ctx),
-                )
-                .with_child(emitter_section.section),
-        )
-        .build(ctx);
+                    .with_child(emitter_section.section),
+            )
+            .build(ctx),
+            ctx,
+        );
 
         Self {
             section,

@@ -1,3 +1,4 @@
+use crate::sidebar::make_section;
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     scene::commands::{
@@ -30,24 +31,28 @@ impl CylinderSection {
     pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
         let radius;
         let height;
-        let section = GridBuilder::new(
-            WidgetBuilder::new()
-                .with_child(make_text_mark(ctx, "Radius", 0))
-                .with_child({
-                    radius = make_f32_input_field(ctx, 0, 0.0, std::f32::MAX, 0.1);
-                    radius
-                })
-                .with_child(make_text_mark(ctx, "Height", 1))
-                .with_child({
-                    height = make_f32_input_field(ctx, 1, 0.0, std::f32::MAX, 0.1);
-                    height
-                }),
-        )
-        .add_column(Column::strict(COLUMN_WIDTH))
-        .add_column(Column::stretch())
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .build(ctx);
+        let section = make_section(
+            "Cylinder Emitter Properties",
+            GridBuilder::new(
+                WidgetBuilder::new()
+                    .with_child(make_text_mark(ctx, "Radius", 0))
+                    .with_child({
+                        radius = make_f32_input_field(ctx, 0, 0.0, std::f32::MAX, 0.1);
+                        radius
+                    })
+                    .with_child(make_text_mark(ctx, "Height", 1))
+                    .with_child({
+                        height = make_f32_input_field(ctx, 1, 0.0, std::f32::MAX, 0.1);
+                        height
+                    }),
+            )
+            .add_column(Column::strict(COLUMN_WIDTH))
+            .add_column(Column::stretch())
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .build(ctx),
+            ctx,
+        );
 
         Self {
             section,

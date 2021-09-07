@@ -1,14 +1,16 @@
-use crate::scene::commands::light::{
-    SetSpotLightDistanceCommand, SetSpotLightFalloffAngleDeltaCommand, SetSpotLightHotspotCommand,
-};
-use crate::scene::commands::SceneCommand;
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
+    scene::commands::{
+        light::{
+            SetSpotLightDistanceCommand, SetSpotLightFalloffAngleDeltaCommand,
+            SetSpotLightHotspotCommand,
+        },
+        SceneCommand,
+    },
     send_sync_message,
-    sidebar::{make_f32_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT},
+    sidebar::{make_f32_input_field, make_section, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
 };
-use rg3d::scene::node::Node;
 use rg3d::{
     core::pool::Handle,
     gui::{
@@ -16,7 +18,7 @@ use rg3d::{
         message::{MessageDirection, NumericUpDownMessage, UiMessageData, WidgetMessage},
         widget::WidgetBuilder,
     },
-    scene::light::Light,
+    scene::{light::Light, node::Node},
 };
 use std::sync::mpsc::Sender;
 
@@ -34,30 +36,35 @@ impl SpotLightSection {
         let falloff_delta;
         let distance;
 
-        let section = GridBuilder::new(
-            WidgetBuilder::new()
-                .with_child(make_text_mark(ctx, "Hotspot", 0))
-                .with_child({
-                    hotspot = make_f32_input_field(ctx, 0, 0.0, std::f32::consts::PI, 0.1);
-                    hotspot
-                })
-                .with_child(make_text_mark(ctx, "Falloff Delta", 1))
-                .with_child({
-                    falloff_delta = make_f32_input_field(ctx, 1, 0.0, std::f32::consts::PI, 0.01);
-                    falloff_delta
-                })
-                .with_child(make_text_mark(ctx, "Radius", 2))
-                .with_child({
-                    distance = make_f32_input_field(ctx, 2, 0.0, std::f32::MAX, 0.1);
-                    distance
-                }),
-        )
-        .add_column(Column::strict(COLUMN_WIDTH))
-        .add_column(Column::stretch())
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .build(ctx);
+        let section = make_section(
+            "Light Properties",
+            GridBuilder::new(
+                WidgetBuilder::new()
+                    .with_child(make_text_mark(ctx, "Hotspot", 0))
+                    .with_child({
+                        hotspot = make_f32_input_field(ctx, 0, 0.0, std::f32::consts::PI, 0.1);
+                        hotspot
+                    })
+                    .with_child(make_text_mark(ctx, "Falloff Delta", 1))
+                    .with_child({
+                        falloff_delta =
+                            make_f32_input_field(ctx, 1, 0.0, std::f32::consts::PI, 0.01);
+                        falloff_delta
+                    })
+                    .with_child(make_text_mark(ctx, "Radius", 2))
+                    .with_child({
+                        distance = make_f32_input_field(ctx, 2, 0.0, std::f32::MAX, 0.1);
+                        distance
+                    }),
+            )
+            .add_column(Column::strict(COLUMN_WIDTH))
+            .add_column(Column::stretch())
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .build(ctx),
+            ctx,
+        );
 
         Self {
             section,

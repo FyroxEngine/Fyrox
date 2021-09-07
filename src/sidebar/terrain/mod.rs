@@ -1,5 +1,5 @@
 use crate::scene::commands::terrain::SetTerrainDecalLayerIndexCommand;
-use crate::sidebar::{make_int_input_field, make_text_mark, COLUMN_WIDTH};
+use crate::sidebar::{make_int_input_field, make_section, make_text_mark, COLUMN_WIDTH};
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     scene::{
@@ -53,65 +53,71 @@ impl TerrainSection {
         let add_layer;
         let remove_layer;
         let decal_layer_index;
-        let section = StackPanelBuilder::new(
-            WidgetBuilder::new()
-                .with_child(
-                    GridBuilder::new(
-                        WidgetBuilder::new()
-                            .with_child(
-                                StackPanelBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_child({
-                                            add_layer = ButtonBuilder::new(WidgetBuilder::new())
-                                                .with_text("Add Layer")
-                                                .build(ctx);
-                                            add_layer
-                                        })
-                                        .with_child({
-                                            remove_layer = ButtonBuilder::new(WidgetBuilder::new())
-                                                .with_text("Remove Layer")
-                                                .build(ctx);
-                                            remove_layer
-                                        }),
+        let section = make_section(
+            "Terrain Properties",
+            StackPanelBuilder::new(
+                WidgetBuilder::new()
+                    .with_child(
+                        GridBuilder::new(
+                            WidgetBuilder::new()
+                                .with_child(
+                                    StackPanelBuilder::new(
+                                        WidgetBuilder::new()
+                                            .with_child({
+                                                add_layer =
+                                                    ButtonBuilder::new(WidgetBuilder::new())
+                                                        .with_text("Add Layer")
+                                                        .build(ctx);
+                                                add_layer
+                                            })
+                                            .with_child({
+                                                remove_layer =
+                                                    ButtonBuilder::new(WidgetBuilder::new())
+                                                        .with_text("Remove Layer")
+                                                        .build(ctx);
+                                                remove_layer
+                                            }),
+                                    )
+                                    .with_orientation(Orientation::Horizontal)
+                                    .build(ctx),
                                 )
-                                .with_orientation(Orientation::Horizontal)
-                                .build(ctx),
-                            )
-                            .with_child({
-                                layers = ListViewBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_min_size(Vector2::new(0.0, ROW_HEIGHT * 3.0))
-                                        .on_row(1)
-                                        .on_column(0),
-                                )
-                                .build(ctx);
-                                layers
-                            }),
+                                .with_child({
+                                    layers = ListViewBuilder::new(
+                                        WidgetBuilder::new()
+                                            .with_min_size(Vector2::new(0.0, ROW_HEIGHT * 3.0))
+                                            .on_row(1)
+                                            .on_column(0),
+                                    )
+                                    .build(ctx);
+                                    layers
+                                }),
+                        )
+                        .add_row(Row::strict(ROW_HEIGHT))
+                        .add_row(Row::stretch())
+                        .add_column(Column::stretch())
+                        .build(ctx),
                     )
-                    .add_row(Row::strict(ROW_HEIGHT))
-                    .add_row(Row::stretch())
-                    .add_column(Column::stretch())
-                    .build(ctx),
-                )
-                .with_child(
-                    GridBuilder::new(
-                        WidgetBuilder::new()
-                            .with_child(make_text_mark(ctx, "Decal Layer Index", 0))
-                            .with_child({
-                                decal_layer_index = make_int_input_field(ctx, 0, 0, 255, 1);
-                                decal_layer_index
-                            }),
+                    .with_child(
+                        GridBuilder::new(
+                            WidgetBuilder::new()
+                                .with_child(make_text_mark(ctx, "Decal Layer Index", 0))
+                                .with_child({
+                                    decal_layer_index = make_int_input_field(ctx, 0, 0, 255, 1);
+                                    decal_layer_index
+                                }),
+                        )
+                        .add_row(Row::strict(ROW_HEIGHT))
+                        .add_column(Column::strict(COLUMN_WIDTH))
+                        .add_column(Column::stretch())
+                        .build(ctx),
                     )
-                    .add_row(Row::strict(ROW_HEIGHT))
-                    .add_column(Column::strict(COLUMN_WIDTH))
-                    .add_column(Column::stretch())
-                    .build(ctx),
-                )
-                .with_child(brush_section.section)
-                .with_child(layer_section.section),
-        )
-        .with_orientation(Orientation::Vertical)
-        .build(ctx);
+                    .with_child(brush_section.section)
+                    .with_child(layer_section.section),
+            )
+            .with_orientation(Orientation::Vertical)
+            .build(ctx),
+            ctx,
+        );
 
         Self {
             section,

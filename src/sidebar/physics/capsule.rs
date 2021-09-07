@@ -1,3 +1,4 @@
+use crate::sidebar::make_section;
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::Collider,
@@ -35,30 +36,34 @@ impl CapsuleSection {
         let begin;
         let end;
         let radius;
-        let section = GridBuilder::new(
-            WidgetBuilder::new()
-                .with_child(make_text_mark(ctx, "Begin", 0))
-                .with_child({
-                    begin = make_vec3_input_field(ctx, 0);
-                    begin
-                })
-                .with_child(make_text_mark(ctx, "End", 1))
-                .with_child({
-                    end = make_vec3_input_field(ctx, 1);
-                    end
-                })
-                .with_child(make_text_mark(ctx, "Radius", 2))
-                .with_child({
-                    radius = make_f32_input_field(ctx, 2, 0.0, std::f32::MAX, 0.1);
-                    radius
-                }),
-        )
-        .add_column(Column::strict(COLUMN_WIDTH))
-        .add_column(Column::stretch())
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .build(ctx);
+        let section = make_section(
+            "Capsule Properties",
+            GridBuilder::new(
+                WidgetBuilder::new()
+                    .with_child(make_text_mark(ctx, "Begin", 0))
+                    .with_child({
+                        begin = make_vec3_input_field(ctx, 0);
+                        begin
+                    })
+                    .with_child(make_text_mark(ctx, "End", 1))
+                    .with_child({
+                        end = make_vec3_input_field(ctx, 1);
+                        end
+                    })
+                    .with_child(make_text_mark(ctx, "Radius", 2))
+                    .with_child({
+                        radius = make_f32_input_field(ctx, 2, 0.0, std::f32::MAX, 0.1);
+                        radius
+                    }),
+            )
+            .add_column(Column::strict(COLUMN_WIDTH))
+            .add_column(Column::stretch())
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .build(ctx),
+            ctx,
+        );
 
         Self {
             section,

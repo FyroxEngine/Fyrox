@@ -1,4 +1,5 @@
 use crate::gui::make_dropdown_list_option;
+use crate::sidebar::make_section;
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     send_sync_message,
@@ -33,54 +34,60 @@ impl BrushSection {
         let width;
         let length;
         let radius;
-        let section = GridBuilder::new(
-            WidgetBuilder::new()
-                .with_child(make_text_mark(ctx, "Brush Kind", 0))
-                .with_child({
-                    kind = DropdownListBuilder::new(WidgetBuilder::new().on_row(0).on_column(1))
-                        .with_items(vec![
-                            make_dropdown_list_option(ctx, "Circle"),
-                            make_dropdown_list_option(ctx, "Rectangle"),
-                        ])
-                        .with_selected(0)
-                        .build(ctx);
-                    kind
-                })
-                .with_child(make_text_mark(ctx, "Brush Mode", 1))
-                .with_child({
-                    mode = DropdownListBuilder::new(WidgetBuilder::new().on_row(1).on_column(1))
-                        .with_items(vec![
-                            make_dropdown_list_option(ctx, "Modify Height Map"),
-                            make_dropdown_list_option(ctx, "Draw On Mask"),
-                        ])
-                        .with_selected(0)
-                        .build(ctx);
-                    mode
-                })
-                .with_child(make_text_mark(ctx, "Brush Width", 2))
-                .with_child({
-                    width = make_f32_input_field(ctx, 2, 0.0, f32::MAX, 0.1);
-                    width
-                })
-                .with_child(make_text_mark(ctx, "Brush Height", 3))
-                .with_child({
-                    length = make_f32_input_field(ctx, 3, 0.0, f32::MAX, 0.1);
-                    length
-                })
-                .with_child(make_text_mark(ctx, "Brush Radius", 4))
-                .with_child({
-                    radius = make_f32_input_field(ctx, 4, 0.0, f32::MAX, 0.1);
-                    radius
-                }),
-        )
-        .add_column(Column::strict(COLUMN_WIDTH))
-        .add_column(Column::stretch())
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .build(ctx);
+        let section = make_section(
+            "Brush Properties",
+            GridBuilder::new(
+                WidgetBuilder::new()
+                    .with_child(make_text_mark(ctx, "Brush Kind", 0))
+                    .with_child({
+                        kind =
+                            DropdownListBuilder::new(WidgetBuilder::new().on_row(0).on_column(1))
+                                .with_items(vec![
+                                    make_dropdown_list_option(ctx, "Circle"),
+                                    make_dropdown_list_option(ctx, "Rectangle"),
+                                ])
+                                .with_selected(0)
+                                .build(ctx);
+                        kind
+                    })
+                    .with_child(make_text_mark(ctx, "Brush Mode", 1))
+                    .with_child({
+                        mode =
+                            DropdownListBuilder::new(WidgetBuilder::new().on_row(1).on_column(1))
+                                .with_items(vec![
+                                    make_dropdown_list_option(ctx, "Modify Height Map"),
+                                    make_dropdown_list_option(ctx, "Draw On Mask"),
+                                ])
+                                .with_selected(0)
+                                .build(ctx);
+                        mode
+                    })
+                    .with_child(make_text_mark(ctx, "Brush Width", 2))
+                    .with_child({
+                        width = make_f32_input_field(ctx, 2, 0.0, f32::MAX, 0.1);
+                        width
+                    })
+                    .with_child(make_text_mark(ctx, "Brush Height", 3))
+                    .with_child({
+                        length = make_f32_input_field(ctx, 3, 0.0, f32::MAX, 0.1);
+                        length
+                    })
+                    .with_child(make_text_mark(ctx, "Brush Radius", 4))
+                    .with_child({
+                        radius = make_f32_input_field(ctx, 4, 0.0, f32::MAX, 0.1);
+                        radius
+                    }),
+            )
+            .add_column(Column::strict(COLUMN_WIDTH))
+            .add_column(Column::stretch())
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .build(ctx),
+            ctx,
+        );
 
         Self {
             section,

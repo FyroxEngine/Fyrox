@@ -1,3 +1,4 @@
+use crate::sidebar::make_section;
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::Joint,
@@ -31,24 +32,28 @@ impl BallJointSection {
     pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
         let anchor1;
         let anchor2;
-        let section = GridBuilder::new(
-            WidgetBuilder::new()
-                .with_child(make_text_mark(ctx, "Joint Anchor", 0))
-                .with_child({
-                    anchor1 = make_vec3_input_field(ctx, 0);
-                    anchor1
-                })
-                .with_child(make_text_mark(ctx, "Connected Anchor", 1))
-                .with_child({
-                    anchor2 = make_vec3_input_field(ctx, 1);
-                    anchor2
-                }),
-        )
-        .add_column(Column::strict(COLUMN_WIDTH))
-        .add_column(Column::stretch())
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .build(ctx);
+        let section = make_section(
+            "Ball Joint Properties",
+            GridBuilder::new(
+                WidgetBuilder::new()
+                    .with_child(make_text_mark(ctx, "Joint Anchor", 0))
+                    .with_child({
+                        anchor1 = make_vec3_input_field(ctx, 0);
+                        anchor1
+                    })
+                    .with_child(make_text_mark(ctx, "Connected Anchor", 1))
+                    .with_child({
+                        anchor2 = make_vec3_input_field(ctx, 1);
+                        anchor2
+                    }),
+            )
+            .add_column(Column::strict(COLUMN_WIDTH))
+            .add_column(Column::stretch())
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .build(ctx),
+            ctx,
+        );
 
         Self {
             section,

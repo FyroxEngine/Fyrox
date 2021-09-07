@@ -1,15 +1,16 @@
-use crate::scene::commands::particle_system::{
-    SetEmitterPositionCommand, SetEmitterResurrectParticlesCommand,
-};
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     scene::commands::{
-        particle_system::{EmitterNumericParameter, SetEmitterNumericParameterCommand},
+        particle_system::{
+            EmitterNumericParameter, SetEmitterNumericParameterCommand, SetEmitterPositionCommand,
+            SetEmitterResurrectParticlesCommand,
+        },
         SceneCommand,
     },
     send_sync_message,
     sidebar::{
-        make_bool_input_field, make_f32_input_field, make_text_mark, make_vec3_input_field,
+        make_bool_input_field, make_f32_input_field, make_section, make_text_mark,
+        make_vec3_input_field,
         particle::{cuboid::BoxSection, cylinder::CylinderSection, sphere::SphereSection},
         COLUMN_WIDTH, ROW_HEIGHT,
     },
@@ -18,7 +19,6 @@ use crate::{
 use rg3d::{
     core::pool::Handle,
     gui::{
-        expander::ExpanderBuilder,
         grid::{Column, GridBuilder, Row},
         message::{
             CheckBoxMessage, MessageDirection, NumericUpDownMessage, UiMessageData,
@@ -26,9 +26,8 @@ use rg3d::{
         },
         numeric::NumericUpDownBuilder,
         stack_panel::StackPanelBuilder,
-        text::TextBuilder,
         widget::WidgetBuilder,
-        Thickness, VerticalAlignment,
+        Thickness,
     },
     scene::{
         node::Node,
@@ -209,27 +208,18 @@ impl EmitterSection {
         .add_column(Column::stretch())
         .build(ctx);
 
-        let section = ExpanderBuilder::new(WidgetBuilder::new())
-            .with_header(
-                TextBuilder::new(
-                    WidgetBuilder::new()
-                        .with_margin(Thickness::uniform(1.0))
-                        .with_vertical_alignment(VerticalAlignment::Center),
-                )
-                .with_text("Emitter Properties")
-                .build(ctx),
+        let section = make_section(
+            "Emitter Properties",
+            StackPanelBuilder::new(
+                WidgetBuilder::new()
+                    .with_child(common_properties)
+                    .with_child(sphere_section.section)
+                    .with_child(cylinder_section.section)
+                    .with_child(box_section.section),
             )
-            .with_content(
-                StackPanelBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child(common_properties)
-                        .with_child(sphere_section.section)
-                        .with_child(cylinder_section.section)
-                        .with_child(box_section.section),
-                )
-                .build(ctx),
-            )
-            .build(ctx);
+            .build(ctx),
+            ctx,
+        );
 
         Self {
             section,

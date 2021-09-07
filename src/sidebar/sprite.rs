@@ -1,3 +1,4 @@
+use crate::sidebar::make_section;
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     scene::commands::{
@@ -36,30 +37,34 @@ impl SpriteSection {
         let size;
         let rotation;
         let color;
-        let section = GridBuilder::new(
-            WidgetBuilder::new()
-                .with_child(make_text_mark(ctx, "Size", 0))
-                .with_child({
-                    size = make_f32_input_field(ctx, 0, 0.0, std::f32::MAX, 0.1);
-                    size
-                })
-                .with_child(make_text_mark(ctx, "Rotation", 1))
-                .with_child({
-                    rotation = make_f32_input_field(ctx, 1, 0.0, std::f32::MAX, 0.1);
-                    rotation
-                })
-                .with_child(make_text_mark(ctx, "Color", 2))
-                .with_child({
-                    color = make_color_input_field(ctx, 2);
-                    color
-                }),
-        )
-        .add_column(Column::strict(COLUMN_WIDTH))
-        .add_column(Column::stretch())
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .build(ctx);
+        let section = make_section(
+            "Sprite Properties",
+            GridBuilder::new(
+                WidgetBuilder::new()
+                    .with_child(make_text_mark(ctx, "Size", 0))
+                    .with_child({
+                        size = make_f32_input_field(ctx, 0, 0.0, f32::MAX, 0.1);
+                        size
+                    })
+                    .with_child(make_text_mark(ctx, "Rotation", 1))
+                    .with_child({
+                        rotation = make_f32_input_field(ctx, 1, 0.0, f32::MAX, 0.1);
+                        rotation
+                    })
+                    .with_child(make_text_mark(ctx, "Color", 2))
+                    .with_child({
+                        color = make_color_input_field(ctx, 2);
+                        color
+                    }),
+            )
+            .add_column(Column::strict(COLUMN_WIDTH))
+            .add_column(Column::stretch())
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .build(ctx),
+            ctx,
+        );
 
         Self {
             section,

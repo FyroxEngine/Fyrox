@@ -1,3 +1,4 @@
+use crate::sidebar::make_section;
 use crate::{
     gui::{BuildContext, EditorUiNode, Ui, UiMessage, UiNode},
     make_relative_path,
@@ -64,42 +65,46 @@ impl LayerSection {
         let metallic_texture;
         let roughness_texture;
         let height_texture;
-        let section = GridBuilder::new(
-            WidgetBuilder::new()
-                .with_child(make_text_mark(ctx, "Diffuse Texture", 0))
-                .with_child({
-                    diffuse_texture = make_texture_field(ctx, 0);
-                    diffuse_texture
-                })
-                .with_child(make_text_mark(ctx, "Normal Texture", 1))
-                .with_child({
-                    normal_texture = make_texture_field(ctx, 1);
-                    normal_texture
-                })
-                .with_child(make_text_mark(ctx, "Metallic Texture", 2))
-                .with_child({
-                    metallic_texture = make_texture_field(ctx, 2);
-                    metallic_texture
-                })
-                .with_child(make_text_mark(ctx, "Roughness Texture", 3))
-                .with_child({
-                    roughness_texture = make_texture_field(ctx, 3);
-                    roughness_texture
-                })
-                .with_child(make_text_mark(ctx, "Height Texture", 4))
-                .with_child({
-                    height_texture = make_texture_field(ctx, 4);
-                    height_texture
-                }),
-        )
-        .add_column(Column::strict(COLUMN_WIDTH))
-        .add_column(Column::stretch())
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .build(ctx);
+        let section = make_section(
+            "Layer Properties",
+            GridBuilder::new(
+                WidgetBuilder::new()
+                    .with_child(make_text_mark(ctx, "Diffuse Texture", 0))
+                    .with_child({
+                        diffuse_texture = make_texture_field(ctx, 0);
+                        diffuse_texture
+                    })
+                    .with_child(make_text_mark(ctx, "Normal Texture", 1))
+                    .with_child({
+                        normal_texture = make_texture_field(ctx, 1);
+                        normal_texture
+                    })
+                    .with_child(make_text_mark(ctx, "Metallic Texture", 2))
+                    .with_child({
+                        metallic_texture = make_texture_field(ctx, 2);
+                        metallic_texture
+                    })
+                    .with_child(make_text_mark(ctx, "Roughness Texture", 3))
+                    .with_child({
+                        roughness_texture = make_texture_field(ctx, 3);
+                        roughness_texture
+                    })
+                    .with_child(make_text_mark(ctx, "Height Texture", 4))
+                    .with_child({
+                        height_texture = make_texture_field(ctx, 4);
+                        height_texture
+                    }),
+            )
+            .add_column(Column::strict(COLUMN_WIDTH))
+            .add_column(Column::stretch())
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .build(ctx),
+            ctx,
+        );
 
         Self {
             section,

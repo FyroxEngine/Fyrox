@@ -2,6 +2,7 @@ use crate::scene::commands::sound::{
     SetSpatialSoundSourceMaxDistanceCommand, SetSpatialSoundSourceRadiusCommand,
     SetSpatialSoundSourceRolloffFactorCommand,
 };
+use crate::sidebar::make_section;
 use crate::{
     asset::AssetKind,
     gui::{BuildContext, EditorUiNode, Ui, UiMessage, UiNode},
@@ -53,36 +54,40 @@ impl SpatialSection {
         let radius;
         let rolloff_factor;
         let max_distance;
-        let section = GridBuilder::new(
-            WidgetBuilder::new()
-                .with_child(make_text_mark(ctx, "Position", 0))
-                .with_child({
-                    position = make_vec3_input_field(ctx, 0);
-                    position
-                })
-                .with_child(make_text_mark(ctx, "Radius", 1))
-                .with_child({
-                    radius = make_f32_input_field(ctx, 1, 0.0, f32::MAX, 0.1);
-                    radius
-                })
-                .with_child(make_text_mark(ctx, "Rolloff Factor", 2))
-                .with_child({
-                    rolloff_factor = make_f32_input_field(ctx, 2, 0.0, f32::MAX, 0.1);
-                    rolloff_factor
-                })
-                .with_child(make_text_mark(ctx, "Max Distance", 3))
-                .with_child({
-                    max_distance = make_f32_input_field(ctx, 3, 0.0, f32::MAX, 0.1);
-                    max_distance
-                }),
-        )
-        .add_column(Column::strict(COLUMN_WIDTH))
-        .add_column(Column::stretch())
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .build(ctx);
+        let section = make_section(
+            "Sound Properties",
+            GridBuilder::new(
+                WidgetBuilder::new()
+                    .with_child(make_text_mark(ctx, "Position", 0))
+                    .with_child({
+                        position = make_vec3_input_field(ctx, 0);
+                        position
+                    })
+                    .with_child(make_text_mark(ctx, "Radius", 1))
+                    .with_child({
+                        radius = make_f32_input_field(ctx, 1, 0.0, f32::MAX, 0.1);
+                        radius
+                    })
+                    .with_child(make_text_mark(ctx, "Rolloff Factor", 2))
+                    .with_child({
+                        rolloff_factor = make_f32_input_field(ctx, 2, 0.0, f32::MAX, 0.1);
+                        rolloff_factor
+                    })
+                    .with_child(make_text_mark(ctx, "Max Distance", 3))
+                    .with_child({
+                        max_distance = make_f32_input_field(ctx, 3, 0.0, f32::MAX, 0.1);
+                        max_distance
+                    }),
+            )
+            .add_column(Column::strict(COLUMN_WIDTH))
+            .add_column(Column::stretch())
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .build(ctx),
+            ctx,
+        );
 
         Self {
             section,

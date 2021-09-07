@@ -9,7 +9,7 @@ use crate::{
         SceneCommand,
     },
     send_sync_message,
-    sidebar::{make_text_mark, make_vec3_input_field, COLUMN_WIDTH, ROW_HEIGHT},
+    sidebar::{make_section, make_text_mark, make_vec3_input_field, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
 };
 use rg3d::{
@@ -42,36 +42,40 @@ impl FixedJointSection {
         let joint_anchor_rotation;
         let connected_anchor_translation;
         let connected_anchor_rotation;
-        let section = GridBuilder::new(
-            WidgetBuilder::new()
-                .with_child(make_text_mark(ctx, "Joint Translation", 0))
-                .with_child({
-                    joint_anchor_translation = make_vec3_input_field(ctx, 0);
-                    joint_anchor_translation
-                })
-                .with_child(make_text_mark(ctx, "Joint Rotation", 1))
-                .with_child({
-                    joint_anchor_rotation = make_vec3_input_field(ctx, 1);
-                    joint_anchor_rotation
-                })
-                .with_child(make_text_mark(ctx, "Connected Translation", 2))
-                .with_child({
-                    connected_anchor_translation = make_vec3_input_field(ctx, 2);
-                    connected_anchor_translation
-                })
-                .with_child(make_text_mark(ctx, "Connected Rotation", 3))
-                .with_child({
-                    connected_anchor_rotation = make_vec3_input_field(ctx, 3);
-                    connected_anchor_rotation
-                }),
-        )
-        .add_column(Column::strict(COLUMN_WIDTH))
-        .add_column(Column::stretch())
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .build(ctx);
+        let section = make_section(
+            "Fixed Joint Properties",
+            GridBuilder::new(
+                WidgetBuilder::new()
+                    .with_child(make_text_mark(ctx, "Joint Translation", 0))
+                    .with_child({
+                        joint_anchor_translation = make_vec3_input_field(ctx, 0);
+                        joint_anchor_translation
+                    })
+                    .with_child(make_text_mark(ctx, "Joint Rotation", 1))
+                    .with_child({
+                        joint_anchor_rotation = make_vec3_input_field(ctx, 1);
+                        joint_anchor_rotation
+                    })
+                    .with_child(make_text_mark(ctx, "Connected Translation", 2))
+                    .with_child({
+                        connected_anchor_translation = make_vec3_input_field(ctx, 2);
+                        connected_anchor_translation
+                    })
+                    .with_child(make_text_mark(ctx, "Connected Rotation", 3))
+                    .with_child({
+                        connected_anchor_rotation = make_vec3_input_field(ctx, 3);
+                        connected_anchor_rotation
+                    }),
+            )
+            .add_column(Column::strict(COLUMN_WIDTH))
+            .add_column(Column::stretch())
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .build(ctx),
+            ctx,
+        );
 
         Self {
             section,

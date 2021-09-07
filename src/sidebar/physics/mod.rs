@@ -1,4 +1,5 @@
 use crate::gui::make_dropdown_list_option;
+use crate::sidebar::make_section;
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::{Collider, Joint, RigidBody},
@@ -103,112 +104,116 @@ impl PhysicsSection {
         let capsule_section = CapsuleSection::new(ctx, sender.clone());
         let ball_section = BallSection::new(ctx, sender.clone());
         let joint_section = JointSection::new(ctx, sender.clone());
-        let section = StackPanelBuilder::new(
-            WidgetBuilder::new()
-                .with_child(
-                    GridBuilder::new(
-                        WidgetBuilder::new()
-                            .with_child(make_text_mark(ctx, "Body", 0))
-                            .with_child({
-                                body = DropdownListBuilder::new(
-                                    WidgetBuilder::new()
-                                        .on_row(0)
-                                        .on_column(1)
-                                        .with_margin(Thickness::uniform(1.0)),
-                                )
-                                .with_close_on_selection(true)
-                                .with_items(vec![
-                                    make_dropdown_list_option(ctx, "None"),
-                                    make_dropdown_list_option(ctx, "Dynamic"),
-                                    make_dropdown_list_option(ctx, "Static"),
-                                    make_dropdown_list_option(ctx, "KinematicPositionBased"),
-                                    make_dropdown_list_option(ctx, "KinematicVelocityBased"),
-                                ])
-                                .build(ctx);
-                                body
-                            })
-                            .with_child({
-                                collider_text = make_text_mark(ctx, "Collider", 1);
-                                collider_text
-                            })
-                            .with_child({
-                                collider = DropdownListBuilder::new(
-                                    WidgetBuilder::new()
-                                        .on_row(1)
-                                        .on_column(1)
-                                        .with_margin(Thickness::uniform(1.0)),
-                                )
-                                .with_close_on_selection(true)
-                                .with_items(vec![
-                                    make_dropdown_list_option(ctx, "Ball"),
-                                    make_dropdown_list_option(ctx, "Cylinder"),
-                                    make_dropdown_list_option(ctx, "Round Cylinder"),
-                                    make_dropdown_list_option(ctx, "Cone"),
-                                    make_dropdown_list_option(ctx, "Cuboid"),
-                                    make_dropdown_list_option(ctx, "Capsule"),
-                                    make_dropdown_list_option(ctx, "Segment"),
-                                    make_dropdown_list_option(ctx, "Triangle"),
-                                    make_dropdown_list_option(ctx, "Trimesh"),
-                                    make_dropdown_list_option(ctx, "Heightfield"),
-                                ])
-                                .build(ctx);
-                                collider
-                            })
-                            .with_child({
-                                joint_text = make_text_mark(ctx, "Joint", 2);
-                                joint_text
-                            })
-                            .with_child({
-                                joint = DropdownListBuilder::new(
-                                    WidgetBuilder::new()
-                                        .on_row(2)
-                                        .on_column(1)
-                                        .with_margin(Thickness::uniform(1.0)),
-                                )
-                                .with_close_on_selection(true)
-                                .with_items(vec![
-                                    make_dropdown_list_option(ctx, "None"),
-                                    make_dropdown_list_option(ctx, "Ball Joint"),
-                                    make_dropdown_list_option(ctx, "Fixed Joint"),
-                                    make_dropdown_list_option(ctx, "Prismatic Joint"),
-                                    make_dropdown_list_option(ctx, "Revolute Joint"),
-                                ])
-                                .build(ctx);
-                                joint
-                            })
-                            .with_child({
-                                fit = ButtonBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_margin(Thickness::uniform(1.0))
-                                        .on_row(3)
-                                        .on_column(1),
-                                )
-                                .with_text("Fit Collider")
-                                .build(ctx);
-                                fit
-                            }),
+        let section = make_section(
+            "Physics Properties",
+            StackPanelBuilder::new(
+                WidgetBuilder::new()
+                    .with_child(
+                        GridBuilder::new(
+                            WidgetBuilder::new()
+                                .with_child(make_text_mark(ctx, "Body", 0))
+                                .with_child({
+                                    body = DropdownListBuilder::new(
+                                        WidgetBuilder::new()
+                                            .on_row(0)
+                                            .on_column(1)
+                                            .with_margin(Thickness::uniform(1.0)),
+                                    )
+                                    .with_close_on_selection(true)
+                                    .with_items(vec![
+                                        make_dropdown_list_option(ctx, "None"),
+                                        make_dropdown_list_option(ctx, "Dynamic"),
+                                        make_dropdown_list_option(ctx, "Static"),
+                                        make_dropdown_list_option(ctx, "KinematicPositionBased"),
+                                        make_dropdown_list_option(ctx, "KinematicVelocityBased"),
+                                    ])
+                                    .build(ctx);
+                                    body
+                                })
+                                .with_child({
+                                    collider_text = make_text_mark(ctx, "Collider", 1);
+                                    collider_text
+                                })
+                                .with_child({
+                                    collider = DropdownListBuilder::new(
+                                        WidgetBuilder::new()
+                                            .on_row(1)
+                                            .on_column(1)
+                                            .with_margin(Thickness::uniform(1.0)),
+                                    )
+                                    .with_close_on_selection(true)
+                                    .with_items(vec![
+                                        make_dropdown_list_option(ctx, "Ball"),
+                                        make_dropdown_list_option(ctx, "Cylinder"),
+                                        make_dropdown_list_option(ctx, "Round Cylinder"),
+                                        make_dropdown_list_option(ctx, "Cone"),
+                                        make_dropdown_list_option(ctx, "Cuboid"),
+                                        make_dropdown_list_option(ctx, "Capsule"),
+                                        make_dropdown_list_option(ctx, "Segment"),
+                                        make_dropdown_list_option(ctx, "Triangle"),
+                                        make_dropdown_list_option(ctx, "Trimesh"),
+                                        make_dropdown_list_option(ctx, "Heightfield"),
+                                    ])
+                                    .build(ctx);
+                                    collider
+                                })
+                                .with_child({
+                                    joint_text = make_text_mark(ctx, "Joint", 2);
+                                    joint_text
+                                })
+                                .with_child({
+                                    joint = DropdownListBuilder::new(
+                                        WidgetBuilder::new()
+                                            .on_row(2)
+                                            .on_column(1)
+                                            .with_margin(Thickness::uniform(1.0)),
+                                    )
+                                    .with_close_on_selection(true)
+                                    .with_items(vec![
+                                        make_dropdown_list_option(ctx, "None"),
+                                        make_dropdown_list_option(ctx, "Ball Joint"),
+                                        make_dropdown_list_option(ctx, "Fixed Joint"),
+                                        make_dropdown_list_option(ctx, "Prismatic Joint"),
+                                        make_dropdown_list_option(ctx, "Revolute Joint"),
+                                    ])
+                                    .build(ctx);
+                                    joint
+                                })
+                                .with_child({
+                                    fit = ButtonBuilder::new(
+                                        WidgetBuilder::new()
+                                            .with_margin(Thickness::uniform(1.0))
+                                            .on_row(3)
+                                            .on_column(1),
+                                    )
+                                    .with_text("Fit Collider")
+                                    .build(ctx);
+                                    fit
+                                }),
+                        )
+                        .add_column(Column::strict(COLUMN_WIDTH))
+                        .add_column(Column::stretch())
+                        .add_row(Row::strict(ROW_HEIGHT))
+                        .add_row(Row::strict(ROW_HEIGHT))
+                        .add_row(Row::strict(ROW_HEIGHT))
+                        .add_row(Row::strict(ROW_HEIGHT))
+                        .build(ctx),
                     )
-                    .add_column(Column::strict(COLUMN_WIDTH))
-                    .add_column(Column::stretch())
-                    .add_row(Row::strict(ROW_HEIGHT))
-                    .add_row(Row::strict(ROW_HEIGHT))
-                    .add_row(Row::strict(ROW_HEIGHT))
-                    .add_row(Row::strict(ROW_HEIGHT))
-                    .build(ctx),
-                )
-                .with_children(&[
-                    body_section.section,
-                    collider_section.section,
-                    cylinder_section.section,
-                    cone_section.section,
-                    cuboid_section.section,
-                    capsule_section.section,
-                    ball_section.section,
-                    joint_section.section,
-                ]),
-        )
-        .with_orientation(Orientation::Vertical)
-        .build(ctx);
+                    .with_children(&[
+                        body_section.section,
+                        collider_section.section,
+                        cylinder_section.section,
+                        cone_section.section,
+                        cuboid_section.section,
+                        capsule_section.section,
+                        ball_section.section,
+                        joint_section.section,
+                    ]),
+            )
+            .with_orientation(Orientation::Vertical)
+            .build(ctx),
+            ctx,
+        );
 
         Self {
             body_section,

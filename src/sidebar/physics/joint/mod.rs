@@ -1,22 +1,21 @@
-use crate::scene::commands::physics::SetJointConnectedBodyCommand;
-use crate::scene::commands::SceneCommand;
-use crate::sidebar::physics::joint::prismatic::PrismaticJointSection;
+use crate::sidebar::make_section;
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::{Joint, RigidBody},
+    scene::commands::{physics::SetJointConnectedBodyCommand, SceneCommand},
     send_sync_message,
     sidebar::{
         make_text_mark,
         physics::joint::{
-            ball::BallJointSection, fixed::FixedJointSection, revolute::RevoluteJointSection,
+            ball::BallJointSection, fixed::FixedJointSection, prismatic::PrismaticJointSection,
+            revolute::RevoluteJointSection,
         },
         COLUMN_WIDTH, ROW_HEIGHT,
     },
     Message,
 };
-use rg3d::core::BiDirHashMap;
 use rg3d::{
-    core::{color::Color, pool::Handle},
+    core::{color::Color, pool::Handle, BiDirHashMap},
     gui::{
         border::BorderBuilder,
         brush::Brush,
@@ -58,32 +57,36 @@ impl JointSection {
         let fixed_section = FixedJointSection::new(ctx, sender.clone());
         let revolute_section = RevoluteJointSection::new(ctx, sender.clone());
         let prismatic_section = PrismaticJointSection::new(ctx, sender.clone());
-        let section = StackPanelBuilder::new(
-            WidgetBuilder::new().with_children(&[
-                GridBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child({
-                            connected_body_text = make_text_mark(ctx, "Connected Body", 0);
-                            connected_body_text
-                        })
-                        .with_child({
-                            connected_body =
-                                DropdownListBuilder::new(WidgetBuilder::new().on_column(1))
-                                    .build(ctx);
-                            connected_body
-                        }),
-                )
-                .add_column(Column::strict(COLUMN_WIDTH))
-                .add_column(Column::stretch())
-                .add_row(Row::strict(ROW_HEIGHT))
-                .build(ctx),
-                ball_section.section,
-                fixed_section.section,
-                revolute_section.section,
-                prismatic_section.section,
-            ]),
-        )
-        .build(ctx);
+        let section = make_section(
+            "Joint Properties",
+            StackPanelBuilder::new(
+                WidgetBuilder::new().with_children(&[
+                    GridBuilder::new(
+                        WidgetBuilder::new()
+                            .with_child({
+                                connected_body_text = make_text_mark(ctx, "Connected Body", 0);
+                                connected_body_text
+                            })
+                            .with_child({
+                                connected_body =
+                                    DropdownListBuilder::new(WidgetBuilder::new().on_column(1))
+                                        .build(ctx);
+                                connected_body
+                            }),
+                    )
+                    .add_column(Column::strict(COLUMN_WIDTH))
+                    .add_column(Column::stretch())
+                    .add_row(Row::strict(ROW_HEIGHT))
+                    .build(ctx),
+                    ball_section.section,
+                    fixed_section.section,
+                    revolute_section.section,
+                    prismatic_section.section,
+                ]),
+            )
+            .build(ctx),
+            ctx,
+        );
 
         Self {
             section,

@@ -10,6 +10,10 @@ use crate::{
     },
     GameEngine, Message,
 };
+use rg3d::core::color::Color;
+use rg3d::gui::border::BorderBuilder;
+use rg3d::gui::brush::Brush;
+use rg3d::gui::expander::ExpanderBuilder;
 use rg3d::{
     core::{pool::Handle, scope_profile},
     gui::{
@@ -69,6 +73,26 @@ fn make_text_mark(ctx: &mut BuildContext, text: &str, row: usize) -> Handle<UiNo
             .on_column(0),
     )
     .with_text(text)
+    .build(ctx)
+}
+
+fn make_section(name: &str, content: Handle<UiNode>, ctx: &mut BuildContext) -> Handle<UiNode> {
+    BorderBuilder::new(
+        WidgetBuilder::new()
+            .with_margin(Thickness::uniform(1.0))
+            .with_child(
+                ExpanderBuilder::new(WidgetBuilder::new())
+                    .with_header(
+                        TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::left(3.0)))
+                            .with_vertical_text_alignment(VerticalAlignment::Center)
+                            .with_text(name)
+                            .build(ctx),
+                    )
+                    .with_content(content)
+                    .build(ctx),
+            )
+            .with_foreground(Brush::Solid(Color::opaque(130, 130, 130))),
+    )
     .build(ctx)
 }
 

@@ -1,3 +1,4 @@
+use crate::sidebar::make_section;
 use crate::{
     gui::{BuildContext, EditorUiNode, Ui, UiMessage, UiNode},
     make_relative_path,
@@ -69,36 +70,40 @@ impl DecalSection {
         let normal_texture;
         let color;
         let layer_index;
-        let section = GridBuilder::new(
-            WidgetBuilder::new()
-                .with_child(make_text_mark(ctx, "Diffuse Texture", 0))
-                .with_child({
-                    diffuse_texture = make_texture_field(ctx, 0);
-                    diffuse_texture
-                })
-                .with_child(make_text_mark(ctx, "Normal Texture", 1))
-                .with_child({
-                    normal_texture = make_texture_field(ctx, 1);
-                    normal_texture
-                })
-                .with_child(make_text_mark(ctx, "Color", 2))
-                .with_child({
-                    color = make_color_input_field(ctx, 2);
-                    color
-                })
-                .with_child(make_text_mark(ctx, "LayerIndex", 3))
-                .with_child({
-                    layer_index = make_int_input_field(ctx, 3, 0, 255, 1);
-                    layer_index
-                }),
-        )
-        .add_column(Column::strict(COLUMN_WIDTH))
-        .add_column(Column::stretch())
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .build(ctx);
+        let section = make_section(
+            "Decal Properties",
+            GridBuilder::new(
+                WidgetBuilder::new()
+                    .with_child(make_text_mark(ctx, "Diffuse Texture", 0))
+                    .with_child({
+                        diffuse_texture = make_texture_field(ctx, 0);
+                        diffuse_texture
+                    })
+                    .with_child(make_text_mark(ctx, "Normal Texture", 1))
+                    .with_child({
+                        normal_texture = make_texture_field(ctx, 1);
+                        normal_texture
+                    })
+                    .with_child(make_text_mark(ctx, "Color", 2))
+                    .with_child({
+                        color = make_color_input_field(ctx, 2);
+                        color
+                    })
+                    .with_child(make_text_mark(ctx, "LayerIndex", 3))
+                    .with_child({
+                        layer_index = make_int_input_field(ctx, 3, 0, 255, 1);
+                        layer_index
+                    }),
+            )
+            .add_column(Column::strict(COLUMN_WIDTH))
+            .add_column(Column::stretch())
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .build(ctx),
+            ctx,
+        );
 
         Self {
             section,

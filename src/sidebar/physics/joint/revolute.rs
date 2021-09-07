@@ -9,7 +9,7 @@ use crate::{
         SceneCommand,
     },
     send_sync_message,
-    sidebar::{make_text_mark, make_vec3_input_field, COLUMN_WIDTH, ROW_HEIGHT},
+    sidebar::{make_section, make_text_mark, make_vec3_input_field, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
 };
 use rg3d::{
@@ -38,36 +38,40 @@ impl RevoluteJointSection {
         let joint_axis;
         let connected_anchor;
         let connected_axis;
-        let section = GridBuilder::new(
-            WidgetBuilder::new()
-                .with_child(make_text_mark(ctx, "Joint Anchor", 0))
-                .with_child({
-                    joint_anchor = make_vec3_input_field(ctx, 0);
-                    joint_anchor
-                })
-                .with_child(make_text_mark(ctx, "Joint Axis", 1))
-                .with_child({
-                    joint_axis = make_vec3_input_field(ctx, 1);
-                    joint_axis
-                })
-                .with_child(make_text_mark(ctx, "Connected Anchor", 2))
-                .with_child({
-                    connected_anchor = make_vec3_input_field(ctx, 2);
-                    connected_anchor
-                })
-                .with_child(make_text_mark(ctx, "Connected Axis", 3))
-                .with_child({
-                    connected_axis = make_vec3_input_field(ctx, 3);
-                    connected_axis
-                }),
-        )
-        .add_column(Column::strict(COLUMN_WIDTH))
-        .add_column(Column::stretch())
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .add_row(Row::strict(ROW_HEIGHT))
-        .build(ctx);
+        let section = make_section(
+            "Revolute Joint Properties",
+            GridBuilder::new(
+                WidgetBuilder::new()
+                    .with_child(make_text_mark(ctx, "Joint Anchor", 0))
+                    .with_child({
+                        joint_anchor = make_vec3_input_field(ctx, 0);
+                        joint_anchor
+                    })
+                    .with_child(make_text_mark(ctx, "Joint Axis", 1))
+                    .with_child({
+                        joint_axis = make_vec3_input_field(ctx, 1);
+                        joint_axis
+                    })
+                    .with_child(make_text_mark(ctx, "Connected Anchor", 2))
+                    .with_child({
+                        connected_anchor = make_vec3_input_field(ctx, 2);
+                        connected_anchor
+                    })
+                    .with_child(make_text_mark(ctx, "Connected Axis", 3))
+                    .with_child({
+                        connected_axis = make_vec3_input_field(ctx, 3);
+                        connected_axis
+                    }),
+            )
+            .add_column(Column::strict(COLUMN_WIDTH))
+            .add_column(Column::stretch())
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .build(ctx),
+            ctx,
+        );
 
         Self {
             section,
