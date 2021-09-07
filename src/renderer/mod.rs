@@ -1286,18 +1286,23 @@ impl Renderer {
         for (scene_handle, scene) in scenes.pair_iter().filter(|(_, s)| s.enabled) {
             let graph = &scene.graph;
 
-            let frame_size = scene.render_target.as_ref().map_or_else(
-                // Use either backbuffer size
-                || Vector2::new(backbuffer_width, backbuffer_height),
-                // Or framebuffer size
-                |rt| {
-                    if let TextureKind::Rectangle { width, height } = rt.data_ref().kind() {
-                        Vector2::new(width as f32, height as f32)
-                    } else {
-                        panic!("only rectangle textures can be used as render target!")
-                    }
-                },
-            );
+            let frame_size = scene
+                .render_target
+                .as_ref()
+                .map_or_else(
+                    // Use either backbuffer size
+                    || Vector2::new(backbuffer_width, backbuffer_height),
+                    // Or framebuffer size
+                    |rt| {
+                        if let TextureKind::Rectangle { width, height } = rt.data_ref().kind() {
+                            Vector2::new(width as f32, height as f32)
+                        } else {
+                            panic!("only rectangle textures can be used as render target!")
+                        }
+                    },
+                )
+                // Clamp to [1.0; infinity] range.
+                .sup(&Vector2::new(1.0, 1.0));
 
             let state = &mut self.state;
 
@@ -1310,14 +1315,14 @@ impl Renderer {
                     if data.gbuffer.width != frame_size.x as i32
                         || data.gbuffer.height != frame_size.y as i32
                     {
-                        let width = (frame_size.x as usize).max(1);
-                        let height = (frame_size.y as usize).max(1);
+                        let width = frame_size.x as usize;
+                        let height = frame_size.y as usize;
                         *data = AssociatedSceneData::new(state, width, height).unwrap();
                     }
                 })
                 .or_insert_with(|| {
-                    let width = (frame_size.x as usize).max(1);
-                    let height = (frame_size.y as usize).max(1);
+                    let width = frame_size.x as usize;
+                    let height = frame_size.y as usize;
                     AssociatedSceneData::new(state, width, height).unwrap()
                 });
 
