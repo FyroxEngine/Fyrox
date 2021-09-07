@@ -5,6 +5,8 @@ use crate::{
 use rg3d::core::color::Color;
 use rg3d::core::scope_profile;
 use rg3d::engine::resource_manager::MaterialSearchOptions;
+use rg3d::gui::message::ImageMessage;
+use rg3d::resource::texture::TextureKind;
 use rg3d::scene::Line;
 use rg3d::{
     core::{
@@ -284,7 +286,7 @@ impl PreviewPanel {
         }
     }
 
-    pub async fn set_model(&mut self, model: &Path, engine: &mut GameEngine) {
+    pub async fn load_model(&mut self, model: &Path, engine: &mut GameEngine) {
         self.clear(engine);
         if let Ok(model) = engine
             .resource_manager
@@ -295,5 +297,44 @@ impl PreviewPanel {
             self.model = model.instantiate_geometry(scene);
             self.fit_to_model(scene);
         }
+    }
+
+    pub fn update(&mut self, engine: &mut GameEngine) {
+        let scene = &mut engine.scenes[self.scene];
+
+        // Create new render target if preview frame has changed its size.
+        let (rt_width, rt_height) = if let TextureKind::Rectangle { width, height } =
+            scene.render_target.clone().unwrap().data_ref().kind()
+        {
+            (width, height)
+        } else {
+            unreachable!();
+        };
+        if let UiNode::Image(frame) = engine.user_interface.node(self.frame) {
+            let frame_size = frame.actual_size();
+            if rt_width != frame_size.x as u32 || rt_height != frame_size.y as u32 {
+                let rt = Texture::new_render_target(frame_size.x as u32, frame_size.y as u32);
+                scene.render_target = Some(rt.clone());
+                engine.user_interface.send_message(ImageMessage::texture(
+                    self.frame,
+                    MessageDirection::ToWidget,
+                    Some(into_gui_texture(rt)),
+                ));
+            }
+        }
+    }
+
+    pub fn set_model(&mut self, model: Handle<Node>, engine: &mut GameEngine) {
+        self.clear(engine);
+        self.model = model;
+        self.fit_to_model(&mut engine.scenes[self.scene])
+    }
+
+    pub fn scene(&self) -> Handle<Scene> {
+        self.scene
+    }
+
+    pub fn model(&self) -> Handle<Node> {
+        self.model
     }
 }

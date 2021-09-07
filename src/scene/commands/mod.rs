@@ -1,7 +1,4 @@
-use crate::scene::commands::decal::{SetDecalColorCommand, SetDecalLayerIndexCommand};
-use crate::scene::commands::mesh::SetMeshDecalLayerIndexCommand;
-use crate::scene::commands::particle_system::SetEmitterResurrectParticlesCommand;
-use crate::scene::commands::terrain::SetTerrainDecalLayerIndexCommand;
+use crate::scene::commands::material::SetMaterialPropertyValueCommand;
 use crate::{
     command::Command,
     physics::{Collider, Joint, RigidBody},
@@ -9,7 +6,10 @@ use crate::{
         clipboard::DeepCloneResult,
         commands::{
             camera::{SetCameraPreviewCommand, SetFovCommand, SetZFarCommand, SetZNearCommand},
-            decal::{SetDecalDiffuseTextureCommand, SetDecalNormalTextureCommand},
+            decal::{
+                SetDecalColorCommand, SetDecalDiffuseTextureCommand, SetDecalLayerIndexCommand,
+                SetDecalNormalTextureCommand,
+            },
             graph::{
                 AddNodeCommand, DeleteNodeCommand, DeleteSubGraphCommand, LinkNodesCommand,
                 LoadModelCommand, MoveNodeCommand, RotateNodeCommand, ScaleNodeCommand,
@@ -26,7 +26,10 @@ use crate::{
                 ChangeLodRangeEndCommand, RemoveLodGroupLevelCommand, RemoveLodObjectCommand,
                 SetLodGroupCommand,
             },
-            mesh::{SetMeshCastShadowsCommand, SetMeshRenderPathCommand, SetMeshTextureCommand},
+            mesh::{
+                SetMeshCastShadowsCommand, SetMeshDecalLayerIndexCommand, SetMeshRenderPathCommand,
+                SetMeshTextureCommand,
+            },
             navmesh::{
                 AddNavmeshCommand, AddNavmeshEdgeCommand, AddNavmeshTriangleCommand,
                 AddNavmeshVertexCommand, ConnectNavmeshEdgesCommand, DeleteNavmeshCommand,
@@ -37,8 +40,9 @@ use crate::{
                 SetBoxEmitterHalfDepthCommand, SetBoxEmitterHalfHeightCommand,
                 SetBoxEmitterHalfWidthCommand, SetCylinderEmitterHeightCommand,
                 SetCylinderEmitterRadiusCommand, SetEmitterNumericParameterCommand,
-                SetEmitterPositionCommand, SetParticleSystemAccelerationCommand,
-                SetParticleSystemTextureCommand, SetSphereEmitterRadiusCommand,
+                SetEmitterPositionCommand, SetEmitterResurrectParticlesCommand,
+                SetParticleSystemAccelerationCommand, SetParticleSystemTextureCommand,
+                SetSphereEmitterRadiusCommand,
             },
             physics::{
                 AddJointCommand, DeleteBodyCommand, DeleteColliderCommand, DeleteJointCommand,
@@ -72,7 +76,8 @@ use crate::{
             },
             terrain::{
                 AddTerrainLayerCommand, DeleteTerrainLayerCommand, ModifyTerrainHeightCommand,
-                ModifyTerrainLayerMaskCommand, SetTerrainLayerTextureCommand,
+                ModifyTerrainLayerMaskCommand, SetTerrainDecalLayerIndexCommand,
+                SetTerrainLayerTextureCommand,
             },
         },
         EditorScene, GraphSelection, Selection,
@@ -91,6 +96,7 @@ pub mod decal;
 pub mod graph;
 pub mod light;
 pub mod lod;
+pub mod material;
 pub mod mesh;
 pub mod navmesh;
 pub mod particle_system;
@@ -265,6 +271,9 @@ pub enum SceneCommand {
     SetDecalNormalTexture(SetDecalNormalTextureCommand),
     SetDecalColor(SetDecalColorCommand),
     SetDecalLayerIndex(SetDecalLayerIndexCommand),
+
+    // Material commands.
+    SetMaterialPropertyValue(SetMaterialPropertyValueCommand),
 }
 
 pub struct SceneContext<'a> {
@@ -401,6 +410,7 @@ macro_rules! static_dispatch {
             SceneCommand::SetDecalColor(v) => v.$func($($args),*),
             SceneCommand::SetDecalLayerIndex(v) => v.$func($($args),*),
             SceneCommand::SetEmitterResurrectParticles(v) => v.$func($($args),*),
+            SceneCommand::SetMaterialPropertyValue(v) => v.$func($($args),*),
         }
     };
 }

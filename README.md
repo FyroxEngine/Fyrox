@@ -3,6 +3,9 @@
 Scene editor for [rg3d engine](https://github.com/rg3dengine/rg3d).
 
 [![CI Status](https://github.com/rg3dengine/rusty-editor/actions/workflows/ci.yml/badge.svg)](https://github.com/rg3dengine/rusty-editor/actions/workflows/ci.yml)
+[![Discord](https://img.shields.io/discord/756573453561102427)](https://discord.gg/xENF5Uh)
+[![Lines of code](https://tokei.rs/b1/github/rg3dengine/rusty-editor)](https://github.com/rg3dengine/rusty-editor)
+
 
 ## Limitations
 

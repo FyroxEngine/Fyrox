@@ -353,7 +353,7 @@ impl AssetBrowser {
                     if item.kind == AssetKind::Model {
                         let path = item.path.clone();
                         rg3d::core::futures::executor::block_on(
-                            self.preview.set_model(&path, engine),
+                            self.preview.load_model(&path, engine),
                         );
                     }
                 } else {
@@ -395,5 +395,9 @@ impl AssetBrowser {
             }
             _ => {}
         }
+    }
+
+    pub fn update(&mut self, engine: &mut GameEngine) {
+        self.preview.update(engine)
     }
 }

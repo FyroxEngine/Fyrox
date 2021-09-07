@@ -19,6 +19,7 @@ pub mod gui;
 pub mod interaction;
 pub mod light;
 pub mod log;
+pub mod material;
 pub mod menu;
 pub mod overlay;
 pub mod physics;
@@ -31,6 +32,7 @@ pub mod sound;
 pub mod utils;
 pub mod world_outliner;
 
+use crate::material::MaterialEditor;
 use crate::{
     asset::{AssetBrowser, AssetKind},
     camera::CameraController,
@@ -72,10 +74,6 @@ use crate::{
     utils::path_fixer::PathFixer,
     world_outliner::WorldOutliner,
 };
-use rg3d::material::shader::SamplerFallback;
-use rg3d::material::{Material, PropertyValue};
-use rg3d::scene::mesh::Mesh;
-use rg3d::utils::log::MessageKind;
 use rg3d::{
     core::{
         algebra::{Point3, Vector2},
@@ -85,8 +83,7 @@ use rg3d::{
         scope_profile,
     },
     dpi::LogicalSize,
-    engine::resource_manager::MaterialSearchOptions,
-    engine::resource_manager::TextureImportOptions,
+    engine::resource_manager::{MaterialSearchOptions, TextureImportOptions},
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
@@ -114,17 +111,20 @@ use rg3d::{
         window::{WindowBuilder, WindowTitle},
         HorizontalAlignment, Orientation, Thickness, VerticalAlignment,
     },
+    material::{shader::SamplerFallback, Material, PropertyValue},
     resource::texture::{CompressionOptions, Texture, TextureKind, TextureState},
     scene::{
         base::BaseBuilder,
         graph::Graph,
-        mesh::buffer::{VertexAttributeUsage, VertexReadTrait},
+        mesh::{
+            buffer::{VertexAttributeUsage, VertexReadTrait},
+            Mesh,
+        },
         node::Node,
         Line, Scene, SceneDrawingContext,
     },
-    utils::{into_gui_texture, translate_cursor_icon, translate_event},
+    utils::{into_gui_texture, log::MessageKind, translate_cursor_icon, translate_event},
 };
-use std::sync::Arc;
 use std::{
     fs,
     io::Write,
@@ -132,7 +132,7 @@ use std::{
     str::from_utf8,
     sync::{
         mpsc::{self, Receiver, Sender},
-        Mutex,
+        Arc, Mutex,
     },
     time::Instant,
 };
@@ -822,6 +822,7 @@ struct Editor {
     settings: Settings,
     model_import_dialog: ModelImportDialog,
     path_fixer: PathFixer,
+    material_editor: MaterialEditor,
 }
 
 impl Editor {
@@ -1019,6 +1020,10 @@ impl Editor {
 
         let path_fixer = PathFixer::new(ctx);
 
+        let test_material = Arc::new(Mutex::new(Material::standard()));
+        let mut material_editor = MaterialEditor::new(engine);
+        material_editor.set_material(Some(test_material), engine);
+
         let mut editor = Self {
             navmesh_panel,
             sidebar,
@@ -1045,6 +1050,7 @@ impl Editor {
             settings,
             model_import_dialog,
             path_fixer,
+            material_editor,
         };
 
         editor.set_interaction_mode(Some(InteractionModeKind::Move), engine);
@@ -1236,6 +1242,9 @@ impl Editor {
 
             self.preview
                 .handle_ui_message(message, &engine.user_interface);
+
+            self.material_editor
+                .handle_ui_message(message, engine, &self.message_sender);
 
             self.model_import_dialog.handle_ui_message(
                 message,
@@ -1605,6 +1614,8 @@ impl Editor {
             self.sidebar.sync_to_model(editor_scene, engine);
             self.navmesh_panel.sync_to_model(editor_scene, engine);
             self.sound_panel.sync_to_model(editor_scene, engine);
+            self.material_editor
+                .sync_to_model(&mut engine.user_interface);
             self.command_stack_viewer.sync_to_model(
                 &mut self.command_stack,
                 &SceneContext {
@@ -1991,6 +2002,9 @@ impl Editor {
                     engine,
                 );
             }
+
+            self.asset_browser.update(engine);
+            self.material_editor.update(engine);
         }
     }
 }
