@@ -149,13 +149,20 @@ impl Camera {
 
     /// Calculates viewport rectangle in pixels based on internal resolution-independent
     /// viewport. It is useful when you need to get real viewport rectangle in pixels.
+    ///
+    /// # Notes
+    ///
+    /// Viewport cannot be less than 1x1 pixel in size, so the method clamps values to
+    /// range `[1; infinity]`. This is strictly needed because having viewport of 0 in size
+    /// will cause panics in various places. It happens because viewport size is used as
+    /// divisor in math formulas, but you cannot divide by zero.
     #[inline]
     pub fn viewport_pixels(&self, frame_size: Vector2<f32>) -> Rect<i32> {
         Rect::new(
             (self.viewport.x() * frame_size.x) as i32,
             (self.viewport.y() * frame_size.y) as i32,
-            (self.viewport.w() * frame_size.x) as i32,
-            (self.viewport.h() * frame_size.y) as i32,
+            ((self.viewport.w() * frame_size.x) as i32).max(1),
+            ((self.viewport.h() * frame_size.y) as i32).max(1),
         )
     }
 
