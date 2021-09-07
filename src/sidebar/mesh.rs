@@ -1,4 +1,3 @@
-use crate::sidebar::make_section;
 use crate::{
     gui::{make_dropdown_list_option, BuildContext, Ui, UiMessage, UiNode},
     scene::commands::{
@@ -9,19 +8,22 @@ use crate::{
     },
     send_sync_message,
     sidebar::{
-        make_bool_input_field, make_int_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT,
+        make_bool_input_field, make_int_input_field, make_section, make_text_mark, COLUMN_WIDTH,
+        ROW_HEIGHT,
     },
     Message,
 };
 use rg3d::{
     core::{pool::Handle, scope_profile},
     gui::{
+        button::ButtonBuilder,
         dropdown_list::DropdownListBuilder,
         grid::{Column, GridBuilder, Row},
         message::{
-            CheckBoxMessage, DropdownListMessage, MessageDirection, NumericUpDownMessage,
-            UiMessageData, WidgetMessage,
+            ButtonMessage, CheckBoxMessage, DropdownListMessage, MessageDirection,
+            NumericUpDownMessage, UiMessageData, WidgetMessage,
         },
+        stack_panel::StackPanelBuilder,
         widget::WidgetBuilder,
         Thickness,
     },
@@ -36,6 +38,9 @@ pub struct MeshSection {
     decal_layer_index: Handle<UiNode>,
     sender: Sender<Message>,
     surfaces_list: Handle<UiNode>,
+    current_surface: Option<usize>,
+    surface_section: Handle<UiNode>,
+    edit_material: Handle<UiNode>,
 }
 
 impl MeshSection {
@@ -44,50 +49,82 @@ impl MeshSection {
         let render_path;
         let decal_layer_index;
         let surfaces_list;
+        let surface_section;
+        let edit_material;
         let section = make_section(
             "Mesh Properties",
-            GridBuilder::new(
+            StackPanelBuilder::new(
                 WidgetBuilder::new()
-                    .with_child(make_text_mark(ctx, "Cast Shadows", 0))
-                    .with_child({
-                        cast_shadows = make_bool_input_field(ctx, 0);
-                        cast_shadows
-                    })
-                    .with_child(make_text_mark(ctx, "Render Path", 1))
-                    .with_child({
-                        render_path = DropdownListBuilder::new(
+                    .with_child(
+                        GridBuilder::new(
                             WidgetBuilder::new()
-                                .on_row(1)
-                                .on_column(1)
-                                .with_margin(Thickness::uniform(1.0)),
+                                .with_child(make_text_mark(ctx, "Cast Shadows", 0))
+                                .with_child({
+                                    cast_shadows = make_bool_input_field(ctx, 0);
+                                    cast_shadows
+                                })
+                                .with_child(make_text_mark(ctx, "Render Path", 1))
+                                .with_child({
+                                    render_path = DropdownListBuilder::new(
+                                        WidgetBuilder::new()
+                                            .on_row(1)
+                                            .on_column(1)
+                                            .with_margin(Thickness::uniform(1.0)),
+                                    )
+                                    .with_close_on_selection(true)
+                                    .with_items(vec![
+                                        make_dropdown_list_option(ctx, "Deferred"),
+                                        make_dropdown_list_option(ctx, "Forward"),
+                                    ])
+                                    .build(ctx);
+                                    render_path
+                                })
+                                .with_child(make_text_mark(ctx, "Decal Layer Index", 2))
+                                .with_child({
+                                    decal_layer_index = make_int_input_field(ctx, 2, 0, 255, 1);
+                                    decal_layer_index
+                                })
+                                .with_child(make_text_mark(ctx, "Surfaces", 3))
+                                .with_child({
+                                    surfaces_list = DropdownListBuilder::new(
+                                        WidgetBuilder::new().on_row(3).on_column(1),
+                                    )
+                                    .build(ctx);
+                                    surfaces_list
+                                }),
                         )
-                        .with_close_on_selection(true)
-                        .with_items(vec![
-                            make_dropdown_list_option(ctx, "Deferred"),
-                            make_dropdown_list_option(ctx, "Forward"),
-                        ])
-                        .build(ctx);
-                        render_path
-                    })
-                    .with_child(make_text_mark(ctx, "Decal Layer Index", 2))
+                        .add_column(Column::strict(COLUMN_WIDTH))
+                        .add_column(Column::stretch())
+                        .add_row(Row::strict(ROW_HEIGHT))
+                        .add_row(Row::strict(ROW_HEIGHT))
+                        .add_row(Row::strict(ROW_HEIGHT))
+                        .add_row(Row::strict(ROW_HEIGHT))
+                        .build(ctx),
+                    )
                     .with_child({
-                        decal_layer_index = make_int_input_field(ctx, 2, 0, 255, 1);
-                        decal_layer_index
-                    })
-                    .with_child(make_text_mark(ctx, "Surfaces", 3))
-                    .with_child({
-                        surfaces_list =
-                            DropdownListBuilder::new(WidgetBuilder::new().on_row(3).on_column(1))
-                                .build(ctx);
-                        surfaces_list
+                        surface_section = make_section(
+                            "Surface Properties",
+                            GridBuilder::new(
+                                WidgetBuilder::new()
+                                    .with_child(make_text_mark(ctx, "Material", 0))
+                                    .with_child({
+                                        edit_material = ButtonBuilder::new(
+                                            WidgetBuilder::new().on_row(0).on_column(1),
+                                        )
+                                        .with_text("...")
+                                        .build(ctx);
+                                        edit_material
+                                    }),
+                            )
+                            .add_column(Column::strict(COLUMN_WIDTH))
+                            .add_column(Column::stretch())
+                            .add_row(Row::strict(ROW_HEIGHT))
+                            .build(ctx),
+                            ctx,
+                        );
+                        surface_section
                     }),
             )
-            .add_column(Column::strict(COLUMN_WIDTH))
-            .add_column(Column::stretch())
-            .add_row(Row::strict(ROW_HEIGHT))
-            .add_row(Row::strict(ROW_HEIGHT))
-            .add_row(Row::strict(ROW_HEIGHT))
-            .add_row(Row::strict(ROW_HEIGHT))
             .build(ctx),
             ctx,
         );
@@ -99,6 +136,9 @@ impl MeshSection {
             sender,
             decal_layer_index,
             surfaces_list,
+            edit_material,
+            surface_section,
+            current_surface: None,
         }
     }
 
@@ -150,7 +190,9 @@ impl MeshSection {
                     .map(|(n, _)| {
                         make_dropdown_list_option(&mut ui.build_ctx(), &format!("Surface {}", n))
                     })
-                    .collect();
+                    .collect::<Vec<_>>();
+
+                let selection = if items.is_empty() { None } else { Some(0) };
 
                 send_sync_message(
                     ui,
@@ -158,6 +200,15 @@ impl MeshSection {
                         self.surfaces_list,
                         MessageDirection::ToWidget,
                         items,
+                    ),
+                );
+
+                send_sync_message(
+                    ui,
+                    DropdownListMessage::selection(
+                        self.surfaces_list,
+                        MessageDirection::ToWidget,
+                        selection,
                     ),
                 );
             }
@@ -180,21 +231,36 @@ impl MeshSection {
                             .unwrap();
                     }
                 }
-                UiMessageData::DropdownList(DropdownListMessage::SelectionChanged(Some(
-                    selection,
-                ))) => {
+                UiMessageData::DropdownList(DropdownListMessage::SelectionChanged(selection)) => {
                     if message.destination() == self.render_path {
-                        let new_render_path = match selection {
-                            0 => RenderPath::Deferred,
-                            1 => RenderPath::Forward,
-                            _ => unreachable!(),
-                        };
-                        if new_render_path != mesh.render_path() {
-                            self.sender
-                                .send(Message::DoSceneCommand(SceneCommand::SetMeshRenderPath(
-                                    SetMeshRenderPathCommand::new(handle, new_render_path),
-                                )))
-                                .unwrap();
+                        if let Some(selection) = selection {
+                            let new_render_path = match selection {
+                                0 => RenderPath::Deferred,
+                                1 => RenderPath::Forward,
+                                _ => unreachable!(),
+                            };
+                            if new_render_path != mesh.render_path() {
+                                self.sender
+                                    .send(Message::DoSceneCommand(SceneCommand::SetMeshRenderPath(
+                                        SetMeshRenderPathCommand::new(handle, new_render_path),
+                                    )))
+                                    .unwrap();
+                            }
+                        }
+                    } else if message.destination() == self.surfaces_list {
+                        self.current_surface = selection;
+
+                        self.sender.send(Message::SyncToModel).unwrap();
+                    }
+                }
+                UiMessageData::Button(ButtonMessage::Click) => {
+                    if message.destination() == self.edit_material {
+                        if let Some(current_surface) = self.current_surface {
+                            if let Some(surface) = mesh.surfaces().get(current_surface) {
+                                self.sender
+                                    .send(Message::OpenMaterialEditor(surface.material().clone()))
+                                    .unwrap();
+                            }
                         }
                     }
                 }

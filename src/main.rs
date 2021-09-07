@@ -770,6 +770,7 @@ pub enum Message {
     NewScene,
     Exit { force: bool },
     OpenSettings(SettingsSectionKind),
+    OpenMaterialEditor(Arc<Mutex<Material>>),
 }
 
 pub fn make_scene_file_filter() -> Filter {
@@ -1826,6 +1827,15 @@ impl Editor {
                     self.menu
                         .settings
                         .open(&engine.user_interface, &self.settings, Some(section));
+                }
+                Message::OpenMaterialEditor(material) => {
+                    self.material_editor.set_material(Some(material), engine);
+
+                    engine.user_interface.send_message(WindowMessage::open(
+                        self.material_editor.window,
+                        MessageDirection::ToWidget,
+                        true,
+                    ));
                 }
             }
         }
