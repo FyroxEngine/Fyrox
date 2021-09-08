@@ -16,7 +16,7 @@ use crate::{
         state::PipelineState,
     },
     renderer::RenderPassStatistics,
-    scene::{camera::Camera, SceneDrawingContext},
+    scene::{camera::Camera, debug::SceneDrawingContext},
 };
 
 #[repr(C)]

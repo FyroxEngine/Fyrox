@@ -1,8 +1,8 @@
 //! Contains all structures and methods to operate with physics world.
 
-use crate::core::algebra::Vector2;
 use crate::{
     core::{
+        algebra::Vector2,
         arrayvec::ArrayVec,
         color::Color,
         instant,
@@ -14,6 +14,7 @@ use crate::{
     engine::{ColliderHandle, JointHandle, PhysicsBinder, RigidBodyHandle},
     resource::model::Model,
     scene::{
+        debug::SceneDrawingContext,
         graph::Graph,
         mesh::buffer::{VertexAttributeUsage, VertexReadTrait},
         node::Node,
@@ -24,7 +25,6 @@ use crate::{
             joint::JointContainer,
         },
         terrain::Terrain,
-        SceneDrawingContext,
     },
     utils::{
         log::{Log, MessageKind},
@@ -726,10 +726,7 @@ impl Physics {
         query_buffer.clear();
         let ray = rapier3d::geometry::Ray::new(
             Point3::from(opts.ray.origin),
-            opts.ray
-                .dir
-                .try_normalize(f32::EPSILON)
-                .unwrap_or_default(),
+            opts.ray.dir.try_normalize(f32::EPSILON).unwrap_or_default(),
         );
         query.intersections_with_ray(
             &self.colliders.set,
