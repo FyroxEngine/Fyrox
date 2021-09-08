@@ -2,31 +2,30 @@ use crate::{
     gui::{UiMessage, UiNode},
     GameEngine,
 };
-use rg3d::core::color::Color;
-use rg3d::core::scope_profile;
-use rg3d::engine::resource_manager::MaterialSearchOptions;
-use rg3d::gui::message::ImageMessage;
-use rg3d::resource::texture::TextureKind;
-use rg3d::scene::Line;
 use rg3d::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
+        color::Color,
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
+        scope_profile,
     },
+    engine::resource_manager::MaterialSearchOptions,
     gui::{
         button::ButtonBuilder,
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
         message::{
-            ButtonMessage, CursorIcon, MessageDirection, MouseButton, UiMessageData, WidgetMessage,
+            ButtonMessage, CursorIcon, ImageMessage, MessageDirection, MouseButton, UiMessageData,
+            WidgetMessage,
         },
         widget::WidgetBuilder,
         Thickness,
     },
-    resource::texture::Texture,
+    resource::texture::{Texture, TextureKind},
     scene::{
-        base::BaseBuilder, camera::CameraBuilder, node::Node, transform::TransformBuilder, Scene,
+        base::BaseBuilder, camera::CameraBuilder, debug::Line, node::Node,
+        transform::TransformBuilder, Scene,
     },
     utils::into_gui_texture,
 };

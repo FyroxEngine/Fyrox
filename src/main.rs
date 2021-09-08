@@ -32,7 +32,6 @@ pub mod sound;
 pub mod utils;
 pub mod world_outliner;
 
-use crate::material::MaterialEditor;
 use crate::{
     asset::{AssetBrowser, AssetKind},
     camera::CameraController,
@@ -56,6 +55,7 @@ use crate::{
     },
     light::LightPanel,
     log::Log,
+    material::MaterialEditor,
     menu::{Menu, MenuContext},
     overlay::OverlayRenderPass,
     physics::Physics,
@@ -115,13 +115,14 @@ use rg3d::{
     resource::texture::{CompressionOptions, Texture, TextureKind, TextureState},
     scene::{
         base::BaseBuilder,
+        debug::{Line, SceneDrawingContext},
         graph::Graph,
         mesh::{
             buffer::{VertexAttributeUsage, VertexReadTrait},
             Mesh,
         },
         node::Node,
-        Line, Scene, SceneDrawingContext,
+        Scene,
     },
     utils::{into_gui_texture, log::MessageKind, translate_cursor_icon, translate_event},
 };

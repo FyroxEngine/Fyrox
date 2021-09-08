@@ -1,8 +1,6 @@
-use rg3d::core::algebra::Matrix4;
-use rg3d::scene::mesh::surface::SurfaceData;
 use rg3d::{
     core::{
-        algebra::{Isometry3, Point3, Translation, Translation3, Vector3},
+        algebra::{Isometry3, Matrix4, Point3, Translation, Translation3, Vector3},
         color::Color,
         math::aabb::AxisAlignedBoundingBox,
         pool::{ErasedHandle, Handle, Pool},
@@ -11,13 +9,17 @@ use rg3d::{
     },
     engine::{ColliderHandle, JointHandle, RigidBodyHandle},
     scene::{
+        debug::{Line, SceneDrawingContext},
         graph::Graph,
-        mesh::buffer::{VertexAttributeUsage, VertexReadTrait},
+        mesh::{
+            buffer::{VertexAttributeUsage, VertexReadTrait},
+            surface::SurfaceData,
+        },
         node::Node,
         physics::desc::{
             ColliderDesc, ColliderShapeDesc, JointDesc, JointParamsDesc, PhysicsDesc, RigidBodyDesc,
         },
-        Line, Scene, SceneDrawingContext,
+        Scene,
     },
 };
 use std::collections::HashMap;

@@ -639,7 +639,7 @@ impl InteractionModeTrait for EditNavmeshMode {
 
                 for triangle in navmesh.triangles.iter() {
                     for edge in &triangle.edges() {
-                        scene.drawing_context.add_line(rg3d::scene::Line {
+                        scene.drawing_context.add_line(rg3d::scene::debug::Line {
                             begin: navmesh.vertices[edge.begin].position,
                             end: navmesh.vertices[edge.end].position,
                             color: if navmesh_selection.contains_edge(*edge) {
@@ -672,14 +672,14 @@ impl InteractionModeTrait for EditNavmeshMode {
                 let oe = navmesh.vertices[opposite_edge.end].position;
                 let ne = vertices[1].position;
 
-                scene.drawing_context.add_line(rg3d::scene::Line {
+                scene.drawing_context.add_line(rg3d::scene::debug::Line {
                     begin: nb,
                     end: ne,
                     color: Color::RED,
                 });
 
                 for &(begin, end) in &[(ob, oe), (ob, nb), (nb, oe), (oe, ne)] {
-                    scene.drawing_context.add_line(rg3d::scene::Line {
+                    scene.drawing_context.add_line(rg3d::scene::debug::Line {
                         begin,
                         end,
                         color: Color::GREEN,
