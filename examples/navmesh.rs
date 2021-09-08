@@ -9,9 +9,6 @@ extern crate rg3d;
 pub mod shared;
 
 use crate::shared::create_camera;
-use rg3d::engine::resource_manager::MaterialSearchOptions;
-use rg3d::material::{Material, PropertyValue};
-use rg3d::utils::log::{Log, MessageKind};
 use rg3d::{
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
@@ -21,7 +18,7 @@ use rg3d::{
         pool::Handle,
     },
     dpi::LogicalPosition,
-    engine::resource_manager::ResourceManager,
+    engine::{resource_manager::MaterialSearchOptions, resource_manager::ResourceManager},
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
@@ -30,8 +27,10 @@ use rg3d::{
         text::TextBuilder,
         widget::WidgetBuilder,
     },
+    material::{Material, PropertyValue},
     scene::{
         base::BaseBuilder,
+        debug::Line,
         mesh::{
             surface::{SurfaceBuilder, SurfaceData},
             MeshBuilder,
@@ -39,13 +38,16 @@ use rg3d::{
         node::Node,
         physics::{Intersection, RayCastOptions},
         transform::TransformBuilder,
-        Line, Scene,
+        Scene,
     },
-    utils::{navmesh::NavmeshAgent, translate_event},
+    utils::{
+        log::{Log, MessageKind},
+        navmesh::NavmeshAgent,
+        translate_event,
+    },
 };
-use std::sync::Mutex;
 use std::{
-    sync::{Arc, RwLock},
+    sync::{Arc, Mutex, RwLock},
     time::Instant,
 };
 
