@@ -1,4 +1,4 @@
-use crate::scene::commands::material::SetMaterialPropertyValueCommand;
+use crate::scene::commands::material::{SetMaterialPropertyValueCommand, SetMaterialShaderCommand};
 use crate::{
     command::Command,
     physics::{Collider, Joint, RigidBody},
@@ -274,6 +274,7 @@ pub enum SceneCommand {
 
     // Material commands.
     SetMaterialPropertyValue(SetMaterialPropertyValueCommand),
+    SetMaterialShader(SetMaterialShaderCommand),
 }
 
 pub struct SceneContext<'a> {
@@ -411,6 +412,7 @@ macro_rules! static_dispatch {
             SceneCommand::SetDecalLayerIndex(v) => v.$func($($args),*),
             SceneCommand::SetEmitterResurrectParticles(v) => v.$func($($args),*),
             SceneCommand::SetMaterialPropertyValue(v) => v.$func($($args),*),
+            SceneCommand::SetMaterialShader(v) => v.$func($($args),*),
         }
     };
 }

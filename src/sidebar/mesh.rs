@@ -89,6 +89,7 @@ impl MeshSection {
                                     surfaces_list = DropdownListBuilder::new(
                                         WidgetBuilder::new().on_row(3).on_column(1),
                                     )
+                                    .with_close_on_selection(true)
                                     .build(ctx);
                                     surfaces_list
                                 }),
@@ -203,19 +204,18 @@ impl MeshSection {
                     ),
                 );
 
-                send_sync_message(
-                    ui,
-                    DropdownListMessage::selection(
-                        self.surfaces_list,
-                        MessageDirection::ToWidget,
-                        selection,
-                    ),
-                );
+                // This has to be sent without `send_sync_message` because we need to get response message
+                // in `handle_ui_message`.
+                ui.send_message(DropdownListMessage::selection(
+                    self.surfaces_list,
+                    MessageDirection::ToWidget,
+                    selection,
+                ));
             }
         }
     }
 
-    pub fn handle_message(&mut self, message: &UiMessage, node: &Node, handle: Handle<Node>) {
+    pub fn handle_ui_message(&mut self, message: &UiMessage, node: &Node, handle: Handle<Node>) {
         scope_profile!();
 
         if let Node::Mesh(mesh) = node {

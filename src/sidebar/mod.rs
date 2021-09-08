@@ -343,25 +343,26 @@ impl SideBar {
 
                     if message.direction() == MessageDirection::FromWidget {
                         self.light_section
-                            .handle_message(message, node, node_handle);
+                            .handle_ui_message(message, node, node_handle);
                         self.camera_section
-                            .handle_message(message, node, node_handle);
-                        self.particle_system_section.handle_message(
+                            .handle_ui_message(message, node, node_handle);
+                        self.particle_system_section.handle_ui_message(
                             message,
                             node,
                             node_handle,
                             &engine.user_interface,
                         );
                         self.sprite_section
-                            .handle_message(message, node, node_handle);
-                        self.decal_section.handle_message(
+                            .handle_ui_message(message, node, node_handle);
+                        self.decal_section.handle_ui_message(
                             message,
                             &mut engine.user_interface,
                             engine.resource_manager.clone(),
                             node_handle,
                             &self.sender,
                         );
-                        self.mesh_section.handle_message(message, node, node_handle);
+                        self.mesh_section
+                            .handle_ui_message(message, node, node_handle);
                         self.base_section.handle_ui_message(
                             message,
                             &self.sender,
@@ -371,7 +372,7 @@ impl SideBar {
                             &mut self.lod_editor,
                         );
 
-                        self.terrain_section.handle_message(
+                        self.terrain_section.handle_ui_message(
                             message,
                             &mut engine.user_interface,
                             engine.resource_manager.clone(),

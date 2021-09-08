@@ -150,7 +150,7 @@ impl LightSection {
         self.spot_light_section.sync_to_model(node, ui);
     }
 
-    pub fn handle_message(&mut self, message: &UiMessage, node: &Node, handle: Handle<Node>) {
+    pub fn handle_ui_message(&mut self, message: &UiMessage, node: &Node, handle: Handle<Node>) {
         scope_profile!();
 
         if let Node::Light(light) = node {

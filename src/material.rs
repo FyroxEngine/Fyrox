@@ -1,8 +1,11 @@
 use crate::{
-    gui::{BuildContext, EditorUiNode, Ui, UiMessage, UiNode},
+    gui::{make_dropdown_list_option, BuildContext, EditorUiNode, Ui, UiMessage, UiNode},
     make_relative_path,
     preview::PreviewPanel,
-    scene::commands::{material::SetMaterialPropertyValueCommand, SceneCommand},
+    scene::commands::{
+        material::{SetMaterialPropertyValueCommand, SetMaterialShaderCommand},
+        SceneCommand,
+    },
     send_sync_message, GameEngine, Message,
 };
 use rg3d::{
@@ -15,13 +18,14 @@ use rg3d::{
         border::BorderBuilder,
         check_box::CheckBoxBuilder,
         color::ColorFieldBuilder,
+        dropdown_list::DropdownListBuilder,
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
         list_view::ListViewBuilder,
         message::{
-            CheckBoxMessage, ColorFieldMessage, ImageMessage, ListViewMessage, MessageDirection,
-            NumericUpDownMessage, UiMessageData, Vec2EditorMessage, Vec3EditorMessage,
-            Vec4EditorMessage, WidgetMessage,
+            CheckBoxMessage, ColorFieldMessage, DropdownListMessage, ImageMessage, ListViewMessage,
+            MessageDirection, NumericUpDownMessage, UiMessageData, Vec2EditorMessage,
+            Vec3EditorMessage, Vec4EditorMessage, WidgetMessage,
         },
         numeric::NumericUpDownBuilder,
         scroll_viewer::ScrollViewerBuilder,
@@ -32,7 +36,7 @@ use rg3d::{
         window::{WindowBuilder, WindowTitle},
         Thickness, VerticalAlignment,
     },
-    material::{Material, PropertyValue},
+    material::{shader::Shader, Material, PropertyValue},
     scene::{
         base::BaseBuilder,
         mesh::{
@@ -50,6 +54,8 @@ pub struct MaterialEditor {
     properties: BiDirHashMap<String, Handle<UiNode>>,
     preview: PreviewPanel,
     material: Option<Arc<Mutex<Material>>>,
+    available_shaders: Handle<UiNode>,
+    shaders_list: Vec<Shader>,
 }
 
 fn create_item_container(
@@ -205,6 +211,7 @@ impl MaterialEditor {
 
         let panel;
         let properties_panel;
+        let available_shaders;
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(300.0))
             .open(false)
             .with_title(WindowTitle::text("Material Editor"))
@@ -212,7 +219,33 @@ impl MaterialEditor {
                 GridBuilder::new(
                     WidgetBuilder::new()
                         .with_child(
-                            ScrollViewerBuilder::new(WidgetBuilder::new())
+                            GridBuilder::new(
+                                WidgetBuilder::new()
+                                    .on_row(0)
+                                    .with_child(
+                                        TextBuilder::new(
+                                            WidgetBuilder::new().on_row(0).on_column(0),
+                                        )
+                                        .with_vertical_text_alignment(VerticalAlignment::Center)
+                                        .with_text("Shader")
+                                        .build(ctx),
+                                    )
+                                    .with_child({
+                                        available_shaders = DropdownListBuilder::new(
+                                            WidgetBuilder::new().on_column(1),
+                                        )
+                                        .with_close_on_selection(true)
+                                        .build(ctx);
+                                        available_shaders
+                                    }),
+                            )
+                            .add_column(Column::strict(150.0))
+                            .add_column(Column::stretch())
+                            .add_row(Row::strict(25.0))
+                            .build(ctx),
+                        )
+                        .with_child(
+                            ScrollViewerBuilder::new(WidgetBuilder::new().on_row(1))
                                 .with_content({
                                     properties_panel =
                                         StackPanelBuilder::new(WidgetBuilder::new()).build(ctx);
@@ -221,11 +254,12 @@ impl MaterialEditor {
                                 .build(ctx),
                         )
                         .with_child({
-                            panel = BorderBuilder::new(WidgetBuilder::new().on_row(1).on_column(0))
+                            panel = BorderBuilder::new(WidgetBuilder::new().on_row(2).on_column(0))
                                 .build(ctx);
                             panel
                         }),
                 )
+                .add_row(Row::strict(26.0))
                 .add_row(Row::stretch())
                 .add_row(Row::strict(300.0))
                 .add_column(Column::stretch())
@@ -241,6 +275,8 @@ impl MaterialEditor {
             properties_panel,
             properties: Default::default(),
             material: None,
+            available_shaders,
+            shaders_list: Default::default(),
         }
     }
 
@@ -493,6 +529,42 @@ impl MaterialEditor {
                     ),
                 }
             }
+
+            // Sync available shaders list.
+            self.shaders_list.clear();
+
+            self.shaders_list
+                .extend_from_slice(&Shader::standard_shaders());
+
+            // TODO: Search for custom shaders in the assets.
+
+            let items = self
+                .shaders_list
+                .iter()
+                .map(|s| {
+                    make_dropdown_list_option(&mut ui.build_ctx(), &s.data_ref().definition.name)
+                })
+                .collect::<Vec<_>>();
+
+            send_sync_message(
+                ui,
+                DropdownListMessage::items(
+                    self.available_shaders,
+                    MessageDirection::ToWidget,
+                    items,
+                ),
+            );
+
+            send_sync_message(
+                ui,
+                DropdownListMessage::selection(
+                    self.available_shaders,
+                    MessageDirection::ToWidget,
+                    self.shaders_list
+                        .iter()
+                        .position(|s| material.shader().key() == s.key()),
+                ),
+            )
         } else {
             send_sync_message(
                 ui,
@@ -510,6 +582,23 @@ impl MaterialEditor {
         self.preview.handle_message(message, engine);
 
         if let Some(material) = self.material.as_ref() {
+            if let UiMessageData::DropdownList(DropdownListMessage::SelectionChanged(Some(value))) =
+                message.data()
+            {
+                if message.destination() == self.available_shaders
+                    && message.direction() == MessageDirection::FromWidget
+                {
+                    sender
+                        .send(Message::DoSceneCommand(SceneCommand::SetMaterialShader(
+                            SetMaterialShaderCommand::new(
+                                material.clone(),
+                                self.shaders_list[*value].clone(),
+                            ),
+                        )))
+                        .unwrap();
+                }
+            }
+
             if let Some(property_name) = self.properties.key_of(&message.destination()) {
                 let property_value = match message.data() {
                     UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value))

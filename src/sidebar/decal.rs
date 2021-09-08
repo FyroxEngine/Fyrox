@@ -138,7 +138,7 @@ impl DecalSection {
         }
     }
 
-    pub fn handle_message(
+    pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
         ui: &mut Ui,

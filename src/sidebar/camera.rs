@@ -121,7 +121,7 @@ impl CameraSection {
         }
     }
 
-    pub fn handle_message(&mut self, message: &UiMessage, node: &Node, handle: Handle<Node>) {
+    pub fn handle_ui_message(&mut self, message: &UiMessage, node: &Node, handle: Handle<Node>) {
         scope_profile!();
 
         if let Node::Camera(camera) = node {

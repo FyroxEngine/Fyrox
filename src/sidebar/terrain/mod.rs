@@ -181,7 +181,7 @@ impl TerrainSection {
         self.brush_section.sync_to_model(ui);
     }
 
-    pub fn handle_message(
+    pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
         ui: &mut Ui,
