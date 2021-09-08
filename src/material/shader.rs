@@ -512,6 +512,11 @@ impl Shader {
     pub fn standard_terrain() -> Self {
         STANDARD_TERRAIN.clone()
     }
+
+    /// Returns a list of standard shader.
+    pub fn standard_shaders() -> Vec<Shader> {
+        vec![Self::standard(), Self::standard_terrain()]
+    }
 }
 
 lazy_static! {
