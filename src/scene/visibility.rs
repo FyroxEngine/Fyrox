@@ -1,0 +1,128 @@
+//! Visibility cache stores information about objects visibility for a single frame.
+//!
+//! For more info see [`VisibilityCache`]
+
+use crate::{
+    core::{algebra::Vector3, math::frustum::Frustum, pool::Handle},
+    scene::{graph::Graph, light::Light, node::Node},
+};
+use std::collections::HashMap;
+
+/// Visibility cache stores information about objects visibility for a single frame. Allows you to quickly check
+/// if an object is visible or not.
+///
+/// # Notes
+///
+/// Visibility cache stores very coarse information about object visibility, it does not include any kind of occlusion
+/// tests of whatsoever. It just a simple frustum test + level-of-detail (LOD) system.
+///
+/// LODs have priority over other visibility options, if a level is not active, then its every object will be hidden,
+/// not matter if the actual visibility state is `visible`.
+///
+/// # Performance
+///
+/// The cache is based on hash map, so it is very fast and has O(1) complexity for fetching.
+#[derive(Default, Debug)]
+pub struct VisibilityCache {
+    map: HashMap<Handle<Node>, bool>,
+}
+
+impl From<HashMap<Handle<Node>, bool>> for VisibilityCache {
+    fn from(map: HashMap<Handle<Node>, bool>) -> Self {
+        Self { map }
+    }
+}
+
+impl VisibilityCache {
+    /// Replaces internal map with empty and returns previous value. This trick is useful
+    /// to reuse hash map to prevent redundant memory allocations.
+    pub fn invalidate(&mut self) -> HashMap<Handle<Node>, bool> {
+        std::mem::take(&mut self.map)
+    }
+
+    /// Updates visibility cache - checks visibility for each node in given graph, also performs
+    /// frustum culling if frustum set is specified.
+    pub fn update(
+        &mut self,
+        graph: &Graph,
+        observer_position: Vector3<f32>,
+        z_near: f32,
+        z_far: f32,
+        frustums: Option<&[&Frustum]>,
+    ) {
+        self.map.clear();
+
+        // Check LODs first, it has priority over other visibility settings.
+        for node in graph.linear_iter() {
+            if let Some(lod_group) = node.lod_group() {
+                for level in lod_group.levels.iter() {
+                    for &object in level.objects.iter() {
+                        let distance =
+                            observer_position.metric_distance(&graph[object].global_position());
+                        let z_range = z_far - z_near;
+                        let normalized_distance = (distance - z_near) / z_range;
+                        let visible = normalized_distance >= level.begin()
+                            && normalized_distance <= level.end();
+                        self.map.insert(object, visible);
+                    }
+                }
+            }
+        }
+
+        // Fill rest of data from global visibility flag of nodes and check frustums (if any).
+        for (handle, node) in graph.pair_iter() {
+            // We need to fill only unfilled entries, none of visibility flags of a node can
+            // make it visible again if lod group hid it.
+            self.map.entry(handle).or_insert_with(|| {
+                let mut visibility = node.global_visibility();
+                if visibility {
+                    // If a node globally visible, check it with each frustum (if any).
+                    if let Some(frustums) = frustums {
+                        let mut visible_by_any_frustum = false;
+                        for frustum in frustums {
+                            match node {
+                                Node::Mesh(mesh) => {
+                                    if mesh.is_intersect_frustum(graph, frustum) {
+                                        visible_by_any_frustum = true;
+                                        break;
+                                    }
+                                }
+                                Node::Light(light) => {
+                                    let radius = match light {
+                                        Light::Spot(spot_light) => spot_light.distance(),
+                                        Light::Point(point_light) => point_light.radius(),
+                                        Light::Directional(_) => f32::MAX,
+                                    };
+
+                                    // Rough intersection check should cover most of the use cases,
+                                    // however spot lights require more precise check, for now this
+                                    // is a TODO.
+                                    if frustum.is_intersects_sphere(node.global_position(), radius)
+                                    {
+                                        visible_by_any_frustum = true;
+                                        break;
+                                    }
+                                }
+                                Node::Terrain(_) => {
+                                    visible_by_any_frustum = true; // TODO
+                                }
+                                _ => {}
+                            }
+                        }
+                        visibility = visible_by_any_frustum;
+                    }
+                }
+                visibility
+            });
+        }
+    }
+
+    /// Checks whether the node is visible or not.
+    ///
+    /// # Complexity
+    ///
+    /// Constant, O(1)
+    pub fn is_visible(&self, node: Handle<Node>) -> bool {
+        self.map.get(&node).cloned().unwrap_or(false)
+    }
+}

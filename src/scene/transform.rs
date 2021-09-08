@@ -51,7 +51,7 @@ use crate::{
         algebra::{Matrix3, Matrix4, UnitQuaternion, Vector3},
         visitor::{Visit, VisitResult, Visitor},
     },
-    scene::TemplateVariable,
+    scene::variable::TemplateVariable,
     utils::log::{Log, MessageKind},
 };
 use std::cell::Cell;

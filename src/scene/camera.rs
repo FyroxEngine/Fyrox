@@ -14,25 +14,25 @@
 //! Each camera forces engine to re-render same scene one more time, which may cause
 //! almost double load of your GPU.
 
-use crate::core::algebra::{Matrix4, Vector2, Vector3, Vector4};
-use crate::core::pool::Handle;
-use crate::resource::texture::{TextureError, TextureKind, TexturePixelKind, TextureWrapMode};
-use crate::scene::graph::Graph;
 use crate::{
     core::{
+        algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
         math::{ray::Ray, Rect},
+        pool::Handle,
         visitor::{Visit, VisitResult, Visitor},
     },
-    resource::texture::Texture,
+    resource::texture::{Texture, TextureError, TextureKind, TexturePixelKind, TextureWrapMode},
     scene::{
         base::{Base, BaseBuilder},
+        graph::Graph,
         node::Node,
-        VisibilityCache,
+        visibility::VisibilityCache,
     },
 };
-use rapier3d::na::Point3;
-use std::ops::{Deref, DerefMut};
-use std::sync::Arc;
+use std::{
+    ops::{Deref, DerefMut},
+    sync::Arc,
+};
 
 /// Exposure is a parameter that describes how many light should be collected for one
 /// frame. The higher the value, the more brighter the final frame will be and vice versa.

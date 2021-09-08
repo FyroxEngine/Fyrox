@@ -35,7 +35,7 @@ use crate::{
         VecExtensions,
     },
     resource::model::NodeMapping,
-    scene::{node::Node, transform::TransformBuilder, VisibilityCache},
+    scene::{node::Node, transform::TransformBuilder, visibility::VisibilityCache},
     utils::log::{Log, MessageKind},
 };
 use std::{
