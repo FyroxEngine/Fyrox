@@ -1,3 +1,4 @@
+use crate::material::PropertyValue;
 use crate::{
     core::{algebra::Matrix4, arrayvec::ArrayVec, pool::Handle, scope_profile},
     material::Material,
@@ -7,6 +8,8 @@ use crate::{
         node::Node,
     },
 };
+use std::collections::hash_map::DefaultHasher;
+use std::hash::Hasher;
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
@@ -116,12 +119,29 @@ impl BatchStorage {
                     }
                 }
                 Node::Terrain(terrain) => {
-                    for chunk in terrain.chunks_ref().iter() {
-                        let data = chunk.data();
-                        let data_key = &*data as *const _ as u64;
+                    for (layer_index, layer) in terrain.layers().iter().enumerate() {
+                        for (chunk_index, chunk) in terrain.chunks_ref().iter().enumerate() {
+                            let data = chunk.data();
+                            let data_key = &*data as *const _ as u64;
 
-                        for (layer_index, layer) in chunk.layers().iter().enumerate() {
-                            let key = layer.batch_id(data_key);
+                            let mut material = (*layer.material.lock().unwrap()).clone();
+                            material
+                                .set_property(
+                                    &layer.mask_property_name,
+                                    PropertyValue::Sampler {
+                                        value: Some(layer.chunk_masks[chunk_index].clone()),
+                                        fallback: Default::default(),
+                                    },
+                                )
+                                .unwrap();
+                            let material = Arc::new(Mutex::new(material));
+
+                            let mut hasher = DefaultHasher::new();
+
+                            hasher.write_u64(&*material as *const _ as u64);
+                            hasher.write_u64(data_key);
+
+                            let key = hasher.finish();
 
                             let batch = if let Some(&batch_index) = self.batch_map.get(&key) {
                                 self.batches.get_mut(batch_index).unwrap()
@@ -130,7 +150,7 @@ impl BatchStorage {
                                 self.batches.push(Batch {
                                     data: data.clone(),
                                     instances: self.buffers.pop().unwrap_or_default(),
-                                    material: layer.material.clone(),
+                                    material: material.clone(),
                                     is_skinned: false,
                                     render_path: RenderPath::Deferred,
                                     sort_index: layer_index as u64,
@@ -140,7 +160,7 @@ impl BatchStorage {
                             };
 
                             batch.sort_index = layer_index as u64;
-                            batch.material = layer.material.clone();
+                            batch.material = material;
 
                             batch.instances.push(SurfaceInstance {
                                 world_transform: terrain.global_transform(),

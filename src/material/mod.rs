@@ -336,7 +336,7 @@ impl Default for PropertyValue {
 /// As you can see it is only a bit more hard that with the standard shader. The main difference here is
 /// that we using resource manager to get shader instance and the we just use the instance to create
 /// material instance. Then we populate properties as usual.
-#[derive(Default, Debug, Visit)]
+#[derive(Default, Debug, Visit, Clone)]
 pub struct Material {
     shader: Shader,
     draw_parameters: DrawParameters,

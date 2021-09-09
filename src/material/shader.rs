@@ -46,8 +46,12 @@ impl Visit for ShaderState {
 
         self.path.visit("Path", visitor)?;
 
-        if visitor.is_reading() && self.path == PathBuf::default() {
-            self.definition = ShaderDefinition::from_str(STANDARD_SHADER_SRC).unwrap();
+        if visitor.is_reading() {
+            if self.path == Path::new("Standard") {
+                self.definition = ShaderDefinition::from_str(STANDARD_SHADER_SRC).unwrap();
+            } else if self.path == Path::new("StandardTerrain") {
+                self.definition = ShaderDefinition::from_str(STANDARD_TERRAIN_SHADER_SRC).unwrap();
+            }
         }
 
         visitor.leave_region()
@@ -235,9 +239,9 @@ impl ShaderState {
         })
     }
 
-    pub(in crate) fn from_str(str: &str) -> Result<Self, ShaderError> {
+    pub(in crate) fn from_str<P: AsRef<Path>>(str: &str, path: P) -> Result<Self, ShaderError> {
         Ok(Self {
-            path: Default::default(),
+            path: path.as_ref().to_owned(),
             definition: ShaderDefinition::from_str(str)?,
         })
     }
@@ -497,9 +501,9 @@ define_new_resource!(
 impl Shader {
     /// Creates new shader from given string. Input string must have the format defined in
     /// examples for [`Shader`].
-    pub fn from_str(str: &str) -> Result<Self, ShaderError> {
+    pub fn from_str<P: AsRef<Path>>(str: &str, path: P) -> Result<Self, ShaderError> {
         Ok(Self(Resource::new(ResourceState::Ok(
-            ShaderState::from_str(str)?,
+            ShaderState::from_str(str, path.as_ref().to_owned())?,
         ))))
     }
 
@@ -521,13 +525,13 @@ impl Shader {
 
 lazy_static! {
     static ref STANDARD: Shader = Shader(Resource::new(ResourceState::Ok(
-        ShaderState::from_str(STANDARD_SHADER_SRC).unwrap(),
+        ShaderState::from_str(STANDARD_SHADER_SRC, "Standard").unwrap(),
     )));
 }
 
 lazy_static! {
     static ref STANDARD_TERRAIN: Shader = Shader(Resource::new(ResourceState::Ok(
-        ShaderState::from_str(STANDARD_TERRAIN_SHADER_SRC).unwrap(),
+        ShaderState::from_str(STANDARD_TERRAIN_SHADER_SRC, "StandardTerrain").unwrap(),
     )));
 }
 
@@ -580,7 +584,7 @@ mod test {
             )
             "##;
 
-        let shader = Shader::from_str(code).unwrap();
+        let shader = Shader::from_str(code, "test").unwrap();
         let data = shader.data_ref();
 
         let reference_definition = ShaderDefinition {

@@ -1,6 +1,5 @@
 //! Everything related to terrains.
 
-use crate::material::Material;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
@@ -11,6 +10,7 @@ use crate::{
         pool::Handle,
         visitor::{prelude::*, PodVecView},
     },
+    material::Material,
     resource::texture::{Texture, TextureKind, TexturePixelKind, TextureWrapMode},
     scene::{
         base::{Base, BaseBuilder},
@@ -23,14 +23,11 @@ use crate::{
         node::Node,
     },
 };
-use std::collections::hash_map::DefaultHasher;
-use std::hash::Hasher;
-use std::sync::Mutex;
 use std::{
     cell::Cell,
     cmp::Ordering,
     ops::{Deref, DerefMut},
-    sync::{Arc, RwLock},
+    sync::{Arc, Mutex, RwLock},
 };
 
 /// Layers is a set of textures for rendering + mask texture to exclude some pixels from
@@ -39,20 +36,23 @@ use std::{
 /// cases).
 #[derive(Default, Debug, Clone, Visit)]
 pub struct Layer {
-    /// Current material of the layer.
+    /// Material of the layer.
     pub material: Arc<Mutex<Material>>,
-    /// Mask texture allows you to exclude some pixel of the layer from rendering.
-    pub mask: Option<Texture>,
+
+    /// Name of the mask sampler in the material.
+    ///
+    /// # Implementation details
+    ///
+    /// It will be used in the renderer to set appropriate chunk mask to the copy of the material.
+    pub mask_property_name: String,
+
+    pub(in crate) chunk_masks: Vec<Texture>,
 }
 
 impl Layer {
-    pub(in crate) fn batch_id(&self, data_key: u64) -> u64 {
-        let mut hasher = DefaultHasher::new();
-
-        hasher.write_u64(&*self.material as *const _ as u64);
-        hasher.write_u64(data_key);
-
-        hasher.finish()
+    /// Returns a slice containing a set of masks for every chunk in the layer.
+    pub fn chunk_masks(&self) -> &[Texture] {
+        &self.chunk_masks
     }
 }
 
@@ -64,7 +64,6 @@ impl Layer {
 #[derive(Debug, Clone)]
 pub struct Chunk {
     heightmap: Vec<f32>,
-    layers: Vec<Layer>,
     position: Vector3<f32>,
     width: f32,
     length: f32,
@@ -82,7 +81,6 @@ impl Visit for Chunk {
         let mut view = PodVecView::from_pod_vec(&mut self.heightmap);
         view.visit("Heightmap", visitor)?;
 
-        self.layers.visit("Layers", visitor)?;
         self.position.visit("Position", visitor)?;
         self.width.visit("Width", visitor)?;
         self.length.visit("Length", visitor)?;
@@ -98,7 +96,6 @@ impl Default for Chunk {
     fn default() -> Self {
         Self {
             heightmap: Default::default(),
-            layers: Default::default(),
             position: Default::default(),
             width: 0.0,
             length: 0.0,
@@ -174,44 +171,6 @@ impl Chunk {
         }
     }
 
-    /// Returns a reference to a slice with layers of the chunk.
-    pub fn layers(&self) -> &[Layer] {
-        &self.layers
-    }
-
-    /// Returns a mutable reference to a slice with layers of the chunk.
-    pub fn layers_mut(&mut self) -> &mut [Layer] {
-        &mut self.layers
-    }
-
-    /// Adds new layer to the chunk. It is possible to have different layer count per chunk
-    /// in the same terrain, however it seems to not have practical usage, so try to keep
-    /// equal layer count per each chunk in your terrains.
-    pub fn add_layer(&mut self, layer: Layer) {
-        self.layers.push(layer);
-        self.dirty.set(true);
-    }
-
-    /// Removes given layers from the chunk.
-    pub fn remove_layer(&mut self, layer: usize) -> Layer {
-        let layer = self.layers.remove(layer);
-        self.dirty.set(true);
-        layer
-    }
-
-    /// Tries to remove last layer from the chunk.
-    pub fn pop_layer(&mut self) -> Option<Layer> {
-        let layer = self.layers.pop();
-        self.dirty.set(true);
-        layer
-    }
-
-    /// Inserts new layer at given position in the chunk.
-    pub fn insert_layer(&mut self, layer: Layer, index: usize) {
-        self.layers.insert(index, layer);
-        self.dirty.set(true);
-    }
-
     /// Returns position of the chunk in local 2D coordinates relative to origin of the
     /// terrain.
     pub fn local_position(&self) -> Vector2<f32> {
@@ -273,6 +232,7 @@ pub struct Terrain {
     height_map_resolution: f32,
     base: Base,
     chunks: Vec<Chunk>,
+    layers: Vec<Layer>,
     width_chunks: u32,
     length_chunks: u32,
     bounding_box_dirty: Cell<bool>,
@@ -365,6 +325,7 @@ impl Terrain {
             bounding_box_dirty: Cell::new(true),
             bounding_box: Default::default(),
             decal_layer_index: self.decal_layer_index,
+            layers: self.layers.clone(),
         }
     }
 
@@ -436,10 +397,10 @@ impl Terrain {
             BrushMode::DrawOnMask { layer, alpha } => {
                 let alpha = alpha.clamp(-1.0, 1.0);
 
-                for chunk in self.chunks.iter_mut() {
+                for (chunk_index, chunk) in self.chunks.iter_mut().enumerate() {
                     let chunk_position = chunk.local_position();
-                    let layer = &mut chunk.layers[layer];
-                    let mut texture_data = layer.mask.as_ref().unwrap().data_ref();
+                    let layer = &mut self.layers[layer];
+                    let mut texture_data = layer.chunk_masks[chunk_index].data_ref();
                     let mut texture_data_mut = texture_data.modify();
 
                     let (texture_width, texture_height) =
@@ -590,22 +551,59 @@ impl Terrain {
         }
     }
 
-    /// Creates new layer with given parameters, but does **not** add it to any chunk.
-    pub fn create_layer<G: FnMut(Texture) -> Material>(
+    /// Returns a reference to a slice with layers of the terrain.
+    pub fn layers(&self) -> &[Layer] {
+        &self.layers
+    }
+
+    /// Returns a mutable reference to a slice with layers of the terrain.
+    pub fn layers_mut(&mut self) -> &mut [Layer] {
+        &mut self.layers
+    }
+
+    /// Adds new layer to the chunk. It is possible to have different layer count per chunk
+    /// in the same terrain, however it seems to not have practical usage, so try to keep
+    /// equal layer count per each chunk in your terrains.
+    pub fn add_layer(&mut self, layer: Layer) {
+        self.layers.push(layer);
+    }
+
+    /// Removes given layers from the terrain.
+    pub fn remove_layer(&mut self, layer: usize) -> Layer {
+        self.layers.remove(layer)
+    }
+
+    /// Tries to remove last layer from the terrain.
+    pub fn pop_layer(&mut self) -> Option<Layer> {
+        self.layers.pop()
+    }
+
+    /// Inserts new layer at given position in the terrain.
+    pub fn insert_layer(&mut self, layer: Layer, index: usize) {
+        self.layers.insert(index, layer)
+    }
+
+    /// Creates new layer with given parameters, but does **not** add it to the terrain.
+    pub fn create_layer(
         &self,
         value: u8,
-        mut material_generator: G,
+        material: Arc<Mutex<Material>>,
+        mask_property_name: String,
     ) -> Layer {
-        let chunk_length = self.length / self.length_chunks as f32;
-        let chunk_width = self.width / self.width_chunks as f32;
-        let mask_width = (chunk_width * self.mask_resolution) as u32;
-        let mask_height = (chunk_length * self.mask_resolution) as u32;
-
-        let mask = create_layer_mask(mask_width, mask_height, value);
-
         Layer {
-            material: Arc::new(Mutex::new(material_generator(mask.clone()))),
-            mask: Some(mask),
+            material,
+            mask_property_name,
+            chunk_masks: self
+                .chunks
+                .iter()
+                .map(|c| {
+                    create_layer_mask(
+                        (c.width * self.mask_resolution) as u32,
+                        (c.length * self.mask_resolution) as u32,
+                        value,
+                    )
+                })
+                .collect(),
         }
     }
 }
@@ -673,8 +671,16 @@ pub struct Brush {
 
 /// Layer definition for a terrain builder.
 pub struct LayerDefinition {
-    /// Material generator of the terrain layer.
-    pub material_generator: Box<dyn FnMut(usize, Texture) -> Material>,
+    /// Material of the layer.
+    pub material: Arc<Mutex<Material>>,
+
+    /// Name of the mask sampler in the material. It should be `maskTexture` if standard material shader
+    /// is used.
+    ///
+    /// # Implementation details
+    ///
+    /// It will be used in the renderer to set appropriate chunk mask to the copy of the material.
+    pub mask_property_name: String,
 }
 
 /// Terrain builder allows you to quickly build a terrain with required features.
@@ -795,7 +801,7 @@ impl TerrainBuilder {
     }
 
     /// Build terrain node.
-    pub fn build_node(mut self) -> Node {
+    pub fn build_node(self) -> Node {
         let mut chunks = Vec::new();
         let chunk_length = self.length / self.length_chunks as f32;
         let chunk_width = self.width / self.width_chunks as f32;
@@ -803,35 +809,12 @@ impl TerrainBuilder {
             make_divisible_by_2((chunk_length * self.height_map_resolution) as u32);
         let chunk_width_points =
             make_divisible_by_2((chunk_width * self.height_map_resolution) as u32);
-        let chunk_mask_width = (chunk_width * self.mask_resolution) as u32;
-        let chunk_mask_height = (chunk_length * self.mask_resolution) as u32;
         for z in 0..self.length_chunks {
             for x in 0..self.width_chunks {
                 chunks.push(Chunk {
                     width_point_count: chunk_width_points,
                     length_point_count: chunk_length_points,
                     heightmap: vec![0.0; (chunk_length_points * chunk_width_points) as usize],
-                    layers: self
-                        .layers
-                        .iter_mut()
-                        .enumerate()
-                        .map(|(layer_index, definition)| {
-                            let mask = create_layer_mask(
-                                chunk_mask_width,
-                                chunk_mask_height,
-                                if layer_index == 0 { 255 } else { 0 },
-                            );
-
-                            Layer {
-                                material: Arc::new(Mutex::new((definition.material_generator)(
-                                    layer_index,
-                                    mask.clone(),
-                                ))),
-                                // Base layer is opaque, every other by default - transparent.
-                                mask: Some(mask),
-                            }
-                        })
-                        .collect(),
                     position: Vector3::new(x as f32 * chunk_width, 0.0, z as f32 * chunk_length),
                     width: chunk_width,
                     surface_data: make_surface_data(),
@@ -841,10 +824,34 @@ impl TerrainBuilder {
             }
         }
 
+        let mask_resolution = self.mask_resolution;
+
         let terrain = Terrain {
             width: self.width,
             length: self.length,
             base: self.base_builder.build_base(),
+            layers: self
+                .layers
+                .into_iter()
+                .enumerate()
+                .map(|(layer_index, definition)| {
+                    Layer {
+                        material: definition.material,
+                        mask_property_name: definition.mask_property_name,
+                        chunk_masks: chunks
+                            .iter()
+                            .map(|c| {
+                                create_layer_mask(
+                                    (c.width * mask_resolution) as u32,
+                                    (c.length * mask_resolution) as u32,
+                                    // Base layer is opaque, every other by default - transparent.
+                                    if layer_index == 0 { 255 } else { 0 },
+                                )
+                            })
+                            .collect(),
+                    }
+                })
+                .collect(),
             chunks,
             bounding_box_dirty: Cell::new(true),
             bounding_box: Default::default(),

@@ -346,16 +346,12 @@ impl Scene {
                     }
                 }
                 Node::Terrain(terrain) => {
-                    for chunk in terrain.chunks_mut() {
-                        for layer in chunk.layers_mut() {
-                            layer
-                                .material
-                                .lock()
-                                .unwrap()
-                                .resolve(resource_manager.clone());
-
-                            // Mask is not resolved because it is procedural texture.
-                        }
+                    for layer in terrain.layers() {
+                        layer
+                            .material
+                            .lock()
+                            .unwrap()
+                            .resolve(resource_manager.clone());
                     }
                 }
                 Node::Decal(decal) => {

@@ -5,10 +5,9 @@ extern crate rg3d;
 pub mod shared;
 
 use crate::shared::create_camera;
-use rg3d::core::algebra::Vector2;
 use rg3d::{
     core::{
-        algebra::{UnitQuaternion, Vector3},
+        algebra::{UnitQuaternion, Vector2, Vector3},
         color::Color,
         pool::Handle,
         rand::Rng,
@@ -23,7 +22,6 @@ use rg3d::{
     },
     material::{shader::SamplerFallback, Material, PropertyValue},
     rand::thread_rng,
-    resource::texture::Texture,
     scene::{
         base::BaseBuilder,
         light::{point::PointLightBuilder, BaseLightBuilder},
@@ -33,6 +31,7 @@ use rg3d::{
         Scene,
     },
 };
+use std::sync::{Arc, Mutex};
 
 struct SceneLoader {
     scene: Scene,
@@ -44,7 +43,6 @@ fn setup_layer_material(
     resource_manager: ResourceManager,
     diffuse_texture: &str,
     normal_texture: &str,
-    mask: Texture,
 ) {
     material
         .set_property(
@@ -61,15 +59,6 @@ fn setup_layer_material(
             PropertyValue::Sampler {
                 value: Some(resource_manager.request_texture(normal_texture, None)),
                 fallback: SamplerFallback::Normal,
-            },
-        )
-        .unwrap();
-    material
-        .set_property(
-            "maskTexture",
-            PropertyValue::Sampler {
-                value: Some(mask),
-                fallback: SamplerFallback::Black,
             },
         )
         .unwrap();
@@ -100,36 +89,30 @@ impl SceneLoader {
         let terrain = TerrainBuilder::new(BaseBuilder::new())
             .with_layers(vec![
                 LayerDefinition {
-                    material_generator: {
-                        let resource_manager = resource_manager.clone();
-                        Box::new(move |_, mask| {
-                            let mut material = Material::standard_terrain();
-                            setup_layer_material(
-                                &mut material,
-                                resource_manager.clone(),
-                                "examples/data/Grass_DiffuseColor.jpg",
-                                "examples/data/Grass_NormalColor.jpg",
-                                mask,
-                            );
-                            material
-                        })
+                    material: {
+                        let mut material = Material::standard_terrain();
+                        setup_layer_material(
+                            &mut material,
+                            resource_manager.clone(),
+                            "examples/data/Grass_DiffuseColor.jpg",
+                            "examples/data/Grass_NormalColor.jpg",
+                        );
+                        Arc::new(Mutex::new(material))
                     },
+                    mask_property_name: "maskTexture".to_string(),
                 },
                 LayerDefinition {
-                    material_generator: {
-                        let resource_manager = resource_manager.clone();
-                        Box::new(move |_, mask| {
-                            let mut material = Material::standard_terrain();
-                            setup_layer_material(
-                                &mut material,
-                                resource_manager.clone(),
-                                "examples/data/Rock_DiffuseColor.jpg",
-                                "examples/data/Rock_Normal.jpg",
-                                mask,
-                            );
-                            material
-                        })
+                    material: {
+                        let mut material = Material::standard_terrain();
+                        setup_layer_material(
+                            &mut material,
+                            resource_manager.clone(),
+                            "examples/data/Rock_DiffuseColor.jpg",
+                            "examples/data/Rock_Normal.jpg",
+                        );
+                        Arc::new(Mutex::new(material))
                     },
+                    mask_property_name: "maskTexture".to_string(),
                 },
             ])
             .build(&mut scene.graph);
