@@ -6,6 +6,18 @@ use std::{
     sync::Mutex,
 };
 
+#[cfg(target_arch = "wasm32")]
+use crate::core::wasm_bindgen::{self, prelude::*};
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+extern "C" {
+    // Use `js_namespace` here to bind `console.log(..)` instead of just
+    // `log(..)`
+    #[wasm_bindgen(js_namespace = console)]
+    fn log(s: &str);
+}
+
 lazy_static! {
     static ref LOG: Mutex<Log> = Mutex::new(Log {
         #[cfg(not(target_arch = "wasm32"))]
@@ -47,9 +59,17 @@ impl Log {
     fn write_internal(&mut self, kind: MessageKind, mut msg: String) {
         if kind as u32 >= self.verbosity as u32 {
             msg.insert_str(0, kind.as_str());
-            let _ = io::stdout().write_all(msg.as_bytes());
+
+            #[cfg(target_arch = "wasm32")]
+            {
+                log(&msg);
+            }
+
             #[cfg(not(target_arch = "wasm32"))]
-            let _ = self.file.write_all(msg.as_bytes());
+            {
+                let _ = io::stdout().write_all(msg.as_bytes());
+                let _ = self.file.write_all(msg.as_bytes());
+            }
         }
     }
 
