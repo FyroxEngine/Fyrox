@@ -1,5 +1,3 @@
-#version 330 core
-
 #define KERNEL_SIZE 32
 
 uniform sampler2D depthSampler;

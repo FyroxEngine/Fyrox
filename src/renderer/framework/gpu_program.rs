@@ -59,39 +59,30 @@ unsafe fn create_shader(
 
 #[allow(clippy::let_and_return)]
 fn prepare_source_code(code: &str) -> String {
-    let mut shared = "\n// include 'shared.glsl'\n".to_owned();
+    let mut full_source_code = "#version 330 core\n// include 'shared.glsl'\n".to_owned();
 
     // HACK
     #[cfg(target_arch = "wasm32")]
     {
-        shared += r#"    
+        full_source_code += r#"    
             precision highp float;
             precision lowp usampler2D;
             precision lowp sampler3D;
         "#;
     }
 
-    shared += include_str!("shaders/shared.glsl");
-    shared += "\n// end of include\n";
-
-    let code = if let Some(p) = code.find('#') {
-        let mut full = code.to_owned();
-        let end = p + full[p..].find('\n').unwrap() + 1;
-        full.insert_str(end, &shared);
-        full
-    } else {
-        shared += code;
-        shared
-    };
+    full_source_code += include_str!("shaders/shared.glsl");
+    full_source_code += "\n// end of include\n";
+    full_source_code += code;
 
     // HACK
     #[cfg(target_arch = "wasm32")]
     {
-        code.replace("#version 330 core", "#version 300 es")
+        full_source_code.replace("#version 330 core", "#version 300 es")
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    code
+    full_source_code
 }
 
 pub struct GpuProgramBinding<'a> {

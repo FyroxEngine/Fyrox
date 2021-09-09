@@ -1,5 +1,3 @@
-#version 330 core
-
 uniform sampler2D depthSampler;
 // Warning! All coordinates are given in *view* space.
 uniform vec3 lightPosition;

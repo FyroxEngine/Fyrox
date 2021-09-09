@@ -1,5 +1,3 @@
-#version 330 core
-
 uniform sampler2D image;
 uniform vec2 pixelSize;
 uniform bool horizontal;

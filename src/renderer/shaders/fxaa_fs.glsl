@@ -1,5 +1,3 @@
-#version 330 core
-
 // NVIDIA FXAA 3.11
 // Original source code by TIMOTHY LOTTES
 //

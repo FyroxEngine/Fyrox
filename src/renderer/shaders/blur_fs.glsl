@@ -1,5 +1,3 @@
-#version 330 core
-
 // Simple 4x4 box blur.
 
 uniform sampler2D inputTexture;

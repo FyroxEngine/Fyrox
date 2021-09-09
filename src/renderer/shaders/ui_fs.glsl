@@ -1,5 +1,3 @@
-#version 330 core
-
 // IMPORTANT: UI is rendered in sRGB color space!
 
 uniform sampler2D diffuseTexture;

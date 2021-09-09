@@ -1,5 +1,3 @@
-#version 330 core
-
 uniform samplerCube cubemapTexture;
 
 out vec4 FragColor;

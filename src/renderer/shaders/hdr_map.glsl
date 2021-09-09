@@ -1,5 +1,3 @@
-#version 330 core
-
 uniform sampler2D hdrSampler;
 uniform sampler2D lumSampler;
 uniform sampler2D bloomSampler;

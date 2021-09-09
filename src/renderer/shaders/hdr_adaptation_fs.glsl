@@ -1,5 +1,3 @@
-#version 330 core
-
 uniform sampler2D oldLumSampler;
 uniform sampler2D newLumSampler;
 uniform float speed;

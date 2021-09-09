@@ -1,5 +1,3 @@
-#version 330 core
-
 uniform sampler2D sceneDepth;
 uniform sampler2D diffuseTexture;
 uniform sampler2D normalTexture;

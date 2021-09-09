@@ -94,7 +94,6 @@ impl<M: MessageData, C: Control<M, C>> Engine<M, C> {
                     .with_vsync(vsync)
                     .with_gl_profile(glutin::GlProfile::Core)
                     .with_gl(glutin::GlRequest::Specific(glutin::Api::OpenGl, (3, 3)))
-                    .with_gl_debug_flag(true)
                     .build_windowed(window_builder, events_loop)?;
 
             let ctx = match unsafe { context_wrapper.make_current() } {
