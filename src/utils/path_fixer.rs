@@ -396,30 +396,28 @@ impl PathFixer {
                                             }
                                         }
                                         Node::Terrain(terrain) => {
-                                            if let Some(first) = terrain.chunks_ref().first() {
-                                                for layer in first.layers() {
-                                                    for texture in layer
-                                                        .material
-                                                        .lock()
-                                                        .unwrap()
-                                                        .properties()
-                                                        .values()
-                                                        .filter_map(|v| {
-                                                            if let PropertyValue::Sampler {
-                                                                value,
-                                                                ..
-                                                            } = v
-                                                            {
-                                                                value.clone()
-                                                            } else {
-                                                                None
-                                                            }
-                                                        })
-                                                    {
-                                                        scene_resources.insert(
-                                                            SceneResource::Texture(texture.clone()),
-                                                        );
-                                                    }
+                                            for layer in terrain.layers() {
+                                                for texture in layer
+                                                    .material
+                                                    .lock()
+                                                    .unwrap()
+                                                    .properties()
+                                                    .values()
+                                                    .filter_map(|v| {
+                                                        if let PropertyValue::Sampler {
+                                                            value,
+                                                            ..
+                                                        } = v
+                                                        {
+                                                            value.clone()
+                                                        } else {
+                                                            None
+                                                        }
+                                                    })
+                                                {
+                                                    scene_resources.insert(SceneResource::Texture(
+                                                        texture.clone(),
+                                                    ));
                                                 }
                                             }
                                         }

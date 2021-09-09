@@ -744,9 +744,8 @@ impl Menu {
                 } else if message.destination() == self.create_terrain {
                     let node = TerrainBuilder::new(BaseBuilder::new().with_name("Terrain"))
                         .with_layers(vec![LayerDefinition {
-                            material_generator: Box::new(|_, mask| {
-                                create_terrain_layer_material(mask)
-                            }),
+                            material: create_terrain_layer_material(),
+                            mask_property_name: "maskTexture".to_owned(),
                         }])
                         .with_height_map_resolution(4.0)
                         .build_node();

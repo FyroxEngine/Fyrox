@@ -30,7 +30,8 @@ impl OverlayShader {
     pub fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("../resources/embed/shaders/overlay_fs.glsl");
         let vertex_source = include_str!("../resources/embed/shaders/overlay_vs.glsl");
-        let program = GpuProgram::from_source(state, "FlatShader", vertex_source, fragment_source)?;
+        let program =
+            GpuProgram::from_source(state, "OverlayShader", vertex_source, fragment_source)?;
         Ok(Self {
             view_projection_matrix: program.uniform_location(state, "viewProjectionMatrix")?,
             world_matrix: program.uniform_location(state, "worldMatrix")?,

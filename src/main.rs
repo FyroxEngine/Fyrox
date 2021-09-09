@@ -111,7 +111,7 @@ use rg3d::{
         window::{WindowBuilder, WindowTitle},
         HorizontalAlignment, Orientation, Thickness, VerticalAlignment,
     },
-    material::{shader::SamplerFallback, Material, PropertyValue},
+    material::{Material, PropertyValue},
     resource::texture::{CompressionOptions, Texture, TextureKind, TextureState},
     scene::{
         base::BaseBuilder,
@@ -211,24 +211,15 @@ pub fn set_mesh_diffuse_color(mesh: &mut Mesh, color: Color) {
     }
 }
 
-pub fn create_terrain_layer_material(mask: Texture) -> Material {
+pub fn create_terrain_layer_material() -> Arc<Mutex<Material>> {
     let mut material = Material::standard_terrain();
-    material
-        .set_property(
-            "maskTexture",
-            PropertyValue::Sampler {
-                value: Some(mask),
-                fallback: SamplerFallback::Black,
-            },
-        )
-        .unwrap();
     material
         .set_property(
             "texCoordScale",
             PropertyValue::Vector2(Vector2::new(10.0, 10.0)),
         )
         .unwrap();
-    material
+    Arc::new(Mutex::new(material))
 }
 
 pub struct ScenePreview {

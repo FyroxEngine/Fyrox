@@ -12,7 +12,7 @@ use rg3d::{
 #[derive(Debug)]
 pub struct AddTerrainLayerCommand {
     terrain: Handle<Node>,
-    layers: Vec<Layer>,
+    layer: Option<Layer>,
 }
 
 impl AddTerrainLayerCommand {
@@ -21,11 +21,11 @@ impl AddTerrainLayerCommand {
 
         Self {
             terrain: terrain_handle,
-            layers: terrain
-                .chunks_ref()
-                .iter()
-                .map(|_| terrain.create_layer(0, |mask| create_terrain_layer_material(mask)))
-                .collect(),
+            layer: Some(terrain.create_layer(
+                0,
+                create_terrain_layer_material(),
+                "maskTexture".to_owned(),
+            )),
         }
     }
 }
@@ -39,24 +39,19 @@ impl<'a> Command<'a> for AddTerrainLayerCommand {
 
     fn execute(&mut self, context: &mut Self::Context) {
         let terrain = context.scene.graph[self.terrain].as_terrain_mut();
-        for (layer, chunk) in self.layers.drain(..).zip(terrain.chunks_mut()) {
-            chunk.add_layer(layer);
-        }
+        terrain.add_layer(self.layer.take().unwrap());
     }
 
     fn revert(&mut self, context: &mut Self::Context) {
         let terrain = context.scene.graph[self.terrain].as_terrain_mut();
-        self.layers.clear();
-        for chunk in terrain.chunks_mut() {
-            self.layers.push(chunk.pop_layer().unwrap());
-        }
+        self.layer = terrain.pop_layer();
     }
 }
 
 #[derive(Debug)]
 pub struct DeleteTerrainLayerCommand {
     terrain: Handle<Node>,
-    layers: Vec<Layer>,
+    layer: Option<Layer>,
     index: usize,
 }
 
@@ -64,7 +59,7 @@ impl DeleteTerrainLayerCommand {
     pub fn new(terrain: Handle<Node>, index: usize) -> Self {
         Self {
             terrain,
-            layers: Default::default(),
+            layer: Default::default(),
             index,
         }
     }
@@ -78,20 +73,16 @@ impl<'a> Command<'a> for DeleteTerrainLayerCommand {
     }
 
     fn execute(&mut self, context: &mut Self::Context) {
-        self.layers = context.scene.graph[self.terrain]
-            .as_terrain_mut()
-            .chunks_mut()
-            .iter_mut()
-            .map(|c| c.remove_layer(self.index))
-            .collect();
+        self.layer = Some(
+            context.scene.graph[self.terrain]
+                .as_terrain_mut()
+                .remove_layer(self.index),
+        );
     }
 
     fn revert(&mut self, context: &mut Self::Context) {
         let terrain = context.scene.graph[self.terrain].as_terrain_mut();
-
-        for (layer, chunk) in self.layers.drain(..).zip(terrain.chunks_mut()) {
-            chunk.insert_layer(layer, self.index);
-        }
+        terrain.insert_layer(self.layer.take().unwrap(), self.index);
     }
 }
 
@@ -130,44 +121,42 @@ impl SetTerrainLayerTextureCommand {
     fn swap(&mut self, context: &mut SceneContext) {
         let terrain = context.scene.graph[self.terrain].as_terrain_mut();
         let texture = self.texture.take();
-        for chunk in terrain.chunks_mut() {
-            let layer = &mut chunk.layers_mut()[self.index];
-            let property_name = match self.kind {
-                TerrainLayerTextureKind::Diffuse => "diffuseTexture",
-                TerrainLayerTextureKind::Normal => "normalTexture",
-                TerrainLayerTextureKind::Metallic => "metallicTexture",
-                TerrainLayerTextureKind::Roughness => "roughnessTexture",
-                TerrainLayerTextureKind::Height => "heightTexture",
-            };
+        let layer = &mut terrain.layers_mut()[self.index];
+        let property_name = match self.kind {
+            TerrainLayerTextureKind::Diffuse => "diffuseTexture",
+            TerrainLayerTextureKind::Normal => "normalTexture",
+            TerrainLayerTextureKind::Metallic => "metallicTexture",
+            TerrainLayerTextureKind::Roughness => "roughnessTexture",
+            TerrainLayerTextureKind::Height => "heightTexture",
+        };
 
-            if self.texture.is_none() {
-                self.texture = layer
-                    .material
-                    .lock()
-                    .unwrap()
-                    .property_ref(property_name)
-                    .and_then(|t| {
-                        if let PropertyValue::Sampler { value, .. } = t {
-                            value.clone()
-                        } else {
-                            None
-                        }
-                    });
-            }
-
-            layer
+        if self.texture.is_none() {
+            self.texture = layer
                 .material
                 .lock()
                 .unwrap()
-                .set_property(
-                    property_name,
-                    PropertyValue::Sampler {
-                        value: texture.clone(),
-                        fallback: SamplerFallback::White,
-                    },
-                )
-                .unwrap();
+                .property_ref(property_name)
+                .and_then(|t| {
+                    if let PropertyValue::Sampler { value, .. } = t {
+                        value.clone()
+                    } else {
+                        None
+                    }
+                });
         }
+
+        layer
+            .material
+            .lock()
+            .unwrap()
+            .set_property(
+                property_name,
+                PropertyValue::Sampler {
+                    value: texture.clone(),
+                    fallback: SamplerFallback::White,
+                },
+            )
+            .unwrap();
     }
 }
 
@@ -267,16 +256,12 @@ impl ModifyTerrainLayerMaskCommand {
 
     pub fn swap(&mut self, context: &mut SceneContext) {
         let terrain = context.scene.graph[self.terrain].as_terrain_mut();
-        for (chunk, (old, new)) in terrain
-            .chunks_mut()
-            .iter_mut()
+        for (chunk_mask, (old, new)) in terrain.layers_mut()[self.layer]
+            .chunk_masks()
+            .iter()
             .zip(self.old_masks.iter_mut().zip(self.new_masks.iter_mut()))
         {
-            let mut texture_data = chunk.layers_mut()[self.layer]
-                .mask
-                .as_mut()
-                .unwrap()
-                .data_ref();
+            let mut texture_data = chunk_mask.data_ref();
 
             for (mask_pixel, new_pixel) in
                 texture_data.modify().data_mut().iter_mut().zip(new.iter())

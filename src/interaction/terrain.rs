@@ -94,18 +94,10 @@ impl BrushGizmo {
 }
 
 fn copy_layer_masks(terrain: &Terrain, layer: usize) -> Vec<Vec<u8>> {
-    terrain
-        .chunks_ref()
+    terrain.layers()[layer]
+        .chunk_masks()
         .iter()
-        .map(|c| {
-            c.layers()[layer]
-                .mask
-                .as_ref()
-                .unwrap()
-                .data_ref()
-                .data()
-                .to_vec()
-        })
+        .map(|mask| mask.data_ref().data().to_vec())
         .collect()
 }
 

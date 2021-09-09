@@ -139,9 +139,6 @@ impl TerrainSection {
 
         if let Node::Terrain(terrain) = node {
             let layer_items = terrain
-                .chunks_ref()
-                .first()
-                .unwrap()
                 .layers()
                 .iter()
                 .enumerate()
@@ -171,11 +168,8 @@ impl TerrainSection {
                 ),
             );
 
-            self.layer_section.sync_to_model(
-                self.current_layer
-                    .and_then(|i| terrain.chunks_ref().first().unwrap().layers().get(i)),
-                ui,
-            );
+            self.layer_section
+                .sync_to_model(self.current_layer.and_then(|i| terrain.layers().get(i)), ui);
         }
 
         self.brush_section.sync_to_model(ui);
