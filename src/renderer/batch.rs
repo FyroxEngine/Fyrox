@@ -1,4 +1,5 @@
 use crate::material::PropertyValue;
+use crate::utils::log::{Log, MessageKind};
 use crate::{
     core::{algebra::Matrix4, arrayvec::ArrayVec, pool::Handle, scope_profile},
     material::Material,
@@ -125,49 +126,59 @@ impl BatchStorage {
                             let data_key = &*data as *const _ as u64;
 
                             let mut material = (*layer.material.lock().unwrap()).clone();
-                            material
-                                .set_property(
-                                    &layer.mask_property_name,
-                                    PropertyValue::Sampler {
-                                        value: Some(layer.chunk_masks[chunk_index].clone()),
-                                        fallback: Default::default(),
-                                    },
-                                )
-                                .unwrap();
-                            let material = Arc::new(Mutex::new(material));
+                            match material.set_property(
+                                &layer.mask_property_name,
+                                PropertyValue::Sampler {
+                                    value: Some(layer.chunk_masks[chunk_index].clone()),
+                                    fallback: Default::default(),
+                                },
+                            ) {
+                                Ok(_) => {
+                                    let material = Arc::new(Mutex::new(material));
 
-                            let mut hasher = DefaultHasher::new();
+                                    let mut hasher = DefaultHasher::new();
 
-                            hasher.write_u64(&*material as *const _ as u64);
-                            hasher.write_u64(data_key);
+                                    hasher.write_u64(&*material as *const _ as u64);
+                                    hasher.write_u64(data_key);
 
-                            let key = hasher.finish();
+                                    let key = hasher.finish();
 
-                            let batch = if let Some(&batch_index) = self.batch_map.get(&key) {
-                                self.batches.get_mut(batch_index).unwrap()
-                            } else {
-                                self.batch_map.insert(key, self.batches.len());
-                                self.batches.push(Batch {
-                                    data: data.clone(),
-                                    instances: self.buffers.pop().unwrap_or_default(),
-                                    material: material.clone(),
-                                    is_skinned: false,
-                                    render_path: RenderPath::Deferred,
-                                    sort_index: layer_index as u64,
-                                    decal_layer_index: terrain.decal_layer_index(),
-                                });
-                                self.batches.last_mut().unwrap()
-                            };
+                                    let batch = if let Some(&batch_index) = self.batch_map.get(&key)
+                                    {
+                                        self.batches.get_mut(batch_index).unwrap()
+                                    } else {
+                                        self.batch_map.insert(key, self.batches.len());
+                                        self.batches.push(Batch {
+                                            data: data.clone(),
+                                            instances: self.buffers.pop().unwrap_or_default(),
+                                            material: material.clone(),
+                                            is_skinned: false,
+                                            render_path: RenderPath::Deferred,
+                                            sort_index: layer_index as u64,
+                                            decal_layer_index: terrain.decal_layer_index(),
+                                        });
+                                        self.batches.last_mut().unwrap()
+                                    };
 
-                            batch.sort_index = layer_index as u64;
-                            batch.material = material;
+                                    batch.sort_index = layer_index as u64;
+                                    batch.material = material;
 
-                            batch.instances.push(SurfaceInstance {
-                                world_transform: terrain.global_transform(),
-                                bone_matrices: Default::default(),
-                                owner: handle,
-                                depth_offset: terrain.depth_offset_factor(),
-                            });
+                                    batch.instances.push(SurfaceInstance {
+                                        world_transform: terrain.global_transform(),
+                                        bone_matrices: Default::default(),
+                                        owner: handle,
+                                        depth_offset: terrain.depth_offset_factor(),
+                                    });
+                                }
+                                Err(e) => Log::writeln(
+                                    MessageKind::Error,
+                                    format!(
+                                        "Failed to prepare batch for terrain chunk.\
+                                 Unable to set mask texture for terrain material. Reason: {:?}",
+                                        e
+                                    ),
+                                ),
+                            }
                         }
                     }
                 }
