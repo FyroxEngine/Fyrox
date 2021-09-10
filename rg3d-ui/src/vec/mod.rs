@@ -11,6 +11,7 @@ pub mod vec4;
 pub fn make_numeric_input<M: MessageData, C: Control<M, C>>(
     ctx: &mut BuildContext<M, C>,
     column: usize,
+    value: f32,
 ) -> Handle<UINode<M, C>> {
     NumericUpDownBuilder::new(
         WidgetBuilder::new()
@@ -23,6 +24,7 @@ pub fn make_numeric_input<M: MessageData, C: Control<M, C>>(
                 bottom: 0.0,
             }),
     )
+    .with_value(value)
     .build(ctx)
 }
 

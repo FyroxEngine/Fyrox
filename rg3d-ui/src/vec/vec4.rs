@@ -144,22 +144,22 @@ impl<M: MessageData, C: Control<M, C>> Vec4EditorBuilder<M, C> {
             WidgetBuilder::new()
                 .with_child(make_mark(ctx, "X", 0, Color::opaque(120, 0, 0)))
                 .with_child({
-                    x_field = make_numeric_input(ctx, 1);
+                    x_field = make_numeric_input(ctx, 1, self.value.x);
                     x_field
                 })
                 .with_child(make_mark(ctx, "Y", 2, Color::opaque(0, 120, 0)))
                 .with_child({
-                    y_field = make_numeric_input(ctx, 3);
+                    y_field = make_numeric_input(ctx, 3, self.value.y);
                     y_field
                 })
                 .with_child(make_mark(ctx, "Z", 4, Color::opaque(0, 0, 120)))
                 .with_child({
-                    z_field = make_numeric_input(ctx, 5);
+                    z_field = make_numeric_input(ctx, 5, self.value.z);
                     z_field
                 })
                 .with_child(make_mark(ctx, "W", 6, Color::opaque(120, 0, 120)))
                 .with_child({
-                    w_field = make_numeric_input(ctx, 7);
+                    w_field = make_numeric_input(ctx, 7, self.value.w);
                     w_field
                 }),
         )
