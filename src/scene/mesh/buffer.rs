@@ -195,7 +195,10 @@ impl<'a> VertexBufferRefMut<'a> {
             self.vertex_buffer.vertex_count += 1;
             Ok(())
         } else {
-            Err(ValidationError::InvalidVertexSize)
+            Err(ValidationError::InvalidVertexSize {
+                expected: self.vertex_buffer.vertex_size,
+                actual: std::mem::size_of::<T>() as u8,
+            })
         }
     }
 
@@ -234,7 +237,10 @@ impl<'a> VertexBufferRefMut<'a> {
                 Ok(v.assume_init())
             }
         } else {
-            Err(ValidationError::InvalidVertexSize)
+            Err(ValidationError::InvalidVertexSize {
+                expected: self.vertex_buffer.vertex_size,
+                actual: std::mem::size_of::<T>() as u8,
+            })
         }
     }
 
@@ -249,7 +255,10 @@ impl<'a> VertexBufferRefMut<'a> {
                 )
             })
         } else {
-            Err(ValidationError::InvalidVertexSize)
+            Err(ValidationError::InvalidVertexSize {
+                expected: self.vertex_buffer.vertex_size,
+                actual: std::mem::size_of::<T>() as u8,
+            })
         }
     }
 
@@ -353,23 +362,37 @@ impl<'a> VertexBufferRefMut<'a> {
 }
 
 /// An error that may occur during input data and layout validation.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum ValidationError {
     /// Attribute size must be either 1, 2, 3 or 4.
-    InvalidAttributeSize,
+    #[error("Invalid attribute size {0}. Must be either 1, 2, 3 or 4")]
+    InvalidAttributeSize(usize),
+
     /// Data size is not correct.
+    #[error("Invalid data size. Expected {}, got {}.", expected, actual)]
     InvalidDataSize {
         /// Expected data size in bytes.
         expected: usize,
         /// Actual data size in bytes.
         actual: usize,
     },
+
     /// Trying to add vertex of incorrect size.
-    InvalidVertexSize,
-    /// A duplicate for a descriptor was found.
+    #[error("Invalid vertex size. Expected {}, got {}.", expected, actual)]
+    InvalidVertexSize {
+        /// Expected vertex size.
+        expected: u8,
+        /// Actual vertex size.
+        actual: u8,
+    },
+
+    /// A duplicate of a descriptor was found.
+    #[error("A duplicate of a descriptor was found.")]
     DuplicatedAttributeDescriptor,
+
     /// Duplicate shader locations were found.
-    ConflictingShaderLocations,
+    #[error("Duplicate shader locations were found {0}.")]
+    ConflictingShaderLocations(usize),
 }
 
 impl VertexBuffer {
@@ -394,7 +417,9 @@ impl VertexBuffer {
                     if descriptor.usage == other_descriptor.usage {
                         return Err(ValidationError::DuplicatedAttributeDescriptor);
                     } else if descriptor.shader_location == other_descriptor.shader_location {
-                        return Err(ValidationError::ConflictingShaderLocations);
+                        return Err(ValidationError::ConflictingShaderLocations(
+                            descriptor.shader_location as usize,
+                        ));
                     }
                 }
             }
@@ -407,7 +432,9 @@ impl VertexBuffer {
         let mut vertex_size_bytes = 0u8;
         for attribute in layout.iter() {
             if attribute.size < 1 || attribute.size > 4 {
-                return Err(ValidationError::InvalidAttributeSize);
+                return Err(ValidationError::InvalidAttributeSize(
+                    attribute.size as usize,
+                ));
             }
 
             let vertex_attribute = VertexAttribute {
@@ -532,7 +559,10 @@ impl VertexBuffer {
                 )
             })
         } else {
-            Err(ValidationError::InvalidVertexSize)
+            Err(ValidationError::InvalidVertexSize {
+                expected: self.vertex_size,
+                actual: std::mem::size_of::<T>() as u8,
+            })
         }
     }
 
@@ -675,11 +705,13 @@ impl<'a> PartialEq for VertexViewMut<'a> {
 }
 
 /// An error that may occur during fetching using vertex read/write accessor.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum VertexFetchError {
     /// Trying to read/write non-existent attribute.
+    #[error("No attribute with such usage: {0:?}")]
     NoSuchAttribute(VertexAttributeUsage),
     /// IO error.
+    #[error("An i/o error has occurred {0:?}")]
     Io(std::io::Error),
 }
 

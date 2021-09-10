@@ -258,12 +258,14 @@ impl ResourceData for ShaderState {
 }
 
 /// A set of possible error variants that can occur during shader loading.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum ShaderError {
     /// An i/o error has occurred.
+    #[error("A file load error has occurred {0:?}")]
     Io(FileLoadError),
 
     /// A parsing error has occurred.
+    #[error("A parsing error has occurred {0:?}")]
     ParseError(ron::Error),
 }
 

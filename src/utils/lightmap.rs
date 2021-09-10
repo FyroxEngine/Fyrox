@@ -212,11 +212,13 @@ impl Deref for ProgressIndicator {
 }
 
 /// An error that may occur during ligthmap generation.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum LightmapGenerationError {
     /// Generation was cancelled by user.
+    #[error("Lightmap generation was cancelled by the user.")]
     Cancelled,
-    /// Vertex buffer of a mesh lacks needed data.
+    /// Vertex buffer of a mesh lacks required data.
+    #[error("Vertex buffer of a mesh lacks required data {0}.")]
     InvalidData(VertexFetchError),
 }
 

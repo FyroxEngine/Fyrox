@@ -339,13 +339,16 @@ impl TextureImportOptions {
 }
 
 /// An error that may occur during texture registration.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum TextureRegistrationError {
     /// Texture saving has failed.
+    #[error(transparent)]
     Texture(TextureError),
     /// Texture was in invalid state (Pending, LoadErr)
+    #[error("A texture was in invalid state!")]
     InvalidState,
     /// Texture is already registered.
+    #[error("A texture is already registered!")]
     AlreadyRegistered,
 }
 

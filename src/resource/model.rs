@@ -224,13 +224,16 @@ pub struct ModelInstance {
 
 /// All possible errors that may occur while trying to load model from some
 /// data source.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum ModelLoadError {
-    /// An error occurred while reading some data source.
+    /// An error occurred while reading a data source.
+    #[error("An error occurred while reading a data source {0:?}")]
     Visit(VisitError),
     /// Format is not supported.
+    #[error("Model format is not supported: {0}")]
     NotSupported(String),
     /// An error occurred while loading FBX file.
+    #[error(transparent)]
     Fbx(FbxError),
 }
 

@@ -378,18 +378,27 @@ impl Camera {
 }
 
 /// All possible error that may occur during color grading look-up table creation.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum ColorGradingLutCreationError {
     /// There is not enough data in provided texture to build LUT.
+    #[error(
+        "There is not enough data in provided texture to build LUT. Required: {}, current: {}.",
+        required,
+        current
+    )]
     NotEnoughData {
         /// Required amount of bytes.
         required: usize,
         /// Actual data size.
         current: usize,
     },
+
     /// Pixel format is not supported. It must be either RGB8 or RGBA8.
+    #[error("Pixel format is not supported. It must be either RGB8 or RGBA8, but texture has {0:?} pixel format")]
     InvalidPixelFormat(TexturePixelKind),
+
     /// Texture error.
+    #[error("Texture load error: {0:?}")]
     Texture(Option<Arc<TextureError>>),
 }
 
