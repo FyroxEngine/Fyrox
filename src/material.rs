@@ -328,7 +328,14 @@ impl MaterialEditor {
                     }
                 }
             } else if material.properties().len() > self.properties.len() {
-                for (name, property_value) in material.properties() {
+                let mut sorted_properties = material
+                    .properties()
+                    .iter()
+                    .map(|(k, v)| (k.clone(), v.clone()))
+                    .collect::<Vec<_>>();
+                sorted_properties.sort_by(|(name_a, _), (name_b, _)| name_a.cmp(name_b));
+
+                for (name, property_value) in sorted_properties.iter() {
                     if !self.properties.contains_key(name) {
                         let ctx = &mut ui.build_ctx();
 
