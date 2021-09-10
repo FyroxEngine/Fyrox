@@ -1,26 +1,31 @@
-use crate::scene::commands::terrain::SetTerrainDecalLayerIndexCommand;
-use crate::sidebar::{make_int_input_field, make_section, make_text_mark, COLUMN_WIDTH};
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
-    scene::{
-        commands::terrain::{AddTerrainLayerCommand, DeleteTerrainLayerCommand},
-        commands::SceneCommand,
+    scene::commands::{
+        terrain::{
+            AddTerrainLayerCommand, DeleteTerrainLayerCommand, SetTerrainDecalLayerIndexCommand,
+        },
+        SceneCommand,
     },
     send_sync_message,
-    sidebar::{terrain::brush::BrushSection, terrain::layer::LayerSection, ROW_HEIGHT},
+    sidebar::{
+        make_int_input_field, make_section, make_text_mark,
+        terrain::{brush::BrushSection, layer::LayerSection},
+        COLUMN_WIDTH, ROW_HEIGHT,
+    },
     Message,
 };
-use rg3d::gui::message::NumericUpDownMessage;
 use rg3d::{
     core::{algebra::Vector2, pool::Handle, scope_profile},
-    engine::resource_manager::ResourceManager,
     gui::{
         border::BorderBuilder,
         button::ButtonBuilder,
         decorator::DecoratorBuilder,
         grid::{Column, GridBuilder, Row},
         list_view::ListViewBuilder,
-        message::{ButtonMessage, ListViewMessage, MessageDirection, UiMessageData, WidgetMessage},
+        message::{
+            ButtonMessage, ListViewMessage, MessageDirection, NumericUpDownMessage, UiMessageData,
+            WidgetMessage,
+        },
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
         widget::WidgetBuilder,
@@ -179,7 +184,6 @@ impl TerrainSection {
         &mut self,
         message: &UiMessage,
         ui: &mut Ui,
-        resource_manager: ResourceManager,
         graph: &Graph,
         handle: Handle<Node>,
         sender: &Sender<Message>,
@@ -190,7 +194,7 @@ impl TerrainSection {
 
         if let Some(index) = self.current_layer {
             self.layer_section
-                .handle_message(message, ui, index, resource_manager, handle, sender);
+                .handle_message(message, graph, handle, index, sender);
         }
 
         self.brush_section.handle_message(message);

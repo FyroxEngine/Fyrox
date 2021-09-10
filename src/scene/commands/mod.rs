@@ -77,7 +77,6 @@ use crate::{
             terrain::{
                 AddTerrainLayerCommand, DeleteTerrainLayerCommand, ModifyTerrainHeightCommand,
                 ModifyTerrainLayerMaskCommand, SetTerrainDecalLayerIndexCommand,
-                SetTerrainLayerTextureCommand,
             },
         },
         EditorScene, GraphSelection, Selection,
@@ -246,7 +245,6 @@ pub enum SceneCommand {
     // Terrain commands.
     AddTerrainLayer(AddTerrainLayerCommand),
     DeleteTerrainLayer(DeleteTerrainLayerCommand),
-    SetTerrainLayerTexture(SetTerrainLayerTextureCommand),
     ModifyTerrainHeight(ModifyTerrainHeightCommand),
     ModifyTerrainLayerMask(ModifyTerrainLayerMaskCommand),
     SetTerrainDecalLayerIndex(SetTerrainDecalLayerIndexCommand),
@@ -389,7 +387,6 @@ macro_rules! static_dispatch {
             SceneCommand::SetPhysicsBinding(v) => v.$func($($args),*),
             SceneCommand::AddTerrainLayer(v) => v.$func($($args),*),
             SceneCommand::DeleteTerrainLayer(v) => v.$func($($args),*),
-            SceneCommand::SetTerrainLayerTexture(v) => v.$func($($args),*),
             SceneCommand::ModifyTerrainHeight(v) => v.$func($($args),*),
             SceneCommand::ModifyTerrainLayerMask(v) => v.$func($($args),*),
             SceneCommand::SetTerrainDecalLayerIndex(v) => v.$func($($args),*),

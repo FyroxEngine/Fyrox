@@ -4,8 +4,6 @@ use crate::{
 };
 use rg3d::{
     core::pool::Handle,
-    material::{shader::SamplerFallback, PropertyValue},
-    resource::texture::Texture,
     scene::{graph::Graph, node::Node, terrain::Layer},
 };
 
@@ -83,96 +81,6 @@ impl<'a> Command<'a> for DeleteTerrainLayerCommand {
     fn revert(&mut self, context: &mut Self::Context) {
         let terrain = context.scene.graph[self.terrain].as_terrain_mut();
         terrain.insert_layer(self.layer.take().unwrap(), self.index);
-    }
-}
-
-#[derive(Debug)]
-pub enum TerrainLayerTextureKind {
-    Diffuse,
-    Normal,
-    Metallic,
-    Roughness,
-    Height,
-}
-
-#[derive(Debug)]
-pub struct SetTerrainLayerTextureCommand {
-    terrain: Handle<Node>,
-    index: usize,
-    kind: TerrainLayerTextureKind,
-    texture: Option<Texture>,
-}
-
-impl SetTerrainLayerTextureCommand {
-    pub fn new(
-        terrain: Handle<Node>,
-        index: usize,
-        texture: Texture,
-        kind: TerrainLayerTextureKind,
-    ) -> Self {
-        Self {
-            kind,
-            index,
-            terrain,
-            texture: Some(texture),
-        }
-    }
-
-    fn swap(&mut self, context: &mut SceneContext) {
-        let terrain = context.scene.graph[self.terrain].as_terrain_mut();
-        let texture = self.texture.take();
-        let layer = &mut terrain.layers_mut()[self.index];
-        let property_name = match self.kind {
-            TerrainLayerTextureKind::Diffuse => "diffuseTexture",
-            TerrainLayerTextureKind::Normal => "normalTexture",
-            TerrainLayerTextureKind::Metallic => "metallicTexture",
-            TerrainLayerTextureKind::Roughness => "roughnessTexture",
-            TerrainLayerTextureKind::Height => "heightTexture",
-        };
-
-        if self.texture.is_none() {
-            self.texture = layer
-                .material
-                .lock()
-                .unwrap()
-                .property_ref(property_name)
-                .and_then(|t| {
-                    if let PropertyValue::Sampler { value, .. } = t {
-                        value.clone()
-                    } else {
-                        None
-                    }
-                });
-        }
-
-        layer
-            .material
-            .lock()
-            .unwrap()
-            .set_property(
-                property_name,
-                PropertyValue::Sampler {
-                    value: texture.clone(),
-                    fallback: SamplerFallback::White,
-                },
-            )
-            .unwrap();
-    }
-}
-
-impl<'a> Command<'a> for SetTerrainLayerTextureCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _context: &Self::Context) -> String {
-        "Set Terrain Layer Texture".to_owned()
-    }
-
-    fn execute(&mut self, context: &mut Self::Context) {
-        self.swap(context);
-    }
-
-    fn revert(&mut self, context: &mut Self::Context) {
-        self.swap(context);
     }
 }
 

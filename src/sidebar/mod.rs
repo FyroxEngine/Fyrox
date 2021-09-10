@@ -1,24 +1,23 @@
-use crate::sidebar::decal::DecalSection;
 use crate::{
     gui::{BuildContext, UiMessage, UiNode},
     scene::{EditorScene, Selection},
     send_sync_message,
     sidebar::{
-        base::BaseSection, camera::CameraSection, light::LightSection, lod::LodGroupEditor,
-        mesh::MeshSection, particle::ParticleSystemSection, physics::PhysicsSection,
-        sound::SoundSection, sprite::SpriteSection, terrain::TerrainSection,
+        base::BaseSection, camera::CameraSection, decal::DecalSection, light::LightSection,
+        lod::LodGroupEditor, mesh::MeshSection, particle::ParticleSystemSection,
+        physics::PhysicsSection, sound::SoundSection, sprite::SpriteSection,
+        terrain::TerrainSection,
     },
     GameEngine, Message,
 };
-use rg3d::core::color::Color;
-use rg3d::gui::border::BorderBuilder;
-use rg3d::gui::brush::Brush;
-use rg3d::gui::expander::ExpanderBuilder;
 use rg3d::{
-    core::{pool::Handle, scope_profile},
+    core::{color::Color, pool::Handle, scope_profile},
     gui::{
+        border::BorderBuilder,
+        brush::Brush,
         check_box::CheckBoxBuilder,
         color::ColorFieldBuilder,
+        expander::ExpanderBuilder,
         message::{MessageDirection, WidgetMessage},
         numeric::NumericUpDownBuilder,
         scroll_viewer::ScrollViewerBuilder,
@@ -375,7 +374,6 @@ impl SideBar {
                         self.terrain_section.handle_ui_message(
                             message,
                             &mut engine.user_interface,
-                            engine.resource_manager.clone(),
                             graph,
                             node_handle,
                             &self.sender,
