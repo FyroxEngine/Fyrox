@@ -51,6 +51,7 @@ pub enum AssetKind {
     Model,
     Texture,
     Sound,
+    Shader,
 }
 
 impl Deref for AssetItem {
@@ -155,6 +156,10 @@ impl AssetItemBuilder {
                 "ogg" | "wav" => {
                     kind = AssetKind::Sound;
                     load_image(include_bytes!("../resources/embed/sound.png"))
+                }
+                "shader" => {
+                    kind = AssetKind::Shader;
+                    load_image(include_bytes!("../resources/embed/shader.png"))
                 }
                 _ => None,
             })
@@ -374,7 +379,15 @@ impl AssetBrowser {
                             let ext = ext.to_string_lossy().to_lowercase();
                             matches!(
                                 ext.as_str(),
-                                "rgs" | "fbx" | "jpg" | "tga" | "png" | "bmp" | "ogg" | "wav"
+                                "rgs"
+                                    | "fbx"
+                                    | "jpg"
+                                    | "tga"
+                                    | "png"
+                                    | "bmp"
+                                    | "ogg"
+                                    | "wav"
+                                    | "shader"
                             )
                         }
 
