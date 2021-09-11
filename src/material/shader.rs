@@ -21,10 +21,10 @@ use std::{
 };
 
 /// A source code of the standard shader.
-pub const STANDARD_SHADER_SRC: &str = include_str!("standard/standard.ron");
+pub const STANDARD_SHADER_SRC: &str = include_str!("standard/standard.shader");
 
 /// A source code of the standard terrain shader.
-pub const STANDARD_TERRAIN_SHADER_SRC: &str = include_str!("standard/terrain.ron");
+pub const STANDARD_TERRAIN_SHADER_SRC: &str = include_str!("standard/terrain.shader");
 
 /// Internal state of the shader.
 ///

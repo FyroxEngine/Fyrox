@@ -36,8 +36,6 @@
             ),
             vertex_shader:
             r#"
-            #version 330 core
-
             layout(location = 0) in vec3 vertexPosition;
             layout(location = 1) in vec2 vertexTexCoord;
             layout(location = 2) in vec3 vertexNormal;
@@ -70,8 +68,6 @@
 
             fragment_shader:
             r#"
-            #version 330 core
-
             layout(location = 0) out vec4 outColor;
             layout(location = 1) out vec4 outNormal;
             layout(location = 2) out vec4 outAmbient;
@@ -120,8 +116,6 @@
 
             vertex_shader:
             r#"
-            #version 330 core
-
             layout(location = 0) in vec3 vertexPosition;
             layout(location = 1) in vec2 vertexTexCoord;
 
@@ -147,8 +141,6 @@
 
             fragment_shader:
             r#"
-            #version 330 core
-
             uniform sampler2D diffuseTexture;
 
             in vec2 texCoord;
@@ -184,8 +176,6 @@
 
             vertex_shader:
             r#"
-            #version 330 core
-
             layout(location = 0) in vec3 vertexPosition;
             layout(location = 1) in vec2 vertexTexCoord;
 
@@ -214,8 +204,6 @@
 
             fragment_shader:
             r#"
-            #version 330 core
-
             uniform sampler2D diffuseTexture;
 
             uniform vec3 rg3d_lightPosition;

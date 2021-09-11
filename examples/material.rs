@@ -45,7 +45,7 @@ struct Game {
 
 fn create_custom_material(resource_manager: ResourceManager) -> Arc<Mutex<Material>> {
     let shader =
-        block_on(resource_manager.request_shader("examples/data/shaders/custom.ron")).unwrap();
+        block_on(resource_manager.request_shader("examples/data/shaders/custom.shader")).unwrap();
 
     let mut material = Material::from_shader(shader, Some(resource_manager.clone()));
 
