@@ -104,7 +104,7 @@ impl<'a> Command<'a> for SetMaterialShaderCommand {
     type Context = SceneContext<'a>;
 
     fn name(&mut self, _: &Self::Context) -> String {
-        format!("Set Material Shader")
+        "Set Material Shader".to_owned()
     }
 
     fn execute(&mut self, ctx: &mut Self::Context) {

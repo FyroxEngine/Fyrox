@@ -348,10 +348,10 @@ impl MaterialEditor {
                 .set_material(material);
         }
 
-        self.sync_to_model(&mut engine.user_interface, engine.resource_manager.clone());
+        self.sync_to_model(&mut engine.user_interface);
     }
 
-    pub fn sync_to_model(&mut self, ui: &mut Ui, resource_manager: ResourceManager) {
+    pub fn sync_to_model(&mut self, ui: &mut Ui) {
         if let Some(material) = self.material.as_ref() {
             let material = material.lock().unwrap();
 
@@ -448,7 +448,7 @@ impl MaterialEditor {
                             .build(ctx),
                         PropertyValue::Sampler { value, .. } => {
                             ImageBuilder::new(WidgetBuilder::new().with_allow_drop(true))
-                                .with_opt_texture(value.clone().map(|t| into_gui_texture(t)))
+                                .with_opt_texture(value.clone().map(into_gui_texture))
                                 .build(ctx)
                         }
                     };
@@ -578,7 +578,7 @@ impl MaterialEditor {
                         ImageMessage::texture(
                             item,
                             MessageDirection::ToWidget,
-                            value.clone().map(|t| into_gui_texture(t)),
+                            value.clone().map(into_gui_texture),
                         ),
                     ),
                 }
@@ -602,8 +602,8 @@ impl MaterialEditor {
         self.preview.handle_message(message, engine);
 
         if let Some(material) = self.material.clone() {
-            match message.data() {
-                UiMessageData::DropdownList(msg) => match msg {
+            if let UiMessageData::DropdownList(msg) = message.data() {
+                match msg {
                     DropdownListMessage::SelectionChanged(Some(value)) => {
                         if message.destination() == self.available_shaders
                             && message.direction() == MessageDirection::FromWidget
@@ -626,8 +626,7 @@ impl MaterialEditor {
                         );
                     }
                     _ => (),
-                },
-                _ => {}
+                }
             }
 
             if let Some(property_name) = self.properties.key_of(&message.destination()) {
@@ -677,7 +676,7 @@ impl MaterialEditor {
                             engine.user_interface.send_message(ImageMessage::texture(
                                 message.destination(),
                                 MessageDirection::ToWidget,
-                                texture.clone().map(|t| into_gui_texture(t)),
+                                texture.clone().map(into_gui_texture),
                             ));
 
                             Some(PropertyValue::Sampler {
@@ -696,7 +695,7 @@ impl MaterialEditor {
                         .send(Message::DoSceneCommand(
                             SceneCommand::SetMaterialPropertyValue(
                                 SetMaterialPropertyValueCommand::new(
-                                    material.clone(),
+                                    material,
                                     property_name.clone(),
                                     property_value,
                                 ),

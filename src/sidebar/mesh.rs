@@ -166,6 +166,15 @@ impl MeshSection {
 
             send_sync_message(
                 ui,
+                WidgetMessage::visibility(
+                    self.surface_section,
+                    MessageDirection::ToWidget,
+                    self.current_surface.is_some(),
+                ),
+            );
+
+            send_sync_message(
+                ui,
                 DropdownListMessage::selection(
                     self.render_path,
                     MessageDirection::ToWidget,

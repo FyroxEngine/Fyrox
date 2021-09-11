@@ -1608,7 +1608,7 @@ impl Editor {
             self.navmesh_panel.sync_to_model(editor_scene, engine);
             self.sound_panel.sync_to_model(editor_scene, engine);
             self.material_editor
-                .sync_to_model(&mut engine.user_interface, engine.resource_manager.clone());
+                .sync_to_model(&mut engine.user_interface);
             self.command_stack_viewer.sync_to_model(
                 &mut self.command_stack,
                 &SceneContext {
