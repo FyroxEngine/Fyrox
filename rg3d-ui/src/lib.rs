@@ -1272,7 +1272,9 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
                 }
 
                 for &handle in self.preview_set.iter() {
-                    self.nodes[handle].preview_message(self, &mut message);
+                    if self.nodes.is_valid_handle(handle) {
+                        self.nodes[handle].preview_message(self, &mut message);
+                    }
                 }
 
                 self.bubble_message(&mut message);

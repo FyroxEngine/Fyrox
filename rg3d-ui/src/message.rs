@@ -537,12 +537,16 @@ pub enum DropdownListMessage<M: MessageData, C: Control<M, C>> {
     SelectionChanged(Option<usize>),
     Items(Vec<Handle<UINode<M, C>>>),
     AddItem(Handle<UINode<M, C>>),
+    Open,
+    Close,
 }
 
 impl<M: MessageData, C: Control<M, C>> DropdownListMessage<M, C> {
     define_constructor!(DropdownList(DropdownListMessage:SelectionChanged) => fn selection(Option<usize>), layout: false);
     define_constructor!(DropdownList(DropdownListMessage:Items) => fn items(Vec<Handle<UINode<M, C>>>), layout: false);
     define_constructor!(DropdownList(DropdownListMessage:AddItem) => fn add_item(Handle<UINode<M, C>>), layout: false);
+    define_constructor!(DropdownList(DropdownListMessage:Open) => fn open(), layout: false);
+    define_constructor!(DropdownList(DropdownListMessage:Close) => fn close(), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq)]
