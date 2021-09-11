@@ -11,9 +11,11 @@ use crate::{
 use rg3d::{
     core::{
         algebra::{Matrix4, Vector2, Vector3, Vector4},
+        futures::executor::block_on,
         pool::Handle,
         BiDirHashMap,
     },
+    engine::resource_manager::ResourceManager,
     gui::{
         border::BorderBuilder,
         check_box::CheckBoxBuilder,
@@ -269,7 +271,7 @@ impl MaterialEditor {
 
         ctx.link(preview.root, panel);
 
-        Self {
+        let mut editor = Self {
             window,
             preview,
             properties_panel,
@@ -277,7 +279,57 @@ impl MaterialEditor {
             material: None,
             available_shaders,
             shaders_list: Default::default(),
+        };
+
+        editor.sync_available_shaders_list(engine.resource_manager.clone());
+
+        editor
+    }
+
+    pub fn sync_available_shaders_list(&mut self, resource_manager: ResourceManager) {
+        self.shaders_list.clear();
+
+        self.shaders_list
+            .extend_from_slice(&Shader::standard_shaders());
+
+        for dir in rg3d::walkdir::WalkDir::new(".").into_iter().flatten() {
+            let path = dir.path();
+            if let Some(extension) = path.extension() {
+                if extension == "shader" {
+                    self.shaders_list
+                        .push(resource_manager.request_shader(path));
+                }
+            }
         }
+
+        // Wait all shaders to load.
+        block_on(rg3d::core::futures::future::join_all(
+            self.shaders_list.iter().cloned(),
+        ));
+    }
+
+    pub fn create_shaders_items(&self, ui: &mut Ui, material: &Material) {
+        let items = self
+            .shaders_list
+            .iter()
+            .map(|s| make_dropdown_list_option(&mut ui.build_ctx(), &s.data_ref().definition.name))
+            .collect::<Vec<_>>();
+
+        send_sync_message(
+            ui,
+            DropdownListMessage::items(self.available_shaders, MessageDirection::ToWidget, items),
+        );
+
+        send_sync_message(
+            ui,
+            DropdownListMessage::selection(
+                self.available_shaders,
+                MessageDirection::ToWidget,
+                self.shaders_list
+                    .iter()
+                    .position(|s| material.shader().key() == s.key()),
+            ),
+        )
     }
 
     pub fn set_material(
@@ -296,128 +348,123 @@ impl MaterialEditor {
                 .set_material(material);
         }
 
-        self.sync_to_model(&mut engine.user_interface);
+        self.sync_to_model(&mut engine.user_interface, engine.resource_manager.clone());
     }
 
-    pub fn sync_to_model(&mut self, ui: &mut Ui) {
+    pub fn sync_to_model(&mut self, ui: &mut Ui, resource_manager: ResourceManager) {
         if let Some(material) = self.material.as_ref() {
             let material = material.lock().unwrap();
 
-            // Keep properties in sync.
-            if material.properties().len() < self.properties.len() {
-                for name in self
-                    .properties
-                    .forward_map()
-                    .keys()
-                    .cloned()
-                    .collect::<Vec<_>>()
-                {
-                    if !material.properties().contains_key(&name) {
-                        let item_to_delete = ui
-                            .node(
-                                self.properties
-                                    .remove_by_key(&name)
-                                    .expect("Desync has occurred!"),
-                            )
-                            .parent();
+            // Remove properties from ui.
+            for name in self
+                .properties
+                .forward_map()
+                .keys()
+                .cloned()
+                .collect::<Vec<_>>()
+            {
+                if !material.properties().contains_key(&name) {
+                    let item_to_delete = ui
+                        .node(
+                            self.properties
+                                .remove_by_key(&name)
+                                .expect("Desync has occurred!"),
+                        )
+                        .parent();
 
-                        send_sync_message(
-                            ui,
-                            WidgetMessage::remove(item_to_delete, MessageDirection::ToWidget),
-                        );
-                    }
+                    send_sync_message(
+                        ui,
+                        WidgetMessage::remove(item_to_delete, MessageDirection::ToWidget),
+                    );
                 }
-            } else if material.properties().len() > self.properties.len() {
-                let mut sorted_properties = material
-                    .properties()
-                    .iter()
-                    .map(|(k, v)| (k.clone(), v.clone()))
-                    .collect::<Vec<_>>();
-                sorted_properties.sort_by(|(name_a, _), (name_b, _)| name_a.cmp(name_b));
+            }
 
-                for (name, property_value) in sorted_properties.iter() {
-                    if !self.properties.contains_key(name) {
-                        let ctx = &mut ui.build_ctx();
+            let mut sorted_properties = material
+                .properties()
+                .iter()
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect::<Vec<_>>();
+            sorted_properties.sort_by(|(name_a, _), (name_b, _)| name_a.cmp(name_b));
 
-                        let item = match property_value {
-                            PropertyValue::Float(value) => create_float_view(ctx, *value),
-                            PropertyValue::FloatArray(value) => {
-                                create_array_view(ctx, value, create_float_view)
-                            }
-                            PropertyValue::Int(value) => create_int_view(ctx, *value),
-                            PropertyValue::IntArray(value) => {
-                                create_array_view(ctx, value, create_int_view)
-                            }
-                            PropertyValue::UInt(value) => create_uint_view(ctx, *value),
-                            PropertyValue::UIntArray(value) => {
-                                create_array_view(ctx, value, create_uint_view)
-                            }
-                            PropertyValue::Vector2(value) => create_vec2_view(ctx, *value),
-                            PropertyValue::Vector2Array(value) => {
-                                create_array_view(ctx, value, create_vec2_view)
-                            }
-                            PropertyValue::Vector3(value) => create_vec3_view(ctx, *value),
-                            PropertyValue::Vector3Array(value) => {
-                                create_array_view(ctx, value, create_vec3_view)
-                            }
-                            PropertyValue::Vector4(value) => create_vec4_view(ctx, *value),
-                            PropertyValue::Vector4Array(value) => {
-                                create_array_view(ctx, value, create_vec4_view)
-                            }
-                            PropertyValue::Matrix2(value) => {
-                                create_array_view(ctx, value.data.as_slice(), create_float_view)
-                            }
-                            PropertyValue::Matrix2Array(value) => create_array_of_array_view(
-                                ctx,
-                                value.iter().map(|m| m.data.as_slice()),
-                                create_float_view,
-                            ),
-                            PropertyValue::Matrix3(value) => {
-                                create_array_view(ctx, value.data.as_slice(), create_float_view)
-                            }
-                            PropertyValue::Matrix3Array(value) => create_array_of_array_view(
-                                ctx,
-                                value.iter().map(|m| m.data.as_slice()),
-                                create_float_view,
-                            ),
-                            PropertyValue::Matrix4(value) => {
-                                create_array_view(ctx, value.data.as_slice(), create_float_view)
-                            }
-                            PropertyValue::Matrix4Array(value) => create_array_of_array_view(
-                                ctx,
-                                value.iter().map(|m| m.data.as_slice()),
-                                create_float_view,
-                            ),
-                            PropertyValue::Bool(value) => {
-                                CheckBoxBuilder::new(WidgetBuilder::new())
-                                    .checked(Some(*value))
-                                    .build(ctx)
-                            }
-                            PropertyValue::Color(value) => {
-                                ColorFieldBuilder::new(WidgetBuilder::new())
-                                    .with_color(*value)
-                                    .build(ctx)
-                            }
-                            PropertyValue::Sampler { value, .. } => {
-                                ImageBuilder::new(WidgetBuilder::new().with_allow_drop(true))
-                                    .with_opt_texture(value.clone().map(|t| into_gui_texture(t)))
-                                    .build(ctx)
-                            }
-                        };
+            // Add missing properties.
+            for (name, property_value) in sorted_properties.iter() {
+                if !self.properties.contains_key(name) {
+                    let ctx = &mut ui.build_ctx();
 
-                        self.properties.insert(name.to_owned(), item);
+                    let item = match property_value {
+                        PropertyValue::Float(value) => create_float_view(ctx, *value),
+                        PropertyValue::FloatArray(value) => {
+                            create_array_view(ctx, value, create_float_view)
+                        }
+                        PropertyValue::Int(value) => create_int_view(ctx, *value),
+                        PropertyValue::IntArray(value) => {
+                            create_array_view(ctx, value, create_int_view)
+                        }
+                        PropertyValue::UInt(value) => create_uint_view(ctx, *value),
+                        PropertyValue::UIntArray(value) => {
+                            create_array_view(ctx, value, create_uint_view)
+                        }
+                        PropertyValue::Vector2(value) => create_vec2_view(ctx, *value),
+                        PropertyValue::Vector2Array(value) => {
+                            create_array_view(ctx, value, create_vec2_view)
+                        }
+                        PropertyValue::Vector3(value) => create_vec3_view(ctx, *value),
+                        PropertyValue::Vector3Array(value) => {
+                            create_array_view(ctx, value, create_vec3_view)
+                        }
+                        PropertyValue::Vector4(value) => create_vec4_view(ctx, *value),
+                        PropertyValue::Vector4Array(value) => {
+                            create_array_view(ctx, value, create_vec4_view)
+                        }
+                        PropertyValue::Matrix2(value) => {
+                            create_array_view(ctx, value.data.as_slice(), create_float_view)
+                        }
+                        PropertyValue::Matrix2Array(value) => create_array_of_array_view(
+                            ctx,
+                            value.iter().map(|m| m.data.as_slice()),
+                            create_float_view,
+                        ),
+                        PropertyValue::Matrix3(value) => {
+                            create_array_view(ctx, value.data.as_slice(), create_float_view)
+                        }
+                        PropertyValue::Matrix3Array(value) => create_array_of_array_view(
+                            ctx,
+                            value.iter().map(|m| m.data.as_slice()),
+                            create_float_view,
+                        ),
+                        PropertyValue::Matrix4(value) => {
+                            create_array_view(ctx, value.data.as_slice(), create_float_view)
+                        }
+                        PropertyValue::Matrix4Array(value) => create_array_of_array_view(
+                            ctx,
+                            value.iter().map(|m| m.data.as_slice()),
+                            create_float_view,
+                        ),
+                        PropertyValue::Bool(value) => CheckBoxBuilder::new(WidgetBuilder::new())
+                            .checked(Some(*value))
+                            .build(ctx),
+                        PropertyValue::Color(value) => ColorFieldBuilder::new(WidgetBuilder::new())
+                            .with_color(*value)
+                            .build(ctx),
+                        PropertyValue::Sampler { value, .. } => {
+                            ImageBuilder::new(WidgetBuilder::new().with_allow_drop(true))
+                                .with_opt_texture(value.clone().map(|t| into_gui_texture(t)))
+                                .build(ctx)
+                        }
+                    };
 
-                        let container = create_item_container(ctx, name, item);
+                    self.properties.insert(name.to_owned(), item);
 
-                        send_sync_message(
-                            ui,
-                            WidgetMessage::link(
-                                container,
-                                MessageDirection::ToWidget,
-                                self.properties_panel,
-                            ),
-                        );
-                    }
+                    let container = create_item_container(ctx, name, item);
+
+                    send_sync_message(
+                        ui,
+                        WidgetMessage::link(
+                            container,
+                            MessageDirection::ToWidget,
+                            self.properties_panel,
+                        ),
+                    );
                 }
             }
 
@@ -426,7 +473,7 @@ impl MaterialEditor {
                 let item = *self
                     .properties
                     .value_of(name)
-                    .expect("Desync has occurred.");
+                    .unwrap_or_else(|| panic!("Property not found {}", name));
 
                 match property_value {
                     PropertyValue::Float(value) => {
@@ -537,41 +584,7 @@ impl MaterialEditor {
                 }
             }
 
-            // Sync available shaders list.
-            self.shaders_list.clear();
-
-            self.shaders_list
-                .extend_from_slice(&Shader::standard_shaders());
-
-            // TODO: Search for custom shaders in the assets.
-
-            let items = self
-                .shaders_list
-                .iter()
-                .map(|s| {
-                    make_dropdown_list_option(&mut ui.build_ctx(), &s.data_ref().definition.name)
-                })
-                .collect::<Vec<_>>();
-
-            send_sync_message(
-                ui,
-                DropdownListMessage::items(
-                    self.available_shaders,
-                    MessageDirection::ToWidget,
-                    items,
-                ),
-            );
-
-            send_sync_message(
-                ui,
-                DropdownListMessage::selection(
-                    self.available_shaders,
-                    MessageDirection::ToWidget,
-                    self.shaders_list
-                        .iter()
-                        .position(|s| material.shader().key() == s.key()),
-                ),
-            )
+            self.create_shaders_items(ui, &material);
         } else {
             send_sync_message(
                 ui,
@@ -588,22 +601,33 @@ impl MaterialEditor {
     ) {
         self.preview.handle_message(message, engine);
 
-        if let Some(material) = self.material.as_ref() {
-            if let UiMessageData::DropdownList(DropdownListMessage::SelectionChanged(Some(value))) =
-                message.data()
-            {
-                if message.destination() == self.available_shaders
-                    && message.direction() == MessageDirection::FromWidget
-                {
-                    sender
-                        .send(Message::DoSceneCommand(SceneCommand::SetMaterialShader(
-                            SetMaterialShaderCommand::new(
-                                material.clone(),
-                                self.shaders_list[*value].clone(),
-                            ),
-                        )))
-                        .unwrap();
-                }
+        if let Some(material) = self.material.clone() {
+            match message.data() {
+                UiMessageData::DropdownList(msg) => match msg {
+                    DropdownListMessage::SelectionChanged(Some(value)) => {
+                        if message.destination() == self.available_shaders
+                            && message.direction() == MessageDirection::FromWidget
+                        {
+                            sender
+                                .send(Message::DoSceneCommand(SceneCommand::SetMaterialShader(
+                                    SetMaterialShaderCommand::new(
+                                        material.clone(),
+                                        self.shaders_list[*value].clone(),
+                                    ),
+                                )))
+                                .unwrap();
+                        }
+                    }
+                    DropdownListMessage::Open => {
+                        self.sync_available_shaders_list(engine.resource_manager.clone());
+                        self.create_shaders_items(
+                            &mut engine.user_interface,
+                            &*material.lock().unwrap(),
+                        );
+                    }
+                    _ => (),
+                },
+                _ => {}
             }
 
             if let Some(property_name) = self.properties.key_of(&message.destination()) {
