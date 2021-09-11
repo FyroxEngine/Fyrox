@@ -603,11 +603,11 @@ impl MaterialEditor {
 
         if let Some(material) = self.material.clone() {
             if let UiMessageData::DropdownList(msg) = message.data() {
-                match msg {
-                    DropdownListMessage::SelectionChanged(Some(value)) => {
-                        if message.destination() == self.available_shaders
-                            && message.direction() == MessageDirection::FromWidget
-                        {
+                if message.destination() == self.available_shaders
+                    && message.direction() == MessageDirection::FromWidget
+                {
+                    match msg {
+                        DropdownListMessage::SelectionChanged(Some(value)) => {
                             sender
                                 .send(Message::DoSceneCommand(SceneCommand::SetMaterialShader(
                                     SetMaterialShaderCommand::new(
@@ -617,15 +617,15 @@ impl MaterialEditor {
                                 )))
                                 .unwrap();
                         }
+                        DropdownListMessage::Open => {
+                            self.sync_available_shaders_list(engine.resource_manager.clone());
+                            self.create_shaders_items(
+                                &mut engine.user_interface,
+                                &*material.lock().unwrap(),
+                            );
+                        }
+                        _ => (),
                     }
-                    DropdownListMessage::Open => {
-                        self.sync_available_shaders_list(engine.resource_manager.clone());
-                        self.create_shaders_items(
-                            &mut engine.user_interface,
-                            &*material.lock().unwrap(),
-                        );
-                    }
-                    _ => (),
                 }
             }
 
