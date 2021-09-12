@@ -275,20 +275,16 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for MenuItem<M, C> {
                 match msg {
                     MenuItemMessage::Open => {
                         if !self.items.is_empty() {
-                            let position = match self.placement {
-                                MenuItemPlacement::Bottom => {
-                                    self.screen_position + Vector2::new(0.0, self.actual_size().y)
-                                }
-                                MenuItemPlacement::Right => {
-                                    self.screen_position + Vector2::new(self.actual_size().x, 0.0)
-                                }
+                            let placement = match self.placement {
+                                MenuItemPlacement::Bottom => Placement::LeftBottom(self.handle),
+                                MenuItemPlacement::Right => Placement::RightTop(self.handle),
                             };
 
                             // Open popup.
                             ui.send_message(PopupMessage::placement(
                                 self.popup,
                                 MessageDirection::ToWidget,
-                                Placement::Position(position),
+                                placement,
                             ));
                             ui.send_message(PopupMessage::open(
                                 self.popup,

@@ -1122,12 +1122,10 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ColorField<M, C> {
                         MessageDirection::ToWidget,
                         self.actual_size().x,
                     ));
-                    let placement_position = self.widget.screen_position
-                        + Vector2::new(0.0, self.widget.actual_size().y);
                     ui.send_message(PopupMessage::placement(
                         self.popup,
                         MessageDirection::ToWidget,
-                        Placement::Position(placement_position),
+                        Placement::LeftBottom(self.handle),
                     ));
                     ui.send_message(PopupMessage::open(self.popup, MessageDirection::ToWidget));
                     ui.send_message(ColorPickerMessage::color(

@@ -30,6 +30,10 @@ impl<M: MessageData, C: Control<M, C>> Image<M, C> {
     pub fn set_texture(&mut self, texture: SharedTexture) {
         self.texture = Some(texture);
     }
+
+    pub fn texture(&self) -> Option<SharedTexture> {
+        self.texture.clone()
+    }
 }
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for Image<M, C> {

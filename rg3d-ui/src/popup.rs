@@ -1,9 +1,10 @@
-use crate::core::algebra::Vector2;
-use crate::message::{MessageData, MessageDirection};
 use crate::{
     border::BorderBuilder,
-    core::pool::Handle,
-    message::{ButtonState, OsEvent, PopupMessage, UiMessage, UiMessageData, WidgetMessage},
+    core::{algebra::Vector2, pool::Handle},
+    message::{
+        ButtonState, MessageData, MessageDirection, OsEvent, PopupMessage, UiMessage,
+        UiMessageData, WidgetMessage,
+    },
     node::UINode,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, NodeHandleMapping, RestrictionEntry, Thickness, UserInterface,
@@ -12,20 +13,46 @@ use crate::{
 use std::ops::{Deref, DerefMut};
 
 #[derive(Copy, Clone, PartialEq, Debug)]
-pub enum Placement {
-    LeftTop,
-    RightTop,
-    Center,
-    LeftBottom,
-    RightBottom,
-    Cursor,
-    Position(Vector2<f32>),
+pub enum Placement<M: MessageData, C: Control<M, C>> {
+    /// A popup should be placed relative to given widget at the left top corner of the widget screen bounds.
+    /// Widget handle could be `NONE`, in this case the popup will be placed at the left top corner of the screen.
+    LeftTop(Handle<UINode<M, C>>),
+
+    /// A popup should be placed relative to given widget at the right top corner of the widget screen bounds.
+    /// Widget handle could be `NONE`, in this case the popup will be placed at the right top corner of the screen.
+    RightTop(Handle<UINode<M, C>>),
+
+    /// A popup should be placed relative to given widget at the center of the widget screen bounds.
+    /// Widget handle could be `NONE`, in this case the popup will be placed at the center of the screen.
+    Center(Handle<UINode<M, C>>),
+
+    /// A popup should be placed relative to given widget at the left bottom corner of the widget screen bounds.
+    /// Widget handle could be `NONE`, in this case the popup will be placed at the left bottom corner of the screen.
+    LeftBottom(Handle<UINode<M, C>>),
+
+    /// A popup should be placed relative to given widget at the right bottom corner of the widget screen bounds.
+    /// Widget handle could be `NONE`, in this case the popup will be placed at the right bottom corner of the screen.
+    RightBottom(Handle<UINode<M, C>>),
+
+    /// A popup should be placed at the cursor position. The widget handle could be either `NONE` or a handle of a
+    /// widget that is directly behind the cursor.
+    Cursor(Handle<UINode<M, C>>),
+
+    /// A popup should be placed at given screen-space position.
+    Position {
+        /// Screen-space position.
+        position: Vector2<f32>,
+
+        /// A handle of the node that is located behind the given position. Could be `NONE` if there is nothing behind
+        /// given position.
+        target: Handle<UINode<M, C>>,
+    },
 }
 
 #[derive(Clone)]
 pub struct Popup<M: MessageData, C: Control<M, C>> {
     widget: Widget<M, C>,
-    placement: Placement,
+    placement: Placement<M, C>,
     stays_open: bool,
     is_open: bool,
     content: Handle<UINode<M, C>>,
@@ -66,29 +93,40 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Popup<M, C> {
                             MessageDirection::ToWidget,
                         ));
                         let position = match self.placement {
-                            Placement::LeftTop => Vector2::default(),
-                            Placement::RightTop => {
-                                let width = self.widget.actual_size().x;
-                                let screen_width = ui.screen_size().x;
-                                Vector2::new(screen_width - width, 0.0)
-                            }
-                            Placement::Center => {
-                                let size = self.widget.actual_size();
-                                let screen_size = ui.screen_size;
-                                (screen_size - size).scale(0.5)
-                            }
-                            Placement::LeftBottom => {
-                                let height = self.widget.actual_size().y;
-                                let screen_height = ui.screen_size().y;
-                                Vector2::new(0.0, screen_height - height)
-                            }
-                            Placement::RightBottom => {
-                                let size = self.widget.actual_size();
-                                let screen_size = ui.screen_size;
-                                screen_size - size
-                            }
-                            Placement::Cursor => ui.cursor_position(),
-                            Placement::Position(position) => position,
+                            Placement::LeftTop(target) => ui
+                                .try_get_node(target)
+                                .map(|n| n.screen_position())
+                                .unwrap_or_default(),
+                            Placement::RightTop(target) => ui
+                                .try_get_node(target)
+                                .map(|n| n.screen_position() + Vector2::new(n.actual_size().x, 0.0))
+                                .unwrap_or_else(|| {
+                                    Vector2::new(
+                                        ui.screen_size().x - self.widget.actual_size().x,
+                                        0.0,
+                                    )
+                                }),
+                            Placement::Center(target) => ui
+                                .try_get_node(target)
+                                .map(|n| n.screen_position() + n.actual_size().scale(0.5))
+                                .unwrap_or_else(|| {
+                                    (ui.screen_size - self.widget.actual_size()).scale(0.5)
+                                }),
+                            Placement::LeftBottom(target) => ui
+                                .try_get_node(target)
+                                .map(|n| n.screen_position() + Vector2::new(0.0, n.actual_size().y))
+                                .unwrap_or_else(|| {
+                                    Vector2::new(
+                                        0.0,
+                                        ui.screen_size().y - self.widget.actual_size().y,
+                                    )
+                                }),
+                            Placement::RightBottom(target) => ui
+                                .try_get_node(target)
+                                .map(|n| n.screen_position() + n.actual_size())
+                                .unwrap_or_else(|| ui.screen_size - self.widget.actual_size()),
+                            Placement::Cursor(_) => ui.cursor_position(),
+                            Placement::Position { position, .. } => position,
                         };
                         ui.send_message(WidgetMessage::desired_position(
                             self.handle(),
@@ -126,8 +164,8 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Popup<M, C> {
                         self.body,
                     ));
                 }
-                &PopupMessage::Placement(placement) => {
-                    self.placement = placement;
+                PopupMessage::Placement(placement) => {
+                    self.placement = placement.clone();
                     self.invalidate_layout();
                 }
             },
@@ -162,7 +200,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Popup<M, C> {
 
 pub struct PopupBuilder<M: MessageData, C: Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
-    placement: Placement,
+    placement: Placement<M, C>,
     stays_open: bool,
     content: Handle<UINode<M, C>>,
 }
@@ -171,13 +209,13 @@ impl<M: MessageData, C: Control<M, C>> PopupBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
-            placement: Placement::Cursor,
+            placement: Placement::Cursor(Default::default()),
             stays_open: false,
             content: Default::default(),
         }
     }
 
-    pub fn with_placement(mut self, placement: Placement) -> Self {
+    pub fn with_placement(mut self, placement: Placement<M, C>) -> Self {
         self.placement = placement;
         self
     }

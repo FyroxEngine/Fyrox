@@ -554,14 +554,14 @@ pub enum PopupMessage<M: MessageData, C: Control<M, C>> {
     Open,
     Close,
     Content(Handle<UINode<M, C>>),
-    Placement(Placement),
+    Placement(Placement<M, C>),
 }
 
 impl<M: MessageData, C: Control<M, C>> PopupMessage<M, C> {
     define_constructor!(Popup(PopupMessage:Open) => fn open(), layout: false);
     define_constructor!(Popup(PopupMessage:Close) => fn close(), layout: false);
     define_constructor!(Popup(PopupMessage:Content) => fn content(Handle<UINode<M, C>>), layout: false);
-    define_constructor!(Popup(PopupMessage:Placement) => fn placement(Placement), layout: false);
+    define_constructor!(Popup(PopupMessage:Placement) => fn placement(Placement<M, C>), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq)]

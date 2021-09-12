@@ -1364,17 +1364,18 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
                             if *button == MouseButton::Right {
                                 if let Some(picked) = self.nodes.try_borrow(self.picked_node) {
                                     // Get the context menu from the current node or aa parent node
-                                    let context_menu = if picked.context_menu().is_some() {
-                                        picked.context_menu()
+                                    let (context_menu, target) = if picked.context_menu().is_some()
+                                    {
+                                        (picked.context_menu(), self.picked_node)
                                     } else {
                                         let parent_handle = picked.find_by_criteria_up(self, |n| {
                                             n.context_menu().is_some()
                                         });
 
                                         if let Some(parent) = self.nodes.try_borrow(parent_handle) {
-                                            parent.context_menu()
+                                            (parent.context_menu(), parent_handle)
                                         } else {
-                                            Handle::NONE
+                                            (Handle::NONE, Handle::NONE)
                                         }
                                     };
 
@@ -1383,7 +1384,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
                                         self.send_message(PopupMessage::placement(
                                             context_menu,
                                             MessageDirection::ToWidget,
-                                            Placement::Cursor,
+                                            Placement::Cursor(target),
                                         ));
                                         self.send_message(PopupMessage::open(
                                             context_menu,
@@ -1857,6 +1858,11 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
     #[inline]
     pub fn node(&self, node_handle: Handle<UINode<M, C>>) -> &UINode<M, C> {
         self.nodes.borrow(node_handle)
+    }
+
+    #[inline]
+    pub fn try_get_node(&self, node_handle: Handle<UINode<M, C>>) -> Option<&UINode<M, C>> {
+        self.nodes.try_borrow(node_handle)
     }
 
     pub fn copy_node(&mut self, node: Handle<UINode<M, C>>) -> Handle<UINode<M, C>> {
