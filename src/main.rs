@@ -763,6 +763,7 @@ pub enum Message {
     Exit { force: bool },
     OpenSettings(SettingsSectionKind),
     OpenMaterialEditor(Arc<Mutex<Material>>),
+    ShowInAssetBrowser(PathBuf),
 }
 
 pub fn make_scene_file_filter() -> Filter {
@@ -1828,6 +1829,9 @@ impl Editor {
                         MessageDirection::ToWidget,
                         true,
                     ));
+                }
+                Message::ShowInAssetBrowser(path) => {
+                    self.asset_browser.locate_path(&engine.user_interface, path);
                 }
             }
         }

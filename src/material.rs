@@ -8,7 +8,9 @@ use crate::{
     },
     send_sync_message, GameEngine, Message,
 };
+use rg3d::resource::texture::TextureState;
 use rg3d::{
+    asset::ResourceData,
     core::{
         algebra::{Matrix4, Vector2, Vector3, Vector4},
         futures::executor::block_on,
@@ -24,12 +26,14 @@ use rg3d::{
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
         list_view::ListViewBuilder,
+        menu::{MenuItemBuilder, MenuItemContent},
         message::{
             CheckBoxMessage, ColorFieldMessage, DropdownListMessage, ImageMessage, ListViewMessage,
-            MessageDirection, NumericUpDownMessage, UiMessageData, Vec2EditorMessage,
-            Vec3EditorMessage, Vec4EditorMessage, WidgetMessage,
+            MenuItemMessage, MessageDirection, NumericUpDownMessage, PopupMessage, UiMessageData,
+            Vec2EditorMessage, Vec3EditorMessage, Vec4EditorMessage, WidgetMessage,
         },
         numeric::NumericUpDownBuilder,
+        popup::{Placement, PopupBuilder},
         scroll_viewer::ScrollViewerBuilder,
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
@@ -39,6 +43,7 @@ use rg3d::{
         Thickness, VerticalAlignment,
     },
     material::{shader::Shader, Material, PropertyValue},
+    resource::texture::Texture,
     scene::{
         base::BaseBuilder,
         mesh::{
@@ -50,6 +55,35 @@ use rg3d::{
 };
 use std::sync::{mpsc::Sender, Arc, Mutex, RwLock};
 
+struct TextureContextMenu {
+    popup: Handle<UiNode>,
+    show_in_asset_browser: Handle<UiNode>,
+    target: Handle<UiNode>,
+}
+
+impl TextureContextMenu {
+    fn new(ctx: &mut BuildContext) -> Self {
+        let show_in_asset_browser;
+        let popup = PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
+            .with_content(
+                StackPanelBuilder::new(WidgetBuilder::new().with_child({
+                    show_in_asset_browser = MenuItemBuilder::new(WidgetBuilder::new())
+                        .with_content(MenuItemContent::text("Show In Asset Browser"))
+                        .build(ctx);
+                    show_in_asset_browser
+                }))
+                .build(ctx),
+            )
+            .build(ctx);
+
+        Self {
+            popup,
+            show_in_asset_browser,
+            target: Default::default(),
+        }
+    }
+}
+
 pub struct MaterialEditor {
     pub window: Handle<UiNode>,
     properties_panel: Handle<UiNode>,
@@ -58,6 +92,7 @@ pub struct MaterialEditor {
     material: Option<Arc<Mutex<Material>>>,
     available_shaders: Handle<UiNode>,
     shaders_list: Vec<Shader>,
+    texture_context_menu: TextureContextMenu,
 }
 
 fn create_item_container(
@@ -272,6 +307,7 @@ impl MaterialEditor {
         ctx.link(preview.root, panel);
 
         let mut editor = Self {
+            texture_context_menu: TextureContextMenu::new(ctx),
             window,
             preview,
             properties_panel,
@@ -446,11 +482,13 @@ impl MaterialEditor {
                         PropertyValue::Color(value) => ColorFieldBuilder::new(WidgetBuilder::new())
                             .with_color(*value)
                             .build(ctx),
-                        PropertyValue::Sampler { value, .. } => {
-                            ImageBuilder::new(WidgetBuilder::new().with_allow_drop(true))
-                                .with_opt_texture(value.clone().map(into_gui_texture))
-                                .build(ctx)
-                        }
+                        PropertyValue::Sampler { value, .. } => ImageBuilder::new(
+                            WidgetBuilder::new()
+                                .with_allow_drop(true)
+                                .with_context_menu(self.texture_context_menu.popup),
+                        )
+                        .with_opt_texture(value.clone().map(into_gui_texture))
+                        .build(ctx),
                     };
 
                     self.properties.insert(name.to_owned(), item);
@@ -602,31 +640,59 @@ impl MaterialEditor {
         self.preview.handle_message(message, engine);
 
         if let Some(material) = self.material.clone() {
-            if let UiMessageData::DropdownList(msg) = message.data() {
-                if message.destination() == self.available_shaders
-                    && message.direction() == MessageDirection::FromWidget
-                {
-                    match msg {
-                        DropdownListMessage::SelectionChanged(Some(value)) => {
-                            sender
-                                .send(Message::DoSceneCommand(SceneCommand::SetMaterialShader(
-                                    SetMaterialShaderCommand::new(
-                                        material.clone(),
-                                        self.shaders_list[*value].clone(),
-                                    ),
-                                )))
-                                .unwrap();
+            match message.data() {
+                UiMessageData::DropdownList(msg) => {
+                    if message.destination() == self.available_shaders
+                        && message.direction() == MessageDirection::FromWidget
+                    {
+                        match msg {
+                            DropdownListMessage::SelectionChanged(Some(value)) => {
+                                sender
+                                    .send(Message::DoSceneCommand(SceneCommand::SetMaterialShader(
+                                        SetMaterialShaderCommand::new(
+                                            material.clone(),
+                                            self.shaders_list[*value].clone(),
+                                        ),
+                                    )))
+                                    .unwrap();
+                            }
+                            DropdownListMessage::Open => {
+                                self.sync_available_shaders_list(engine.resource_manager.clone());
+                                self.create_shaders_items(
+                                    &mut engine.user_interface,
+                                    &*material.lock().unwrap(),
+                                );
+                            }
+                            _ => (),
                         }
-                        DropdownListMessage::Open => {
-                            self.sync_available_shaders_list(engine.resource_manager.clone());
-                            self.create_shaders_items(
-                                &mut engine.user_interface,
-                                &*material.lock().unwrap(),
-                            );
-                        }
-                        _ => (),
                     }
                 }
+                UiMessageData::Popup(PopupMessage::Placement(Placement::Cursor(target))) => {
+                    if message.destination() == self.texture_context_menu.popup {
+                        self.texture_context_menu.target = *target;
+                    }
+                }
+                UiMessageData::MenuItem(MenuItemMessage::Click) => {
+                    if message.destination() == self.texture_context_menu.show_in_asset_browser {
+                        if self.texture_context_menu.target.is_some() {
+                            let path = engine
+                                .user_interface
+                                .node(self.texture_context_menu.target)
+                                .as_image()
+                                .texture()
+                                .and_then(|t| {
+                                    t.0.downcast::<Mutex<TextureState>>()
+                                        .map(|t| t.lock().unwrap().path().to_path_buf())
+                                        .ok()
+                                });
+
+                            if let Some(path) = path {
+                                sender.send(Message::ShowInAssetBrowser(path)).unwrap();
+                            }
+                        }
+                    }
+                }
+                _ => {}
             }
 
             if let Some(property_name) = self.properties.key_of(&message.destination()) {

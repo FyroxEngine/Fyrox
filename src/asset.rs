@@ -223,6 +223,7 @@ pub struct AssetBrowser {
     selected_properties: Handle<UiNode>,
     preview: PreviewPanel,
     items: Vec<Handle<UiNode>>,
+    item_to_select: Option<PathBuf>,
 }
 
 impl AssetBrowser {
@@ -314,6 +315,7 @@ impl AssetBrowser {
             preview,
             selected_properties,
             items: Default::default(),
+            item_to_select: None,
         }
     }
 
@@ -368,6 +370,7 @@ impl AssetBrowser {
             UiMessageData::FileBrowser(FileBrowserMessage::Path(path))
                 if message.destination() == self.folder_browser =>
             {
+                let item_to_select = self.item_to_select.take();
                 // Clean content panel first.
                 for child in self.items.drain(..) {
                     ui.send_message(WidgetMessage::remove(child, MessageDirection::ToWidget));
@@ -394,7 +397,7 @@ impl AssetBrowser {
                         let entry_path = entry.path();
                         if !entry_path.is_dir() && entry_path.extension().map_or(false, check_ext) {
                             let content = AssetItemBuilder::new(WidgetBuilder::new())
-                                .with_path(entry_path)
+                                .with_path(entry_path.clone())
                                 .build(&mut ui.build_ctx(), engine.resource_manager.clone());
                             self.items.push(content);
                             ui.send_message(WidgetMessage::link(
@@ -402,12 +405,32 @@ impl AssetBrowser {
                                 MessageDirection::ToWidget,
                                 self.content_panel,
                             ));
+
+                            if let Some(item_to_select) = item_to_select.as_ref() {
+                                if item_to_select == &entry_path {
+                                    ui.send_message(UiMessage::user(
+                                        content,
+                                        MessageDirection::ToWidget,
+                                        EditorUiMessage::AssetItem(AssetItemMessage::Select(true)),
+                                    ));
+                                }
+                            }
                         }
                     }
                 }
             }
             _ => {}
         }
+    }
+
+    pub fn locate_path(&mut self, ui: &Ui, path: PathBuf) {
+        ui.send_message(FileBrowserMessage::path(
+            self.folder_browser,
+            MessageDirection::ToWidget,
+            path.parent().map(|p| p.to_path_buf()).unwrap_or_default(),
+        ));
+
+        self.item_to_select = Some(path);
     }
 
     pub fn update(&mut self, engine: &mut GameEngine) {
