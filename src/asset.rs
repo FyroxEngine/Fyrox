@@ -7,7 +7,6 @@ use crate::{
     preview::PreviewPanel,
     GameEngine,
 };
-use rg3d::gui::file_browser::Filter;
 use rg3d::{
     core::{color::Color, pool::Handle, scope_profile},
     engine::resource_manager::ResourceManager,
@@ -15,11 +14,12 @@ use rg3d::{
         border::BorderBuilder,
         brush::Brush,
         draw::{CommandTexture, Draw, DrawingContext},
-        file_browser::FileBrowserBuilder,
+        file_browser::{FileBrowserBuilder, Filter},
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
         message::{
-            FileBrowserMessage, MessageDirection, TextMessage, UiMessageData, WidgetMessage,
+            FileBrowserMessage, MessageDirection, ScrollViewerMessage, TextMessage, UiMessageData,
+            WidgetMessage,
         },
         scroll_viewer::ScrollViewerBuilder,
         text::TextBuilder,
@@ -220,6 +220,7 @@ pub struct AssetBrowser {
     pub window: Handle<UiNode>,
     content_panel: Handle<UiNode>,
     folder_browser: Handle<UiNode>,
+    scroll_panel: Handle<UiNode>,
     selected_properties: Handle<UiNode>,
     preview: PreviewPanel,
     items: Vec<Handle<UiNode>>,
@@ -234,6 +235,7 @@ impl AssetBrowser {
         let content_panel;
         let folder_browser;
         let selected_properties;
+        let scroll_panel;
 
         let window = WindowBuilder::new(WidgetBuilder::new())
             .can_minimize(false)
@@ -267,22 +269,25 @@ impl AssetBrowser {
                                         selected_properties
                                     })
                                     .with_child({
-                                        ScrollViewerBuilder::new(WidgetBuilder::new().on_row(1))
-                                            .with_content({
-                                                content_panel = WrapPanelBuilder::new(
-                                                    WidgetBuilder::new()
-                                                        .with_horizontal_alignment(
-                                                            HorizontalAlignment::Left,
-                                                        )
-                                                        .with_vertical_alignment(
-                                                            VerticalAlignment::Top,
-                                                        ),
-                                                )
-                                                .with_orientation(Orientation::Horizontal)
-                                                .build(&mut ctx);
-                                                content_panel
-                                            })
-                                            .build(&mut ctx)
+                                        scroll_panel = ScrollViewerBuilder::new(
+                                            WidgetBuilder::new().on_row(1),
+                                        )
+                                        .with_content({
+                                            content_panel = WrapPanelBuilder::new(
+                                                WidgetBuilder::new()
+                                                    .with_horizontal_alignment(
+                                                        HorizontalAlignment::Left,
+                                                    )
+                                                    .with_vertical_alignment(
+                                                        VerticalAlignment::Top,
+                                                    ),
+                                            )
+                                            .with_orientation(Orientation::Horizontal)
+                                            .build(&mut ctx);
+                                            content_panel
+                                        })
+                                        .build(&mut ctx);
+                                        scroll_panel
                                     }),
                             )
                             .add_row(Row::strict(20.0))
@@ -313,6 +318,7 @@ impl AssetBrowser {
             content_panel,
             folder_browser,
             preview,
+            scroll_panel,
             selected_properties,
             items: Default::default(),
             item_to_select: None,
@@ -337,6 +343,7 @@ impl AssetBrowser {
         scope_profile!();
 
         self.preview.handle_message(message, engine);
+
         let ui = &mut engine.user_interface;
 
         match message.data() {
@@ -368,13 +375,17 @@ impl AssetBrowser {
                 }
             }
             UiMessageData::FileBrowser(FileBrowserMessage::Path(path))
-                if message.destination() == self.folder_browser =>
+                if message.destination() == self.folder_browser
+                    && message.direction() == MessageDirection::FromWidget =>
             {
                 let item_to_select = self.item_to_select.take();
+                let mut handle_to_select = Handle::NONE;
+
                 // Clean content panel first.
                 for child in self.items.drain(..) {
                     ui.send_message(WidgetMessage::remove(child, MessageDirection::ToWidget));
                 }
+
                 // Get all supported assets from folder and generate previews for them.
                 if let Ok(dir_iter) = std::fs::read_dir(path) {
                     for entry in dir_iter.flatten() {
@@ -396,27 +407,39 @@ impl AssetBrowser {
 
                         let entry_path = entry.path();
                         if !entry_path.is_dir() && entry_path.extension().map_or(false, check_ext) {
-                            let content = AssetItemBuilder::new(WidgetBuilder::new())
+                            let asset_item = AssetItemBuilder::new(WidgetBuilder::new())
                                 .with_path(entry_path.clone())
                                 .build(&mut ui.build_ctx(), engine.resource_manager.clone());
-                            self.items.push(content);
+
+                            self.items.push(asset_item);
+
                             ui.send_message(WidgetMessage::link(
-                                content,
+                                asset_item,
                                 MessageDirection::ToWidget,
                                 self.content_panel,
                             ));
 
                             if let Some(item_to_select) = item_to_select.as_ref() {
                                 if item_to_select == &entry_path {
-                                    ui.send_message(UiMessage::user(
-                                        content,
-                                        MessageDirection::ToWidget,
-                                        EditorUiMessage::AssetItem(AssetItemMessage::Select(true)),
-                                    ));
+                                    handle_to_select = asset_item;
                                 }
                             }
                         }
                     }
+                }
+
+                if handle_to_select.is_some() {
+                    ui.send_message(UiMessage::user(
+                        handle_to_select,
+                        MessageDirection::ToWidget,
+                        EditorUiMessage::AssetItem(AssetItemMessage::Select(true)),
+                    ));
+
+                    ui.send_message(ScrollViewerMessage::bring_into_view(
+                        self.scroll_panel,
+                        MessageDirection::ToWidget,
+                        handle_to_select,
+                    ));
                 }
             }
             _ => {}
