@@ -1,6 +1,6 @@
 [package]
 name = "rg3d-resource"
-version = "0.1.1"
+version = "0.2.0"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 edition = "2018"
 license = "MIT"
@@ -11,4 +11,4 @@ include = ["/src/**/*", "/Cargo.toml", "/LICENSE"]
 documentation = "https://docs.rs/rg3d-resource"
 
 [dependencies]
-rg3d-core = { path = "../rg3d-core", version = "0.17.1" }
+rg3d-core = { path = "../rg3d-core", version = "0.18.0" }
