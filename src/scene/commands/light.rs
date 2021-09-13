@@ -19,6 +19,10 @@ define_node_command!(SetLightCastShadowsCommand("Set Light Cast Shadows", bool) 
     get_set_swap!(self, node.as_light_mut(), is_cast_shadows, set_cast_shadows)
 });
 
+define_node_command!(SetLightIntensityCommand("Set Light Intensity", f32) where fn swap(self, node) {
+    get_set_swap!(self, node.as_light_mut(), intensity, set_intensity)
+});
+
 define_node_command!(SetPointLightRadiusCommand("Set Point Light Radius", f32) where fn swap(self, node) {
     get_set_swap!(self, node.as_light_mut().as_point_mut(), radius, set_radius)
 });

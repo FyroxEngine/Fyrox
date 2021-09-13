@@ -10,7 +10,6 @@ use crate::{
 };
 use rg3d::resource::texture::TextureState;
 use rg3d::{
-    asset::ResourceData,
     core::{
         algebra::{Matrix4, Vector2, Vector3, Vector4},
         futures::executor::block_on,
@@ -43,7 +42,6 @@ use rg3d::{
         Thickness, VerticalAlignment,
     },
     material::{shader::Shader, Material, PropertyValue},
-    resource::texture::Texture,
     scene::{
         base::BaseBuilder,
         mesh::{

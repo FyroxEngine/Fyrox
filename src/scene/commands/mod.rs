@@ -1,3 +1,4 @@
+use crate::scene::commands::light::SetLightIntensityCommand;
 use crate::scene::commands::material::{SetMaterialPropertyValueCommand, SetMaterialShaderCommand};
 use crate::{
     command::Command,
@@ -194,6 +195,7 @@ pub enum SceneCommand {
     SetLightScatter(SetLightScatterCommand),
     SetLightScatterEnabled(SetLightScatterEnabledCommand),
     SetLightCastShadows(SetLightCastShadowsCommand),
+    SetLightIntensity(SetLightIntensityCommand),
     SetPointLightRadius(SetPointLightRadiusCommand),
     SetSpotLightHotspot(SetSpotLightHotspotCommand),
     SetSpotLightFalloffAngleDelta(SetSpotLightFalloffAngleDeltaCommand),
@@ -348,6 +350,7 @@ macro_rules! static_dispatch {
             SceneCommand::SetLightScatter(v) => v.$func($($args),*),
             SceneCommand::SetLightScatterEnabled(v) => v.$func($($args),*),
             SceneCommand::SetLightCastShadows(v) => v.$func($($args),*),
+            SceneCommand::SetLightIntensity(v) => v.$func($($args),*),
             SceneCommand::SetPointLightRadius(v) => v.$func($($args),*),
             SceneCommand::SetSpotLightHotspot(v) => v.$func($($args),*),
             SceneCommand::SetSpotLightFalloffAngleDelta(v) => v.$func($($args),*),

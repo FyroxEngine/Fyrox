@@ -1,3 +1,5 @@
+use crate::scene::commands::light::SetLightIntensityCommand;
+use crate::sidebar::make_f32_input_field;
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     scene::commands::{
@@ -21,8 +23,8 @@ use rg3d::{
         color::ColorFieldBuilder,
         grid::{Column, GridBuilder, Row},
         message::{
-            CheckBoxMessage, ColorFieldMessage, MessageDirection, UiMessageData, Vec3EditorMessage,
-            WidgetMessage,
+            CheckBoxMessage, ColorFieldMessage, MessageDirection, NumericUpDownMessage,
+            UiMessageData, Vec3EditorMessage, WidgetMessage,
         },
         stack_panel::StackPanelBuilder,
         widget::WidgetBuilder,
@@ -40,6 +42,7 @@ pub struct LightSection {
     cast_shadows: Handle<UiNode>,
     light_scatter: Handle<UiNode>,
     enable_scatter: Handle<UiNode>,
+    intensity: Handle<UiNode>,
     pub point_light_section: PointLightSection,
     pub spot_light_section: SpotLightSection,
     sender: Sender<Message>,
@@ -50,6 +53,7 @@ impl LightSection {
         let color;
         let cast_shadows;
         let light_scatter;
+        let intensity;
         let enable_scatter;
         let point_light_section = PointLightSection::new(ctx, sender.clone());
         let spot_light_section = SpotLightSection::new(ctx, sender.clone());
@@ -79,10 +83,16 @@ impl LightSection {
                             .with_child({
                                 light_scatter = make_vec3_input_field(ctx, 3);
                                 light_scatter
+                            })
+                            .with_child(make_text_mark(ctx, "Intensity", 4))
+                            .with_child({
+                                intensity = make_f32_input_field(ctx, 4, 0.0, f32::MAX, 0.1);
+                                intensity
                             }),
                     )
                     .add_column(Column::strict(COLUMN_WIDTH))
                     .add_column(Column::stretch())
+                    .add_row(Row::strict(ROW_HEIGHT))
                     .add_row(Row::strict(ROW_HEIGHT))
                     .add_row(Row::strict(ROW_HEIGHT))
                     .add_row(Row::strict(ROW_HEIGHT))
@@ -105,6 +115,7 @@ impl LightSection {
             point_light_section,
             spot_light_section,
             sender,
+            intensity,
         }
     }
 
@@ -139,6 +150,15 @@ impl LightSection {
                     self.enable_scatter,
                     MessageDirection::ToWidget,
                     Some(light.is_scatter_enabled()),
+                ),
+            );
+
+            send_sync_message(
+                ui,
+                NumericUpDownMessage::value(
+                    self.intensity,
+                    MessageDirection::ToWidget,
+                    light.intensity(),
                 ),
             );
         }
@@ -194,6 +214,15 @@ impl LightSection {
                                 SetLightColorCommand::new(handle, color),
                             )))
                             .unwrap();
+                    }
+                }
+                UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) => {
+                    if message.destination() == self.intensity && light.intensity().ne(&value) {
+                        self.sender
+                            .send(Message::DoSceneCommand(SceneCommand::SetLightIntensity(
+                                SetLightIntensityCommand::new(handle, value),
+                            )))
+                            .unwrap_or_default();
                     }
                 }
                 _ => {}
