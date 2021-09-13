@@ -114,6 +114,7 @@ fn make_f32_input_field(
 ) -> Handle<UiNode> {
     NumericUpDownBuilder::new(
         WidgetBuilder::new()
+            .with_height(ROW_HEIGHT)
             .on_row(row)
             .with_margin(Thickness::uniform(1.0))
             .on_column(1),

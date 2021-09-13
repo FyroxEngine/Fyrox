@@ -1,12 +1,13 @@
-use crate::scene::commands::light::SetLightIntensityCommand;
-use crate::scene::commands::material::{SetMaterialPropertyValueCommand, SetMaterialShaderCommand};
 use crate::{
     command::Command,
     physics::{Collider, Joint, RigidBody},
     scene::{
         clipboard::DeepCloneResult,
         commands::{
-            camera::{SetCameraPreviewCommand, SetFovCommand, SetZFarCommand, SetZNearCommand},
+            camera::{
+                SetCameraPreviewCommand, SetExposureCommand, SetFovCommand, SetZFarCommand,
+                SetZNearCommand,
+            },
             decal::{
                 SetDecalColorCommand, SetDecalDiffuseTextureCommand, SetDecalLayerIndexCommand,
                 SetDecalNormalTextureCommand,
@@ -17,8 +18,8 @@ use crate::{
                 SetNameCommand, SetPhysicsBindingCommand, SetTagCommand, SetVisibleCommand,
             },
             light::{
-                SetLightCastShadowsCommand, SetLightColorCommand, SetLightScatterCommand,
-                SetLightScatterEnabledCommand, SetPointLightRadiusCommand,
+                SetLightCastShadowsCommand, SetLightColorCommand, SetLightIntensityCommand,
+                SetLightScatterCommand, SetLightScatterEnabledCommand, SetPointLightRadiusCommand,
                 SetSpotLightDistanceCommand, SetSpotLightFalloffAngleDeltaCommand,
                 SetSpotLightHotspotCommand,
             },
@@ -27,6 +28,7 @@ use crate::{
                 ChangeLodRangeEndCommand, RemoveLodGroupLevelCommand, RemoveLodObjectCommand,
                 SetLodGroupCommand,
             },
+            material::{SetMaterialPropertyValueCommand, SetMaterialShaderCommand},
             mesh::{
                 SetMeshCastShadowsCommand, SetMeshDecalLayerIndexCommand, SetMeshRenderPathCommand,
                 SetMeshTextureCommand,
@@ -206,6 +208,7 @@ pub enum SceneCommand {
     SetZNear(SetZNearCommand),
     SetZFar(SetZFarCommand),
     SetCameraActive(SetCameraPreviewCommand),
+    SetExposure(SetExposureCommand),
 
     // Particle system commands.
     SetParticleSystemAcceleration(SetParticleSystemAccelerationCommand),
@@ -359,6 +362,7 @@ macro_rules! static_dispatch {
             SceneCommand::SetZNear(v) => v.$func($($args),*),
             SceneCommand::SetZFar(v) => v.$func($($args),*),
             SceneCommand::SetCameraActive(v) => v.$func($($args),*),
+            SceneCommand::SetExposure(v) => v.$func($($args),*),
             SceneCommand::SetParticleSystemAcceleration(v) => v.$func($($args),*),
             SceneCommand::AddParticleSystemEmitter(v) => v.$func($($args),*),
             SceneCommand::SetEmitterNumericParameter(v) => v.$func($($args),*),
