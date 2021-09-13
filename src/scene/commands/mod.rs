@@ -1,3 +1,4 @@
+use crate::scene::commands::camera::SetColorGradingLutCommand;
 use crate::{
     command::Command,
     physics::{Collider, Joint, RigidBody},
@@ -5,8 +6,8 @@ use crate::{
         clipboard::DeepCloneResult,
         commands::{
             camera::{
-                SetCameraPreviewCommand, SetExposureCommand, SetFovCommand, SetZFarCommand,
-                SetZNearCommand,
+                SetCameraPreviewCommand, SetColorGradingEnabledCommand, SetExposureCommand,
+                SetFovCommand, SetZFarCommand, SetZNearCommand,
             },
             decal::{
                 SetDecalColorCommand, SetDecalDiffuseTextureCommand, SetDecalLayerIndexCommand,
@@ -209,6 +210,8 @@ pub enum SceneCommand {
     SetZFar(SetZFarCommand),
     SetCameraActive(SetCameraPreviewCommand),
     SetExposure(SetExposureCommand),
+    SetColorGradingLut(SetColorGradingLutCommand),
+    SetColorGradingEnabled(SetColorGradingEnabledCommand),
 
     // Particle system commands.
     SetParticleSystemAcceleration(SetParticleSystemAccelerationCommand),
@@ -363,6 +366,8 @@ macro_rules! static_dispatch {
             SceneCommand::SetZFar(v) => v.$func($($args),*),
             SceneCommand::SetCameraActive(v) => v.$func($($args),*),
             SceneCommand::SetExposure(v) => v.$func($($args),*),
+            SceneCommand::SetColorGradingLut(v) => v.$func($($args),*),
+            SceneCommand::SetColorGradingEnabled(v) => v.$func($($args),*),
             SceneCommand::SetParticleSystemAcceleration(v) => v.$func($($args),*),
             SceneCommand::AddParticleSystemEmitter(v) => v.$func($($args),*),
             SceneCommand::SetEmitterNumericParameter(v) => v.$func($($args),*),

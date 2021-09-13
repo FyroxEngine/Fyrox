@@ -1,34 +1,42 @@
 use crate::{
-    gui::{BuildContext, Ui, UiMessage, UiNode},
+    gui::{make_dropdown_list_option, BuildContext, EditorUiNode, Ui, UiMessage, UiNode},
+    make_relative_path,
     scene::commands::{
-        camera::{SetCameraPreviewCommand, SetFovCommand, SetZFarCommand, SetZNearCommand},
+        camera::{
+            SetCameraPreviewCommand, SetColorGradingEnabledCommand, SetColorGradingLutCommand,
+            SetExposureCommand, SetFovCommand, SetZFarCommand, SetZNearCommand,
+        },
         SceneCommand,
     },
     send_sync_message,
-    sidebar::{make_f32_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT},
+    sidebar::{
+        make_bool_input_field, make_f32_input_field, make_section, make_text_mark, COLUMN_WIDTH,
+        ROW_HEIGHT,
+    },
     Message,
 };
 use rg3d::{
-    core::{pool::Handle, scope_profile},
+    core::{futures::executor::block_on, pool::Handle, scope_profile},
+    engine::resource_manager::{ResourceManager, TextureImportOptions},
     gui::{
+        dropdown_list::DropdownListBuilder,
         grid::{Column, GridBuilder, Row},
+        image::ImageBuilder,
         message::{
-            CheckBoxMessage, MessageDirection, NumericUpDownMessage, UiMessageData, WidgetMessage,
+            CheckBoxMessage, DropdownListMessage, ImageMessage, MessageDirection,
+            NumericUpDownMessage, UiMessageData, WidgetMessage,
         },
+        stack_panel::StackPanelBuilder,
         widget::WidgetBuilder,
     },
-    scene::node::Node,
+    resource::texture::CompressionOptions,
+    scene::{
+        camera::{ColorGradingLut, Exposure},
+        node::Node,
+    },
+    utils::into_gui_texture,
 };
 use std::sync::mpsc::Sender;
-
-use super::make_bool_input_field;
-use crate::gui::make_dropdown_list_option;
-use crate::scene::commands::camera::SetExposureCommand;
-use crate::sidebar::make_section;
-use rg3d::gui::dropdown_list::DropdownListBuilder;
-use rg3d::gui::message::DropdownListMessage;
-use rg3d::gui::stack_panel::StackPanelBuilder;
-use rg3d::scene::camera::Exposure;
 
 pub struct CameraSection {
     pub section: Handle<UiNode>,
@@ -42,6 +50,8 @@ pub struct CameraSection {
     key_value: Handle<UiNode>,
     min_luminance: Handle<UiNode>,
     max_luminance: Handle<UiNode>,
+    color_grading_lut: Handle<UiNode>,
+    use_color_grading: Handle<UiNode>,
     manual_exposure_section: Handle<UiNode>,
     auto_exposure_section: Handle<UiNode>,
 }
@@ -59,6 +69,8 @@ impl CameraSection {
         let max_luminance;
         let manual_exposure_section;
         let auto_exposure_section;
+        let color_grading_lut;
+        let use_color_grading;
         let section = make_section(
             "Camera Properties",
             StackPanelBuilder::new(
@@ -79,12 +91,12 @@ impl CameraSection {
                                 })
                                 .with_child(make_text_mark(ctx, "Z Near", 1))
                                 .with_child({
-                                    z_near = make_f32_input_field(ctx, 1, 0.0, std::f32::MAX, 0.01);
+                                    z_near = make_f32_input_field(ctx, 1, 0.0, f32::MAX, 0.01);
                                     z_near
                                 })
                                 .with_child(make_text_mark(ctx, "Z Far", 2))
                                 .with_child({
-                                    z_far = make_f32_input_field(ctx, 2, 0.0, std::f32::MAX, 1.0);
+                                    z_far = make_f32_input_field(ctx, 2, 0.0, f32::MAX, 1.0);
                                     z_far
                                 })
                                 .with_child(make_text_mark(ctx, "Preview", 3))
@@ -92,10 +104,26 @@ impl CameraSection {
                                     preview = make_bool_input_field(ctx, 3);
                                     preview
                                 })
-                                .with_child(make_text_mark(ctx, "Exposure Kind", 4))
+                                .with_child(make_text_mark(ctx, "Use Color Grading", 4))
+                                .with_child({
+                                    use_color_grading = make_bool_input_field(ctx, 4);
+                                    use_color_grading
+                                })
+                                .with_child(make_text_mark(ctx, "Color Grading LUT", 5))
+                                .with_child({
+                                    color_grading_lut = ImageBuilder::new(
+                                        WidgetBuilder::new()
+                                            .on_row(5)
+                                            .on_column(1)
+                                            .with_allow_drop(true),
+                                    )
+                                    .build(ctx);
+                                    color_grading_lut
+                                })
+                                .with_child(make_text_mark(ctx, "Exposure Kind", 6))
                                 .with_child({
                                     exposure_kind = DropdownListBuilder::new(
-                                        WidgetBuilder::new().on_row(4).on_column(1),
+                                        WidgetBuilder::new().on_row(6).on_column(1),
                                     )
                                     .with_close_on_selection(true)
                                     .with_items(vec![
@@ -108,6 +136,8 @@ impl CameraSection {
                         )
                         .add_column(Column::strict(COLUMN_WIDTH))
                         .add_column(Column::stretch())
+                        .add_row(Row::strict(ROW_HEIGHT))
+                        .add_row(Row::strict(ROW_HEIGHT))
                         .add_row(Row::strict(ROW_HEIGHT))
                         .add_row(Row::strict(ROW_HEIGHT))
                         .add_row(Row::strict(ROW_HEIGHT))
@@ -218,6 +248,8 @@ impl CameraSection {
             max_luminance,
             auto_exposure_section,
             manual_exposure_section,
+            color_grading_lut,
+            use_color_grading,
         }
     }
 
@@ -253,6 +285,26 @@ impl CameraSection {
                     self.preview,
                     MessageDirection::ToWidget,
                     Some(camera.is_enabled()),
+                ),
+            );
+
+            send_sync_message(
+                ui,
+                CheckBoxMessage::checked(
+                    self.use_color_grading,
+                    MessageDirection::ToWidget,
+                    Some(camera.color_grading_enabled()),
+                ),
+            );
+
+            send_sync_message(
+                ui,
+                ImageMessage::texture(
+                    self.color_grading_lut,
+                    MessageDirection::ToWidget,
+                    camera
+                        .color_grading_lut_ref()
+                        .map(|lut| into_gui_texture(lut.unwrapped_lut().clone())),
                 ),
             );
 
@@ -353,7 +405,14 @@ impl CameraSection {
         }
     }
 
-    pub fn handle_ui_message(&mut self, message: &UiMessage, node: &Node, handle: Handle<Node>) {
+    pub fn handle_ui_message(
+        &mut self,
+        message: &UiMessage,
+        node: &Node,
+        handle: Handle<Node>,
+        ui: &Ui,
+        resource_manager: ResourceManager,
+    ) {
         scope_profile!();
 
         if let Node::Camera(camera) = node {
@@ -438,6 +497,17 @@ impl CameraSection {
                                 SetCameraPreviewCommand::new(handle, value.unwrap_or(false)),
                             )))
                             .unwrap();
+                    } else if message.destination() == self.use_color_grading {
+                        self.sender
+                            .send(Message::DoSceneCommand(
+                                SceneCommand::SetColorGradingEnabled(
+                                    SetColorGradingEnabledCommand::new(
+                                        handle,
+                                        value.unwrap_or_default(),
+                                    ),
+                                ),
+                            ))
+                            .unwrap();
                     }
                 }
                 UiMessageData::DropdownList(DropdownListMessage::SelectionChanged(Some(index))) => {
@@ -453,6 +523,40 @@ impl CameraSection {
                                 SetExposureCommand::new(handle, exposure),
                             )))
                             .unwrap();
+                    }
+                }
+                UiMessageData::Widget(WidgetMessage::Drop(dropped)) => {
+                    if message.destination() == self.color_grading_lut {
+                        if let UiNode::User(EditorUiNode::AssetItem(item)) = ui.node(dropped) {
+                            let relative_path = make_relative_path(&item.path);
+
+                            match block_on(ColorGradingLut::new(
+                                resource_manager.request_texture(
+                                    relative_path,
+                                    Some(
+                                        TextureImportOptions::default()
+                                            .with_compression(CompressionOptions::NoCompression),
+                                    ),
+                                ),
+                            )) {
+                                Ok(lut) => {
+                                    self.sender
+                                        .send(Message::DoSceneCommand(
+                                            SceneCommand::SetColorGradingLut(
+                                                SetColorGradingLutCommand::new(handle, Some(lut)),
+                                            ),
+                                        ))
+                                        .unwrap();
+                                }
+                                Err(e) => self
+                                    .sender
+                                    .send(Message::Log(format!(
+                                        "Failed to load color grading look-up texture. Reason: {}",
+                                        e
+                                    )))
+                                    .unwrap(),
+                            }
+                        }
                     }
                 }
                 _ => {}

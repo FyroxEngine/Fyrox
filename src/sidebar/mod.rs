@@ -344,8 +344,13 @@ impl SideBar {
                     if message.direction() == MessageDirection::FromWidget {
                         self.light_section
                             .handle_ui_message(message, node, node_handle);
-                        self.camera_section
-                            .handle_ui_message(message, node, node_handle);
+                        self.camera_section.handle_ui_message(
+                            message,
+                            node,
+                            node_handle,
+                            &engine.user_interface,
+                            engine.resource_manager.clone(),
+                        );
                         self.particle_system_section.handle_ui_message(
                             message,
                             node,

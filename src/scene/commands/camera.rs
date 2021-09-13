@@ -2,10 +2,13 @@ use crate::{
     define_node_command, get_set_swap,
     scene::commands::{Command, SceneContext},
 };
-use rg3d::scene::camera::Exposure;
 use rg3d::{
     core::pool::Handle,
-    scene::{graph::Graph, node::Node},
+    scene::{
+        camera::{ColorGradingLut, Exposure},
+        graph::Graph,
+        node::Node,
+    },
 };
 
 define_node_command!(SetFovCommand("Set Fov", f32) where fn swap(self, node) {
@@ -22,6 +25,14 @@ define_node_command!(SetZFarCommand("Set Camera Z Far", f32) where fn swap(self,
 
 define_node_command!(SetExposureCommand("Set Camera Exposure", Exposure) where fn swap(self, node) {
     get_set_swap!(self, node.as_camera_mut(), exposure, set_exposure);
+});
+
+define_node_command!(SetColorGradingLutCommand("Set Color Grading Lut", Option<ColorGradingLut>) where fn swap(self, node) {
+    get_set_swap!(self, node.as_camera_mut(), color_grading_lut, set_color_grading_map);
+});
+
+define_node_command!(SetColorGradingEnabledCommand("Set Color Grading Enabled", bool) where fn swap(self, node) {
+    get_set_swap!(self, node.as_camera_mut(), color_grading_enabled, set_color_grading_enabled);
 });
 
 #[derive(Debug)]
