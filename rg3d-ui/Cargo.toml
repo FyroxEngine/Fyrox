@@ -6,9 +6,13 @@ edition = "2018"
 license = "MIT"
 description = "Extendable UI library"
 keywords = ["ui", "game", "gui"]
-repository = "https://github.com/mrDIMAS/rg3d"
+categories = ["game-development", "gui"]
 include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md"]
+homepage = "https://rg3d.rs"
+documentation = "https://docs.rs/rg3d-ui"
+repository = "https://github.com/mrDIMAS/rg3d"
 readme = "README.md"
+resolver = "2"
 
 [dependencies]
 rg3d-core = { path = "../rg3d-core", version = "0.18.0" }

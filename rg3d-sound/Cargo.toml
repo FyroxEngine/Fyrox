@@ -6,10 +6,13 @@ edition = "2018"
 license = "MIT"
 description = "Sound library for games."
 keywords = ["sound", "game", "hrtf", "binaural", "reverb"]
-repository = "https://github.com/mrDIMAS/rg3d"
+categories = ["game-development", "multimedia::audio"]
 include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md", "/examples/*"]
+homepage = "https://rg3d.rs"
 documentation = "https://docs.rs/rg3d-sound"
+repository = "https://github.com/mrDIMAS/rg3d"
 readme = "README.md"
+resolver = "2"
 
 [dependencies]
 rg3d-core = { path = "../rg3d-core", version = "0.18.0" }
