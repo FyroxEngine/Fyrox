@@ -90,7 +90,7 @@ impl Visit for Node {
 ///
 /// Please keep in mind that "visibility" here means some sort of a "switch" that tells the renderer whether to draw
 /// the node or not. To fetch actual visibility of the node from a camera's perspective, use
-/// [visibility cache](super::camera::VisibilityCache) of the camera.
+/// [visibility cache](super::visibility::VisibilityCache) of the camera.
 ///
 /// # Level of details
 ///
