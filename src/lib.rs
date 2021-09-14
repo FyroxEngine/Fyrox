@@ -1,5 +1,10 @@
 //! 3D and 2D Game Engine.
 
+#![doc(
+    html_logo_url = "https://rg3d.rs/assets/logos/logo2.png",
+    html_favicon_url = "https://rg3d.rs/assets/logos/logo2.png"
+)]
+
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::from_over_into)]
