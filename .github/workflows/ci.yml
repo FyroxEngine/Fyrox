@@ -62,9 +62,16 @@ jobs:
     runs-on: windows-2019
     steps:
       - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+          override: true
+      - run: rustc --version && cargo --version
       - name: Build Docs
-        run: |
-          rustup run stable cargo doc
+        run: cargo doc --all-features
+        env:
+          RUSTDOCFLAGS: --deny warnings
 
 
   # MacOS 11 CI is currently in beta. Uncomment the below lines when it's out of beta.
