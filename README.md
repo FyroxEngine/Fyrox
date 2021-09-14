@@ -1,20 +1,25 @@
-[![RG3D](pics/logo.png)](https://rg3d.rs/)
+<div align="center">
+  <a href="https://rg3d.rs/">
+    <img src="pics/logo.png" alt="RG3D" />
+  </a>
 
-# Rust Game engine 3D (and 2D)
+  <h1>Rust Game engine 3D (and 2D)</h1>
+</div>
 
 [![License (MIT)](https://img.shields.io/crates/l/rg3d)](https://github.com/mrDIMAS/rg3d/blob/master/LICENSE.md)
 [![CI Status](https://github.com/rg3dengine/rg3d/actions/workflows/ci.yml/badge.svg)](https://github.com/rg3dengine/rg3d/actions/workflows/ci.yml)
+[![Dependency status](https://deps.rs/repo/github/rg3dengine/rg3d/status.svg)](https://deps.rs/repo/github/rg3dengine/rg3d)
 [![Crates.io](https://img.shields.io/crates/v/rg3d)](https://crates.io/crates/rg3d)
 [![docs.rs](https://img.shields.io/badge/docs-website-blue)](https://docs.rs/rg3d/)
 [![Discord](https://img.shields.io/discord/756573453561102427)](https://discord.gg/xENF5Uh)
 [![Lines of code](https://tokei.rs/b1/github/mrDIMAS/rg3d)](https://github.com/mrDIMAS/rg3d)
- 
+
 A feature-rich, production-ready, general purpose 2D/3D game engine written in Rust with a scene editor.
 
 ## Support
 
 If you want to support the development of the project, click the link below. I'm working on the project full time and
-use my savings to drive development forward, I'm looking for any financial support. 
+use my savings to drive development forward, I'm looking for any financial support.
 
 [![Become a patron!](https://c5.patreon.com/external/logo/become_a_patron_button.png)](https://www.patreon.com/mrdimas)
 
@@ -157,7 +162,7 @@ use my savings to drive development forward, I'm looking for any financial suppo
 - File selector widget.
 - Docking manager widget.
 - NumericUpDown widget.
-- Vector3<f32> editor widget.
+- `Vector3<f32>` editor widget.
 - Menu widget.
 - Menu item widget.
 - Message box widget.
