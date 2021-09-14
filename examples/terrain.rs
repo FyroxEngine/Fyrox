@@ -1,7 +1,5 @@
 //! Example - Terrain.
 
-extern crate rg3d;
-
 pub mod shared;
 
 use crate::shared::create_camera;

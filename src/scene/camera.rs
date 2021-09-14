@@ -407,7 +407,7 @@ pub enum ColorGradingLutCreationError {
 /// you've probably noticed either "warmness" or "coldness" in colors in various scenes in
 /// games - this is achieved by color grading.
 ///
-/// See more info here - https://docs.unrealengine.com/4.26/en-US/RenderingAndGraphics/PostProcessEffects/UsingLUTs/
+/// See [more info in Unreal engine docs](https://docs.unrealengine.com/4.26/en-US/RenderingAndGraphics/PostProcessEffects/UsingLUTs/)
 #[derive(Visit, Clone, Default, Debug)]
 pub struct ColorGradingLut {
     #[visit(skip)]

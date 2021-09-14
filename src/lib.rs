@@ -1,26 +1,13 @@
 //! 3D and 2D Game Engine.
 
+#![doc(
+    html_logo_url = "https://rg3d.rs/assets/logos/logo2.png",
+    html_favicon_url = "https://rg3d.rs/assets/logos/logo2.png"
+)]
+
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::from_over_into)]
-
-extern crate bitflags;
-extern crate ddsfile;
-extern crate glow;
-#[cfg(not(target_arch = "wasm32"))]
-extern crate glutin;
-extern crate image;
-extern crate inflate;
-extern crate lexical;
-extern crate rayon;
-extern crate ron;
-extern crate serde;
-
-#[cfg(target_arch = "wasm32")]
-extern crate winit;
-
-#[cfg(test)]
-extern crate imageproc;
 
 pub mod animation;
 pub mod engine;

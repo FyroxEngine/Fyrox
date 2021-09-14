@@ -4,8 +4,6 @@
 //!
 //! This example shows how to create simple scene with animated model.
 
-extern crate rg3d;
-
 pub mod shared;
 
 use crate::shared::create_camera;

@@ -6,8 +6,6 @@
 //!
 //! It is almost the same as Example 01, even easier.
 
-extern crate rg3d;
-
 pub mod shared;
 
 use crate::shared::create_camera;

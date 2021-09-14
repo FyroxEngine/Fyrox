@@ -4,10 +4,15 @@ version = "0.18.0"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 edition = "2018"
 license = "MIT"
-description = "Shared core for rg3d engine and its external crates."
-repository = "https://github.com/mrDIMAS/rg3d"
+description = "Shared core for the rg3d engine and its external crates."
+keywords = ["game", "engine", "3d"]
+categories = ["game-development", "graphics", "gui", "rendering", "wasm"]
 include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md"]
+homepage = "https://rg3d.rs"
+documentation = "https://docs.rs/rg3d-core"
+repository = "https://github.com/mrDIMAS/rg3d"
 readme = "README.md"
+resolver = "2"
 
 [dependencies]
 rg3d-core-derive = { path = "../rg3d-core-derive", version = "0.13.0" }

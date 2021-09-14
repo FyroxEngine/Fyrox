@@ -6,9 +6,13 @@ edition = "2018"
 license = "MIT"
 description = "3D Game engine"
 keywords = ["sound", "game", "engine", "3d", "gui"]
+categories = ["game-engines", "graphics", "gui", "rendering", "wasm"]
 include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md"]
+homepage = "https://rg3d.rs"
+documentation = "https://docs.rs/rg3d"
 repository = "https://github.com/mrDIMAS/rg3d"
 readme = "README.md"
+resolver = "2"
 
 [workspace]
 members = ["rg3d-core-derive", "rg3d-core", "rg3d-sound", "rg3d-ui", "rg3d-resource", "examples/wasm"]
@@ -24,10 +28,11 @@ rg3d-core = { path = "rg3d-core", version = "0.18.0", features = ["serde"] }
 rg3d-sound = { path = "rg3d-sound", version = "0.25.0" }
 rg3d-ui = { path = "rg3d-ui", version = "0.14.0" }
 rg3d-resource = { path = "rg3d-resource", version = "0.2.0" }
-image = { version = "0.23", default-features = false, features = ["gif", "jpeg", "png", "tga", "tiff", "bmp"] }
-lexical = "5.2.2"
+image = { version = "0.23.12", default-features = false, features = ["gif", "jpeg", "png", "tga", "tiff", "bmp"] }
+lexical = { version = "6.0.0", default-features = false, features = ["std", "parse-integers", "parse-floats"] }
+lexical-parse-float = "0.8.0"
 inflate = "0.4.5"
-serde = { version = "^1.0.0", features = ["derive"] }
+serde = { version = "1.0.0", features = ["derive"] }
 lazy_static = "1.4.0"
 ddsfile = "0.4.0"
 rapier3d = { version = "0.11" }
@@ -52,5 +57,3 @@ glutin = {version = "0.27.0", features = ["serde"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 winit = { version = "0.25.0", features = ["web-sys", "serde"] }
-
-
