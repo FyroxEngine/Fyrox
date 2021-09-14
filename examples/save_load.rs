@@ -15,8 +15,6 @@
 //! You should carefully read documentation of rg3d::core::Visitor to understand basic ideas
 //! of how it works, otherwise Visit trait implementation might be confusing.
 
-extern crate rg3d;
-
 pub mod shared;
 
 use crate::shared::{create_ui, fix_shadows_distance, Game, GameScene, LocomotionMachine, Player};

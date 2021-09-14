@@ -66,14 +66,6 @@
 #[cfg(target_os = "windows")]
 extern crate winapi;
 
-#[cfg(target_os = "linux")]
-extern crate alsa_sys;
-
-// Generic crates.
-extern crate hound;
-extern crate lewton;
-extern crate rg3d_core;
-
 pub mod buffer;
 pub mod context;
 

@@ -4,8 +4,6 @@
 //!
 //! This example shows how to create simple scene with a mesh with custom shader.
 
-extern crate rg3d;
-
 pub mod shared;
 
 use crate::shared::create_camera;

@@ -4,8 +4,6 @@
 //!
 //! Warning - Work in progress!
 
-extern crate rg3d;
-
 use rg3d::engine::resource_manager::MaterialSearchOptions;
 use rg3d::material::shader::SamplerFallback;
 use rg3d::material::{Material, PropertyValue};

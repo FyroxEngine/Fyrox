@@ -5,8 +5,6 @@
 //! This example shows how to create simple scene with lots of animated models with low performance
 //! impact.
 
-extern crate rg3d;
-
 pub mod shared;
 
 use crate::shared::create_camera;

@@ -9,24 +9,6 @@
 #![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::from_over_into)]
 
-extern crate bitflags;
-extern crate ddsfile;
-extern crate glow;
-#[cfg(not(target_arch = "wasm32"))]
-extern crate glutin;
-extern crate image;
-extern crate inflate;
-extern crate lexical;
-extern crate rayon;
-extern crate ron;
-extern crate serde;
-
-#[cfg(target_arch = "wasm32")]
-extern crate winit;
-
-#[cfg(test)]
-extern crate imageproc;
-
 pub mod animation;
 pub mod engine;
 pub mod material;

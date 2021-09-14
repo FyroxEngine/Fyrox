@@ -1,5 +1,7 @@
 use std::fmt::Formatter;
 
+use lexical_parse_float::Options;
+
 pub enum FbxAttribute {
     Double(f64),
     Float(f32),
@@ -58,10 +60,14 @@ impl FbxAttribute {
             FbxAttribute::Integer(val) => Ok(f64::from(*val)),
             FbxAttribute::Long(val) => Ok(*val as f64),
             FbxAttribute::Bool(val) => Ok((*val as i64) as f64),
-            FbxAttribute::String(val) => match lexical::parse_lossy::<f64, _>(val.as_str()) {
-                Ok(i) => Ok(i),
-                Err(_) => Err(format!("Unable to convert string {} to f64", val)),
-            },
+            FbxAttribute::String(val) => {
+                const FORMAT: u128 = lexical::format::STANDARD;
+                let options = Options::builder().lossy(true).build().unwrap();
+                match lexical::parse_with_options::<f64, _, FORMAT>(val.as_str(), &options) {
+                    Ok(i) => Ok(i),
+                    Err(_) => Err(format!("Unable to convert string {} to f64", val)),
+                }
+            }
         }
     }
 
@@ -72,10 +78,14 @@ impl FbxAttribute {
             FbxAttribute::Integer(val) => Ok(*val as f32),
             FbxAttribute::Long(val) => Ok(*val as f32),
             FbxAttribute::Bool(val) => Ok((*val as i32) as f32),
-            FbxAttribute::String(val) => match lexical::parse_lossy::<f32, _>(val.as_str()) {
-                Ok(i) => Ok(i),
-                Err(_) => Err(format!("Unable to convert string {} to f32", val)),
-            },
+            FbxAttribute::String(val) => {
+                const FORMAT: u128 = lexical::format::STANDARD;
+                let options = Options::builder().lossy(true).build().unwrap();
+                match lexical::parse_with_options::<f32, _, FORMAT>(val.as_str(), &options) {
+                    Ok(i) => Ok(i),
+                    Err(_) => Err(format!("Unable to convert string {} to f32", val)),
+                }
+            }
         }
     }
 
