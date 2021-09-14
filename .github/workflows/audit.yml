@@ -1,0 +1,28 @@
+name: audit
+
+# This is a separate file so it can have a separate badge in readme
+# and therefore spread awareness of cargo audit a tiny bit.
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  schedule:
+    # Runs at 15:00 UTC on Fri
+    - cron: "0 15 * * 5"
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/install@v0.1
+        with:
+          crate: cargo-audit
+          version: latest
+      - run: cargo audit --version
+      - run: cargo audit --deny warnings
