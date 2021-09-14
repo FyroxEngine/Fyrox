@@ -727,7 +727,11 @@ impl MaterialEditor {
                     {
                         Some(PropertyValue::Vector4(*value))
                     }
-
+                    UiMessageData::ColorField(ColorFieldMessage::Color(color))
+                        if message.direction() == MessageDirection::FromWidget =>
+                    {
+                        Some(PropertyValue::Color(*color))
+                    }
                     UiMessageData::Widget(WidgetMessage::Drop(handle)) => {
                         if let UiNode::User(EditorUiNode::AssetItem(asset_item)) =
                             engine.user_interface.node(*handle)
