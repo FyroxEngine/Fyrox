@@ -8,6 +8,7 @@
 
 [![License (MIT)](https://img.shields.io/crates/l/rg3d)](https://github.com/mrDIMAS/rg3d/blob/master/LICENSE.md)
 [![CI Status](https://github.com/rg3dengine/rg3d/actions/workflows/ci.yml/badge.svg)](https://github.com/rg3dengine/rg3d/actions/workflows/ci.yml)
+[![audit](https://github.com/rg3dengine/rg3d/workflows/audit.yml/badge.svg)](https://github.com/rg3dengine/rg3d/actions/workflows/audit.yml)
 [![Dependency status](https://deps.rs/repo/github/rg3dengine/rg3d/status.svg)](https://deps.rs/repo/github/rg3dengine/rg3d)
 [![Crates.io](https://img.shields.io/crates/v/rg3d)](https://crates.io/crates/rg3d)
 [![docs.rs](https://img.shields.io/badge/docs-website-blue)](https://docs.rs/rg3d/)

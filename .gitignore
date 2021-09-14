@@ -3,6 +3,7 @@
 /cloc
 *.lock
 .*
+!.github
 /*.log
 /*.png
 /examples/data/lightmaps
