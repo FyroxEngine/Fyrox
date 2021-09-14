@@ -57,6 +57,19 @@ jobs:
              cd examples/wasm
              wasm-pack test --headless --chrome
              wasm-pack test --headless --firefox
+
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/install@v0.1
+        with:
+          crate: cargo-audit
+          version: latest
+      - run: cargo audit --version
+      - name: Run cargo audit
+        run: cargo audit --deny warnings
+
   docs:
     name: Documentation CI
     runs-on: windows-2019
