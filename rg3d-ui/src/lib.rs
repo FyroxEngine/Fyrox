@@ -10,11 +10,6 @@
 
 #[macro_use]
 extern crate lazy_static;
-extern crate copypasta;
-extern crate fontdue;
-
-#[cfg(not(target_arch = "wasm32"))]
-extern crate sysinfo;
 
 pub use rg3d_core as core;
 

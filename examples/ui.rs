@@ -6,8 +6,6 @@
 //! based on framework example because UI will be used to operate on
 //! model.
 
-extern crate rg3d;
-
 pub mod shared;
 
 use crate::shared::create_camera;

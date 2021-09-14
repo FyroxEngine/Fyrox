@@ -4,8 +4,6 @@
 //!
 //! This example shows simple 2D scene with light sources.
 
-extern crate rg3d;
-
 use rg3d::{
     core::{algebra::Vector2, pool::Handle},
     engine::{framework::prelude::*, resource_manager::ResourceManager},

@@ -5,8 +5,6 @@
 //! This example shows how to load simple scene made in [rusty-editor](https://github.com/mrDIMAS/rusty-editor)
 //! and generate lightmap for it. Lightmaps are still in active development and not meant to be used.
 
-extern crate rg3d;
-
 pub mod shared;
 
 use crate::shared::create_camera;

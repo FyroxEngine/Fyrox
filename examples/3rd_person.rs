@@ -22,8 +22,6 @@
 //!    for combat, lower - for locomotion.
 //!  - Tons of them, this is simple example after all.
 
-extern crate rg3d;
-
 pub mod shared;
 
 use crate::shared::{create_ui, fix_shadows_distance, Game, GameScene};

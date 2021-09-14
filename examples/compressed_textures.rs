@@ -3,8 +3,6 @@
 //! Just shows two textures with compression. Engine compresses textures automatically,
 //! based on compression options.
 
-extern crate rg3d;
-
 use rg3d::{
     core::{algebra::Vector2, color::Color},
     engine::{framework::prelude::*, resource_manager::TextureImportOptions},

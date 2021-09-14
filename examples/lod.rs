@@ -4,8 +4,6 @@
 //!
 //! This example shows how create a simple object with few detail levels.
 
-extern crate rg3d;
-
 pub mod shared;
 
 use crate::shared::create_camera;

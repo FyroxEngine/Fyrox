@@ -5,8 +5,6 @@
 //! This example shows how to load scene in separate thread and how create standard
 //! loading screen which will show progress.
 
-extern crate rg3d;
-
 pub mod shared;
 
 use rg3d::{
