@@ -1,19 +1,22 @@
 //! A container for colliders.
 
-use crate::{
-    core::{uuid::Uuid, BiDirHashMap},
-    engine::{ColliderHandle, RigidBodyHandle},
-    scene::physics::body::RigidBodyContainer,
+use crate::{body::RigidBodyContainer, ColliderHandle, NativeColliderHandle, RigidBodyHandle};
+#[cfg(feature = "dim2")]
+use rapier2d::{
+    dynamics::IslandManager,
+    geometry::{Collider, ColliderSet},
 };
+#[cfg(feature = "dim3")]
 use rapier3d::{
     dynamics::IslandManager,
     geometry::{Collider, ColliderSet},
 };
+use rg3d_core::{uuid::Uuid, BiDirHashMap};
 
 /// See module docs.
 pub struct ColliderContainer {
-    pub(super) set: ColliderSet,
-    pub(super) handle_map: BiDirHashMap<ColliderHandle, rapier3d::geometry::ColliderHandle>,
+    pub set: ColliderSet,
+    pub handle_map: BiDirHashMap<ColliderHandle, NativeColliderHandle>,
 }
 
 impl Default for ColliderContainer {
@@ -76,10 +79,7 @@ impl ColliderContainer {
     }
 
     /// Tries to borrow a collider from the container using native Rapier handle.
-    pub fn native_mut(
-        &mut self,
-        handle: rapier3d::geometry::ColliderHandle,
-    ) -> Option<&mut Collider> {
+    pub fn native_mut(&mut self, handle: NativeColliderHandle) -> Option<&mut Collider> {
         self.set.get_mut(handle)
     }
 
@@ -92,12 +92,12 @@ impl ColliderContainer {
     }
 
     /// Tries to borrow a collider from the container using native Rapier handle.
-    pub fn native_ref(&self, handle: rapier3d::geometry::ColliderHandle) -> Option<&Collider> {
+    pub fn native_ref(&self, handle: NativeColliderHandle) -> Option<&Collider> {
         self.set.get(handle)
     }
 
     /// Returns a mapping that allows you to map RapierHandle <-> rg3dHandle
-    pub fn handle_map(&self) -> &BiDirHashMap<ColliderHandle, rapier3d::geometry::ColliderHandle> {
+    pub fn handle_map(&self) -> &BiDirHashMap<ColliderHandle, NativeColliderHandle> {
         &self.handle_map
     }
 

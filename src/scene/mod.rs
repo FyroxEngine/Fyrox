@@ -20,6 +20,7 @@ pub mod transform;
 pub mod variable;
 pub mod visibility;
 
+use crate::physics3d::{PhysicsPerformanceStatistics, RigidBodyHandle};
 use crate::{
     animation::AnimationContainer,
     core::{
@@ -44,7 +45,7 @@ use crate::{
             VertexWriteTrait,
         },
         node::Node,
-        physics::{Physics, PhysicsPerformanceStatistics},
+        physics::Physics,
     },
     sound::{context::SoundContext, engine::SoundEngine},
     utils::{lightmap::Lightmap, log::Log, log::MessageKind, navmesh::Navmesh},
@@ -142,7 +143,7 @@ pub struct Scene {
 
     /// Physics binder is a bridge between physics world and scene graph. If a rigid body is linked
     /// to a graph node, then rigid body will control local transform of node.
-    pub physics_binder: PhysicsBinder<Node>,
+    pub physics_binder: PhysicsBinder<Node, RigidBodyHandle>,
 
     /// Texture to draw scene to. If empty, scene will be drawn on screen directly.
     /// It is useful to "embed" some scene into other by drawing a quad with this

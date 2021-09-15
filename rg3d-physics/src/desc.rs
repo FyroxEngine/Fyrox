@@ -4,26 +4,39 @@
 //! compatibility of Rapier.
 
 use crate::{
-    core::{
-        algebra::{
-            DMatrix, Dynamic, Isometry3, Point3, Translation, Translation3, Unit, UnitQuaternion,
-            VecStorage, Vector3,
-        },
-        pool::ErasedHandle,
-        visitor::prelude::*,
-        BiDirHashMap,
-    },
-    engine::{ColliderHandle, JointHandle, RigidBodyHandle},
+    AngVector, ColliderHandle, Isometry, JointHandle, NativeColliderHandle, NativeJointHandle,
+    NativeRigidBodyHandle, Point, RigidBodyHandle, Rotation, Translation, Vector,
 };
+#[cfg(feature = "dim2")]
+use rapier2d::{
+    dynamics::{
+        BallJoint, FixedJoint, IntegrationParameters, Joint, JointParams, PrismaticJoint,
+        RigidBody, RigidBodyBuilder, RigidBodyType,
+    },
+    geometry::{Collider, ColliderBuilder, Cuboid, InteractionGroups, Segment, Shape, SharedShape},
+};
+#[cfg(feature = "dim3")]
 use rapier3d::{
     dynamics::{
         BallJoint, FixedJoint, IntegrationParameters, Joint, JointParams, PrismaticJoint,
         RevoluteJoint, RigidBody, RigidBodyBuilder, RigidBodyType,
     },
-    geometry::{Collider, ColliderBuilder, InteractionGroups, Segment, Shape, SharedShape},
-    math::AngVector,
+    geometry::{Collider, ColliderBuilder, Cuboid, InteractionGroups, Segment, Shape, SharedShape},
 };
-use std::{collections::HashMap, hash::Hash};
+
+#[cfg(feature = "dim2")]
+use rg3d_core::algebra::{Const, DVector, UnitComplex};
+
+#[cfg(feature = "dim3")]
+use rg3d_core::algebra::DMatrix;
+
+use rg3d_core::{
+    algebra::{Dynamic, Unit, VecStorage},
+    pool::ErasedHandle,
+    visitor::prelude::*,
+    BiDirHashMap,
+};
+use std::{collections::HashMap, hash::Hash, sync::Arc};
 
 #[derive(Copy, Clone, Debug)]
 #[repr(u32)]
@@ -93,16 +106,19 @@ impl Into<RigidBodyType> for RigidBodyTypeDesc {
 #[derive(Clone, Debug, Visit)]
 #[doc(hidden)]
 pub struct RigidBodyDesc<C> {
-    pub position: Vector3<f32>,
-    pub rotation: UnitQuaternion<f32>,
-    pub lin_vel: Vector3<f32>,
-    pub ang_vel: Vector3<f32>,
+    pub position: Vector<f32>,
+    pub rotation: Rotation<f32>,
+    pub lin_vel: Vector<f32>,
+    pub ang_vel: AngVector<f32>,
     pub sleeping: bool,
     pub status: RigidBodyTypeDesc,
     pub colliders: Vec<C>,
     pub mass: f32,
+    #[cfg(feature = "dim3")]
     pub x_rotation_locked: bool,
+    #[cfg(feature = "dim3")]
     pub y_rotation_locked: bool,
+    #[cfg(feature = "dim3")]
     pub z_rotation_locked: bool,
     pub translation_locked: bool,
 }
@@ -111,15 +127,21 @@ impl<C> Default for RigidBodyDesc<C> {
     fn default() -> Self {
         Self {
             position: Default::default(),
+            #[cfg(feature = "dim3")]
             rotation: Default::default(),
+            #[cfg(feature = "dim2")]
+            rotation: UnitComplex::identity(),
             lin_vel: Default::default(),
             ang_vel: Default::default(),
             sleeping: false,
             status: Default::default(),
             colliders: vec![],
             mass: 1.0,
+            #[cfg(feature = "dim3")]
             x_rotation_locked: false,
+            #[cfg(feature = "dim3")]
             y_rotation_locked: false,
+            #[cfg(feature = "dim3")]
             z_rotation_locked: false,
             translation_locked: false,
         }
@@ -128,16 +150,12 @@ impl<C> Default for RigidBodyDesc<C> {
 
 impl<C: Hash + Clone + Eq> RigidBodyDesc<C> {
     #[doc(hidden)]
-    pub fn from_body(
-        body: &RigidBody,
-        handle_map: &BiDirHashMap<C, rapier3d::geometry::ColliderHandle>,
-    ) -> Self {
-        let rotation_locked = body.is_rotation_locked();
+    pub fn from_body(body: &RigidBody, handle_map: &BiDirHashMap<C, NativeColliderHandle>) -> Self {
         Self {
             position: body.position().translation.vector,
             rotation: body.position().rotation,
             lin_vel: *body.linvel(),
-            ang_vel: *body.angvel(),
+            ang_vel: body.angvel().clone(),
             status: body.body_type().into(),
             sleeping: body.is_sleeping(),
             colliders: body
@@ -146,16 +164,20 @@ impl<C: Hash + Clone + Eq> RigidBodyDesc<C> {
                 .map(|c| handle_map.key_of(c).cloned().unwrap())
                 .collect(),
             mass: body.mass(),
-            x_rotation_locked: rotation_locked[0],
-            y_rotation_locked: rotation_locked[1],
-            z_rotation_locked: rotation_locked[2],
+            #[cfg(feature = "dim3")]
+            x_rotation_locked: body.is_rotation_locked()[0],
+            #[cfg(feature = "dim3")]
+            y_rotation_locked: body.is_rotation_locked()[1],
+            #[cfg(feature = "dim3")]
+            z_rotation_locked: body.is_rotation_locked()[2],
             translation_locked: body.is_translation_locked(),
         }
     }
 
-    pub(super) fn convert_to_body(self) -> RigidBody {
+    pub fn convert_to_body(self) -> RigidBody {
+        #[allow(unused_mut)]
         let mut builder = RigidBodyBuilder::new(self.status.into())
-            .position(Isometry3 {
+            .position(Isometry {
                 translation: Translation {
                     vector: self.position,
                 },
@@ -163,16 +185,14 @@ impl<C: Hash + Clone + Eq> RigidBodyDesc<C> {
             })
             .additional_mass(self.mass)
             .linvel(self.lin_vel)
-            .angvel(AngVector::new(
-                self.ang_vel.x,
-                self.ang_vel.y,
-                self.ang_vel.z,
-            ))
-            .restrict_rotations(
-                self.x_rotation_locked,
-                self.y_rotation_locked,
-                self.z_rotation_locked,
-            );
+            .angvel(self.ang_vel);
+
+        #[cfg(feature = "dim3")]
+        let mut builder = builder.restrict_rotations(
+            self.x_rotation_locked,
+            self.y_rotation_locked,
+            self.z_rotation_locked,
+        );
 
         if self.translation_locked {
             builder = builder.lock_translations();
@@ -188,8 +208,8 @@ impl<C: Hash + Clone + Eq> RigidBodyDesc<C> {
 
 impl<C> RigidBodyDesc<C> {
     #[doc(hidden)]
-    pub fn local_transform(&self) -> Isometry3<f32> {
-        Isometry3 {
+    pub fn local_transform(&self) -> Isometry<f32> {
+        Isometry {
             rotation: self.rotation,
             translation: Translation {
                 vector: self.position,
@@ -229,30 +249,30 @@ pub struct ConeDesc {
 #[derive(Default, Copy, Clone, Debug, Visit)]
 #[doc(hidden)]
 pub struct CuboidDesc {
-    pub half_extents: Vector3<f32>,
+    pub half_extents: Vector<f32>,
 }
 
 #[derive(Default, Copy, Clone, Debug, Visit)]
 #[doc(hidden)]
 pub struct CapsuleDesc {
-    pub begin: Vector3<f32>,
-    pub end: Vector3<f32>,
+    pub begin: Vector<f32>,
+    pub end: Vector<f32>,
     pub radius: f32,
 }
 
 #[derive(Default, Copy, Clone, Debug, Visit)]
 #[doc(hidden)]
 pub struct SegmentDesc {
-    pub begin: Vector3<f32>,
-    pub end: Vector3<f32>,
+    pub begin: Vector<f32>,
+    pub end: Vector<f32>,
 }
 
 #[derive(Default, Copy, Clone, Debug, Visit)]
 #[doc(hidden)]
 pub struct TriangleDesc {
-    pub a: Vector3<f32>,
-    pub b: Vector3<f32>,
-    pub c: Vector3<f32>,
+    pub a: Vector<f32>,
+    pub b: Vector<f32>,
+    pub c: Vector<f32>,
 }
 
 // TODO: for now data of trimesh and heightfield is not serializable.
@@ -284,8 +304,11 @@ impl Visit for HeightfieldDesc {
 #[doc(hidden)]
 pub enum ColliderShapeDesc {
     Ball(BallDesc),
+    #[cfg(feature = "dim3")]
     Cylinder(CylinderDesc),
+    #[cfg(feature = "dim3")]
     RoundCylinder(RoundCylinderDesc),
+    #[cfg(feature = "dim3")]
     Cone(ConeDesc),
     Cuboid(CuboidDesc),
     Capsule(CapsuleDesc),
@@ -306,8 +329,11 @@ impl ColliderShapeDesc {
     pub fn id(&self) -> u32 {
         match self {
             ColliderShapeDesc::Ball(_) => 0,
+            #[cfg(feature = "dim3")]
             ColliderShapeDesc::Cylinder(_) => 1,
+            #[cfg(feature = "dim3")]
             ColliderShapeDesc::RoundCylinder(_) => 2,
+            #[cfg(feature = "dim3")]
             ColliderShapeDesc::Cone(_) => 3,
             ColliderShapeDesc::Cuboid(_) => 4,
             ColliderShapeDesc::Capsule(_) => 5,
@@ -321,8 +347,11 @@ impl ColliderShapeDesc {
     fn from_id(id: u32) -> Result<Self, String> {
         match id {
             0 => Ok(ColliderShapeDesc::Ball(Default::default())),
+            #[cfg(feature = "dim3")]
             1 => Ok(ColliderShapeDesc::Cylinder(Default::default())),
+            #[cfg(feature = "dim3")]
             2 => Ok(ColliderShapeDesc::RoundCylinder(Default::default())),
+            #[cfg(feature = "dim3")]
             3 => Ok(ColliderShapeDesc::Cone(Default::default())),
             4 => Ok(ColliderShapeDesc::Cuboid(Default::default())),
             5 => Ok(ColliderShapeDesc::Capsule(Default::default())),
@@ -339,22 +368,6 @@ impl ColliderShapeDesc {
         if let Some(ball) = shape.as_ball() {
             ColliderShapeDesc::Ball(BallDesc {
                 radius: ball.radius,
-            })
-        } else if let Some(cylinder) = shape.as_cylinder() {
-            ColliderShapeDesc::Cylinder(CylinderDesc {
-                half_height: cylinder.half_height,
-                radius: cylinder.radius,
-            })
-        } else if let Some(round_cylinder) = shape.as_round_cylinder() {
-            ColliderShapeDesc::RoundCylinder(RoundCylinderDesc {
-                half_height: round_cylinder.base_shape.half_height,
-                radius: round_cylinder.base_shape.radius,
-                border_radius: round_cylinder.border_radius,
-            })
-        } else if let Some(cone) = shape.as_cone() {
-            ColliderShapeDesc::Cone(ConeDesc {
-                half_height: cone.half_height,
-                radius: cone.radius,
             })
         } else if let Some(cuboid) = shape.as_cuboid() {
             ColliderShapeDesc::Cuboid(CuboidDesc {
@@ -382,53 +395,104 @@ impl ColliderShapeDesc {
         } else if shape.as_heightfield().is_some() {
             ColliderShapeDesc::Heightfield(HeightfieldDesc)
         } else {
-            unreachable!()
+            #[cfg(feature = "dim3")]
+            {
+                if let Some(cylinder) = shape.as_cylinder() {
+                    ColliderShapeDesc::Cylinder(CylinderDesc {
+                        half_height: cylinder.half_height,
+                        radius: cylinder.radius,
+                    })
+                } else if let Some(round_cylinder) = shape.as_round_cylinder() {
+                    ColliderShapeDesc::RoundCylinder(RoundCylinderDesc {
+                        half_height: round_cylinder.base_shape.half_height,
+                        radius: round_cylinder.base_shape.radius,
+                        border_radius: round_cylinder.border_radius,
+                    })
+                } else if let Some(cone) = shape.as_cone() {
+                    ColliderShapeDesc::Cone(ConeDesc {
+                        half_height: cone.half_height,
+                        radius: cone.radius,
+                    })
+                } else {
+                    unreachable!()
+                }
+            }
+
+            #[cfg(feature = "dim2")]
+            {
+                unreachable!()
+            }
         }
     }
 
-    fn into_collider_shape(self) -> SharedShape {
+    pub fn into_collider_shape(self) -> SharedShape {
         match self {
             ColliderShapeDesc::Ball(ball) => SharedShape::ball(ball.radius),
+            #[cfg(feature = "dim3")]
             ColliderShapeDesc::Cylinder(cylinder) => {
                 SharedShape::cylinder(cylinder.half_height, cylinder.radius)
             }
+            #[cfg(feature = "dim3")]
             ColliderShapeDesc::RoundCylinder(rcylinder) => SharedShape::round_cylinder(
                 rcylinder.half_height,
                 rcylinder.radius,
                 rcylinder.border_radius,
             ),
+            #[cfg(feature = "dim3")]
             ColliderShapeDesc::Cone(cone) => SharedShape::cone(cone.half_height, cone.radius),
-            ColliderShapeDesc::Cuboid(cuboid) => SharedShape::cuboid(
-                cuboid.half_extents.x,
-                cuboid.half_extents.y,
-                cuboid.half_extents.z,
-            ),
+            ColliderShapeDesc::Cuboid(cuboid) => {
+                SharedShape(Arc::new(Cuboid::new(cuboid.half_extents)))
+            }
             ColliderShapeDesc::Capsule(capsule) => SharedShape::capsule(
-                Point3::from(capsule.begin),
-                Point3::from(capsule.end),
+                Point::from(capsule.begin),
+                Point::from(capsule.end),
                 capsule.radius,
             ),
             ColliderShapeDesc::Segment(segment) => {
-                SharedShape::segment(Point3::from(segment.begin), Point3::from(segment.end))
+                SharedShape::segment(Point::from(segment.begin), Point::from(segment.end))
             }
             ColliderShapeDesc::Triangle(triangle) => SharedShape::triangle(
-                Point3::from(triangle.a),
-                Point3::from(triangle.b),
-                Point3::from(triangle.c),
+                Point::from(triangle.a),
+                Point::from(triangle.b),
+                Point::from(triangle.c),
             ),
             ColliderShapeDesc::Trimesh(_) => {
                 // Create fake trimesh. It will be filled with actual data on resolve stage later on.
-                let a = Point3::new(0.0, 0.0, 1.0);
-                let b = Point3::new(1.0, 0.0, 1.0);
-                let c = Point3::new(1.0, 0.0, 0.0);
-                SharedShape::trimesh(vec![a, b, c], vec![[0, 1, 2]])
+                #[cfg(feature = "dim3")]
+                {
+                    let a = Point::new(0.0, 0.0, 1.0);
+                    let b = Point::new(1.0, 0.0, 1.0);
+                    let c = Point::new(1.0, 0.0, 0.0);
+                    SharedShape::trimesh(vec![a, b, c], vec![[0, 1, 2]])
+                }
+
+                #[cfg(feature = "dim2")]
+                {
+                    let a = Point::new(0.0, 1.0);
+                    let b = Point::new(1.0, 1.0);
+                    let c = Point::new(1.0, 0.0);
+                    SharedShape::trimesh(vec![a, b, c], vec![[0, 1, 2]])
+                }
             }
             ColliderShapeDesc::Heightfield(_) => SharedShape::heightfield(
-                DMatrix::from_data(VecStorage::new(
-                    Dynamic::new(2),
-                    Dynamic::new(2),
-                    vec![0.0, 1.0, 0.0, 0.0],
-                )),
+                {
+                    #[cfg(feature = "dim3")]
+                    {
+                        DMatrix::from_data(VecStorage::new(
+                            Dynamic::new(2),
+                            Dynamic::new(2),
+                            vec![0.0, 1.0, 0.0, 0.0],
+                        ))
+                    }
+                    #[cfg(feature = "dim2")]
+                    {
+                        DVector::from_data(VecStorage::new(
+                            Dynamic::new(2),
+                            Const::<1>,
+                            vec![0.0, 1.0, 0.0, 0.0],
+                        ))
+                    }
+                },
                 Default::default(),
             ),
         }
@@ -446,8 +510,11 @@ impl Visit for ColliderShapeDesc {
         }
         match self {
             ColliderShapeDesc::Ball(v) => v.visit(name, visitor)?,
+            #[cfg(feature = "dim3")]
             ColliderShapeDesc::Cylinder(v) => v.visit(name, visitor)?,
+            #[cfg(feature = "dim3")]
             ColliderShapeDesc::RoundCylinder(v) => v.visit(name, visitor)?,
+            #[cfg(feature = "dim3")]
             ColliderShapeDesc::Cone(v) => v.visit(name, visitor)?,
             ColliderShapeDesc::Cuboid(v) => v.visit(name, visitor)?,
             ColliderShapeDesc::Capsule(v) => v.visit(name, visitor)?,
@@ -470,8 +537,8 @@ pub struct ColliderDesc<R> {
     pub density: Option<f32>,
     pub restitution: f32,
     pub is_sensor: bool,
-    pub translation: Vector3<f32>,
-    pub rotation: UnitQuaternion<f32>,
+    pub translation: Vector<f32>,
+    pub rotation: Rotation<f32>,
     pub collision_groups: InteractionGroupsDesc,
     pub solver_groups: InteractionGroupsDesc,
 }
@@ -511,7 +578,10 @@ impl<R: Default> Default for ColliderDesc<R> {
             restitution: 0.0,
             is_sensor: false,
             translation: Default::default(),
+            #[cfg(feature = "dim3")]
             rotation: Default::default(),
+            #[cfg(feature = "dim2")]
+            rotation: UnitComplex::identity(),
             collision_groups: Default::default(),
             solver_groups: Default::default(),
         }
@@ -519,9 +589,9 @@ impl<R: Default> Default for ColliderDesc<R> {
 }
 
 impl<R: Hash + Clone + Eq> ColliderDesc<R> {
-    pub(super) fn from_collider(
+    pub fn from_collider(
         collider: &Collider,
-        handle_map: &BiDirHashMap<R, rapier3d::dynamics::RigidBodyHandle>,
+        handle_map: &BiDirHashMap<R, NativeRigidBodyHandle>,
     ) -> Self {
         Self {
             shape: ColliderShapeDesc::from_collider_shape(collider.shape()),
@@ -540,12 +610,12 @@ impl<R: Hash + Clone + Eq> ColliderDesc<R> {
         }
     }
 
-    pub(super) fn convert_to_collider(self) -> (Collider, R) {
+    pub fn convert_to_collider(self) -> (Collider, R) {
         let mut builder = ColliderBuilder::new(self.shape.into_collider_shape())
             .friction(self.friction)
             .restitution(self.restitution)
-            .position(Isometry3 {
-                translation: Translation3 {
+            .position(Isometry {
+                translation: Translation {
                     vector: self.translation,
                 },
                 rotation: self.rotation,
@@ -701,35 +771,60 @@ impl Visit for IntegrationParametersDesc {
 #[derive(Default, Clone, Debug, Visit)]
 #[doc(hidden)]
 pub struct BallJointDesc {
-    pub local_anchor1: Vector3<f32>,
-    pub local_anchor2: Vector3<f32>,
+    pub local_anchor1: Vector<f32>,
+    pub local_anchor2: Vector<f32>,
 }
 
-#[derive(Default, Clone, Debug, Visit)]
+#[derive(Clone, Debug, Visit)]
 #[doc(hidden)]
 pub struct FixedJointDesc {
-    pub local_anchor1_translation: Vector3<f32>,
-    pub local_anchor1_rotation: UnitQuaternion<f32>,
-    pub local_anchor2_translation: Vector3<f32>,
-    pub local_anchor2_rotation: UnitQuaternion<f32>,
+    pub local_anchor1_translation: Vector<f32>,
+    pub local_anchor1_rotation: Rotation<f32>,
+    pub local_anchor2_translation: Vector<f32>,
+    pub local_anchor2_rotation: Rotation<f32>,
+}
+
+#[cfg(feature = "dim3")]
+impl Default for FixedJointDesc {
+    fn default() -> Self {
+        Self {
+            local_anchor1_translation: Default::default(),
+            local_anchor1_rotation: Default::default(),
+            local_anchor2_translation: Default::default(),
+            local_anchor2_rotation: Default::default(),
+        }
+    }
+}
+
+#[cfg(feature = "dim2")]
+impl Default for FixedJointDesc {
+    fn default() -> Self {
+        Self {
+            local_anchor1_translation: Default::default(),
+            local_anchor1_rotation: UnitComplex::identity(),
+            local_anchor2_translation: Default::default(),
+            local_anchor2_rotation: UnitComplex::identity(),
+        }
+    }
 }
 
 #[derive(Default, Clone, Debug, Visit)]
 #[doc(hidden)]
 pub struct PrismaticJointDesc {
-    pub local_anchor1: Vector3<f32>,
-    pub local_axis1: Vector3<f32>,
-    pub local_anchor2: Vector3<f32>,
-    pub local_axis2: Vector3<f32>,
+    pub local_anchor1: Vector<f32>,
+    pub local_axis1: Vector<f32>,
+    pub local_anchor2: Vector<f32>,
+    pub local_axis2: Vector<f32>,
 }
 
+#[cfg(feature = "dim3")]
 #[derive(Default, Clone, Debug, Visit)]
 #[doc(hidden)]
 pub struct RevoluteJointDesc {
-    pub local_anchor1: Vector3<f32>,
-    pub local_axis1: Vector3<f32>,
-    pub local_anchor2: Vector3<f32>,
-    pub local_axis2: Vector3<f32>,
+    pub local_anchor1: Vector<f32>,
+    pub local_axis1: Vector<f32>,
+    pub local_anchor2: Vector<f32>,
+    pub local_axis2: Vector<f32>,
 }
 
 #[derive(Clone, Debug)]
@@ -738,6 +833,7 @@ pub enum JointParamsDesc {
     BallJoint(BallJointDesc),
     FixedJoint(FixedJointDesc),
     PrismaticJoint(PrismaticJointDesc),
+    #[cfg(feature = "dim3")]
     RevoluteJoint(RevoluteJointDesc),
 }
 
@@ -751,36 +847,51 @@ impl Into<JointParams> for JointParamsDesc {
     fn into(self) -> JointParams {
         match self {
             JointParamsDesc::BallJoint(v) => JointParams::from(BallJoint::new(
-                Point3::from(v.local_anchor1),
-                Point3::from(v.local_anchor2),
+                Point::from(v.local_anchor1),
+                Point::from(v.local_anchor2),
             )),
             JointParamsDesc::FixedJoint(v) => JointParams::from(FixedJoint::new(
-                Isometry3 {
-                    translation: Translation3 {
+                Isometry {
+                    translation: Translation {
                         vector: v.local_anchor1_translation,
                     },
                     rotation: v.local_anchor1_rotation,
                 },
-                Isometry3 {
-                    translation: Translation3 {
+                Isometry {
+                    translation: Translation {
                         vector: v.local_anchor2_translation,
                     },
                     rotation: v.local_anchor2_rotation,
                 },
             )),
-            JointParamsDesc::PrismaticJoint(v) => JointParams::from(PrismaticJoint::new(
-                Point3::from(v.local_anchor1),
-                Unit::<Vector3<f32>>::new_normalize(v.local_axis1),
-                Default::default(), // TODO
-                Point3::from(v.local_anchor2),
-                Unit::<Vector3<f32>>::new_normalize(v.local_axis2),
-                Default::default(), // TODO
-            )),
+            JointParamsDesc::PrismaticJoint(v) => JointParams::from(
+                #[cfg(feature = "dim3")]
+                {
+                    PrismaticJoint::new(
+                        Point::from(v.local_anchor1),
+                        Unit::<Vector<f32>>::new_normalize(v.local_axis1),
+                        Default::default(), // TODO
+                        Point::from(v.local_anchor2),
+                        Unit::<Vector<f32>>::new_normalize(v.local_axis2),
+                        Default::default(), // TODO
+                    )
+                },
+                #[cfg(feature = "dim2")]
+                {
+                    PrismaticJoint::new(
+                        Point::from(v.local_anchor1),
+                        Unit::<Vector<f32>>::new_normalize(v.local_axis1),
+                        Point::from(v.local_anchor2),
+                        Unit::<Vector<f32>>::new_normalize(v.local_axis2),
+                    )
+                },
+            ),
+            #[cfg(feature = "dim3")]
             JointParamsDesc::RevoluteJoint(v) => JointParams::from(RevoluteJoint::new(
-                Point3::from(v.local_anchor1),
-                Unit::<Vector3<f32>>::new_normalize(v.local_axis1),
-                Point3::from(v.local_anchor2),
-                Unit::<Vector3<f32>>::new_normalize(v.local_axis2),
+                Point::from(v.local_anchor1),
+                Unit::<Vector<f32>>::new_normalize(v.local_axis1),
+                Point::from(v.local_anchor2),
+                Unit::<Vector<f32>>::new_normalize(v.local_axis2),
             )),
         }
     }
@@ -793,6 +904,7 @@ impl JointParamsDesc {
             JointParamsDesc::BallJoint(_) => 0,
             JointParamsDesc::FixedJoint(_) => 1,
             JointParamsDesc::PrismaticJoint(_) => 2,
+            #[cfg(feature = "dim3")]
             JointParamsDesc::RevoluteJoint(_) => 3,
         }
     }
@@ -803,6 +915,7 @@ impl JointParamsDesc {
             0 => Ok(Self::BallJoint(Default::default())),
             1 => Ok(Self::FixedJoint(Default::default())),
             2 => Ok(Self::PrismaticJoint(Default::default())),
+            #[cfg(feature = "dim3")]
             3 => Ok(Self::RevoluteJoint(Default::default())),
             _ => Err(format!("Invalid joint param desc id {}!", id)),
         }
@@ -822,6 +935,7 @@ impl Visit for JointParamsDesc {
             JointParamsDesc::BallJoint(v) => v.visit("Data", visitor)?,
             JointParamsDesc::FixedJoint(v) => v.visit("Data", visitor)?,
             JointParamsDesc::PrismaticJoint(v) => v.visit("Data", visitor)?,
+            #[cfg(feature = "dim3")]
             JointParamsDesc::RevoluteJoint(v) => v.visit("Data", visitor)?,
         }
 
@@ -849,6 +963,7 @@ impl JointParamsDesc {
                 local_anchor2: v.local_anchor2.coords,
                 local_axis2: v.local_axis2().into_inner(),
             }),
+            #[cfg(feature = "dim3")]
             JointParams::RevoluteJoint(v) => Self::RevoluteJoint(RevoluteJointDesc {
                 local_anchor1: v.local_anchor1.coords,
                 local_axis1: v.local_axis1.into_inner(),
@@ -869,10 +984,7 @@ pub struct JointDesc<R> {
 
 impl<R: Hash + Clone + Eq> JointDesc<R> {
     #[doc(hidden)]
-    pub fn from_joint(
-        joint: &Joint,
-        handle_map: &BiDirHashMap<R, rapier3d::dynamics::RigidBodyHandle>,
-    ) -> Self {
+    pub fn from_joint(joint: &Joint, handle_map: &BiDirHashMap<R, NativeRigidBodyHandle>) -> Self {
         Self {
             body1: handle_map.key_of(&joint.body1).cloned().unwrap(),
             body2: handle_map.key_of(&joint.body2).cloned().unwrap(),
@@ -887,11 +999,11 @@ pub struct PhysicsDesc {
     pub integration_parameters: IntegrationParametersDesc,
     pub colliders: Vec<ColliderDesc<RigidBodyHandle>>,
     pub bodies: Vec<RigidBodyDesc<ColliderHandle>>,
-    pub gravity: Vector3<f32>,
+    pub gravity: Vector<f32>,
     pub joints: Vec<JointDesc<RigidBodyHandle>>,
-    pub body_handle_map: BiDirHashMap<RigidBodyHandle, rapier3d::dynamics::RigidBodyHandle>,
-    pub collider_handle_map: BiDirHashMap<ColliderHandle, rapier3d::geometry::ColliderHandle>,
-    pub joint_handle_map: BiDirHashMap<JointHandle, rapier3d::dynamics::JointHandle>,
+    pub body_handle_map: BiDirHashMap<RigidBodyHandle, NativeRigidBodyHandle>,
+    pub collider_handle_map: BiDirHashMap<ColliderHandle, NativeColliderHandle>,
+    pub joint_handle_map: BiDirHashMap<JointHandle, NativeJointHandle>,
 }
 
 impl Visit for PhysicsDesc {
@@ -925,10 +1037,7 @@ impl Visit for PhysicsDesc {
                         .map(|(k, v)| {
                             (
                                 *k,
-                                rapier3d::dynamics::RigidBodyHandle::from_raw_parts(
-                                    v.index(),
-                                    v.generation(),
-                                ),
+                                NativeRigidBodyHandle::from_raw_parts(v.index(), v.generation()),
                             )
                         })
                         .collect::<HashMap<_, _>>(),
@@ -955,10 +1064,7 @@ impl Visit for PhysicsDesc {
                         .map(|(k, v)| {
                             (
                                 *k,
-                                rapier3d::geometry::ColliderHandle::from_raw_parts(
-                                    v.index(),
-                                    v.generation(),
-                                ),
+                                NativeColliderHandle::from_raw_parts(v.index(), v.generation()),
                             )
                         })
                         .collect::<HashMap<_, _>>(),
@@ -985,10 +1091,7 @@ impl Visit for PhysicsDesc {
                         .map(|(k, v)| {
                             (
                                 *k,
-                                rapier3d::dynamics::JointHandle::from_raw_parts(
-                                    v.index(),
-                                    v.generation(),
-                                ),
+                                NativeJointHandle::from_raw_parts(v.index(), v.generation()),
                             )
                         })
                         .collect::<HashMap<_, _>>(),

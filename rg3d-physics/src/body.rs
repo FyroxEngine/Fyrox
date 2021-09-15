@@ -1,17 +1,18 @@
 //! A container for rigid bodies.
 
 use crate::{
-    core::{uuid::Uuid, BiDirHashMap},
-    engine::RigidBodyHandle,
-    physics::dynamics::RigidBody,
-    scene::physics::{collider::ColliderContainer, joint::JointContainer},
+    collider::ColliderContainer, joint::JointContainer, NativeRigidBodyHandle, RigidBodyHandle,
 };
-use rapier3d::dynamics::{IslandManager, RigidBodySet};
+#[cfg(feature = "dim2")]
+use rapier2d::dynamics::{IslandManager, RigidBody, RigidBodySet};
+#[cfg(feature = "dim3")]
+use rapier3d::dynamics::{IslandManager, RigidBody, RigidBodySet};
+use rg3d_core::{uuid::Uuid, BiDirHashMap};
 
 /// See module docs.
 pub struct RigidBodyContainer {
-    pub(super) set: RigidBodySet,
-    pub(super) handle_map: BiDirHashMap<RigidBodyHandle, rapier3d::dynamics::RigidBodyHandle>,
+    pub set: RigidBodySet,
+    pub handle_map: BiDirHashMap<RigidBodyHandle, NativeRigidBodyHandle>,
 }
 
 impl Default for RigidBodyContainer {
@@ -71,10 +72,7 @@ impl RigidBodyContainer {
     }
 
     /// Tries to borrow a rigid body from the container using native Rapier handle.
-    pub fn native_mut(
-        &mut self,
-        handle: rapier3d::dynamics::RigidBodyHandle,
-    ) -> Option<&mut RigidBody> {
+    pub fn native_mut(&mut self, handle: NativeRigidBodyHandle) -> Option<&mut RigidBody> {
         self.set.get_mut(handle)
     }
 
@@ -87,14 +85,12 @@ impl RigidBodyContainer {
     }
 
     /// Tries to borrow a rigid body from the container using native Rapier handle.
-    pub fn native_ref(&self, handle: rapier3d::dynamics::RigidBodyHandle) -> Option<&RigidBody> {
+    pub fn native_ref(&self, handle: NativeRigidBodyHandle) -> Option<&RigidBody> {
         self.set.get(handle)
     }
 
     /// Returns a mapping that allows you to map RapierHandle <-> rg3dHandle
-    pub fn handle_map(
-        &self,
-    ) -> &BiDirHashMap<RigidBodyHandle, rapier3d::dynamics::RigidBodyHandle> {
+    pub fn handle_map(&self) -> &BiDirHashMap<RigidBodyHandle, NativeRigidBodyHandle> {
         &self.handle_map
     }
 

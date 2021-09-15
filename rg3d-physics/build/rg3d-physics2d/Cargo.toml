@@ -1,0 +1,15 @@
+[package]
+name = "rg3d-physics2d"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+rg3d-core = { version = "0.18.0", path = "../../../rg3d-core" }
+rapier2d = "0.11.1"
+
+[lib]
+path = "../../src/lib.rs"
+
+[features]
+dim2 = []
+default = ["dim2"]

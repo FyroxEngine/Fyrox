@@ -4,10 +4,13 @@
 // some parts can be unused in some examples.
 #![allow(dead_code)]
 
-use rapier3d::{
-    dynamics::RigidBodyBuilder,
-    geometry::ColliderBuilder,
-    na::{Isometry3, UnitQuaternion, Vector3},
+use rg3d::physics3d::{
+    rapier::{
+        dynamics::RigidBodyBuilder,
+        geometry::ColliderBuilder,
+        na::{Isometry3, UnitQuaternion, Vector3},
+    },
+    RigidBodyHandle,
 };
 use rg3d::{
     animation::{
@@ -15,10 +18,7 @@ use rg3d::{
         Animation, AnimationSignal,
     },
     core::{algebra::Vector2, color::Color, math::SmoothAngle, pool::Handle},
-    engine::{
-        resource_manager::{MaterialSearchOptions, ResourceManager},
-        RigidBodyHandle,
-    },
+    engine::resource_manager::{MaterialSearchOptions, ResourceManager},
     event::{DeviceEvent, ElementState, VirtualKeyCode},
     event_loop::EventLoop,
     gui::{

@@ -2,28 +2,29 @@
 
 use crate::{
     core::{
-        algebra::Vector2,
-        arrayvec::ArrayVec,
-        color::Color,
-        instant,
-        math::{aabb::AxisAlignedBoundingBox, ray::Ray},
-        pool::Handle,
+        algebra::Vector2, color::Color, math::aabb::AxisAlignedBoundingBox, pool::Handle,
         visitor::prelude::*,
-        BiDirHashMap,
     },
-    engine::{ColliderHandle, JointHandle, PhysicsBinder, RigidBodyHandle},
+    engine::PhysicsBinder,
+    physics3d::{
+        desc::{ColliderDesc, ColliderShapeDesc, JointDesc, RigidBodyDesc},
+        rapier::{
+            dynamics::{RigidBodyBuilder, RigidBodyType},
+            geometry::{Collider, ColliderBuilder},
+            na::{
+                DMatrix, Dynamic, Isometry3, Point3, Translation, UnitQuaternion, VecStorage,
+                Vector3,
+            },
+            parry::shape::{SharedShape, TriMesh},
+        },
+        ColliderHandle, JointHandle, PhysicsWorld, RigidBodyHandle,
+    },
     resource::model::Model,
     scene::{
         debug::SceneDrawingContext,
         graph::Graph,
         mesh::buffer::{VertexAttributeUsage, VertexReadTrait},
         node::Node,
-        physics::{
-            body::RigidBodyContainer,
-            collider::ColliderContainer,
-            desc::{ColliderDesc, ColliderShapeDesc, JointDesc, PhysicsDesc, RigidBodyDesc},
-            joint::JointContainer,
-        },
         terrain::Terrain,
     },
     utils::{
@@ -31,75 +32,16 @@ use crate::{
         raw_mesh::{RawMeshBuilder, RawVertex},
     },
 };
-use rapier3d::{
-    dynamics::{
-        CCDSolver, IntegrationParameters, IslandManager, Joint, JointParams, RigidBody,
-        RigidBodyBuilder, RigidBodyType,
-    },
-    geometry::{BroadPhase, Collider, ColliderBuilder, InteractionGroups, NarrowPhase},
-    na::{DMatrix, Dynamic, Isometry3, Point3, Translation, UnitQuaternion, VecStorage, Vector3},
-    parry::shape::{FeatureId, SharedShape, TriMesh},
-    pipeline::{EventHandler, PhysicsPipeline, QueryPipeline},
-};
 use std::{
-    cell::{Cell, RefCell},
-    cmp::Ordering,
     collections::HashMap,
-    fmt::{Debug, Display, Formatter},
-    time::Duration,
+    fmt::Debug,
+    ops::{Deref, DerefMut},
 };
-
-pub mod body;
-pub mod collider;
-pub mod desc;
-pub mod joint;
-
-/// A ray intersection result.
-#[derive(Debug, Clone)]
-pub struct Intersection {
-    /// A handle of the collider with which intersection was detected.
-    pub collider: ColliderHandle,
-
-    /// A normal at the intersection position.
-    pub normal: Vector3<f32>,
-
-    /// A position of the intersection in world coordinates.
-    pub position: Point3<f32>,
-
-    /// Additional data that contains a kind of the feature with which
-    /// intersection was detected as well as its index.    
-    ///
-    /// # Important notes.
-    ///
-    /// FeatureId::Face might have index that is greater than amount of triangles in
-    /// a triangle mesh, this means that intersection was detected from "back" side of
-    /// a face. To "fix" that index, simply subtract amount of triangles of a triangle
-    /// mesh from the value.
-    pub feature: FeatureId,
-
-    /// Distance from the ray origin.
-    pub toi: f32,
-}
-
-/// A set of options for the ray cast.
-pub struct RayCastOptions {
-    /// A ray for cast.
-    pub ray: Ray,
-
-    /// Maximum distance of cast.
-    pub max_len: f32,
-
-    /// Groups to check.
-    pub groups: InteractionGroups,
-
-    /// Whether to sort intersections from closest to farthest.
-    pub sort_results: bool,
-}
 
 /// A set of data that has all associations with physics from resource.
 /// It is used to embedding physics from resource to a scene during
 /// the instantiation process.
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct ResourceLink {
     model: Model,
     // HandleInResource->HandleInInstance mappings
@@ -122,56 +64,27 @@ impl Visit for ResourceLink {
 }
 
 /// Physics world.
+#[derive(Debug)]
 pub struct Physics {
-    /// Current physics pipeline.
-    pipeline: PhysicsPipeline,
-    /// Current gravity vector. Default is (0.0, -9.81, 0.0)
-    pub gravity: Vector3<f32>,
-    /// A set of parameters that define behavior of every rigid body.
-    pub integration_parameters: IntegrationParameters,
-    /// Broad phase performs rough intersection checks.
-    pub broad_phase: BroadPhase,
-    /// Narrow phase is responsible for precise contact generation.
-    pub narrow_phase: NarrowPhase,
-    /// A continuous collision detection solver.
-    pub ccd_solver: CCDSolver,
-    /// Structure responsible for maintaining the set of active rigid-bodies, and putting non-moving
-    /// rigid-bodies to sleep to save computation times.
-    pub islands: IslandManager,
-
-    /// A container of rigid bodies.
-    pub bodies: RigidBodyContainer,
-
-    /// A container of colliders.
-    pub colliders: ColliderContainer,
-
-    /// A container of joints.
-    pub joints: JointContainer,
-
-    /// Event handler collects info about contacts and proximity events.
-    pub event_handler: Box<dyn EventHandler>,
-
-    /// Descriptors have two purposes:
-    /// 1) Defer deserialization to resolve stage - the stage where all meshes
-    ///    were loaded and there is a possibility to obtain data for trimeshes.
-    ///    Resolve stage will drain these vectors. This is normal use case.
-    /// 2) Save data from editor: when descriptors are set, only they will be
-    ///    written to output. This is a HACK, but I don't know better solution
-    ///    yet.
-    pub desc: Option<PhysicsDesc>,
+    /// The physics world.
+    pub world: PhysicsWorld,
 
     /// A list of external resources that were embedded in the physics during
     /// instantiation process.
     pub embedded_resources: Vec<ResourceLink>,
-
-    query: RefCell<QueryPipeline>,
-
-    pub(in crate) performance_statistics: PhysicsPerformanceStatistics,
 }
 
-impl Debug for Physics {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "Physics")
+impl Deref for Physics {
+    type Target = PhysicsWorld;
+
+    fn deref(&self) -> &Self::Target {
+        &self.world
+    }
+}
+
+impl DerefMut for Physics {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.world
     }
 }
 
@@ -181,106 +94,20 @@ impl Default for Physics {
     }
 }
 
-/// A trait for ray cast results storage. It has two implementations: Vec and ArrayVec.
-/// Latter is needed for the cases where you need to avoid runtime memory allocations
-/// and do everything on stack.
-pub trait QueryResultsStorage {
-    /// Pushes new intersection in the storage. Returns true if intersection was
-    /// successfully inserted, false otherwise.
-    fn push(&mut self, intersection: Intersection) -> bool;
-
-    /// Clears the storage.
-    fn clear(&mut self);
-
-    /// Sorts intersections by given compare function.
-    fn sort_intersections_by<C: FnMut(&Intersection, &Intersection) -> Ordering>(&mut self, cmp: C);
-}
-
-impl QueryResultsStorage for Vec<Intersection> {
-    fn push(&mut self, intersection: Intersection) -> bool {
-        self.push(intersection);
-        true
-    }
-
-    fn clear(&mut self) {
-        self.clear()
-    }
-
-    fn sort_intersections_by<C>(&mut self, cmp: C)
-    where
-        C: FnMut(&Intersection, &Intersection) -> Ordering,
-    {
-        self.sort_by(cmp);
-    }
-}
-
-impl<const CAP: usize> QueryResultsStorage for ArrayVec<Intersection, CAP> {
-    fn push(&mut self, intersection: Intersection) -> bool {
-        self.try_push(intersection).is_ok()
-    }
-
-    fn clear(&mut self) {
-        self.clear()
-    }
-
-    fn sort_intersections_by<C>(&mut self, cmp: C)
-    where
-        C: FnMut(&Intersection, &Intersection) -> Ordering,
-    {
-        self.sort_by(cmp);
-    }
-}
-
-/// Performance statistics for the physics part of the engine.
-#[derive(Debug, Default, Clone)]
-pub struct PhysicsPerformanceStatistics {
-    /// A time that was needed to perform a single simulation step.
-    pub step_time: Duration,
-
-    /// A time that was needed to perform all ray casts.
-    pub total_ray_cast_time: Cell<Duration>,
-}
-
-impl Display for PhysicsPerformanceStatistics {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Physics Step Time: {:?}\nPhysics Ray Cast Time: {:?}",
-            self.step_time,
-            self.total_ray_cast_time.get(),
-        )
-    }
-}
-
-impl PhysicsPerformanceStatistics {
-    pub(in crate) fn reset(&mut self) {
-        *self = Default::default();
-    }
-}
-
 impl Physics {
     pub(in crate) fn new() -> Self {
         Self {
-            pipeline: PhysicsPipeline::new(),
-            gravity: Vector3::new(0.0, -9.81, 0.0),
-            integration_parameters: IntegrationParameters::default(),
-            broad_phase: BroadPhase::new(),
-            narrow_phase: NarrowPhase::new(),
-            ccd_solver: CCDSolver::new(),
-            islands: IslandManager::new(),
-            bodies: RigidBodyContainer::new(),
-            colliders: ColliderContainer::new(),
-            joints: JointContainer::new(),
-            event_handler: Box::new(()),
-            query: Default::default(),
-            desc: Default::default(),
+            world: PhysicsWorld::new(),
             embedded_resources: Default::default(),
-            performance_statistics: Default::default(),
         }
     }
 
     // Deep copy is performed using descriptors.
-    pub(in crate) fn deep_copy(&self, binder: &PhysicsBinder<Node>, graph: &Graph) -> Self {
+    pub(in crate) fn deep_copy(
+        &self,
+        binder: &PhysicsBinder<Node, RigidBodyHandle>,
+        graph: &Graph,
+    ) -> Self {
         let mut phys = Self::new();
         phys.embedded_resources = self.embedded_resources.clone();
         phys.desc = Some(self.generate_desc());
@@ -384,118 +211,6 @@ impl Physics {
                     );
                 }
             }
-        }
-    }
-
-    /// Tries to get a parent of collider.
-    pub fn collider_parent(&self, collider: &ColliderHandle) -> Option<&RigidBodyHandle> {
-        self.colliders
-            .get(collider)
-            .and_then(|c| self.bodies.handle_map().key_of(&c.parent().unwrap()))
-    }
-
-    pub(in crate) fn step(&mut self) {
-        let time = instant::Instant::now();
-
-        self.pipeline.step(
-            &self.gravity,
-            &self.integration_parameters,
-            &mut self.islands,
-            &mut self.broad_phase,
-            &mut self.narrow_phase,
-            &mut self.bodies.set,
-            &mut self.colliders.set,
-            &mut self.joints.set,
-            &mut self.ccd_solver,
-            &(),
-            &*self.event_handler,
-        );
-
-        self.performance_statistics.step_time += instant::Instant::now() - time;
-    }
-
-    #[doc(hidden)]
-    pub fn generate_desc(&self) -> PhysicsDesc {
-        let body_dense_map = self
-            .bodies
-            .set
-            .iter()
-            .enumerate()
-            .map(|(i, (h, _))| {
-                (
-                    h,
-                    rapier3d::dynamics::RigidBodyHandle::from_raw_parts(i as u32, 0),
-                )
-            })
-            .collect::<HashMap<_, _>>();
-
-        let mut body_handle_map = BiDirHashMap::default();
-        for (engine_handle, rapier_handle) in self.bodies.handle_map().forward_map() {
-            body_handle_map.insert(*engine_handle, body_dense_map[rapier_handle]);
-        }
-
-        let collider_dense_map = self
-            .colliders
-            .set
-            .iter()
-            .enumerate()
-            .map(|(i, (h, _))| {
-                (
-                    h,
-                    rapier3d::geometry::ColliderHandle::from_raw_parts(i as u32, 0),
-                )
-            })
-            .collect::<HashMap<_, _>>();
-
-        let mut collider_handle_map = BiDirHashMap::default();
-        for (engine_handle, rapier_handle) in self.colliders.handle_map().forward_map() {
-            collider_handle_map.insert(*engine_handle, collider_dense_map[rapier_handle]);
-        }
-
-        let joint_dense_map = self
-            .joints
-            .set
-            .iter()
-            .enumerate()
-            .map(|(i, (h, _))| {
-                (
-                    h,
-                    rapier3d::dynamics::JointHandle::from_raw_parts(i as u32, 0),
-                )
-            })
-            .collect::<HashMap<_, _>>();
-
-        let mut joint_handle_map = BiDirHashMap::default();
-        for (engine_handle, rapier_handle) in self.joints.handle_map.forward_map() {
-            joint_handle_map.insert(*engine_handle, joint_dense_map[rapier_handle]);
-        }
-
-        PhysicsDesc {
-            integration_parameters: self.integration_parameters.into(),
-
-            bodies: self
-                .bodies
-                .iter()
-                .map(|b| RigidBodyDesc::from_body(b, self.colliders.handle_map()))
-                .collect::<Vec<_>>(),
-
-            colliders: self
-                .colliders
-                .iter()
-                .map(|c| ColliderDesc::from_collider(c, self.bodies.handle_map()))
-                .collect::<Vec<_>>(),
-
-            gravity: self.gravity,
-
-            joints: self
-                .joints
-                .iter()
-                .map(|j| JointDesc::from_joint(j, self.bodies.handle_map()))
-                .collect::<Vec<_>>(),
-
-            body_handle_map,
-            collider_handle_map,
-            joint_handle_map,
         }
     }
 
@@ -710,65 +425,11 @@ impl Physics {
         handle
     }
 
-    /// Casts a ray with given options.
-    pub fn cast_ray<S: QueryResultsStorage>(&self, opts: RayCastOptions, query_buffer: &mut S) {
-        let time = instant::Instant::now();
-
-        let mut query = self.query.borrow_mut();
-
-        // TODO: Ideally this must be called once per frame, but it seems to be impossible because
-        // a body can be deleted during the consecutive calls of this method which will most
-        // likely end up in panic because of invalid handle stored in internal acceleration
-        // structure. This could be fixed by delaying deleting of bodies/collider to the end
-        // of the frame.
-        query.update(&self.islands, &self.bodies.set, &self.colliders.set);
-
-        query_buffer.clear();
-        let ray = rapier3d::geometry::Ray::new(
-            Point3::from(opts.ray.origin),
-            opts.ray.dir.try_normalize(f32::EPSILON).unwrap_or_default(),
-        );
-        query.intersections_with_ray(
-            &self.colliders.set,
-            &ray,
-            opts.max_len,
-            true,
-            opts.groups,
-            None, // TODO
-            |handle, intersection| {
-                query_buffer.push(Intersection {
-                    collider: self
-                        .colliders
-                        .handle_map()
-                        .key_of(&handle)
-                        .cloned()
-                        .unwrap(),
-                    normal: intersection.normal,
-                    position: ray.point_at(intersection.toi),
-                    feature: intersection.feature,
-                    toi: intersection.toi,
-                })
-            },
-        );
-        if opts.sort_results {
-            query_buffer.sort_intersections_by(|a, b| {
-                if a.toi > b.toi {
-                    Ordering::Greater
-                } else if a.toi < b.toi {
-                    Ordering::Less
-                } else {
-                    Ordering::Equal
-                }
-            })
-        }
-
-        self.performance_statistics.total_ray_cast_time.set(
-            self.performance_statistics.total_ray_cast_time.get()
-                + (instant::Instant::now() - time),
-        );
-    }
-
-    pub(in crate) fn resolve(&mut self, binder: &PhysicsBinder<Node>, graph: &Graph) {
+    pub(in crate) fn resolve(
+        &mut self,
+        binder: &PhysicsBinder<Node, RigidBodyHandle>,
+        graph: &Graph,
+    ) {
         assert_eq!(self.bodies.len(), 0);
         assert_eq!(self.colliders.len(), 0);
 
@@ -795,14 +456,15 @@ impl Physics {
                             let collider =
                                 ColliderBuilder::new(Self::make_trimesh(associated_node, graph))
                                     .build();
-                            self.colliders.set.insert_with_parent(
+                            self.world.colliders.set.insert_with_parent(
                                 collider,
-                                self.bodies
+                                self.world
+                                    .bodies
                                     .handle_map()
                                     .value_of(&desc.parent)
                                     .cloned()
                                     .unwrap(),
-                                &mut self.bodies.set,
+                                &mut self.world.bodies.set,
                             );
 
                             Log::writeln(
@@ -833,14 +495,15 @@ impl Physics {
                                 let collider =
                                     self.terrain_to_heightfield_collider(associated_node, graph);
 
-                                self.colliders.set.insert_with_parent(
+                                self.world.colliders.set.insert_with_parent(
                                     collider,
-                                    self.bodies
+                                    self.world
+                                        .bodies
                                         .handle_map()
                                         .value_of(&desc.parent)
                                         .cloned()
                                         .unwrap(),
-                                    &mut self.bodies.set,
+                                    &mut self.world.bodies.set,
                                 );
 
                                 Log::writeln(
@@ -875,10 +538,15 @@ impl Physics {
                 // Rest of colliders are independent.
                 _ => {
                     let (collider, parent) = desc.convert_to_collider();
-                    self.colliders.set.insert_with_parent(
+                    self.world.colliders.set.insert_with_parent(
                         collider,
-                        self.bodies.handle_map().value_of(&parent).cloned().unwrap(),
-                        &mut self.bodies.set,
+                        self.world
+                            .bodies
+                            .handle_map()
+                            .value_of(&parent)
+                            .cloned()
+                            .unwrap(),
+                        &mut self.world.bodies.set,
                     );
                 }
             }
@@ -903,7 +571,7 @@ impl Physics {
 
     pub(in crate) fn embed_resource(
         &mut self,
-        target_binder: &mut PhysicsBinder<Node>,
+        target_binder: &mut PhysicsBinder<Node, RigidBodyHandle>,
         target_graph: &Graph,
         old_to_new: HashMap<Handle<Node>, Handle<Node>>,
         resource: Model,
@@ -1072,78 +740,16 @@ impl Physics {
             ),
         );
     }
-
-    /// Adds new rigid body.
-    pub fn add_body(&mut self, rigid_body: RigidBody) -> RigidBodyHandle {
-        self.bodies.add(rigid_body)
-    }
-
-    /// Removes a rigid body.
-    pub fn remove_body(&mut self, rigid_body: &RigidBodyHandle) -> Option<RigidBody> {
-        self.bodies.remove(
-            rigid_body,
-            &mut self.colliders,
-            &mut self.joints,
-            &mut self.islands,
-        )
-    }
-
-    /// Adds new collider.
-    pub fn add_collider(
-        &mut self,
-        collider: Collider,
-        rigid_body: &RigidBodyHandle,
-    ) -> ColliderHandle {
-        self.colliders.add(collider, rigid_body, &mut self.bodies)
-    }
-
-    /// Removes a collider.
-    pub fn remove_collider(&mut self, collider_handle: &ColliderHandle) -> Option<Collider> {
-        self.colliders
-            .remove(collider_handle, &mut self.bodies, &mut self.islands)
-    }
-
-    /// Adds new joint.
-    pub fn add_joint<J>(
-        &mut self,
-        body1: &RigidBodyHandle,
-        body2: &RigidBodyHandle,
-        joint_params: J,
-    ) -> JointHandle
-    where
-        J: Into<JointParams>,
-    {
-        self.joints
-            .add(body1, body2, joint_params, &mut self.bodies)
-    }
-
-    /// Removes a joint.
-    pub fn remove_joint(&mut self, joint_handle: &JointHandle, wake_up: bool) -> Option<Joint> {
-        self.joints
-            .remove(joint_handle, &mut self.bodies, &mut self.islands, wake_up)
-    }
 }
 
 impl Visit for Physics {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
-        let mut desc = if visitor.is_reading() {
-            Default::default()
-        } else if let Some(desc) = self.desc.as_ref() {
-            desc.clone()
-        } else {
-            self.generate_desc()
-        };
-        desc.visit("Desc", visitor)?;
+        self.world.visit("Desc", visitor)?;
 
         self.embedded_resources
             .visit("EmbeddedResources", visitor)?;
-
-        // Save descriptors for resolve stage.
-        if visitor.is_reading() {
-            self.desc = Some(desc);
-        }
 
         visitor.leave_region()
     }

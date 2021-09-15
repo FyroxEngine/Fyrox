@@ -4,9 +4,10 @@
 //! shared edges. Raw mesh itself does not have any methods, it is just a final result
 //! of RawMeshBuilder.
 
-use crate::core::math::TriangleDefinition;
-use crate::utils::hash_as_bytes;
-use rapier3d::na::Vector3;
+use crate::{
+    core::{algebra::Vector3, math::TriangleDefinition},
+    utils::hash_as_bytes,
+};
 use std::{
     collections::HashSet,
     hash::{Hash, Hasher},

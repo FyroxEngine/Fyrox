@@ -1,17 +1,16 @@
 //! A container for joints.
 
-use crate::{
-    core::{uuid::Uuid, BiDirHashMap},
-    engine::{JointHandle, RigidBodyHandle},
-    physics::dynamics::Joint,
-    scene::physics::body::RigidBodyContainer,
-};
-use rapier3d::dynamics::{IslandManager, JointParams, JointSet};
+use crate::{body::RigidBodyContainer, JointHandle, NativeJointHandle, RigidBodyHandle};
+#[cfg(feature = "dim2")]
+use rapier2d::dynamics::{IslandManager, Joint, JointParams, JointSet};
+#[cfg(feature = "dim3")]
+use rapier3d::dynamics::{IslandManager, Joint, JointParams, JointSet};
+use rg3d_core::{uuid::Uuid, BiDirHashMap};
 
 /// See module docs.
 pub struct JointContainer {
-    pub(super) set: JointSet,
-    pub(super) handle_map: BiDirHashMap<JointHandle, rapier3d::dynamics::JointHandle>,
+    pub set: JointSet,
+    pub handle_map: BiDirHashMap<JointHandle, NativeJointHandle>,
 }
 
 impl Default for JointContainer {
@@ -78,7 +77,7 @@ impl JointContainer {
     }
 
     /// Tries to borrow a joint from the container using native Rapier handle.
-    pub fn native_mut(&mut self, handle: rapier3d::dynamics::JointHandle) -> Option<&mut Joint> {
+    pub fn native_mut(&mut self, handle: NativeJointHandle) -> Option<&mut Joint> {
         self.set.get_mut(handle)
     }
 
@@ -91,12 +90,12 @@ impl JointContainer {
     }
 
     /// Tries to borrow a joint from the container using native Rapier handle.
-    pub fn native_ref(&self, handle: rapier3d::dynamics::JointHandle) -> Option<&Joint> {
+    pub fn native_ref(&self, handle: NativeJointHandle) -> Option<&Joint> {
         self.set.get(handle)
     }
 
     /// Returns a mapping that allows you to map RapierHandle <-> rg3dHandle
-    pub fn handle_map(&self) -> &BiDirHashMap<JointHandle, rapier3d::dynamics::JointHandle> {
+    pub fn handle_map(&self) -> &BiDirHashMap<JointHandle, NativeJointHandle> {
         &self.handle_map
     }
 

@@ -1,3 +1,5 @@
+use crate::physics2d::PhysicsPerformanceStatistics;
+use crate::physics2d::RigidBodyHandle;
 use crate::{
     core::{
         algebra::{Isometry2, Translation2, Vector2},
@@ -9,7 +11,7 @@ use crate::{
     engine::PhysicsBinder,
     resource::texture::Texture,
     scene::base::PhysicsBinding,
-    scene2d::{graph::Graph, node::Node, physics::Physics, physics::PhysicsPerformanceStatistics},
+    scene2d::{graph::Graph, node::Node, physics::Physics},
     sound::{context::SoundContext, engine::SoundEngine},
 };
 use std::collections::HashMap;
@@ -55,7 +57,7 @@ pub struct Scene2d {
 
     pub physics: Physics,
 
-    pub physics_binder: PhysicsBinder<Node>,
+    pub physics_binder: PhysicsBinder<Node, RigidBodyHandle>,
 
     #[visit(skip)]
     pub performance_statistics: PerformanceStatistics,
@@ -85,12 +87,12 @@ impl Scene2d {
         let graph = &mut self.graph;
         let physics = &mut self.physics;
         self.physics_binder
-            .retain(|node, body| graph.is_valid_handle(*node) && physics.contains_body(body));
+            .retain(|node, body| graph.is_valid_handle(*node) && physics.bodies.contains(body));
 
         // Sync node positions with assigned physics bodies
         if self.physics_binder.enabled {
             for (&node_handle, body) in self.physics_binder.forward_map().iter() {
-                let body = physics.body_mut(body).unwrap();
+                let body = physics.bodies.get_mut(body).unwrap();
                 let node = &mut self.graph[node_handle];
                 match node.physics_binding {
                     PhysicsBinding::NodeWithBody => {

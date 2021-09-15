@@ -24,6 +24,7 @@ use crate::{
     sound::engine::SoundEngine,
     window::{Window, WindowBuilder},
 };
+use std::hash::Hash;
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
@@ -274,62 +275,21 @@ impl<M: MessageData, C: Control<M, C>> Visit for Engine<M, C> {
     }
 }
 
-macro_rules! define_rapier_handle {
-    ($(#[$meta:meta])*, $type_name:ident) => {
-        $(#[$meta])*
-        #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
-        #[repr(transparent)]
-        pub struct $type_name(pub crate::core::uuid::Uuid);
-
-        impl From<crate::core::uuid::Uuid> for $type_name {
-            fn from(inner: crate::core::uuid::Uuid) -> Self {
-                Self(inner)
-            }
-        }
-
-        impl Into<crate::core::uuid::Uuid> for $type_name {
-            fn into(self) -> crate::core::uuid::Uuid {
-                self.0
-            }
-        }
-
-        impl Visit for $type_name {
-            fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-                visitor.enter_region(name)?;
-                self.0.visit("Id", visitor)?;
-                visitor.leave_region()
-            }
-        }
-    };
-}
-
-define_rapier_handle!(
-    #[doc="Rigid body handle wrapper."],
-    RigidBodyHandle);
-
-define_rapier_handle!(
-    #[doc="Collider handle wrapper."],
-    ColliderHandle);
-
-define_rapier_handle!(
-    #[doc="Joint handle wrapper."],
-    JointHandle);
-
 /// Physics binder is used to link graph nodes with rigid bodies. Scene will
 /// sync transform of node with its associated rigid body.
 #[derive(Clone, Debug)]
-pub struct PhysicsBinder<N> {
+pub struct PhysicsBinder<N, BH> {
     /// Mapping Node -> RigidBody.
-    forward_map: HashMap<Handle<N>, RigidBodyHandle>,
+    forward_map: HashMap<Handle<N>, BH>,
 
-    backward_map: HashMap<RigidBodyHandle, Handle<N>>,
+    backward_map: HashMap<BH, Handle<N>>,
 
     /// Whether binder is enabled or not. If binder is disabled, it won't synchronize
     /// node's transform with body's transform.
     pub enabled: bool,
 }
 
-impl<N> Default for PhysicsBinder<N> {
+impl<N, BH> Default for PhysicsBinder<N, BH> {
     fn default() -> Self {
         Self {
             forward_map: Default::default(),
@@ -339,20 +299,19 @@ impl<N> Default for PhysicsBinder<N> {
     }
 }
 
-impl<N> PhysicsBinder<N> {
+impl<N, BH> PhysicsBinder<N, BH>
+where
+    BH: Visit + Copy + Clone + Hash + Eq,
+{
     /// Links given graph node with specified rigid body. Returns old linked body.
-    pub fn bind(
-        &mut self,
-        node: Handle<N>,
-        rigid_body: RigidBodyHandle,
-    ) -> Option<RigidBodyHandle> {
+    pub fn bind(&mut self, node: Handle<N>, rigid_body: BH) -> Option<BH> {
         let old_body = self.forward_map.insert(node, rigid_body);
         self.backward_map.insert(rigid_body, node);
         old_body
     }
 
     /// Unlinks given graph node from its associated rigid body (if any).
-    pub fn unbind(&mut self, node: Handle<N>) -> Option<RigidBodyHandle> {
+    pub fn unbind(&mut self, node: Handle<N>) -> Option<BH> {
         if let Some(body_handle) = self.forward_map.remove(&node) {
             self.backward_map.remove(&body_handle);
             Some(body_handle)
@@ -362,7 +321,7 @@ impl<N> PhysicsBinder<N> {
     }
 
     /// Unlinks given body from a node that is linked with the body.
-    pub fn unbind_by_body(&mut self, body: RigidBodyHandle) -> Handle<N> {
+    pub fn unbind_by_body(&mut self, body: BH) -> Handle<N> {
         if let Some(node) = self.backward_map.get(&body) {
             self.forward_map.remove(node);
             *node
@@ -373,12 +332,12 @@ impl<N> PhysicsBinder<N> {
 
     /// Returns handle of rigid body associated with given node. It will return
     /// Handle::NONE if given node isn't linked to a rigid body.
-    pub fn body_of(&self, node: Handle<N>) -> Option<&RigidBodyHandle> {
+    pub fn body_of(&self, node: Handle<N>) -> Option<&BH> {
         self.forward_map.get(&node)
     }
 
     /// Tries to find a node for a given rigid body.
-    pub fn node_of(&self, body: RigidBodyHandle) -> Option<Handle<N>> {
+    pub fn node_of(&self, body: BH) -> Option<Handle<N>> {
         self.backward_map.get(&body).copied()
     }
 
@@ -389,19 +348,19 @@ impl<N> PhysicsBinder<N> {
     }
 
     /// Returns a shared reference to inner forward mapping.
-    pub fn forward_map(&self) -> &HashMap<Handle<N>, RigidBodyHandle> {
+    pub fn forward_map(&self) -> &HashMap<Handle<N>, BH> {
         &self.forward_map
     }
 
     /// Returns a shared reference to inner backward mapping.
-    pub fn backward_map(&self) -> &HashMap<RigidBodyHandle, Handle<N>> {
+    pub fn backward_map(&self) -> &HashMap<BH, Handle<N>> {
         &self.backward_map
     }
 
     /// Retains only the elements specified by the predicate.
     pub fn retain<F>(&mut self, mut f: F)
     where
-        F: FnMut(&Handle<N>, &mut RigidBodyHandle) -> bool,
+        F: FnMut(&Handle<N>, &mut BH) -> bool,
     {
         self.backward_map.retain(|node, handle| {
             let mut n = *node;
@@ -411,7 +370,10 @@ impl<N> PhysicsBinder<N> {
     }
 }
 
-impl<N> Visit for PhysicsBinder<N> {
+impl<N, BH> Visit for PhysicsBinder<N, BH>
+where
+    BH: Visit + Copy + Clone + Hash + Eq + Default,
+{
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 

@@ -7,6 +7,7 @@
 pub mod shared;
 
 use crate::shared::create_camera;
+use rg3d::core::algebra::Point3;
 use rg3d::{
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
@@ -26,6 +27,7 @@ use rg3d::{
         widget::WidgetBuilder,
     },
     material::{Material, PropertyValue},
+    physics3d::{Intersection, RayCastOptions},
     scene::{
         base::BaseBuilder,
         debug::Line,
@@ -34,7 +36,6 @@ use rg3d::{
             MeshBuilder,
         },
         node::Node,
-        physics::{Intersection, RayCastOptions},
         transform::TransformBuilder,
         Scene,
     },
@@ -219,7 +220,8 @@ fn main() {
                     let mut buffer = ArrayVec::<Intersection, 64>::new();
                     scene.physics.cast_ray(
                         RayCastOptions {
-                            ray,
+                            ray_origin: Point3::from(ray.origin),
+                            ray_direction: ray.dir,
                             max_len: 9999.0,
                             groups: Default::default(),
                             sort_results: true,

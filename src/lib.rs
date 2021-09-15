@@ -4,7 +4,6 @@
     html_logo_url = "https://rg3d.rs/assets/logos/logo2.png",
     html_favicon_url = "https://rg3d.rs/assets/logos/logo2.png"
 )]
-
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::from_over_into)]
@@ -27,8 +26,9 @@ pub use walkdir;
 #[cfg(target_arch = "wasm32")]
 pub use winit::*;
 
-pub use rapier3d as physics;
 pub use rg3d_core as core;
+pub use rg3d_physics2d as physics2d;
+pub use rg3d_physics3d as physics3d;
 pub use rg3d_resource as asset;
 pub use rg3d_sound as sound;
 pub use rg3d_ui as gui;
