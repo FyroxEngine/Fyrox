@@ -45,9 +45,6 @@ walkdir = "2.3.2"
 thiserror = "1.0.26"
 ron = "0.6.4"
 
-[dev-dependencies]
-imageproc = "0.22.0"
-
 [features]
 enable_profiler = ["rg3d-core/enable_profiler"]
 enhanced-determinism = ["rapier3d/enhanced-determinism", "rapier2d/enhanced-determinism"]
