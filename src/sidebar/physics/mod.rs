@@ -44,16 +44,13 @@ use rg3d::{
         widget::WidgetBuilder,
         Orientation, Thickness,
     },
-    scene::{
-        graph::Graph,
-        node::Node,
-        physics::desc::{
-            BallDesc, BallJointDesc, CapsuleDesc, ColliderShapeDesc, ConeDesc, CuboidDesc,
-            CylinderDesc, FixedJointDesc, HeightfieldDesc, JointParamsDesc, PrismaticJointDesc,
-            RevoluteJointDesc, RigidBodyTypeDesc, RoundCylinderDesc, SegmentDesc, TriangleDesc,
-            TrimeshDesc,
-        },
+    physics3d::desc::{
+        BallDesc, BallJointDesc, CapsuleDesc, ColliderShapeDesc, ConeDesc, CuboidDesc,
+        CylinderDesc, FixedJointDesc, HeightfieldDesc, JointParamsDesc, PrismaticJointDesc,
+        RevoluteJointDesc, RigidBodyTypeDesc, RoundCylinderDesc, SegmentDesc, TriangleDesc,
+        TrimeshDesc,
     },
+    scene::{graph::Graph, node::Node},
 };
 use std::sync::mpsc::Sender;
 

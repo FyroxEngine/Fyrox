@@ -19,7 +19,7 @@ use rg3d::{
         message::{MessageDirection, UiMessageData, Vec3EditorMessage},
         widget::WidgetBuilder,
     },
-    scene::physics::desc::RevoluteJointDesc,
+    physics3d::desc::RevoluteJointDesc,
 };
 use std::sync::mpsc::Sender;
 

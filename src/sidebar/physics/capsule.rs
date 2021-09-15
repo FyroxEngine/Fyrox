@@ -19,7 +19,7 @@ use rg3d::{
         message::{MessageDirection, NumericUpDownMessage, UiMessageData, Vec3EditorMessage},
         widget::WidgetBuilder,
     },
-    scene::physics::desc::CapsuleDesc,
+    physics3d::desc::CapsuleDesc,
 };
 use std::sync::mpsc::Sender;
 

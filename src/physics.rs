@@ -7,7 +7,12 @@ use rg3d::{
         uuid::Uuid,
         BiDirHashMap,
     },
-    engine::{ColliderHandle, JointHandle, RigidBodyHandle},
+    physics3d::{
+        desc::{
+            ColliderDesc, ColliderShapeDesc, JointDesc, JointParamsDesc, PhysicsDesc, RigidBodyDesc,
+        },
+        ColliderHandle, JointHandle, RigidBodyHandle,
+    },
     scene::{
         debug::{Line, SceneDrawingContext},
         graph::Graph,
@@ -16,9 +21,6 @@ use rg3d::{
             surface::SurfaceData,
         },
         node::Node,
-        physics::desc::{
-            ColliderDesc, ColliderShapeDesc, JointDesc, JointParamsDesc, PhysicsDesc, RigidBodyDesc,
-        },
         Scene,
     },
 };
@@ -237,7 +239,7 @@ impl Physics {
             engine_body_handle_rapier_map.insert(
                 engine_handle,
                 // Rapier3D handle will become just a simple index.
-                rg3d::physics::dynamics::RigidBodyHandle::from_raw_parts(i as u32, 0),
+                rg3d::physics3d::rapier::dynamics::RigidBodyHandle::from_raw_parts(i as u32, 0),
             );
             editor_body_handle_to_engine_map.insert(handle, engine_handle);
         }
@@ -278,7 +280,7 @@ impl Physics {
             engine_collider_handle_rapier_map.insert(
                 engine_handle,
                 // Rapier3D handle will become just a simple index.
-                rg3d::physics::geometry::ColliderHandle::from_raw_parts(i as u32, 0),
+                rg3d::physics3d::rapier::geometry::ColliderHandle::from_raw_parts(i as u32, 0),
             );
             editor_collider_handle_to_engine_map.insert(handle, engine_handle);
         }
@@ -342,7 +344,7 @@ impl Physics {
             engine_joint_handle_rapier_map.insert(
                 engine_handle,
                 // Rapier3D handle will become just a simple index.
-                rg3d::physics::dynamics::JointHandle::from_raw_parts(i as u32, 0),
+                rg3d::physics3d::rapier::dynamics::JointHandle::from_raw_parts(i as u32, 0),
             );
         }
         let joints = self

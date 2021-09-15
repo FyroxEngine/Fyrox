@@ -20,7 +20,7 @@ use rg3d::{
         message::{MessageDirection, UiMessageData, Vec3EditorMessage},
         widget::WidgetBuilder,
     },
-    scene::physics::desc::PrismaticJointDesc,
+    physics3d::desc::PrismaticJointDesc,
 };
 use std::sync::mpsc::Sender;
 

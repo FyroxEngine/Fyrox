@@ -17,7 +17,7 @@ use rg3d::{
         message::{MessageDirection, NumericUpDownMessage, UiMessageData},
         widget::WidgetBuilder,
     },
-    scene::physics::desc::CylinderDesc,
+    physics3d::desc::CylinderDesc,
 };
 use std::sync::mpsc::Sender;
 

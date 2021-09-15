@@ -17,7 +17,7 @@ use rg3d::{
         message::{MessageDirection, UiMessageData, Vec3EditorMessage},
         widget::WidgetBuilder,
     },
-    scene::physics::desc::BallJointDesc,
+    physics3d::desc::BallJointDesc,
 };
 use std::sync::mpsc::Sender;
 

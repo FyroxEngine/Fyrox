@@ -9,10 +9,8 @@ use rg3d::{
         algebra::{UnitQuaternion, Vector3},
         pool::{ErasedHandle, Handle, Ticket},
     },
-    scene::{
-        node::Node,
-        physics::desc::{ColliderShapeDesc, JointParamsDesc},
-    },
+    physics3d::desc::{ColliderShapeDesc, JointParamsDesc},
+    scene::node::Node,
 };
 
 #[derive(Debug)]

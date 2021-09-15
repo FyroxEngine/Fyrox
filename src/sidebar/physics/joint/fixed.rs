@@ -12,10 +12,11 @@ use crate::{
     sidebar::{make_section, make_text_mark, make_vec3_input_field, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
 };
+use rg3d::core::math::UnitQuaternionExt;
 use rg3d::{
     core::{
         algebra::Vector3,
-        math::{quat_from_euler, RotationOrder, UnitQuaternionExt},
+        math::{quat_from_euler, RotationOrder},
         pool::Handle,
     },
     gui::{
@@ -23,7 +24,7 @@ use rg3d::{
         message::{MessageDirection, UiMessageData, Vec3EditorMessage},
         widget::WidgetBuilder,
     },
-    scene::physics::desc::FixedJointDesc,
+    physics3d::desc::FixedJointDesc,
 };
 use std::sync::mpsc::Sender;
 
