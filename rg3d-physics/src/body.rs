@@ -11,8 +11,8 @@ use rg3d_core::{uuid::Uuid, BiDirHashMap};
 
 /// See module docs.
 pub struct RigidBodyContainer {
-    pub set: RigidBodySet,
-    pub handle_map: BiDirHashMap<RigidBodyHandle, NativeRigidBodyHandle>,
+    pub(super) set: RigidBodySet,
+    pub(super) handle_map: BiDirHashMap<RigidBodyHandle, NativeRigidBodyHandle>,
 }
 
 impl Default for RigidBodyContainer {
@@ -31,6 +31,22 @@ impl RigidBodyContainer {
             set: RigidBodySet::new(),
             handle_map: Default::default(),
         }
+    }
+
+    /// Tries to create the container from raw parts - the rigid bodies set and handle map.
+    pub fn from_raw_parts(
+        set: RigidBodySet,
+        handle_map: BiDirHashMap<RigidBodyHandle, NativeRigidBodyHandle>,
+    ) -> Result<Self, ()> {
+        assert_eq!(set.len(), handle_map.len());
+
+        for handle in handle_map.forward_map().values() {
+            if !set.contains(*handle) {
+                return Err(());
+            }
+        }
+
+        Ok(Self { set, handle_map })
     }
 
     /// Adds new rigid body to the container.

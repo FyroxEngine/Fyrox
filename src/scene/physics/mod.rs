@@ -7,10 +7,13 @@ use crate::{
     },
     engine::PhysicsBinder,
     physics3d::{
+        body::RigidBodyContainer,
+        collider::ColliderContainer,
         desc::{ColliderDesc, ColliderShapeDesc, JointDesc, RigidBodyDesc},
+        joint::JointContainer,
         rapier::{
-            dynamics::{RigidBodyBuilder, RigidBodyType},
-            geometry::{Collider, ColliderBuilder},
+            dynamics::{JointSet, RigidBodyBuilder, RigidBodySet, RigidBodyType},
+            geometry::{Collider, ColliderBuilder, ColliderSet},
             na::{
                 DMatrix, Dynamic, Isometry3, Point3, Translation, UnitQuaternion, VecStorage,
                 Vector3,
@@ -432,17 +435,18 @@ impl Physics {
     ) {
         assert_eq!(self.bodies.len(), 0);
         assert_eq!(self.colliders.len(), 0);
+        assert_eq!(self.joints.len(), 0);
 
         let mut phys_desc = self.desc.take().unwrap();
 
-        self.bodies.handle_map = phys_desc.body_handle_map;
-        self.colliders.handle_map = phys_desc.collider_handle_map;
-        self.joints.handle_map = phys_desc.joint_handle_map;
-
         self.integration_parameters = phys_desc.integration_parameters.into();
 
+        let mut bodies = RigidBodySet::new();
+        let mut colliders = ColliderSet::new();
+        let mut joints = JointSet::new();
+
         for desc in phys_desc.bodies.drain(..) {
-            self.bodies.set.insert(desc.convert_to_body());
+            bodies.insert(desc.convert_to_body());
         }
 
         for desc in phys_desc.colliders.drain(..) {
@@ -456,15 +460,14 @@ impl Physics {
                             let collider =
                                 ColliderBuilder::new(Self::make_trimesh(associated_node, graph))
                                     .build();
-                            self.world.colliders.set.insert_with_parent(
+                            colliders.insert_with_parent(
                                 collider,
-                                self.world
-                                    .bodies
-                                    .handle_map()
+                                phys_desc
+                                    .body_handle_map
                                     .value_of(&desc.parent)
                                     .cloned()
                                     .unwrap(),
-                                &mut self.world.bodies.set,
+                                &mut bodies,
                             );
 
                             Log::writeln(
@@ -495,15 +498,14 @@ impl Physics {
                                 let collider =
                                     self.terrain_to_heightfield_collider(associated_node, graph);
 
-                                self.world.colliders.set.insert_with_parent(
+                                colliders.insert_with_parent(
                                     collider,
-                                    self.world
-                                        .bodies
-                                        .handle_map()
+                                    phys_desc
+                                        .body_handle_map
                                         .value_of(&desc.parent)
                                         .cloned()
                                         .unwrap(),
-                                    &mut self.world.bodies.set,
+                                    &mut bodies,
                                 );
 
                                 Log::writeln(
@@ -538,35 +540,38 @@ impl Physics {
                 // Rest of colliders are independent.
                 _ => {
                     let (collider, parent) = desc.convert_to_collider();
-                    self.world.colliders.set.insert_with_parent(
+                    colliders.insert_with_parent(
                         collider,
-                        self.world
-                            .bodies
-                            .handle_map()
+                        phys_desc
+                            .body_handle_map
                             .value_of(&parent)
                             .cloned()
                             .unwrap(),
-                        &mut self.world.bodies.set,
+                        &mut bodies,
                     );
                 }
             }
         }
 
         for desc in phys_desc.joints.drain(..) {
-            let b1 = self
-                .bodies
-                .handle_map
+            let b1 = phys_desc
+                .body_handle_map
                 .value_of(&desc.body1)
                 .cloned()
                 .unwrap();
-            let b2 = self
-                .bodies
-                .handle_map
+            let b2 = phys_desc
+                .body_handle_map
                 .value_of(&desc.body2)
                 .cloned()
                 .unwrap();
-            self.joints.set.insert(b1, b2, desc.params);
+            joints.insert(b1, b2, desc.params);
         }
+
+        self.bodies =
+            RigidBodyContainer::from_raw_parts(bodies, phys_desc.body_handle_map).unwrap();
+        self.colliders =
+            ColliderContainer::from_raw_parts(colliders, phys_desc.collider_handle_map).unwrap();
+        self.joints = JointContainer::from_raw_parts(joints, phys_desc.joint_handle_map).unwrap();
     }
 
     pub(in crate) fn embed_resource(
@@ -583,7 +588,7 @@ impl Physics {
         let mut link = ResourceLink::default();
 
         // Instantiate rigid bodies.
-        for (resource_handle, body) in resource_physics.bodies.set.iter() {
+        for (resource_handle, body) in resource_physics.bodies.inner_ref().iter() {
             let desc = RigidBodyDesc::<ColliderHandle>::from_body(
                 body,
                 resource_physics.colliders.handle_map(),
@@ -609,7 +614,7 @@ impl Physics {
         }
 
         // Instantiate colliders.
-        for (resource_handle, collider) in resource_physics.colliders.set.iter() {
+        for (resource_handle, collider) in resource_physics.colliders.inner_ref().iter() {
             let desc = ColliderDesc::from_collider(collider, resource_physics.bodies.handle_map());
             // Remap handle from resource to one that was created above.
             let remapped_parent = *link.bodies.get(&desc.parent).unwrap();
@@ -706,7 +711,7 @@ impl Physics {
         }
 
         // Instantiate joints.
-        for (resource_handle, joint) in resource_physics.joints.set.iter() {
+        for (resource_handle, joint) in resource_physics.joints.inner_ref().iter() {
             let desc = JointDesc::<RigidBodyHandle>::from_joint(
                 joint,
                 resource_physics.bodies.handle_map(),
@@ -723,7 +728,7 @@ impl Physics {
             link.joints.insert(
                 *resource_physics
                     .joints
-                    .handle_map
+                    .handle_map()
                     .key_of(&resource_handle)
                     .unwrap(),
                 new_handle,

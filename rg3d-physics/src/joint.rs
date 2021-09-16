@@ -9,8 +9,8 @@ use rg3d_core::{uuid::Uuid, BiDirHashMap};
 
 /// See module docs.
 pub struct JointContainer {
-    pub set: JointSet,
-    pub handle_map: BiDirHashMap<JointHandle, NativeJointHandle>,
+    pub(super) set: JointSet,
+    pub(super) handle_map: BiDirHashMap<JointHandle, NativeJointHandle>,
 }
 
 impl Default for JointContainer {
@@ -29,6 +29,22 @@ impl JointContainer {
             set: JointSet::new(),
             handle_map: Default::default(),
         }
+    }
+
+    /// Tries to create the container from raw parts - the joint set and handle map.
+    pub fn from_raw_parts(
+        set: JointSet,
+        handle_map: BiDirHashMap<JointHandle, NativeJointHandle>,
+    ) -> Result<Self, ()> {
+        assert_eq!(set.len(), handle_map.len());
+
+        for handle in handle_map.forward_map().values() {
+            if !set.contains(*handle) {
+                return Err(());
+            }
+        }
+
+        Ok(Self { set, handle_map })
     }
 
     /// Adds new joint.

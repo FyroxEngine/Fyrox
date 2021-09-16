@@ -174,6 +174,7 @@ impl<C: Hash + Clone + Eq> RigidBodyDesc<C> {
         }
     }
 
+    /// Converts descriptor to a rigid body instance.
     pub fn convert_to_body(self) -> RigidBody {
         #[allow(unused_mut)]
         let mut builder = RigidBodyBuilder::new(self.status.into())
@@ -425,6 +426,7 @@ impl ColliderShapeDesc {
         }
     }
 
+    /// Converts descriptor in a shared shape.
     pub fn into_collider_shape(self) -> SharedShape {
         match self {
             ColliderShapeDesc::Ball(ball) => SharedShape::ball(ball.radius),
@@ -589,6 +591,7 @@ impl<R: Default> Default for ColliderDesc<R> {
 }
 
 impl<R: Hash + Clone + Eq> ColliderDesc<R> {
+    /// Creates collider descriptor from Rapier collider.
     pub fn from_collider(
         collider: &Collider,
         handle_map: &BiDirHashMap<R, NativeRigidBodyHandle>,
@@ -610,6 +613,7 @@ impl<R: Hash + Clone + Eq> ColliderDesc<R> {
         }
     }
 
+    /// Converts descriptor to collider instance.
     pub fn convert_to_collider(self) -> (Collider, R) {
         let mut builder = ColliderBuilder::new(self.shape.into_collider_shape())
             .friction(self.friction)

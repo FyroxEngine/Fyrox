@@ -1,6 +1,18 @@
 //! Contains all structures and methods to operate with physics world.
 
-use crate::{core::visitor::prelude::*, physics2d::PhysicsWorld};
+use crate::{
+    core::visitor::prelude::*,
+    physics2d::{
+        body::RigidBodyContainer,
+        collider::ColliderContainer,
+        joint::JointContainer,
+        rapier::{
+            dynamics::{JointSet, RigidBodySet},
+            geometry::ColliderSet,
+        },
+        PhysicsWorld,
+    },
+};
 use std::{
     fmt::Debug,
     ops::{Deref, DerefMut},
@@ -50,40 +62,44 @@ impl Physics {
 
         let mut phys_desc = self.desc.take().unwrap();
 
-        self.bodies.handle_map = phys_desc.body_handle_map;
-        self.colliders.handle_map = phys_desc.collider_handle_map;
-        self.joints.handle_map = phys_desc.joint_handle_map;
-
         self.integration_parameters = phys_desc.integration_parameters.into();
 
+        let mut bodies = RigidBodySet::new();
+        let mut colliders = ColliderSet::new();
+        let mut joints = JointSet::new();
+
         for desc in phys_desc.bodies.drain(..) {
-            self.bodies.set.insert(desc.convert_to_body());
+            bodies.insert(desc.convert_to_body());
         }
 
         for desc in phys_desc.colliders.drain(..) {
             let (collider, parent) = desc.convert_to_collider();
-            let parent_handle = self.bodies.handle_map().value_of(&parent).cloned().unwrap();
-            let bodies = &mut self.0.bodies.set;
-            self.0
-                .colliders
-                .set
-                .insert_with_parent(collider, parent_handle, bodies);
+            let parent_handle = phys_desc
+                .body_handle_map
+                .value_of(&parent)
+                .cloned()
+                .unwrap();
+            colliders.insert_with_parent(collider, parent_handle, &mut bodies);
         }
 
         for desc in phys_desc.joints.drain(..) {
-            let b1 = self
-                .bodies
-                .handle_map
+            let b1 = phys_desc
+                .body_handle_map
                 .value_of(&desc.body1)
                 .cloned()
                 .unwrap();
-            let b2 = self
-                .bodies
-                .handle_map
+            let b2 = phys_desc
+                .body_handle_map
                 .value_of(&desc.body2)
                 .cloned()
                 .unwrap();
-            self.joints.set.insert(b1, b2, desc.params);
+            joints.insert(b1, b2, desc.params);
         }
+
+        self.bodies =
+            RigidBodyContainer::from_raw_parts(bodies, phys_desc.body_handle_map).unwrap();
+        self.colliders =
+            ColliderContainer::from_raw_parts(colliders, phys_desc.collider_handle_map).unwrap();
+        self.joints = JointContainer::from_raw_parts(joints, phys_desc.joint_handle_map).unwrap();
     }
 }
