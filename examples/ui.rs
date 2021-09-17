@@ -10,6 +10,7 @@ pub mod shared;
 
 use crate::shared::create_camera;
 use rg3d::engine::resource_manager::MaterialSearchOptions;
+use rg3d::gui::inspector::{ConstructorContainer, Inspect, InspectorBuilder, PropertyInfo};
 use rg3d::utils::log::{Log, MessageKind};
 use rg3d::{
     animation::Animation,
@@ -45,6 +46,7 @@ use rg3d::{
     window::Fullscreen,
 };
 use rg3d_ui::formatted_text::WrapMode;
+use rg3d_ui::inspector::InspectorContext;
 use std::time::Instant;
 
 const DEFAULT_MODEL_ROTATION: f32 = 180.0;
@@ -62,6 +64,34 @@ struct Interface {
     reset: Handle<UiNode>,
     video_modes: Vec<VideoMode>,
     resolutions: Handle<UiNode>,
+}
+
+struct TestObject {
+    float: f32,
+    int: i32,
+    string: String,
+}
+
+impl Inspect for TestObject {
+    fn properties(&self) -> Vec<PropertyInfo> {
+        vec![
+            PropertyInfo {
+                name: "float",
+                group: "Floats",
+                value: &self.float,
+            },
+            PropertyInfo {
+                name: "int",
+                group: "Integers",
+                value: &self.int,
+            },
+            PropertyInfo {
+                name: "string",
+                group: "Strings",
+                value: &self.string,
+            },
+        ]
+    }
 }
 
 // User interface in the engine build up on graph data structure, on tree to be
@@ -205,6 +235,20 @@ fn create_ui(engine: &mut GameEngine) -> Interface {
     .with_title(WindowTitle::text("Model Options"))
     .can_close(false)
     .build(ctx);
+
+    let test_object = TestObject {
+        float: 1.234,
+        int: 123,
+        string: "Ololo".to_string(),
+    };
+
+    InspectorBuilder::new(WidgetBuilder::new().with_desired_position(Vector2::new(200.0, 200.0)))
+        .with_context(InspectorContext::from_object(
+            test_object,
+            ctx,
+            &ConstructorContainer::new(),
+        ))
+        .build(ctx);
 
     // Create another window which will show some graphics options.
     let resolutions;

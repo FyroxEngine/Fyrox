@@ -276,7 +276,10 @@ impl<M: MessageData, C: Control<M, C>> ListViewBuilder<M, C> {
         let item_containers = generate_item_containers(ctx, &self.items);
 
         let panel = self.panel.unwrap_or_else(|| {
-            StackPanelBuilder::new(WidgetBuilder::new().with_children(&item_containers)).build(ctx)
+            StackPanelBuilder::new(
+                WidgetBuilder::new().with_children(item_containers.iter().cloned()),
+            )
+            .build(ctx)
         });
 
         let back = BorderBuilder::new(

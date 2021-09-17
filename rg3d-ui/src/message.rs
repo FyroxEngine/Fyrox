@@ -13,11 +13,10 @@
 //! However [WidgetMessage::GotFocus](enum.WidgetMessage.html) has "Direction: From UI" which means that only
 //! internal library code can send such messages without a risk of breaking anything.
 
-use crate::core::algebra::Vector4;
 use crate::{
     brush::Brush,
     core::{
-        algebra::{Vector2, Vector3},
+        algebra::{Vector2, Vector3, Vector4},
         color::{Color, Hsv},
         curve::{Curve, CurveKeyKind},
         pool::Handle,
@@ -26,6 +25,7 @@ use crate::{
     draw::SharedTexture,
     file_browser::Filter,
     formatted_text::WrapMode,
+    inspector::InspectorContext,
     messagebox::MessageBoxResult,
     popup::Placement,
     ttf::SharedFont,
@@ -958,6 +958,15 @@ impl CurveEditorMessage {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub enum InspectorMessage<M: MessageData, C: Control<M, C>> {
+    Context(InspectorContext<M, C>),
+}
+
+impl<M: MessageData, C: Control<M, C>> InspectorMessage<M, C> {
+    define_constructor!(Inspector(InspectorMessage:Context) => fn context(InspectorContext<M, C>), layout: false);
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum UiMessageData<M: MessageData, C: Control<M, C>> {
     Widget(WidgetMessage<M, C>),
     Button(ButtonMessage<M, C>),
@@ -993,6 +1002,7 @@ pub enum UiMessageData<M: MessageData, C: Control<M, C>> {
     Expander(ExpanderMessage),
     SaturationBrightnessField(SaturationBrightnessFieldMessage),
     CurveEditor(CurveEditorMessage),
+    Inspector(InspectorMessage<M, C>),
     User(M),
 }
 

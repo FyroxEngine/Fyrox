@@ -1,3 +1,4 @@
+use crate::inspector::Inspector;
 use crate::{
     border::Border,
     button::Button,
@@ -83,6 +84,7 @@ pub enum UINode<M: MessageData, C: Control<M, C>> {
     VectorImage(VectorImage<M, C>),
     Expander(Expander<M, C>),
     CurveEditor(CurveEditor<M, C>),
+    Inspector(Inspector<M, C>),
     User(C),
 }
 
@@ -131,6 +133,7 @@ macro_rules! static_dispatch {
             UINode::VectorImage(v) => v.$func($($args),*),
             UINode::Expander(v) => v.$func($($args),*),
             UINode::CurveEditor(v) => v.$func($($args),*),
+            UINode::Inspector(v) => v.$func($($args),*),
             UINode::User(v) => v.$func($($args),*),
         }
     };

@@ -857,11 +857,11 @@ impl<M: MessageData, C: Control<M, C>> WidgetBuilder<M, C> {
         self
     }
 
-    pub fn with_children<'a, I: IntoIterator<Item = &'a Handle<UINode<M, C>>>>(
+    pub fn with_children<'a, I: IntoIterator<Item = Handle<UINode<M, C>>>>(
         mut self,
         children: I,
     ) -> Self {
-        for &child in children.into_iter() {
+        for child in children.into_iter() {
             if child.is_some() {
                 self.children.push(child)
             }

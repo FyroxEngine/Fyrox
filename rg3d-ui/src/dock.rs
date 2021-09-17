@@ -948,7 +948,7 @@ impl<M: MessageData, C: Control<M, C>> TileBuilder<M, C> {
                 .with_preview_messages(true)
                 .with_child(grid)
                 .with_child(splitter)
-                .with_children(&children)
+                .with_children(children)
                 .build(),
             left_anchor,
             right_anchor,

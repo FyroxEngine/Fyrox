@@ -29,6 +29,7 @@ pub mod file_browser;
 pub mod formatted_text;
 pub mod grid;
 pub mod image;
+pub mod inspector;
 pub mod list_view;
 pub mod menu;
 pub mod message;

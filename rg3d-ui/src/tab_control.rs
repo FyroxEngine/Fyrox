@@ -117,14 +117,21 @@ impl<M: MessageData, C: Control<M, C>> TabControlBuilder<M, C> {
             })
             .collect::<Vec<Handle<UINode<M, C>>>>();
 
-        let headers_grid =
-            GridBuilder::new(WidgetBuilder::new().with_children(&tab_buttons).on_row(0))
-                .add_row(Row::auto())
-                .add_columns((0..tab_count).map(|_| Column::auto()).collect())
-                .build(ctx);
+        let headers_grid = GridBuilder::new(
+            WidgetBuilder::new()
+                .with_children(tab_buttons.iter().cloned())
+                .on_row(0),
+        )
+        .add_row(Row::auto())
+        .add_columns((0..tab_count).map(|_| Column::auto()).collect())
+        .build(ctx);
 
-        let content_grid =
-            GridBuilder::new(WidgetBuilder::new().with_children(&content).on_row(1)).build(ctx);
+        let content_grid = GridBuilder::new(
+            WidgetBuilder::new()
+                .with_children(content.iter().cloned())
+                .on_row(1),
+        )
+        .build(ctx);
 
         let grid = GridBuilder::new(
             WidgetBuilder::new()

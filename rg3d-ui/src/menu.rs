@@ -371,9 +371,11 @@ impl<M: MessageData, C: Control<M, C>> MenuBuilder<M, C> {
             WidgetBuilder::new()
                 .with_background(BRUSH_PRIMARY)
                 .with_child(
-                    StackPanelBuilder::new(WidgetBuilder::new().with_children(&self.items))
-                        .with_orientation(Orientation::Horizontal)
-                        .build(ctx),
+                    StackPanelBuilder::new(
+                        WidgetBuilder::new().with_children(self.items.iter().cloned()),
+                    )
+                    .with_orientation(Orientation::Horizontal)
+                    .build(ctx),
                 ),
         )
         .build(ctx);
@@ -516,7 +518,10 @@ impl<'a, 'b, M: MessageData, C: Control<M, C>> MenuItemBuilder<'a, 'b, M, C> {
 
         let popup = PopupBuilder::new(WidgetBuilder::new().with_min_size(Vector2::new(10.0, 10.0)))
             .with_content(
-                StackPanelBuilder::new(WidgetBuilder::new().with_children(&self.items)).build(ctx),
+                StackPanelBuilder::new(
+                    WidgetBuilder::new().with_children(self.items.iter().cloned()),
+                )
+                .build(ctx),
             )
             // We'll manually control if popup is either open or closed.
             .stays_open(true)

@@ -373,7 +373,7 @@ impl<M: MessageData, C: Control<M, C>> TreeBuilder<M, C> {
                             .on_row(1)
                             .on_column(0)
                             .with_margin(Thickness::left(15.0))
-                            .with_children(self.items.iter()),
+                            .with_children(self.items.iter().cloned()),
                     )
                     .build(ctx);
                     panel
@@ -568,8 +568,9 @@ impl<M: MessageData, C: Control<M, C>> TreeRootBuilder<M, C> {
     }
 
     pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
-        let panel = StackPanelBuilder::new(WidgetBuilder::new().with_children(self.items.iter()))
-            .build(ctx);
+        let panel =
+            StackPanelBuilder::new(WidgetBuilder::new().with_children(self.items.iter().cloned()))
+                .build(ctx);
 
         let tree = TreeRoot {
             widget: self.widget_builder.with_child(panel).build(),
