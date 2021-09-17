@@ -188,7 +188,7 @@ impl SideBar {
                 scroll_viewer =
                     ScrollViewerBuilder::new(WidgetBuilder::new().with_visibility(false))
                         .with_content(
-                            StackPanelBuilder::new(WidgetBuilder::new().with_children(&[
+                            StackPanelBuilder::new(WidgetBuilder::new().with_children([
                                 base_section.section,
                                 light_section.section,
                                 camera_section.section,

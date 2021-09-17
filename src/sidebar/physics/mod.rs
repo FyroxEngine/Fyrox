@@ -196,7 +196,7 @@ impl PhysicsSection {
                         .add_row(Row::strict(ROW_HEIGHT))
                         .build(ctx),
                     )
-                    .with_children(&[
+                    .with_children([
                         body_section.section,
                         collider_section.section,
                         cylinder_section.section,

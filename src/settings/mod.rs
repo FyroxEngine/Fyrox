@@ -209,7 +209,7 @@ impl SettingsWindow {
                 })
                 .with_child(
                     BorderBuilder::new(WidgetBuilder::new().on_row(0).on_column(1).with_children(
-                        &[
+                        [
                             graphics_section.section,
                             debugging_section.section,
                             move_mode_section.section,

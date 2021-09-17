@@ -60,7 +60,7 @@ impl LightSection {
         let section = make_section(
             "Light Properties",
             StackPanelBuilder::new(
-                WidgetBuilder::new().with_children(&[
+                WidgetBuilder::new().with_children([
                     GridBuilder::new(
                         WidgetBuilder::new()
                             .with_child(make_text_mark(ctx, "Color", 0))

@@ -61,7 +61,7 @@ impl JointSection {
         let section = make_section(
             "Joint Properties",
             StackPanelBuilder::new(
-                WidgetBuilder::new().with_children(&[
+                WidgetBuilder::new().with_children([
                     GridBuilder::new(
                         WidgetBuilder::new()
                             .with_child({
