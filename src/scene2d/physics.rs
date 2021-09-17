@@ -5,6 +5,7 @@ use crate::{
     physics2d::{
         body::RigidBodyContainer,
         collider::ColliderContainer,
+        desc::PhysicsDesc,
         joint::JointContainer,
         rapier::{
             dynamics::{JointSet, RigidBodySet},
@@ -19,32 +20,68 @@ use std::{
 };
 
 /// Physics world.
-#[derive(Visit, Debug)]
-pub struct Physics(pub PhysicsWorld);
+#[derive(Debug)]
+pub struct Physics {
+    world: PhysicsWorld,
+
+    /// Descriptors have two purposes:
+    /// 1) Defer deserialization to resolve stage - the stage where all meshes
+    ///    were loaded and there is a possibility to obtain data for trimeshes.
+    ///    Resolve stage will drain these vectors. This is normal use case.
+    /// 2) Save data from editor: when descriptors are set, only they will be
+    ///    written to output. This is a HACK, but I don't know better solution
+    ///    yet.
+    pub desc: Option<PhysicsDesc>,
+}
+
+impl Visit for Physics {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        let mut desc = if visitor.is_reading() {
+            Default::default()
+        } else if let Some(desc) = self.desc.as_ref() {
+            desc.clone()
+        } else {
+            self.generate_desc()
+        };
+        desc.visit("Desc", visitor)?;
+
+        // Save descriptors for resolve stage.
+        if visitor.is_reading() {
+            self.desc = Some(desc);
+        }
+
+        visitor.leave_region()
+    }
+}
 
 impl Deref for Physics {
     type Target = PhysicsWorld;
 
     fn deref(&self) -> &Self::Target {
-        &self.0
+        &self.world
     }
 }
 
 impl DerefMut for Physics {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+        &mut self.world
     }
 }
 
 impl Default for Physics {
     fn default() -> Self {
-        Self::new()
+        Self {
+            world: PhysicsWorld::new(),
+            desc: None,
+        }
     }
 }
 
 impl Physics {
     pub(in crate) fn new() -> Self {
-        Self(PhysicsWorld::new())
+        Self::default()
     }
 
     // Deep copy is performed using descriptors.

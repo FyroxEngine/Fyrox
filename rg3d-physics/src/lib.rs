@@ -224,15 +224,6 @@ pub struct PhysicsWorld {
     /// Event handler collects info about contacts and proximity events.
     pub event_handler: Box<dyn EventHandler>,
 
-    /// Descriptors have two purposes:
-    /// 1) Defer deserialization to resolve stage - the stage where all meshes
-    ///    were loaded and there is a possibility to obtain data for trimeshes.
-    ///    Resolve stage will drain these vectors. This is normal use case.
-    /// 2) Save data from editor: when descriptors are set, only they will be
-    ///    written to output. This is a HACK, but I don't know better solution
-    ///    yet.
-    pub desc: Option<PhysicsDesc>,
-
     query: RefCell<QueryPipeline>,
 
     /// Performance statistics of a single simulation step.
@@ -349,7 +340,6 @@ impl PhysicsWorld {
             joints: JointContainer::new(),
             event_handler: Box::new(()),
             query: Default::default(),
-            desc: Default::default(),
             performance_statistics: Default::default(),
         }
     }
@@ -560,25 +550,5 @@ impl PhysicsWorld {
     pub fn remove_joint(&mut self, joint_handle: &JointHandle, wake_up: bool) -> Option<Joint> {
         self.joints
             .remove(joint_handle, &mut self.bodies, &mut self.islands, wake_up)
-    }
-}
-
-impl Visit for PhysicsWorld {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        let mut desc = if visitor.is_reading() {
-            Default::default()
-        } else if let Some(desc) = self.desc.as_ref() {
-            desc.clone()
-        } else {
-            self.generate_desc()
-        };
-        desc.visit(name, visitor)?;
-
-        // Save descriptors for resolve stage.
-        if visitor.is_reading() {
-            self.desc = Some(desc);
-        }
-
-        Ok(())
     }
 }

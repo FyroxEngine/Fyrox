@@ -9,7 +9,7 @@ use crate::{
     physics3d::{
         body::RigidBodyContainer,
         collider::ColliderContainer,
-        desc::{ColliderDesc, ColliderShapeDesc, JointDesc, RigidBodyDesc},
+        desc::{ColliderDesc, ColliderShapeDesc, JointDesc, PhysicsDesc, RigidBodyDesc},
         joint::JointContainer,
         rapier::{
             dynamics::{JointSet, RigidBodyBuilder, RigidBodySet, RigidBodyType},
@@ -75,6 +75,40 @@ pub struct Physics {
     /// A list of external resources that were embedded in the physics during
     /// instantiation process.
     pub embedded_resources: Vec<ResourceLink>,
+
+    /// Descriptors have two purposes:
+    /// 1) Defer deserialization to resolve stage - the stage where all meshes
+    ///    were loaded and there is a possibility to obtain data for trimeshes.
+    ///    Resolve stage will drain these vectors. This is normal use case.
+    /// 2) Save data from editor: when descriptors are set, only they will be
+    ///    written to output. This is a HACK, but I don't know better solution
+    ///    yet.
+    pub desc: Option<PhysicsDesc>,
+}
+
+impl Visit for Physics {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        let mut desc = if visitor.is_reading() {
+            Default::default()
+        } else if let Some(desc) = self.desc.as_ref() {
+            desc.clone()
+        } else {
+            self.generate_desc()
+        };
+        desc.visit("Desc", visitor)?;
+
+        // Save descriptors for resolve stage.
+        if visitor.is_reading() {
+            self.desc = Some(desc);
+        }
+
+        self.embedded_resources
+            .visit("EmbeddedResources", visitor)?;
+
+        visitor.leave_region()
+    }
 }
 
 impl Deref for Physics {
@@ -102,6 +136,7 @@ impl Physics {
         Self {
             world: PhysicsWorld::new(),
             embedded_resources: Default::default(),
+            desc: None,
         }
     }
 
@@ -744,18 +779,5 @@ impl Physics {
                 data.path.display()
             ),
         );
-    }
-}
-
-impl Visit for Physics {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.world.visit("Desc", visitor)?;
-
-        self.embedded_resources
-            .visit("EmbeddedResources", visitor)?;
-
-        visitor.leave_region()
     }
 }
