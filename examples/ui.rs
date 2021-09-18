@@ -11,6 +11,7 @@ pub mod shared;
 use crate::shared::create_camera;
 use rg3d::engine::resource_manager::MaterialSearchOptions;
 use rg3d::gui::inspector::{ConstructorContainer, Inspect, InspectorBuilder, PropertyInfo};
+use rg3d::gui::message::{NumericUpDownMessage, TextBoxMessage};
 use rg3d::utils::log::{Log, MessageKind};
 use rg3d::{
     animation::Animation,
@@ -64,6 +65,8 @@ struct Interface {
     reset: Handle<UiNode>,
     video_modes: Vec<VideoMode>,
     resolutions: Handle<UiNode>,
+    test_object: TestObject,
+    inspector_context: InspectorContext<(), StubNode>,
 }
 
 struct TestObject {
@@ -242,12 +245,11 @@ fn create_ui(engine: &mut GameEngine) -> Interface {
         string: "Ololo".to_string(),
     };
 
+    let inspector_context =
+        InspectorContext::from_object(&test_object, ctx, &ConstructorContainer::new());
+
     InspectorBuilder::new(WidgetBuilder::new().with_desired_position(Vector2::new(200.0, 200.0)))
-        .with_context(InspectorContext::from_object(
-            test_object,
-            ctx,
-            &ConstructorContainer::new(),
-        ))
+        .with_context(inspector_context.clone())
         .build(ctx);
 
     // Create another window which will show some graphics options.
@@ -316,6 +318,8 @@ fn create_ui(engine: &mut GameEngine) -> Interface {
         reset,
         resolutions,
         video_modes,
+        test_object,
+        inspector_context,
     }
 }
 
@@ -469,6 +473,27 @@ fn main() {
                 // use messages to get information from UI elements. This provides perfect decoupling of logic
                 // from UI elements and works well with borrow checker.
                 while let Some(ui_message) = engine.user_interface.poll_message() {
+                    for property in interface.test_object.properties() {
+                        let property_editor = interface
+                            .inspector_context
+                            .find_property_editor(property.name);
+                        if ui_message.destination() == property_editor
+                            && ui_message.direction() == MessageDirection::FromWidget
+                        {
+                            match ui_message.data() {
+                                UiMessageData::NumericUpDown(NumericUpDownMessage::Value(
+                                    value,
+                                )) => {
+                                    println!("{}", value);
+                                }
+                                UiMessageData::TextBox(TextBoxMessage::Text(text)) => {
+                                    println!("{}", text);
+                                }
+                                _ => (),
+                            }
+                        }
+                    }
+
                     match ui_message.data() {
                         UiMessageData::ScrollBar(msg)
                             if ui_message.direction() == MessageDirection::FromWidget =>
