@@ -59,6 +59,7 @@ pub trait Inspect {
     fn properties(&self) -> Vec<PropertyInfo<'_>>;
 }
 
+#[derive(Debug)]
 pub enum InspectorError {
     TypeMismatch {
         property_name: String,
@@ -117,6 +118,7 @@ impl<M: MessageData, C: Control<M, C>> PropertyEditorConstructor<M, C> {
                     WidgetBuilder::new().on_row(ctx.row).on_column(ctx.column),
                 )
                 .with_precision(0)
+                .with_step(1.0)
                 .with_min_value(-i32::MAX as f32)
                 .with_max_value(i32::MAX as f32)
                 .with_value(*value as f32)
@@ -188,14 +190,20 @@ impl<M: MessageData, C: Control<M, C>> ConstructorContainer<M, C> {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-struct ContextEntry<M: MessageData, C: Control<M, C>> {
-    name: String,
-    property_editor: Handle<UINode<M, C>>,
+pub struct ContextEntry<M: MessageData, C: Control<M, C>> {
+    pub name: String,
+    pub property_editor: Handle<UINode<M, C>>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Group<M: MessageData, C: Control<M, C>> {
+    section: Handle<UINode<M, C>>,
+    entries: Vec<ContextEntry<M, C>>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct InspectorContext<M: MessageData, C: Control<M, C>> {
-    groups: HashMap<Handle<UINode<M, C>>, Vec<ContextEntry<M, C>>>,
+    groups: Vec<Group<M, C>>,
 }
 
 impl<M: MessageData, C: Control<M, C>> Default for InspectorContext<M, C> {
@@ -207,8 +215,8 @@ impl<M: MessageData, C: Control<M, C>> Default for InspectorContext<M, C> {
 }
 
 impl<M: MessageData, C: Control<M, C>> InspectorContext<M, C> {
-    pub fn from_object<I: Inspect>(
-        object: I,
+    pub fn from_object(
+        object: &dyn Inspect,
         ctx: &mut BuildContext<M, C>,
         constructors: &ConstructorContainer<M, C>,
     ) -> Self {
@@ -281,16 +289,16 @@ impl<M: MessageData, C: Control<M, C>> InspectorContext<M, C> {
                         .build(ctx),
                     )
                     .build(ctx);
-                (section, entries)
+                Group { section, entries }
             })
-            .collect::<HashMap<_, _>>();
+            .collect::<Vec<_>>();
 
         Self { groups }
     }
 
-    pub fn sync<I: Inspect>(
+    pub fn sync(
         &self,
-        object: I,
+        object: &dyn Inspect,
         constructors: &ConstructorContainer<M, C>,
         ui: &mut UserInterface<M, C>,
     ) -> Result<(), InspectorError> {
@@ -307,9 +315,14 @@ impl<M: MessageData, C: Control<M, C>> InspectorContext<M, C> {
         Ok(())
     }
 
+    pub fn property_editors(&self) -> impl Iterator<Item = &ContextEntry<M, C>> + '_ {
+        self.groups.iter().map(|g| g.entries.iter()).flatten()
+    }
+
     pub fn find_property_editor(&self, name: &str) -> Handle<UINode<M, C>> {
-        for group in self.groups.values() {
+        for group in self.groups.iter() {
             if let Some(property_editor) = group
+                .entries
                 .iter()
                 .find(|e| e.name == name)
                 .map(|e| e.property_editor)
@@ -338,9 +351,9 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Inspector<M, C> {
                 }
 
                 // Link new sections to the panel.
-                for group in ctx.groups.keys() {
+                for group in ctx.groups.iter() {
                     ui.send_message(WidgetMessage::link(
-                        *group,
+                        group.section,
                         MessageDirection::ToWidget,
                         self.stack_panel,
                     ));
@@ -371,7 +384,12 @@ impl<M: MessageData, C: Control<M, C>> InspectorBuilder<M, C> {
     }
 
     pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
-        let sections = self.context.groups.keys().cloned().collect::<Vec<_>>();
+        let sections = self
+            .context
+            .groups
+            .iter()
+            .map(|g| g.section)
+            .collect::<Vec<_>>();
 
         let stack_panel =
             StackPanelBuilder::new(WidgetBuilder::new().with_children(sections)).build(ctx);
