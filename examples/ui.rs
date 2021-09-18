@@ -10,8 +10,6 @@ pub mod shared;
 
 use crate::shared::create_camera;
 use rg3d::engine::resource_manager::MaterialSearchOptions;
-use rg3d::gui::inspector::{ConstructorContainer, Inspect, InspectorBuilder, PropertyInfo};
-use rg3d::gui::message::{NumericUpDownMessage, TextBoxMessage};
 use rg3d::utils::log::{Log, MessageKind};
 use rg3d::{
     animation::Animation,
@@ -47,7 +45,6 @@ use rg3d::{
     window::Fullscreen,
 };
 use rg3d_ui::formatted_text::WrapMode;
-use rg3d_ui::inspector::InspectorContext;
 use std::time::Instant;
 
 const DEFAULT_MODEL_ROTATION: f32 = 180.0;
@@ -65,36 +62,6 @@ struct Interface {
     reset: Handle<UiNode>,
     video_modes: Vec<VideoMode>,
     resolutions: Handle<UiNode>,
-    test_object: TestObject,
-    inspector_context: InspectorContext<(), StubNode>,
-}
-
-struct TestObject {
-    float: f32,
-    int: i32,
-    string: String,
-}
-
-impl Inspect for TestObject {
-    fn properties(&self) -> Vec<PropertyInfo> {
-        vec![
-            PropertyInfo {
-                name: "float",
-                group: "Floats",
-                value: &self.float,
-            },
-            PropertyInfo {
-                name: "int",
-                group: "Integers",
-                value: &self.int,
-            },
-            PropertyInfo {
-                name: "string",
-                group: "Strings",
-                value: &self.string,
-            },
-        ]
-    }
 }
 
 // User interface in the engine build up on graph data structure, on tree to be
@@ -239,19 +206,6 @@ fn create_ui(engine: &mut GameEngine) -> Interface {
     .can_close(false)
     .build(ctx);
 
-    let test_object = TestObject {
-        float: 1.234,
-        int: 123,
-        string: "Ololo".to_string(),
-    };
-
-    let inspector_context =
-        InspectorContext::from_object(&test_object, ctx, &ConstructorContainer::new());
-
-    InspectorBuilder::new(WidgetBuilder::new().with_desired_position(Vector2::new(200.0, 200.0)))
-        .with_context(inspector_context.clone())
-        .build(ctx);
-
     // Create another window which will show some graphics options.
     let resolutions;
     WindowBuilder::new(
@@ -318,8 +272,6 @@ fn create_ui(engine: &mut GameEngine) -> Interface {
         reset,
         resolutions,
         video_modes,
-        test_object,
-        inspector_context,
     }
 }
 
@@ -473,27 +425,6 @@ fn main() {
                 // use messages to get information from UI elements. This provides perfect decoupling of logic
                 // from UI elements and works well with borrow checker.
                 while let Some(ui_message) = engine.user_interface.poll_message() {
-                    for property in interface.test_object.properties() {
-                        let property_editor = interface
-                            .inspector_context
-                            .find_property_editor(property.name);
-                        if ui_message.destination() == property_editor
-                            && ui_message.direction() == MessageDirection::FromWidget
-                        {
-                            match ui_message.data() {
-                                UiMessageData::NumericUpDown(NumericUpDownMessage::Value(
-                                    value,
-                                )) => {
-                                    println!("{}", value);
-                                }
-                                UiMessageData::TextBox(TextBoxMessage::Text(text)) => {
-                                    println!("{}", text);
-                                }
-                                _ => (),
-                            }
-                        }
-                    }
-
                     match ui_message.data() {
                         UiMessageData::ScrollBar(msg)
                             if ui_message.direction() == MessageDirection::FromWidget =>

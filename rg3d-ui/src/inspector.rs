@@ -1,15 +1,16 @@
 use crate::{
-    core::pool::Handle,
+    core::{algebra::Vector3, pool::Handle},
     expander::ExpanderBuilder,
     grid::{Column, GridBuilder, Row},
     message::{
         InspectorMessage, MessageData, MessageDirection, NumericUpDownMessage, TextBoxMessage,
-        UiMessage, UiMessageData, WidgetMessage,
+        UiMessage, UiMessageData, Vec3EditorMessage, WidgetMessage,
     },
     numeric::NumericUpDownBuilder,
     stack_panel::StackPanelBuilder,
     text::TextBuilder,
     text_box::TextBoxBuilder,
+    vec::vec3::Vec3EditorBuilder,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UINode, UserInterface, VerticalAlignment,
 };
@@ -156,6 +157,28 @@ impl<M: MessageData, C: Control<M, C>> PropertyEditorConstructor<M, C> {
             }),
         }
     }
+
+    pub fn vec3_f32_editor() -> Self {
+        Self {
+            type_id: TypeId::of::<Vector3<f32>>(),
+            builder: Box::new(|ctx| {
+                let value = ctx.property_info.cast_value::<Vector3<f32>>()?;
+                Ok(Vec3EditorBuilder::new(
+                    WidgetBuilder::new().on_row(ctx.row).on_column(ctx.column),
+                )
+                .with_value(*value)
+                .build(ctx.build_context))
+            }),
+            sync_message_builder: Box::new(|dest, property_info| {
+                let value = property_info.cast_value::<Vector3<f32>>()?;
+                Ok(Vec3EditorMessage::value(
+                    dest,
+                    MessageDirection::ToWidget,
+                    *value,
+                ))
+            }),
+        }
+    }
 }
 
 pub struct ConstructorContainer<M: MessageData, C: Control<M, C>> {
@@ -176,6 +199,7 @@ impl<M: MessageData, C: Control<M, C>> ConstructorContainer<M, C> {
         container.insert(PropertyEditorConstructor::f32_editor());
         container.insert(PropertyEditorConstructor::i32_editor());
         container.insert(PropertyEditorConstructor::string_editor());
+        container.insert(PropertyEditorConstructor::vec3_f32_editor());
         container
     }
 
