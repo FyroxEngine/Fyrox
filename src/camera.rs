@@ -24,6 +24,9 @@ pub struct CameraController {
     yaw: f32,
     pitch: f32,
     rotate: bool,
+    drag_side: f32,
+    drag_up: f32,
+    drag: bool,
     move_left: bool,
     move_right: bool,
     move_forward: bool,
@@ -75,6 +78,9 @@ impl CameraController {
             yaw: 0.0,
             pitch: 0.0,
             rotate: false,
+            drag_side: 0.0,
+            drag_up: 0.0,
+            drag: false,
             move_left: false,
             move_right: false,
             move_forward: false,
@@ -97,6 +103,11 @@ impl CameraController {
                 self.pitch = -90.0f32.to_radians();
             }
         }
+
+        if self.drag {
+            self.drag_side -= delta.x * 0.01;
+            self.drag_up -= delta.y * 0.01;
+        }
     }
 
     pub fn on_mouse_wheel(&mut self, delta: f32, graph: &mut Graph) {
@@ -110,14 +121,26 @@ impl CameraController {
     }
 
     pub fn on_mouse_button_up(&mut self, button: MouseButton) {
-        if button == MouseButton::Right {
-            self.rotate = false;
+        match button {
+            MouseButton::Right => {
+                self.rotate = false;
+            },
+            MouseButton::Middle => {
+                self.drag = false;
+            },
+            _ => (),
         }
     }
 
     pub fn on_mouse_button_down(&mut self, button: MouseButton) {
-        if button == MouseButton::Right {
-            self.rotate = true;
+        match button {
+            MouseButton::Right => {
+                self.rotate = true;
+            },
+            MouseButton::Middle => {
+                self.drag = true;
+            },
+            _ => (),
         }
     }
 
@@ -167,6 +190,11 @@ impl CameraController {
         if let Some(v) = move_vec.try_normalize(std::f32::EPSILON) {
             move_vec = v.scale(self.speed_factor * 10.0 * dt);
         }
+
+        move_vec += side * self.drag_side;
+        move_vec.y += self.drag_up;
+        self.drag_side = 0.0;
+        self.drag_up = 0.0;
 
         if let Node::Camera(camera) = camera {
             let pitch = UnitQuaternion::from_axis_angle(&Vector3::x_axis(), self.pitch);
