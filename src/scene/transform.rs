@@ -49,6 +49,7 @@
 use crate::{
     core::{
         algebra::{Matrix3, Matrix4, UnitQuaternion, Vector3},
+        inspect::{Inspect, PropertyInfo},
         visitor::{Visit, VisitResult, Visitor},
     },
     scene::variable::TemplateVariable,
@@ -74,6 +75,58 @@ pub struct Transform {
     /// Combined transform. Final result of combination of other properties.
     matrix: Cell<Matrix4<f32>>,
     post_rotation_matrix: Matrix3<f32>,
+}
+
+impl Inspect for Transform {
+    fn properties(&self) -> Vec<PropertyInfo<'_>> {
+        vec![
+            PropertyInfo {
+                name: "Local Scale",
+                group: "Transform",
+                value: &*self.local_scale,
+            },
+            PropertyInfo {
+                name: "Local Position",
+                group: "Transform",
+                value: &*self.local_position,
+            },
+            PropertyInfo {
+                name: "Local Rotation",
+                group: "Transform",
+                value: &*self.local_rotation,
+            },
+            PropertyInfo {
+                name: "Pre Rotation",
+                group: "Transform",
+                value: &*self.pre_rotation,
+            },
+            PropertyInfo {
+                name: "Post Rotation",
+                group: "Transform",
+                value: &*self.post_rotation,
+            },
+            PropertyInfo {
+                name: "Rotation Offset",
+                group: "Transform",
+                value: &*self.rotation_offset,
+            },
+            PropertyInfo {
+                name: "Rotation Pivot",
+                group: "Transform",
+                value: &*self.rotation_pivot,
+            },
+            PropertyInfo {
+                name: "Scaling Offset",
+                group: "Transform",
+                value: &*self.scaling_offset,
+            },
+            PropertyInfo {
+                name: "Scaling Pivot",
+                group: "Transform",
+                value: &*self.scaling_pivot,
+            },
+        ]
+    }
 }
 
 /// Helper to load old versions.

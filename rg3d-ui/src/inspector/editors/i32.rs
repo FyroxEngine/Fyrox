@@ -1,8 +1,8 @@
+use crate::core::inspect::PropertyInfo;
 use crate::{
     core::pool::Handle,
     inspector::{
         editors::{PropertyEditorBuildContext, PropertyEditorDefinition},
-        property::PropertyInfo,
         InspectorError,
     },
     message::{

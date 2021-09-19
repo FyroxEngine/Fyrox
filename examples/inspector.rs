@@ -8,6 +8,7 @@ use rg3d::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
         color::Color,
+        inspect::{Inspect, PropertyInfo},
         pool::Handle,
     },
     engine::resource_manager::{MaterialSearchOptions, ResourceManager},
@@ -15,9 +16,7 @@ use rg3d::{
     event_loop::{ControlFlow, EventLoop},
     gui::{
         inspector::{
-            editors::PropertyDefinitionContainer,
-            property::{Inspect, PropertyInfo},
-            InspectorBuilder, InspectorContext,
+            editors::PropertyEditorDefinitionContainer, InspectorBuilder, InspectorContext,
         },
         message::{InspectorMessage, MessageDirection, TextMessage, UiMessageData},
         node::StubNode,
@@ -31,6 +30,7 @@ use rg3d::{
         translate_event,
     },
 };
+use std::sync::Arc;
 use std::time::Instant;
 
 // Create our own engine type aliases. These specializations are needed
@@ -85,7 +85,7 @@ fn create_ui(engine: &mut GameEngine) -> Interface {
         name: "Model".to_string(),
     };
 
-    let definition_container = PropertyDefinitionContainer::new();
+    let definition_container = Arc::new(PropertyEditorDefinitionContainer::new());
 
     let inspector_context = InspectorContext::from_object(&view_model, ctx, &definition_container);
 
@@ -96,7 +96,7 @@ fn create_ui(engine: &mut GameEngine) -> Interface {
             inspector = InspectorBuilder::new(
                 WidgetBuilder::new().with_desired_position(Vector2::new(200.0, 200.0)),
             )
-            .with_property_definitions(definition_container)
+            .with_property_editor_definitions(definition_container)
             .with_context(inspector_context.clone())
             .build(ctx);
             inspector

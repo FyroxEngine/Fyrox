@@ -13,6 +13,7 @@
 //! However [WidgetMessage::GotFocus](enum.WidgetMessage.html) has "Direction: From UI" which means that only
 //! internal library code can send such messages without a risk of breaking anything.
 
+use crate::core::inspect::PropertyValue;
 use crate::{
     brush::Brush,
     core::{
@@ -25,7 +26,7 @@ use crate::{
     draw::SharedTexture,
     file_browser::Filter,
     formatted_text::WrapMode,
-    inspector::{property::PropertyValue, InspectorContext},
+    inspector::InspectorContext,
     messagebox::MessageBoxResult,
     popup::Placement,
     ttf::SharedFont,

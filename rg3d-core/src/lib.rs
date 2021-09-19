@@ -21,6 +21,7 @@ use std::path::{Path, PathBuf};
 pub mod color;
 pub mod color_gradient;
 pub mod curve;
+pub mod inspect;
 pub mod io;
 pub mod math;
 pub mod numeric_range;
@@ -30,6 +31,7 @@ pub mod profiler;
 pub mod quadtree;
 pub mod rectpack;
 pub mod visitor;
+
 pub use futures;
 pub use instant;
 

@@ -1,13 +1,17 @@
+use crate::border::BorderBuilder;
+use crate::brush::Brush;
+use crate::core::color::Color;
+use crate::core::inspect::CastError;
 use crate::{
-    core::pool::Handle,
+    core::{
+        inspect::{Inspect, PropertyInfo},
+        pool::Handle,
+    },
     expander::ExpanderBuilder,
     formatted_text::WrapMode,
     grid::{Column, GridBuilder, Row},
-    inspector::{
-        editors::{
-            PropertyDefinitionContainer, PropertyEditorBuildContext, PropertyEditorDefinition,
-        },
-        property::{Inspect, PropertyInfo},
+    inspector::editors::{
+        PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorDefinitionContainer,
     },
     message::{
         InspectorMessage, MessageData, MessageDirection, UiMessage, UiMessageData, WidgetMessage,
@@ -15,10 +19,9 @@ use crate::{
     stack_panel::StackPanelBuilder,
     text::TextBuilder,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, UINode, UserInterface, VerticalAlignment,
+    BuildContext, Control, Thickness, UINode, UserInterface, VerticalAlignment,
 };
 use std::{
-    any::TypeId,
     collections::{hash_map::Entry, HashMap},
     fmt::Debug,
     ops::{Deref, DerefMut},
@@ -26,26 +29,27 @@ use std::{
 };
 
 pub mod editors;
-pub mod property;
 
 #[derive(Clone)]
 pub struct Inspector<M: MessageData, C: Control<M, C>> {
     widget: Widget<M, C>,
     stack_panel: Handle<UINode<M, C>>,
     context: InspectorContext<M, C>,
-    property_definitions: PropertyDefinitionContainer<M, C>,
+    property_definitions: Arc<PropertyEditorDefinitionContainer<M, C>>,
 }
 
 crate::define_widget_deref!(Inspector<M, C>);
 
 #[derive(Debug)]
 pub enum InspectorError {
-    TypeMismatch {
-        property_name: String,
-        expected_type_id: TypeId,
-        actual_type_id: TypeId,
-    },
+    CastError(CastError),
     OutOfSync,
+}
+
+impl From<CastError> for InspectorError {
+    fn from(e: CastError) -> Self {
+        Self::CastError(e)
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -85,11 +89,37 @@ impl<M: MessageData, C: Control<M, C>> Default for InspectorContext<M, C> {
     }
 }
 
+fn create_section_header<M: MessageData, C: Control<M, C>>(
+    ctx: &mut BuildContext<M, C>,
+    text: &str,
+) -> Handle<UINode<M, C>> {
+    TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
+        .with_text(text)
+        .with_vertical_text_alignment(VerticalAlignment::Center)
+        .build(ctx)
+}
+
+fn create_property_title<M: MessageData, C: Control<M, C>>(
+    ctx: &mut BuildContext<M, C>,
+    row: usize,
+    text: &str,
+) -> Handle<UINode<M, C>> {
+    TextBuilder::new(
+        WidgetBuilder::new()
+            .on_row(row)
+            .on_column(0)
+            .with_margin(Thickness::uniform(2.0)),
+    )
+    .with_text(text)
+    .with_vertical_text_alignment(VerticalAlignment::Center)
+    .build(ctx)
+}
+
 impl<M: MessageData, C: Control<M, C>> InspectorContext<M, C> {
     pub fn from_object(
         object: &dyn Inspect,
         ctx: &mut BuildContext<M, C>,
-        definition_container: &PropertyDefinitionContainer<M, C>,
+        definition_container: &PropertyEditorDefinitionContainer<M, C>,
     ) -> Self {
         let mut property_groups = HashMap::<&'static str, Vec<PropertyInfo>>::new();
         for info in object.properties() {
@@ -111,71 +141,83 @@ impl<M: MessageData, C: Control<M, C>> InspectorContext<M, C> {
             .iter()
             .map(|(group, infos)| {
                 let mut entries = Vec::new();
-                let section = ExpanderBuilder::new(WidgetBuilder::new())
-                    .with_header(
-                        TextBuilder::new(WidgetBuilder::new())
-                            .with_text(group)
-                            .with_vertical_text_alignment(VerticalAlignment::Center)
-                            .build(ctx),
-                    )
-                    .with_content(
-                        GridBuilder::new(
-                            WidgetBuilder::new()
-                                .with_children(infos.iter().enumerate().map(|(i, info)| {
-                                    TextBuilder::new(WidgetBuilder::new().on_row(i).on_column(0))
-                                        .with_text(info.name)
-                                        .with_vertical_text_alignment(VerticalAlignment::Center)
-                                        .build(ctx)
-                                }))
-                                .with_children(infos.iter().enumerate().map(|(i, info)| {
-                                    if let Some(definition) = definition_container
-                                        .definitions()
-                                        .get(&info.value.type_id())
-                                    {
-                                        match definition.create_instance(
-                                            PropertyEditorBuildContext {
-                                                build_context: ctx,
-                                                property_info: info,
-                                                row: i,
-                                                column: 1,
-                                            },
-                                        ) {
-                                            Ok(instance) => {
-                                                entries.push(ContextEntry {
-                                                    property_editor: instance,
-                                                    property_editor_definition: definition.clone(),
-                                                    property_name: info.name.to_string(),
-                                                });
-
-                                                instance
-                                            }
-                                            Err(e) => TextBuilder::new(
-                                                WidgetBuilder::new().on_row(i).on_column(1),
-                                            )
-                                            .with_wrap(WrapMode::Word)
-                                            .with_text(format!(
-                                                "Unable to create property \
-                                                    editor instance: Reason {:?}",
-                                                e
+                let section = BorderBuilder::new(
+                    WidgetBuilder::new()
+                        .with_margin(Thickness::uniform(1.0))
+                        .with_child(
+                            ExpanderBuilder::new(WidgetBuilder::new())
+                                .with_header(create_section_header(ctx, group))
+                                .with_content(
+                                    GridBuilder::new(
+                                        WidgetBuilder::new()
+                                            .with_children(infos.iter().enumerate().map(
+                                                |(i, info)| {
+                                                    create_property_title(ctx, i, info.name)
+                                                },
                                             ))
-                                            .build(ctx),
-                                        }
-                                    } else {
-                                        TextBuilder::new(
-                                            WidgetBuilder::new().on_row(i).on_column(1),
-                                        )
-                                        .with_wrap(WrapMode::Word)
-                                        .with_text("Property Editor Is Missing!")
-                                        .build(ctx)
-                                    }
-                                })),
+                                            .with_children(infos.iter().enumerate().map(
+                                                |(i, info)| {
+                                                    if let Some(definition) = definition_container
+                                                        .definitions()
+                                                        .get(&info.value.type_id())
+                                                    {
+                                                        match definition.create_instance(
+                                                            PropertyEditorBuildContext {
+                                                                build_context: ctx,
+                                                                property_info: info,
+                                                                row: i,
+                                                                column: 1,
+                                                            },
+                                                        ) {
+                                                            Ok(instance) => {
+                                                                entries.push(ContextEntry {
+                                                                    property_editor: instance,
+                                                                    property_editor_definition:
+                                                                        definition.clone(),
+                                                                    property_name: info
+                                                                        .name
+                                                                        .to_string(),
+                                                                });
+
+                                                                instance
+                                                            }
+                                                            Err(e) => TextBuilder::new(
+                                                                WidgetBuilder::new()
+                                                                    .on_row(i)
+                                                                    .on_column(1),
+                                                            )
+                                                            .with_wrap(WrapMode::Word)
+                                                            .with_text(format!(
+                                                                "Unable to create property \
+                                                    editor instance: Reason {:?}",
+                                                                e
+                                                            ))
+                                                            .build(ctx),
+                                                        }
+                                                    } else {
+                                                        TextBuilder::new(
+                                                            WidgetBuilder::new()
+                                                                .on_row(i)
+                                                                .on_column(1),
+                                                        )
+                                                        .with_wrap(WrapMode::Word)
+                                                        .with_text("Property Editor Is Missing!")
+                                                        .build(ctx)
+                                                    }
+                                                },
+                                            )),
+                                    )
+                                    .add_rows(infos.iter().map(|_| Row::strict(25.0)).collect())
+                                    .add_column(Column::strict(130.0))
+                                    .add_column(Column::stretch())
+                                    .build(ctx),
+                                )
+                                .build(ctx),
                         )
-                        .add_rows(infos.iter().map(|_| Row::strict(25.0)).collect())
-                        .add_column(Column::strict(200.0))
-                        .add_column(Column::stretch())
-                        .build(ctx),
-                    )
-                    .build(ctx);
+                        .with_foreground(Brush::Solid(Color::opaque(130, 130, 130))),
+                )
+                .build(ctx);
+
                 Group { section, entries }
             })
             .collect::<Vec<_>>();
@@ -186,7 +228,7 @@ impl<M: MessageData, C: Control<M, C>> InspectorContext<M, C> {
     pub fn sync(
         &self,
         object: &dyn Inspect,
-        constructors: &PropertyDefinitionContainer<M, C>,
+        constructors: &PropertyEditorDefinitionContainer<M, C>,
         ui: &mut UserInterface<M, C>,
         sync_flag: u64,
     ) -> Result<(), InspectorError> {
@@ -276,7 +318,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Inspector<M, C> {
 pub struct InspectorBuilder<M: MessageData, C: Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     context: InspectorContext<M, C>,
-    property_definitions: Option<PropertyDefinitionContainer<M, C>>,
+    property_definitions: Option<Arc<PropertyEditorDefinitionContainer<M, C>>>,
 }
 
 impl<M: MessageData, C: Control<M, C>> InspectorBuilder<M, C> {
@@ -293,9 +335,9 @@ impl<M: MessageData, C: Control<M, C>> InspectorBuilder<M, C> {
         self
     }
 
-    pub fn with_property_definitions(
+    pub fn with_property_editor_definitions(
         mut self,
-        definitions: PropertyDefinitionContainer<M, C>,
+        definitions: Arc<PropertyEditorDefinitionContainer<M, C>>,
     ) -> Self {
         self.property_definitions = Some(definitions);
         self
@@ -318,7 +360,7 @@ impl<M: MessageData, C: Control<M, C>> InspectorBuilder<M, C> {
             context: self.context,
             property_definitions: self
                 .property_definitions
-                .unwrap_or_else(|| PropertyDefinitionContainer::new()),
+                .unwrap_or_else(|| Arc::new(PropertyEditorDefinitionContainer::new())),
         };
         ctx.add_node(UINode::Inspector(canvas))
     }

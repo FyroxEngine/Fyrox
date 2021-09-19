@@ -2,6 +2,8 @@
 //!
 //! For more info see [`Base`]
 
+use crate::asset::core::inspect::PropertyInfo;
+use crate::core::inspect::Inspect;
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
@@ -248,6 +250,37 @@ pub struct Base {
     mobility: Mobility,
     tag: String,
     pub(in crate) physics_binding: PhysicsBinding,
+}
+
+impl Inspect for Base {
+    fn properties(&self) -> Vec<PropertyInfo<'_>> {
+        let mut properties = vec![
+            PropertyInfo {
+                name: "Name",
+                group: "Common",
+                value: &self.name,
+            },
+            PropertyInfo {
+                name: "Tag",
+                group: "Common",
+                value: &self.tag,
+            },
+            PropertyInfo {
+                name: "Visibility",
+                group: "Common",
+                value: &self.visibility,
+            },
+            PropertyInfo {
+                name: "Depth Offset",
+                group: "Common",
+                value: &self.depth_offset,
+            },
+        ];
+
+        properties.extend(self.local_transform.properties().into_iter());
+
+        properties
+    }
 }
 
 impl Base {

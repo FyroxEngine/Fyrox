@@ -1,11 +1,11 @@
 use crate::{
-    core::pool::Handle,
+    core::{inspect::PropertyInfo, pool::Handle},
     inspector::{
         editors::{
-            f32::F32PropertyEditorDefinition, i32::I32PropertyEditorDefinition,
+            bool::BoolPropertyEditorDefinition, f32::F32PropertyEditorDefinition,
+            i32::I32PropertyEditorDefinition, quat::QuatPropertyEditorDefinition,
             string::StringPropertyEditorDefinition, vec3::Vec3PropertyEditorDefinition,
         },
-        property::PropertyInfo,
         InspectorError,
     },
     message::{MessageData, PropertyChanged, UiMessage},
@@ -14,8 +14,10 @@ use crate::{
 };
 use std::{any::TypeId, collections::HashMap, fmt::Debug, sync::Arc};
 
+pub mod bool;
 pub mod f32;
 pub mod i32;
+pub mod quat;
 pub mod string;
 pub mod vec3;
 
@@ -44,11 +46,11 @@ pub trait PropertyEditorDefinition<M: MessageData, C: Control<M, C>>: Debug + Se
 }
 
 #[derive(Clone)]
-pub struct PropertyDefinitionContainer<M: MessageData, C: Control<M, C>> {
+pub struct PropertyEditorDefinitionContainer<M: MessageData, C: Control<M, C>> {
     definitions: HashMap<TypeId, Arc<dyn PropertyEditorDefinition<M, C>>>,
 }
 
-impl<M: MessageData, C: Control<M, C>> Default for PropertyDefinitionContainer<M, C> {
+impl<M: MessageData, C: Control<M, C>> Default for PropertyEditorDefinitionContainer<M, C> {
     fn default() -> Self {
         Self {
             definitions: Default::default(),
@@ -56,13 +58,15 @@ impl<M: MessageData, C: Control<M, C>> Default for PropertyDefinitionContainer<M
     }
 }
 
-impl<M: MessageData, C: Control<M, C>> PropertyDefinitionContainer<M, C> {
+impl<M: MessageData, C: Control<M, C>> PropertyEditorDefinitionContainer<M, C> {
     pub fn new() -> Self {
         let mut container = Self::default();
         container.insert(Arc::new(F32PropertyEditorDefinition));
         container.insert(Arc::new(I32PropertyEditorDefinition));
         container.insert(Arc::new(StringPropertyEditorDefinition));
         container.insert(Arc::new(Vec3PropertyEditorDefinition));
+        container.insert(Arc::new(BoolPropertyEditorDefinition));
+        container.insert(Arc::new(QuatPropertyEditorDefinition));
         container
     }
 
