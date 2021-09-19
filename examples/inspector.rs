@@ -3,7 +3,6 @@
 pub mod shared;
 
 use crate::shared::create_camera;
-use rg3d::gui::message::InspectorMessage;
 use rg3d::{
     animation::Animation,
     core::{
@@ -16,12 +15,11 @@ use rg3d::{
     event_loop::{ControlFlow, EventLoop},
     gui::{
         inspector::{
-            Inspect, InspectorBuilder, InspectorContext, PropertyDefinitionContainer, PropertyInfo,
+            editors::PropertyDefinitionContainer,
+            property::{Inspect, PropertyInfo},
+            InspectorBuilder, InspectorContext,
         },
-        message::Vec3EditorMessage,
-        message::{
-            MessageDirection, NumericUpDownMessage, TextBoxMessage, TextMessage, UiMessageData,
-        },
+        message::{InspectorMessage, MessageDirection, TextMessage, UiMessageData},
         node::StubNode,
         text::TextBuilder,
         widget::WidgetBuilder,
@@ -92,7 +90,7 @@ fn create_ui(engine: &mut GameEngine) -> Interface {
     let inspector_context = InspectorContext::from_object(&view_model, ctx, &definition_container);
 
     let inspector;
-    WindowBuilder::new(WidgetBuilder::new())
+    WindowBuilder::new(WidgetBuilder::new().with_width(400.0))
         .with_title(WindowTitle::text("Inspector"))
         .with_content({
             inspector = InspectorBuilder::new(
@@ -255,7 +253,9 @@ fn main() {
                                     scene.graph[model_handle]
                                         .local_transform_mut()
                                         .set_rotation(UnitQuaternion::from_euler_angles(
-                                            value.z, value.x, value.y,
+                                            value.z.to_radians(),
+                                            value.x.to_radians(),
+                                            value.y.to_radians(),
                                         ));
                                 }
                                 "Name" => {

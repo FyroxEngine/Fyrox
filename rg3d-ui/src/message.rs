@@ -25,7 +25,7 @@ use crate::{
     draw::SharedTexture,
     file_browser::Filter,
     formatted_text::WrapMode,
-    inspector::{InspectorContext, PropertyValue},
+    inspector::{property::PropertyValue, InspectorContext},
     messagebox::MessageBoxResult,
     popup::Placement,
     ttf::SharedFont,

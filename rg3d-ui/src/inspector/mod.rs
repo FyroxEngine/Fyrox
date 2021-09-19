@@ -1,27 +1,32 @@
 use crate::{
-    core::{algebra::Vector3, pool::Handle},
+    core::pool::Handle,
     expander::ExpanderBuilder,
     formatted_text::WrapMode,
     grid::{Column, GridBuilder, Row},
-    message::{
-        InspectorMessage, MessageData, MessageDirection, NumericUpDownMessage, PropertyChanged,
-        TextBoxMessage, UiMessage, UiMessageData, Vec3EditorMessage, WidgetMessage,
+    inspector::{
+        editors::{
+            PropertyDefinitionContainer, PropertyEditorBuildContext, PropertyEditorDefinition,
+        },
+        property::{Inspect, PropertyInfo},
     },
-    numeric::NumericUpDownBuilder,
+    message::{
+        InspectorMessage, MessageData, MessageDirection, UiMessage, UiMessageData, WidgetMessage,
+    },
     stack_panel::StackPanelBuilder,
     text::TextBuilder,
-    text_box::TextBoxBuilder,
-    vec::vec3::Vec3EditorBuilder,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UINode, UserInterface, VerticalAlignment,
 };
 use std::{
-    any::{Any, TypeId},
+    any::TypeId,
     collections::{hash_map::Entry, HashMap},
     fmt::Debug,
     ops::{Deref, DerefMut},
     sync::Arc,
 };
+
+pub mod editors;
+pub mod property;
 
 #[derive(Clone)]
 pub struct Inspector<M: MessageData, C: Control<M, C>> {
@@ -33,39 +38,6 @@ pub struct Inspector<M: MessageData, C: Control<M, C>> {
 
 crate::define_widget_deref!(Inspector<M, C>);
 
-pub trait PropertyValue: Any + Send + Sync + Debug {
-    fn as_any(&self) -> &dyn Any;
-}
-
-impl<T: Send + Sync + Debug + 'static> PropertyValue for T {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
-
-pub struct PropertyInfo<'a> {
-    pub name: &'a str,
-    pub group: &'static str,
-    pub value: &'a dyn PropertyValue,
-}
-
-impl<'a> PropertyInfo<'a> {
-    fn cast_value<T: 'static>(&self) -> Result<&T, InspectorError> {
-        match self.value.as_any().downcast_ref::<T>() {
-            Some(value) => Ok(value),
-            None => Err(InspectorError::TypeMismatch {
-                property_name: self.name.to_string(),
-                expected_type_id: TypeId::of::<T>(),
-                actual_type_id: self.value.type_id(),
-            }),
-        }
-    }
-}
-
-pub trait Inspect {
-    fn properties(&self) -> Vec<PropertyInfo<'_>>;
-}
-
 #[derive(Debug)]
 pub enum InspectorError {
     TypeMismatch {
@@ -74,261 +46,6 @@ pub enum InspectorError {
         actual_type_id: TypeId,
     },
     OutOfSync,
-}
-
-pub struct PropertyEditorBuildContext<'a, 'b, 'c, M: MessageData, C: Control<M, C>> {
-    build_context: &'a mut BuildContext<'c, M, C>,
-    property_info: &'b PropertyInfo<'b>,
-    row: usize,
-    column: usize,
-}
-
-pub trait PropertyEditorDefinition<M: MessageData, C: Control<M, C>>: Debug + Send + Sync {
-    fn value_type_id(&self) -> TypeId;
-
-    fn create_instance(
-        &self,
-        ctx: PropertyEditorBuildContext<M, C>,
-    ) -> Result<Handle<UINode<M, C>>, InspectorError>;
-
-    fn create_message(
-        &self,
-        instance: Handle<UINode<M, C>>,
-        property_info: &PropertyInfo,
-    ) -> Result<UiMessage<M, C>, InspectorError>;
-
-    fn translate_message(&self, name: &str, message: &UiMessage<M, C>) -> Option<PropertyChanged>;
-}
-
-#[derive(Debug)]
-struct F32PropertyEditorDefinition;
-
-impl<M: MessageData, C: Control<M, C>> PropertyEditorDefinition<M, C>
-    for F32PropertyEditorDefinition
-{
-    fn value_type_id(&self) -> TypeId {
-        TypeId::of::<f32>()
-    }
-
-    fn create_instance(
-        &self,
-        ctx: PropertyEditorBuildContext<M, C>,
-    ) -> Result<Handle<UINode<M, C>>, InspectorError> {
-        let value = ctx.property_info.cast_value::<f32>()?;
-        Ok(
-            NumericUpDownBuilder::new(WidgetBuilder::new().on_row(ctx.row).on_column(ctx.column))
-                .with_value(*value)
-                .build(ctx.build_context),
-        )
-    }
-
-    fn create_message(
-        &self,
-        instance: Handle<UINode<M, C>>,
-        property_info: &PropertyInfo,
-    ) -> Result<UiMessage<M, C>, InspectorError> {
-        let value = property_info.cast_value::<f32>()?;
-        Ok(NumericUpDownMessage::value(
-            instance,
-            MessageDirection::ToWidget,
-            *value,
-        ))
-    }
-
-    fn translate_message(&self, name: &str, message: &UiMessage<M, C>) -> Option<PropertyChanged> {
-        if message.direction() == MessageDirection::FromWidget {
-            if let UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) = message.data()
-            {
-                return Some(PropertyChanged {
-                    name: name.to_string(),
-                    value: Arc::new(*value),
-                });
-            }
-        }
-
-        None
-    }
-}
-
-#[derive(Debug)]
-struct I32PropertyEditorDefinition;
-
-impl<M: MessageData, C: Control<M, C>> PropertyEditorDefinition<M, C>
-    for I32PropertyEditorDefinition
-{
-    fn value_type_id(&self) -> TypeId {
-        TypeId::of::<i32>()
-    }
-
-    fn create_instance(
-        &self,
-        ctx: PropertyEditorBuildContext<M, C>,
-    ) -> Result<Handle<UINode<M, C>>, InspectorError> {
-        let value = ctx.property_info.cast_value::<i32>()?;
-        Ok(
-            NumericUpDownBuilder::new(WidgetBuilder::new().on_row(ctx.row).on_column(ctx.column))
-                .with_precision(0)
-                .with_step(1.0)
-                .with_min_value(-i32::MAX as f32)
-                .with_max_value(i32::MAX as f32)
-                .with_value(*value as f32)
-                .build(ctx.build_context),
-        )
-    }
-
-    fn create_message(
-        &self,
-        instance: Handle<UINode<M, C>>,
-        property_info: &PropertyInfo,
-    ) -> Result<UiMessage<M, C>, InspectorError> {
-        let value = property_info.cast_value::<i32>()?;
-        Ok(NumericUpDownMessage::value(
-            instance,
-            MessageDirection::ToWidget,
-            *value as f32,
-        ))
-    }
-
-    fn translate_message(&self, name: &str, message: &UiMessage<M, C>) -> Option<PropertyChanged> {
-        if message.direction() == MessageDirection::FromWidget {
-            if let UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) = message.data()
-            {
-                return Some(PropertyChanged {
-                    name: name.to_string(),
-                    value: Arc::new(*value as i32),
-                });
-            }
-        }
-        None
-    }
-}
-
-#[derive(Debug)]
-struct StringPropertyEditorDefinition;
-
-impl<M: MessageData, C: Control<M, C>> PropertyEditorDefinition<M, C>
-    for StringPropertyEditorDefinition
-{
-    fn value_type_id(&self) -> TypeId {
-        TypeId::of::<String>()
-    }
-
-    fn create_instance(
-        &self,
-        ctx: PropertyEditorBuildContext<M, C>,
-    ) -> Result<Handle<UINode<M, C>>, InspectorError> {
-        let value = ctx.property_info.cast_value::<String>()?;
-        Ok(
-            TextBoxBuilder::new(WidgetBuilder::new().on_row(ctx.row).on_column(ctx.column))
-                .with_text(value)
-                .build(ctx.build_context),
-        )
-    }
-
-    fn create_message(
-        &self,
-        instance: Handle<UINode<M, C>>,
-        property_info: &PropertyInfo,
-    ) -> Result<UiMessage<M, C>, InspectorError> {
-        let value = property_info.cast_value::<String>()?;
-        Ok(TextBoxMessage::text(
-            instance,
-            MessageDirection::ToWidget,
-            value.clone(),
-        ))
-    }
-
-    fn translate_message(&self, name: &str, message: &UiMessage<M, C>) -> Option<PropertyChanged> {
-        if message.direction() == MessageDirection::FromWidget {
-            if let UiMessageData::TextBox(TextBoxMessage::Text(value)) = message.data() {
-                return Some(PropertyChanged {
-                    name: name.to_string(),
-                    value: Arc::new(value.clone()),
-                });
-            }
-        }
-        None
-    }
-}
-
-#[derive(Debug)]
-struct Vec3PropertyEditorDefinition;
-
-impl<M: MessageData, C: Control<M, C>> PropertyEditorDefinition<M, C>
-    for Vec3PropertyEditorDefinition
-{
-    fn value_type_id(&self) -> TypeId {
-        TypeId::of::<Vector3<f32>>()
-    }
-
-    fn create_instance(
-        &self,
-        ctx: PropertyEditorBuildContext<M, C>,
-    ) -> Result<Handle<UINode<M, C>>, InspectorError> {
-        let value = ctx.property_info.cast_value::<Vector3<f32>>()?;
-        Ok(
-            Vec3EditorBuilder::new(WidgetBuilder::new().on_row(ctx.row).on_column(ctx.column))
-                .with_value(*value)
-                .build(ctx.build_context),
-        )
-    }
-
-    fn create_message(
-        &self,
-        instance: Handle<UINode<M, C>>,
-        property_info: &PropertyInfo,
-    ) -> Result<UiMessage<M, C>, InspectorError> {
-        let value = property_info.cast_value::<Vector3<f32>>()?;
-        Ok(Vec3EditorMessage::value(
-            instance,
-            MessageDirection::ToWidget,
-            *value,
-        ))
-    }
-
-    fn translate_message(&self, name: &str, message: &UiMessage<M, C>) -> Option<PropertyChanged> {
-        if message.direction() == MessageDirection::FromWidget {
-            if let UiMessageData::Vec3Editor(Vec3EditorMessage::Value(value)) = message.data() {
-                return Some(PropertyChanged {
-                    name: name.to_string(),
-                    value: Arc::new(*value),
-                });
-            }
-        }
-        None
-    }
-}
-
-#[derive(Clone)]
-pub struct PropertyDefinitionContainer<M: MessageData, C: Control<M, C>> {
-    definitions: HashMap<TypeId, Arc<dyn PropertyEditorDefinition<M, C>>>,
-}
-
-impl<M: MessageData, C: Control<M, C>> Default for PropertyDefinitionContainer<M, C> {
-    fn default() -> Self {
-        Self {
-            definitions: Default::default(),
-        }
-    }
-}
-
-impl<M: MessageData, C: Control<M, C>> PropertyDefinitionContainer<M, C> {
-    pub fn new() -> Self {
-        let mut container = Self::default();
-        container.insert(Arc::new(F32PropertyEditorDefinition));
-        container.insert(Arc::new(I32PropertyEditorDefinition));
-        container.insert(Arc::new(StringPropertyEditorDefinition));
-        container.insert(Arc::new(Vec3PropertyEditorDefinition));
-        container
-    }
-
-    pub fn insert(
-        &mut self,
-        definition: Arc<dyn PropertyEditorDefinition<M, C>>,
-    ) -> Option<Arc<dyn PropertyEditorDefinition<M, C>>> {
-        self.definitions
-            .insert(definition.value_type_id(), definition)
-    }
 }
 
 #[derive(Clone, Debug)]
@@ -386,9 +103,13 @@ impl<M: MessageData, C: Control<M, C>> InspectorContext<M, C> {
             }
         }
 
-        let groups = property_groups
+        let mut sorted_groups = property_groups.into_iter().collect::<Vec<_>>();
+
+        sorted_groups.sort_by_key(|(name, _)| *name);
+
+        let groups = sorted_groups
             .iter()
-            .map(|(&group, infos)| {
+            .map(|(group, infos)| {
                 let mut entries = Vec::new();
                 let section = ExpanderBuilder::new(WidgetBuilder::new())
                     .with_header(
@@ -407,8 +128,9 @@ impl<M: MessageData, C: Control<M, C>> InspectorContext<M, C> {
                                         .build(ctx)
                                 }))
                                 .with_children(infos.iter().enumerate().map(|(i, info)| {
-                                    if let Some(definition) =
-                                        definition_container.definitions.get(&info.value.type_id())
+                                    if let Some(definition) = definition_container
+                                        .definitions()
+                                        .get(&info.value.type_id())
                                     {
                                         match definition.create_instance(
                                             PropertyEditorBuildContext {
@@ -469,7 +191,7 @@ impl<M: MessageData, C: Control<M, C>> InspectorContext<M, C> {
         sync_flag: u64,
     ) -> Result<(), InspectorError> {
         for info in object.properties() {
-            if let Some(constructor) = constructors.definitions.get(&info.value.type_id()) {
+            if let Some(constructor) = constructors.definitions().get(&info.value.type_id()) {
                 let mut message =
                     constructor.create_message(self.find_property_editor(info.name), &info)?;
 
