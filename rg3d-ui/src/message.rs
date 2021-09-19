@@ -25,14 +25,14 @@ use crate::{
     draw::SharedTexture,
     file_browser::Filter,
     formatted_text::WrapMode,
-    inspector::InspectorContext,
+    inspector::{InspectorContext, PropertyValue},
     messagebox::MessageBoxResult,
     popup::Placement,
     ttf::SharedFont,
     window::WindowTitle,
     Control, HorizontalAlignment, MouseState, Orientation, Thickness, UINode, VerticalAlignment,
 };
-use std::{cell::Cell, fmt::Debug, path::PathBuf};
+use std::{cell::Cell, fmt::Debug, path::PathBuf, sync::Arc};
 
 macro_rules! define_constructor {
     ($var:tt($inner:ident : $inner_var:tt) => fn $name:ident(), layout: $perform_layout:expr) => {
@@ -957,13 +957,33 @@ impl CurveEditorMessage {
     define_constructor_unbound!(CurveEditor(CurveEditorMessage:AddKey) => fn add_key(Vector2<f32>), layout: false);
 }
 
+#[derive(Debug, Clone)]
+pub struct PropertyChanged {
+    pub name: String,
+    pub value: Arc<dyn PropertyValue>,
+}
+
+impl PropertyChanged {
+    pub fn cast_value<T: 'static>(&self) -> Option<&T> {
+        (*self.value).as_any().downcast_ref::<T>()
+    }
+}
+
+impl PartialEq for PropertyChanged {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(&*self, &*other)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum InspectorMessage<M: MessageData, C: Control<M, C>> {
     Context(InspectorContext<M, C>),
+    PropertyChanged(PropertyChanged),
 }
 
 impl<M: MessageData, C: Control<M, C>> InspectorMessage<M, C> {
     define_constructor!(Inspector(InspectorMessage:Context) => fn context(InspectorContext<M, C>), layout: false);
+    define_constructor!(Inspector(InspectorMessage:PropertyChanged) => fn property_changed(PropertyChanged), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq)]

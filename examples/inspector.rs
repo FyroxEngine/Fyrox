@@ -3,6 +3,7 @@
 pub mod shared;
 
 use crate::shared::create_camera;
+use rg3d::gui::message::InspectorMessage;
 use rg3d::{
     animation::Animation,
     core::{
@@ -15,7 +16,7 @@ use rg3d::{
     event_loop::{ControlFlow, EventLoop},
     gui::{
         inspector::{
-            ConstructorContainer, Inspect, InspectorBuilder, InspectorContext, PropertyInfo,
+            Inspect, InspectorBuilder, InspectorContext, PropertyDefinitionContainer, PropertyInfo,
         },
         message::Vec3EditorMessage,
         message::{
@@ -42,6 +43,7 @@ type UiNode = rg3d::gui::node::UINode<(), StubNode>;
 struct Interface {
     debug_text: Handle<UiNode>,
     view_model: ViewModel,
+    inspector: Handle<UiNode>,
     inspector_context: InspectorContext<(), StubNode>,
 }
 
@@ -85,24 +87,29 @@ fn create_ui(engine: &mut GameEngine) -> Interface {
         name: "Model".to_string(),
     };
 
-    let inspector_context =
-        InspectorContext::from_object(&view_model, ctx, &ConstructorContainer::new());
+    let definition_container = PropertyDefinitionContainer::new();
 
+    let inspector_context = InspectorContext::from_object(&view_model, ctx, &definition_container);
+
+    let inspector;
     WindowBuilder::new(WidgetBuilder::new())
         .with_title(WindowTitle::text("Inspector"))
-        .with_content(
-            InspectorBuilder::new(
+        .with_content({
+            inspector = InspectorBuilder::new(
                 WidgetBuilder::new().with_desired_position(Vector2::new(200.0, 200.0)),
             )
+            .with_property_definitions(definition_container)
             .with_context(inspector_context.clone())
-            .build(ctx),
-        )
+            .build(ctx);
+            inspector
+        })
         .build(ctx);
 
     Interface {
         debug_text,
         view_model,
         inspector_context,
+        inspector,
     }
 }
 
@@ -230,36 +237,30 @@ fn main() {
                 // from UI elements and works well with borrow checker.
                 let scene = &mut engine.scenes[scene_handle];
                 while let Some(ui_message) = engine.user_interface.poll_message() {
-                    for property in interface.view_model.properties() {
-                        let property_editor = interface
-                            .inspector_context
-                            .find_property_editor(property.name);
-                        if ui_message.destination() == property_editor
-                            && ui_message.direction() == MessageDirection::FromWidget
+                    if ui_message.destination() == interface.inspector
+                        && ui_message.direction() == MessageDirection::FromWidget
+                    {
+                        if let UiMessageData::Inspector(InspectorMessage::PropertyChanged(args)) =
+                            ui_message.data()
                         {
-                            match ui_message.data() {
-                                UiMessageData::NumericUpDown(NumericUpDownMessage::Value(
-                                    value,
-                                )) => {
-                                    if property.name == "Scale" {
-                                        scene.graph[model_handle]
-                                            .local_transform_mut()
-                                            .set_scale(Vector3::new(*value, *value, *value));
-                                    }
+                            match args.name.as_str() {
+                                "Scale" => {
+                                    let value = args.cast_value::<f32>().unwrap();
+                                    scene.graph[model_handle]
+                                        .local_transform_mut()
+                                        .set_scale(Vector3::new(*value, *value, *value));
                                 }
-                                UiMessageData::TextBox(TextBoxMessage::Text(text)) => {
-                                    if property.name == "Name" {
-                                        scene.graph[model_handle].set_name(text.clone());
-                                    }
+                                "Rotation" => {
+                                    let value = args.cast_value::<Vector3<f32>>().unwrap();
+                                    scene.graph[model_handle]
+                                        .local_transform_mut()
+                                        .set_rotation(UnitQuaternion::from_euler_angles(
+                                            value.z, value.x, value.y,
+                                        ));
                                 }
-                                UiMessageData::Vec3Editor(Vec3EditorMessage::Value(value)) => {
-                                    if property.name == "Rotation" {
-                                        scene.graph[model_handle]
-                                            .local_transform_mut()
-                                            .set_rotation(UnitQuaternion::from_euler_angles(
-                                                value.z, value.x, value.y,
-                                            ));
-                                    }
+                                "Name" => {
+                                    let text = args.cast_value::<String>().unwrap();
+                                    scene.graph[model_handle].set_name(text.clone());
                                 }
                                 _ => (),
                             }
