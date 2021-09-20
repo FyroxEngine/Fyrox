@@ -1,69 +1,65 @@
 //! Test cases for `rg3d::gui::Inspect`
 
-use rg3d_core::{
-    algebra::Vector3,
-    inspect::{Inspect, PropertyInfo},
-};
+use rg3d_core::inspect::{Inspect, PropertyInfo};
+
+use rg3d::scene::transform::Transform;
 
 #[test]
 fn inspect_default() {
-    #[derive(Inspect)]
-    pub struct A {
+    #[derive(Default, Inspect)]
+    pub struct Data {
         the_field: String,
         another_field: f32,
     }
 
-    let a = A {
-        the_field: "Name!".to_string(),
-        another_field: 100.0,
-    };
+    let data = Data::default();
 
     let expected = vec![
         PropertyInfo {
             name: "THE_FIELD",
             group: "Common",
-            value: &a.the_field,
+            value: &data.the_field,
         },
         PropertyInfo {
             name: "ANOTHER_FIELD",
             group: "Common",
-            value: &a.another_field,
+            value: &data.another_field,
         },
     ];
 
-    assert_eq!(a.properties(), expected);
+    assert_eq!(data.properties(), expected);
 }
 
 #[test]
 fn inspect_attributes() {
-    #[derive(Inspect)]
-    pub struct A {
+    #[derive(Default, Inspect)]
+    pub struct Data {
         #[inspect(skip)]
-        skipped: Vector3<f32>,
-        #[inspect(group = "Pos")]
+        skipped: u32,
+        #[inspect(group = "Pos", name = "Super_X")]
         x: f32,
+        // Expand properties are added to the end of the list
+        #[inspect(expand)]
+        tfm: Transform,
         #[inspect(group = "Pos")]
         y: f32,
     }
 
-    let a = A {
-        skipped: Default::default(),
-        x: 10.0,
-        y: 20.0,
-    };
+    let data = Data::default();
 
     let expected = vec![
         PropertyInfo {
-            name: "X",
+            name: "SUPER_X",
             group: "Pos",
-            value: &a.x,
+            value: &data.x,
         },
         PropertyInfo {
             name: "Y",
             group: "Pos",
-            value: &a.y,
+            value: &data.y,
         },
     ];
 
-    assert_eq!(a.properties(), expected);
+    assert_eq!(data.properties()[0..2], expected);
+    assert_eq!(data.properties().len(), 2 + data.tfm.properties().len());
 }

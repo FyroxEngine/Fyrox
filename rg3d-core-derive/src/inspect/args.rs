@@ -34,6 +34,9 @@ pub struct FieldArgs {
     /// Group override for a field (default: Common)
     #[darling(default)]
     pub group: Option<String>,
+    /// `#[inspect(expand)]`
+    #[darling(default)]
+    pub expand: bool,
 }
 
 #[derive(FromVariant)]

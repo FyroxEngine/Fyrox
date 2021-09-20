@@ -38,7 +38,8 @@ fn create_impl_generics(
     generics
 }
 
-pub fn create_field_properties<'a>(
+/// List of `PropetiesInfo { .. }`
+pub fn collect_field_props<'a>(
     // <self.> or <variant.>
     prefix: TokenStream2,
     fields: impl Iterator<Item = &'a args::FieldArgs>,
@@ -50,10 +51,10 @@ pub fn create_field_properties<'a>(
         "#[derive(Inspect)] handles only named fields for now"
     );
 
-    let mut bodies = vec![];
+    let mut bodies = Vec::new();
 
     // consider #[inspect(skip)]
-    for field in fields.filter(|f| !f.skip) {
+    for field in fields.filter(|f| !f.skip && !f.expand) {
         // we know it is named field
         let field_ident = field.ident.as_ref().unwrap();
 
@@ -81,4 +82,31 @@ pub fn create_field_properties<'a>(
     }
 
     bodies
+}
+
+/// List of `field.properties()` for each `#[inspect(expand)]` field
+pub fn collect_field_prop_calls<'a>(
+    // <self.> or <variant.>
+    prefix: TokenStream2,
+    fields: impl Iterator<Item = &'a args::FieldArgs>,
+    field_style: ast::Style,
+) -> Vec<TokenStream2> {
+    assert_eq!(
+        field_style,
+        ast::Style::Struct,
+        "#[derive(Inspect)] handles only named fields for now"
+    );
+
+    let mut expands = Vec::new();
+
+    for field in fields.filter(|f| !f.skip && f.expand) {
+        // we know it is named field
+        let field_ident = field.ident.as_ref().unwrap();
+
+        expands.push(quote! {
+            #prefix #field_ident .properties()
+        });
+    }
+
+    expands
 }

@@ -2,5 +2,9 @@
 //!
 //! c.f. https://matklad.github.io/2021/02/27/delete-cargo-integration-tests.html
 
-pub mod inspect;
+#![feature(trace_macros)]
+
 pub mod visit;
+
+trace_macros!(true);
+pub mod inspect;

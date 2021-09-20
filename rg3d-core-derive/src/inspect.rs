@@ -26,8 +26,8 @@ fn impl_inspect_struct(
         "#[derive(Inspect) considers only named fields for now"
     );
 
-    let impl_body = {
-        let props = utils::create_field_properties(
+    let prop_vec = {
+        let props = utils::collect_field_props(
             quote! {  self. },
             field_args.fields.iter(),
             field_args.style,
@@ -39,6 +39,26 @@ fn impl_inspect_struct(
                     #props,
                 )*
             ]
+        }
+    };
+
+    // list of `self.expanded_field.prop()`
+    let prop_calls = utils::collect_field_prop_calls(
+        quote! {  self. },
+        field_args.fields.iter(),
+        field_args.style,
+    );
+
+    let impl_body = if prop_calls.is_empty() {
+        prop_vec
+    } else {
+        // NOTE: All items marked as `#[inspect(expand)]` come to the end of the property list
+        quote! {
+            let mut props = #prop_vec;
+            #(
+                props.extend(#prop_calls .into_iter());
+            )*
+            props
         }
     };
 
