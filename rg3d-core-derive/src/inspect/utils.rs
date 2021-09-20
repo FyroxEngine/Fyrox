@@ -63,7 +63,7 @@ pub fn collect_field_props<'a>(
             .name
             .clone()
             .unwrap_or_else(|| field_ident.to_string());
-        let field_name = field_name.to_case(Case::UpperSnake);
+        let field_name = field_name.to_case(Case::Title);
 
         // consider #[inspect(group = ..)]
         let group = field.group.as_ref().map(|s| s.as_str()).unwrap_or("Common");

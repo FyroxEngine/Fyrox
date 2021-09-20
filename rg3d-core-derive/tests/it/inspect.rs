@@ -16,12 +16,12 @@ fn inspect_default() {
 
     let expected = vec![
         PropertyInfo {
-            name: "THE_FIELD",
+            name: "The Field",
             group: "Common",
             value: &data.the_field,
         },
         PropertyInfo {
-            name: "ANOTHER_FIELD",
+            name: "Another Field",
             group: "Common",
             value: &data.another_field,
         },
@@ -36,7 +36,7 @@ fn inspect_attributes() {
     pub struct Data {
         #[inspect(skip)]
         skipped: u32,
-        #[inspect(group = "Pos", name = "Super_X")]
+        #[inspect(group = "Pos", name = "Super X")]
         x: f32,
         // Expand properties are added to the end of the list
         #[inspect(expand)]
@@ -49,7 +49,7 @@ fn inspect_attributes() {
 
     let expected = vec![
         PropertyInfo {
-            name: "SUPER_X",
+            name: "Super X",
             group: "Pos",
             value: &data.x,
         },

@@ -26,7 +26,7 @@ pub struct FieldArgs {
     pub skip: bool,
     /// #[inspect(name = "<name>")]
     ///
-    /// Name override for a field (default: UPPER_SNAKE)
+    /// Name override for a field (default: Title Case)
     #[darling(default)]
     pub name: Option<String>,
     /// #[inspect(group = "<group>")]
