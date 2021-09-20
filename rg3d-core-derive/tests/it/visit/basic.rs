@@ -1,7 +1,5 @@
 #![allow(unused_imports)]
 
-mod utils;
-
 use std::{env, fs::File, io::Write, path::PathBuf};
 
 use futures::executor::block_on;
@@ -77,7 +75,7 @@ fn named_fields() {
     };
     let mut data_default = NamedFields::default();
 
-    utils::save_load("named_fields", &mut data, &mut data_default);
+    super::save_load("named_fields", &mut data, &mut data_default);
 
     // The default data was overwritten with saved data.
     // Now it should be same as the original data:
@@ -91,7 +89,7 @@ fn unit_struct() {
 
     // non seuse.. but anyways,
     // `Visit` is implemented `UnitStruct;` as empty code block `{}`
-    utils::save_load("unit_struct", &mut data, &mut data_default);
+    super::save_load("unit_struct", &mut data, &mut data_default);
 
     assert_eq!(data, data_default);
 }
@@ -101,7 +99,7 @@ fn tuple_struct() {
     let mut data = TupleStruct(10.0, 20);
     let mut data_default = TupleStruct(0.0, 0);
 
-    utils::save_load("tuple_struct", &mut data, &mut data_default);
+    super::save_load("tuple_struct", &mut data, &mut data_default);
 
     assert_eq!(data, data_default);
 }
@@ -114,7 +112,7 @@ fn skip_attr() {
     };
     let mut data_default = SkipAttr::default();
 
-    utils::save_load("skip_attr", &mut data, &mut data_default);
+    super::save_load("skip_attr", &mut data, &mut data_default);
 
     // The default data was overwritten with saved data,
     // except the `skipped` field:
@@ -146,7 +144,7 @@ fn generics() {
     };
     let mut data_default = Generics { items: vec![] };
 
-    utils::save_load("generics", &mut data, &mut data_default);
+    super::save_load("generics", &mut data, &mut data_default);
 
     assert_eq!(data, data_default);
 }
@@ -156,7 +154,7 @@ fn plain_enum() {
     let mut data = PlainEnum::C;
     let mut data_default = PlainEnum::A;
 
-    utils::save_load("plain_enum", &mut data, &mut data_default);
+    super::save_load("plain_enum", &mut data, &mut data_default);
 
     assert_eq!(data, data_default);
 }
@@ -169,7 +167,7 @@ fn one_of_the_types() {
     });
     let mut data_default = OneOfTheTypes::U32(0);
 
-    utils::save_load("one_of_the_types", &mut data, &mut data_default);
+    super::save_load("one_of_the_types", &mut data, &mut data_default);
 
     assert_eq!(data, data_default);
 }
@@ -179,7 +177,7 @@ fn complex_enum() {
     let mut data = ComplexEnum::Tuple(100, 200);
     let mut data_default = ComplexEnum::UnitVariant;
 
-    utils::save_load("complex_enum", &mut data, &mut data_default);
+    super::save_load("complex_enum", &mut data, &mut data_default);
 
     assert_eq!(data, data_default);
 }
@@ -199,7 +197,7 @@ fn generic_enum() {
     let mut data = GenericEnum::Tuple(1, vec![100u32]);
     let mut data_default = GenericEnum::UnitVariant;
 
-    utils::save_load("generic_enum", &mut data, &mut data_default);
+    super::save_load("generic_enum", &mut data, &mut data_default);
 
     assert_eq!(data, data_default);
 }

@@ -1,10 +1,8 @@
 //! Fight the compatibility hell with attributes! .. someday :)
 
-mod utils;
-
 use rg3d_core::visitor::prelude::*;
 
-// Comment out to make sure it panics
+// Comment it out and make sure it panics
 // #[derive(Debug, Clone, PartialEq, Visit)]
 // pub struct CantCompile {
 //     pub a: f32,
@@ -23,7 +21,7 @@ fn rename() {
     let mut data = Rename { x: 100.0 };
     let mut data_default = Rename { x: 0.0 };
 
-    utils::save_load("rename", &mut data, &mut data_default);
+    super::save_load("rename", &mut data, &mut data_default);
 
     assert_eq!(data, data_default);
 }
