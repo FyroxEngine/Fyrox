@@ -92,6 +92,16 @@ pub struct Resource<T: ResourceData, E: ResourceLoadError> {
     state: Option<Arc<Mutex<ResourceState<T, E>>>>,
 }
 
+impl<T: ResourceData, E: ResourceLoadError> PartialEq for Resource<T, E> {
+    fn eq(&self, other: &Self) -> bool {
+        match (self.state.as_ref(), other.state.as_ref()) {
+            (Some(state), Some(other_state)) => std::ptr::eq(&**state, &**other_state),
+            (None, None) => true,
+            _ => false,
+        }
+    }
+}
+
 #[doc(hidden)]
 pub struct ResourceDataRef<'a, T: ResourceData, E: ResourceLoadError> {
     guard: MutexGuard<'a, ResourceState<T, E>>,
@@ -311,7 +321,7 @@ impl<T: ResourceData, E: ResourceLoadError> Default for ResourceState<T, E> {
 macro_rules! define_new_resource {
     ($(#[$meta:meta])* $name:ident<$state:ty, $error:ty>) => {
         $(#[$meta])*
-        #[derive(Clone, Debug, Default)]
+        #[derive(Clone, Debug, Default, PartialEq)]
         #[repr(transparent)]
         pub struct $name(pub Resource<$state, $error>);
 
