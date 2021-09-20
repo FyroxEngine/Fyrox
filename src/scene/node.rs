@@ -4,6 +4,8 @@
 
 #![warn(missing_docs)]
 
+use crate::asset::core::inspect::PropertyInfo;
+use crate::core::inspect::Inspect;
 use crate::{
     core::{
         define_is_as,
@@ -42,6 +44,12 @@ impl Visit for Node {
         }
 
         static_dispatch!(self, visit, name, visitor)
+    }
+}
+
+impl Inspect for Node {
+    fn properties(&self) -> Vec<PropertyInfo<'_>> {
+        static_dispatch!(self, properties,)
     }
 }
 

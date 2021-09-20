@@ -4,6 +4,7 @@ use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
         arrayvec::ArrayVec,
+        inspect::{Inspect, PropertyInfo},
         math::{
             aabb::AxisAlignedBoundingBox, ray::Ray, ray_rect_intersection, Rect, TriangleDefinition,
         },
@@ -224,18 +225,22 @@ pub struct TerrainRayCastResult {
 }
 
 /// See module docs.
-#[derive(Visit, Debug, Default)]
+#[derive(Visit, Debug, Default, Inspect)]
 pub struct Terrain {
+    #[inspect(expand)]
+    base: Base,
     width: f32,
     length: f32,
     mask_resolution: f32,
     height_map_resolution: f32,
-    base: Base,
+    #[inspect(skip)]
     chunks: Vec<Chunk>,
     layers: Vec<Layer>,
     width_chunks: u32,
     length_chunks: u32,
+    #[inspect(skip)]
     bounding_box_dirty: Cell<bool>,
+    #[inspect(skip)]
     bounding_box: Cell<AxisAlignedBoundingBox>,
     #[visit(optional)] // Backward compatibility
     decal_layer_index: u8,

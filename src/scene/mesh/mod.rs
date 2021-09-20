@@ -11,6 +11,7 @@
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3},
+        inspect::{Inspect, PropertyInfo},
         math::{aabb::AxisAlignedBoundingBox, frustum::Frustum},
         pool::Handle,
         visitor::{Visit, VisitResult, Visitor},
@@ -65,11 +66,14 @@ impl RenderPath {
 }
 
 /// See module docs.
-#[derive(Debug)]
+#[derive(Debug, Inspect)]
 pub struct Mesh {
+    #[inspect(expand)]
     base: Base,
     surfaces: Vec<Surface>,
+    #[inspect(skip)]
     bounding_box: Cell<AxisAlignedBoundingBox>,
+    #[inspect(skip)]
     bounding_box_dirty: Cell<bool>,
     cast_shadows: bool,
     render_path: RenderPath,

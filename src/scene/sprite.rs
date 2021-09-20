@@ -5,6 +5,7 @@
 use crate::{
     core::{
         color::Color,
+        inspect::{Inspect, PropertyInfo},
         pool::Handle,
         visitor::{Visit, VisitResult, Visitor},
     },
@@ -56,8 +57,9 @@ use std::ops::{Deref, DerefMut};
 ///         .build(graph)
 /// }
 /// ```
-#[derive(Debug)]
+#[derive(Debug, Inspect)]
 pub struct Sprite {
+    #[inspect(expand)]
     base: Base,
     texture: Option<Texture>,
     color: Color,

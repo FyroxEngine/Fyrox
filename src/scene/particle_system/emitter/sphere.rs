@@ -9,7 +9,6 @@ use crate::{
             Emit, Emitter,
         },
         particle::Particle,
-        ParticleSystem,
     },
 };
 use std::ops::{Deref, DerefMut};
@@ -62,7 +61,7 @@ impl SphereEmitter {
 }
 
 impl Emit for SphereEmitter {
-    fn emit(&self, _particle_system: &ParticleSystem, particle: &mut Particle) {
+    fn emit(&self, particle: &mut Particle) {
         self.emitter.emit(particle);
         let phi = NumericRange::new(0.0, std::f32::consts::PI).random();
         let theta = NumericRange::new(0.0, 2.0 * std::f32::consts::PI).random();

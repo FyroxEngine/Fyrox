@@ -17,6 +17,7 @@
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
+        inspect::{Inspect, PropertyInfo},
         math::{ray::Ray, Rect},
         pool::Handle,
         visitor::{Visit, VisitResult, Visitor},
@@ -68,16 +69,19 @@ impl Default for Exposure {
 }
 
 /// See module docs.
-#[derive(Debug, Visit)]
+#[derive(Debug, Visit, Inspect)]
 pub struct Camera {
+    #[inspect(expand)]
     base: Base,
     fov: f32,
     z_near: f32,
     z_far: f32,
     viewport: Rect<f32>,
     #[visit(skip)]
+    #[inspect(skip)]
     view_matrix: Matrix4<f32>,
     #[visit(skip)]
+    #[inspect(skip)]
     projection_matrix: Matrix4<f32>,
     enabled: bool,
     sky_box: Option<Box<SkyBox>>,
@@ -91,6 +95,7 @@ pub struct Camera {
 
     /// Visibility cache allows you to quickly check if object is visible from the camera or not.
     #[visit(skip)]
+    #[inspect(skip)]
     pub visibility_cache: VisibilityCache,
 }
 

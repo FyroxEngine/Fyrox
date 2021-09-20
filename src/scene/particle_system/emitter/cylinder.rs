@@ -8,7 +8,6 @@ use crate::{
             Emit, Emitter,
         },
         particle::Particle,
-        ParticleSystem,
     },
 };
 use std::ops::{Deref, DerefMut};
@@ -46,7 +45,7 @@ impl DerefMut for CylinderEmitter {
 }
 
 impl Emit for CylinderEmitter {
-    fn emit(&self, _particle_system: &ParticleSystem, particle: &mut Particle) {
+    fn emit(&self, particle: &mut Particle) {
         // Disk point picking extended in 3D - http://mathworld.wolfram.com/DiskPointPicking.html
         let scale: f32 = NumericRange::new(0.0, 1.0).random();
         let theta = NumericRange::new(0.0, 2.0 * std::f32::consts::PI).random();

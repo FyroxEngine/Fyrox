@@ -76,6 +76,7 @@ use crate::{
         algebra::{Vector2, Vector3},
         color::Color,
         color_gradient::ColorGradient,
+        inspect::{Inspect, PropertyInfo},
         math::TriangleDefinition,
         pool::Handle,
         visitor::prelude::*,
@@ -135,10 +136,13 @@ impl Visit for ParticleLimit {
 }
 
 /// See module docs.
-#[derive(Debug, Visit)]
+#[derive(Debug, Visit, Inspect)]
 pub struct ParticleSystem {
+    #[inspect(expand)]
     base: Base,
+    #[inspect(skip)]
     particles: Vec<Particle>,
+    #[inspect(skip)]
     free_particles: Vec<u32>,
     /// List of emitters of the particle system.
     pub emitters: Vec<Emitter>,
@@ -227,7 +231,7 @@ impl ParticleSystem {
         self.particles.clear();
         self.free_particles.clear();
         for emitter in self.emitters.iter_mut() {
-            emitter.alive_particles.set(0);
+            emitter.alive_particles = 0;
         }
     }
 
@@ -243,16 +247,14 @@ impl ParticleSystem {
             emitter.tick(dt);
         }
 
-        for (i, emitter) in self.emitters.iter().enumerate() {
+        for (i, emitter) in self.emitters.iter_mut().enumerate() {
             for _ in 0..emitter.particles_to_spawn {
                 let mut particle = Particle {
                     emitter_index: i as u32,
                     ..Particle::default()
                 };
-                emitter
-                    .alive_particles
-                    .set(emitter.alive_particles.get() + 1);
-                emitter.emit(self, &mut particle);
+                emitter.alive_particles = emitter.alive_particles + 1;
+                emitter.emit(&mut particle);
                 if let Some(free_index) = self.free_particles.pop() {
                     self.particles[free_index as usize] = particle;
                 } else {
@@ -268,10 +270,8 @@ impl ParticleSystem {
                 particle.lifetime += dt;
                 if particle.lifetime >= particle.initial_lifetime {
                     self.free_particles.push(i as u32);
-                    if let Some(emitter) = self.emitters.get(particle.emitter_index as usize) {
-                        emitter
-                            .alive_particles
-                            .set(emitter.alive_particles.get() - 1);
+                    if let Some(emitter) = self.emitters.get_mut(particle.emitter_index as usize) {
+                        emitter.alive_particles = emitter.alive_particles - 1;
                     }
                     particle.alive = false;
                     particle.lifetime = particle.initial_lifetime;

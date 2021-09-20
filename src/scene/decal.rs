@@ -3,7 +3,12 @@
 //! For more info see [`Decal`]
 
 use crate::{
-    core::{color::Color, pool::Handle, visitor::prelude::*},
+    core::{
+        color::Color,
+        inspect::{Inspect, PropertyInfo},
+        pool::Handle,
+        visitor::prelude::*,
+    },
     resource::texture::Texture,
     scene::{
         base::{Base, BaseBuilder},
@@ -73,8 +78,9 @@ use std::ops::{Deref, DerefMut};
 ///         .build(graph)
 /// }
 /// ```
-#[derive(Debug, Visit, Default)]
+#[derive(Debug, Visit, Default, Inspect)]
 pub struct Decal {
+    #[inspect(expand)]
     base: Base,
     diffuse_texture: Option<Texture>,
     normal_texture: Option<Texture>,

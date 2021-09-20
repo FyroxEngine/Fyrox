@@ -9,7 +9,6 @@ use crate::{
             Emit, Emitter,
         },
         particle::Particle,
-        ParticleSystem,
     },
 };
 use std::ops::{Deref, DerefMut};
@@ -91,7 +90,7 @@ impl Default for CuboidEmitter {
 }
 
 impl Emit for CuboidEmitter {
-    fn emit(&self, _particle_system: &ParticleSystem, particle: &mut Particle) {
+    fn emit(&self, particle: &mut Particle) {
         self.emitter.emit(particle);
         let position = self.position();
         particle.position = Vector3::new(

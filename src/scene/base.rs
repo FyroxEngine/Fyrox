@@ -221,66 +221,45 @@ impl Visit for Mobility {
 ///         .build(graph)
 /// }
 /// ```
-#[derive(Debug)]
+#[derive(Debug, Inspect)]
 pub struct Base {
     name: String,
+    #[inspect(expand)]
     local_transform: Transform,
     visibility: bool,
+    #[inspect(skip)]
     pub(in crate) global_visibility: Cell<bool>,
+    #[inspect(skip)]
     pub(in crate) parent: Handle<Node>,
+    #[inspect(skip)]
     pub(in crate) children: Vec<Handle<Node>>,
+    #[inspect(skip)]
     pub(in crate) global_transform: Cell<Matrix4<f32>>,
     // Bone-specific matrix. Non-serializable.
+    #[inspect(skip)]
     pub(in crate) inv_bind_pose_transform: Matrix4<f32>,
     // A resource from which this node was instantiated from, can work in pair
     // with `original` handle to get corresponding node from resource.
+    #[inspect(skip)]
     pub(in crate) resource: Option<Model>,
     // Handle to node in scene of model resource from which this node
     // was instantiated from.
+    #[inspect(skip)]
     pub(in crate) original_handle_in_resource: Handle<Node>,
     // When `true` it means that this node is instance of `resource`.
     // More precisely - this node is root of whole descendant nodes
     // hierarchy which was instantiated from resource.
+    #[inspect(skip)]
     pub(in crate) is_resource_instance_root: bool,
     // Maximum amount of Some(time) that node will "live" or None
     // if node has undefined lifetime.
+    #[inspect(skip)]
     pub(in crate) lifetime: Option<f32>,
     depth_offset: f32,
     lod_group: Option<LodGroup>,
     mobility: Mobility,
     tag: String,
     pub(in crate) physics_binding: PhysicsBinding,
-}
-
-impl Inspect for Base {
-    fn properties(&self) -> Vec<PropertyInfo<'_>> {
-        let mut properties = vec![
-            PropertyInfo {
-                name: "Name",
-                group: "Common",
-                value: &self.name,
-            },
-            PropertyInfo {
-                name: "Tag",
-                group: "Common",
-                value: &self.tag,
-            },
-            PropertyInfo {
-                name: "Visibility",
-                group: "Common",
-                value: &self.visibility,
-            },
-            PropertyInfo {
-                name: "Depth Offset",
-                group: "Common",
-                value: &self.depth_offset,
-            },
-        ];
-
-        properties.extend(self.local_transform.properties().into_iter());
-
-        properties
-    }
 }
 
 impl Base {

@@ -4,7 +4,6 @@ use crate::{
     core::{algebra::Vector3, color::Color, numeric_range::NumericRange, visitor::prelude::*},
     scene::particle_system::{Particle, ParticleLimit},
 };
-use std::cell::Cell;
 
 /// See module docs.
 #[derive(Debug, Visit)]
@@ -34,7 +33,7 @@ pub struct BaseEmitter {
     rotation_speed: NumericRange,
     /// Range of initial rotation for a particle
     rotation: NumericRange,
-    pub(crate) alive_particles: Cell<u32>,
+    pub(crate) alive_particles: u32,
     time: f32,
     #[visit(skip)]
     pub(crate) particles_to_spawn: u32,
@@ -186,7 +185,7 @@ impl BaseEmitterBuilder {
             rotation: self
                 .rotation
                 .unwrap_or_else(|| NumericRange::new(-std::f32::consts::PI, std::f32::consts::PI)),
-            alive_particles: Cell::new(0),
+            alive_particles: 0,
             time: 0.0,
             particles_to_spawn: 0,
             resurrect_particles: self.resurrect_particles,
@@ -204,7 +203,7 @@ impl BaseEmitter {
         let mut particle_count = (self.time / time_amount_per_particle) as u32;
         self.time -= time_amount_per_particle * particle_count as f32;
         if let ParticleLimit::Strict(max_particles) = self.max_particles {
-            let alive_particles = self.alive_particles.get();
+            let alive_particles = self.alive_particles;
             if alive_particles < max_particles && alive_particles + particle_count > max_particles {
                 particle_count = max_particles - particle_count;
             }
@@ -423,7 +422,7 @@ impl Default for BaseEmitter {
             z_velocity: NumericRange::new(-0.001, 0.001),
             rotation_speed: NumericRange::new(-0.02, 0.02),
             rotation: NumericRange::new(-std::f32::consts::PI, std::f32::consts::PI),
-            alive_particles: Cell::new(0),
+            alive_particles: 0,
             time: 0.0,
             particles_to_spawn: 0,
             resurrect_particles: true,
