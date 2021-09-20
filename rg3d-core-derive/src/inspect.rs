@@ -27,7 +27,6 @@ fn impl_inspect_struct(
     );
 
     let impl_body = {
-        // `field.visit(..);` parts
         let props = utils::create_field_properties(
             quote! {  self. },
             field_args.fields.iter(),

@@ -6,7 +6,7 @@ use darling::*;
 use syn::*;
 
 #[derive(FromDeriveInput)]
-#[darling(attributes(visit), supports(struct_any, enum_any))]
+#[darling(attributes(inspect), supports(struct_any, enum_any))]
 pub struct TypeArgs {
     pub ident: Ident,
     pub generics: Generics,
@@ -15,10 +15,25 @@ pub struct TypeArgs {
 
 /// Parsed from struct's or enum variant's field
 #[derive(FromField, Clone)]
-#[darling(attributes(visit))]
+#[darling(attributes(inspect))]
 pub struct FieldArgs {
     pub ident: Option<Ident>,
     pub ty: Type,
+    /// `#[inspect(skip)]`
+    ///
+    /// Do not expose property info
+    #[darling(default)]
+    pub skip: bool,
+    /// #[inspect(name = "<name>")]
+    ///
+    /// Name override for a field (default: UPPER_SNAKE)
+    #[darling(default)]
+    pub name: Option<String>,
+    /// #[inspect(group = "<group>")]
+    ///
+    /// Group override for a field (default: Common)
+    #[darling(default)]
+    pub group: Option<String>,
 }
 
 #[derive(FromVariant)]

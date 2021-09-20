@@ -52,12 +52,21 @@ pub fn create_field_properties<'a>(
 
     let mut bodies = vec![];
 
-    for field in fields {
+    // consider #[inspect(skip)]
+    for field in fields.filter(|f| !f.skip) {
         // we know it is named field
         let field_ident = field.ident.as_ref().unwrap();
 
-        let field_name = field_ident.to_string().to_case(Case::UpperSnake);
-        let group = "Common";
+        // consider #[inspect(name = ..)]
+        let field_name = field
+            .name
+            .clone()
+            .unwrap_or_else(|| field_ident.to_string());
+        let field_name = field_name.to_case(Case::UpperSnake);
+
+        // consider #[inspect(group = ..)]
+        let group = field.group.as_ref().map(|s| s.as_str()).unwrap_or("Common");
+
         let value = quote! { #prefix #field_ident };
 
         let body = quote! {
