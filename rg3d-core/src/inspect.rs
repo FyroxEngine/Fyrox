@@ -1,6 +1,7 @@
 use std::{
     any::{Any, TypeId},
-    fmt::Debug,
+    cmp::PartialEq,
+    fmt::{self, Debug},
 };
 
 pub trait PropertyValue: Any + Send + Sync + Debug {
@@ -28,6 +29,24 @@ pub struct PropertyInfo<'a> {
     pub value: &'a dyn PropertyValue,
 }
 
+impl<'a> fmt::Debug for PropertyInfo<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("PropertyInfo")
+            .field("name", &self.name)
+            .field("group", &self.group)
+            .field("value", &format_args!("{:?}", self.value as *const _))
+            .finish()
+    }
+}
+
+impl<'a> PartialEq<Self> for PropertyInfo<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+            && self.group == other.group
+            && self.value as *const _ == other.value as *const _
+    }
+}
+
 impl<'a> PropertyInfo<'a> {
     pub fn cast_value<T: 'static>(&self) -> Result<&T, CastError> {
         match self.value.as_any().downcast_ref::<T>() {
@@ -44,3 +63,5 @@ impl<'a> PropertyInfo<'a> {
 pub trait Inspect {
     fn properties(&self) -> Vec<PropertyInfo<'_>>;
 }
+
+pub use rg3d_core_derive::Inspect;
