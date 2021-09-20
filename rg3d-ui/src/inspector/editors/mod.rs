@@ -1,3 +1,4 @@
+use crate::inspector::InspectorEnvironment;
 use crate::{
     core::{inspect::PropertyInfo, pool::Handle},
     inspector::{
@@ -26,6 +27,7 @@ pub struct PropertyEditorBuildContext<'a, 'b, 'c, M: MessageData, C: Control<M, 
     pub property_info: &'b PropertyInfo<'b>,
     pub row: usize,
     pub column: usize,
+    pub environment: Option<Arc<dyn InspectorEnvironment>>,
 }
 
 pub trait PropertyEditorDefinition<M: MessageData, C: Control<M, C>>: Debug + Send + Sync {

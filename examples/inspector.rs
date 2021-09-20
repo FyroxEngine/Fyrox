@@ -87,7 +87,8 @@ fn create_ui(engine: &mut GameEngine) -> Interface {
 
     let definition_container = Arc::new(PropertyEditorDefinitionContainer::new());
 
-    let inspector_context = InspectorContext::from_object(&view_model, ctx, &definition_container);
+    let inspector_context =
+        InspectorContext::from_object(&view_model, ctx, &definition_container, None);
 
     let inspector;
     WindowBuilder::new(WidgetBuilder::new().with_width(400.0))

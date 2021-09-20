@@ -21,6 +21,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Thickness, UINode, UserInterface, VerticalAlignment,
 };
+use std::any::Any;
 use std::{
     collections::{hash_map::Entry, HashMap},
     fmt::Debug,
@@ -29,6 +30,10 @@ use std::{
 };
 
 pub mod editors;
+
+pub trait InspectorEnvironment: Any + Send + Sync {
+    fn as_any(&self) -> &dyn Any;
+}
 
 #[derive(Clone)]
 pub struct Inspector<M: MessageData, C: Control<M, C>> {
@@ -120,6 +125,7 @@ impl<M: MessageData, C: Control<M, C>> InspectorContext<M, C> {
         object: &dyn Inspect,
         ctx: &mut BuildContext<M, C>,
         definition_container: &PropertyEditorDefinitionContainer<M, C>,
+        environment: Option<Arc<dyn InspectorEnvironment>>,
     ) -> Self {
         let mut property_groups = HashMap::<&'static str, Vec<PropertyInfo>>::new();
         for info in object.properties() {
@@ -167,6 +173,7 @@ impl<M: MessageData, C: Control<M, C>> InspectorContext<M, C> {
                                                                 property_info: info,
                                                                 row: i,
                                                                 column: 1,
+                                                                environment: environment.clone(),
                                                             },
                                                         ) {
                                                             Ok(instance) => {
