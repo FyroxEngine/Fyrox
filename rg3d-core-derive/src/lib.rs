@@ -6,7 +6,7 @@ use syn::{parse_macro_input, DeriveInput};
 
 /// Implements `Visit` trait
 ///
-/// User has to import `Visit`, `Visitor` and `VisitResult`.
+/// User has to import `Visit`, `Visitor` and `VisitResult` to use this macro.
 #[proc_macro_derive(Visit, attributes(visit))]
 pub fn visit(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as DeriveInput);
@@ -15,7 +15,7 @@ pub fn visit(input: TokenStream) -> TokenStream {
 
 /// Implements `Inspect` trait
 ///
-/// User has to import `Inspect`.
+/// User has to import `Inspect` and `PropertyInfo` to use this macro.
 #[proc_macro_derive(Inspect, attributes(inspect))]
 pub fn inspect(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as DeriveInput);

@@ -7,7 +7,7 @@ use convert_case::*;
 
 use crate::inspect::args;
 
-/// Creates `impl Inspect` block for struct type
+/// Creates `impl Inspect` block
 pub fn create_impl(
     ty_args: &args::TypeArgs,
     field_args: impl Iterator<Item = args::FieldArgs>,
@@ -26,7 +26,7 @@ pub fn create_impl(
     }
 }
 
-/// Creates where clause for `impl Inspect` block
+/// Creates `Generic` for `impl Inspect` block
 fn create_impl_generics(
     generics: &Generics,
     _field_args: impl Iterator<Item = args::FieldArgs>,
@@ -38,7 +38,7 @@ fn create_impl_generics(
     generics
 }
 
-/// List of `PropetiesInfo { .. }`
+/// List of `PropertyInfo { .. }`
 pub fn collect_field_props<'a>(
     // <self.> or <variant.>
     prefix: TokenStream2,
@@ -55,7 +55,7 @@ pub fn collect_field_props<'a>(
 
     // consider #[inspect(skip)]
     for field in fields.filter(|f| !f.skip && !f.expand) {
-        // we know it is named field
+        // we know it is a named field
         let field_ident = field.ident.as_ref().unwrap();
 
         // consider #[inspect(name = ..)]
@@ -86,7 +86,7 @@ pub fn collect_field_props<'a>(
 
 /// List of `field.properties()` for each `#[inspect(expand)]` field
 pub fn collect_field_prop_calls<'a>(
-    // <self.> or <variant.>
+    // `self.` or `variant.`
     prefix: TokenStream2,
     fields: impl Iterator<Item = &'a args::FieldArgs>,
     field_style: ast::Style,
@@ -100,7 +100,7 @@ pub fn collect_field_prop_calls<'a>(
     let mut expands = Vec::new();
 
     for field in fields.filter(|f| !f.skip && f.expand) {
-        // we know it is named field
+        // we know it is a named field
         let field_ident = field.ident.as_ref().unwrap();
 
         expands.push(quote! {
