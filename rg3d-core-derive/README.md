@@ -1,3 +1,3 @@
 # rg3d-core-derive
 
-Provides the `#[derive(Visitor)]` macro, which implements `rg3d::core::visitor::Visit`.
+Provides the `#[derive(Visit)]` macro, which implements `rg3d::core::visitor::Visit`.

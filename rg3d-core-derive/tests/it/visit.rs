@@ -1,4 +1,7 @@
-//! Test utilities used by other files
+//! Test cases
+
+mod basic;
+mod compat;
 
 use std::{env, fs::File, io::Write, path::PathBuf};
 

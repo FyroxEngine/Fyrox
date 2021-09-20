@@ -20,15 +20,21 @@ pub struct FieldArgs {
     pub ty: Type,
     // pub attrs: Vec<Attribute>,
     // ---
-    /// `#[visit(skip)]`: skip on read and write
+    /// `#[visit(skip)]`
+    ///
+    /// Skip on read and write
     #[darling(default)]
     pub skip: bool,
 
-    /// `#[visit(rename = "..")]`: force reading/writing as this name
+    /// `#[visit(rename = "..")]`
+    ///
+    /// Force this name
     #[darling(default)]
     pub rename: Option<String>,
 
-    /// `#[visit(optional)]`: ignore missing field
+    /// `#[visit(optional)]`
+    ///
+    /// Ignore missing field
     #[darling(default)]
     pub optional: bool,
 }
