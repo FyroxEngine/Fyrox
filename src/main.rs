@@ -16,6 +16,7 @@ pub mod camera;
 pub mod command;
 pub mod configurator;
 pub mod gui;
+pub mod inspector;
 pub mod interaction;
 pub mod light;
 pub mod log;
@@ -32,6 +33,7 @@ pub mod sound;
 pub mod utils;
 pub mod world_outliner;
 
+use crate::inspector::Inspector;
 use crate::{
     asset::{AssetBrowser, AssetKind},
     camera::CameraController,
@@ -817,6 +819,7 @@ struct Editor {
     model_import_dialog: ModelImportDialog,
     path_fixer: PathFixer,
     material_editor: MaterialEditor,
+    inspector: Inspector,
 }
 
 impl Editor {
@@ -883,6 +886,7 @@ impl Editor {
         let sound_panel = SoundPanel::new(ctx);
         let log = Log::new(ctx);
         let model_import_dialog = ModelImportDialog::new(ctx);
+        let inspector = Inspector::new(ctx);
 
         let root_grid = GridBuilder::new(
             WidgetBuilder::new()
@@ -926,9 +930,34 @@ impl Editor {
                                                                 ))
                                                                 .build(ctx),
                                                             TileBuilder::new(WidgetBuilder::new())
-                                                                .with_content(TileContent::Window(
-                                                                    sidebar.window,
-                                                                ))
+                                                                .with_content(
+                                                                    TileContent::VerticalTiles {
+                                                                        splitter: 0.5,
+                                                                        tiles: [
+                                                                            TileBuilder::new(
+                                                                                WidgetBuilder::new(
+                                                                                ),
+                                                                            )
+                                                                            .with_content(
+                                                                                TileContent::Window(
+                                                                                    sidebar.window,
+                                                                                ),
+                                                                            )
+                                                                            .build(ctx),
+                                                                            TileBuilder::new(
+                                                                                WidgetBuilder::new(
+                                                                                ),
+                                                                            )
+                                                                            .with_content(
+                                                                                TileContent::Window(
+                                                                                    inspector
+                                                                                        .window,
+                                                                                ),
+                                                                            )
+                                                                            .build(ctx),
+                                                                        ],
+                                                                    },
+                                                                )
                                                                 .build(ctx),
                                                         ],
                                                     })
@@ -1045,6 +1074,7 @@ impl Editor {
             model_import_dialog,
             path_fixer,
             material_editor,
+            inspector,
         };
 
         editor.set_interaction_mode(Some(InteractionModeKind::Move), engine);
@@ -1604,6 +1634,7 @@ impl Editor {
             .sync_to_model(self.scene.as_ref(), &mut engine.user_interface);
 
         if let Some(editor_scene) = self.scene.as_mut() {
+            self.inspector.sync_to_model(editor_scene, engine);
             self.world_outliner.sync_to_model(editor_scene, engine);
             self.sidebar.sync_to_model(editor_scene, engine);
             self.navmesh_panel.sync_to_model(editor_scene, engine);

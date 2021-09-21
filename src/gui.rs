@@ -1,3 +1,4 @@
+use crate::inspector::editors::texture::{TextureEditor, TextureEditorMessage};
 use crate::{
     asset::AssetItem,
     load_image,
@@ -53,6 +54,7 @@ pub enum EditorUiMessage {
     SceneItem(SceneItemMessage),
     DeletableItem(DeletableItemMessage),
     SoundItem(SoundItemMessage),
+    TextureEditor(TextureEditorMessage),
 }
 
 impl MessageData for EditorUiMessage {}
@@ -215,6 +217,7 @@ pub enum EditorUiNode {
     SceneItem(SceneItem),
     EmitterItem(DeletableItem<usize>),
     SoundItem(SoundItem),
+    TextureEditor(TextureEditor),
 }
 
 macro_rules! static_dispatch {
@@ -224,6 +227,7 @@ macro_rules! static_dispatch {
             EditorUiNode::SceneItem(v) => v.$func($($args),*),
             EditorUiNode::EmitterItem(v) => v.$func($($args),*),
             EditorUiNode::SoundItem(v) => v.$func($($args),*),
+            EditorUiNode::TextureEditor(v) => v.$func($($args),*),
         }
     }
 }
