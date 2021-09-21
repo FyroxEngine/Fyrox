@@ -60,7 +60,12 @@ impl<M: MessageData, C: Control<M, C>> PropertyEditorDefinition<M, C>
         ))
     }
 
-    fn translate_message(&self, name: &str, message: &UiMessage<M, C>) -> Option<PropertyChanged> {
+    fn translate_message(
+        &self,
+        name: &str,
+        owner_type_id: TypeId,
+        message: &UiMessage<M, C>,
+    ) -> Option<PropertyChanged> {
         if message.direction() == MessageDirection::FromWidget {
             if let UiMessageData::Vec3Editor(Vec3EditorMessage::Value(value)) = message.data() {
                 let euler = Vector3::new(
@@ -70,6 +75,7 @@ impl<M: MessageData, C: Control<M, C>> PropertyEditorDefinition<M, C>
                 );
                 let rotation = quat_from_euler(euler, RotationOrder::XYZ);
                 return Some(PropertyChanged {
+                    owner_type_id,
                     name: name.to_string(),
                     value: Arc::new(rotation),
                 });

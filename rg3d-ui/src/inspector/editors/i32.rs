@@ -58,12 +58,18 @@ impl<M: MessageData, C: Control<M, C>> PropertyEditorDefinition<M, C>
         ))
     }
 
-    fn translate_message(&self, name: &str, message: &UiMessage<M, C>) -> Option<PropertyChanged> {
+    fn translate_message(
+        &self,
+        name: &str,
+        owner_type_id: TypeId,
+        message: &UiMessage<M, C>,
+    ) -> Option<PropertyChanged> {
         if message.direction() == MessageDirection::FromWidget {
             if let UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) = message.data()
             {
                 return Some(PropertyChanged {
                     name: name.to_string(),
+                    owner_type_id,
                     value: Arc::new(*value as i32),
                 });
             }

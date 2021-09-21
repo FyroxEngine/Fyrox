@@ -33,6 +33,7 @@ use crate::{
     window::WindowTitle,
     Control, HorizontalAlignment, MouseState, Orientation, Thickness, UINode, VerticalAlignment,
 };
+use std::any::TypeId;
 use std::{cell::Cell, fmt::Debug, path::PathBuf, sync::Arc};
 
 macro_rules! define_constructor {
@@ -961,6 +962,7 @@ impl CurveEditorMessage {
 #[derive(Debug, Clone)]
 pub struct PropertyChanged {
     pub name: String,
+    pub owner_type_id: TypeId,
     pub value: Arc<dyn PropertyValue>,
 }
 

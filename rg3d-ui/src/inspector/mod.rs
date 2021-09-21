@@ -20,6 +20,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Thickness, UINode, UserInterface, VerticalAlignment,
 };
+use std::any::TypeId;
 use std::{
     any::Any,
     collections::{hash_map::Entry, HashMap},
@@ -59,6 +60,7 @@ impl From<CastError> for InspectorError {
 #[derive(Clone, Debug)]
 pub struct ContextEntry<M: MessageData, C: Control<M, C>> {
     pub property_name: String,
+    pub property_owner_type_id: TypeId,
     pub property_editor_definition: Arc<dyn PropertyEditorDefinition<M, C>>,
     pub property_editor: Handle<UINode<M, C>>,
 }
@@ -183,6 +185,8 @@ impl<M: MessageData, C: Control<M, C>> InspectorContext<M, C> {
                                                                     property_name: info
                                                                         .name
                                                                         .to_string(),
+                                                                    property_owner_type_id: info
+                                                                        .owner_type_id,
                                                                 });
 
                                                                 instance
@@ -305,10 +309,11 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Inspector<M, C> {
         for group in self.context.groups.iter() {
             for entry in group.entries.iter() {
                 if message.destination() == entry.property_editor {
-                    if let Some(args) = entry
-                        .property_editor_definition
-                        .translate_message(&entry.property_name, message)
-                    {
+                    if let Some(args) = entry.property_editor_definition.translate_message(
+                        &entry.property_name,
+                        entry.property_owner_type_id,
+                        message,
+                    ) {
                         ui.send_message(InspectorMessage::property_changed(
                             self.handle,
                             MessageDirection::FromWidget,

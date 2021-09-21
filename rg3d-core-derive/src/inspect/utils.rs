@@ -78,6 +78,7 @@ pub fn collect_field_props<'a>(
 
         let body = quote! {
             PropertyInfo {
+                owner_type_id: std::any::TypeId::of::<Self>(),
                 name: #field_name,
                 display_name: #display_name,
                 group: #group,

@@ -44,7 +44,12 @@ pub trait PropertyEditorDefinition<M: MessageData, C: Control<M, C>>: Debug + Se
         property_info: &PropertyInfo,
     ) -> Result<UiMessage<M, C>, InspectorError>;
 
-    fn translate_message(&self, name: &str, message: &UiMessage<M, C>) -> Option<PropertyChanged>;
+    fn translate_message(
+        &self,
+        name: &str,
+        owner_type_id: TypeId,
+        message: &UiMessage<M, C>,
+    ) -> Option<PropertyChanged>;
 }
 
 #[derive(Clone)]

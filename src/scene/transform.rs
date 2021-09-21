@@ -55,7 +55,7 @@ use crate::{
     scene::variable::TemplateVariable,
     utils::log::{Log, MessageKind},
 };
-use std::cell::Cell;
+use std::{any::TypeId, cell::Cell};
 
 /// See module docs.
 #[derive(Clone, Debug)]
@@ -81,54 +81,63 @@ impl Inspect for Transform {
     fn properties(&self) -> Vec<PropertyInfo<'_>> {
         vec![
             PropertyInfo {
+                owner_type_id: TypeId::of::<Self>(),
                 name: "local_scale",
                 display_name: "Local Scale",
                 group: "Transform",
                 value: &*self.local_scale,
             },
             PropertyInfo {
+                owner_type_id: TypeId::of::<Self>(),
                 name: "local_position",
                 display_name: "Local Position",
                 group: "Transform",
                 value: &*self.local_position,
             },
             PropertyInfo {
+                owner_type_id: TypeId::of::<Self>(),
                 name: "local_rotation",
                 display_name: "Local Rotation",
                 group: "Transform",
                 value: &*self.local_rotation,
             },
             PropertyInfo {
+                owner_type_id: TypeId::of::<Self>(),
                 name: "pre_rotation",
                 display_name: "Pre Rotation",
                 group: "Transform",
                 value: &*self.pre_rotation,
             },
             PropertyInfo {
+                owner_type_id: TypeId::of::<Self>(),
                 name: "post_rotation",
                 display_name: "Post Rotation",
                 group: "Transform",
                 value: &*self.post_rotation,
             },
             PropertyInfo {
+                owner_type_id: TypeId::of::<Self>(),
                 name: "rotation_offset",
                 display_name: "Rotation Offset",
                 group: "Transform",
                 value: &*self.rotation_offset,
             },
             PropertyInfo {
+                owner_type_id: TypeId::of::<Self>(),
                 name: "rotation_pivot",
                 display_name: "Rotation Pivot",
                 group: "Transform",
                 value: &*self.rotation_pivot,
             },
             PropertyInfo {
+                owner_type_id: TypeId::of::<Self>(),
                 name: "scaling_offset",
                 display_name: "Scaling Offset",
                 group: "Transform",
                 value: &*self.scaling_offset,
             },
             PropertyInfo {
+                owner_type_id: TypeId::of::<Self>(),
                 name: "scaling_pivot",
                 display_name: "Scaling Pivot",
                 group: "Transform",

@@ -24,6 +24,9 @@ pub enum CastError {
 }
 
 pub struct PropertyInfo<'a> {
+    /// A type id of the owner of the property.
+    pub owner_type_id: TypeId,
+
     /// A name of the property.
     pub name: &'a str,
 
@@ -40,6 +43,7 @@ pub struct PropertyInfo<'a> {
 impl<'a> fmt::Debug for PropertyInfo<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("PropertyInfo")
+            .field("owner_type_id", &self.owner_type_id)
             .field("name", &self.name)
             .field("display_name", &self.display_name)
             .field("group", &self.group)
