@@ -1,25 +1,37 @@
-use crate::inspector::editors::texture::TexturePropertyEditorDefinition;
 use crate::{
-    gui::{BuildContext, EditorUiMessage, EditorUiNode, UiNode},
-    scene::{EditorScene, Selection},
-    GameEngine,
+    gui::{BuildContext, EditorUiMessage, EditorUiNode, Ui, UiMessage, UiNode},
+    inspector::editors::texture::TexturePropertyEditorDefinition,
+    scene::{
+        commands::{
+            graph::{MoveNodeCommand, RotateNodeCommand},
+            SceneCommand,
+        },
+        EditorScene, Selection,
+    },
+    GameEngine, Message,
 };
-use rg3d::engine::resource_manager::ResourceManager;
-use rg3d::gui::inspector::InspectorEnvironment;
 use rg3d::{
-    core::pool::Handle,
+    core::{
+        algebra::{UnitQuaternion, Vector3},
+        pool::Handle,
+    },
+    engine::resource_manager::ResourceManager,
     gui::{
         inspector::{
             editors::PropertyEditorDefinitionContainer, InspectorBuilder, InspectorContext,
+            InspectorEnvironment,
         },
-        message::{InspectorMessage, MessageDirection},
+        message::{InspectorMessage, MessageDirection, UiMessageData},
         scroll_viewer::ScrollViewerBuilder,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
     },
+    scene::{
+        base::Base, camera::Camera, decal::Decal, light::point::PointLight, light::spot::SpotLight,
+        light::BaseLight, particle_system::ParticleSystem, sprite::Sprite, transform::Transform,
+    },
 };
-use std::any::Any;
-use std::sync::Arc;
+use std::{any::Any, any::TypeId, sync::mpsc::Sender, sync::Arc};
 
 pub mod editors;
 
@@ -37,6 +49,16 @@ pub struct Inspector {
     pub window: Handle<UiNode>,
     inspector: Handle<UiNode>,
     property_editors: Arc<PropertyEditorDefinitionContainer<EditorUiMessage, EditorUiNode>>,
+}
+
+struct SenderHelper {
+    sender: Sender<Message>,
+}
+
+impl SenderHelper {
+    pub fn do_scene_command(&self, command: SceneCommand) {
+        self.sender.send(Message::DoSceneCommand(command)).unwrap();
+    }
 }
 
 impl Inspector {
@@ -94,6 +116,86 @@ impl Inspector {
                             MessageDirection::ToWidget,
                             context,
                         ));
+                }
+            }
+        }
+    }
+
+    pub fn handle_ui_message(
+        &mut self,
+        message: &UiMessage,
+        editor_scene: &EditorScene,
+        engine: &mut GameEngine,
+        sender: &Sender<Message>,
+    ) {
+        let helper = SenderHelper {
+            sender: sender.clone(),
+        };
+
+        if message.destination() == self.inspector
+            && message.direction() == MessageDirection::FromWidget
+        {
+            if let UiMessageData::Inspector(InspectorMessage::PropertyChanged(args)) =
+                message.data()
+            {
+                let scene = &engine.scenes[editor_scene.scene];
+
+                if let Selection::Graph(selection) = &editor_scene.selection {
+                    if selection.is_single_selection() {
+                        let node_handle = selection.nodes()[0];
+
+                        let node = &scene.graph[node_handle];
+
+                        if scene.graph.is_valid_handle(node_handle) {
+                            if args.owner_type_id == TypeId::of::<Base>() {
+                            } else if args.owner_type_id == TypeId::of::<Transform>() {
+                                match args.name.as_ref() {
+                                    "local_position" => {
+                                        helper.do_scene_command(SceneCommand::MoveNode(
+                                            MoveNodeCommand::new(
+                                                node_handle,
+                                                **node.local_transform().position(),
+                                                *args.cast_value::<Vector3<f32>>().unwrap(),
+                                            ),
+                                        ));
+                                    }
+                                    "local_rotation" => {
+                                        helper.do_scene_command(SceneCommand::RotateNode(
+                                            RotateNodeCommand::new(
+                                                node_handle,
+                                                **node.local_transform().rotation(),
+                                                *args.cast_value::<UnitQuaternion<f32>>().unwrap(),
+                                            ),
+                                        ));
+                                    }
+                                    "local_scale" => {
+                                        helper.do_scene_command(SceneCommand::RotateNode(
+                                            RotateNodeCommand::new(
+                                                node_handle,
+                                                **node.local_transform().rotation(),
+                                                *args.cast_value::<UnitQuaternion<f32>>().unwrap(),
+                                            ),
+                                        ));
+                                    }
+                                    _ => println!("Unhandled property of Transform: {:?}", args),
+                                }
+                            } else if args.owner_type_id == TypeId::of::<Camera>() {
+                                // TODO
+                            } else if args.owner_type_id == TypeId::of::<Sprite>() {
+                                // TODO
+                            } else if args.owner_type_id == TypeId::of::<BaseLight>() {
+                                // TODO
+                            } else if args.owner_type_id == TypeId::of::<PointLight>() {
+                                // TODO
+                            } else if args.owner_type_id == TypeId::of::<SpotLight>() {
+                                // TODO
+                            } else if args.owner_type_id == TypeId::of::<ParticleSystem>() {
+                                // TODO
+                            } else if args.owner_type_id == TypeId::of::<Decal>() {
+                                // TODO
+                            }
+                        }
+                    }
                 }
             }
         }

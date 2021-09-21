@@ -189,13 +189,19 @@ impl PropertyEditorDefinition<EditorUiMessage, EditorUiNode> for TextureProperty
         ))
     }
 
-    fn translate_message(&self, name: &str, message: &UiMessage) -> Option<PropertyChanged> {
+    fn translate_message(
+        &self,
+        name: &str,
+        owner_type_id: TypeId,
+        message: &UiMessage,
+    ) -> Option<PropertyChanged> {
         if message.direction() == MessageDirection::FromWidget {
             if let UiMessageData::User(EditorUiMessage::TextureEditor(
                 TextureEditorMessage::Texture(value),
             )) = message.data()
             {
                 return Some(PropertyChanged {
+                    owner_type_id,
                     name: name.to_string(),
                     value: Arc::new(value.clone()),
                 });

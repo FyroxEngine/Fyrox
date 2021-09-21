@@ -1252,6 +1252,9 @@ impl Editor {
                 },
             );
 
+            self.inspector
+                .handle_ui_message(message, editor_scene, engine, &self.message_sender);
+
             self.sound_panel
                 .handle_ui_message(&self.message_sender, editor_scene, message, engine);
 
