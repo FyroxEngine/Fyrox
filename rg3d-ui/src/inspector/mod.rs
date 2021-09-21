@@ -1,10 +1,9 @@
-use crate::border::BorderBuilder;
-use crate::brush::Brush;
-use crate::core::color::Color;
-use crate::core::inspect::CastError;
 use crate::{
+    border::BorderBuilder,
+    brush::Brush,
     core::{
-        inspect::{Inspect, PropertyInfo},
+        color::Color,
+        inspect::{CastError, Inspect, PropertyInfo},
         pool::Handle,
     },
     expander::ExpanderBuilder,
@@ -21,8 +20,8 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Thickness, UINode, UserInterface, VerticalAlignment,
 };
-use std::any::Any;
 use std::{
+    any::Any,
     collections::{hash_map::Entry, HashMap},
     fmt::Debug,
     ops::{Deref, DerefMut},
@@ -158,7 +157,7 @@ impl<M: MessageData, C: Control<M, C>> InspectorContext<M, C> {
                                         WidgetBuilder::new()
                                             .with_children(infos.iter().enumerate().map(
                                                 |(i, info)| {
-                                                    create_property_title(ctx, i, info.name)
+                                                    create_property_title(ctx, i, info.display_name)
                                                 },
                                             ))
                                             .with_children(infos.iter().enumerate().map(
