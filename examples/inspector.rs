@@ -8,7 +8,6 @@ use rg3d::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
         color::Color,
-        inspect::{Inspect, PropertyInfo},
         pool::Handle,
     },
     engine::resource_manager::{MaterialSearchOptions, ResourceManager},
@@ -30,8 +29,7 @@ use rg3d::{
         translate_event,
     },
 };
-use std::sync::Arc;
-use std::time::Instant;
+use std::{sync::Arc, time::Instant};
 
 // Create our own engine type aliases. These specializations are needed
 // because engine provides a way to extend UI with custom nodes and messages.
@@ -40,38 +38,8 @@ type UiNode = rg3d::gui::node::UINode<(), StubNode>;
 
 struct Interface {
     debug_text: Handle<UiNode>,
-    view_model: ViewModel,
     inspector: Handle<UiNode>,
-    inspector_context: InspectorContext<(), StubNode>,
-}
-
-struct ViewModel {
-    // In Euler angles.
-    rotation: Vector3<f32>,
-    scale: f32,
-    name: String,
-}
-
-impl Inspect for ViewModel {
-    fn properties(&self) -> Vec<PropertyInfo> {
-        vec![
-            PropertyInfo {
-                name: "Rotation",
-                group: "Transform",
-                value: &self.rotation,
-            },
-            PropertyInfo {
-                name: "Scale",
-                group: "Transform",
-                value: &self.scale,
-            },
-            PropertyInfo {
-                name: "Model Name",
-                group: "Common",
-                value: &self.name,
-            },
-        ]
-    }
+    definition_container: Arc<PropertyEditorDefinitionContainer<(), StubNode>>,
 }
 
 fn create_ui(engine: &mut GameEngine) -> Interface {
@@ -79,16 +47,7 @@ fn create_ui(engine: &mut GameEngine) -> Interface {
 
     let debug_text = TextBuilder::new(WidgetBuilder::new()).build(ctx);
 
-    let view_model = ViewModel {
-        rotation: Vector3::new(0.0, 180.0, 0.0),
-        scale: 0.05,
-        name: "Model".to_string(),
-    };
-
     let definition_container = Arc::new(PropertyEditorDefinitionContainer::new());
-
-    let inspector_context =
-        InspectorContext::from_object(&view_model, ctx, &definition_container, None);
 
     let inspector;
     WindowBuilder::new(WidgetBuilder::new().with_width(400.0))
@@ -97,8 +56,7 @@ fn create_ui(engine: &mut GameEngine) -> Interface {
             inspector = InspectorBuilder::new(
                 WidgetBuilder::new().with_desired_position(Vector2::new(200.0, 200.0)),
             )
-            .with_property_editor_definitions(definition_container)
-            .with_context(inspector_context.clone())
+            .with_property_editor_definitions(definition_container.clone())
             .build(ctx);
             inspector
         })
@@ -106,9 +64,8 @@ fn create_ui(engine: &mut GameEngine) -> Interface {
 
     Interface {
         debug_text,
-        view_model,
-        inspector_context,
         inspector,
+        definition_container,
     }
 }
 
@@ -181,6 +138,20 @@ fn main() {
         walk_animation,
     } = rg3d::core::futures::executor::block_on(create_scene(engine.resource_manager.clone()));
 
+    let inspector_context = InspectorContext::from_object(
+        &scene.graph[model_handle],
+        &mut engine.user_interface.build_ctx(),
+        &interface.definition_container,
+        None,
+    );
+    engine
+        .user_interface
+        .send_message(InspectorMessage::context(
+            interface.inspector,
+            MessageDirection::ToWidget,
+            inspector_context,
+        ));
+
     // Add scene to engine - engine will take ownership over scene and will return
     // you a handle to scene which can be used later on to borrow it and do some
     // actions you need.
@@ -243,26 +214,27 @@ fn main() {
                             ui_message.data()
                         {
                             match args.name.as_str() {
-                                "Scale" => {
-                                    let value = args.cast_value::<f32>().unwrap();
-                                    scene.graph[model_handle]
-                                        .local_transform_mut()
-                                        .set_scale(Vector3::new(*value, *value, *value));
-                                }
-                                "Rotation" => {
+                                "local_scale" => {
                                     let value = args.cast_value::<Vector3<f32>>().unwrap();
                                     scene.graph[model_handle]
                                         .local_transform_mut()
-                                        .set_rotation(UnitQuaternion::from_euler_angles(
-                                            value.z.to_radians(),
-                                            value.x.to_radians(),
-                                            value.y.to_radians(),
-                                        ));
+                                        .set_scale(*value);
                                 }
-                                "Name" => {
+                                "visibility" => {
+                                    let value = args.cast_value::<bool>().unwrap();
+                                    scene.graph[model_handle].set_visibility(*value);
+                                }
+                                "local_rotation" => {
+                                    let value = args.cast_value::<UnitQuaternion<f32>>().unwrap();
+                                    scene.graph[model_handle]
+                                        .local_transform_mut()
+                                        .set_rotation(*value);
+                                }
+                                "name" => {
                                     let text = args.cast_value::<String>().unwrap();
                                     scene.graph[model_handle].set_name(text.clone());
                                 }
+                                // TODO: Add rest of properties.
                                 _ => (),
                             }
                         }

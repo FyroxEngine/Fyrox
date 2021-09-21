@@ -24,8 +24,16 @@ pub enum CastError {
 }
 
 pub struct PropertyInfo<'a> {
+    /// A name of the property.
     pub name: &'a str,
+
+    /// A human-readable name of the property.
+    pub display_name: &'static str,
+
+    /// A name of the group that the property belongs to.
     pub group: &'static str,
+
+    /// An reference to the actual value of the property.
     pub value: &'a dyn PropertyValue,
 }
 
@@ -33,6 +41,7 @@ impl<'a> fmt::Debug for PropertyInfo<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("PropertyInfo")
             .field("name", &self.name)
+            .field("display_name", &self.display_name)
             .field("group", &self.group)
             .field("value", &format_args!("{:?}", self.value as *const _))
             .finish()
@@ -43,6 +52,7 @@ impl<'a> PartialEq<Self> for PropertyInfo<'a> {
     fn eq(&self, other: &Self) -> bool {
         self.name == other.name
             && self.group == other.group
+            && self.display_name == other.display_name
             && self.value as *const _ == other.value as *const _
     }
 }
