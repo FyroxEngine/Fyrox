@@ -9,6 +9,7 @@
 
 use crate::{
     core::{
+        inspect::{Inspect, PropertyInfo},
         pool::Handle,
         visitor::{Visit, VisitResult, Visitor},
     },
@@ -21,8 +22,9 @@ use crate::{
 use std::ops::{Deref, DerefMut};
 
 /// See module docs.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Inspect)]
 pub struct DirectionalLight {
+    #[inspect(expand)]
     base_light: BaseLight,
 }
 

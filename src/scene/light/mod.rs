@@ -21,6 +21,7 @@ use crate::{
         algebra::Vector3,
         color::Color,
         define_is_as,
+        inspect::{Inspect, PropertyInfo},
         visitor::{Visit, VisitResult, Visitor},
     },
     scene::{
@@ -57,6 +58,16 @@ pub enum Light {
 
     /// See [PointLight](struct.PointLight.html)
     Point(PointLight),
+}
+
+impl Inspect for Light {
+    fn properties(&self) -> Vec<PropertyInfo<'_>> {
+        match self {
+            Light::Directional(v) => v.properties(),
+            Light::Spot(v) => v.properties(),
+            Light::Point(v) => v.properties(),
+        }
+    }
 }
 
 impl Default for Light {
@@ -142,13 +153,24 @@ impl Visit for Light {
 /// Light scene node. It contains common properties of light such as color,
 /// scattering factor (per color channel) and other useful properties. Exact
 /// behavior defined by specific light kind.
-#[derive(Debug)]
+#[derive(Debug, Inspect)]
 pub struct BaseLight {
+    #[inspect(expand)]
     base: Base,
+
+    #[inspect(group = "Light")]
     color: Color,
+
+    #[inspect(group = "Light")]
     cast_shadows: bool,
+
+    #[inspect(group = "Light")]
     scatter: Vector3<f32>,
+
+    #[inspect(group = "Light")]
     scatter_enabled: bool,
+
+    #[inspect(group = "Light")]
     intensity: f32,
 }
 

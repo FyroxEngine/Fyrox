@@ -82,10 +82,18 @@ use std::ops::{Deref, DerefMut};
 pub struct Decal {
     #[inspect(expand)]
     base: Base,
+
+    #[inspect(group = "Decal")]
     diffuse_texture: Option<Texture>,
+
+    #[inspect(group = "Decal")]
     normal_texture: Option<Texture>,
+
+    #[inspect(group = "Decal")]
     #[visit(optional)] // Backward compatibility
     color: Color,
+
+    #[inspect(group = "Decal")]
     #[visit(optional)] // Backward compatibility
     layer: u8,
 }

@@ -71,25 +71,47 @@ impl Default for Exposure {
 /// See module docs.
 #[derive(Debug, Visit, Inspect)]
 pub struct Camera {
-    #[inspect(expand)]
+    #[inspect(expand, group = "Camera")]
     base: Base,
+
+    #[inspect(group = "Camera")]
     fov: f32,
+
+    #[inspect(group = "Camera")]
     z_near: f32,
+
+    #[inspect(group = "Camera")]
     z_far: f32,
+
+    #[inspect(group = "Camera")]
     viewport: Rect<f32>,
+
     #[visit(skip)]
     #[inspect(skip)]
     view_matrix: Matrix4<f32>,
+
     #[visit(skip)]
     #[inspect(skip)]
     projection_matrix: Matrix4<f32>,
+
+    #[inspect(group = "Camera")]
     enabled: bool,
+
+    #[inspect(group = "Camera")]
     sky_box: Option<Box<SkyBox>>,
+
+    #[inspect(group = "Camera")]
     environment: Option<Texture>,
+
+    #[inspect(group = "Camera")]
     #[visit(optional)] // Backward compatibility.
     exposure: Exposure,
+
+    #[inspect(group = "Camera")]
     #[visit(optional)] // Backward compatibility.
     color_grading_lut: Option<ColorGradingLut>,
+
+    #[inspect(group = "Camera")]
     #[visit(optional)] // Backward compatibility.
     color_grading_enabled: bool,
 

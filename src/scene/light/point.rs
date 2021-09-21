@@ -19,6 +19,7 @@
 
 use crate::{
     core::{
+        inspect::{Inspect, PropertyInfo},
         pool::Handle,
         visitor::{Visit, VisitResult, Visitor},
     },
@@ -31,10 +32,15 @@ use crate::{
 use std::ops::{Deref, DerefMut};
 
 /// See module docs.
-#[derive(Debug)]
+#[derive(Debug, Inspect)]
 pub struct PointLight {
+    #[inspect(expand)]
     base_light: BaseLight,
+
+    #[inspect(group = "Point Light")]
     shadow_bias: f32,
+
+    #[inspect(group = "Point Light")]
     radius: f32,
 }
 
