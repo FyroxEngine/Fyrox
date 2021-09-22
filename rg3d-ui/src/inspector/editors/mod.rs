@@ -16,6 +16,7 @@ use crate::{
 use std::{any::TypeId, collections::HashMap, fmt::Debug, sync::Arc};
 
 pub mod bool;
+pub mod enumeration;
 pub mod f32;
 pub mod i32;
 pub mod quat;

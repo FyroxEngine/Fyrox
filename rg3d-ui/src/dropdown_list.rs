@@ -228,6 +228,11 @@ impl<M: MessageData, C: Control<M, C>> DropdownListBuilder<M, C> {
         self
     }
 
+    pub fn with_opt_selected(mut self, index: Option<usize>) -> Self {
+        self.selected = index;
+        self
+    }
+
     pub fn with_close_on_selection(mut self, value: bool) -> Self {
         self.close_on_selection = value;
         self
