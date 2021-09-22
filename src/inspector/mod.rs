@@ -1,7 +1,8 @@
 use crate::{
-    gui::{BuildContext, EditorUiMessage, EditorUiNode, Ui, UiMessage, UiNode},
+    gui::{BuildContext, EditorUiMessage, EditorUiNode, UiMessage, UiNode},
     inspector::editors::texture::TexturePropertyEditorDefinition,
     scene::{
+        commands::graph::{SetNameCommand, SetTagCommand, SetVisibleCommand},
         commands::{
             graph::{MoveNodeCommand, RotateNodeCommand},
             SceneCommand,
@@ -10,6 +11,7 @@ use crate::{
     },
     GameEngine, Message,
 };
+use rg3d::scene::base::{Mobility, PhysicsBinding};
 use rg3d::{
     core::{
         algebra::{UnitQuaternion, Vector3},
@@ -18,17 +20,24 @@ use rg3d::{
     engine::resource_manager::ResourceManager,
     gui::{
         inspector::{
+            editors::enumeration::EnumPropertyEditorDefinition,
             editors::PropertyEditorDefinitionContainer, InspectorBuilder, InspectorContext,
             InspectorEnvironment,
         },
-        message::{InspectorMessage, MessageDirection, UiMessageData},
+        message::{InspectorMessage, MessageDirection, PropertyChanged, UiMessageData},
         scroll_viewer::ScrollViewerBuilder,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
     },
     scene::{
-        base::Base, camera::Camera, decal::Decal, light::point::PointLight, light::spot::SpotLight,
-        light::BaseLight, particle_system::ParticleSystem, sprite::Sprite, transform::Transform,
+        base::Base,
+        camera::Camera,
+        decal::Decal,
+        light::{point::PointLight, spot::SpotLight, BaseLight},
+        node::Node,
+        particle_system::ParticleSystem,
+        sprite::Sprite,
+        transform::Transform,
     },
 };
 use std::{any::Any, any::TypeId, sync::mpsc::Sender, sync::Arc};
@@ -61,11 +70,51 @@ impl SenderHelper {
     }
 }
 
+fn make_physics_binding_enum_editor_definition() -> EnumPropertyEditorDefinition<PhysicsBinding> {
+    EnumPropertyEditorDefinition {
+        variant_generator: |i| match i {
+            0 => PhysicsBinding::NodeWithBody,
+            1 => PhysicsBinding::BodyWithNode,
+            _ => unreachable!(),
+        },
+        index_generator: |v| *v as usize,
+        names_generator: || vec!["Node With Body".to_string(), "Body With Node".to_string()],
+    }
+}
+
+fn make_mobility_enum_editor_definition() -> EnumPropertyEditorDefinition<Mobility> {
+    EnumPropertyEditorDefinition {
+        variant_generator: |i| match i {
+            0 => Mobility::Static,
+            1 => Mobility::Stationary,
+            2 => Mobility::Dynamic,
+            _ => unreachable!(),
+        },
+        index_generator: |v| *v as usize,
+        names_generator: || {
+            vec![
+                "Static".to_string(),
+                "Stationary".to_string(),
+                "Dynamic".to_string(),
+            ]
+        },
+    }
+}
+
+fn make_property_editors_container(
+) -> Arc<PropertyEditorDefinitionContainer<EditorUiMessage, EditorUiNode>> {
+    let mut container = PropertyEditorDefinitionContainer::new();
+
+    container.insert(Arc::new(TexturePropertyEditorDefinition));
+    container.insert(Arc::new(make_physics_binding_enum_editor_definition()));
+    container.insert(Arc::new(make_mobility_enum_editor_definition()));
+
+    Arc::new(container)
+}
+
 impl Inspector {
     pub fn new(ctx: &mut BuildContext) -> Self {
-        let mut container = PropertyEditorDefinitionContainer::new();
-        container.insert(Arc::new(TexturePropertyEditorDefinition));
-        let property_editors = Arc::new(container);
+        let property_editors = make_property_editors_container();
 
         let inspector;
         let window = WindowBuilder::new(WidgetBuilder::new())
@@ -148,37 +197,9 @@ impl Inspector {
 
                         if scene.graph.is_valid_handle(node_handle) {
                             if args.owner_type_id == TypeId::of::<Base>() {
+                                handle_base_property_changed(args, node_handle, node, &helper);
                             } else if args.owner_type_id == TypeId::of::<Transform>() {
-                                match args.name.as_ref() {
-                                    "local_position" => {
-                                        helper.do_scene_command(SceneCommand::MoveNode(
-                                            MoveNodeCommand::new(
-                                                node_handle,
-                                                **node.local_transform().position(),
-                                                *args.cast_value::<Vector3<f32>>().unwrap(),
-                                            ),
-                                        ));
-                                    }
-                                    "local_rotation" => {
-                                        helper.do_scene_command(SceneCommand::RotateNode(
-                                            RotateNodeCommand::new(
-                                                node_handle,
-                                                **node.local_transform().rotation(),
-                                                *args.cast_value::<UnitQuaternion<f32>>().unwrap(),
-                                            ),
-                                        ));
-                                    }
-                                    "local_scale" => {
-                                        helper.do_scene_command(SceneCommand::RotateNode(
-                                            RotateNodeCommand::new(
-                                                node_handle,
-                                                **node.local_transform().rotation(),
-                                                *args.cast_value::<UnitQuaternion<f32>>().unwrap(),
-                                            ),
-                                        ));
-                                    }
-                                    _ => println!("Unhandled property of Transform: {:?}", args),
-                                }
+                                handle_transform_property_changed(args, node_handle, node, &helper);
                             } else if args.owner_type_id == TypeId::of::<Camera>() {
                                 // TODO
                             } else if args.owner_type_id == TypeId::of::<Sprite>() {
@@ -199,5 +220,66 @@ impl Inspector {
                 }
             }
         }
+    }
+}
+
+fn handle_transform_property_changed(
+    args: &PropertyChanged,
+    node_handle: Handle<Node>,
+    node: &Node,
+    helper: &SenderHelper,
+) {
+    match args.name.as_ref() {
+        "local_position" => {
+            helper.do_scene_command(SceneCommand::MoveNode(MoveNodeCommand::new(
+                node_handle,
+                **node.local_transform().position(),
+                *args.cast_value::<Vector3<f32>>().unwrap(),
+            )));
+        }
+        "local_rotation" => {
+            helper.do_scene_command(SceneCommand::RotateNode(RotateNodeCommand::new(
+                node_handle,
+                **node.local_transform().rotation(),
+                *args.cast_value::<UnitQuaternion<f32>>().unwrap(),
+            )));
+        }
+        "local_scale" => {
+            helper.do_scene_command(SceneCommand::RotateNode(RotateNodeCommand::new(
+                node_handle,
+                **node.local_transform().rotation(),
+                *args.cast_value::<UnitQuaternion<f32>>().unwrap(),
+            )));
+        }
+        _ => println!("Unhandled property of Transform: {:?}", args),
+    }
+}
+
+fn handle_base_property_changed(
+    args: &PropertyChanged,
+    node_handle: Handle<Node>,
+    node: &Node,
+    helper: &SenderHelper,
+) {
+    match args.name.as_ref() {
+        "name" => {
+            helper.do_scene_command(SceneCommand::SetName(SetNameCommand::new(
+                node_handle,
+                args.cast_value::<String>().unwrap().clone(),
+            )));
+        }
+        "tag" => {
+            helper.do_scene_command(SceneCommand::SetTag(SetTagCommand::new(
+                node_handle,
+                args.cast_value::<String>().unwrap().clone(),
+            )));
+        }
+        "visibility" => {
+            helper.do_scene_command(SceneCommand::SetVisible(SetVisibleCommand::new(
+                node_handle,
+                *args.cast_value::<bool>().unwrap(),
+            )));
+        }
+        _ => println!("Unhandled property of Base: {:?}", args),
     }
 }
