@@ -157,20 +157,10 @@ impl Visit for Light {
 pub struct BaseLight {
     #[inspect(expand)]
     base: Base,
-
-    #[inspect(group = "Light")]
     color: Color,
-
-    #[inspect(group = "Light")]
     cast_shadows: bool,
-
-    #[inspect(group = "Light")]
     scatter: Vector3<f32>,
-
-    #[inspect(group = "Light")]
     scatter_enabled: bool,
-
-    #[inspect(group = "Light")]
     intensity: f32,
 }
 

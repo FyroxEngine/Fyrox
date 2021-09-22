@@ -29,6 +29,7 @@ fn impl_inspect_struct(
     let prop_vec = {
         let props = utils::collect_field_props(
             quote! {  self. },
+            ty_args.ident.to_string(),
             field_args.fields.iter(),
             field_args.style,
         );

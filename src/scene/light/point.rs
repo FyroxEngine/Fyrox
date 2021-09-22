@@ -36,11 +36,7 @@ use std::ops::{Deref, DerefMut};
 pub struct PointLight {
     #[inspect(expand)]
     base_light: BaseLight,
-
-    #[inspect(group = "Point Light")]
     shadow_bias: f32,
-
-    #[inspect(group = "Point Light")]
     radius: f32,
 }
 

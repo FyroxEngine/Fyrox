@@ -42,6 +42,7 @@ fn create_impl_generics(
 pub fn collect_field_props<'a>(
     // <self.> or <variant.>
     prefix: TokenStream2,
+    owner_name: String,
     fields: impl Iterator<Item = &'a args::FieldArgs>,
     field_style: ast::Style,
 ) -> Vec<TokenStream2> {
@@ -72,7 +73,11 @@ pub fn collect_field_props<'a>(
         let display_name = display_name.to_case(Case::Title);
 
         // consider #[inspect(group = ..)]
-        let group = field.group.as_ref().map(|s| s.as_str()).unwrap_or("Common");
+        let group = field
+            .group
+            .as_ref()
+            .map(|s| s.as_str())
+            .unwrap_or(owner_name.as_str());
 
         let value = quote! { #prefix #field_ident };
 

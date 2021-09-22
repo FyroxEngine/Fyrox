@@ -68,19 +68,15 @@ impl RenderPath {
 /// See module docs.
 #[derive(Debug, Inspect)]
 pub struct Mesh {
-    #[inspect(expand, group = "Mesh")]
+    #[inspect(expand)]
     base: Base,
-    #[inspect(group = "Mesh")]
     surfaces: Vec<Surface>,
     #[inspect(skip)]
     bounding_box: Cell<AxisAlignedBoundingBox>,
     #[inspect(skip)]
     bounding_box_dirty: Cell<bool>,
-    #[inspect(group = "Mesh")]
     cast_shadows: bool,
-    #[inspect(group = "Mesh")]
     render_path: RenderPath,
-    #[inspect(group = "Mesh")]
     decal_layer_index: u8,
 }
 

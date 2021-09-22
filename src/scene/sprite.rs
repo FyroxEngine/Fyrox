@@ -61,17 +61,9 @@ use std::ops::{Deref, DerefMut};
 pub struct Sprite {
     #[inspect(expand)]
     base: Base,
-
-    #[inspect(group = "Sprite")]
     texture: Option<Texture>,
-
-    #[inspect(group = "Sprite")]
     color: Color,
-
-    #[inspect(group = "Sprite")]
     size: f32,
-
-    #[inspect(group = "Sprite")]
     rotation: f32,
 }
 

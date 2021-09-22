@@ -229,38 +229,19 @@ pub struct TerrainRayCastResult {
 pub struct Terrain {
     #[inspect(expand)]
     base: Base,
-
-    #[inspect(group = "Terrain")]
     width: f32,
-
-    #[inspect(group = "Terrain")]
     length: f32,
-
-    #[inspect(group = "Terrain")]
     mask_resolution: f32,
-
-    #[inspect(group = "Terrain")]
     height_map_resolution: f32,
-
     #[inspect(skip)]
     chunks: Vec<Chunk>,
-
-    #[inspect(group = "Terrain")]
     layers: Vec<Layer>,
-
-    #[inspect(group = "Terrain")]
     width_chunks: u32,
-
-    #[inspect(group = "Terrain")]
     length_chunks: u32,
-
     #[inspect(skip)]
     bounding_box_dirty: Cell<bool>,
-
     #[inspect(skip)]
     bounding_box: Cell<AxisAlignedBoundingBox>,
-
-    #[inspect(group = "Terrain")]
     #[visit(optional)] // Backward compatibility
     decal_layer_index: u8,
 }
