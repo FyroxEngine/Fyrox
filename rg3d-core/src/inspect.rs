@@ -115,4 +115,13 @@ pub trait Inspect {
     fn properties(&self) -> Vec<PropertyInfo<'_>>;
 }
 
+impl<T: Inspect> Inspect for Option<T> {
+    fn properties(&self) -> Vec<PropertyInfo<'_>> {
+        match self {
+            Some(v) => v.properties(),
+            None => vec![],
+        }
+    }
+}
+
 pub use rg3d_core_derive::Inspect;

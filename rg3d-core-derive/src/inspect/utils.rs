@@ -55,7 +55,7 @@ pub fn collect_field_props<'a>(
     let mut bodies = Vec::new();
 
     // consider #[inspect(skip)]
-    for field in fields.filter(|f| !f.skip && !f.expand) {
+    for field in fields.filter(|f| !f.skip && (!f.expand || f.include_self)) {
         // we know it is a named field
         let field_ident = field.ident.as_ref().unwrap();
 
