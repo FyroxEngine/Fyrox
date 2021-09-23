@@ -1,3 +1,4 @@
+use crate::scene::commands::camera::SetExposureCommand;
 use crate::{
     gui::{BuildContext, EditorUiMessage, EditorUiNode, UiMessage, UiNode},
     inspector::editors::texture::TexturePropertyEditorDefinition,
@@ -12,6 +13,7 @@ use crate::{
     GameEngine, Message,
 };
 use rg3d::scene::base::{Mobility, PhysicsBinding};
+use rg3d::scene::camera::Exposure;
 use rg3d::{
     core::{
         algebra::{UnitQuaternion, Vector3},
@@ -101,6 +103,21 @@ fn make_mobility_enum_editor_definition() -> EnumPropertyEditorDefinition<Mobili
     }
 }
 
+fn make_exposure_enum_editor_definition() -> EnumPropertyEditorDefinition<Exposure> {
+    EnumPropertyEditorDefinition {
+        variant_generator: |i| match i {
+            0 => Exposure::default(),
+            1 => Exposure::Manual(1.0),
+            _ => unreachable!(),
+        },
+        index_generator: |v| match v {
+            Exposure::Auto { .. } => 0,
+            Exposure::Manual(_) => 1,
+        },
+        names_generator: || vec!["Auto".to_string(), "Manual".to_string()],
+    }
+}
+
 fn make_property_editors_container(
 ) -> Arc<PropertyEditorDefinitionContainer<EditorUiMessage, EditorUiNode>> {
     let mut container = PropertyEditorDefinitionContainer::new();
@@ -108,6 +125,7 @@ fn make_property_editors_container(
     container.insert(Arc::new(TexturePropertyEditorDefinition));
     container.insert(Arc::new(make_physics_binding_enum_editor_definition()));
     container.insert(Arc::new(make_mobility_enum_editor_definition()));
+    container.insert(Arc::new(make_exposure_enum_editor_definition()));
 
     Arc::new(container)
 }
@@ -201,7 +219,7 @@ impl Inspector {
                             } else if args.owner_type_id == TypeId::of::<Transform>() {
                                 handle_transform_property_changed(args, node_handle, node, &helper);
                             } else if args.owner_type_id == TypeId::of::<Camera>() {
-                                // TODO
+                                handle_camera_property_changed(args, node_handle, node, &helper);
                             } else if args.owner_type_id == TypeId::of::<Sprite>() {
                                 // TODO
                             } else if args.owner_type_id == TypeId::of::<BaseLight>() {
@@ -281,5 +299,20 @@ fn handle_base_property_changed(
             )));
         }
         _ => println!("Unhandled property of Base: {:?}", args),
+    }
+}
+
+fn handle_camera_property_changed(
+    args: &PropertyChanged,
+    node_handle: Handle<Node>,
+    node: &Node,
+    helper: &SenderHelper,
+) {
+    match args.name.as_ref() {
+        "exposure" => helper.do_scene_command(SceneCommand::SetExposure(SetExposureCommand::new(
+            node_handle,
+            *args.cast_value::<Exposure>().unwrap(),
+        ))),
+        _ => println!("Unhandled property of Camera: {:?}", args),
     }
 }
