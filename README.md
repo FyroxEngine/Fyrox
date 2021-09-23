@@ -13,7 +13,15 @@ It should be noted that this editor is the **scene** editor, it does **not** all
 
 ## How to build
 
-Clean build:
+### Platform specific
+
+#### Linux
+
+```shell
+sudo apt install libxcb-shape0-dev libxcb-xfixes0-dev libxcb1-dev libxkbcommon-dev
+```
+
+### Clean build
 
 ```shell
 git clone https://github.com/mrDIMAS/rg3d
@@ -22,7 +30,7 @@ cd rusty-editor
 cargo run --release
 ```
 
-Update to latest and run:
+### Update to latest and run
 
 ```shell
 cd rg3d
