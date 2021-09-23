@@ -33,6 +33,12 @@ pub struct FieldArgs {
     #[darling(default)]
     pub name: Option<String>,
 
+    /// #[inspect(display_name = "<name>")]
+    ///
+    /// A human-readable name.
+    #[darling(default)]
+    pub display_name: Option<String>,
+
     /// #[inspect(group = "<group>")]
     ///
     /// Group override for a field (default: Common)

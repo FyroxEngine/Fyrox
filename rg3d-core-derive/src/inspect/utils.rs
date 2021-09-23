@@ -67,7 +67,7 @@ pub fn collect_field_props<'a>(
 
         // consider #[inspect(display_name = ..)]
         let display_name = field
-            .name
+            .display_name
             .clone()
             .unwrap_or_else(|| field_ident.to_string());
         let display_name = display_name.to_case(Case::Title);

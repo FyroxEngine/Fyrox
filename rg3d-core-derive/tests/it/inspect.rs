@@ -3,6 +3,7 @@
 use rg3d_core::inspect::{Inspect, PropertyInfo};
 
 use rg3d::scene::transform::Transform;
+use std::any::TypeId;
 
 #[test]
 fn inspect_default() {
@@ -16,13 +17,17 @@ fn inspect_default() {
 
     let expected = vec![
         PropertyInfo {
-            name: "The Field",
-            group: "Common",
+            owner_type_id: TypeId::of::<Data>(),
+            name: "the_field",
+            display_name: "The Field",
+            group: "Data",
             value: &data.the_field,
         },
         PropertyInfo {
-            name: "Another Field",
-            group: "Common",
+            owner_type_id: TypeId::of::<Data>(),
+            name: "another_field",
+            display_name: "Another Field",
+            group: "Data",
             value: &data.another_field,
         },
     ];
@@ -36,7 +41,7 @@ fn inspect_attributes() {
     pub struct Data {
         #[inspect(skip)]
         skipped: u32,
-        #[inspect(group = "Pos", name = "Super X")]
+        #[inspect(group = "Pos", name = "the_x", display_name = "Super X")]
         x: f32,
         // Expand properties are added to the end of the list
         #[inspect(expand)]
@@ -49,12 +54,16 @@ fn inspect_attributes() {
 
     let expected = vec![
         PropertyInfo {
-            name: "Super X",
+            owner_type_id: TypeId::of::<Data>(),
+            name: "the_x",
+            display_name: "Super X",
             group: "Pos",
             value: &data.x,
         },
         PropertyInfo {
-            name: "Y",
+            owner_type_id: TypeId::of::<Data>(),
+            name: "y",
+            display_name: "Y",
             group: "Pos",
             value: &data.y,
         },
