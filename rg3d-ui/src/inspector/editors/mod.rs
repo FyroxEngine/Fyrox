@@ -1,13 +1,18 @@
-use crate::inspector::InspectorEnvironment;
 use crate::{
     core::{inspect::PropertyInfo, pool::Handle},
     inspector::{
         editors::{
-            bool::BoolPropertyEditorDefinition, f32::F32PropertyEditorDefinition,
-            i32::I32PropertyEditorDefinition, quat::QuatPropertyEditorDefinition,
-            string::StringPropertyEditorDefinition, vec3::Vec3PropertyEditorDefinition,
+            bool::BoolPropertyEditorDefinition,
+            f32::F32PropertyEditorDefinition,
+            i32::I32PropertyEditorDefinition,
+            quat::QuatPropertyEditorDefinition,
+            string::StringPropertyEditorDefinition,
+            vec::{
+                Vec2PropertyEditorDefinition, Vec3PropertyEditorDefinition,
+                Vec4PropertyEditorDefinition,
+            },
         },
-        InspectorError,
+        InspectorEnvironment, InspectorError,
     },
     message::{MessageData, PropertyChanged, UiMessage},
     node::UINode,
@@ -21,7 +26,7 @@ pub mod f32;
 pub mod i32;
 pub mod quat;
 pub mod string;
-pub mod vec3;
+pub mod vec;
 
 pub struct PropertyEditorBuildContext<'a, 'b, 'c, M: MessageData, C: Control<M, C>> {
     pub build_context: &'a mut BuildContext<'c, M, C>,
@@ -72,7 +77,9 @@ impl<M: MessageData, C: Control<M, C>> PropertyEditorDefinitionContainer<M, C> {
         container.insert(Arc::new(F32PropertyEditorDefinition));
         container.insert(Arc::new(I32PropertyEditorDefinition));
         container.insert(Arc::new(StringPropertyEditorDefinition));
+        container.insert(Arc::new(Vec2PropertyEditorDefinition));
         container.insert(Arc::new(Vec3PropertyEditorDefinition));
+        container.insert(Arc::new(Vec4PropertyEditorDefinition));
         container.insert(Arc::new(BoolPropertyEditorDefinition));
         container.insert(Arc::new(QuatPropertyEditorDefinition));
         container
