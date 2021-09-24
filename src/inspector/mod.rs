@@ -1,42 +1,36 @@
-use crate::scene::commands::camera::SetExposureCommand;
 use crate::{
     gui::{BuildContext, EditorUiMessage, EditorUiNode, UiMessage, UiNode},
-    inspector::editors::texture::TexturePropertyEditorDefinition,
-    scene::{
-        commands::graph::{SetNameCommand, SetTagCommand, SetVisibleCommand},
-        commands::{
-            graph::{MoveNodeCommand, RotateNodeCommand},
-            SceneCommand,
+    inspector::{
+        editors::texture::TexturePropertyEditorDefinition,
+        handlers::{
+            base::handle_base_property_changed, camera::handle_camera_property_changed,
+            exposure::handle_exposure_property_changed,
+            transform::handle_transform_property_changed,
         },
-        EditorScene, Selection,
     },
+    scene::{commands::SceneCommand, EditorScene, Selection},
     GameEngine, Message,
 };
-use rg3d::scene::base::{Mobility, PhysicsBinding};
-use rg3d::scene::camera::Exposure;
 use rg3d::{
-    core::{
-        algebra::{UnitQuaternion, Vector3},
-        pool::Handle,
-    },
+    core::pool::Handle,
     engine::resource_manager::ResourceManager,
     gui::{
         inspector::{
-            editors::enumeration::EnumPropertyEditorDefinition,
-            editors::PropertyEditorDefinitionContainer, InspectorBuilder, InspectorContext,
-            InspectorEnvironment,
+            editors::{
+                enumeration::EnumPropertyEditorDefinition, PropertyEditorDefinitionContainer,
+            },
+            InspectorBuilder, InspectorContext, InspectorEnvironment,
         },
-        message::{InspectorMessage, MessageDirection, PropertyChanged, UiMessageData},
+        message::{InspectorMessage, MessageDirection, UiMessageData},
         scroll_viewer::ScrollViewerBuilder,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
     },
     scene::{
-        base::Base,
-        camera::Camera,
+        base::{Base, Mobility, PhysicsBinding},
+        camera::{Camera, Exposure},
         decal::Decal,
         light::{point::PointLight, spot::SpotLight, BaseLight},
-        node::Node,
         particle_system::ParticleSystem,
         sprite::Sprite,
         transform::Transform,
@@ -45,6 +39,7 @@ use rg3d::{
 use std::{any::Any, any::TypeId, sync::mpsc::Sender, sync::Arc};
 
 pub mod editors;
+pub mod handlers;
 
 pub struct EditorEnvironment {
     resource_manager: ResourceManager,
@@ -62,7 +57,7 @@ pub struct Inspector {
     property_editors: Arc<PropertyEditorDefinitionContainer<EditorUiMessage, EditorUiNode>>,
 }
 
-struct SenderHelper {
+pub struct SenderHelper {
     sender: Sender<Message>,
 }
 
@@ -215,11 +210,13 @@ impl Inspector {
 
                         if scene.graph.is_valid_handle(node_handle) {
                             if args.owner_type_id == TypeId::of::<Base>() {
-                                handle_base_property_changed(args, node_handle, node, &helper);
+                                handle_base_property_changed(args, node_handle, &helper);
                             } else if args.owner_type_id == TypeId::of::<Transform>() {
                                 handle_transform_property_changed(args, node_handle, node, &helper);
                             } else if args.owner_type_id == TypeId::of::<Camera>() {
-                                handle_camera_property_changed(args, node_handle, node, &helper);
+                                handle_camera_property_changed(args, node_handle, &helper);
+                            } else if args.owner_type_id == TypeId::of::<Exposure>() {
+                                handle_exposure_property_changed(args, node_handle, node, &helper);
                             } else if args.owner_type_id == TypeId::of::<Sprite>() {
                                 // TODO
                             } else if args.owner_type_id == TypeId::of::<BaseLight>() {
@@ -238,81 +235,5 @@ impl Inspector {
                 }
             }
         }
-    }
-}
-
-fn handle_transform_property_changed(
-    args: &PropertyChanged,
-    node_handle: Handle<Node>,
-    node: &Node,
-    helper: &SenderHelper,
-) {
-    match args.name.as_ref() {
-        "local_position" => {
-            helper.do_scene_command(SceneCommand::MoveNode(MoveNodeCommand::new(
-                node_handle,
-                **node.local_transform().position(),
-                *args.cast_value::<Vector3<f32>>().unwrap(),
-            )));
-        }
-        "local_rotation" => {
-            helper.do_scene_command(SceneCommand::RotateNode(RotateNodeCommand::new(
-                node_handle,
-                **node.local_transform().rotation(),
-                *args.cast_value::<UnitQuaternion<f32>>().unwrap(),
-            )));
-        }
-        "local_scale" => {
-            helper.do_scene_command(SceneCommand::RotateNode(RotateNodeCommand::new(
-                node_handle,
-                **node.local_transform().rotation(),
-                *args.cast_value::<UnitQuaternion<f32>>().unwrap(),
-            )));
-        }
-        _ => println!("Unhandled property of Transform: {:?}", args),
-    }
-}
-
-fn handle_base_property_changed(
-    args: &PropertyChanged,
-    node_handle: Handle<Node>,
-    node: &Node,
-    helper: &SenderHelper,
-) {
-    match args.name.as_ref() {
-        "name" => {
-            helper.do_scene_command(SceneCommand::SetName(SetNameCommand::new(
-                node_handle,
-                args.cast_value::<String>().unwrap().clone(),
-            )));
-        }
-        "tag" => {
-            helper.do_scene_command(SceneCommand::SetTag(SetTagCommand::new(
-                node_handle,
-                args.cast_value::<String>().unwrap().clone(),
-            )));
-        }
-        "visibility" => {
-            helper.do_scene_command(SceneCommand::SetVisible(SetVisibleCommand::new(
-                node_handle,
-                *args.cast_value::<bool>().unwrap(),
-            )));
-        }
-        _ => println!("Unhandled property of Base: {:?}", args),
-    }
-}
-
-fn handle_camera_property_changed(
-    args: &PropertyChanged,
-    node_handle: Handle<Node>,
-    node: &Node,
-    helper: &SenderHelper,
-) {
-    match args.name.as_ref() {
-        "exposure" => helper.do_scene_command(SceneCommand::SetExposure(SetExposureCommand::new(
-            node_handle,
-            *args.cast_value::<Exposure>().unwrap(),
-        ))),
-        _ => println!("Unhandled property of Camera: {:?}", args),
     }
 }
