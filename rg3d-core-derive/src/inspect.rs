@@ -23,47 +23,11 @@ fn impl_inspect_struct(
     assert_eq!(
         field_args.style,
         ast::Style::Struct,
-        "#[derive(Inspect) considers only named fields for now"
+        "#[derive(Inspect)] handles only named fields for now"
     );
 
-    let prop_vec = {
-        let props = utils::collect_field_props(
-            quote! {  self. },
-            ty_args.ident.to_string(),
-            field_args.fields.iter(),
-            field_args.style,
-        );
-
-        quote! {
-            vec![
-                #(
-                    #props,
-                )*
-            ]
-        }
-    };
-
-    // list of `self.expanded_field.prop()`
-    let prop_calls = utils::collect_field_prop_calls(
-        quote! {  self. },
-        field_args.fields.iter(),
-        field_args.style,
-    );
-
-    let impl_body = if prop_calls.is_empty() {
-        prop_vec
-    } else {
-        // NOTE: All items marked as `#[inspect(expand)]` come to the end of the property list
-        quote! {
-            let mut props = #prop_vec;
-            #(
-                props.extend(#prop_calls .into_iter());
-            )*
-            props
-        }
-    };
-
-    utils::create_impl(ty_args, field_args.iter().cloned(), impl_body)
+    let body = utils::gen_inspect_fn_body(ty_args, quote! { self. }, field_args);
+    utils::create_impl(ty_args, field_args.iter().cloned(), body)
 }
 
 fn impl_inspect_enum(
@@ -71,4 +35,7 @@ fn impl_inspect_enum(
     _variant_args: &[args::VariantArgs],
 ) -> TokenStream2 {
     todo!("#[derive(Inspect)] is only for structure types for now")
+    // bind each field
+
+    // generate implementation
 }

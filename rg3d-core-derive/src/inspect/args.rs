@@ -46,20 +46,21 @@ pub struct FieldArgs {
     pub group: Option<String>,
 
     /// `#[inspect(expand)]`
+    ///
+    /// Include the fields of the field, exclude the marked field itself.
     #[darling(default)]
     pub expand: bool,
 
-    /// `#[inspect(include_self)]`
+    /// `#[inspect(expand_subtree)]`
     ///
-    /// Whether to generate property info for a field on expansion or not.
-    /// Useful for enumerations.
+    /// Include the field and the fields of the field.
     #[darling(default)]
-    pub include_self: bool,
+    pub expand_subtree: bool,
 }
 
 #[derive(FromVariant)]
 #[darling(attributes(inspect))]
 pub struct VariantArgs {
     pub ident: Ident,
-    pub fields: ast::Fields<FieldArgs>,
+    pub field_args: ast::Fields<FieldArgs>,
 }

@@ -133,7 +133,7 @@ pub struct Camera {
     sky_box: Option<Box<SkyBox>>,
     environment: Option<Texture>,
     #[visit(optional)] // Backward compatibility.
-    #[inspect(expand, include_self)]
+    #[inspect(expand_subtree)]
     exposure: Exposure,
     #[visit(optional)] // Backward compatibility.
     color_grading_lut: Option<ColorGradingLut>,
