@@ -31,6 +31,8 @@ pub struct CameraController {
     move_right: bool,
     move_forward: bool,
     move_backward: bool,
+    move_up: bool,
+    move_down: bool,
     speed_factor: f32,
     stack: Vec<Handle<Node>>,
     editor_context: PickContext,
@@ -85,6 +87,8 @@ impl CameraController {
             move_right: false,
             move_forward: false,
             move_backward: false,
+            move_up: false,
+            move_down: false,
             speed_factor: 1.0,
             stack: Default::default(),
             editor_context: Default::default(),
@@ -124,10 +128,10 @@ impl CameraController {
         match button {
             MouseButton::Right => {
                 self.rotate = false;
-            },
+            }
             MouseButton::Middle => {
                 self.drag = false;
-            },
+            }
             _ => (),
         }
     }
@@ -136,10 +140,10 @@ impl CameraController {
         match button {
             MouseButton::Right => {
                 self.rotate = true;
-            },
+            }
             MouseButton::Middle => {
                 self.drag = true;
-            },
+            }
             _ => (),
         }
     }
@@ -150,6 +154,8 @@ impl CameraController {
             KeyCode::S => self.move_backward = false,
             KeyCode::A => self.move_left = false,
             KeyCode::D => self.move_right = false,
+            KeyCode::Space | KeyCode::Q => self.move_up = false,
+            KeyCode::E => self.move_down = false,
             KeyCode::LControl | KeyCode::LShift => self.speed_factor = 1.0,
             _ => (),
         }
@@ -161,6 +167,8 @@ impl CameraController {
             KeyCode::S => self.move_backward = true,
             KeyCode::A => self.move_left = true,
             KeyCode::D => self.move_right = true,
+            KeyCode::Space | KeyCode::Q => self.move_up = true,
+            KeyCode::E => self.move_down = true,
             KeyCode::LControl => self.speed_factor = 2.0,
             KeyCode::LShift => self.speed_factor = 0.25,
             _ => (),
@@ -173,6 +181,7 @@ impl CameraController {
         let global_transform = camera.global_transform();
         let look = global_transform.look();
         let side = global_transform.side();
+        let up = global_transform.up();
 
         let mut move_vec = Vector3::default();
         if self.move_forward {
@@ -186,6 +195,12 @@ impl CameraController {
         }
         if self.move_right {
             move_vec -= side;
+        }
+        if self.move_up {
+            move_vec += up;
+        }
+        if self.move_down {
+            move_vec -= up;
         }
         if let Some(v) = move_vec.try_normalize(std::f32::EPSILON) {
             move_vec = v.scale(self.speed_factor * 10.0 * dt);
