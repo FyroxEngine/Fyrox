@@ -5,68 +5,81 @@
 //! Docking manager can hold any types of UI elements, but dragging works only
 //! for windows.
 
+use crate::window::Window;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
     core::{algebra::Vector2, color::Color, math::Rect, pool::Handle},
     grid::{Column, GridBuilder, Row},
     message::{
-        CursorIcon, MessageData, MessageDirection, TileMessage, UiMessage, UiMessageData,
-        WidgetMessage, WindowMessage,
+        CursorIcon, MessageDirection, TileMessage, UiMessage, UiMessageData, WidgetMessage,
+        WindowMessage,
     },
-    node::UINode,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, NodeHandleMapping, Thickness, UserInterface,
+    BuildContext, Control, NodeHandleMapping, Thickness, UiNode, UserInterface,
 };
+use std::any::Any;
 use std::{
     cell::{Cell, RefCell},
     ops::{Deref, DerefMut},
 };
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum TileContent<M: MessageData, C: Control<M, C>> {
+pub enum TileContent {
     Empty,
-    Window(Handle<UINode<M, C>>),
+    Window(Handle<UiNode>),
     VerticalTiles {
         splitter: f32,
         /// Docking system requires tiles to be handles to Tile instances.
         /// However any node handle is acceptable, but in this case docking
         /// will most likely not work.
-        tiles: [Handle<UINode<M, C>>; 2],
+        tiles: [Handle<UiNode>; 2],
     },
     HorizontalTiles {
         splitter: f32,
         /// Docking system requires tiles to be handles to Tile instances.
         /// However any node handle is acceptable, but in this case docking
         /// will most likely not work.
-        tiles: [Handle<UINode<M, C>>; 2],
+        tiles: [Handle<UiNode>; 2],
     },
 }
 
-impl<M: MessageData, C: Control<M, C>> TileContent<M, C> {
+impl TileContent {
     pub fn is_empty(&self) -> bool {
         matches!(self, TileContent::Empty)
     }
 }
 
 #[derive(Clone)]
-pub struct Tile<M: MessageData, C: Control<M, C>> {
-    widget: Widget<M, C>,
-    left_anchor: Handle<UINode<M, C>>,
-    right_anchor: Handle<UINode<M, C>>,
-    top_anchor: Handle<UINode<M, C>>,
-    bottom_anchor: Handle<UINode<M, C>>,
-    center_anchor: Handle<UINode<M, C>>,
-    content: TileContent<M, C>,
-    splitter: Handle<UINode<M, C>>,
+pub struct Tile {
+    widget: Widget,
+    left_anchor: Handle<UiNode>,
+    right_anchor: Handle<UiNode>,
+    top_anchor: Handle<UiNode>,
+    bottom_anchor: Handle<UiNode>,
+    center_anchor: Handle<UiNode>,
+    content: TileContent,
+    splitter: Handle<UiNode>,
     dragging_splitter: bool,
-    drop_anchor: Cell<Handle<UINode<M, C>>>,
+    drop_anchor: Cell<Handle<UiNode>>,
 }
 
-crate::define_widget_deref!(Tile<M, C>);
+crate::define_widget_deref!(Tile);
 
-impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
-    fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
+impl Control for Tile {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
+    fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve_cell(&mut self.drop_anchor);
         node_map.resolve(&mut self.splitter);
         node_map.resolve(&mut self.center_anchor);
@@ -86,11 +99,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
         }
     }
 
-    fn measure_override(
-        &self,
-        ui: &UserInterface<M, C>,
-        available_size: Vector2<f32>,
-    ) -> Vector2<f32> {
+    fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         for &child_handle in self.children() {
             // Determine available size for each child by its kind:
             // - Every child not in content of tile just takes whole available size.
@@ -130,7 +139,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
         available_size
     }
 
-    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
+    fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         let splitter_size = ui.node(self.splitter).desired_size();
 
         for &child_handle in self.children() {
@@ -220,11 +229,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
         final_size
     }
 
-    fn handle_routed_message(
-        &mut self,
-        ui: &mut UserInterface<M, C>,
-        message: &mut UiMessage<M, C>,
-    ) {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
         match &message.data() {
@@ -364,7 +369,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
                             | TileContent::HorizontalTiles { tiles, .. } => {
                                 let mut has_empty_sub_tile = false;
                                 for &tile in &tiles {
-                                    if let UINode::Tile(sub_tile) = ui.node(tile) {
+                                    if let Some(sub_tile) = ui.node(tile).cast::<Tile>() {
                                         if let TileContent::Empty = sub_tile.content {
                                             has_empty_sub_tile = true;
                                             break;
@@ -373,7 +378,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
                                 }
                                 if has_empty_sub_tile {
                                     for &tile in &tiles {
-                                        if let UINode::Tile(sub_tile) = ui.node(tile) {
+                                        if let Some(sub_tile) = ui.node(tile).cast::<Tile>() {
                                             match sub_tile.content {
                                                 TileContent::Window(sub_tile_wnd) => {
                                                     // If we have only a tile with a window, then detach window and schedule
@@ -466,7 +471,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
                 };
 
                 if content_moved {
-                    if let UINode::Window(window) = ui.node(message.destination()) {
+                    if let Some(window) = ui.node(message.destination()).cast::<Window>() {
                         if window.drag_delta().norm() > 20.0 {
                             ui.send_message(TileMessage::content(
                                 self.handle,
@@ -485,19 +490,13 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
                                 true,
                             ));
 
-                            if let Some(docking_manager) = ui
-                                .try_borrow_by_criteria_up_mut(self.parent(), |n| {
-                                    matches!(n, UINode::DockingManager(_))
-                                })
+                            if let Some((_, docking_manager)) =
+                                ui.try_borrow_by_type_up::<DockingManager>(self.parent())
                             {
-                                if let UINode::DockingManager(docking_manager) = docking_manager {
-                                    docking_manager
-                                        .floating_windows
-                                        .borrow_mut()
-                                        .push(message.destination());
-                                } else {
-                                    unreachable!();
-                                }
+                                docking_manager
+                                    .floating_windows
+                                    .borrow_mut()
+                                    .push(message.destination());
                             }
                         }
                     }
@@ -509,7 +508,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
 
     // We have to use preview_message for docking purposes because dragged window detached
     // from docking manager and handle_routed_message won't receive any messages from window.
-    fn preview_message(&self, ui: &UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+    fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
         match &message.data() {
             UiMessageData::Widget(WidgetMessage::Unlink) => {
                 if let TileContent::Empty | TileContent::Window(_) = self.content {
@@ -524,10 +523,8 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
                 }
             }
             UiMessageData::Window(msg) => {
-                if let Some(UINode::DockingManager(docking_manager)) = ui
-                    .try_borrow_by_criteria_up(self.parent(), |n| {
-                        matches!(n, UINode::DockingManager(_))
-                    })
+                if let Some((_, docking_manager)) =
+                    ui.try_borrow_by_type_up::<DockingManager>(self.parent())
                 {
                     // Make sure we are dragging one of floating windows of parent docking manager.
                     if docking_manager
@@ -700,8 +697,8 @@ pub enum SplitDirection {
     Vertical,
 }
 
-impl<M: MessageData, C: Control<M, C>> Tile<M, C> {
-    pub fn anchors(&self) -> [Handle<UINode<M, C>>; 5] {
+impl Tile {
+    pub fn anchors(&self) -> [Handle<UiNode>; 5] {
         [
             self.left_anchor,
             self.right_anchor,
@@ -713,8 +710,8 @@ impl<M: MessageData, C: Control<M, C>> Tile<M, C> {
 
     fn split(
         &mut self,
-        ui: &mut UserInterface<M, C>,
-        window: Handle<UINode<M, C>>,
+        ui: &mut UserInterface,
+        window: Handle<UiNode>,
         direction: SplitDirection,
         first: bool,
     ) {
@@ -769,27 +766,35 @@ impl<M: MessageData, C: Control<M, C>> Tile<M, C> {
 }
 
 #[derive(Clone)]
-pub struct DockingManager<M: MessageData, C: Control<M, C>> {
-    widget: Widget<M, C>,
-    floating_windows: RefCell<Vec<Handle<UINode<M, C>>>>,
+pub struct DockingManager {
+    widget: Widget,
+    floating_windows: RefCell<Vec<Handle<UiNode>>>,
 }
 
-crate::define_widget_deref!(DockingManager<M, C>);
+crate::define_widget_deref!(DockingManager);
 
-impl<M: MessageData, C: Control<M, C>> Control<M, C> for DockingManager<M, C> {
-    fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
+impl Control for DockingManager {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
+    fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve_slice(&mut self.floating_windows.borrow_mut());
     }
 
-    fn handle_routed_message(
-        &mut self,
-        ui: &mut UserInterface<M, C>,
-        message: &mut UiMessage<M, C>,
-    ) {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
     }
 
-    fn preview_message(&self, _ui: &UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+    fn preview_message(&self, _ui: &UserInterface, message: &mut UiMessage) {
         if let UiMessageData::Widget(WidgetMessage::LinkWith(_)) = &message.data() {
             let pos = self
                 .floating_windows
@@ -803,47 +808,43 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for DockingManager<M, C> {
     }
 }
 
-pub struct DockingManagerBuilder<M: MessageData, C: Control<M, C>> {
-    widget_builder: WidgetBuilder<M, C>,
-    floating_windows: Vec<Handle<UINode<M, C>>>,
+pub struct DockingManagerBuilder {
+    widget_builder: WidgetBuilder,
+    floating_windows: Vec<Handle<UiNode>>,
 }
 
-impl<M: MessageData, C: Control<M, C>> DockingManagerBuilder<M, C> {
-    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
+impl DockingManagerBuilder {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             floating_windows: Default::default(),
         }
     }
 
-    pub fn with_floating_windows(mut self, windows: Vec<Handle<UINode<M, C>>>) -> Self {
+    pub fn with_floating_windows(mut self, windows: Vec<Handle<UiNode>>) -> Self {
         self.floating_windows = windows;
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let docking_manager = DockingManager {
             widget: self.widget_builder.with_preview_messages(true).build(),
             floating_windows: RefCell::new(self.floating_windows),
         };
 
-        ctx.add_node(UINode::DockingManager(docking_manager))
+        ctx.add_node(UiNode::new(docking_manager))
     }
 }
 
-pub struct TileBuilder<M: MessageData, C: Control<M, C>> {
-    widget_builder: WidgetBuilder<M, C>,
-    content: TileContent<M, C>,
+pub struct TileBuilder {
+    widget_builder: WidgetBuilder,
+    content: TileContent,
 }
 
 pub const DEFAULT_SPLITTER_SIZE: f32 = 4.0;
 pub const DEFAULT_ANCHOR_COLOR: Color = Color::opaque(150, 150, 150);
 
-pub fn make_default_anchor<M: MessageData, C: Control<M, C>>(
-    ctx: &mut BuildContext<M, C>,
-    row: usize,
-    column: usize,
-) -> Handle<UINode<M, C>> {
+pub fn make_default_anchor(ctx: &mut BuildContext, row: usize, column: usize) -> Handle<UiNode> {
     let default_anchor_size = 30.0;
     BorderBuilder::new(
         WidgetBuilder::new()
@@ -858,20 +859,20 @@ pub fn make_default_anchor<M: MessageData, C: Control<M, C>>(
     .build(ctx)
 }
 
-impl<M: MessageData, C: Control<M, C>> TileBuilder<M, C> {
-    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
+impl TileBuilder {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             content: TileContent::Empty,
         }
     }
 
-    pub fn with_content(mut self, content: TileContent<M, C>) -> Self {
+    pub fn with_content(mut self, content: TileContent) -> Self {
         self.content = content;
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let left_anchor = make_default_anchor(ctx, 2, 1);
         let right_anchor = make_default_anchor(ctx, 2, 3);
         let dock_anchor = make_default_anchor(ctx, 2, 2);
@@ -928,7 +929,7 @@ impl<M: MessageData, C: Control<M, C>> TileBuilder<M, C> {
         .build(ctx);
 
         if let TileContent::Window(window) = self.content {
-            if let UINode::Window(window) = &mut ctx[window] {
+            if let Some(window) = ctx[window].cast_mut::<Window>() {
                 // Every docked window must be non-resizable (it means that it cannot be resized by user
                 // and it still can be resized by a proper message).
                 window.set_can_resize(false);
@@ -961,6 +962,6 @@ impl<M: MessageData, C: Control<M, C>> TileBuilder<M, C> {
             drop_anchor: Default::default(),
         };
 
-        ctx.add_node(UINode::Tile(tile))
+        ctx.add_node(UiNode::new(tile))
     }
 }

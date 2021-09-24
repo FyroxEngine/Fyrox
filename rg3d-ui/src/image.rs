@@ -3,23 +3,24 @@ use crate::{
     brush::Brush,
     core::{algebra::Vector2, color::Color, pool::Handle},
     draw::{CommandTexture, DrawingContext, SharedTexture},
-    message::{ImageMessage, MessageData, UiMessage, UiMessageData},
+    message::{ImageMessage, UiMessage, UiMessageData},
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, UINode, UserInterface,
+    BuildContext, Control, UiNode, UserInterface,
 };
+use std::any::Any;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone)]
-pub struct Image<M: MessageData, C: Control<M, C>> {
-    widget: Widget<M, C>,
+pub struct Image {
+    widget: Widget,
     texture: Option<SharedTexture>,
     flip: bool,
 }
 
-crate::define_widget_deref!(Image<M, C>);
+crate::define_widget_deref!(Image);
 
-impl<M: MessageData, C: Control<M, C>> Image<M, C> {
-    pub fn new(widget: Widget<M, C>) -> Self {
+impl Image {
+    pub fn new(widget: Widget) -> Self {
         Self {
             widget,
             texture: None,
@@ -36,7 +37,19 @@ impl<M: MessageData, C: Control<M, C>> Image<M, C> {
     }
 }
 
-impl<M: MessageData, C: Control<M, C>> Control<M, C> for Image<M, C> {
+impl Control for Image {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.widget.screen_bounds();
         let tex_coords = if self.flip {
@@ -57,11 +70,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Image<M, C> {
         drawing_context.commit(self.clip_bounds(), self.widget.background(), texture, None);
     }
 
-    fn handle_routed_message(
-        &mut self,
-        ui: &mut UserInterface<M, C>,
-        message: &mut UiMessage<M, C>,
-    ) {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
         if message.destination() == self.handle {
@@ -79,14 +88,14 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Image<M, C> {
     }
 }
 
-pub struct ImageBuilder<M: MessageData, C: Control<M, C>> {
-    widget_builder: WidgetBuilder<M, C>,
+pub struct ImageBuilder {
+    widget_builder: WidgetBuilder,
     texture: Option<SharedTexture>,
     flip: bool,
 }
 
-impl<M: MessageData, C: Control<M, C>> ImageBuilder<M, C> {
-    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
+impl ImageBuilder {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             texture: None,
@@ -109,7 +118,7 @@ impl<M: MessageData, C: Control<M, C>> ImageBuilder<M, C> {
         self
     }
 
-    pub fn build_node(mut self) -> UINode<M, C> {
+    pub fn build_node(mut self) -> UiNode {
         if self.widget_builder.background.is_none() {
             self.widget_builder.background = Some(Brush::Solid(Color::WHITE))
         }
@@ -119,10 +128,10 @@ impl<M: MessageData, C: Control<M, C>> ImageBuilder<M, C> {
             texture: self.texture,
             flip: self.flip,
         };
-        UINode::Image(image)
+        UiNode::new(image)
     }
 
-    pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         ctx.add_node(self.build_node())
     }
 }

@@ -9,13 +9,12 @@ use crate::{
         InspectorError,
     },
     message::{
-        MessageData, MessageDirection, PropertyChanged, UiMessage, UiMessageData,
-        Vec2EditorMessage, Vec3EditorMessage, Vec4EditorMessage,
+        MessageDirection, PropertyChanged, UiMessage, UiMessageData, Vec2EditorMessage,
+        Vec3EditorMessage, Vec4EditorMessage,
     },
-    node::UINode,
     vec::{vec2::Vec2EditorBuilder, vec3::Vec3EditorBuilder, vec4::Vec4EditorBuilder},
     widget::WidgetBuilder,
-    Control, Thickness,
+    Thickness, UiNode,
 };
 use std::{any::TypeId, sync::Arc};
 
@@ -24,15 +23,15 @@ macro_rules! define_vector_editor {
         #[derive(Debug)]
         pub struct $name;
 
-        impl<M: MessageData, C: Control<M, C>> PropertyEditorDefinition<M, C> for $name {
+        impl PropertyEditorDefinition for $name {
             fn value_type_id(&self) -> TypeId {
                 TypeId::of::<$value>()
             }
 
             fn create_instance(
                 &self,
-                ctx: PropertyEditorBuildContext<M, C>,
-            ) -> Result<Handle<UINode<M, C>>, InspectorError> {
+                ctx: PropertyEditorBuildContext,
+            ) -> Result<Handle<UiNode>, InspectorError> {
                 let value = ctx.property_info.cast_value::<$value>()?;
                 Ok(<$builder>::new(
                     WidgetBuilder::new()
@@ -46,9 +45,9 @@ macro_rules! define_vector_editor {
 
             fn create_message(
                 &self,
-                instance: Handle<UINode<M, C>>,
+                instance: Handle<UiNode>,
                 property_info: &PropertyInfo,
-            ) -> Result<UiMessage<M, C>, InspectorError> {
+            ) -> Result<UiMessage, InspectorError> {
                 let value = property_info.cast_value::<$value>()?;
                 Ok($message::value(
                     instance,
@@ -61,7 +60,7 @@ macro_rules! define_vector_editor {
                 &self,
                 name: &str,
                 owner_type_id: TypeId,
-                message: &UiMessage<M, C>,
+                message: &UiMessage,
             ) -> Option<PropertyChanged> {
                 if message.direction() == MessageDirection::FromWidget {
                     if let UiMessageData::$message_variant($message::Value(value)) = message.data()
@@ -81,7 +80,7 @@ macro_rules! define_vector_editor {
 
 define_vector_editor!(
     Vec4PropertyEditorDefinition,
-    Vec4EditorBuilder<M, C>,
+    Vec4EditorBuilder,
     Vec4EditorMessage,
     Vec4Editor,
     Vector4<f32>
@@ -89,7 +88,7 @@ define_vector_editor!(
 
 define_vector_editor!(
     Vec3PropertyEditorDefinition,
-    Vec3EditorBuilder<M, C>,
+    Vec3EditorBuilder,
     Vec3EditorMessage,
     Vec3Editor,
     Vector3<f32>
@@ -97,7 +96,7 @@ define_vector_editor!(
 
 define_vector_editor!(
     Vec2PropertyEditorDefinition,
-    Vec2EditorBuilder<M, C>,
+    Vec2EditorBuilder,
     Vec2EditorMessage,
     Vec2Editor,
     Vector2<f32>

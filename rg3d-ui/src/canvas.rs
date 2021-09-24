@@ -1,25 +1,34 @@
 use crate::{
     core::{algebra::Vector2, math::Rect, pool::Handle, scope_profile},
-    message::{MessageData, UiMessage},
+    message::UiMessage,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, UINode, UserInterface,
+    BuildContext, Control, UiNode, UserInterface,
 };
+use std::any::Any;
 use std::ops::{Deref, DerefMut};
 
 /// Allows user to directly set position and size of a node
 #[derive(Clone)]
-pub struct Canvas<M: MessageData, C: Control<M, C>> {
-    widget: Widget<M, C>,
+pub struct Canvas {
+    widget: Widget,
 }
 
-crate::define_widget_deref!(Canvas<M, C>);
+crate::define_widget_deref!(Canvas);
 
-impl<M: MessageData, C: Control<M, C>> Control<M, C> for Canvas<M, C> {
-    fn measure_override(
-        &self,
-        ui: &UserInterface<M, C>,
-        _available_size: Vector2<f32>,
-    ) -> Vector2<f32> {
+impl Control for Canvas {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
+    fn measure_override(&self, ui: &UserInterface, _available_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
 
         let size_for_child = Vector2::new(f32::INFINITY, f32::INFINITY);
@@ -31,7 +40,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Canvas<M, C> {
         Vector2::default()
     }
 
-    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
+    fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
 
         for &child_handle in self.widget.children() {
@@ -50,34 +59,30 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Canvas<M, C> {
         final_size
     }
 
-    fn handle_routed_message(
-        &mut self,
-        ui: &mut UserInterface<M, C>,
-        message: &mut UiMessage<M, C>,
-    ) {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
     }
 }
 
-impl<M: MessageData, C: Control<M, C>> Canvas<M, C> {
-    pub fn new(widget: Widget<M, C>) -> Self {
+impl Canvas {
+    pub fn new(widget: Widget) -> Self {
         Self { widget }
     }
 }
 
-pub struct CanvasBuilder<M: MessageData, C: Control<M, C>> {
-    widget_builder: WidgetBuilder<M, C>,
+pub struct CanvasBuilder {
+    widget_builder: WidgetBuilder,
 }
 
-impl<M: MessageData, C: Control<M, C>> CanvasBuilder<M, C> {
-    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
+impl CanvasBuilder {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self { widget_builder }
     }
 
-    pub fn build(self, ui: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ui: &mut BuildContext) -> Handle<UiNode> {
         let canvas = Canvas {
             widget: self.widget_builder.build(),
         };
-        ui.add_node(UINode::Canvas(canvas))
+        ui.add_node(UiNode::new(canvas))
     }
 }

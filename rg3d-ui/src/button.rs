@@ -5,33 +5,28 @@ use crate::{
     brush::Brush,
     core::pool::Handle,
     decorator::DecoratorBuilder,
-    message::{
-        ButtonMessage, MessageData, MessageDirection, UiMessage, UiMessageData, WidgetMessage,
-    },
+    message::{ButtonMessage, MessageDirection, UiMessage, UiMessageData, WidgetMessage},
     text::TextBuilder,
     ttf::SharedFont,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Thickness, UINode,
+    BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Thickness, UiNode,
     UserInterface, VerticalAlignment, BRUSH_LIGHT, BRUSH_LIGHTER, BRUSH_LIGHTEST, COLOR_DARKEST,
     COLOR_LIGHTEST,
 };
+use std::any::Any;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone)]
-pub struct Button<M: MessageData, C: Control<M, C>> {
-    widget: Widget<M, C>,
-    decorator: Handle<UINode<M, C>>,
-    content: Handle<UINode<M, C>>,
+pub struct Button {
+    widget: Widget,
+    decorator: Handle<UiNode>,
+    content: Handle<UiNode>,
 }
 
-crate::define_widget_deref!(Button<M, C>);
+crate::define_widget_deref!(Button);
 
-impl<M: MessageData, C: Control<M, C>> Button<M, C> {
-    pub fn new(
-        widget: Widget<M, C>,
-        body: Handle<UINode<M, C>>,
-        content: Handle<UINode<M, C>>,
-    ) -> Self {
+impl Button {
+    pub fn new(widget: Widget, body: Handle<UiNode>, content: Handle<UiNode>) -> Self {
         Self {
             widget,
             decorator: body,
@@ -39,27 +34,35 @@ impl<M: MessageData, C: Control<M, C>> Button<M, C> {
         }
     }
 
-    pub fn content(&self) -> Handle<UINode<M, C>> {
+    pub fn content(&self) -> Handle<UiNode> {
         self.content
     }
 
-    pub fn set_content(&mut self, content: Handle<UINode<M, C>>) -> &mut Self {
+    pub fn set_content(&mut self, content: Handle<UiNode>) -> &mut Self {
         self.content = content;
         self
     }
 }
 
-impl<M: MessageData, C: Control<M, C>> Control<M, C> for Button<M, C> {
-    fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
+impl Control for Button {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
+    fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.content);
         node_map.resolve(&mut self.decorator);
     }
 
-    fn handle_routed_message(
-        &mut self,
-        ui: &mut UserInterface<M, C>,
-        message: &mut UiMessage<M, C>,
-    ) {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
         match &message.data() {
@@ -109,27 +112,27 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Button<M, C> {
         }
     }
 
-    fn remove_ref(&mut self, handle: Handle<UINode<M, C>>) {
+    fn remove_ref(&mut self, handle: Handle<UiNode>) {
         if self.content == handle {
             self.content = Handle::NONE;
         }
     }
 }
 
-pub enum ButtonContent<M: MessageData, C: Control<M, C>> {
+pub enum ButtonContent {
     Text(String),
-    Node(Handle<UINode<M, C>>),
+    Node(Handle<UiNode>),
 }
 
-pub struct ButtonBuilder<M: MessageData, C: Control<M, C>> {
-    widget_builder: WidgetBuilder<M, C>,
-    content: Option<ButtonContent<M, C>>,
+pub struct ButtonBuilder {
+    widget_builder: WidgetBuilder,
+    content: Option<ButtonContent>,
     font: Option<SharedFont>,
-    back: Option<Handle<UINode<M, C>>>,
+    back: Option<Handle<UiNode>>,
 }
 
-impl<M: MessageData, C: Control<M, C>> ButtonBuilder<M, C> {
-    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
+impl ButtonBuilder {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             content: None,
@@ -143,7 +146,7 @@ impl<M: MessageData, C: Control<M, C>> ButtonBuilder<M, C> {
         self
     }
 
-    pub fn with_content(mut self, node: Handle<UINode<M, C>>) -> Self {
+    pub fn with_content(mut self, node: Handle<UiNode>) -> Self {
         self.content = Some(ButtonContent::Node(node));
         self
     }
@@ -153,12 +156,12 @@ impl<M: MessageData, C: Control<M, C>> ButtonBuilder<M, C> {
         self
     }
 
-    pub fn with_back(mut self, decorator: Handle<UINode<M, C>>) -> Self {
+    pub fn with_back(mut self, decorator: Handle<UiNode>) -> Self {
         self.back = Some(decorator);
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let content = if let Some(content) = self.content {
             match content {
                 ButtonContent::Text(txt) => TextBuilder::new(WidgetBuilder::new())
@@ -214,6 +217,6 @@ impl<M: MessageData, C: Control<M, C>> ButtonBuilder<M, C> {
             decorator: back,
             content,
         };
-        ctx.add_node(UINode::Button(button))
+        ctx.add_node(UiNode::new(button))
     }
 }

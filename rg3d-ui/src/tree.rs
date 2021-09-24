@@ -1,3 +1,4 @@
+use crate::button::Button;
 use crate::core::algebra::Vector2;
 use crate::message::TreeExpansionStrategy;
 use crate::{
@@ -8,41 +9,53 @@ use crate::{
     decorator::DecoratorBuilder,
     grid::{Column, GridBuilder, Row},
     message::{
-        ButtonMessage, DecoratorMessage, MessageData, MessageDirection, TextMessage, TreeMessage,
+        ButtonMessage, DecoratorMessage, MessageDirection, TextMessage, TreeMessage,
         TreeRootMessage, UiMessage, UiMessageData, WidgetMessage,
     },
-    node::UINode,
     stack_panel::StackPanelBuilder,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, NodeHandleMapping, Thickness, UserInterface, BRUSH_DARK, BRUSH_DARKEST,
-    BRUSH_LIGHT,
+    BuildContext, Control, NodeHandleMapping, Thickness, UiNode, UserInterface, BRUSH_DARK,
+    BRUSH_DARKEST, BRUSH_LIGHT,
 };
+use std::any::Any;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Debug, Clone)]
-pub struct Tree<M: MessageData, C: Control<M, C>> {
-    widget: Widget<M, C>,
-    expander: Handle<UINode<M, C>>,
-    content: Handle<UINode<M, C>>,
-    panel: Handle<UINode<M, C>>,
+pub struct Tree {
+    widget: Widget,
+    expander: Handle<UiNode>,
+    content: Handle<UiNode>,
+    panel: Handle<UiNode>,
     is_expanded: bool,
-    background: Handle<UINode<M, C>>,
-    items: Vec<Handle<UINode<M, C>>>,
+    background: Handle<UiNode>,
+    items: Vec<Handle<UiNode>>,
     is_selected: bool,
     always_show_expander: bool,
 }
 
-crate::define_widget_deref!(Tree<M, C>);
+crate::define_widget_deref!(Tree);
 
-impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tree<M, C> {
-    fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
+impl Control for Tree {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
+    fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.content);
         node_map.resolve(&mut self.expander);
         node_map.resolve(&mut self.panel);
         node_map.resolve(&mut self.background);
     }
 
-    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
+    fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         let size = self.widget.arrange_override(ui, final_size);
 
         let expander_visibility = !self.items.is_empty() || self.always_show_expander;
@@ -55,11 +68,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tree<M, C> {
         size
     }
 
-    fn handle_routed_message(
-        &mut self,
-        ui: &mut UserInterface<M, C>,
-        message: &mut UiMessage<M, C>,
-    ) {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
         match &message.data() {
@@ -75,36 +84,31 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tree<M, C> {
             }
             UiMessageData::Widget(WidgetMessage::MouseDown { .. }) => {
                 if !message.handled() {
-                    let root =
-                        ui.find_by_criteria_up(self.parent(), |n| matches!(n, UINode::TreeRoot(_)));
-                    if root.is_some() {
-                        if let UINode::TreeRoot(tree_root) = ui.node(root) {
-                            let selection = if ui.keyboard_modifiers().control {
-                                let mut selection = tree_root.selected.clone();
-                                if let Some(existing) =
-                                    selection.iter().position(|&h| h == self.handle)
-                                {
-                                    selection.remove(existing);
-                                } else {
-                                    selection.push(self.handle);
-                                }
-                                Some(selection)
-                            } else if !self.is_selected {
-                                Some(vec![self.handle()])
+                    if let Some((tree_root_handle, tree_root)) =
+                        ui.try_borrow_by_type_up::<TreeRoot>(self.parent())
+                    {
+                        let selection = if ui.keyboard_modifiers().control {
+                            let mut selection = tree_root.selected.clone();
+                            if let Some(existing) = selection.iter().position(|&h| h == self.handle)
+                            {
+                                selection.remove(existing);
                             } else {
-                                None
-                            };
-                            if let Some(selection) = selection {
-                                ui.send_message(TreeRootMessage::select(
-                                    root,
-                                    MessageDirection::ToWidget,
-                                    selection,
-                                ));
+                                selection.push(self.handle);
                             }
-                            message.set_handled(true);
+                            Some(selection)
+                        } else if !self.is_selected {
+                            Some(vec![self.handle()])
                         } else {
-                            unreachable!();
+                            None
+                        };
+                        if let Some(selection) = selection {
+                            ui.send_message(TreeRootMessage::select(
+                                tree_root_handle,
+                                MessageDirection::ToWidget,
+                                selection,
+                            ));
                         }
+                        message.set_handled(true);
                     }
                 }
             }
@@ -121,7 +125,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tree<M, C> {
                                 MessageDirection::ToWidget,
                                 self.is_expanded,
                             ));
-                            if let UINode::Button(expander) = ui.node(self.expander) {
+                            if let Some(expander) = ui.node(self.expander).cast::<Button>() {
                                 let content = expander.content();
                                 let text = if expand { "-" } else { "+" };
                                 ui.send_message(TextMessage::text(
@@ -148,7 +152,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tree<M, C> {
                                     // up on visual tree and don't care about search bounds, ideally we should
                                     // stop search if we're found TreeRoot.
                                     let parent_tree = self
-                                        .find_by_criteria_up(ui, |n| matches!(n, UINode::Tree(_)));
+                                        .find_by_criteria_up(ui, |n| n.cast::<Tree>().is_some());
                                     if parent_tree.is_some() {
                                         ui.send_message(TreeMessage::expand(
                                             parent_tree,
@@ -219,7 +223,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tree<M, C> {
         }
     }
 
-    fn remove_ref(&mut self, handle: Handle<UINode<M, C>>) {
+    fn remove_ref(&mut self, handle: Handle<UiNode>) {
         if self.expander == handle {
             self.expander = Default::default();
         }
@@ -235,27 +239,23 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tree<M, C> {
     }
 }
 
-impl<M: MessageData, C: Control<M, C>> Tree<M, C> {
-    pub fn content(&self) -> Handle<UINode<M, C>> {
+impl Tree {
+    pub fn content(&self) -> Handle<UiNode> {
         self.content
     }
 
-    pub fn back(&self) -> Handle<UINode<M, C>> {
+    pub fn back(&self) -> Handle<UiNode> {
         self.background
     }
 
-    pub fn items(&self) -> &[Handle<UINode<M, C>>] {
+    pub fn items(&self) -> &[Handle<UiNode>] {
         &self.items
     }
 
     /// Adds new item to given tree. This method is meant to be used only on widget build stage,
     /// any runtime actions should be done via messages.
-    pub fn add_item(
-        tree: Handle<UINode<M, C>>,
-        item: Handle<UINode<M, C>>,
-        ctx: &mut BuildContext<M, C>,
-    ) {
-        if let UINode::Tree(tree) = &mut ctx[tree] {
+    pub fn add_item(tree: Handle<UiNode>, item: Handle<UiNode>, ctx: &mut BuildContext) {
+        if let Some(tree) = ctx[tree].cast_mut::<Tree>() {
             tree.items.push(item);
             let panel = tree.panel;
             ctx.link(item, panel);
@@ -271,17 +271,17 @@ impl<M: MessageData, C: Control<M, C>> Tree<M, C> {
     }
 }
 
-pub struct TreeBuilder<M: MessageData, C: Control<M, C>> {
-    widget_builder: WidgetBuilder<M, C>,
-    items: Vec<Handle<UINode<M, C>>>,
-    content: Handle<UINode<M, C>>,
+pub struct TreeBuilder {
+    widget_builder: WidgetBuilder,
+    items: Vec<Handle<UiNode>>,
+    content: Handle<UiNode>,
     is_expanded: bool,
     always_show_expander: bool,
-    back: Option<Handle<UINode<M, C>>>,
+    back: Option<Handle<UiNode>>,
 }
 
-impl<M: MessageData, C: Control<M, C>> TreeBuilder<M, C> {
-    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
+impl TreeBuilder {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             items: Default::default(),
@@ -292,12 +292,12 @@ impl<M: MessageData, C: Control<M, C>> TreeBuilder<M, C> {
         }
     }
 
-    pub fn with_items(mut self, items: Vec<Handle<UINode<M, C>>>) -> Self {
+    pub fn with_items(mut self, items: Vec<Handle<UiNode>>) -> Self {
         self.items = items;
         self
     }
 
-    pub fn with_content(mut self, content: Handle<UINode<M, C>>) -> Self {
+    pub fn with_content(mut self, content: Handle<UiNode>) -> Self {
         self.content = content;
         self
     }
@@ -312,12 +312,12 @@ impl<M: MessageData, C: Control<M, C>> TreeBuilder<M, C> {
         self
     }
 
-    pub fn with_back(mut self, back: Handle<UINode<M, C>>) -> Self {
+    pub fn with_back(mut self, back: Handle<UiNode>) -> Self {
         self.back = Some(back);
         self
     }
 
-    pub fn build_tree(self, ctx: &mut BuildContext<M, C>) -> Tree<M, C> {
+    pub fn build_tree(self, ctx: &mut BuildContext) -> Tree {
         let expander = build_expander_button(
             self.always_show_expander,
             !self.items.is_empty(),
@@ -402,18 +402,18 @@ impl<M: MessageData, C: Control<M, C>> TreeBuilder<M, C> {
         }
     }
 
-    pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let tree = self.build_tree(ctx);
-        ctx.add_node(UINode::Tree(tree))
+        ctx.add_node(UiNode::new(tree))
     }
 }
 
-fn build_expander_button<M: MessageData, C: Control<M, C>>(
+fn build_expander_button(
     always_show_expander: bool,
     items_populated: bool,
     is_expanded: bool,
-    ctx: &mut BuildContext<M, C>,
-) -> Handle<UINode<M, C>> {
+    ctx: &mut BuildContext,
+) -> Handle<UiNode> {
     ButtonBuilder::new(
         WidgetBuilder::new()
             .with_width(20.0)
@@ -426,26 +426,34 @@ fn build_expander_button<M: MessageData, C: Control<M, C>>(
 }
 
 #[derive(Debug, Clone)]
-pub struct TreeRoot<M: MessageData, C: Control<M, C>> {
-    widget: Widget<M, C>,
-    panel: Handle<UINode<M, C>>,
-    items: Vec<Handle<UINode<M, C>>>,
-    selected: Vec<Handle<UINode<M, C>>>,
+pub struct TreeRoot {
+    widget: Widget,
+    panel: Handle<UiNode>,
+    items: Vec<Handle<UiNode>>,
+    selected: Vec<Handle<UiNode>>,
 }
 
-crate::define_widget_deref!(TreeRoot<M, C>);
+crate::define_widget_deref!(TreeRoot);
 
-impl<M: MessageData, C: Control<M, C>> Control<M, C> for TreeRoot<M, C> {
-    fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
+impl Control for TreeRoot {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
+    fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.panel);
         node_map.resolve_slice(&mut self.selected);
     }
 
-    fn handle_routed_message(
-        &mut self,
-        ui: &mut UserInterface<M, C>,
-        message: &mut UiMessage<M, C>,
-    ) {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
         if let UiMessageData::TreeRoot(msg) = &message.data() {
@@ -522,7 +530,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TreeRoot<M, C> {
         }
     }
 
-    fn remove_ref(&mut self, handle: Handle<UINode<M, C>>) {
+    fn remove_ref(&mut self, handle: Handle<UiNode>) {
         if self.panel == handle {
             self.panel = Default::default();
         }
@@ -532,12 +540,12 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TreeRoot<M, C> {
     }
 }
 
-impl<M: MessageData, C: Control<M, C>> TreeRoot<M, C> {
-    pub fn items(&self) -> &[Handle<UINode<M, C>>] {
+impl TreeRoot {
+    pub fn items(&self) -> &[Handle<UiNode>] {
         &self.items
     }
 
-    fn expand_all(&self, ui: &UserInterface<M, C>, expand: bool) {
+    fn expand_all(&self, ui: &UserInterface, expand: bool) {
         for &item in self.items.iter() {
             ui.send_message(TreeMessage::expand(
                 item,
@@ -549,25 +557,25 @@ impl<M: MessageData, C: Control<M, C>> TreeRoot<M, C> {
     }
 }
 
-pub struct TreeRootBuilder<M: MessageData, C: Control<M, C>> {
-    widget_builder: WidgetBuilder<M, C>,
-    items: Vec<Handle<UINode<M, C>>>,
+pub struct TreeRootBuilder {
+    widget_builder: WidgetBuilder,
+    items: Vec<Handle<UiNode>>,
 }
 
-impl<M: MessageData, C: Control<M, C>> TreeRootBuilder<M, C> {
-    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
+impl TreeRootBuilder {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             items: Default::default(),
         }
     }
 
-    pub fn with_items(mut self, items: Vec<Handle<UINode<M, C>>>) -> Self {
+    pub fn with_items(mut self, items: Vec<Handle<UiNode>>) -> Self {
         self.items = items;
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let panel =
             StackPanelBuilder::new(WidgetBuilder::new().with_children(self.items.iter().cloned()))
                 .build(ctx);
@@ -579,6 +587,6 @@ impl<M: MessageData, C: Control<M, C>> TreeRootBuilder<M, C> {
             selected: Default::default(),
         };
 
-        ctx.add_node(UINode::TreeRoot(tree))
+        ctx.add_node(UiNode::new(tree))
     }
 }

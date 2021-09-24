@@ -1,11 +1,9 @@
 use crate::{
     core::algebra::Vector2,
     core::pool::Handle,
-    message::MessageData,
-    node::UINode,
     vector_image::{Primitive, VectorImageBuilder},
     widget::WidgetBuilder,
-    BuildContext, Control, HorizontalAlignment, VerticalAlignment, BRUSH_BRIGHT,
+    BuildContext, HorizontalAlignment, UiNode, VerticalAlignment, BRUSH_BRIGHT,
 };
 
 pub enum ArrowDirection {
@@ -15,11 +13,11 @@ pub enum ArrowDirection {
     Right,
 }
 
-pub fn make_arrow<M: MessageData, C: Control<M, C>>(
-    ctx: &mut BuildContext<M, C>,
+pub fn make_arrow(
+    ctx: &mut BuildContext,
     orientation: ArrowDirection,
     size: f32,
-) -> Handle<UINode<M, C>> {
+) -> Handle<UiNode> {
     VectorImageBuilder::new(
         WidgetBuilder::new()
             .with_foreground(BRUSH_BRIGHT)

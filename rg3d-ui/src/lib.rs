@@ -34,7 +34,6 @@ pub mod list_view;
 pub mod menu;
 pub mod message;
 pub mod messagebox;
-pub mod node;
 pub mod numeric;
 pub mod popup;
 pub mod progress_bar;
@@ -67,16 +66,16 @@ use crate::{
     },
     draw::{CommandTexture, Draw, DrawingContext},
     message::{
-        ButtonState, CursorIcon, KeyboardModifiers, MessageData, MessageDirection, MouseButton,
-        OsEvent, PopupMessage, UiMessage, UiMessageData, WidgetMessage,
+        ButtonState, CursorIcon, KeyboardModifiers, MessageDirection, MouseButton, OsEvent,
+        PopupMessage, UiMessage, UiMessageData, WidgetMessage,
     },
-    node::UINode,
     popup::Placement,
     ttf::{Font, SharedFont},
     widget::{Widget, WidgetBuilder},
 };
 
 use copypasta::ClipboardContext;
+use std::any::Any;
 use std::{
     cell::Cell,
     collections::{HashMap, HashSet, VecDeque},
@@ -214,13 +213,13 @@ impl Thickness {
     }
 }
 
-type NodeHandle<M, C> = Handle<UINode<M, C>>;
+type NodeHandle = Handle<UiNode>;
 
-pub struct NodeHandleMapping<M: MessageData, C: Control<M, C>> {
-    hash_map: HashMap<NodeHandle<M, C>, NodeHandle<M, C>>,
+pub struct NodeHandleMapping {
+    hash_map: HashMap<NodeHandle, NodeHandle>,
 }
 
-impl<M: MessageData, C: Control<M, C>> Default for NodeHandleMapping<M, C> {
+impl Default for NodeHandleMapping {
     fn default() -> Self {
         Self {
             hash_map: Default::default(),
@@ -228,26 +227,26 @@ impl<M: MessageData, C: Control<M, C>> Default for NodeHandleMapping<M, C> {
     }
 }
 
-impl<M: MessageData, C: Control<M, C>> NodeHandleMapping<M, C> {
-    pub fn add_mapping(&mut self, old: Handle<UINode<M, C>>, new: Handle<UINode<M, C>>) {
+impl NodeHandleMapping {
+    pub fn add_mapping(&mut self, old: Handle<UiNode>, new: Handle<UiNode>) {
         self.hash_map.insert(old, new);
     }
 
-    pub fn resolve(&self, old: &mut Handle<UINode<M, C>>) {
+    pub fn resolve(&self, old: &mut Handle<UiNode>) {
         // None handles aren't mapped.
         if old.is_some() {
             *old = *self.hash_map.get(old).unwrap()
         }
     }
 
-    pub fn resolve_cell(&self, old: &mut Cell<Handle<UINode<M, C>>>) {
+    pub fn resolve_cell(&self, old: &mut Cell<Handle<UiNode>>) {
         // None handles aren't mapped.
         if old.get().is_some() {
             old.set(*self.hash_map.get(&old.get()).unwrap())
         }
     }
 
-    pub fn resolve_slice(&self, slice: &mut [Handle<UINode<M, C>>]) {
+    pub fn resolve_slice(&self, slice: &mut [Handle<UiNode>]) {
         for item in slice {
             self.resolve(item);
         }
@@ -255,24 +254,22 @@ impl<M: MessageData, C: Control<M, C>> NodeHandleMapping<M, C> {
 }
 
 /// Trait for all UI controls in library.
-pub trait Control<M, C>: 'static + Deref<Target = Widget<M, C>> + DerefMut + Clone
-where
-    M: MessageData,
-    C: Control<M, C>,
-{
-    fn resolve(&mut self, _node_map: &NodeHandleMapping<M, C>) {}
+pub trait Control: 'static + Deref<Target = Widget> + DerefMut {
+    fn as_any(&self) -> &dyn Any;
 
-    fn measure_override(
-        &self,
-        ui: &UserInterface<M, C>,
-        available_size: Vector2<f32>,
-    ) -> Vector2<f32> {
+    fn as_any_mut(&mut self) -> &mut dyn Any;
+
+    fn clone_boxed(&self) -> Box<dyn Control>;
+
+    fn resolve(&mut self, _node_map: &NodeHandleMapping) {}
+
+    fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
 
         self.deref().measure_override(ui, available_size)
     }
 
-    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
+    fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
 
         self.deref().arrange_override(ui, final_size)
@@ -289,11 +286,7 @@ where
     /// Do *not* try to borrow node by `self_handle` in UI - at this moment node has been moved
     /// out of pool and attempt of borrowing will cause panic! `self_handle` should be used only
     /// to check if event came from/for this node or to capture input on node.
-    fn handle_routed_message(
-        &mut self,
-        ui: &mut UserInterface<M, C>,
-        message: &mut UiMessage<M, C>,
-    );
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage);
 
     /// Used to react to a message (by producing another message) that was posted outside of current
     /// hierarchy. In other words this method is used when you need to "peek" a message before it'll
@@ -314,7 +307,7 @@ where
     ///
     /// The order of execution of this method is undefined! There is no guarantee that it will be called
     /// hierarchically as widgets connected.
-    fn preview_message(&self, _ui: &UserInterface<M, C>, _message: &mut UiMessage<M, C>) {
+    fn preview_message(&self, _ui: &UserInterface, _message: &mut UiMessage) {
         // This method is optional.
     }
 
@@ -328,24 +321,24 @@ where
     /// force library to call `handle_os_event`!
     fn handle_os_event(
         &mut self,
-        _self_handle: Handle<UINode<M, C>>,
-        _ui: &mut UserInterface<M, C>,
+        _self_handle: Handle<UiNode>,
+        _ui: &mut UserInterface,
         _event: &OsEvent,
     ) {
     }
 
     /// Called when a node is deleted from container thus giving a chance to remove dangling
     /// handles which may cause panic.
-    fn remove_ref(&mut self, _handle: Handle<UINode<M, C>>) {}
+    fn remove_ref(&mut self, _handle: Handle<UiNode>) {}
 }
 
-pub struct DragContext<M: MessageData, C: Control<M, C>> {
+pub struct DragContext {
     is_dragging: bool,
-    drag_node: Handle<UINode<M, C>>,
+    drag_node: Handle<UiNode>,
     click_pos: Vector2<f32>,
 }
 
-impl<M: MessageData, C: Control<M, C>> Default for DragContext<M, C> {
+impl Default for DragContext {
     fn default() -> Self {
         Self {
             is_dragging: false,
@@ -373,44 +366,72 @@ impl Default for MouseState {
     }
 }
 
-pub struct BuildContext<'a, M: MessageData, C: Control<M, C>> {
-    ui: &'a mut UserInterface<M, C>,
+pub struct UiNode(pub Box<dyn Control>);
+
+impl Deref for UiNode {
+    type Target = dyn Control;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.deref()
+    }
 }
 
-impl<'a, M: MessageData, C: Control<M, C>> BuildContext<'a, M, C> {
-    pub fn add_node(&mut self, node: UINode<M, C>) -> Handle<UINode<M, C>> {
+impl DerefMut for UiNode {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.0.deref_mut()
+    }
+}
+
+impl UiNode {
+    pub fn new<T: Control>(widget: T) -> Self {
+        Self(Box::new(widget))
+    }
+
+    pub fn cast<T: Control>(&self) -> Option<&T> {
+        self.0.as_any().downcast_ref::<T>()
+    }
+
+    pub fn cast_mut<T: Control>(&mut self) -> Option<&mut T> {
+        self.0.as_any_mut().downcast_mut::<T>()
+    }
+}
+
+pub struct BuildContext<'a> {
+    ui: &'a mut UserInterface,
+}
+
+impl<'a> BuildContext<'a> {
+    pub fn add_node(&mut self, node: UiNode) -> Handle<UiNode> {
         self.ui.add_node(node)
     }
 
-    pub fn link(&mut self, child: Handle<UINode<M, C>>, parent: Handle<UINode<M, C>>) {
+    pub fn link(&mut self, child: Handle<UiNode>, parent: Handle<UiNode>) {
         self.ui.link_nodes_internal(child, parent, false)
     }
 
-    pub fn copy(&mut self, node: Handle<UINode<M, C>>) -> Handle<UINode<M, C>> {
+    pub fn copy(&mut self, node: Handle<UiNode>) -> Handle<UiNode> {
         self.ui.copy_node(node)
     }
 }
 
-impl<'a, M: MessageData, C: Control<M, C>> Index<Handle<UINode<M, C>>> for BuildContext<'a, M, C> {
-    type Output = UINode<M, C>;
+impl<'a> Index<Handle<UiNode>> for BuildContext<'a> {
+    type Output = UiNode;
 
-    fn index(&self, index: Handle<UINode<M, C>>) -> &Self::Output {
+    fn index(&self, index: Handle<UiNode>) -> &Self::Output {
         &self.ui.nodes[index]
     }
 }
 
-impl<'a, M: MessageData, C: Control<M, C>> IndexMut<Handle<UINode<M, C>>>
-    for BuildContext<'a, M, C>
-{
-    fn index_mut(&mut self, index: Handle<UINode<M, C>>) -> &mut Self::Output {
+impl<'a> IndexMut<Handle<UiNode>> for BuildContext<'a> {
+    fn index_mut(&mut self, index: Handle<UiNode>) -> &mut Self::Output {
         &mut self.ui.nodes[index]
     }
 }
 
 #[derive(Copy, Clone)]
-pub struct RestrictionEntry<M: MessageData, C: Control<M, C>> {
+pub struct RestrictionEntry {
     /// Handle to UI node to which picking must be restricted to.
-    pub handle: Handle<UINode<M, C>>,
+    pub handle: Handle<UiNode>,
 
     /// A flag that tells UI to stop iterating over picking stack.
     /// There are two use cases: chain of menus (popups) and set of modal windows. In case of
@@ -422,8 +443,8 @@ pub struct RestrictionEntry<M: MessageData, C: Control<M, C>> {
     pub stop: bool,
 }
 
-struct TooltipEntry<M: MessageData, C: Control<M, C>> {
-    tooltip: Handle<UINode<M, C>>,
+struct TooltipEntry {
+    tooltip: Handle<UiNode>,
     /// Time remaining until this entry should disappear (in seconds).
     time: f32,
     /// Maximum time that it should be kept for
@@ -432,8 +453,8 @@ struct TooltipEntry<M: MessageData, C: Control<M, C>> {
     /// so we use this to refresh the timer.
     max_time: f32,
 }
-impl<M: MessageData, C: Control<M, C>> TooltipEntry<M, C> {
-    fn new(tooltip: Handle<UINode<M, C>>, time: f32) -> TooltipEntry<M, C> {
+impl TooltipEntry {
+    fn new(tooltip: Handle<UiNode>, time: f32) -> TooltipEntry {
         Self {
             tooltip,
             time,
@@ -450,28 +471,28 @@ impl<M: MessageData, C: Control<M, C>> TooltipEntry<M, C> {
     }
 }
 
-pub struct UserInterface<M: MessageData, C: Control<M, C>> {
+pub struct UserInterface {
     screen_size: Vector2<f32>,
-    nodes: Pool<UINode<M, C>>,
+    nodes: Pool<UiNode>,
     drawing_context: DrawingContext,
     visual_debug: bool,
-    root_canvas: Handle<UINode<M, C>>,
-    picked_node: Handle<UINode<M, C>>,
-    prev_picked_node: Handle<UINode<M, C>>,
-    captured_node: Handle<UINode<M, C>>,
-    keyboard_focus_node: Handle<UINode<M, C>>,
+    root_canvas: Handle<UiNode>,
+    picked_node: Handle<UiNode>,
+    prev_picked_node: Handle<UiNode>,
+    captured_node: Handle<UiNode>,
+    keyboard_focus_node: Handle<UiNode>,
     cursor_position: Vector2<f32>,
-    receiver: Receiver<UiMessage<M, C>>,
-    sender: Sender<UiMessage<M, C>>,
-    stack: Vec<Handle<UINode<M, C>>>,
-    picking_stack: Vec<RestrictionEntry<M, C>>,
-    bubble_queue: VecDeque<Handle<UINode<M, C>>>,
-    drag_context: DragContext<M, C>,
+    receiver: Receiver<UiMessage>,
+    sender: Sender<UiMessage>,
+    stack: Vec<Handle<UiNode>>,
+    picking_stack: Vec<RestrictionEntry>,
+    bubble_queue: VecDeque<Handle<UiNode>>,
+    drag_context: DragContext,
     mouse_state: MouseState,
     keyboard_modifiers: KeyboardModifiers,
     cursor_icon: CursorIcon,
-    visible_tooltips: Vec<TooltipEntry<M, C>>,
-    preview_set: HashSet<Handle<UINode<M, C>>>,
+    visible_tooltips: Vec<TooltipEntry>,
+    preview_set: HashSet<Handle<UiNode>>,
     clipboard: Option<ClipboardContext>,
 }
 
@@ -483,9 +504,9 @@ lazy_static! {
     };
 }
 
-fn draw_node<M: MessageData, C: Control<M, C>>(
-    nodes: &Pool<UINode<M, C>>,
-    node_handle: Handle<UINode<M, C>>,
+fn draw_node(
+    nodes: &Pool<UiNode>,
+    node_handle: Handle<UiNode>,
     drawing_context: &mut DrawingContext,
 ) {
     scope_profile!();
@@ -535,10 +556,7 @@ fn draw_node<M: MessageData, C: Control<M, C>>(
     drawing_context.pop_opacity();
 }
 
-fn is_node_enabled<M: MessageData, C: Control<M, C>>(
-    nodes: &Pool<UINode<M, C>>,
-    handle: Handle<UINode<M, C>>,
-) -> bool {
+fn is_node_enabled(nodes: &Pool<UiNode>, handle: Handle<UiNode>) -> bool {
     let root_node = &nodes[handle];
     let mut enabled = root_node.enabled();
     let mut parent = root_node.parent();
@@ -553,8 +571,8 @@ fn is_node_enabled<M: MessageData, C: Control<M, C>>(
     enabled
 }
 
-impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
-    pub fn new(screen_size: Vector2<f32>) -> UserInterface<M, C> {
+impl UserInterface {
+    pub fn new(screen_size: Vector2<f32>) -> UserInterface {
         let (sender, receiver) = mpsc::channel();
         let mut ui = UserInterface {
             screen_size,
@@ -580,7 +598,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
             preview_set: Default::default(),
             clipboard: ClipboardContext::new().ok(),
         };
-        ui.root_canvas = ui.add_node(UINode::Canvas(Canvas::new(WidgetBuilder::new().build())));
+        ui.root_canvas = ui.add_node(UiNode::new(Canvas::new(WidgetBuilder::new().build())));
         ui
     }
 
@@ -588,12 +606,12 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         self.keyboard_modifiers
     }
 
-    pub fn build_ctx(&mut self) -> BuildContext<'_, M, C> {
+    pub fn build_ctx(&mut self) -> BuildContext<'_> {
         BuildContext { ui: self }
     }
 
     #[inline]
-    pub fn capture_mouse(&mut self, node: Handle<UINode<M, C>>) -> bool {
+    pub fn capture_mouse(&mut self, node: Handle<UiNode>) -> bool {
         if self.captured_node.is_none() {
             self.captured_node = node;
             true
@@ -617,7 +635,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         &mut self.drawing_context
     }
 
-    pub fn is_node_enabled(&self, handle: Handle<UINode<M, C>>) -> bool {
+    pub fn is_node_enabled(&self, handle: Handle<UiNode>) -> bool {
         is_node_enabled(&self.nodes, handle)
     }
 
@@ -787,7 +805,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         self.clipboard.as_mut()
     }
 
-    pub fn arrange_node(&self, handle: Handle<UINode<M, C>>, final_rect: &Rect<f32>) -> bool {
+    pub fn arrange_node(&self, handle: Handle<UiNode>, final_rect: &Rect<f32>) -> bool {
         scope_profile!();
 
         let node = self.node(handle);
@@ -851,7 +869,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         true
     }
 
-    pub fn measure_node(&self, handle: Handle<UINode<M, C>>, available_size: Vector2<f32>) -> bool {
+    pub fn measure_node(&self, handle: Handle<UiNode>, available_size: Vector2<f32>) -> bool {
         scope_profile!();
 
         let node = self.node(handle);
@@ -910,7 +928,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         true
     }
 
-    fn is_node_clipped(&self, node_handle: Handle<UINode<M, C>>, pt: Vector2<f32>) -> bool {
+    fn is_node_clipped(&self, node_handle: Handle<UiNode>, pt: Vector2<f32>) -> bool {
         scope_profile!();
 
         let mut clipped = true;
@@ -942,7 +960,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         clipped
     }
 
-    fn is_node_contains_point(&self, node_handle: Handle<UINode<M, C>>, pt: Vector2<f32>) -> bool {
+    fn is_node_contains_point(&self, node_handle: Handle<UiNode>, pt: Vector2<f32>) -> bool {
         scope_profile!();
 
         let widget = self.nodes.borrow(node_handle);
@@ -966,10 +984,10 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
 
     fn pick_node(
         &self,
-        node_handle: Handle<UINode<M, C>>,
+        node_handle: Handle<UiNode>,
         pt: Vector2<f32>,
         level: &mut i32,
-    ) -> Handle<UINode<M, C>> {
+    ) -> Handle<UiNode> {
         scope_profile!();
 
         let widget = self.nodes.borrow(node_handle);
@@ -1007,7 +1025,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         self.cursor_position
     }
 
-    pub fn hit_test(&self, pt: Vector2<f32>) -> Handle<UINode<M, C>> {
+    pub fn hit_test(&self, pt: Vector2<f32>) -> Handle<UiNode> {
         scope_profile!();
 
         if self.nodes.is_valid_handle(self.captured_node) {
@@ -1041,11 +1059,11 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
     /// defined by a given func.
     pub fn find_by_criteria_down<Func>(
         &self,
-        node_handle: Handle<UINode<M, C>>,
+        node_handle: Handle<UiNode>,
         func: &Func,
-    ) -> Handle<UINode<M, C>>
+    ) -> Handle<UiNode>
     where
-        Func: Fn(&UINode<M, C>) -> bool,
+        Func: Fn(&UiNode) -> bool,
     {
         let node = self.nodes.borrow(node_handle);
 
@@ -1068,11 +1086,11 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
     /// defined by a given func.
     pub fn find_by_criteria_up<Func>(
         &self,
-        node_handle: Handle<UINode<M, C>>,
+        node_handle: Handle<UiNode>,
         func: Func,
-    ) -> Handle<UINode<M, C>>
+    ) -> Handle<UiNode>
     where
-        Func: Fn(&UINode<M, C>) -> bool,
+        Func: Fn(&UiNode) -> bool,
     {
         let node = self.nodes.borrow(node_handle);
 
@@ -1091,8 +1109,8 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
     /// is useful to understand if some event came from some node down by tree.
     pub fn is_node_child_of(
         &self,
-        node_handle: Handle<UINode<M, C>>,
-        root_handle: Handle<UINode<M, C>>,
+        node_handle: Handle<UiNode>,
+        root_handle: Handle<UiNode>,
     ) -> bool {
         self.nodes
             .borrow(root_handle)
@@ -1100,7 +1118,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
     }
 
     /// Recursively calculates clipping bounds for every node.
-    fn calculate_clip_bounds(&self, node: Handle<UINode<M, C>>, parent_bounds: Rect<f32>) {
+    fn calculate_clip_bounds(&self, node: Handle<UiNode>, parent_bounds: Rect<f32>) {
         let node = &self.nodes[node];
         node.clip_bounds
             .set(node.screen_bounds().clip_by(parent_bounds));
@@ -1112,8 +1130,8 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
     /// Checks if specified node is a direct child of some other node on `root_handle`.
     pub fn is_node_direct_child_of(
         &self,
-        node_handle: Handle<UINode<M, C>>,
-        root_handle: Handle<UINode<M, C>>,
+        node_handle: Handle<UiNode>,
+        root_handle: Handle<UiNode>,
     ) -> bool {
         for child_handle in self.nodes.borrow(root_handle).children() {
             if *child_handle == node_handle {
@@ -1124,39 +1142,23 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
     }
 
     /// Searches a node by name up on tree starting from given root node.
-    pub fn find_by_name_up(
-        &self,
-        node_handle: Handle<UINode<M, C>>,
-        name: &str,
-    ) -> Handle<UINode<M, C>> {
+    pub fn find_by_name_up(&self, node_handle: Handle<UiNode>, name: &str) -> Handle<UiNode> {
         self.find_by_criteria_up(node_handle, |node| node.name() == name)
     }
 
     /// Searches a node by name down on tree starting from given root node.
-    pub fn find_by_name_down(
-        &self,
-        node_handle: Handle<UINode<M, C>>,
-        name: &str,
-    ) -> Handle<UINode<M, C>> {
+    pub fn find_by_name_down(&self, node_handle: Handle<UiNode>, name: &str) -> Handle<UiNode> {
         self.find_by_criteria_down(node_handle, &|node| node.name() == name)
     }
 
     /// Searches a node by name up on tree starting from given root node and tries to borrow it if exists.
-    pub fn borrow_by_name_up(
-        &self,
-        start_node_handle: Handle<UINode<M, C>>,
-        name: &str,
-    ) -> &UINode<M, C> {
+    pub fn borrow_by_name_up(&self, start_node_handle: Handle<UiNode>, name: &str) -> &UiNode {
         self.nodes
             .borrow(self.find_by_name_up(start_node_handle, name))
     }
 
     /// Searches a node by name down on tree starting from given root node and tries to borrow it if exists.
-    pub fn borrow_by_name_down(
-        &self,
-        start_node_handle: Handle<UINode<M, C>>,
-        name: &str,
-    ) -> &UINode<M, C> {
+    pub fn borrow_by_name_down(&self, start_node_handle: Handle<UiNode>, name: &str) -> &UiNode {
         self.nodes
             .borrow(self.find_by_name_down(start_node_handle, name))
     }
@@ -1169,11 +1171,11 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
     /// It will panic if there no node that satisfies given criteria.
     pub fn borrow_by_criteria_up<Func>(
         &self,
-        start_node_handle: Handle<UINode<M, C>>,
+        start_node_handle: Handle<UiNode>,
         func: Func,
-    ) -> &UINode<M, C>
+    ) -> &UiNode
     where
-        Func: Fn(&UINode<M, C>) -> bool,
+        Func: Fn(&UiNode) -> bool,
     {
         self.nodes
             .borrow(self.find_by_criteria_up(start_node_handle, func))
@@ -1181,35 +1183,44 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
 
     pub fn try_borrow_by_criteria_up<Func>(
         &self,
-        start_node_handle: Handle<UINode<M, C>>,
+        start_node_handle: Handle<UiNode>,
         func: Func,
-    ) -> Option<&UINode<M, C>>
+    ) -> Option<&UiNode>
     where
-        Func: Fn(&UINode<M, C>) -> bool,
+        Func: Fn(&UiNode) -> bool,
     {
         self.nodes
             .try_borrow(self.find_by_criteria_up(start_node_handle, func))
     }
 
-    pub fn try_borrow_by_criteria_up_mut<Func>(
-        &mut self,
-        start_node_handle: Handle<UINode<M, C>>,
-        func: Func,
-    ) -> Option<&mut UINode<M, C>>
+    pub fn try_borrow_by_type_up<T>(
+        &self,
+        node_handle: Handle<UiNode>,
+    ) -> Option<(Handle<UiNode>, &T)>
     where
-        Func: Fn(&UINode<M, C>) -> bool,
+        T: Control,
     {
-        self.nodes
-            .try_borrow_mut(self.find_by_criteria_up(start_node_handle, func))
+        let node = self.nodes.borrow(node_handle);
+
+        let casted = node.cast::<T>();
+        if let Some(casted) = casted {
+            return Some((node_handle, casted));
+        }
+
+        if node.parent().is_some() {
+            self.try_borrow_by_type_up(node.parent())
+        } else {
+            None
+        }
     }
 
     /// Returns instance of message sender which can be used to push messages into queue
     /// from other threads.
-    pub fn sender(&self) -> Sender<UiMessage<M, C>> {
+    pub fn sender(&self) -> Sender<UiMessage> {
         self.sender.clone()
     }
 
-    pub fn send_message(&self, message: UiMessage<M, C>) {
+    pub fn send_message(&self, message: UiMessage) {
         self.sender.send(message).unwrap()
     }
 
@@ -1220,7 +1231,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
     // Node will be topmost *only* on same hierarchy level! So if you have a floating
     // window (for example) and a window embedded into some other control (yes this is
     // possible) then floating window won't be the topmost.
-    fn make_topmost(&mut self, node: Handle<UINode<M, C>>) {
+    fn make_topmost(&mut self, node: Handle<UiNode>) {
         let parent = self.node(node).parent();
         if parent.is_some() {
             let parent = &mut self.nodes[parent];
@@ -1229,7 +1240,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         }
     }
 
-    fn bubble_message(&mut self, message: &mut UiMessage<M, C>) {
+    fn bubble_message(&mut self, message: &mut UiMessage) {
         scope_profile!();
 
         // Dispatch event using bubble strategy. Bubble routing means that message will go
@@ -1254,7 +1265,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
     /// available nodes first and only then will be moved outside of this method. This is one
     /// of most important methods which must be called each frame of your game loop, otherwise
     /// UI will not respond to any kind of events and simply speaking will just not work.
-    pub fn poll_message(&mut self) -> Option<UiMessage<M, C>> {
+    pub fn poll_message(&mut self) -> Option<UiMessage> {
         match self.receiver.try_recv() {
             Ok(mut message) => {
                 // Destination node may be destroyed at the time we receive message,
@@ -1406,7 +1417,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
     /// Adds a tooltip if it doesn't already exist.
     /// If it already exists then it refreshes the timer to `time`
     /// Returns the instance that was added or already existed
-    fn add_tooltip(&mut self, tooltip: Handle<UINode<M, C>>, time: f32) -> &mut TooltipEntry<M, C> {
+    fn add_tooltip(&mut self, tooltip: Handle<UiNode>, time: f32) -> &mut TooltipEntry {
         let index = if let Some(index) = self
             .visible_tooltips
             .iter()
@@ -1441,7 +1452,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         // Decrease all tooltip times, removing those which have had their timer run out
         let sender = &self.sender;
         self.visible_tooltips
-            .retain_mut(|entry: &mut TooltipEntry<M, C>| {
+            .retain_mut(|entry: &mut TooltipEntry| {
                 entry.decrease(dt);
                 if entry.should_display() {
                     true
@@ -1490,7 +1501,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         }
     }
 
-    pub fn captured_node(&self) -> Handle<UINode<M, C>> {
+    pub fn captured_node(&self) -> Handle<UiNode> {
         self.captured_node
     }
 
@@ -1723,15 +1734,15 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         event_processed
     }
 
-    pub fn nodes(&self) -> &Pool<UINode<M, C>> {
+    pub fn nodes(&self) -> &Pool<UiNode> {
         &self.nodes
     }
 
-    pub fn root(&self) -> Handle<UINode<M, C>> {
+    pub fn root(&self) -> Handle<UiNode> {
         self.root_canvas
     }
 
-    pub fn add_node(&mut self, mut node: UINode<M, C>) -> Handle<UINode<M, C>> {
+    pub fn add_node(&mut self, mut node: UiNode) -> Handle<UiNode> {
         let children = node.children().to_vec();
         node.clear_children();
         let node_handle = self.nodes.spawn(node);
@@ -1749,20 +1760,20 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         node_handle
     }
 
-    pub fn push_picking_restriction(&mut self, restriction: RestrictionEntry<M, C>) {
+    pub fn push_picking_restriction(&mut self, restriction: RestrictionEntry) {
         if let Some(top) = self.top_picking_restriction() {
             assert_ne!(top.handle, restriction.handle);
         }
         self.picking_stack.push(restriction);
     }
 
-    pub fn remove_picking_restriction(&mut self, node: Handle<UINode<M, C>>) {
+    pub fn remove_picking_restriction(&mut self, node: Handle<UiNode>) {
         if let Some(pos) = self.picking_stack.iter().position(|h| h.handle == node) {
             self.picking_stack.remove(pos);
         }
     }
 
-    pub fn picking_restriction_stack(&self) -> &[RestrictionEntry<M, C>] {
+    pub fn picking_restriction_stack(&self) -> &[RestrictionEntry] {
         &self.picking_stack
     }
 
@@ -1771,12 +1782,12 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         self.picking_stack.clear();
     }
 
-    pub fn top_picking_restriction(&self) -> Option<RestrictionEntry<M, C>> {
+    pub fn top_picking_restriction(&self) -> Option<RestrictionEntry> {
         self.picking_stack.last().cloned()
     }
 
     /// Use WidgetMessage::remove(...) to remove node.
-    fn remove_node(&mut self, node: Handle<UINode<M, C>>) {
+    fn remove_node(&mut self, node: Handle<UiNode>) {
         self.unlink_node_internal(node);
 
         let mut removed_nodes = Vec::new();
@@ -1817,8 +1828,8 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
     #[inline]
     fn link_nodes_internal(
         &mut self,
-        child_handle: Handle<UINode<M, C>>,
-        parent_handle: Handle<UINode<M, C>>,
+        child_handle: Handle<UiNode>,
+        parent_handle: Handle<UiNode>,
         in_front: bool,
     ) {
         assert_ne!(child_handle, parent_handle);
@@ -1829,7 +1840,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
 
     /// Unlinks specified node from its parent, so node will become root.
     #[inline]
-    fn unlink_node_internal(&mut self, node_handle: Handle<UINode<M, C>>) {
+    fn unlink_node_internal(&mut self, node_handle: Handle<UiNode>) {
         // Replace parent handle of child
         let node = self.nodes.borrow_mut(node_handle);
         let parent_handle = node.parent();
@@ -1846,22 +1857,22 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
     /// Use [WidgetMessage::remove](enum.WidgetMessage.html#method.remove) to unlink
     /// a node at runtime!
     #[inline]
-    fn unlink_node(&mut self, node_handle: Handle<UINode<M, C>>) {
+    fn unlink_node(&mut self, node_handle: Handle<UiNode>) {
         self.unlink_node_internal(node_handle);
         self.link_nodes_internal(node_handle, self.root_canvas, false);
     }
 
     #[inline]
-    pub fn node(&self, node_handle: Handle<UINode<M, C>>) -> &UINode<M, C> {
+    pub fn node(&self, node_handle: Handle<UiNode>) -> &UiNode {
         self.nodes.borrow(node_handle)
     }
 
     #[inline]
-    pub fn try_get_node(&self, node_handle: Handle<UINode<M, C>>) -> Option<&UINode<M, C>> {
+    pub fn try_get_node(&self, node_handle: Handle<UiNode>) -> Option<&UiNode> {
         self.nodes.try_borrow(node_handle)
     }
 
-    pub fn copy_node(&mut self, node: Handle<UINode<M, C>>) -> Handle<UINode<M, C>> {
+    pub fn copy_node(&mut self, node: Handle<UiNode>) -> Handle<UiNode> {
         let mut map = NodeHandleMapping::default();
 
         let root = self.copy_node_recursive(node, &mut map);
@@ -1875,11 +1886,11 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
 
     fn copy_node_recursive(
         &mut self,
-        node_handle: Handle<UINode<M, C>>,
-        map: &mut NodeHandleMapping<M, C>,
-    ) -> Handle<UINode<M, C>> {
+        node_handle: Handle<UiNode>,
+        map: &mut NodeHandleMapping,
+    ) -> Handle<UiNode> {
         let node = self.nodes.borrow(node_handle);
-        let mut cloned = node.clone();
+        let mut cloned = UiNode(node.clone_boxed());
 
         let mut cloned_children = Vec::new();
         for child in node.children().to_vec() {
@@ -1899,7 +1910,6 @@ mod test {
         border::BorderBuilder,
         core::algebra::Vector2,
         message::{MessageDirection, WidgetMessage},
-        node::StubNode,
         widget::WidgetBuilder,
         UserInterface,
     };
@@ -1908,7 +1918,7 @@ mod test {
     fn center() {
         let screen_size = Vector2::new(1000.0, 1000.0);
         let widget_size = Vector2::new(100.0, 100.0);
-        let mut ui = UserInterface::<(), StubNode>::new(screen_size);
+        let mut ui = UserInterface::new(screen_size);
         let widget = BorderBuilder::new(
             WidgetBuilder::new()
                 .with_width(widget_size.x)

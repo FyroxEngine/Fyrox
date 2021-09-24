@@ -2,10 +2,11 @@ use crate::draw::Draw;
 use crate::{
     core::{algebra::Vector2, color::Color, math::Vector2Ext, pool::Handle},
     draw::{CommandTexture, DrawingContext},
-    message::{MessageData, UiMessage},
+    message::UiMessage,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, UINode, UserInterface,
+    BuildContext, Control, UiNode, UserInterface,
 };
+use std::any::Any;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone, Debug)]
@@ -68,19 +69,27 @@ impl Primitive {
 }
 
 #[derive(Clone)]
-pub struct VectorImage<M: MessageData, C: Control<M, C>> {
-    widget: Widget<M, C>,
+pub struct VectorImage {
+    widget: Widget,
     primitives: Vec<Primitive>,
 }
 
-crate::define_widget_deref!(VectorImage<M, C>);
+crate::define_widget_deref!(VectorImage);
 
-impl<M: MessageData, C: Control<M, C>> Control<M, C> for VectorImage<M, C> {
-    fn measure_override(
-        &self,
-        _ui: &UserInterface<M, C>,
-        _available_size: Vector2<f32>,
-    ) -> Vector2<f32> {
+impl Control for VectorImage {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
+    fn measure_override(&self, _ui: &UserInterface, _available_size: Vector2<f32>) -> Vector2<f32> {
         if self.primitives.is_empty() {
             Default::default()
         } else {
@@ -142,22 +151,18 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for VectorImage<M, C> {
         );
     }
 
-    fn handle_routed_message(
-        &mut self,
-        ui: &mut UserInterface<M, C>,
-        message: &mut UiMessage<M, C>,
-    ) {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
     }
 }
 
-pub struct VectorImageBuilder<M: MessageData, C: Control<M, C>> {
-    widget_builder: WidgetBuilder<M, C>,
+pub struct VectorImageBuilder {
+    widget_builder: WidgetBuilder,
     primitives: Vec<Primitive>,
 }
 
-impl<M: MessageData, C: Control<M, C>> VectorImageBuilder<M, C> {
-    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
+impl VectorImageBuilder {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             primitives: Default::default(),
@@ -169,15 +174,15 @@ impl<M: MessageData, C: Control<M, C>> VectorImageBuilder<M, C> {
         self
     }
 
-    pub fn build_node(self) -> UINode<M, C> {
+    pub fn build_node(self) -> UiNode {
         let image = VectorImage {
             widget: self.widget_builder.build(),
             primitives: self.primitives,
         };
-        UINode::VectorImage(image)
+        UiNode::new(image)
     }
 
-    pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         ctx.add_node(self.build_node())
     }
 }

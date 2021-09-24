@@ -2,11 +2,11 @@ use crate::draw::Draw;
 use crate::{
     core::{algebra::Vector2, math::Rect, pool::Handle, scope_profile},
     draw::{CommandTexture, DrawingContext},
-    message::MessageData,
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, UINode, UserInterface,
+    BuildContext, Control, UiNode, UserInterface,
 };
+use std::any::Any;
 use std::{
     cell::RefCell,
     ops::{Deref, DerefMut},
@@ -113,22 +113,30 @@ impl Row {
 
 /// Automatically arranges children by rows and columns
 #[derive(Clone)]
-pub struct Grid<M: MessageData, C: Control<M, C>> {
-    widget: Widget<M, C>,
+pub struct Grid {
+    widget: Widget,
     rows: RefCell<Vec<Row>>,
     columns: RefCell<Vec<Column>>,
     draw_border: bool,
     border_thickness: f32,
 }
 
-crate::define_widget_deref!(Grid<M, C>);
+crate::define_widget_deref!(Grid);
 
-impl<M: MessageData, C: Control<M, C>> Control<M, C> for Grid<M, C> {
-    fn measure_override(
-        &self,
-        ui: &UserInterface<M, C>,
-        available_size: Vector2<f32>,
-    ) -> Vector2<f32> {
+impl Control for Grid {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
+    fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
 
         // In case of no rows or columns, grid acts like default panel.
@@ -182,7 +190,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Grid<M, C> {
         }
     }
 
-    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
+    fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
 
         if self.columns.borrow().is_empty() || self.rows.borrow().is_empty() {
@@ -251,25 +259,21 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Grid<M, C> {
         }
     }
 
-    fn handle_routed_message(
-        &mut self,
-        ui: &mut UserInterface<M, C>,
-        message: &mut UiMessage<M, C>,
-    ) {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
     }
 }
 
-pub struct GridBuilder<M: MessageData, C: Control<M, C>> {
-    widget_builder: WidgetBuilder<M, C>,
+pub struct GridBuilder {
+    widget_builder: WidgetBuilder,
     rows: Vec<Row>,
     columns: Vec<Column>,
     draw_border: bool,
     border_thickness: f32,
 }
 
-impl<M: MessageData, C: Control<M, C>> GridBuilder<M, C> {
-    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
+impl GridBuilder {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             rows: Vec::new(),
@@ -309,7 +313,7 @@ impl<M: MessageData, C: Control<M, C>> GridBuilder<M, C> {
         self
     }
 
-    pub fn build(self, ui: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ui: &mut BuildContext) -> Handle<UiNode> {
         let grid = Grid {
             widget: self.widget_builder.build(),
             rows: RefCell::new(self.rows),
@@ -317,12 +321,12 @@ impl<M: MessageData, C: Control<M, C>> GridBuilder<M, C> {
             draw_border: self.draw_border,
             border_thickness: self.border_thickness,
         };
-        ui.add_node(UINode::Grid(grid))
+        ui.add_node(UiNode::new(grid))
     }
 }
 
-impl<M: MessageData, C: Control<M, C>> Grid<M, C> {
-    pub fn new(widget: Widget<M, C>) -> Self {
+impl Grid {
+    pub fn new(widget: Widget) -> Self {
         Self {
             widget,
             rows: Default::default(),
@@ -358,7 +362,7 @@ impl<M: MessageData, C: Control<M, C>> Grid<M, C> {
         self.rows = RefCell::new(rows);
     }
 
-    fn calculate_preset_width(&self, ui: &UserInterface<M, C>) -> f32 {
+    fn calculate_preset_width(&self, ui: &UserInterface) -> f32 {
         let mut preset_width = 0.0;
 
         // Calculate size of strict-sized and auto-sized columns.
@@ -384,7 +388,7 @@ impl<M: MessageData, C: Control<M, C>> Grid<M, C> {
         preset_width
     }
 
-    fn calculate_preset_height(&self, ui: &UserInterface<M, C>) -> f32 {
+    fn calculate_preset_height(&self, ui: &UserInterface) -> f32 {
         let mut preset_height = 0.0;
 
         // Calculate size of strict-sized and auto-sized rows.
@@ -412,7 +416,7 @@ impl<M: MessageData, C: Control<M, C>> Grid<M, C> {
 
     fn fit_stretch_sized_columns(
         &self,
-        ui: &UserInterface<M, C>,
+        ui: &UserInterface,
         available_size: Vector2<f32>,
         preset_width: f32,
     ) {
@@ -449,7 +453,7 @@ impl<M: MessageData, C: Control<M, C>> Grid<M, C> {
 
     fn fit_stretch_sized_rows(
         &self,
-        ui: &UserInterface<M, C>,
+        ui: &UserInterface,
         available_size: Vector2<f32>,
         preset_height: f32,
     ) {

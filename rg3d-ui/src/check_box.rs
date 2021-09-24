@@ -1,5 +1,5 @@
 use crate::grid::{Column, GridBuilder, Row};
-use crate::message::{MessageData, MessageDirection};
+use crate::message::MessageDirection;
 use crate::vector_image::{Primitive, VectorImageBuilder};
 use crate::{
     border::BorderBuilder,
@@ -7,35 +7,44 @@ use crate::{
     core::{color::Color, pool::Handle},
     message::{CheckBoxMessage, UiMessage, UiMessageData, WidgetMessage},
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Thickness, UINode,
+    BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Thickness, UiNode,
     UserInterface, VerticalAlignment, BRUSH_BRIGHT, BRUSH_DARK, BRUSH_LIGHT, BRUSH_TEXT,
 };
 use rg3d_core::algebra::Vector2;
+use std::any::Any;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone)]
-pub struct CheckBox<M: MessageData, C: Control<M, C>> {
-    pub widget: Widget<M, C>,
+pub struct CheckBox {
+    pub widget: Widget,
     pub checked: Option<bool>,
-    pub check_mark: Handle<UINode<M, C>>,
-    pub uncheck_mark: Handle<UINode<M, C>>,
-    pub undefined_mark: Handle<UINode<M, C>>,
+    pub check_mark: Handle<UiNode>,
+    pub uncheck_mark: Handle<UiNode>,
+    pub undefined_mark: Handle<UiNode>,
 }
 
-crate::define_widget_deref!(CheckBox<M, C>);
+crate::define_widget_deref!(CheckBox);
 
-impl<M: MessageData, C: Control<M, C>> Control<M, C> for CheckBox<M, C> {
-    fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
+impl Control for CheckBox {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
+    fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.check_mark);
         node_map.resolve(&mut self.uncheck_mark);
         node_map.resolve(&mut self.undefined_mark);
     }
 
-    fn handle_routed_message(
-        &mut self,
-        ui: &mut UserInterface<M, C>,
-        message: &mut UiMessage<M, C>,
-    ) {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
         match message.data() {
@@ -127,7 +136,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CheckBox<M, C> {
         }
     }
 
-    fn remove_ref(&mut self, handle: Handle<UINode<M, C>>) {
+    fn remove_ref(&mut self, handle: Handle<UiNode>) {
         if self.check_mark == handle {
             self.check_mark = Handle::NONE;
         }
@@ -140,17 +149,17 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CheckBox<M, C> {
     }
 }
 
-pub struct CheckBoxBuilder<M: MessageData, C: Control<M, C>> {
-    widget_builder: WidgetBuilder<M, C>,
+pub struct CheckBoxBuilder {
+    widget_builder: WidgetBuilder,
     checked: Option<bool>,
-    check_mark: Option<Handle<UINode<M, C>>>,
-    uncheck_mark: Option<Handle<UINode<M, C>>>,
-    undefined_mark: Option<Handle<UINode<M, C>>>,
-    content: Handle<UINode<M, C>>,
+    check_mark: Option<Handle<UiNode>>,
+    uncheck_mark: Option<Handle<UiNode>>,
+    undefined_mark: Option<Handle<UiNode>>,
+    content: Handle<UiNode>,
 }
 
-impl<M: MessageData, C: Control<M, C>> CheckBoxBuilder<M, C> {
-    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
+impl CheckBoxBuilder {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             checked: Some(false),
@@ -166,27 +175,27 @@ impl<M: MessageData, C: Control<M, C>> CheckBoxBuilder<M, C> {
         self
     }
 
-    pub fn with_check_mark(mut self, check_mark: Handle<UINode<M, C>>) -> Self {
+    pub fn with_check_mark(mut self, check_mark: Handle<UiNode>) -> Self {
         self.check_mark = Some(check_mark);
         self
     }
 
-    pub fn with_uncheck_mark(mut self, uncheck_mark: Handle<UINode<M, C>>) -> Self {
+    pub fn with_uncheck_mark(mut self, uncheck_mark: Handle<UiNode>) -> Self {
         self.uncheck_mark = Some(uncheck_mark);
         self
     }
 
-    pub fn with_undefined_mark(mut self, undefined_mark: Handle<UINode<M, C>>) -> Self {
+    pub fn with_undefined_mark(mut self, undefined_mark: Handle<UiNode>) -> Self {
         self.undefined_mark = Some(undefined_mark);
         self
     }
 
-    pub fn with_content(mut self, content: Handle<UINode<M, C>>) -> Self {
+    pub fn with_content(mut self, content: Handle<UiNode>) -> Self {
         self.content = content;
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let check_mark = self.check_mark.unwrap_or_else(|| {
             VectorImageBuilder::new(
                 WidgetBuilder::new()
@@ -263,7 +272,7 @@ impl<M: MessageData, C: Control<M, C>> CheckBoxBuilder<M, C> {
             uncheck_mark,
             undefined_mark,
         };
-        ctx.add_node(UINode::CheckBox(cb))
+        ctx.add_node(UiNode::new(cb))
     }
 }
 
@@ -273,14 +282,13 @@ mod test {
         check_box::CheckBoxBuilder,
         core::algebra::Vector2,
         message::{CheckBoxMessage, MessageDirection},
-        node::StubNode,
         widget::WidgetBuilder,
         UserInterface,
     };
 
     #[test]
     fn check_box() {
-        let mut ui = UserInterface::<(), StubNode>::new(Vector2::new(1000.0, 1000.0));
+        let mut ui = UserInterface::new(Vector2::new(1000.0, 1000.0));
 
         assert_eq!(ui.poll_message(), None);
 

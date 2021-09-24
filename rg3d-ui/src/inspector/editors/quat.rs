@@ -6,30 +6,25 @@ use crate::{
         editors::{PropertyEditorBuildContext, PropertyEditorDefinition},
         InspectorError,
     },
-    message::{
-        MessageData, MessageDirection, PropertyChanged, UiMessage, UiMessageData, Vec3EditorMessage,
-    },
-    node::UINode,
+    message::{MessageDirection, PropertyChanged, UiMessage, UiMessageData, Vec3EditorMessage},
     vec::vec3::Vec3EditorBuilder,
     widget::WidgetBuilder,
-    Control, Thickness,
+    Thickness, UiNode,
 };
 use std::{any::TypeId, sync::Arc};
 
 #[derive(Debug)]
 pub struct QuatPropertyEditorDefinition;
 
-impl<M: MessageData, C: Control<M, C>> PropertyEditorDefinition<M, C>
-    for QuatPropertyEditorDefinition
-{
+impl PropertyEditorDefinition for QuatPropertyEditorDefinition {
     fn value_type_id(&self) -> TypeId {
         TypeId::of::<UnitQuaternion<f32>>()
     }
 
     fn create_instance(
         &self,
-        ctx: PropertyEditorBuildContext<M, C>,
-    ) -> Result<Handle<UINode<M, C>>, InspectorError> {
+        ctx: PropertyEditorBuildContext,
+    ) -> Result<Handle<UiNode>, InspectorError> {
         let value = ctx.property_info.cast_value::<UnitQuaternion<f32>>()?;
         let euler = value.to_euler();
         Ok(Vec3EditorBuilder::new(
@@ -48,9 +43,9 @@ impl<M: MessageData, C: Control<M, C>> PropertyEditorDefinition<M, C>
 
     fn create_message(
         &self,
-        instance: Handle<UINode<M, C>>,
+        instance: Handle<UiNode>,
         property_info: &PropertyInfo,
-    ) -> Result<UiMessage<M, C>, InspectorError> {
+    ) -> Result<UiMessage, InspectorError> {
         let value = property_info.cast_value::<UnitQuaternion<f32>>()?;
         let euler = value.to_euler();
         Ok(Vec3EditorMessage::value(
@@ -64,7 +59,7 @@ impl<M: MessageData, C: Control<M, C>> PropertyEditorDefinition<M, C>
         &self,
         name: &str,
         owner_type_id: TypeId,
-        message: &UiMessage<M, C>,
+        message: &UiMessage,
     ) -> Option<PropertyChanged> {
         if message.direction() == MessageDirection::FromWidget {
             if let UiMessageData::Vec3Editor(Vec3EditorMessage::Value(value)) = message.data() {

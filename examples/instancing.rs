@@ -9,6 +9,8 @@ pub mod shared;
 
 use crate::shared::create_camera;
 use rg3d::engine::resource_manager::MaterialSearchOptions;
+use rg3d::engine::Engine;
+use rg3d::gui::UiNode;
 use rg3d::material::shader::SamplerFallback;
 use rg3d::material::{Material, PropertyValue};
 use rg3d::{
@@ -190,7 +192,7 @@ struct Game {
 }
 
 impl GameState for Game {
-    fn init(engine: &mut GameEngine) -> Self
+    fn init(engine: &mut Engine) -> Self
     where
         Self: Sized,
     {
@@ -217,7 +219,7 @@ impl GameState for Game {
         }
     }
 
-    fn on_tick(&mut self, engine: &mut GameEngine, _dt: f32, _: &mut ControlFlow) {
+    fn on_tick(&mut self, engine: &mut Engine, _dt: f32, _: &mut ControlFlow) {
         // Use stored scene handle to borrow a mutable reference of scene in
         // engine.
         let scene = &mut engine.scenes[self.scene];
@@ -257,7 +259,7 @@ impl GameState for Game {
         ));
     }
 
-    fn on_window_event(&mut self, _engine: &mut GameEngine, event: WindowEvent) {
+    fn on_window_event(&mut self, _engine: &mut Engine, event: WindowEvent) {
         if let WindowEvent::KeyboardInput { input, .. } = event {
             if let Some(key_code) = input.virtual_keycode {
                 match key_code {

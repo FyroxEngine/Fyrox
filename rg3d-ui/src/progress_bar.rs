@@ -3,32 +3,42 @@ use crate::{
     brush::Brush,
     canvas::CanvasBuilder,
     core::{algebra::Vector2, color::Color, pool::Handle},
-    message::{
-        MessageData, MessageDirection, ProgressBarMessage, UiMessage, UiMessageData, WidgetMessage,
-    },
-    node::UINode,
+    message::{MessageDirection, ProgressBarMessage, UiMessage, UiMessageData, WidgetMessage},
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, NodeHandleMapping, UserInterface,
+    BuildContext, Control, NodeHandleMapping, UiNode, UserInterface,
 };
+use std::any::Any;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone)]
-pub struct ProgressBar<M: MessageData, C: Control<M, C>> {
-    widget: Widget<M, C>,
+pub struct ProgressBar {
+    widget: Widget,
     progress: f32,
-    indicator: Handle<UINode<M, C>>,
-    body: Handle<UINode<M, C>>,
+    indicator: Handle<UiNode>,
+    body: Handle<UiNode>,
 }
 
-crate::define_widget_deref!(ProgressBar<M, C>);
+crate::define_widget_deref!(ProgressBar);
 
-impl<M: MessageData, C: Control<M, C>> Control<M, C> for ProgressBar<M, C> {
-    fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
+impl Control for ProgressBar {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
+    fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.indicator);
         node_map.resolve(&mut self.body);
     }
 
-    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
+    fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         let size = self.widget.arrange_override(ui, final_size);
 
         ui.send_message(WidgetMessage::width(
@@ -46,11 +56,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ProgressBar<M, C> {
         size
     }
 
-    fn handle_routed_message(
-        &mut self,
-        ui: &mut UserInterface<M, C>,
-        message: &mut UiMessage<M, C>,
-    ) {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
         if message.destination() == self.handle {
@@ -68,7 +74,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ProgressBar<M, C> {
     }
 }
 
-impl<M: MessageData, C: Control<M, C>> ProgressBar<M, C> {
+impl ProgressBar {
     pub fn set_progress(&mut self, progress: f32) {
         self.progress = progress.min(1.0).max(0.0);
     }
@@ -78,15 +84,15 @@ impl<M: MessageData, C: Control<M, C>> ProgressBar<M, C> {
     }
 }
 
-pub struct ProgressBarBuilder<M: MessageData, C: Control<M, C>> {
-    widget_builder: WidgetBuilder<M, C>,
-    body: Option<Handle<UINode<M, C>>>,
-    indicator: Option<Handle<UINode<M, C>>>,
+pub struct ProgressBarBuilder {
+    widget_builder: WidgetBuilder,
+    body: Option<Handle<UiNode>>,
+    indicator: Option<Handle<UiNode>>,
     progress: f32,
 }
 
-impl<M: MessageData, C: Control<M, C>> ProgressBarBuilder<M, C> {
-    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
+impl ProgressBarBuilder {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             body: None,
@@ -95,12 +101,12 @@ impl<M: MessageData, C: Control<M, C>> ProgressBarBuilder<M, C> {
         }
     }
 
-    pub fn with_body(mut self, body: Handle<UINode<M, C>>) -> Self {
+    pub fn with_body(mut self, body: Handle<UiNode>) -> Self {
         self.body = Some(body);
         self
     }
 
-    pub fn with_indicator(mut self, indicator: Handle<UINode<M, C>>) -> Self {
+    pub fn with_indicator(mut self, indicator: Handle<UiNode>) -> Self {
         self.indicator = Some(indicator);
         self
     }
@@ -110,7 +116,7 @@ impl<M: MessageData, C: Control<M, C>> ProgressBarBuilder<M, C> {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let body = self
             .body
             .unwrap_or_else(|| BorderBuilder::new(WidgetBuilder::new()).build(ctx));
@@ -133,6 +139,6 @@ impl<M: MessageData, C: Control<M, C>> ProgressBarBuilder<M, C> {
             body,
         };
 
-        ctx.add_node(UINode::ProgressBar(progress_bar))
+        ctx.add_node(UiNode::new(progress_bar))
     }
 }

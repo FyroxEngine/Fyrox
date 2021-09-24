@@ -2,41 +2,41 @@ use crate::{
     border::BorderBuilder,
     core::{algebra::Vector2, pool::Handle},
     message::{
-        ButtonState, MessageData, MessageDirection, OsEvent, PopupMessage, UiMessage,
-        UiMessageData, WidgetMessage,
+        ButtonState, MessageDirection, OsEvent, PopupMessage, UiMessage, UiMessageData,
+        WidgetMessage,
     },
-    node::UINode,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, NodeHandleMapping, RestrictionEntry, Thickness, UserInterface,
+    BuildContext, Control, NodeHandleMapping, RestrictionEntry, Thickness, UiNode, UserInterface,
     BRUSH_DARKER, BRUSH_LIGHTER,
 };
+use std::any::Any;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Copy, Clone, PartialEq, Debug)]
-pub enum Placement<M: MessageData, C: Control<M, C>> {
+pub enum Placement {
     /// A popup should be placed relative to given widget at the left top corner of the widget screen bounds.
     /// Widget handle could be `NONE`, in this case the popup will be placed at the left top corner of the screen.
-    LeftTop(Handle<UINode<M, C>>),
+    LeftTop(Handle<UiNode>),
 
     /// A popup should be placed relative to given widget at the right top corner of the widget screen bounds.
     /// Widget handle could be `NONE`, in this case the popup will be placed at the right top corner of the screen.
-    RightTop(Handle<UINode<M, C>>),
+    RightTop(Handle<UiNode>),
 
     /// A popup should be placed relative to given widget at the center of the widget screen bounds.
     /// Widget handle could be `NONE`, in this case the popup will be placed at the center of the screen.
-    Center(Handle<UINode<M, C>>),
+    Center(Handle<UiNode>),
 
     /// A popup should be placed relative to given widget at the left bottom corner of the widget screen bounds.
     /// Widget handle could be `NONE`, in this case the popup will be placed at the left bottom corner of the screen.
-    LeftBottom(Handle<UINode<M, C>>),
+    LeftBottom(Handle<UiNode>),
 
     /// A popup should be placed relative to given widget at the right bottom corner of the widget screen bounds.
     /// Widget handle could be `NONE`, in this case the popup will be placed at the right bottom corner of the screen.
-    RightBottom(Handle<UINode<M, C>>),
+    RightBottom(Handle<UiNode>),
 
     /// A popup should be placed at the cursor position. The widget handle could be either `NONE` or a handle of a
     /// widget that is directly behind the cursor.
-    Cursor(Handle<UINode<M, C>>),
+    Cursor(Handle<UiNode>),
 
     /// A popup should be placed at given screen-space position.
     Position {
@@ -45,33 +45,41 @@ pub enum Placement<M: MessageData, C: Control<M, C>> {
 
         /// A handle of the node that is located behind the given position. Could be `NONE` if there is nothing behind
         /// given position.
-        target: Handle<UINode<M, C>>,
+        target: Handle<UiNode>,
     },
 }
 
 #[derive(Clone)]
-pub struct Popup<M: MessageData, C: Control<M, C>> {
-    widget: Widget<M, C>,
-    placement: Placement<M, C>,
+pub struct Popup {
+    widget: Widget,
+    placement: Placement,
     stays_open: bool,
     is_open: bool,
-    content: Handle<UINode<M, C>>,
-    body: Handle<UINode<M, C>>,
+    content: Handle<UiNode>,
+    body: Handle<UiNode>,
 }
 
-crate::define_widget_deref!(Popup<M, C>);
+crate::define_widget_deref!(Popup);
 
-impl<M: MessageData, C: Control<M, C>> Control<M, C> for Popup<M, C> {
-    fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
+impl Control for Popup {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
+    fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.content);
         node_map.resolve(&mut self.body);
     }
 
-    fn handle_routed_message(
-        &mut self,
-        ui: &mut UserInterface<M, C>,
-        message: &mut UiMessage<M, C>,
-    ) {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
         match &message.data() {
@@ -175,8 +183,8 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Popup<M, C> {
 
     fn handle_os_event(
         &mut self,
-        self_handle: Handle<UINode<M, C>>,
-        ui: &mut UserInterface<M, C>,
+        self_handle: Handle<UiNode>,
+        ui: &mut UserInterface,
         event: &OsEvent,
     ) {
         if let OsEvent::MouseInput { state, .. } = event {
@@ -198,15 +206,15 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Popup<M, C> {
     }
 }
 
-pub struct PopupBuilder<M: MessageData, C: Control<M, C>> {
-    widget_builder: WidgetBuilder<M, C>,
-    placement: Placement<M, C>,
+pub struct PopupBuilder {
+    widget_builder: WidgetBuilder,
+    placement: Placement,
     stays_open: bool,
-    content: Handle<UINode<M, C>>,
+    content: Handle<UiNode>,
 }
 
-impl<M: MessageData, C: Control<M, C>> PopupBuilder<M, C> {
-    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
+impl PopupBuilder {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             placement: Placement::Cursor(Default::default()),
@@ -215,7 +223,7 @@ impl<M: MessageData, C: Control<M, C>> PopupBuilder<M, C> {
         }
     }
 
-    pub fn with_placement(mut self, placement: Placement<M, C>) -> Self {
+    pub fn with_placement(mut self, placement: Placement) -> Self {
         self.placement = placement;
         self
     }
@@ -225,12 +233,12 @@ impl<M: MessageData, C: Control<M, C>> PopupBuilder<M, C> {
         self
     }
 
-    pub fn with_content(mut self, content: Handle<UINode<M, C>>) -> Self {
+    pub fn with_content(mut self, content: Handle<UiNode>) -> Self {
         self.content = content;
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let body = BorderBuilder::new(
             WidgetBuilder::new()
                 .with_background(BRUSH_DARKER)
@@ -254,6 +262,6 @@ impl<M: MessageData, C: Control<M, C>> PopupBuilder<M, C> {
             body,
         };
 
-        ctx.add_node(UINode::Popup(popup))
+        ctx.add_node(UiNode::new(popup))
     }
 }

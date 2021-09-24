@@ -4,6 +4,8 @@
 // some parts can be unused in some examples.
 #![allow(dead_code)]
 
+use rg3d::engine::Engine;
+use rg3d::gui::{BuildContext, UiNode};
 use rg3d::physics3d::{
     rapier::{
         dynamics::RigidBodyBuilder,
@@ -24,7 +26,6 @@ use rg3d::{
     gui::{
         formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
-        node::StubNode,
         progress_bar::ProgressBarBuilder,
         text::TextBuilder,
         widget::WidgetBuilder,
@@ -47,12 +48,6 @@ use std::{
     sync::{Arc, Mutex},
     time::Duration,
 };
-
-// Create our own engine type aliases. These specializations are needed
-// because engine provides a way to extend UI with custom nodes and messages.
-pub type GameEngine = rg3d::engine::Engine<(), StubNode>;
-pub type UiNode = rg3d::gui::node::UINode<(), StubNode>;
-pub type BuildContext<'a> = rg3d::gui::BuildContext<'a, (), StubNode>;
 
 /// Creates a camera at given position with a skybox.
 pub async fn create_camera(
@@ -123,7 +118,7 @@ pub async fn create_camera(
 pub struct Game {
     pub game_scene: Option<GameScene>,
     pub load_context: Option<Arc<Mutex<SceneLoadContext>>>,
-    pub engine: GameEngine,
+    pub engine: Engine,
 }
 
 impl Game {
@@ -134,7 +129,7 @@ impl Game {
             .with_title(title)
             .with_resizable(true);
 
-        let mut engine = GameEngine::new(window_builder, &event_loop, false).unwrap();
+        let mut engine = Engine::new(window_builder, &event_loop, false).unwrap();
 
         engine
             .renderer

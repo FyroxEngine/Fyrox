@@ -2,38 +2,45 @@ use crate::{
     core::{algebra::Vector3, color::Color, pool::Handle},
     grid::{Column, GridBuilder, Row},
     message::{
-        MessageData, MessageDirection, NumericUpDownMessage, UiMessage, UiMessageData,
-        Vec3EditorMessage,
+        MessageDirection, NumericUpDownMessage, UiMessage, UiMessageData, Vec3EditorMessage,
     },
-    node::UINode,
     vec::{make_mark, make_numeric_input},
-    BuildContext, Control, NodeHandleMapping, UserInterface, Widget, WidgetBuilder,
+    BuildContext, Control, NodeHandleMapping, UiNode, UserInterface, Widget, WidgetBuilder,
 };
+use std::any::Any;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone)]
-pub struct Vec3Editor<M: MessageData, C: Control<M, C>> {
-    widget: Widget<M, C>,
-    x_field: Handle<UINode<M, C>>,
-    y_field: Handle<UINode<M, C>>,
-    z_field: Handle<UINode<M, C>>,
+pub struct Vec3Editor {
+    widget: Widget,
+    x_field: Handle<UiNode>,
+    y_field: Handle<UiNode>,
+    z_field: Handle<UiNode>,
     value: Vector3<f32>,
 }
 
-crate::define_widget_deref!(Vec3Editor<M, C>);
+crate::define_widget_deref!(Vec3Editor);
 
-impl<M: MessageData, C: Control<M, C>> Control<M, C> for Vec3Editor<M, C> {
-    fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
+impl Control for Vec3Editor {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
+    fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.x_field);
         node_map.resolve(&mut self.y_field);
         node_map.resolve(&mut self.z_field);
     }
 
-    fn handle_routed_message(
-        &mut self,
-        ui: &mut UserInterface<M, C>,
-        message: &mut UiMessage<M, C>,
-    ) {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
         match *message.data() {
@@ -100,13 +107,13 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Vec3Editor<M, C> {
     }
 }
 
-pub struct Vec3EditorBuilder<M: MessageData, C: Control<M, C>> {
-    widget_builder: WidgetBuilder<M, C>,
+pub struct Vec3EditorBuilder {
+    widget_builder: WidgetBuilder,
     value: Vector3<f32>,
 }
 
-impl<M: MessageData, C: Control<M, C>> Vec3EditorBuilder<M, C> {
-    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
+impl Vec3EditorBuilder {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             value: Default::default(),
@@ -118,7 +125,7 @@ impl<M: MessageData, C: Control<M, C>> Vec3EditorBuilder<M, C> {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let x_field;
         let y_field;
         let z_field;
@@ -157,6 +164,6 @@ impl<M: MessageData, C: Control<M, C>> Vec3EditorBuilder<M, C> {
             value: self.value,
         };
 
-        ctx.add_node(UINode::Vec3Editor(node))
+        ctx.add_node(UiNode::new(node))
     }
 }

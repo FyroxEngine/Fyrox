@@ -11,30 +11,31 @@ use crate::{
     draw::{CommandTexture, DrawingContext},
     grid::{Column, GridBuilder, Row},
     message::{
-        AlphaBarMessage, ColorFieldMessage, ColorPickerMessage, HueBarMessage, MessageData,
-        MessageDirection, MouseButton, NumericUpDownMessage, PopupMessage,
-        SaturationBrightnessFieldMessage, UiMessage, UiMessageData, WidgetMessage,
+        AlphaBarMessage, ColorFieldMessage, ColorPickerMessage, HueBarMessage, MessageDirection,
+        MouseButton, NumericUpDownMessage, PopupMessage, SaturationBrightnessFieldMessage,
+        UiMessage, UiMessageData, WidgetMessage,
     },
     numeric::NumericUpDownBuilder,
     popup::{Placement, PopupBuilder},
     text::TextBuilder,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, NodeHandleMapping, Orientation, Thickness, UINode, UserInterface,
+    BuildContext, Control, NodeHandleMapping, Orientation, Thickness, UiNode, UserInterface,
     VerticalAlignment,
 };
+use std::any::Any;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone)]
-pub struct AlphaBar<M: MessageData, C: Control<M, C>> {
-    widget: Widget<M, C>,
+pub struct AlphaBar {
+    widget: Widget,
     orientation: Orientation,
     alpha: f32,
     is_picking: bool,
 }
 
-crate::define_widget_deref!(AlphaBar<M, C>);
+crate::define_widget_deref!(AlphaBar);
 
-impl<M: MessageData, C: Control<M, C>> AlphaBar<M, C> {
+impl AlphaBar {
     fn alpha_at(&self, mouse_pos: Vector2<f32>) -> f32 {
         let relative_pos = mouse_pos - self.screen_position;
         let k = match self.orientation {
@@ -120,7 +121,19 @@ fn push_gradient_rect(
 
 const CHECKERBOARD_SIZE: f32 = 6.0;
 
-impl<M: MessageData, C: Control<M, C>> Control<M, C> for AlphaBar<M, C> {
+impl Control for AlphaBar {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.screen_bounds();
 
@@ -187,11 +200,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for AlphaBar<M, C> {
         );
     }
 
-    fn handle_routed_message(
-        &mut self,
-        ui: &mut UserInterface<M, C>,
-        message: &mut UiMessage<M, C>,
-    ) {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
         if message.destination() == self.handle {
@@ -248,14 +257,14 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for AlphaBar<M, C> {
     }
 }
 
-pub struct AlphaBarBuilder<M: MessageData, C: Control<M, C>> {
-    widget_builder: WidgetBuilder<M, C>,
+pub struct AlphaBarBuilder {
+    widget_builder: WidgetBuilder,
     orientation: Orientation,
     alpha: f32,
 }
 
-impl<M: MessageData, C: Control<M, C>> AlphaBarBuilder<M, C> {
-    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
+impl AlphaBarBuilder {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             orientation: Orientation::Vertical,
@@ -268,28 +277,28 @@ impl<M: MessageData, C: Control<M, C>> AlphaBarBuilder<M, C> {
         self
     }
 
-    pub fn build(self, ui: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ui: &mut BuildContext) -> Handle<UiNode> {
         let canvas = AlphaBar {
             widget: self.widget_builder.build(),
             orientation: self.orientation,
             alpha: self.alpha,
             is_picking: false,
         };
-        ui.add_node(UINode::AlphaBar(canvas))
+        ui.add_node(UiNode::new(canvas))
     }
 }
 
 #[derive(Clone)]
-pub struct HueBar<M: MessageData, C: Control<M, C>> {
-    widget: Widget<M, C>,
+pub struct HueBar {
+    widget: Widget,
     orientation: Orientation,
     is_picking: bool,
     hue: f32,
 }
 
-crate::define_widget_deref!(HueBar<M, C>);
+crate::define_widget_deref!(HueBar);
 
-impl<M: MessageData, C: Control<M, C>> HueBar<M, C> {
+impl HueBar {
     fn hue_at(&self, mouse_pos: Vector2<f32>) -> f32 {
         let relative_pos = mouse_pos - self.screen_position;
         let k = match self.orientation {
@@ -300,7 +309,19 @@ impl<M: MessageData, C: Control<M, C>> HueBar<M, C> {
     }
 }
 
-impl<M: MessageData, C: Control<M, C>> Control<M, C> for HueBar<M, C> {
+impl Control for HueBar {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.screen_bounds();
         for hue in 1..360 {
@@ -339,11 +360,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for HueBar<M, C> {
         );
     }
 
-    fn handle_routed_message(
-        &mut self,
-        ui: &mut UserInterface<M, C>,
-        message: &mut UiMessage<M, C>,
-    ) {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
         if message.destination() == self.handle {
@@ -398,14 +415,14 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for HueBar<M, C> {
     }
 }
 
-pub struct HueBarBuilder<M: MessageData, C: Control<M, C>> {
-    widget_builder: WidgetBuilder<M, C>,
+pub struct HueBarBuilder {
+    widget_builder: WidgetBuilder,
     orientation: Orientation,
     hue: f32,
 }
 
-impl<M: MessageData, C: Control<M, C>> HueBarBuilder<M, C> {
-    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
+impl HueBarBuilder {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             orientation: Orientation::Vertical,
@@ -423,29 +440,29 @@ impl<M: MessageData, C: Control<M, C>> HueBarBuilder<M, C> {
         self
     }
 
-    pub fn build(self, ui: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ui: &mut BuildContext) -> Handle<UiNode> {
         let bar = HueBar {
             widget: self.widget_builder.build(),
             orientation: self.orientation,
             is_picking: false,
             hue: self.hue,
         };
-        ui.add_node(UINode::HueBar(bar))
+        ui.add_node(UiNode::new(bar))
     }
 }
 
 #[derive(Clone)]
-pub struct SaturationBrightnessField<M: MessageData, C: Control<M, C>> {
-    widget: Widget<M, C>,
+pub struct SaturationBrightnessField {
+    widget: Widget,
     is_picking: bool,
     hue: f32,
     saturation: f32,
     brightness: f32,
 }
 
-crate::define_widget_deref!(SaturationBrightnessField<M, C>);
+crate::define_widget_deref!(SaturationBrightnessField);
 
-impl<M: MessageData, C: Control<M, C>> SaturationBrightnessField<M, C> {
+impl SaturationBrightnessField {
     fn saturation_at(&self, mouse_pos: Vector2<f32>) -> f32 {
         ((mouse_pos.x - self.screen_position.x) / self.screen_bounds().w())
             .min(1.0)
@@ -462,8 +479,20 @@ impl<M: MessageData, C: Control<M, C>> SaturationBrightnessField<M, C> {
     }
 }
 
-impl<M: MessageData, C: Control<M, C>> Control<M, C> for SaturationBrightnessField<M, C> {
-    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
+impl Control for SaturationBrightnessField {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
+    fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         let size = self.deref().arrange_override(ui, final_size);
         // Make sure field is always square.
         ui.send_message(WidgetMessage::width(
@@ -512,11 +541,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for SaturationBrightnessFie
         );
     }
 
-    fn handle_routed_message(
-        &mut self,
-        ui: &mut UserInterface<M, C>,
-        message: &mut UiMessage<M, C>,
-    ) {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
         if message.destination() == self.handle {
@@ -600,15 +625,15 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for SaturationBrightnessFie
     }
 }
 
-pub struct SaturationBrightnessFieldBuilder<M: MessageData, C: Control<M, C>> {
-    widget_builder: WidgetBuilder<M, C>,
+pub struct SaturationBrightnessFieldBuilder {
+    widget_builder: WidgetBuilder,
     hue: f32,
     saturation: f32,
     brightness: f32,
 }
 
-impl<M: MessageData, C: Control<M, C>> SaturationBrightnessFieldBuilder<M, C> {
-    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
+impl SaturationBrightnessFieldBuilder {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             hue: 0.0,
@@ -632,7 +657,7 @@ impl<M: MessageData, C: Control<M, C>> SaturationBrightnessFieldBuilder<M, C> {
         self
     }
 
-    pub fn build(self, ui: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ui: &mut BuildContext) -> Handle<UiNode> {
         let bar = SaturationBrightnessField {
             widget: self.widget_builder.build(),
             is_picking: false,
@@ -640,37 +665,37 @@ impl<M: MessageData, C: Control<M, C>> SaturationBrightnessFieldBuilder<M, C> {
             brightness: self.brightness,
             hue: self.hue,
         };
-        ui.add_node(UINode::SaturationBrightnessField(bar))
+        ui.add_node(UiNode::new(bar))
     }
 }
 
 #[derive(Clone)]
-pub struct ColorPicker<M: MessageData, C: Control<M, C>> {
-    widget: Widget<M, C>,
-    hue_bar: Handle<UINode<M, C>>,
-    alpha_bar: Handle<UINode<M, C>>,
-    saturation_brightness_field: Handle<UINode<M, C>>,
-    red: Handle<UINode<M, C>>,
-    green: Handle<UINode<M, C>>,
-    blue: Handle<UINode<M, C>>,
-    alpha: Handle<UINode<M, C>>,
-    hue: Handle<UINode<M, C>>,
-    saturation: Handle<UINode<M, C>>,
-    brightness: Handle<UINode<M, C>>,
-    color_mark: Handle<UINode<M, C>>,
+pub struct ColorPicker {
+    widget: Widget,
+    hue_bar: Handle<UiNode>,
+    alpha_bar: Handle<UiNode>,
+    saturation_brightness_field: Handle<UiNode>,
+    red: Handle<UiNode>,
+    green: Handle<UiNode>,
+    blue: Handle<UiNode>,
+    alpha: Handle<UiNode>,
+    hue: Handle<UiNode>,
+    saturation: Handle<UiNode>,
+    brightness: Handle<UiNode>,
+    color_mark: Handle<UiNode>,
     color: Color,
     hsv: Hsv,
 }
 
-crate::define_widget_deref!(ColorPicker<M, C>);
+crate::define_widget_deref!(ColorPicker);
 
-fn mark_handled<M: MessageData, C: Control<M, C>>(message: UiMessage<M, C>) -> UiMessage<M, C> {
+fn mark_handled(message: UiMessage) -> UiMessage {
     message.set_handled(true);
     message
 }
 
-impl<M: MessageData, C: Control<M, C>> ColorPicker<M, C> {
-    fn sync_fields(&self, ui: &mut UserInterface<M, C>, color: Color, hsv: Hsv) {
+impl ColorPicker {
+    fn sync_fields(&self, ui: &mut UserInterface, color: Color, hsv: Hsv) {
         ui.send_message(mark_handled(NumericUpDownMessage::value(
             self.hue,
             MessageDirection::ToWidget,
@@ -721,8 +746,20 @@ impl<M: MessageData, C: Control<M, C>> ColorPicker<M, C> {
     }
 }
 
-impl<M: MessageData, C: Control<M, C>> Control<M, C> for ColorPicker<M, C> {
-    fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
+impl Control for ColorPicker {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
+    fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.hue_bar);
         node_map.resolve(&mut self.alpha_bar);
         node_map.resolve(&mut self.saturation_brightness_field);
@@ -736,11 +773,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ColorPicker<M, C> {
         node_map.resolve(&mut self.color_mark);
     }
 
-    fn handle_routed_message(
-        &mut self,
-        ui: &mut UserInterface<M, C>,
-        message: &mut UiMessage<M, C>,
-    ) {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
         match message.data() {
@@ -879,17 +912,12 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ColorPicker<M, C> {
     }
 }
 
-pub struct ColorPickerBuilder<M: MessageData, C: Control<M, C>> {
-    widget_builder: WidgetBuilder<M, C>,
+pub struct ColorPickerBuilder {
+    widget_builder: WidgetBuilder,
     color: Color,
 }
 
-fn make_text_mark<M: MessageData, C: Control<M, C>>(
-    ctx: &mut BuildContext<M, C>,
-    text: &str,
-    row: usize,
-    column: usize,
-) -> Handle<UINode<M, C>> {
+fn make_text_mark(ctx: &mut BuildContext, text: &str, row: usize, column: usize) -> Handle<UiNode> {
     TextBuilder::new(
         WidgetBuilder::new()
             .with_vertical_alignment(VerticalAlignment::Center)
@@ -900,13 +928,13 @@ fn make_text_mark<M: MessageData, C: Control<M, C>>(
     .build(ctx)
 }
 
-fn make_input_field<M: MessageData, C: Control<M, C>>(
-    ctx: &mut BuildContext<M, C>,
+fn make_input_field(
+    ctx: &mut BuildContext,
     value: f32,
     max_value: f32,
     row: usize,
     column: usize,
-) -> Handle<UINode<M, C>> {
+) -> Handle<UiNode> {
     NumericUpDownBuilder::new(
         WidgetBuilder::new()
             .with_margin(Thickness::uniform(1.0))
@@ -921,8 +949,8 @@ fn make_input_field<M: MessageData, C: Control<M, C>>(
     .build(ctx)
 }
 
-impl<M: MessageData, C: Control<M, C>> ColorPickerBuilder<M, C> {
-    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
+impl ColorPickerBuilder {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             color: Color::WHITE,
@@ -934,7 +962,7 @@ impl<M: MessageData, C: Control<M, C>> ColorPickerBuilder<M, C> {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let hue_bar;
         let alpha_bar;
         let saturation_brightness_field;
@@ -1077,21 +1105,33 @@ impl<M: MessageData, C: Control<M, C>> ColorPickerBuilder<M, C> {
             alpha_bar,
             alpha,
         };
-        ctx.add_node(UINode::ColorPicker(picker))
+        ctx.add_node(UiNode::new(picker))
     }
 }
 
 #[derive(Clone)]
-pub struct ColorField<M: MessageData, C: Control<M, C>> {
-    widget: Widget<M, C>,
-    popup: Handle<UINode<M, C>>,
-    picker: Handle<UINode<M, C>>,
+pub struct ColorField {
+    widget: Widget,
+    popup: Handle<UiNode>,
+    picker: Handle<UiNode>,
     color: Color,
 }
 
-crate::define_widget_deref!(ColorField<M, C>);
+crate::define_widget_deref!(ColorField);
 
-impl<M: MessageData, C: Control<M, C>> Control<M, C> for ColorField<M, C> {
+impl Control for ColorField {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.screen_bounds();
 
@@ -1104,11 +1144,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ColorField<M, C> {
         );
     }
 
-    fn handle_routed_message(
-        &mut self,
-        ui: &mut UserInterface<M, C>,
-        message: &mut UiMessage<M, C>,
-    ) {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
         match *message.data() {
@@ -1155,10 +1191,13 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ColorField<M, C> {
 
     // We have to use preview message because popup it *not* in visual tree of our control and
     // handle_routed_message won't trigger because of it.
-    fn preview_message(&self, ui: &UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+    fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
         match message.data() {
             UiMessageData::Popup(PopupMessage::Close) if message.destination() == self.popup => {
-                let picker = ui.node(self.picker).as_color_picker();
+                let picker = ui
+                    .node(self.picker)
+                    .cast::<ColorPicker>()
+                    .expect("self.picker must be ColorPicker!");
                 ui.send_message(ColorFieldMessage::color(
                     self.handle,
                     MessageDirection::ToWidget,
@@ -1170,13 +1209,13 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ColorField<M, C> {
     }
 }
 
-pub struct ColorFieldBuilder<M: MessageData, C: Control<M, C>> {
-    widget_builder: WidgetBuilder<M, C>,
+pub struct ColorFieldBuilder {
+    widget_builder: WidgetBuilder,
     color: Color,
 }
 
-impl<M: MessageData, C: Control<M, C>> ColorFieldBuilder<M, C> {
-    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
+impl ColorFieldBuilder {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             color: Color::WHITE,
@@ -1188,7 +1227,7 @@ impl<M: MessageData, C: Control<M, C>> ColorFieldBuilder<M, C> {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let picker;
         let popup = PopupBuilder::new(WidgetBuilder::new())
             .with_content({
@@ -1205,6 +1244,6 @@ impl<M: MessageData, C: Control<M, C>> ColorFieldBuilder<M, C> {
             picker,
             color: self.color,
         };
-        ctx.add_node(UINode::ColorField(field))
+        ctx.add_node(UiNode::new(field))
     }
 }

@@ -3,29 +3,38 @@ use crate::{
     brush::Brush,
     core::{algebra::Vector2, color::Color, math::Rect, pool::Handle, scope_profile},
     draw::{CommandTexture, DrawingContext},
-    message::{MessageData, MessageDirection, ScrollPanelMessage, UiMessage, UiMessageData},
+    message::{MessageDirection, ScrollPanelMessage, UiMessage, UiMessageData},
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, UINode, UserInterface,
+    BuildContext, Control, UiNode, UserInterface,
 };
+use std::any::Any;
 use std::ops::{Deref, DerefMut};
 
 /// Allows user to scroll content
 #[derive(Clone)]
-pub struct ScrollPanel<M: MessageData, C: Control<M, C>> {
-    widget: Widget<M, C>,
+pub struct ScrollPanel {
+    widget: Widget,
     scroll: Vector2<f32>,
     vertical_scroll_allowed: bool,
     horizontal_scroll_allowed: bool,
 }
 
-crate::define_widget_deref!(ScrollPanel<M, C>);
+crate::define_widget_deref!(ScrollPanel);
 
-impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollPanel<M, C> {
-    fn measure_override(
-        &self,
-        ui: &UserInterface<M, C>,
-        available_size: Vector2<f32>,
-    ) -> Vector2<f32> {
+impl Control for ScrollPanel {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
+    fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
 
         let size_for_child = Vector2::new(
@@ -59,7 +68,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollPanel<M, C> {
         desired_size
     }
 
-    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
+    fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
 
         let mut children_size = Vector2::<f32>::default();
@@ -102,11 +111,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollPanel<M, C> {
         );
     }
 
-    fn handle_routed_message(
-        &mut self,
-        ui: &mut UserInterface<M, C>,
-        message: &mut UiMessage<M, C>,
-    ) {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
         if message.destination() == self.handle() {
@@ -165,8 +170,8 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollPanel<M, C> {
     }
 }
 
-impl<M: MessageData, C: Control<M, C>> ScrollPanel<M, C> {
-    pub fn new(widget: Widget<M, C>) -> Self {
+impl ScrollPanel {
+    pub fn new(widget: Widget) -> Self {
         Self {
             widget,
             scroll: Default::default(),
@@ -176,14 +181,14 @@ impl<M: MessageData, C: Control<M, C>> ScrollPanel<M, C> {
     }
 }
 
-pub struct ScrollPanelBuilder<M: MessageData, C: Control<M, C>> {
-    widget_builder: WidgetBuilder<M, C>,
+pub struct ScrollPanelBuilder {
+    widget_builder: WidgetBuilder,
     vertical_scroll_allowed: Option<bool>,
     horizontal_scroll_allowed: Option<bool>,
 }
 
-impl<M: MessageData, C: Control<M, C>> ScrollPanelBuilder<M, C> {
-    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
+impl ScrollPanelBuilder {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             vertical_scroll_allowed: None,
@@ -201,8 +206,8 @@ impl<M: MessageData, C: Control<M, C>> ScrollPanelBuilder<M, C> {
         self
     }
 
-    pub fn build(self, ui: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
-        ui.add_node(UINode::ScrollPanel(ScrollPanel {
+    pub fn build(self, ui: &mut BuildContext) -> Handle<UiNode> {
+        ui.add_node(UiNode::new(ScrollPanel {
             widget: self.widget_builder.build(),
             scroll: Vector2::default(),
             vertical_scroll_allowed: self.vertical_scroll_allowed.unwrap_or(true),

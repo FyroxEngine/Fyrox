@@ -9,11 +9,10 @@ use crate::{
     draw::DrawingContext,
     grid::{Column, GridBuilder, Row},
     message::{
-        ButtonMessage, FileBrowserMessage, FileSelectorMessage, MessageData, MessageDirection,
-        OsEvent, ScrollViewerMessage, TextBoxMessage, TreeMessage, TreeRootMessage, UiMessage,
+        ButtonMessage, FileBrowserMessage, FileSelectorMessage, MessageDirection, OsEvent,
+        ScrollViewerMessage, TextBoxMessage, TreeMessage, TreeRootMessage, UiMessage,
         UiMessageData, WindowMessage,
     },
-    node::UINode,
     scroll_viewer::ScrollViewerBuilder,
     stack_panel::StackPanelBuilder,
     text::TextBuilder,
@@ -21,7 +20,7 @@ use crate::{
     tree::{Tree, TreeBuilder, TreeRootBuilder},
     widget::{Widget, WidgetBuilder},
     window::{Window, WindowBuilder, WindowTitle},
-    BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, Thickness,
+    BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, Thickness, UiNode,
     UserInterface, VerticalAlignment,
 };
 use core::time;
@@ -36,7 +35,9 @@ use std::{
 };
 
 use crate::text_box::TextCommitMode;
+use crate::tree::TreeRoot;
 use notify::Watcher;
+use std::any::Any;
 use std::fmt::{Debug, Formatter};
 #[cfg(not(target_arch = "wasm32"))]
 use sysinfo::{DiskExt, RefreshKind, SystemExt};
@@ -69,25 +70,25 @@ pub enum FileBrowserMode {
 }
 
 #[derive(Clone)]
-pub struct FileBrowser<M: MessageData, C: Control<M, C>> {
-    widget: Widget<M, C>,
-    tree_root: Handle<UINode<M, C>>,
-    path_text: Handle<UINode<M, C>>,
-    scroll_viewer: Handle<UINode<M, C>>,
+pub struct FileBrowser {
+    widget: Widget,
+    tree_root: Handle<UiNode>,
+    path_text: Handle<UiNode>,
+    scroll_viewer: Handle<UiNode>,
     path: PathBuf,
     root: Option<PathBuf>,
     filter: Option<Filter>,
     mode: FileBrowserMode,
-    file_name: Handle<UINode<M, C>>,
+    file_name: Handle<UiNode>,
     file_name_value: PathBuf,
     #[allow(clippy::type_complexity)]
     watcher: Rc<cell::Cell<Option<(notify::RecommendedWatcher, thread::JoinHandle<()>)>>>,
 }
 
-crate::define_widget_deref!(FileBrowser<M, C>);
+crate::define_widget_deref!(FileBrowser);
 
-impl<M: MessageData, C: Control<M, C>> FileBrowser<M, C> {
-    fn rebuild_from_root(&mut self, ui: &mut UserInterface<M, C>) {
+impl FileBrowser {
+    fn rebuild_from_root(&mut self, ui: &mut UserInterface) {
         // Generate new tree contents.
         let result = build_all(
             self.root.as_ref(),
@@ -127,18 +128,26 @@ impl<M: MessageData, C: Control<M, C>> FileBrowser<M, C> {
     }
 }
 
-impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileBrowser<M, C> {
-    fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
+impl Control for FileBrowser {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
+    fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.tree_root);
         node_map.resolve(&mut self.path_text);
         node_map.resolve(&mut self.scroll_viewer);
     }
 
-    fn handle_routed_message(
-        &mut self,
-        ui: &mut UserInterface<M, C>,
-        message: &mut UiMessage<M, C>,
-    ) {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
         match &message.data() {
@@ -245,7 +254,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileBrowser<M, C> {
                             let parent_path = parent_path(&path);
                             let existing_parent_node = find_tree(self.tree_root, &parent_path, ui);
                             if existing_parent_node.is_some() {
-                                if let UINode::Tree(tree) = ui.node(existing_parent_node) {
+                                if let Some(tree) = ui.node(existing_parent_node).cast::<Tree>() {
                                     if tree.expanded() {
                                         build_tree(
                                             existing_parent_node,
@@ -381,7 +390,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileBrowser<M, C> {
         }
     }
 
-    fn remove_ref(&mut self, handle: Handle<UINode<M, C>>) {
+    fn remove_ref(&mut self, handle: Handle<UiNode>) {
         if self.tree_root == handle {
             self.tree_root = Handle::NONE;
         }
@@ -431,29 +440,16 @@ fn make_fs_watcher_event_path_relative_to_tree_root(
     }
 }
 
-fn find_tree<M: MessageData, C: Control<M, C>, P: AsRef<Path>>(
-    node: Handle<UINode<M, C>>,
-    path: &P,
-    ui: &UserInterface<M, C>,
-) -> Handle<UINode<M, C>> {
+fn find_tree<P: AsRef<Path>>(node: Handle<UiNode>, path: &P, ui: &UserInterface) -> Handle<UiNode> {
     let mut tree_handle = Handle::NONE;
-    match ui.node(node) {
-        UINode::Tree(tree) => {
-            let tree_path = tree.user_data_ref::<PathBuf>().unwrap();
-            if tree_path == path.as_ref() {
-                tree_handle = node;
-            } else {
-                for &item in tree.items() {
-                    let tree = find_tree(item, path, ui);
-                    if tree.is_some() {
-                        tree_handle = tree;
-                        break;
-                    }
-                }
-            }
-        }
-        UINode::TreeRoot(root) => {
-            for &item in root.items() {
+    let node_ref = ui.node(node);
+
+    if let Some(tree) = node_ref.cast::<Tree>() {
+        let tree_path = tree.user_data_ref::<PathBuf>().unwrap();
+        if tree_path == path.as_ref() {
+            tree_handle = node;
+        } else {
+            for &item in tree.items() {
                 let tree = find_tree(item, path, ui);
                 if tree.is_some() {
                     tree_handle = tree;
@@ -461,16 +457,25 @@ fn find_tree<M: MessageData, C: Control<M, C>, P: AsRef<Path>>(
                 }
             }
         }
-        _ => unreachable!(),
+    } else if let Some(root) = node_ref.cast::<TreeRoot>() {
+        for &item in root.items() {
+            let tree = find_tree(item, path, ui);
+            if tree.is_some() {
+                tree_handle = tree;
+                break;
+            }
+        }
+    } else {
+        unreachable!()
     }
     tree_handle
 }
 
-fn build_tree_item<M: MessageData, C: Control<M, C>, P: AsRef<Path>>(
+fn build_tree_item<P: AsRef<Path>>(
     path: P,
     parent_path: P,
-    ctx: &mut BuildContext<M, C>,
-) -> Handle<UINode<M, C>> {
+    ctx: &mut BuildContext,
+) -> Handle<UiNode> {
     let is_dir_empty = path
         .as_ref()
         .read_dir()
@@ -492,23 +497,23 @@ fn build_tree_item<M: MessageData, C: Control<M, C>, P: AsRef<Path>>(
         .build(ctx)
 }
 
-fn build_tree<M: MessageData, C: Control<M, C>, P: AsRef<Path>>(
-    parent: Handle<UINode<M, C>>,
+fn build_tree<P: AsRef<Path>>(
+    parent: Handle<UiNode>,
     is_parent_root: bool,
     path: P,
     parent_path: P,
-    ui: &mut UserInterface<M, C>,
-) -> Handle<UINode<M, C>> {
+    ui: &mut UserInterface,
+) -> Handle<UiNode> {
     let subtree = build_tree_item(path, parent_path, &mut ui.build_ctx());
     insert_subtree_in_parent(ui, parent, is_parent_root, subtree);
     subtree
 }
 
-fn insert_subtree_in_parent<M: MessageData, C: Control<M, C>>(
-    ui: &mut UserInterface<M, C>,
-    parent: Handle<UINode<M, C>>,
+fn insert_subtree_in_parent(
+    ui: &mut UserInterface,
+    parent: Handle<UiNode>,
     is_parent_root: bool,
-    tree: Handle<UINode<M, C>>,
+    tree: Handle<UiNode>,
 ) {
     if is_parent_root {
         ui.send_message(TreeRootMessage::add_item(
@@ -525,18 +530,18 @@ fn insert_subtree_in_parent<M: MessageData, C: Control<M, C>>(
     }
 }
 
-struct BuildResult<M: MessageData, C: Control<M, C>> {
-    root_items: Vec<Handle<UINode<M, C>>>,
-    path_item: Handle<UINode<M, C>>,
+struct BuildResult {
+    root_items: Vec<Handle<UiNode>>,
+    path_item: Handle<UiNode>,
 }
 
 /// Builds entire file system tree to given final_path.
-fn build_all<M: MessageData, C: Control<M, C>>(
+fn build_all(
     root: Option<&PathBuf>,
     final_path: &Path,
     mut filter: Option<Filter>,
-    ctx: &mut BuildContext<M, C>,
-) -> BuildResult<M, C> {
+    ctx: &mut BuildContext,
+) -> BuildResult {
     let mut dest_path = PathBuf::new();
     if let Ok(canonical_final_path) = final_path.canonicalize() {
         if let Some(canonical_root) = root.map(|r| r.canonicalize().ok()).flatten() {
@@ -649,16 +654,16 @@ fn build_all<M: MessageData, C: Control<M, C>>(
     }
 }
 
-pub struct FileBrowserBuilder<M: MessageData, C: Control<M, C>> {
-    widget_builder: WidgetBuilder<M, C>,
+pub struct FileBrowserBuilder {
+    widget_builder: WidgetBuilder,
     path: PathBuf,
     filter: Option<Filter>,
     root: Option<PathBuf>,
     mode: FileBrowserMode,
 }
 
-impl<M: MessageData, C: Control<M, C>> FileBrowserBuilder<M, C> {
-    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
+impl FileBrowserBuilder {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             path: Default::default(),
@@ -707,7 +712,7 @@ impl<M: MessageData, C: Control<M, C>> FileBrowserBuilder<M, C> {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let BuildResult {
             root_items: items, ..
         } = build_all(
@@ -859,7 +864,7 @@ impl<M: MessageData, C: Control<M, C>> FileBrowserBuilder<M, C> {
             watcher: Rc::new(cell::Cell::new(None)),
         };
         let watcher = browser.watcher.clone();
-        let filebrowser_node = UINode::FileBrowser(browser);
+        let filebrowser_node = UiNode::new(browser);
         let node = ctx.add_node(filebrowser_node);
         watcher.replace(setup_filebrowser_fs_watcher(
             ctx.ui.sender(),
@@ -870,9 +875,9 @@ impl<M: MessageData, C: Control<M, C>> FileBrowserBuilder<M, C> {
     }
 }
 
-fn setup_filebrowser_fs_watcher<M: MessageData, C: Control<M, C>>(
-    ui_sender: mpsc::Sender<UiMessage<M, C>>,
-    filebrowser_widget_handle: Handle<UINode<M, C>>,
+fn setup_filebrowser_fs_watcher(
+    ui_sender: mpsc::Sender<UiMessage>,
+    filebrowser_widget_handle: Handle<UiNode>,
     the_path: PathBuf,
 ) -> Option<(notify::RecommendedWatcher, thread::JoinHandle<()>)> {
     let (tx, rx) = mpsc::channel();
@@ -923,22 +928,22 @@ fn setup_filebrowser_fs_watcher<M: MessageData, C: Control<M, C>>(
 /// File selector is a modal window that allows you to select a file (or directory) and commit or
 /// cancel selection.
 #[derive(Clone)]
-pub struct FileSelector<M: MessageData, C: Control<M, C>> {
-    window: Window<M, C>,
-    browser: Handle<UINode<M, C>>,
-    ok: Handle<UINode<M, C>>,
-    cancel: Handle<UINode<M, C>>,
+pub struct FileSelector {
+    window: Window,
+    browser: Handle<UiNode>,
+    ok: Handle<UiNode>,
+    cancel: Handle<UiNode>,
 }
 
-impl<M: MessageData, C: Control<M, C>> Deref for FileSelector<M, C> {
-    type Target = Widget<M, C>;
+impl Deref for FileSelector {
+    type Target = Widget;
 
     fn deref(&self) -> &Self::Target {
         &self.window
     }
 }
 
-impl<M: MessageData, C: Control<M, C>> DerefMut for FileSelector<M, C> {
+impl DerefMut for FileSelector {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.window
     }
@@ -946,22 +951,30 @@ impl<M: MessageData, C: Control<M, C>> DerefMut for FileSelector<M, C> {
 
 // File selector extends Window widget so it delegates most of calls
 // to inner window.
-impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileSelector<M, C> {
-    fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
+impl Control for FileSelector {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
+    fn resolve(&mut self, node_map: &NodeHandleMapping) {
         self.window.resolve(node_map);
         node_map.resolve(&mut self.ok);
         node_map.resolve(&mut self.cancel);
     }
 
-    fn measure_override(
-        &self,
-        ui: &UserInterface<M, C>,
-        available_size: Vector2<f32>,
-    ) -> Vector2<f32> {
+    fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         self.window.measure_override(ui, available_size)
     }
 
-    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
+    fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         self.window.arrange_override(ui, final_size)
     }
 
@@ -973,21 +986,19 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileSelector<M, C> {
         self.window.update(dt);
     }
 
-    fn handle_routed_message(
-        &mut self,
-        ui: &mut UserInterface<M, C>,
-        message: &mut UiMessage<M, C>,
-    ) {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.window.handle_routed_message(ui, message);
 
         match &message.data() {
             UiMessageData::Button(ButtonMessage::Click) => {
                 if message.destination() == self.ok {
-                    let path = if let UINode::FileBrowser(browser) = ui.node(self.browser) {
-                        browser.path.clone()
-                    } else {
-                        unreachable!();
-                    };
+                    let path = ui
+                        .node(self.browser)
+                        .cast::<FileBrowser>()
+                        .expect("self.browser must be FileBrowser")
+                        .path
+                        .clone();
+
                     ui.send_message(FileSelectorMessage::commit(
                         self.handle,
                         MessageDirection::ToWidget,
@@ -1036,34 +1047,34 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileSelector<M, C> {
         }
     }
 
-    fn preview_message(&self, ui: &UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+    fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
         self.window.preview_message(ui, message);
     }
 
     fn handle_os_event(
         &mut self,
-        self_handle: Handle<UINode<M, C>>,
-        ui: &mut UserInterface<M, C>,
+        self_handle: Handle<UiNode>,
+        ui: &mut UserInterface,
         event: &OsEvent,
     ) {
         self.window.handle_os_event(self_handle, ui, event);
     }
 
-    fn remove_ref(&mut self, handle: Handle<UINode<M, C>>) {
+    fn remove_ref(&mut self, handle: Handle<UiNode>) {
         self.window.remove_ref(handle)
     }
 }
 
-pub struct FileSelectorBuilder<M: MessageData, C: Control<M, C>> {
-    window_builder: WindowBuilder<M, C>,
+pub struct FileSelectorBuilder {
+    window_builder: WindowBuilder,
     filter: Option<Filter>,
     mode: FileBrowserMode,
     path: PathBuf,
     root: Option<PathBuf>,
 }
 
-impl<M: MessageData, C: Control<M, C>> FileSelectorBuilder<M, C> {
-    pub fn new(window_builder: WindowBuilder<M, C>) -> Self {
+impl FileSelectorBuilder {
+    pub fn new(window_builder: WindowBuilder) -> Self {
         Self {
             window_builder,
             filter: None,
@@ -1093,7 +1104,7 @@ impl<M: MessageData, C: Control<M, C>> FileSelectorBuilder<M, C> {
         self
     }
 
-    pub fn build(mut self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(mut self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let browser;
         let ok;
         let cancel;
@@ -1167,7 +1178,7 @@ impl<M: MessageData, C: Control<M, C>> FileSelectorBuilder<M, C> {
             cancel,
         };
 
-        ctx.add_node(UINode::FileSelector(file_selector))
+        ctx.add_node(UiNode::new(file_selector))
     }
 }
 
@@ -1176,7 +1187,6 @@ mod test {
     use crate::{
         core::{algebra::Vector2, pool::Handle},
         file_browser::{build_tree, find_tree},
-        node::StubNode,
         tree::TreeRootBuilder,
         widget::WidgetBuilder,
         UserInterface,
@@ -1185,7 +1195,7 @@ mod test {
 
     #[test]
     fn test_find_tree() {
-        let mut ui = UserInterface::<(), StubNode>::new(Vector2::new(100.0, 100.0));
+        let mut ui = UserInterface::new(Vector2::new(100.0, 100.0));
 
         let root = TreeRootBuilder::new(
             WidgetBuilder::new().with_user_data(Rc::new(PathBuf::from("test"))),

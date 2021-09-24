@@ -1,20 +1,19 @@
 use crate::{
     brush::Brush,
     core::{algebra::Vector2, math::Rect, pool::Handle},
-    message::{CursorIcon, MessageData, MessageDirection, UiMessage, UiMessageData, WidgetMessage},
-    Control, HorizontalAlignment, Thickness, UINode, UserInterface, VerticalAlignment,
-    BRUSH_FOREGROUND, BRUSH_PRIMARY,
+    message::{CursorIcon, MessageDirection, UiMessage, UiMessageData, WidgetMessage},
+    HorizontalAlignment, Thickness, UiNode, UserInterface, VerticalAlignment, BRUSH_FOREGROUND,
+    BRUSH_PRIMARY,
 };
 use std::{
     any::Any,
     cell::{Cell, RefCell},
-    marker::PhantomData,
     rc::Rc,
 };
 
 #[derive(Debug, Clone)]
-pub struct Widget<M: MessageData, C: Control<M, C>> {
-    pub(in crate) handle: Handle<UINode<M, C>>,
+pub struct Widget {
+    pub(in crate) handle: Handle<UiNode>,
     name: String,
     /// Desired position relative to parent node
     desired_local_position: Vector2<f32>,
@@ -43,8 +42,8 @@ pub struct Widget<M: MessageData, C: Control<M, C>> {
     /// Current visibility state
     visibility: bool,
     global_visibility: bool,
-    children: Vec<Handle<UINode<M, C>>>,
-    parent: Handle<UINode<M, C>>,
+    children: Vec<Handle<UiNode>>,
+    parent: Handle<UiNode>,
     /// Indices of commands in command buffer emitted by the node.
     pub(in crate) command_indices: RefCell<Vec<usize>>,
     pub(in crate) is_mouse_directly_over: bool,
@@ -54,13 +53,12 @@ pub struct Widget<M: MessageData, C: Control<M, C>> {
     allow_drop: bool,
     pub user_data: Option<Rc<dyn Any>>,
     draw_on_top: bool,
-    marker: PhantomData<M>,
     enabled: bool,
     cursor: Option<CursorIcon>,
     opacity: f32,
-    tooltip: Handle<UINode<M, C>>,
+    tooltip: Handle<UiNode>,
     tooltip_time: f32,
-    context_menu: Handle<UINode<M, C>>,
+    context_menu: Handle<UiNode>,
     pub(in crate) preview_messages: bool,
     pub(in crate) handle_os_events: bool,
 
@@ -80,9 +78,9 @@ pub struct Widget<M: MessageData, C: Control<M, C>> {
     pub(in crate) clip_bounds: Cell<Rect<f32>>,
 }
 
-impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
+impl Widget {
     #[inline]
-    pub fn handle(&self) -> Handle<UINode<M, C>> {
+    pub fn handle(&self) -> Handle<UiNode> {
         self.handle
     }
 
@@ -246,7 +244,7 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
     }
 
     #[inline]
-    pub(in crate) fn add_child(&mut self, child: Handle<UINode<M, C>>, in_front: bool) {
+    pub(in crate) fn add_child(&mut self, child: Handle<UiNode>, in_front: bool) {
         self.invalidate_layout();
         if in_front && !self.children.is_empty() {
             self.children.insert(0, child)
@@ -256,7 +254,7 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
     }
 
     #[inline(always)]
-    pub fn children(&self) -> &[Handle<UINode<M, C>>] {
+    pub fn children(&self) -> &[Handle<UiNode>] {
         &self.children
     }
 
@@ -267,7 +265,7 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
     }
 
     #[inline]
-    pub(in crate) fn remove_child(&mut self, child: Handle<UINode<M, C>>) {
+    pub(in crate) fn remove_child(&mut self, child: Handle<UiNode>) {
         if let Some(i) = self.children.iter().position(|h| *h == child) {
             self.children.remove(i);
             self.invalidate_layout();
@@ -275,12 +273,12 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
     }
 
     #[inline]
-    pub fn parent(&self) -> Handle<UINode<M, C>> {
+    pub fn parent(&self) -> Handle<UiNode> {
         self.parent
     }
 
     #[inline]
-    pub fn set_parent(&mut self, parent: Handle<UINode<M, C>>) {
+    pub fn set_parent(&mut self, parent: Handle<UiNode>) {
         self.parent = parent;
     }
 
@@ -326,11 +324,7 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
         )
     }
 
-    pub fn has_descendant(
-        &self,
-        node_handle: Handle<UINode<M, C>>,
-        ui: &UserInterface<M, C>,
-    ) -> bool {
+    pub fn has_descendant(&self, node_handle: Handle<UiNode>, ui: &UserInterface) -> bool {
         for child_handle in self.children.iter() {
             if *child_handle == node_handle {
                 return true;
@@ -349,11 +343,11 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
 
     /// Searches a node up on tree starting from given root that matches a criteria
     /// defined by a given func.
-    pub fn find_by_criteria_up<Func: Fn(&UINode<M, C>) -> bool>(
+    pub fn find_by_criteria_up<Func: Fn(&UiNode) -> bool>(
         &self,
-        ui: &UserInterface<M, C>,
+        ui: &UserInterface,
         func: Func,
-    ) -> Handle<UINode<M, C>> {
+    ) -> Handle<UiNode> {
         let mut parent_handle = self.parent;
         while parent_handle.is_some() {
             let parent_node = ui.nodes.borrow(parent_handle);
@@ -365,7 +359,7 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
         Handle::NONE
     }
 
-    pub fn is_measure_valid_with_descendants(&self, ui: &UserInterface<M, C>) -> bool {
+    pub fn is_measure_valid_with_descendants(&self, ui: &UserInterface) -> bool {
         let mut valid =
             self.is_measure_valid() && self.prev_global_visibility == self.is_globally_visible();
         if valid {
@@ -379,7 +373,7 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
         valid
     }
 
-    pub fn is_arrange_valid_with_descendants(&self, ui: &UserInterface<M, C>) -> bool {
+    pub fn is_arrange_valid_with_descendants(&self, ui: &UserInterface) -> bool {
         let mut valid =
             self.is_arrange_valid() && self.prev_global_visibility == self.is_globally_visible();
         if valid {
@@ -393,11 +387,7 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
         valid
     }
 
-    pub fn handle_routed_message(
-        &mut self,
-        _ui: &mut UserInterface<M, C>,
-        msg: &mut UiMessage<M, C>,
-    ) {
+    pub fn handle_routed_message(&mut self, _ui: &mut UserInterface, msg: &mut UiMessage) {
         if msg.destination() == self.handle() && msg.direction() == MessageDirection::ToWidget {
             if let UiMessageData::Widget(msg) = &msg.data() {
                 match msg {
@@ -531,7 +521,7 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
     #[inline]
     pub fn measure_override(
         &self,
-        ui: &UserInterface<M, C>,
+        ui: &UserInterface,
         available_size: Vector2<f32>,
     ) -> Vector2<f32> {
         let mut size: Vector2<f32> = Vector2::default();
@@ -547,11 +537,7 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
     }
 
     #[inline]
-    pub fn arrange_override(
-        &self,
-        ui: &UserInterface<M, C>,
-        final_size: Vector2<f32>,
-    ) -> Vector2<f32> {
+    pub fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         let final_rect = Rect::new(0.0, 0.0, final_size.x, final_size.y);
 
         for &child in self.children.iter() {
@@ -569,7 +555,7 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
     }
 
     #[inline]
-    pub(in crate) fn set_children(&mut self, children: Vec<Handle<UINode<M, C>>>) {
+    pub(in crate) fn set_children(&mut self, children: Vec<Handle<UiNode>>) {
         self.invalidate_layout();
         self.children = children;
     }
@@ -642,12 +628,12 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
     }
 
     #[inline]
-    pub fn tooltip(&self) -> Handle<UINode<M, C>> {
+    pub fn tooltip(&self) -> Handle<UiNode> {
         self.tooltip
     }
 
     #[inline]
-    pub fn set_tooltip(&mut self, tooltip: Handle<UINode<M, C>>) {
+    pub fn set_tooltip(&mut self, tooltip: Handle<UiNode>) {
         self.tooltip = tooltip;
     }
 
@@ -662,13 +648,13 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
     }
 
     #[inline]
-    pub fn context_menu(&self) -> Handle<UINode<M, C>> {
+    pub fn context_menu(&self) -> Handle<UiNode> {
         self.context_menu
     }
 
     #[inline]
     /// The context menu receives `PopupMessage`s for being displayed, and so should support those.
-    pub fn set_context_menu(&mut self, context_menu: Handle<UINode<M, C>>) {
+    pub fn set_context_menu(&mut self, context_menu: Handle<UiNode>) {
         self.context_menu = context_menu;
     }
 }
@@ -676,15 +662,15 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
 #[macro_export]
 macro_rules! define_widget_deref {
     ($ty: ty) => {
-        impl<M: MessageData, C: Control<M, C>> Deref for $ty {
-            type Target = Widget<M, C>;
+        impl Deref for $ty {
+            type Target = Widget;
 
             fn deref(&self) -> &Self::Target {
                 &self.widget
             }
         }
 
-        impl<M: MessageData, C: Control<M, C>> DerefMut for $ty {
+        impl DerefMut for $ty {
             fn deref_mut(&mut self) -> &mut Self::Target {
                 &mut self.widget
             }
@@ -692,7 +678,7 @@ macro_rules! define_widget_deref {
     };
 }
 
-pub struct WidgetBuilder<M: MessageData, C: Control<M, C>> {
+pub struct WidgetBuilder {
     pub name: String,
     pub width: f32,
     pub height: f32,
@@ -706,7 +692,7 @@ pub struct WidgetBuilder<M: MessageData, C: Control<M, C>> {
     pub row: usize,
     pub column: usize,
     pub margin: Thickness,
-    pub children: Vec<Handle<UINode<M, C>>>,
+    pub children: Vec<Handle<UiNode>>,
     pub is_hit_test_visible: bool,
     pub visibility: bool,
     pub z_index: usize,
@@ -717,20 +703,20 @@ pub struct WidgetBuilder<M: MessageData, C: Control<M, C>> {
     pub enabled: bool,
     pub cursor: Option<CursorIcon>,
     pub opacity: f32,
-    pub tooltip: Handle<UINode<M, C>>,
+    pub tooltip: Handle<UiNode>,
     pub tooltip_time: f32,
-    pub context_menu: Handle<UINode<M, C>>,
+    pub context_menu: Handle<UiNode>,
     pub preview_messages: bool,
     pub handle_os_events: bool,
 }
 
-impl<M: MessageData, C: Control<M, C>> Default for WidgetBuilder<M, C> {
+impl Default for WidgetBuilder {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<M: MessageData, C: Control<M, C>> WidgetBuilder<M, C> {
+impl WidgetBuilder {
     pub fn new() -> Self {
         Self {
             name: Default::default(),
@@ -845,7 +831,7 @@ impl<M: MessageData, C: Control<M, C>> WidgetBuilder<M, C> {
         self
     }
 
-    pub fn with_child(mut self, handle: Handle<UINode<M, C>>) -> Self {
+    pub fn with_child(mut self, handle: Handle<UiNode>) -> Self {
         if handle.is_some() {
             self.children.push(handle);
         }
@@ -857,7 +843,7 @@ impl<M: MessageData, C: Control<M, C>> WidgetBuilder<M, C> {
         self
     }
 
-    pub fn with_children<'a, I: IntoIterator<Item = Handle<UINode<M, C>>>>(
+    pub fn with_children<'a, I: IntoIterator<Item = Handle<UiNode>>>(
         mut self,
         children: I,
     ) -> Self {
@@ -909,7 +895,7 @@ impl<M: MessageData, C: Control<M, C>> WidgetBuilder<M, C> {
         self
     }
 
-    pub fn with_tooltip(mut self, tooltip: Handle<UINode<M, C>>) -> Self {
+    pub fn with_tooltip(mut self, tooltip: Handle<UiNode>) -> Self {
         if tooltip.is_some() {
             self.tooltip = tooltip;
         }
@@ -922,14 +908,14 @@ impl<M: MessageData, C: Control<M, C>> WidgetBuilder<M, C> {
     }
 
     /// The context menu receives `PopupMessage`s for being displayed, and so should support those.
-    pub fn with_context_menu(mut self, context_menu: Handle<UINode<M, C>>) -> Self {
+    pub fn with_context_menu(mut self, context_menu: Handle<UiNode>) -> Self {
         if context_menu.is_some() {
             self.context_menu = context_menu;
         }
         self
     }
 
-    pub fn build(self) -> Widget<M, C> {
+    pub fn build(self) -> Widget {
         Widget {
             handle: Default::default(),
             name: self.name,
@@ -968,7 +954,6 @@ impl<M: MessageData, C: Control<M, C>> WidgetBuilder<M, C> {
             allow_drop: self.allow_drop,
             user_data: self.user_data.clone(),
             draw_on_top: self.draw_on_top,
-            marker: PhantomData,
             enabled: self.enabled,
             cursor: self.cursor,
             clip_bounds: Cell::new(Default::default()),

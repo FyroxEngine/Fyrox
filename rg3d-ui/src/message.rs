@@ -31,14 +31,14 @@ use crate::{
     popup::Placement,
     ttf::SharedFont,
     window::WindowTitle,
-    Control, HorizontalAlignment, MouseState, Orientation, Thickness, UINode, VerticalAlignment,
+    HorizontalAlignment, MouseState, Orientation, Thickness, UiNode, VerticalAlignment,
 };
 use std::any::TypeId;
 use std::{cell::Cell, fmt::Debug, path::PathBuf, sync::Arc};
 
 macro_rules! define_constructor {
     ($var:tt($inner:ident : $inner_var:tt) => fn $name:ident(), layout: $perform_layout:expr) => {
-        pub fn $name(destination: Handle<UINode<M, C>>, direction: MessageDirection) -> UiMessage<M, C> {
+        pub fn $name(destination: Handle<UiNode>, direction: MessageDirection) -> UiMessage {
             UiMessage {
                 handled: Cell::new(false),
                 data: UiMessageData::$var($inner::$inner_var),
@@ -51,7 +51,7 @@ macro_rules! define_constructor {
     };
 
     ($var:tt($inner:ident : $inner_var:tt) => fn $name:ident($typ:ty), layout: $perform_layout:expr) => {
-        pub fn $name(destination: Handle<UINode<M, C>>, direction: MessageDirection, value:$typ) -> UiMessage<M, C> {
+        pub fn $name(destination: Handle<UiNode>, direction: MessageDirection, value:$typ) -> UiMessage {
             UiMessage {
                 handled: Cell::new(false),
                 data: UiMessageData::$var($inner::$inner_var(value)),
@@ -64,7 +64,7 @@ macro_rules! define_constructor {
     };
 
     ($var:tt($inner:ident : $inner_var:tt) => fn $name:ident( $($params:ident : $types:ty),+ ), layout: $perform_layout:expr) => {
-        pub fn $name(destination: Handle<UINode<M, C>>, direction: MessageDirection, $($params : $types),+) -> UiMessage<M, C> {
+        pub fn $name(destination: Handle<UiNode>, direction: MessageDirection, $($params : $types),+) -> UiMessage {
             UiMessage {
                 handled: Cell::new(false),
                 data: UiMessageData::$var($inner::$inner_var { $($params),+ } ),
@@ -79,7 +79,7 @@ macro_rules! define_constructor {
 
 macro_rules! define_constructor_unbound {
     ($var:tt($inner:ident : $inner_var:tt) => fn $name:ident(), layout: $perform_layout:expr) => {
-        pub fn $name<M: MessageData, C: Control<M, C>>(destination: Handle<UINode<M, C>>, direction: MessageDirection) -> UiMessage<M, C> {
+        pub fn $name(destination: Handle<UiNode>, direction: MessageDirection) -> UiMessage {
             UiMessage {
                 handled: Cell::new(false),
                 data: UiMessageData::$var($inner::$inner_var),
@@ -92,7 +92,7 @@ macro_rules! define_constructor_unbound {
     };
 
     ($var:tt($inner:ident : $inner_var:tt) => fn $name:ident($typ:ty), layout: $perform_layout:expr) => {
-        pub fn $name<M: MessageData, C: Control<M, C>>(destination: Handle<UINode<M, C>>, direction: MessageDirection, value:$typ) -> UiMessage<M, C> {
+        pub fn $name(destination: Handle<UiNode>, direction: MessageDirection, value:$typ) -> UiMessage {
             UiMessage {
                 handled: Cell::new(false),
                 data: UiMessageData::$var($inner::$inner_var(value)),
@@ -105,7 +105,7 @@ macro_rules! define_constructor_unbound {
     };
 
     ($var:tt($inner:ident : $inner_var:tt) => fn $name:ident( $($params:ident : $types:ty),+ ), layout: $perform_layout:expr) => {
-        pub fn $name<M: MessageData, C: Control<M, C>>(destination: Handle<UINode<M, C>>, direction: MessageDirection, $($params : $types),+) -> UiMessage<M, C> {
+        pub fn $name(destination: Handle<UiNode>, direction: MessageDirection, $($params : $types),+) -> UiMessage {
             UiMessage {
                 handled: Cell::new(false),
                 data: UiMessageData::$var($inner::$inner_var { $($params),+ } ),
@@ -121,7 +121,7 @@ macro_rules! define_constructor_unbound {
 /// A set of messages for any kind of widgets (including user controls). These messages provides basic
 /// communication elements of the UI library.
 #[derive(Debug, Clone, PartialEq)]
-pub enum WidgetMessage<M: MessageData, C: Control<M, C>> {
+pub enum WidgetMessage {
     /// Initiated when user clicks on a widget's geometry.
     ///
     /// Direction: **From UI**.
@@ -196,17 +196,17 @@ pub enum WidgetMessage<M: MessageData, C: Control<M, C>> {
     /// Initiated when dragging of a widget has started.
     ///
     /// Direction: **From UI**.
-    DragStarted(Handle<UINode<M, C>>),
+    DragStarted(Handle<UiNode>),
 
     /// Initiated when user drags a widget over some other widget.
     ///
     /// Direction: **From UI**.
-    DragOver(Handle<UINode<M, C>>),
+    DragOver(Handle<UiNode>),
 
     /// Initiated when user drops a widget onto some other widget.
     ///
     /// Direction: **From UI**.
-    Drop(Handle<UINode<M, C>>),
+    Drop(Handle<UiNode>),
 
     /// Initiated when widget has lost its focus.
     ///
@@ -233,12 +233,12 @@ pub enum WidgetMessage<M: MessageData, C: Control<M, C>> {
     /// A request to link initiator with specified widget.
     ///
     /// Direction: **From/To UI**.
-    LinkWith(Handle<UINode<M, C>>),
+    LinkWith(Handle<UiNode>),
 
     /// A request to link initiator with specified widget and put it in front of children list.
     ///
     /// Direction: **From/To UI**.
-    LinkWithReverse(Handle<UINode<M, C>>),
+    LinkWithReverse(Handle<UiNode>),
 
     /// A request to change background brush of a widget. Background brushes are used to fill volume of widgets.
     ///
@@ -367,11 +367,11 @@ pub enum WidgetMessage<M: MessageData, C: Control<M, C>> {
     Opacity(f32),
 }
 
-impl<M: MessageData, C: Control<M, C>> WidgetMessage<M, C> {
+impl WidgetMessage {
     define_constructor!(Widget(WidgetMessage:Remove) => fn remove(), layout: false);
     define_constructor!(Widget(WidgetMessage:Unlink) => fn unlink(), layout: false);
-    define_constructor!(Widget(WidgetMessage:LinkWith) => fn link(Handle<UINode<M, C>>), layout: false);
-    define_constructor!(Widget(WidgetMessage:LinkWithReverse) => fn link_reverse(Handle<UINode<M, C>>), layout: false);
+    define_constructor!(Widget(WidgetMessage:LinkWith) => fn link(Handle<UiNode>), layout: false);
+    define_constructor!(Widget(WidgetMessage:LinkWithReverse) => fn link_reverse(Handle<UiNode>), layout: false);
     define_constructor!(Widget(WidgetMessage:Background) => fn background(Brush), layout: false);
     define_constructor!(Widget(WidgetMessage:Foreground) => fn foreground(Brush), layout: false);
     define_constructor!(Widget(WidgetMessage:Visibility) => fn visibility(bool), layout: false);
@@ -406,20 +406,20 @@ impl<M: MessageData, C: Control<M, C>> WidgetMessage<M, C> {
     define_constructor!(Widget(WidgetMessage:Text) => fn text(char), layout: false);
     define_constructor!(Widget(WidgetMessage:KeyDown) => fn key_down(KeyCode), layout: false);
     define_constructor!(Widget(WidgetMessage:KeyUp) => fn key_up(KeyCode), layout: false);
-    define_constructor!(Widget(WidgetMessage:DragStarted) => fn drag_started(Handle<UINode<M, C>>), layout: false);
-    define_constructor!(Widget(WidgetMessage:DragOver) => fn drag_over(Handle<UINode<M, C>>), layout: false);
-    define_constructor!(Widget(WidgetMessage:Drop) => fn drop(Handle<UINode<M, C>>), layout: false);
+    define_constructor!(Widget(WidgetMessage:DragStarted) => fn drag_started(Handle<UiNode>), layout: false);
+    define_constructor!(Widget(WidgetMessage:DragOver) => fn drag_over(Handle<UiNode>), layout: false);
+    define_constructor!(Widget(WidgetMessage:Drop) => fn drop(Handle<UiNode>), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum ButtonMessage<M: MessageData, C: Control<M, C>> {
+pub enum ButtonMessage {
     Click,
-    Content(Handle<UINode<M, C>>),
+    Content(Handle<UiNode>),
 }
 
-impl<M: MessageData, C: Control<M, C>> ButtonMessage<M, C> {
+impl ButtonMessage {
     define_constructor!(Button(ButtonMessage:Click) => fn click(), layout: false);
-    define_constructor!(Button(ButtonMessage:Content) => fn content(Handle<UINode<M, C>>), layout: false);
+    define_constructor!(Button(ButtonMessage:Content) => fn content(Handle<UiNode>), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -454,7 +454,7 @@ impl ExpanderMessage {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum WindowMessage<M: MessageData, C: Control<M, C>> {
+pub enum WindowMessage {
     /// Opens a window.
     Open { center: bool },
 
@@ -489,10 +489,10 @@ pub enum WindowMessage<M: MessageData, C: Control<M, C>> {
     MoveEnd,
 
     /// Sets new window title.
-    Title(WindowTitle<M, C>),
+    Title(WindowTitle),
 }
 
-impl<M: MessageData, C: Control<M, C>> WindowMessage<M, C> {
+impl WindowMessage {
     define_constructor!(Window(WindowMessage:Open) => fn open(center: bool), layout: false);
     define_constructor!(Window(WindowMessage:OpenModal) => fn open_modal(center: bool), layout: false);
     define_constructor!(Window(WindowMessage:Close) => fn close(), layout: false);
@@ -503,67 +503,67 @@ impl<M: MessageData, C: Control<M, C>> WindowMessage<M, C> {
     define_constructor!(Window(WindowMessage:MoveStart) => fn move_start(), layout: false);
     define_constructor!(Window(WindowMessage:Move) => fn move_to(Vector2<f32>), layout: false);
     define_constructor!(Window(WindowMessage:MoveEnd) => fn move_end(), layout: false);
-    define_constructor!(Window(WindowMessage:Title) => fn title(WindowTitle<M, C>), layout: false);
+    define_constructor!(Window(WindowMessage:Title) => fn title(WindowTitle), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum ScrollViewerMessage<M: MessageData, C: Control<M, C>> {
-    Content(Handle<UINode<M, C>>),
+pub enum ScrollViewerMessage {
+    Content(Handle<UiNode>),
     /// Adjusts vertical and horizontal scroll values so given node will be in "view box"
     /// of scroll viewer.
-    BringIntoView(Handle<UINode<M, C>>),
+    BringIntoView(Handle<UiNode>),
 }
 
-impl<M: MessageData, C: Control<M, C>> ScrollViewerMessage<M, C> {
-    define_constructor!(ScrollViewer(ScrollViewerMessage:Content) => fn content(Handle<UINode<M, C>>), layout: false);
-    define_constructor!(ScrollViewer(ScrollViewerMessage:BringIntoView) => fn bring_into_view(Handle<UINode<M, C>>), layout: true);
+impl ScrollViewerMessage {
+    define_constructor!(ScrollViewer(ScrollViewerMessage:Content) => fn content(Handle<UiNode>), layout: false);
+    define_constructor!(ScrollViewer(ScrollViewerMessage:BringIntoView) => fn bring_into_view(Handle<UiNode>), layout: true);
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum ListViewMessage<M: MessageData, C: Control<M, C>> {
+pub enum ListViewMessage {
     SelectionChanged(Option<usize>),
-    Items(Vec<Handle<UINode<M, C>>>),
-    AddItem(Handle<UINode<M, C>>),
-    RemoveItem(Handle<UINode<M, C>>),
+    Items(Vec<Handle<UiNode>>),
+    AddItem(Handle<UiNode>),
+    RemoveItem(Handle<UiNode>),
 }
 
-impl<M: MessageData, C: Control<M, C>> ListViewMessage<M, C> {
+impl ListViewMessage {
     define_constructor!(ListView(ListViewMessage:SelectionChanged) => fn selection(Option<usize>), layout: false);
-    define_constructor!(ListView(ListViewMessage:Items) => fn items(Vec<Handle<UINode<M, C>>>), layout: false);
-    define_constructor!(ListView(ListViewMessage:AddItem) => fn add_item(Handle<UINode<M, C>>), layout: false);
-    define_constructor!(ListView(ListViewMessage:RemoveItem) => fn remove_item(Handle<UINode<M, C>>), layout: false);
+    define_constructor!(ListView(ListViewMessage:Items) => fn items(Vec<Handle<UiNode >>), layout: false);
+    define_constructor!(ListView(ListViewMessage:AddItem) => fn add_item(Handle<UiNode>), layout: false);
+    define_constructor!(ListView(ListViewMessage:RemoveItem) => fn remove_item(Handle<UiNode>), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum DropdownListMessage<M: MessageData, C: Control<M, C>> {
+pub enum DropdownListMessage {
     SelectionChanged(Option<usize>),
-    Items(Vec<Handle<UINode<M, C>>>),
-    AddItem(Handle<UINode<M, C>>),
+    Items(Vec<Handle<UiNode>>),
+    AddItem(Handle<UiNode>),
     Open,
     Close,
 }
 
-impl<M: MessageData, C: Control<M, C>> DropdownListMessage<M, C> {
+impl DropdownListMessage {
     define_constructor!(DropdownList(DropdownListMessage:SelectionChanged) => fn selection(Option<usize>), layout: false);
-    define_constructor!(DropdownList(DropdownListMessage:Items) => fn items(Vec<Handle<UINode<M, C>>>), layout: false);
-    define_constructor!(DropdownList(DropdownListMessage:AddItem) => fn add_item(Handle<UINode<M, C>>), layout: false);
+    define_constructor!(DropdownList(DropdownListMessage:Items) => fn items(Vec<Handle<UiNode >>), layout: false);
+    define_constructor!(DropdownList(DropdownListMessage:AddItem) => fn add_item(Handle<UiNode>), layout: false);
     define_constructor!(DropdownList(DropdownListMessage:Open) => fn open(), layout: false);
     define_constructor!(DropdownList(DropdownListMessage:Close) => fn close(), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum PopupMessage<M: MessageData, C: Control<M, C>> {
+pub enum PopupMessage {
     Open,
     Close,
-    Content(Handle<UINode<M, C>>),
-    Placement(Placement<M, C>),
+    Content(Handle<UiNode>),
+    Placement(Placement),
 }
 
-impl<M: MessageData, C: Control<M, C>> PopupMessage<M, C> {
+impl PopupMessage {
     define_constructor!(Popup(PopupMessage:Open) => fn open(), layout: false);
     define_constructor!(Popup(PopupMessage:Close) => fn close(), layout: false);
-    define_constructor!(Popup(PopupMessage:Content) => fn content(Handle<UINode<M, C>>), layout: false);
-    define_constructor!(Popup(PopupMessage:Placement) => fn placement(Placement<M, C>), layout: false);
+    define_constructor!(Popup(PopupMessage:Content) => fn content(Handle<UiNode>), layout: false);
+    define_constructor!(Popup(PopupMessage:Placement) => fn placement(Placement), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -597,31 +597,31 @@ pub enum TreeExpansionStrategy {
 pub struct SelectionState(pub(in crate) bool);
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum TreeMessage<M: MessageData, C: Control<M, C>> {
+pub enum TreeMessage {
     Expand {
         expand: bool,
         expansion_strategy: TreeExpansionStrategy,
     },
-    AddItem(Handle<UINode<M, C>>),
-    RemoveItem(Handle<UINode<M, C>>),
+    AddItem(Handle<UiNode>),
+    RemoveItem(Handle<UiNode>),
     SetExpanderShown(bool),
-    SetItems(Vec<Handle<UINode<M, C>>>),
+    SetItems(Vec<Handle<UiNode>>),
     // Private, do not use. For internal needs only. Use TreeRootMessage::Selected.
     Select(SelectionState),
 }
 
-impl<M: MessageData, C: Control<M, C>> TreeMessage<M, C> {
+impl TreeMessage {
     define_constructor!(Tree(TreeMessage:Expand) => fn expand(expand: bool, expansion_strategy: TreeExpansionStrategy), layout: false);
-    define_constructor!(Tree(TreeMessage:AddItem) => fn add_item(Handle<UINode<M, C>>), layout: false);
-    define_constructor!(Tree(TreeMessage:RemoveItem) => fn remove_item(Handle<UINode<M, C>>), layout: false);
+    define_constructor!(Tree(TreeMessage:AddItem) => fn add_item(Handle<UiNode>), layout: false);
+    define_constructor!(Tree(TreeMessage:RemoveItem) => fn remove_item(Handle<UiNode>), layout: false);
     define_constructor!(Tree(TreeMessage:SetExpanderShown) => fn set_expander_shown(bool), layout: false);
-    define_constructor!(Tree(TreeMessage:SetItems) => fn set_items(Vec<Handle<UINode<M, C>>>), layout: false);
+    define_constructor!(Tree(TreeMessage:SetItems) => fn set_items(Vec<Handle<UiNode >>), layout: false);
 
     pub(in crate) fn select(
-        destination: Handle<UINode<M, C>>,
+        destination: Handle<UiNode>,
         direction: MessageDirection,
         select: bool,
-    ) -> UiMessage<M, C> {
+    ) -> UiMessage {
         UiMessage {
             handled: Cell::new(false),
             data: UiMessageData::Tree(TreeMessage::Select(SelectionState(select))),
@@ -634,20 +634,20 @@ impl<M: MessageData, C: Control<M, C>> TreeMessage<M, C> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum TreeRootMessage<M: MessageData, C: Control<M, C>> {
-    AddItem(Handle<UINode<M, C>>),
-    RemoveItem(Handle<UINode<M, C>>),
-    Items(Vec<Handle<UINode<M, C>>>),
-    Selected(Vec<Handle<UINode<M, C>>>),
+pub enum TreeRootMessage {
+    AddItem(Handle<UiNode>),
+    RemoveItem(Handle<UiNode>),
+    Items(Vec<Handle<UiNode>>),
+    Selected(Vec<Handle<UiNode>>),
     ExpandAll,
     CollapseAll,
 }
 
-impl<M: MessageData, C: Control<M, C>> TreeRootMessage<M, C> {
-    define_constructor!(TreeRoot(TreeRootMessage:AddItem) => fn add_item(Handle<UINode<M, C>>), layout: false);
-    define_constructor!(TreeRoot(TreeRootMessage:RemoveItem) => fn remove_item(Handle<UINode<M, C>>), layout: false);
-    define_constructor!(TreeRoot(TreeRootMessage:Items) => fn items(Vec<Handle<UINode<M, C>>>), layout: false);
-    define_constructor!(TreeRoot(TreeRootMessage:Selected) => fn select(Vec<Handle<UINode<M, C>>>), layout: false);
+impl TreeRootMessage {
+    define_constructor!(TreeRoot(TreeRootMessage:AddItem) => fn add_item(Handle<UiNode>), layout: false);
+    define_constructor!(TreeRoot(TreeRootMessage:RemoveItem) => fn remove_item(Handle<UiNode>), layout: false);
+    define_constructor!(TreeRoot(TreeRootMessage:Items) => fn items(Vec<Handle<UiNode >>), layout: false);
+    define_constructor!(TreeRoot(TreeRootMessage:Selected) => fn select(Vec<Handle<UiNode >>), layout: false);
     define_constructor!(TreeRoot(TreeRootMessage:ExpandAll) => fn expand_all(), layout: false);
     define_constructor!(TreeRoot(TreeRootMessage:CollapseAll) => fn collapse_all(), layout: false);
 }
@@ -709,26 +709,26 @@ impl ImageMessage {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum TileMessage<M: MessageData, C: Control<M, C>> {
-    Content(TileContent<M, C>),
+pub enum TileMessage {
+    Content(TileContent),
     /// Internal. Do not use.
     Split {
-        window: Handle<UINode<M, C>>,
+        window: Handle<UiNode>,
         direction: SplitDirection,
         first: bool,
     },
 }
 
-impl<M: MessageData, C: Control<M, C>> TileMessage<M, C> {
-    define_constructor!(Tile(TileMessage:Content) => fn content(TileContent<M, C>), layout: false);
+impl TileMessage {
+    define_constructor!(Tile(TileMessage:Content) => fn content(TileContent), layout: false);
 
     pub(in crate) fn split(
-        destination: Handle<UINode<M, C>>,
+        destination: Handle<UiNode>,
         direction: MessageDirection,
-        window: Handle<UINode<M, C>>,
+        window: Handle<UiNode>,
         split_direction: SplitDirection,
         first: bool,
-    ) -> UiMessage<M, C> {
+    ) -> UiMessage {
         UiMessage {
             handled: Cell::new(false),
             data: UiMessageData::Tile(TileMessage::Split {
@@ -781,18 +781,18 @@ impl Vec4EditorMessage {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum ScrollPanelMessage<M: MessageData, C: Control<M, C>> {
+pub enum ScrollPanelMessage {
     VerticalScroll(f32),
     HorizontalScroll(f32),
     /// Adjusts vertical and horizontal scroll values so given node will be in "view box"
     /// of scroll panel.
-    BringIntoView(Handle<UINode<M, C>>),
+    BringIntoView(Handle<UiNode>),
 }
 
-impl<M: MessageData, C: Control<M, C>> ScrollPanelMessage<M, C> {
+impl ScrollPanelMessage {
     define_constructor!(ScrollPanel(ScrollPanelMessage:VerticalScroll) => fn vertical_scroll(f32), layout: false);
     define_constructor!(ScrollPanel(ScrollPanelMessage:HorizontalScroll) => fn horizontal_scroll(f32), layout: false);
-    define_constructor!(ScrollPanel(ScrollPanelMessage:BringIntoView) => fn bring_into_view(Handle<UINode<M, C>>), layout: true);
+    define_constructor!(ScrollPanel(ScrollPanelMessage:BringIntoView) => fn bring_into_view(Handle<UiNode>), layout: true);
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -979,29 +979,29 @@ impl PartialEq for PropertyChanged {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum InspectorMessage<M: MessageData, C: Control<M, C>> {
-    Context(InspectorContext<M, C>),
+pub enum InspectorMessage {
+    Context(InspectorContext),
     PropertyChanged(PropertyChanged),
 }
 
-impl<M: MessageData, C: Control<M, C>> InspectorMessage<M, C> {
-    define_constructor!(Inspector(InspectorMessage:Context) => fn context(InspectorContext<M, C>), layout: false);
+impl InspectorMessage {
+    define_constructor!(Inspector(InspectorMessage:Context) => fn context(InspectorContext), layout: false);
     define_constructor!(Inspector(InspectorMessage:PropertyChanged) => fn property_changed(PropertyChanged), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum UiMessageData<M: MessageData, C: Control<M, C>> {
-    Widget(WidgetMessage<M, C>),
-    Button(ButtonMessage<M, C>),
+pub enum UiMessageData {
+    Widget(WidgetMessage),
+    Button(ButtonMessage),
     ScrollBar(ScrollBarMessage),
     CheckBox(CheckBoxMessage),
-    Window(WindowMessage<M, C>),
-    ListView(ListViewMessage<M, C>),
-    DropdownList(DropdownListMessage<M, C>),
-    Popup(PopupMessage<M, C>),
-    ScrollViewer(ScrollViewerMessage<M, C>),
-    Tree(TreeMessage<M, C>),
-    TreeRoot(TreeRootMessage<M, C>),
+    Window(WindowMessage),
+    ListView(ListViewMessage),
+    DropdownList(DropdownListMessage),
+    Popup(PopupMessage),
+    ScrollViewer(ScrollViewerMessage),
+    Tree(TreeMessage),
+    TreeRoot(TreeRootMessage),
     FileBrowser(FileBrowserMessage),
     FileSelector(FileSelectorMessage),
     TextBox(TextBoxMessage),
@@ -1014,8 +1014,8 @@ pub enum UiMessageData<M: MessageData, C: Control<M, C>> {
     MessageBox(MessageBoxMessage),
     Decorator(DecoratorMessage),
     Text(TextMessage),
-    ScrollPanel(ScrollPanelMessage<M, C>),
-    Tile(TileMessage<M, C>),
+    ScrollPanel(ScrollPanelMessage),
+    Tile(TileMessage),
     ProgressBar(ProgressBarMessage),
     Image(ImageMessage),
     HueBar(HueBarMessage),
@@ -1025,8 +1025,7 @@ pub enum UiMessageData<M: MessageData, C: Control<M, C>> {
     Expander(ExpanderMessage),
     SaturationBrightnessField(SaturationBrightnessFieldMessage),
     CurveEditor(CurveEditorMessage),
-    Inspector(InspectorMessage<M, C>),
-    User(M),
+    Inspector(InspectorMessage),
 }
 
 /// Message direction allows you to distinguish from where message has came from.
@@ -1068,16 +1067,16 @@ pub trait MessageData: 'static + Debug + Clone + PartialEq + Send {}
 /// Message is basic communication element that is used to deliver information to UI nodes
 /// or to user code.
 #[derive(Debug, Clone, PartialEq)]
-pub struct UiMessage<M: MessageData, C: Control<M, C>> {
+pub struct UiMessage {
     /// Useful flag to check if a message was already handled.
     handled: Cell<bool>,
 
     /// Actual message data. Use pattern matching to get type specific data.
-    data: UiMessageData<M, C>,
+    data: UiMessageData,
 
     /// Handle of node that will receive message. Please note that all nodes in hierarchy will
     /// also receive this message, order is "up-on-tree".
-    destination: Handle<UINode<M, C>>,
+    destination: Handle<UiNode>,
 
     /// Indicates the direction of the message.
     ///
@@ -1098,7 +1097,7 @@ pub struct UiMessage<M: MessageData, C: Control<M, C>> {
     pub flags: u64,
 }
 
-impl<M: MessageData, C: Control<M, C>> UiMessage<M, C> {
+impl UiMessage {
     /// Creates a new copy of the message with reversed direction. Typical use case is
     /// to re-send messages to create "response" in widget. For example you have a float
     /// input field and it has Value message. When the input field receives Value message
@@ -1120,11 +1119,11 @@ impl<M: MessageData, C: Control<M, C>> UiMessage<M, C> {
         }
     }
 
-    pub fn destination(&self) -> Handle<UINode<M, C>> {
+    pub fn destination(&self) -> Handle<UiNode> {
         self.destination
     }
 
-    pub fn data(&self) -> &UiMessageData<M, C> {
+    pub fn data(&self) -> &UiMessageData {
         &self.data
     }
 
@@ -1146,18 +1145,6 @@ impl<M: MessageData, C: Control<M, C>> UiMessage<M, C> {
 
     pub fn need_perform_layout(&self) -> bool {
         self.perform_layout.get()
-    }
-
-    /// Allows you to construct a new user-defined message.
-    pub fn user(destination: Handle<UINode<M, C>>, direction: MessageDirection, msg: M) -> Self {
-        Self {
-            handled: Cell::new(false),
-            data: UiMessageData::User(msg),
-            destination,
-            direction,
-            perform_layout: Cell::new(false),
-            flags: 0,
-        }
     }
 
     pub fn has_flags(&self, flags: u64) -> bool {

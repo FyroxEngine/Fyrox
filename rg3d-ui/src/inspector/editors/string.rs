@@ -5,30 +5,25 @@ use crate::{
         editors::{PropertyEditorBuildContext, PropertyEditorDefinition},
         InspectorError,
     },
-    message::{
-        MessageData, MessageDirection, PropertyChanged, TextBoxMessage, UiMessage, UiMessageData,
-    },
-    node::UINode,
+    message::{MessageDirection, PropertyChanged, TextBoxMessage, UiMessage, UiMessageData},
     text_box::TextBoxBuilder,
     widget::WidgetBuilder,
-    Control, Thickness,
+    Thickness, UiNode,
 };
 use std::{any::TypeId, sync::Arc};
 
 #[derive(Debug)]
 pub struct StringPropertyEditorDefinition;
 
-impl<M: MessageData, C: Control<M, C>> PropertyEditorDefinition<M, C>
-    for StringPropertyEditorDefinition
-{
+impl PropertyEditorDefinition for StringPropertyEditorDefinition {
     fn value_type_id(&self) -> TypeId {
         TypeId::of::<String>()
     }
 
     fn create_instance(
         &self,
-        ctx: PropertyEditorBuildContext<M, C>,
-    ) -> Result<Handle<UINode<M, C>>, InspectorError> {
+        ctx: PropertyEditorBuildContext,
+    ) -> Result<Handle<UiNode>, InspectorError> {
         let value = ctx.property_info.cast_value::<String>()?;
         Ok(TextBoxBuilder::new(
             WidgetBuilder::new()
@@ -42,9 +37,9 @@ impl<M: MessageData, C: Control<M, C>> PropertyEditorDefinition<M, C>
 
     fn create_message(
         &self,
-        instance: Handle<UINode<M, C>>,
+        instance: Handle<UiNode>,
         property_info: &PropertyInfo,
-    ) -> Result<UiMessage<M, C>, InspectorError> {
+    ) -> Result<UiMessage, InspectorError> {
         let value = property_info.cast_value::<String>()?;
         Ok(TextBoxMessage::text(
             instance,
@@ -57,7 +52,7 @@ impl<M: MessageData, C: Control<M, C>> PropertyEditorDefinition<M, C>
         &self,
         name: &str,
         owner_type_id: TypeId,
-        message: &UiMessage<M, C>,
+        message: &UiMessage,
     ) -> Option<PropertyChanged> {
         if message.direction() == MessageDirection::FromWidget {
             if let UiMessageData::TextBox(TextBoxMessage::Text(value)) = message.data() {

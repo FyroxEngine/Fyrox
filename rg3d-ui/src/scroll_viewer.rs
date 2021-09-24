@@ -1,36 +1,38 @@
 use crate::core::algebra::Vector2;
+use crate::scroll_bar::ScrollBar;
 use crate::{
     core::pool::Handle,
     grid::{Column, GridBuilder, Row},
     message::{
-        MessageData, MessageDirection, ScrollBarMessage, ScrollPanelMessage, ScrollViewerMessage,
-        UiMessage, UiMessageData, WidgetMessage,
+        MessageDirection, ScrollBarMessage, ScrollPanelMessage, ScrollViewerMessage, UiMessage,
+        UiMessageData, WidgetMessage,
     },
     scroll_bar::ScrollBarBuilder,
     scroll_panel::ScrollPanelBuilder,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, NodeHandleMapping, Orientation, UINode, UserInterface,
+    BuildContext, Control, NodeHandleMapping, Orientation, UiNode, UserInterface,
 };
+use std::any::Any;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone)]
-pub struct ScrollViewer<M: MessageData, C: Control<M, C>> {
-    pub widget: Widget<M, C>,
-    pub content: Handle<UINode<M, C>>,
-    pub scroll_panel: Handle<UINode<M, C>>,
-    pub v_scroll_bar: Handle<UINode<M, C>>,
-    pub h_scroll_bar: Handle<UINode<M, C>>,
+pub struct ScrollViewer {
+    pub widget: Widget,
+    pub content: Handle<UiNode>,
+    pub scroll_panel: Handle<UiNode>,
+    pub v_scroll_bar: Handle<UiNode>,
+    pub h_scroll_bar: Handle<UiNode>,
 }
 
-crate::define_widget_deref!(ScrollViewer<M, C>);
+crate::define_widget_deref!(ScrollViewer);
 
-impl<M: MessageData, C: Control<M, C>> ScrollViewer<M, C> {
+impl ScrollViewer {
     pub fn new(
-        widget: Widget<M, C>,
-        content: Handle<UINode<M, C>>,
-        content_presenter: Handle<UINode<M, C>>,
-        v_scroll_bar: Handle<UINode<M, C>>,
-        h_scroll_bar: Handle<UINode<M, C>>,
+        widget: Widget,
+        content: Handle<UiNode>,
+        content_presenter: Handle<UiNode>,
+        v_scroll_bar: Handle<UiNode>,
+        h_scroll_bar: Handle<UiNode>,
     ) -> Self {
         Self {
             widget,
@@ -41,28 +43,40 @@ impl<M: MessageData, C: Control<M, C>> ScrollViewer<M, C> {
         }
     }
 
-    pub fn content_presenter(&self) -> Handle<UINode<M, C>> {
+    pub fn content_presenter(&self) -> Handle<UiNode> {
         self.scroll_panel
     }
 
-    pub fn content(&self) -> Handle<UINode<M, C>> {
+    pub fn content(&self) -> Handle<UiNode> {
         self.content
     }
 
-    pub fn set_content(&mut self, content: Handle<UINode<M, C>>) {
+    pub fn set_content(&mut self, content: Handle<UiNode>) {
         self.content = content;
     }
 }
 
-impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollViewer<M, C> {
-    fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
+impl Control for ScrollViewer {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
+    fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.content);
         node_map.resolve(&mut self.scroll_panel);
         node_map.resolve(&mut self.v_scroll_bar);
         node_map.resolve(&mut self.h_scroll_bar);
     }
 
-    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
+    fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         let size = self.widget.arrange_override(ui, final_size);
 
         if self.content.is_some() {
@@ -87,17 +101,13 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollViewer<M, C> {
         size
     }
 
-    fn handle_routed_message(
-        &mut self,
-        ui: &mut UserInterface<M, C>,
-        message: &mut UiMessage<M, C>,
-    ) {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
         match &message.data() {
             UiMessageData::Widget(WidgetMessage::MouseWheel { amount, .. }) => {
                 if self.v_scroll_bar.is_some() && !message.handled() {
-                    if let UINode::ScrollBar(v_scroll_bar) = ui.node(self.v_scroll_bar) {
+                    if let Some(v_scroll_bar) = ui.node(self.v_scroll_bar).cast::<ScrollBar>() {
                         let old_value = v_scroll_bar.value();
                         let new_value = old_value - amount * 17.0;
                         if (old_value - new_value).abs() > f32::EPSILON {
@@ -159,7 +169,8 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollViewer<M, C> {
                     &ScrollBarMessage::MaxValue(_) => {
                         if message.destination() == self.v_scroll_bar && self.v_scroll_bar.is_some()
                         {
-                            if let UINode::ScrollBar(scroll_bar) = ui.node(self.v_scroll_bar) {
+                            if let Some(scroll_bar) = ui.node(self.v_scroll_bar).cast::<ScrollBar>()
+                            {
                                 let visibility = (scroll_bar.max_value() - scroll_bar.min_value())
                                     .abs()
                                     >= f32::EPSILON;
@@ -172,7 +183,8 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollViewer<M, C> {
                         } else if message.destination() == self.h_scroll_bar
                             && self.h_scroll_bar.is_some()
                         {
-                            if let UINode::ScrollBar(scroll_bar) = ui.node(self.h_scroll_bar) {
+                            if let Some(scroll_bar) = ui.node(self.h_scroll_bar).cast::<ScrollBar>()
+                            {
                                 let visibility = (scroll_bar.max_value() - scroll_bar.min_value())
                                     .abs()
                                     >= f32::EPSILON;
@@ -218,7 +230,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollViewer<M, C> {
         }
     }
 
-    fn remove_ref(&mut self, handle: Handle<UINode<M, C>>) {
+    fn remove_ref(&mut self, handle: Handle<UiNode>) {
         if self.content == handle {
             self.content = Handle::NONE;
         }
@@ -234,17 +246,17 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollViewer<M, C> {
     }
 }
 
-pub struct ScrollViewerBuilder<M: MessageData, C: Control<M, C>> {
-    widget_builder: WidgetBuilder<M, C>,
-    content: Handle<UINode<M, C>>,
-    h_scroll_bar: Option<Handle<UINode<M, C>>>,
-    v_scroll_bar: Option<Handle<UINode<M, C>>>,
+pub struct ScrollViewerBuilder {
+    widget_builder: WidgetBuilder,
+    content: Handle<UiNode>,
+    h_scroll_bar: Option<Handle<UiNode>>,
+    v_scroll_bar: Option<Handle<UiNode>>,
     horizontal_scroll_allowed: bool,
     vertical_scroll_allowed: bool,
 }
 
-impl<M: MessageData, C: Control<M, C>> ScrollViewerBuilder<M, C> {
-    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
+impl ScrollViewerBuilder {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             content: Handle::NONE,
@@ -255,17 +267,17 @@ impl<M: MessageData, C: Control<M, C>> ScrollViewerBuilder<M, C> {
         }
     }
 
-    pub fn with_content(mut self, content: Handle<UINode<M, C>>) -> Self {
+    pub fn with_content(mut self, content: Handle<UiNode>) -> Self {
         self.content = content;
         self
     }
 
-    pub fn with_vertical_scroll_bar(mut self, v_scroll_bar: Handle<UINode<M, C>>) -> Self {
+    pub fn with_vertical_scroll_bar(mut self, v_scroll_bar: Handle<UiNode>) -> Self {
         self.v_scroll_bar = Some(v_scroll_bar);
         self
     }
 
-    pub fn with_horizontal_scroll_bar(mut self, h_scroll_bar: Handle<UINode<M, C>>) -> Self {
+    pub fn with_horizontal_scroll_bar(mut self, h_scroll_bar: Handle<UiNode>) -> Self {
         self.h_scroll_bar = Some(h_scroll_bar);
         self
     }
@@ -280,7 +292,7 @@ impl<M: MessageData, C: Control<M, C>> ScrollViewerBuilder<M, C> {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let content_presenter = ScrollPanelBuilder::new(
             WidgetBuilder::new()
                 .with_child(self.content)
@@ -327,6 +339,6 @@ impl<M: MessageData, C: Control<M, C>> ScrollViewerBuilder<M, C> {
             h_scroll_bar,
             scroll_panel: content_presenter,
         };
-        ctx.add_node(UINode::ScrollViewer(sv))
+        ctx.add_node(UiNode::new(sv))
     }
 }

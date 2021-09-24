@@ -7,14 +7,10 @@ use crate::{
         editors::{PropertyEditorBuildContext, PropertyEditorDefinition},
         InspectorError,
     },
-    message::{
-        DropdownListMessage, MessageData, MessageDirection, PropertyChanged, UiMessage,
-        UiMessageData,
-    },
-    node::UINode,
+    message::{DropdownListMessage, MessageDirection, PropertyChanged, UiMessage, UiMessageData},
     text::TextBuilder,
     widget::WidgetBuilder,
-    Control, HorizontalAlignment, Thickness, VerticalAlignment,
+    HorizontalAlignment, Thickness, UiNode, VerticalAlignment,
 };
 use std::{
     any::TypeId,
@@ -37,11 +33,9 @@ where
     }
 }
 
-impl<T, M, C> PropertyEditorDefinition<M, C> for EnumPropertyEditorDefinition<T>
+impl<T> PropertyEditorDefinition for EnumPropertyEditorDefinition<T>
 where
     T: Debug + Send + Sync + 'static,
-    M: MessageData,
-    C: Control<M, C>,
 {
     fn value_type_id(&self) -> TypeId {
         TypeId::of::<T>()
@@ -49,8 +43,8 @@ where
 
     fn create_instance(
         &self,
-        ctx: PropertyEditorBuildContext<M, C>,
-    ) -> Result<Handle<UINode<M, C>>, InspectorError> {
+        ctx: PropertyEditorBuildContext,
+    ) -> Result<Handle<UiNode>, InspectorError> {
         let value = ctx.property_info.cast_value::<T>()?;
         let names = (self.names_generator)();
 
@@ -84,9 +78,9 @@ where
 
     fn create_message(
         &self,
-        instance: Handle<UINode<M, C>>,
+        instance: Handle<UiNode>,
         property_info: &PropertyInfo,
-    ) -> Result<UiMessage<M, C>, InspectorError> {
+    ) -> Result<UiMessage, InspectorError> {
         let value = property_info.cast_value::<T>()?;
         Ok(DropdownListMessage::selection(
             instance,
@@ -99,7 +93,7 @@ where
         &self,
         name: &str,
         owner_type_id: TypeId,
-        message: &UiMessage<M, C>,
+        message: &UiMessage,
     ) -> Option<PropertyChanged> {
         if message.direction() == MessageDirection::FromWidget {
             if let UiMessageData::DropdownList(DropdownListMessage::SelectionChanged(Some(index))) =

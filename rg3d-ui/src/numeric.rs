@@ -3,29 +3,30 @@ use crate::brush::Brush;
 use crate::core::color::Color;
 use crate::decorator::DecoratorBuilder;
 use crate::formatted_text::WrapMode;
+use crate::text_box::TextBox;
 use crate::utils::{make_arrow, ArrowDirection};
 use crate::{
     button::ButtonBuilder,
     core::pool::Handle,
     grid::{Column, GridBuilder, Row},
     message::{
-        ButtonMessage, KeyCode, MessageData, MessageDirection, NumericUpDownMessage,
-        TextBoxMessage, UiMessage, UiMessageData, WidgetMessage,
+        ButtonMessage, KeyCode, MessageDirection, NumericUpDownMessage, TextBoxMessage, UiMessage,
+        UiMessageData, WidgetMessage,
     },
-    node::UINode,
     text_box::TextBoxBuilder,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Thickness, UserInterface,
-    VerticalAlignment, BRUSH_DARK, BRUSH_LIGHT,
+    BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Thickness, UiNode,
+    UserInterface, VerticalAlignment, BRUSH_DARK, BRUSH_LIGHT,
 };
+use std::any::Any;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone)]
-pub struct NumericUpDown<M: MessageData, C: Control<M, C>> {
-    widget: Widget<M, C>,
-    field: Handle<UINode<M, C>>,
-    increase: Handle<UINode<M, C>>,
-    decrease: Handle<UINode<M, C>>,
+pub struct NumericUpDown {
+    widget: Widget,
+    field: Handle<UiNode>,
+    increase: Handle<UiNode>,
+    decrease: Handle<UiNode>,
     value: f32,
     step: f32,
     min_value: f32,
@@ -33,12 +34,12 @@ pub struct NumericUpDown<M: MessageData, C: Control<M, C>> {
     precision: usize,
 }
 
-crate::define_widget_deref!(NumericUpDown<M, C>);
+crate::define_widget_deref!(NumericUpDown);
 
-impl<M: MessageData, C: Control<M, C>> NumericUpDown<M, C> {
-    fn try_parse_value(&mut self, ui: &mut UserInterface<M, C>) {
+impl NumericUpDown {
+    fn try_parse_value(&mut self, ui: &mut UserInterface) {
         // Parse input only when focus is lost from text field.
-        if let UINode::TextBox(field) = ui.node(self.field) {
+        if let Some(field) = ui.node(self.field).cast::<TextBox>() {
             if let Ok(value) = field.text().parse::<f32>() {
                 let value = value.min(self.max_value).max(self.min_value);
                 ui.send_message(NumericUpDownMessage::value(
@@ -51,18 +52,26 @@ impl<M: MessageData, C: Control<M, C>> NumericUpDown<M, C> {
     }
 }
 
-impl<M: MessageData, C: Control<M, C>> Control<M, C> for NumericUpDown<M, C> {
-    fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
+impl Control for NumericUpDown {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
+    fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.field);
         node_map.resolve(&mut self.increase);
         node_map.resolve(&mut self.decrease);
     }
 
-    fn handle_routed_message(
-        &mut self,
-        ui: &mut UserInterface<M, C>,
-        message: &mut UiMessage<M, C>,
-    ) {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
         match &message.data() {
@@ -131,8 +140,8 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for NumericUpDown<M, C> {
     }
 }
 
-pub struct NumericUpDownBuilder<M: MessageData, C: Control<M, C>> {
-    widget_builder: WidgetBuilder<M, C>,
+pub struct NumericUpDownBuilder {
+    widget_builder: WidgetBuilder,
     value: f32,
     step: f32,
     min_value: f32,
@@ -140,11 +149,7 @@ pub struct NumericUpDownBuilder<M: MessageData, C: Control<M, C>> {
     precision: usize,
 }
 
-pub fn make_button<M: MessageData, C: Control<M, C>>(
-    ctx: &mut BuildContext<M, C>,
-    arrow: ArrowDirection,
-    row: usize,
-) -> Handle<UINode<M, C>> {
+pub fn make_button(ctx: &mut BuildContext, arrow: ArrowDirection, row: usize) -> Handle<UiNode> {
     ButtonBuilder::new(
         WidgetBuilder::new()
             .with_margin(Thickness::right(1.0))
@@ -163,8 +168,8 @@ pub fn make_button<M: MessageData, C: Control<M, C>>(
     .build(ctx)
 }
 
-impl<M: MessageData, C: Control<M, C>> NumericUpDownBuilder<M, C> {
-    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
+impl NumericUpDownBuilder {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             value: 0.0,
@@ -207,7 +212,7 @@ impl<M: MessageData, C: Control<M, C>> NumericUpDownBuilder<M, C> {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let increase;
         let decrease;
         let field;
@@ -268,6 +273,6 @@ impl<M: MessageData, C: Control<M, C>> NumericUpDownBuilder<M, C> {
             precision: self.precision,
         };
 
-        ctx.add_node(UINode::NumericUpDown(node))
+        ctx.add_node(UiNode::new(node))
     }
 }

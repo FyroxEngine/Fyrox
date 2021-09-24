@@ -32,6 +32,8 @@ use std::sync::{Arc, Mutex};
 
 use crate::shared::create_camera;
 use rg3d::engine::resource_manager::MaterialSearchOptions;
+use rg3d::engine::Engine;
+use rg3d::gui::{BuildContext, UiNode};
 
 struct Interface {
     root: Handle<UiNode>,
@@ -40,7 +42,7 @@ struct Interface {
     progress_text: Handle<UiNode>,
 }
 
-fn create_ui(ctx: &mut UiBuildContext, screen_size: Vector2<f32>) -> Interface {
+fn create_ui(ctx: &mut BuildContext, screen_size: Vector2<f32>) -> Interface {
     let debug_text;
     let progress_bar;
     let progress_text;
@@ -232,7 +234,7 @@ struct Game {
 }
 
 impl GameState for Game {
-    fn init(engine: &mut GameEngine) -> Self
+    fn init(engine: &mut Engine) -> Self
     where
         Self: Sized,
     {
@@ -256,7 +258,7 @@ impl GameState for Game {
         }
     }
 
-    fn on_tick(&mut self, engine: &mut GameEngine, _dt: f32, _: &mut ControlFlow) {
+    fn on_tick(&mut self, engine: &mut Engine, _dt: f32, _: &mut ControlFlow) {
         // Check each frame if our scene is created - here we just trying to lock context
         // without blocking, it is important for main thread to be functional while other
         // thread still loading data.
@@ -346,7 +348,7 @@ impl GameState for Game {
         ));
     }
 
-    fn on_window_event(&mut self, engine: &mut GameEngine, event: WindowEvent) {
+    fn on_window_event(&mut self, engine: &mut Engine, event: WindowEvent) {
         match event {
             WindowEvent::Resized(size) => {
                 // Root UI node should be resized, otherwise progress bar will stay

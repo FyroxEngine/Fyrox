@@ -1,3 +1,4 @@
+use rg3d::engine::Engine;
 use rg3d::{
     core::color::{Color, Hsv},
     engine::framework::prelude::*,
@@ -9,7 +10,7 @@ struct Game {
 }
 
 impl GameState for Game {
-    fn init(_engine: &mut GameEngine) -> Self
+    fn init(_engine: &mut Engine) -> Self
     where
         Self: Sized,
     {
@@ -17,7 +18,7 @@ impl GameState for Game {
     }
 
     // Implement a function that will update game logic and will be called at fixed rate of 60 Hz.
-    fn on_tick(&mut self, engine: &mut GameEngine, dt: f32, _: &mut ControlFlow) {
+    fn on_tick(&mut self, engine: &mut Engine, dt: f32, _: &mut ControlFlow) {
         // Increase hue at fixed rate of 24 degrees per second.
         self.hue += 24.0 * dt;
 

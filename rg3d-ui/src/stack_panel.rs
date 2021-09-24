@@ -1,23 +1,23 @@
 use crate::core::algebra::Vector2;
-use crate::message::MessageData;
 use crate::{
     core::{math::Rect, pool::Handle, scope_profile},
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, Orientation, UINode, UserInterface,
+    BuildContext, Control, Orientation, UiNode, UserInterface,
 };
+use std::any::Any;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone)]
-pub struct StackPanel<M: MessageData, C: Control<M, C>> {
-    widget: Widget<M, C>,
+pub struct StackPanel {
+    widget: Widget,
     orientation: Orientation,
 }
 
-crate::define_widget_deref!(StackPanel<M, C>);
+crate::define_widget_deref!(StackPanel);
 
-impl<M: MessageData, C: Control<M, C>> StackPanel<M, C> {
-    pub fn new(widget: Widget<M, C>) -> Self {
+impl StackPanel {
+    pub fn new(widget: Widget) -> Self {
         Self {
             widget,
             orientation: Orientation::Vertical,
@@ -36,12 +36,20 @@ impl<M: MessageData, C: Control<M, C>> StackPanel<M, C> {
     }
 }
 
-impl<M: MessageData, C: Control<M, C>> Control<M, C> for StackPanel<M, C> {
-    fn measure_override(
-        &self,
-        ui: &UserInterface<M, C>,
-        available_size: Vector2<f32>,
-    ) -> Vector2<f32> {
+impl Control for StackPanel {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
+    fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
 
         let mut child_constraint = Vector2::new(f32::INFINITY, f32::INFINITY);
@@ -99,7 +107,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for StackPanel<M, C> {
         measured_size
     }
 
-    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
+    fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
 
         let mut width = final_size.x;
@@ -150,22 +158,18 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for StackPanel<M, C> {
         Vector2::new(width, height)
     }
 
-    fn handle_routed_message(
-        &mut self,
-        ui: &mut UserInterface<M, C>,
-        message: &mut UiMessage<M, C>,
-    ) {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
     }
 }
 
-pub struct StackPanelBuilder<M: MessageData, C: Control<M, C>> {
-    widget_builder: WidgetBuilder<M, C>,
+pub struct StackPanelBuilder {
+    widget_builder: WidgetBuilder,
     orientation: Option<Orientation>,
 }
 
-impl<M: MessageData, C: Control<M, C>> StackPanelBuilder<M, C> {
-    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
+impl StackPanelBuilder {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             orientation: None,
@@ -177,12 +181,12 @@ impl<M: MessageData, C: Control<M, C>> StackPanelBuilder<M, C> {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let stack_panel = StackPanel {
             widget: self.widget_builder.build(),
             orientation: self.orientation.unwrap_or(Orientation::Vertical),
         };
 
-        ctx.add_node(UINode::StackPanel(stack_panel))
+        ctx.add_node(UiNode::new(stack_panel))
     }
 }

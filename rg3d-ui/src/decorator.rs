@@ -3,14 +3,12 @@ use crate::{
     brush::{Brush, GradientPoint},
     core::{algebra::Vector2, color::Color, pool::Handle},
     draw::DrawingContext,
-    message::{
-        DecoratorMessage, MessageData, MessageDirection, UiMessage, UiMessageData, WidgetMessage,
-    },
-    node::UINode,
+    message::{DecoratorMessage, MessageDirection, UiMessage, UiMessageData, WidgetMessage},
     widget::Widget,
-    BuildContext, Control, NodeHandleMapping, UserInterface, BRUSH_BRIGHT, BRUSH_LIGHT,
+    BuildContext, Control, NodeHandleMapping, UiNode, UserInterface, BRUSH_BRIGHT, BRUSH_LIGHT,
     BRUSH_LIGHTER, BRUSH_LIGHTEST, COLOR_DARKEST, COLOR_LIGHTEST,
 };
+use std::any::Any;
 use std::ops::{Deref, DerefMut};
 
 /// A visual element that changes its appearance by listening specific events.
@@ -24,8 +22,8 @@ use std::ops::{Deref, DerefMut};
 /// This element is widely used to provide some generic visual behaviour for various
 /// widgets. For example it used to decorate button, items in items control.
 #[derive(Clone)]
-pub struct Decorator<M: MessageData, C: Control<M, C>> {
-    border: Border<M, C>,
+pub struct Decorator {
+    border: Border,
     normal_brush: Brush,
     hover_brush: Brush,
     pressed_brush: Brush,
@@ -35,34 +33,42 @@ pub struct Decorator<M: MessageData, C: Control<M, C>> {
     pressable: bool,
 }
 
-impl<M: MessageData, C: Control<M, C>> Deref for Decorator<M, C> {
-    type Target = Widget<M, C>;
+impl Deref for Decorator {
+    type Target = Widget;
 
     fn deref(&self) -> &Self::Target {
         &self.border
     }
 }
 
-impl<M: MessageData, C: Control<M, C>> DerefMut for Decorator<M, C> {
+impl DerefMut for Decorator {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.border
     }
 }
 
-impl<M: MessageData, C: Control<M, C>> Control<M, C> for Decorator<M, C> {
-    fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
+impl Control for Decorator {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
+    fn resolve(&mut self, node_map: &NodeHandleMapping) {
         self.border.resolve(node_map)
     }
 
-    fn measure_override(
-        &self,
-        ui: &UserInterface<M, C>,
-        available_size: Vector2<f32>,
-    ) -> Vector2<f32> {
+    fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         self.border.measure_override(ui, available_size)
     }
 
-    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
+    fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         self.border.arrange_override(ui, final_size)
     }
 
@@ -74,11 +80,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Decorator<M, C> {
         self.border.update(dt)
     }
 
-    fn handle_routed_message(
-        &mut self,
-        ui: &mut UserInterface<M, C>,
-        message: &mut UiMessage<M, C>,
-    ) {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.border.handle_routed_message(ui, message);
 
         match &message.data() {
@@ -192,13 +194,13 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Decorator<M, C> {
         }
     }
 
-    fn remove_ref(&mut self, handle: Handle<UINode<M, C>>) {
+    fn remove_ref(&mut self, handle: Handle<UiNode>) {
         self.border.remove_ref(handle)
     }
 }
 
-pub struct DecoratorBuilder<M: MessageData, C: Control<M, C>> {
-    border_builder: BorderBuilder<M, C>,
+pub struct DecoratorBuilder {
+    border_builder: BorderBuilder,
     normal_brush: Option<Brush>,
     hover_brush: Option<Brush>,
     pressed_brush: Option<Brush>,
@@ -207,8 +209,8 @@ pub struct DecoratorBuilder<M: MessageData, C: Control<M, C>> {
     pressable: bool,
 }
 
-impl<M: MessageData, C: Control<M, C>> DecoratorBuilder<M, C> {
-    pub fn new(border_builder: BorderBuilder<M, C>) -> Self {
+impl DecoratorBuilder {
+    pub fn new(border_builder: BorderBuilder) -> Self {
         Self {
             border_builder,
             normal_brush: None,
@@ -250,7 +252,7 @@ impl<M: MessageData, C: Control<M, C>> DecoratorBuilder<M, C> {
         self
     }
 
-    pub fn build(mut self, ui: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(mut self, ui: &mut BuildContext) -> Handle<UiNode> {
         let normal_brush = self.normal_brush.unwrap_or(BRUSH_LIGHT);
 
         if self.border_builder.widget_builder.foreground.is_none() {
@@ -278,7 +280,7 @@ impl<M: MessageData, C: Control<M, C>> DecoratorBuilder<M, C> {
 
         border.set_background(normal_brush.clone());
 
-        let node = UINode::Decorator(Decorator {
+        let node = UiNode::new(Decorator {
             border,
             normal_brush,
             hover_brush: self.hover_brush.unwrap_or(BRUSH_LIGHTER),

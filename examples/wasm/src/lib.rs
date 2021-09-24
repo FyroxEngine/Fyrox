@@ -53,7 +53,7 @@ use std::{
 
 // Create our own engine type aliases. These specializations are needed
 // because engine provides a way to extend UI with custom nodes and messages.
-type GameEngine = rg3d::engine::Engine<(), StubNode>;
+type Engine = rg3d::engine::Engine<(), StubNode>;
 type UiNode = rg3d::gui::node::UINode<(), StubNode>;
 type BuildContext<'a> = rg3d::gui::BuildContext<'a, (), StubNode>;
 
@@ -299,7 +299,7 @@ pub fn main_js() {
         .with_title("Example - WASM")
         .with_resizable(true);
 
-    let mut engine = GameEngine::new(window_builder, &event_loop, true).unwrap();
+    let mut engine = Engine::new(window_builder, &event_loop, true).unwrap();
     engine
         .renderer
         .set_backbuffer_clear_color(Color::opaque(150, 150, 255));

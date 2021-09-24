@@ -1,4 +1,4 @@
-use crate::message::{MessageData, MessageDirection};
+use crate::message::MessageDirection;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -7,37 +7,46 @@ use crate::{
     grid::{Column, GridBuilder, Row},
     message::{ButtonMessage, UiMessage, UiMessageData, WidgetMessage},
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, NodeHandleMapping, UINode, UserInterface,
+    BuildContext, Control, NodeHandleMapping, UiNode, UserInterface,
 };
+use std::any::Any;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone, PartialEq)]
-pub struct Tab<M: MessageData, C: Control<M, C>> {
-    header_button: Handle<UINode<M, C>>,
-    content: Handle<UINode<M, C>>,
+pub struct Tab {
+    header_button: Handle<UiNode>,
+    content: Handle<UiNode>,
 }
 
 #[derive(Clone)]
-pub struct TabControl<M: MessageData, C: Control<M, C>> {
-    widget: Widget<M, C>,
-    tabs: Vec<Tab<M, C>>,
+pub struct TabControl {
+    widget: Widget,
+    tabs: Vec<Tab>,
 }
 
-crate::define_widget_deref!(TabControl<M, C>);
+crate::define_widget_deref!(TabControl);
 
-impl<M: MessageData, C: Control<M, C>> Control<M, C> for TabControl<M, C> {
-    fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
+impl Control for TabControl {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
+    fn resolve(&mut self, node_map: &NodeHandleMapping) {
         for tab in self.tabs.iter_mut() {
             node_map.resolve(&mut tab.header_button);
             node_map.resolve(&mut tab.content);
         }
     }
 
-    fn handle_routed_message(
-        &mut self,
-        ui: &mut UserInterface<M, C>,
-        message: &mut UiMessage<M, C>,
-    ) {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
         if let UiMessageData::Button(ButtonMessage::Click) = &message.data() {
@@ -59,7 +68,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TabControl<M, C> {
         }
     }
 
-    fn remove_ref(&mut self, handle: Handle<UINode<M, C>>) {
+    fn remove_ref(&mut self, handle: Handle<UiNode>) {
         for tab in self.tabs.iter_mut() {
             if tab.content == handle {
                 tab.content = Handle::NONE;
@@ -71,30 +80,30 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TabControl<M, C> {
     }
 }
 
-pub struct TabControlBuilder<M: MessageData, C: Control<M, C>> {
-    widget_builder: WidgetBuilder<M, C>,
-    tabs: Vec<TabDefinition<M, C>>,
+pub struct TabControlBuilder {
+    widget_builder: WidgetBuilder,
+    tabs: Vec<TabDefinition>,
 }
 
-pub struct TabDefinition<M: MessageData, C: Control<M, C>> {
-    pub header: Handle<UINode<M, C>>,
-    pub content: Handle<UINode<M, C>>,
+pub struct TabDefinition {
+    pub header: Handle<UiNode>,
+    pub content: Handle<UiNode>,
 }
 
-impl<M: MessageData, C: Control<M, C>> TabControlBuilder<M, C> {
-    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
+impl TabControlBuilder {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             tabs: Default::default(),
         }
     }
 
-    pub fn with_tab(mut self, tab: TabDefinition<M, C>) -> Self {
+    pub fn with_tab(mut self, tab: TabDefinition) -> Self {
         self.tabs.push(tab);
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let mut headers = Vec::new();
         let mut content = Vec::new();
         let tab_count = self.tabs.len();
@@ -115,7 +124,7 @@ impl<M: MessageData, C: Control<M, C>> TabControlBuilder<M, C> {
                     .with_content(header)
                     .build(ctx)
             })
-            .collect::<Vec<Handle<UINode<M, C>>>>();
+            .collect::<Vec<Handle<UiNode>>>();
 
         let headers_grid = GridBuilder::new(
             WidgetBuilder::new()
@@ -165,6 +174,6 @@ impl<M: MessageData, C: Control<M, C>> TabControlBuilder<M, C> {
                 .collect(),
         };
 
-        ctx.add_node(UINode::TabControl(tc))
+        ctx.add_node(UiNode::new(tc))
     }
 }

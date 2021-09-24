@@ -1,34 +1,37 @@
 use crate::border::BorderBuilder;
+use crate::decorator::Decorator;
 use crate::draw::Draw;
+use crate::scroll_viewer::ScrollViewer;
 use crate::{
     brush::Brush,
     core::{color::Color, pool::Handle},
     draw::{CommandTexture, DrawingContext},
     message::{
-        DecoratorMessage, ListViewMessage, MessageData, MessageDirection, UiMessage, UiMessageData,
+        DecoratorMessage, ListViewMessage, MessageDirection, UiMessage, UiMessageData,
         WidgetMessage,
     },
     scroll_viewer::ScrollViewerBuilder,
     stack_panel::StackPanelBuilder,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, NodeHandleMapping, Thickness, UINode, UserInterface, BRUSH_DARK,
+    BuildContext, Control, NodeHandleMapping, Thickness, UiNode, UserInterface, BRUSH_DARK,
     BRUSH_LIGHT,
 };
+use std::any::Any;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone)]
-pub struct ListView<M: MessageData, C: Control<M, C>> {
-    widget: Widget<M, C>,
+pub struct ListView {
+    widget: Widget,
     selected_index: Option<usize>,
-    item_containers: Vec<Handle<UINode<M, C>>>,
-    panel: Handle<UINode<M, C>>,
-    items: Vec<Handle<UINode<M, C>>>,
+    item_containers: Vec<Handle<UiNode>>,
+    panel: Handle<UiNode>,
+    items: Vec<Handle<UiNode>>,
 }
 
-crate::define_widget_deref!(ListView<M, C>);
+crate::define_widget_deref!(ListView);
 
-impl<M: MessageData, C: Control<M, C>> ListView<M, C> {
-    pub fn new(widget: Widget<M, C>, items: Vec<Handle<UINode<M, C>>>) -> Self {
+impl ListView {
+    pub fn new(widget: Widget, items: Vec<Handle<UiNode>>) -> Self {
         Self {
             widget,
             selected_index: None,
@@ -42,15 +45,15 @@ impl<M: MessageData, C: Control<M, C>> ListView<M, C> {
         self.selected_index
     }
 
-    pub fn item_containers(&self) -> &[Handle<UINode<M, C>>] {
+    pub fn item_containers(&self) -> &[Handle<UiNode>] {
         &self.item_containers
     }
 
-    pub fn items(&self) -> &[Handle<UINode<M, C>>] {
+    pub fn items(&self) -> &[Handle<UiNode>] {
         &self.items
     }
 
-    fn fix_selection(&self, ui: &UserInterface<M, C>) {
+    fn fix_selection(&self, ui: &UserInterface) {
         // Check if current selection is out-of-bounds.
         if let Some(selected_index) = self.selected_index {
             if selected_index >= self.items.len() {
@@ -69,26 +72,27 @@ impl<M: MessageData, C: Control<M, C>> ListView<M, C> {
         }
     }
 
-    fn sync_decorators(&self, ui: &UserInterface<M, C>) {
+    fn sync_decorators(&self, ui: &UserInterface) {
         for (i, &container) in self.item_containers.iter().enumerate() {
             let select = match self.selected_index {
                 None => false,
                 Some(selected_index) => i == selected_index,
             };
-            if let UINode::ListViewItem(container) = ui.node(container) {
+            if let Some(container) = ui.node(container).cast::<ListViewItem>() {
                 let mut stack = container.children().to_vec();
                 while let Some(handle) = stack.pop() {
                     let node = ui.node(handle);
-                    match node {
-                        UINode::ListView(_) => {}
-                        UINode::Decorator(_) => {
-                            ui.send_message(DecoratorMessage::select(
-                                handle,
-                                MessageDirection::ToWidget,
-                                select,
-                            ));
-                        }
-                        _ => stack.extend_from_slice(node.children()),
+
+                    if node.cast::<ListView>().is_some() {
+                        // Do nothing.
+                    } else if node.cast::<Decorator>().is_some() {
+                        ui.send_message(DecoratorMessage::select(
+                            handle,
+                            MessageDirection::ToWidget,
+                            select,
+                        ));
+                    } else {
+                        stack.extend_from_slice(node.children())
                     }
                 }
             }
@@ -97,13 +101,25 @@ impl<M: MessageData, C: Control<M, C>> ListView<M, C> {
 }
 
 #[derive(Clone)]
-pub struct ListViewItem<M: MessageData, C: Control<M, C>> {
-    widget: Widget<M, C>,
+pub struct ListViewItem {
+    widget: Widget,
 }
 
-crate::define_widget_deref!(ListViewItem<M, C>);
+crate::define_widget_deref!(ListViewItem);
 
-impl<M: MessageData, C: Control<M, C>> Control<M, C> for ListViewItem<M, C> {
+impl Control for ListViewItem {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
     fn draw(&self, drawing_context: &mut DrawingContext) {
         // Emit transparent geometry so item container can be picked by hit test.
         drawing_context.push_rect_filled(&self.widget.screen_bounds(), None);
@@ -115,27 +131,22 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ListViewItem<M, C> {
         );
     }
 
-    fn handle_routed_message(
-        &mut self,
-        ui: &mut UserInterface<M, C>,
-        message: &mut UiMessage<M, C>,
-    ) {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
         let parent_list_view =
-            self.find_by_criteria_up(ui, |node| matches!(node, UINode::ListView(_)));
+            self.find_by_criteria_up(ui, |node| node.cast::<ListView>().is_some());
 
         if let UiMessageData::Widget(WidgetMessage::MouseUp { .. }) = &message.data() {
             if !message.handled() {
-                let self_index = if let UINode::ListView(list_view) = ui.node(parent_list_view) {
-                    list_view
-                        .item_containers
-                        .iter()
-                        .position(|c| *c == self.handle)
-                        .expect("ListViewItem must be used as a child of ListView")
-                } else {
-                    unreachable!();
-                };
+                let self_index = ui
+                    .node(parent_list_view)
+                    .cast::<ListView>()
+                    .expect("Parent of ListViewItem must be ListView!")
+                    .item_containers
+                    .iter()
+                    .position(|c| *c == self.handle)
+                    .expect("ListViewItem must be used as a child of ListView");
 
                 // Explicitly set selection on parent items control. This will send
                 // SelectionChanged message and all items will react.
@@ -150,18 +161,26 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ListViewItem<M, C> {
     }
 }
 
-impl<M: MessageData, C: Control<M, C>> Control<M, C> for ListView<M, C> {
-    fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
+impl Control for ListView {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
+    fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.panel);
         node_map.resolve_slice(&mut self.items);
         node_map.resolve_slice(&mut self.item_containers);
     }
 
-    fn handle_routed_message(
-        &mut self,
-        ui: &mut UserInterface<M, C>,
-        message: &mut UiMessage<M, C>,
-    ) {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
         if let UiMessageData::ListView(msg) = &message.data() {
@@ -235,20 +254,20 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ListView<M, C> {
         }
     }
 
-    fn remove_ref(&mut self, handle: Handle<UINode<M, C>>) {
+    fn remove_ref(&mut self, handle: Handle<UiNode>) {
         self.item_containers.retain(|i| *i != handle);
     }
 }
 
-pub struct ListViewBuilder<M: MessageData, C: Control<M, C>> {
-    widget_builder: WidgetBuilder<M, C>,
-    items: Vec<Handle<UINode<M, C>>>,
-    panel: Option<Handle<UINode<M, C>>>,
-    scroll_viewer: Option<Handle<UINode<M, C>>>,
+pub struct ListViewBuilder {
+    widget_builder: WidgetBuilder,
+    items: Vec<Handle<UiNode>>,
+    panel: Option<Handle<UiNode>>,
+    scroll_viewer: Option<Handle<UiNode>>,
 }
 
-impl<M: MessageData, C: Control<M, C>> ListViewBuilder<M, C> {
-    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
+impl ListViewBuilder {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             items: Vec::new(),
@@ -257,22 +276,22 @@ impl<M: MessageData, C: Control<M, C>> ListViewBuilder<M, C> {
         }
     }
 
-    pub fn with_items(mut self, items: Vec<Handle<UINode<M, C>>>) -> Self {
+    pub fn with_items(mut self, items: Vec<Handle<UiNode>>) -> Self {
         self.items = items;
         self
     }
 
-    pub fn with_items_panel(mut self, panel: Handle<UINode<M, C>>) -> Self {
+    pub fn with_items_panel(mut self, panel: Handle<UiNode>) -> Self {
         self.panel = Some(panel);
         self
     }
 
-    pub fn with_scroll_viewer(mut self, sv: Handle<UINode<M, C>>) -> Self {
+    pub fn with_scroll_viewer(mut self, sv: Handle<UiNode>) -> Self {
         self.scroll_viewer = Some(sv);
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let item_containers = generate_item_containers(ctx, &self.items);
 
         let panel = self.panel.unwrap_or_else(|| {
@@ -294,13 +313,12 @@ impl<M: MessageData, C: Control<M, C>> ListViewBuilder<M, C> {
             ScrollViewerBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(3.0)))
                 .build(ctx)
         });
-        if let UINode::ScrollViewer(scroll_viewer) = &mut ctx[scroll_viewer] {
-            scroll_viewer.set_content(panel);
-            let content_presenter = scroll_viewer.scroll_panel;
-            ctx.link(panel, content_presenter);
-        } else {
-            panic!("must be scroll viewer!");
-        }
+        let scroll_viewer_ref = ctx[scroll_viewer]
+            .cast_mut::<ScrollViewer>()
+            .expect("ListView must have ScrollViewer");
+        scroll_viewer_ref.set_content(panel);
+        let content_presenter = scroll_viewer_ref.scroll_panel;
+        ctx.link(panel, content_presenter);
 
         ctx.link(scroll_viewer, back);
 
@@ -312,25 +330,22 @@ impl<M: MessageData, C: Control<M, C>> ListViewBuilder<M, C> {
             panel,
         };
 
-        ctx.add_node(UINode::ListView(list_box))
+        ctx.add_node(UiNode::new(list_box))
     }
 }
 
-fn generate_item_container<M: MessageData, C: Control<M, C>>(
-    ctx: &mut BuildContext<M, C>,
-    item: Handle<UINode<M, C>>,
-) -> Handle<UINode<M, C>> {
+fn generate_item_container(ctx: &mut BuildContext, item: Handle<UiNode>) -> Handle<UiNode> {
     let item = ListViewItem {
         widget: WidgetBuilder::new().with_child(item).build(),
     };
 
-    ctx.add_node(UINode::ListViewItem(item))
+    ctx.add_node(UiNode::new(item))
 }
 
-fn generate_item_containers<M: MessageData, C: Control<M, C>>(
-    ctx: &mut BuildContext<M, C>,
-    items: &[Handle<UINode<M, C>>],
-) -> Vec<Handle<UINode<M, C>>> {
+fn generate_item_containers(
+    ctx: &mut BuildContext,
+    items: &[Handle<UiNode>],
+) -> Vec<Handle<UiNode>> {
     items
         .iter()
         .map(|&item| generate_item_container(ctx, item))

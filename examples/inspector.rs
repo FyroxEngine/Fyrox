@@ -3,6 +3,8 @@
 pub mod shared;
 
 use crate::shared::create_camera;
+use rg3d::engine::Engine;
+use rg3d::gui::UiNode;
 use rg3d::{
     animation::Animation,
     core::{
@@ -18,7 +20,6 @@ use rg3d::{
             editors::PropertyEditorDefinitionContainer, InspectorBuilder, InspectorContext,
         },
         message::{InspectorMessage, MessageDirection, TextMessage, UiMessageData},
-        node::StubNode,
         text::TextBuilder,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
@@ -31,18 +32,13 @@ use rg3d::{
 };
 use std::{sync::Arc, time::Instant};
 
-// Create our own engine type aliases. These specializations are needed
-// because engine provides a way to extend UI with custom nodes and messages.
-type GameEngine = rg3d::engine::Engine<(), StubNode>;
-type UiNode = rg3d::gui::node::UINode<(), StubNode>;
-
 struct Interface {
     debug_text: Handle<UiNode>,
     inspector: Handle<UiNode>,
-    definition_container: Arc<PropertyEditorDefinitionContainer<(), StubNode>>,
+    definition_container: Arc<PropertyEditorDefinitionContainer>,
 }
 
-fn create_ui(engine: &mut GameEngine) -> Interface {
+fn create_ui(engine: &mut Engine) -> Interface {
     let ctx = &mut engine.user_interface.build_ctx();
 
     let debug_text = TextBuilder::new(WidgetBuilder::new()).build(ctx);
@@ -126,7 +122,7 @@ fn main() {
         .with_title("Example - User Interface")
         .with_resizable(true);
 
-    let mut engine = GameEngine::new(window_builder, &event_loop, true).unwrap();
+    let mut engine = Engine::new(window_builder, &event_loop, true).unwrap();
 
     // Create simple user interface that will show some useful info.
     let interface = create_ui(&mut engine);

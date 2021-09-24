@@ -42,7 +42,7 @@ use crate::{
         pool::Handle,
         scope_profile,
     },
-    gui::{draw::DrawingContext, message::MessageData, Control, UserInterface},
+    gui::{draw::DrawingContext, UserInterface},
     material::{shader::SamplerFallback, Material, PropertyValue},
     renderer::{
         batch::BatchStorage,
@@ -1156,10 +1156,10 @@ impl Renderer {
 
     /// Renders given UI into specified render target. This method is especially useful if you need
     /// to have off-screen UIs (like interactive touch-screen in Doom 3, Dead Space, etc).
-    pub fn render_ui_to_texture<M: MessageData, C: Control<M, C>>(
+    pub fn render_ui_to_texture(
         &mut self,
         render_target: Texture,
-        ui: &mut UserInterface<M, C>,
+        ui: &mut UserInterface,
     ) -> Result<(), FrameworkError> {
         let new_width = ui.screen_size().x as usize;
         let new_height = ui.screen_size().y as usize;

@@ -10,6 +10,8 @@ pub mod shared;
 
 use crate::shared::create_camera;
 use rg3d::engine::resource_manager::MaterialSearchOptions;
+use rg3d::engine::Engine;
+use rg3d::gui::UiNode;
 use rg3d::utils::log::{Log, MessageKind};
 use rg3d::{
     animation::Animation,
@@ -31,7 +33,6 @@ use rg3d::{
             ButtonMessage, DropdownListMessage, MessageDirection, ScrollBarMessage, TextMessage,
             UiMessageData,
         },
-        node::StubNode,
         scroll_bar::ScrollBarBuilder,
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
@@ -49,11 +50,6 @@ use std::time::Instant;
 
 const DEFAULT_MODEL_ROTATION: f32 = 180.0;
 const DEFAULT_MODEL_SCALE: f32 = 0.05;
-
-// Create our own engine type aliases. These specializations are needed
-// because engine provides a way to extend UI with custom nodes and messages.
-type GameEngine = rg3d::engine::Engine<(), StubNode>;
-type UiNode = rg3d::gui::node::UINode<(), StubNode>;
 
 struct Interface {
     debug_text: Handle<UiNode>,
@@ -73,7 +69,7 @@ struct Interface {
 // will "stack" UI elements either on top of each other or in one line. Such
 // complex layout system was borrowed from WPF framework. You can read more here:
 // https://docs.microsoft.com/en-us/dotnet/framework/wpf/advanced/layout
-fn create_ui(engine: &mut GameEngine) -> Interface {
+fn create_ui(engine: &mut Engine) -> Interface {
     let window_width = engine.renderer.get_frame_size().0 as f32;
 
     // Gather all suitable video modes, we'll use them to fill combo box of
@@ -347,7 +343,7 @@ fn main() {
         .with_title("Example - User Interface")
         .with_resizable(true);
 
-    let mut engine = GameEngine::new(window_builder, &event_loop, true).unwrap();
+    let mut engine = Engine::new(window_builder, &event_loop, true).unwrap();
 
     // Create simple user interface that will show some useful info.
     let interface = create_ui(&mut engine);

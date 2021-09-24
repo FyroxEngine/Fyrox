@@ -13,14 +13,15 @@ use crate::{
     formatted_text::{FormattedText, FormattedTextBuilder},
     menu::{MenuItemBuilder, MenuItemContent},
     message::{
-        ButtonState, CurveEditorMessage, KeyCode, MenuItemMessage, MessageData, MessageDirection,
-        MouseButton, UiMessage, UiMessageData, WidgetMessage,
+        ButtonState, CurveEditorMessage, KeyCode, MenuItemMessage, MessageDirection, MouseButton,
+        UiMessage, UiMessageData, WidgetMessage,
     },
     popup::PopupBuilder,
     stack_panel::StackPanelBuilder,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, UINode, UserInterface,
+    BuildContext, Control, UiNode, UserInterface,
 };
+use std::any::Any;
 use std::{
     cell::{Cell, RefCell},
     collections::HashSet,
@@ -30,8 +31,8 @@ use std::{
 pub mod key;
 
 #[derive(Clone)]
-pub struct CurveEditor<M: MessageData, C: Control<M, C>> {
-    widget: Widget<M, C>,
+pub struct CurveEditor {
+    widget: Widget,
     key_container: KeyContainer,
     zoom: f32,
     view_position: Vector2<f32>,
@@ -52,22 +53,22 @@ pub struct CurveEditor<M: MessageData, C: Control<M, C>> {
     operation_context: Option<OperationContext>,
     selection: Option<Selection>,
     handle_radius: f32,
-    context_menu: ContextMenu<M, C>,
+    context_menu: ContextMenu,
     text: RefCell<FormattedText>,
 }
 
-crate::define_widget_deref!(CurveEditor<M, C>);
+crate::define_widget_deref!(CurveEditor);
 
 #[derive(Clone)]
-struct ContextMenu<M: MessageData, C: Control<M, C>> {
-    widget: Handle<UINode<M, C>>,
-    add_key: Handle<UINode<M, C>>,
-    remove: Handle<UINode<M, C>>,
-    key: Handle<UINode<M, C>>,
-    make_constant: Handle<UINode<M, C>>,
-    make_linear: Handle<UINode<M, C>>,
-    make_cubic: Handle<UINode<M, C>>,
-    zoom_to_fit: Handle<UINode<M, C>>,
+struct ContextMenu {
+    widget: Handle<UiNode>,
+    add_key: Handle<UiNode>,
+    remove: Handle<UiNode>,
+    key: Handle<UiNode>,
+    make_constant: Handle<UiNode>,
+    make_linear: Handle<UiNode>,
+    make_cubic: Handle<UiNode>,
+    zoom_to_fit: Handle<UiNode>,
 }
 
 #[derive(Clone)]
@@ -123,7 +124,19 @@ impl Selection {
     }
 }
 
-impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
+impl Control for CurveEditor {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
     fn draw(&self, ctx: &mut DrawingContext) {
         self.update_matrices();
         self.draw_background(ctx);
@@ -133,11 +146,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
         self.draw_operation(ctx);
     }
 
-    fn handle_routed_message(
-        &mut self,
-        ui: &mut UserInterface<M, C>,
-        message: &mut UiMessage<M, C>,
-    ) {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
         if message.destination() == self.handle {
@@ -493,7 +502,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for CurveEditor<M, C> {
         }
     }
 
-    fn preview_message(&self, ui: &UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+    fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
         if let UiMessageData::MenuItem(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.context_menu.remove {
                 ui.send_message(CurveEditorMessage::remove_selection(
@@ -561,7 +570,7 @@ fn round_to_step(x: f32, step: f32) -> f32 {
     x - x % step
 }
 
-impl<M: MessageData, C: Control<M, C>> CurveEditor<M, C> {
+impl CurveEditor {
     fn update_matrices(&self) {
         let vp = Vector2::new(self.view_position.x, -self.view_position.y);
         self.view_matrix.set(
@@ -621,7 +630,7 @@ impl<M: MessageData, C: Control<M, C>> CurveEditor<M, C> {
         self.key_container.sort_keys();
     }
 
-    fn set_selection(&mut self, selection: Option<Selection>, ui: &UserInterface<M, C>) {
+    fn set_selection(&mut self, selection: Option<Selection>, ui: &UserInterface) {
         self.selection = selection;
 
         ui.send_message(WidgetMessage::enabled(
@@ -637,7 +646,7 @@ impl<M: MessageData, C: Control<M, C>> CurveEditor<M, C> {
         ));
     }
 
-    fn remove_selection(&mut self, ui: &mut UserInterface<M, C>) {
+    fn remove_selection(&mut self, ui: &mut UserInterface) {
         if let Some(Selection::Keys { keys }) = self.selection.as_ref() {
             for &id in keys {
                 self.key_container.remove(id);
@@ -650,7 +659,7 @@ impl<M: MessageData, C: Control<M, C>> CurveEditor<M, C> {
         }
     }
 
-    fn change_selected_keys_kind(&mut self, kind: CurveKeyKind, ui: &mut UserInterface<M, C>) {
+    fn change_selected_keys_kind(&mut self, kind: CurveKeyKind, ui: &mut UserInterface) {
         if let Some(Selection::Keys { keys }) = self.selection.as_ref() {
             for key in keys {
                 self.key_container.key_mut(*key).unwrap().kind = kind.clone();
@@ -707,7 +716,7 @@ impl<M: MessageData, C: Control<M, C>> CurveEditor<M, C> {
             + Vector2::new(angle.cos(), angle.sin()).scale(self.handle_radius)
     }
 
-    fn send_curve(&self, ui: &UserInterface<M, C>) {
+    fn send_curve(&self, ui: &UserInterface) {
         ui.send_message(CurveEditorMessage::sync(
             self.handle,
             MessageDirection::FromWidget,
@@ -997,15 +1006,15 @@ impl<M: MessageData, C: Control<M, C>> CurveEditor<M, C> {
     }
 }
 
-pub struct CurveEditorBuilder<M: MessageData, C: Control<M, C>> {
-    widget_builder: WidgetBuilder<M, C>,
+pub struct CurveEditorBuilder {
+    widget_builder: WidgetBuilder,
     curve: Curve,
     view_position: Vector2<f32>,
     zoom: f32,
 }
 
-impl<M: MessageData, C: Control<M, C>> CurveEditorBuilder<M, C> {
-    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
+impl CurveEditorBuilder {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             curve: Default::default(),
@@ -1029,7 +1038,7 @@ impl<M: MessageData, C: Control<M, C>> CurveEditorBuilder<M, C> {
         self
     }
 
-    pub fn build(mut self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(mut self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let keys = KeyContainer::from(&self.curve);
 
         let add_key;
@@ -1133,6 +1142,6 @@ impl<M: MessageData, C: Control<M, C>> CurveEditorBuilder<M, C> {
             },
         };
 
-        ctx.add_node(UINode::CurveEditor(editor))
+        ctx.add_node(UiNode::new(editor))
     }
 }

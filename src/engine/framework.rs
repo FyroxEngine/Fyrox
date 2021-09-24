@@ -4,35 +4,20 @@
 //! Once you get familiar with the engine, you should **not** use the framework because it is too
 //! limiting and may slow you down.
 
+use crate::gui::message::UiMessage;
 use crate::utils::log::{Log, MessageKind};
 use crate::{
     core::instant::Instant,
     engine::{error::EngineError, Engine},
     event::{DeviceEvent, DeviceId, Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
-    gui::{
-        node::{StubNode, UINode},
-        BuildContext,
-    },
     utils::translate_event,
     window::WindowBuilder,
 };
 
-/// Simplified engine type alias.
-pub type GameEngine = Engine<(), StubNode>;
-
-/// Simplified UI node type alias.
-pub type UiNode = UINode<(), StubNode>;
-
-/// Simplified UI build context type alias.
-pub type UiBuildContext<'a> = BuildContext<'a, (), StubNode>;
-
-/// Simplified UI message type alias.
-pub type UiMessage = crate::gui::message::UiMessage<(), StubNode>;
-
 #[doc(hidden)]
 pub mod prelude {
-    pub use super::{Framework, GameEngine, GameState, UiBuildContext, UiMessage, UiNode};
+    pub use super::{Framework, GameState};
 }
 
 /// A trait for your game state, it contains all possible methods which will be called in
@@ -40,36 +25,31 @@ pub mod prelude {
 pub trait GameState: 'static {
     /// An initializer function that will be called once after engine's initialization
     /// allowing you to initialize the state your game.
-    fn init(engine: &mut GameEngine) -> Self
+    fn init(engine: &mut Engine) -> Self
     where
         Self: Sized;
 
     /// Defines a function that will contain game logic. It has stabilized update rate of
     /// 60 Hz. Callee can alter control flow of the game by modifying _control_flow parameter.
-    fn on_tick(&mut self, _engine: &mut GameEngine, _dt: f32, _control_flow: &mut ControlFlow) {}
+    fn on_tick(&mut self, _engine: &mut Engine, _dt: f32, _control_flow: &mut ControlFlow) {}
 
     /// Defines a function that will be called when there is any message from user interface.
-    fn on_ui_message(&mut self, _engine: &mut GameEngine, _message: UiMessage) {}
+    fn on_ui_message(&mut self, _engine: &mut Engine, _message: UiMessage) {}
 
     /// Defines a function that will be called when a device event has occurred.
-    fn on_device_event(
-        &mut self,
-        _engine: &mut GameEngine,
-        _device_id: DeviceId,
-        _event: DeviceEvent,
-    ) {
+    fn on_device_event(&mut self, _engine: &mut Engine, _device_id: DeviceId, _event: DeviceEvent) {
     }
 
     /// Defines a function that will be called when a window event has occurred.
-    fn on_window_event(&mut self, _engine: &mut GameEngine, _event: WindowEvent) {}
+    fn on_window_event(&mut self, _engine: &mut Engine, _event: WindowEvent) {}
 
     /// Defines a function that will be called when game is about to close.
-    fn on_exit(&mut self, _engine: &mut GameEngine) {}
+    fn on_exit(&mut self, _engine: &mut Engine) {}
 }
 
 /// See module docs.
 pub struct Framework<State: GameState> {
-    engine: GameEngine,
+    engine: Engine,
     title: String,
     event_loop: EventLoop<()>,
     state: State,
@@ -83,7 +63,7 @@ impl<State: GameState> Framework<State> {
 
         let window_builder = WindowBuilder::new().with_title("Game").with_resizable(true);
 
-        let mut engine = GameEngine::new(window_builder, &event_loop, false)?;
+        let mut engine = Engine::new(window_builder, &event_loop, false)?;
 
         Ok(Self {
             title: "Game".to_owned(),

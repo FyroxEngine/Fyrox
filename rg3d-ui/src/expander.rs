@@ -3,32 +3,40 @@ use crate::{
     core::pool::Handle,
     grid::{Column, GridBuilder, Row},
     message::{
-        CheckBoxMessage, ExpanderMessage, MessageData, MessageDirection, UiMessage, UiMessageData,
-        WidgetMessage,
+        CheckBoxMessage, ExpanderMessage, MessageDirection, UiMessage, UiMessageData, WidgetMessage,
     },
     utils::{make_arrow, ArrowDirection},
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, UINode, UserInterface, VerticalAlignment,
+    BuildContext, Control, UiNode, UserInterface, VerticalAlignment,
 };
+use std::any::Any;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone)]
-pub struct Expander<M: MessageData, C: Control<M, C>> {
-    widget: Widget<M, C>,
-    header: Handle<UINode<M, C>>,
-    content: Handle<UINode<M, C>>,
-    expander: Handle<UINode<M, C>>,
+pub struct Expander {
+    widget: Widget,
+    header: Handle<UiNode>,
+    content: Handle<UiNode>,
+    expander: Handle<UiNode>,
     is_expanded: bool,
 }
 
-crate::define_widget_deref!(Expander<M, C>);
+crate::define_widget_deref!(Expander);
 
-impl<M: MessageData, C: Control<M, C>> Control<M, C> for Expander<M, C> {
-    fn handle_routed_message(
-        &mut self,
-        ui: &mut UserInterface<M, C>,
-        message: &mut UiMessage<M, C>,
-    ) {
+impl Control for Expander {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         match *message.data() {
             UiMessageData::Expander(ExpanderMessage::Expand(expand)) => {
                 if message.destination() == self.handle()
@@ -68,15 +76,15 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Expander<M, C> {
     }
 }
 
-pub struct ExpanderBuilder<M: MessageData, C: Control<M, C>> {
-    pub widget_builder: WidgetBuilder<M, C>,
-    header: Handle<UINode<M, C>>,
-    content: Handle<UINode<M, C>>,
+pub struct ExpanderBuilder {
+    pub widget_builder: WidgetBuilder,
+    header: Handle<UiNode>,
+    content: Handle<UiNode>,
     is_expanded: bool,
 }
 
-impl<M: MessageData, C: Control<M, C>> ExpanderBuilder<M, C> {
-    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
+impl ExpanderBuilder {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             header: Handle::NONE,
@@ -85,12 +93,12 @@ impl<M: MessageData, C: Control<M, C>> ExpanderBuilder<M, C> {
         }
     }
 
-    pub fn with_header(mut self, header: Handle<UINode<M, C>>) -> Self {
+    pub fn with_header(mut self, header: Handle<UiNode>) -> Self {
         self.header = header;
         self
     }
 
-    pub fn with_content(mut self, content: Handle<UINode<M, C>>) -> Self {
+    pub fn with_content(mut self, content: Handle<UiNode>) -> Self {
         self.content = content;
         self
     }
@@ -100,7 +108,7 @@ impl<M: MessageData, C: Control<M, C>> ExpanderBuilder<M, C> {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext<'_, M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ctx: &mut BuildContext<'_>) -> Handle<UiNode> {
         let expander = CheckBoxBuilder::new(
             WidgetBuilder::new().with_vertical_alignment(VerticalAlignment::Center),
         )
@@ -117,7 +125,7 @@ impl<M: MessageData, C: Control<M, C>> ExpanderBuilder<M, C> {
                 .set_visibility(self.is_expanded);
         }
 
-        let e = UINode::Expander(Expander {
+        let e = UiNode::new(Expander {
             widget: self
                 .widget_builder
                 .with_child(

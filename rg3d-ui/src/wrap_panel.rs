@@ -1,29 +1,29 @@
 #![allow(clippy::reversed_empty_ranges)]
 
 use crate::core::algebra::Vector2;
-use crate::message::MessageData;
 use crate::{
     core::{math::Rect, pool::Handle},
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, Orientation, UINode, UserInterface,
+    BuildContext, Control, Orientation, UiNode, UserInterface,
 };
+use std::any::Any;
 use std::{
     cell::RefCell,
     ops::{Deref, DerefMut, Range},
 };
 
 #[derive(Clone)]
-pub struct WrapPanel<M: MessageData, C: Control<M, C>> {
-    widget: Widget<M, C>,
+pub struct WrapPanel {
+    widget: Widget,
     orientation: Orientation,
     lines: RefCell<Vec<Line>>,
 }
 
-crate::define_widget_deref!(WrapPanel<M, C>);
+crate::define_widget_deref!(WrapPanel);
 
-impl<M: MessageData, C: Control<M, C>> WrapPanel<M, C> {
-    pub fn new(widget: Widget<M, C>) -> Self {
+impl WrapPanel {
+    pub fn new(widget: Widget) -> Self {
         Self {
             widget,
             orientation: Orientation::Vertical,
@@ -58,12 +58,20 @@ impl Default for Line {
     }
 }
 
-impl<M: MessageData, C: Control<M, C>> Control<M, C> for WrapPanel<M, C> {
-    fn measure_override(
-        &self,
-        ui: &UserInterface<M, C>,
-        available_size: Vector2<f32>,
-    ) -> Vector2<f32> {
+impl Control for WrapPanel {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
+    fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         let mut measured_size: Vector2<f32> = Vector2::default();
         let mut line_size = Vector2::default();
         for child_handle in self.widget.children() {
@@ -109,7 +117,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for WrapPanel<M, C> {
         measured_size
     }
 
-    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
+    fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         // First pass - arrange lines.
         let mut lines = self.lines.borrow_mut();
         lines.clear();
@@ -198,22 +206,18 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for WrapPanel<M, C> {
         full_size
     }
 
-    fn handle_routed_message(
-        &mut self,
-        ui: &mut UserInterface<M, C>,
-        message: &mut UiMessage<M, C>,
-    ) {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
     }
 }
 
-pub struct WrapPanelBuilder<M: MessageData, C: Control<M, C>> {
-    widget_builder: WidgetBuilder<M, C>,
+pub struct WrapPanelBuilder {
+    widget_builder: WidgetBuilder,
     orientation: Option<Orientation>,
 }
 
-impl<M: MessageData, C: Control<M, C>> WrapPanelBuilder<M, C> {
-    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
+impl WrapPanelBuilder {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             orientation: None,
@@ -225,17 +229,17 @@ impl<M: MessageData, C: Control<M, C>> WrapPanelBuilder<M, C> {
         self
     }
 
-    pub fn build_node(self) -> UINode<M, C> {
+    pub fn build_node(self) -> UiNode {
         let stack_panel = WrapPanel {
             widget: self.widget_builder.build(),
             orientation: self.orientation.unwrap_or(Orientation::Vertical),
             lines: Default::default(),
         };
 
-        UINode::WrapPanel(stack_panel)
+        UiNode::new(stack_panel)
     }
 
-    pub fn build(self, ui: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ui: &mut BuildContext) -> Handle<UiNode> {
         ui.add_node(self.build_node())
     }
 }

@@ -1,6 +1,5 @@
 use crate::core::algebra::Vector2;
 use crate::formatted_text::WrapMode;
-use crate::message::MessageData;
 use crate::ttf::SharedFont;
 use crate::{
     brush::Brush,
@@ -10,27 +9,36 @@ use crate::{
     message::UiMessage,
     message::{TextMessage, UiMessageData},
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, HorizontalAlignment, UINode, UserInterface, VerticalAlignment,
+    BuildContext, Control, HorizontalAlignment, UiNode, UserInterface, VerticalAlignment,
 };
+use std::any::Any;
 use std::{
     cell::RefCell,
     ops::{Deref, DerefMut},
 };
 
 #[derive(Clone)]
-pub struct Text<M: MessageData, C: Control<M, C>> {
-    widget: Widget<M, C>,
+pub struct Text {
+    widget: Widget,
     formatted_text: RefCell<FormattedText>,
 }
 
-crate::define_widget_deref!(Text<M, C>);
+crate::define_widget_deref!(Text);
 
-impl<M: MessageData, C: Control<M, C>> Control<M, C> for Text<M, C> {
-    fn measure_override(
-        &self,
-        _: &UserInterface<M, C>,
-        available_size: Vector2<f32>,
-    ) -> Vector2<f32> {
+impl Control for Text {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
+    fn measure_override(&self, _: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         self.formatted_text
             .borrow_mut()
             .set_constraint(available_size)
@@ -47,11 +55,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Text<M, C> {
         );
     }
 
-    fn handle_routed_message(
-        &mut self,
-        ui: &mut UserInterface<M, C>,
-        message: &mut UiMessage<M, C>,
-    ) {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
         if message.destination() == self.handle() {
@@ -89,8 +93,8 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Text<M, C> {
     }
 }
 
-impl<M: MessageData, C: Control<M, C>> Text<M, C> {
-    pub fn new(widget: Widget<M, C>) -> Self {
+impl Text {
+    pub fn new(widget: Widget) -> Self {
         Self {
             widget,
             formatted_text: RefCell::new(
@@ -122,8 +126,8 @@ impl<M: MessageData, C: Control<M, C>> Text<M, C> {
     }
 }
 
-pub struct TextBuilder<M: MessageData, C: Control<M, C>> {
-    widget_builder: WidgetBuilder<M, C>,
+pub struct TextBuilder {
+    widget_builder: WidgetBuilder,
     text: Option<String>,
     font: Option<SharedFont>,
     vertical_text_alignment: VerticalAlignment,
@@ -131,8 +135,8 @@ pub struct TextBuilder<M: MessageData, C: Control<M, C>> {
     wrap: WrapMode,
 }
 
-impl<M: MessageData, C: Control<M, C>> TextBuilder<M, C> {
-    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
+impl TextBuilder {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             text: None,
@@ -173,7 +177,7 @@ impl<M: MessageData, C: Control<M, C>> TextBuilder<M, C> {
         self
     }
 
-    pub fn build(mut self, ui: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(mut self, ui: &mut BuildContext) -> Handle<UiNode> {
         let font = if let Some(font) = self.font {
             font
         } else {
@@ -196,6 +200,6 @@ impl<M: MessageData, C: Control<M, C>> TextBuilder<M, C> {
                     .build(),
             ),
         };
-        ui.add_node(UINode::Text(text))
+        ui.add_node(UiNode::new(text))
     }
 }

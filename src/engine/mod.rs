@@ -16,7 +16,7 @@ use crate::{
     },
     engine::{error::EngineError, resource_manager::ResourceManager},
     event_loop::EventLoop,
-    gui::{message::MessageData, Control, UserInterface},
+    gui::UserInterface,
     renderer::{framework::error::FrameworkError, Renderer},
     resource::texture::TextureKind,
     scene::SceneContainer,
@@ -32,7 +32,7 @@ use std::{
 };
 
 /// See module docs.
-pub struct Engine<M: MessageData, C: Control<M, C>> {
+pub struct Engine {
     #[cfg(not(target_arch = "wasm32"))]
     context: glutin::WindowedContext<glutin::PossiblyCurrent>,
     #[cfg(target_arch = "wasm32")]
@@ -43,7 +43,7 @@ pub struct Engine<M: MessageData, C: Control<M, C>> {
     /// User interface allows you to build interface of any kind. UI itself is *not* thread-safe,
     /// but it uses messages to "talk" with outside world and message queue (MPSC) *is* thread-safe
     /// so its sender part can be shared across threads.   
-    pub user_interface: UserInterface<M, C>,
+    pub user_interface: UserInterface,
     /// Sound context control all sound sources in the engine. It is wrapped into Arc<Mutex<>>
     /// because internally sound engine spawns separate thread to mix and send data to sound
     /// device. For more info see docs for Context.
@@ -63,7 +63,7 @@ pub struct Engine<M: MessageData, C: Control<M, C>> {
     pub scenes2d: Scene2dContainer,
 }
 
-impl<M: MessageData, C: Control<M, C>> Engine<M, C> {
+impl Engine {
     /// Creates new instance of engine from given window builder and events loop.
     ///
     /// Automatically creates all sub-systems (renderer, sound, ui, etc.).
@@ -74,13 +74,12 @@ impl<M: MessageData, C: Control<M, C>> Engine<M, C> {
     /// use rg3d::engine::Engine;
     /// use rg3d::window::WindowBuilder;
     /// use rg3d::event_loop::EventLoop;
-    /// use rg3d::gui::node::StubNode;
     ///
     /// let evt = EventLoop::new();
     /// let window_builder = WindowBuilder::new()
     ///     .with_title("Test")
     ///     .with_fullscreen(None);
-    /// let mut engine: Engine<(), StubNode> = Engine::new(window_builder, &evt, true).unwrap();
+    /// let mut engine: Engine = Engine::new(window_builder, &evt, true).unwrap();
     /// ```
     #[inline]
     pub fn new(
@@ -242,7 +241,7 @@ impl<M: MessageData, C: Control<M, C>> Engine<M, C> {
     }
 }
 
-impl<M: MessageData, C: Control<M, C>> Visit for Engine<M, C> {
+impl Visit for Engine {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 

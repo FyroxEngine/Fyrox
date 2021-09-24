@@ -2,26 +2,35 @@ use crate::draw::Draw;
 use crate::{
     core::{algebra::Vector2, math::Rect, pool::Handle, scope_profile},
     draw::{CommandTexture, DrawingContext},
-    message::{MessageData, UiMessage},
+    message::UiMessage,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, Thickness, UINode, UserInterface, BRUSH_PRIMARY,
+    BuildContext, Control, Thickness, UiNode, UserInterface, BRUSH_PRIMARY,
 };
+use std::any::Any;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone)]
-pub struct Border<M: MessageData, C: Control<M, C>> {
-    widget: Widget<M, C>,
+pub struct Border {
+    widget: Widget,
     stroke_thickness: Thickness,
 }
 
-crate::define_widget_deref!(Border<M, C>);
+crate::define_widget_deref!(Border);
 
-impl<M: MessageData, C: Control<M, C>> Control<M, C> for Border<M, C> {
-    fn measure_override(
-        &self,
-        ui: &UserInterface<M, C>,
-        available_size: Vector2<f32>,
-    ) -> Vector2<f32> {
+impl Control for Border {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
+    fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
 
         let margin_x = self.stroke_thickness.left + self.stroke_thickness.right;
@@ -48,7 +57,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Border<M, C> {
         desired_size
     }
 
-    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
+    fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
 
         let rect_for_child = Rect::new(
@@ -84,17 +93,13 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Border<M, C> {
         );
     }
 
-    fn handle_routed_message(
-        &mut self,
-        ui: &mut UserInterface<M, C>,
-        message: &mut UiMessage<M, C>,
-    ) {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
     }
 }
 
-impl<M: MessageData, C: Control<M, C>> Border<M, C> {
-    pub fn new(widget: Widget<M, C>) -> Self {
+impl Border {
+    pub fn new(widget: Widget) -> Self {
         Self {
             widget,
             stroke_thickness: Thickness::uniform(1.0),
@@ -102,13 +107,13 @@ impl<M: MessageData, C: Control<M, C>> Border<M, C> {
     }
 }
 
-pub struct BorderBuilder<M: MessageData, C: Control<M, C>> {
-    pub widget_builder: WidgetBuilder<M, C>,
+pub struct BorderBuilder {
+    pub widget_builder: WidgetBuilder,
     pub stroke_thickness: Option<Thickness>,
 }
 
-impl<M: MessageData, C: Control<M, C>> BorderBuilder<M, C> {
-    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
+impl BorderBuilder {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             stroke_thickness: None,
@@ -120,7 +125,7 @@ impl<M: MessageData, C: Control<M, C>> BorderBuilder<M, C> {
         self
     }
 
-    pub fn build_border(mut self) -> Border<M, C> {
+    pub fn build_border(mut self) -> Border {
         if self.widget_builder.foreground.is_none() {
             self.widget_builder.foreground = Some(BRUSH_PRIMARY);
         }
@@ -132,7 +137,7 @@ impl<M: MessageData, C: Control<M, C>> BorderBuilder<M, C> {
         }
     }
 
-    pub fn build(self, ctx: &mut BuildContext<'_, M, C>) -> Handle<UINode<M, C>> {
-        ctx.add_node(UINode::Border(self.build_border()))
+    pub fn build(self, ctx: &mut BuildContext<'_>) -> Handle<UiNode> {
+        ctx.add_node(UiNode::new(self.build_border()))
     }
 }

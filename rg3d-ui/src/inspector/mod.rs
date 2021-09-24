@@ -12,13 +12,11 @@ use crate::{
     inspector::editors::{
         PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorDefinitionContainer,
     },
-    message::{
-        InspectorMessage, MessageData, MessageDirection, UiMessage, UiMessageData, WidgetMessage,
-    },
+    message::{InspectorMessage, MessageDirection, UiMessage, UiMessageData, WidgetMessage},
     stack_panel::StackPanelBuilder,
     text::TextBuilder,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, Thickness, UINode, UserInterface, VerticalAlignment,
+    BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use std::any::TypeId;
 use std::{
@@ -36,14 +34,14 @@ pub trait InspectorEnvironment: Any + Send + Sync {
 }
 
 #[derive(Clone)]
-pub struct Inspector<M: MessageData, C: Control<M, C>> {
-    widget: Widget<M, C>,
-    stack_panel: Handle<UINode<M, C>>,
-    context: InspectorContext<M, C>,
-    property_definitions: Arc<PropertyEditorDefinitionContainer<M, C>>,
+pub struct Inspector {
+    widget: Widget,
+    stack_panel: Handle<UiNode>,
+    context: InspectorContext,
+    property_definitions: Arc<PropertyEditorDefinitionContainer>,
 }
 
-crate::define_widget_deref!(Inspector<M, C>);
+crate::define_widget_deref!(Inspector);
 
 #[derive(Debug)]
 pub enum InspectorError {
@@ -58,14 +56,14 @@ impl From<CastError> for InspectorError {
 }
 
 #[derive(Clone, Debug)]
-pub struct ContextEntry<M: MessageData, C: Control<M, C>> {
+pub struct ContextEntry {
     pub property_name: String,
     pub property_owner_type_id: TypeId,
-    pub property_editor_definition: Arc<dyn PropertyEditorDefinition<M, C>>,
-    pub property_editor: Handle<UINode<M, C>>,
+    pub property_editor_definition: Arc<dyn PropertyEditorDefinition>,
+    pub property_editor: Handle<UiNode>,
 }
 
-impl<M: MessageData, C: Control<M, C>> PartialEq for ContextEntry<M, C> {
+impl PartialEq for ContextEntry {
     fn eq(&self, other: &Self) -> bool {
         self.property_editor == other.property_editor
             && self.property_name == other.property_name
@@ -77,17 +75,17 @@ impl<M: MessageData, C: Control<M, C>> PartialEq for ContextEntry<M, C> {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Group<M: MessageData, C: Control<M, C>> {
-    section: Handle<UINode<M, C>>,
-    entries: Vec<ContextEntry<M, C>>,
+pub struct Group {
+    section: Handle<UiNode>,
+    entries: Vec<ContextEntry>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct InspectorContext<M: MessageData, C: Control<M, C>> {
-    groups: Vec<Group<M, C>>,
+pub struct InspectorContext {
+    groups: Vec<Group>,
 }
 
-impl<M: MessageData, C: Control<M, C>> Default for InspectorContext<M, C> {
+impl Default for InspectorContext {
     fn default() -> Self {
         Self {
             groups: Default::default(),
@@ -95,21 +93,14 @@ impl<M: MessageData, C: Control<M, C>> Default for InspectorContext<M, C> {
     }
 }
 
-fn create_section_header<M: MessageData, C: Control<M, C>>(
-    ctx: &mut BuildContext<M, C>,
-    text: &str,
-) -> Handle<UINode<M, C>> {
+fn create_section_header(ctx: &mut BuildContext, text: &str) -> Handle<UiNode> {
     TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
         .with_text(text)
         .with_vertical_text_alignment(VerticalAlignment::Center)
         .build(ctx)
 }
 
-fn create_property_title<M: MessageData, C: Control<M, C>>(
-    ctx: &mut BuildContext<M, C>,
-    row: usize,
-    text: &str,
-) -> Handle<UINode<M, C>> {
+fn create_property_title(ctx: &mut BuildContext, row: usize, text: &str) -> Handle<UiNode> {
     TextBuilder::new(
         WidgetBuilder::new()
             .on_row(row)
@@ -121,11 +112,11 @@ fn create_property_title<M: MessageData, C: Control<M, C>>(
     .build(ctx)
 }
 
-impl<M: MessageData, C: Control<M, C>> InspectorContext<M, C> {
+impl InspectorContext {
     pub fn from_object(
         object: &dyn Inspect,
-        ctx: &mut BuildContext<M, C>,
-        definition_container: &PropertyEditorDefinitionContainer<M, C>,
+        ctx: &mut BuildContext,
+        definition_container: &PropertyEditorDefinitionContainer,
         environment: Option<Arc<dyn InspectorEnvironment>>,
     ) -> Self {
         let mut property_groups = HashMap::<&'static str, Vec<PropertyInfo>>::new();
@@ -238,8 +229,8 @@ impl<M: MessageData, C: Control<M, C>> InspectorContext<M, C> {
     pub fn sync(
         &self,
         object: &dyn Inspect,
-        constructors: &PropertyEditorDefinitionContainer<M, C>,
-        ui: &mut UserInterface<M, C>,
+        constructors: &PropertyEditorDefinitionContainer,
+        ui: &mut UserInterface,
         sync_flag: u64,
     ) -> Result<(), InspectorError> {
         for info in object.properties() {
@@ -256,11 +247,11 @@ impl<M: MessageData, C: Control<M, C>> InspectorContext<M, C> {
         Ok(())
     }
 
-    pub fn property_editors(&self) -> impl Iterator<Item = &ContextEntry<M, C>> + '_ {
+    pub fn property_editors(&self) -> impl Iterator<Item = &ContextEntry> + '_ {
         self.groups.iter().map(|g| g.entries.iter()).flatten()
     }
 
-    pub fn find_property_editor(&self, name: &str) -> Handle<UINode<M, C>> {
+    pub fn find_property_editor(&self, name: &str) -> Handle<UiNode> {
         for group in self.groups.iter() {
             if let Some(property_editor) = group
                 .entries
@@ -275,12 +266,20 @@ impl<M: MessageData, C: Control<M, C>> InspectorContext<M, C> {
     }
 }
 
-impl<M: MessageData, C: Control<M, C>> Control<M, C> for Inspector<M, C> {
-    fn handle_routed_message(
-        &mut self,
-        ui: &mut UserInterface<M, C>,
-        message: &mut UiMessage<M, C>,
-    ) {
+impl Control for Inspector {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
         if message.destination() == self.handle && message.direction() == MessageDirection::ToWidget
@@ -326,14 +325,14 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Inspector<M, C> {
     }
 }
 
-pub struct InspectorBuilder<M: MessageData, C: Control<M, C>> {
-    widget_builder: WidgetBuilder<M, C>,
-    context: InspectorContext<M, C>,
-    property_definitions: Option<Arc<PropertyEditorDefinitionContainer<M, C>>>,
+pub struct InspectorBuilder {
+    widget_builder: WidgetBuilder,
+    context: InspectorContext,
+    property_definitions: Option<Arc<PropertyEditorDefinitionContainer>>,
 }
 
-impl<M: MessageData, C: Control<M, C>> InspectorBuilder<M, C> {
-    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
+impl InspectorBuilder {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             context: Default::default(),
@@ -341,20 +340,20 @@ impl<M: MessageData, C: Control<M, C>> InspectorBuilder<M, C> {
         }
     }
 
-    pub fn with_context(mut self, context: InspectorContext<M, C>) -> Self {
+    pub fn with_context(mut self, context: InspectorContext) -> Self {
         self.context = context;
         self
     }
 
     pub fn with_property_editor_definitions(
         mut self,
-        definitions: Arc<PropertyEditorDefinitionContainer<M, C>>,
+        definitions: Arc<PropertyEditorDefinitionContainer>,
     ) -> Self {
         self.property_definitions = Some(definitions);
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let sections = self
             .context
             .groups
@@ -373,6 +372,6 @@ impl<M: MessageData, C: Control<M, C>> InspectorBuilder<M, C> {
                 .property_definitions
                 .unwrap_or_else(|| Arc::new(PropertyEditorDefinitionContainer::new())),
         };
-        ctx.add_node(UINode::Inspector(canvas))
+        ctx.add_node(UiNode::new(canvas))
     }
 }

@@ -3,7 +3,7 @@
 
 use crate::core::algebra::Vector2;
 use crate::grid::{Column, GridBuilder, Row};
-use crate::message::{MessageData, MessageDirection};
+use crate::message::MessageDirection;
 use crate::utils::{make_arrow, ArrowDirection};
 use crate::{
     border::BorderBuilder,
@@ -11,30 +11,42 @@ use crate::{
     list_view::ListViewBuilder,
     message::PopupMessage,
     message::{DropdownListMessage, ListViewMessage, UiMessage, UiMessageData, WidgetMessage},
-    node::UINode,
     popup::{Placement, PopupBuilder},
     widget::Widget,
     widget::WidgetBuilder,
-    BuildContext, Control, NodeHandleMapping, UserInterface, BRUSH_LIGHT,
+    BuildContext, Control, NodeHandleMapping, UiNode, UserInterface, BRUSH_LIGHT,
 };
+use std::any::Any;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone)]
-pub struct DropdownList<M: MessageData, C: Control<M, C>> {
-    widget: Widget<M, C>,
-    popup: Handle<UINode<M, C>>,
-    items: Vec<Handle<UINode<M, C>>>,
-    list_view: Handle<UINode<M, C>>,
-    current: Handle<UINode<M, C>>,
+pub struct DropdownList {
+    widget: Widget,
+    popup: Handle<UiNode>,
+    items: Vec<Handle<UiNode>>,
+    list_view: Handle<UiNode>,
+    current: Handle<UiNode>,
     selection: Option<usize>,
     close_on_selection: bool,
-    main_grid: Handle<UINode<M, C>>,
+    main_grid: Handle<UiNode>,
 }
 
-crate::define_widget_deref!(DropdownList<M, C>);
+crate::define_widget_deref!(DropdownList);
 
-impl<M: MessageData, C: Control<M, C>> Control<M, C> for DropdownList<M, C> {
-    fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
+impl Control for DropdownList {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
+    fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.popup);
         node_map.resolve(&mut self.list_view);
         node_map.resolve(&mut self.current);
@@ -42,11 +54,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for DropdownList<M, C> {
         node_map.resolve_slice(&mut self.items);
     }
 
-    fn handle_routed_message(
-        &mut self,
-        ui: &mut UserInterface<M, C>,
-        message: &mut UiMessage<M, C>,
-    ) {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
         match &message.data() {
@@ -146,7 +154,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for DropdownList<M, C> {
         }
     }
 
-    fn preview_message(&self, ui: &UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+    fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
         match &message.data() {
             UiMessageData::ListView(msg) => {
                 if message.direction() == MessageDirection::FromWidget {
@@ -187,7 +195,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for DropdownList<M, C> {
     }
 }
 
-impl<M: MessageData, C: Control<M, C>> DropdownList<M, C> {
+impl DropdownList {
     pub fn selection(&self) -> Option<usize> {
         self.selection
     }
@@ -196,20 +204,20 @@ impl<M: MessageData, C: Control<M, C>> DropdownList<M, C> {
         self.close_on_selection
     }
 
-    pub fn items(&self) -> &[Handle<UINode<M, C>>] {
+    pub fn items(&self) -> &[Handle<UiNode>] {
         &self.items
     }
 }
 
-pub struct DropdownListBuilder<M: MessageData, C: Control<M, C>> {
-    widget_builder: WidgetBuilder<M, C>,
-    items: Vec<Handle<UINode<M, C>>>,
+pub struct DropdownListBuilder {
+    widget_builder: WidgetBuilder,
+    items: Vec<Handle<UiNode>>,
     selected: Option<usize>,
     close_on_selection: bool,
 }
 
-impl<M: MessageData, C: Control<M, C>> DropdownListBuilder<M, C> {
-    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
+impl DropdownListBuilder {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             items: Default::default(),
@@ -218,7 +226,7 @@ impl<M: MessageData, C: Control<M, C>> DropdownListBuilder<M, C> {
         }
     }
 
-    pub fn with_items(mut self, items: Vec<Handle<UINode<M, C>>>) -> Self {
+    pub fn with_items(mut self, items: Vec<Handle<UiNode>>) -> Self {
         self.items = items;
         self
     }
@@ -238,7 +246,7 @@ impl<M: MessageData, C: Control<M, C>> DropdownListBuilder<M, C> {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>>
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode>
     where
         Self: Sized,
     {
@@ -270,7 +278,7 @@ impl<M: MessageData, C: Control<M, C>> DropdownListBuilder<M, C> {
                 .add_column(Column::strict(20.0))
                 .build(ctx);
 
-        let dropdown_list = UINode::DropdownList(DropdownList {
+        let dropdown_list = UiNode::new(DropdownList {
             widget: self
                 .widget_builder
                 .with_preview_messages(true)

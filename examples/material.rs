@@ -7,6 +7,8 @@
 pub mod shared;
 
 use crate::shared::create_camera;
+use rg3d::engine::Engine;
+use rg3d::gui::UiNode;
 use rg3d::{
     core::{
         algebra::{Matrix4, Vector3},
@@ -61,7 +63,7 @@ fn create_custom_material(resource_manager: ResourceManager) -> Arc<Mutex<Materi
 }
 
 impl GameState for Game {
-    fn init(engine: &mut GameEngine) -> Self
+    fn init(engine: &mut Engine) -> Self
     where
         Self: Sized,
     {
@@ -109,7 +111,7 @@ impl GameState for Game {
         }
     }
 
-    fn on_tick(&mut self, engine: &mut GameEngine, dt: f32, _: &mut ControlFlow) {
+    fn on_tick(&mut self, engine: &mut Engine, dt: f32, _: &mut ControlFlow) {
         self.material
             .lock()
             .unwrap()

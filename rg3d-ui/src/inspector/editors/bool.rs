@@ -5,29 +5,24 @@ use crate::{
         editors::{PropertyEditorBuildContext, PropertyEditorDefinition},
         InspectorError,
     },
-    message::{
-        CheckBoxMessage, MessageData, MessageDirection, PropertyChanged, UiMessage, UiMessageData,
-    },
-    node::UINode,
+    message::{CheckBoxMessage, MessageDirection, PropertyChanged, UiMessage, UiMessageData},
     widget::WidgetBuilder,
-    Control, Thickness,
+    Thickness, UiNode,
 };
 use std::{any::TypeId, sync::Arc};
 
 #[derive(Debug)]
 pub struct BoolPropertyEditorDefinition;
 
-impl<M: MessageData, C: Control<M, C>> PropertyEditorDefinition<M, C>
-    for BoolPropertyEditorDefinition
-{
+impl PropertyEditorDefinition for BoolPropertyEditorDefinition {
     fn value_type_id(&self) -> TypeId {
         TypeId::of::<bool>()
     }
 
     fn create_instance(
         &self,
-        ctx: PropertyEditorBuildContext<M, C>,
-    ) -> Result<Handle<UINode<M, C>>, InspectorError> {
+        ctx: PropertyEditorBuildContext,
+    ) -> Result<Handle<UiNode>, InspectorError> {
         let value = ctx.property_info.cast_value::<bool>()?;
         Ok(CheckBoxBuilder::new(
             WidgetBuilder::new()
@@ -41,9 +36,9 @@ impl<M: MessageData, C: Control<M, C>> PropertyEditorDefinition<M, C>
 
     fn create_message(
         &self,
-        instance: Handle<UINode<M, C>>,
+        instance: Handle<UiNode>,
         property_info: &PropertyInfo,
-    ) -> Result<UiMessage<M, C>, InspectorError> {
+    ) -> Result<UiMessage, InspectorError> {
         let value = property_info.cast_value::<bool>()?;
         Ok(CheckBoxMessage::checked(
             instance,
@@ -56,7 +51,7 @@ impl<M: MessageData, C: Control<M, C>> PropertyEditorDefinition<M, C>
         &self,
         name: &str,
         owner_type_id: TypeId,
-        message: &UiMessage<M, C>,
+        message: &UiMessage,
     ) -> Option<PropertyChanged> {
         if message.direction() == MessageDirection::FromWidget {
             if let UiMessageData::CheckBox(CheckBoxMessage::Check(Some(value))) = message.data() {

@@ -1,18 +1,14 @@
 use crate::{
     border::BorderBuilder, brush::Brush, core::color::Color, core::pool::Handle,
-    message::MessageData, node::UINode, numeric::NumericUpDownBuilder, text::TextBuilder,
-    widget::WidgetBuilder, BuildContext, Control, Thickness, VerticalAlignment,
+    numeric::NumericUpDownBuilder, text::TextBuilder, widget::WidgetBuilder, BuildContext,
+    Thickness, UiNode, VerticalAlignment,
 };
 
 pub mod vec2;
 pub mod vec3;
 pub mod vec4;
 
-pub fn make_numeric_input<M: MessageData, C: Control<M, C>>(
-    ctx: &mut BuildContext<M, C>,
-    column: usize,
-    value: f32,
-) -> Handle<UINode<M, C>> {
+pub fn make_numeric_input(ctx: &mut BuildContext, column: usize, value: f32) -> Handle<UiNode> {
     NumericUpDownBuilder::new(
         WidgetBuilder::new()
             .on_row(0)
@@ -28,12 +24,12 @@ pub fn make_numeric_input<M: MessageData, C: Control<M, C>>(
     .build(ctx)
 }
 
-pub fn make_mark<M: MessageData, C: Control<M, C>>(
-    ctx: &mut BuildContext<M, C>,
+pub fn make_mark(
+    ctx: &mut BuildContext,
     text: &str,
     column: usize,
     color: Color,
-) -> Handle<UINode<M, C>> {
+) -> Handle<UiNode> {
     BorderBuilder::new(
         WidgetBuilder::new()
             .on_row(0)

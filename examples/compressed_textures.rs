@@ -3,6 +3,7 @@
 //! Just shows two textures with compression. Engine compresses textures automatically,
 //! based on compression options.
 
+use rg3d::engine::Engine;
 use rg3d::{
     core::{algebra::Vector2, color::Color},
     engine::{framework::prelude::*, resource_manager::TextureImportOptions},
@@ -14,7 +15,7 @@ use rg3d::{
 struct Game;
 
 impl GameState for Game {
-    fn init(engine: &mut GameEngine) -> Self
+    fn init(engine: &mut Engine) -> Self
     where
         Self: Sized,
     {

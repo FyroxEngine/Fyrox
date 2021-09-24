@@ -12,21 +12,22 @@ use crate::{
     decorator::DecoratorBuilder,
     grid::{Column, GridBuilder, Row},
     message::{
-        ButtonMessage, MessageData, MessageDirection, ScrollBarMessage, TextMessage, UiMessage,
-        UiMessageData, WidgetMessage,
+        ButtonMessage, MessageDirection, ScrollBarMessage, TextMessage, UiMessage, UiMessageData,
+        WidgetMessage,
     },
     text::TextBuilder,
     utils::{make_arrow, ArrowDirection},
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, Thickness, UINode,
+    BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, Thickness, UiNode,
     UserInterface, VerticalAlignment, BRUSH_LIGHT, BRUSH_LIGHTER, BRUSH_LIGHTEST, COLOR_DARKEST,
     COLOR_LIGHTEST,
 };
+use std::any::Any;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone)]
-pub struct ScrollBar<M: MessageData, C: Control<M, C>> {
-    pub widget: Widget<M, C>,
+pub struct ScrollBar {
+    pub widget: Widget,
     pub min: f32,
     pub max: f32,
     pub value: f32,
@@ -34,18 +35,30 @@ pub struct ScrollBar<M: MessageData, C: Control<M, C>> {
     pub orientation: Orientation,
     pub is_dragging: bool,
     pub offset: Vector2<f32>,
-    pub increase: Handle<UINode<M, C>>,
-    pub decrease: Handle<UINode<M, C>>,
-    pub indicator: Handle<UINode<M, C>>,
-    pub field: Handle<UINode<M, C>>,
-    pub value_text: Handle<UINode<M, C>>,
+    pub increase: Handle<UiNode>,
+    pub decrease: Handle<UiNode>,
+    pub indicator: Handle<UiNode>,
+    pub field: Handle<UiNode>,
+    pub value_text: Handle<UiNode>,
     pub value_precision: usize,
 }
 
-crate::define_widget_deref!(ScrollBar<M, C>);
+crate::define_widget_deref!(ScrollBar);
 
-impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollBar<M, C> {
-    fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
+impl Control for ScrollBar {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
+    fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.increase);
         node_map.resolve(&mut self.decrease);
         node_map.resolve(&mut self.indicator);
@@ -55,7 +68,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollBar<M, C> {
         node_map.resolve(&mut self.field);
     }
 
-    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
+    fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         let size = self.widget.arrange_override(ui, final_size);
 
         // Adjust indicator position according to current value
@@ -124,11 +137,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollBar<M, C> {
         size
     }
 
-    fn handle_routed_message(
-        &mut self,
-        ui: &mut UserInterface<M, C>,
-        message: &mut UiMessage<M, C>,
-    ) {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
         match &message.data() {
@@ -247,10 +256,8 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollBar<M, C> {
                         }
                         WidgetMessage::MouseMove { pos: mouse_pos, .. } => {
                             if self.indicator.is_some() {
-                                let canvas = ui.borrow_by_name_up(
-                                    self.indicator,
-                                    ScrollBar::<M, C>::PART_CANVAS,
-                                );
+                                let canvas =
+                                    ui.borrow_by_name_up(self.indicator, ScrollBar::PART_CANVAS);
                                 let indicator_size = ui.nodes.borrow(self.indicator).actual_size();
                                 if self.is_dragging {
                                     let percent = match self.orientation {
@@ -292,7 +299,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollBar<M, C> {
         }
     }
 
-    fn remove_ref(&mut self, handle: Handle<UINode<M, C>>) {
+    fn remove_ref(&mut self, handle: Handle<UiNode>) {
         if self.indicator == handle {
             self.indicator = Handle::NONE;
         }
@@ -311,16 +318,16 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollBar<M, C> {
     }
 }
 
-impl<M: MessageData, C: Control<M, C>> ScrollBar<M, C> {
+impl ScrollBar {
     pub const PART_CANVAS: &'static str = "PART_Canvas";
 
     pub fn new(
-        widget: Widget<M, C>,
-        increase: Handle<UINode<M, C>>,
-        decrease: Handle<UINode<M, C>>,
-        indicator: Handle<UINode<M, C>>,
-        field: Handle<UINode<M, C>>,
-        value_text: Handle<UINode<M, C>>,
+        widget: Widget,
+        increase: Handle<UiNode>,
+        decrease: Handle<UiNode>,
+        indicator: Handle<UiNode>,
+        field: Handle<UiNode>,
+        value_text: Handle<UiNode>,
     ) -> Self {
         Self {
             widget,
@@ -362,23 +369,23 @@ impl<M: MessageData, C: Control<M, C>> ScrollBar<M, C> {
     }
 }
 
-pub struct ScrollBarBuilder<M: MessageData, C: Control<M, C>> {
-    widget_builder: WidgetBuilder<M, C>,
+pub struct ScrollBarBuilder {
+    widget_builder: WidgetBuilder,
     min: Option<f32>,
     max: Option<f32>,
     value: Option<f32>,
     step: Option<f32>,
     orientation: Option<Orientation>,
-    increase: Option<Handle<UINode<M, C>>>,
-    decrease: Option<Handle<UINode<M, C>>>,
-    indicator: Option<Handle<UINode<M, C>>>,
-    body: Option<Handle<UINode<M, C>>>,
+    increase: Option<Handle<UiNode>>,
+    decrease: Option<Handle<UiNode>>,
+    indicator: Option<Handle<UiNode>>,
+    body: Option<Handle<UiNode>>,
     show_value: bool,
     value_precision: usize,
 }
 
-impl<M: MessageData, C: Control<M, C>> ScrollBarBuilder<M, C> {
-    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
+impl ScrollBarBuilder {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             min: None,
@@ -420,22 +427,22 @@ impl<M: MessageData, C: Control<M, C>> ScrollBarBuilder<M, C> {
         self
     }
 
-    pub fn with_increase(mut self, increase: Handle<UINode<M, C>>) -> Self {
+    pub fn with_increase(mut self, increase: Handle<UiNode>) -> Self {
         self.increase = Some(increase);
         self
     }
 
-    pub fn with_decrease(mut self, decrease: Handle<UINode<M, C>>) -> Self {
+    pub fn with_decrease(mut self, decrease: Handle<UiNode>) -> Self {
         self.decrease = Some(decrease);
         self
     }
 
-    pub fn with_indicator(mut self, indicator: Handle<UINode<M, C>>) -> Self {
+    pub fn with_indicator(mut self, indicator: Handle<UiNode>) -> Self {
         self.indicator = Some(indicator);
         self
     }
 
-    pub fn with_body(mut self, body: Handle<UINode<M, C>>) -> Self {
+    pub fn with_body(mut self, body: Handle<UiNode>) -> Self {
         self.body = Some(body);
         self
     }
@@ -450,7 +457,7 @@ impl<M: MessageData, C: Control<M, C>> ScrollBarBuilder<M, C> {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let orientation = self.orientation.unwrap_or(Orientation::Horizontal);
 
         let increase = self.increase.unwrap_or_else(|| {
@@ -565,7 +572,7 @@ impl<M: MessageData, C: Control<M, C>> ScrollBarBuilder<M, C> {
 
         let field = CanvasBuilder::new(
             WidgetBuilder::new()
-                .with_name(ScrollBar::<M, C>::PART_CANVAS)
+                .with_name(ScrollBar::PART_CANVAS)
                 .on_column(match orientation {
                     Orientation::Horizontal => 1,
                     Orientation::Vertical => 0,
@@ -603,7 +610,7 @@ impl<M: MessageData, C: Control<M, C>> ScrollBarBuilder<M, C> {
         });
         ctx.link(grid, body);
 
-        let node = UINode::ScrollBar(ScrollBar {
+        let node = UiNode::new(ScrollBar {
             widget: self.widget_builder.with_child(body).build(),
             min,
             max,

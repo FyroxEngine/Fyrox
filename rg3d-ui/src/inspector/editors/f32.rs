@@ -5,31 +5,25 @@ use crate::{
         editors::{PropertyEditorBuildContext, PropertyEditorDefinition},
         InspectorError,
     },
-    message::{
-        MessageData, MessageDirection, NumericUpDownMessage, PropertyChanged, UiMessage,
-        UiMessageData,
-    },
-    node::UINode,
+    message::{MessageDirection, NumericUpDownMessage, PropertyChanged, UiMessage, UiMessageData},
     numeric::NumericUpDownBuilder,
     widget::WidgetBuilder,
-    Control, Thickness,
+    Thickness, UiNode,
 };
 use std::{any::TypeId, sync::Arc};
 
 #[derive(Debug)]
 pub struct F32PropertyEditorDefinition;
 
-impl<M: MessageData, C: Control<M, C>> PropertyEditorDefinition<M, C>
-    for F32PropertyEditorDefinition
-{
+impl PropertyEditorDefinition for F32PropertyEditorDefinition {
     fn value_type_id(&self) -> TypeId {
         TypeId::of::<f32>()
     }
 
     fn create_instance(
         &self,
-        ctx: PropertyEditorBuildContext<M, C>,
-    ) -> Result<Handle<UINode<M, C>>, InspectorError> {
+        ctx: PropertyEditorBuildContext,
+    ) -> Result<Handle<UiNode>, InspectorError> {
         let value = ctx.property_info.cast_value::<f32>()?;
         Ok(NumericUpDownBuilder::new(
             WidgetBuilder::new()
@@ -43,9 +37,9 @@ impl<M: MessageData, C: Control<M, C>> PropertyEditorDefinition<M, C>
 
     fn create_message(
         &self,
-        instance: Handle<UINode<M, C>>,
+        instance: Handle<UiNode>,
         property_info: &PropertyInfo,
-    ) -> Result<UiMessage<M, C>, InspectorError> {
+    ) -> Result<UiMessage, InspectorError> {
         let value = property_info.cast_value::<f32>()?;
         Ok(NumericUpDownMessage::value(
             instance,
@@ -58,7 +52,7 @@ impl<M: MessageData, C: Control<M, C>> PropertyEditorDefinition<M, C>
         &self,
         name: &str,
         owner_type_id: TypeId,
-        message: &UiMessage<M, C>,
+        message: &UiMessage,
     ) -> Option<PropertyChanged> {
         if message.direction() == MessageDirection::FromWidget {
             if let UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) = message.data()

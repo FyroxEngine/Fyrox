@@ -4,6 +4,8 @@
 //!
 //! This example shows simple 2D scene with light sources.
 
+use rg3d::engine::Engine;
+use rg3d::gui::UiNode;
 use rg3d::{
     core::{algebra::Vector2, pool::Handle},
     engine::{framework::prelude::*, resource_manager::ResourceManager},
@@ -100,7 +102,7 @@ struct Game {
 }
 
 impl GameState for Game {
-    fn init(engine: &mut GameEngine) -> Self
+    fn init(engine: &mut Engine) -> Self
     where
         Self: Sized,
     {
@@ -127,7 +129,7 @@ impl GameState for Game {
         }
     }
 
-    fn on_tick(&mut self, engine: &mut GameEngine, _dt: f32, _: &mut ControlFlow) {
+    fn on_tick(&mut self, engine: &mut Engine, _dt: f32, _: &mut ControlFlow) {
         let mut offset = Vector2::default();
         if self.input_controller.move_forward {
             offset.y -= 10.0
@@ -159,7 +161,7 @@ impl GameState for Game {
         ));
     }
 
-    fn on_window_event(&mut self, _engine: &mut GameEngine, event: WindowEvent) {
+    fn on_window_event(&mut self, _engine: &mut Engine, event: WindowEvent) {
         if let WindowEvent::KeyboardInput { input, .. } = event {
             // Handle key input events via `WindowEvent`, not via `DeviceEvent` (#32)
             if let Some(key_code) = input.virtual_keycode {

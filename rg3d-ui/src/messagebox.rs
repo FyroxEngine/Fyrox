@@ -5,17 +5,17 @@ use crate::{
     draw::DrawingContext,
     grid::{Column, GridBuilder, Row},
     message::{
-        ButtonMessage, MessageBoxMessage, MessageData, MessageDirection, OsEvent, TextMessage,
-        UiMessage, UiMessageData, WindowMessage,
+        ButtonMessage, MessageBoxMessage, MessageDirection, OsEvent, TextMessage, UiMessage,
+        UiMessageData, WindowMessage,
     },
-    node::UINode,
     stack_panel::StackPanelBuilder,
     text::TextBuilder,
     widget::{Widget, WidgetBuilder},
     window::{Window, WindowBuilder, WindowTitle},
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, RestrictionEntry,
-    Thickness, UserInterface,
+    Thickness, UiNode, UserInterface,
 };
+use std::any::Any;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Ord, Eq, Hash, Debug)]
@@ -34,24 +34,24 @@ pub enum MessageBoxButtons {
 }
 
 #[derive(Clone)]
-pub struct MessageBox<M: MessageData, C: Control<M, C>> {
-    window: Window<M, C>,
+pub struct MessageBox {
+    window: Window,
     buttons: MessageBoxButtons,
-    ok_yes: Handle<UINode<M, C>>,
-    no: Handle<UINode<M, C>>,
-    cancel: Handle<UINode<M, C>>,
-    text: Handle<UINode<M, C>>,
+    ok_yes: Handle<UiNode>,
+    no: Handle<UiNode>,
+    cancel: Handle<UiNode>,
+    text: Handle<UiNode>,
 }
 
-impl<M: MessageData, C: Control<M, C>> Deref for MessageBox<M, C> {
-    type Target = Widget<M, C>;
+impl Deref for MessageBox {
+    type Target = Widget;
 
     fn deref(&self) -> &Self::Target {
         &self.window
     }
 }
 
-impl<M: MessageData, C: Control<M, C>> DerefMut for MessageBox<M, C> {
+impl DerefMut for MessageBox {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.window
     }
@@ -59,8 +59,20 @@ impl<M: MessageData, C: Control<M, C>> DerefMut for MessageBox<M, C> {
 
 // Message box extends Window widget so it delegates most of calls
 // to inner window.
-impl<M: MessageData, C: Control<M, C>> Control<M, C> for MessageBox<M, C> {
-    fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
+impl Control for MessageBox {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
+    fn resolve(&mut self, node_map: &NodeHandleMapping) {
         self.window.resolve(node_map);
         node_map.resolve(&mut self.ok_yes);
         node_map.resolve(&mut self.no);
@@ -68,15 +80,11 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for MessageBox<M, C> {
         node_map.resolve(&mut self.text);
     }
 
-    fn measure_override(
-        &self,
-        ui: &UserInterface<M, C>,
-        available_size: Vector2<f32>,
-    ) -> Vector2<f32> {
+    fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         self.window.measure_override(ui, available_size)
     }
 
-    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
+    fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         self.window.arrange_override(ui, final_size)
     }
 
@@ -88,11 +96,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for MessageBox<M, C> {
         self.window.update(dt);
     }
 
-    fn handle_routed_message(
-        &mut self,
-        ui: &mut UserInterface<M, C>,
-        message: &mut UiMessage<M, C>,
-    ) {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.window.handle_routed_message(ui, message);
 
         match &message.data() {
@@ -160,32 +164,32 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for MessageBox<M, C> {
         }
     }
 
-    fn preview_message(&self, ui: &UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+    fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
         self.window.preview_message(ui, message);
     }
 
     fn handle_os_event(
         &mut self,
-        self_handle: Handle<UINode<M, C>>,
-        ui: &mut UserInterface<M, C>,
+        self_handle: Handle<UiNode>,
+        ui: &mut UserInterface,
         event: &OsEvent,
     ) {
         self.window.handle_os_event(self_handle, ui, event);
     }
 
-    fn remove_ref(&mut self, handle: Handle<UINode<M, C>>) {
+    fn remove_ref(&mut self, handle: Handle<UiNode>) {
         self.window.remove_ref(handle)
     }
 }
 
-pub struct MessageBoxBuilder<'b, M: MessageData, C: Control<M, C>> {
-    window_builder: WindowBuilder<M, C>,
+pub struct MessageBoxBuilder<'b> {
+    window_builder: WindowBuilder,
     buttons: MessageBoxButtons,
     text: &'b str,
 }
 
-impl<'a, 'b, M: MessageData, C: Control<M, C>> MessageBoxBuilder<'b, M, C> {
-    pub fn new(window_builder: WindowBuilder<M, C>) -> Self {
+impl<'a, 'b> MessageBoxBuilder<'b> {
+    pub fn new(window_builder: WindowBuilder) -> Self {
         Self {
             window_builder,
             buttons: MessageBoxButtons::Ok,
@@ -203,7 +207,7 @@ impl<'a, 'b, M: MessageData, C: Control<M, C>> MessageBoxBuilder<'b, M, C> {
         self
     }
 
-    pub fn build(mut self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(mut self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let ok_yes;
         let mut no = Default::default();
         let mut cancel = Default::default();
@@ -352,7 +356,7 @@ impl<'a, 'b, M: MessageData, C: Control<M, C>> MessageBoxBuilder<'b, M, C> {
             text,
         };
 
-        let handle = ctx.add_node(UINode::MessageBox(message_box));
+        let handle = ctx.add_node(UiNode::new(message_box));
 
         if is_open {
             // We must restrict picking because message box is modal.

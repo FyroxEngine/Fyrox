@@ -6,15 +6,16 @@ use crate::{
     draw::{CommandTexture, DrawingContext},
     formatted_text::{FormattedText, FormattedTextBuilder},
     message::{
-        CursorIcon, KeyCode, MessageData, MessageDirection, MouseButton, TextBoxMessage, UiMessage,
+        CursorIcon, KeyCode, MessageDirection, MouseButton, TextBoxMessage, UiMessage,
         UiMessageData, WidgetMessage,
     },
     ttf::SharedFont,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, HorizontalAlignment, UINode, UserInterface, VerticalAlignment,
+    BuildContext, Control, HorizontalAlignment, UiNode, UserInterface, VerticalAlignment,
     BRUSH_DARKER, BRUSH_TEXT,
 };
 use copypasta::ClipboardProvider;
+use std::any::Any;
 use std::{
     cell::RefCell,
     cmp::{self, Ordering},
@@ -94,8 +95,8 @@ impl SelectionRange {
 pub type FilterCallback = dyn FnMut(char) -> bool;
 
 #[derive(Clone)]
-pub struct TextBox<M: MessageData, C: Control<M, C>> {
-    widget: Widget<M, C>,
+pub struct TextBox {
+    widget: Widget,
     caret_position: Position,
     caret_visible: bool,
     blink_timer: f32,
@@ -112,15 +113,15 @@ pub struct TextBox<M: MessageData, C: Control<M, C>> {
     editable: bool,
 }
 
-impl<M: MessageData, C: Control<M, C>> Debug for TextBox<M, C> {
+impl Debug for TextBox {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str("TextBox")
     }
 }
 
-crate::define_widget_deref!(TextBox<M, C>);
+crate::define_widget_deref!(TextBox);
 
-impl<M: MessageData, C: Control<M, C>> TextBox<M, C> {
+impl TextBox {
     pub fn reset_blink(&mut self) {
         self.caret_visible = true;
         self.blink_timer = 0.0;
@@ -243,7 +244,7 @@ impl<M: MessageData, C: Control<M, C>> TextBox<M, C> {
     }
 
     /// Inserts given character at current caret position.
-    fn insert_char(&mut self, c: char, ui: &UserInterface<M, C>) {
+    fn insert_char(&mut self, c: char, ui: &UserInterface) {
         if !c.is_control() {
             let position = self.get_absolute_position(self.caret_position).unwrap_or(0);
             self.formatted_text
@@ -259,7 +260,7 @@ impl<M: MessageData, C: Control<M, C>> TextBox<M, C> {
         }
     }
 
-    fn insert_str(&mut self, str: &str, ui: &UserInterface<M, C>) {
+    fn insert_str(&mut self, str: &str, ui: &UserInterface) {
         let position = self.get_absolute_position(self.caret_position).unwrap_or(0);
         self.formatted_text.borrow_mut().insert_str(str, position);
         self.move_caret_x(str.chars().count(), HorizontalDirection::Right, false);
@@ -274,7 +275,7 @@ impl<M: MessageData, C: Control<M, C>> TextBox<M, C> {
         self.formatted_text.borrow_mut().get_raw_text().len()
     }
 
-    fn remove_char(&mut self, direction: HorizontalDirection, ui: &UserInterface<M, C>) {
+    fn remove_char(&mut self, direction: HorizontalDirection, ui: &UserInterface) {
         if let Some(position) = self.get_absolute_position(self.caret_position) {
             let text_len = self.get_text_len();
             if text_len != 0 {
@@ -308,7 +309,7 @@ impl<M: MessageData, C: Control<M, C>> TextBox<M, C> {
         }
     }
 
-    fn remove_range(&mut self, ui: &UserInterface<M, C>, selection: SelectionRange) {
+    fn remove_range(&mut self, ui: &UserInterface, selection: SelectionRange) {
         let selection = selection.normalized();
         if let Some(begin) = self.get_absolute_position(selection.begin) {
             if let Some(end) = self.get_absolute_position(selection.end) {
@@ -413,12 +414,20 @@ impl<M: MessageData, C: Control<M, C>> TextBox<M, C> {
     }
 }
 
-impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
-    fn measure_override(
-        &self,
-        _: &UserInterface<M, C>,
-        available_size: Vector2<f32>,
-    ) -> Vector2<f32> {
+impl Control for TextBox {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
+    fn measure_override(&self, _: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         self.formatted_text
             .borrow_mut()
             .set_constraint(available_size)
@@ -558,11 +567,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
         }
     }
 
-    fn handle_routed_message(
-        &mut self,
-        ui: &mut UserInterface<M, C>,
-        message: &mut UiMessage<M, C>,
-    ) {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
         if message.destination() == self.handle() {
@@ -818,8 +823,8 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
     }
 }
 
-pub struct TextBoxBuilder<M: MessageData, C: Control<M, C>> {
-    widget_builder: WidgetBuilder<M, C>,
+pub struct TextBoxBuilder {
+    widget_builder: WidgetBuilder,
     font: Option<SharedFont>,
     text: String,
     caret_brush: Brush,
@@ -834,8 +839,8 @@ pub struct TextBoxBuilder<M: MessageData, C: Control<M, C>> {
     mask_char: Option<char>,
 }
 
-impl<M: MessageData, C: Control<M, C>> TextBoxBuilder<M, C> {
-    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
+impl TextBoxBuilder {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             font: None,
@@ -913,7 +918,7 @@ impl<M: MessageData, C: Control<M, C>> TextBoxBuilder<M, C> {
         self
     }
 
-    pub fn build(mut self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(mut self, ctx: &mut BuildContext) -> Handle<UiNode> {
         if self.widget_builder.foreground.is_none() {
             self.widget_builder.foreground = Some(BRUSH_TEXT);
         }
@@ -951,6 +956,6 @@ impl<M: MessageData, C: Control<M, C>> TextBoxBuilder<M, C> {
             editable: self.editable,
         };
 
-        ctx.add_node(UINode::TextBox(text_box))
+        ctx.add_node(UiNode::new(text_box))
     }
 }

@@ -1,42 +1,51 @@
 use crate::core::algebra::Vector2;
+use crate::popup::Popup;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
     core::{color::Color, pool::Handle},
     decorator::DecoratorBuilder,
     grid::{Column, GridBuilder, Row},
+    message::MessageDirection,
     message::{
         ButtonState, MenuItemMessage, MenuMessage, OsEvent, PopupMessage, UiMessage, UiMessageData,
         WidgetMessage,
     },
-    message::{MessageData, MessageDirection},
-    node::UINode,
     popup::{Placement, PopupBuilder},
     stack_panel::StackPanelBuilder,
     text::TextBuilder,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, RestrictionEntry,
-    Thickness, UserInterface, VerticalAlignment, BRUSH_BRIGHT_BLUE, BRUSH_PRIMARY,
+    Thickness, UiNode, UserInterface, VerticalAlignment, BRUSH_BRIGHT_BLUE, BRUSH_PRIMARY,
 };
+use std::any::Any;
 use std::{
     ops::{Deref, DerefMut},
     rc::Rc,
 };
 
 #[derive(Clone)]
-pub struct Menu<M: MessageData, C: Control<M, C>> {
-    widget: Widget<M, C>,
+pub struct Menu {
+    widget: Widget,
     active: bool,
 }
 
-crate::define_widget_deref!(Menu<M, C>);
+crate::define_widget_deref!(Menu);
 
-impl<M: MessageData, C: Control<M, C>> Control<M, C> for Menu<M, C> {
-    fn handle_routed_message(
-        &mut self,
-        ui: &mut UserInterface<M, C>,
-        message: &mut UiMessage<M, C>,
-    ) {
+impl Control for Menu {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
         if let UiMessageData::Menu(msg) = &message.data() {
@@ -59,7 +68,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Menu<M, C> {
                         let mut stack = self.children().to_vec();
                         while let Some(handle) = stack.pop() {
                             let node = ui.node(handle);
-                            if let UINode::MenuItem(item) = node {
+                            if let Some(item) = node.cast::<MenuItem>() {
                                 ui.send_message(MenuItemMessage::close(
                                     handle,
                                     MessageDirection::ToWidget,
@@ -79,8 +88,8 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Menu<M, C> {
 
     fn handle_os_event(
         &mut self,
-        _self_handle: Handle<UINode<M, C>>,
-        ui: &mut UserInterface<M, C>,
+        _self_handle: Handle<UiNode>,
+        ui: &mut UserInterface,
         event: &OsEvent,
     ) {
         // Handle menu items close by clicking outside of menu item. We using
@@ -98,7 +107,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Menu<M, C> {
                     let mut stack = self.children().to_vec();
                     'depth_search: while let Some(handle) = stack.pop() {
                         let node = ui.node(handle);
-                        if let UINode::MenuItem(item) = node {
+                        if let Some(item) = node.cast::<MenuItem>() {
                             if ui.node(item.popup).screen_bounds().contains(pos) {
                                 // Once we found that we clicked inside some descendant menu item
                                 // we can immediately stop search - we don't want to close menu
@@ -133,78 +142,74 @@ enum MenuItemPlacement {
 }
 
 #[derive(Clone)]
-pub struct MenuItem<M: MessageData, C: Control<M, C>> {
-    widget: Widget<M, C>,
-    items: Vec<Handle<UINode<M, C>>>,
-    popup: Handle<UINode<M, C>>,
+pub struct MenuItem {
+    widget: Widget,
+    items: Vec<Handle<UiNode>>,
+    popup: Handle<UiNode>,
     placement: MenuItemPlacement,
 }
 
-crate::define_widget_deref!(MenuItem<M, C>);
+crate::define_widget_deref!(MenuItem);
 
 // MenuItem uses popup to show its content, popup can be top-most only if it is
 // direct child of root canvas of UI. This fact adds some complications to search
 // of parent menu - we can't just traverse the tree because popup is not a child
 // of menu item, instead we trying to fetch handle to parent menu item from popup's
 // user data and continue up-search until we find menu.
-fn find_menu<M: MessageData, C: Control<M, C>>(
-    from: Handle<UINode<M, C>>,
-    ui: &UserInterface<M, C>,
-) -> Handle<UINode<M, C>> {
+fn find_menu(from: Handle<UiNode>, ui: &UserInterface) -> Handle<UiNode> {
     let mut handle = from;
     while handle.is_some() {
-        let popup = ui.find_by_criteria_up(handle, |n| matches!(n, UINode::Popup(_)));
-        if popup.is_none() {
-            // Maybe we have Menu as parent for MenuItem.
-            return ui.find_by_criteria_up(handle, |n| matches!(n, UINode::Menu(_)));
-        } else {
+        if let Some((_, popup)) = ui.try_borrow_by_type_up::<Popup>(handle) {
             // Continue search from parent menu item of popup.
-            if let UINode::Popup(popup) = ui.node(popup) {
-                handle = popup
-                    .user_data_ref::<Handle<UINode<M, C>>>()
-                    .cloned()
-                    .unwrap_or_default();
-            }
+            handle = popup
+                .user_data_ref::<Handle<UiNode>>()
+                .cloned()
+                .unwrap_or_default();
+        } else {
+            // Maybe we have Menu as parent for MenuItem.
+            return ui.find_by_criteria_up(handle, |n| n.cast::<Menu>().is_some());
         }
     }
     Default::default()
 }
 
-fn close_menu_chain<M: MessageData, C: Control<M, C>>(
-    from: Handle<UINode<M, C>>,
-    ui: &UserInterface<M, C>,
-) {
+fn close_menu_chain(from: Handle<UiNode>, ui: &UserInterface) {
     let mut handle = from;
     while handle.is_some() {
-        let popup_handle = ui.find_by_criteria_up(handle, |n| matches!(n, UINode::Popup(_)));
-        if popup_handle.is_some() {
-            if let UINode::Popup(popup) = ui.node(popup_handle) {
-                ui.send_message(PopupMessage::close(
-                    popup_handle,
-                    MessageDirection::ToWidget,
-                ));
+        if let Some((popup_handle, popup)) = ui.try_borrow_by_type_up::<Popup>(handle) {
+            ui.send_message(PopupMessage::close(
+                popup_handle,
+                MessageDirection::ToWidget,
+            ));
 
-                // Continue search from parent menu item of popup.
-                handle = popup
-                    .user_data_ref::<Handle<UINode<M, C>>>()
-                    .cloned()
-                    .unwrap_or_default();
-            }
+            // Continue search from parent menu item of popup.
+            handle = popup
+                .user_data_ref::<Handle<UiNode>>()
+                .cloned()
+                .unwrap_or_default();
         }
     }
 }
 
-impl<M: MessageData, C: Control<M, C>> Control<M, C> for MenuItem<M, C> {
-    fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
+impl Control for MenuItem {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
+    fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve_slice(&mut self.items);
         node_map.resolve(&mut self.popup);
     }
 
-    fn handle_routed_message(
-        &mut self,
-        ui: &mut UserInterface<M, C>,
-        message: &mut UiMessage<M, C>,
-    ) {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
         match &message.data() {
@@ -253,7 +258,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for MenuItem<M, C> {
                         // by simple mouse hover.
                         let menu = find_menu(self.parent(), ui);
                         let open = if menu.is_some() {
-                            if let UINode::Menu(menu) = ui.node(menu) {
+                            if let Some(menu) = ui.node(menu).cast::<Menu>() {
                                 menu.active
                             } else {
                                 false
@@ -305,7 +310,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for MenuItem<M, C> {
         }
     }
 
-    fn preview_message(&self, ui: &UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+    fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
         // We need to check if some new menu item opened and then close other not in
         // direct chain of menu items until to menu.
         if message.destination() != self.handle() {
@@ -318,11 +323,11 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for MenuItem<M, C> {
                         break;
                     } else {
                         let node = ui.node(handle);
-                        if let UINode::Popup(popup) = node {
+                        if let Some(popup) = node.cast::<Popup>() {
                             // Once we found popup in chain, we must extract handle
                             // of parent menu item to continue search.
                             handle = popup
-                                .user_data_ref::<Handle<UINode<M, C>>>()
+                                .user_data_ref::<Handle<UiNode>>()
                                 .cloned()
                                 .unwrap_or_default();
                         } else {
@@ -342,27 +347,27 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for MenuItem<M, C> {
     }
 }
 
-pub struct MenuBuilder<M: MessageData, C: Control<M, C>> {
-    widget_builder: WidgetBuilder<M, C>,
-    items: Vec<Handle<UINode<M, C>>>,
+pub struct MenuBuilder {
+    widget_builder: WidgetBuilder,
+    items: Vec<Handle<UiNode>>,
 }
 
-impl<M: MessageData, C: Control<M, C>> MenuBuilder<M, C> {
-    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
+impl MenuBuilder {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             items: Default::default(),
         }
     }
 
-    pub fn with_items(mut self, items: Vec<Handle<UINode<M, C>>>) -> Self {
+    pub fn with_items(mut self, items: Vec<Handle<UiNode>>) -> Self {
         self.items = items;
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         for &item in self.items.iter() {
-            if let UINode::MenuItem(item) = &mut ctx[item] {
+            if let Some(item) = ctx[item].cast_mut::<MenuItem>() {
                 item.placement = MenuItemPlacement::Bottom;
             }
         }
@@ -389,11 +394,11 @@ impl<M: MessageData, C: Control<M, C>> MenuBuilder<M, C> {
             active: false,
         };
 
-        ctx.add_node(UINode::Menu(menu))
+        ctx.add_node(UiNode::new(menu))
     }
 }
 
-pub enum MenuItemContent<'a, 'b, M: MessageData, C: Control<M, C>> {
+pub enum MenuItemContent<'a, 'b> {
     /// Quick-n-dirty way of building elements. It can cover most of use
     /// cases - it builds classic menu item:
     ///   _____________________
@@ -403,14 +408,14 @@ pub enum MenuItemContent<'a, 'b, M: MessageData, C: Control<M, C>> {
     Text {
         text: &'a str,
         shortcut: &'b str,
-        icon: Handle<UINode<M, C>>,
+        icon: Handle<UiNode>,
     },
     /// Allows to put any node into menu item. It allows to customize menu
     /// item how needed - i.e. put image in it, or other user control.
-    Node(Handle<UINode<M, C>>),
+    Node(Handle<UiNode>),
 }
 
-impl<'a, 'b, M: MessageData, C: Control<M, C>> MenuItemContent<'a, 'b, M, C> {
+impl<'a, 'b> MenuItemContent<'a, 'b> {
     pub fn text_with_shortcut(text: &'a str, shortcut: &'b str) -> Self {
         MenuItemContent::Text {
             text,
@@ -428,15 +433,15 @@ impl<'a, 'b, M: MessageData, C: Control<M, C>> MenuItemContent<'a, 'b, M, C> {
     }
 }
 
-pub struct MenuItemBuilder<'a, 'b, M: MessageData, C: Control<M, C>> {
-    widget_builder: WidgetBuilder<M, C>,
-    items: Vec<Handle<UINode<M, C>>>,
-    content: Option<MenuItemContent<'a, 'b, M, C>>,
-    back: Option<Handle<UINode<M, C>>>,
+pub struct MenuItemBuilder<'a, 'b> {
+    widget_builder: WidgetBuilder,
+    items: Vec<Handle<UiNode>>,
+    content: Option<MenuItemContent<'a, 'b>>,
+    back: Option<Handle<UiNode>>,
 }
 
-impl<'a, 'b, M: MessageData, C: Control<M, C>> MenuItemBuilder<'a, 'b, M, C> {
-    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
+impl<'a, 'b> MenuItemBuilder<'a, 'b> {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             items: Default::default(),
@@ -445,24 +450,24 @@ impl<'a, 'b, M: MessageData, C: Control<M, C>> MenuItemBuilder<'a, 'b, M, C> {
         }
     }
 
-    pub fn with_content(mut self, content: MenuItemContent<'a, 'b, M, C>) -> Self {
+    pub fn with_content(mut self, content: MenuItemContent<'a, 'b>) -> Self {
         self.content = Some(content);
         self
     }
 
-    pub fn with_items(mut self, items: Vec<Handle<UINode<M, C>>>) -> Self {
+    pub fn with_items(mut self, items: Vec<Handle<UiNode>>) -> Self {
         self.items = items;
         self
     }
 
     /// Allows you to specify the background content. Background node is only for decoration purpose,
     /// it can be any kind of node, by default it is Decorator.
-    pub fn with_back(mut self, handle: Handle<UINode<M, C>>) -> Self {
+    pub fn with_back(mut self, handle: Handle<UiNode>) -> Self {
         self.back = Some(handle);
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let content = match self.content {
             None => Handle::NONE,
             Some(MenuItemContent::Text {
@@ -538,10 +543,10 @@ impl<'a, 'b, M: MessageData, C: Control<M, C>> MenuItemBuilder<'a, 'b, M, C> {
             placement: MenuItemPlacement::Right,
         };
 
-        let handle = ctx.add_node(UINode::MenuItem(menu));
+        let handle = ctx.add_node(UiNode::new(menu));
 
         // "Link" popup with its parent menu item.
-        if let UINode::Popup(popup) = &mut ctx[popup] {
+        if let Some(popup) = ctx[popup].cast_mut::<Popup>() {
             popup.user_data = Some(Rc::new(handle));
         }
 

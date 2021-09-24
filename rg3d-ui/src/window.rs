@@ -1,3 +1,4 @@
+use crate::text::Text;
 use crate::{
     border::BorderBuilder,
     brush::{Brush, GradientPoint},
@@ -6,16 +7,17 @@ use crate::{
     decorator::DecoratorBuilder,
     grid::{Column, GridBuilder, Row},
     message::{
-        ButtonMessage, CursorIcon, MessageData, MessageDirection, TextMessage, UiMessage,
-        UiMessageData, WidgetMessage, WindowMessage,
+        ButtonMessage, CursorIcon, MessageDirection, TextMessage, UiMessage, UiMessageData,
+        WidgetMessage, WindowMessage,
     },
     text::TextBuilder,
     vector_image::{Primitive, VectorImageBuilder},
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, RestrictionEntry, Thickness,
-    UINode, UserInterface, VerticalAlignment, BRUSH_BRIGHT, BRUSH_LIGHT, BRUSH_LIGHTER,
+    UiNode, UserInterface, VerticalAlignment, BRUSH_BRIGHT, BRUSH_LIGHT, BRUSH_LIGHTER,
     BRUSH_LIGHTEST, COLOR_DARK, COLOR_DARKEST,
 };
+use std::any::Any;
 use std::{
     cell::RefCell,
     ops::{Deref, DerefMut},
@@ -25,8 +27,8 @@ use std::{
 /// It has scrollable region for content, content can be any desired node or even other window.
 /// Window can be dragged by its title.
 #[derive(Clone)]
-pub struct Window<M: MessageData, C: Control<M, C>> {
-    widget: Widget<M, C>,
+pub struct Window {
+    widget: Widget,
     mouse_click_pos: Vector2<f32>,
     initial_position: Vector2<f32>,
     initial_size: Vector2<f32>,
@@ -35,14 +37,14 @@ pub struct Window<M: MessageData, C: Control<M, C>> {
     can_minimize: bool,
     can_close: bool,
     can_resize: bool,
-    header: Handle<UINode<M, C>>,
-    minimize_button: Handle<UINode<M, C>>,
-    close_button: Handle<UINode<M, C>>,
+    header: Handle<UiNode>,
+    minimize_button: Handle<UiNode>,
+    close_button: Handle<UiNode>,
     drag_delta: Vector2<f32>,
-    content: Handle<UINode<M, C>>,
+    content: Handle<UiNode>,
     grips: RefCell<[Grip; 8]>,
-    title: Handle<UINode<M, C>>,
-    title_grid: Handle<UINode<M, C>>,
+    title: Handle<UiNode>,
+    title_grid: Handle<UiNode>,
 }
 
 const GRIP_SIZE: f32 = 6.0;
@@ -79,10 +81,22 @@ impl Grip {
     }
 }
 
-crate::define_widget_deref!(Window<M, C>);
+crate::define_widget_deref!(Window);
 
-impl<M: MessageData, C: Control<M, C>> Control<M, C> for Window<M, C> {
-    fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
+impl Control for Window {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
+    fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.header);
         node_map.resolve(&mut self.minimize_button);
         node_map.resolve(&mut self.close_button);
@@ -91,7 +105,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Window<M, C> {
         node_map.resolve(&mut self.content);
     }
 
-    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
+    fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         let size = self.widget.arrange_override(ui, final_size);
 
         let mut grips = self.grips.borrow_mut();
@@ -139,11 +153,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Window<M, C> {
         size
     }
 
-    fn handle_routed_message(
-        &mut self,
-        ui: &mut UserInterface<M, C>,
-        message: &mut UiMessage<M, C>,
-    ) {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
         match &message.data() {
@@ -429,7 +439,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Window<M, C> {
                         WindowMessage::Title(title) => {
                             match title {
                                 WindowTitle::Text(text) => {
-                                    if let UINode::Text(_) = ui.node(self.title) {
+                                    if ui.node(self.title).cast::<Text>().is_some() {
                                         // Just modify existing text, this is much faster than
                                         // re-create text everytime.
                                         ui.send_message(TextMessage::text(
@@ -474,7 +484,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Window<M, C> {
         }
     }
 
-    fn remove_ref(&mut self, handle: Handle<UINode<M, C>>) {
+    fn remove_ref(&mut self, handle: Handle<UiNode>) {
         if self.header == handle {
             self.header = Handle::NONE;
         }
@@ -496,7 +506,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Window<M, C> {
     }
 }
 
-impl<M: MessageData, C: Control<M, C>> Window<M, C> {
+impl Window {
     pub fn is_dragging(&self) -> bool {
         self.is_dragging
     }
@@ -523,15 +533,15 @@ impl<M: MessageData, C: Control<M, C>> Window<M, C> {
     }
 }
 
-pub struct WindowBuilder<M: MessageData, C: Control<M, C>> {
-    pub widget_builder: WidgetBuilder<M, C>,
-    pub content: Handle<UINode<M, C>>,
-    pub title: Option<WindowTitle<M, C>>,
+pub struct WindowBuilder {
+    pub widget_builder: WidgetBuilder,
+    pub content: Handle<UiNode>,
+    pub title: Option<WindowTitle>,
     pub can_close: bool,
     pub can_minimize: bool,
     pub open: bool,
-    pub close_button: Option<Handle<UINode<M, C>>>,
-    pub minimize_button: Option<Handle<UINode<M, C>>>,
+    pub close_button: Option<Handle<UiNode>>,
+    pub minimize_button: Option<Handle<UiNode>>,
     // Warning: Any dependant builders must take this into account!
     pub modal: bool,
     pub can_resize: bool,
@@ -545,25 +555,22 @@ pub struct WindowBuilder<M: MessageData, C: Control<M, C>> {
 /// If you need more flexibility (i.e. put a picture near text) then `Node` option is for you:
 /// it allows to put any UI node hierarchy you want to.
 #[derive(Debug, Clone, PartialEq)]
-pub enum WindowTitle<M: MessageData, C: Control<M, C>> {
+pub enum WindowTitle {
     Text(String),
-    Node(Handle<UINode<M, C>>),
+    Node(Handle<UiNode>),
 }
 
-impl<M: MessageData, C: Control<M, C>> WindowTitle<M, C> {
+impl WindowTitle {
     pub fn text<P: AsRef<str>>(text: P) -> Self {
         WindowTitle::Text(text.as_ref().to_owned())
     }
 
-    pub fn node(node: Handle<UINode<M, C>>) -> Self {
+    pub fn node(node: Handle<UiNode>) -> Self {
         Self::Node(node)
     }
 }
 
-fn make_text_title<M: MessageData, C: Control<M, C>>(
-    ctx: &mut BuildContext<M, C>,
-    text: &str,
-) -> Handle<UINode<M, C>> {
+fn make_text_title(ctx: &mut BuildContext, text: &str) -> Handle<UiNode> {
     TextBuilder::new(
         WidgetBuilder::new()
             .with_margin(Thickness::uniform(5.0))
@@ -579,10 +586,7 @@ enum HeaderButton {
     Minimize,
 }
 
-fn make_mark<M: MessageData, C: Control<M, C>>(
-    ctx: &mut BuildContext<M, C>,
-    button: HeaderButton,
-) -> Handle<UINode<M, C>> {
+fn make_mark(ctx: &mut BuildContext, button: HeaderButton) -> Handle<UiNode> {
     VectorImageBuilder::new(
         WidgetBuilder::new()
             .with_horizontal_alignment(HorizontalAlignment::Center)
@@ -622,10 +626,7 @@ fn make_mark<M: MessageData, C: Control<M, C>>(
     .build(ctx)
 }
 
-fn make_header_button<M: MessageData, C: Control<M, C>>(
-    ctx: &mut BuildContext<M, C>,
-    button: HeaderButton,
-) -> Handle<UINode<M, C>> {
+fn make_header_button(ctx: &mut BuildContext, button: HeaderButton) -> Handle<UiNode> {
     ButtonBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(2.0)))
         .with_back(
             DecoratorBuilder::new(
@@ -641,8 +642,8 @@ fn make_header_button<M: MessageData, C: Control<M, C>>(
         .build(ctx)
 }
 
-impl<'a, M: MessageData, C: Control<M, C>> WindowBuilder<M, C> {
-    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
+impl<'a> WindowBuilder {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             content: Handle::NONE,
@@ -657,22 +658,22 @@ impl<'a, M: MessageData, C: Control<M, C>> WindowBuilder<M, C> {
         }
     }
 
-    pub fn with_content(mut self, content: Handle<UINode<M, C>>) -> Self {
+    pub fn with_content(mut self, content: Handle<UiNode>) -> Self {
         self.content = content;
         self
     }
 
-    pub fn with_title(mut self, title: WindowTitle<M, C>) -> Self {
+    pub fn with_title(mut self, title: WindowTitle) -> Self {
         self.title = Some(title);
         self
     }
 
-    pub fn with_minimize_button(mut self, button: Handle<UINode<M, C>>) -> Self {
+    pub fn with_minimize_button(mut self, button: Handle<UiNode>) -> Self {
         self.minimize_button = Some(button);
         self
     }
 
-    pub fn with_close_button(mut self, button: Handle<UINode<M, C>>) -> Self {
+    pub fn with_close_button(mut self, button: Handle<UiNode>) -> Self {
         self.close_button = Some(button);
         self
     }
@@ -702,7 +703,7 @@ impl<'a, M: MessageData, C: Control<M, C>> WindowBuilder<M, C> {
         self
     }
 
-    pub fn build_window(self, ctx: &mut BuildContext<M, C>) -> Window<M, C> {
+    pub fn build_window(self, ctx: &mut BuildContext) -> Window {
         let minimize_button;
         let close_button;
 
@@ -833,12 +834,12 @@ impl<'a, M: MessageData, C: Control<M, C>> WindowBuilder<M, C> {
         }
     }
 
-    pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let modal = self.modal;
         let open = self.open;
 
         let node = self.build_window(ctx);
-        let handle = ctx.add_node(UINode::Window(node));
+        let handle = ctx.add_node(UiNode::new(node));
 
         if modal && open {
             ctx.ui
