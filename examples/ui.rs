@@ -65,7 +65,7 @@ struct Interface {
 }
 
 // User interface in the engine build up on graph data structure, on tree to be
-// more precise. Each UI element can has single parent and multiple children.
+// more precise. Each UI element can have single parent and multiple children.
 // UI uses complex layout system which automatically organizes your widgets.
 // In this example we'll use Grid and StackPanel layout controls. Grid can be
 // divided in rows and columns, its child element can set their desired column

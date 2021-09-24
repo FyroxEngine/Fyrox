@@ -22,5 +22,4 @@ darling = "0.13.0"
 
 [dev-dependencies]
 rg3d-core = { path = "../rg3d-core" }
-rg3d = { path = "../" }
 futures = "0.3.16"

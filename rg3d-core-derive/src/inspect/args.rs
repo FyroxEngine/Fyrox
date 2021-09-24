@@ -14,6 +14,8 @@ pub struct TypeArgs {
 }
 
 /// Parsed from struct's or enum variant's field
+///
+/// NOTE: `#[derive(Inspect)]` is non-recursive by default.
 #[derive(FromField, Clone)]
 #[darling(attributes(inspect))]
 pub struct FieldArgs {
@@ -46,15 +48,16 @@ pub struct FieldArgs {
     pub group: Option<String>,
 
     /// `#[inspect(expand)]`
+    ///
+    /// Include the fields of the field, exclude the marked field itself.
     #[darling(default)]
     pub expand: bool,
 
-    /// `#[inspect(include_self)]`
+    /// `#[inspect(expand_subtree)]`
     ///
-    /// Whether to generate property info for a field on expansion or not.
-    /// Useful for enumerations.
+    /// Include the field and the fields of the field.
     #[darling(default)]
-    pub include_self: bool,
+    pub expand_subtree: bool,
 }
 
 #[derive(FromVariant)]

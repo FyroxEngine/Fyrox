@@ -5,7 +5,7 @@ mod utils;
 
 use darling::{ast, FromDeriveInput};
 use proc_macro2::TokenStream as TokenStream2;
-use quote::quote;
+use quote::{format_ident, quote};
 use syn::*;
 
 pub fn impl_inspect(ast: DeriveInput) -> TokenStream2 {
@@ -20,55 +20,67 @@ fn impl_inspect_struct(
     ty_args: &args::TypeArgs,
     field_args: &ast::Fields<args::FieldArgs>,
 ) -> TokenStream2 {
-    assert_eq!(
-        field_args.style,
-        ast::Style::Struct,
-        "#[derive(Inspect) considers only named fields for now"
-    );
-
-    let prop_vec = {
-        let props = utils::collect_field_props(
-            quote! {  self. },
-            ty_args.ident.to_string(),
-            field_args.fields.iter(),
-            field_args.style,
-        );
-
-        quote! {
-            vec![
-                #(
-                    #props,
-                )*
-            ]
-        }
-    };
-
-    // list of `self.expanded_field.prop()`
-    let prop_calls = utils::collect_field_prop_calls(
-        quote! {  self. },
-        field_args.fields.iter(),
-        field_args.style,
-    );
-
-    let impl_body = if prop_calls.is_empty() {
-        prop_vec
-    } else {
-        // NOTE: All items marked as `#[inspect(expand)]` come to the end of the property list
-        quote! {
-            let mut props = #prop_vec;
-            #(
-                props.extend(#prop_calls .into_iter());
-            )*
-            props
-        }
-    };
-
-    utils::create_impl(ty_args, field_args.iter().cloned(), impl_body)
+    let body = utils::gen_inspect_fn_body(ty_args, utils::FieldPrefix::Self_, field_args);
+    utils::create_impl(ty_args, field_args.iter(), body)
 }
 
-fn impl_inspect_enum(
-    _ty_args: &args::TypeArgs,
-    _variant_args: &[args::VariantArgs],
-) -> TokenStream2 {
-    todo!("#[derive(Inspect)] is only for structure types for now")
+fn impl_inspect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs]) -> TokenStream2 {
+    let variant_matches =
+        variant_args.iter().map(|variant| {
+            let variant_ident = &variant.ident;
+
+            let field_prefix = if variant.fields.style == ast::Style::Struct {
+                utils::FieldPrefix::None
+            } else {
+                utils::FieldPrefix::F
+            };
+
+            let field_idents = variant.fields.fields.iter().enumerate().map(|(i, field)| {
+                match variant.fields.style {
+                    ast::Style::Struct => field.ident.clone().unwrap(),
+                    ast::Style::Tuple => {
+                        let i = Index::from(i);
+                        format_ident!("f{}", i)
+                    }
+                    ast::Style::Unit => {
+                        format_ident!("<unreachable>")
+                    }
+                }
+            });
+
+            let variant_match = match variant.fields.style {
+                ast::Style::Struct => {
+                    quote! {
+                        Self::#variant_ident { #(#field_idents),* }
+                    }
+                }
+                ast::Style::Tuple => {
+                    quote! {
+                        Self::#variant_ident(#(#field_idents),*)
+                    }
+                }
+                ast::Style::Unit => {
+                    quote! {
+                        Self::#variant_ident
+                    }
+                }
+            };
+
+            let fields_inspect = utils::gen_inspect_fn_body(ty_args, field_prefix, &variant.fields);
+
+            quote! {
+                #variant_match => {
+                    #fields_inspect
+                }
+            }
+        });
+
+    let body = quote! {
+        match self {
+            #(#variant_matches,)*
+        }
+    };
+
+    let field_args = variant_args.iter().flat_map(|v| v.fields.iter());
+    utils::create_impl(ty_args, field_args, body)
 }

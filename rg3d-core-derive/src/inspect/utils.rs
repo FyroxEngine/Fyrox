@@ -7,10 +7,62 @@ use convert_case::*;
 
 use crate::inspect::args;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum FieldPrefix {
+    /// `&self.` + field_ident
+    ///
+    /// This is for struct fields
+    Self_,
+    /// `f` + field_ident
+    ///
+    /// This is for tuple enum variants
+    F,
+    /// field_ident
+    ///
+    /// This is for structural enum variants
+    None,
+}
+
+impl FieldPrefix {
+    fn field_ref(self, i: usize, field: &args::FieldArgs, style: ast::Style) -> TokenStream2 {
+        match style {
+            ast::Style::Struct => {
+                // Ident
+                let field_ident = field.ident.as_ref().unwrap();
+
+                match self {
+                    Self::Self_ => quote! { (&self.#field_ident) },
+                    Self::F => {
+                        let ident = format_ident!("f{}", field_ident);
+                        quote!(#ident)
+                    }
+                    Self::None => quote!(#field_ident),
+                }
+            }
+            ast::Style::Tuple => {
+                // Index
+                let field_ident = Index::from(i);
+
+                match self {
+                    Self::Self_ => quote! { (&self.#field_ident) },
+                    Self::F => {
+                        let ident = format_ident!("f{}", field_ident);
+                        quote!(#ident)
+                    }
+                    Self::None => quote!(#field_ident),
+                }
+            }
+            ast::Style::Unit => {
+                unreachable!()
+            }
+        }
+    }
+}
+
 /// Creates `impl Inspect` block
-pub fn create_impl(
+pub fn create_impl<'f>(
     ty_args: &args::TypeArgs,
-    field_args: impl Iterator<Item = args::FieldArgs>,
+    field_args: impl Iterator<Item = &'f args::FieldArgs>,
     impl_body: TokenStream2,
 ) -> TokenStream2 {
     let ty_ident = &ty_args.ident;
@@ -27,99 +79,119 @@ pub fn create_impl(
 }
 
 /// Creates `Generic` for `impl Inspect` block
-fn create_impl_generics(
+///
+/// TODO: Add `where Field: Inspect` boundaries to support inspectable types with generics
+fn create_impl_generics<'a>(
     generics: &Generics,
-    _field_args: impl Iterator<Item = args::FieldArgs>,
+    _field_args: impl Iterator<Item = &'a args::FieldArgs>,
 ) -> Generics {
     let generics = generics.clone();
-
-    // add boundaries if nessesary
 
     generics
 }
 
-/// List of `PropertyInfo { .. }`
-pub fn collect_field_props<'a>(
-    // <self.> or <variant.>
-    prefix: TokenStream2,
-    owner_name: String,
-    fields: impl Iterator<Item = &'a args::FieldArgs>,
-    field_style: ast::Style,
-) -> Vec<TokenStream2> {
-    assert_eq!(
-        field_style,
-        ast::Style::Struct,
-        "#[derive(Inspect)] handles only named fields for now"
-    );
+pub fn gen_inspect_fn_body(
+    ty_args: &args::TypeArgs,
+    field_prefix: FieldPrefix,
+    field_args: &ast::Fields<args::FieldArgs>,
+) -> TokenStream2 {
+    let owner_name = ty_args.ident.to_string();
 
-    let mut bodies = Vec::new();
+    // `inspect` function body, consisting of a sequence of quotes
+    let mut quotes = Vec::new();
 
-    // consider #[inspect(skip)]
-    for field in fields.filter(|f| !f.skip && (!f.expand || f.include_self)) {
-        // we know it is a named field
-        let field_ident = field.ident.as_ref().unwrap();
+    // collect non-expanible field properties
+    let props = field_args
+        .fields
+        .iter()
+        .enumerate()
+        .filter(|(_i, f)| !f.skip && !(f.expand || f.expand_subtree))
+        .map(|(i, field)| {
+            self::quote_field_prop(&owner_name, field_prefix, i, field, field_args.style)
+        });
 
-        // consider #[inspect(name = ..)]
-        let field_name = field
-            .name
-            .clone()
-            .unwrap_or_else(|| field_ident.to_string());
+    quotes.push(quote! {
+        let mut props = Vec::new();
+        #(props.push(#props);)*
+    });
 
-        // consider #[inspect(display_name = ..)]
-        let display_name = field
-            .display_name
-            .clone()
-            .unwrap_or_else(|| field_ident.to_string());
-        let display_name = display_name.to_case(Case::Title);
+    // visit expanible fields
+    for (i, field) in field_args
+        .fields
+        .iter()
+        .enumerate()
+        .filter(|(_i, f)| !f.skip && (f.expand || f.expand_subtree))
+    {
+        // parent (the field)
+        if field.expand_subtree {
+            let prop =
+                self::quote_field_prop(&owner_name, field_prefix, i, field, field_args.style);
 
-        // consider #[inspect(group = ..)]
-        let group = field
-            .group
-            .as_ref()
-            .map(|s| s.as_str())
-            .unwrap_or(owner_name.as_str());
+            quotes.push(quote! {
+                props.push(#prop);
+            });
+        }
 
-        let value = quote! { #prefix #field_ident };
+        // children (fields of the field)
+        let field_ref = field_prefix.field_ref(i, field, field_args.style);
 
-        let body = quote! {
-            PropertyInfo {
-                owner_type_id: std::any::TypeId::of::<Self>(),
-                name: #field_name,
-                display_name: #display_name,
-                group: #group,
-                value: &#value,
-            }
-        };
-
-        bodies.push(body);
-    }
-
-    bodies
-}
-
-/// List of `field.properties()` for each `#[inspect(expand)]` field
-pub fn collect_field_prop_calls<'a>(
-    // `self.` or `variant.`
-    prefix: TokenStream2,
-    fields: impl Iterator<Item = &'a args::FieldArgs>,
-    field_style: ast::Style,
-) -> Vec<TokenStream2> {
-    assert_eq!(
-        field_style,
-        ast::Style::Struct,
-        "#[derive(Inspect)] handles only named fields for now"
-    );
-
-    let mut expands = Vec::new();
-
-    for field in fields.filter(|f| !f.skip && f.expand) {
-        // we know it is a named field
-        let field_ident = field.ident.as_ref().unwrap();
-
-        expands.push(quote! {
-            #prefix #field_ident .properties()
+        quotes.push(quote! {
+            props.extend(#field_ref.properties());
         });
     }
 
-    expands
+    // concatanate the quotes
+    quote! {
+        #(#quotes)*
+        props
+    }
+}
+
+fn quote_field_prop(
+    // the name of the property owner, used as default property group
+    owner_name: &str,
+    field_prefix: FieldPrefix,
+    nth_field: usize,
+    field: &args::FieldArgs,
+    style: ast::Style,
+) -> TokenStream2 {
+    let field_ident = match &field.ident {
+        Some(ident) => quote!(#ident),
+        None => {
+            let nth_field = Index::from(nth_field);
+            quote!(#nth_field)
+        }
+    };
+
+    let field_ref = field_prefix.field_ref(nth_field, field, style);
+
+    // consider #[inspect(name = ..)]
+    let field_name = field
+        .name
+        .clone()
+        .unwrap_or_else(|| field_ident.to_string());
+
+    // consider #[inspect(display_name = ..)]
+    let display_name = field
+        .display_name
+        .clone()
+        .unwrap_or_else(|| field_ident.to_string());
+    let display_name = display_name.to_case(Case::Title);
+
+    // consider #[inspect(group = ..)]
+    let group = field
+        .group
+        .as_ref()
+        .map(|s| s.as_str())
+        .unwrap_or(owner_name);
+
+    quote! {
+        PropertyInfo {
+            owner_type_id: std::any::TypeId::of::<Self>(),
+            name: #field_name,
+            display_name: #display_name,
+            group: #group,
+            value: #field_ref,
+        }
+    }
 }
