@@ -93,6 +93,39 @@ fn inspect_attributes() {
 }
 
 #[test]
+fn inspect_struct() {
+    #[derive(Debug, Default, Inspect)]
+    struct Tuple(f32, f32);
+
+    let x = Tuple::default();
+    assert_eq!(
+        x.properties(),
+        vec![
+            PropertyInfo {
+                owner_type_id: TypeId::of::<Tuple>(),
+                name: "0",
+                display_name: "0",
+                group: "Tuple",
+                value: &x.0,
+            },
+            PropertyInfo {
+                owner_type_id: TypeId::of::<Tuple>(),
+                name: "1",
+                display_name: "1",
+                group: "Tuple",
+                value: &x.1
+            },
+        ]
+    );
+
+    #[derive(Debug, Default, Inspect)]
+    struct Unit;
+
+    let x = Unit::default();
+    assert_eq!(x.properties(), vec![]);
+}
+
+#[test]
 fn inspect_enum() {
     #[derive(Debug, Inspect)]
     pub struct NonCopy {

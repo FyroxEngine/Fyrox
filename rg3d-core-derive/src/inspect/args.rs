@@ -15,8 +15,7 @@ pub struct TypeArgs {
 
 /// Parsed from struct's or enum variant's field
 ///
-/// NOTE: `#[derive(Inspect)]` is non-recursive by default. The `expand` and `expand_subtree` make
-/// it different.
+/// NOTE: `#[derive(Inspect)]` is non-recursive by default.
 #[derive(FromField, Clone)]
 #[darling(attributes(inspect))]
 pub struct FieldArgs {

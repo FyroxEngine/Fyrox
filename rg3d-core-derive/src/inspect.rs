@@ -20,12 +20,6 @@ fn impl_inspect_struct(
     ty_args: &args::TypeArgs,
     field_args: &ast::Fields<args::FieldArgs>,
 ) -> TokenStream2 {
-    assert_eq!(
-        field_args.style,
-        ast::Style::Struct,
-        "#[derive(Inspect)] handles only named fields for now"
-    );
-
     let body = utils::gen_inspect_fn_body(ty_args, utils::FieldPrefix::Self_, field_args);
     utils::create_impl(ty_args, field_args.iter(), body)
 }
