@@ -26,7 +26,7 @@ macro_rules! define_vector_editor {
 
         impl<M: MessageData, C: Control<M, C>> PropertyEditorDefinition<M, C> for $name {
             fn value_type_id(&self) -> TypeId {
-                TypeId::of::<Vector3<f32>>()
+                TypeId::of::<$value>()
             }
 
             fn create_instance(
