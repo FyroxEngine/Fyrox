@@ -5,6 +5,8 @@
 //! Warning - Work in progress!
 
 use rg3d::engine::resource_manager::MaterialSearchOptions;
+use rg3d::engine::Engine;
+use rg3d::gui::{BuildContext, UiNode};
 use rg3d::material::shader::SamplerFallback;
 use rg3d::material::{Material, PropertyValue};
 use rg3d::scene::camera::SkyBoxBuilder;
@@ -22,7 +24,6 @@ use rg3d::{
     event_loop::{ControlFlow, EventLoop},
     gui::{
         message::{MessageDirection, TextMessage},
-        node::StubNode,
         text::TextBuilder,
         widget::WidgetBuilder,
     },
@@ -50,12 +51,6 @@ use std::{
     panic,
     sync::{Arc, Mutex, RwLock},
 };
-
-// Create our own engine type aliases. These specializations are needed
-// because engine provides a way to extend UI with custom nodes and messages.
-type Engine = rg3d::engine::Engine<(), StubNode>;
-type UiNode = rg3d::gui::node::UINode<(), StubNode>;
-type BuildContext<'a> = rg3d::gui::BuildContext<'a, (), StubNode>;
 
 fn create_ui(ctx: &mut BuildContext) -> Handle<UiNode> {
     TextBuilder::new(WidgetBuilder::new()).build(ctx)
