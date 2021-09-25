@@ -33,7 +33,7 @@ use crate::{
     window::WindowTitle,
     HorizontalAlignment, MouseState, Orientation, Thickness, UiNode, VerticalAlignment,
 };
-use std::any::TypeId;
+use std::any::{Any, TypeId};
 use std::{cell::Cell, fmt::Debug, path::PathBuf, sync::Arc};
 
 macro_rules! define_constructor {
@@ -989,6 +989,21 @@ impl InspectorMessage {
     define_constructor!(Inspector(InspectorMessage:PropertyChanged) => fn property_changed(PropertyChanged), layout: false);
 }
 
+#[derive(Debug)]
+pub struct UserMessageData(pub Box<dyn MessageData>);
+
+impl PartialEq for UserMessageData {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.compare(&*other.0)
+    }
+}
+
+impl Clone for UserMessageData {
+    fn clone(&self) -> Self {
+        Self(self.clone_boxed())
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum UiMessageData {
     Widget(WidgetMessage),
@@ -1026,6 +1041,7 @@ pub enum UiMessageData {
     SaturationBrightnessField(SaturationBrightnessFieldMessage),
     CurveEditor(CurveEditorMessage),
     Inspector(InspectorMessage),
+    User(UserMessageData),
 }
 
 /// Message direction allows you to distinguish from where message has came from.
@@ -1062,7 +1078,40 @@ impl MessageDirection {
     }
 }
 
-pub trait MessageData: 'static + Debug + Clone + PartialEq + Send {}
+pub trait MessageData: 'static + Debug + Send + Any {
+    fn as_any(&self) -> &dyn Any;
+
+    fn clone_boxed(&self) -> Box<dyn MessageData>;
+
+    fn compare(&self, other: &dyn MessageData) -> bool;
+}
+
+impl<T> MessageData for T
+where
+    T: 'static + Debug + Clone + PartialEq + Send + Any,
+{
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn MessageData> {
+        Box::new(self.clone())
+    }
+
+    fn compare(&self, other: &dyn MessageData) -> bool {
+        other
+            .as_any()
+            .downcast_ref::<T>()
+            .map(|other| other == self)
+            .unwrap_or_default()
+    }
+}
+
+impl dyn MessageData {
+    pub fn cast<T: MessageData>(&self) -> Option<&T> {
+        self.as_any().downcast_ref::<T>()
+    }
+}
 
 /// Message is basic communication element that is used to deliver information to UI nodes
 /// or to user code.
@@ -1098,6 +1147,21 @@ pub struct UiMessage {
 }
 
 impl UiMessage {
+    pub fn user(
+        destination: Handle<UiNode>,
+        direction: MessageDirection,
+        data: Box<dyn MessageData>,
+    ) -> Self {
+        Self {
+            handled: Cell::new(false),
+            data: UiMessageData::User(UserMessageData(data)),
+            destination,
+            direction,
+            perform_layout: Cell::new(false),
+            flags: 0,
+        }
+    }
+
     /// Creates a new copy of the message with reversed direction. Typical use case is
     /// to re-send messages to create "response" in widget. For example you have a float
     /// input field and it has Value message. When the input field receives Value message
