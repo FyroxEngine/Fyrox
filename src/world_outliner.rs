@@ -230,7 +230,7 @@ impl Control for SceneItem {
                 }
             }
             UiMessageData::User(msg) => {
-                if let Some(msg) = msg.0.cast::<SceneItemMessage>() {
+                if let Some(msg) = msg.cast::<SceneItemMessage>() {
                     match msg {
                         &SceneItemMessage::NodeVisibility(visibility) => {
                             if self.visibility != visibility
