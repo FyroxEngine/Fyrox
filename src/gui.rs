@@ -1,25 +1,23 @@
+use crate::load_image;
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::widget::Widget;
+use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use crate::inspector::editors::texture::{TextureEditor, TextureEditorMessage};
-use crate::{
-    asset::AssetItem,
-    load_image,
-    sound::{SoundItem, SoundItemMessage},
-    world_outliner::SceneItem,
-};
 use rg3d::{
-    core::{algebra::Vector2, pool::Handle},
+    core::pool::Handle,
     gui::{
         border::BorderBuilder,
         button::ButtonBuilder,
         decorator::DecoratorBuilder,
-        draw::DrawingContext,
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
-        message::{ButtonMessage, MessageData, MessageDirection, OsEvent, UiMessageData},
+        message::{ButtonMessage, MessageDirection, UiMessageData},
         text::TextBuilder,
         widget::WidgetBuilder,
         Control, HorizontalAlignment, NodeHandleMapping, Thickness, VerticalAlignment,
     },
 };
+use std::any::Any;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -48,23 +46,12 @@ pub fn make_dropdown_list_option(ctx: &mut BuildContext, name: &str) -> Handle<U
     .build(ctx)
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum EditorUiMessage {
-    AssetItem(AssetItemMessage),
-    SceneItem(SceneItemMessage),
-    DeletableItem(DeletableItemMessage),
-    SoundItem(SoundItemMessage),
-    TextureEditor(TextureEditorMessage),
-}
-
-impl MessageData for EditorUiMessage {}
-
 impl SceneItemMessage {
     pub fn node_visibility(destination: Handle<UiNode>, visibility: bool) -> UiMessage {
         UiMessage::user(
             destination,
             MessageDirection::ToWidget,
-            EditorUiMessage::SceneItem(SceneItemMessage::NodeVisibility(visibility)),
+            Box::new(SceneItemMessage::NodeVisibility(visibility)),
         )
     }
 
@@ -72,7 +59,7 @@ impl SceneItemMessage {
         UiMessage::user(
             destination,
             MessageDirection::ToWidget,
-            EditorUiMessage::SceneItem(SceneItemMessage::Name(name)),
+            Box::new(SceneItemMessage::Name(name)),
         )
     }
 }
@@ -82,17 +69,10 @@ impl AssetItemMessage {
         UiMessage::user(
             destination,
             MessageDirection::ToWidget,
-            EditorUiMessage::AssetItem(AssetItemMessage::Select(select)),
+            Box::new(AssetItemMessage::Select(select)),
         )
     }
 }
-
-pub type CustomWidget = rg3d::gui::widget::Widget<EditorUiMessage, EditorUiNode>;
-pub type UiNode = rg3d::gui::node::UINode<EditorUiMessage, EditorUiNode>;
-pub type Ui = rg3d::gui::UserInterface<EditorUiMessage, EditorUiNode>;
-pub type UiMessage = rg3d::gui::message::UiMessage<EditorUiMessage, EditorUiNode>;
-pub type BuildContext<'a> = rg3d::gui::BuildContext<'a, EditorUiMessage, EditorUiNode>;
-pub type UiWidgetBuilder = rg3d::gui::widget::WidgetBuilder<EditorUiMessage, EditorUiNode>;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum DeletableItemMessage {
@@ -102,13 +82,13 @@ pub enum DeletableItemMessage {
 /// An item that has content and a button to request deletion.
 #[derive(Debug, Clone)]
 pub struct DeletableItem<D: Clone> {
-    widget: CustomWidget,
+    widget: Widget,
     pub delete: Handle<UiNode>,
     pub data: Option<D>,
 }
 
 impl<D: Clone> Deref for DeletableItem<D> {
-    type Target = CustomWidget;
+    type Target = Widget;
 
     fn deref(&self) -> &Self::Target {
         &self.widget
@@ -121,12 +101,24 @@ impl<D: Clone> DerefMut for DeletableItem<D> {
     }
 }
 
-impl<D: Clone + 'static> Control<EditorUiMessage, EditorUiNode> for DeletableItem<D> {
-    fn resolve(&mut self, node_map: &NodeHandleMapping<EditorUiMessage, EditorUiNode>) {
+impl<D: Clone + 'static> Control for DeletableItem<D> {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
+    fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.delete);
     }
 
-    fn handle_routed_message(&mut self, ui: &mut Ui, message: &mut UiMessage) {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
         if let UiMessageData::Button(ButtonMessage::Click) = message.data() {
@@ -134,7 +126,7 @@ impl<D: Clone + 'static> Control<EditorUiMessage, EditorUiNode> for DeletableIte
                 ui.send_message(UiMessage::user(
                     self.handle(),
                     MessageDirection::FromWidget,
-                    EditorUiMessage::DeletableItem(DeletableItemMessage::Delete),
+                    Box::new(DeletableItemMessage::Delete),
                 ));
             }
         }
@@ -142,13 +134,13 @@ impl<D: Clone + 'static> Control<EditorUiMessage, EditorUiNode> for DeletableIte
 }
 
 pub struct DeletableItemBuilder<D> {
-    widget_builder: UiWidgetBuilder,
+    widget_builder: WidgetBuilder,
     content: Handle<UiNode>,
     data: Option<D>,
 }
 
 impl<D: Clone + 'static> DeletableItemBuilder<D> {
-    pub fn new(widget_builder: UiWidgetBuilder) -> Self {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             content: Handle::NONE,
@@ -208,78 +200,5 @@ impl<D: Clone + 'static> DeletableItemBuilder<D> {
             delete,
             data: self.data,
         }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum EditorUiNode {
-    AssetItem(AssetItem),
-    SceneItem(SceneItem),
-    EmitterItem(DeletableItem<usize>),
-    SoundItem(SoundItem),
-    TextureEditor(TextureEditor),
-}
-
-macro_rules! static_dispatch {
-    ($self:ident, $func:ident, $($args:expr),*) => {
-        match $self {
-            EditorUiNode::AssetItem(v) => v.$func($($args),*),
-            EditorUiNode::SceneItem(v) => v.$func($($args),*),
-            EditorUiNode::EmitterItem(v) => v.$func($($args),*),
-            EditorUiNode::SoundItem(v) => v.$func($($args),*),
-            EditorUiNode::TextureEditor(v) => v.$func($($args),*),
-        }
-    }
-}
-
-impl Deref for EditorUiNode {
-    type Target = CustomWidget;
-
-    fn deref(&self) -> &Self::Target {
-        static_dispatch!(self, deref,)
-    }
-}
-
-impl DerefMut for EditorUiNode {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        static_dispatch!(self, deref_mut,)
-    }
-}
-
-impl Control<EditorUiMessage, EditorUiNode> for EditorUiNode {
-    fn resolve(&mut self, node_map: &NodeHandleMapping<EditorUiMessage, EditorUiNode>) {
-        static_dispatch!(self, resolve, node_map);
-    }
-
-    fn measure_override(&self, ui: &Ui, available_size: Vector2<f32>) -> Vector2<f32> {
-        static_dispatch!(self, measure_override, ui, available_size)
-    }
-
-    fn arrange_override(&self, ui: &Ui, final_size: Vector2<f32>) -> Vector2<f32> {
-        static_dispatch!(self, arrange_override, ui, final_size)
-    }
-
-    fn draw(&self, drawing_context: &mut DrawingContext) {
-        static_dispatch!(self, draw, drawing_context)
-    }
-
-    fn update(&mut self, dt: f32) {
-        static_dispatch!(self, update, dt)
-    }
-
-    fn handle_routed_message(&mut self, ui: &mut Ui, message: &mut UiMessage) {
-        static_dispatch!(self, handle_routed_message, ui, message)
-    }
-
-    fn preview_message(&self, ui: &Ui, message: &mut UiMessage) {
-        static_dispatch!(self, preview_message, ui, message)
-    }
-
-    fn handle_os_event(&mut self, self_handle: Handle<UiNode>, ui: &mut Ui, event: &OsEvent) {
-        static_dispatch!(self, handle_os_event, self_handle, ui, event)
-    }
-
-    fn remove_ref(&mut self, handle: Handle<UiNode>) {
-        static_dispatch!(self, remove_ref, handle)
     }
 }

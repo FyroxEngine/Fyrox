@@ -1,7 +1,6 @@
-use crate::{
-    gui::{BuildContext, Ui, UiMessage, UiNode},
-    settings::{make_bool_input_field, make_text_mark},
-};
+use crate::settings::{make_bool_input_field, make_text_mark};
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::pool::Handle,
     gui::{
@@ -77,7 +76,7 @@ impl DebuggingSection {
         }
     }
 
-    pub fn sync_to_model(&self, ui: &Ui, settings: &DebuggingSettings) {
+    pub fn sync_to_model(&self, ui: &UserInterface, settings: &DebuggingSettings) {
         ui.send_message(CheckBoxMessage::checked(
             self.show_tbn,
             MessageDirection::ToWidget,

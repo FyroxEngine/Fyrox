@@ -1,10 +1,11 @@
 use crate::gui::make_dropdown_list_option;
 use crate::sidebar::make_section;
 use crate::{
-    gui::{BuildContext, Ui, UiMessage, UiNode},
     send_sync_message,
     sidebar::{make_f32_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT},
 };
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::{pool::Handle, scope_profile},
     gui::{
@@ -104,7 +105,7 @@ impl BrushSection {
         }
     }
 
-    pub fn sync_to_model(&mut self, ui: &mut Ui) {
+    pub fn sync_to_model(&mut self, ui: &mut UserInterface) {
         let brush = self.brush.lock().unwrap();
 
         match brush.shape {

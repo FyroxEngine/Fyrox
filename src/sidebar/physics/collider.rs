@@ -1,6 +1,5 @@
 use crate::sidebar::make_section;
 use crate::{
-    gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::Collider,
     scene::commands::{
         physics::{
@@ -17,6 +16,8 @@ use crate::{
     },
     Message,
 };
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::{
         algebra::Vector3,
@@ -121,7 +122,7 @@ impl ColliderSection {
         }
     }
 
-    pub fn sync_to_model(&mut self, collider: &Collider, ui: &mut Ui) {
+    pub fn sync_to_model(&mut self, collider: &Collider, ui: &mut UserInterface) {
         send_sync_message(
             ui,
             NumericUpDownMessage::value(

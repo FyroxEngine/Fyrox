@@ -1,9 +1,7 @@
+use crate::gui::DeletableItem;
 use crate::sidebar::make_section;
 use crate::{
-    gui::{
-        BuildContext, DeletableItemBuilder, DeletableItemMessage, EditorUiMessage, EditorUiNode,
-        Ui, UiMessage, UiNode,
-    },
+    gui::{DeletableItemBuilder, DeletableItemMessage},
     load_image,
     scene::commands::{
         particle_system::{
@@ -19,6 +17,9 @@ use crate::{
     },
     Message,
 };
+use rg3d::gui::dropdown_list::DropdownList;
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::{pool::Handle, scope_profile},
     gui::{
@@ -236,7 +237,7 @@ impl ParticleSystemSection {
         }
     }
 
-    pub fn sync_to_model(&mut self, node: &Node, ui: &mut Ui) {
+    pub fn sync_to_model(&mut self, node: &Node, ui: &mut UserInterface) {
         send_sync_message(
             ui,
             WidgetMessage::visibility(
@@ -277,7 +278,7 @@ impl ParticleSystemSection {
                         )
                         .with_data(i)
                         .build(ctx);
-                    ctx.add_node(UiNode::User(EditorUiNode::EmitterItem(item)))
+                    ctx.add_node(UiNode::new(item))
                 })
                 .collect::<Vec<_>>();
 
@@ -316,7 +317,7 @@ impl ParticleSystemSection {
         message: &UiMessage,
         node: &mut Node,
         handle: Handle<Node>,
-        ui: &Ui,
+        ui: &UserInterface,
     ) {
         scope_profile!();
 
@@ -330,15 +331,15 @@ impl ParticleSystemSection {
                 );
             }
 
-            match *message.data() {
+            match message.data() {
                 UiMessageData::Vec3Editor(Vec3EditorMessage::Value(value)) => {
-                    if particle_system.acceleration() != value
+                    if particle_system.acceleration() != *value
                         && message.destination() == self.acceleration
                     {
                         self.sender
                             .send(Message::DoSceneCommand(
                                 SceneCommand::SetParticleSystemAcceleration(
-                                    SetParticleSystemAccelerationCommand::new(handle, value),
+                                    SetParticleSystemAccelerationCommand::new(handle, *value),
                                 ),
                             ))
                             .unwrap();
@@ -391,31 +392,34 @@ impl ParticleSystemSection {
                         particle_system.set_enabled(new_state);
                     }
                 }
-                UiMessageData::User(EditorUiMessage::DeletableItem(
-                    DeletableItemMessage::Delete,
-                )) => {
-                    if ui
-                        .node(self.emitters)
-                        .as_dropdown_list()
-                        .items()
-                        .contains(&message.destination())
+                UiMessageData::User(msg) => {
+                    if let Some(DeletableItemMessage::Delete) = msg.0.cast::<DeletableItemMessage>()
                     {
-                        if let UiNode::User(EditorUiNode::EmitterItem(ei)) =
-                            ui.node(message.destination())
+                        if ui
+                            .node(self.emitters)
+                            .cast::<DropdownList>()
+                            .unwrap()
+                            .items()
+                            .contains(&message.destination())
                         {
-                            self.sender
-                                .send(Message::DoSceneCommand(SceneCommand::DeleteEmitter(
-                                    DeleteEmitterCommand::new(handle, ei.data.unwrap()),
-                                )))
-                                .unwrap();
-                        } else {
-                            unreachable!()
+                            if let Some(ei) = ui
+                                .node(message.destination())
+                                .cast::<DeletableItem<usize>>()
+                            {
+                                self.sender
+                                    .send(Message::DoSceneCommand(SceneCommand::DeleteEmitter(
+                                        DeleteEmitterCommand::new(handle, ei.data.unwrap()),
+                                    )))
+                                    .unwrap();
+                            } else {
+                                unreachable!()
+                            }
                         }
                     }
                 }
                 UiMessageData::DropdownList(DropdownListMessage::SelectionChanged(selection)) => {
                     if message.destination() == self.emitters {
-                        self.emitter_index = selection;
+                        self.emitter_index = *selection;
                         self.sender.send(Message::SyncToModel).unwrap();
                     }
                 }

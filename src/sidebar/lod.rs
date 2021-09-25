@@ -1,6 +1,5 @@
 use crate::gui::make_dropdown_list_option;
 use crate::{
-    gui::{BuildContext, Ui, UiMessage, UiNode},
     scene::commands::{
         lod::{
             AddLodGroupLevelCommand, AddLodObjectCommand, ChangeLodRangeBeginCommand,
@@ -12,6 +11,8 @@ use crate::{
     sidebar::{make_text_mark, ROW_HEIGHT},
     Message,
 };
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::pool::Handle,
     gui::{
@@ -45,7 +46,12 @@ struct ChildSelector {
     selection: Vec<Handle<Node>>,
 }
 
-fn make_tree(node: &Node, handle: Handle<Node>, graph: &Graph, ui: &mut Ui) -> Handle<UiNode> {
+fn make_tree(
+    node: &Node,
+    handle: Handle<Node>,
+    graph: &Graph,
+    ui: &mut UserInterface,
+) -> Handle<UiNode> {
     let tree = TreeBuilder::new(WidgetBuilder::new().with_user_data(Rc::new(handle)))
         .with_content(
             TextBuilder::new(WidgetBuilder::new())
@@ -132,7 +138,7 @@ impl ChildSelector {
         }
     }
 
-    fn open(&mut self, ui: &mut Ui, node: &Node, scene: &Scene) {
+    fn open(&mut self, ui: &mut UserInterface, node: &Node, scene: &Scene) {
         ui.send_message(WindowMessage::open_modal(
             self.window,
             MessageDirection::ToWidget,
@@ -172,7 +178,7 @@ impl ChildSelector {
         node_handle: Handle<Node>,
         graph: &Graph,
         lod_index: usize,
-        ui: &mut Ui,
+        ui: &mut UserInterface,
     ) {
         match message.data() {
             UiMessageData::Button(ButtonMessage::Click) => {
@@ -412,7 +418,7 @@ impl LodGroupEditor {
         }
     }
 
-    pub fn sync_to_model(&mut self, node: &Node, scene: &Scene, ui: &mut Ui) {
+    pub fn sync_to_model(&mut self, node: &Node, scene: &Scene, ui: &mut UserInterface) {
         if let Some(lod_levels) = node.lod_group() {
             let ctx = &mut ui.build_ctx();
             let levels = lod_levels
@@ -497,7 +503,7 @@ impl LodGroupEditor {
         );
     }
 
-    pub fn open(&mut self, ui: &mut Ui) {
+    pub fn open(&mut self, ui: &mut UserInterface) {
         ui.send_message(WindowMessage::open_modal(
             self.window,
             MessageDirection::ToWidget,
@@ -528,7 +534,7 @@ impl LodGroupEditor {
         message: &UiMessage,
         node_handle: Handle<Node>,
         scene: &Scene,
-        ui: &mut Ui,
+        ui: &mut UserInterface,
     ) {
         let node = &scene.graph[node_handle];
 

@@ -1,8 +1,5 @@
+use crate::gui::SceneItemMessage;
 use crate::{
-    gui::{
-        BuildContext, CustomWidget, EditorUiMessage, EditorUiNode, SceneItemMessage, Ui, UiMessage,
-        UiNode,
-    },
     load_image,
     scene::{
         commands::{
@@ -13,6 +10,10 @@ use crate::{
     },
     send_sync_message, GameEngine, Message,
 };
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::tree::TreeRoot;
+use rg3d::gui::widget::Widget;
+use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::{algebra::Vector2, pool::Handle, scope_profile},
     engine::resource_manager::ResourceManager,
@@ -29,7 +30,6 @@ use rg3d::{
             ScrollViewerMessage, TextMessage, TreeExpansionStrategy, TreeMessage, TreeRootMessage,
             UiMessageData, WidgetMessage,
         },
-        node::UINode,
         popup::PopupBuilder,
         scroll_viewer::ScrollViewerBuilder,
         stack_panel::StackPanelBuilder,
@@ -41,6 +41,7 @@ use rg3d::{
     },
     scene::node::Node,
 };
+use std::any::Any;
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
@@ -150,7 +151,7 @@ pub struct WorldOutliner {
 
 #[derive(Clone)]
 pub struct SceneItem {
-    tree: Tree<EditorUiMessage, EditorUiNode>,
+    tree: Tree,
     text_name: Handle<UiNode>,
     node: Handle<Node>,
     visibility_toggle: Handle<UiNode>,
@@ -166,7 +167,7 @@ impl Debug for SceneItem {
 }
 
 impl Deref for SceneItem {
-    type Target = CustomWidget;
+    type Target = Widget;
 
     fn deref(&self) -> &Self::Target {
         &self.tree
@@ -179,17 +180,29 @@ impl DerefMut for SceneItem {
     }
 }
 
-impl Control<EditorUiMessage, EditorUiNode> for SceneItem {
-    fn resolve(&mut self, node_map: &NodeHandleMapping<EditorUiMessage, EditorUiNode>) {
+impl Control for SceneItem {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
+    fn resolve(&mut self, node_map: &NodeHandleMapping) {
         self.tree.resolve(node_map);
         node_map.resolve(&mut self.text_name);
     }
 
-    fn measure_override(&self, ui: &Ui, available_size: Vector2<f32>) -> Vector2<f32> {
+    fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         self.tree.measure_override(ui, available_size)
     }
 
-    fn arrange_override(&self, ui: &Ui, final_size: Vector2<f32>) -> Vector2<f32> {
+    fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         self.tree.arrange_override(ui, final_size)
     }
 
@@ -201,7 +214,7 @@ impl Control<EditorUiMessage, EditorUiNode> for SceneItem {
         self.tree.update(dt);
     }
 
-    fn handle_routed_message(&mut self, ui: &mut Ui, message: &mut UiMessage) {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.tree.handle_routed_message(ui, message);
 
         match message.data() {
@@ -216,64 +229,75 @@ impl Control<EditorUiMessage, EditorUiNode> for SceneItem {
                     }
                 }
             }
-            UiMessageData::User(EditorUiMessage::SceneItem(item)) => match item {
-                &SceneItemMessage::NodeVisibility(visibility) => {
-                    if self.visibility != visibility && message.destination() == self.handle() {
-                        self.visibility = visibility;
-                        let image = if visibility {
-                            load_image(include_bytes!("../resources/embed/visible.png"))
-                        } else {
-                            load_image(include_bytes!("../resources/embed/invisible.png"))
-                        };
-                        let image = ImageBuilder::new(WidgetBuilder::new())
-                            .with_opt_texture(image)
-                            .build(&mut ui.build_ctx());
-                        ui.send_message(ButtonMessage::content(
-                            self.visibility_toggle,
-                            MessageDirection::ToWidget,
-                            image,
-                        ));
-                    }
-                }
-                &SceneItemMessage::Order(order) => {
-                    if message.destination() == self.handle() {
-                        ui.send_message(DecoratorMessage::normal_brush(
-                            self.tree.back(),
-                            MessageDirection::ToWidget,
-                            Brush::Solid(if order {
-                                Color::opaque(50, 50, 50)
-                            } else {
-                                Color::opaque(60, 60, 60)
-                            }),
-                        ));
-                    }
-                }
-                SceneItemMessage::Name(name) => {
-                    if message.destination() == self.handle() {
-                        let name = format!(
-                            "{} ({}:{})",
-                            name,
-                            self.node.index(),
-                            self.node.generation()
-                        );
+            UiMessageData::User(msg) => {
+                if let Some(msg) = msg.0.cast::<SceneItemMessage>() {
+                    match msg {
+                        &SceneItemMessage::NodeVisibility(visibility) => {
+                            if self.visibility != visibility
+                                && message.destination() == self.handle()
+                            {
+                                self.visibility = visibility;
+                                let image = if visibility {
+                                    load_image(include_bytes!("../resources/embed/visible.png"))
+                                } else {
+                                    load_image(include_bytes!("../resources/embed/invisible.png"))
+                                };
+                                let image = ImageBuilder::new(WidgetBuilder::new())
+                                    .with_opt_texture(image)
+                                    .build(&mut ui.build_ctx());
+                                ui.send_message(ButtonMessage::content(
+                                    self.visibility_toggle,
+                                    MessageDirection::ToWidget,
+                                    image,
+                                ));
+                            }
+                        }
+                        &SceneItemMessage::Order(order) => {
+                            if message.destination() == self.handle() {
+                                ui.send_message(DecoratorMessage::normal_brush(
+                                    self.tree.back(),
+                                    MessageDirection::ToWidget,
+                                    Brush::Solid(if order {
+                                        Color::opaque(50, 50, 50)
+                                    } else {
+                                        Color::opaque(60, 60, 60)
+                                    }),
+                                ));
+                            }
+                        }
+                        SceneItemMessage::Name(name) => {
+                            if message.destination() == self.handle() {
+                                let name = format!(
+                                    "{} ({}:{})",
+                                    name,
+                                    self.node.index(),
+                                    self.node.generation()
+                                );
 
-                        ui.send_message(TextMessage::text(
-                            self.text_name,
-                            MessageDirection::ToWidget,
-                            name,
-                        ));
+                                ui.send_message(TextMessage::text(
+                                    self.text_name,
+                                    MessageDirection::ToWidget,
+                                    name,
+                                ));
+                            }
+                        }
                     }
                 }
-            },
+            }
             _ => {}
         }
     }
 
-    fn preview_message(&self, ui: &Ui, message: &mut UiMessage) {
+    fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
         self.tree.preview_message(ui, message);
     }
 
-    fn handle_os_event(&mut self, self_handle: Handle<UiNode>, ui: &mut Ui, event: &OsEvent) {
+    fn handle_os_event(
+        &mut self,
+        self_handle: Handle<UiNode>,
+        ui: &mut UserInterface,
+        event: &OsEvent,
+    ) {
         self.tree.handle_os_event(self_handle, ui, event);
     }
 
@@ -421,7 +445,7 @@ impl SceneItemBuilder {
             text_name,
         };
 
-        ctx.add_node(UiNode::User(EditorUiNode::SceneItem(item)))
+        ctx.add_node(UiNode::new(item))
     }
 }
 
@@ -447,34 +471,32 @@ fn make_tree(
         .build(ctx, sender, resource_manager, node)
 }
 
-fn tree_node(ui: &Ui, tree: Handle<UiNode>) -> Handle<Node> {
-    if let UiNode::User(EditorUiNode::SceneItem(item)) = ui.node(tree) {
+fn tree_node(ui: &UserInterface, tree: Handle<UiNode>) -> Handle<Node> {
+    if let Some(item) = ui.node(tree).cast::<SceneItem>() {
         return item.node;
     }
     unreachable!()
 }
 
-fn colorize(tree: Handle<UiNode>, ui: &Ui, index: &mut usize) {
-    match ui.node(tree) {
-        UINode::User(EditorUiNode::SceneItem(i)) => {
-            ui.send_message(UiMessage::user(
-                tree,
-                MessageDirection::ToWidget,
-                EditorUiMessage::SceneItem(SceneItemMessage::Order(*index % 2 == 0)),
-            ));
+fn colorize(tree: Handle<UiNode>, ui: &UserInterface, index: &mut usize) {
+    let node = ui.node(tree);
 
-            *index += 1;
+    if let Some(i) = node.cast::<SceneItem>() {
+        ui.send_message(UiMessage::user(
+            tree,
+            MessageDirection::ToWidget,
+            Box::new(SceneItemMessage::Order(*index % 2 == 0)),
+        ));
 
-            for &item in i.tree.items() {
-                colorize(item, ui, index);
-            }
+        *index += 1;
+
+        for &item in i.tree.items() {
+            colorize(item, ui, index);
         }
-        UINode::TreeRoot(root) => {
-            for &item in root.items() {
-                colorize(item, ui, index);
-            }
+    } else if let Some(root) = node.cast::<TreeRoot>() {
+        for &item in root.items() {
+            colorize(item, ui, index);
         }
-        _ => (),
     }
 }
 
@@ -603,106 +625,98 @@ impl WorldOutliner {
                 continue;
             }
             let node = &graph[node_handle];
-            match ui.node(tree_handle) {
-                UiNode::User(usr) => {
-                    if let EditorUiNode::SceneItem(item) = usr {
-                        // Since we are filtering out editor stuff from world outliner, we must
-                        // correctly count children, excluding editor nodes.
-                        let mut child_count = 0;
-                        for &child in node.children() {
-                            if child != editor_scene.root {
-                                child_count += 1;
-                            }
-                        }
-                        let items = item.tree.items().to_vec();
-                        if child_count < items.len() {
-                            for &item in items.iter() {
-                                let child_node = tree_node(ui, item);
-                                if !node.children().contains(&child_node) {
-                                    send_sync_message(
-                                        ui,
-                                        TreeMessage::remove_item(
-                                            tree_handle,
-                                            MessageDirection::ToWidget,
-                                            item,
-                                        ),
-                                    );
-                                } else {
-                                    self.stack.push((item, child_node));
-                                }
-                            }
-                        } else if child_count > item.tree.items().len() {
-                            for &child_handle in node.children() {
-                                // Hide all editor nodes.
-                                if child_handle == editor_scene.root {
-                                    continue;
-                                }
-                                let mut found = false;
-                                for &item in items.iter() {
-                                    let tree_node_handle = tree_node(ui, item);
-                                    if tree_node_handle == child_handle {
-                                        self.stack.push((item, child_handle));
-                                        found = true;
-                                        break;
-                                    }
-                                }
-                                if !found {
-                                    let tree = make_tree(
-                                        &graph[child_handle],
-                                        child_handle,
-                                        &mut ui.build_ctx(),
-                                        self.sender.clone(),
-                                        engine.resource_manager.clone(),
-                                        self.item_context_menu.menu,
-                                    );
-                                    send_sync_message(
-                                        ui,
-                                        TreeMessage::add_item(
-                                            tree_handle,
-                                            MessageDirection::ToWidget,
-                                            tree,
-                                        ),
-                                    );
-                                    if let Selection::Graph(selection) = &editor_scene.selection {
-                                        if selection.contains(child_handle) {
-                                            selected_items.push(tree);
-                                        }
-                                    }
-                                    self.stack.push((tree, child_handle));
-                                }
-                            }
+            let ui_node = ui.node(tree_handle);
+
+            if let Some(item) = ui_node.cast::<SceneItem>() {
+                // Since we are filtering out editor stuff from world outliner, we must
+                // correctly count children, excluding editor nodes.
+                let mut child_count = 0;
+                for &child in node.children() {
+                    if child != editor_scene.root {
+                        child_count += 1;
+                    }
+                }
+                let items = item.tree.items().to_vec();
+                if child_count < items.len() {
+                    for &item in items.iter() {
+                        let child_node = tree_node(ui, item);
+                        if !node.children().contains(&child_node) {
+                            send_sync_message(
+                                ui,
+                                TreeMessage::remove_item(
+                                    tree_handle,
+                                    MessageDirection::ToWidget,
+                                    item,
+                                ),
+                            );
                         } else {
-                            for &tree in items.iter() {
-                                let child = tree_node(ui, tree);
-                                self.stack.push((tree, child));
-                            }
+                            self.stack.push((item, child_node));
                         }
                     }
-                }
-                UiNode::TreeRoot(root) => {
-                    if root.items().is_empty() {
-                        let tree = make_tree(
-                            node,
-                            node_handle,
-                            &mut ui.build_ctx(),
-                            self.sender.clone(),
-                            engine.resource_manager.clone(),
-                            self.item_context_menu.menu,
-                        );
-                        send_sync_message(
-                            ui,
-                            TreeRootMessage::add_item(
-                                tree_handle,
-                                MessageDirection::ToWidget,
-                                tree,
-                            ),
-                        );
-                        self.stack.push((tree, node_handle));
-                    } else {
-                        self.stack.push((root.items()[0], node_handle));
+                } else if child_count > item.tree.items().len() {
+                    for &child_handle in node.children() {
+                        // Hide all editor nodes.
+                        if child_handle == editor_scene.root {
+                            continue;
+                        }
+                        let mut found = false;
+                        for &item in items.iter() {
+                            let tree_node_handle = tree_node(ui, item);
+                            if tree_node_handle == child_handle {
+                                self.stack.push((item, child_handle));
+                                found = true;
+                                break;
+                            }
+                        }
+                        if !found {
+                            let tree = make_tree(
+                                &graph[child_handle],
+                                child_handle,
+                                &mut ui.build_ctx(),
+                                self.sender.clone(),
+                                engine.resource_manager.clone(),
+                                self.item_context_menu.menu,
+                            );
+                            send_sync_message(
+                                ui,
+                                TreeMessage::add_item(
+                                    tree_handle,
+                                    MessageDirection::ToWidget,
+                                    tree,
+                                ),
+                            );
+                            if let Selection::Graph(selection) = &editor_scene.selection {
+                                if selection.contains(child_handle) {
+                                    selected_items.push(tree);
+                                }
+                            }
+                            self.stack.push((tree, child_handle));
+                        }
+                    }
+                } else {
+                    for &tree in items.iter() {
+                        let child = tree_node(ui, tree);
+                        self.stack.push((tree, child));
                     }
                 }
-                _ => unreachable!(),
+            } else if let Some(root) = ui_node.cast::<TreeRoot>() {
+                if root.items().is_empty() {
+                    let tree = make_tree(
+                        node,
+                        node_handle,
+                        &mut ui.build_ctx(),
+                        self.sender.clone(),
+                        engine.resource_manager.clone(),
+                        self.item_context_menu.menu,
+                    );
+                    send_sync_message(
+                        ui,
+                        TreeRootMessage::add_item(tree_handle, MessageDirection::ToWidget, tree),
+                    );
+                    self.stack.push((tree, node_handle));
+                } else {
+                    self.stack.push((root.items()[0], node_handle));
+                }
             }
         }
 
@@ -749,32 +763,27 @@ impl WorldOutliner {
         // Sync items data.
         let mut stack = vec![self.root];
         while let Some(handle) = stack.pop() {
-            match ui.node(handle) {
-                UiNode::User(usr) => {
-                    if let EditorUiNode::SceneItem(item) = usr {
-                        if graph.is_valid_handle(item.node) {
-                            let node = &graph[item.node];
-                            send_sync_message(
-                                ui,
-                                SceneItemMessage::node_visibility(handle, node.visibility()),
-                            );
-                            send_sync_message(
-                                ui,
-                                SceneItemMessage::name(handle, node.name().to_owned()),
-                            );
-                            stack.extend_from_slice(item.tree.items());
-                        }
-                    }
+            let ui_node = ui.node(handle);
+
+            if let Some(item) = ui_node.cast::<SceneItem>() {
+                if graph.is_valid_handle(item.node) {
+                    let node = &graph[item.node];
+                    send_sync_message(
+                        ui,
+                        SceneItemMessage::node_visibility(handle, node.visibility()),
+                    );
+                    send_sync_message(ui, SceneItemMessage::name(handle, node.name().to_owned()));
+                    stack.extend_from_slice(item.tree.items());
                 }
-                UiNode::TreeRoot(root) => stack.extend_from_slice(root.items()),
-                _ => unreachable!(),
+            } else if let Some(root) = ui_node.cast::<TreeRoot>() {
+                stack.extend_from_slice(root.items())
             }
         }
 
         self.colorize(ui);
     }
 
-    fn map_tree_to_node(&self, tree: Handle<UiNode>, ui: &Ui) -> Handle<Node> {
+    fn map_tree_to_node(&self, tree: Handle<UiNode>, ui: &UserInterface) -> Handle<Node> {
         if tree.is_some() {
             tree_node(ui, tree)
         } else {
@@ -782,7 +791,7 @@ impl WorldOutliner {
         }
     }
 
-    pub fn colorize(&mut self, ui: &Ui) {
+    pub fn colorize(&mut self, ui: &UserInterface) {
         let mut index = 0;
         colorize(self.root, ui, &mut index);
     }
@@ -932,7 +941,7 @@ impl WorldOutliner {
         }
     }
 
-    pub fn clear(&mut self, ui: &mut Ui) {
+    pub fn clear(&mut self, ui: &mut UserInterface) {
         ui.send_message(TreeRootMessage::items(
             self.root,
             MessageDirection::ToWidget,
@@ -940,22 +949,19 @@ impl WorldOutliner {
         ));
     }
 
-    fn map_node_to_tree(&self, ui: &Ui, node: Handle<Node>) -> Handle<UiNode> {
+    fn map_node_to_tree(&self, ui: &UserInterface, node: Handle<Node>) -> Handle<UiNode> {
         let mut stack = vec![self.root];
         while let Some(tree_handle) = stack.pop() {
-            match ui.node(tree_handle) {
-                UiNode::User(usr) => {
-                    if let EditorUiNode::SceneItem(item) = usr {
-                        if item.node == node {
-                            return tree_handle;
-                        }
-                        stack.extend_from_slice(item.tree.items());
-                    }
+            let ui_node = ui.node(tree_handle);
+            if let Some(item) = ui_node.cast::<SceneItem>() {
+                if item.node == node {
+                    return tree_handle;
                 }
-                UiNode::TreeRoot(root) => {
-                    stack.extend_from_slice(root.items());
-                }
-                _ => unreachable!(),
+                stack.extend_from_slice(item.tree.items());
+            } else if let Some(root) = ui_node.cast::<TreeRoot>() {
+                stack.extend_from_slice(root.items());
+            } else {
+                unreachable!()
             }
         }
         unreachable!("Must not be reached. If still triggered then there is a bug.")

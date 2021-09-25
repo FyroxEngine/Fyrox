@@ -1,6 +1,5 @@
 use crate::sidebar::make_section;
 use crate::{
-    gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::{Joint, RigidBody},
     scene::commands::{physics::SetJointConnectedBodyCommand, SceneCommand},
     send_sync_message,
@@ -14,6 +13,9 @@ use crate::{
     },
     Message,
 };
+use rg3d::gui::dropdown_list::DropdownList;
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::{color::Color, pool::Handle, BiDirHashMap},
     gui::{
@@ -107,9 +109,9 @@ impl JointSection {
         joint: &Joint,
         graph: &Graph,
         binder: &BiDirHashMap<Handle<Node>, Handle<RigidBody>>,
-        ui: &mut Ui,
+        ui: &mut UserInterface,
     ) {
-        fn toggle_visibility(ui: &mut Ui, destination: Handle<UiNode>, value: bool) {
+        fn toggle_visibility(ui: &mut UserInterface, destination: Handle<UiNode>, value: bool) {
             send_sync_message(
                 ui,
                 WidgetMessage::visibility(destination, MessageDirection::ToWidget, value),
@@ -183,7 +185,8 @@ impl JointSection {
 
         let brush = if ui
             .node(self.connected_body)
-            .as_dropdown_list()
+            .cast::<DropdownList>()
+            .unwrap()
             .selection()
             .is_some()
         {

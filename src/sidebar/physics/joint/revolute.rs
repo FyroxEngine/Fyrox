@@ -1,5 +1,4 @@
 use crate::{
-    gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::Joint,
     scene::commands::{
         physics::{
@@ -12,6 +11,8 @@ use crate::{
     sidebar::{make_section, make_text_mark, make_vec3_input_field, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
 };
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::pool::Handle,
     gui::{
@@ -83,7 +84,7 @@ impl RevoluteJointSection {
         }
     }
 
-    pub fn sync_to_model(&mut self, revolute: &RevoluteJointDesc, ui: &mut Ui) {
+    pub fn sync_to_model(&mut self, revolute: &RevoluteJointDesc, ui: &mut UserInterface) {
         send_sync_message(
             ui,
             Vec3EditorMessage::value(

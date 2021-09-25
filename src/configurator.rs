@@ -1,7 +1,6 @@
-use crate::{
-    gui::{BuildContext, UiMessage, UiNode},
-    GameEngine, Message, CONFIG_DIR,
-};
+use crate::{GameEngine, Message, CONFIG_DIR};
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::{BuildContext, UiNode};
 use rg3d::{
     core::{
         algebra::Vector2,

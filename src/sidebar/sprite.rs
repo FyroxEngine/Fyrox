@@ -1,6 +1,5 @@
 use crate::sidebar::make_section;
 use crate::{
-    gui::{BuildContext, Ui, UiMessage, UiNode},
     scene::commands::{
         sprite::{SetSpriteColorCommand, SetSpriteRotationCommand, SetSpriteSizeCommand},
         SceneCommand,
@@ -11,6 +10,8 @@ use crate::{
     },
     Message,
 };
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::{pool::Handle, scope_profile},
     gui::{
@@ -75,7 +76,7 @@ impl SpriteSection {
         }
     }
 
-    pub fn sync_to_model(&mut self, node: &Node, ui: &mut Ui) {
+    pub fn sync_to_model(&mut self, node: &Node, ui: &mut UserInterface) {
         send_sync_message(
             ui,
             WidgetMessage::visibility(self.section, MessageDirection::ToWidget, node.is_sprite()),

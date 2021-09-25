@@ -1,7 +1,6 @@
-use crate::{
-    gui::{BuildContext, Ui, UiMessage, UiNode},
-    load_image, send_sync_message, Message,
-};
+use crate::{load_image, send_sync_message, Message};
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::{color::Color, pool::Handle, scope_profile},
     gui::{
@@ -274,7 +273,7 @@ impl CommandStackViewer {
         &mut self,
         command_stack: &mut CommandStack<C>,
         ctx: &Ctx,
-        ui: &mut Ui,
+        ui: &mut UserInterface,
     ) where
         C: Command<'a, Context = Ctx> + Debug,
     {

@@ -33,16 +33,14 @@ pub mod sound;
 pub mod utils;
 pub mod world_outliner;
 
+use crate::asset::AssetItem;
 use crate::inspector::Inspector;
 use crate::{
     asset::{AssetBrowser, AssetKind},
     camera::CameraController,
     command::{CommandStack, CommandStackViewer},
     configurator::Configurator,
-    gui::{
-        make_dropdown_list_option, BuildContext, EditorUiMessage, EditorUiNode, Ui, UiMessage,
-        UiNode,
-    },
+    gui::make_dropdown_list_option,
     interaction::{
         move_mode::MoveInteractionMode,
         navmesh::{
@@ -76,6 +74,9 @@ use crate::{
     utils::path_fixer::PathFixer,
     world_outliner::WorldOutliner,
 };
+use rg3d::gui::image::Image;
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::{
         algebra::{Point3, Vector2},
@@ -142,12 +143,12 @@ use std::{
 
 pub const MSG_SYNC_FLAG: u64 = 1;
 
-pub fn send_sync_message(ui: &Ui, mut msg: UiMessage) {
+pub fn send_sync_message(ui: &UserInterface, mut msg: UiMessage) {
     msg.flags = MSG_SYNC_FLAG;
     ui.send_message(msg);
 }
 
-type GameEngine = rg3d::engine::Engine<EditorUiMessage, EditorUiNode>;
+type GameEngine = rg3d::engine::Engine;
 
 lazy_static! {
     // This checks release.toml debug handle and at
@@ -421,7 +422,7 @@ impl ModelImportDialog {
             ));
     }
 
-    pub fn open(&mut self, model_path: PathBuf, ui: &Ui) {
+    pub fn open(&mut self, model_path: PathBuf, ui: &UserInterface) {
         self.model_path = model_path;
 
         ui.send_message(WindowMessage::open_modal(
@@ -431,7 +432,12 @@ impl ModelImportDialog {
         ));
     }
 
-    pub fn handle_ui_message(&mut self, message: &UiMessage, ui: &Ui, sender: &Sender<Message>) {
+    pub fn handle_ui_message(
+        &mut self,
+        message: &UiMessage,
+        ui: &UserInterface,
+        sender: &Sender<Message>,
+    ) {
         match message.data() {
             UiMessageData::Button(ButtonMessage::Click) => {
                 if message.destination() == self.ok {
@@ -702,7 +708,7 @@ impl ScenePreview {
 }
 
 impl ScenePreview {
-    fn handle_ui_message(&mut self, message: &UiMessage, ui: &Ui) {
+    fn handle_ui_message(&mut self, message: &UiMessage, ui: &UserInterface) {
         scope_profile!();
 
         match &message.data() {
@@ -1491,8 +1497,8 @@ impl Editor {
                         }
                         WidgetMessage::Drop(handle) => {
                             if handle.is_some() {
-                                if let UiNode::User(EditorUiNode::AssetItem(item)) =
-                                    engine.user_interface.node(handle)
+                                if let Some(item) =
+                                    engine.user_interface.node(handle).cast::<AssetItem>()
                                 {
                                     // Make sure all resources loaded with relative paths only.
                                     // This will make scenes portable.
@@ -1893,7 +1899,11 @@ impl Editor {
             } else {
                 unreachable!();
             };
-            if let UiNode::Image(frame) = engine.user_interface.node(self.preview.frame) {
+            if let Some(frame) = engine
+                .user_interface
+                .node(self.preview.frame)
+                .cast::<Image>()
+            {
                 let frame_size = frame.actual_size();
                 if rt_width != frame_size.x as u32 || rt_height != frame_size.y as u32 {
                     let rt = Texture::new_render_target(frame_size.x as u32, frame_size.y as u32);

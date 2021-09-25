@@ -1,8 +1,6 @@
-use crate::{
-    gui::{UiMessage, UiNode},
-    scene::EditorScene,
-    GameEngine,
-};
+use crate::{scene::EditorScene, GameEngine};
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::UiNode;
 use rg3d::{
     core::{pool::Handle, scope_profile},
     gui::{

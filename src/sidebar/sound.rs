@@ -1,3 +1,4 @@
+use crate::asset::AssetItem;
 use crate::scene::commands::sound::{
     SetSpatialSoundSourceMaxDistanceCommand, SetSpatialSoundSourceRadiusCommand,
     SetSpatialSoundSourceRolloffFactorCommand,
@@ -5,7 +6,6 @@ use crate::scene::commands::sound::{
 use crate::sidebar::make_section;
 use crate::{
     asset::AssetKind,
-    gui::{BuildContext, EditorUiNode, Ui, UiMessage, UiNode},
     make_relative_path,
     scene::commands::{
         sound::{
@@ -22,6 +22,8 @@ use crate::{
     },
     Message,
 };
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::{futures::executor::block_on, pool::Handle, scope_profile},
     engine::resource_manager::ResourceManager,
@@ -98,7 +100,7 @@ impl SpatialSection {
         }
     }
 
-    pub fn sync_to_model(&mut self, spatial: &SpatialSource, ui: &mut Ui) {
+    pub fn sync_to_model(&mut self, spatial: &SpatialSource, ui: &mut UserInterface) {
         send_sync_message(
             ui,
             Vec3EditorMessage::value(
@@ -288,7 +290,7 @@ impl SoundSection {
         }
     }
 
-    pub fn sync_to_model(&mut self, source: &SoundSource, ui: &mut Ui) {
+    pub fn sync_to_model(&mut self, source: &SoundSource, ui: &mut UserInterface) {
         send_sync_message(
             ui,
             WidgetMessage::visibility(
@@ -358,7 +360,7 @@ impl SoundSection {
         sender: &Sender<Message>,
         source: &SoundSource,
         handle: Handle<SoundSource>,
-        ui: &Ui,
+        ui: &UserInterface,
         resource_manager: ResourceManager,
     ) {
         scope_profile!();
@@ -420,7 +422,7 @@ impl SoundSection {
             UiMessageData::Widget(WidgetMessage::Drop(dropped)) => {
                 if message.destination() == self.buffer {
                     // Set buffer.
-                    if let UiNode::User(EditorUiNode::AssetItem(item)) = ui.node(*dropped) {
+                    if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {
                         // Make sure all resources loaded with relative paths only.
                         // This will make scenes portable.
                         let relative_path = make_relative_path(&item.path);

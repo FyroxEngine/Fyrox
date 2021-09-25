@@ -1,5 +1,4 @@
 use crate::{
-    gui::{BuildContext, Ui, UiMessage, UiNode},
     scene::EditorScene,
     settings::{
         debugging::{DebuggingSection, DebuggingSettings},
@@ -9,6 +8,8 @@ use crate::{
     GameEngine, Message, CONFIG_DIR,
 };
 use rg3d::gui::formatted_text::WrapMode;
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::{pool::Handle, scope_profile},
     gui::{
@@ -309,7 +310,12 @@ impl SettingsWindow {
         }
     }
 
-    pub fn open(&self, ui: &Ui, settings: &Settings, section: Option<SettingsSectionKind>) {
+    pub fn open(
+        &self,
+        ui: &UserInterface,
+        settings: &Settings,
+        section: Option<SettingsSectionKind>,
+    ) {
         ui.send_message(WindowMessage::open(
             self.window,
             MessageDirection::ToWidget,
@@ -331,7 +337,7 @@ impl SettingsWindow {
         self.sync_to_model(ui, settings);
     }
 
-    fn sync_to_model(&self, ui: &Ui, settings: &Settings) {
+    fn sync_to_model(&self, ui: &UserInterface, settings: &Settings) {
         self.graphics_section.sync_to_model(ui, &settings.graphics);
         self.move_mode_section
             .sync_to_model(ui, &settings.move_mode_settings);

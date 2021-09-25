@@ -1,5 +1,6 @@
+use crate::asset::AssetItem;
 use crate::{
-    gui::{make_dropdown_list_option, BuildContext, EditorUiNode, Ui, UiMessage, UiNode},
+    gui::make_dropdown_list_option,
     make_relative_path,
     preview::PreviewPanel,
     scene::commands::{
@@ -8,6 +9,9 @@ use crate::{
     },
     send_sync_message, GameEngine, Message,
 };
+use rg3d::gui::image::Image;
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::resource::texture::TextureState;
 use rg3d::{
     core::{
@@ -192,8 +196,12 @@ fn create_vec4_view(ctx: &mut BuildContext, value: Vector4<f32>) -> Handle<UiNod
         .build(ctx)
 }
 
-fn sync_array<T, B>(ui: &mut Ui, handle: Handle<UiNode>, array: &[T], mut item_builder: B)
-where
+fn sync_array<T, B>(
+    ui: &mut UserInterface,
+    handle: Handle<UiNode>,
+    array: &[T],
+    mut item_builder: B,
+) where
     T: Clone,
     B: FnMut(&mut BuildContext, T) -> Handle<UiNode>,
 {
@@ -208,7 +216,7 @@ where
 }
 
 fn sync_array_of_arrays<'a, T, I, B>(
-    ui: &mut Ui,
+    ui: &mut UserInterface,
     handle: Handle<UiNode>,
     array: I,
     mut item_builder: B,
@@ -342,7 +350,7 @@ impl MaterialEditor {
         ));
     }
 
-    pub fn create_shaders_items(&self, ui: &mut Ui, material: &Material) {
+    pub fn create_shaders_items(&self, ui: &mut UserInterface, material: &Material) {
         let items = self
             .shaders_list
             .iter()
@@ -385,7 +393,7 @@ impl MaterialEditor {
         self.sync_to_model(&mut engine.user_interface);
     }
 
-    pub fn sync_to_model(&mut self, ui: &mut Ui) {
+    pub fn sync_to_model(&mut self, ui: &mut UserInterface) {
         if let Some(material) = self.material.as_ref() {
             let material = material.lock().unwrap();
 
@@ -676,7 +684,8 @@ impl MaterialEditor {
                             let path = engine
                                 .user_interface
                                 .node(self.texture_context_menu.target)
-                                .as_image()
+                                .cast::<Image>()
+                                .unwrap()
                                 .texture()
                                 .and_then(|t| {
                                     t.0.downcast::<Mutex<TextureState>>()
@@ -733,8 +742,8 @@ impl MaterialEditor {
                         Some(PropertyValue::Color(*color))
                     }
                     UiMessageData::Widget(WidgetMessage::Drop(handle)) => {
-                        if let UiNode::User(EditorUiNode::AssetItem(asset_item)) =
-                            engine.user_interface.node(*handle)
+                        if let Some(asset_item) =
+                            engine.user_interface.node(*handle).cast::<AssetItem>()
                         {
                             let relative_path = make_relative_path(&asset_item.path);
 

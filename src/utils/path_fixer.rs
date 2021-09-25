@@ -1,11 +1,12 @@
 //! Special utility that allows you to fix paths to resources. It is very useful if you've
 //! moved a resource in a file system, but a scene has old path.
 
-use crate::{
-    gui::{BuildContext, Ui, UiMessage, UiNode},
-    make_scene_file_filter, Message,
-};
+use crate::{make_scene_file_filter, Message};
 use rg3d::core::replace_slashes;
+use rg3d::gui::list_view::ListView;
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::text::Text;
+use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::material::PropertyValue;
 use rg3d::{
     asset::ResourceData,
@@ -273,13 +274,17 @@ impl PathFixer {
         }
     }
 
-    fn fix_path(&mut self, index: usize, new_path: PathBuf, ui: &Ui) {
+    fn fix_path(&mut self, index: usize, new_path: PathBuf, ui: &UserInterface) {
         let text = new_path.to_string_lossy().to_string();
 
         self.orphaned_scene_resources[index].set_path(new_path);
 
-        let item = ui.node(self.resources_list).as_list_view().items()[index];
-        let item_text = ui.find_by_criteria_down(item, &|n| matches!(n, UiNode::Text(_)));
+        let item = ui
+            .node(self.resources_list)
+            .cast::<ListView>()
+            .unwrap()
+            .items()[index];
+        let item_text = ui.find_by_criteria_down(item, &|n| n.cast::<Text>().is_some());
 
         assert!(item_text.is_some());
 
@@ -301,7 +306,7 @@ impl PathFixer {
         ));
     }
 
-    pub fn handle_ui_message(&mut self, message: &UiMessage, ui: &mut Ui) {
+    pub fn handle_ui_message(&mut self, message: &UiMessage, ui: &mut UserInterface) {
         match message.data() {
             UiMessageData::FileSelector(FileSelectorMessage::Commit(path)) => {
                 if message.destination() == self.scene_selector {
@@ -616,7 +621,7 @@ impl PathFixer {
         }
     }
 
-    pub fn handle_message(&mut self, message: &Message, ui: &mut Ui) {
+    pub fn handle_message(&mut self, message: &Message, ui: &mut UserInterface) {
         if let Message::Configure { working_directory } = message {
             ui.send_message(FileSelectorMessage::root(
                 self.new_path_selector,

@@ -1,6 +1,5 @@
 use crate::sidebar::make_section;
 use crate::{
-    gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::Joint,
     scene::commands::{
         physics::{SetBallJointAnchor1Command, SetBallJointAnchor2Command},
@@ -10,6 +9,8 @@ use crate::{
     sidebar::{make_text_mark, make_vec3_input_field, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
 };
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::pool::Handle,
     gui::{
@@ -63,7 +64,7 @@ impl BallJointSection {
         }
     }
 
-    pub fn sync_to_model(&mut self, ball: &BallJointDesc, ui: &mut Ui) {
+    pub fn sync_to_model(&mut self, ball: &BallJointDesc, ui: &mut UserInterface) {
         send_sync_message(
             ui,
             Vec3EditorMessage::value(

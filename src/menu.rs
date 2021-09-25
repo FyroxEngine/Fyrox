@@ -1,7 +1,5 @@
 use crate::{
-    create_terrain_layer_material,
-    gui::{Ui, UiMessage, UiNode},
-    make_save_file_selector, make_scene_file_filter,
+    create_terrain_layer_material, make_save_file_selector, make_scene_file_filter,
     scene::{
         commands::{
             graph::AddNodeCommand, sound::AddSoundSourceCommand, PasteCommand, SceneCommand,
@@ -12,6 +10,8 @@ use crate::{
     settings::{Settings, SettingsWindow},
     GameEngine, Message,
 };
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::{UiNode, UserInterface};
 use rg3d::{
     core::{
         algebra::{Matrix4, Vector2},
@@ -112,7 +112,7 @@ pub struct MenuContext<'a, 'b> {
     pub path_fixer: Handle<UiNode>,
 }
 
-fn switch_window_state(window: Handle<UiNode>, ui: &mut Ui, center: bool) {
+fn switch_window_state(window: Handle<UiNode>, ui: &mut UserInterface, center: bool) {
     let current_state = ui.node(window).visibility();
     ui.send_message(if current_state {
         WindowMessage::close(window, MessageDirection::ToWidget)
@@ -526,7 +526,7 @@ impl Menu {
         }
     }
 
-    pub fn open_load_file_selector(&self, ui: &mut Ui) {
+    pub fn open_load_file_selector(&self, ui: &mut UserInterface) {
         ui.send_message(WindowMessage::open_modal(
             self.load_file_selector,
             MessageDirection::ToWidget,
@@ -539,7 +539,7 @@ impl Menu {
         ));
     }
 
-    pub fn sync_to_model(&mut self, editor_scene: Option<&EditorScene>, ui: &mut Ui) {
+    pub fn sync_to_model(&mut self, editor_scene: Option<&EditorScene>, ui: &mut UserInterface) {
         scope_profile!();
 
         for &widget in [

@@ -1,12 +1,7 @@
-use crate::{
-    gui::{
-        AssetItemMessage, BuildContext, CustomWidget, EditorUiMessage, EditorUiNode, Ui, UiMessage,
-        UiNode, UiWidgetBuilder,
-    },
-    load_image,
-    preview::PreviewPanel,
-    GameEngine,
-};
+use crate::{gui::AssetItemMessage, load_image, preview::PreviewPanel, GameEngine};
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::widget::Widget;
+use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::{color::Color, pool::Handle, scope_profile},
     engine::resource_manager::ResourceManager,
@@ -30,6 +25,7 @@ use rg3d::{
     },
     utils::into_gui_texture,
 };
+use std::any::Any;
 use std::{
     ffi::OsStr,
     ops::{Deref, DerefMut},
@@ -38,7 +34,7 @@ use std::{
 
 #[derive(Debug, Clone)]
 pub struct AssetItem {
-    widget: CustomWidget,
+    widget: Widget,
     pub path: PathBuf,
     pub kind: AssetKind,
     preview: Handle<UiNode>,
@@ -55,7 +51,7 @@ pub enum AssetKind {
 }
 
 impl Deref for AssetItem {
-    type Target = CustomWidget;
+    type Target = Widget;
 
     fn deref(&self) -> &Self::Target {
         &self.widget
@@ -68,7 +64,19 @@ impl DerefMut for AssetItem {
     }
 }
 
-impl Control<EditorUiMessage, EditorUiNode> for AssetItem {
+impl Control for AssetItem {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.screen_bounds();
         drawing_context.push_rect_filled(&bounds, None);
@@ -77,37 +85,39 @@ impl Control<EditorUiMessage, EditorUiNode> for AssetItem {
         drawing_context.commit(bounds, self.foreground(), CommandTexture::None, None);
     }
 
-    fn handle_routed_message(&mut self, ui: &mut Ui, message: &mut UiMessage) {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        match *message.data() {
+        match message.data() {
             UiMessageData::Widget(WidgetMessage::MouseDown { .. }) => {
                 if !message.handled() {
                     message.set_handled(true);
                     ui.send_message(AssetItemMessage::select(self.handle(), true));
                 }
             }
-            UiMessageData::User(EditorUiMessage::AssetItem(AssetItemMessage::Select(select))) => {
-                if self.selected != select && message.destination() == self.handle() {
-                    self.selected = select;
-                    ui.send_message(WidgetMessage::foreground(
-                        self.handle(),
-                        MessageDirection::ToWidget,
-                        if select {
-                            Brush::Solid(Color::opaque(200, 220, 240))
-                        } else {
-                            Brush::Solid(Color::TRANSPARENT)
-                        },
-                    ));
-                    ui.send_message(WidgetMessage::background(
-                        self.handle(),
-                        MessageDirection::ToWidget,
-                        if select {
-                            Brush::Solid(Color::opaque(100, 100, 100))
-                        } else {
-                            Brush::Solid(Color::TRANSPARENT)
-                        },
-                    ));
+            UiMessageData::User(msg) => {
+                if let Some(AssetItemMessage::Select(select)) = msg.0.cast::<AssetItemMessage>() {
+                    if self.selected != *select && message.destination() == self.handle() {
+                        self.selected = *select;
+                        ui.send_message(WidgetMessage::foreground(
+                            self.handle(),
+                            MessageDirection::ToWidget,
+                            if *select {
+                                Brush::Solid(Color::opaque(200, 220, 240))
+                            } else {
+                                Brush::Solid(Color::TRANSPARENT)
+                            },
+                        ));
+                        ui.send_message(WidgetMessage::background(
+                            self.handle(),
+                            MessageDirection::ToWidget,
+                            if *select {
+                                Brush::Solid(Color::opaque(100, 100, 100))
+                            } else {
+                                Brush::Solid(Color::TRANSPARENT)
+                            },
+                        ));
+                    }
                 }
             }
             _ => {}
@@ -116,12 +126,12 @@ impl Control<EditorUiMessage, EditorUiNode> for AssetItem {
 }
 
 pub struct AssetItemBuilder {
-    widget_builder: UiWidgetBuilder,
+    widget_builder: WidgetBuilder,
     path: Option<PathBuf>,
 }
 
 impl AssetItemBuilder {
-    pub fn new(widget_builder: UiWidgetBuilder) -> Self {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             path: None,
@@ -212,7 +222,7 @@ impl AssetItemBuilder {
             preview,
             selected: false,
         };
-        ctx.add_node(UiNode::User(EditorUiNode::AssetItem(item)))
+        ctx.add_node(UiNode::new(item))
     }
 }
 
@@ -347,17 +357,21 @@ impl AssetBrowser {
         let ui = &mut engine.user_interface;
 
         match message.data() {
-            UiMessageData::User(EditorUiMessage::AssetItem(AssetItemMessage::Select(true))) => {
-                // Deselect other items.
-                for &item in self.items.iter().filter(|i| **i != message.destination()) {
-                    ui.send_message(UiMessage::user(
-                        item,
-                        MessageDirection::ToWidget,
-                        EditorUiMessage::AssetItem(AssetItemMessage::Select(false)),
-                    ))
-                }
+            UiMessageData::User(msg) => {
+                if let Some(AssetItemMessage::Select(true)) = msg.0.cast::<AssetItemMessage>() {
+                    // Deselect other items.
+                    for &item in self.items.iter().filter(|i| **i != message.destination()) {
+                        ui.send_message(UiMessage::user(
+                            item,
+                            MessageDirection::ToWidget,
+                            Box::new(AssetItemMessage::Select(false)),
+                        ))
+                    }
 
-                if let EditorUiNode::AssetItem(item) = ui.node(message.destination()).as_user() {
+                    let item = ui
+                        .node(message.destination())
+                        .cast::<AssetItem>()
+                        .expect("Must be AssetItem");
                     ui.send_message(TextMessage::text(
                         self.selected_properties,
                         MessageDirection::ToWidget,
@@ -370,8 +384,6 @@ impl AssetBrowser {
                             self.preview.load_model(&path, engine),
                         );
                     }
-                } else {
-                    unreachable!()
                 }
             }
             UiMessageData::FileBrowser(FileBrowserMessage::Path(path))
@@ -432,7 +444,7 @@ impl AssetBrowser {
                     ui.send_message(UiMessage::user(
                         handle_to_select,
                         MessageDirection::ToWidget,
-                        EditorUiMessage::AssetItem(AssetItemMessage::Select(true)),
+                        Box::new(AssetItemMessage::Select(true)),
                     ));
 
                     ui.send_message(ScrollViewerMessage::bring_into_view(
@@ -446,7 +458,7 @@ impl AssetBrowser {
         }
     }
 
-    pub fn locate_path(&mut self, ui: &Ui, path: PathBuf) {
+    pub fn locate_path(&mut self, ui: &UserInterface, path: PathBuf) {
         ui.send_message(FileBrowserMessage::path(
             self.folder_browser,
             MessageDirection::ToWidget,

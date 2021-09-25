@@ -1,6 +1,6 @@
+use crate::asset::AssetItem;
 use crate::sidebar::make_section;
 use crate::{
-    gui::{BuildContext, EditorUiNode, Ui, UiMessage, UiNode},
     make_relative_path,
     scene::commands::{
         decal::{
@@ -15,6 +15,8 @@ use crate::{
     },
     Message,
 };
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::{pool::Handle, scope_profile},
     engine::resource_manager::ResourceManager,
@@ -53,7 +55,7 @@ fn make_texture_field(ctx: &mut BuildContext, row: usize) -> Handle<UiNode> {
     .build(ctx)
 }
 
-fn send_image_sync_message(ui: &Ui, image: Handle<UiNode>, texture: Option<Texture>) {
+fn send_image_sync_message(ui: &UserInterface, image: Handle<UiNode>, texture: Option<Texture>) {
     send_sync_message(
         ui,
         ImageMessage::texture(
@@ -114,7 +116,7 @@ impl DecalSection {
         }
     }
 
-    pub fn sync_to_model(&mut self, node: &Node, ui: &mut Ui) {
+    pub fn sync_to_model(&mut self, node: &Node, ui: &mut UserInterface) {
         send_sync_message(
             ui,
             WidgetMessage::visibility(self.section, MessageDirection::ToWidget, node.is_decal()),
@@ -141,7 +143,7 @@ impl DecalSection {
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
-        ui: &mut Ui,
+        ui: &mut UserInterface,
         resource_manager: ResourceManager,
         node_handle: Handle<Node>,
         sender: &Sender<Message>,
@@ -150,7 +152,7 @@ impl DecalSection {
 
         match *message.data() {
             UiMessageData::Widget(WidgetMessage::Drop(handle)) => {
-                if let UiNode::User(EditorUiNode::AssetItem(item)) = ui.node(handle) {
+                if let Some(item) = ui.node(handle).cast::<AssetItem>() {
                     let relative_path = make_relative_path(&item.path);
 
                     if message.destination() == self.diffuse_texture {
