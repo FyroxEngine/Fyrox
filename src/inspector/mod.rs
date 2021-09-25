@@ -1,5 +1,4 @@
 use crate::{
-    gui::{BuildContext, EditorUiMessage, EditorUiNode, UiMessage, UiNode},
     inspector::{
         editors::texture::TexturePropertyEditorDefinition,
         handlers::{
@@ -11,6 +10,8 @@ use crate::{
     scene::{commands::SceneCommand, EditorScene, Selection},
     GameEngine, Message,
 };
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::{BuildContext, UiNode};
 use rg3d::{
     core::pool::Handle,
     engine::resource_manager::ResourceManager,
@@ -54,7 +55,7 @@ impl InspectorEnvironment for EditorEnvironment {
 pub struct Inspector {
     pub window: Handle<UiNode>,
     inspector: Handle<UiNode>,
-    property_editors: Arc<PropertyEditorDefinitionContainer<EditorUiMessage, EditorUiNode>>,
+    property_editors: Arc<PropertyEditorDefinitionContainer>,
 }
 
 pub struct SenderHelper {
@@ -113,8 +114,7 @@ fn make_exposure_enum_editor_definition() -> EnumPropertyEditorDefinition<Exposu
     }
 }
 
-fn make_property_editors_container(
-) -> Arc<PropertyEditorDefinitionContainer<EditorUiMessage, EditorUiNode>> {
+fn make_property_editors_container() -> Arc<PropertyEditorDefinitionContainer> {
     let mut container = PropertyEditorDefinitionContainer::new();
 
     container.insert(Arc::new(TexturePropertyEditorDefinition));

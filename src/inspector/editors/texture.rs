@@ -1,11 +1,9 @@
+use crate::asset::AssetItem;
 use crate::inspector::EditorEnvironment;
-use crate::{
-    gui::{
-        BuildContext, CustomWidget, EditorUiMessage, EditorUiNode, Ui, UiMessage, UiNode,
-        UiWidgetBuilder,
-    },
-    make_relative_path,
-};
+use crate::make_relative_path;
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::widget::{Widget, WidgetBuilder};
+use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     asset::core::{inspect::PropertyInfo, pool::Handle},
     engine::resource_manager::ResourceManager,
@@ -16,12 +14,12 @@ use rg3d::{
             InspectorError,
         },
         message::{ImageMessage, MessageDirection, PropertyChanged, UiMessageData, WidgetMessage},
-        node::UINode,
         Control,
     },
     resource::texture::Texture,
     utils::into_gui_texture,
 };
+use std::any::Any;
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 use std::{
@@ -31,7 +29,7 @@ use std::{
 
 #[derive(Clone)]
 pub struct TextureEditor {
-    widget: CustomWidget,
+    widget: Widget,
     image: Handle<UiNode>,
     resource_manager: ResourceManager,
     texture: Option<Texture>,
@@ -44,7 +42,7 @@ impl Debug for TextureEditor {
 }
 
 impl Deref for TextureEditor {
-    type Target = CustomWidget;
+    type Target = Widget;
 
     fn deref(&self) -> &Self::Target {
         &self.widget
@@ -62,37 +60,52 @@ pub enum TextureEditorMessage {
     Texture(Option<Texture>),
 }
 
-impl Control<EditorUiMessage, EditorUiNode> for TextureEditor {
-    fn handle_routed_message(&mut self, ui: &mut Ui, message: &mut UiMessage) {
+impl Control for TextureEditor {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
         match message.data() {
             UiMessageData::Widget(WidgetMessage::Drop(dropped)) => {
                 if message.destination() == self.image {
-                    if let UiNode::User(EditorUiNode::AssetItem(item)) = ui.node(*dropped) {
+                    if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {
                         let relative_path = make_relative_path(&item.path);
 
                         ui.send_message(UiMessage::user(
                             self.handle(),
                             MessageDirection::ToWidget,
-                            EditorUiMessage::TextureEditor(TextureEditorMessage::Texture(Some(
+                            Box::new(TextureEditorMessage::Texture(Some(
                                 self.resource_manager.request_texture(relative_path, None),
                             ))),
                         ));
                     }
                 }
             }
-            UiMessageData::User(EditorUiMessage::TextureEditor(TextureEditorMessage::Texture(
-                texture,
-            ))) => {
-                if &self.texture != texture && message.direction() == MessageDirection::ToWidget {
-                    self.texture = texture.clone();
+            UiMessageData::User(msg) => {
+                if let Some(TextureEditorMessage::Texture(texture)) =
+                    msg.0.cast::<TextureEditorMessage>()
+                {
+                    if &self.texture != texture && message.direction() == MessageDirection::ToWidget
+                    {
+                        self.texture = texture.clone();
 
-                    ui.send_message(ImageMessage::texture(
-                        self.image,
-                        MessageDirection::ToWidget,
-                        self.texture.clone().map(|t| into_gui_texture(t)),
-                    ));
+                        ui.send_message(ImageMessage::texture(
+                            self.image,
+                            MessageDirection::ToWidget,
+                            self.texture.clone().map(|t| into_gui_texture(t)),
+                        ));
+                    }
                 }
             }
             _ => {}
@@ -101,12 +114,12 @@ impl Control<EditorUiMessage, EditorUiNode> for TextureEditor {
 }
 
 pub struct TextureEditorBuilder {
-    widget_builder: UiWidgetBuilder,
+    widget_builder: WidgetBuilder,
     texture: Option<Texture>,
 }
 
 impl TextureEditorBuilder {
-    pub fn new(widget_builder: UiWidgetBuilder) -> Self {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             texture: None,
@@ -127,7 +140,7 @@ impl TextureEditorBuilder {
         let widget = self
             .widget_builder
             .with_child({
-                image = ImageBuilder::new(UiWidgetBuilder::new().with_allow_drop(true))
+                image = ImageBuilder::new(WidgetBuilder::new().with_allow_drop(true))
                     .with_opt_texture(self.texture.clone().map(|t| into_gui_texture(t)))
                     .build(ctx);
                 image
@@ -141,26 +154,26 @@ impl TextureEditorBuilder {
             texture: None,
         };
 
-        ctx.add_node(UiNode::User(EditorUiNode::TextureEditor(editor)))
+        ctx.add_node(UiNode::new(editor))
     }
 }
 
 #[derive(Debug)]
 pub struct TexturePropertyEditorDefinition;
 
-impl PropertyEditorDefinition<EditorUiMessage, EditorUiNode> for TexturePropertyEditorDefinition {
+impl PropertyEditorDefinition for TexturePropertyEditorDefinition {
     fn value_type_id(&self) -> TypeId {
         TypeId::of::<Option<Texture>>()
     }
 
     fn create_instance(
         &self,
-        ctx: PropertyEditorBuildContext<EditorUiMessage, EditorUiNode>,
-    ) -> Result<Handle<UINode<EditorUiMessage, EditorUiNode>>, InspectorError> {
+        ctx: PropertyEditorBuildContext,
+    ) -> Result<Handle<UiNode>, InspectorError> {
         let value = ctx.property_info.cast_value::<Option<Texture>>()?;
 
         Ok(
-            TextureEditorBuilder::new(UiWidgetBuilder::new().on_row(ctx.row).on_column(ctx.column))
+            TextureEditorBuilder::new(WidgetBuilder::new().on_row(ctx.row).on_column(ctx.column))
                 .with_texture(value.clone())
                 .build(
                     ctx.build_context,
@@ -177,7 +190,7 @@ impl PropertyEditorDefinition<EditorUiMessage, EditorUiNode> for TextureProperty
 
     fn create_message(
         &self,
-        instance: Handle<UINode<EditorUiMessage, EditorUiNode>>,
+        instance: Handle<UiNode>,
         property_info: &PropertyInfo,
     ) -> Result<UiMessage, InspectorError> {
         let value = property_info.cast_value::<Option<Texture>>()?;
@@ -185,7 +198,7 @@ impl PropertyEditorDefinition<EditorUiMessage, EditorUiNode> for TextureProperty
         Ok(UiMessage::user(
             instance,
             MessageDirection::ToWidget,
-            EditorUiMessage::TextureEditor(TextureEditorMessage::Texture(value.clone())),
+            Box::new(TextureEditorMessage::Texture(value.clone())),
         ))
     }
 
@@ -196,15 +209,16 @@ impl PropertyEditorDefinition<EditorUiMessage, EditorUiNode> for TextureProperty
         message: &UiMessage,
     ) -> Option<PropertyChanged> {
         if message.direction() == MessageDirection::FromWidget {
-            if let UiMessageData::User(EditorUiMessage::TextureEditor(
-                TextureEditorMessage::Texture(value),
-            )) = message.data()
-            {
-                return Some(PropertyChanged {
-                    owner_type_id,
-                    name: name.to_string(),
-                    value: Arc::new(value.clone()),
-                });
+            if let UiMessageData::User(msg) = message.data() {
+                if let Some(TextureEditorMessage::Texture(value)) =
+                    msg.0.cast::<TextureEditorMessage>()
+                {
+                    return Some(PropertyChanged {
+                        owner_type_id,
+                        name: name.to_string(),
+                        value: Arc::new(value.clone()),
+                    });
+                }
             }
         }
         None

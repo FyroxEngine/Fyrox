@@ -2,7 +2,6 @@ use crate::load_image;
 use rg3d::gui::message::UiMessage;
 use rg3d::gui::widget::Widget;
 use rg3d::gui::{BuildContext, UiNode, UserInterface};
-use crate::inspector::editors::texture::{TextureEditor, TextureEditorMessage};
 use rg3d::{
     core::pool::Handle,
     gui::{
