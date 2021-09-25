@@ -1,5 +1,4 @@
 use crate::{
-    gui::{BuildContext, Ui, UiMessage, UiNode},
     scene::commands::{
         terrain::{
             AddTerrainLayerCommand, DeleteTerrainLayerCommand, SetTerrainDecalLayerIndexCommand,
@@ -14,6 +13,8 @@ use crate::{
     },
     Message,
 };
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::{algebra::Vector2, pool::Handle, scope_profile},
     gui::{
@@ -136,7 +137,7 @@ impl TerrainSection {
         }
     }
 
-    pub fn sync_to_model(&mut self, node: &Node, ui: &mut Ui) {
+    pub fn sync_to_model(&mut self, node: &Node, ui: &mut UserInterface) {
         send_sync_message(
             ui,
             WidgetMessage::visibility(self.section, MessageDirection::ToWidget, node.is_terrain()),
@@ -183,7 +184,7 @@ impl TerrainSection {
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
-        ui: &mut Ui,
+        ui: &mut UserInterface,
         graph: &Graph,
         handle: Handle<Node>,
         sender: &Sender<Message>,

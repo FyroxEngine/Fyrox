@@ -2,7 +2,6 @@ use crate::interaction::gizmo::move_gizmo::MoveGizmo;
 use crate::interaction::plane::PlaneKind;
 use crate::settings::Settings;
 use crate::{
-    gui::{BuildContext, UiMessage, UiNode},
     interaction::{
         calculate_gizmo_distance_scaling,
         navmesh::{
@@ -23,6 +22,9 @@ use crate::{
     },
     send_sync_message, GameEngine, Message, MSG_SYNC_FLAG,
 };
+use rg3d::gui::list_view::ListView;
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::{BuildContext, UiNode};
 use rg3d::{
     core::{
         algebra::{Vector2, Vector3},
@@ -300,7 +302,7 @@ impl NavmeshPanel {
                 {
                     let new_selection = if let Some(selection) = *selection {
                         let navmeshes = engine.user_interface.node(self.navmeshes);
-                        let item = navmeshes.as_list_view().items()[selection];
+                        let item = navmeshes.cast::<ListView>().unwrap().items()[selection];
                         *engine
                             .user_interface
                             .node(item)

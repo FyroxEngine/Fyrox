@@ -1,5 +1,5 @@
 use crate::{
-    gui::{make_dropdown_list_option, BuildContext, Ui, UiMessage, UiNode},
+    gui::make_dropdown_list_option,
     scene::commands::{
         mesh::{
             SetMeshCastShadowsCommand, SetMeshDecalLayerIndexCommand, SetMeshRenderPathCommand,
@@ -13,6 +13,9 @@ use crate::{
     },
     Message,
 };
+use rg3d::gui::dropdown_list::DropdownList;
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::{pool::Handle, scope_profile},
     gui::{
@@ -143,7 +146,7 @@ impl MeshSection {
         }
     }
 
-    pub fn sync_to_model(&mut self, node: &Node, ui: &mut Ui) {
+    pub fn sync_to_model(&mut self, node: &Node, ui: &mut UserInterface) {
         send_sync_message(
             ui,
             WidgetMessage::visibility(self.section, MessageDirection::ToWidget, node.is_mesh()),
@@ -191,7 +194,13 @@ impl MeshSection {
                 ),
             );
 
-            if mesh.surfaces().len() != ui.node(self.surfaces_list).as_dropdown_list().items().len()
+            if mesh.surfaces().len()
+                != ui
+                    .node(self.surfaces_list)
+                    .cast::<DropdownList>()
+                    .unwrap()
+                    .items()
+                    .len()
             {
                 let items = mesh
                     .surfaces()

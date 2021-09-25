@@ -1,9 +1,10 @@
 use crate::{
-    gui::{BuildContext, Ui, UiMessage, UiNode},
     scene::EditorScene,
     settings::{make_bool_input_field, make_text_mark},
     GameEngine,
 };
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::pool::Handle,
     gui::{
@@ -153,7 +154,7 @@ impl GraphicsSection {
         }
     }
 
-    pub fn sync_to_model(&self, ui: &Ui, settings: &GraphicsSettings) {
+    pub fn sync_to_model(&self, ui: &UserInterface, settings: &GraphicsSettings) {
         ui.send_message(NumericUpDownMessage::value(
             self.near_plane,
             MessageDirection::ToWidget,

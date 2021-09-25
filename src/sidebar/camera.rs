@@ -1,5 +1,6 @@
+use crate::asset::AssetItem;
 use crate::{
-    gui::{make_dropdown_list_option, BuildContext, EditorUiNode, Ui, UiMessage, UiNode},
+    gui::make_dropdown_list_option,
     make_relative_path,
     scene::commands::{
         camera::{
@@ -15,6 +16,8 @@ use crate::{
     },
     Message,
 };
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::{futures::executor::block_on, pool::Handle, scope_profile},
     engine::resource_manager::{ResourceManager, TextureImportOptions},
@@ -253,7 +256,7 @@ impl CameraSection {
         }
     }
 
-    pub fn sync_to_model(&mut self, node: &Node, ui: &mut Ui) {
+    pub fn sync_to_model(&mut self, node: &Node, ui: &mut UserInterface) {
         send_sync_message(
             ui,
             WidgetMessage::visibility(self.section, MessageDirection::ToWidget, node.is_camera()),
@@ -410,7 +413,7 @@ impl CameraSection {
         message: &UiMessage,
         node: &Node,
         handle: Handle<Node>,
-        ui: &Ui,
+        ui: &UserInterface,
         resource_manager: ResourceManager,
     ) {
         scope_profile!();
@@ -527,7 +530,7 @@ impl CameraSection {
                 }
                 UiMessageData::Widget(WidgetMessage::Drop(dropped)) => {
                     if message.destination() == self.color_grading_lut {
-                        if let UiNode::User(EditorUiNode::AssetItem(item)) = ui.node(dropped) {
+                        if let Some(item) = ui.node(dropped).cast::<AssetItem>() {
                             let relative_path = make_relative_path(&item.path);
 
                             match block_on(ColorGradingLut::new(

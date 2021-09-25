@@ -1,7 +1,6 @@
 use crate::gui::make_dropdown_list_option;
 use crate::sidebar::make_section;
 use crate::{
-    gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::{Collider, Joint, RigidBody},
     scene::commands::CommandGroup,
     scene::{
@@ -28,6 +27,8 @@ use crate::{
     },
     GameEngine, Message,
 };
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::{
         algebra::Matrix4, algebra::Vector3, math::aabb::AxisAlignedBoundingBox, pool::Handle,
@@ -269,7 +270,11 @@ impl PhysicsSection {
                         ),
                     );
 
-                    fn toggle_visibility(ui: &mut Ui, destination: Handle<UiNode>, value: bool) {
+                    fn toggle_visibility(
+                        ui: &mut UserInterface,
+                        destination: Handle<UiNode>,
+                        value: bool,
+                    ) {
                         send_sync_message(
                             ui,
                             WidgetMessage::visibility(

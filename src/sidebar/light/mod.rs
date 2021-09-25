@@ -1,7 +1,6 @@
 use crate::scene::commands::light::SetLightIntensityCommand;
 use crate::sidebar::make_f32_input_field;
 use crate::{
-    gui::{BuildContext, Ui, UiMessage, UiNode},
     scene::commands::{
         light::{
             SetLightCastShadowsCommand, SetLightColorCommand, SetLightScatterCommand,
@@ -17,6 +16,8 @@ use crate::{
     },
     Message,
 };
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::{pool::Handle, scope_profile},
     gui::{
@@ -119,7 +120,7 @@ impl LightSection {
         }
     }
 
-    pub fn sync_to_model(&mut self, node: &Node, ui: &mut Ui) {
+    pub fn sync_to_model(&mut self, node: &Node, ui: &mut UserInterface) {
         if let Node::Light(light) = node {
             send_sync_message(
                 ui,

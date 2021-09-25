@@ -1,5 +1,4 @@
 use crate::{
-    gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::Joint,
     scene::commands::{
         physics::{
@@ -13,6 +12,8 @@ use crate::{
     Message,
 };
 use rg3d::core::math::UnitQuaternionExt;
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::{
         algebra::Vector3,
@@ -88,7 +89,7 @@ impl FixedJointSection {
         }
     }
 
-    pub fn sync_to_model(&mut self, fixed: &FixedJointDesc, ui: &mut Ui) {
+    pub fn sync_to_model(&mut self, fixed: &FixedJointDesc, ui: &mut UserInterface) {
         send_sync_message(
             ui,
             Vec3EditorMessage::value(

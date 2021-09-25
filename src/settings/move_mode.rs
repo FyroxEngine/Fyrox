@@ -1,7 +1,6 @@
-use crate::{
-    gui::{BuildContext, Ui, UiMessage, UiNode},
-    settings::{make_bool_input_field, make_f32_input_field, make_text_mark},
-};
+use crate::settings::{make_bool_input_field, make_f32_input_field, make_text_mark};
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::pool::Handle,
     gui::{
@@ -87,7 +86,7 @@ impl MoveModeSection {
         }
     }
 
-    pub fn sync_to_model(&self, ui: &Ui, settings: &MoveInteractionModeSettings) {
+    pub fn sync_to_model(&self, ui: &UserInterface, settings: &MoveInteractionModeSettings) {
         for &(node, value) in &[
             (self.x_snap_step, settings.x_snap_step),
             (self.y_snap_step, settings.y_snap_step),

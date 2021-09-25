@@ -1,5 +1,4 @@
 use crate::{
-    gui::{BuildContext, Ui, UiMessage, UiNode},
     scene::commands::{
         particle_system::{
             EmitterNumericParameter, SetEmitterNumericParameterCommand, SetEmitterPositionCommand,
@@ -16,6 +15,8 @@ use crate::{
     },
     Message,
 };
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::pool::Handle,
     gui::{
@@ -248,7 +249,7 @@ impl EmitterSection {
         }
     }
 
-    pub fn sync_to_model(&mut self, emitter: &Emitter, ui: &mut Ui) {
+    pub fn sync_to_model(&mut self, emitter: &Emitter, ui: &mut UserInterface) {
         send_sync_message(
             ui,
             Vec3EditorMessage::value(
@@ -309,7 +310,7 @@ impl EmitterSection {
             ),
         );
 
-        fn toggle_visibility(ui: &mut Ui, destination: Handle<UiNode>, value: bool) {
+        fn toggle_visibility(ui: &mut UserInterface, destination: Handle<UiNode>, value: bool) {
             send_sync_message(
                 ui,
                 WidgetMessage::visibility(destination, MessageDirection::ToWidget, value),

@@ -1,7 +1,6 @@
 use crate::gui::make_dropdown_list_option;
 use crate::sidebar::make_section;
 use crate::{
-    gui::{BuildContext, Ui, UiMessage, UiNode},
     scene::commands::{
         graph::{
             MoveNodeCommand, RotateNodeCommand, ScaleNodeCommand, SetNameCommand,
@@ -16,6 +15,8 @@ use crate::{
     },
     Message,
 };
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::{
         algebra::Vector3,
@@ -199,7 +200,7 @@ impl BaseSection {
         }
     }
 
-    pub fn sync_to_model(&self, node: &Node, ui: &Ui) {
+    pub fn sync_to_model(&self, node: &Node, ui: &UserInterface) {
         send_sync_message(
             ui,
             TextBoxMessage::text(
@@ -314,7 +315,7 @@ impl BaseSection {
         sender: &Sender<Message>,
         node: &Node,
         node_handle: Handle<Node>,
-        ui: &mut Ui,
+        ui: &mut UserInterface,
         lod_editor: &mut LodGroupEditor,
     ) {
         match message.data() {

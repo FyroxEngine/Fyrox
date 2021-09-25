@@ -1,4 +1,3 @@
-use crate::gui::UiNode;
 use crate::interaction::InteractionModeTrait;
 use crate::scene::commands::{ChangeSelectionCommand, SceneCommand};
 use crate::scene::{EditorScene, GraphSelection, Selection};
@@ -8,6 +7,7 @@ use rg3d::core::algebra::Vector2;
 use rg3d::core::math::aabb::AxisAlignedBoundingBox;
 use rg3d::core::pool::Handle;
 use rg3d::gui::message::{MessageDirection, WidgetMessage};
+use rg3d::gui::UiNode;
 use rg3d::scene::node::Node;
 use std::sync::mpsc::Sender;
 

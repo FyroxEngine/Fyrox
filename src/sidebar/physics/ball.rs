@@ -1,11 +1,12 @@
 use crate::sidebar::make_section;
 use crate::{
-    gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::Collider,
     scene::commands::{physics::SetBallRadiusCommand, SceneCommand},
     sidebar::{make_f32_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
 };
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::pool::Handle,
     gui::{
@@ -50,7 +51,7 @@ impl BallSection {
         }
     }
 
-    pub fn sync_to_model(&mut self, ball: &BallDesc, ui: &mut Ui) {
+    pub fn sync_to_model(&mut self, ball: &BallDesc, ui: &mut UserInterface) {
         ui.send_message(NumericUpDownMessage::value(
             self.radius,
             MessageDirection::ToWidget,

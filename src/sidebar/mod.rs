@@ -1,5 +1,4 @@
 use crate::{
-    gui::{BuildContext, UiMessage, UiNode},
     scene::{EditorScene, Selection},
     send_sync_message,
     sidebar::{
@@ -10,6 +9,8 @@ use crate::{
     },
     GameEngine, Message,
 };
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::{BuildContext, UiNode};
 use rg3d::{
     core::{color::Color, pool::Handle, scope_profile},
     gui::{

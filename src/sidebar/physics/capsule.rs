@@ -1,6 +1,5 @@
 use crate::sidebar::make_section;
 use crate::{
-    gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::Collider,
     scene::commands::{
         physics::{SetCapsuleBeginCommand, SetCapsuleEndCommand, SetCapsuleRadiusCommand},
@@ -12,6 +11,8 @@ use crate::{
     },
     Message,
 };
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::pool::Handle,
     gui::{
@@ -74,7 +75,7 @@ impl CapsuleSection {
         }
     }
 
-    pub fn sync_to_model(&mut self, capsule: &CapsuleDesc, ui: &mut Ui) {
+    pub fn sync_to_model(&mut self, capsule: &CapsuleDesc, ui: &mut UserInterface) {
         send_sync_message(
             ui,
             Vec3EditorMessage::value(self.begin, MessageDirection::ToWidget, capsule.begin),

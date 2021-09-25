@@ -1,8 +1,4 @@
 use crate::{
-    gui::{
-        BuildContext, CustomWidget, EditorUiMessage, EditorUiNode, Ui, UiMessage, UiNode,
-        UiWidgetBuilder,
-    },
     scene::{
         commands::{ChangeSelectionCommand, SceneCommand},
         EditorScene, Selection,
@@ -10,6 +6,10 @@ use crate::{
     send_sync_message, utils, GameEngine, Message,
 };
 use rg3d::core::algebra::Vector3;
+use rg3d::gui::list_view::ListView;
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::widget::Widget;
+use rg3d::gui::BuildContext;
 use rg3d::sound::context::SoundContext;
 use rg3d::{
     core::pool::Handle,
@@ -18,14 +18,14 @@ use rg3d::{
         decorator::DecoratorBuilder,
         list_view::ListViewBuilder,
         message::{ListViewMessage, MessageDirection, TextMessage, UiMessageData},
-        node::UINode,
         text::TextBuilder,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
-        Control, NodeHandleMapping, UserInterface,
+        Control, NodeHandleMapping, UiNode, UserInterface,
     },
     sound::source::SoundSource,
 };
+use std::any::Any;
 use std::cmp::Ordering;
 use std::{
     ops::{Deref, DerefMut},
@@ -82,7 +82,7 @@ impl Eq for SoundSelection {}
 
 #[derive(Clone, Debug)]
 pub struct SoundItem {
-    widget: CustomWidget,
+    widget: Widget,
     text: Handle<UiNode>,
     sound_source: Handle<SoundSource>,
 }
@@ -93,7 +93,7 @@ pub enum SoundItemMessage {
 }
 
 impl Deref for SoundItem {
-    type Target = CustomWidget;
+    type Target = Widget;
 
     fn deref(&self) -> &Self::Target {
         &self.widget
@@ -106,30 +106,38 @@ impl DerefMut for SoundItem {
     }
 }
 
-impl Control<EditorUiMessage, EditorUiNode> for SoundItem {
-    fn resolve(&mut self, node_map: &NodeHandleMapping<EditorUiMessage, EditorUiNode>) {
+impl Control for SoundItem {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+
+    fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.text)
     }
 
-    fn handle_routed_message(
-        &mut self,
-        ui: &mut UserInterface<EditorUiMessage, EditorUiNode>,
-        message: &mut UiMessage,
-    ) {
-        if let UiMessageData::User(EditorUiMessage::SoundItem(SoundItemMessage::Name(name))) =
-            message.data()
-        {
-            ui.send_message(TextMessage::text(
-                self.text,
-                MessageDirection::ToWidget,
-                make_item_name(name, self.sound_source),
-            ));
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
+        if let UiMessageData::User(msg) = message.data() {
+            if let Some(SoundItemMessage::Name(name)) = msg.0.cast::<SoundItemMessage>() {
+                ui.send_message(TextMessage::text(
+                    self.text,
+                    MessageDirection::ToWidget,
+                    make_item_name(name, self.sound_source),
+                ));
+            }
         }
     }
 }
 
 pub struct SoundItemBuilder {
-    widget_builder: UiWidgetBuilder,
+    widget_builder: WidgetBuilder,
     name: String,
     sound_source: Handle<SoundSource>,
 }
@@ -139,7 +147,7 @@ fn make_item_name(name: &str, handle: Handle<SoundSource>) -> String {
 }
 
 impl SoundItemBuilder {
-    pub fn new(widget_builder: UiWidgetBuilder) -> Self {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             name: Default::default(),
@@ -168,13 +176,13 @@ impl SoundItemBuilder {
             })))
             .build(ctx);
 
-        let node = UiNode::User(EditorUiNode::SoundItem(SoundItem {
+        let node = SoundItem {
             widget: self.widget_builder.with_child(decorator).build(),
             text,
             sound_source: self.sound_source,
-        }));
+        };
 
-        ctx.add_node(node)
+        ctx.add_node(UiNode::new(node))
     }
 }
 
@@ -183,8 +191,8 @@ pub struct SoundPanel {
     sounds: Handle<UiNode>,
 }
 
-fn fetch_source(handle: Handle<UiNode>, ui: &Ui) -> Handle<SoundSource> {
-    if let UINode::User(EditorUiNode::SoundItem(item)) = ui.node(handle) {
+fn fetch_source(handle: Handle<UiNode>, ui: &UserInterface) -> Handle<SoundSource> {
+    if let Some(item) = ui.node(handle).cast::<SoundItem>() {
         item.sound_source
     } else {
         unreachable!()
@@ -207,7 +215,12 @@ impl SoundPanel {
     pub fn sync_to_model(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
         let ui = &mut engine.user_interface;
         let context = &engine.scenes[editor_scene.scene].sound_context;
-        let list_view_items = ui.node(self.sounds).as_list_view().items().to_vec();
+        let list_view_items = ui
+            .node(self.sounds)
+            .cast::<ListView>()
+            .unwrap()
+            .items()
+            .to_vec();
         let context_state = context.state();
         let sources = context_state.sources();
 
@@ -263,7 +276,8 @@ impl SoundPanel {
                 if let Selection::Sound(selection) = &editor_scene.selection {
                     if let Some(first) = selection.first() {
                         ui.node(self.sounds)
-                            .as_list_view()
+                            .cast::<ListView>()
+                            .unwrap()
                             .items()
                             .iter()
                             .position(|i| fetch_source(*i, ui) == first)
@@ -277,12 +291,12 @@ impl SoundPanel {
         );
 
         // Sync sound names.
-        for item in ui.node(self.sounds).as_list_view().items() {
+        for item in ui.node(self.sounds).cast::<ListView>().unwrap().items() {
             let associated_source = fetch_source(*item, ui);
             ui.send_message(UiMessage::user(
                 *item,
                 MessageDirection::ToWidget,
-                EditorUiMessage::SoundItem(SoundItemMessage::Name(
+                Box::new(SoundItemMessage::Name(
                     context_state.source(associated_source).name_owned(),
                 )),
             ));
@@ -297,7 +311,7 @@ impl SoundPanel {
         engine: &GameEngine,
     ) {
         let ui = &engine.user_interface;
-        let list_view_items = ui.node(self.sounds).as_list_view().items();
+        let list_view_items = ui.node(self.sounds).cast::<ListView>().unwrap().items();
 
         if let UiMessageData::ListView(ListViewMessage::SelectionChanged(selection)) =
             message.data()

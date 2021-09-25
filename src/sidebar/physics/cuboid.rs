@@ -1,12 +1,13 @@
 use crate::sidebar::make_section;
 use crate::{
-    gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::Collider,
     scene::commands::{physics::SetCuboidHalfExtentsCommand, SceneCommand},
     send_sync_message,
     sidebar::{make_f32_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
 };
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::{algebra::Vector3, pool::Handle},
     gui::{
@@ -69,7 +70,7 @@ impl CuboidSection {
         }
     }
 
-    pub fn sync_to_model(&mut self, cuboid: &CuboidDesc, ui: &mut Ui) {
+    pub fn sync_to_model(&mut self, cuboid: &CuboidDesc, ui: &mut UserInterface) {
         send_sync_message(
             ui,
             NumericUpDownMessage::value(

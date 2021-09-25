@@ -1,9 +1,10 @@
 use crate::{
-    gui::{BuildContext, Ui, UiMessage, UiNode},
     send_sync_message,
     sidebar::{make_section, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
 };
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::{pool::Handle, scope_profile},
     gui::{
@@ -46,7 +47,7 @@ impl LayerSection {
         Self { section, material }
     }
 
-    pub fn sync_to_model(&mut self, layer: Option<&Layer>, ui: &mut Ui) {
+    pub fn sync_to_model(&mut self, layer: Option<&Layer>, ui: &mut UserInterface) {
         send_sync_message(
             ui,
             WidgetMessage::visibility(self.section, MessageDirection::ToWidget, layer.is_some()),

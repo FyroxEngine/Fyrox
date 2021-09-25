@@ -1,12 +1,13 @@
 use crate::sidebar::make_section;
 use crate::{
-    gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::RigidBody,
     scene::commands::{physics::SetBodyMassCommand, SceneCommand},
     send_sync_message,
     sidebar::{make_f32_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
 };
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::pool::Handle,
     gui::{
@@ -50,7 +51,7 @@ impl BodySection {
         }
     }
 
-    pub fn sync_to_model(&mut self, body: &RigidBody, ui: &mut Ui) {
+    pub fn sync_to_model(&mut self, body: &RigidBody, ui: &mut UserInterface) {
         send_sync_message(
             ui,
             NumericUpDownMessage::value(self.mass, MessageDirection::ToWidget, body.mass),

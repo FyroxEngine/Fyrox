@@ -1,10 +1,8 @@
-use crate::{
-    gui::{BuildContext, UiMessage, UiNode},
-    GameEngine, Message,
-};
+use crate::{GameEngine, Message};
 use rg3d::core::scope_profile;
 use rg3d::gui::formatted_text::WrapMode;
-use rg3d::gui::{HorizontalAlignment, VerticalAlignment, BRUSH_BRIGHT};
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::{BuildContext, HorizontalAlignment, UiNode, VerticalAlignment, BRUSH_BRIGHT};
 use rg3d::{
     core::{algebra::Vector2, pool::Handle},
     gui::{

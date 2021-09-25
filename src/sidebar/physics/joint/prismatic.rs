@@ -1,6 +1,5 @@
 use crate::sidebar::make_section;
 use crate::{
-    gui::{BuildContext, Ui, UiMessage, UiNode},
     physics::Joint,
     scene::commands::{
         physics::{
@@ -13,6 +12,8 @@ use crate::{
     sidebar::{make_text_mark, make_vec3_input_field, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
 };
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::pool::Handle,
     gui::{
@@ -84,7 +85,7 @@ impl PrismaticJointSection {
         }
     }
 
-    pub fn sync_to_model(&mut self, prismatic: &PrismaticJointDesc, ui: &mut Ui) {
+    pub fn sync_to_model(&mut self, prismatic: &PrismaticJointDesc, ui: &mut UserInterface) {
         send_sync_message(
             ui,
             Vec3EditorMessage::value(

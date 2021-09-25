@@ -1,6 +1,5 @@
 use crate::sidebar::make_section;
 use crate::{
-    gui::{BuildContext, Ui, UiMessage, UiNode},
     scene::commands::{
         particle_system::{SetCylinderEmitterHeightCommand, SetCylinderEmitterRadiusCommand},
         SceneCommand,
@@ -9,6 +8,8 @@ use crate::{
     sidebar::{make_f32_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
 };
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::pool::Handle,
     gui::{
@@ -62,7 +63,7 @@ impl CylinderSection {
         }
     }
 
-    pub fn sync_to_model(&mut self, cylinder: &CylinderEmitter, ui: &mut Ui) {
+    pub fn sync_to_model(&mut self, cylinder: &CylinderEmitter, ui: &mut UserInterface) {
         send_sync_message(
             ui,
             NumericUpDownMessage::value(self.radius, MessageDirection::ToWidget, cylinder.radius()),

@@ -1,7 +1,7 @@
-use crate::{
-    gui::{UiMessage, UiNode},
-    GameEngine,
-};
+use crate::GameEngine;
+use rg3d::gui::image::Image;
+use rg3d::gui::message::UiMessage;
+use rg3d::gui::UiNode;
 use rg3d::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
@@ -309,7 +309,7 @@ impl PreviewPanel {
         } else {
             unreachable!();
         };
-        if let UiNode::Image(frame) = engine.user_interface.node(self.frame) {
+        if let Some(frame) = engine.user_interface.node(self.frame).cast::<Image>() {
             let frame_size = frame.actual_size();
             if rt_width != frame_size.x as u32 || rt_height != frame_size.y as u32 {
                 let rt = Texture::new_render_target(frame_size.x as u32, frame_size.y as u32);
