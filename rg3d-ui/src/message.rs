@@ -34,6 +34,7 @@ use crate::{
     HorizontalAlignment, MouseState, Orientation, Thickness, UiNode, VerticalAlignment,
 };
 use std::any::{Any, TypeId};
+use std::ops::{Deref, DerefMut};
 use std::{cell::Cell, fmt::Debug, path::PathBuf, sync::Arc};
 
 macro_rules! define_constructor {
@@ -991,6 +992,20 @@ impl InspectorMessage {
 
 #[derive(Debug)]
 pub struct UserMessageData(pub Box<dyn MessageData>);
+
+impl Deref for UserMessageData {
+    type Target = dyn MessageData;
+
+    fn deref(&self) -> &Self::Target {
+        &*self.0
+    }
+}
+
+impl DerefMut for UserMessageData {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut *self.0
+    }
+}
 
 impl PartialEq for UserMessageData {
     fn eq(&self, other: &Self) -> bool {
