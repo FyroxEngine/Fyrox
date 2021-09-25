@@ -96,7 +96,7 @@ impl Control for AssetItem {
                 }
             }
             UiMessageData::User(msg) => {
-                if let Some(AssetItemMessage::Select(select)) = msg.0.cast::<AssetItemMessage>() {
+                if let Some(AssetItemMessage::Select(select)) = msg.cast::<AssetItemMessage>() {
                     if self.selected != *select && message.destination() == self.handle() {
                         self.selected = *select;
                         ui.send_message(WidgetMessage::foreground(
@@ -358,7 +358,7 @@ impl AssetBrowser {
 
         match message.data() {
             UiMessageData::User(msg) => {
-                if let Some(AssetItemMessage::Select(true)) = msg.0.cast::<AssetItemMessage>() {
+                if let Some(AssetItemMessage::Select(true)) = msg.cast::<AssetItemMessage>() {
                     // Deselect other items.
                     for &item in self.items.iter().filter(|i| **i != message.destination()) {
                         ui.send_message(UiMessage::user(

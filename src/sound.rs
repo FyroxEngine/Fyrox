@@ -125,7 +125,7 @@ impl Control for SoundItem {
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         if let UiMessageData::User(msg) = message.data() {
-            if let Some(SoundItemMessage::Name(name)) = msg.0.cast::<SoundItemMessage>() {
+            if let Some(SoundItemMessage::Name(name)) = msg.cast::<SoundItemMessage>() {
                 ui.send_message(TextMessage::text(
                     self.text,
                     MessageDirection::ToWidget,

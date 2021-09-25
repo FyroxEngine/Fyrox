@@ -393,8 +393,7 @@ impl ParticleSystemSection {
                     }
                 }
                 UiMessageData::User(msg) => {
-                    if let Some(DeletableItemMessage::Delete) = msg.0.cast::<DeletableItemMessage>()
-                    {
+                    if let Some(DeletableItemMessage::Delete) = msg.cast::<DeletableItemMessage>() {
                         if ui
                             .node(self.emitters)
                             .cast::<DropdownList>()
