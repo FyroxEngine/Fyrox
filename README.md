@@ -48,6 +48,7 @@ cargo run --release
 
 - [Click] - Select
 - [W][S][A][D] - Move camera
+- [Space][Q]/[E] - Raise/Lower Camera
 - [1] - Select interaction mode
 - [2] - Move interaction mode
 - [3] - Scale interaction mode
