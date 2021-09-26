@@ -35,7 +35,7 @@ use std::{
 /// rendering. Terrain can have as many layers as you want, but each layer slightly decreases
 /// performance, so keep amount of layers on reasonable level (1 - 5 should be enough for most
 /// cases).
-#[derive(Default, Debug, Clone, Visit)]
+#[derive(Default, Debug, Clone, Visit, Inspect)]
 pub struct Layer {
     /// Material of the layer.
     pub material: Arc<Mutex<Material>>,
@@ -47,6 +47,7 @@ pub struct Layer {
     /// It will be used in the renderer to set appropriate chunk mask to the copy of the material.
     pub mask_property_name: String,
 
+    #[inspect(skip)]
     pub(in crate) chunk_masks: Vec<Texture>,
 }
 
