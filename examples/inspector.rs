@@ -4,6 +4,7 @@ pub mod shared;
 
 use crate::shared::create_camera;
 use rg3d::engine::Engine;
+use rg3d::gui::message::FieldKind;
 use rg3d::gui::UiNode;
 use rg3d::{
     animation::Animation,
@@ -137,7 +138,7 @@ fn main() {
     let inspector_context = InspectorContext::from_object(
         &scene.graph[model_handle],
         &mut engine.user_interface.build_ctx(),
-        &interface.definition_container,
+        interface.definition_container.clone(),
         None,
     );
     engine
@@ -209,29 +210,32 @@ fn main() {
                         if let UiMessageData::Inspector(InspectorMessage::PropertyChanged(args)) =
                             ui_message.data()
                         {
-                            match args.name.as_str() {
-                                "local_scale" => {
-                                    let value = args.cast_value::<Vector3<f32>>().unwrap();
-                                    scene.graph[model_handle]
-                                        .local_transform_mut()
-                                        .set_scale(*value);
+                            if let FieldKind::Object(ref value) = args.value {
+                                match args.name.as_str() {
+                                    "local_scale" => {
+                                        scene.graph[model_handle].local_transform_mut().set_scale(
+                                            *value.cast_value::<Vector3<f32>>().unwrap(),
+                                        );
+                                    }
+                                    "visibility" => {
+                                        scene.graph[model_handle]
+                                            .set_visibility(*value.cast_value::<bool>().unwrap());
+                                    }
+                                    "local_rotation" => {
+                                        scene.graph[model_handle]
+                                            .local_transform_mut()
+                                            .set_rotation(
+                                                *value.cast_value::<UnitQuaternion<f32>>().unwrap(),
+                                            );
+                                    }
+                                    "name" => {
+                                        scene.graph[model_handle].set_name(
+                                            value.cast_value::<String>().unwrap().clone(),
+                                        );
+                                    }
+                                    // TODO: Add rest of properties.
+                                    _ => (),
                                 }
-                                "visibility" => {
-                                    let value = args.cast_value::<bool>().unwrap();
-                                    scene.graph[model_handle].set_visibility(*value);
-                                }
-                                "local_rotation" => {
-                                    let value = args.cast_value::<UnitQuaternion<f32>>().unwrap();
-                                    scene.graph[model_handle]
-                                        .local_transform_mut()
-                                        .set_rotation(*value);
-                                }
-                                "name" => {
-                                    let text = args.cast_value::<String>().unwrap();
-                                    scene.graph[model_handle].set_name(text.clone());
-                                }
-                                // TODO: Add rest of properties.
-                                _ => (),
                             }
                         }
                     }
