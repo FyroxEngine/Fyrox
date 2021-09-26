@@ -10,6 +10,7 @@ use crate::{
     scene::{commands::SceneCommand, EditorScene, Selection},
     GameEngine, Message,
 };
+use rg3d::scene::terrain::Layer;
 use rg3d::{
     core::pool::Handle,
     engine::resource_manager::ResourceManager,
@@ -121,6 +122,9 @@ fn make_property_editors_container() -> Arc<PropertyEditorDefinitionContainer> {
     container.insert(Arc::new(TexturePropertyEditorDefinition));
     container.insert(Arc::new(
         VecCollectionPropertyEditorDefinition::<Surface>::new(),
+    ));
+    container.insert(Arc::new(
+        VecCollectionPropertyEditorDefinition::<Layer>::new(),
     ));
     container.insert(Arc::new(make_physics_binding_enum_editor_definition()));
     container.insert(Arc::new(make_mobility_enum_editor_definition()));
@@ -237,6 +241,8 @@ impl Inspector {
                         }
                     }
                 }
+
+                println!("Property changed: {:?}", args);
             }
         }
     }

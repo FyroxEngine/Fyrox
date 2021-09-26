@@ -1,30 +1,26 @@
-use crate::asset::AssetItem;
-use crate::inspector::EditorEnvironment;
-use crate::make_relative_path;
-use rg3d::gui::inspector::editors::Layout;
-use rg3d::gui::message::{FieldKind, UiMessage};
-use rg3d::gui::widget::{Widget, WidgetBuilder};
-use rg3d::gui::{BuildContext, UiNode, UserInterface};
+use crate::{asset::AssetItem, inspector::EditorEnvironment, make_relative_path};
 use rg3d::{
     asset::core::{inspect::PropertyInfo, pool::Handle},
     engine::resource_manager::ResourceManager,
     gui::{
         image::ImageBuilder,
         inspector::{
-            editors::{PropertyEditorBuildContext, PropertyEditorDefinition},
+            editors::{Layout, PropertyEditorBuildContext, PropertyEditorDefinition},
             InspectorError,
         },
-        message::{ImageMessage, MessageDirection, PropertyChanged, UiMessageData, WidgetMessage},
-        Control,
+        message::{
+            FieldKind, ImageMessage, MessageDirection, PropertyChanged, UiMessage, UiMessageData,
+            WidgetMessage,
+        },
+        widget::{Widget, WidgetBuilder},
+        BuildContext, Control, UiNode, UserInterface,
     },
     resource::texture::Texture,
     utils::into_gui_texture,
 };
-use std::any::Any;
-use std::fmt::{Debug, Formatter};
-use std::sync::Arc;
 use std::{
-    any::TypeId,
+    any::{Any, TypeId},
+    fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
 };
 
