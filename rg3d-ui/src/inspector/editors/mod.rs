@@ -4,7 +4,13 @@ use crate::{
         editors::{
             bool::BoolPropertyEditorDefinition,
             f32::F32PropertyEditorDefinition,
-            i32::I32PropertyEditorDefinition,
+            int::I32PropertyEditorDefinition,
+            int::{
+                I16PropertyEditorDefinition, I64PropertyEditorDefinition,
+                I8PropertyEditorDefinition, U16PropertyEditorDefinition,
+                U32PropertyEditorDefinition, U64PropertyEditorDefinition,
+                U8PropertyEditorDefinition,
+            },
             quat::QuatPropertyEditorDefinition,
             string::StringPropertyEditorDefinition,
             vec::{
@@ -23,7 +29,7 @@ pub mod bool;
 pub mod collection;
 pub mod enumeration;
 pub mod f32;
-pub mod i32;
+pub mod int;
 pub mod quat;
 pub mod string;
 pub mod vec;
@@ -87,7 +93,14 @@ impl PropertyEditorDefinitionContainer {
     pub fn new() -> Self {
         let mut container = Self::default();
         container.insert(Arc::new(F32PropertyEditorDefinition));
+        container.insert(Arc::new(I8PropertyEditorDefinition));
+        container.insert(Arc::new(U8PropertyEditorDefinition));
+        container.insert(Arc::new(I16PropertyEditorDefinition));
+        container.insert(Arc::new(U16PropertyEditorDefinition));
         container.insert(Arc::new(I32PropertyEditorDefinition));
+        container.insert(Arc::new(U32PropertyEditorDefinition));
+        container.insert(Arc::new(I64PropertyEditorDefinition));
+        container.insert(Arc::new(U64PropertyEditorDefinition));
         container.insert(Arc::new(StringPropertyEditorDefinition));
         container.insert(Arc::new(Vec2PropertyEditorDefinition));
         container.insert(Arc::new(Vec3PropertyEditorDefinition));
