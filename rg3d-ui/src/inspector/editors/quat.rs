@@ -1,17 +1,23 @@
-use crate::core::algebra::Vector3;
-use crate::core::math::{quat_from_euler, RotationOrder};
 use crate::{
-    core::{algebra::UnitQuaternion, inspect::PropertyInfo, math::UnitQuaternionExt, pool::Handle},
+    core::{
+        algebra::{UnitQuaternion, Vector3},
+        inspect::PropertyInfo,
+        math::UnitQuaternionExt,
+        math::{quat_from_euler, RotationOrder},
+        pool::Handle,
+    },
     inspector::{
-        editors::{PropertyEditorBuildContext, PropertyEditorDefinition},
+        editors::{Layout, PropertyEditorBuildContext, PropertyEditorDefinition, ROW_HEIGHT},
         InspectorError,
     },
-    message::{MessageDirection, PropertyChanged, UiMessage, UiMessageData, Vec3EditorMessage},
+    message::{
+        FieldKind, MessageDirection, PropertyChanged, UiMessage, UiMessageData, Vec3EditorMessage,
+    },
     vec::vec3::Vec3EditorBuilder,
     widget::WidgetBuilder,
     Thickness, UiNode,
 };
-use std::{any::TypeId, sync::Arc};
+use std::any::TypeId;
 
 #[derive(Debug)]
 pub struct QuatPropertyEditorDefinition;
@@ -29,8 +35,7 @@ impl PropertyEditorDefinition for QuatPropertyEditorDefinition {
         let euler = value.to_euler();
         Ok(Vec3EditorBuilder::new(
             WidgetBuilder::new()
-                .on_row(ctx.row)
-                .on_column(ctx.column)
+                .with_height(ROW_HEIGHT)
                 .with_margin(Thickness::uniform(1.0)),
         )
         .with_value(Vector3::new(
@@ -72,10 +77,14 @@ impl PropertyEditorDefinition for QuatPropertyEditorDefinition {
                 return Some(PropertyChanged {
                     owner_type_id,
                     name: name.to_string(),
-                    value: Arc::new(rotation),
+                    value: FieldKind::object(rotation),
                 });
             }
         }
         None
+    }
+
+    fn layout(&self) -> Layout {
+        Layout::Horizontal
     }
 }

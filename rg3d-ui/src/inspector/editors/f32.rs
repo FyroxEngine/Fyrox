@@ -1,16 +1,18 @@
-use crate::core::inspect::PropertyInfo;
 use crate::{
-    core::pool::Handle,
+    core::{inspect::PropertyInfo, pool::Handle},
     inspector::{
-        editors::{PropertyEditorBuildContext, PropertyEditorDefinition},
+        editors::{Layout, PropertyEditorBuildContext, PropertyEditorDefinition, ROW_HEIGHT},
         InspectorError,
     },
-    message::{MessageDirection, NumericUpDownMessage, PropertyChanged, UiMessage, UiMessageData},
+    message::{
+        FieldKind, MessageDirection, NumericUpDownMessage, PropertyChanged, UiMessage,
+        UiMessageData,
+    },
     numeric::NumericUpDownBuilder,
     widget::WidgetBuilder,
     Thickness, UiNode,
 };
-use std::{any::TypeId, sync::Arc};
+use std::any::TypeId;
 
 #[derive(Debug)]
 pub struct F32PropertyEditorDefinition;
@@ -27,8 +29,7 @@ impl PropertyEditorDefinition for F32PropertyEditorDefinition {
         let value = ctx.property_info.cast_value::<f32>()?;
         Ok(NumericUpDownBuilder::new(
             WidgetBuilder::new()
-                .on_row(ctx.row)
-                .on_column(ctx.column)
+                .with_height(ROW_HEIGHT)
                 .with_margin(Thickness::uniform(1.0)),
         )
         .with_value(*value)
@@ -60,11 +61,15 @@ impl PropertyEditorDefinition for F32PropertyEditorDefinition {
                 return Some(PropertyChanged {
                     name: name.to_string(),
                     owner_type_id,
-                    value: Arc::new(*value),
+                    value: FieldKind::object(*value),
                 });
             }
         }
 
         None
+    }
+
+    fn layout(&self) -> Layout {
+        Layout::Horizontal
     }
 }

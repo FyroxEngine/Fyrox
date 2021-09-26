@@ -960,23 +960,66 @@ impl CurveEditorMessage {
     define_constructor_unbound!(CurveEditor(CurveEditorMessage:AddKey) => fn add_key(Vector2<f32>), layout: false);
 }
 
-#[derive(Debug, Clone)]
-pub struct PropertyChanged {
-    pub name: String,
-    pub owner_type_id: TypeId,
-    pub value: Arc<dyn PropertyValue>,
+#[derive(Debug, Clone, PartialEq)]
+pub enum CollectionChanged {
+    /// An item should be added in the collection.
+    Add,
+    /// An item in the collection should be removed.
+    Remove(usize),
+    /// An item in the collection has changed one of its properties.
+    ItemChanged {
+        /// Index of an item in the collection.
+        index: usize,
+        property: PropertyChanged,
+    },
 }
 
-impl PropertyChanged {
+#[derive(Debug, Clone)]
+pub enum FieldKind {
+    Collection(Arc<CollectionChanged>),
+    Object(ObjectValue),
+}
+
+#[derive(Debug, Clone)]
+pub struct ObjectValue {
+    value: Arc<dyn PropertyValue>,
+}
+
+impl PartialEq for ObjectValue {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(&*self.value, &*other.value)
+    }
+}
+
+impl ObjectValue {
     pub fn cast_value<T: 'static>(&self) -> Option<&T> {
         (*self.value).as_any().downcast_ref::<T>()
     }
 }
 
-impl PartialEq for PropertyChanged {
+impl PartialEq for FieldKind {
     fn eq(&self, other: &Self) -> bool {
-        std::ptr::eq(&*self, &*other)
+        match (self, other) {
+            (FieldKind::Collection(l), FieldKind::Collection(r)) => std::ptr::eq(&**l, &**r),
+            (FieldKind::Object(l), FieldKind::Object(r)) => l == r,
+            _ => false,
+        }
     }
+}
+
+impl FieldKind {
+    pub fn object<T: PropertyValue>(value: T) -> Self {
+        Self::Object(ObjectValue {
+            value: Arc::new(value),
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PropertyChanged {
+    pub name: String,
+    pub owner_type_id: TypeId,
+    pub value: FieldKind,
 }
 
 #[derive(Debug, Clone, PartialEq)]

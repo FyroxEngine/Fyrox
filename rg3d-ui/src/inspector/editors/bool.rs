@@ -2,10 +2,12 @@ use crate::{
     check_box::CheckBoxBuilder,
     core::{inspect::PropertyInfo, pool::Handle},
     inspector::{
-        editors::{PropertyEditorBuildContext, PropertyEditorDefinition},
+        editors::{Layout, PropertyEditorBuildContext, PropertyEditorDefinition, ROW_HEIGHT},
         InspectorError,
     },
-    message::{CheckBoxMessage, MessageDirection, PropertyChanged, UiMessage, UiMessageData},
+    message::{
+        CheckBoxMessage, FieldKind, MessageDirection, PropertyChanged, UiMessage, UiMessageData,
+    },
     widget::WidgetBuilder,
     Thickness, UiNode,
 };
@@ -26,8 +28,7 @@ impl PropertyEditorDefinition for BoolPropertyEditorDefinition {
         let value = ctx.property_info.cast_value::<bool>()?;
         Ok(CheckBoxBuilder::new(
             WidgetBuilder::new()
-                .on_row(ctx.row)
-                .on_column(ctx.column)
+                .with_height(ROW_HEIGHT)
                 .with_margin(Thickness::uniform(1.0)),
         )
         .checked(Some(*value))
@@ -58,10 +59,14 @@ impl PropertyEditorDefinition for BoolPropertyEditorDefinition {
                 return Some(PropertyChanged {
                     name: name.to_string(),
                     owner_type_id,
-                    value: Arc::new(*value),
+                    value: FieldKind::object(Arc::new(*value)),
                 });
             }
         }
         None
+    }
+
+    fn layout(&self) -> Layout {
+        Layout::Horizontal
     }
 }

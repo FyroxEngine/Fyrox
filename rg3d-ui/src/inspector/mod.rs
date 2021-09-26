@@ -10,7 +10,8 @@ use crate::{
     formatted_text::WrapMode,
     grid::{Column, GridBuilder, Row},
     inspector::editors::{
-        PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorDefinitionContainer,
+        Layout, PropertyEditorBuildContext, PropertyEditorDefinition,
+        PropertyEditorDefinitionContainer,
     },
     message::{InspectorMessage, MessageDirection, UiMessage, UiMessageData, WidgetMessage},
     stack_panel::StackPanelBuilder,
@@ -18,9 +19,8 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
-use std::any::TypeId;
 use std::{
-    any::Any,
+    any::{Any, TypeId},
     collections::{hash_map::Entry, HashMap},
     fmt::Debug,
     ops::{Deref, DerefMut},
@@ -100,15 +100,47 @@ fn create_section_header(ctx: &mut BuildContext, text: &str) -> Handle<UiNode> {
         .build(ctx)
 }
 
-fn create_property_title(ctx: &mut BuildContext, row: usize, text: &str) -> Handle<UiNode> {
-    TextBuilder::new(
+fn wrap_property(
+    text: &str,
+    editor: Handle<UiNode>,
+    layout: Layout,
+    ctx: &mut BuildContext,
+) -> Handle<UiNode> {
+    match layout {
+        Layout::Horizontal => {
+            ctx[editor].set_row(0).set_column(1);
+        }
+        Layout::Vertical => {
+            ctx[editor].set_row(1).set_column(0);
+        }
+    }
+
+    GridBuilder::new(
         WidgetBuilder::new()
-            .on_row(row)
-            .on_column(0)
-            .with_margin(Thickness::uniform(2.0)),
+            .with_child(
+                TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(2.0)))
+                    .with_text(text)
+                    .with_vertical_text_alignment(VerticalAlignment::Center)
+                    .build(ctx),
+            )
+            .with_child(editor),
     )
-    .with_text(text)
-    .with_vertical_text_alignment(VerticalAlignment::Center)
+    .add_rows(match layout {
+        Layout::Horizontal => {
+            vec![Row::auto()]
+        }
+        Layout::Vertical => {
+            vec![Row::strict(28.0), Row::stretch()]
+        }
+    })
+    .add_columns(match layout {
+        Layout::Horizontal => {
+            vec![Column::strict(130.0), Column::stretch()]
+        }
+        Layout::Vertical => {
+            vec![Column::stretch()]
+        }
+    })
     .build(ctx)
 }
 
@@ -116,7 +148,7 @@ impl InspectorContext {
     pub fn from_object(
         object: &dyn Inspect,
         ctx: &mut BuildContext,
-        definition_container: &PropertyEditorDefinitionContainer,
+        definition_container: Arc<PropertyEditorDefinitionContainer>,
         environment: Option<Arc<dyn InspectorEnvironment>>,
     ) -> Self {
         let mut property_groups = HashMap::<&'static str, Vec<PropertyInfo>>::new();
@@ -139,6 +171,59 @@ impl InspectorContext {
             .iter()
             .map(|(group, infos)| {
                 let mut entries = Vec::new();
+
+                let editors = infos
+                    .iter()
+                    .enumerate()
+                    .map(|(i, info)| {
+                        if let Some(definition) = definition_container
+                            .definitions()
+                            .get(&info.value.type_id())
+                        {
+                            match definition.create_instance(PropertyEditorBuildContext {
+                                build_context: ctx,
+                                property_info: info,
+                                environment: environment.clone(),
+                                definition_container: definition_container.clone(),
+                            }) {
+                                Ok(instance) => {
+                                    entries.push(ContextEntry {
+                                        property_editor: instance,
+                                        property_editor_definition: definition.clone(),
+                                        property_name: info.name.to_string(),
+                                        property_owner_type_id: info.owner_type_id,
+                                    });
+
+                                    wrap_property(info.name, instance, definition.layout(), ctx)
+                                }
+                                Err(e) => wrap_property(
+                                    info.name,
+                                    TextBuilder::new(WidgetBuilder::new().on_row(i).on_column(1))
+                                        .with_wrap(WrapMode::Word)
+                                        .with_text(format!(
+                                            "Unable to create property \
+                                                    editor instance: Reason {:?}",
+                                            e
+                                        ))
+                                        .build(ctx),
+                                    Layout::Horizontal,
+                                    ctx,
+                                ),
+                            }
+                        } else {
+                            wrap_property(
+                                info.name,
+                                TextBuilder::new(WidgetBuilder::new().on_row(i).on_column(1))
+                                    .with_wrap(WrapMode::Word)
+                                    .with_text("Property Editor Is Missing!")
+                                    .build(ctx),
+                                Layout::Horizontal,
+                                ctx,
+                            )
+                        }
+                    })
+                    .collect::<Vec<_>>();
+
                 let section = BorderBuilder::new(
                     WidgetBuilder::new()
                         .with_margin(Thickness::uniform(1.0))
@@ -146,71 +231,9 @@ impl InspectorContext {
                             ExpanderBuilder::new(WidgetBuilder::new())
                                 .with_header(create_section_header(ctx, group))
                                 .with_content(
-                                    GridBuilder::new(
-                                        WidgetBuilder::new()
-                                            .with_children(infos.iter().enumerate().map(
-                                                |(i, info)| {
-                                                    create_property_title(ctx, i, info.display_name)
-                                                },
-                                            ))
-                                            .with_children(infos.iter().enumerate().map(
-                                                |(i, info)| {
-                                                    if let Some(definition) = definition_container
-                                                        .definitions()
-                                                        .get(&info.value.type_id())
-                                                    {
-                                                        match definition.create_instance(
-                                                            PropertyEditorBuildContext {
-                                                                build_context: ctx,
-                                                                property_info: info,
-                                                                row: i,
-                                                                column: 1,
-                                                                environment: environment.clone(),
-                                                            },
-                                                        ) {
-                                                            Ok(instance) => {
-                                                                entries.push(ContextEntry {
-                                                                    property_editor: instance,
-                                                                    property_editor_definition:
-                                                                        definition.clone(),
-                                                                    property_name: info
-                                                                        .name
-                                                                        .to_string(),
-                                                                    property_owner_type_id: info
-                                                                        .owner_type_id,
-                                                                });
-
-                                                                instance
-                                                            }
-                                                            Err(e) => TextBuilder::new(
-                                                                WidgetBuilder::new()
-                                                                    .on_row(i)
-                                                                    .on_column(1),
-                                                            )
-                                                            .with_wrap(WrapMode::Word)
-                                                            .with_text(format!(
-                                                                "Unable to create property \
-                                                    editor instance: Reason {:?}",
-                                                                e
-                                                            ))
-                                                            .build(ctx),
-                                                        }
-                                                    } else {
-                                                        TextBuilder::new(
-                                                            WidgetBuilder::new()
-                                                                .on_row(i)
-                                                                .on_column(1),
-                                                        )
-                                                        .with_wrap(WrapMode::Word)
-                                                        .with_text("Property Editor Is Missing!")
-                                                        .build(ctx)
-                                                    }
-                                                },
-                                            )),
+                                    StackPanelBuilder::new(
+                                        WidgetBuilder::new().with_children(editors),
                                     )
-                                    .add_rows(infos.iter().map(|_| Row::strict(25.0)).collect())
-                                    .add_column(Column::strict(130.0))
-                                    .add_column(Column::stretch())
                                     .build(ctx),
                                 )
                                 .build(ctx),

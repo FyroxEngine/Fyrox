@@ -5,18 +5,18 @@ use crate::{
         pool::Handle,
     },
     inspector::{
-        editors::{PropertyEditorBuildContext, PropertyEditorDefinition},
+        editors::{Layout, PropertyEditorBuildContext, PropertyEditorDefinition, ROW_HEIGHT},
         InspectorError,
     },
     message::{
-        MessageDirection, PropertyChanged, UiMessage, UiMessageData, Vec2EditorMessage,
+        FieldKind, MessageDirection, PropertyChanged, UiMessage, UiMessageData, Vec2EditorMessage,
         Vec3EditorMessage, Vec4EditorMessage,
     },
     vec::{vec2::Vec2EditorBuilder, vec3::Vec3EditorBuilder, vec4::Vec4EditorBuilder},
     widget::WidgetBuilder,
     Thickness, UiNode,
 };
-use std::{any::TypeId, sync::Arc};
+use std::any::TypeId;
 
 macro_rules! define_vector_editor {
     ($name:ident, $builder:ty, $message:tt, $message_variant:ident, $value:ty) => {
@@ -35,8 +35,7 @@ macro_rules! define_vector_editor {
                 let value = ctx.property_info.cast_value::<$value>()?;
                 Ok(<$builder>::new(
                     WidgetBuilder::new()
-                        .on_row(ctx.row)
-                        .on_column(ctx.column)
+                        .with_height(ROW_HEIGHT)
                         .with_margin(Thickness::uniform(1.0)),
                 )
                 .with_value(*value)
@@ -68,11 +67,15 @@ macro_rules! define_vector_editor {
                         return Some(PropertyChanged {
                             owner_type_id,
                             name: name.to_string(),
-                            value: Arc::new(*value),
+                            value: FieldKind::object(*value),
                         });
                     }
                 }
                 None
+            }
+
+            fn layout(&self) -> Layout {
+                Layout::Horizontal
             }
         }
     };

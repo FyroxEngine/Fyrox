@@ -1,16 +1,17 @@
-use crate::core::inspect::PropertyInfo;
 use crate::{
-    core::pool::Handle,
+    core::{inspect::PropertyInfo, pool::Handle},
     inspector::{
-        editors::{PropertyEditorBuildContext, PropertyEditorDefinition},
+        editors::{Layout, PropertyEditorBuildContext, PropertyEditorDefinition, ROW_HEIGHT},
         InspectorError,
     },
-    message::{MessageDirection, PropertyChanged, TextBoxMessage, UiMessage, UiMessageData},
+    message::{
+        FieldKind, MessageDirection, PropertyChanged, TextBoxMessage, UiMessage, UiMessageData,
+    },
     text_box::TextBoxBuilder,
     widget::WidgetBuilder,
     Thickness, UiNode,
 };
-use std::{any::TypeId, sync::Arc};
+use std::any::TypeId;
 
 #[derive(Debug)]
 pub struct StringPropertyEditorDefinition;
@@ -27,8 +28,7 @@ impl PropertyEditorDefinition for StringPropertyEditorDefinition {
         let value = ctx.property_info.cast_value::<String>()?;
         Ok(TextBoxBuilder::new(
             WidgetBuilder::new()
-                .on_row(ctx.row)
-                .on_column(ctx.column)
+                .with_height(ROW_HEIGHT)
                 .with_margin(Thickness::uniform(1.0)),
         )
         .with_text(value)
@@ -59,10 +59,14 @@ impl PropertyEditorDefinition for StringPropertyEditorDefinition {
                 return Some(PropertyChanged {
                     owner_type_id,
                     name: name.to_string(),
-                    value: Arc::new(value.clone()),
+                    value: FieldKind::object(value.clone()),
                 });
             }
         }
         None
+    }
+
+    fn layout(&self) -> Layout {
+        Layout::Horizontal
     }
 }

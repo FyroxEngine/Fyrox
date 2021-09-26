@@ -20,6 +20,7 @@ use crate::{
 use std::{any::TypeId, collections::HashMap, fmt::Debug, sync::Arc};
 
 pub mod bool;
+pub mod collection;
 pub mod enumeration;
 pub mod f32;
 pub mod i32;
@@ -27,12 +28,22 @@ pub mod quat;
 pub mod string;
 pub mod vec;
 
+pub const ROW_HEIGHT: f32 = 25.0;
+
 pub struct PropertyEditorBuildContext<'a, 'b, 'c> {
     pub build_context: &'a mut BuildContext<'c>,
     pub property_info: &'b PropertyInfo<'b>,
-    pub row: usize,
-    pub column: usize,
     pub environment: Option<Arc<dyn InspectorEnvironment>>,
+    pub definition_container: Arc<PropertyEditorDefinitionContainer>,
+}
+
+pub enum Layout {
+    /// Horizontal grid layout. Suitable for simple properties.
+    Horizontal,
+
+    /// Vertical grid layout. Suitable for large collections and in situations when you
+    /// don't want the editor to be shifted on the right side.
+    Vertical,
 }
 
 pub trait PropertyEditorDefinition: Debug + Send + Sync {
@@ -55,6 +66,8 @@ pub trait PropertyEditorDefinition: Debug + Send + Sync {
         owner_type_id: TypeId,
         message: &UiMessage,
     ) -> Option<PropertyChanged>;
+
+    fn layout(&self) -> Layout;
 }
 
 #[derive(Clone)]

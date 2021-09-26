@@ -7,6 +7,7 @@
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
+        inspect::{Inspect, PropertyInfo},
         math::TriangleDefinition,
         pool::{ErasedHandle, Handle},
         visitor::{Visit, VisitResult, Visitor},
@@ -915,7 +916,7 @@ impl VertexWeightSet {
 }
 
 /// See module docs.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Inspect)]
 pub struct Surface {
     // Wrapped into option to be able to implement Default for serialization.
     // In normal conditions it must never be None!

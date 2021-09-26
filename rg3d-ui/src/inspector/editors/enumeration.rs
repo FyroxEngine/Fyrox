@@ -4,10 +4,12 @@ use crate::{
     decorator::DecoratorBuilder,
     dropdown_list::DropdownListBuilder,
     inspector::{
-        editors::{PropertyEditorBuildContext, PropertyEditorDefinition},
+        editors::{Layout, PropertyEditorBuildContext, PropertyEditorDefinition, ROW_HEIGHT},
         InspectorError,
     },
-    message::{DropdownListMessage, MessageDirection, PropertyChanged, UiMessage, UiMessageData},
+    message::{
+        DropdownListMessage, FieldKind, MessageDirection, PropertyChanged, UiMessage, UiMessageData,
+    },
     text::TextBuilder,
     widget::WidgetBuilder,
     HorizontalAlignment, Thickness, UiNode, VerticalAlignment,
@@ -15,7 +17,6 @@ use crate::{
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},
-    sync::Arc,
 };
 
 pub struct EnumPropertyEditorDefinition<T: Debug> {
@@ -50,8 +51,7 @@ where
 
         Ok(DropdownListBuilder::new(
             WidgetBuilder::new()
-                .on_row(ctx.row)
-                .on_column(ctx.column)
+                .with_height(ROW_HEIGHT)
                 .with_margin(Thickness::uniform(1.0)),
         )
         .with_selected((self.index_generator)(value))
@@ -102,11 +102,15 @@ where
                 return Some(PropertyChanged {
                     name: name.to_string(),
                     owner_type_id,
-                    value: Arc::new((self.variant_generator)(*index)),
+                    value: FieldKind::object((self.variant_generator)(*index)),
                 });
             }
         }
 
         None
+    }
+
+    fn layout(&self) -> Layout {
+        Layout::Horizontal
     }
 }
