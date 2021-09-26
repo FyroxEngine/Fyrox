@@ -5,6 +5,7 @@ use crate::{
         SceneCommand,
     },
 };
+use rg3d::gui::message::FieldKind;
 use rg3d::{
     core::{
         algebra::{UnitQuaternion, Vector3},
@@ -20,28 +21,30 @@ pub fn handle_transform_property_changed(
     node: &Node,
     helper: &SenderHelper,
 ) {
-    match args.name.as_ref() {
-        "local_position" => {
-            helper.do_scene_command(SceneCommand::MoveNode(MoveNodeCommand::new(
-                node_handle,
-                **node.local_transform().position(),
-                *args.cast_value::<Vector3<f32>>().unwrap(),
-            )));
+    if let FieldKind::Object(ref value) = args.value {
+        match args.name.as_ref() {
+            "local_position" => {
+                helper.do_scene_command(SceneCommand::MoveNode(MoveNodeCommand::new(
+                    node_handle,
+                    **node.local_transform().position(),
+                    *value.cast_value::<Vector3<f32>>().unwrap(),
+                )));
+            }
+            "local_rotation" => {
+                helper.do_scene_command(SceneCommand::RotateNode(RotateNodeCommand::new(
+                    node_handle,
+                    **node.local_transform().rotation(),
+                    *value.cast_value::<UnitQuaternion<f32>>().unwrap(),
+                )));
+            }
+            "local_scale" => {
+                helper.do_scene_command(SceneCommand::ScaleNode(ScaleNodeCommand::new(
+                    node_handle,
+                    **node.local_transform().scale(),
+                    *value.cast_value::<Vector3<f32>>().unwrap(),
+                )));
+            }
+            _ => println!("Unhandled property of Transform: {:?}", args),
         }
-        "local_rotation" => {
-            helper.do_scene_command(SceneCommand::RotateNode(RotateNodeCommand::new(
-                node_handle,
-                **node.local_transform().rotation(),
-                *args.cast_value::<UnitQuaternion<f32>>().unwrap(),
-            )));
-        }
-        "local_scale" => {
-            helper.do_scene_command(SceneCommand::ScaleNode(ScaleNodeCommand::new(
-                node_handle,
-                **node.local_transform().scale(),
-                *args.cast_value::<Vector3<f32>>().unwrap(),
-            )));
-        }
-        _ => println!("Unhandled property of Transform: {:?}", args),
     }
 }

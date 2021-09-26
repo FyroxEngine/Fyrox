@@ -5,6 +5,7 @@ use crate::{
         SceneCommand,
     },
 };
+use rg3d::gui::message::FieldKind;
 use rg3d::{core::pool::Handle, gui::message::PropertyChanged, scene::node::Node};
 
 pub fn handle_base_property_changed(
@@ -12,25 +13,27 @@ pub fn handle_base_property_changed(
     node_handle: Handle<Node>,
     helper: &SenderHelper,
 ) {
-    match args.name.as_ref() {
-        "name" => {
-            helper.do_scene_command(SceneCommand::SetName(SetNameCommand::new(
-                node_handle,
-                args.cast_value::<String>().unwrap().clone(),
-            )));
+    if let FieldKind::Object(ref value) = args.value {
+        match args.name.as_ref() {
+            "name" => {
+                helper.do_scene_command(SceneCommand::SetName(SetNameCommand::new(
+                    node_handle,
+                    value.cast_value::<String>().unwrap().clone(),
+                )));
+            }
+            "tag" => {
+                helper.do_scene_command(SceneCommand::SetTag(SetTagCommand::new(
+                    node_handle,
+                    value.cast_value::<String>().unwrap().clone(),
+                )));
+            }
+            "visibility" => {
+                helper.do_scene_command(SceneCommand::SetVisible(SetVisibleCommand::new(
+                    node_handle,
+                    *value.cast_value::<bool>().unwrap(),
+                )));
+            }
+            _ => println!("Unhandled property of Base: {:?}", args),
         }
-        "tag" => {
-            helper.do_scene_command(SceneCommand::SetTag(SetTagCommand::new(
-                node_handle,
-                args.cast_value::<String>().unwrap().clone(),
-            )));
-        }
-        "visibility" => {
-            helper.do_scene_command(SceneCommand::SetVisible(SetVisibleCommand::new(
-                node_handle,
-                *args.cast_value::<bool>().unwrap(),
-            )));
-        }
-        _ => println!("Unhandled property of Base: {:?}", args),
     }
 }

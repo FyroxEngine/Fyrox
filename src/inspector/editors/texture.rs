@@ -1,7 +1,8 @@
 use crate::asset::AssetItem;
 use crate::inspector::EditorEnvironment;
 use crate::make_relative_path;
-use rg3d::gui::message::UiMessage;
+use rg3d::gui::inspector::editors::Layout;
+use rg3d::gui::message::{FieldKind, UiMessage};
 use rg3d::gui::widget::{Widget, WidgetBuilder};
 use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
@@ -94,7 +95,7 @@ impl Control for TextureEditor {
             }
             UiMessageData::User(msg) => {
                 if let Some(TextureEditorMessage::Texture(texture)) =
-                    msg.0.cast::<TextureEditorMessage>()
+                    msg.cast::<TextureEditorMessage>()
                 {
                     if &self.texture != texture && message.direction() == MessageDirection::ToWidget
                     {
@@ -172,20 +173,18 @@ impl PropertyEditorDefinition for TexturePropertyEditorDefinition {
     ) -> Result<Handle<UiNode>, InspectorError> {
         let value = ctx.property_info.cast_value::<Option<Texture>>()?;
 
-        Ok(
-            TextureEditorBuilder::new(WidgetBuilder::new().on_row(ctx.row).on_column(ctx.column))
-                .with_texture(value.clone())
-                .build(
-                    ctx.build_context,
-                    ctx.environment
-                        .as_ref()
-                        .unwrap()
-                        .as_any()
-                        .downcast_ref::<EditorEnvironment>()
-                        .map(|e| e.resource_manager.clone())
-                        .unwrap(),
-                ),
-        )
+        Ok(TextureEditorBuilder::new(WidgetBuilder::new())
+            .with_texture(value.clone())
+            .build(
+                ctx.build_context,
+                ctx.environment
+                    .as_ref()
+                    .unwrap()
+                    .as_any()
+                    .downcast_ref::<EditorEnvironment>()
+                    .map(|e| e.resource_manager.clone())
+                    .unwrap(),
+            ))
     }
 
     fn create_message(
@@ -211,16 +210,20 @@ impl PropertyEditorDefinition for TexturePropertyEditorDefinition {
         if message.direction() == MessageDirection::FromWidget {
             if let UiMessageData::User(msg) = message.data() {
                 if let Some(TextureEditorMessage::Texture(value)) =
-                    msg.0.cast::<TextureEditorMessage>()
+                    msg.cast::<TextureEditorMessage>()
                 {
                     return Some(PropertyChanged {
                         owner_type_id,
                         name: name.to_string(),
-                        value: Arc::new(value.clone()),
+                        value: FieldKind::object(value.clone()),
                     });
                 }
             }
         }
         None
+    }
+
+    fn layout(&self) -> Layout {
+        Layout::Horizontal
     }
 }

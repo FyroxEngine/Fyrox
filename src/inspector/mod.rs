@@ -10,28 +10,29 @@ use crate::{
     scene::{commands::SceneCommand, EditorScene, Selection},
     GameEngine, Message,
 };
-use rg3d::gui::message::UiMessage;
-use rg3d::gui::{BuildContext, UiNode};
 use rg3d::{
     core::pool::Handle,
     engine::resource_manager::ResourceManager,
     gui::{
         inspector::{
             editors::{
+                collection::VecCollectionPropertyEditorDefinition,
                 enumeration::EnumPropertyEditorDefinition, PropertyEditorDefinitionContainer,
             },
             InspectorBuilder, InspectorContext, InspectorEnvironment,
         },
-        message::{InspectorMessage, MessageDirection, UiMessageData},
+        message::{InspectorMessage, MessageDirection, UiMessage, UiMessageData},
         scroll_viewer::ScrollViewerBuilder,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
+        BuildContext, UiNode,
     },
     scene::{
         base::{Base, Mobility, PhysicsBinding},
         camera::{Camera, Exposure},
         decal::Decal,
         light::{point::PointLight, spot::SpotLight, BaseLight},
+        mesh::surface::Surface,
         particle_system::ParticleSystem,
         sprite::Sprite,
         transform::Transform,
@@ -118,6 +119,9 @@ fn make_property_editors_container() -> Arc<PropertyEditorDefinitionContainer> {
     let mut container = PropertyEditorDefinitionContainer::new();
 
     container.insert(Arc::new(TexturePropertyEditorDefinition));
+    container.insert(Arc::new(
+        VecCollectionPropertyEditorDefinition::<Surface>::new(),
+    ));
     container.insert(Arc::new(make_physics_binding_enum_editor_definition()));
     container.insert(Arc::new(make_mobility_enum_editor_definition()));
     container.insert(Arc::new(make_exposure_enum_editor_definition()));
@@ -167,7 +171,7 @@ impl Inspector {
                     let context = InspectorContext::from_object(
                         node,
                         &mut engine.user_interface.build_ctx(),
-                        &*self.property_editors,
+                        self.property_editors.clone(),
                         Some(environment),
                     );
 
