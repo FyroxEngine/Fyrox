@@ -2,6 +2,7 @@ use crate::{
     core::{
         algebra::{Point3, Vector2},
         color::Color,
+        inspect::{Inspect, PropertyInfo},
         math::Rect,
         pool::Handle,
         visitor::prelude::*,
@@ -15,8 +16,9 @@ use crate::{
 };
 use std::ops::{Deref, DerefMut};
 
-#[derive(Visit)]
+#[derive(Visit, Inspect, Debug)]
 pub struct Sprite {
+    #[inspect(expand)]
     base: Base,
     texture: Option<Texture>,
     color: Color,

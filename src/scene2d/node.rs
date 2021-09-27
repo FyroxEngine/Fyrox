@@ -1,15 +1,30 @@
 use crate::{
-    core::{define_is_as, visitor::prelude::*},
+    core::{
+        define_is_as,
+        inspect::{Inspect, PropertyInfo},
+        visitor::prelude::*,
+    },
     scene2d::{base::Base, camera::Camera, light::Light, sprite::Sprite},
 };
 use std::ops::{Deref, DerefMut};
 
-#[derive(Visit)]
+#[derive(Visit, Debug)]
 pub enum Node {
     Base(Base),
     Camera(Camera),
     Light(Light),
     Sprite(Sprite),
+}
+
+impl Inspect for Node {
+    fn properties(&self) -> Vec<PropertyInfo<'_>> {
+        match self {
+            Node::Base(v) => v.properties(),
+            Node::Camera(v) => v.properties(),
+            Node::Light(v) => v.properties(),
+            Node::Sprite(v) => v.properties(),
+        }
+    }
 }
 
 macro_rules! static_dispatch_deref {

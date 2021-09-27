@@ -1,5 +1,9 @@
 use crate::{
-    core::{color::Color, visitor::prelude::*},
+    core::{
+        color::Color,
+        inspect::{Inspect, PropertyInfo},
+        visitor::prelude::*,
+    },
     scene2d::{
         base::{Base, BaseBuilder},
         light::{point::PointLight, spot::SpotLight},
@@ -10,10 +14,19 @@ use std::ops::{Deref, DerefMut};
 pub mod point;
 pub mod spot;
 
-#[derive(Visit)]
+#[derive(Visit, Debug)]
 pub enum Light {
     Point(PointLight),
     Spot(SpotLight),
+}
+
+impl Inspect for Light {
+    fn properties(&self) -> Vec<PropertyInfo<'_>> {
+        match self {
+            Light::Point(v) => v.properties(),
+            Light::Spot(v) => v.properties(),
+        }
+    }
 }
 
 impl Deref for Light {
@@ -51,8 +64,9 @@ impl Default for Light {
     }
 }
 
-#[derive(Default, Visit)]
+#[derive(Default, Visit, Inspect, Debug)]
 pub struct BaseLight {
+    #[inspect(expand)]
     base: Base,
     color: Color,
 }

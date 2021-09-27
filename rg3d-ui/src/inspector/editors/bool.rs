@@ -57,7 +57,7 @@ impl PropertyEditorDefinition for BoolPropertyEditorDefinition {
                 return Some(PropertyChanged {
                     name: name.to_string(),
                     owner_type_id,
-                    value: FieldKind::object(Arc::new(*value)),
+                    value: FieldKind::object(*value),
                 });
             }
         }

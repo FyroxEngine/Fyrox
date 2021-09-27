@@ -1,19 +1,23 @@
-use crate::scene::base::PhysicsBinding;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2},
+        inspect::{Inspect, PropertyInfo},
         pool::Handle,
         visitor::prelude::*,
     },
+    scene::base::PhysicsBinding,
     scene2d::{graph::Graph, node::Node, transform::Transform},
 };
 use std::cell::Cell;
 
-#[derive(Visit)]
+#[derive(Visit, Inspect, Debug)]
 pub struct Base {
+    #[inspect(expand)]
     transform: Transform,
+    #[inspect(skip)]
     pub(in crate) global_transform: Cell<Matrix4<f32>>,
     pub(in crate) visibility: bool,
+    #[inspect(skip)]
     pub(in crate) global_visibility: Cell<bool>,
     pub(in crate) parent: Handle<Node>,
     pub(in crate) children: Vec<Handle<Node>>,

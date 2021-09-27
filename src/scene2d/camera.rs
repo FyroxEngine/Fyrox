@@ -1,5 +1,11 @@
 use crate::{
-    core::{algebra::Matrix4, algebra::Vector2, math::Rect, pool::Handle, visitor::prelude::*},
+    core::{
+        algebra::{Matrix4, Vector2},
+        inspect::{Inspect, PropertyInfo},
+        math::Rect,
+        pool::Handle,
+        visitor::prelude::*,
+    },
     scene2d::{
         base::{Base, BaseBuilder},
         graph::Graph,
@@ -8,8 +14,9 @@ use crate::{
 };
 use std::ops::{Deref, DerefMut};
 
-#[derive(Visit)]
+#[derive(Visit, Inspect, Debug)]
 pub struct Camera {
+    #[inspect(expand)]
     base: Base,
     viewport: Rect<f32>,
     view_matrix: Matrix4<f32>,

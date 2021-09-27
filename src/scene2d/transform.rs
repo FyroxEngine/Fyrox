@@ -1,9 +1,10 @@
 use crate::core::{
     algebra::{Matrix3, Matrix4, Vector2, Vector3},
+    inspect::{Inspect, PropertyInfo},
     visitor::prelude::*,
 };
 
-#[derive(Visit, Clone)]
+#[derive(Visit, Clone, Inspect, Debug)]
 pub struct Transform {
     position: Vector2<f32>,
     scale: Vector2<f32>,

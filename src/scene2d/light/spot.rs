@@ -1,5 +1,9 @@
 use crate::{
-    core::{pool::Handle, visitor::prelude::*},
+    core::{
+        inspect::{Inspect, PropertyInfo},
+        pool::Handle,
+        visitor::prelude::*,
+    },
     scene2d::{
         graph::Graph,
         light::{BaseLight, BaseLightBuilder, Light},
@@ -8,8 +12,9 @@ use crate::{
 };
 use std::ops::{Deref, DerefMut};
 
-#[derive(Visit)]
+#[derive(Visit, Debug, Inspect)]
 pub struct SpotLight {
+    #[inspect(expand)]
     base_light: BaseLight,
     radius: f32,
     hotspot_angle: f32,

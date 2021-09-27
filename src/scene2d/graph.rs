@@ -1,15 +1,15 @@
-use crate::core::algebra::{Rotation2, UnitComplex, Vector3};
-use crate::scene2d::transform::TransformBuilder;
 use crate::{
     core::{
-        algebra::{Matrix4, Vector2},
+        algebra::{Matrix4, Rotation2, UnitComplex, Vector2, Vector3},
         pool::{Handle, Pool, Ticket},
         visitor::prelude::*,
     },
-    scene2d::node::Node,
+    scene2d::{node::Node, transform::TransformBuilder},
 };
-use std::collections::HashMap;
-use std::ops::{Index, IndexMut};
+use std::{
+    collections::HashMap,
+    ops::{Index, IndexMut},
+};
 
 #[derive(Default, Visit)]
 pub struct Graph {
