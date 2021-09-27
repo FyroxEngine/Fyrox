@@ -892,7 +892,7 @@ impl Editor {
         let sound_panel = SoundPanel::new(ctx);
         let log = Log::new(ctx);
         let model_import_dialog = ModelImportDialog::new(ctx);
-        let inspector = Inspector::new(ctx);
+        let inspector = Inspector::new(ctx, message_sender.clone());
 
         let root_grid = GridBuilder::new(
             WidgetBuilder::new()

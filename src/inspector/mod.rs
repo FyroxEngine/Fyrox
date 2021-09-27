@@ -1,3 +1,4 @@
+use crate::inspector::editors::material::MaterialPropertyEditorDefinition;
 use crate::{
     inspector::{
         editors::texture::TexturePropertyEditorDefinition,
@@ -39,6 +40,7 @@ use rg3d::{
         transform::Transform,
     },
 };
+use std::sync::Mutex;
 use std::{any::Any, any::TypeId, sync::mpsc::Sender, sync::Arc};
 
 pub mod editors;
@@ -116,10 +118,15 @@ fn make_exposure_enum_editor_definition() -> EnumPropertyEditorDefinition<Exposu
     }
 }
 
-fn make_property_editors_container() -> Arc<PropertyEditorDefinitionContainer> {
+fn make_property_editors_container(
+    sender: Sender<Message>,
+) -> Arc<PropertyEditorDefinitionContainer> {
     let mut container = PropertyEditorDefinitionContainer::new();
 
     container.insert(Arc::new(TexturePropertyEditorDefinition));
+    container.insert(Arc::new(MaterialPropertyEditorDefinition {
+        sender: Mutex::new(sender),
+    }));
     container.insert(Arc::new(
         VecCollectionPropertyEditorDefinition::<Surface>::new(),
     ));
@@ -134,8 +141,8 @@ fn make_property_editors_container() -> Arc<PropertyEditorDefinitionContainer> {
 }
 
 impl Inspector {
-    pub fn new(ctx: &mut BuildContext) -> Self {
-        let property_editors = make_property_editors_container();
+    pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
+        let property_editors = make_property_editors_container(sender);
 
         let inspector;
         let window = WindowBuilder::new(WidgetBuilder::new())
