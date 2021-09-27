@@ -1,7 +1,7 @@
 use crate::{
     core::{inspect::PropertyInfo, pool::Handle},
     inspector::{
-        editors::{Layout, PropertyEditorBuildContext, PropertyEditorDefinition, ROW_HEIGHT},
+        editors::{Layout, PropertyEditorBuildContext, PropertyEditorDefinition},
         InspectorError,
     },
     message::{
@@ -30,9 +30,7 @@ macro_rules! define_integer_property_editor {
             ) -> Result<Handle<UiNode>, InspectorError> {
                 let value = ctx.property_info.cast_value::<$value>()?;
                 Ok(NumericUpDownBuilder::new(
-                    WidgetBuilder::new()
-                        .with_height(ROW_HEIGHT)
-                        .with_margin(Thickness::uniform(1.0)),
+                    WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
                 )
                 .with_precision(0)
                 .with_step(1.0)

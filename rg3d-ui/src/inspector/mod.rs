@@ -127,10 +127,10 @@ fn wrap_property(
     )
     .add_rows(match layout {
         Layout::Horizontal => {
-            vec![Row::auto()]
+            vec![Row::strict(26.0)]
         }
         Layout::Vertical => {
-            vec![Row::strict(28.0), Row::stretch()]
+            vec![Row::strict(26.0), Row::stretch()]
         }
     })
     .add_columns(match layout {
@@ -200,6 +200,7 @@ impl InspectorContext {
                                     info.name,
                                     TextBuilder::new(WidgetBuilder::new().on_row(i).on_column(1))
                                         .with_wrap(WrapMode::Word)
+                                        .with_vertical_text_alignment(VerticalAlignment::Center)
                                         .with_text(format!(
                                             "Unable to create property \
                                                     editor instance: Reason {:?}",
@@ -215,6 +216,7 @@ impl InspectorContext {
                                 info.name,
                                 TextBuilder::new(WidgetBuilder::new().on_row(i).on_column(1))
                                     .with_wrap(WrapMode::Word)
+                                    .with_vertical_text_alignment(VerticalAlignment::Center)
                                     .with_text("Property Editor Is Missing!")
                                     .build(ctx),
                                 Layout::Horizontal,

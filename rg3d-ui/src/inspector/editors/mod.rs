@@ -34,8 +34,6 @@ pub mod quat;
 pub mod string;
 pub mod vec;
 
-pub const ROW_HEIGHT: f32 = 25.0;
-
 pub struct PropertyEditorBuildContext<'a, 'b, 'c> {
     pub build_context: &'a mut BuildContext<'c>,
     pub property_info: &'b PropertyInfo<'b>,

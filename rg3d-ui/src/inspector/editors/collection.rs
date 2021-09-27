@@ -12,7 +12,7 @@ use crate::{
     inspector::{
         editors::{
             Layout, PropertyEditorBuildContext, PropertyEditorDefinition,
-            PropertyEditorDefinitionContainer, ROW_HEIGHT,
+            PropertyEditorDefinitionContainer,
         },
         InspectorBuilder, InspectorContext, InspectorEnvironment, InspectorError,
     },
@@ -246,7 +246,7 @@ where
                                 .build(ctx),
                             ),
                     )
-                    .add_row(Row::strict(ROW_HEIGHT))
+                    .add_row(Row::strict(26.0))
                     .add_row(Row::stretch())
                     .add_column(Column::stretch())
                     .build(ctx),

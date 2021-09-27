@@ -7,7 +7,7 @@ use crate::{
         pool::Handle,
     },
     inspector::{
-        editors::{Layout, PropertyEditorBuildContext, PropertyEditorDefinition, ROW_HEIGHT},
+        editors::{Layout, PropertyEditorBuildContext, PropertyEditorDefinition},
         InspectorError,
     },
     message::{
@@ -33,17 +33,15 @@ impl PropertyEditorDefinition for QuatPropertyEditorDefinition {
     ) -> Result<Handle<UiNode>, InspectorError> {
         let value = ctx.property_info.cast_value::<UnitQuaternion<f32>>()?;
         let euler = value.to_euler();
-        Ok(Vec3EditorBuilder::new(
-            WidgetBuilder::new()
-                .with_height(ROW_HEIGHT)
-                .with_margin(Thickness::uniform(1.0)),
+        Ok(
+            Vec3EditorBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
+                .with_value(Vector3::new(
+                    euler.x.to_degrees(),
+                    euler.y.to_degrees(),
+                    euler.z.to_degrees(),
+                ))
+                .build(ctx.build_context),
         )
-        .with_value(Vector3::new(
-            euler.x.to_degrees(),
-            euler.y.to_degrees(),
-            euler.z.to_degrees(),
-        ))
-        .build(ctx.build_context))
     }
 
     fn create_message(

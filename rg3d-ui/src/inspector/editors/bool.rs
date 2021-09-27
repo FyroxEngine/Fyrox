@@ -2,7 +2,7 @@ use crate::{
     check_box::CheckBoxBuilder,
     core::{inspect::PropertyInfo, pool::Handle},
     inspector::{
-        editors::{Layout, PropertyEditorBuildContext, PropertyEditorDefinition, ROW_HEIGHT},
+        editors::{Layout, PropertyEditorBuildContext, PropertyEditorDefinition},
         InspectorError,
     },
     message::{
@@ -26,13 +26,11 @@ impl PropertyEditorDefinition for BoolPropertyEditorDefinition {
         ctx: PropertyEditorBuildContext,
     ) -> Result<Handle<UiNode>, InspectorError> {
         let value = ctx.property_info.cast_value::<bool>()?;
-        Ok(CheckBoxBuilder::new(
-            WidgetBuilder::new()
-                .with_height(ROW_HEIGHT)
-                .with_margin(Thickness::uniform(1.0)),
+        Ok(
+            CheckBoxBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
+                .checked(Some(*value))
+                .build(ctx.build_context),
         )
-        .checked(Some(*value))
-        .build(ctx.build_context))
     }
 
     fn create_message(

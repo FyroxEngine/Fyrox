@@ -1,7 +1,7 @@
 use crate::{
     core::{inspect::PropertyInfo, pool::Handle},
     inspector::{
-        editors::{Layout, PropertyEditorBuildContext, PropertyEditorDefinition, ROW_HEIGHT},
+        editors::{Layout, PropertyEditorBuildContext, PropertyEditorDefinition},
         InspectorError,
     },
     message::{
@@ -9,7 +9,7 @@ use crate::{
     },
     text_box::TextBoxBuilder,
     widget::WidgetBuilder,
-    Thickness, UiNode,
+    Thickness, UiNode, VerticalAlignment,
 };
 use std::any::TypeId;
 
@@ -26,13 +26,12 @@ impl PropertyEditorDefinition for StringPropertyEditorDefinition {
         ctx: PropertyEditorBuildContext,
     ) -> Result<Handle<UiNode>, InspectorError> {
         let value = ctx.property_info.cast_value::<String>()?;
-        Ok(TextBoxBuilder::new(
-            WidgetBuilder::new()
-                .with_height(ROW_HEIGHT)
-                .with_margin(Thickness::uniform(1.0)),
+        Ok(
+            TextBoxBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
+                .with_text(value)
+                .with_vertical_text_alignment(VerticalAlignment::Center)
+                .build(ctx.build_context),
         )
-        .with_text(value)
-        .build(ctx.build_context))
     }
 
     fn create_message(

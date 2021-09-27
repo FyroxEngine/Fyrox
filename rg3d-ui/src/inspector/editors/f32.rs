@@ -1,7 +1,7 @@
 use crate::{
     core::{inspect::PropertyInfo, pool::Handle},
     inspector::{
-        editors::{Layout, PropertyEditorBuildContext, PropertyEditorDefinition, ROW_HEIGHT},
+        editors::{Layout, PropertyEditorBuildContext, PropertyEditorDefinition},
         InspectorError,
     },
     message::{
@@ -27,13 +27,11 @@ impl PropertyEditorDefinition for F32PropertyEditorDefinition {
         ctx: PropertyEditorBuildContext,
     ) -> Result<Handle<UiNode>, InspectorError> {
         let value = ctx.property_info.cast_value::<f32>()?;
-        Ok(NumericUpDownBuilder::new(
-            WidgetBuilder::new()
-                .with_height(ROW_HEIGHT)
-                .with_margin(Thickness::uniform(1.0)),
+        Ok(
+            NumericUpDownBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
+                .with_value(*value)
+                .build(ctx.build_context),
         )
-        .with_value(*value)
-        .build(ctx.build_context))
     }
 
     fn create_message(

@@ -928,6 +928,7 @@ pub struct Surface {
     /// bones so we can use `bones` array as reference to get those indices. This could be done
     /// like so: iterate over all vertices and weight data and calculate index of node handle that
     /// associated with vertex in `bones` array and store it as bone index in vertex.
+    #[inspect(skip)]
     pub vertex_weights: Vec<VertexWeightSet>,
     /// Array of handle to scene nodes which are used as bones.
     pub bones: Vec<Handle<Node>>,
