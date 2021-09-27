@@ -11,7 +11,7 @@ use crate::{
     widget::WidgetBuilder,
     Thickness, UiNode,
 };
-use std::{any::TypeId, sync::Arc};
+use std::any::TypeId;
 
 #[derive(Debug)]
 pub struct BoolPropertyEditorDefinition;

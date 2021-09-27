@@ -32,10 +32,12 @@ use rg3d_core::algebra::DMatrix;
 
 use rg3d_core::{
     algebra::{Dynamic, Unit, VecStorage},
+    inspect::{Inspect, PropertyInfo},
     pool::ErasedHandle,
     visitor::prelude::*,
     BiDirHashMap,
 };
+use std::fmt::Debug;
 use std::{collections::HashMap, hash::Hash, sync::Arc};
 
 #[derive(Copy, Clone, Debug)]
@@ -103,9 +105,12 @@ impl Into<RigidBodyType> for RigidBodyTypeDesc {
     }
 }
 
-#[derive(Clone, Debug, Visit)]
+#[derive(Clone, Debug, Visit, Inspect)]
 #[doc(hidden)]
-pub struct RigidBodyDesc<C> {
+pub struct RigidBodyDesc<C>
+where
+    C: Debug + Send + Sync + 'static,
+{
     pub position: Vector<f32>,
     pub rotation: Rotation<f32>,
     pub lin_vel: Vector<f32>,
@@ -123,7 +128,10 @@ pub struct RigidBodyDesc<C> {
     pub translation_locked: bool,
 }
 
-impl<C> Default for RigidBodyDesc<C> {
+impl<C> Default for RigidBodyDesc<C>
+where
+    C: Debug + Send + Sync,
+{
     fn default() -> Self {
         Self {
             position: Default::default(),
@@ -148,7 +156,10 @@ impl<C> Default for RigidBodyDesc<C> {
     }
 }
 
-impl<C: Hash + Clone + Eq> RigidBodyDesc<C> {
+impl<C> RigidBodyDesc<C>
+where
+    C: Hash + Clone + Eq + Debug + Send + Sync,
+{
     #[doc(hidden)]
     pub fn from_body(body: &RigidBody, handle_map: &BiDirHashMap<C, NativeColliderHandle>) -> Self {
         Self {
@@ -207,7 +218,10 @@ impl<C: Hash + Clone + Eq> RigidBodyDesc<C> {
     }
 }
 
-impl<C> RigidBodyDesc<C> {
+impl<C> RigidBodyDesc<C>
+where
+    C: Debug + Send + Sync,
+{
     #[doc(hidden)]
     pub fn local_transform(&self) -> Isometry<f32> {
         Isometry {
@@ -219,20 +233,20 @@ impl<C> RigidBodyDesc<C> {
     }
 }
 
-#[derive(Default, Copy, Clone, Debug, Visit)]
+#[derive(Default, Copy, Clone, Debug, Visit, Inspect)]
 #[doc(hidden)]
 pub struct BallDesc {
     pub radius: f32,
 }
 
-#[derive(Default, Copy, Clone, Debug, Visit)]
+#[derive(Default, Copy, Clone, Debug, Visit, Inspect)]
 #[doc(hidden)]
 pub struct CylinderDesc {
     pub half_height: f32,
     pub radius: f32,
 }
 
-#[derive(Default, Copy, Clone, Debug, Visit)]
+#[derive(Default, Copy, Clone, Debug, Visit, Inspect)]
 #[doc(hidden)]
 pub struct RoundCylinderDesc {
     pub half_height: f32,
@@ -240,20 +254,20 @@ pub struct RoundCylinderDesc {
     pub border_radius: f32,
 }
 
-#[derive(Default, Copy, Clone, Debug, Visit)]
+#[derive(Default, Copy, Clone, Debug, Visit, Inspect)]
 #[doc(hidden)]
 pub struct ConeDesc {
     pub half_height: f32,
     pub radius: f32,
 }
 
-#[derive(Default, Copy, Clone, Debug, Visit)]
+#[derive(Default, Copy, Clone, Debug, Visit, Inspect)]
 #[doc(hidden)]
 pub struct CuboidDesc {
     pub half_extents: Vector<f32>,
 }
 
-#[derive(Default, Copy, Clone, Debug, Visit)]
+#[derive(Default, Copy, Clone, Debug, Visit, Inspect)]
 #[doc(hidden)]
 pub struct CapsuleDesc {
     pub begin: Vector<f32>,
@@ -261,14 +275,14 @@ pub struct CapsuleDesc {
     pub radius: f32,
 }
 
-#[derive(Default, Copy, Clone, Debug, Visit)]
+#[derive(Default, Copy, Clone, Debug, Visit, Inspect)]
 #[doc(hidden)]
 pub struct SegmentDesc {
     pub begin: Vector<f32>,
     pub end: Vector<f32>,
 }
 
-#[derive(Default, Copy, Clone, Debug, Visit)]
+#[derive(Default, Copy, Clone, Debug, Visit, Inspect)]
 #[doc(hidden)]
 pub struct TriangleDesc {
     pub a: Vector<f32>,
@@ -279,7 +293,7 @@ pub struct TriangleDesc {
 // TODO: for now data of trimesh and heightfield is not serializable.
 //  In most cases it is ok, because PhysicsBinder allows to automatically
 //  obtain data from associated mesh.
-#[derive(Default, Copy, Clone, Debug)]
+#[derive(Default, Copy, Clone, Debug, Inspect)]
 #[doc(hidden)]
 pub struct TrimeshDesc;
 
@@ -290,7 +304,7 @@ impl Visit for TrimeshDesc {
     }
 }
 
-#[derive(Default, Copy, Clone, Debug)]
+#[derive(Default, Copy, Clone, Debug, Inspect)]
 #[doc(hidden)]
 pub struct HeightfieldDesc;
 
@@ -317,6 +331,26 @@ pub enum ColliderShapeDesc {
     Triangle(TriangleDesc),
     Trimesh(TrimeshDesc),
     Heightfield(HeightfieldDesc),
+}
+
+impl Inspect for ColliderShapeDesc {
+    fn properties(&self) -> Vec<PropertyInfo<'_>> {
+        match self {
+            ColliderShapeDesc::Ball(v) => v.properties(),
+            #[cfg(feature = "dim3")]
+            ColliderShapeDesc::Cylinder(v) => v.properties(),
+            #[cfg(feature = "dim3")]
+            ColliderShapeDesc::RoundCylinder(v) => v.properties(),
+            #[cfg(feature = "dim3")]
+            ColliderShapeDesc::Cone(v) => v.properties(),
+            ColliderShapeDesc::Cuboid(v) => v.properties(),
+            ColliderShapeDesc::Capsule(v) => v.properties(),
+            ColliderShapeDesc::Segment(v) => v.properties(),
+            ColliderShapeDesc::Triangle(v) => v.properties(),
+            ColliderShapeDesc::Trimesh(v) => v.properties(),
+            ColliderShapeDesc::Heightfield(v) => v.properties(),
+        }
+    }
 }
 
 impl Default for ColliderShapeDesc {
@@ -530,9 +564,12 @@ impl Visit for ColliderShapeDesc {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Inspect)]
 #[doc(hidden)]
-pub struct ColliderDesc<R> {
+pub struct ColliderDesc<R>
+where
+    R: Debug + Send + Sync + 'static,
+{
     pub shape: ColliderShapeDesc,
     pub parent: R,
     pub friction: f32,
@@ -546,7 +583,7 @@ pub struct ColliderDesc<R> {
 }
 
 #[doc(hidden)]
-#[derive(Visit, Debug, Clone, Copy)]
+#[derive(Visit, Debug, Clone, Copy, Inspect)]
 pub struct InteractionGroupsDesc {
     pub memberships: u32,
     pub filter: u32,
@@ -570,7 +607,10 @@ impl From<InteractionGroups> for InteractionGroupsDesc {
     }
 }
 
-impl<R: Default> Default for ColliderDesc<R> {
+impl<R> Default for ColliderDesc<R>
+where
+    R: Default + Debug + Send + Sync + 'static,
+{
     fn default() -> Self {
         Self {
             shape: Default::default(),
@@ -590,7 +630,10 @@ impl<R: Default> Default for ColliderDesc<R> {
     }
 }
 
-impl<R: Hash + Clone + Eq> ColliderDesc<R> {
+impl<R> ColliderDesc<R>
+where
+    R: Debug + Send + Sync + 'static + Hash + Clone + Eq,
+{
     /// Creates collider descriptor from Rapier collider.
     pub fn from_collider(
         collider: &Collider,
@@ -640,7 +683,10 @@ impl<R: Hash + Clone + Eq> ColliderDesc<R> {
     }
 }
 
-impl<R: 'static + Visit + Default> Visit for ColliderDesc<R> {
+impl<R> Visit for ColliderDesc<R>
+where
+    R: 'static + Visit + Default + Debug + Send + Sync,
+{
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
@@ -660,7 +706,7 @@ impl<R: 'static + Visit + Default> Visit for ColliderDesc<R> {
 }
 
 // Almost full copy of rapier's IntegrationParameters
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Inspect)]
 #[doc(hidden)]
 pub struct IntegrationParametersDesc {
     pub dt: f32,
@@ -772,14 +818,14 @@ impl Visit for IntegrationParametersDesc {
     }
 }
 
-#[derive(Default, Clone, Debug, Visit)]
+#[derive(Default, Clone, Debug, Visit, Inspect)]
 #[doc(hidden)]
 pub struct BallJointDesc {
     pub local_anchor1: Vector<f32>,
     pub local_anchor2: Vector<f32>,
 }
 
-#[derive(Clone, Debug, Visit)]
+#[derive(Clone, Debug, Visit, Inspect)]
 #[doc(hidden)]
 pub struct FixedJointDesc {
     pub local_anchor1_translation: Vector<f32>,
@@ -812,7 +858,7 @@ impl Default for FixedJointDesc {
     }
 }
 
-#[derive(Default, Clone, Debug, Visit)]
+#[derive(Default, Clone, Debug, Visit, Inspect)]
 #[doc(hidden)]
 pub struct PrismaticJointDesc {
     pub local_anchor1: Vector<f32>,
@@ -822,7 +868,7 @@ pub struct PrismaticJointDesc {
 }
 
 #[cfg(feature = "dim3")]
-#[derive(Default, Clone, Debug, Visit)]
+#[derive(Default, Clone, Debug, Visit, Inspect)]
 #[doc(hidden)]
 pub struct RevoluteJointDesc {
     pub local_anchor1: Vector<f32>,
@@ -839,6 +885,18 @@ pub enum JointParamsDesc {
     PrismaticJoint(PrismaticJointDesc),
     #[cfg(feature = "dim3")]
     RevoluteJoint(RevoluteJointDesc),
+}
+
+impl Inspect for JointParamsDesc {
+    fn properties(&self) -> Vec<PropertyInfo<'_>> {
+        match self {
+            JointParamsDesc::BallJoint(v) => v.properties(),
+            JointParamsDesc::FixedJoint(v) => v.properties(),
+            JointParamsDesc::PrismaticJoint(v) => v.properties(),
+            #[cfg(feature = "dim3")]
+            JointParamsDesc::RevoluteJoint(v) => v.properties(),
+        }
+    }
 }
 
 impl Default for JointParamsDesc {
@@ -978,15 +1036,21 @@ impl JointParamsDesc {
     }
 }
 
-#[derive(Clone, Debug, Default, Visit)]
+#[derive(Clone, Debug, Default, Visit, Inspect)]
 #[doc(hidden)]
-pub struct JointDesc<R> {
+pub struct JointDesc<R>
+where
+    R: Debug + Send + Sync + 'static,
+{
     pub body1: R,
     pub body2: R,
     pub params: JointParamsDesc,
 }
 
-impl<R: Hash + Clone + Eq> JointDesc<R> {
+impl<R> JointDesc<R>
+where
+    R: Hash + Clone + Eq + Debug + Send + Sync + 'static,
+{
     #[doc(hidden)]
     pub fn from_joint(joint: &Joint, handle_map: &BiDirHashMap<R, NativeRigidBodyHandle>) -> Self {
         Self {
