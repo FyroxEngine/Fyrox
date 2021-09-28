@@ -5,7 +5,10 @@ use rg3d::{
         button::ButtonBuilder,
         grid::{Column, GridBuilder, Row},
         inspector::{
-            editors::{Layout, PropertyEditorBuildContext, PropertyEditorDefinition},
+            editors::{
+                Layout, PropertyEditorBuildContext, PropertyEditorDefinition,
+                PropertyEditorInstance,
+            },
             InspectorError,
         },
         message::{ButtonMessage, PropertyChanged, UiMessage, UiMessageData},
@@ -153,13 +156,16 @@ impl PropertyEditorDefinition for MaterialPropertyEditorDefinition {
     fn create_instance(
         &self,
         ctx: PropertyEditorBuildContext,
-    ) -> Result<Handle<UiNode>, InspectorError> {
+    ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<Arc<Mutex<Material>>>()?;
-        Ok(MaterialFieldEditorBuilder::new(WidgetBuilder::new()).build(
-            ctx.build_context,
-            self.sender.lock().unwrap().clone(),
-            value.clone(),
-        ))
+        Ok(PropertyEditorInstance {
+            title: Default::default(),
+            editor: MaterialFieldEditorBuilder::new(WidgetBuilder::new()).build(
+                ctx.build_context,
+                self.sender.lock().unwrap().clone(),
+                value.clone(),
+            ),
+        })
     }
 
     fn create_message(

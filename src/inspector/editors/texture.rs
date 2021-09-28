@@ -5,7 +5,10 @@ use rg3d::{
     gui::{
         image::ImageBuilder,
         inspector::{
-            editors::{Layout, PropertyEditorBuildContext, PropertyEditorDefinition},
+            editors::{
+                Layout, PropertyEditorBuildContext, PropertyEditorDefinition,
+                PropertyEditorInstance,
+            },
             InspectorError,
         },
         message::{
@@ -166,21 +169,24 @@ impl PropertyEditorDefinition for TexturePropertyEditorDefinition {
     fn create_instance(
         &self,
         ctx: PropertyEditorBuildContext,
-    ) -> Result<Handle<UiNode>, InspectorError> {
+    ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<Option<Texture>>()?;
 
-        Ok(TextureEditorBuilder::new(WidgetBuilder::new())
-            .with_texture(value.clone())
-            .build(
-                ctx.build_context,
-                ctx.environment
-                    .as_ref()
-                    .unwrap()
-                    .as_any()
-                    .downcast_ref::<EditorEnvironment>()
-                    .map(|e| e.resource_manager.clone())
-                    .unwrap(),
-            ))
+        Ok(PropertyEditorInstance {
+            title: Default::default(),
+            editor: TextureEditorBuilder::new(WidgetBuilder::new())
+                .with_texture(value.clone())
+                .build(
+                    ctx.build_context,
+                    ctx.environment
+                        .as_ref()
+                        .unwrap()
+                        .as_any()
+                        .downcast_ref::<EditorEnvironment>()
+                        .map(|e| e.resource_manager.clone())
+                        .unwrap(),
+                ),
+        })
     }
 
     fn create_message(
