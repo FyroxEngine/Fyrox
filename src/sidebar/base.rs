@@ -7,7 +7,6 @@ use crate::{
             SetPhysicsBindingCommand, SetTagCommand,
         },
         lod::SetLodGroupCommand,
-        SceneCommand,
     },
     send_sync_message,
     sidebar::{
@@ -322,14 +321,16 @@ impl BaseSection {
             UiMessageData::Button(ButtonMessage::Click) => {
                 if message.destination() == self.create_lod_group {
                     sender
-                        .send(Message::DoSceneCommand(SceneCommand::SetLodGroup(
-                            SetLodGroupCommand::new(node_handle, Some(Default::default())),
+                        .send(Message::do_scene_command(SetLodGroupCommand::new(
+                            node_handle,
+                            Some(Default::default()),
                         )))
                         .unwrap();
                 } else if message.destination() == self.remove_lod_group {
                     sender
-                        .send(Message::DoSceneCommand(SceneCommand::SetLodGroup(
-                            SetLodGroupCommand::new(node_handle, None),
+                        .send(Message::do_scene_command(SetLodGroupCommand::new(
+                            node_handle,
+                            None,
                         )))
                         .unwrap();
                 } else if message.destination() == self.edit_lod_group {
@@ -348,8 +349,10 @@ impl BaseSection {
                     let new_rotation = quat_from_euler(euler, RotationOrder::XYZ);
                     if !old_rotation.approx_eq(&new_rotation, 0.00001) {
                         sender
-                            .send(Message::DoSceneCommand(SceneCommand::RotateNode(
-                                RotateNodeCommand::new(node_handle, old_rotation, new_rotation),
+                            .send(Message::do_scene_command(RotateNodeCommand::new(
+                                node_handle,
+                                old_rotation,
+                                new_rotation,
                             )))
                             .unwrap();
                     }
@@ -357,8 +360,10 @@ impl BaseSection {
                     let old_position = **transform.position();
                     if old_position != value {
                         sender
-                            .send(Message::DoSceneCommand(SceneCommand::MoveNode(
-                                MoveNodeCommand::new(node_handle, old_position, value),
+                            .send(Message::do_scene_command(MoveNodeCommand::new(
+                                node_handle,
+                                old_position,
+                                value,
                             )))
                             .unwrap();
                     }
@@ -366,8 +371,10 @@ impl BaseSection {
                     let old_scale = **transform.scale();
                     if old_scale != value {
                         sender
-                            .send(Message::DoSceneCommand(SceneCommand::ScaleNode(
-                                ScaleNodeCommand::new(node_handle, old_scale, value),
+                            .send(Message::do_scene_command(ScaleNodeCommand::new(
+                                node_handle,
+                                old_scale,
+                                value,
                             )))
                             .unwrap();
                     }
@@ -378,8 +385,9 @@ impl BaseSection {
                     let old_name = node.name();
                     if old_name != value {
                         sender
-                            .send(Message::DoSceneCommand(SceneCommand::SetName(
-                                SetNameCommand::new(node_handle, value.to_owned()),
+                            .send(Message::do_scene_command(SetNameCommand::new(
+                                node_handle,
+                                value.to_owned(),
                             )))
                             .unwrap();
                     }
@@ -387,8 +395,9 @@ impl BaseSection {
                     let old_tag = node.tag();
                     if old_tag != value {
                         sender
-                            .send(Message::DoSceneCommand(SceneCommand::SetTag(
-                                SetTagCommand::new(node_handle, value.to_owned()),
+                            .send(Message::do_scene_command(SetTagCommand::new(
+                                node_handle,
+                                value.to_owned(),
                             )))
                             .unwrap();
                     }
@@ -409,8 +418,9 @@ impl BaseSection {
                             _ => unreachable!(),
                         };
                         sender
-                            .send(Message::DoSceneCommand(SceneCommand::SetPhysicsBinding(
-                                SetPhysicsBindingCommand::new(node_handle, value),
+                            .send(Message::do_scene_command(SetPhysicsBindingCommand::new(
+                                node_handle,
+                                value,
                             )))
                             .unwrap();
                     }

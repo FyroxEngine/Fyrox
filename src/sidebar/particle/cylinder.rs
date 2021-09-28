@@ -1,8 +1,7 @@
 use crate::sidebar::make_section;
 use crate::{
-    scene::commands::{
-        particle_system::{SetCylinderEmitterHeightCommand, SetCylinderEmitterRadiusCommand},
-        SceneCommand,
+    scene::commands::particle_system::{
+        SetCylinderEmitterHeightCommand, SetCylinderEmitterRadiusCommand,
     },
     send_sync_message,
     sidebar::{make_f32_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT},
@@ -86,18 +85,14 @@ impl CylinderSection {
             if message.direction() == MessageDirection::FromWidget {
                 if message.destination() == self.radius && cylinder.radius().ne(&value) {
                     self.sender
-                        .send(Message::DoSceneCommand(
-                            SceneCommand::SetCylinderEmitterRadius(
-                                SetCylinderEmitterRadiusCommand::new(handle, emitter_index, value),
-                            ),
+                        .send(Message::do_scene_command(
+                            SetCylinderEmitterRadiusCommand::new(handle, emitter_index, value),
                         ))
                         .unwrap();
                 } else if message.destination() == self.height && cylinder.height().ne(&value) {
                     self.sender
-                        .send(Message::DoSceneCommand(
-                            SceneCommand::SetCylinderEmitterHeight(
-                                SetCylinderEmitterHeightCommand::new(handle, emitter_index, value),
-                            ),
+                        .send(Message::do_scene_command(
+                            SetCylinderEmitterHeightCommand::new(handle, emitter_index, value),
                         ))
                         .unwrap();
                 }

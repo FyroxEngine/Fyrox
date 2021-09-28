@@ -7,13 +7,10 @@ use crate::sidebar::make_section;
 use crate::{
     asset::AssetKind,
     make_relative_path,
-    scene::commands::{
-        sound::{
-            SetSoundSourceBufferCommand, SetSoundSourceGainCommand, SetSoundSourceLoopingCommand,
-            SetSoundSourceNameCommand, SetSoundSourcePitchCommand, SetSoundSourcePlayOnceCommand,
-            SetSpatialSoundSourcePositionCommand,
-        },
-        SceneCommand,
+    scene::commands::sound::{
+        SetSoundSourceBufferCommand, SetSoundSourceGainCommand, SetSoundSourceLoopingCommand,
+        SetSoundSourceNameCommand, SetSoundSourcePitchCommand, SetSoundSourcePlayOnceCommand,
+        SetSpatialSoundSourcePositionCommand,
     },
     send_sync_message,
     sidebar::{
@@ -145,10 +142,8 @@ impl SpatialSection {
             UiMessageData::Vec3Editor(Vec3EditorMessage::Value(value)) => {
                 if spatial.position() != value && message.destination() == self.position {
                     sender
-                        .send(Message::DoSceneCommand(
-                            SceneCommand::SetSpatialSoundSourcePosition(
-                                SetSpatialSoundSourcePositionCommand::new(handle, value),
-                            ),
+                        .send(Message::do_scene_command(
+                            SetSpatialSoundSourcePositionCommand::new(handle, value),
                         ))
                         .unwrap();
                 }
@@ -156,30 +151,24 @@ impl SpatialSection {
             UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) => {
                 if spatial.radius().ne(&value) && message.destination() == self.radius {
                     sender
-                        .send(Message::DoSceneCommand(
-                            SceneCommand::SetSpatialSoundSourceRadius(
-                                SetSpatialSoundSourceRadiusCommand::new(handle, value),
-                            ),
+                        .send(Message::do_scene_command(
+                            SetSpatialSoundSourceRadiusCommand::new(handle, value),
                         ))
                         .unwrap();
                 } else if spatial.rolloff_factor().ne(&value)
                     && message.destination() == self.rolloff_factor
                 {
                     sender
-                        .send(Message::DoSceneCommand(
-                            SceneCommand::SetSpatialSoundSourceRolloffFactor(
-                                SetSpatialSoundSourceRolloffFactorCommand::new(handle, value),
-                            ),
+                        .send(Message::do_scene_command(
+                            SetSpatialSoundSourceRolloffFactorCommand::new(handle, value),
                         ))
                         .unwrap();
                 } else if spatial.max_distance().ne(&value)
                     && message.destination() == self.max_distance
                 {
                     sender
-                        .send(Message::DoSceneCommand(
-                            SceneCommand::SetSpatialSoundSourceMaxDistance(
-                                SetSpatialSoundSourceMaxDistanceCommand::new(handle, value),
-                            ),
+                        .send(Message::do_scene_command(
+                            SetSpatialSoundSourceMaxDistanceCommand::new(handle, value),
                         ))
                         .unwrap();
                 }
@@ -378,15 +367,16 @@ impl SoundSection {
             &UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) => {
                 if source.gain().ne(&value) && message.destination() == self.gain {
                     sender
-                        .send(Message::DoSceneCommand(SceneCommand::SetSoundSourceGain(
-                            SetSoundSourceGainCommand::new(handle, value),
+                        .send(Message::do_scene_command(SetSoundSourceGainCommand::new(
+                            handle, value,
                         )))
                         .unwrap();
                 } else if (source.pitch() as f32).ne(&value) && message.destination() == self.pitch
                 {
                     sender
-                        .send(Message::DoSceneCommand(SceneCommand::SetSoundSourcePitch(
-                            SetSoundSourcePitchCommand::new(handle, value as f64),
+                        .send(Message::do_scene_command(SetSoundSourcePitchCommand::new(
+                            handle,
+                            value as f64,
                         )))
                         .unwrap();
                 }
@@ -394,18 +384,14 @@ impl SoundSection {
             &UiMessageData::CheckBox(CheckBoxMessage::Check(Some(value))) => {
                 if source.is_play_once() != value && message.destination() == self.play_once {
                     sender
-                        .send(Message::DoSceneCommand(
-                            SceneCommand::SetSoundSourcePlayOnce(
-                                SetSoundSourcePlayOnceCommand::new(handle, value),
-                            ),
+                        .send(Message::do_scene_command(
+                            SetSoundSourcePlayOnceCommand::new(handle, value),
                         ))
                         .unwrap();
                 } else if source.is_looping() != value && message.destination() == self.looping {
                     sender
-                        .send(Message::DoSceneCommand(
-                            SceneCommand::SetSoundSourceLooping(SetSoundSourceLoopingCommand::new(
-                                handle, value,
-                            )),
+                        .send(Message::do_scene_command(
+                            SetSoundSourceLoopingCommand::new(handle, value),
                         ))
                         .unwrap();
                 }
@@ -413,8 +399,9 @@ impl SoundSection {
             UiMessageData::TextBox(TextBoxMessage::Text(text)) => {
                 if message.destination() == self.name && source.name() != text {
                     sender
-                        .send(Message::DoSceneCommand(SceneCommand::SetSoundSourceName(
-                            SetSoundSourceNameCommand::new(handle, text.clone()),
+                        .send(Message::do_scene_command(SetSoundSourceNameCommand::new(
+                            handle,
+                            text.clone(),
                         )))
                         .unwrap();
                 }
@@ -432,10 +419,8 @@ impl SoundSection {
                                 resource_manager.request_sound_buffer(&relative_path, false),
                             ) {
                                 sender
-                                    .send(Message::DoSceneCommand(
-                                        SceneCommand::SetSoundSourceBuffer(
-                                            SetSoundSourceBufferCommand::new(handle, Some(buffer)),
-                                        ),
+                                    .send(Message::do_scene_command(
+                                        SetSoundSourceBufferCommand::new(handle, Some(buffer)),
                                     ))
                                     .unwrap();
                             } else {

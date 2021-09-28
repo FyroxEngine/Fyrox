@@ -1,8 +1,5 @@
 use crate::{
-    scene::{
-        commands::{ChangeSelectionCommand, SceneCommand},
-        EditorScene, Selection,
-    },
+    scene::{commands::ChangeSelectionCommand, EditorScene, Selection},
     send_sync_message, utils, GameEngine, Message,
 };
 use rg3d::core::algebra::Vector3;
@@ -331,11 +328,9 @@ impl SoundPanel {
 
                 if new_selection != editor_scene.selection {
                     sender
-                        .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
-                            ChangeSelectionCommand::new(
-                                new_selection,
-                                editor_scene.selection.clone(),
-                            ),
+                        .send(Message::do_scene_command(ChangeSelectionCommand::new(
+                            new_selection,
+                            editor_scene.selection.clone(),
                         )))
                         .unwrap();
                 }

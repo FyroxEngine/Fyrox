@@ -33,6 +33,8 @@ pub mod utils;
 pub mod world_outliner;
 
 use crate::asset::AssetItem;
+use crate::command::Command;
+use crate::scene::commands::SceneCommand;
 use crate::{
     asset::{AssetBrowser, AssetKind},
     camera::CameraController,
@@ -62,7 +64,7 @@ use crate::{
             graph::LoadModelCommand, make_delete_selection_command, mesh::SetMeshTextureCommand,
             particle_system::SetParticleSystemTextureCommand, sound::DeleteSoundSourceCommand,
             sprite::SetSpriteTextureCommand, ChangeSelectionCommand, CommandGroup, PasteCommand,
-            SceneCommand, SceneContext,
+            SceneContext,
         },
         EditorScene, Selection,
     },
@@ -445,11 +447,9 @@ impl ModelImportDialog {
                     ));
 
                     sender
-                        .send(Message::DoSceneCommand(SceneCommand::LoadModel(
-                            LoadModelCommand::new(
-                                self.model_path.clone(),
-                                self.material_search_options.clone(),
-                            ),
+                        .send(Message::do_scene_command(LoadModelCommand::new(
+                            self.model_path.clone(),
+                            self.material_search_options.clone(),
                         )))
                         .unwrap();
                 } else if message.destination() == self.cancel {
@@ -772,6 +772,12 @@ pub enum Message {
     ShowInAssetBrowser(PathBuf),
 }
 
+impl Message {
+    pub fn do_scene_command<C: Command>(cmd: C) -> Self {
+        Self::DoSceneCommand(SceneCommand::new(cmd))
+    }
+}
+
 pub fn make_scene_file_filter() -> Filter {
     Filter::new(|p: &Path| {
         if let Some(ext) = p.extension() {
@@ -799,7 +805,7 @@ pub fn make_save_file_selector(ctx: &mut BuildContext) -> Handle<UiNode> {
 struct Editor {
     sidebar: SideBar,
     scene: Option<EditorScene>,
-    command_stack: CommandStack<SceneCommand>,
+    command_stack: CommandStack,
     message_sender: Sender<Message>,
     message_receiver: Receiver<Message>,
     interaction_modes: Vec<InteractionMode>,
@@ -1407,9 +1413,7 @@ impl Editor {
                                 {
                                     if !editor_scene.clipboard.is_empty() {
                                         self.message_sender
-                                            .send(Message::DoSceneCommand(SceneCommand::Paste(
-                                                PasteCommand::new(),
-                                            )))
+                                            .send(Message::do_scene_command(PasteCommand::new()))
                                             .unwrap();
                                     }
                                 }
@@ -1431,7 +1435,7 @@ impl Editor {
                                                     .sources()
                                                     .iter()
                                                     .map(|&source| {
-                                                        SceneCommand::DeleteSoundSource(
+                                                        SceneCommand::new(
                                                             DeleteSoundSourceCommand::new(source),
                                                         )
                                                     })
@@ -1439,19 +1443,15 @@ impl Editor {
 
                                                 commands.insert(
                                                     0,
-                                                    SceneCommand::ChangeSelection(
-                                                        ChangeSelectionCommand::new(
-                                                            Selection::None,
-                                                            editor_scene.selection.clone(),
-                                                        ),
-                                                    ),
+                                                    SceneCommand::new(ChangeSelectionCommand::new(
+                                                        Selection::None,
+                                                        editor_scene.selection.clone(),
+                                                    )),
                                                 );
 
                                                 self.message_sender
-                                                    .send(Message::DoSceneCommand(
-                                                        SceneCommand::CommandGroup(
-                                                            CommandGroup::from(commands),
-                                                        ),
+                                                    .send(Message::do_scene_command(
+                                                        CommandGroup::from(commands),
                                                     ))
                                                     .unwrap();
                                             }
@@ -1506,36 +1506,32 @@ impl Editor {
                                                     {
                                                         Node::Mesh(_) => {
                                                             self.message_sender
-                                                                .send(Message::DoSceneCommand(
-                                                                    SceneCommand::SetMeshTexture(
-                                                                        SetMeshTextureCommand::new(
-                                                                            result.node,
-                                                                            tex,
-                                                                        ),
+                                                                .send(Message::do_scene_command(
+                                                                    SetMeshTextureCommand::new(
+                                                                        result.node,
+                                                                        tex,
                                                                     ),
                                                                 ))
                                                                 .unwrap();
                                                         }
                                                         Node::Sprite(_) => {
                                                             self.message_sender
-                                                                        .send(Message::DoSceneCommand(
-                                                                            SceneCommand::SetSpriteTexture(
-                                                                                SetSpriteTextureCommand::new(
-                                                                                    result.node, Some(tex),
-                                                                                ),
-                                                                            ),
-                                                                        ))
-                                                                        .unwrap();
+                                                                .send(Message::do_scene_command(
+                                                                    SetSpriteTextureCommand::new(
+                                                                        result.node,
+                                                                        Some(tex),
+                                                                    ),
+                                                                ))
+                                                                .unwrap();
                                                         }
                                                         Node::ParticleSystem(_) => {
                                                             self.message_sender
-                                                                    .send(Message::DoSceneCommand(
-                                                                        SceneCommand::SetParticleSystemTexture(
+                                                                    .send(Message::do_scene_command(
                                                                             SetParticleSystemTextureCommand::new(
                                                                                 result.node, Some(tex),
                                                                             ),
                                                                         ),
-                                                                    ))
+                                                                    )
                                                                     .unwrap();
                                                         }
                                                         _ => {}
@@ -1651,7 +1647,7 @@ impl Editor {
                 Message::DoSceneCommand(command) => {
                     if let Some(editor_scene) = self.scene.as_mut() {
                         self.command_stack.do_command(
-                            command,
+                            command.into_inner(),
                             SceneContext {
                                 scene: &mut engine.scenes[editor_scene.scene],
                                 message_sender: self.message_sender.clone(),

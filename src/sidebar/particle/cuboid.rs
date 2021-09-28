@@ -1,11 +1,8 @@
 use crate::sidebar::make_section;
 use crate::{
-    scene::commands::{
-        particle_system::{
-            SetBoxEmitterHalfDepthCommand, SetBoxEmitterHalfHeightCommand,
-            SetBoxEmitterHalfWidthCommand,
-        },
-        SceneCommand,
+    scene::commands::particle_system::{
+        SetBoxEmitterHalfDepthCommand, SetBoxEmitterHalfHeightCommand,
+        SetBoxEmitterHalfWidthCommand,
     },
     send_sync_message,
     sidebar::{make_f32_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT},
@@ -115,30 +112,24 @@ impl BoxSection {
             if message.direction() == MessageDirection::FromWidget {
                 if message.destination() == self.half_width && box_emitter.half_width().ne(&value) {
                     self.sender
-                        .send(Message::DoSceneCommand(
-                            SceneCommand::SetBoxEmitterHalfWidth(
-                                SetBoxEmitterHalfWidthCommand::new(handle, emitter_index, value),
-                            ),
+                        .send(Message::do_scene_command(
+                            SetBoxEmitterHalfWidthCommand::new(handle, emitter_index, value),
                         ))
                         .unwrap();
                 } else if message.destination() == self.half_height
                     && box_emitter.half_height().ne(&value)
                 {
                     self.sender
-                        .send(Message::DoSceneCommand(
-                            SceneCommand::SetBoxEmitterHalfHeight(
-                                SetBoxEmitterHalfHeightCommand::new(handle, emitter_index, value),
-                            ),
+                        .send(Message::do_scene_command(
+                            SetBoxEmitterHalfHeightCommand::new(handle, emitter_index, value),
                         ))
                         .unwrap();
                 } else if message.destination() == self.half_depth
                     && box_emitter.half_depth().ne(&value)
                 {
                     self.sender
-                        .send(Message::DoSceneCommand(
-                            SceneCommand::SetBoxEmitterHalfDepth(
-                                SetBoxEmitterHalfDepthCommand::new(handle, emitter_index, value),
-                            ),
+                        .send(Message::do_scene_command(
+                            SetBoxEmitterHalfDepthCommand::new(handle, emitter_index, value),
                         ))
                         .unwrap();
                 }

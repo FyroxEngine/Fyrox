@@ -1,12 +1,9 @@
 use crate::scene::commands::light::SetLightIntensityCommand;
 use crate::sidebar::make_f32_input_field;
 use crate::{
-    scene::commands::{
-        light::{
-            SetLightCastShadowsCommand, SetLightColorCommand, SetLightScatterCommand,
-            SetLightScatterEnabledCommand,
-        },
-        SceneCommand,
+    scene::commands::light::{
+        SetLightCastShadowsCommand, SetLightColorCommand, SetLightScatterCommand,
+        SetLightScatterEnabledCommand,
     },
     send_sync_message,
     sidebar::{
@@ -179,8 +176,8 @@ impl LightSection {
                 UiMessageData::Vec3Editor(Vec3EditorMessage::Value(value)) => {
                     if message.destination() == self.light_scatter && light.scatter() != value {
                         self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::SetLightScatter(
-                                SetLightScatterCommand::new(handle, value),
+                            .send(Message::do_scene_command(SetLightScatterCommand::new(
+                                handle, value,
                             )))
                             .unwrap();
                     }
@@ -192,18 +189,16 @@ impl LightSection {
                         && light.is_scatter_enabled() != value
                     {
                         self.sender
-                            .send(Message::DoSceneCommand(
-                                SceneCommand::SetLightScatterEnabled(
-                                    SetLightScatterEnabledCommand::new(handle, value),
-                                ),
+                            .send(Message::do_scene_command(
+                                SetLightScatterEnabledCommand::new(handle, value),
                             ))
                             .unwrap();
                     } else if message.destination() == self.cast_shadows
                         && light.is_cast_shadows() != value
                     {
                         self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::SetLightCastShadows(
-                                SetLightCastShadowsCommand::new(handle, value),
+                            .send(Message::do_scene_command(SetLightCastShadowsCommand::new(
+                                handle, value,
                             )))
                             .unwrap();
                     }
@@ -211,8 +206,8 @@ impl LightSection {
                 UiMessageData::ColorField(ColorFieldMessage::Color(color)) => {
                     if message.destination() == self.color && light.color() != color {
                         self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::SetLightColor(
-                                SetLightColorCommand::new(handle, color),
+                            .send(Message::do_scene_command(SetLightColorCommand::new(
+                                handle, color,
                             )))
                             .unwrap();
                     }
@@ -220,8 +215,8 @@ impl LightSection {
                 UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) => {
                     if message.destination() == self.intensity && light.intensity().ne(&value) {
                         self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::SetLightIntensity(
-                                SetLightIntensityCommand::new(handle, value),
+                            .send(Message::do_scene_command(SetLightIntensityCommand::new(
+                                handle, value,
                             )))
                             .unwrap_or_default();
                     }

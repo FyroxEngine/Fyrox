@@ -1,10 +1,11 @@
 use crate::gui::SceneItemMessage;
+use crate::scene::commands::SceneCommand;
 use crate::{
     load_image,
     scene::{
         commands::{
             graph::{LinkNodesCommand, SetVisibleCommand},
-            make_delete_selection_command, ChangeSelectionCommand, SceneCommand,
+            make_delete_selection_command, ChangeSelectionCommand,
         },
         EditorScene, GraphSelection, Selection,
     },
@@ -221,10 +222,8 @@ impl Control for SceneItem {
             UiMessageData::Button(msg) => {
                 if message.destination() == self.visibility_toggle {
                     if let ButtonMessage::Click = msg {
-                        let command = SceneCommand::SetVisible(SetVisibleCommand::new(
-                            self.node,
-                            !self.visibility,
-                        ));
+                        let command =
+                            SceneCommand::new(SetVisibleCommand::new(self.node, !self.visibility));
                         self.sender.send(Message::DoSceneCommand(command)).unwrap();
                     }
                 }
@@ -821,11 +820,9 @@ impl WorldOutliner {
                         ));
                         if new_selection != editor_scene.selection {
                             self.sender
-                                .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
-                                    ChangeSelectionCommand::new(
-                                        new_selection,
-                                        editor_scene.selection.clone(),
-                                    ),
+                                .send(Message::do_scene_command(ChangeSelectionCommand::new(
+                                    new_selection,
+                                    editor_scene.selection.clone(),
                                 )))
                                 .unwrap();
                         }
@@ -858,8 +855,8 @@ impl WorldOutliner {
 
                         if attach {
                             self.sender
-                                .send(Message::DoSceneCommand(SceneCommand::LinkNodes(
-                                    LinkNodesCommand::new(child, parent),
+                                .send(Message::do_scene_command(LinkNodesCommand::new(
+                                    child, parent,
                                 )))
                                 .unwrap();
                         }
@@ -869,11 +866,9 @@ impl WorldOutliner {
             UiMessageData::Button(ButtonMessage::Click) => {
                 if let Some(&node) = self.breadcrumbs.get(&message.destination()) {
                     self.sender
-                        .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
-                            ChangeSelectionCommand::new(
-                                Selection::Graph(GraphSelection::single_or_empty(node)),
-                                editor_scene.selection.clone(),
-                            ),
+                        .send(Message::do_scene_command(ChangeSelectionCommand::new(
+                            Selection::Graph(GraphSelection::single_or_empty(node)),
+                            editor_scene.selection.clone(),
                         )))
                         .unwrap();
                 } else if message.destination() == self.collapse_all {

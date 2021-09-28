@@ -1,11 +1,12 @@
 use crate::gui::make_dropdown_list_option;
+use crate::scene::commands::SceneCommand;
 use crate::{
     scene::commands::{
         lod::{
             AddLodGroupLevelCommand, AddLodObjectCommand, ChangeLodRangeBeginCommand,
             ChangeLodRangeEndCommand, RemoveLodGroupLevelCommand, RemoveLodObjectCommand,
         },
-        CommandGroup, SceneCommand,
+        CommandGroup,
     },
     send_sync_message,
     sidebar::{make_text_mark, ROW_HEIGHT},
@@ -187,19 +188,13 @@ impl ChildSelector {
                         .selection
                         .iter()
                         .map(|&h| {
-                            SceneCommand::AddLodObject(AddLodObjectCommand::new(
-                                node_handle,
-                                lod_index,
-                                h,
-                            ))
+                            SceneCommand::new(AddLodObjectCommand::new(node_handle, lod_index, h))
                         })
                         .collect::<Vec<_>>();
 
                     if !commands.is_empty() {
                         self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::CommandGroup(
-                                CommandGroup::from(commands),
-                            )))
+                            .send(Message::do_scene_command(CommandGroup::from(commands)))
                             .unwrap();
 
                         ui.send_message(WindowMessage::close(
@@ -552,15 +547,17 @@ impl LodGroupEditor {
             UiMessageData::Button(ButtonMessage::Click) => {
                 if message.destination() == self.add_lod_level {
                     self.sender
-                        .send(Message::DoSceneCommand(SceneCommand::AddLodGroupLevel(
-                            AddLodGroupLevelCommand::new(node_handle, Default::default()),
+                        .send(Message::do_scene_command(AddLodGroupLevelCommand::new(
+                            node_handle,
+                            Default::default(),
                         )))
                         .unwrap();
                 } else if message.destination() == self.remove_lod_level {
                     if let Some(current_lod_level) = self.current_lod_level {
                         self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::RemoveLodGroupLevel(
-                                RemoveLodGroupLevelCommand::new(node_handle, current_lod_level),
+                            .send(Message::do_scene_command(RemoveLodGroupLevelCommand::new(
+                                node_handle,
+                                current_lod_level,
                             )))
                             .unwrap();
                     }
@@ -570,12 +567,10 @@ impl LodGroupEditor {
                     if let Some(current_lod_level) = self.current_lod_level {
                         if let Some(selected_object) = self.selected_object {
                             self.sender
-                                .send(Message::DoSceneCommand(SceneCommand::RemoveLodObject(
-                                    RemoveLodObjectCommand::new(
-                                        node_handle,
-                                        current_lod_level,
-                                        selected_object,
-                                    ),
+                                .send(Message::do_scene_command(RemoveLodObjectCommand::new(
+                                    node_handle,
+                                    current_lod_level,
+                                    selected_object,
                                 )))
                                 .unwrap();
                         }
@@ -616,22 +611,18 @@ impl LodGroupEditor {
                 if let Some(current_lod_level) = self.current_lod_level {
                     if message.destination() == self.lod_begin {
                         self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::ChangeLodRangeBegin(
-                                ChangeLodRangeBeginCommand::new(
-                                    node_handle,
-                                    current_lod_level,
-                                    *value,
-                                ),
+                            .send(Message::do_scene_command(ChangeLodRangeBeginCommand::new(
+                                node_handle,
+                                current_lod_level,
+                                *value,
                             )))
                             .unwrap();
                     } else if message.destination() == self.lod_end {
                         self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::ChangeLodRangeEnd(
-                                ChangeLodRangeEndCommand::new(
-                                    node_handle,
-                                    current_lod_level,
-                                    *value,
-                                ),
+                            .send(Message::do_scene_command(ChangeLodRangeEndCommand::new(
+                                node_handle,
+                                current_lod_level,
+                                *value,
                             )))
                             .unwrap();
                     }

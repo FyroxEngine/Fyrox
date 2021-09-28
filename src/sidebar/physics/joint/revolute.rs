@@ -1,11 +1,8 @@
 use crate::{
     physics::Joint,
-    scene::commands::{
-        physics::{
-            SetRevoluteJointAnchor1Command, SetRevoluteJointAnchor2Command,
-            SetRevoluteJointAxis1Command, SetRevoluteJointAxis2Command,
-        },
-        SceneCommand,
+    scene::commands::physics::{
+        SetRevoluteJointAnchor1Command, SetRevoluteJointAnchor2Command,
+        SetRevoluteJointAxis1Command, SetRevoluteJointAxis2Command,
     },
     send_sync_message,
     sidebar::{make_section, make_text_mark, make_vec3_input_field, COLUMN_WIDTH, ROW_HEIGHT},
@@ -132,40 +129,32 @@ impl RevoluteJointSection {
             if message.direction() == MessageDirection::FromWidget {
                 if message.destination() == self.joint_anchor && revolute.local_anchor1.ne(&value) {
                     self.sender
-                        .send(Message::DoSceneCommand(
-                            SceneCommand::SetRevoluteJointAnchor1(
-                                SetRevoluteJointAnchor1Command::new(handle, value),
-                            ),
+                        .send(Message::do_scene_command(
+                            SetRevoluteJointAnchor1Command::new(handle, value),
                         ))
                         .unwrap();
                 } else if message.destination() == self.joint_axis
                     && revolute.local_axis1.ne(&value)
                 {
                     self.sender
-                        .send(Message::DoSceneCommand(
-                            SceneCommand::SetRevoluteJointAxis1(SetRevoluteJointAxis1Command::new(
-                                handle, value,
-                            )),
+                        .send(Message::do_scene_command(
+                            SetRevoluteJointAxis1Command::new(handle, value),
                         ))
                         .unwrap();
                 } else if message.destination() == self.connected_anchor
                     && revolute.local_anchor2.ne(&value)
                 {
                     self.sender
-                        .send(Message::DoSceneCommand(
-                            SceneCommand::SetRevoluteJointAnchor2(
-                                SetRevoluteJointAnchor2Command::new(handle, value),
-                            ),
+                        .send(Message::do_scene_command(
+                            SetRevoluteJointAnchor2Command::new(handle, value),
                         ))
                         .unwrap();
                 } else if message.destination() == self.connected_axis
                     && revolute.local_axis2.ne(&value)
                 {
                     self.sender
-                        .send(Message::DoSceneCommand(
-                            SceneCommand::SetRevoluteJointAxis2(SetRevoluteJointAxis2Command::new(
-                                handle, value,
-                            )),
+                        .send(Message::do_scene_command(
+                            SetRevoluteJointAxis2Command::new(handle, value),
                         ))
                         .unwrap();
                 }

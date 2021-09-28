@@ -1,4 +1,5 @@
 use crate::scene::commands::sound::MoveSpatialSoundSourceCommand;
+use crate::scene::commands::SceneCommand;
 use crate::sound::SoundSelection;
 use crate::{
     camera::CameraController,
@@ -7,7 +8,7 @@ use crate::{
         InteractionModeTrait,
     },
     scene::{
-        commands::{graph::MoveNodeCommand, ChangeSelectionCommand, CommandGroup, SceneCommand},
+        commands::{graph::MoveNodeCommand, ChangeSelectionCommand, CommandGroup},
         EditorScene, GraphSelection, Selection,
     },
     settings::Settings,
@@ -357,7 +358,7 @@ impl InteractionModeTrait for MoveInteractionMode {
                         .iter()
                         .map(|initial_state| match initial_state.entity {
                             MovableEntity::Node(node) => {
-                                Some(SceneCommand::MoveNode(MoveNodeCommand::new(
+                                Some(SceneCommand::new(MoveNodeCommand::new(
                                     node,
                                     initial_state.initial_local_position,
                                     **scene.graph[node].local_transform().position(),
@@ -368,26 +369,22 @@ impl InteractionModeTrait for MoveInteractionMode {
                                 match state.source(sound) {
                                     SoundSource::Generic(_) => None,
                                     SoundSource::Spatial(spatial) => {
-                                        Some(SceneCommand::MoveSpatialSoundSource(
-                                            MoveSpatialSoundSourceCommand::new(
-                                                sound,
-                                                initial_state.initial_local_position,
-                                                spatial.position(),
-                                            ),
-                                        ))
+                                        Some(SceneCommand::new(MoveSpatialSoundSourceCommand::new(
+                                            sound,
+                                            initial_state.initial_local_position,
+                                            spatial.position(),
+                                        )))
                                     }
                                 }
                             }
                         })
                         .flatten()
-                        .collect::<Vec<SceneCommand>>(),
+                        .collect::<Vec<_>>(),
                 );
 
                 // Commit changes.
                 self.message_sender
-                    .send(Message::DoSceneCommand(SceneCommand::CommandGroup(
-                        commands,
-                    )))
+                    .send(Message::DoSceneCommand(SceneCommand::new(commands)))
                     .unwrap();
             }
         } else {
@@ -417,8 +414,9 @@ impl InteractionModeTrait for MoveInteractionMode {
 
             if new_selection != editor_scene.selection {
                 self.message_sender
-                    .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
-                        ChangeSelectionCommand::new(new_selection, editor_scene.selection.clone()),
+                    .send(Message::do_scene_command(ChangeSelectionCommand::new(
+                        new_selection,
+                        editor_scene.selection.clone(),
                     )))
                     .unwrap();
             }

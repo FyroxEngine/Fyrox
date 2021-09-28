@@ -1,7 +1,5 @@
-use crate::{
-    command::{Command, CommandStack},
-    load_image, send_sync_message, Message,
-};
+use crate::scene::commands::SceneContext;
+use crate::{command::CommandStack, load_image, send_sync_message, Message};
 use rg3d::{
     core::{color::Color, pool::Handle, scope_profile},
     gui::{
@@ -19,7 +17,7 @@ use rg3d::{
         BuildContext, Orientation, Thickness, UiNode, UserInterface,
     },
 };
-use std::{fmt::Debug, sync::mpsc::Sender};
+use std::sync::mpsc::Sender;
 
 pub struct CommandStackViewer {
     pub window: Handle<UiNode>,
@@ -149,14 +147,12 @@ impl CommandStackViewer {
         }
     }
 
-    pub fn sync_to_model<'a, C, Ctx>(
+    pub fn sync_to_model(
         &mut self,
-        command_stack: &mut CommandStack<C>,
-        ctx: &Ctx,
+        command_stack: &mut CommandStack,
+        ctx: &SceneContext,
         ui: &mut UserInterface,
-    ) where
-        C: Command<'a, Context = Ctx> + Debug,
-    {
+    ) {
         scope_profile!();
 
         let top = command_stack.top;

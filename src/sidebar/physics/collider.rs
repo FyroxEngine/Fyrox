@@ -1,13 +1,10 @@
 use crate::sidebar::make_section;
 use crate::{
     physics::Collider,
-    scene::commands::{
-        physics::{
-            SetColliderCollisionGroupsFilterCommand, SetColliderCollisionGroupsMembershipsCommand,
-            SetColliderFrictionCommand, SetColliderIsSensorCommand, SetColliderPositionCommand,
-            SetColliderRestitutionCommand, SetColliderRotationCommand,
-        },
-        SceneCommand,
+    scene::commands::physics::{
+        SetColliderCollisionGroupsFilterCommand, SetColliderCollisionGroupsMembershipsCommand,
+        SetColliderFrictionCommand, SetColliderIsSensorCommand, SetColliderPositionCommand,
+        SetColliderRestitutionCommand, SetColliderRotationCommand,
     },
     send_sync_message,
     sidebar::{
@@ -200,39 +197,31 @@ impl ColliderSection {
                 &UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) => {
                     if message.destination() == self.friction && collider.friction.ne(&value) {
                         self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::SetColliderFriction(
-                                SetColliderFrictionCommand::new(handle, value),
+                            .send(Message::do_scene_command(SetColliderFrictionCommand::new(
+                                handle, value,
                             )))
                             .unwrap();
                     } else if message.destination() == self.restitution
                         && collider.restitution.ne(&value)
                     {
                         self.sender
-                            .send(Message::DoSceneCommand(
-                                SceneCommand::SetColliderRestitution(
-                                    SetColliderRestitutionCommand::new(handle, value),
-                                ),
+                            .send(Message::do_scene_command(
+                                SetColliderRestitutionCommand::new(handle, value),
                             ))
                             .unwrap();
                     } else if message.destination() == self.collision_mask {
                         let mask = collider.collision_groups.filter | (value as u32);
                         self.sender
-                            .send(Message::DoSceneCommand(
-                                SceneCommand::SetColliderCollisionGroupsFilter(
-                                    SetColliderCollisionGroupsFilterCommand::new(handle, mask),
-                                ),
+                            .send(Message::do_scene_command(
+                                SetColliderCollisionGroupsFilterCommand::new(handle, mask),
                             ))
                             .unwrap();
                     } else if message.destination() == self.collision_groups {
                         let groups =
                             (collider.collision_groups.memberships & 0x0000FFFF) | value as u32;
                         self.sender
-                            .send(Message::DoSceneCommand(
-                                SceneCommand::SetColliderCollisionGroupsMemberships(
-                                    SetColliderCollisionGroupsMembershipsCommand::new(
-                                        handle, groups,
-                                    ),
-                                ),
+                            .send(Message::do_scene_command(
+                                SetColliderCollisionGroupsMembershipsCommand::new(handle, groups),
                             ))
                             .unwrap();
                     }
@@ -240,8 +229,8 @@ impl ColliderSection {
                 UiMessageData::Vec3Editor(Vec3EditorMessage::Value(value)) => {
                     if message.destination() == self.position && collider.translation.ne(value) {
                         self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::SetColliderPosition(
-                                SetColliderPositionCommand::new(handle, *value),
+                            .send(Message::do_scene_command(SetColliderPositionCommand::new(
+                                handle, *value,
                             )))
                             .unwrap();
                     } else if message.destination() == self.rotation {
@@ -254,8 +243,9 @@ impl ColliderSection {
                         let new_rotation = quat_from_euler(euler, RotationOrder::XYZ);
                         if !old_rotation.approx_eq(&new_rotation, 0.00001) {
                             self.sender
-                                .send(Message::DoSceneCommand(SceneCommand::SetColliderRotation(
-                                    SetColliderRotationCommand::new(handle, new_rotation),
+                                .send(Message::do_scene_command(SetColliderRotationCommand::new(
+                                    handle,
+                                    new_rotation,
                                 )))
                                 .unwrap();
                         }
@@ -266,8 +256,8 @@ impl ColliderSection {
                         let value = checked.unwrap_or_default();
                         if value != collider.is_sensor {
                             self.sender
-                                .send(Message::DoSceneCommand(SceneCommand::SetColliderIsSensor(
-                                    SetColliderIsSensorCommand::new(handle, value),
+                                .send(Message::do_scene_command(SetColliderIsSensorCommand::new(
+                                    handle, value,
                                 )))
                                 .unwrap();
                         }

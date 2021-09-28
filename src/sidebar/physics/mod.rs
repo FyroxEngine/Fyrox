@@ -1,17 +1,14 @@
 use crate::gui::make_dropdown_list_option;
+use crate::scene::commands::SceneCommand;
 use crate::sidebar::make_section;
 use crate::{
     physics::{Collider, Joint, RigidBody},
     scene::commands::CommandGroup,
     scene::{
-        commands::{
-            physics::{
-                AddJointCommand, DeleteBodyCommand, DeleteColliderCommand, DeleteJointCommand,
-                SetBallRadiusCommand, SetBodyCommand, SetColliderCommand,
-                SetColliderPositionCommand, SetCuboidHalfExtentsCommand,
-                SetCylinderHalfHeightCommand, SetCylinderRadiusCommand,
-            },
-            SceneCommand,
+        commands::physics::{
+            AddJointCommand, DeleteBodyCommand, DeleteColliderCommand, DeleteJointCommand,
+            SetBallRadiusCommand, SetBodyCommand, SetColliderCommand, SetColliderPositionCommand,
+            SetCuboidHalfExtentsCommand, SetCylinderHalfHeightCommand, SetCylinderRadiusCommand,
         },
         EditorScene, Selection,
     },
@@ -551,19 +548,15 @@ impl PhysicsSection {
                     let mut commands = Vec::new();
 
                     for &collider in editor_scene.physics.bodies[body_handle].colliders.iter() {
-                        commands.push(SceneCommand::DeleteCollider(DeleteColliderCommand::new(
+                        commands.push(SceneCommand::new(DeleteColliderCommand::new(
                             collider.into(),
                         )))
                     }
 
-                    commands.push(SceneCommand::DeleteBody(DeleteBodyCommand::new(
-                        body_handle,
-                    )));
+                    commands.push(SceneCommand::new(DeleteBodyCommand::new(body_handle)));
 
                     self.sender
-                        .send(Message::DoSceneCommand(SceneCommand::CommandGroup(
-                            CommandGroup::from(commands),
-                        )))
+                        .send(Message::do_scene_command(CommandGroup::from(commands)))
                         .unwrap();
                 }
             }
@@ -598,23 +591,18 @@ impl PhysicsSection {
 
                     if let Some(&body) = editor_scene.physics.binder.value_of(&node_handle) {
                         for &collider in editor_scene.physics.bodies[body].colliders.iter() {
-                            commands.push(SceneCommand::DeleteCollider(DeleteColliderCommand::new(
+                            commands.push(SceneCommand::new(DeleteColliderCommand::new(
                                 collider.into(),
                             )))
                         }
 
-                        commands.push(SceneCommand::DeleteBody(DeleteBodyCommand::new(body)));
+                        commands.push(SceneCommand::new(DeleteBodyCommand::new(body)));
                     }
 
-                    commands.push(SceneCommand::SetBody(SetBodyCommand::new(
-                        node_handle,
-                        body,
-                    )));
+                    commands.push(SceneCommand::new(SetBodyCommand::new(node_handle, body)));
 
                     self.sender
-                        .send(Message::DoSceneCommand(SceneCommand::CommandGroup(
-                            CommandGroup::from(commands),
-                        )))
+                        .send(Message::do_scene_command(CommandGroup::from(commands)))
                         .unwrap();
                 }
             }
@@ -716,17 +704,13 @@ impl PhysicsSection {
                 // For now only one collider per body is supported.
                 // It is easy to add more.
                 if let Some(&first_collider) = editor_scene.physics.bodies[body].colliders.first() {
-                    commands.push(SceneCommand::DeleteCollider(DeleteColliderCommand::new(
+                    commands.push(SceneCommand::new(DeleteColliderCommand::new(
                         first_collider.into(),
                     )))
                 }
-                commands.push(SceneCommand::SetCollider(SetColliderCommand::new(
-                    body, collider,
-                )));
+                commands.push(SceneCommand::new(SetColliderCommand::new(body, collider)));
                 self.sender
-                    .send(Message::DoSceneCommand(SceneCommand::CommandGroup(
-                        CommandGroup::from(commands),
-                    )))
+                    .send(Message::do_scene_command(CommandGroup::from(commands)))
                     .unwrap();
             }
         }
@@ -758,14 +742,14 @@ impl PhysicsSection {
                 let mut commands = Vec::new();
 
                 if joint.is_some() {
-                    commands.push(SceneCommand::DeleteJoint(DeleteJointCommand::new(joint)));
+                    commands.push(SceneCommand::new(DeleteJointCommand::new(joint)));
                 }
 
                 match index {
                     0 => {
                         // Do nothing
                     }
-                    1 => commands.push(SceneCommand::AddJoint(AddJointCommand::new(Joint {
+                    1 => commands.push(SceneCommand::new(AddJointCommand::new(Joint {
                         body1: body_handle.into(),
                         body2: Default::default(),
                         params: JointParamsDesc::BallJoint(BallJointDesc {
@@ -773,7 +757,7 @@ impl PhysicsSection {
                             local_anchor2: Default::default(),
                         }),
                     }))),
-                    2 => commands.push(SceneCommand::AddJoint(AddJointCommand::new(Joint {
+                    2 => commands.push(SceneCommand::new(AddJointCommand::new(Joint {
                         body1: body_handle.into(),
                         body2: Default::default(),
                         params: JointParamsDesc::FixedJoint(FixedJointDesc {
@@ -783,7 +767,7 @@ impl PhysicsSection {
                             local_anchor2_rotation: Default::default(),
                         }),
                     }))),
-                    3 => commands.push(SceneCommand::AddJoint(AddJointCommand::new(Joint {
+                    3 => commands.push(SceneCommand::new(AddJointCommand::new(Joint {
                         body1: body_handle.into(),
                         body2: Default::default(),
                         params: JointParamsDesc::PrismaticJoint(PrismaticJointDesc {
@@ -793,7 +777,7 @@ impl PhysicsSection {
                             local_axis2: Vector3::x(),
                         }),
                     }))),
-                    4 => commands.push(SceneCommand::AddJoint(AddJointCommand::new(Joint {
+                    4 => commands.push(SceneCommand::new(AddJointCommand::new(Joint {
                         body1: body_handle.into(),
                         body2: Default::default(),
                         params: JointParamsDesc::RevoluteJoint(RevoluteJointDesc {
@@ -807,9 +791,7 @@ impl PhysicsSection {
                 };
 
                 self.sender
-                    .send(Message::DoSceneCommand(SceneCommand::CommandGroup(
-                        CommandGroup::from(commands),
-                    )))
+                    .send(Message::do_scene_command(CommandGroup::from(commands)))
                     .unwrap();
             }
         }
@@ -836,11 +818,9 @@ impl PhysicsSection {
                 let node_position = graph[node_handle].global_position();
 
                 self.sender
-                    .send(Message::DoSceneCommand(SceneCommand::SetColliderPosition(
-                        SetColliderPositionCommand::new(
-                            collider_handle.into(),
-                            bounding_box.center() - node_position,
-                        ),
+                    .send(Message::do_scene_command(SetColliderPositionCommand::new(
+                        collider_handle.into(),
+                        bounding_box.center() - node_position,
                     )))
                     .unwrap();
 
@@ -851,8 +831,9 @@ impl PhysicsSection {
                         let radius = d.x.max(d.y).max(d.z);
 
                         self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::SetBallRadius(
-                                SetBallRadiusCommand::new(collider_handle.into(), radius),
+                            .send(Message::do_scene_command(SetBallRadiusCommand::new(
+                                collider_handle.into(),
+                                radius,
                             )))
                             .unwrap();
                     }
@@ -863,19 +844,17 @@ impl PhysicsSection {
                         let height = bounding_box.max.y - bounding_box.min.y;
 
                         let commands = CommandGroup::from(vec![
-                            SceneCommand::SetCylinderRadius(SetCylinderRadiusCommand::new(
+                            SceneCommand::new(SetCylinderRadiusCommand::new(
                                 collider_handle.into(),
                                 radius,
                             )),
-                            SceneCommand::SetCylinderHalfHeight(SetCylinderHalfHeightCommand::new(
+                            SceneCommand::new(SetCylinderHalfHeightCommand::new(
                                 collider_handle.into(),
                                 height * 0.5,
                             )),
                         ]);
                         self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::CommandGroup(
-                                commands,
-                            )))
+                            .send(Message::do_scene_command(commands))
                             .unwrap();
                     }
                     ColliderShapeDesc::Cone(_) => {
@@ -883,11 +862,9 @@ impl PhysicsSection {
                     }
                     ColliderShapeDesc::Cuboid(_) => {
                         self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::SetCuboidHalfExtents(
-                                SetCuboidHalfExtentsCommand::new(
-                                    collider_handle.into(),
-                                    (bounding_box.max - bounding_box.min).scale(0.5),
-                                ),
+                            .send(Message::do_scene_command(SetCuboidHalfExtentsCommand::new(
+                                collider_handle.into(),
+                                (bounding_box.max - bounding_box.min).scale(0.5),
                             )))
                             .unwrap();
                     }

@@ -1,5 +1,5 @@
 use crate::interaction::InteractionModeTrait;
-use crate::scene::commands::{ChangeSelectionCommand, SceneCommand};
+use crate::scene::commands::ChangeSelectionCommand;
 use crate::scene::{EditorScene, GraphSelection, Selection};
 use crate::settings::Settings;
 use crate::{GameEngine, Message};
@@ -123,8 +123,9 @@ impl InteractionModeTrait for SelectInteractionMode {
 
         if new_selection != editor_scene.selection {
             self.message_sender
-                .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
-                    ChangeSelectionCommand::new(new_selection, editor_scene.selection.clone()),
+                .send(Message::do_scene_command(ChangeSelectionCommand::new(
+                    new_selection,
+                    editor_scene.selection.clone(),
                 )))
                 .unwrap();
         }

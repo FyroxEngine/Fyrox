@@ -1,86 +1,13 @@
-use crate::scene::commands::camera::SetColorGradingLutCommand;
 use crate::{
     command::Command,
     physics::{Collider, Joint, RigidBody},
     scene::{
         clipboard::DeepCloneResult,
         commands::{
-            camera::{
-                SetCameraPreviewCommand, SetColorGradingEnabledCommand, SetExposureCommand,
-                SetFovCommand, SetZFarCommand, SetZNearCommand,
-            },
-            decal::{
-                SetDecalColorCommand, SetDecalDiffuseTextureCommand, SetDecalLayerIndexCommand,
-                SetDecalNormalTextureCommand,
-            },
-            graph::{
-                AddNodeCommand, DeleteNodeCommand, DeleteSubGraphCommand, LinkNodesCommand,
-                LoadModelCommand, MoveNodeCommand, RotateNodeCommand, ScaleNodeCommand,
-                SetNameCommand, SetPhysicsBindingCommand, SetTagCommand, SetVisibleCommand,
-            },
-            light::{
-                SetLightCastShadowsCommand, SetLightColorCommand, SetLightIntensityCommand,
-                SetLightScatterCommand, SetLightScatterEnabledCommand, SetPointLightRadiusCommand,
-                SetSpotLightDistanceCommand, SetSpotLightFalloffAngleDeltaCommand,
-                SetSpotLightHotspotCommand,
-            },
-            lod::{
-                AddLodGroupLevelCommand, AddLodObjectCommand, ChangeLodRangeBeginCommand,
-                ChangeLodRangeEndCommand, RemoveLodGroupLevelCommand, RemoveLodObjectCommand,
-                SetLodGroupCommand,
-            },
-            material::{SetMaterialPropertyValueCommand, SetMaterialShaderCommand},
-            mesh::{
-                SetMeshCastShadowsCommand, SetMeshDecalLayerIndexCommand, SetMeshRenderPathCommand,
-                SetMeshTextureCommand,
-            },
-            navmesh::{
-                AddNavmeshCommand, AddNavmeshEdgeCommand, AddNavmeshTriangleCommand,
-                AddNavmeshVertexCommand, ConnectNavmeshEdgesCommand, DeleteNavmeshCommand,
-                DeleteNavmeshVertexCommand, MoveNavmeshVertexCommand,
-            },
-            particle_system::{
-                AddParticleSystemEmitterCommand, DeleteEmitterCommand,
-                SetBoxEmitterHalfDepthCommand, SetBoxEmitterHalfHeightCommand,
-                SetBoxEmitterHalfWidthCommand, SetCylinderEmitterHeightCommand,
-                SetCylinderEmitterRadiusCommand, SetEmitterNumericParameterCommand,
-                SetEmitterPositionCommand, SetEmitterResurrectParticlesCommand,
-                SetParticleSystemAccelerationCommand, SetParticleSystemTextureCommand,
-                SetSphereEmitterRadiusCommand,
-            },
+            graph::DeleteSubGraphCommand,
             physics::{
-                AddJointCommand, DeleteBodyCommand, DeleteColliderCommand, DeleteJointCommand,
-                SetBallJointAnchor1Command, SetBallJointAnchor2Command, SetBallRadiusCommand,
-                SetBodyCommand, SetBodyMassCommand, SetCapsuleBeginCommand, SetCapsuleEndCommand,
-                SetCapsuleRadiusCommand, SetColliderCollisionGroupsFilterCommand,
-                SetColliderCollisionGroupsMembershipsCommand, SetColliderCommand,
-                SetColliderFrictionCommand, SetColliderIsSensorCommand, SetColliderPositionCommand,
-                SetColliderRestitutionCommand, SetColliderRotationCommand,
-                SetConeHalfHeightCommand, SetConeRadiusCommand, SetCuboidHalfExtentsCommand,
-                SetCylinderHalfHeightCommand, SetCylinderRadiusCommand,
-                SetFixedJointAnchor1RotationCommand, SetFixedJointAnchor1TranslationCommand,
-                SetFixedJointAnchor2RotationCommand, SetFixedJointAnchor2TranslationCommand,
-                SetJointConnectedBodyCommand, SetPrismaticJointAnchor1Command,
-                SetPrismaticJointAnchor2Command, SetPrismaticJointAxis1Command,
-                SetPrismaticJointAxis2Command, SetRevoluteJointAnchor1Command,
-                SetRevoluteJointAnchor2Command, SetRevoluteJointAxis1Command,
-                SetRevoluteJointAxis2Command,
-            },
-            sound::{
-                AddSoundSourceCommand, DeleteSoundSourceCommand, MoveSpatialSoundSourceCommand,
-                SetSoundSourceBufferCommand, SetSoundSourceGainCommand,
-                SetSoundSourceLoopingCommand, SetSoundSourceNameCommand,
-                SetSoundSourcePitchCommand, SetSoundSourcePlayOnceCommand,
-                SetSpatialSoundSourceMaxDistanceCommand, SetSpatialSoundSourcePositionCommand,
-                SetSpatialSoundSourceRadiusCommand, SetSpatialSoundSourceRolloffFactorCommand,
-            },
-            sprite::{
-                SetSpriteColorCommand, SetSpriteRotationCommand, SetSpriteSizeCommand,
-                SetSpriteTextureCommand,
-            },
-            terrain::{
-                AddTerrainLayerCommand, DeleteTerrainLayerCommand, ModifyTerrainHeightCommand,
-                ModifyTerrainLayerMaskCommand, SetTerrainDecalLayerIndexCommand,
+                DeleteBodyCommand, DeleteColliderCommand, DeleteJointCommand,
+                SetJointConnectedBodyCommand,
             },
         },
         EditorScene, GraphSelection, Selection,
@@ -92,6 +19,7 @@ use rg3d::{
     engine::resource_manager::ResourceManager,
     scene::{graph::SubGraph, node::Node, Scene},
 };
+use std::ops::{Deref, DerefMut};
 use std::{collections::HashMap, sync::mpsc::Sender};
 
 pub mod camera;
@@ -121,168 +49,6 @@ macro_rules! get_set_swap {
     };
 }
 
-#[derive(Debug)]
-pub enum SceneCommand {
-    // Generic commands.
-    CommandGroup(CommandGroup),
-
-    // Scene commands.
-    Paste(PasteCommand),
-    LoadModel(LoadModelCommand),
-
-    // Graph commands.
-    AddNode(AddNodeCommand),
-    DeleteNode(DeleteNodeCommand),
-    DeleteSubGraph(DeleteSubGraphCommand),
-    ChangeSelection(ChangeSelectionCommand),
-    MoveNode(MoveNodeCommand),
-    ScaleNode(ScaleNodeCommand),
-    RotateNode(RotateNodeCommand),
-    LinkNodes(LinkNodesCommand),
-    SetVisible(SetVisibleCommand),
-    SetName(SetNameCommand),
-    SetTag(SetTagCommand),
-
-    // LOD commands.
-    SetLodGroup(SetLodGroupCommand),
-    AddLodGroupLevel(AddLodGroupLevelCommand),
-    RemoveLodGroupLevel(RemoveLodGroupLevelCommand),
-    AddLodObject(AddLodObjectCommand),
-    RemoveLodObject(RemoveLodObjectCommand),
-    ChangeLodRangeEnd(ChangeLodRangeEndCommand),
-    ChangeLodRangeBegin(ChangeLodRangeBeginCommand),
-
-    // Physics commands.
-    AddJoint(AddJointCommand),
-    DeleteJoint(DeleteJointCommand),
-    SetJointConnectedBody(SetJointConnectedBodyCommand),
-    SetBody(SetBodyCommand),
-    SetBodyMass(SetBodyMassCommand),
-    SetCollider(SetColliderCommand),
-    SetColliderFriction(SetColliderFrictionCommand),
-    SetColliderRestitution(SetColliderRestitutionCommand),
-    SetColliderPosition(SetColliderPositionCommand),
-    SetColliderRotation(SetColliderRotationCommand),
-    SetColliderIsSensor(SetColliderIsSensorCommand),
-    SetColliderCollisionGroupsMemberships(SetColliderCollisionGroupsMembershipsCommand),
-    SetColliderCollisionGroupsFilter(SetColliderCollisionGroupsFilterCommand),
-    SetCylinderHalfHeight(SetCylinderHalfHeightCommand),
-    SetCylinderRadius(SetCylinderRadiusCommand),
-    SetCapsuleRadius(SetCapsuleRadiusCommand),
-    SetCapsuleBegin(SetCapsuleBeginCommand),
-    SetCapsuleEnd(SetCapsuleEndCommand),
-    SetConeHalfHeight(SetConeHalfHeightCommand),
-    SetConeRadius(SetConeRadiusCommand),
-    SetBallRadius(SetBallRadiusCommand),
-    SetBallJointAnchor1(SetBallJointAnchor1Command),
-    SetBallJointAnchor2(SetBallJointAnchor2Command),
-    SetFixedJointAnchor1Translation(SetFixedJointAnchor1TranslationCommand),
-    SetFixedJointAnchor2Translation(SetFixedJointAnchor2TranslationCommand),
-    SetFixedJointAnchor1Rotation(SetFixedJointAnchor1RotationCommand),
-    SetFixedJointAnchor2Rotation(SetFixedJointAnchor2RotationCommand),
-    SetRevoluteJointAnchor1(SetRevoluteJointAnchor1Command),
-    SetRevoluteJointAxis1(SetRevoluteJointAxis1Command),
-    SetRevoluteJointAnchor2(SetRevoluteJointAnchor2Command),
-    SetRevoluteJointAxis2(SetRevoluteJointAxis2Command),
-    SetPrismaticJointAnchor1(SetPrismaticJointAnchor1Command),
-    SetPrismaticJointAxis1(SetPrismaticJointAxis1Command),
-    SetPrismaticJointAnchor2(SetPrismaticJointAnchor2Command),
-    SetPrismaticJointAxis2(SetPrismaticJointAxis2Command),
-    SetCuboidHalfExtents(SetCuboidHalfExtentsCommand),
-    DeleteBody(DeleteBodyCommand),
-    DeleteCollider(DeleteColliderCommand),
-    SetPhysicsBinding(SetPhysicsBindingCommand),
-
-    // Light commands.
-    SetLightColor(SetLightColorCommand),
-    SetLightScatter(SetLightScatterCommand),
-    SetLightScatterEnabled(SetLightScatterEnabledCommand),
-    SetLightCastShadows(SetLightCastShadowsCommand),
-    SetLightIntensity(SetLightIntensityCommand),
-    SetPointLightRadius(SetPointLightRadiusCommand),
-    SetSpotLightHotspot(SetSpotLightHotspotCommand),
-    SetSpotLightFalloffAngleDelta(SetSpotLightFalloffAngleDeltaCommand),
-    SetSpotLightDistance(SetSpotLightDistanceCommand),
-
-    // Camera commands.
-    SetFov(SetFovCommand),
-    SetZNear(SetZNearCommand),
-    SetZFar(SetZFarCommand),
-    SetCameraActive(SetCameraPreviewCommand),
-    SetExposure(SetExposureCommand),
-    SetColorGradingLut(SetColorGradingLutCommand),
-    SetColorGradingEnabled(SetColorGradingEnabledCommand),
-
-    // Particle system commands.
-    SetParticleSystemAcceleration(SetParticleSystemAccelerationCommand),
-    AddParticleSystemEmitter(AddParticleSystemEmitterCommand),
-    SetEmitterNumericParameter(SetEmitterNumericParameterCommand),
-    SetSphereEmitterRadius(SetSphereEmitterRadiusCommand),
-    SetCylinderEmitterRadius(SetCylinderEmitterRadiusCommand),
-    SetCylinderEmitterHeight(SetCylinderEmitterHeightCommand),
-    SetBoxEmitterHalfWidth(SetBoxEmitterHalfWidthCommand),
-    SetBoxEmitterHalfHeight(SetBoxEmitterHalfHeightCommand),
-    SetBoxEmitterHalfDepth(SetBoxEmitterHalfDepthCommand),
-    SetEmitterPosition(SetEmitterPositionCommand),
-    SetParticleSystemTexture(SetParticleSystemTextureCommand),
-    DeleteEmitter(DeleteEmitterCommand),
-    SetEmitterResurrectParticles(SetEmitterResurrectParticlesCommand),
-
-    // Sprite commands.
-    SetSpriteSize(SetSpriteSizeCommand),
-    SetSpriteRotation(SetSpriteRotationCommand),
-    SetSpriteColor(SetSpriteColorCommand),
-    SetSpriteTexture(SetSpriteTextureCommand),
-
-    // Mesh commands.
-    SetMeshTexture(SetMeshTextureCommand),
-    SetMeshCastShadows(SetMeshCastShadowsCommand),
-    SetMeshRenderPath(SetMeshRenderPathCommand),
-    SetMeshDecalLayerIndex(SetMeshDecalLayerIndexCommand),
-
-    // Navmesh commands.
-    AddNavmesh(AddNavmeshCommand),
-    DeleteNavmesh(DeleteNavmeshCommand),
-    MoveNavmeshVertex(MoveNavmeshVertexCommand),
-    AddNavmeshTriangle(AddNavmeshTriangleCommand),
-    AddNavmeshVertex(AddNavmeshVertexCommand),
-    AddNavmeshEdge(AddNavmeshEdgeCommand),
-    DeleteNavmeshVertex(DeleteNavmeshVertexCommand),
-    ConnectNavmeshEdges(ConnectNavmeshEdgesCommand),
-
-    // Terrain commands.
-    AddTerrainLayer(AddTerrainLayerCommand),
-    DeleteTerrainLayer(DeleteTerrainLayerCommand),
-    ModifyTerrainHeight(ModifyTerrainHeightCommand),
-    ModifyTerrainLayerMask(ModifyTerrainLayerMaskCommand),
-    SetTerrainDecalLayerIndex(SetTerrainDecalLayerIndexCommand),
-
-    // Sound commands.
-    AddSoundSource(AddSoundSourceCommand),
-    DeleteSoundSource(DeleteSoundSourceCommand),
-    MoveSpatialSoundSource(MoveSpatialSoundSourceCommand),
-    SetSoundSourceGain(SetSoundSourceGainCommand),
-    SetSoundSourceBuffer(SetSoundSourceBufferCommand),
-    SetSoundSourceName(SetSoundSourceNameCommand),
-    SetSoundSourcePitch(SetSoundSourcePitchCommand),
-    SetSoundSourceLooping(SetSoundSourceLoopingCommand),
-    SetSoundSourcePlayOnce(SetSoundSourcePlayOnceCommand),
-    SetSpatialSoundSourcePosition(SetSpatialSoundSourcePositionCommand),
-    SetSpatialSoundSourceRadius(SetSpatialSoundSourceRadiusCommand),
-    SetSpatialSoundSourceRolloffFactor(SetSpatialSoundSourceRolloffFactorCommand),
-    SetSpatialSoundSourceMaxDistance(SetSpatialSoundSourceMaxDistanceCommand),
-
-    // Decal commands.
-    SetDecalDiffuseTexture(SetDecalDiffuseTextureCommand),
-    SetDecalNormalTexture(SetDecalNormalTextureCommand),
-    SetDecalColor(SetDecalColorCommand),
-    SetDecalLayerIndex(SetDecalLayerIndexCommand),
-
-    // Material commands.
-    SetMaterialPropertyValue(SetMaterialPropertyValueCommand),
-    SetMaterialShader(SetMaterialShaderCommand),
-}
-
 pub struct SceneContext<'a> {
     pub editor_scene: &'a mut EditorScene,
     pub scene: &'a mut Scene,
@@ -290,140 +56,31 @@ pub struct SceneContext<'a> {
     pub resource_manager: ResourceManager,
 }
 
-macro_rules! static_dispatch {
-    ($self:ident, $func:ident, $($args:expr),*) => {
-        match $self {
-            SceneCommand::CommandGroup(v) => v.$func($($args),*),
-            SceneCommand::Paste(v) => v.$func($($args),*),
-            SceneCommand::AddNode(v) => v.$func($($args),*),
-            SceneCommand::DeleteNode(v) => v.$func($($args),*),
-            SceneCommand::ChangeSelection(v) => v.$func($($args),*),
-            SceneCommand::MoveNode(v) => v.$func($($args),*),
-            SceneCommand::ScaleNode(v) => v.$func($($args),*),
-            SceneCommand::RotateNode(v) => v.$func($($args),*),
-            SceneCommand::LinkNodes(v) => v.$func($($args),*),
-            SceneCommand::SetVisible(v) => v.$func($($args),*),
-            SceneCommand::SetName(v) => v.$func($($args),*),
-            SceneCommand::SetLodGroup(v) => v.$func($($args),*),
-            SceneCommand::AddLodGroupLevel(v) => v.$func($($args),*),
-            SceneCommand::RemoveLodGroupLevel(v) => v.$func($($args),*),
-            SceneCommand::AddLodObject(v) => v.$func($($args),*),
-            SceneCommand::RemoveLodObject(v) => v.$func($($args),*),
-            SceneCommand::ChangeLodRangeEnd(v) => v.$func($($args),*),
-            SceneCommand::ChangeLodRangeBegin(v) => v.$func($($args),*),
-            SceneCommand::SetTag(v) => v.$func($($args),*),
-            SceneCommand::SetBody(v) => v.$func($($args),*),
-            SceneCommand::AddJoint(v) => v.$func($($args),*),
-            SceneCommand::SetJointConnectedBody(v) => v.$func($($args),*),
-            SceneCommand::DeleteJoint(v) => v.$func($($args),*),
-            SceneCommand::DeleteSubGraph(v) => v.$func($($args),*),
-            SceneCommand::SetBodyMass(v) => v.$func($($args),*),
-            SceneCommand::SetCollider(v) => v.$func($($args),*),
-            SceneCommand::SetColliderFriction(v) => v.$func($($args),*),
-            SceneCommand::SetColliderRestitution(v) => v.$func($($args),*),
-            SceneCommand::SetColliderPosition(v) => v.$func($($args),*),
-            SceneCommand::SetColliderRotation(v) => v.$func($($args),*),
-            SceneCommand::SetColliderIsSensor(v) => v.$func($($args),*),
-            SceneCommand::SetColliderCollisionGroupsMemberships(v) => v.$func($($args),*),
-            SceneCommand::SetColliderCollisionGroupsFilter(v) => v.$func($($args),*),
-            SceneCommand::SetCylinderHalfHeight(v) => v.$func($($args),*),
-            SceneCommand::SetCylinderRadius(v) => v.$func($($args),*),
-            SceneCommand::SetCapsuleRadius(v) => v.$func($($args),*),
-            SceneCommand::SetCapsuleBegin(v) => v.$func($($args),*),
-            SceneCommand::SetCapsuleEnd(v) => v.$func($($args),*),
-            SceneCommand::SetConeHalfHeight(v) => v.$func($($args),*),
-            SceneCommand::SetConeRadius(v) => v.$func($($args),*),
-            SceneCommand::SetBallRadius(v) => v.$func($($args),*),
-            SceneCommand::SetBallJointAnchor1(v) => v.$func($($args),*),
-            SceneCommand::SetBallJointAnchor2(v) => v.$func($($args),*),
-            SceneCommand::SetFixedJointAnchor1Translation(v) => v.$func($($args),*),
-            SceneCommand::SetFixedJointAnchor2Translation(v) => v.$func($($args),*),
-            SceneCommand::SetFixedJointAnchor1Rotation(v) => v.$func($($args),*),
-            SceneCommand::SetFixedJointAnchor2Rotation(v) => v.$func($($args),*),
-            SceneCommand::SetRevoluteJointAnchor1(v) => v.$func($($args),*),
-            SceneCommand::SetRevoluteJointAxis1(v) => v.$func($($args),*),
-            SceneCommand::SetRevoluteJointAnchor2(v) => v.$func($($args),*),
-            SceneCommand::SetRevoluteJointAxis2(v) => v.$func($($args),*),
-            SceneCommand::SetPrismaticJointAnchor1(v) => v.$func($($args),*),
-            SceneCommand::SetPrismaticJointAxis1(v) => v.$func($($args),*),
-            SceneCommand::SetPrismaticJointAnchor2(v) => v.$func($($args),*),
-            SceneCommand::SetPrismaticJointAxis2(v) => v.$func($($args),*),
-            SceneCommand::SetCuboidHalfExtents(v) => v.$func($($args),*),
-            SceneCommand::DeleteBody(v) => v.$func($($args),*),
-            SceneCommand::DeleteCollider(v) => v.$func($($args),*),
-            SceneCommand::LoadModel(v) => v.$func($($args),*),
-            SceneCommand::SetLightColor(v) => v.$func($($args),*),
-            SceneCommand::SetLightScatter(v) => v.$func($($args),*),
-            SceneCommand::SetLightScatterEnabled(v) => v.$func($($args),*),
-            SceneCommand::SetLightCastShadows(v) => v.$func($($args),*),
-            SceneCommand::SetLightIntensity(v) => v.$func($($args),*),
-            SceneCommand::SetPointLightRadius(v) => v.$func($($args),*),
-            SceneCommand::SetSpotLightHotspot(v) => v.$func($($args),*),
-            SceneCommand::SetSpotLightFalloffAngleDelta(v) => v.$func($($args),*),
-            SceneCommand::SetSpotLightDistance(v) => v.$func($($args),*),
-            SceneCommand::SetFov(v) => v.$func($($args),*),
-            SceneCommand::SetZNear(v) => v.$func($($args),*),
-            SceneCommand::SetZFar(v) => v.$func($($args),*),
-            SceneCommand::SetCameraActive(v) => v.$func($($args),*),
-            SceneCommand::SetExposure(v) => v.$func($($args),*),
-            SceneCommand::SetColorGradingLut(v) => v.$func($($args),*),
-            SceneCommand::SetColorGradingEnabled(v) => v.$func($($args),*),
-            SceneCommand::SetParticleSystemAcceleration(v) => v.$func($($args),*),
-            SceneCommand::AddParticleSystemEmitter(v) => v.$func($($args),*),
-            SceneCommand::SetEmitterNumericParameter(v) => v.$func($($args),*),
-            SceneCommand::SetSphereEmitterRadius(v) => v.$func($($args),*),
-            SceneCommand::SetEmitterPosition(v) => v.$func($($args),*),
-            SceneCommand::SetParticleSystemTexture(v) => v.$func($($args),*),
-            SceneCommand::SetCylinderEmitterRadius(v) => v.$func($($args),*),
-            SceneCommand::SetCylinderEmitterHeight(v) => v.$func($($args),*),
-            SceneCommand::SetBoxEmitterHalfWidth(v) => v.$func($($args),*),
-            SceneCommand::SetBoxEmitterHalfHeight(v) => v.$func($($args),*),
-            SceneCommand::SetBoxEmitterHalfDepth(v) => v.$func($($args),*),
-            SceneCommand::DeleteEmitter(v) => v.$func($($args),*),
-            SceneCommand::SetSpriteSize(v) => v.$func($($args),*),
-            SceneCommand::SetSpriteRotation(v) => v.$func($($args),*),
-            SceneCommand::SetSpriteColor(v) => v.$func($($args),*),
-            SceneCommand::SetSpriteTexture(v) => v.$func($($args),*),
-            SceneCommand::SetMeshTexture(v) => v.$func($($args),*),
-            SceneCommand::SetMeshCastShadows(v) => v.$func($($args),*),
-            SceneCommand::SetMeshRenderPath(v) => v.$func($($args),*),
-            SceneCommand::SetMeshDecalLayerIndex(v) => v.$func($($args),*),
-            SceneCommand::AddNavmesh(v) => v.$func($($args),*),
-            SceneCommand::DeleteNavmesh(v) => v.$func($($args),*),
-            SceneCommand::MoveNavmeshVertex(v) => v.$func($($args),*),
-            SceneCommand::AddNavmeshVertex(v) => v.$func($($args),*),
-            SceneCommand::AddNavmeshTriangle(v) => v.$func($($args),*),
-            SceneCommand::AddNavmeshEdge(v) => v.$func($($args),*),
-            SceneCommand::DeleteNavmeshVertex(v) => v.$func($($args),*),
-            SceneCommand::ConnectNavmeshEdges(v) => v.$func($($args),*),
-            SceneCommand::SetPhysicsBinding(v) => v.$func($($args),*),
-            SceneCommand::AddTerrainLayer(v) => v.$func($($args),*),
-            SceneCommand::DeleteTerrainLayer(v) => v.$func($($args),*),
-            SceneCommand::ModifyTerrainHeight(v) => v.$func($($args),*),
-            SceneCommand::ModifyTerrainLayerMask(v) => v.$func($($args),*),
-            SceneCommand::SetTerrainDecalLayerIndex(v) => v.$func($($args),*),
-            SceneCommand::AddSoundSource(v) => v.$func($($args),*),
-            SceneCommand::DeleteSoundSource(v) => v.$func($($args),*),
-            SceneCommand::MoveSpatialSoundSource(v) => v.$func($($args),*),
-            SceneCommand::SetSoundSourceGain(v) => v.$func($($args),*),
-            SceneCommand::SetSoundSourceBuffer(v) => v.$func($($args),*),
-            SceneCommand::SetSoundSourceName(v) => v.$func($($args),*),
-            SceneCommand::SetSoundSourcePitch(v) => v.$func($($args),*),
-            SceneCommand::SetSoundSourceLooping(v) => v.$func($($args),*),
-            SceneCommand::SetSoundSourcePlayOnce(v) => v.$func($($args),*),
-            SceneCommand::SetSpatialSoundSourcePosition(v) => v.$func($($args),*),
-            SceneCommand::SetSpatialSoundSourceRadius(v) => v.$func($($args),*),
-            SceneCommand::SetSpatialSoundSourceRolloffFactor(v) => v.$func($($args),*),
-            SceneCommand::SetSpatialSoundSourceMaxDistance(v) => v.$func($($args),*),
-            SceneCommand::SetDecalDiffuseTexture(v) => v.$func($($args),*),
-            SceneCommand::SetDecalNormalTexture(v) => v.$func($($args),*),
-            SceneCommand::SetDecalColor(v) => v.$func($($args),*),
-            SceneCommand::SetDecalLayerIndex(v) => v.$func($($args),*),
-            SceneCommand::SetEmitterResurrectParticles(v) => v.$func($($args),*),
-            SceneCommand::SetMaterialPropertyValue(v) => v.$func($($args),*),
-            SceneCommand::SetMaterialShader(v) => v.$func($($args),*),
-        }
-    };
+#[derive(Debug)]
+pub struct SceneCommand(pub Box<dyn Command>);
+
+impl Deref for SceneCommand {
+    type Target = dyn Command;
+
+    fn deref(&self) -> &Self::Target {
+        &*self.0
+    }
+}
+
+impl DerefMut for SceneCommand {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut *self.0
+    }
+}
+
+impl SceneCommand {
+    pub fn new<C: Command>(cmd: C) -> Self {
+        Self(Box::new(cmd))
+    }
+
+    pub fn into_inner(self) -> Box<dyn Command> {
+        self.0
+    }
 }
 
 #[derive(Debug)]
@@ -447,10 +104,8 @@ impl CommandGroup {
     }
 }
 
-impl<'a> Command<'a> for CommandGroup {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, context: &Self::Context) -> String {
+impl Command for CommandGroup {
+    fn name(&mut self, context: &SceneContext) -> String {
         let mut name = String::from("Command group: ");
         for cmd in self.commands.iter_mut() {
             name.push_str(&cmd.name(context));
@@ -459,20 +114,20 @@ impl<'a> Command<'a> for CommandGroup {
         name
     }
 
-    fn execute(&mut self, context: &mut Self::Context) {
+    fn execute(&mut self, context: &mut SceneContext) {
         for cmd in self.commands.iter_mut() {
             cmd.execute(context);
         }
     }
 
-    fn revert(&mut self, context: &mut Self::Context) {
+    fn revert(&mut self, context: &mut SceneContext) {
         // revert must be done in reverse order.
         for cmd in self.commands.iter_mut().rev() {
             cmd.revert(context);
         }
     }
 
-    fn finalize(&mut self, context: &mut Self::Context) {
+    fn finalize(&mut self, context: &mut SceneContext) {
         for mut cmd in self.commands.drain(..) {
             cmd.finalize(context);
         }
@@ -499,7 +154,7 @@ pub fn make_delete_selection_command(
     }
 
     // Change selection first.
-    let mut command_group = CommandGroup::from(vec![SceneCommand::ChangeSelection(
+    let mut command_group = CommandGroup::from(vec![SceneCommand::new(
         ChangeSelectionCommand::new(Default::default(), Selection::Graph(selection.clone())),
     )]);
 
@@ -522,26 +177,27 @@ pub fn make_delete_selection_command(
     while let Some(node) = stack.pop() {
         if let Some(&body) = editor_scene.physics.binder.value_of(&node) {
             for &collider in editor_scene.physics.bodies[body].colliders.iter() {
-                command_group.push(SceneCommand::DeleteCollider(DeleteColliderCommand::new(
+                command_group.push(SceneCommand::new(DeleteColliderCommand::new(
                     collider.into(),
                 )))
             }
 
-            command_group.push(SceneCommand::DeleteBody(DeleteBodyCommand::new(body)));
+            command_group.push(SceneCommand::new(DeleteBodyCommand::new(body)));
 
             // Remove any associated joints.
             let joint = editor_scene.physics.find_joint(body);
             if joint.is_some() {
-                command_group.push(SceneCommand::DeleteJoint(DeleteJointCommand::new(joint)));
+                command_group.push(SceneCommand::new(DeleteJointCommand::new(joint)));
             }
 
             // Also check if this node is attached to a joint as
             // "connected body".
             for (handle, joint) in editor_scene.physics.joints.pair_iter() {
                 if joint.body2 == ErasedHandle::from(body) {
-                    command_group.push(SceneCommand::SetJointConnectedBody(
-                        SetJointConnectedBodyCommand::new(handle, ErasedHandle::none()),
-                    ));
+                    command_group.push(SceneCommand::new(SetJointConnectedBodyCommand::new(
+                        handle,
+                        ErasedHandle::none(),
+                    )));
                 }
             }
         }
@@ -549,32 +205,10 @@ pub fn make_delete_selection_command(
     }
 
     for root_node in root_nodes {
-        command_group.push(SceneCommand::DeleteSubGraph(DeleteSubGraphCommand::new(
-            root_node,
-        )));
+        command_group.push(SceneCommand::new(DeleteSubGraphCommand::new(root_node)));
     }
 
-    SceneCommand::CommandGroup(command_group)
-}
-
-impl<'a> Command<'a> for SceneCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, context: &Self::Context) -> String {
-        static_dispatch!(self, name, context)
-    }
-
-    fn execute(&mut self, context: &mut Self::Context) {
-        static_dispatch!(self, execute, context);
-    }
-
-    fn revert(&mut self, context: &mut Self::Context) {
-        static_dispatch!(self, revert, context);
-    }
-
-    fn finalize(&mut self, context: &mut Self::Context) {
-        static_dispatch!(self, finalize, context);
-    }
+    SceneCommand::new(command_group)
 }
 
 #[derive(Debug)]
@@ -606,14 +240,12 @@ impl ChangeSelectionCommand {
     }
 }
 
-impl<'a> Command<'a> for ChangeSelectionCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _context: &Self::Context) -> String {
+impl Command for ChangeSelectionCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
         self.cached_name.clone()
     }
 
-    fn execute(&mut self, context: &mut Self::Context) {
+    fn execute(&mut self, context: &mut SceneContext) {
         let new_selection = self.swap();
         if new_selection != context.editor_scene.selection {
             context.editor_scene.selection = new_selection;
@@ -624,7 +256,7 @@ impl<'a> Command<'a> for ChangeSelectionCommand {
         }
     }
 
-    fn revert(&mut self, context: &mut Self::Context) {
+    fn revert(&mut self, context: &mut SceneContext) {
         let new_selection = self.swap();
         if new_selection != context.editor_scene.selection {
             context.editor_scene.selection = new_selection;
@@ -673,14 +305,12 @@ impl PasteCommand {
     }
 }
 
-impl<'a> Command<'a> for PasteCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _context: &Self::Context) -> String {
+impl Command for PasteCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
         "Paste".to_owned()
     }
 
-    fn execute(&mut self, context: &mut Self::Context) {
+    fn execute(&mut self, context: &mut SceneContext) {
         match std::mem::replace(&mut self.state, PasteCommandState::Undefined) {
             PasteCommandState::NonExecuted => {
                 let paste_result = context
@@ -752,7 +382,7 @@ impl<'a> Command<'a> for PasteCommand {
         }
     }
 
-    fn revert(&mut self, context: &mut Self::Context) {
+    fn revert(&mut self, context: &mut SceneContext) {
         if let PasteCommandState::Executed {
             paste_result,
             mut last_selection,
@@ -801,7 +431,7 @@ impl<'a> Command<'a> for PasteCommand {
         }
     }
 
-    fn finalize(&mut self, context: &mut Self::Context) {
+    fn finalize(&mut self, context: &mut SceneContext) {
         if let PasteCommandState::Reverted {
             subgraphs,
             bodies,
@@ -849,18 +479,16 @@ macro_rules! define_node_command {
             }
         }
 
-        impl<'a> Command<'a> for $name {
-            type Context = SceneContext<'a>;
-
-            fn name(&mut self, _context: &Self::Context) -> String {
+        impl Command for $name {
+            fn name(&mut self, _context: &SceneContext) -> String {
                 $human_readable_name.to_owned()
             }
 
-            fn execute(&mut self, context: &mut Self::Context) {
+            fn execute(&mut self, context: &mut SceneContext) {
                 self.swap(&mut context.scene.graph);
             }
 
-            fn revert(&mut self, context: &mut Self::Context) {
+            fn revert(&mut self, context: &mut SceneContext) {
                 self.swap(&mut context.scene.graph);
             }
         }

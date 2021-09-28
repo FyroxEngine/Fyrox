@@ -30,14 +30,12 @@ impl AddJointCommand {
     }
 }
 
-impl<'a> Command<'a> for AddJointCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _context: &Self::Context) -> String {
+impl Command for AddJointCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
         "Add Joint".to_owned()
     }
 
-    fn execute(&mut self, context: &mut Self::Context) {
+    fn execute(&mut self, context: &mut SceneContext) {
         match self.ticket.take() {
             None => {
                 self.handle = context
@@ -57,7 +55,7 @@ impl<'a> Command<'a> for AddJointCommand {
         }
     }
 
-    fn revert(&mut self, context: &mut Self::Context) {
+    fn revert(&mut self, context: &mut SceneContext) {
         let (ticket, node) = context
             .editor_scene
             .physics
@@ -67,7 +65,7 @@ impl<'a> Command<'a> for AddJointCommand {
         self.joint = Some(node);
     }
 
-    fn finalize(&mut self, context: &mut Self::Context) {
+    fn finalize(&mut self, context: &mut SceneContext) {
         if let Some(ticket) = self.ticket.take() {
             context.editor_scene.physics.joints.forget_ticket(ticket)
         }
@@ -91,14 +89,12 @@ impl DeleteJointCommand {
     }
 }
 
-impl<'a> Command<'a> for DeleteJointCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _context: &Self::Context) -> String {
+impl Command for DeleteJointCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
         "Delete Joint".to_owned()
     }
 
-    fn execute(&mut self, context: &mut Self::Context) {
+    fn execute(&mut self, context: &mut SceneContext) {
         let (ticket, node) = context
             .editor_scene
             .physics
@@ -108,7 +104,7 @@ impl<'a> Command<'a> for DeleteJointCommand {
         self.ticket = Some(ticket);
     }
 
-    fn revert(&mut self, context: &mut Self::Context) {
+    fn revert(&mut self, context: &mut SceneContext) {
         self.handle = context
             .editor_scene
             .physics
@@ -116,7 +112,7 @@ impl<'a> Command<'a> for DeleteJointCommand {
             .put_back(self.ticket.take().unwrap(), self.node.take().unwrap());
     }
 
-    fn finalize(&mut self, context: &mut Self::Context) {
+    fn finalize(&mut self, context: &mut SceneContext) {
         if let Some(ticket) = self.ticket.take() {
             context.editor_scene.physics.joints.forget_ticket(ticket)
         }
@@ -142,14 +138,12 @@ impl SetBodyCommand {
     }
 }
 
-impl<'a> Command<'a> for SetBodyCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _context: &Self::Context) -> String {
+impl Command for SetBodyCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
         "Set Node Body".to_owned()
     }
 
-    fn execute(&mut self, context: &mut Self::Context) {
+    fn execute(&mut self, context: &mut SceneContext) {
         match self.ticket.take() {
             None => {
                 self.handle = context
@@ -173,7 +167,7 @@ impl<'a> Command<'a> for SetBodyCommand {
             .insert(self.node, self.handle);
     }
 
-    fn revert(&mut self, context: &mut Self::Context) {
+    fn revert(&mut self, context: &mut SceneContext) {
         let (ticket, node) = context
             .editor_scene
             .physics
@@ -188,7 +182,7 @@ impl<'a> Command<'a> for SetBodyCommand {
             .remove_by_key(&self.node);
     }
 
-    fn finalize(&mut self, context: &mut Self::Context) {
+    fn finalize(&mut self, context: &mut SceneContext) {
         if let Some(ticket) = self.ticket.take() {
             context.editor_scene.physics.bodies.forget_ticket(ticket);
             context
@@ -219,14 +213,12 @@ impl SetColliderCommand {
     }
 }
 
-impl<'a> Command<'a> for SetColliderCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _context: &Self::Context) -> String {
+impl Command for SetColliderCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
         "Set Collider".to_owned()
     }
 
-    fn execute(&mut self, context: &mut Self::Context) {
+    fn execute(&mut self, context: &mut SceneContext) {
         match self.ticket.take() {
             None => {
                 self.handle = context
@@ -249,7 +241,7 @@ impl<'a> Command<'a> for SetColliderCommand {
             .push(self.handle.into());
     }
 
-    fn revert(&mut self, context: &mut Self::Context) {
+    fn revert(&mut self, context: &mut SceneContext) {
         let (ticket, mut collider) = context
             .editor_scene
             .physics
@@ -268,7 +260,7 @@ impl<'a> Command<'a> for SetColliderCommand {
         );
     }
 
-    fn finalize(&mut self, context: &mut Self::Context) {
+    fn finalize(&mut self, context: &mut SceneContext) {
         if let Some(ticket) = self.ticket.take() {
             context.editor_scene.physics.colliders.forget_ticket(ticket);
         }
@@ -294,14 +286,12 @@ impl DeleteBodyCommand {
     }
 }
 
-impl<'a> Command<'a> for DeleteBodyCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _context: &Self::Context) -> String {
+impl Command for DeleteBodyCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
         "Delete Body".to_owned()
     }
 
-    fn execute(&mut self, context: &mut Self::Context) {
+    fn execute(&mut self, context: &mut SceneContext) {
         let (ticket, node) = context
             .editor_scene
             .physics
@@ -312,7 +302,7 @@ impl<'a> Command<'a> for DeleteBodyCommand {
         self.node = context.editor_scene.physics.unbind_by_body(self.handle);
     }
 
-    fn revert(&mut self, context: &mut Self::Context) {
+    fn revert(&mut self, context: &mut SceneContext) {
         self.handle = context
             .editor_scene
             .physics
@@ -325,7 +315,7 @@ impl<'a> Command<'a> for DeleteBodyCommand {
             .insert(self.node, self.handle);
     }
 
-    fn finalize(&mut self, context: &mut Self::Context) {
+    fn finalize(&mut self, context: &mut SceneContext) {
         if let Some(ticket) = self.ticket.take() {
             context.editor_scene.physics.bodies.forget_ticket(ticket)
         }
@@ -351,14 +341,12 @@ impl DeleteColliderCommand {
     }
 }
 
-impl<'a> Command<'a> for DeleteColliderCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _context: &Self::Context) -> String {
+impl Command for DeleteColliderCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
         "Delete Collider".to_owned()
     }
 
-    fn execute(&mut self, context: &mut Self::Context) {
+    fn execute(&mut self, context: &mut SceneContext) {
         let (ticket, collider) = context
             .editor_scene
             .physics
@@ -377,7 +365,7 @@ impl<'a> Command<'a> for DeleteColliderCommand {
         );
     }
 
-    fn revert(&mut self, context: &mut Self::Context) {
+    fn revert(&mut self, context: &mut SceneContext) {
         self.handle = context
             .editor_scene
             .physics
@@ -388,7 +376,7 @@ impl<'a> Command<'a> for DeleteColliderCommand {
         body.colliders.push(self.handle.into());
     }
 
-    fn finalize(&mut self, context: &mut Self::Context) {
+    fn finalize(&mut self, context: &mut SceneContext) {
         if let Some(ticket) = self.ticket.take() {
             context.editor_scene.physics.colliders.forget_ticket(ticket)
         }
@@ -413,18 +401,18 @@ macro_rules! define_physics_command {
             }
         }
 
-        impl<'a> Command<'a> for $name {
-            type Context = SceneContext<'a>;
+        impl Command for $name {
 
-            fn name(&mut self, _context: &Self::Context) -> String {
+
+            fn name(&mut self, _context: &SceneContext) -> String {
                 $human_readable_name.to_owned()
             }
 
-            fn execute(&mut self, context: &mut Self::Context) {
+            fn execute(&mut self, context: &mut SceneContext) {
                 self.swap(&mut context.editor_scene.physics);
             }
 
-            fn revert(&mut self, context: &mut Self::Context) {
+            fn revert(&mut self, context: &mut SceneContext) {
                 self.swap(&mut context.editor_scene.physics);
             }
         }

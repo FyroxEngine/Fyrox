@@ -1,12 +1,9 @@
 use crate::sidebar::make_section;
 use crate::{
     physics::Joint,
-    scene::commands::{
-        physics::{
-            SetPrismaticJointAnchor1Command, SetPrismaticJointAnchor2Command,
-            SetPrismaticJointAxis1Command, SetPrismaticJointAxis2Command,
-        },
-        SceneCommand,
+    scene::commands::physics::{
+        SetPrismaticJointAnchor1Command, SetPrismaticJointAnchor2Command,
+        SetPrismaticJointAxis1Command, SetPrismaticJointAxis2Command,
     },
     send_sync_message,
     sidebar::{make_text_mark, make_vec3_input_field, COLUMN_WIDTH, ROW_HEIGHT},
@@ -134,40 +131,32 @@ impl PrismaticJointSection {
                 if message.destination() == self.joint_anchor && prismatic.local_anchor1.ne(&value)
                 {
                     self.sender
-                        .send(Message::DoSceneCommand(
-                            SceneCommand::SetPrismaticJointAnchor1(
-                                SetPrismaticJointAnchor1Command::new(handle, value),
-                            ),
+                        .send(Message::do_scene_command(
+                            SetPrismaticJointAnchor1Command::new(handle, value),
                         ))
                         .unwrap();
                 } else if message.destination() == self.joint_axis
                     && prismatic.local_axis1.ne(&value)
                 {
                     self.sender
-                        .send(Message::DoSceneCommand(
-                            SceneCommand::SetPrismaticJointAxis1(
-                                SetPrismaticJointAxis1Command::new(handle, value),
-                            ),
+                        .send(Message::do_scene_command(
+                            SetPrismaticJointAxis1Command::new(handle, value),
                         ))
                         .unwrap();
                 } else if message.destination() == self.connected_anchor
                     && prismatic.local_anchor2.ne(&value)
                 {
                     self.sender
-                        .send(Message::DoSceneCommand(
-                            SceneCommand::SetPrismaticJointAnchor2(
-                                SetPrismaticJointAnchor2Command::new(handle, value),
-                            ),
+                        .send(Message::do_scene_command(
+                            SetPrismaticJointAnchor2Command::new(handle, value),
                         ))
                         .unwrap();
                 } else if message.destination() == self.connected_axis
                     && prismatic.local_axis2.ne(&value)
                 {
                     self.sender
-                        .send(Message::DoSceneCommand(
-                            SceneCommand::SetPrismaticJointAxis2(
-                                SetPrismaticJointAxis2Command::new(handle, value),
-                            ),
+                        .send(Message::do_scene_command(
+                            SetPrismaticJointAxis2Command::new(handle, value),
                         ))
                         .unwrap();
                 }

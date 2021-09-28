@@ -27,14 +27,12 @@ impl AddSoundSourceCommand {
     }
 }
 
-impl<'a> Command<'a> for AddSoundSourceCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _context: &Self::Context) -> String {
+impl Command for AddSoundSourceCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
         self.cached_name.clone()
     }
 
-    fn execute(&mut self, context: &mut Self::Context) {
+    fn execute(&mut self, context: &mut SceneContext) {
         match self.ticket.take() {
             None => {
                 self.handle = context
@@ -54,7 +52,7 @@ impl<'a> Command<'a> for AddSoundSourceCommand {
         }
     }
 
-    fn revert(&mut self, context: &mut Self::Context) {
+    fn revert(&mut self, context: &mut SceneContext) {
         let (ticket, source) = context
             .scene
             .sound_context
@@ -64,7 +62,7 @@ impl<'a> Command<'a> for AddSoundSourceCommand {
         self.source = Some(source);
     }
 
-    fn finalize(&mut self, context: &mut Self::Context) {
+    fn finalize(&mut self, context: &mut SceneContext) {
         if let Some(ticket) = self.ticket.take() {
             context.scene.sound_context.state().forget_ticket(ticket)
         }
@@ -88,14 +86,12 @@ impl DeleteSoundSourceCommand {
     }
 }
 
-impl<'a> Command<'a> for DeleteSoundSourceCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _context: &Self::Context) -> String {
+impl Command for DeleteSoundSourceCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
         "Delete Sound Source".to_owned()
     }
 
-    fn execute(&mut self, context: &mut Self::Context) {
+    fn execute(&mut self, context: &mut SceneContext) {
         let (ticket, source) = context
             .scene
             .sound_context
@@ -105,7 +101,7 @@ impl<'a> Command<'a> for DeleteSoundSourceCommand {
         self.ticket = Some(ticket);
     }
 
-    fn revert(&mut self, context: &mut Self::Context) {
+    fn revert(&mut self, context: &mut SceneContext) {
         self.handle = context
             .scene
             .sound_context
@@ -113,7 +109,7 @@ impl<'a> Command<'a> for DeleteSoundSourceCommand {
             .put_back(self.ticket.take().unwrap(), self.source.take().unwrap());
     }
 
-    fn finalize(&mut self, context: &mut Self::Context) {
+    fn finalize(&mut self, context: &mut SceneContext) {
         if let Some(ticket) = self.ticket.take() {
             context.scene.sound_context.state().forget_ticket(ticket)
         }
@@ -154,19 +150,17 @@ impl MoveSpatialSoundSourceCommand {
     }
 }
 
-impl<'a> Command<'a> for MoveSpatialSoundSourceCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _context: &Self::Context) -> String {
+impl Command for MoveSpatialSoundSourceCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
         "Move Spatial Sound Source".to_owned()
     }
 
-    fn execute(&mut self, context: &mut Self::Context) {
+    fn execute(&mut self, context: &mut SceneContext) {
         let position = self.swap();
         self.set_position(&context.scene.sound_context, position);
     }
 
-    fn revert(&mut self, context: &mut Self::Context) {
+    fn revert(&mut self, context: &mut SceneContext) {
         let position = self.swap();
         self.set_position(&context.scene.sound_context, position);
     }
@@ -192,18 +186,18 @@ macro_rules! define_sound_source_command {
             }
         }
 
-        impl<'a> Command<'a> for $name {
-            type Context = SceneContext<'a>;
+        impl Command for $name {
 
-            fn name(&mut self, _context: &Self::Context) -> String {
+
+            fn name(&mut self, _context: &SceneContext) -> String {
                 $human_readable_name.to_owned()
             }
 
-            fn execute(&mut self, context: &mut Self::Context) {
+            fn execute(&mut self, context: &mut SceneContext) {
                 self.swap(&context.scene.sound_context);
             }
 
-            fn revert(&mut self, context: &mut Self::Context) {
+            fn revert(&mut self, context: &mut SceneContext) {
                 self.swap(&context.scene.sound_context);
             }
         }
@@ -233,18 +227,18 @@ macro_rules! define_spatial_sound_source_command {
             }
         }
 
-        impl<'a> Command<'a> for $name {
-            type Context = SceneContext<'a>;
+        impl Command for $name {
 
-            fn name(&mut self, _context: &Self::Context) -> String {
+
+            fn name(&mut self, _context: &SceneContext) -> String {
                 $human_readable_name.to_owned()
             }
 
-            fn execute(&mut self, context: &mut Self::Context) {
+            fn execute(&mut self, context: &mut SceneContext) {
                 self.swap(&context.scene.sound_context);
             }
 
-            fn revert(&mut self, context: &mut Self::Context) {
+            fn revert(&mut self, context: &mut SceneContext) {
                 self.swap(&context.scene.sound_context);
             }
         }

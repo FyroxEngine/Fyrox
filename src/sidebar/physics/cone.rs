@@ -1,10 +1,7 @@
 use crate::sidebar::make_section;
 use crate::{
     physics::Collider,
-    scene::commands::{
-        physics::{SetConeHalfHeightCommand, SetConeRadiusCommand},
-        SceneCommand,
-    },
+    scene::commands::physics::{SetConeHalfHeightCommand, SetConeRadiusCommand},
     send_sync_message,
     sidebar::{make_f32_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
@@ -90,14 +87,14 @@ impl ConeSection {
             if message.direction() == MessageDirection::FromWidget {
                 if message.destination() == self.half_height && cone.half_height.ne(&value) {
                     self.sender
-                        .send(Message::DoSceneCommand(SceneCommand::SetConeHalfHeight(
-                            SetConeHalfHeightCommand::new(handle, value),
+                        .send(Message::do_scene_command(SetConeHalfHeightCommand::new(
+                            handle, value,
                         )))
                         .unwrap();
                 } else if message.destination() == self.radius && cone.radius.ne(&value) {
                     self.sender
-                        .send(Message::DoSceneCommand(SceneCommand::SetConeRadius(
-                            SetConeRadiusCommand::new(handle, value),
+                        .send(Message::do_scene_command(SetConeRadiusCommand::new(
+                            handle, value,
                         )))
                         .unwrap();
                 }

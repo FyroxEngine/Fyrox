@@ -1,9 +1,6 @@
 use crate::{
-    scene::commands::{
-        terrain::{
-            AddTerrainLayerCommand, DeleteTerrainLayerCommand, SetTerrainDecalLayerIndexCommand,
-        },
-        SceneCommand,
+    scene::commands::terrain::{
+        AddTerrainLayerCommand, DeleteTerrainLayerCommand, SetTerrainDecalLayerIndexCommand,
     },
     send_sync_message,
     sidebar::{
@@ -211,15 +208,15 @@ impl TerrainSection {
                 UiMessageData::Button(ButtonMessage::Click) => {
                     if message.destination() == self.add_layer {
                         sender
-                            .send(Message::DoSceneCommand(SceneCommand::AddTerrainLayer(
-                                AddTerrainLayerCommand::new(handle, graph),
+                            .send(Message::do_scene_command(AddTerrainLayerCommand::new(
+                                handle, graph,
                             )))
                             .unwrap();
                     } else if message.destination() == self.remove_layer {
                         if let Some(index) = self.current_layer {
                             sender
-                                .send(Message::DoSceneCommand(SceneCommand::DeleteTerrainLayer(
-                                    DeleteTerrainLayerCommand::new(handle, index),
+                                .send(Message::do_scene_command(DeleteTerrainLayerCommand::new(
+                                    handle, index,
                                 )))
                                 .unwrap()
                         }
@@ -238,10 +235,8 @@ impl TerrainSection {
 
                     if index != terrain.decal_layer_index() {
                         sender
-                            .send(Message::DoSceneCommand(
-                                SceneCommand::SetTerrainDecalLayerIndex(
-                                    SetTerrainDecalLayerIndexCommand::new(handle, index),
-                                ),
+                            .send(Message::do_scene_command(
+                                SetTerrainDecalLayerIndexCommand::new(handle, index),
                             ))
                             .unwrap();
                     }

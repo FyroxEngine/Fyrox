@@ -1,7 +1,7 @@
 use crate::sidebar::make_section;
 use crate::{
     physics::{Joint, RigidBody},
-    scene::commands::{physics::SetJointConnectedBodyCommand, SceneCommand},
+    scene::commands::physics::SetJointConnectedBodyCommand,
     send_sync_message,
     sidebar::{
         make_text_mark,
@@ -228,11 +228,8 @@ impl JointSection {
                 let body = self.available_bodies[index];
                 if joint.body2.ne(&body.into()) {
                     self.sender
-                        .send(Message::DoSceneCommand(
-                            SceneCommand::SetJointConnectedBody(SetJointConnectedBodyCommand::new(
-                                handle,
-                                body.into(),
-                            )),
+                        .send(Message::do_scene_command(
+                            SetJointConnectedBodyCommand::new(handle, body.into()),
                         ))
                         .unwrap();
                 }

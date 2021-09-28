@@ -1,6 +1,6 @@
 use crate::sidebar::make_section;
 use crate::{
-    scene::commands::{light::SetPointLightRadiusCommand, SceneCommand},
+    scene::commands::light::SetPointLightRadiusCommand,
     send_sync_message,
     sidebar::{make_f32_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
@@ -79,8 +79,8 @@ impl PointLightSection {
             {
                 if message.destination() == self.radius && point.radius().ne(&value) {
                     self.sender
-                        .send(Message::DoSceneCommand(SceneCommand::SetPointLightRadius(
-                            SetPointLightRadiusCommand::new(handle, value),
+                        .send(Message::do_scene_command(SetPointLightRadiusCommand::new(
+                            handle, value,
                         )))
                         .unwrap();
                 }

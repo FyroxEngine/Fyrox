@@ -29,18 +29,16 @@ impl SetMaterialPropertyValueCommand {
     }
 }
 
-impl<'a> Command<'a> for SetMaterialPropertyValueCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _: &Self::Context) -> String {
+impl Command for SetMaterialPropertyValueCommand {
+    fn name(&mut self, _: &SceneContext) -> String {
         format!("Set Material {} Property Value", self.name)
     }
 
-    fn execute(&mut self, _: &mut Self::Context) {
+    fn execute(&mut self, _: &mut SceneContext) {
         self.swap();
     }
 
-    fn revert(&mut self, _: &mut Self::Context) {
+    fn revert(&mut self, _: &mut SceneContext) {
         self.swap();
     }
 }
@@ -100,18 +98,16 @@ impl SetMaterialShaderCommand {
     }
 }
 
-impl<'a> Command<'a> for SetMaterialShaderCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _: &Self::Context) -> String {
+impl Command for SetMaterialShaderCommand {
+    fn name(&mut self, _: &SceneContext) -> String {
         "Set Material Shader".to_owned()
     }
 
-    fn execute(&mut self, ctx: &mut Self::Context) {
+    fn execute(&mut self, ctx: &mut SceneContext) {
         self.swap(ctx);
     }
 
-    fn revert(&mut self, ctx: &mut Self::Context) {
+    fn revert(&mut self, ctx: &mut SceneContext) {
         self.swap(ctx);
     }
 }
