@@ -1,7 +1,4 @@
-use crate::{
-    inspector::SenderHelper,
-    scene::commands::{camera::SetExposureCommand, SceneCommand},
-};
+use crate::{inspector::SenderHelper, scene::commands::camera::SetExposureCommand};
 use rg3d::gui::message::FieldKind;
 use rg3d::{
     core::pool::Handle,
@@ -27,10 +24,10 @@ pub fn handle_exposure_property_changed(
                         *key_value = *value.cast_value::<f32>().unwrap();
                     }
 
-                    helper.do_scene_command(SceneCommand::SetExposure(SetExposureCommand::new(
+                    helper.do_scene_command(SetExposureCommand::new(
                         node_handle,
                         current_auto_exposure,
-                    )))
+                    ))
                 }
                 "min_luminance" => {
                     let mut current_auto_exposure = camera.exposure().clone();
@@ -42,10 +39,10 @@ pub fn handle_exposure_property_changed(
                         *min_luminance = *value.cast_value::<f32>().unwrap();
                     }
 
-                    helper.do_scene_command(SceneCommand::SetExposure(SetExposureCommand::new(
+                    helper.do_scene_command(SetExposureCommand::new(
                         node_handle,
                         current_auto_exposure,
-                    )))
+                    ))
                 }
                 "max_luminance" => {
                     let mut current_auto_exposure = camera.exposure().clone();
@@ -57,10 +54,10 @@ pub fn handle_exposure_property_changed(
                         *max_luminance = *value.cast_value::<f32>().unwrap();
                     }
 
-                    helper.do_scene_command(SceneCommand::SetExposure(SetExposureCommand::new(
+                    helper.do_scene_command(SetExposureCommand::new(
                         node_handle,
                         current_auto_exposure,
-                    )))
+                    ))
                 }
                 _ => println!("Unhandled property of Camera: {:?}", args),
             }

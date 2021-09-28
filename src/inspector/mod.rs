@@ -1,6 +1,7 @@
-use crate::inspector::editors::material::MaterialPropertyEditorDefinition;
 use crate::{
+    command::Command,
     inspector::{
+        editors::material::MaterialPropertyEditorDefinition,
         editors::texture::TexturePropertyEditorDefinition,
         handlers::{
             base::handle_base_property_changed, camera::handle_camera_property_changed,
@@ -8,10 +9,9 @@ use crate::{
             transform::handle_transform_property_changed,
         },
     },
-    scene::{commands::SceneCommand, EditorScene, Selection},
+    scene::{EditorScene, Selection},
     GameEngine, Message,
 };
-use rg3d::scene::terrain::Layer;
 use rg3d::{
     core::pool::Handle,
     engine::resource_manager::ResourceManager,
@@ -37,11 +37,14 @@ use rg3d::{
         mesh::surface::Surface,
         particle_system::ParticleSystem,
         sprite::Sprite,
+        terrain::Layer,
         transform::Transform,
     },
 };
-use std::sync::Mutex;
-use std::{any::Any, any::TypeId, sync::mpsc::Sender, sync::Arc};
+use std::{
+    any::{Any, TypeId},
+    sync::{mpsc::Sender, Arc, Mutex},
+};
 
 pub mod editors;
 pub mod handlers;
@@ -67,8 +70,10 @@ pub struct SenderHelper {
 }
 
 impl SenderHelper {
-    pub fn do_scene_command(&self, command: SceneCommand) {
-        self.sender.send(Message::DoSceneCommand(command)).unwrap();
+    pub fn do_scene_command<C: Command>(&self, command: C) {
+        self.sender
+            .send(Message::do_scene_command(command))
+            .unwrap();
     }
 }
 

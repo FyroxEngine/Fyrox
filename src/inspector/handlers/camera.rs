@@ -1,7 +1,4 @@
-use crate::{
-    inspector::SenderHelper,
-    scene::commands::{camera::SetExposureCommand, SceneCommand},
-};
+use crate::{inspector::SenderHelper, scene::commands::camera::SetExposureCommand};
 use rg3d::gui::message::FieldKind;
 use rg3d::{
     core::pool::Handle,
@@ -16,8 +13,9 @@ pub fn handle_camera_property_changed(
 ) {
     if let FieldKind::Object(ref value) = args.value {
         match args.name.as_ref() {
-            "exposure" => helper.do_scene_command(SceneCommand::SetExposure(
-                SetExposureCommand::new(node_handle, *value.cast_value::<Exposure>().unwrap()),
+            "exposure" => helper.do_scene_command(SetExposureCommand::new(
+                node_handle,
+                *value.cast_value::<Exposure>().unwrap(),
             )),
             _ => println!("Unhandled property of Camera: {:?}", args),
         }
