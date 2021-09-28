@@ -12,7 +12,7 @@ use crate::{
     inspector::{
         editors::{
             Layout, PropertyEditorBuildContext, PropertyEditorDefinition,
-            PropertyEditorDefinitionContainer,
+            PropertyEditorDefinitionContainer, PropertyEditorInstance,
         },
         InspectorBuilder, InspectorContext, InspectorEnvironment, InspectorError,
     },
@@ -108,6 +108,7 @@ where
     collection: Option<I>,
     environment: Option<Arc<dyn InspectorEnvironment>>,
     definition_container: Option<Arc<PropertyEditorDefinitionContainer>>,
+    add: Handle<UiNode>,
 }
 
 fn create_item_views(items: &[Item], ctx: &mut BuildContext) -> Vec<Handle<UiNode>> {
@@ -158,6 +159,7 @@ where
             collection: None,
             environment: None,
             definition_container: None,
+            add: Default::default(),
         }
     }
 
@@ -168,6 +170,11 @@ where
 
     pub fn with_environment(mut self, environment: Option<Arc<dyn InspectorEnvironment>>) -> Self {
         self.environment = environment;
+        self
+    }
+
+    pub fn with_add(mut self, add: Handle<UiNode>) -> Self {
+        self.add = add;
         self
     }
 
@@ -211,7 +218,7 @@ where
                                 .with_width(16.0)
                                 .with_height(16.0),
                         )
-                        .with_text("x")
+                        .with_text("-")
                         .build(ctx);
 
                         Item { inspector, remove }
@@ -220,39 +227,17 @@ where
             })
             .unwrap_or_default();
 
-        let add;
         let ce = CollectionEditor {
             widget: self
                 .widget_builder
                 .with_child(
-                    GridBuilder::new(
-                        WidgetBuilder::new()
-                            .with_child({
-                                add = ButtonBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_margin(Thickness::uniform(1.0))
-                                        .on_row(0),
-                                )
-                                .with_text("Add New")
-                                .build(ctx);
-                                add
-                            })
-                            .with_child(
-                                StackPanelBuilder::new(
-                                    WidgetBuilder::new()
-                                        .on_row(1)
-                                        .with_children(create_item_views(&items, ctx)),
-                                )
-                                .build(ctx),
-                            ),
+                    StackPanelBuilder::new(
+                        WidgetBuilder::new().with_children(create_item_views(&items, ctx)),
                     )
-                    .add_row(Row::strict(26.0))
-                    .add_row(Row::stretch())
-                    .add_column(Column::stretch())
                     .build(ctx),
                 )
                 .build(),
-            add,
+            add: self.add,
             items,
         };
 
@@ -290,15 +275,43 @@ where
     fn create_instance(
         &self,
         ctx: PropertyEditorBuildContext,
-    ) -> Result<Handle<UiNode>, InspectorError> {
+    ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<Vec<T>>()?;
-        Ok(
-            CollectionEditorBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
-                .with_collection(value.iter())
-                .with_environment(ctx.environment.clone())
-                .with_definition_container(ctx.definition_container.clone())
-                .build(ctx.build_context),
+
+        let add = ButtonBuilder::new(
+            WidgetBuilder::new()
+                .with_width(16.0)
+                .with_height(16.0)
+                .on_column(1)
+                .with_margin(Thickness::uniform(1.0)),
         )
+        .with_text("+")
+        .build(ctx.build_context);
+
+        Ok(PropertyEditorInstance {
+            title: GridBuilder::new(
+                WidgetBuilder::new()
+                    .with_child(
+                        TextBuilder::new(WidgetBuilder::new())
+                            .with_text(ctx.property_info.display_name)
+                            .with_vertical_text_alignment(VerticalAlignment::Center)
+                            .build(ctx.build_context),
+                    )
+                    .with_child(add),
+            )
+            .add_column(Column::stretch())
+            .add_column(Column::auto())
+            .add_row(Row::stretch())
+            .build(ctx.build_context),
+            editor: CollectionEditorBuilder::new(
+                WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
+            )
+            .with_add(add)
+            .with_collection(value.iter())
+            .with_environment(ctx.environment.clone())
+            .with_definition_container(ctx.definition_container.clone())
+            .build(ctx.build_context),
+        })
     }
 
     fn create_message(

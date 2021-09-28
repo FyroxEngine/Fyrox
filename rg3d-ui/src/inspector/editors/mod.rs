@@ -50,13 +50,25 @@ pub enum Layout {
     Vertical,
 }
 
+pub struct PropertyEditorInstance {
+    /// Title of a property editor. Usually just a text with a property display name.
+    ///
+    /// Could be [`Handle::NONE`], in this case inspector will automatically create
+    /// a text widget with property name.
+    pub title: Handle<UiNode>,
+
+    /// A property editor. Could be any widget that capable of editing a property
+    /// value.
+    pub editor: Handle<UiNode>,
+}
+
 pub trait PropertyEditorDefinition: Debug + Send + Sync {
     fn value_type_id(&self) -> TypeId;
 
     fn create_instance(
         &self,
         ctx: PropertyEditorBuildContext,
-    ) -> Result<Handle<UiNode>, InspectorError>;
+    ) -> Result<PropertyEditorInstance, InspectorError>;
 
     fn create_message(
         &self,
@@ -71,7 +83,9 @@ pub trait PropertyEditorDefinition: Debug + Send + Sync {
         message: &UiMessage,
     ) -> Option<PropertyChanged>;
 
-    fn layout(&self) -> Layout;
+    fn layout(&self) -> Layout {
+        Layout::Horizontal
+    }
 }
 
 #[derive(Clone)]

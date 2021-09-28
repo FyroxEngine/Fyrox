@@ -1,3 +1,4 @@
+use crate::inspector::editors::PropertyEditorInstance;
 use crate::{
     check_box::CheckBoxBuilder,
     core::{inspect::PropertyInfo, pool::Handle},
@@ -24,13 +25,14 @@ impl PropertyEditorDefinition for BoolPropertyEditorDefinition {
     fn create_instance(
         &self,
         ctx: PropertyEditorBuildContext,
-    ) -> Result<Handle<UiNode>, InspectorError> {
+    ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<bool>()?;
-        Ok(
-            CheckBoxBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
+        Ok(PropertyEditorInstance {
+            title: Default::default(),
+            editor: CheckBoxBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
                 .checked(Some(*value))
                 .build(ctx.build_context),
-        )
+        })
     }
 
     fn create_message(

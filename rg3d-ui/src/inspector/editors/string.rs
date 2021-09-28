@@ -1,3 +1,4 @@
+use crate::inspector::editors::PropertyEditorInstance;
 use crate::{
     core::{inspect::PropertyInfo, pool::Handle},
     inspector::{
@@ -24,14 +25,15 @@ impl PropertyEditorDefinition for StringPropertyEditorDefinition {
     fn create_instance(
         &self,
         ctx: PropertyEditorBuildContext,
-    ) -> Result<Handle<UiNode>, InspectorError> {
+    ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<String>()?;
-        Ok(
-            TextBoxBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
+        Ok(PropertyEditorInstance {
+            title: Default::default(),
+            editor: TextBoxBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
                 .with_text(value)
                 .with_vertical_text_alignment(VerticalAlignment::Center)
                 .build(ctx.build_context),
-        )
+        })
     }
 
     fn create_message(

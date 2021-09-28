@@ -1,7 +1,9 @@
 use crate::{
     core::{inspect::PropertyInfo, pool::Handle},
     inspector::{
-        editors::{Layout, PropertyEditorBuildContext, PropertyEditorDefinition},
+        editors::{
+            Layout, PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
+        },
         InspectorError,
     },
     message::{
@@ -27,17 +29,20 @@ macro_rules! define_integer_property_editor {
             fn create_instance(
                 &self,
                 ctx: PropertyEditorBuildContext,
-            ) -> Result<Handle<UiNode>, InspectorError> {
+            ) -> Result<PropertyEditorInstance, InspectorError> {
                 let value = ctx.property_info.cast_value::<$value>()?;
-                Ok(NumericUpDownBuilder::new(
-                    WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
-                )
-                .with_precision(0)
-                .with_step(1.0)
-                .with_min_value($min as f32)
-                .with_max_value(<$value>::MAX as f32)
-                .with_value(*value as f32)
-                .build(ctx.build_context))
+                Ok(PropertyEditorInstance {
+                    title: Default::default(),
+                    editor: NumericUpDownBuilder::new(
+                        WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
+                    )
+                    .with_precision(0)
+                    .with_step(1.0)
+                    .with_min_value($min as f32)
+                    .with_max_value(<$value>::MAX as f32)
+                    .with_value(*value as f32)
+                    .build(ctx.build_context),
+                })
             }
 
             fn create_message(

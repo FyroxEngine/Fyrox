@@ -101,7 +101,7 @@ fn create_section_header(ctx: &mut BuildContext, text: &str) -> Handle<UiNode> {
 }
 
 fn wrap_property(
-    text: &str,
+    title: Handle<UiNode>,
     editor: Handle<UiNode>,
     layout: Layout,
     ctx: &mut BuildContext,
@@ -115,33 +115,24 @@ fn wrap_property(
         }
     }
 
-    GridBuilder::new(
-        WidgetBuilder::new()
-            .with_child(
-                TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(2.0)))
-                    .with_text(text)
-                    .with_vertical_text_alignment(VerticalAlignment::Center)
-                    .build(ctx),
-            )
-            .with_child(editor),
-    )
-    .add_rows(match layout {
-        Layout::Horizontal => {
-            vec![Row::strict(26.0)]
-        }
-        Layout::Vertical => {
-            vec![Row::strict(26.0), Row::stretch()]
-        }
-    })
-    .add_columns(match layout {
-        Layout::Horizontal => {
-            vec![Column::strict(130.0), Column::stretch()]
-        }
-        Layout::Vertical => {
-            vec![Column::stretch()]
-        }
-    })
-    .build(ctx)
+    GridBuilder::new(WidgetBuilder::new().with_child(title).with_child(editor))
+        .add_rows(match layout {
+            Layout::Horizontal => {
+                vec![Row::strict(26.0)]
+            }
+            Layout::Vertical => {
+                vec![Row::strict(26.0), Row::stretch()]
+            }
+        })
+        .add_columns(match layout {
+            Layout::Horizontal => {
+                vec![Column::strict(130.0), Column::stretch()]
+            }
+            Layout::Vertical => {
+                vec![Column::stretch()]
+            }
+        })
+        .build(ctx)
 }
 
 impl InspectorContext {
@@ -188,16 +179,25 @@ impl InspectorContext {
                             }) {
                                 Ok(instance) => {
                                     entries.push(ContextEntry {
-                                        property_editor: instance,
+                                        property_editor: instance.editor,
                                         property_editor_definition: definition.clone(),
                                         property_name: info.name.to_string(),
                                         property_owner_type_id: info.owner_type_id,
                                     });
 
-                                    wrap_property(info.name, instance, definition.layout(), ctx)
+                                    wrap_property(
+                                        if instance.title.is_some() {
+                                            instance.title
+                                        } else {
+                                            create_section_header(ctx, info.display_name)
+                                        },
+                                        instance.editor,
+                                        definition.layout(),
+                                        ctx,
+                                    )
                                 }
                                 Err(e) => wrap_property(
-                                    info.name,
+                                    create_section_header(ctx, info.display_name),
                                     TextBuilder::new(WidgetBuilder::new().on_row(i).on_column(1))
                                         .with_wrap(WrapMode::Word)
                                         .with_vertical_text_alignment(VerticalAlignment::Center)
@@ -213,7 +213,7 @@ impl InspectorContext {
                             }
                         } else {
                             wrap_property(
-                                info.name,
+                                create_section_header(ctx, info.display_name),
                                 TextBuilder::new(WidgetBuilder::new().on_row(i).on_column(1))
                                     .with_wrap(WrapMode::Word)
                                     .with_vertical_text_alignment(VerticalAlignment::Center)

@@ -1,3 +1,4 @@
+use crate::inspector::editors::PropertyEditorInstance;
 use crate::{
     border::BorderBuilder,
     core::{inspect::PropertyInfo, pool::Handle},
@@ -45,33 +46,36 @@ where
     fn create_instance(
         &self,
         ctx: PropertyEditorBuildContext,
-    ) -> Result<Handle<UiNode>, InspectorError> {
+    ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<T>()?;
         let names = (self.names_generator)();
 
-        Ok(
-            DropdownListBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
-                .with_selected((self.index_generator)(value))
-                .with_items(
-                    names
-                        .into_iter()
-                        .map(|name| {
-                            DecoratorBuilder::new(BorderBuilder::new(
-                                WidgetBuilder::new().with_height(26.0).with_child(
-                                    TextBuilder::new(WidgetBuilder::new())
-                                        .with_vertical_text_alignment(VerticalAlignment::Center)
-                                        .with_horizontal_text_alignment(HorizontalAlignment::Center)
-                                        .with_text(name)
-                                        .build(ctx.build_context),
-                                ),
-                            ))
-                            .build(ctx.build_context)
-                        })
-                        .collect::<Vec<_>>(),
-                )
-                .with_close_on_selection(true)
-                .build(ctx.build_context),
-        )
+        Ok(PropertyEditorInstance {
+            title: Default::default(),
+            editor: DropdownListBuilder::new(
+                WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
+            )
+            .with_selected((self.index_generator)(value))
+            .with_items(
+                names
+                    .into_iter()
+                    .map(|name| {
+                        DecoratorBuilder::new(BorderBuilder::new(
+                            WidgetBuilder::new().with_height(26.0).with_child(
+                                TextBuilder::new(WidgetBuilder::new())
+                                    .with_vertical_text_alignment(VerticalAlignment::Center)
+                                    .with_horizontal_text_alignment(HorizontalAlignment::Center)
+                                    .with_text(name)
+                                    .build(ctx.build_context),
+                            ),
+                        ))
+                        .build(ctx.build_context)
+                    })
+                    .collect::<Vec<_>>(),
+            )
+            .with_close_on_selection(true)
+            .build(ctx.build_context),
+        })
     }
 
     fn create_message(

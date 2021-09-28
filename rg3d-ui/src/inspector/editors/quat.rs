@@ -1,3 +1,4 @@
+use crate::inspector::editors::PropertyEditorInstance;
 use crate::{
     core::{
         algebra::{UnitQuaternion, Vector3},
@@ -30,18 +31,21 @@ impl PropertyEditorDefinition for QuatPropertyEditorDefinition {
     fn create_instance(
         &self,
         ctx: PropertyEditorBuildContext,
-    ) -> Result<Handle<UiNode>, InspectorError> {
+    ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<UnitQuaternion<f32>>()?;
         let euler = value.to_euler();
-        Ok(
-            Vec3EditorBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
-                .with_value(Vector3::new(
-                    euler.x.to_degrees(),
-                    euler.y.to_degrees(),
-                    euler.z.to_degrees(),
-                ))
-                .build(ctx.build_context),
-        )
+        Ok(PropertyEditorInstance {
+            title: Default::default(),
+            editor: Vec3EditorBuilder::new(
+                WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
+            )
+            .with_value(Vector3::new(
+                euler.x.to_degrees(),
+                euler.y.to_degrees(),
+                euler.z.to_degrees(),
+            ))
+            .build(ctx.build_context),
+        })
     }
 
     fn create_message(

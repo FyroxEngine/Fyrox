@@ -5,7 +5,9 @@ use crate::{
         pool::Handle,
     },
     inspector::{
-        editors::{Layout, PropertyEditorBuildContext, PropertyEditorDefinition},
+        editors::{
+            Layout, PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
+        },
         InspectorError,
     },
     message::{
@@ -31,13 +33,16 @@ macro_rules! define_vector_editor {
             fn create_instance(
                 &self,
                 ctx: PropertyEditorBuildContext,
-            ) -> Result<Handle<UiNode>, InspectorError> {
+            ) -> Result<PropertyEditorInstance, InspectorError> {
                 let value = ctx.property_info.cast_value::<$value>()?;
-                Ok(
-                    <$builder>::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
-                        .with_value(*value)
-                        .build(ctx.build_context),
-                )
+                Ok(PropertyEditorInstance {
+                    title: Default::default(),
+                    editor: <$builder>::new(
+                        WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
+                    )
+                    .with_value(*value)
+                    .build(ctx.build_context),
+                })
             }
 
             fn create_message(
