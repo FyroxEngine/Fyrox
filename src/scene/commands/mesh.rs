@@ -32,14 +32,12 @@ impl SetMeshTextureCommand {
     }
 }
 
-impl<'a> Command<'a> for SetMeshTextureCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _context: &Self::Context) -> String {
+impl Command for SetMeshTextureCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
         "Set Texture".to_owned()
     }
 
-    fn execute(&mut self, context: &mut Self::Context) {
+    fn execute(&mut self, context: &mut SceneContext) {
         if let TextureSet::Single(texture) = &self.set {
             let mesh: &mut Mesh = context.scene.graph[self.node].as_mesh_mut();
             let old_set = mesh
@@ -79,7 +77,7 @@ impl<'a> Command<'a> for SetMeshTextureCommand {
         }
     }
 
-    fn revert(&mut self, context: &mut Self::Context) {
+    fn revert(&mut self, context: &mut SceneContext) {
         if let TextureSet::Multiple(set) = &self.set {
             let mesh: &mut Mesh = context.scene.graph[self.node].as_mesh_mut();
             let new_value = mesh.surfaces_mut()[0]

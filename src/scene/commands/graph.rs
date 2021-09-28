@@ -49,14 +49,12 @@ impl MoveNodeCommand {
     }
 }
 
-impl<'a> Command<'a> for MoveNodeCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _context: &Self::Context) -> String {
+impl Command for MoveNodeCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
         "Move Node".to_owned()
     }
 
-    fn execute(&mut self, context: &mut Self::Context) {
+    fn execute(&mut self, context: &mut SceneContext) {
         let position = self.swap();
         self.set_position(
             &mut context.scene.graph,
@@ -65,7 +63,7 @@ impl<'a> Command<'a> for MoveNodeCommand {
         );
     }
 
-    fn revert(&mut self, context: &mut Self::Context) {
+    fn revert(&mut self, context: &mut SceneContext) {
         let position = self.swap();
         self.set_position(
             &mut context.scene.graph,
@@ -102,19 +100,17 @@ impl ScaleNodeCommand {
     }
 }
 
-impl<'a> Command<'a> for ScaleNodeCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _context: &Self::Context) -> String {
+impl Command for ScaleNodeCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
         "Scale Node".to_owned()
     }
 
-    fn execute(&mut self, context: &mut Self::Context) {
+    fn execute(&mut self, context: &mut SceneContext) {
         let scale = self.swap();
         self.set_scale(&mut context.scene.graph, scale);
     }
 
-    fn revert(&mut self, context: &mut Self::Context) {
+    fn revert(&mut self, context: &mut SceneContext) {
         let scale = self.swap();
         self.set_scale(&mut context.scene.graph, scale);
     }
@@ -161,14 +157,12 @@ impl RotateNodeCommand {
     }
 }
 
-impl<'a> Command<'a> for RotateNodeCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _context: &Self::Context) -> String {
+impl Command for RotateNodeCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
         "Rotate Node".to_owned()
     }
 
-    fn execute(&mut self, context: &mut Self::Context) {
+    fn execute(&mut self, context: &mut SceneContext) {
         let rotation = self.swap();
         self.set_rotation(
             &mut context.scene.graph,
@@ -177,7 +171,7 @@ impl<'a> Command<'a> for RotateNodeCommand {
         );
     }
 
-    fn revert(&mut self, context: &mut Self::Context) {
+    fn revert(&mut self, context: &mut SceneContext) {
         let rotation = self.swap();
         self.set_rotation(
             &mut context.scene.graph,
@@ -205,18 +199,16 @@ impl LinkNodesCommand {
     }
 }
 
-impl<'a> Command<'a> for LinkNodesCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _context: &Self::Context) -> String {
+impl Command for LinkNodesCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
         "Link Nodes".to_owned()
     }
 
-    fn execute(&mut self, context: &mut Self::Context) {
+    fn execute(&mut self, context: &mut SceneContext) {
         self.link(&mut context.scene.graph);
     }
 
-    fn revert(&mut self, context: &mut Self::Context) {
+    fn revert(&mut self, context: &mut SceneContext) {
         self.link(&mut context.scene.graph);
     }
 }
@@ -240,21 +232,19 @@ impl DeleteNodeCommand {
     }
 }
 
-impl<'a> Command<'a> for DeleteNodeCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _context: &Self::Context) -> String {
+impl Command for DeleteNodeCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
         "Delete Node".to_owned()
     }
 
-    fn execute(&mut self, context: &mut Self::Context) {
+    fn execute(&mut self, context: &mut SceneContext) {
         self.parent = context.scene.graph[self.handle].parent();
         let (ticket, node) = context.scene.graph.take_reserve(self.handle);
         self.node = Some(node);
         self.ticket = Some(ticket);
     }
 
-    fn revert(&mut self, context: &mut Self::Context) {
+    fn revert(&mut self, context: &mut SceneContext) {
         self.handle = context
             .scene
             .graph
@@ -262,7 +252,7 @@ impl<'a> Command<'a> for DeleteNodeCommand {
         context.scene.graph.link_nodes(self.handle, self.parent);
     }
 
-    fn finalize(&mut self, context: &mut Self::Context) {
+    fn finalize(&mut self, context: &mut SceneContext) {
         if let Some(ticket) = self.ticket.take() {
             context.scene.graph.forget_ticket(ticket)
         }
@@ -292,14 +282,12 @@ impl LoadModelCommand {
     }
 }
 
-impl<'a> Command<'a> for LoadModelCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _context: &Self::Context) -> String {
+impl Command for LoadModelCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
         "Load Model".to_owned()
     }
 
-    fn execute(&mut self, context: &mut Self::Context) {
+    fn execute(&mut self, context: &mut SceneContext) {
         if self.model.is_none() {
             // No model was loaded yet, do it.
             if let Ok(model) = rg3d::core::futures::executor::block_on(
@@ -329,7 +317,7 @@ impl<'a> Command<'a> for LoadModelCommand {
         }
     }
 
-    fn revert(&mut self, context: &mut Self::Context) {
+    fn revert(&mut self, context: &mut SceneContext) {
         self.sub_graph = Some(context.scene.graph.take_reserve_sub_graph(self.model));
         self.animations_container = self
             .animations
@@ -338,7 +326,7 @@ impl<'a> Command<'a> for LoadModelCommand {
             .collect();
     }
 
-    fn finalize(&mut self, context: &mut Self::Context) {
+    fn finalize(&mut self, context: &mut SceneContext) {
         if let Some(sub_graph) = self.sub_graph.take() {
             context.scene.graph.forget_sub_graph(sub_graph)
         }
@@ -365,14 +353,12 @@ impl DeleteSubGraphCommand {
     }
 }
 
-impl<'a> Command<'a> for DeleteSubGraphCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _context: &Self::Context) -> String {
+impl Command for DeleteSubGraphCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
         "Delete Sub Graph".to_owned()
     }
 
-    fn execute(&mut self, context: &mut Self::Context) {
+    fn execute(&mut self, context: &mut SceneContext) {
         self.parent = context.scene.graph[self.sub_graph_root].parent();
         self.sub_graph = Some(
             context
@@ -382,7 +368,7 @@ impl<'a> Command<'a> for DeleteSubGraphCommand {
         );
     }
 
-    fn revert(&mut self, context: &mut Self::Context) {
+    fn revert(&mut self, context: &mut SceneContext) {
         context
             .scene
             .graph
@@ -393,7 +379,7 @@ impl<'a> Command<'a> for DeleteSubGraphCommand {
             .link_nodes(self.sub_graph_root, self.parent);
     }
 
-    fn finalize(&mut self, context: &mut Self::Context) {
+    fn finalize(&mut self, context: &mut SceneContext) {
         if let Some(sub_graph) = self.sub_graph.take() {
             context.scene.graph.forget_sub_graph(sub_graph)
         }
@@ -419,14 +405,12 @@ impl AddNodeCommand {
     }
 }
 
-impl<'a> Command<'a> for AddNodeCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _context: &Self::Context) -> String {
+impl Command for AddNodeCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
         self.cached_name.clone()
     }
 
-    fn execute(&mut self, context: &mut Self::Context) {
+    fn execute(&mut self, context: &mut SceneContext) {
         match self.ticket.take() {
             None => {
                 self.handle = context.scene.graph.add_node(self.node.take().unwrap());
@@ -441,13 +425,13 @@ impl<'a> Command<'a> for AddNodeCommand {
         }
     }
 
-    fn revert(&mut self, context: &mut Self::Context) {
+    fn revert(&mut self, context: &mut SceneContext) {
         let (ticket, node) = context.scene.graph.take_reserve(self.handle);
         self.ticket = Some(ticket);
         self.node = Some(node);
     }
 
-    fn finalize(&mut self, context: &mut Self::Context) {
+    fn finalize(&mut self, context: &mut SceneContext) {
         if let Some(ticket) = self.ticket.take() {
             context.scene.graph.forget_ticket(ticket)
         }

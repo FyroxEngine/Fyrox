@@ -1,9 +1,10 @@
+use crate::scene::commands::SceneCommand;
 use crate::{
     interaction::{
         calculate_gizmo_distance_scaling, gizmo::rotate_gizmo::RotationGizmo, InteractionModeTrait,
     },
     scene::{
-        commands::{graph::RotateNodeCommand, ChangeSelectionCommand, CommandGroup, SceneCommand},
+        commands::{graph::RotateNodeCommand, ChangeSelectionCommand, CommandGroup},
         EditorScene, GraphSelection, Selection,
     },
     settings::Settings,
@@ -97,7 +98,7 @@ impl InteractionModeTrait for RotateInteractionMode {
                                 .iter()
                                 .zip(self.initial_rotations.iter().zip(current_rotation.iter()))
                                 .map(|(&node, (&old_rotation, &new_rotation))| {
-                                    SceneCommand::RotateNode(RotateNodeCommand::new(
+                                    SceneCommand::new(RotateNodeCommand::new(
                                         node,
                                         old_rotation,
                                         new_rotation,
@@ -107,9 +108,7 @@ impl InteractionModeTrait for RotateInteractionMode {
                         );
                         // Commit changes.
                         self.message_sender
-                            .send(Message::DoSceneCommand(SceneCommand::CommandGroup(
-                                commands,
-                            )))
+                            .send(Message::do_scene_command(commands))
                             .unwrap();
                     }
                 }
@@ -141,8 +140,9 @@ impl InteractionModeTrait for RotateInteractionMode {
 
             if new_selection != editor_scene.selection {
                 self.message_sender
-                    .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
-                        ChangeSelectionCommand::new(new_selection, editor_scene.selection.clone()),
+                    .send(Message::do_scene_command(ChangeSelectionCommand::new(
+                        new_selection,
+                        editor_scene.selection.clone(),
                     )))
                     .unwrap();
             }

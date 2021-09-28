@@ -1,9 +1,10 @@
+use crate::scene::commands::SceneCommand;
 use crate::{
     interaction::{
         calculate_gizmo_distance_scaling, gizmo::scale_gizmo::ScaleGizmo, InteractionModeTrait,
     },
     scene::{
-        commands::{graph::ScaleNodeCommand, ChangeSelectionCommand, CommandGroup, SceneCommand},
+        commands::{graph::ScaleNodeCommand, ChangeSelectionCommand, CommandGroup},
         EditorScene, GraphSelection, Selection,
     },
     settings::Settings,
@@ -96,16 +97,14 @@ impl InteractionModeTrait for ScaleInteractionMode {
                                 .iter()
                                 .zip(self.initial_scales.iter().zip(current_scales.iter()))
                                 .map(|(&node, (&old_scale, &new_scale))| {
-                                    SceneCommand::ScaleNode(ScaleNodeCommand::new(
+                                    SceneCommand::new(ScaleNodeCommand::new(
                                         node, old_scale, new_scale,
                                     ))
                                 })
-                                .collect::<Vec<SceneCommand>>(),
+                                .collect::<Vec<_>>(),
                         );
                         self.message_sender
-                            .send(Message::DoSceneCommand(SceneCommand::CommandGroup(
-                                commands,
-                            )))
+                            .send(Message::do_scene_command(commands))
                             .unwrap();
                     }
                 }
@@ -137,8 +136,9 @@ impl InteractionModeTrait for ScaleInteractionMode {
 
             if new_selection != editor_scene.selection {
                 self.message_sender
-                    .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
-                        ChangeSelectionCommand::new(new_selection, editor_scene.selection.clone()),
+                    .send(Message::do_scene_command(ChangeSelectionCommand::new(
+                        new_selection,
+                        editor_scene.selection.clone(),
                     )))
                     .unwrap();
             }

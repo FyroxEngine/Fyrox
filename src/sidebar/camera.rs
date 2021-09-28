@@ -2,12 +2,9 @@ use crate::asset::AssetItem;
 use crate::{
     gui::make_dropdown_list_option,
     make_relative_path,
-    scene::commands::{
-        camera::{
-            SetCameraPreviewCommand, SetColorGradingEnabledCommand, SetColorGradingLutCommand,
-            SetExposureCommand, SetFovCommand, SetZFarCommand, SetZNearCommand,
-        },
-        SceneCommand,
+    scene::commands::camera::{
+        SetCameraPreviewCommand, SetColorGradingEnabledCommand, SetColorGradingLutCommand,
+        SetExposureCommand, SetFovCommand, SetZFarCommand, SetZNearCommand,
     },
     send_sync_message,
     sidebar::{
@@ -423,26 +420,25 @@ impl CameraSection {
                 UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) => {
                     if message.destination() == self.fov && camera.fov().ne(&value) {
                         self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::SetFov(
-                                SetFovCommand::new(handle, value),
-                            )))
+                            .send(Message::do_scene_command(SetFovCommand::new(handle, value)))
                             .unwrap();
                     } else if message.destination() == self.z_far && camera.z_far().ne(&value) {
                         self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::SetZFar(
-                                SetZFarCommand::new(handle, value),
+                            .send(Message::do_scene_command(SetZFarCommand::new(
+                                handle, value,
                             )))
                             .unwrap();
                     } else if message.destination() == self.z_near && camera.z_near().ne(&value) {
                         self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::SetZNear(
-                                SetZNearCommand::new(handle, value),
+                            .send(Message::do_scene_command(SetZNearCommand::new(
+                                handle, value,
                             )))
                             .unwrap();
                     } else if message.destination() == self.exposure_value {
                         self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::SetExposure(
-                                SetExposureCommand::new(handle, Exposure::Manual(value)),
+                            .send(Message::do_scene_command(SetExposureCommand::new(
+                                handle,
+                                Exposure::Manual(value),
                             )))
                             .unwrap();
                     } else if message.destination() == self.key_value {
@@ -455,8 +451,9 @@ impl CameraSection {
                         }
 
                         self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::SetExposure(
-                                SetExposureCommand::new(handle, current_auto_exposure),
+                            .send(Message::do_scene_command(SetExposureCommand::new(
+                                handle,
+                                current_auto_exposure,
                             )))
                             .unwrap();
                     } else if message.destination() == self.min_luminance {
@@ -470,8 +467,9 @@ impl CameraSection {
                         }
 
                         self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::SetExposure(
-                                SetExposureCommand::new(handle, current_auto_exposure),
+                            .send(Message::do_scene_command(SetExposureCommand::new(
+                                handle,
+                                current_auto_exposure,
                             )))
                             .unwrap();
                     } else if message.destination() == self.min_luminance {
@@ -485,8 +483,9 @@ impl CameraSection {
                         }
 
                         self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::SetExposure(
-                                SetExposureCommand::new(handle, current_auto_exposure),
+                            .send(Message::do_scene_command(SetExposureCommand::new(
+                                handle,
+                                current_auto_exposure,
                             )))
                             .unwrap();
                     }
@@ -496,18 +495,17 @@ impl CameraSection {
                         && camera.is_enabled().ne(&value.unwrap())
                     {
                         self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::SetCameraActive(
-                                SetCameraPreviewCommand::new(handle, value.unwrap_or(false)),
+                            .send(Message::do_scene_command(SetCameraPreviewCommand::new(
+                                handle,
+                                value.unwrap_or(false),
                             )))
                             .unwrap();
                     } else if message.destination() == self.use_color_grading {
                         self.sender
-                            .send(Message::DoSceneCommand(
-                                SceneCommand::SetColorGradingEnabled(
-                                    SetColorGradingEnabledCommand::new(
-                                        handle,
-                                        value.unwrap_or_default(),
-                                    ),
+                            .send(Message::do_scene_command(
+                                SetColorGradingEnabledCommand::new(
+                                    handle,
+                                    value.unwrap_or_default(),
                                 ),
                             ))
                             .unwrap();
@@ -522,8 +520,8 @@ impl CameraSection {
                         };
 
                         self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::SetExposure(
-                                SetExposureCommand::new(handle, exposure),
+                            .send(Message::do_scene_command(SetExposureCommand::new(
+                                handle, exposure,
                             )))
                             .unwrap();
                     }
@@ -544,10 +542,8 @@ impl CameraSection {
                             )) {
                                 Ok(lut) => {
                                     self.sender
-                                        .send(Message::DoSceneCommand(
-                                            SceneCommand::SetColorGradingLut(
-                                                SetColorGradingLutCommand::new(handle, Some(lut)),
-                                            ),
+                                        .send(Message::do_scene_command(
+                                            SetColorGradingLutCommand::new(handle, Some(lut)),
                                         ))
                                         .unwrap();
                                 }

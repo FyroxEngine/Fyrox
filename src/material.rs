@@ -3,10 +3,7 @@ use crate::{
     gui::make_dropdown_list_option,
     make_relative_path,
     preview::PreviewPanel,
-    scene::commands::{
-        material::{SetMaterialPropertyValueCommand, SetMaterialShaderCommand},
-        SceneCommand,
-    },
+    scene::commands::material::{SetMaterialPropertyValueCommand, SetMaterialShaderCommand},
     send_sync_message, GameEngine, Message,
 };
 use rg3d::gui::image::Image;
@@ -654,11 +651,9 @@ impl MaterialEditor {
                         match msg {
                             DropdownListMessage::SelectionChanged(Some(value)) => {
                                 sender
-                                    .send(Message::DoSceneCommand(SceneCommand::SetMaterialShader(
-                                        SetMaterialShaderCommand::new(
-                                            material.clone(),
-                                            self.shaders_list[*value].clone(),
-                                        ),
+                                    .send(Message::do_scene_command(SetMaterialShaderCommand::new(
+                                        material.clone(),
+                                        self.shaders_list[*value].clone(),
                                     )))
                                     .unwrap();
                             }
@@ -769,13 +764,11 @@ impl MaterialEditor {
 
                 if let Some(property_value) = property_value {
                     sender
-                        .send(Message::DoSceneCommand(
-                            SceneCommand::SetMaterialPropertyValue(
-                                SetMaterialPropertyValueCommand::new(
-                                    material,
-                                    property_name.clone(),
-                                    property_value,
-                                ),
+                        .send(Message::do_scene_command(
+                            SetMaterialPropertyValueCommand::new(
+                                material,
+                                property_name.clone(),
+                                property_value,
                             ),
                         ))
                         .unwrap();

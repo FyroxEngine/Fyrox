@@ -28,19 +28,17 @@ impl AddTerrainLayerCommand {
     }
 }
 
-impl<'a> Command<'a> for AddTerrainLayerCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _context: &Self::Context) -> String {
+impl Command for AddTerrainLayerCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
         "Add Terrain Layer".to_owned()
     }
 
-    fn execute(&mut self, context: &mut Self::Context) {
+    fn execute(&mut self, context: &mut SceneContext) {
         let terrain = context.scene.graph[self.terrain].as_terrain_mut();
         terrain.add_layer(self.layer.take().unwrap());
     }
 
-    fn revert(&mut self, context: &mut Self::Context) {
+    fn revert(&mut self, context: &mut SceneContext) {
         let terrain = context.scene.graph[self.terrain].as_terrain_mut();
         self.layer = terrain.pop_layer();
     }
@@ -63,14 +61,12 @@ impl DeleteTerrainLayerCommand {
     }
 }
 
-impl<'a> Command<'a> for DeleteTerrainLayerCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _context: &Self::Context) -> String {
+impl Command for DeleteTerrainLayerCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
         "Delete Terrain Layer".to_owned()
     }
 
-    fn execute(&mut self, context: &mut Self::Context) {
+    fn execute(&mut self, context: &mut SceneContext) {
         self.layer = Some(
             context.scene.graph[self.terrain]
                 .as_terrain_mut()
@@ -78,7 +74,7 @@ impl<'a> Command<'a> for DeleteTerrainLayerCommand {
         );
     }
 
-    fn revert(&mut self, context: &mut Self::Context) {
+    fn revert(&mut self, context: &mut SceneContext) {
         let terrain = context.scene.graph[self.terrain].as_terrain_mut();
         terrain.insert_layer(self.layer.take().unwrap(), self.index);
     }
@@ -120,18 +116,16 @@ impl ModifyTerrainHeightCommand {
     }
 }
 
-impl<'a> Command<'a> for ModifyTerrainHeightCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _context: &Self::Context) -> String {
+impl Command for ModifyTerrainHeightCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
         "Modify Terrain Height".to_owned()
     }
 
-    fn execute(&mut self, context: &mut Self::Context) {
+    fn execute(&mut self, context: &mut SceneContext) {
         self.swap(context);
     }
 
-    fn revert(&mut self, context: &mut Self::Context) {
+    fn revert(&mut self, context: &mut SceneContext) {
         self.swap(context);
     }
 }
@@ -182,18 +176,16 @@ impl ModifyTerrainLayerMaskCommand {
     }
 }
 
-impl<'a> Command<'a> for ModifyTerrainLayerMaskCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _context: &Self::Context) -> String {
+impl Command for ModifyTerrainLayerMaskCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
         "Modify Terrain Layer Mask".to_owned()
     }
 
-    fn execute(&mut self, context: &mut Self::Context) {
+    fn execute(&mut self, context: &mut SceneContext) {
         self.swap(context);
     }
 
-    fn revert(&mut self, context: &mut Self::Context) {
+    fn revert(&mut self, context: &mut SceneContext) {
         self.swap(context);
     }
 }

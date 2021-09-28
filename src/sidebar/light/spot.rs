@@ -1,10 +1,7 @@
 use crate::{
-    scene::commands::{
-        light::{
-            SetSpotLightDistanceCommand, SetSpotLightFalloffAngleDeltaCommand,
-            SetSpotLightHotspotCommand,
-        },
-        SceneCommand,
+    scene::commands::light::{
+        SetSpotLightDistanceCommand, SetSpotLightFalloffAngleDeltaCommand,
+        SetSpotLightHotspotCommand,
     },
     send_sync_message,
     sidebar::{make_f32_input_field, make_section, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT},
@@ -122,24 +119,22 @@ impl SpotLightSection {
             {
                 if message.destination() == self.hotspot && spot.hotspot_cone_angle().ne(&value) {
                     self.sender
-                        .send(Message::DoSceneCommand(SceneCommand::SetSpotLightHotspot(
-                            SetSpotLightHotspotCommand::new(handle, value),
+                        .send(Message::do_scene_command(SetSpotLightHotspotCommand::new(
+                            handle, value,
                         )))
                         .unwrap();
                 } else if message.destination() == self.falloff_delta
                     && spot.falloff_angle_delta().ne(&value)
                 {
                     self.sender
-                        .send(Message::DoSceneCommand(
-                            SceneCommand::SetSpotLightFalloffAngleDelta(
-                                SetSpotLightFalloffAngleDeltaCommand::new(handle, value),
-                            ),
+                        .send(Message::do_scene_command(
+                            SetSpotLightFalloffAngleDeltaCommand::new(handle, value),
                         ))
                         .unwrap();
                 } else if message.destination() == self.distance && spot.distance().ne(&value) {
                     self.sender
-                        .send(Message::DoSceneCommand(SceneCommand::SetSpotLightDistance(
-                            SetSpotLightDistanceCommand::new(handle, value),
+                        .send(Message::do_scene_command(SetSpotLightDistanceCommand::new(
+                            handle, value,
                         )))
                         .unwrap();
                 }

@@ -1,10 +1,7 @@
 use crate::{
-    scene::commands::{
-        particle_system::{
-            EmitterNumericParameter, SetEmitterNumericParameterCommand, SetEmitterPositionCommand,
-            SetEmitterResurrectParticlesCommand,
-        },
-        SceneCommand,
+    scene::commands::particle_system::{
+        EmitterNumericParameter, SetEmitterNumericParameterCommand, SetEmitterPositionCommand,
+        SetEmitterResurrectParticlesCommand,
     },
     send_sync_message,
     sidebar::{
@@ -451,14 +448,12 @@ impl EmitterSection {
                 }
                 if let Some(parameter) = parameter {
                     self.sender
-                        .send(Message::DoSceneCommand(
-                            SceneCommand::SetEmitterNumericParameter(
-                                SetEmitterNumericParameterCommand::new(
-                                    handle,
-                                    emitter_index,
-                                    parameter,
-                                    final_value,
-                                ),
+                        .send(Message::do_scene_command(
+                            SetEmitterNumericParameterCommand::new(
+                                handle,
+                                emitter_index,
+                                parameter,
+                                final_value,
                             ),
                         ))
                         .unwrap();
@@ -469,14 +464,8 @@ impl EmitterSection {
             {
                 if emitter.is_particles_resurrects() != *value {
                     self.sender
-                        .send(Message::DoSceneCommand(
-                            SceneCommand::SetEmitterResurrectParticles(
-                                SetEmitterResurrectParticlesCommand::new(
-                                    handle,
-                                    emitter_index,
-                                    *value,
-                                ),
-                            ),
+                        .send(Message::do_scene_command(
+                            SetEmitterResurrectParticlesCommand::new(handle, emitter_index, *value),
                         ))
                         .unwrap();
                 }
@@ -484,8 +473,10 @@ impl EmitterSection {
             UiMessageData::Vec3Editor(Vec3EditorMessage::Value(value)) => {
                 if message.destination() == self.position && emitter.position().ne(value) {
                     self.sender
-                        .send(Message::DoSceneCommand(SceneCommand::SetEmitterPosition(
-                            SetEmitterPositionCommand::new(handle, emitter_index, *value),
+                        .send(Message::do_scene_command(SetEmitterPositionCommand::new(
+                            handle,
+                            emitter_index,
+                            *value,
                         )))
                         .unwrap();
                 }

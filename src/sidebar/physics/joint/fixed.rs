@@ -1,11 +1,8 @@
 use crate::{
     physics::Joint,
-    scene::commands::{
-        physics::{
-            SetFixedJointAnchor1RotationCommand, SetFixedJointAnchor1TranslationCommand,
-            SetFixedJointAnchor2RotationCommand, SetFixedJointAnchor2TranslationCommand,
-        },
-        SceneCommand,
+    scene::commands::physics::{
+        SetFixedJointAnchor1RotationCommand, SetFixedJointAnchor1TranslationCommand,
+        SetFixedJointAnchor2RotationCommand, SetFixedJointAnchor2TranslationCommand,
     },
     send_sync_message,
     sidebar::{make_section, make_text_mark, make_vec3_input_field, COLUMN_WIDTH, ROW_HEIGHT},
@@ -149,10 +146,8 @@ impl FixedJointSection {
                     && fixed.local_anchor1_translation.ne(&value)
                 {
                     self.sender
-                        .send(Message::DoSceneCommand(
-                            SceneCommand::SetFixedJointAnchor1Translation(
-                                SetFixedJointAnchor1TranslationCommand::new(handle, value),
-                            ),
+                        .send(Message::do_scene_command(
+                            SetFixedJointAnchor1TranslationCommand::new(handle, value),
                         ))
                         .unwrap();
                 } else if message.destination() == self.joint_anchor_rotation {
@@ -165,10 +160,8 @@ impl FixedJointSection {
                     let new_rotation = quat_from_euler(euler, RotationOrder::XYZ);
                     if !old_rotation.approx_eq(&new_rotation, 0.00001) {
                         self.sender
-                            .send(Message::DoSceneCommand(
-                                SceneCommand::SetFixedJointAnchor1Rotation(
-                                    SetFixedJointAnchor1RotationCommand::new(handle, new_rotation),
-                                ),
+                            .send(Message::do_scene_command(
+                                SetFixedJointAnchor1RotationCommand::new(handle, new_rotation),
                             ))
                             .unwrap();
                     }
@@ -176,10 +169,8 @@ impl FixedJointSection {
                     && fixed.local_anchor2_translation.ne(&value)
                 {
                     self.sender
-                        .send(Message::DoSceneCommand(
-                            SceneCommand::SetFixedJointAnchor2Translation(
-                                SetFixedJointAnchor2TranslationCommand::new(handle, value),
-                            ),
+                        .send(Message::do_scene_command(
+                            SetFixedJointAnchor2TranslationCommand::new(handle, value),
                         ))
                         .unwrap();
                 } else if message.destination() == self.connected_anchor_rotation {
@@ -192,10 +183,8 @@ impl FixedJointSection {
                     let new_rotation = quat_from_euler(euler, RotationOrder::XYZ);
                     if !old_rotation.approx_eq(&new_rotation, 0.00001) {
                         self.sender
-                            .send(Message::DoSceneCommand(
-                                SceneCommand::SetFixedJointAnchor2Rotation(
-                                    SetFixedJointAnchor2RotationCommand::new(handle, new_rotation),
-                                ),
+                            .send(Message::do_scene_command(
+                                SetFixedJointAnchor2RotationCommand::new(handle, new_rotation),
                             ))
                             .unwrap();
                     }

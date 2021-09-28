@@ -1,10 +1,7 @@
 use crate::sidebar::make_section;
 use crate::{
     physics::Joint,
-    scene::commands::{
-        physics::{SetBallJointAnchor1Command, SetBallJointAnchor2Command},
-        SceneCommand,
-    },
+    scene::commands::physics::{SetBallJointAnchor1Command, SetBallJointAnchor2Command},
     send_sync_message,
     sidebar::{make_text_mark, make_vec3_input_field, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
@@ -94,16 +91,16 @@ impl BallJointSection {
             if message.direction() == MessageDirection::FromWidget {
                 if message.destination() == self.joint_anchor && ball.local_anchor1.ne(&value) {
                     self.sender
-                        .send(Message::DoSceneCommand(SceneCommand::SetBallJointAnchor1(
-                            SetBallJointAnchor1Command::new(handle, value),
+                        .send(Message::do_scene_command(SetBallJointAnchor1Command::new(
+                            handle, value,
                         )))
                         .unwrap();
                 } else if message.destination() == self.connected_anchor
                     && ball.local_anchor2.ne(&value)
                 {
                     self.sender
-                        .send(Message::DoSceneCommand(SceneCommand::SetBallJointAnchor2(
-                            SetBallJointAnchor2Command::new(handle, value),
+                        .send(Message::do_scene_command(SetBallJointAnchor2Command::new(
+                            handle, value,
                         )))
                         .unwrap();
                 }

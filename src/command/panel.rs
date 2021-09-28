@@ -1,6 +1,5 @@
-use crate::{load_image, send_sync_message, Message};
-use rg3d::gui::message::UiMessage;
-use rg3d::gui::{BuildContext, UiNode, UserInterface};
+use crate::scene::commands::SceneContext;
+use crate::{command::CommandStack, load_image, send_sync_message, Message};
 use rg3d::{
     core::{color::Color, pool::Handle, scope_profile},
     gui::{
@@ -9,137 +8,16 @@ use rg3d::{
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
         list_view::ListViewBuilder,
-        message::{ButtonMessage, ListViewMessage, MessageDirection, UiMessageData},
+        message::{ButtonMessage, ListViewMessage, MessageDirection, UiMessage, UiMessageData},
         scroll_viewer::ScrollViewerBuilder,
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
-        Orientation, Thickness,
+        BuildContext, Orientation, Thickness, UiNode, UserInterface,
     },
 };
-use std::{fmt::Debug, sync::mpsc::Sender};
-
-pub trait Command<'a> {
-    type Context;
-
-    fn name(&mut self, context: &Self::Context) -> String;
-    fn execute(&mut self, context: &mut Self::Context);
-    fn revert(&mut self, context: &mut Self::Context);
-    fn finalize(&mut self, _: &mut Self::Context) {}
-}
-
-pub struct CommandStack<C> {
-    commands: Vec<C>,
-    top: Option<usize>,
-    debug: bool,
-}
-
-impl<C> CommandStack<C> {
-    pub fn new(debug: bool) -> Self {
-        Self {
-            commands: Default::default(),
-            top: None,
-            debug,
-        }
-    }
-
-    pub fn do_command<'a, Ctx>(&mut self, mut command: C, mut context: Ctx)
-    where
-        C: Command<'a, Context = Ctx> + Debug,
-    {
-        if self.commands.is_empty() {
-            self.top = Some(0);
-        } else {
-            // Advance top
-            match self.top.as_mut() {
-                None => self.top = Some(0),
-                Some(top) => *top += 1,
-            }
-            // Drop everything after top.
-            let top = self.top.unwrap_or(0);
-            if top < self.commands.len() {
-                for mut dropped_command in self.commands.drain(top..) {
-                    if self.debug {
-                        println!("Finalizing command {:?}", dropped_command);
-                    }
-                    dropped_command.finalize(&mut context);
-                }
-            }
-        }
-
-        if self.debug {
-            println!("Executing command {:?}", command);
-        }
-
-        command.execute(&mut context);
-
-        self.commands.push(command);
-    }
-
-    pub fn undo<'a, Ctx>(&mut self, mut context: Ctx)
-    where
-        C: Command<'a, Context = Ctx> + Debug,
-    {
-        if !self.commands.is_empty() {
-            if let Some(top) = self.top.as_mut() {
-                if let Some(command) = self.commands.get_mut(*top) {
-                    if self.debug {
-                        println!("Undo command {:?}", command);
-                    }
-                    command.revert(&mut context)
-                }
-                if *top == 0 {
-                    self.top = None;
-                } else {
-                    *top -= 1;
-                }
-            }
-        }
-    }
-
-    pub fn redo<'a, Ctx>(&mut self, mut context: Ctx)
-    where
-        C: Command<'a, Context = Ctx> + Debug,
-    {
-        if !self.commands.is_empty() {
-            let command = match self.top.as_mut() {
-                None => {
-                    self.top = Some(0);
-                    self.commands.first_mut()
-                }
-                Some(top) => {
-                    let last = self.commands.len() - 1;
-                    if *top < last {
-                        *top += 1;
-                        self.commands.get_mut(*top)
-                    } else {
-                        None
-                    }
-                }
-            };
-
-            if let Some(command) = command {
-                if self.debug {
-                    println!("Redo command {:?}", command);
-                }
-                command.execute(&mut context)
-            }
-        }
-    }
-
-    pub fn clear<'a, Ctx>(&mut self, mut context: Ctx)
-    where
-        C: Command<'a, Context = Ctx> + Debug,
-    {
-        for mut dropped_command in self.commands.drain(..) {
-            if self.debug {
-                println!("Finalizing command {:?}", dropped_command);
-            }
-            dropped_command.finalize(&mut context);
-        }
-    }
-}
+use std::sync::mpsc::Sender;
 
 pub struct CommandStackViewer {
     pub window: Handle<UiNode>,
@@ -177,7 +55,7 @@ impl CommandStackViewer {
                                                     .with_width(28.0),
                                             )
                                             .with_opt_texture(load_image(include_bytes!(
-                                                "../resources/embed/undo.png"
+                                                "../../resources/embed/undo.png"
                                             )))
                                             .build(ctx),
                                         )
@@ -197,7 +75,7 @@ impl CommandStackViewer {
                                                     .with_width(28.0),
                                             )
                                             .with_opt_texture(load_image(include_bytes!(
-                                                "../resources/embed/redo.png"
+                                                "../../resources/embed/redo.png"
                                             )))
                                             .build(ctx),
                                         )
@@ -214,7 +92,7 @@ impl CommandStackViewer {
                                                         .with_width(28.0),
                                                 )
                                                 .with_opt_texture(load_image(include_bytes!(
-                                                    "../resources/embed/clear.png"
+                                                    "../../resources/embed/clear.png"
                                                 )))
                                                 .build(ctx),
                                             )
@@ -269,14 +147,12 @@ impl CommandStackViewer {
         }
     }
 
-    pub fn sync_to_model<'a, C, Ctx>(
+    pub fn sync_to_model(
         &mut self,
-        command_stack: &mut CommandStack<C>,
-        ctx: &Ctx,
+        command_stack: &mut CommandStack,
+        ctx: &SceneContext,
         ui: &mut UserInterface,
-    ) where
-        C: Command<'a, Context = Ctx> + Debug,
-    {
+    ) {
         scope_profile!();
 
         let top = command_stack.top;

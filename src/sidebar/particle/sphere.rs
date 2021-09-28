@@ -1,6 +1,6 @@
 use crate::sidebar::make_section;
 use crate::{
-    scene::commands::{particle_system::SetSphereEmitterRadiusCommand, SceneCommand},
+    scene::commands::particle_system::SetSphereEmitterRadiusCommand,
     send_sync_message,
     sidebar::{make_f32_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
@@ -71,12 +71,8 @@ impl SphereSection {
                 && sphere.radius().ne(&value)
             {
                 self.sender
-                    .send(Message::DoSceneCommand(
-                        SceneCommand::SetSphereEmitterRadius(SetSphereEmitterRadiusCommand::new(
-                            handle,
-                            emitter_index,
-                            value,
-                        )),
+                    .send(Message::do_scene_command(
+                        SetSphereEmitterRadiusCommand::new(handle, emitter_index, value),
                     ))
                     .unwrap();
             }

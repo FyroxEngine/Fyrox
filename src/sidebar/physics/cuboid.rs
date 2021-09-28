@@ -1,7 +1,7 @@
 use crate::sidebar::make_section;
 use crate::{
     physics::Collider,
-    scene::commands::{physics::SetCuboidHalfExtentsCommand, SceneCommand},
+    scene::commands::physics::SetCuboidHalfExtentsCommand,
     send_sync_message,
     sidebar::{make_f32_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
@@ -107,33 +107,27 @@ impl CuboidSection {
             if message.direction() == MessageDirection::FromWidget {
                 if message.destination() == self.half_width && cuboid.half_extents.x.ne(&value) {
                     self.sender
-                        .send(Message::DoSceneCommand(SceneCommand::SetCuboidHalfExtents(
-                            SetCuboidHalfExtentsCommand::new(
-                                handle,
-                                Vector3::new(value, cuboid.half_extents.y, cuboid.half_extents.z),
-                            ),
+                        .send(Message::do_scene_command(SetCuboidHalfExtentsCommand::new(
+                            handle,
+                            Vector3::new(value, cuboid.half_extents.y, cuboid.half_extents.z),
                         )))
                         .unwrap();
                 } else if message.destination() == self.half_height
                     && cuboid.half_extents.y.ne(&value)
                 {
                     self.sender
-                        .send(Message::DoSceneCommand(SceneCommand::SetCuboidHalfExtents(
-                            SetCuboidHalfExtentsCommand::new(
-                                handle,
-                                Vector3::new(cuboid.half_extents.x, value, cuboid.half_extents.z),
-                            ),
+                        .send(Message::do_scene_command(SetCuboidHalfExtentsCommand::new(
+                            handle,
+                            Vector3::new(cuboid.half_extents.x, value, cuboid.half_extents.z),
                         )))
                         .unwrap();
                 } else if message.destination() == self.half_depth
                     && cuboid.half_extents.z.ne(&value)
                 {
                     self.sender
-                        .send(Message::DoSceneCommand(SceneCommand::SetCuboidHalfExtents(
-                            SetCuboidHalfExtentsCommand::new(
-                                handle,
-                                Vector3::new(cuboid.half_extents.x, cuboid.half_extents.y, value),
-                            ),
+                        .send(Message::do_scene_command(SetCuboidHalfExtentsCommand::new(
+                            handle,
+                            Vector3::new(cuboid.half_extents.x, cuboid.half_extents.y, value),
                         )))
                         .unwrap();
                 }

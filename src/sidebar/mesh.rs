@@ -1,10 +1,7 @@
 use crate::{
     gui::make_dropdown_list_option,
-    scene::commands::{
-        mesh::{
-            SetMeshCastShadowsCommand, SetMeshDecalLayerIndexCommand, SetMeshRenderPathCommand,
-        },
-        SceneCommand,
+    scene::commands::mesh::{
+        SetMeshCastShadowsCommand, SetMeshDecalLayerIndexCommand, SetMeshRenderPathCommand,
     },
     send_sync_message,
     sidebar::{
@@ -243,8 +240,8 @@ impl MeshSection {
                     if message.destination() == self.cast_shadows && mesh.cast_shadows().ne(&value)
                     {
                         self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::SetMeshCastShadows(
-                                SetMeshCastShadowsCommand::new(handle, value),
+                            .send(Message::do_scene_command(SetMeshCastShadowsCommand::new(
+                                handle, value,
                             )))
                             .unwrap();
                     }
@@ -259,8 +256,9 @@ impl MeshSection {
                             };
                             if new_render_path != mesh.render_path() {
                                 self.sender
-                                    .send(Message::DoSceneCommand(SceneCommand::SetMeshRenderPath(
-                                        SetMeshRenderPathCommand::new(handle, new_render_path),
+                                    .send(Message::do_scene_command(SetMeshRenderPathCommand::new(
+                                        handle,
+                                        new_render_path,
                                     )))
                                     .unwrap();
                             }
@@ -289,10 +287,8 @@ impl MeshSection {
 
                     if index != mesh.decal_layer_index() {
                         self.sender
-                            .send(Message::DoSceneCommand(
-                                SceneCommand::SetMeshDecalLayerIndex(
-                                    SetMeshDecalLayerIndexCommand::new(handle, index),
-                                ),
+                            .send(Message::do_scene_command(
+                                SetMeshDecalLayerIndexCommand::new(handle, index),
                             ))
                             .unwrap();
                     }

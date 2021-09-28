@@ -54,14 +54,12 @@ impl SetCameraPreviewCommand {
     }
 }
 
-impl<'a> Command<'a> for SetCameraPreviewCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _context: &Self::Context) -> String {
+impl Command for SetCameraPreviewCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
         "Set camera preview".to_owned()
     }
 
-    fn execute(&mut self, context: &mut Self::Context) {
+    fn execute(&mut self, context: &mut SceneContext) {
         let camera = context.scene.graph[self.handle].as_camera_mut();
         self.old_value = camera.is_enabled();
         camera.set_enabled(self.value);
@@ -93,7 +91,7 @@ impl<'a> Command<'a> for SetCameraPreviewCommand {
         }
     }
 
-    fn revert(&mut self, context: &mut Self::Context) {
+    fn revert(&mut self, context: &mut SceneContext) {
         for handle in self.prev_active.iter_mut() {
             let camera = context.scene.graph[*handle].as_camera_mut();
             camera.set_enabled(true);

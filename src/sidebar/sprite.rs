@@ -1,8 +1,7 @@
 use crate::sidebar::make_section;
 use crate::{
-    scene::commands::{
-        sprite::{SetSpriteColorCommand, SetSpriteRotationCommand, SetSpriteSizeCommand},
-        SceneCommand,
+    scene::commands::sprite::{
+        SetSpriteColorCommand, SetSpriteRotationCommand, SetSpriteSizeCommand,
     },
     send_sync_message,
     sidebar::{
@@ -112,15 +111,15 @@ impl SpriteSection {
                 UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) => {
                     if message.destination() == self.size && sprite.size().ne(&value) {
                         self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::SetSpriteSize(
-                                SetSpriteSizeCommand::new(handle, value),
+                            .send(Message::do_scene_command(SetSpriteSizeCommand::new(
+                                handle, value,
                             )))
                             .unwrap();
                     } else if message.destination() == self.rotation && sprite.rotation().ne(&value)
                     {
                         self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::SetSpriteRotation(
-                                SetSpriteRotationCommand::new(handle, value),
+                            .send(Message::do_scene_command(SetSpriteRotationCommand::new(
+                                handle, value,
                             )))
                             .unwrap();
                     }
@@ -128,8 +127,8 @@ impl SpriteSection {
                 UiMessageData::ColorField(ColorFieldMessage::Color(color)) => {
                     if message.destination() == self.color && sprite.color() != color {
                         self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::SetSpriteColor(
-                                SetSpriteColorCommand::new(handle, color),
+                            .send(Message::do_scene_command(SetSpriteColorCommand::new(
+                                handle, color,
                             )))
                             .unwrap();
                     }

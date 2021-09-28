@@ -16,14 +16,12 @@ impl AddLodGroupLevelCommand {
     }
 }
 
-impl<'a> Command<'a> for AddLodGroupLevelCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _context: &Self::Context) -> String {
+impl Command for AddLodGroupLevelCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
         "Add Lod Group Level".to_owned()
     }
 
-    fn execute(&mut self, context: &mut Self::Context) {
+    fn execute(&mut self, context: &mut SceneContext) {
         context.scene.graph[self.handle]
             .lod_group_mut()
             .unwrap()
@@ -31,7 +29,7 @@ impl<'a> Command<'a> for AddLodGroupLevelCommand {
             .push(self.level.clone());
     }
 
-    fn revert(&mut self, context: &mut Self::Context) {
+    fn revert(&mut self, context: &mut SceneContext) {
         context.scene.graph[self.handle]
             .lod_group_mut()
             .unwrap()
@@ -57,14 +55,12 @@ impl RemoveLodGroupLevelCommand {
     }
 }
 
-impl<'a> Command<'a> for RemoveLodGroupLevelCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _context: &Self::Context) -> String {
+impl Command for RemoveLodGroupLevelCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
         "Remove Lod Group Level".to_owned()
     }
 
-    fn execute(&mut self, context: &mut Self::Context) {
+    fn execute(&mut self, context: &mut SceneContext) {
         self.level = Some(
             context.scene.graph[self.handle]
                 .lod_group_mut()
@@ -74,7 +70,7 @@ impl<'a> Command<'a> for RemoveLodGroupLevelCommand {
         );
     }
 
-    fn revert(&mut self, context: &mut Self::Context) {
+    fn revert(&mut self, context: &mut SceneContext) {
         let group = context.scene.graph[self.handle].lod_group_mut().unwrap();
         let level = self.level.take().unwrap();
         if group.levels.is_empty() {
@@ -104,14 +100,12 @@ impl AddLodObjectCommand {
     }
 }
 
-impl<'a> Command<'a> for AddLodObjectCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _context: &Self::Context) -> String {
+impl Command for AddLodObjectCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
         "Add Lod Object".to_owned()
     }
 
-    fn execute(&mut self, context: &mut Self::Context) {
+    fn execute(&mut self, context: &mut SceneContext) {
         let objects = &mut context.scene.graph[self.handle]
             .lod_group_mut()
             .unwrap()
@@ -121,7 +115,7 @@ impl<'a> Command<'a> for AddLodObjectCommand {
         objects.push(self.object);
     }
 
-    fn revert(&mut self, context: &mut Self::Context) {
+    fn revert(&mut self, context: &mut SceneContext) {
         context.scene.graph[self.handle]
             .lod_group_mut()
             .unwrap()
@@ -150,14 +144,12 @@ impl RemoveLodObjectCommand {
     }
 }
 
-impl<'a> Command<'a> for RemoveLodObjectCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _context: &Self::Context) -> String {
+impl Command for RemoveLodObjectCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
         "Remove Lod Object".to_owned()
     }
 
-    fn execute(&mut self, context: &mut Self::Context) {
+    fn execute(&mut self, context: &mut SceneContext) {
         self.object = context.scene.graph[self.handle]
             .lod_group_mut()
             .unwrap()
@@ -166,7 +158,7 @@ impl<'a> Command<'a> for RemoveLodObjectCommand {
             .remove(self.object_index);
     }
 
-    fn revert(&mut self, context: &mut Self::Context) {
+    fn revert(&mut self, context: &mut SceneContext) {
         let objects = &mut context.scene.graph[self.handle]
             .lod_group_mut()
             .unwrap()
@@ -207,18 +199,16 @@ impl ChangeLodRangeBeginCommand {
     }
 }
 
-impl<'a> Command<'a> for ChangeLodRangeBeginCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _context: &Self::Context) -> String {
+impl Command for ChangeLodRangeBeginCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
         "Change Lod Range Begin".to_owned()
     }
 
-    fn execute(&mut self, context: &mut Self::Context) {
+    fn execute(&mut self, context: &mut SceneContext) {
         self.swap(context);
     }
 
-    fn revert(&mut self, context: &mut Self::Context) {
+    fn revert(&mut self, context: &mut SceneContext) {
         self.swap(context);
     }
 }
@@ -250,18 +240,16 @@ impl ChangeLodRangeEndCommand {
     }
 }
 
-impl<'a> Command<'a> for ChangeLodRangeEndCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _context: &Self::Context) -> String {
+impl Command for ChangeLodRangeEndCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
         "Change Lod Range End".to_owned()
     }
 
-    fn execute(&mut self, context: &mut Self::Context) {
+    fn execute(&mut self, context: &mut SceneContext) {
         self.swap(context);
     }
 
-    fn revert(&mut self, context: &mut Self::Context) {
+    fn revert(&mut self, context: &mut SceneContext) {
         self.swap(context);
     }
 }

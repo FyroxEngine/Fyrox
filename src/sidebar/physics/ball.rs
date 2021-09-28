@@ -1,7 +1,7 @@
 use crate::sidebar::make_section;
 use crate::{
     physics::Collider,
-    scene::commands::{physics::SetBallRadiusCommand, SceneCommand},
+    scene::commands::physics::SetBallRadiusCommand,
     sidebar::{make_f32_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
 };
@@ -71,8 +71,8 @@ impl BallSection {
                 && ball.radius.ne(&value)
             {
                 self.sender
-                    .send(Message::DoSceneCommand(SceneCommand::SetBallRadius(
-                        SetBallRadiusCommand::new(handle, value),
+                    .send(Message::do_scene_command(SetBallRadiusCommand::new(
+                        handle, value,
                     )))
                     .unwrap();
             }

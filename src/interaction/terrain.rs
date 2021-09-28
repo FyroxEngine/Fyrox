@@ -3,10 +3,7 @@ use crate::{
     interaction::InteractionModeTrait,
     make_color_material,
     scene::{
-        commands::{
-            terrain::{ModifyTerrainHeightCommand, ModifyTerrainLayerMaskCommand},
-            SceneCommand,
-        },
+        commands::terrain::{ModifyTerrainHeightCommand, ModifyTerrainLayerMaskCommand},
         EditorScene, Selection,
     },
     GameEngine, Message,
@@ -157,27 +154,23 @@ impl InteractionModeTrait for TerrainInteractionMode {
                         match self.brush.lock().unwrap().mode {
                             BrushMode::ModifyHeightMap { .. } => {
                                 self.message_sender
-                                    .send(Message::DoSceneCommand(
-                                        SceneCommand::ModifyTerrainHeight(
-                                            ModifyTerrainHeightCommand::new(
-                                                handle,
-                                                std::mem::take(&mut self.heightmaps),
-                                                new_heightmaps,
-                                            ),
+                                    .send(Message::do_scene_command(
+                                        ModifyTerrainHeightCommand::new(
+                                            handle,
+                                            std::mem::take(&mut self.heightmaps),
+                                            new_heightmaps,
                                         ),
                                     ))
                                     .unwrap();
                             }
                             BrushMode::DrawOnMask { layer, .. } => {
                                 self.message_sender
-                                    .send(Message::DoSceneCommand(
-                                        SceneCommand::ModifyTerrainLayerMask(
-                                            ModifyTerrainLayerMaskCommand::new(
-                                                handle,
-                                                std::mem::take(&mut self.masks),
-                                                copy_layer_masks(terrain, layer),
-                                                layer,
-                                            ),
+                                    .send(Message::do_scene_command(
+                                        ModifyTerrainLayerMaskCommand::new(
+                                            handle,
+                                            std::mem::take(&mut self.masks),
+                                            copy_layer_masks(terrain, layer),
+                                            layer,
                                         ),
                                     ))
                                     .unwrap();

@@ -2,12 +2,9 @@ use crate::asset::AssetItem;
 use crate::sidebar::make_section;
 use crate::{
     make_relative_path,
-    scene::commands::{
-        decal::{
-            SetDecalColorCommand, SetDecalDiffuseTextureCommand, SetDecalLayerIndexCommand,
-            SetDecalNormalTextureCommand,
-        },
-        SceneCommand,
+    scene::commands::decal::{
+        SetDecalColorCommand, SetDecalDiffuseTextureCommand, SetDecalLayerIndexCommand,
+        SetDecalNormalTextureCommand,
     },
     send_sync_message,
     sidebar::{
@@ -159,12 +156,10 @@ impl DecalSection {
                         let texture = resource_manager.request_texture(relative_path, None);
 
                         sender
-                            .send(Message::DoSceneCommand(
-                                SceneCommand::SetDecalDiffuseTexture(
-                                    SetDecalDiffuseTextureCommand::new(
-                                        node_handle,
-                                        Some(texture.clone()),
-                                    ),
+                            .send(Message::do_scene_command(
+                                SetDecalDiffuseTextureCommand::new(
+                                    node_handle,
+                                    Some(texture.clone()),
                                 ),
                             ))
                             .unwrap();
@@ -178,12 +173,10 @@ impl DecalSection {
                         let texture = resource_manager.request_texture(relative_path, None);
 
                         sender
-                            .send(Message::DoSceneCommand(
-                                SceneCommand::SetDecalNormalTexture(
-                                    SetDecalNormalTextureCommand::new(
-                                        node_handle,
-                                        Some(texture.clone()),
-                                    ),
+                            .send(Message::do_scene_command(
+                                SetDecalNormalTextureCommand::new(
+                                    node_handle,
+                                    Some(texture.clone()),
                                 ),
                             ))
                             .unwrap();
@@ -200,8 +193,9 @@ impl DecalSection {
                 if message.destination() == self.layer_index =>
             {
                 sender
-                    .send(Message::DoSceneCommand(SceneCommand::SetDecalLayerIndex(
-                        SetDecalLayerIndexCommand::new(node_handle, value.clamp(0.0, 255.0) as u8),
+                    .send(Message::do_scene_command(SetDecalLayerIndexCommand::new(
+                        node_handle,
+                        value.clamp(0.0, 255.0) as u8,
                     )))
                     .unwrap();
             }
@@ -209,8 +203,9 @@ impl DecalSection {
                 if message.destination() == self.color =>
             {
                 sender
-                    .send(Message::DoSceneCommand(SceneCommand::SetDecalColor(
-                        SetDecalColorCommand::new(node_handle, color),
+                    .send(Message::do_scene_command(SetDecalColorCommand::new(
+                        node_handle,
+                        color,
                     )))
                     .unwrap();
             }

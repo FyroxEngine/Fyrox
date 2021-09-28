@@ -1,9 +1,7 @@
 use crate::{
     create_terrain_layer_material, make_save_file_selector, make_scene_file_filter,
     scene::{
-        commands::{
-            graph::AddNodeCommand, sound::AddSoundSourceCommand, PasteCommand, SceneCommand,
-        },
+        commands::{graph::AddNodeCommand, sound::AddSoundSourceCommand, PasteCommand},
         EditorScene, Selection,
     },
     send_sync_message,
@@ -587,9 +585,7 @@ impl Menu {
                     )))));
                     let node = Node::Mesh(mesh);
                     self.message_sender
-                        .send(Message::DoSceneCommand(SceneCommand::AddNode(
-                            AddNodeCommand::new(node),
-                        )))
+                        .send(Message::do_scene_command(AddNodeCommand::new(node)))
                         .unwrap();
                 } else if message.destination() == self.create_spot_light {
                     let node = SpotLightBuilder::new(BaseLightBuilder::new(
@@ -601,17 +597,13 @@ impl Menu {
                     .build_node();
 
                     self.message_sender
-                        .send(Message::DoSceneCommand(SceneCommand::AddNode(
-                            AddNodeCommand::new(node),
-                        )))
+                        .send(Message::do_scene_command(AddNodeCommand::new(node)))
                         .unwrap();
                 } else if message.destination() == self.create_pivot {
                     let node = BaseBuilder::new().with_name("Pivot").build_node();
 
                     self.message_sender
-                        .send(Message::DoSceneCommand(SceneCommand::AddNode(
-                            AddNodeCommand::new(node),
-                        )))
+                        .send(Message::do_scene_command(AddNodeCommand::new(node)))
                         .unwrap();
                 } else if message.destination() == self.create_point_light {
                     let node = PointLightBuilder::new(BaseLightBuilder::new(
@@ -621,9 +613,7 @@ impl Menu {
                     .build_node();
 
                     self.message_sender
-                        .send(Message::DoSceneCommand(SceneCommand::AddNode(
-                            AddNodeCommand::new(node),
-                        )))
+                        .send(Message::do_scene_command(AddNodeCommand::new(node)))
                         .unwrap();
                 } else if message.destination() == self.create_directional_light {
                     let node = DirectionalLightBuilder::new(BaseLightBuilder::new(
@@ -632,9 +622,7 @@ impl Menu {
                     .build_node();
 
                     self.message_sender
-                        .send(Message::DoSceneCommand(SceneCommand::AddNode(
-                            AddNodeCommand::new(node),
-                        )))
+                        .send(Message::do_scene_command(AddNodeCommand::new(node)))
                         .unwrap();
                 } else if message.destination() == self.create_cone {
                     let mesh = MeshBuilder::new(BaseBuilder::new().with_name("Cone"))
@@ -643,9 +631,7 @@ impl Menu {
                         )))])
                         .build_node();
                     self.message_sender
-                        .send(Message::DoSceneCommand(SceneCommand::AddNode(
-                            AddNodeCommand::new(mesh),
-                        )))
+                        .send(Message::do_scene_command(AddNodeCommand::new(mesh)))
                         .unwrap();
                 } else if message.destination() == self.create_cylinder {
                     let mesh = MeshBuilder::new(BaseBuilder::new().with_name("Cylinder"))
@@ -654,9 +640,7 @@ impl Menu {
                         )))])
                         .build_node();
                     self.message_sender
-                        .send(Message::DoSceneCommand(SceneCommand::AddNode(
-                            AddNodeCommand::new(mesh),
-                        )))
+                        .send(Message::do_scene_command(AddNodeCommand::new(mesh)))
                         .unwrap();
                 } else if message.destination() == self.create_sphere {
                     let mesh = MeshBuilder::new(BaseBuilder::new().with_name("Sphere"))
@@ -665,9 +649,7 @@ impl Menu {
                         )))])
                         .build_node();
                     self.message_sender
-                        .send(Message::DoSceneCommand(SceneCommand::AddNode(
-                            AddNodeCommand::new(mesh),
-                        )))
+                        .send(Message::do_scene_command(AddNodeCommand::new(mesh)))
                         .unwrap();
                 } else if message.destination() == self.create_quad {
                     let mesh = MeshBuilder::new(BaseBuilder::new().with_name("Quad"))
@@ -676,9 +658,7 @@ impl Menu {
                         )))])
                         .build_node();
                     self.message_sender
-                        .send(Message::DoSceneCommand(SceneCommand::AddNode(
-                            AddNodeCommand::new(mesh),
-                        )))
+                        .send(Message::do_scene_command(AddNodeCommand::new(mesh)))
                         .unwrap();
                 } else if message.destination() == self.create_camera {
                     let node = CameraBuilder::new(BaseBuilder::new().with_name("Camera"))
@@ -686,18 +666,14 @@ impl Menu {
                         .build_node();
 
                     self.message_sender
-                        .send(Message::DoSceneCommand(SceneCommand::AddNode(
-                            AddNodeCommand::new(node),
-                        )))
+                        .send(Message::do_scene_command(AddNodeCommand::new(node)))
                         .unwrap();
                 } else if message.destination() == self.create_sprite {
                     let node =
                         SpriteBuilder::new(BaseBuilder::new().with_name("Sprite")).build_node();
 
                     self.message_sender
-                        .send(Message::DoSceneCommand(SceneCommand::AddNode(
-                            AddNodeCommand::new(node),
-                        )))
+                        .send(Message::do_scene_command(AddNodeCommand::new(node)))
                         .unwrap();
                 } else if message.destination() == self.create_sound_source {
                     let source = GenericSourceBuilder::new()
@@ -706,8 +682,8 @@ impl Menu {
                         .unwrap();
 
                     self.message_sender
-                        .send(Message::DoSceneCommand(SceneCommand::AddSoundSource(
-                            AddSoundSourceCommand::new(source),
+                        .send(Message::do_scene_command(AddSoundSourceCommand::new(
+                            source,
                         )))
                         .unwrap();
                 } else if message.destination() == self.create_spatial_sound_source {
@@ -720,8 +696,8 @@ impl Menu {
                     .build_source();
 
                     self.message_sender
-                        .send(Message::DoSceneCommand(SceneCommand::AddSoundSource(
-                            AddSoundSourceCommand::new(source),
+                        .send(Message::do_scene_command(AddSoundSourceCommand::new(
+                            source,
                         )))
                         .unwrap();
                 } else if message.destination() == self.create_particle_system {
@@ -737,9 +713,7 @@ impl Menu {
                             .build_node();
 
                     self.message_sender
-                        .send(Message::DoSceneCommand(SceneCommand::AddNode(
-                            AddNodeCommand::new(node),
-                        )))
+                        .send(Message::do_scene_command(AddNodeCommand::new(node)))
                         .unwrap();
                 } else if message.destination() == self.create_terrain {
                     let node = TerrainBuilder::new(BaseBuilder::new().with_name("Terrain"))
@@ -751,18 +725,14 @@ impl Menu {
                         .build_node();
 
                     self.message_sender
-                        .send(Message::DoSceneCommand(SceneCommand::AddNode(
-                            AddNodeCommand::new(node),
-                        )))
+                        .send(Message::do_scene_command(AddNodeCommand::new(node)))
                         .unwrap();
                 } else if message.destination() == self.create_decal {
                     let node =
                         DecalBuilder::new(BaseBuilder::new().with_name("Decal")).build_node();
 
                     self.message_sender
-                        .send(Message::DoSceneCommand(SceneCommand::AddNode(
-                            AddNodeCommand::new(node),
-                        )))
+                        .send(Message::do_scene_command(AddNodeCommand::new(node)))
                         .unwrap();
                 } else if message.destination() == self.save {
                     if let Some(scene_path) =
@@ -822,9 +792,7 @@ impl Menu {
                     if let Some(editor_scene) = ctx.editor_scene {
                         if !editor_scene.clipboard.is_empty() {
                             self.message_sender
-                                .send(Message::DoSceneCommand(SceneCommand::Paste(
-                                    PasteCommand::new(),
-                                )))
+                                .send(Message::do_scene_command(PasteCommand::new()))
                                 .unwrap();
                         }
                     }

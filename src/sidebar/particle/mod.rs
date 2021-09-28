@@ -3,12 +3,8 @@ use crate::sidebar::make_section;
 use crate::{
     gui::{DeletableItemBuilder, DeletableItemMessage},
     load_image,
-    scene::commands::{
-        particle_system::{
-            AddParticleSystemEmitterCommand, DeleteEmitterCommand,
-            SetParticleSystemAccelerationCommand,
-        },
-        SceneCommand,
+    scene::commands::particle_system::{
+        AddParticleSystemEmitterCommand, DeleteEmitterCommand, SetParticleSystemAccelerationCommand,
     },
     send_sync_message,
     sidebar::{
@@ -337,10 +333,8 @@ impl ParticleSystemSection {
                         && message.destination() == self.acceleration
                     {
                         self.sender
-                            .send(Message::DoSceneCommand(
-                                SceneCommand::SetParticleSystemAcceleration(
-                                    SetParticleSystemAccelerationCommand::new(handle, *value),
-                                ),
+                            .send(Message::do_scene_command(
+                                SetParticleSystemAccelerationCommand::new(handle, *value),
                             ))
                             .unwrap();
                     }
@@ -348,37 +342,28 @@ impl ParticleSystemSection {
                 UiMessageData::Button(ButtonMessage::Click) => {
                     if message.destination() == self.add_box_emitter {
                         self.sender
-                            .send(Message::DoSceneCommand(
-                                SceneCommand::AddParticleSystemEmitter(
-                                    AddParticleSystemEmitterCommand::new(
-                                        handle,
-                                        CuboidEmitterBuilder::new(BaseEmitterBuilder::new())
-                                            .build(),
-                                    ),
+                            .send(Message::do_scene_command(
+                                AddParticleSystemEmitterCommand::new(
+                                    handle,
+                                    CuboidEmitterBuilder::new(BaseEmitterBuilder::new()).build(),
                                 ),
                             ))
                             .unwrap();
                     } else if message.destination() == self.add_sphere_emitter {
                         self.sender
-                            .send(Message::DoSceneCommand(
-                                SceneCommand::AddParticleSystemEmitter(
-                                    AddParticleSystemEmitterCommand::new(
-                                        handle,
-                                        SphereEmitterBuilder::new(BaseEmitterBuilder::new())
-                                            .build(),
-                                    ),
+                            .send(Message::do_scene_command(
+                                AddParticleSystemEmitterCommand::new(
+                                    handle,
+                                    SphereEmitterBuilder::new(BaseEmitterBuilder::new()).build(),
                                 ),
                             ))
                             .unwrap();
                     } else if message.destination() == self.add_cylinder_emitter {
                         self.sender
-                            .send(Message::DoSceneCommand(
-                                SceneCommand::AddParticleSystemEmitter(
-                                    AddParticleSystemEmitterCommand::new(
-                                        handle,
-                                        CylinderEmitterBuilder::new(BaseEmitterBuilder::new())
-                                            .build(),
-                                    ),
+                            .send(Message::do_scene_command(
+                                AddParticleSystemEmitterCommand::new(
+                                    handle,
+                                    CylinderEmitterBuilder::new(BaseEmitterBuilder::new()).build(),
                                 ),
                             ))
                             .unwrap();
@@ -406,8 +391,9 @@ impl ParticleSystemSection {
                                 .cast::<DeletableItem<usize>>()
                             {
                                 self.sender
-                                    .send(Message::DoSceneCommand(SceneCommand::DeleteEmitter(
-                                        DeleteEmitterCommand::new(handle, ei.data.unwrap()),
+                                    .send(Message::do_scene_command(DeleteEmitterCommand::new(
+                                        handle,
+                                        ei.data.unwrap(),
                                     )))
                                     .unwrap();
                             } else {

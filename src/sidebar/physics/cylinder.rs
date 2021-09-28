@@ -1,10 +1,7 @@
 use crate::sidebar::make_section;
 use crate::{
     physics::Collider,
-    scene::commands::{
-        physics::{SetCylinderHalfHeightCommand, SetCylinderRadiusCommand},
-        SceneCommand,
-    },
+    scene::commands::physics::{SetCylinderHalfHeightCommand, SetCylinderRadiusCommand},
     send_sync_message,
     sidebar::{make_f32_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
@@ -90,16 +87,14 @@ impl CylinderSection {
             if message.direction() == MessageDirection::FromWidget {
                 if message.destination() == self.half_height && cylinder.half_height.ne(&value) {
                     self.sender
-                        .send(Message::DoSceneCommand(
-                            SceneCommand::SetCylinderHalfHeight(SetCylinderHalfHeightCommand::new(
-                                handle, value,
-                            )),
+                        .send(Message::do_scene_command(
+                            SetCylinderHalfHeightCommand::new(handle, value),
                         ))
                         .unwrap();
                 } else if message.destination() == self.radius && cylinder.radius.ne(&value) {
                     self.sender
-                        .send(Message::DoSceneCommand(SceneCommand::SetCylinderRadius(
-                            SetCylinderRadiusCommand::new(handle, value),
+                        .send(Message::do_scene_command(SetCylinderRadiusCommand::new(
+                            handle, value,
                         )))
                         .unwrap();
                 }

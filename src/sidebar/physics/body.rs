@@ -1,7 +1,7 @@
 use crate::sidebar::make_section;
 use crate::{
     physics::RigidBody,
-    scene::commands::{physics::SetBodyMassCommand, SceneCommand},
+    scene::commands::physics::SetBodyMassCommand,
     send_sync_message,
     sidebar::{make_f32_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
@@ -70,8 +70,8 @@ impl BodySection {
                 && body.mass.ne(&value)
             {
                 self.sender
-                    .send(Message::DoSceneCommand(SceneCommand::SetBodyMass(
-                        SetBodyMassCommand::new(handle, value),
+                    .send(Message::do_scene_command(SetBodyMassCommand::new(
+                        handle, value,
                     )))
                     .unwrap();
             }

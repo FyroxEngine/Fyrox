@@ -24,21 +24,19 @@ impl AddParticleSystemEmitterCommand {
     }
 }
 
-impl<'a> Command<'a> for AddParticleSystemEmitterCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _context: &Self::Context) -> String {
+impl Command for AddParticleSystemEmitterCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
         "Add Particle System Emitter".to_owned()
     }
 
-    fn execute(&mut self, context: &mut Self::Context) {
+    fn execute(&mut self, context: &mut SceneContext) {
         context.scene.graph[self.particle_system]
             .as_particle_system_mut()
             .emitters
             .push(self.emitter.take().unwrap());
     }
 
-    fn revert(&mut self, context: &mut Self::Context) {
+    fn revert(&mut self, context: &mut SceneContext) {
         self.emitter = Some(
             context.scene.graph[self.particle_system]
                 .as_particle_system_mut()
@@ -66,14 +64,12 @@ impl DeleteEmitterCommand {
     }
 }
 
-impl<'a> Command<'a> for DeleteEmitterCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _context: &Self::Context) -> String {
+impl Command for DeleteEmitterCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
         "Delete Particle System Emitter".to_owned()
     }
 
-    fn execute(&mut self, context: &mut Self::Context) {
+    fn execute(&mut self, context: &mut SceneContext) {
         self.emitter = Some(
             context.scene.graph[self.particle_system]
                 .as_particle_system_mut()
@@ -82,7 +78,7 @@ impl<'a> Command<'a> for DeleteEmitterCommand {
         );
     }
 
-    fn revert(&mut self, context: &mut Self::Context) {
+    fn revert(&mut self, context: &mut SceneContext) {
         let particle_system: &mut ParticleSystem =
             context.scene.graph[self.particle_system].as_particle_system_mut();
         if self.emitter_index == 0 {
@@ -257,18 +253,16 @@ impl SetEmitterNumericParameterCommand {
     }
 }
 
-impl<'a> Command<'a> for SetEmitterNumericParameterCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _context: &Self::Context) -> String {
+impl Command for SetEmitterNumericParameterCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
         format!("Set Emitter F32 Parameter: {}", self.parameter.name())
     }
 
-    fn execute(&mut self, context: &mut Self::Context) {
+    fn execute(&mut self, context: &mut SceneContext) {
         self.swap(context);
     }
 
-    fn revert(&mut self, context: &mut Self::Context) {
+    fn revert(&mut self, context: &mut SceneContext) {
         self.swap(context);
     }
 }
@@ -293,18 +287,18 @@ macro_rules! define_emitter_command {
             }
         }
 
-        impl<'a> Command<'a> for $name {
-            type Context = SceneContext<'a>;
+        impl Command for $name {
 
-            fn name(&mut self, _context: &Self::Context) -> String {
+
+            fn name(&mut self, _context: &SceneContext) -> String {
                 $human_readable_name.to_owned()
             }
 
-            fn execute(&mut self, context: &mut Self::Context) {
+            fn execute(&mut self, context: &mut SceneContext) {
                 self.swap(&mut context.scene.graph);
             }
 
-            fn revert(&mut self, context: &mut Self::Context) {
+            fn revert(&mut self, context: &mut SceneContext) {
                 self.swap(&mut context.scene.graph);
             }
         }

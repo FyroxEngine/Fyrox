@@ -50,14 +50,12 @@ impl AddNavmeshEdgeCommand {
     }
 }
 
-impl<'a> Command<'a> for AddNavmeshEdgeCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _context: &Self::Context) -> String {
+impl Command for AddNavmeshEdgeCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
         "Add Navmesh Edge".to_owned()
     }
 
-    fn execute(&mut self, context: &mut Self::Context) {
+    fn execute(&mut self, context: &mut SceneContext) {
         let navmesh = &mut context.editor_scene.navmeshes[self.navmesh];
         match std::mem::replace(&mut self.state, AddNavmeshEdgeCommandState::Undefined) {
             AddNavmeshEdgeCommandState::NonExecuted { edge } => {
@@ -113,7 +111,7 @@ impl<'a> Command<'a> for AddNavmeshEdgeCommand {
         }
     }
 
-    fn revert(&mut self, context: &mut Self::Context) {
+    fn revert(&mut self, context: &mut SceneContext) {
         if self.select {
             std::mem::swap(&mut context.editor_scene.selection, &mut self.new_selection);
         }
@@ -139,7 +137,7 @@ impl<'a> Command<'a> for AddNavmeshEdgeCommand {
         }
     }
 
-    fn finalize(&mut self, context: &mut Self::Context) {
+    fn finalize(&mut self, context: &mut SceneContext) {
         if let AddNavmeshEdgeCommandState::Reverted {
             triangles,
             vertices,
@@ -188,14 +186,12 @@ impl ConnectNavmeshEdgesCommand {
     }
 }
 
-impl<'a> Command<'a> for ConnectNavmeshEdgesCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _context: &Self::Context) -> String {
+impl Command for ConnectNavmeshEdgesCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
         "Connect Navmesh Edges".to_owned()
     }
 
-    fn execute(&mut self, context: &mut Self::Context) {
+    fn execute(&mut self, context: &mut SceneContext) {
         let navmesh = &mut context.editor_scene.navmeshes[self.navmesh];
 
         match std::mem::replace(&mut self.state, ConnectNavmeshEdgesCommandState::Undefined) {
@@ -228,7 +224,7 @@ impl<'a> Command<'a> for ConnectNavmeshEdgesCommand {
         }
     }
 
-    fn revert(&mut self, context: &mut Self::Context) {
+    fn revert(&mut self, context: &mut SceneContext) {
         let navmesh = &mut context.editor_scene.navmeshes[self.navmesh];
 
         match std::mem::replace(&mut self.state, ConnectNavmeshEdgesCommandState::Undefined) {
@@ -244,7 +240,7 @@ impl<'a> Command<'a> for ConnectNavmeshEdgesCommand {
         }
     }
 
-    fn finalize(&mut self, context: &mut Self::Context) {
+    fn finalize(&mut self, context: &mut SceneContext) {
         let navmesh = &mut context.editor_scene.navmeshes[self.navmesh];
 
         if let ConnectNavmeshEdgesCommandState::Reverted { triangles } =
@@ -274,14 +270,12 @@ impl AddNavmeshCommand {
     }
 }
 
-impl<'a> Command<'a> for AddNavmeshCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _context: &Self::Context) -> String {
+impl Command for AddNavmeshCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
         "Add Navmesh".to_owned()
     }
 
-    fn execute(&mut self, context: &mut Self::Context) {
+    fn execute(&mut self, context: &mut SceneContext) {
         match self.ticket.take() {
             None => {
                 self.handle = context
@@ -299,13 +293,13 @@ impl<'a> Command<'a> for AddNavmeshCommand {
         }
     }
 
-    fn revert(&mut self, context: &mut Self::Context) {
+    fn revert(&mut self, context: &mut SceneContext) {
         let (ticket, node) = context.editor_scene.navmeshes.take_reserve(self.handle);
         self.ticket = Some(ticket);
         self.navmesh = Some(node);
     }
 
-    fn finalize(&mut self, context: &mut Self::Context) {
+    fn finalize(&mut self, context: &mut SceneContext) {
         if let Some(ticket) = self.ticket.take() {
             context.editor_scene.navmeshes.forget_ticket(ticket)
         }
@@ -322,14 +316,14 @@ macro_rules! define_pool_command {
             $(pub $field: $type,)*
         }
 
-        impl<'a> Command<'a> for $name {
-            type Context = SceneContext<'a>;
+        impl Command for $name {
 
-            fn name(&mut self, _context: &Self::Context) -> String {
+
+            fn name(&mut self, _context: &SceneContext) -> String {
                 $human_readable_name.to_owned()
             }
 
-            fn execute(&mut $self, $ctx: &mut Self::Context) {
+            fn execute(&mut $self, $ctx: &mut SceneContext) {
                let pool = $get_pool;
                match $self.ticket.take() {
                     None => {
@@ -342,7 +336,7 @@ macro_rules! define_pool_command {
                 }
             }
 
-            fn revert(&mut $self, $ctx: &mut Self::Context) {
+            fn revert(&mut $self, $ctx: &mut SceneContext) {
                 let pool = $get_pool;
 
                 let (ticket, node) = pool.take_reserve($self.handle);
@@ -350,7 +344,7 @@ macro_rules! define_pool_command {
                 $self.value = Some(node);
             }
 
-            fn finalize(&mut $self, $ctx: &mut Self::Context) {
+            fn finalize(&mut $self, $ctx: &mut SceneContext) {
                 let pool = $get_pool;
 
                 if let Some(ticket) = $self.ticket.take() {
@@ -398,27 +392,25 @@ impl DeleteNavmeshCommand {
     }
 }
 
-impl<'a> Command<'a> for DeleteNavmeshCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _context: &Self::Context) -> String {
+impl Command for DeleteNavmeshCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
         "Delete Navmesh".to_owned()
     }
 
-    fn execute(&mut self, context: &mut Self::Context) {
+    fn execute(&mut self, context: &mut SceneContext) {
         let (ticket, node) = context.editor_scene.navmeshes.take_reserve(self.handle);
         self.node = Some(node);
         self.ticket = Some(ticket);
     }
 
-    fn revert(&mut self, context: &mut Self::Context) {
+    fn revert(&mut self, context: &mut SceneContext) {
         self.handle = context
             .editor_scene
             .navmeshes
             .put_back(self.ticket.take().unwrap(), self.node.take().unwrap());
     }
 
-    fn finalize(&mut self, context: &mut Self::Context) {
+    fn finalize(&mut self, context: &mut SceneContext) {
         if let Some(ticket) = self.ticket.take() {
             context.editor_scene.navmeshes.forget_ticket(ticket)
         }
@@ -455,14 +447,12 @@ impl DeleteNavmeshVertexCommand {
     }
 }
 
-impl<'a> Command<'a> for DeleteNavmeshVertexCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _context: &Self::Context) -> String {
+impl Command for DeleteNavmeshVertexCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
         "Delete Navmesh Vertex".to_owned()
     }
 
-    fn execute(&mut self, context: &mut Self::Context) {
+    fn execute(&mut self, context: &mut SceneContext) {
         let navmesh = &mut context.editor_scene.navmeshes[self.navmesh];
 
         match std::mem::replace(&mut self.state, DeleteNavmeshVertexCommandState::Undefined) {
@@ -488,7 +478,7 @@ impl<'a> Command<'a> for DeleteNavmeshVertexCommand {
         }
     }
 
-    fn revert(&mut self, context: &mut Self::Context) {
+    fn revert(&mut self, context: &mut SceneContext) {
         let navmesh = &mut context.editor_scene.navmeshes[self.navmesh];
 
         match std::mem::replace(&mut self.state, DeleteNavmeshVertexCommandState::Undefined) {
@@ -504,7 +494,7 @@ impl<'a> Command<'a> for DeleteNavmeshVertexCommand {
         }
     }
 
-    fn finalize(&mut self, context: &mut Self::Context) {
+    fn finalize(&mut self, context: &mut SceneContext) {
         if let DeleteNavmeshVertexCommandState::Executed { vertex, triangles } =
             std::mem::replace(&mut self.state, DeleteNavmeshVertexCommandState::Undefined)
         {
@@ -552,19 +542,17 @@ impl MoveNavmeshVertexCommand {
     }
 }
 
-impl<'a> Command<'a> for MoveNavmeshVertexCommand {
-    type Context = SceneContext<'a>;
-
-    fn name(&mut self, _context: &Self::Context) -> String {
+impl Command for MoveNavmeshVertexCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
         "Move Navmesh Vertex".to_owned()
     }
 
-    fn execute(&mut self, context: &mut Self::Context) {
+    fn execute(&mut self, context: &mut SceneContext) {
         let position = self.swap();
         self.set_position(&mut context.editor_scene.navmeshes[self.navmesh], position);
     }
 
-    fn revert(&mut self, context: &mut Self::Context) {
+    fn revert(&mut self, context: &mut SceneContext) {
         let position = self.swap();
         self.set_position(&mut context.editor_scene.navmeshes[self.navmesh], position);
     }

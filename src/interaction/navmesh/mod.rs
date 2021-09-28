@@ -1,5 +1,6 @@
 use crate::interaction::gizmo::move_gizmo::MoveGizmo;
 use crate::interaction::plane::PlaneKind;
+use crate::scene::commands::SceneCommand;
 use crate::settings::Settings;
 use crate::{
     interaction::{
@@ -16,7 +17,7 @@ use crate::{
                 AddNavmeshCommand, AddNavmeshEdgeCommand, ConnectNavmeshEdgesCommand,
                 DeleteNavmeshCommand, DeleteNavmeshVertexCommand, MoveNavmeshVertexCommand,
             },
-            ChangeSelectionCommand, CommandGroup, SceneCommand,
+            ChangeSelectionCommand, CommandGroup,
         },
         EditorScene, Selection,
     },
@@ -259,15 +260,15 @@ impl NavmeshPanel {
             UiMessageData::Button(ButtonMessage::Click) => {
                 if message.destination() == self.add {
                     self.sender
-                        .send(Message::DoSceneCommand(SceneCommand::AddNavmesh(
-                            AddNavmeshCommand::new(Navmesh::new()),
+                        .send(Message::do_scene_command(AddNavmeshCommand::new(
+                            Navmesh::new(),
                         )))
                         .unwrap();
                 } else if message.destination() == self.remove {
                     if editor_scene.navmeshes.is_valid_handle(self.selected) {
                         self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::DeleteNavmesh(
-                                DeleteNavmeshCommand::new(self.selected),
+                            .send(Message::do_scene_command(DeleteNavmeshCommand::new(
+                                self.selected,
                             )))
                             .unwrap();
                     }
@@ -286,11 +287,9 @@ impl NavmeshPanel {
                             .collect::<Vec<_>>();
 
                         self.sender
-                            .send(Message::DoSceneCommand(SceneCommand::ConnectNavmeshEdges(
-                                ConnectNavmeshEdgesCommand::new(
-                                    self.selected,
-                                    [vertices[0], vertices[1]],
-                                ),
+                            .send(Message::do_scene_command(ConnectNavmeshEdgesCommand::new(
+                                self.selected,
+                                [vertices[0], vertices[1]],
                             )))
                             .unwrap();
                     }
@@ -328,11 +327,9 @@ impl NavmeshPanel {
 
                             if new_selection != editor_scene.selection {
                                 self.sender
-                                    .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
-                                        ChangeSelectionCommand::new(
-                                            new_selection,
-                                            editor_scene.selection.clone(),
-                                        ),
+                                    .send(Message::do_scene_command(ChangeSelectionCommand::new(
+                                        new_selection,
+                                        editor_scene.selection.clone(),
                                     )))
                                     .unwrap();
                             }
@@ -473,11 +470,9 @@ impl InteractionModeTrait for EditNavmeshMode {
 
                 if new_selection != editor_scene.selection {
                     self.message_sender
-                        .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
-                            ChangeSelectionCommand::new(
-                                new_selection,
-                                editor_scene.selection.clone(),
-                            ),
+                        .send(Message::do_scene_command(ChangeSelectionCommand::new(
+                            new_selection,
+                            editor_scene.selection.clone(),
                         )))
                         .unwrap();
                 }
@@ -501,14 +496,12 @@ impl InteractionModeTrait for EditNavmeshMode {
                     DragContext::MoveSelection { initial_positions } => {
                         if let Selection::Navmesh(navmesh_selection) = &mut editor_scene.selection {
                             for vertex in navmesh_selection.unique_vertices().iter() {
-                                commands.push(SceneCommand::MoveNavmeshVertex(
-                                    MoveNavmeshVertexCommand::new(
-                                        self.navmesh,
-                                        *vertex,
-                                        *initial_positions.get(vertex).unwrap(),
-                                        navmesh.vertices[*vertex].position,
-                                    ),
-                                ));
+                                commands.push(SceneCommand::new(MoveNavmeshVertexCommand::new(
+                                    self.navmesh,
+                                    *vertex,
+                                    *initial_positions.get(vertex).unwrap(),
+                                    navmesh.vertices[*vertex].position,
+                                )));
                             }
                         }
                     }
@@ -519,7 +512,7 @@ impl InteractionModeTrait for EditNavmeshMode {
                         let va = vertices[0].clone();
                         let vb = vertices[1].clone();
 
-                        commands.push(SceneCommand::AddNavmeshEdge(AddNavmeshEdgeCommand::new(
+                        commands.push(SceneCommand::new(AddNavmeshEdgeCommand::new(
                             self.navmesh,
                             (va, vb),
                             opposite_edge,
@@ -529,9 +522,7 @@ impl InteractionModeTrait for EditNavmeshMode {
                 }
 
                 self.message_sender
-                    .send(Message::DoSceneCommand(SceneCommand::CommandGroup(
-                        CommandGroup::from(commands),
-                    )))
+                    .send(Message::do_scene_command(CommandGroup::from(commands)))
                     .unwrap();
             }
         }
@@ -579,11 +570,9 @@ impl InteractionModeTrait for EditNavmeshMode {
 
                             // Discard selection.
                             self.message_sender
-                                .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
-                                    ChangeSelectionCommand::new(
-                                        Selection::Navmesh(NavmeshSelection::empty(self.navmesh)),
-                                        editor_scene.selection.clone(),
-                                    ),
+                                .send(Message::do_scene_command(ChangeSelectionCommand::new(
+                                    Selection::Navmesh(NavmeshSelection::empty(self.navmesh)),
+                                    editor_scene.selection.clone(),
                                 )))
                                 .unwrap();
                         }
@@ -736,22 +725,19 @@ impl InteractionModeTrait for EditNavmeshMode {
                             let mut commands = Vec::new();
 
                             for &vertex in navmesh_selection.unique_vertices() {
-                                commands.push(SceneCommand::DeleteNavmeshVertex(
-                                    DeleteNavmeshVertexCommand::new(self.navmesh, vertex),
-                                ));
+                                commands.push(SceneCommand::new(DeleteNavmeshVertexCommand::new(
+                                    self.navmesh,
+                                    vertex,
+                                )));
                             }
 
-                            commands.push(SceneCommand::ChangeSelection(
-                                ChangeSelectionCommand::new(
-                                    Selection::Navmesh(NavmeshSelection::empty(self.navmesh)),
-                                    editor_scene.selection.clone(),
-                                ),
-                            ));
+                            commands.push(SceneCommand::new(ChangeSelectionCommand::new(
+                                Selection::Navmesh(NavmeshSelection::empty(self.navmesh)),
+                                editor_scene.selection.clone(),
+                            )));
 
                             self.message_sender
-                                .send(Message::DoSceneCommand(SceneCommand::CommandGroup(
-                                    CommandGroup::from(commands),
-                                )))
+                                .send(Message::do_scene_command(CommandGroup::from(commands)))
                                 .unwrap();
                         }
                     }
@@ -771,11 +757,9 @@ impl InteractionModeTrait for EditNavmeshMode {
                     );
 
                     self.message_sender
-                        .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
-                            ChangeSelectionCommand::new(
-                                Selection::Navmesh(selection),
-                                editor_scene.selection.clone(),
-                            ),
+                        .send(Message::do_scene_command(ChangeSelectionCommand::new(
+                            Selection::Navmesh(selection),
+                            editor_scene.selection.clone(),
                         )))
                         .unwrap();
                 }

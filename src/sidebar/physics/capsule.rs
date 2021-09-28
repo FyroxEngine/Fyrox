@@ -1,9 +1,8 @@
 use crate::sidebar::make_section;
 use crate::{
     physics::Collider,
-    scene::commands::{
-        physics::{SetCapsuleBeginCommand, SetCapsuleEndCommand, SetCapsuleRadiusCommand},
-        SceneCommand,
+    scene::commands::physics::{
+        SetCapsuleBeginCommand, SetCapsuleEndCommand, SetCapsuleRadiusCommand,
     },
     send_sync_message,
     sidebar::{
@@ -105,8 +104,8 @@ impl CapsuleSection {
                     && capsule.radius.ne(&value)
                 {
                     self.sender
-                        .send(Message::DoSceneCommand(SceneCommand::SetCapsuleRadius(
-                            SetCapsuleRadiusCommand::new(handle, value),
+                        .send(Message::do_scene_command(SetCapsuleRadiusCommand::new(
+                            handle, value,
                         )))
                         .unwrap();
                 }
@@ -114,14 +113,14 @@ impl CapsuleSection {
             UiMessageData::Vec3Editor(Vec3EditorMessage::Value(value)) => {
                 if message.destination() == self.begin && capsule.begin.ne(value) {
                     self.sender
-                        .send(Message::DoSceneCommand(SceneCommand::SetCapsuleBegin(
-                            SetCapsuleBeginCommand::new(handle, *value),
+                        .send(Message::do_scene_command(SetCapsuleBeginCommand::new(
+                            handle, *value,
                         )))
                         .unwrap();
                 } else if message.destination() == self.end && capsule.end.ne(value) {
                     self.sender
-                        .send(Message::DoSceneCommand(SceneCommand::SetCapsuleEnd(
-                            SetCapsuleEndCommand::new(handle, *value),
+                        .send(Message::do_scene_command(SetCapsuleEndCommand::new(
+                            handle, *value,
                         )))
                         .unwrap();
                 }
