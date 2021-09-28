@@ -36,7 +36,7 @@ use crate::asset::AssetItem;
 use crate::{
     asset::{AssetBrowser, AssetKind},
     camera::CameraController,
-    command::{CommandStack, CommandStackViewer},
+    command::{panel::CommandStackViewer, CommandStack},
     configurator::Configurator,
     gui::make_dropdown_list_option,
     interaction::{
