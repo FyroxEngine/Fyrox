@@ -27,6 +27,7 @@ arrayvec = "0.7.1"
 futures = {version = "0.3.16", features = ["thread-pool"] }
 uuid = { version = "0.8.2", features = ["v4","wasm-bindgen"] }
 instant = {version = "0.1.10", features = ["wasm-bindgen"] }
+num-traits = "0.2.14"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 web-sys = { version = "0.3.53", features = ["Request", "Window", "Response", "AudioContext", "AudioBuffer", "AudioContextOptions", "AudioNode", "AudioBufferSourceNode", "AudioDestinationNode"] }

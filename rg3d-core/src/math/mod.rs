@@ -7,31 +7,38 @@ pub mod plane;
 pub mod ray;
 pub mod triangulator;
 
-use crate::math::ray::IntersectionResult;
 use crate::{
     algebra::{Matrix3, Matrix4, Scalar, UnitQuaternion, Vector2, Vector3},
+    math::ray::IntersectionResult,
+    num_traits::{NumAssign, Zero},
     visitor::{Visit, VisitResult, Visitor},
 };
-use std::ops::{Add, AddAssign, Index, IndexMut, Mul, Sub};
+use std::ops::{Index, IndexMut};
 
 #[derive(Copy, Clone, Debug, PartialEq)]
-pub struct Rect<T: Scalar> {
+pub struct Rect<T>
+where
+    T: NumAssign + Scalar + PartialOrd + Copy,
+{
     pub position: Vector2<T>,
     pub size: Vector2<T>,
 }
 
-impl<T: Scalar + Default> Default for Rect<T> {
+impl<T> Default for Rect<T>
+where
+    T: NumAssign + Scalar + PartialOrd + Copy,
+{
     fn default() -> Self {
         Self {
-            position: Vector2::new(Default::default(), Default::default()),
-            size: Default::default(),
+            position: Vector2::new(Zero::zero(), Zero::zero()),
+            size: Vector2::new(Zero::zero(), Zero::zero()),
         }
     }
 }
 
 impl<T> Rect<T>
 where
-    T: Scalar + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + PartialOrd + Copy + AddAssign,
+    T: NumAssign + Scalar + PartialOrd + Copy,
 {
     pub fn new(x: T, y: T, w: T, h: T) -> Self {
         Self {
@@ -235,7 +242,7 @@ where
 
 impl<T> Visit for Rect<T>
 where
-    T: Scalar + Visit + 'static,
+    T: NumAssign + Scalar + Visit + PartialOrd + Copy + 'static,
 {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;

@@ -3,12 +3,16 @@
 
 use crate::{
     math::Rect,
+    num_traits::Zero,
     pool::{Handle, Pool},
 };
 use nalgebra::Scalar;
-use std::ops::{Add, AddAssign, Mul, Sub};
+use num_traits::NumAssign;
 
-struct RectPackNode<T: Scalar> {
+struct RectPackNode<T>
+where
+    T: NumAssign + Scalar + PartialOrd + Copy,
+{
     filled: bool,
     split: bool,
     bounds: Rect<T>,
@@ -16,7 +20,10 @@ struct RectPackNode<T: Scalar> {
     right: Handle<RectPackNode<T>>,
 }
 
-impl<T: Scalar> RectPackNode<T> {
+impl<T> RectPackNode<T>
+where
+    T: NumAssign + Scalar + PartialOrd + Copy,
+{
     fn new(bounds: Rect<T>) -> Self {
         Self {
             bounds,
@@ -29,7 +36,10 @@ impl<T: Scalar> RectPackNode<T> {
 }
 
 /// See module docs.
-pub struct RectPacker<T: Scalar> {
+pub struct RectPacker<T>
+where
+    T: NumAssign + Scalar + PartialOrd + Copy,
+{
     nodes: Pool<RectPackNode<T>>,
     root: Handle<RectPackNode<T>>,
     width: T,
@@ -39,14 +49,7 @@ pub struct RectPacker<T: Scalar> {
 
 impl<T> RectPacker<T>
 where
-    T: Add<Output = T>
-        + Sub<Output = T>
-        + Scalar
-        + Mul<Output = T>
-        + PartialOrd
-        + Default
-        + Copy
-        + AddAssign,
+    T: NumAssign + Scalar + PartialOrd + Copy,
 {
     /// Creates new instance of rectangle packer with given bounds.
     ///
@@ -59,8 +62,8 @@ where
     pub fn new(w: T, h: T) -> Self {
         let mut nodes = Pool::new();
         let root = nodes.spawn(RectPackNode::new(Rect::new(
-            Default::default(),
-            Default::default(),
+            Zero::zero(),
+            Zero::zero(),
             w,
             h,
         )));
@@ -79,8 +82,8 @@ where
         self.nodes.clear();
         self.unvisited.clear();
         self.root = self.nodes.spawn(RectPackNode::new(Rect::new(
-            Default::default(),
-            Default::default(),
+            Zero::zero(),
+            Zero::zero(),
             self.width,
             self.height,
         )));

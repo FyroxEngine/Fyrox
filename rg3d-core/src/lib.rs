@@ -9,6 +9,7 @@ extern crate lazy_static;
 pub use arrayvec;
 pub use byteorder;
 pub use nalgebra as algebra;
+pub use num_traits;
 pub use rand;
 pub use uuid;
 
