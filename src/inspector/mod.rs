@@ -12,6 +12,7 @@ use crate::{
     scene::{EditorScene, Selection},
     GameEngine, Message,
 };
+use rg3d::scene::mesh::RenderPath;
 use rg3d::{
     core::pool::Handle,
     engine::resource_manager::ResourceManager,
@@ -123,6 +124,18 @@ fn make_exposure_enum_editor_definition() -> EnumPropertyEditorDefinition<Exposu
     }
 }
 
+fn make_render_path_enum_editor_definition() -> EnumPropertyEditorDefinition<RenderPath> {
+    EnumPropertyEditorDefinition {
+        variant_generator: |i| match i {
+            0 => RenderPath::Deferred,
+            1 => RenderPath::Forward,
+            _ => unreachable!(),
+        },
+        index_generator: |v| *v as usize,
+        names_generator: || vec!["Deferred".to_string(), "Forward".to_string()],
+    }
+}
+
 fn make_property_editors_container(
     sender: Sender<Message>,
 ) -> Arc<PropertyEditorDefinitionContainer> {
@@ -141,6 +154,7 @@ fn make_property_editors_container(
     container.insert(Arc::new(make_physics_binding_enum_editor_definition()));
     container.insert(Arc::new(make_mobility_enum_editor_definition()));
     container.insert(Arc::new(make_exposure_enum_editor_definition()));
+    container.insert(Arc::new(make_render_path_enum_editor_definition()));
 
     Arc::new(container)
 }
