@@ -1058,7 +1058,7 @@ impl PartialEq for UserMessageData {
 
 impl Clone for UserMessageData {
     fn clone(&self) -> Self {
-        Self(self.clone_boxed())
+        Self(self.0.clone_boxed())
     }
 }
 
