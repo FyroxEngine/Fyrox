@@ -37,6 +37,7 @@ pub mod messagebox;
 pub mod numeric;
 pub mod popup;
 pub mod progress_bar;
+pub mod rect;
 pub mod scroll_bar;
 pub mod scroll_panel;
 pub mod scroll_viewer;
