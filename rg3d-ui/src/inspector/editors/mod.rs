@@ -12,6 +12,7 @@ use crate::{
                 U8PropertyEditorDefinition,
             },
             quat::QuatPropertyEditorDefinition,
+            rect::RectPropertyEditorDefinition,
             string::StringPropertyEditorDefinition,
             vec::{
                 Vec2PropertyEditorDefinition, Vec3PropertyEditorDefinition,
@@ -31,6 +32,7 @@ pub mod enumeration;
 pub mod f32;
 pub mod int;
 pub mod quat;
+pub mod rect;
 pub mod string;
 pub mod vec;
 
@@ -119,6 +121,13 @@ impl PropertyEditorDefinitionContainer {
         container.insert(Arc::new(Vec4PropertyEditorDefinition));
         container.insert(Arc::new(BoolPropertyEditorDefinition));
         container.insert(Arc::new(QuatPropertyEditorDefinition));
+        container.insert(Arc::new(RectPropertyEditorDefinition::<f32>::new()));
+        container.insert(Arc::new(RectPropertyEditorDefinition::<i32>::new()));
+        container.insert(Arc::new(RectPropertyEditorDefinition::<u32>::new()));
+        container.insert(Arc::new(RectPropertyEditorDefinition::<i16>::new()));
+        container.insert(Arc::new(RectPropertyEditorDefinition::<u16>::new()));
+        container.insert(Arc::new(RectPropertyEditorDefinition::<i8>::new()));
+        container.insert(Arc::new(RectPropertyEditorDefinition::<u8>::new()));
         container
     }
 
