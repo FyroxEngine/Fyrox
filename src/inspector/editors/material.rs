@@ -1,13 +1,13 @@
 use crate::Message;
 use rg3d::{
-    asset::core::{inspect::PropertyInfo, pool::Handle},
+    asset::core::pool::Handle,
     gui::{
         button::ButtonBuilder,
         grid::{Column, GridBuilder, Row},
         inspector::{
             editors::{
                 Layout, PropertyEditorBuildContext, PropertyEditorDefinition,
-                PropertyEditorInstance,
+                PropertyEditorInstance, PropertyEditorMessageContext,
             },
             InspectorError,
         },
@@ -170,8 +170,7 @@ impl PropertyEditorDefinition for MaterialPropertyEditorDefinition {
 
     fn create_message(
         &self,
-        _instance: Handle<UiNode>,
-        _property_info: &PropertyInfo,
+        _ctx: PropertyEditorMessageContext,
     ) -> Result<UiMessage, InspectorError> {
         Err(InspectorError::OutOfSync) // TODO
     }

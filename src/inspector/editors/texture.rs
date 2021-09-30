@@ -1,13 +1,13 @@
 use crate::{asset::AssetItem, inspector::EditorEnvironment, make_relative_path};
 use rg3d::{
-    asset::core::{inspect::PropertyInfo, pool::Handle},
+    asset::core::pool::Handle,
     engine::resource_manager::ResourceManager,
     gui::{
         image::ImageBuilder,
         inspector::{
             editors::{
                 Layout, PropertyEditorBuildContext, PropertyEditorDefinition,
-                PropertyEditorInstance,
+                PropertyEditorInstance, PropertyEditorMessageContext,
             },
             InspectorError,
         },
@@ -191,13 +191,12 @@ impl PropertyEditorDefinition for TexturePropertyEditorDefinition {
 
     fn create_message(
         &self,
-        instance: Handle<UiNode>,
-        property_info: &PropertyInfo,
+        ctx: PropertyEditorMessageContext,
     ) -> Result<UiMessage, InspectorError> {
-        let value = property_info.cast_value::<Option<Texture>>()?;
+        let value = ctx.property_info.cast_value::<Option<Texture>>()?;
 
         Ok(UiMessage::user(
-            instance,
+            ctx.instance,
             MessageDirection::ToWidget,
             Box::new(TextureEditorMessage::Texture(value.clone())),
         ))

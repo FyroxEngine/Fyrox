@@ -65,6 +65,11 @@ pub struct Inspector {
     pub window: Handle<UiNode>,
     inspector: Handle<UiNode>,
     property_editors: Arc<PropertyEditorDefinitionContainer>,
+    // Hack. This flag tells whether the inspector should sync with model or not.
+    // There is only one situation when it has to be `false` - when inspector has
+    // got new context - in this case we don't need to sync with model, because
+    // inspector is already in correct state.
+    needs_sync: bool,
 }
 
 pub struct SenderHelper {
@@ -181,35 +186,41 @@ impl Inspector {
             window,
             inspector,
             property_editors,
+            needs_sync: true,
         }
     }
 
     pub fn sync_to_model(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
         let scene = &engine.scenes[editor_scene.scene];
-        let ui = &engine.user_interface;
+        let ui = &mut engine.user_interface;
 
-        if let Selection::Graph(selection) = &editor_scene.selection {
-            if selection.is_single_selection() {
-                let node_handle = selection.nodes()[0];
-                if scene.graph.is_valid_handle(node_handle) {
-                    let node = &scene.graph[node_handle];
+        if self.needs_sync {
+            if let Selection::Graph(selection) = &editor_scene.selection {
+                if selection.is_single_selection() {
+                    let node_handle = selection.nodes()[0];
+                    if scene.graph.is_valid_handle(node_handle) {
+                        let node = &scene.graph[node_handle];
 
-                    if let Err(sync_errors) = ui
-                        .node(self.inspector)
-                        .cast::<rg3d::gui::inspector::Inspector>()
-                        .unwrap()
-                        .context()
-                        .sync(node, ui, MSG_SYNC_FLAG)
-                    {
-                        for error in sync_errors {
-                            Log::writeln(
-                                MessageKind::Error,
-                                format!("Failed to sync property. Reason: {:?}", error),
-                            )
+                        let ctx = ui
+                            .node(self.inspector)
+                            .cast::<rg3d::gui::inspector::Inspector>()
+                            .unwrap()
+                            .context()
+                            .clone();
+
+                        if let Err(sync_errors) = ctx.sync(node, ui, MSG_SYNC_FLAG) {
+                            for error in sync_errors {
+                                Log::writeln(
+                                    MessageKind::Error,
+                                    format!("Failed to sync property. Reason: {:?}", error),
+                                )
+                            }
                         }
                     }
                 }
             }
+        } else {
+            self.needs_sync = true;
         }
     }
 
@@ -238,6 +249,8 @@ impl Inspector {
                             self.property_editors.clone(),
                             Some(environment),
                         );
+
+                        self.needs_sync = false;
 
                         engine
                             .user_interface
