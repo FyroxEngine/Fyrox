@@ -207,7 +207,6 @@ where
 
                         let inspector = InspectorBuilder::new(WidgetBuilder::new())
                             .with_context(inspector_context)
-                            .with_property_editor_definitions(definition_container.clone())
                             .build(ctx);
 
                         let remove = ButtonBuilder::new(

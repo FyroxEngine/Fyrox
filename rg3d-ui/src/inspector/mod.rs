@@ -19,6 +19,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
+use std::fmt::Formatter;
 use std::{
     any::{Any, TypeId},
     collections::{hash_map::Entry, HashMap},
@@ -38,10 +39,15 @@ pub struct Inspector {
     widget: Widget,
     stack_panel: Handle<UiNode>,
     context: InspectorContext,
-    property_definitions: Arc<PropertyEditorDefinitionContainer>,
 }
 
 crate::define_widget_deref!(Inspector);
+
+impl Inspector {
+    pub fn context(&self) -> &InspectorContext {
+        &self.context
+    }
+}
 
 #[derive(Debug)]
 pub enum InspectorError {
@@ -80,16 +86,30 @@ pub struct Group {
     entries: Vec<ContextEntry>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone)]
 pub struct InspectorContext {
     groups: Vec<Group>,
+    property_definitions: Arc<PropertyEditorDefinitionContainer>,
+}
+
+impl PartialEq for InspectorContext {
+    fn eq(&self, other: &Self) -> bool {
+        self.groups == other.groups
+    }
 }
 
 impl Default for InspectorContext {
     fn default() -> Self {
         Self {
             groups: Default::default(),
+            property_definitions: Arc::new(PropertyEditorDefinitionContainer::new()),
         }
+    }
+}
+
+impl Debug for InspectorContext {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "InspectorContext")
     }
 }
 
@@ -248,28 +268,41 @@ impl InspectorContext {
             })
             .collect::<Vec<_>>();
 
-        Self { groups }
+        Self {
+            groups,
+            property_definitions: definition_container,
+        }
     }
 
     pub fn sync(
         &self,
         object: &dyn Inspect,
-        constructors: &PropertyEditorDefinitionContainer,
-        ui: &mut UserInterface,
+        ui: &UserInterface,
         sync_flag: u64,
-    ) -> Result<(), InspectorError> {
+    ) -> Result<(), Vec<InspectorError>> {
+        let mut sync_errors = Vec::new();
+
         for info in object.properties() {
-            if let Some(constructor) = constructors.definitions().get(&info.value.type_id()) {
-                let mut message =
-                    constructor.create_message(self.find_property_editor(info.name), &info)?;
-
-                message.flags = sync_flag;
-
-                ui.send_message(message);
+            if let Some(constructor) = self
+                .property_definitions
+                .definitions()
+                .get(&info.value.type_id())
+            {
+                match constructor.create_message(self.find_property_editor(info.name), &info) {
+                    Ok(mut message) => {
+                        message.flags = sync_flag;
+                        ui.send_message(message);
+                    }
+                    Err(e) => sync_errors.push(e),
+                }
             }
         }
 
-        Ok(())
+        if sync_errors.is_empty() {
+            Ok(())
+        } else {
+            Err(sync_errors)
+        }
     }
 
     pub fn property_editors(&self) -> impl Iterator<Item = &ContextEntry> + '_ {
@@ -353,7 +386,6 @@ impl Control for Inspector {
 pub struct InspectorBuilder {
     widget_builder: WidgetBuilder,
     context: InspectorContext,
-    property_definitions: Option<Arc<PropertyEditorDefinitionContainer>>,
 }
 
 impl InspectorBuilder {
@@ -361,20 +393,11 @@ impl InspectorBuilder {
         Self {
             widget_builder,
             context: Default::default(),
-            property_definitions: None,
         }
     }
 
     pub fn with_context(mut self, context: InspectorContext) -> Self {
         self.context = context;
-        self
-    }
-
-    pub fn with_property_editor_definitions(
-        mut self,
-        definitions: Arc<PropertyEditorDefinitionContainer>,
-    ) -> Self {
-        self.property_definitions = Some(definitions);
         self
     }
 
@@ -393,9 +416,6 @@ impl InspectorBuilder {
             widget: self.widget_builder.with_child(stack_panel).build(),
             stack_panel,
             context: self.context,
-            property_definitions: self
-                .property_definitions
-                .unwrap_or_else(|| Arc::new(PropertyEditorDefinitionContainer::new())),
         };
         ctx.add_node(UiNode::new(canvas))
     }
