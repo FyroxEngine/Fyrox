@@ -103,7 +103,7 @@ impl Control for CollectionEditor {
                         CollectionEditorMessage::Items(items) => {
                             let views = create_item_views(items, &mut ui.build_ctx());
 
-                            for old_item in self.children() {
+                            for old_item in ui.node(self.panel).children() {
                                 ui.send_message(WidgetMessage::remove(
                                     *old_item,
                                     MessageDirection::ToWidget,
