@@ -1,8 +1,9 @@
 use crate::{
     command::Command,
     inspector::{
-        editors::material::MaterialPropertyEditorDefinition,
-        editors::texture::TexturePropertyEditorDefinition,
+        editors::{
+            material::MaterialPropertyEditorDefinition, texture::TexturePropertyEditorDefinition,
+        },
         handlers::{
             base::handle_base_property_changed, camera::handle_camera_property_changed,
             exposure::handle_exposure_property_changed,
@@ -10,9 +11,8 @@ use crate::{
         },
     },
     scene::{EditorScene, Selection},
-    GameEngine, Message,
+    GameEngine, Message, MSG_SYNC_FLAG,
 };
-use rg3d::scene::mesh::RenderPath;
 use rg3d::{
     core::pool::Handle,
     engine::resource_manager::ResourceManager,
@@ -35,12 +35,13 @@ use rg3d::{
         camera::{Camera, Exposure},
         decal::Decal,
         light::{point::PointLight, spot::SpotLight, BaseLight},
-        mesh::surface::Surface,
+        mesh::{surface::Surface, RenderPath},
         particle_system::ParticleSystem,
         sprite::Sprite,
         terrain::Layer,
         transform::Transform,
     },
+    utils::log::{Log, MessageKind},
 };
 use std::{
     any::{Any, TypeId},
@@ -169,9 +170,7 @@ impl Inspector {
             .with_content(
                 ScrollViewerBuilder::new(WidgetBuilder::new())
                     .with_content({
-                        inspector = InspectorBuilder::new(WidgetBuilder::new())
-                            .with_property_editor_definitions(property_editors.clone())
-                            .build(ctx);
+                        inspector = InspectorBuilder::new(WidgetBuilder::new()).build(ctx);
                         inspector
                     })
                     .build(ctx),
@@ -187,6 +186,7 @@ impl Inspector {
 
     pub fn sync_to_model(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
         let scene = &engine.scenes[editor_scene.scene];
+        let ui = &engine.user_interface;
 
         if let Selection::Graph(selection) = &editor_scene.selection {
             if selection.is_single_selection() {
@@ -194,24 +194,59 @@ impl Inspector {
                 if scene.graph.is_valid_handle(node_handle) {
                     let node = &scene.graph[node_handle];
 
-                    let environment = Arc::new(EditorEnvironment {
-                        resource_manager: engine.resource_manager.clone(),
-                    });
+                    if let Err(sync_errors) = ui
+                        .node(self.inspector)
+                        .cast::<rg3d::gui::inspector::Inspector>()
+                        .unwrap()
+                        .context()
+                        .sync(node, ui, MSG_SYNC_FLAG)
+                    {
+                        for error in sync_errors {
+                            Log::writeln(
+                                MessageKind::Error,
+                                format!("Failed to sync property. Reason: {:?}", error),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
 
-                    let context = InspectorContext::from_object(
-                        node,
-                        &mut engine.user_interface.build_ctx(),
-                        self.property_editors.clone(),
-                        Some(environment),
-                    );
+    pub fn handle_message(
+        &mut self,
+        message: &Message,
+        editor_scene: &EditorScene,
+        engine: &mut GameEngine,
+    ) {
+        if let Message::SelectionChanged = message {
+            let scene = &engine.scenes[editor_scene.scene];
 
-                    engine
-                        .user_interface
-                        .send_message(InspectorMessage::context(
-                            self.inspector,
-                            MessageDirection::ToWidget,
-                            context,
-                        ));
+            if let Selection::Graph(selection) = &editor_scene.selection {
+                if selection.is_single_selection() {
+                    let node_handle = selection.nodes()[0];
+                    if scene.graph.is_valid_handle(node_handle) {
+                        let node = &scene.graph[node_handle];
+
+                        let environment = Arc::new(EditorEnvironment {
+                            resource_manager: engine.resource_manager.clone(),
+                        });
+
+                        let context = InspectorContext::from_object(
+                            node,
+                            &mut engine.user_interface.build_ctx(),
+                            self.property_editors.clone(),
+                            Some(environment),
+                        );
+
+                        engine
+                            .user_interface
+                            .send_message(InspectorMessage::context(
+                                self.inspector,
+                                MessageDirection::ToWidget,
+                                context,
+                            ));
+                    }
                 }
             }
         }
@@ -267,8 +302,6 @@ impl Inspector {
                         }
                     }
                 }
-
-                println!("Property changed: {:?}", args);
             }
         }
     }

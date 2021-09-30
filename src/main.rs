@@ -35,8 +35,8 @@ pub mod world_outliner;
 
 use crate::asset::AssetItem;
 use crate::command::Command;
-use crate::scene::commands::SceneCommand;
 use crate::inspector::Inspector;
+use crate::scene::commands::SceneCommand;
 use crate::{
     asset::{AssetBrowser, AssetKind},
     camera::CameraController,
@@ -1676,6 +1676,11 @@ impl Editor {
             self.log.handle_message(&message, engine);
             self.path_fixer
                 .handle_message(&message, &mut engine.user_interface);
+
+            if let Some(editor_scene) = self.scene.as_ref() {
+                self.inspector
+                    .handle_message(&message, editor_scene, engine);
+            }
 
             match message {
                 Message::DoSceneCommand(command) => {
