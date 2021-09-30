@@ -22,7 +22,7 @@ use crate::{
         InspectorEnvironment, InspectorError,
     },
     message::{PropertyChanged, UiMessage},
-    BuildContext, UiNode,
+    BuildContext, UiNode, UserInterface,
 };
 use std::{any::TypeId, collections::HashMap, fmt::Debug, sync::Arc};
 
@@ -40,6 +40,14 @@ pub struct PropertyEditorBuildContext<'a, 'b, 'c> {
     pub build_context: &'a mut BuildContext<'c>,
     pub property_info: &'b PropertyInfo<'b>,
     pub environment: Option<Arc<dyn InspectorEnvironment>>,
+    pub definition_container: Arc<PropertyEditorDefinitionContainer>,
+}
+
+pub struct PropertyEditorMessageContext<'a, 'b> {
+    pub sync_flag: u64,
+    pub instance: Handle<UiNode>,
+    pub ui: &'b mut UserInterface,
+    pub property_info: &'a PropertyInfo<'a>,
     pub definition_container: Arc<PropertyEditorDefinitionContainer>,
 }
 
@@ -74,8 +82,7 @@ pub trait PropertyEditorDefinition: Debug + Send + Sync {
 
     fn create_message(
         &self,
-        instance: Handle<UiNode>,
-        property_info: &PropertyInfo,
+        ctx: PropertyEditorMessageContext,
     ) -> Result<UiMessage, InspectorError>;
 
     fn translate_message(

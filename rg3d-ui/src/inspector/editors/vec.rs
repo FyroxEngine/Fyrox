@@ -1,12 +1,9 @@
 use crate::{
-    core::{
-        algebra::{Vector2, Vector3, Vector4},
-        inspect::PropertyInfo,
-        pool::Handle,
-    },
+    core::algebra::{Vector2, Vector3, Vector4},
     inspector::{
         editors::{
             Layout, PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
+            PropertyEditorMessageContext,
         },
         InspectorError,
     },
@@ -16,7 +13,7 @@ use crate::{
     },
     vec::{vec2::Vec2EditorBuilder, vec3::Vec3EditorBuilder, vec4::Vec4EditorBuilder},
     widget::WidgetBuilder,
-    Thickness, UiNode,
+    Thickness,
 };
 use std::any::TypeId;
 
@@ -47,12 +44,11 @@ macro_rules! define_vector_editor {
 
             fn create_message(
                 &self,
-                instance: Handle<UiNode>,
-                property_info: &PropertyInfo,
+                ctx: PropertyEditorMessageContext,
             ) -> Result<UiMessage, InspectorError> {
-                let value = property_info.cast_value::<$value>()?;
+                let value = ctx.property_info.cast_value::<$value>()?;
                 Ok($message::value(
-                    instance,
+                    ctx.instance,
                     MessageDirection::ToWidget,
                     *value,
                 ))

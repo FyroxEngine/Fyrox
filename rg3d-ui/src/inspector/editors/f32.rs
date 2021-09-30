@@ -1,8 +1,9 @@
-use crate::inspector::editors::PropertyEditorInstance;
 use crate::{
-    core::{inspect::PropertyInfo, pool::Handle},
     inspector::{
-        editors::{Layout, PropertyEditorBuildContext, PropertyEditorDefinition},
+        editors::{
+            Layout, PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
+            PropertyEditorMessageContext,
+        },
         InspectorError,
     },
     message::{
@@ -11,7 +12,7 @@ use crate::{
     },
     numeric::NumericUpDownBuilder,
     widget::WidgetBuilder,
-    Thickness, UiNode,
+    Thickness,
 };
 use std::any::TypeId;
 
@@ -40,12 +41,11 @@ impl PropertyEditorDefinition for F32PropertyEditorDefinition {
 
     fn create_message(
         &self,
-        instance: Handle<UiNode>,
-        property_info: &PropertyInfo,
+        ctx: PropertyEditorMessageContext,
     ) -> Result<UiMessage, InspectorError> {
-        let value = property_info.cast_value::<f32>()?;
+        let value = ctx.property_info.cast_value::<f32>()?;
         Ok(NumericUpDownMessage::value(
-            instance,
+            ctx.instance,
             MessageDirection::ToWidget,
             *value,
         ))

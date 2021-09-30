@@ -1,21 +1,19 @@
 use crate::{
     core::{
         algebra::Scalar,
-        inspect::PropertyInfo,
         math::Rect,
         num_traits::{cast::*, NumAssign},
-        pool::Handle,
     },
     inspector::{
         editors::{
             Layout, PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
+            PropertyEditorMessageContext,
         },
         InspectorError,
     },
     message::{FieldKind, MessageDirection, PropertyChanged, UiMessage, UiMessageData},
     rect::{RectEditorBuilder, RectEditorMessage},
     widget::WidgetBuilder,
-    UiNode,
 };
 use std::{any::TypeId, fmt::Debug, marker::PhantomData};
 
@@ -62,12 +60,11 @@ where
 
     fn create_message(
         &self,
-        instance: Handle<UiNode>,
-        property_info: &PropertyInfo,
+        ctx: PropertyEditorMessageContext,
     ) -> Result<UiMessage, InspectorError> {
-        let value = property_info.cast_value::<Rect<T>>()?;
+        let value = ctx.property_info.cast_value::<Rect<T>>()?;
         Ok(UiMessage::user(
-            instance,
+            ctx.instance,
             MessageDirection::ToWidget,
             Box::new(RectEditorMessage::Value(value.clone())),
         ))

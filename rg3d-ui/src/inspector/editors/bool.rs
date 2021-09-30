@@ -1,16 +1,17 @@
-use crate::inspector::editors::PropertyEditorInstance;
 use crate::{
     check_box::CheckBoxBuilder,
-    core::{inspect::PropertyInfo, pool::Handle},
     inspector::{
-        editors::{Layout, PropertyEditorBuildContext, PropertyEditorDefinition},
+        editors::{
+            Layout, PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
+            PropertyEditorMessageContext,
+        },
         InspectorError,
     },
     message::{
         CheckBoxMessage, FieldKind, MessageDirection, PropertyChanged, UiMessage, UiMessageData,
     },
     widget::WidgetBuilder,
-    Thickness, UiNode,
+    Thickness,
 };
 use std::any::TypeId;
 
@@ -37,12 +38,11 @@ impl PropertyEditorDefinition for BoolPropertyEditorDefinition {
 
     fn create_message(
         &self,
-        instance: Handle<UiNode>,
-        property_info: &PropertyInfo,
+        ctx: PropertyEditorMessageContext,
     ) -> Result<UiMessage, InspectorError> {
-        let value = property_info.cast_value::<bool>()?;
+        let value = ctx.property_info.cast_value::<bool>()?;
         Ok(CheckBoxMessage::checked(
-            instance,
+            ctx.instance,
             MessageDirection::ToWidget,
             Some(*value),
         ))

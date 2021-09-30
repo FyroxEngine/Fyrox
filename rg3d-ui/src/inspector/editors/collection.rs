@@ -2,23 +2,20 @@ use crate::{
     border::BorderBuilder,
     brush::Brush,
     button::ButtonBuilder,
-    core::{
-        color::Color,
-        inspect::{Inspect, PropertyInfo},
-        pool::Handle,
-    },
+    core::{color::Color, inspect::Inspect, pool::Handle},
     expander::ExpanderBuilder,
     grid::{Column, GridBuilder, Row},
     inspector::{
         editors::{
             Layout, PropertyEditorBuildContext, PropertyEditorDefinition,
             PropertyEditorDefinitionContainer, PropertyEditorInstance,
+            PropertyEditorMessageContext,
         },
-        InspectorBuilder, InspectorContext, InspectorEnvironment, InspectorError,
+        Inspector, InspectorBuilder, InspectorContext, InspectorEnvironment, InspectorError,
     },
     message::{
         ButtonMessage, CollectionChanged, FieldKind, InspectorMessage, MessageDirection,
-        PropertyChanged, UiMessage, UiMessageData,
+        PropertyChanged, UiMessage, UiMessageData, WidgetMessage,
     },
     stack_panel::StackPanelBuilder,
     text::TextBuilder,
@@ -33,8 +30,8 @@ use std::{
     sync::Arc,
 };
 
-#[derive(Clone, Debug)]
-struct Item {
+#[derive(Clone, Debug, PartialEq)]
+pub struct Item {
     inspector: Handle<UiNode>,
     remove: Handle<UiNode>,
 }
@@ -44,9 +41,15 @@ pub struct CollectionEditor {
     widget: Widget,
     add: Handle<UiNode>,
     items: Vec<Item>,
+    panel: Handle<UiNode>,
 }
 
 crate::define_widget_deref!(CollectionEditor);
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum CollectionEditorMessage {
+    Items(Vec<Item>),
+}
 
 impl Control for CollectionEditor {
     fn as_any(&self) -> &dyn Any {
@@ -92,6 +95,32 @@ impl Control for CollectionEditor {
                         MessageDirection::FromWidget,
                         Box::new(CollectionChanged::Remove(index)),
                     ));
+                }
+            }
+            UiMessageData::User(msg) => {
+                if let Some(msg) = msg.cast::<CollectionEditorMessage>() {
+                    match msg {
+                        CollectionEditorMessage::Items(items) => {
+                            let views = create_item_views(items, &mut ui.build_ctx());
+
+                            for old_item in self.children() {
+                                ui.send_message(WidgetMessage::remove(
+                                    *old_item,
+                                    MessageDirection::ToWidget,
+                                ));
+                            }
+
+                            for view in views {
+                                ui.send_message(WidgetMessage::link(
+                                    view,
+                                    MessageDirection::ToWidget,
+                                    self.panel,
+                                ));
+                            }
+
+                            self.items = items.clone();
+                        }
+                    }
                 }
             }
             _ => {}
@@ -148,6 +177,45 @@ fn create_item_views(items: &[Item], ctx: &mut BuildContext) -> Vec<Handle<UiNod
         .collect::<Vec<_>>()
 }
 
+fn create_items<'a, T, I>(
+    iter: I,
+    environment: Option<Arc<dyn InspectorEnvironment>>,
+    definition_container: Arc<PropertyEditorDefinitionContainer>,
+    ctx: &mut BuildContext,
+) -> Vec<Item>
+where
+    T: Inspect + 'static,
+    I: IntoIterator<Item = &'a T>,
+{
+    iter.into_iter()
+        .map(|entry| {
+            let inspector_context = InspectorContext::from_object(
+                entry,
+                ctx,
+                definition_container.clone(),
+                environment.clone(),
+            );
+
+            let inspector = InspectorBuilder::new(WidgetBuilder::new())
+                .with_context(inspector_context)
+                .build(ctx);
+
+            let remove = ButtonBuilder::new(
+                WidgetBuilder::new()
+                    .with_margin(Thickness::uniform(1.0))
+                    .with_vertical_alignment(VerticalAlignment::Center)
+                    .on_column(1)
+                    .with_width(16.0)
+                    .with_height(16.0),
+            )
+            .with_text("-")
+            .build(ctx);
+
+            Item { inspector, remove }
+        })
+        .collect::<Vec<_>>()
+}
+
 impl<'a, T, I> CollectionEditorBuilder<'a, T, I>
 where
     T: Inspect + 'static,
@@ -194,50 +262,24 @@ where
         let environment = self.environment;
         let items = self
             .collection
-            .map(|collection| {
-                collection
-                    .into_iter()
-                    .map(|entry| {
-                        let inspector_context = InspectorContext::from_object(
-                            entry,
-                            ctx,
-                            definition_container.clone(),
-                            environment.clone(),
-                        );
-
-                        let inspector = InspectorBuilder::new(WidgetBuilder::new())
-                            .with_context(inspector_context)
-                            .build(ctx);
-
-                        let remove = ButtonBuilder::new(
-                            WidgetBuilder::new()
-                                .with_margin(Thickness::uniform(1.0))
-                                .with_vertical_alignment(VerticalAlignment::Center)
-                                .on_column(1)
-                                .with_width(16.0)
-                                .with_height(16.0),
-                        )
-                        .with_text("-")
-                        .build(ctx);
-
-                        Item { inspector, remove }
-                    })
-                    .collect::<Vec<_>>()
-            })
+            .map(|collection| create_items(collection, environment, definition_container, ctx))
             .unwrap_or_default();
 
+        let panel;
         let ce = CollectionEditor {
             widget: self
                 .widget_builder
-                .with_child(
-                    StackPanelBuilder::new(
+                .with_child({
+                    panel = StackPanelBuilder::new(
                         WidgetBuilder::new().with_children(create_item_views(&items, ctx)),
                     )
-                    .build(ctx),
-                )
+                    .build(ctx);
+                    panel
+                })
                 .build(),
             add: self.add,
             items,
+            panel,
         };
 
         ctx.add_node(UiNode::new(ce))
@@ -315,10 +357,56 @@ where
 
     fn create_message(
         &self,
-        _instance: Handle<UiNode>,
-        _property_info: &PropertyInfo,
+        ctx: PropertyEditorMessageContext,
     ) -> Result<UiMessage, InspectorError> {
-        Err(InspectorError::OutOfSync)
+        let PropertyEditorMessageContext {
+            sync_flag,
+            instance,
+            ui,
+            property_info,
+            definition_container,
+        } = ctx;
+
+        let instance_ref = if let Some(instance) = ui.node(instance).cast::<CollectionEditor>() {
+            instance
+        } else {
+            return Err(InspectorError::Custom(
+                "Property editor is not CollectionEditor!".to_string(),
+            ));
+        };
+
+        let value = property_info.cast_value::<Vec<T>>()?;
+
+        if value.len() != instance_ref.items.len() {
+            // Re-create items.
+            let items = create_items(
+                value.iter(),
+                None,
+                definition_container,
+                &mut ui.build_ctx(),
+            );
+
+            Ok(UiMessage::user(
+                instance,
+                MessageDirection::ToWidget,
+                Box::new(CollectionEditorMessage::Items(items)),
+            ))
+        } else {
+            // Just sync inspector of every item.
+            for (item, obj) in instance_ref.items.clone().iter().zip(value.iter()) {
+                let ctx = ui
+                    .node(item.inspector)
+                    .cast::<Inspector>()
+                    .expect("Must be Inspector!")
+                    .context()
+                    .clone();
+                if let Err(_) = ctx.sync(obj, ui, sync_flag) {
+                    // TODO
+                }
+            }
+
+            Err(InspectorError::OutOfSync) // TODO
+        }
     }
 
     fn translate_message(

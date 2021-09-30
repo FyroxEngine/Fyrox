@@ -1,14 +1,14 @@
-use crate::inspector::editors::PropertyEditorInstance;
 use crate::{
     core::{
         algebra::{UnitQuaternion, Vector3},
-        inspect::PropertyInfo,
         math::UnitQuaternionExt,
         math::{quat_from_euler, RotationOrder},
-        pool::Handle,
     },
     inspector::{
-        editors::{Layout, PropertyEditorBuildContext, PropertyEditorDefinition},
+        editors::{
+            Layout, PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
+            PropertyEditorMessageContext,
+        },
         InspectorError,
     },
     message::{
@@ -16,7 +16,7 @@ use crate::{
     },
     vec::vec3::Vec3EditorBuilder,
     widget::WidgetBuilder,
-    Thickness, UiNode,
+    Thickness,
 };
 use std::any::TypeId;
 
@@ -50,13 +50,12 @@ impl PropertyEditorDefinition for QuatPropertyEditorDefinition {
 
     fn create_message(
         &self,
-        instance: Handle<UiNode>,
-        property_info: &PropertyInfo,
+        ctx: PropertyEditorMessageContext,
     ) -> Result<UiMessage, InspectorError> {
-        let value = property_info.cast_value::<UnitQuaternion<f32>>()?;
+        let value = ctx.property_info.cast_value::<UnitQuaternion<f32>>()?;
         let euler = value.to_euler();
         Ok(Vec3EditorMessage::value(
-            instance,
+            ctx.instance,
             MessageDirection::ToWidget,
             euler,
         ))

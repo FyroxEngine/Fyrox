@@ -1,8 +1,8 @@
 use crate::{
-    core::{inspect::PropertyInfo, pool::Handle},
     inspector::{
         editors::{
             Layout, PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
+            PropertyEditorMessageContext,
         },
         InspectorError,
     },
@@ -12,7 +12,7 @@ use crate::{
     },
     numeric::NumericUpDownBuilder,
     widget::WidgetBuilder,
-    Thickness, UiNode,
+    Thickness,
 };
 use std::any::TypeId;
 
@@ -47,12 +47,11 @@ macro_rules! define_integer_property_editor {
 
             fn create_message(
                 &self,
-                instance: Handle<UiNode>,
-                property_info: &PropertyInfo,
+                ctx: PropertyEditorMessageContext,
             ) -> Result<UiMessage, InspectorError> {
-                let value = property_info.cast_value::<$value>()?;
+                let value = ctx.property_info.cast_value::<$value>()?;
                 Ok(NumericUpDownMessage::value(
-                    instance,
+                    ctx.instance,
                     MessageDirection::ToWidget,
                     *value as f32,
                 ))

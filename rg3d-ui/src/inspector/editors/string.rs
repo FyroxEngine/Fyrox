@@ -1,8 +1,9 @@
-use crate::inspector::editors::PropertyEditorInstance;
 use crate::{
-    core::{inspect::PropertyInfo, pool::Handle},
     inspector::{
-        editors::{Layout, PropertyEditorBuildContext, PropertyEditorDefinition},
+        editors::{
+            Layout, PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
+            PropertyEditorMessageContext,
+        },
         InspectorError,
     },
     message::{
@@ -10,7 +11,7 @@ use crate::{
     },
     text_box::TextBoxBuilder,
     widget::WidgetBuilder,
-    Thickness, UiNode, VerticalAlignment,
+    Thickness, VerticalAlignment,
 };
 use std::any::TypeId;
 
@@ -38,12 +39,11 @@ impl PropertyEditorDefinition for StringPropertyEditorDefinition {
 
     fn create_message(
         &self,
-        instance: Handle<UiNode>,
-        property_info: &PropertyInfo,
+        ctx: PropertyEditorMessageContext,
     ) -> Result<UiMessage, InspectorError> {
-        let value = property_info.cast_value::<String>()?;
+        let value = ctx.property_info.cast_value::<String>()?;
         Ok(TextBoxMessage::text(
-            instance,
+            ctx.instance,
             MessageDirection::ToWidget,
             value.clone(),
         ))

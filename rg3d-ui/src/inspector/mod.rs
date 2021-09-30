@@ -1,3 +1,4 @@
+use crate::inspector::editors::PropertyEditorMessageContext;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -53,6 +54,7 @@ impl Inspector {
 pub enum InspectorError {
     CastError(CastError),
     OutOfSync,
+    Custom(String),
 }
 
 impl From<CastError> for InspectorError {
@@ -277,7 +279,7 @@ impl InspectorContext {
     pub fn sync(
         &self,
         object: &dyn Inspect,
-        ui: &UserInterface,
+        ui: &mut UserInterface,
         sync_flag: u64,
     ) -> Result<(), Vec<InspectorError>> {
         let mut sync_errors = Vec::new();
@@ -288,7 +290,15 @@ impl InspectorContext {
                 .definitions()
                 .get(&info.value.type_id())
             {
-                match constructor.create_message(self.find_property_editor(info.name), &info) {
+                let ctx = PropertyEditorMessageContext {
+                    sync_flag,
+                    instance: self.find_property_editor(info.name),
+                    ui,
+                    property_info: &info,
+                    definition_container: self.property_definitions.clone(),
+                };
+
+                match constructor.create_message(ctx) {
                     Ok(mut message) => {
                         message.flags = sync_flag;
                         ui.send_message(message);

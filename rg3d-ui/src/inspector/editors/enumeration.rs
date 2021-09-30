@@ -1,11 +1,12 @@
-use crate::inspector::editors::PropertyEditorInstance;
 use crate::{
     border::BorderBuilder,
-    core::{inspect::PropertyInfo, pool::Handle},
     decorator::DecoratorBuilder,
     dropdown_list::DropdownListBuilder,
     inspector::{
-        editors::{Layout, PropertyEditorBuildContext, PropertyEditorDefinition},
+        editors::{
+            Layout, PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
+            PropertyEditorMessageContext,
+        },
         InspectorError,
     },
     message::{
@@ -13,7 +14,7 @@ use crate::{
     },
     text::TextBuilder,
     widget::WidgetBuilder,
-    HorizontalAlignment, Thickness, UiNode, VerticalAlignment,
+    HorizontalAlignment, Thickness, VerticalAlignment,
 };
 use std::{
     any::TypeId,
@@ -80,12 +81,11 @@ where
 
     fn create_message(
         &self,
-        instance: Handle<UiNode>,
-        property_info: &PropertyInfo,
+        ctx: PropertyEditorMessageContext,
     ) -> Result<UiMessage, InspectorError> {
-        let value = property_info.cast_value::<T>()?;
+        let value = ctx.property_info.cast_value::<T>()?;
         Ok(DropdownListMessage::selection(
-            instance,
+            ctx.instance,
             MessageDirection::ToWidget,
             Some((self.index_generator)(value)),
         ))
