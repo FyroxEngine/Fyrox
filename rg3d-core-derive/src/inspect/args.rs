@@ -58,6 +58,12 @@ pub struct FieldArgs {
     /// Include the field and the fields of the field.
     #[darling(default)]
     pub expand_subtree: bool,
+
+    /// `#[inspect(read_only)]`
+    ///
+    /// The field is not meant to be edited.    
+    #[darling(default)]
+    pub read_only: bool,
 }
 
 #[derive(FromVariant)]

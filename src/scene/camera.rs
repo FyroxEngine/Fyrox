@@ -30,7 +30,6 @@ use crate::{
         visibility::VisibilityCache,
     },
 };
-use std::any::TypeId;
 use std::{
     ops::{Deref, DerefMut},
     sync::Arc,
@@ -38,7 +37,7 @@ use std::{
 
 /// Exposure is a parameter that describes how many light should be collected for one
 /// frame. The higher the value, the more brighter the final frame will be and vice versa.
-#[derive(Visit, Copy, Clone, PartialEq, Debug)]
+#[derive(Visit, Copy, Clone, PartialEq, Debug, Inspect)]
 pub enum Exposure {
     /// Automatic exposure based on the frame luminance. High luminance values will result
     /// in lower exposure levels and vice versa. This is default option.
@@ -57,51 +56,6 @@ pub enum Exposure {
 
     /// Specific exposure level.
     Manual(f32),
-}
-
-impl Inspect for Exposure {
-    fn properties(&self) -> Vec<PropertyInfo<'_>> {
-        match self {
-            Exposure::Auto {
-                key_value,
-                min_luminance,
-                max_luminance,
-            } => {
-                vec![
-                    PropertyInfo {
-                        owner_type_id: TypeId::of::<Self>(),
-                        name: "key_value",
-                        display_name: "Key Value",
-                        group: "Exposure",
-                        value: key_value,
-                    },
-                    PropertyInfo {
-                        owner_type_id: TypeId::of::<Self>(),
-                        name: "min_luminance",
-                        display_name: "Min Luminance",
-                        group: "Exposure",
-                        value: min_luminance,
-                    },
-                    PropertyInfo {
-                        owner_type_id: TypeId::of::<Self>(),
-                        name: "max_luminance",
-                        display_name: "Max Luminance",
-                        group: "Exposure",
-                        value: max_luminance,
-                    },
-                ]
-            }
-            Exposure::Manual(value) => {
-                vec![PropertyInfo {
-                    owner_type_id: TypeId::of::<Self>(),
-                    name: "value",
-                    display_name: "Value",
-                    group: "Exposure",
-                    value,
-                }]
-            }
-        }
-    }
 }
 
 impl Default for Exposure {

@@ -86,6 +86,7 @@ impl Inspect for Transform {
                 display_name: "Local Scale",
                 group: "Transform",
                 value: &*self.local_scale,
+                read_only: false,
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Self>(),
@@ -93,6 +94,7 @@ impl Inspect for Transform {
                 display_name: "Local Position",
                 group: "Transform",
                 value: &*self.local_position,
+                read_only: false,
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Self>(),
@@ -100,6 +102,7 @@ impl Inspect for Transform {
                 display_name: "Local Rotation",
                 group: "Transform",
                 value: &*self.local_rotation,
+                read_only: false,
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Self>(),
@@ -107,6 +110,7 @@ impl Inspect for Transform {
                 display_name: "Pre Rotation",
                 group: "Transform",
                 value: &*self.pre_rotation,
+                read_only: false,
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Self>(),
@@ -114,6 +118,7 @@ impl Inspect for Transform {
                 display_name: "Post Rotation",
                 group: "Transform",
                 value: &*self.post_rotation,
+                read_only: false,
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Self>(),
@@ -121,6 +126,7 @@ impl Inspect for Transform {
                 display_name: "Rotation Offset",
                 group: "Transform",
                 value: &*self.rotation_offset,
+                read_only: false,
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Self>(),
@@ -128,6 +134,7 @@ impl Inspect for Transform {
                 display_name: "Rotation Pivot",
                 group: "Transform",
                 value: &*self.rotation_pivot,
+                read_only: false,
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Self>(),
@@ -135,6 +142,7 @@ impl Inspect for Transform {
                 display_name: "Scaling Offset",
                 group: "Transform",
                 value: &*self.scaling_offset,
+                read_only: false,
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Self>(),
@@ -142,6 +150,7 @@ impl Inspect for Transform {
                 display_name: "Scaling Pivot",
                 group: "Transform",
                 value: &*self.scaling_pivot,
+                read_only: false,
             },
         ]
     }

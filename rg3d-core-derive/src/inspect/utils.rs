@@ -115,7 +115,7 @@ pub fn gen_inspect_fn_body(
         #(props.push(#props);)*
     });
 
-    // visit expanible fields
+    // visit expansible fields
     for (i, field) in field_args
         .fields
         .iter()
@@ -185,6 +185,8 @@ fn quote_field_prop(
         .map(|s| s.as_str())
         .unwrap_or(owner_name);
 
+    let read_only = field.read_only;
+
     quote! {
         PropertyInfo {
             owner_type_id: std::any::TypeId::of::<Self>(),
@@ -192,6 +194,7 @@ fn quote_field_prop(
             display_name: #display_name,
             group: #group,
             value: #field_ref,
+            read_only: #read_only
         }
     }
 }

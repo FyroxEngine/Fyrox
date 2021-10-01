@@ -54,6 +54,9 @@ pub struct PropertyInfo<'a> {
 
     /// An reference to the actual value of the property.
     pub value: &'a dyn PropertyValue,
+
+    /// A property is not meant to be edited.
+    pub read_only: bool,
 }
 
 impl<'a> fmt::Debug for PropertyInfo<'a> {

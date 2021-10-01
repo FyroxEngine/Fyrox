@@ -21,6 +21,7 @@ fn inspect_default() {
             display_name: "The Field",
             group: "Data",
             value: &data.the_field,
+            read_only: false,
         },
         PropertyInfo {
             owner_type_id: TypeId::of::<Data>(),
@@ -28,6 +29,7 @@ fn inspect_default() {
             display_name: "Another Field",
             group: "Data",
             value: &data.another_field,
+            read_only: false,
         },
     ];
 
@@ -64,6 +66,7 @@ fn inspect_attributes() {
             display_name: "Super X",
             group: "Pos",
             value: &data.x,
+            read_only: false,
         },
         PropertyInfo {
             owner_type_id: TypeId::of::<Data>(),
@@ -71,6 +74,7 @@ fn inspect_attributes() {
             display_name: "Y",
             group: "Pos",
             value: &data.y,
+            read_only: false,
         },
     ];
 
@@ -107,13 +111,15 @@ fn inspect_struct() {
                 display_name: "0",
                 group: "Tuple",
                 value: &x.0,
+                read_only: false
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Tuple>(),
                 name: "1",
                 display_name: "1",
                 group: "Tuple",
-                value: &x.1
+                value: &x.1,
+                read_only: false
             },
         ]
     );
@@ -157,6 +163,7 @@ fn inspect_enum() {
                     Data::Named { ref x, .. } => x,
                     _ => unreachable!(),
                 },
+                read_only: false
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Data>(),
@@ -167,6 +174,7 @@ fn inspect_enum() {
                     Data::Named { ref y, .. } => y,
                     _ => unreachable!(),
                 },
+                read_only: false
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Data>(),
@@ -177,6 +185,7 @@ fn inspect_enum() {
                     Data::Named { ref z, .. } => z,
                     _ => unreachable!(),
                 },
+                read_only: false
             },
         ]
     );
@@ -195,6 +204,7 @@ fn inspect_enum() {
                     Data::Tuple(ref f0, ref _f1) => f0,
                     _ => unreachable!(),
                 },
+                read_only: false
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Data>(),
@@ -205,6 +215,7 @@ fn inspect_enum() {
                     Data::Tuple(ref _f0, ref f1) => f1,
                     _ => unreachable!(),
                 },
+                read_only: false
             },
         ]
     );
