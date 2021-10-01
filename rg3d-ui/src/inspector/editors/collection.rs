@@ -126,6 +126,18 @@ impl Control for CollectionEditor {
             _ => {}
         }
     }
+
+    fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
+        if let UiMessageData::Button(ButtonMessage::Click) = message.data() {
+            if message.destination() == self.add {
+                ui.send_message(UiMessage::user(
+                    self.handle,
+                    MessageDirection::FromWidget,
+                    Box::new(CollectionChanged::Add),
+                ))
+            }
+        }
+    }
 }
 
 pub struct CollectionEditorBuilder<'a, T, I>
@@ -269,6 +281,7 @@ where
         let ce = CollectionEditor {
             widget: self
                 .widget_builder
+                .with_preview_messages(true)
                 .with_child({
                     panel = StackPanelBuilder::new(
                         WidgetBuilder::new().with_children(create_item_views(&items, ctx)),
