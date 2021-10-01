@@ -192,14 +192,14 @@ impl PropertyEditorDefinition for TexturePropertyEditorDefinition {
     fn create_message(
         &self,
         ctx: PropertyEditorMessageContext,
-    ) -> Result<UiMessage, InspectorError> {
+    ) -> Result<Option<UiMessage>, InspectorError> {
         let value = ctx.property_info.cast_value::<Option<Texture>>()?;
 
-        Ok(UiMessage::user(
+        Ok(Some(UiMessage::user(
             ctx.instance,
             MessageDirection::ToWidget,
             Box::new(TextureEditorMessage::Texture(value.clone())),
-        ))
+        )))
     }
 
     fn translate_message(

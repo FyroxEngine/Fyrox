@@ -171,8 +171,8 @@ impl PropertyEditorDefinition for MaterialPropertyEditorDefinition {
     fn create_message(
         &self,
         _ctx: PropertyEditorMessageContext,
-    ) -> Result<UiMessage, InspectorError> {
-        Err(InspectorError::OutOfSync) // TODO
+    ) -> Result<Option<UiMessage>, InspectorError> {
+        Ok(None)
     }
 
     fn translate_message(
