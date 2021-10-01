@@ -83,7 +83,7 @@ pub trait PropertyEditorDefinition: Debug + Send + Sync {
     fn create_message(
         &self,
         ctx: PropertyEditorMessageContext,
-    ) -> Result<UiMessage, InspectorError>;
+    ) -> Result<Option<UiMessage>, InspectorError>;
 
     fn translate_message(
         &self,

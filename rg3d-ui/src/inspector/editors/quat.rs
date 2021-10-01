@@ -51,14 +51,14 @@ impl PropertyEditorDefinition for QuatPropertyEditorDefinition {
     fn create_message(
         &self,
         ctx: PropertyEditorMessageContext,
-    ) -> Result<UiMessage, InspectorError> {
+    ) -> Result<Option<UiMessage>, InspectorError> {
         let value = ctx.property_info.cast_value::<UnitQuaternion<f32>>()?;
         let euler = value.to_euler();
-        Ok(Vec3EditorMessage::value(
+        Ok(Some(Vec3EditorMessage::value(
             ctx.instance,
             MessageDirection::ToWidget,
             euler,
-        ))
+        )))
     }
 
     fn translate_message(

@@ -42,13 +42,13 @@ impl PropertyEditorDefinition for F32PropertyEditorDefinition {
     fn create_message(
         &self,
         ctx: PropertyEditorMessageContext,
-    ) -> Result<UiMessage, InspectorError> {
+    ) -> Result<Option<UiMessage>, InspectorError> {
         let value = ctx.property_info.cast_value::<f32>()?;
-        Ok(NumericUpDownMessage::value(
+        Ok(Some(NumericUpDownMessage::value(
             ctx.instance,
             MessageDirection::ToWidget,
             *value,
-        ))
+        )))
     }
 
     fn translate_message(

@@ -45,13 +45,13 @@ macro_rules! define_vector_editor {
             fn create_message(
                 &self,
                 ctx: PropertyEditorMessageContext,
-            ) -> Result<UiMessage, InspectorError> {
+            ) -> Result<Option<UiMessage>, InspectorError> {
                 let value = ctx.property_info.cast_value::<$value>()?;
-                Ok($message::value(
+                Ok(Some($message::value(
                     ctx.instance,
                     MessageDirection::ToWidget,
                     *value,
-                ))
+                )))
             }
 
             fn translate_message(

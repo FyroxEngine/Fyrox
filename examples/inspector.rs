@@ -53,7 +53,6 @@ fn create_ui(engine: &mut Engine) -> Interface {
             inspector = InspectorBuilder::new(
                 WidgetBuilder::new().with_desired_position(Vector2::new(200.0, 200.0)),
             )
-            .with_property_editor_definitions(definition_container.clone())
             .build(ctx);
             inspector
         })

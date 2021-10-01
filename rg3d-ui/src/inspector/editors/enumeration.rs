@@ -82,13 +82,13 @@ where
     fn create_message(
         &self,
         ctx: PropertyEditorMessageContext,
-    ) -> Result<UiMessage, InspectorError> {
+    ) -> Result<Option<UiMessage>, InspectorError> {
         let value = ctx.property_info.cast_value::<T>()?;
-        Ok(DropdownListMessage::selection(
+        Ok(Some(DropdownListMessage::selection(
             ctx.instance,
             MessageDirection::ToWidget,
             Some((self.index_generator)(value)),
-        ))
+        )))
     }
 
     fn translate_message(

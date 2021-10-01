@@ -299,9 +299,11 @@ impl InspectorContext {
                 };
 
                 match constructor.create_message(ctx) {
-                    Ok(mut message) => {
-                        message.flags = sync_flag;
-                        ui.send_message(message);
+                    Ok(message) => {
+                        if let Some(mut message) = message {
+                            message.flags = sync_flag;
+                            ui.send_message(message);
+                        }
                     }
                     Err(e) => sync_errors.push(e),
                 }

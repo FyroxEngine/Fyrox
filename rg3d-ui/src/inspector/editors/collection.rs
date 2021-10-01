@@ -358,7 +358,7 @@ where
     fn create_message(
         &self,
         ctx: PropertyEditorMessageContext,
-    ) -> Result<UiMessage, InspectorError> {
+    ) -> Result<Option<UiMessage>, InspectorError> {
         let PropertyEditorMessageContext {
             sync_flag,
             instance,
@@ -386,11 +386,11 @@ where
                 &mut ui.build_ctx(),
             );
 
-            Ok(UiMessage::user(
+            Ok(Some(UiMessage::user(
                 instance,
                 MessageDirection::ToWidget,
                 Box::new(CollectionEditorMessage::Items(items)),
-            ))
+            )))
         } else {
             // Just sync inspector of every item.
             for (item, obj) in instance_ref.items.clone().iter().zip(value.iter()) {
@@ -405,7 +405,7 @@ where
                 }
             }
 
-            Err(InspectorError::OutOfSync) // TODO
+            Ok(None)
         }
     }
 

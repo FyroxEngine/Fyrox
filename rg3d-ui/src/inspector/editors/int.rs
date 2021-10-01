@@ -48,13 +48,13 @@ macro_rules! define_integer_property_editor {
             fn create_message(
                 &self,
                 ctx: PropertyEditorMessageContext,
-            ) -> Result<UiMessage, InspectorError> {
+            ) -> Result<Option<UiMessage>, InspectorError> {
                 let value = ctx.property_info.cast_value::<$value>()?;
-                Ok(NumericUpDownMessage::value(
+                Ok(Some(NumericUpDownMessage::value(
                     ctx.instance,
                     MessageDirection::ToWidget,
                     *value as f32,
-                ))
+                )))
             }
 
             fn translate_message(

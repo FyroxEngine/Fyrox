@@ -61,13 +61,13 @@ where
     fn create_message(
         &self,
         ctx: PropertyEditorMessageContext,
-    ) -> Result<UiMessage, InspectorError> {
+    ) -> Result<Option<UiMessage>, InspectorError> {
         let value = ctx.property_info.cast_value::<Rect<T>>()?;
-        Ok(UiMessage::user(
+        Ok(Some(UiMessage::user(
             ctx.instance,
             MessageDirection::ToWidget,
             Box::new(RectEditorMessage::Value(value.clone())),
-        ))
+        )))
     }
 
     fn translate_message(

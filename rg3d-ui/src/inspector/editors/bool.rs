@@ -39,13 +39,13 @@ impl PropertyEditorDefinition for BoolPropertyEditorDefinition {
     fn create_message(
         &self,
         ctx: PropertyEditorMessageContext,
-    ) -> Result<UiMessage, InspectorError> {
+    ) -> Result<Option<UiMessage>, InspectorError> {
         let value = ctx.property_info.cast_value::<bool>()?;
-        Ok(CheckBoxMessage::checked(
+        Ok(Some(CheckBoxMessage::checked(
             ctx.instance,
             MessageDirection::ToWidget,
             Some(*value),
-        ))
+        )))
     }
 
     fn translate_message(

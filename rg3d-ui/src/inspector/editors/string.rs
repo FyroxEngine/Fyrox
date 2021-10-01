@@ -40,13 +40,13 @@ impl PropertyEditorDefinition for StringPropertyEditorDefinition {
     fn create_message(
         &self,
         ctx: PropertyEditorMessageContext,
-    ) -> Result<UiMessage, InspectorError> {
+    ) -> Result<Option<UiMessage>, InspectorError> {
         let value = ctx.property_info.cast_value::<String>()?;
-        Ok(TextBoxMessage::text(
+        Ok(Some(TextBoxMessage::text(
             ctx.instance,
             MessageDirection::ToWidget,
             value.clone(),
-        ))
+        )))
     }
 
     fn translate_message(
