@@ -1,3 +1,4 @@
+use crate::inspector::handlers::terrain::handle_terrain_property_changed;
 use crate::{
     command::Command,
     inspector::{
@@ -13,6 +14,7 @@ use crate::{
     scene::{EditorScene, Selection},
     GameEngine, Message, MSG_SYNC_FLAG,
 };
+use rg3d::scene::terrain::Terrain;
 use rg3d::{
     core::pool::Handle,
     engine::resource_manager::ResourceManager,
@@ -208,7 +210,7 @@ impl Inspector {
                             .context()
                             .clone();
 
-                        if let Err(sync_errors) = ctx.sync(node, ui, MSG_SYNC_FLAG) {
+                        if let Err(sync_errors) = ctx.sync(node, ui) {
                             for error in sync_errors {
                                 Log::writeln(
                                     MessageKind::Error,
@@ -248,6 +250,7 @@ impl Inspector {
                             &mut engine.user_interface.build_ctx(),
                             self.property_editors.clone(),
                             Some(environment),
+                            MSG_SYNC_FLAG,
                         );
 
                         self.needs_sync = false;
@@ -311,6 +314,13 @@ impl Inspector {
                                 // TODO
                             } else if args.owner_type_id == TypeId::of::<Decal>() {
                                 // TODO
+                            } else if args.owner_type_id == TypeId::of::<Terrain>() {
+                                handle_terrain_property_changed(
+                                    args,
+                                    node_handle,
+                                    &helper,
+                                    &scene.graph,
+                                );
                             }
                         }
                     }
