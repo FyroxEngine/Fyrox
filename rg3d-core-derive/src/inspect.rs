@@ -16,10 +16,7 @@ pub fn impl_inspect(ast: DeriveInput) -> TokenStream2 {
     }
 }
 
-fn impl_inspect_struct(
-    ty_args: &args::TypeArgs,
-    field_args: &ast::Fields<args::FieldArgs>,
-) -> TokenStream2 {
+fn impl_inspect_struct(ty_args: &args::TypeArgs, field_args: &args::Fields) -> TokenStream2 {
     let body = utils::gen_inspect_fn_body(ty_args, utils::FieldPrefix::Self_, field_args);
     utils::create_impl(ty_args, field_args.iter(), body)
 }

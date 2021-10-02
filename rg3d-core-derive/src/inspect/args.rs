@@ -5,6 +5,9 @@
 use darling::*;
 use syn::*;
 
+// pub type Data = ast::Data<VariantArgs, FieldArgs>;
+pub type Fields = ast::Fields<FieldArgs>;
+
 #[derive(FromDeriveInput)]
 #[darling(attributes(inspect), supports(struct_any, enum_any))]
 pub struct TypeArgs {
