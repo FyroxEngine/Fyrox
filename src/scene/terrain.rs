@@ -230,14 +230,20 @@ pub struct TerrainRayCastResult {
 pub struct Terrain {
     #[inspect(expand)]
     base: Base,
+    #[inspect(read_only)]
     width: f32,
+    #[inspect(read_only)]
     length: f32,
+    #[inspect(read_only)]
     mask_resolution: f32,
+    #[inspect(read_only)]
     height_map_resolution: f32,
     #[inspect(skip)]
     chunks: Vec<Chunk>,
     layers: Vec<Layer>,
+    #[inspect(read_only)]
     width_chunks: u32,
+    #[inspect(read_only)]
     length_chunks: u32,
     #[inspect(skip)]
     bounding_box_dirty: Cell<bool>,
