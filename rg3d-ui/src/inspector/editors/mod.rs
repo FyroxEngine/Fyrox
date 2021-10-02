@@ -41,6 +41,7 @@ pub struct PropertyEditorBuildContext<'a, 'b, 'c> {
     pub property_info: &'b PropertyInfo<'b>,
     pub environment: Option<Arc<dyn InspectorEnvironment>>,
     pub definition_container: Arc<PropertyEditorDefinitionContainer>,
+    pub sync_flag: u64,
 }
 
 pub struct PropertyEditorMessageContext<'a, 'b> {

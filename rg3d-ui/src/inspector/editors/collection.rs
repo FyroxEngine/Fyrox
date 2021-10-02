@@ -194,6 +194,7 @@ fn create_items<'a, T, I>(
     environment: Option<Arc<dyn InspectorEnvironment>>,
     definition_container: Arc<PropertyEditorDefinitionContainer>,
     ctx: &mut BuildContext,
+    sync_flag: u64,
 ) -> Vec<Item>
 where
     T: Inspect + 'static,
@@ -206,6 +207,7 @@ where
                 ctx,
                 definition_container.clone(),
                 environment.clone(),
+                sync_flag,
             );
 
             let inspector = InspectorBuilder::new(WidgetBuilder::new())
@@ -266,7 +268,7 @@ where
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext, sync_flag: u64) -> Handle<UiNode> {
         let definition_container = self
             .definition_container
             .unwrap_or_else(|| Arc::new(PropertyEditorDefinitionContainer::new()));
@@ -274,7 +276,15 @@ where
         let environment = self.environment;
         let items = self
             .collection
-            .map(|collection| create_items(collection, environment, definition_container, ctx))
+            .map(|collection| {
+                create_items(
+                    collection,
+                    environment,
+                    definition_container,
+                    ctx,
+                    sync_flag,
+                )
+            })
             .unwrap_or_default();
 
         let panel;
@@ -364,7 +374,7 @@ where
             .with_collection(value.iter())
             .with_environment(ctx.environment.clone())
             .with_definition_container(ctx.definition_container.clone())
-            .build(ctx.build_context),
+            .build(ctx.build_context, ctx.sync_flag),
         })
     }
 
@@ -397,6 +407,7 @@ where
                 None,
                 definition_container,
                 &mut ui.build_ctx(),
+                sync_flag,
             );
 
             Ok(Some(UiMessage::user(
@@ -413,7 +424,7 @@ where
                     .expect("Must be Inspector!")
                     .context()
                     .clone();
-                if let Err(_) = ctx.sync(obj, ui, sync_flag) {
+                if let Err(_) = ctx.sync(obj, ui) {
                     // TODO
                 }
             }

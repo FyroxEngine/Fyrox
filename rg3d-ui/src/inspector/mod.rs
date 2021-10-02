@@ -24,10 +24,7 @@ use std::{
     collections::{hash_map::Entry, HashMap},
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
-    sync::{
-        atomic::{self, AtomicU64},
-        Arc,
-    },
+    sync::Arc,
 };
 
 pub mod editors;
@@ -89,20 +86,11 @@ pub struct Group {
     entries: Vec<ContextEntry>,
 }
 
+#[derive(Clone)]
 pub struct InspectorContext {
     groups: Vec<Group>,
     property_definitions: Arc<PropertyEditorDefinitionContainer>,
-    sync_flag: AtomicU64,
-}
-
-impl Clone for InspectorContext {
-    fn clone(&self) -> Self {
-        Self {
-            groups: self.groups.clone(),
-            property_definitions: self.property_definitions.clone(),
-            sync_flag: AtomicU64::new(self.sync_flag.load(atomic::Ordering::SeqCst)),
-        }
-    }
+    sync_flag: u64,
 }
 
 impl PartialEq for InspectorContext {
@@ -116,7 +104,7 @@ impl Default for InspectorContext {
         Self {
             groups: Default::default(),
             property_definitions: Arc::new(PropertyEditorDefinitionContainer::new()),
-            sync_flag: Default::default(),
+            sync_flag: 0,
         }
     }
 }
@@ -175,6 +163,7 @@ impl InspectorContext {
         ctx: &mut BuildContext,
         definition_container: Arc<PropertyEditorDefinitionContainer>,
         environment: Option<Arc<dyn InspectorEnvironment>>,
+        sync_flag: u64,
     ) -> Self {
         let mut property_groups = HashMap::<&'static str, Vec<PropertyInfo>>::new();
         for info in object.properties() {
@@ -210,6 +199,7 @@ impl InspectorContext {
                                 property_info: info,
                                 environment: environment.clone(),
                                 definition_container: definition_container.clone(),
+                                sync_flag,
                             }) {
                                 Ok(instance) => {
                                     entries.push(ContextEntry {
@@ -289,7 +279,7 @@ impl InspectorContext {
         Self {
             groups,
             property_definitions: definition_container,
-            sync_flag: AtomicU64::new(0),
+            sync_flag,
         }
     }
 
@@ -297,11 +287,8 @@ impl InspectorContext {
         &self,
         object: &dyn Inspect,
         ui: &mut UserInterface,
-        sync_flag: u64,
     ) -> Result<(), Vec<InspectorError>> {
         let mut sync_errors = Vec::new();
-
-        self.sync_flag.store(sync_flag, atomic::Ordering::SeqCst);
 
         for info in object.properties() {
             if let Some(constructor) = self
@@ -310,7 +297,7 @@ impl InspectorContext {
                 .get(&info.value.type_id())
             {
                 let ctx = PropertyEditorMessageContext {
-                    sync_flag,
+                    sync_flag: self.sync_flag,
                     instance: self.find_property_editor(info.name),
                     ui,
                     property_info: &info,
@@ -320,7 +307,7 @@ impl InspectorContext {
                 match constructor.create_message(ctx) {
                     Ok(message) => {
                         if let Some(mut message) = message {
-                            message.flags = sync_flag;
+                            message.flags = self.sync_flag;
                             ui.send_message(message);
                         }
                     }
@@ -394,7 +381,7 @@ impl Control for Inspector {
 
         // Check each message from descendant widget and try to translate it to
         // PropertyChanged message.
-        if message.flags != self.context.sync_flag.load(atomic::Ordering::SeqCst) {
+        if message.flags != self.context.sync_flag {
             for group in self.context.groups.iter() {
                 for entry in group.entries.iter() {
                     if message.destination() == entry.property_editor {
@@ -412,8 +399,6 @@ impl Control for Inspector {
                     }
                 }
             }
-        } else {
-            dbg!();
         }
     }
 }
