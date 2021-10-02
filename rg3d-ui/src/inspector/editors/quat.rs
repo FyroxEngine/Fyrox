@@ -54,10 +54,15 @@ impl PropertyEditorDefinition for QuatPropertyEditorDefinition {
     ) -> Result<Option<UiMessage>, InspectorError> {
         let value = ctx.property_info.cast_value::<UnitQuaternion<f32>>()?;
         let euler = value.to_euler();
+        let euler_degrees = Vector3::new(
+            euler.x.to_degrees(),
+            euler.y.to_degrees(),
+            euler.z.to_degrees(),
+        );
         Ok(Some(Vec3EditorMessage::value(
             ctx.instance,
             MessageDirection::ToWidget,
-            euler,
+            euler_degrees,
         )))
     }
 
