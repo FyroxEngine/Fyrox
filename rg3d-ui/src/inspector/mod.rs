@@ -1,4 +1,3 @@
-use crate::inspector::editors::PropertyEditorMessageContext;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -12,7 +11,7 @@ use crate::{
     grid::{Column, GridBuilder, Row},
     inspector::editors::{
         Layout, PropertyEditorBuildContext, PropertyEditorDefinition,
-        PropertyEditorDefinitionContainer,
+        PropertyEditorDefinitionContainer, PropertyEditorMessageContext,
     },
     message::{InspectorMessage, MessageDirection, UiMessage, UiMessageData, WidgetMessage},
     stack_panel::StackPanelBuilder,
@@ -20,13 +19,15 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
-use std::fmt::Formatter;
 use std::{
     any::{Any, TypeId},
     collections::{hash_map::Entry, HashMap},
-    fmt::Debug,
+    fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
-    sync::Arc,
+    sync::{
+        atomic::{self, AtomicU64},
+        Arc,
+    },
 };
 
 pub mod editors;
@@ -88,10 +89,20 @@ pub struct Group {
     entries: Vec<ContextEntry>,
 }
 
-#[derive(Clone)]
 pub struct InspectorContext {
     groups: Vec<Group>,
     property_definitions: Arc<PropertyEditorDefinitionContainer>,
+    sync_flag: AtomicU64,
+}
+
+impl Clone for InspectorContext {
+    fn clone(&self) -> Self {
+        Self {
+            groups: self.groups.clone(),
+            property_definitions: self.property_definitions.clone(),
+            sync_flag: AtomicU64::new(self.sync_flag.load(atomic::Ordering::SeqCst)),
+        }
+    }
 }
 
 impl PartialEq for InspectorContext {
@@ -105,6 +116,7 @@ impl Default for InspectorContext {
         Self {
             groups: Default::default(),
             property_definitions: Arc::new(PropertyEditorDefinitionContainer::new()),
+            sync_flag: Default::default(),
         }
     }
 }
@@ -277,6 +289,7 @@ impl InspectorContext {
         Self {
             groups,
             property_definitions: definition_container,
+            sync_flag: AtomicU64::new(0),
         }
     }
 
@@ -287,6 +300,8 @@ impl InspectorContext {
         sync_flag: u64,
     ) -> Result<(), Vec<InspectorError>> {
         let mut sync_errors = Vec::new();
+
+        self.sync_flag.store(sync_flag, atomic::Ordering::SeqCst);
 
         for info in object.properties() {
             if let Some(constructor) = self
@@ -379,22 +394,26 @@ impl Control for Inspector {
 
         // Check each message from descendant widget and try to translate it to
         // PropertyChanged message.
-        for group in self.context.groups.iter() {
-            for entry in group.entries.iter() {
-                if message.destination() == entry.property_editor {
-                    if let Some(args) = entry.property_editor_definition.translate_message(
-                        &entry.property_name,
-                        entry.property_owner_type_id,
-                        message,
-                    ) {
-                        ui.send_message(InspectorMessage::property_changed(
-                            self.handle,
-                            MessageDirection::FromWidget,
-                            args,
-                        ));
+        if message.flags != self.context.sync_flag.load(atomic::Ordering::SeqCst) {
+            for group in self.context.groups.iter() {
+                for entry in group.entries.iter() {
+                    if message.destination() == entry.property_editor {
+                        if let Some(args) = entry.property_editor_definition.translate_message(
+                            &entry.property_name,
+                            entry.property_owner_type_id,
+                            message,
+                        ) {
+                            ui.send_message(InspectorMessage::property_changed(
+                                self.handle,
+                                MessageDirection::FromWidget,
+                                args,
+                            ));
+                        }
                     }
                 }
             }
+        } else {
+            dbg!();
         }
     }
 }
