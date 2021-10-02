@@ -207,6 +207,10 @@ impl InspectorContext {
                                         property_owner_type_id: info.owner_type_id,
                                     });
 
+                                    if info.read_only {
+                                        ctx[instance.editor].set_enabled(false);
+                                    }
+
                                     wrap_property(
                                         if instance.title.is_some() {
                                             instance.title

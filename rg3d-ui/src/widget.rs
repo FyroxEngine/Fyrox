@@ -598,6 +598,12 @@ impl Widget {
     }
 
     #[inline]
+    pub fn set_enabled(&mut self, enabled: bool) -> &mut Self {
+        self.enabled = enabled;
+        self
+    }
+
+    #[inline]
     pub fn enabled(&self) -> bool {
         self.enabled
     }
