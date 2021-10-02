@@ -7,49 +7,66 @@ use convert_case::*;
 
 use crate::inspect::args;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum FieldPrefix {
-    /// `&self.` + field_ident
-    ///
-    /// This is for struct fields
-    Self_,
-    /// `f` + field_ident
-    ///
-    /// This is for tuple enum variants
-    F,
-    /// field_ident
-    ///
-    /// This is for structural enum variants
-    None,
+/// Handles struct/enum field style combinations
+///
+/// Struct fields are referred to as `self.<field>`, while enum variants are decomposed in `match` arm.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FieldPrefix {
+    /// Struct | Enum
+    is_struct: bool,
+    /// Field style of the struct or the enum variant
+    style: ast::Style,
 }
 
 impl FieldPrefix {
-    fn field_ref(self, i: usize, field: &args::FieldArgs, style: ast::Style) -> TokenStream2 {
+    pub fn of_struct(style: ast::Style) -> Self {
+        Self {
+            is_struct: true,
+            style,
+        }
+    }
+
+    pub fn of_enum_variant(style: ast::Style) -> Self {
+        Self {
+            is_struct: false,
+            style,
+        }
+    }
+
+    pub fn field_match_ident(self, i: usize, field: &args::FieldArgs, style: ast::Style) -> Ident {
+        assert!(!self.is_struct);
+
+        match style {
+            ast::Style::Struct => field.ident.clone().unwrap(),
+            ast::Style::Tuple => {
+                let i = Index::from(i);
+                format_ident!("f{}", i)
+            }
+            ast::Style::Unit => {
+                unreachable!()
+            }
+        }
+    }
+
+    fn quote_field_ref(self, i: usize, field: &args::FieldArgs, style: ast::Style) -> TokenStream2 {
         match style {
             ast::Style::Struct => {
-                // Ident
                 let field_ident = field.ident.as_ref().unwrap();
 
-                match self {
-                    Self::Self_ => quote! { (&self.#field_ident) },
-                    Self::F => {
-                        let ident = format_ident!("f{}", field_ident);
-                        quote!(#ident)
-                    }
-                    Self::None => quote!(#field_ident),
+                if self.is_struct {
+                    quote! { (&self.#field_ident) }
+                } else {
+                    quote!(#field_ident)
                 }
             }
             ast::Style::Tuple => {
-                // Index
-                let field_ident = Index::from(i);
+                let index = Index::from(i);
 
-                match self {
-                    Self::Self_ => quote! { (&self.#field_ident) },
-                    Self::F => {
-                        let ident = format_ident!("f{}", field_ident);
-                        quote!(#ident)
-                    }
-                    Self::None => quote!(#field_ident),
+                if self.is_struct {
+                    quote! { (&self.#index) }
+                } else {
+                    let ident = format_ident!("f{}", index);
+                    quote!(#ident)
                 }
             }
             ast::Style::Unit => {
@@ -59,8 +76,8 @@ impl FieldPrefix {
     }
 }
 
-/// Creates `impl Inspect` block
-pub fn create_impl<'f>(
+/// Creates `Inspect` impl block
+pub fn create_inspect_impl<'f>(
     ty_args: &args::TypeArgs,
     field_args: impl Iterator<Item = &'f args::FieldArgs>,
     impl_body: TokenStream2,
@@ -100,7 +117,7 @@ pub fn gen_inspect_fn_body(
     // `inspect` function body, consisting of a sequence of quotes
     let mut quotes = Vec::new();
 
-    // collect non-expanible field properties
+    // 1. collect non-expanible field properties
     let props = field_args
         .fields
         .iter()
@@ -115,7 +132,7 @@ pub fn gen_inspect_fn_body(
         #(props.push(#props);)*
     });
 
-    // visit expansible fields
+    // 2. visit expansible fields
     for (i, field) in field_args
         .fields
         .iter()
@@ -133,7 +150,7 @@ pub fn gen_inspect_fn_body(
         }
 
         // children (fields of the field)
-        let field_ref = field_prefix.field_ref(i, field, field_args.style);
+        let field_ref = field_prefix.quote_field_ref(i, field, field_args.style);
 
         quotes.push(quote! {
             props.extend(#field_ref.properties());
@@ -147,6 +164,7 @@ pub fn gen_inspect_fn_body(
     }
 }
 
+/// `PropertyInfo { .. }`
 fn quote_field_prop(
     // the name of the property owner, used as default property group
     owner_name: &str,
@@ -163,7 +181,7 @@ fn quote_field_prop(
         }
     };
 
-    let field_ref = field_prefix.field_ref(nth_field, field, style);
+    let field_ref = field_prefix.quote_field_ref(nth_field, field, style);
 
     // consider #[inspect(name = ..)]
     let field_name = field
@@ -194,7 +212,7 @@ fn quote_field_prop(
             display_name: #display_name,
             group: #group,
             value: #field_ref,
-            read_only: #read_only
+            read_only: #read_only,
         }
     }
 }
