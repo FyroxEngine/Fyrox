@@ -50,6 +50,7 @@ pub fn quote_prop_keys(ty_args: &args::TypeArgs) -> TokenStream2 {
 
     quote! {
         #(
+            #[allow(missing_docs)]
             pub const #prop_idents: &'static str = #prop_names;
         )*
     }
