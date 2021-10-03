@@ -2,11 +2,10 @@
 //!
 //! For more info see [`Base`]
 
-use crate::asset::core::inspect::PropertyInfo;
-use crate::core::inspect::Inspect;
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
+        inspect::{Inspect, PropertyInfo},
         math::Matrix4Ext,
         pool::Handle,
         visitor::{Visit, VisitError, VisitResult, Visitor},
@@ -18,7 +17,7 @@ use std::cell::Cell;
 
 /// Defines a kind of binding between rigid body and a scene node. Check variants
 /// for more info.
-#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Hash, Eq, PartialEq, Inspect)]
 #[repr(u32)]
 pub enum PhysicsBinding {
     /// Forces engine to sync transform of a node with its associated rigid body.
@@ -140,7 +139,7 @@ pub struct LodGroup {
 
 /// Mobility defines a group for scene node which has direct impact on performance
 /// and capabilities of nodes.
-#[derive(Copy, Clone, PartialOrd, PartialEq, Ord, Eq, Debug)]
+#[derive(Copy, Clone, PartialOrd, PartialEq, Ord, Eq, Debug, Inspect)]
 #[repr(u32)]
 pub enum Mobility {
     /// Transform cannot be changed.
@@ -229,7 +228,7 @@ pub struct Base {
     visibility: bool,
     #[inspect(skip)]
     pub(in crate) global_visibility: Cell<bool>,
-    #[inspect(skip)]
+    #[inspect(read_only)]
     pub(in crate) parent: Handle<Node>,
     #[inspect(skip)]
     pub(in crate) children: Vec<Handle<Node>>,
@@ -240,20 +239,19 @@ pub struct Base {
     pub(in crate) inv_bind_pose_transform: Matrix4<f32>,
     // A resource from which this node was instantiated from, can work in pair
     // with `original` handle to get corresponding node from resource.
-    #[inspect(skip)]
+    #[inspect(read_only)]
     pub(in crate) resource: Option<Model>,
     // Handle to node in scene of model resource from which this node
     // was instantiated from.
-    #[inspect(skip)]
+    #[inspect(read_only)]
     pub(in crate) original_handle_in_resource: Handle<Node>,
     // When `true` it means that this node is instance of `resource`.
     // More precisely - this node is root of whole descendant nodes
     // hierarchy which was instantiated from resource.
-    #[inspect(skip)]
+    #[inspect(read_only)]
     pub(in crate) is_resource_instance_root: bool,
     // Maximum amount of Some(time) that node will "live" or None
     // if node has undefined lifetime.
-    #[inspect(skip)]
     pub(in crate) lifetime: Option<f32>,
     depth_offset: f32,
     lod_group: Option<LodGroup>,

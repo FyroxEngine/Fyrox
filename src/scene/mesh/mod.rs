@@ -36,7 +36,7 @@ pub mod surface;
 pub mod vertex;
 
 /// Defines a path that should be used to render a mesh.
-#[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Ord, Hash, Debug, Visit)]
+#[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Ord, Hash, Debug, Visit, Inspect)]
 #[repr(u32)]
 pub enum RenderPath {
     /// Deferred rendering has much better performance than Forward, but it does not support transparent

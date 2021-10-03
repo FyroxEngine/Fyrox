@@ -977,6 +977,7 @@ pub enum CollectionChanged {
 #[derive(Debug, Clone)]
 pub enum FieldKind {
     Collection(Arc<CollectionChanged>),
+    EnumerationVariant(Arc<PropertyChanged>),
     Object(ObjectValue),
 }
 
@@ -1001,6 +1002,9 @@ impl PartialEq for FieldKind {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (FieldKind::Collection(l), FieldKind::Collection(r)) => std::ptr::eq(&**l, &**r),
+            (FieldKind::EnumerationVariant(l), FieldKind::EnumerationVariant(r)) => {
+                std::ptr::eq(&**l, &**r)
+            }
             (FieldKind::Object(l), FieldKind::Object(r)) => l == r,
             _ => false,
         }
