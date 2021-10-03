@@ -113,8 +113,8 @@ impl Configurator {
             .collect::<Vec<_>>();
 
         let message = "Please select the working directory of \
-        your current project. In most cases it will be the place where \
-        the binary of your project is located.";
+        your current project. In most cases it will be the root folder \
+        of your project";
 
         let lv_history;
         let window = WindowBuilder::new(
