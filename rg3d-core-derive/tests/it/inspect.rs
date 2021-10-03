@@ -46,14 +46,16 @@ fn inspect_attributes() {
 
     #[derive(Debug, Default, Inspect)]
     pub struct Data {
+        // NOTE: Even though this field is skipped, the next field is given index `1` for simplicity
         #[inspect(skip)]
         _skipped: u32,
         #[inspect(group = "Pos", name = "the_x", display_name = "Super X")]
         x: f32,
-        // Expand properties are added to the end of the list
+        // Expand properties are added to the end of the list.
+        // NOTE: Even though this field inspection is postponed, this field is given index `2`
         #[inspect(expand)]
         aar_gee: AarGee,
-        #[inspect(group = "Pos")]
+        #[inspect(group = "Pos", read_only)]
         y: f32,
     }
 
@@ -74,7 +76,7 @@ fn inspect_attributes() {
             display_name: "Y",
             group: "Pos",
             value: &data.y,
-            read_only: false,
+            read_only: true,
         },
     ];
 
@@ -111,7 +113,7 @@ fn inspect_struct() {
                 display_name: "0",
                 group: "Tuple",
                 value: &x.0,
-                read_only: false
+                read_only: false,
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Tuple>(),
@@ -119,7 +121,7 @@ fn inspect_struct() {
                 display_name: "1",
                 group: "Tuple",
                 value: &x.1,
-                read_only: false
+                read_only: false,
             },
         ]
     );
