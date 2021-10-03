@@ -102,6 +102,7 @@ fn prop_keys_impl(ty_args: &args::TypeArgs) -> TokenStream2 {
 
     let prop_keys = prop_keys::quote_prop_keys(ty_args);
     quote! {
+        /// Property key constants
         impl #impl_generics #ty_ident #ty_generics #where_clause {
             #prop_keys
         }
