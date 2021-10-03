@@ -193,3 +193,35 @@ impl Command for ModifyTerrainLayerMaskCommand {
 define_node_command!(SetTerrainDecalLayerIndexCommand("Set Terrain Decal Layer Index", u8) where fn swap(self, node) {
     get_set_swap!(self, node.as_terrain_mut(), decal_layer_index, set_decal_layer_index);
 });
+
+#[derive(Debug)]
+pub struct SetTerrainLayerMaskPropertyNameCommand {
+    pub handle: Handle<Node>,
+    pub layer_index: usize,
+    pub value: String,
+}
+
+impl SetTerrainLayerMaskPropertyNameCommand {
+    fn swap(&mut self, context: &mut SceneContext) {
+        let layer = context.scene.graph[self.handle]
+            .as_terrain_mut()
+            .layers_mut()
+            .get_mut(self.layer_index)
+            .expect("Layer must be presented!");
+        std::mem::swap(&mut layer.mask_property_name, &mut self.value);
+    }
+}
+
+impl Command for SetTerrainLayerMaskPropertyNameCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
+        "Set Terrain Layer Mask Property Name".to_string()
+    }
+
+    fn execute(&mut self, context: &mut SceneContext) {
+        self.swap(context);
+    }
+
+    fn revert(&mut self, context: &mut SceneContext) {
+        self.swap(context);
+    }
+}

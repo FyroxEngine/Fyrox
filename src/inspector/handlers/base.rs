@@ -30,6 +30,15 @@ pub fn handle_base_property_changed(
                     *value.cast_value::<bool>().unwrap(),
                 ));
             }
+            "mobility" => {
+                // TODO
+            }
+            "physics_binding" => {
+                // TODO
+            }
+            "depth_offset" => {
+                // TODO
+            }
             _ => println!("Unhandled property of Base: {:?}", args),
         }
     }

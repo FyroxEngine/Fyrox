@@ -1,4 +1,3 @@
-use crate::inspector::handlers::terrain::handle_terrain_property_changed;
 use crate::{
     command::Command,
     inspector::{
@@ -7,14 +6,12 @@ use crate::{
         },
         handlers::{
             base::handle_base_property_changed, camera::handle_camera_property_changed,
-            exposure::handle_exposure_property_changed,
-            transform::handle_transform_property_changed,
+            terrain::handle_terrain_property_changed, transform::handle_transform_property_changed,
         },
     },
     scene::{EditorScene, Selection},
     GameEngine, Message, MSG_SYNC_FLAG,
 };
-use rg3d::scene::terrain::Terrain;
 use rg3d::{
     core::pool::Handle,
     engine::resource_manager::ResourceManager,
@@ -40,7 +37,7 @@ use rg3d::{
         mesh::{surface::Surface, RenderPath},
         particle_system::ParticleSystem,
         sprite::Sprite,
-        terrain::Layer,
+        terrain::{Layer, Terrain},
         transform::Transform,
     },
     utils::log::{Log, MessageKind},
@@ -299,9 +296,7 @@ impl Inspector {
                             } else if args.owner_type_id == TypeId::of::<Transform>() {
                                 handle_transform_property_changed(args, node_handle, node, &helper);
                             } else if args.owner_type_id == TypeId::of::<Camera>() {
-                                handle_camera_property_changed(args, node_handle, &helper);
-                            } else if args.owner_type_id == TypeId::of::<Exposure>() {
-                                handle_exposure_property_changed(args, node_handle, node, &helper);
+                                handle_camera_property_changed(args, node_handle, node, &helper);
                             } else if args.owner_type_id == TypeId::of::<Sprite>() {
                                 // TODO
                             } else if args.owner_type_id == TypeId::of::<BaseLight>() {
