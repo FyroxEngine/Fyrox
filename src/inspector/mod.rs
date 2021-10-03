@@ -12,6 +12,8 @@ use crate::{
     scene::{EditorScene, Selection},
     GameEngine, Message, MSG_SYNC_FLAG,
 };
+use rg3d::asset::core::inspect::PropertyInfo;
+use rg3d::core::inspect::Inspect;
 use rg3d::{
     core::pool::Handle,
     engine::resource_manager::ResourceManager,
@@ -42,6 +44,7 @@ use rg3d::{
     },
     utils::log::{Log, MessageKind},
 };
+use std::fmt::Debug;
 use std::{
     any::{Any, TypeId},
     sync::{mpsc::Sender, Arc, Mutex},
@@ -141,6 +144,24 @@ fn make_render_path_enum_editor_definition() -> EnumPropertyEditorDefinition<Ren
     }
 }
 
+fn make_option_editor_definition<T>() -> EnumPropertyEditorDefinition<Option<T>>
+where
+    T: Inspect + Default + Debug + Send + Sync + 'static,
+{
+    EnumPropertyEditorDefinition {
+        variant_generator: |i| match i {
+            0 => None,
+            1 => Some(Default::default()),
+            _ => unreachable!(),
+        },
+        index_generator: |v| match v {
+            None => 0,
+            Some(_) => 1,
+        },
+        names_generator: || vec!["None".to_string(), "Some".to_string()],
+    }
+}
+
 fn make_property_editors_container(
     sender: Sender<Message>,
 ) -> Arc<PropertyEditorDefinitionContainer> {
@@ -160,6 +181,7 @@ fn make_property_editors_container(
     container.insert(Arc::new(make_mobility_enum_editor_definition()));
     container.insert(Arc::new(make_exposure_enum_editor_definition()));
     container.insert(Arc::new(make_render_path_enum_editor_definition()));
+    container.insert(Arc::new(make_option_editor_definition::<f32>()));
 
     Arc::new(container)
 }
