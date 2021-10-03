@@ -127,4 +127,32 @@ impl<T: Inspect> Inspect for Option<T> {
     }
 }
 
+macro_rules! impl_self_inspect {
+    ($ty:ty) => {
+        impl Inspect for $ty {
+            fn properties(&self) -> Vec<PropertyInfo<'_>> {
+                vec![PropertyInfo {
+                    owner_type_id: TypeId::of::<Self>(),
+                    name: "Value",
+                    display_name: "Value",
+                    group: "Self",
+                    value: self,
+                    read_only: false,
+                }]
+            }
+        }
+    };
+}
+
+impl_self_inspect!(f32);
+impl_self_inspect!(f64);
+impl_self_inspect!(i64);
+impl_self_inspect!(u64);
+impl_self_inspect!(i32);
+impl_self_inspect!(u32);
+impl_self_inspect!(i16);
+impl_self_inspect!(u16);
+impl_self_inspect!(i8);
+impl_self_inspect!(u8);
+
 pub use rg3d_core_derive::Inspect;
