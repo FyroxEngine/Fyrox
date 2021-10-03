@@ -5,7 +5,7 @@ mod utils;
 
 use darling::{ast, FromDeriveInput};
 use proc_macro2::TokenStream as TokenStream2;
-use quote::{quote};
+use quote::quote;
 use syn::*;
 
 pub fn impl_inspect(ast: DeriveInput) -> TokenStream2 {

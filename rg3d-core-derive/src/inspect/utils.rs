@@ -1,3 +1,7 @@
+// NOTE: The `properties` impl does NOT use Self::PROP_KEY constants, but it's always safe
+
+mod prop_keys;
+
 use darling::ast;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::*;
@@ -76,14 +80,42 @@ impl FieldPrefix {
     }
 }
 
-/// Creates `Inspect` impl block
+/// Creates `Inspect` trait impl and field prop keys
 pub fn create_inspect_impl<'f>(
     ty_args: &args::TypeArgs,
     field_args: impl Iterator<Item = &'f args::FieldArgs>,
     impl_body: TokenStream2,
 ) -> TokenStream2 {
+    let prop_keys_impl = self::prop_keys_impl(ty_args);
+    let trait_impl = self::inspect_trait_impl(ty_args, field_args, impl_body);
+
+    quote! {
+        #prop_keys_impl
+        #trait_impl
+    }
+}
+
+/// `pub const [VARIANT_]FIELD: &'static str = "key";`
+fn prop_keys_impl(ty_args: &args::TypeArgs) -> TokenStream2 {
     let ty_ident = &ty_args.ident;
-    let generics = self::create_impl_generics(&ty_args.generics, field_args);
+    let (impl_generics, ty_generics, where_clause) = ty_args.generics.split_for_impl();
+
+    let prop_keys = prop_keys::quote_prop_keys(ty_args);
+    quote! {
+        impl #impl_generics #ty_ident #ty_generics #where_clause {
+            #prop_keys
+        }
+    }
+}
+
+/// `impl Inspect`
+fn inspect_trait_impl<'f>(
+    ty_args: &args::TypeArgs,
+    field_args: impl Iterator<Item = &'f args::FieldArgs>,
+    impl_body: TokenStream2,
+) -> TokenStream2 {
+    let ty_ident = &ty_args.ident;
+    let generics = self::impl_inspect_generics(&ty_args.generics, field_args);
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     quote! {
@@ -98,7 +130,7 @@ pub fn create_inspect_impl<'f>(
 /// Creates `Generic` for `impl Inspect` block
 ///
 /// TODO: Add `where Field: Inspect` boundaries to support inspectable types with generics
-fn create_impl_generics<'a>(
+fn impl_inspect_generics<'a>(
     generics: &Generics,
     _field_args: impl Iterator<Item = &'a args::FieldArgs>,
 ) -> Generics {
@@ -215,4 +247,18 @@ fn quote_field_prop(
             read_only: #read_only,
         }
     }
+}
+
+pub fn prop_name(nth: usize, field: &args::FieldArgs) -> String {
+    field.name.clone().unwrap_or_else(|| {
+        let field_ident = match &field.ident {
+            Some(ident) => quote!(#ident),
+            None => {
+                let nth_field = Index::from(nth);
+                quote!(#nth_field)
+            }
+        };
+
+        field_ident.to_string()
+    })
 }

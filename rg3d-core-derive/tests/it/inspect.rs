@@ -226,3 +226,45 @@ fn inspect_enum() {
     let data = Data::Unit;
     assert_eq!(data.properties(), vec![]);
 }
+
+#[test]
+fn inspect_prop_key_constants() {
+    #[derive(Debug, Inspect)]
+    pub struct X;
+
+    #[derive(Inspect)]
+    pub struct SStruct {
+        field: usize,
+        #[inspect(skip)]
+        hidden: usize,
+        #[inspect(expand)]
+        expand: X,
+        #[inspect(expand_subtree)]
+        expand_subtree: X,
+    }
+
+    // NOTE: property names are in snake_case (not Title Case)
+    assert_eq!(SStruct::FIELD, "field");
+    // property keys for uninspectable fields are NOT emitted
+    // assert_eq!(SStruct::HIDDEN, "hidden");
+    // assert_eq!(SStruct::EXPAND, "expand");
+    assert_eq!(SStruct::EXPAND_SUBTREE, "expand_subtree");
+
+    #[derive(Inspect)]
+    pub struct STuple(usize);
+    assert_eq!(STuple::F_0, "0");
+
+    #[derive(Inspect)]
+    #[allow(unused)]
+    pub enum E {
+        Tuple(usize),
+        Struct { field: usize },
+        Unit,
+    }
+
+    assert_eq!(E::TUPLE_F_0, "0");
+    assert_eq!(E::STRUCT_FIELD, "field");
+
+    // variant itself it not a property
+    // assert_eq!(E::UNIT, "unit");
+}
