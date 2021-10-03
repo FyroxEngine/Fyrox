@@ -48,6 +48,14 @@ impl Inspector {
     }
 }
 
+pub const NAME_COLUMN_WIDTH: f32 = 150.0;
+pub const HEADER_MARGIN: Thickness = Thickness {
+    left: 4.0,
+    top: 1.0,
+    right: 4.0,
+    bottom: 1.0,
+};
+
 #[derive(Debug)]
 pub enum InspectorError {
     CastError(CastError),
@@ -115,8 +123,8 @@ impl Debug for InspectorContext {
     }
 }
 
-fn create_section_header(ctx: &mut BuildContext, text: &str) -> Handle<UiNode> {
-    TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
+fn create_header(ctx: &mut BuildContext, text: &str) -> Handle<UiNode> {
+    TextBuilder::new(WidgetBuilder::new().with_margin(HEADER_MARGIN))
         .with_text(text)
         .with_vertical_text_alignment(VerticalAlignment::Center)
         .build(ctx)
@@ -148,7 +156,7 @@ fn wrap_property(
         })
         .add_columns(match layout {
             Layout::Horizontal => {
-                vec![Column::strict(130.0), Column::stretch()]
+                vec![Column::strict(NAME_COLUMN_WIDTH), Column::stretch()]
             }
             Layout::Vertical => {
                 vec![Column::stretch()]
@@ -217,7 +225,7 @@ impl InspectorContext {
                                         if instance.title.is_some() {
                                             instance.title
                                         } else {
-                                            create_section_header(ctx, info.display_name)
+                                            create_header(ctx, info.display_name)
                                         },
                                         instance.editor,
                                         definition.layout(),
@@ -225,7 +233,7 @@ impl InspectorContext {
                                     )
                                 }
                                 Err(e) => wrap_property(
-                                    create_section_header(ctx, info.display_name),
+                                    create_header(ctx, info.display_name),
                                     TextBuilder::new(WidgetBuilder::new().on_row(i).on_column(1))
                                         .with_wrap(WrapMode::Word)
                                         .with_vertical_text_alignment(VerticalAlignment::Center)
@@ -241,7 +249,7 @@ impl InspectorContext {
                             }
                         } else {
                             wrap_property(
-                                create_section_header(ctx, info.display_name),
+                                create_header(ctx, info.display_name),
                                 TextBuilder::new(WidgetBuilder::new().on_row(i).on_column(1))
                                     .with_wrap(WrapMode::Word)
                                     .with_vertical_text_alignment(VerticalAlignment::Center)
@@ -259,7 +267,7 @@ impl InspectorContext {
                         .with_margin(Thickness::uniform(1.0))
                         .with_child(
                             ExpanderBuilder::new(WidgetBuilder::new())
-                                .with_header(create_section_header(ctx, group))
+                                .with_header(create_header(ctx, group))
                                 .with_content(
                                     StackPanelBuilder::new(
                                         WidgetBuilder::new().with_children(editors),

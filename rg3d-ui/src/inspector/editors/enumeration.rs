@@ -1,4 +1,3 @@
-use crate::inspector::Inspector;
 use crate::{
     border::BorderBuilder,
     core::{inspect::Inspect, pool::Handle},
@@ -11,7 +10,8 @@ use crate::{
             PropertyEditorDefinitionContainer, PropertyEditorInstance,
             PropertyEditorMessageContext,
         },
-        InspectorBuilder, InspectorContext, InspectorEnvironment, InspectorError,
+        Inspector, InspectorBuilder, InspectorContext, InspectorEnvironment, InspectorError,
+        HEADER_MARGIN, NAME_COLUMN_WIDTH,
     },
     message::{
         DropdownListMessage, FieldKind, InspectorMessage, MessageDirection, PropertyChanged,
@@ -312,14 +312,14 @@ where
             title: GridBuilder::new(
                 WidgetBuilder::new()
                     .with_child(
-                        TextBuilder::new(WidgetBuilder::new())
+                        TextBuilder::new(WidgetBuilder::new().with_margin(HEADER_MARGIN))
                             .with_text(ctx.property_info.display_name)
                             .with_vertical_text_alignment(VerticalAlignment::Center)
                             .build(ctx.build_context),
                     )
                     .with_child(variant_selector),
             )
-            .add_column(Column::stretch())
+            .add_column(Column::strict(NAME_COLUMN_WIDTH))
             .add_column(Column::stretch())
             .add_row(Row::strict(26.0))
             .build(ctx.build_context),

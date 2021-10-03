@@ -12,6 +12,7 @@ use crate::{
             PropertyEditorMessageContext,
         },
         Inspector, InspectorBuilder, InspectorContext, InspectorEnvironment, InspectorError,
+        HEADER_MARGIN, NAME_COLUMN_WIDTH,
     },
     message::{
         ButtonMessage, CollectionChanged, FieldKind, InspectorMessage, MessageDirection,
@@ -356,15 +357,15 @@ where
             title: GridBuilder::new(
                 WidgetBuilder::new()
                     .with_child(
-                        TextBuilder::new(WidgetBuilder::new())
+                        TextBuilder::new(WidgetBuilder::new().with_margin(HEADER_MARGIN))
                             .with_text(ctx.property_info.display_name)
                             .with_vertical_text_alignment(VerticalAlignment::Center)
                             .build(ctx.build_context),
                     )
                     .with_child(add),
             )
+            .add_column(Column::strict(NAME_COLUMN_WIDTH))
             .add_column(Column::stretch())
-            .add_column(Column::auto())
             .add_row(Row::stretch())
             .build(ctx.build_context),
             editor: CollectionEditorBuilder::new(
