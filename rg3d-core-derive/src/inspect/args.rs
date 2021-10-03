@@ -1,9 +1,12 @@
-//! Derive input types by `darling`.
+//! Derive input types defined with `darling`.
 //!
-//! They parse `#[attributes(..)]` in declartive style, different from `syn`.
+//! They parse `#[attributes(..)]` syntax in a declartive style.
 
 use darling::*;
 use syn::*;
+
+// pub type Data = ast::Data<VariantArgs, FieldArgs>;
+pub type Fields = ast::Fields<FieldArgs>;
 
 #[derive(FromDeriveInput)]
 #[darling(attributes(inspect), supports(struct_any, enum_any))]
@@ -16,7 +19,7 @@ pub struct TypeArgs {
 /// Parsed from struct's or enum variant's field
 ///
 /// NOTE: `#[derive(Inspect)]` is non-recursive by default.
-#[derive(FromField, Clone)]
+#[derive(FromField, Clone, PartialEq)]
 #[darling(attributes(inspect))]
 pub struct FieldArgs {
     pub ident: Option<Ident>,
@@ -61,7 +64,7 @@ pub struct FieldArgs {
 
     /// `#[inspect(read_only)]`
     ///
-    /// The field is not meant to be edited.    
+    /// The field is not meant to be edited.
     #[darling(default)]
     pub read_only: bool,
 }

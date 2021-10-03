@@ -46,14 +46,16 @@ fn inspect_attributes() {
 
     #[derive(Debug, Default, Inspect)]
     pub struct Data {
+        // NOTE: Even though this field is skipped, the next field is given index `1` for simplicity
         #[inspect(skip)]
         _skipped: u32,
         #[inspect(group = "Pos", name = "the_x", display_name = "Super X")]
         x: f32,
-        // Expand properties are added to the end of the list
+        // Expand properties are added to the end of the list.
+        // NOTE: Even though this field inspection is postponed, this field is given index `2`
         #[inspect(expand)]
         aar_gee: AarGee,
-        #[inspect(group = "Pos")]
+        #[inspect(group = "Pos", read_only)]
         y: f32,
     }
 
@@ -74,7 +76,7 @@ fn inspect_attributes() {
             display_name: "Y",
             group: "Pos",
             value: &data.y,
-            read_only: false,
+            read_only: true,
         },
     ];
 
@@ -111,7 +113,7 @@ fn inspect_struct() {
                 display_name: "0",
                 group: "Tuple",
                 value: &x.0,
-                read_only: false
+                read_only: false,
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Tuple>(),
@@ -119,7 +121,7 @@ fn inspect_struct() {
                 display_name: "1",
                 group: "Tuple",
                 value: &x.1,
-                read_only: false
+                read_only: false,
             },
         ]
     );
@@ -223,4 +225,46 @@ fn inspect_enum() {
     // unit variants don't have fields
     let data = Data::Unit;
     assert_eq!(data.properties(), vec![]);
+}
+
+#[test]
+fn inspect_prop_key_constants() {
+    #[derive(Debug, Inspect)]
+    pub struct X;
+
+    #[derive(Inspect)]
+    pub struct SStruct {
+        field: usize,
+        #[inspect(skip)]
+        hidden: usize,
+        #[inspect(expand)]
+        expand: X,
+        #[inspect(expand_subtree)]
+        expand_subtree: X,
+    }
+
+    // NOTE: property names are in snake_case (not Title Case)
+    assert_eq!(SStruct::FIELD, "field");
+    // property keys for uninspectable fields are NOT emitted
+    // assert_eq!(SStruct::HIDDEN, "hidden");
+    // assert_eq!(SStruct::EXPAND, "expand");
+    assert_eq!(SStruct::EXPAND_SUBTREE, "expand_subtree");
+
+    #[derive(Inspect)]
+    pub struct STuple(usize);
+    assert_eq!(STuple::F_0, "0");
+
+    #[derive(Inspect)]
+    #[allow(unused)]
+    pub enum E {
+        Tuple(usize),
+        Struct { field: usize },
+        Unit,
+    }
+
+    assert_eq!(E::TUPLE_F_0, "0");
+    assert_eq!(E::STRUCT_FIELD, "field");
+
+    // variant itself it not a property
+    // assert_eq!(E::UNIT, "unit");
 }
