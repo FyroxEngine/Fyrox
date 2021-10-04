@@ -42,7 +42,6 @@ use rg3d::{
     },
     scene::node::Node,
 };
-use std::any::Any;
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
@@ -182,18 +181,6 @@ impl DerefMut for SceneItem {
 }
 
 impl Control for SceneItem {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn clone_boxed(&self) -> Box<dyn Control> {
-        Box::new(self.clone())
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         self.tree.resolve(node_map);
         node_map.resolve(&mut self.text_name);

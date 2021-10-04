@@ -25,7 +25,6 @@ use rg3d::{
     },
     utils::into_gui_texture,
 };
-use std::any::Any;
 use std::{
     ffi::OsStr,
     ops::{Deref, DerefMut},
@@ -65,18 +64,6 @@ impl DerefMut for AssetItem {
 }
 
 impl Control for AssetItem {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn clone_boxed(&self) -> Box<dyn Control> {
-        Box::new(self.clone())
-    }
-
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.screen_bounds();
         drawing_context.push_rect_filled(&bounds, None);
