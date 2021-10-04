@@ -16,7 +16,6 @@ use rg3d::{
         Control, HorizontalAlignment, NodeHandleMapping, Thickness, VerticalAlignment,
     },
 };
-use std::any::Any;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -101,18 +100,6 @@ impl<D: Clone> DerefMut for DeletableItem<D> {
 }
 
 impl<D: Clone + 'static> Control for DeletableItem<D> {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn clone_boxed(&self) -> Box<dyn Control> {
-        Box::new(self.clone())
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.delete);
     }

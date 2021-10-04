@@ -22,7 +22,6 @@ use rg3d::{
     },
     sound::source::SoundSource,
 };
-use std::any::Any;
 use std::cmp::Ordering;
 use std::{
     ops::{Deref, DerefMut},
@@ -104,18 +103,6 @@ impl DerefMut for SoundItem {
 }
 
 impl Control for SoundItem {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn clone_boxed(&self) -> Box<dyn Control> {
-        Box::new(self.clone())
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.text)
     }
