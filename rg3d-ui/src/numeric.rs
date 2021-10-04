@@ -1,24 +1,21 @@
-use crate::border::BorderBuilder;
-use crate::brush::Brush;
-use crate::core::color::Color;
-use crate::decorator::DecoratorBuilder;
-use crate::formatted_text::WrapMode;
-use crate::text_box::TextBox;
-use crate::utils::{make_arrow, ArrowDirection};
 use crate::{
+    border::BorderBuilder,
+    brush::Brush,
     button::ButtonBuilder,
-    core::pool::Handle,
+    core::{color::Color, pool::Handle},
+    decorator::DecoratorBuilder,
+    formatted_text::WrapMode,
     grid::{Column, GridBuilder, Row},
     message::{
         ButtonMessage, KeyCode, MessageDirection, NumericUpDownMessage, TextBoxMessage, UiMessage,
         UiMessageData, WidgetMessage,
     },
-    text_box::TextBoxBuilder,
+    text_box::{TextBox, TextBoxBuilder},
+    utils::{make_arrow, ArrowDirection},
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Thickness, UiNode,
     UserInterface, VerticalAlignment, BRUSH_DARK, BRUSH_LIGHT,
 };
-use std::any::Any;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone)]
@@ -53,18 +50,6 @@ impl NumericUpDown {
 }
 
 impl Control for NumericUpDown {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn clone_boxed(&self) -> Box<dyn Control> {
-        Box::new(self.clone())
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.field);
         node_map.resolve(&mut self.increase);

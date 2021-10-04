@@ -9,7 +9,6 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface, VerticalAlignment,
 };
-use std::any::Any;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone)]
@@ -24,18 +23,6 @@ pub struct Expander {
 crate::define_widget_deref!(Expander);
 
 impl Control for Expander {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn clone_boxed(&self) -> Box<dyn Control> {
-        Box::new(self.clone())
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         match *message.data() {
             UiMessageData::Expander(ExpanderMessage::Expand(expand)) => {

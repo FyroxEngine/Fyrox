@@ -1,17 +1,16 @@
-use crate::grid::{Column, GridBuilder, Row};
-use crate::message::MessageDirection;
-use crate::vector_image::{Primitive, VectorImageBuilder};
 use crate::{
     border::BorderBuilder,
     brush::Brush,
     core::{color::Color, pool::Handle},
-    message::{CheckBoxMessage, UiMessage, UiMessageData, WidgetMessage},
+    grid::{Column, GridBuilder, Row},
+    message::{CheckBoxMessage, MessageDirection, UiMessage, UiMessageData, WidgetMessage},
+    vector_image::{Primitive, VectorImageBuilder},
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Thickness, UiNode,
     UserInterface, VerticalAlignment, BRUSH_BRIGHT, BRUSH_DARK, BRUSH_LIGHT, BRUSH_TEXT,
 };
 use rg3d_core::algebra::Vector2;
-use std::any::Any;
+
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone)]
@@ -26,18 +25,6 @@ pub struct CheckBox {
 crate::define_widget_deref!(CheckBox);
 
 impl Control for CheckBox {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn clone_boxed(&self) -> Box<dyn Control> {
-        Box::new(self.clone())
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.check_mark);
         node_map.resolve(&mut self.uncheck_mark);

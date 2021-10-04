@@ -1,4 +1,3 @@
-use crate::draw::Draw;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -8,7 +7,7 @@ use crate::{
         math::Rect,
         pool::Handle,
     },
-    draw::{CommandTexture, DrawingContext},
+    draw::{CommandTexture, Draw, DrawingContext},
     grid::{Column, GridBuilder, Row},
     message::{
         AlphaBarMessage, ColorFieldMessage, ColorPickerMessage, HueBarMessage, MessageDirection,
@@ -22,7 +21,6 @@ use crate::{
     BuildContext, Control, NodeHandleMapping, Orientation, Thickness, UiNode, UserInterface,
     VerticalAlignment,
 };
-use std::any::Any;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone)]
@@ -122,18 +120,6 @@ fn push_gradient_rect(
 const CHECKERBOARD_SIZE: f32 = 6.0;
 
 impl Control for AlphaBar {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn clone_boxed(&self) -> Box<dyn Control> {
-        Box::new(self.clone())
-    }
-
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.screen_bounds();
 
@@ -310,18 +296,6 @@ impl HueBar {
 }
 
 impl Control for HueBar {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn clone_boxed(&self) -> Box<dyn Control> {
-        Box::new(self.clone())
-    }
-
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.screen_bounds();
         for hue in 1..360 {
@@ -480,18 +454,6 @@ impl SaturationBrightnessField {
 }
 
 impl Control for SaturationBrightnessField {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn clone_boxed(&self) -> Box<dyn Control> {
-        Box::new(self.clone())
-    }
-
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         let size = self.deref().arrange_override(ui, final_size);
         // Make sure field is always square.
@@ -747,18 +709,6 @@ impl ColorPicker {
 }
 
 impl Control for ColorPicker {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn clone_boxed(&self) -> Box<dyn Control> {
-        Box::new(self.clone())
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.hue_bar);
         node_map.resolve(&mut self.alpha_bar);
@@ -1120,18 +1070,6 @@ pub struct ColorField {
 crate::define_widget_deref!(ColorField);
 
 impl Control for ColorField {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn clone_boxed(&self) -> Box<dyn Control> {
-        Box::new(self.clone())
-    }
-
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.screen_bounds();
 

@@ -16,7 +16,8 @@ use crate::{
     scroll_viewer::ScrollViewerBuilder,
     stack_panel::StackPanelBuilder,
     text::TextBuilder,
-    text_box::TextBoxBuilder,
+    text_box::{TextBoxBuilder, TextCommitMode},
+    tree::TreeRoot,
     tree::{Tree, TreeBuilder, TreeRootBuilder},
     widget::{Widget, WidgetBuilder},
     window::{Window, WindowBuilder, WindowTitle},
@@ -27,6 +28,7 @@ use core::time;
 use std::{
     borrow::BorrowMut,
     cell,
+    fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
     path::{Component, Path, PathBuf, Prefix},
     rc::Rc,
@@ -34,11 +36,7 @@ use std::{
     thread,
 };
 
-use crate::text_box::TextCommitMode;
-use crate::tree::TreeRoot;
 use notify::Watcher;
-use std::any::Any;
-use std::fmt::{Debug, Formatter};
 #[cfg(not(target_arch = "wasm32"))]
 use sysinfo::{DiskExt, RefreshKind, SystemExt};
 
@@ -129,18 +127,6 @@ impl FileBrowser {
 }
 
 impl Control for FileBrowser {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn clone_boxed(&self) -> Box<dyn Control> {
-        Box::new(self.clone())
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.tree_root);
         node_map.resolve(&mut self.path_text);
@@ -952,18 +938,6 @@ impl DerefMut for FileSelector {
 // File selector extends Window widget so it delegates most of calls
 // to inner window.
 impl Control for FileSelector {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn clone_boxed(&self) -> Box<dyn Control> {
-        Box::new(self.clone())
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         self.window.resolve(node_map);
         node_map.resolve(&mut self.ok);

@@ -1,10 +1,10 @@
+use rg3d_sound::engine::SoundEngine;
 use rg3d_sound::{
     buffer::{DataSource, SoundBufferResource},
     context::SoundContext,
     pool::Handle,
     source::{generic::GenericSourceBuilder, SoundSource, Status},
 };
-use rg3d_sound::engine::SoundEngine;
 
 fn main() {
     // Initialize sound engine without output device.
@@ -21,9 +21,9 @@ fn main() {
         rg3d_sound::futures::executor::block_on(DataSource::from_file(
             "examples/data/door_open.wav",
         ))
-            .unwrap(),
+        .unwrap(),
     )
-        .unwrap();
+    .unwrap();
 
     // Create generic source (without spatial effects) using that buffer.
     let source = GenericSourceBuilder::new()

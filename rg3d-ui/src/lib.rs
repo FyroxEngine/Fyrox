@@ -254,14 +254,30 @@ impl NodeHandleMapping {
     }
 }
 
-/// Trait for all UI controls in library.
-pub trait Control: 'static + Deref<Target = Widget> + DerefMut {
+pub trait BaseControl: 'static {
     fn as_any(&self) -> &dyn Any;
 
     fn as_any_mut(&mut self) -> &mut dyn Any;
 
     fn clone_boxed(&self) -> Box<dyn Control>;
+}
 
+impl<T: Any + Clone + 'static + Control> BaseControl for T {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn clone_boxed(&self) -> Box<dyn Control> {
+        Box::new(self.clone())
+    }
+}
+
+/// Trait for all UI controls in library.
+pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut {
     fn resolve(&mut self, _node_map: &NodeHandleMapping) {}
 
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {

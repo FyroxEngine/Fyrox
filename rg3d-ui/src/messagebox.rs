@@ -15,7 +15,6 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, RestrictionEntry,
     Thickness, UiNode, UserInterface,
 };
-use std::any::Any;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Ord, Eq, Hash, Debug)]
@@ -60,18 +59,6 @@ impl DerefMut for MessageBox {
 // Message box extends Window widget so it delegates most of calls
 // to inner window.
 impl Control for MessageBox {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn clone_boxed(&self) -> Box<dyn Control> {
-        Box::new(self.clone())
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         self.window.resolve(node_map);
         node_map.resolve(&mut self.ok_yes);

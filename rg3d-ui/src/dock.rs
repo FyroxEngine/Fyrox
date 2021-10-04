@@ -18,7 +18,6 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, NodeHandleMapping, Thickness, UiNode, UserInterface,
 };
-use std::any::Any;
 use std::{
     cell::{Cell, RefCell},
     ops::{Deref, DerefMut},
@@ -67,18 +66,6 @@ pub struct Tile {
 crate::define_widget_deref!(Tile);
 
 impl Control for Tile {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn clone_boxed(&self) -> Box<dyn Control> {
-        Box::new(self.clone())
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve_cell(&mut self.drop_anchor);
         node_map.resolve(&mut self.splitter);
@@ -774,18 +761,6 @@ pub struct DockingManager {
 crate::define_widget_deref!(DockingManager);
 
 impl Control for DockingManager {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn clone_boxed(&self) -> Box<dyn Control> {
-        Box::new(self.clone())
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve_slice(&mut self.floating_windows.borrow_mut());
     }

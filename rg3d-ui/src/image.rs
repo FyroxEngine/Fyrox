@@ -7,7 +7,6 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
-use std::any::Any;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone)]
@@ -38,18 +37,6 @@ impl Image {
 }
 
 impl Control for Image {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn clone_boxed(&self) -> Box<dyn Control> {
-        Box::new(self.clone())
-    }
-
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.widget.screen_bounds();
         let tex_coords = if self.flip {

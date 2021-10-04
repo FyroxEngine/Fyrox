@@ -7,7 +7,6 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Orientation, UiNode, UserInterface,
 };
-use std::any::Any;
 use std::{
     cell::RefCell,
     ops::{Deref, DerefMut, Range},
@@ -59,18 +58,6 @@ impl Default for Line {
 }
 
 impl Control for WrapPanel {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn clone_boxed(&self) -> Box<dyn Control> {
-        Box::new(self.clone())
-    }
-
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         let mut measured_size: Vector2<f32> = Vector2::default();
         let mut line_size = Vector2::default();

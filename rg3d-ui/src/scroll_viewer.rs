@@ -12,7 +12,6 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, NodeHandleMapping, Orientation, UiNode, UserInterface,
 };
-use std::any::Any;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone)]
@@ -57,18 +56,6 @@ impl ScrollViewer {
 }
 
 impl Control for ScrollViewer {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn clone_boxed(&self) -> Box<dyn Control> {
-        Box::new(self.clone())
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.content);
         node_map.resolve(&mut self.scroll_panel);

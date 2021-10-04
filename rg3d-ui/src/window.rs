@@ -17,7 +17,6 @@ use crate::{
     UiNode, UserInterface, VerticalAlignment, BRUSH_BRIGHT, BRUSH_LIGHT, BRUSH_LIGHTER,
     BRUSH_LIGHTEST, COLOR_DARK, COLOR_DARKEST,
 };
-use std::any::Any;
 use std::{
     cell::RefCell,
     ops::{Deref, DerefMut},
@@ -84,18 +83,6 @@ impl Grip {
 crate::define_widget_deref!(Window);
 
 impl Control for Window {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn clone_boxed(&self) -> Box<dyn Control> {
-        Box::new(self.clone())
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.header);
         node_map.resolve(&mut self.minimize_button);

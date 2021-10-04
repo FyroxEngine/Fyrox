@@ -1,24 +1,20 @@
-use crate::core::algebra::Vector2;
-use crate::popup::Popup;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
-    core::{color::Color, pool::Handle},
+    core::{algebra::Vector2, color::Color, pool::Handle},
     decorator::DecoratorBuilder,
     grid::{Column, GridBuilder, Row},
-    message::MessageDirection,
     message::{
-        ButtonState, MenuItemMessage, MenuMessage, OsEvent, PopupMessage, UiMessage, UiMessageData,
-        WidgetMessage,
+        ButtonState, MenuItemMessage, MenuMessage, MessageDirection, OsEvent, PopupMessage,
+        UiMessage, UiMessageData, WidgetMessage,
     },
-    popup::{Placement, PopupBuilder},
+    popup::{Placement, Popup, PopupBuilder},
     stack_panel::StackPanelBuilder,
     text::TextBuilder,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, RestrictionEntry,
     Thickness, UiNode, UserInterface, VerticalAlignment, BRUSH_BRIGHT_BLUE, BRUSH_PRIMARY,
 };
-use std::any::Any;
 use std::{
     ops::{Deref, DerefMut},
     rc::Rc,
@@ -33,18 +29,6 @@ pub struct Menu {
 crate::define_widget_deref!(Menu);
 
 impl Control for Menu {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn clone_boxed(&self) -> Box<dyn Control> {
-        Box::new(self.clone())
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
@@ -192,18 +176,6 @@ fn close_menu_chain(from: Handle<UiNode>, ui: &UserInterface) {
 }
 
 impl Control for MenuItem {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn clone_boxed(&self) -> Box<dyn Control> {
-        Box::new(self.clone())
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve_slice(&mut self.items);
         node_map.resolve(&mut self.popup);

@@ -1,22 +1,21 @@
 //! Drop-down list. This is control which shows currently selected item and provides drop-down
 //! list to select its current item. It is build using composition with standard list view.
 
-use crate::core::algebra::Vector2;
-use crate::grid::{Column, GridBuilder, Row};
-use crate::message::MessageDirection;
-use crate::utils::{make_arrow, ArrowDirection};
 use crate::{
     border::BorderBuilder,
-    core::pool::Handle,
+    core::{algebra::Vector2, pool::Handle},
+    grid::{Column, GridBuilder, Row},
     list_view::ListViewBuilder,
-    message::PopupMessage,
-    message::{DropdownListMessage, ListViewMessage, UiMessage, UiMessageData, WidgetMessage},
+    message::{
+        DropdownListMessage, ListViewMessage, MessageDirection, PopupMessage, UiMessage,
+        UiMessageData, WidgetMessage,
+    },
     popup::{Placement, PopupBuilder},
+    utils::{make_arrow, ArrowDirection},
     widget::Widget,
     widget::WidgetBuilder,
     BuildContext, Control, NodeHandleMapping, UiNode, UserInterface, BRUSH_LIGHT,
 };
-use std::any::Any;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone)]
@@ -34,18 +33,6 @@ pub struct DropdownList {
 crate::define_widget_deref!(DropdownList);
 
 impl Control for DropdownList {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn clone_boxed(&self) -> Box<dyn Control> {
-        Box::new(self.clone())
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.popup);
         node_map.resolve(&mut self.list_view);

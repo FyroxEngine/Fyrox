@@ -15,7 +15,12 @@ mod alsa;
 mod coreaudio;
 
 // The dummy target works on all platforms
-#[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos", target_arch = "wasm32")))]
+#[cfg(not(any(
+    target_os = "windows",
+    target_os = "linux",
+    target_os = "macos",
+    target_arch = "wasm32"
+)))]
 mod dummy;
 
 #[cfg(target_arch = "wasm32")]

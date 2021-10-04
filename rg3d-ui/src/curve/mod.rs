@@ -21,7 +21,6 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
-use std::any::Any;
 use std::{
     cell::{Cell, RefCell},
     collections::HashSet,
@@ -125,18 +124,6 @@ impl Selection {
 }
 
 impl Control for CurveEditor {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn clone_boxed(&self) -> Box<dyn Control> {
-        Box::new(self.clone())
-    }
-
     fn draw(&self, ctx: &mut DrawingContext) {
         self.update_matrices();
         self.draw_background(ctx);

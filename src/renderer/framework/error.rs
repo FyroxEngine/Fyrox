@@ -6,7 +6,11 @@ use std::ffi::NulError;
 /// Set of possible renderer errors.
 #[derive(Debug, thiserror::Error)]
 pub enum FrameworkError {
-    #[error("Compilation of \"{}\" shader has failed: {}", shader_name, error_message)]
+    #[error(
+        "Compilation of \"{}\" shader has failed: {}",
+        shader_name,
+        error_message
+    )]
     /// Compilation of a shader has failed.
     ShaderCompilationFailed {
         /// Name of shader.
@@ -29,7 +33,11 @@ pub enum FrameworkError {
     #[error("There is no such shader uniform: {0}")]
     UnableToFindShaderUniform(String),
     /// Texture has invalid data - insufficient size.
-    #[error("Texture has invalid data (insufficent size): expected {}, actual: {}", expected_data_size, actual_data_size)]
+    #[error(
+        "Texture has invalid data (insufficent size): expected {}, actual: {}",
+        expected_data_size,
+        actual_data_size
+    )]
     InvalidTextureData {
         /// Expected data size in bytes.
         expected_data_size: usize,
@@ -46,7 +54,10 @@ pub enum FrameworkError {
         start: {},
         end: {},
         total: {}
-        ", start, end, total
+        ",
+        start,
+        end,
+        total
     )]
     InvalidElementRange {
         /// First index.

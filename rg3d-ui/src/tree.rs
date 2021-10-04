@@ -17,7 +17,6 @@ use crate::{
     BuildContext, Control, NodeHandleMapping, Thickness, UiNode, UserInterface, BRUSH_DARK,
     BRUSH_DARKEST, BRUSH_LIGHT,
 };
-use std::any::Any;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Debug, Clone)]
@@ -36,18 +35,6 @@ pub struct Tree {
 crate::define_widget_deref!(Tree);
 
 impl Control for Tree {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn clone_boxed(&self) -> Box<dyn Control> {
-        Box::new(self.clone())
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.content);
         node_map.resolve(&mut self.expander);
@@ -436,18 +423,6 @@ pub struct TreeRoot {
 crate::define_widget_deref!(TreeRoot);
 
 impl Control for TreeRoot {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn clone_boxed(&self) -> Box<dyn Control> {
-        Box::new(self.clone())
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.panel);
         node_map.resolve_slice(&mut self.selected);

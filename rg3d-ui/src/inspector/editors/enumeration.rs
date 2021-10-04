@@ -23,7 +23,7 @@ use crate::{
     VerticalAlignment,
 };
 use std::{
-    any::{Any, TypeId},
+    any::TypeId,
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
     sync::Arc,
@@ -84,18 +84,6 @@ impl<T: InspectableEnum> DerefMut for EnumPropertyEditor<T> {
 }
 
 impl<T: InspectableEnum> Control for EnumPropertyEditor<T> {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn clone_boxed(&self) -> Box<dyn Control> {
-        Box::new(self.clone())
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 

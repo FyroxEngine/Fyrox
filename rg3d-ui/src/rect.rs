@@ -13,7 +13,6 @@ use crate::{
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use std::{
-    any::Any,
     fmt::Debug,
     ops::{Deref, DerefMut},
 };
@@ -72,18 +71,6 @@ impl<T> Control for RectEditor<T>
 where
     T: NumAssign + Scalar + Copy + PartialOrd + Send + Sync + NumCast + 'static,
 {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn clone_boxed(&self) -> Box<dyn Control> {
-        Box::new(self.clone())
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 

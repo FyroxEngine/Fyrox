@@ -24,7 +24,7 @@ use crate::{
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use std::{
-    any::{Any, TypeId},
+    any::TypeId,
     fmt::Debug,
     marker::PhantomData,
     ops::{Deref, DerefMut},
@@ -53,18 +53,6 @@ pub enum CollectionEditorMessage {
 }
 
 impl Control for CollectionEditor {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn clone_boxed(&self) -> Box<dyn Control> {
-        Box::new(self.clone())
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 

@@ -1,22 +1,19 @@
-use crate::border::BorderBuilder;
-use crate::decorator::Decorator;
-use crate::draw::Draw;
-use crate::scroll_viewer::ScrollViewer;
 use crate::{
+    border::BorderBuilder,
     brush::Brush,
     core::{color::Color, pool::Handle},
-    draw::{CommandTexture, DrawingContext},
+    decorator::Decorator,
+    draw::{CommandTexture, Draw, DrawingContext},
     message::{
         DecoratorMessage, ListViewMessage, MessageDirection, UiMessage, UiMessageData,
         WidgetMessage,
     },
-    scroll_viewer::ScrollViewerBuilder,
+    scroll_viewer::{ScrollViewer, ScrollViewerBuilder},
     stack_panel::StackPanelBuilder,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, NodeHandleMapping, Thickness, UiNode, UserInterface, BRUSH_DARK,
     BRUSH_LIGHT,
 };
-use std::any::Any;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone)]
@@ -108,18 +105,6 @@ pub struct ListViewItem {
 crate::define_widget_deref!(ListViewItem);
 
 impl Control for ListViewItem {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn clone_boxed(&self) -> Box<dyn Control> {
-        Box::new(self.clone())
-    }
-
     fn draw(&self, drawing_context: &mut DrawingContext) {
         // Emit transparent geometry so item container can be picked by hit test.
         drawing_context.push_rect_filled(&self.widget.screen_bounds(), None);
@@ -162,18 +147,6 @@ impl Control for ListViewItem {
 }
 
 impl Control for ListView {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn clone_boxed(&self) -> Box<dyn Control> {
-        Box::new(self.clone())
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.panel);
         node_map.resolve_slice(&mut self.items);

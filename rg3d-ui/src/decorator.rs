@@ -8,7 +8,6 @@ use crate::{
     BuildContext, Control, NodeHandleMapping, UiNode, UserInterface, BRUSH_BRIGHT, BRUSH_LIGHT,
     BRUSH_LIGHTER, BRUSH_LIGHTEST, COLOR_DARKEST, COLOR_LIGHTEST,
 };
-use std::any::Any;
 use std::ops::{Deref, DerefMut};
 
 /// A visual element that changes its appearance by listening specific events.
@@ -48,18 +47,6 @@ impl DerefMut for Decorator {
 }
 
 impl Control for Decorator {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn clone_boxed(&self) -> Box<dyn Control> {
-        Box::new(self.clone())
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         self.border.resolve(node_map)
     }

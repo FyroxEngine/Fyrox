@@ -7,7 +7,6 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
-use std::any::Any;
 use std::ops::{Deref, DerefMut};
 
 /// Allows user to scroll content
@@ -22,18 +21,6 @@ pub struct ScrollPanel {
 crate::define_widget_deref!(ScrollPanel);
 
 impl Control for ScrollPanel {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn clone_boxed(&self) -> Box<dyn Control> {
-        Box::new(self.clone())
-    }
-
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
 
