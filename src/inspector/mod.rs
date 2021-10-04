@@ -12,7 +12,6 @@ use crate::{
     scene::{EditorScene, Selection},
     GameEngine, Message, MSG_SYNC_FLAG,
 };
-use rg3d::asset::core::inspect::PropertyInfo;
 use rg3d::core::inspect::Inspect;
 use rg3d::{
     core::pool::Handle,
