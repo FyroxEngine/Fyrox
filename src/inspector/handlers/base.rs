@@ -1,6 +1,9 @@
 use crate::{
     inspector::SenderHelper,
-    scene::commands::graph::{SetNameCommand, SetTagCommand, SetVisibleCommand},
+    scene::commands::graph::{
+        SetDepthOffsetCommand, SetLifetimeCommand, SetMobilityCommand, SetNameCommand,
+        SetPhysicsBindingCommand, SetTagCommand, SetVisibleCommand,
+    },
 };
 use rg3d::{
     core::pool::Handle,
@@ -30,15 +33,25 @@ pub fn handle_base_property_changed(
             Base::VISIBILITY => {
                 helper.do_scene_command(SetVisibleCommand::new(
                     node_handle,
-                    *value.cast_value::<bool>().unwrap(),
+                    *value.cast_value().unwrap(),
                 ));
             }
-            Base::MOBILITY => {
-                // TODO
-            }
-            Base::PHYSICS_BINDING => {
-                // TODO
-            }
+            Base::MOBILITY => helper.do_scene_command(SetMobilityCommand::new(
+                node_handle,
+                *value.cast_value().unwrap(),
+            )),
+            Base::PHYSICS_BINDING => helper.do_scene_command(SetPhysicsBindingCommand::new(
+                node_handle,
+                *value.cast_value().unwrap(),
+            )),
+            Base::LIFETIME => helper.do_scene_command(SetLifetimeCommand::new(
+                node_handle,
+                *value.cast_value().unwrap(),
+            )),
+            Base::DEPTH_OFFSET => helper.do_scene_command(SetDepthOffsetCommand::new(
+                node_handle,
+                *value.cast_value().unwrap(),
+            )),
             _ => println!("Unhandled property of Base: {:?}", args),
         }
     }
