@@ -955,9 +955,17 @@ impl Surface {
         }
     }
 
+    /// Calculates material id.
+    pub fn material_id(&self) -> u64 {
+        &*self.material as *const _ as u64
+    }
+
     /// Calculates batch id.
     pub fn batch_id(&self) -> u64 {
-        &*self.material as *const _ as u64
+        let mut hasher = DefaultHasher::new();
+        hasher.write_u64(self.material_id());
+        hasher.write_u64(&**self.data.as_ref().unwrap() as *const _ as u64);
+        hasher.finish()
     }
 
     /// Returns current data used by surface.
