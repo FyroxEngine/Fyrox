@@ -304,8 +304,8 @@ impl Base {
     /// system node and it will be removed from scene when time will end. This is
     /// efficient algorithm because scene holds every object in pool and allocation
     /// or deallocation of node takes very little amount of time.
-    pub fn set_lifetime(&mut self, time_seconds: f32) -> &mut Self {
-        self.lifetime = Some(time_seconds);
+    pub fn set_lifetime(&mut self, time_seconds: Option<f32>) -> &mut Self {
+        self.lifetime = time_seconds;
         self
     }
 
@@ -359,6 +359,20 @@ impl Base {
     /// Returns local visibility of a node.
     pub fn visibility(&self) -> bool {
         self.visibility
+    }
+
+    /// Set new mobility for the node.
+    ///
+    /// TODO. Mobility still has no effect, it was designed to be used in combined
+    /// rendering (dynamic + static lights (lightmaps))
+    pub fn set_mobility(&mut self, mobility: Mobility) -> &mut Self {
+        self.mobility = mobility;
+        self
+    }
+
+    /// Return current mobility of the node.
+    pub fn mobility(&self) -> Mobility {
+        self.mobility
     }
 
     /// Returns combined visibility of an node. This is the final visibility of a node. Global visibility calculated
