@@ -1,4 +1,5 @@
 use crate::{inspector::SenderHelper, scene::commands::camera::SetExposureCommand};
+use rg3d::scene::camera::Camera;
 use rg3d::{
     core::pool::Handle,
     gui::message::{FieldKind, PropertyChanged},
@@ -13,7 +14,7 @@ pub fn handle_camera_property_changed(
 ) {
     if let Node::Camera(camera) = node {
         match args.name.as_ref() {
-            "exposure" => {
+            Camera::EXPOSURE => {
                 match args.value {
                     // Exposure variant has changed.
                     FieldKind::Object(ref value) => {
@@ -26,7 +27,7 @@ pub fn handle_camera_property_changed(
                     FieldKind::EnumerationVariant(ref args) => {
                         if let FieldKind::Object(ref value) = args.value {
                             match args.name.as_ref() {
-                                "key_value" => {
+                                Exposure::AUTO_KEY_VALUE => {
                                     let mut current_auto_exposure = camera.exposure().clone();
                                     if let Exposure::Auto {
                                         ref mut key_value, ..
@@ -40,7 +41,7 @@ pub fn handle_camera_property_changed(
                                         current_auto_exposure,
                                     ))
                                 }
-                                "min_luminance" => {
+                                Exposure::AUTO_MIN_LUMINANCE => {
                                     let mut current_auto_exposure = camera.exposure().clone();
                                     if let Exposure::Auto {
                                         ref mut min_luminance,
@@ -55,7 +56,7 @@ pub fn handle_camera_property_changed(
                                         current_auto_exposure,
                                     ))
                                 }
-                                "max_luminance" => {
+                                Exposure::AUTO_MAX_LUMINANCE => {
                                     let mut current_auto_exposure = camera.exposure().clone();
                                     if let Exposure::Auto {
                                         ref mut max_luminance,

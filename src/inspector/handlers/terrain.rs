@@ -5,6 +5,7 @@ use crate::{
         AddTerrainLayerCommand, DeleteTerrainLayerCommand, SetTerrainLayerMaskPropertyNameCommand,
     },
 };
+use rg3d::scene::terrain::Terrain;
 use rg3d::{
     core::pool::Handle,
     gui::message::{CollectionChanged, FieldKind, PropertyChanged},
@@ -19,7 +20,7 @@ pub fn handle_terrain_property_changed(
     graph: &Graph,
 ) {
     match args.name.as_ref() {
-        "layers" => {
+        Terrain::LAYERS => {
             if let FieldKind::Collection(ref collection_changed) = args.value {
                 match &**collection_changed {
                     CollectionChanged::Add => {
@@ -49,7 +50,7 @@ pub fn handle_terrain_property_changed(
                 }
             }
         }
-        "decal_layer_index" => {
+        Terrain::DECAL_LAYER_INDEX => {
             if let FieldKind::Object(ref args) = args.value {
                 helper.do_scene_command(SetTerrainDecalLayerIndexCommand::new(
                     node_handle,

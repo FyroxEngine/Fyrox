@@ -2,8 +2,11 @@ use crate::{
     inspector::SenderHelper,
     scene::commands::graph::{SetNameCommand, SetTagCommand, SetVisibleCommand},
 };
-use rg3d::gui::message::FieldKind;
-use rg3d::{core::pool::Handle, gui::message::PropertyChanged, scene::node::Node};
+use rg3d::{
+    core::pool::Handle,
+    gui::message::{FieldKind, PropertyChanged},
+    scene::{base::Base, node::Node},
+};
 
 pub fn handle_base_property_changed(
     args: &PropertyChanged,
@@ -12,31 +15,28 @@ pub fn handle_base_property_changed(
 ) {
     if let FieldKind::Object(ref value) = args.value {
         match args.name.as_ref() {
-            "name" => {
+            Base::NAME => {
                 helper.do_scene_command(SetNameCommand::new(
                     node_handle,
                     value.cast_value::<String>().unwrap().clone(),
                 ));
             }
-            "tag" => {
+            Base::TAG => {
                 helper.do_scene_command(SetTagCommand::new(
                     node_handle,
                     value.cast_value::<String>().unwrap().clone(),
                 ));
             }
-            "visibility" => {
+            Base::VISIBILITY => {
                 helper.do_scene_command(SetVisibleCommand::new(
                     node_handle,
                     *value.cast_value::<bool>().unwrap(),
                 ));
             }
-            "mobility" => {
+            Base::MOBILITY => {
                 // TODO
             }
-            "physics_binding" => {
-                // TODO
-            }
-            "depth_offset" => {
+            Base::PHYSICS_BINDING => {
                 // TODO
             }
             _ => println!("Unhandled property of Base: {:?}", args),
