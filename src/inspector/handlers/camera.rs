@@ -1,9 +1,19 @@
-use crate::{inspector::SenderHelper, scene::commands::camera::SetExposureCommand};
-use rg3d::scene::camera::Camera;
+use crate::{
+    inspector::SenderHelper,
+    scene::commands::camera::{
+        SetCameraPreviewCommand, SetColorGradingEnabledCommand, SetColorGradingLutCommand,
+        SetEnvironmentMap, SetExposureCommand, SetFovCommand, SetSkyBoxCommand, SetViewportCommand,
+        SetZFarCommand, SetZNearCommand,
+    },
+};
 use rg3d::{
     core::pool::Handle,
     gui::message::{FieldKind, PropertyChanged},
-    scene::{camera::Exposure, node::Node},
+    resource::texture::Texture,
+    scene::{
+        camera::{Camera, ColorGradingLut, Exposure, SkyBox},
+        node::Node,
+    },
 };
 
 pub fn handle_camera_property_changed(
@@ -78,7 +88,57 @@ pub fn handle_camera_property_changed(
                     _ => {}
                 }
             }
-            _ => println!("Unhandled property of Camera: {:?}", args),
+            // TODO: Confusing "double-match"
+            _ => {
+                if let FieldKind::Object(ref value) = args.value {
+                    match args.name.as_ref() {
+                        Camera::Z_NEAR => helper.do_scene_command(SetZNearCommand::new(
+                            node_handle,
+                            *value.cast_value().unwrap(),
+                        )),
+                        Camera::Z_FAR => helper.do_scene_command(SetZFarCommand::new(
+                            node_handle,
+                            *value.cast_value().unwrap(),
+                        )),
+                        Camera::FOV => helper.do_scene_command(SetFovCommand::new(
+                            node_handle,
+                            *value.cast_value().unwrap(),
+                        )),
+                        Camera::VIEWPORT => helper.do_scene_command(SetViewportCommand::new(
+                            node_handle,
+                            *value.cast_value().unwrap(),
+                        )),
+                        Camera::ENABLED => helper.do_scene_command(SetCameraPreviewCommand::new(
+                            node_handle,
+                            *value.cast_value().unwrap(),
+                        )),
+                        Camera::SKY_BOX => helper.do_scene_command(SetSkyBoxCommand::new(
+                            node_handle,
+                            value.cast_value::<Option<Box<SkyBox>>>().unwrap().clone(),
+                        )),
+                        Camera::ENVIRONMENT => helper.do_scene_command(SetEnvironmentMap::new(
+                            node_handle,
+                            value.cast_value::<Option<Texture>>().cloned().unwrap(),
+                        )),
+                        Camera::COLOR_GRADING_LUT => {
+                            helper.do_scene_command(SetColorGradingLutCommand::new(
+                                node_handle,
+                                value
+                                    .cast_value::<Option<ColorGradingLut>>()
+                                    .unwrap()
+                                    .clone(),
+                            ))
+                        }
+                        Camera::COLOR_GRADING_ENABLED => {
+                            helper.do_scene_command(SetColorGradingEnabledCommand::new(
+                                node_handle,
+                                *value.cast_value().unwrap(),
+                            ))
+                        }
+                        _ => println!("Unhandled property of Camera: {:?}", args),
+                    }
+                }
+            }
         }
     }
 }

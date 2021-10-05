@@ -3,9 +3,10 @@ use crate::{
     scene::commands::{Command, SceneContext},
 };
 use rg3d::{
-    core::pool::Handle,
+    core::{math::Rect, pool::Handle},
+    resource::texture::Texture,
     scene::{
-        camera::{ColorGradingLut, Exposure},
+        camera::{ColorGradingLut, Exposure, SkyBox},
         graph::Graph,
         node::Node,
     },
@@ -13,6 +14,20 @@ use rg3d::{
 
 define_node_command!(SetFovCommand("Set Fov", f32) where fn swap(self, node) {
     get_set_swap!(self, node.as_camera_mut(), fov, set_fov);
+});
+
+define_node_command!(SetViewportCommand("Set Viewport", Rect<f32>) where fn swap(self, node) {
+    get_set_swap!(self, node.as_camera_mut(), viewport, set_viewport);
+});
+
+define_node_command!(SetSkyBoxCommand("Set Sky Box Command", Option<Box<SkyBox>>) where fn swap(self, node) {
+    let camera = node.as_camera_mut();
+    let temp = camera.replace_skybox(self.value.take());
+    self.value = temp;
+});
+
+define_node_command!(SetEnvironmentMap("Set Camera Environment Map", Option<Texture>) where fn swap(self, node) {
+    get_set_swap!(self, node.as_camera_mut(), environment_map, set_environment);
 });
 
 define_node_command!(SetZNearCommand("Set Camera Z Near", f32) where fn swap(self, node) {
