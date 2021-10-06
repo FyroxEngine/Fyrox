@@ -2,7 +2,12 @@
 //! radius = 0, then it represents point emitter.   
 
 use crate::{
-    core::{algebra::Vector3, numeric_range::NumericRange, visitor::prelude::*},
+    core::{
+        algebra::Vector3,
+        inspect::{Inspect, PropertyInfo},
+        numeric_range::NumericRange,
+        visitor::prelude::*,
+    },
     scene::particle_system::{
         emitter::{
             base::{BaseEmitter, BaseEmitterBuilder},
@@ -14,8 +19,9 @@ use crate::{
 use std::ops::{Deref, DerefMut};
 
 /// See module docs.
-#[derive(Debug, Clone, Visit)]
+#[derive(Debug, Clone, Inspect, Visit)]
 pub struct SphereEmitter {
+    #[inspect(expand)]
     emitter: BaseEmitter,
     radius: f32,
 }

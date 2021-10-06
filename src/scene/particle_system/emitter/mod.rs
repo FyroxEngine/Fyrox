@@ -1,6 +1,8 @@
 //! Emitter is an enum over all possible emitter types, they all must
 //! use BaseEmitter which contains base functionality.
 
+use crate::asset::core::inspect::PropertyInfo;
+use crate::core::inspect::Inspect;
 use crate::{
     core::visitor::prelude::*,
     scene::particle_system::{
@@ -36,6 +38,19 @@ pub enum Emitter {
     Sphere(SphereEmitter),
     /// Cylinder emitter.
     Cylinder(CylinderEmitter),
+}
+
+impl Inspect for Emitter {
+    fn properties(&self) -> Vec<PropertyInfo<'_>> {
+        match self {
+            Emitter::Unknown => {
+                unreachable!()
+            }
+            Emitter::Cuboid(v) => v.properties(),
+            Emitter::Sphere(v) => v.properties(),
+            Emitter::Cylinder(v) => v.properties(),
+        }
+    }
 }
 
 impl Emitter {
