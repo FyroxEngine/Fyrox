@@ -313,6 +313,14 @@ define_node_command!(SetParticleSystemAccelerationCommand("Set Particle System A
     get_set_swap!(self, node.as_particle_system_mut(), acceleration, set_acceleration);
 });
 
+define_node_command!(SetParticleSystemEnabledCommand("Set Particle System Enabled", bool) where fn swap(self, node) {
+    get_set_swap!(self, node.as_particle_system_mut(), is_enabled, set_enabled);
+});
+
+define_node_command!(SetSoftBoundarySharpnessFactorCommand("Set Soft Boundary Sharpness Factor", f32) where fn swap(self, node) {
+    get_set_swap!(self, node.as_particle_system_mut(), soft_boundary_sharpness_factor, set_soft_boundary_sharpness_factor);
+});
+
 macro_rules! define_emitter_variant_command {
     ($name:ident($human_readable_name:expr, $value_type:ty) where fn swap($self:ident, $emitter:ident, $variant:ident, $var:ident) $apply_method:block ) => {
         define_emitter_command!($name($human_readable_name, $value_type) where fn swap($self, $emitter) {

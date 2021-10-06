@@ -6,15 +6,15 @@ use crate::{
         },
         handlers::{
             base::handle_base_property_changed, camera::handle_camera_property_changed,
+            particle_system::handle_particle_system_property_changed,
             terrain::handle_terrain_property_changed, transform::handle_transform_property_changed,
         },
     },
     scene::{EditorScene, Selection},
     GameEngine, Message, MSG_SYNC_FLAG,
 };
-use rg3d::core::inspect::Inspect;
 use rg3d::{
-    core::pool::Handle,
+    core::{inspect::Inspect, pool::Handle},
     engine::resource_manager::ResourceManager,
     gui::{
         inspector::{
@@ -36,16 +36,16 @@ use rg3d::{
         decal::Decal,
         light::{point::PointLight, spot::SpotLight, BaseLight},
         mesh::{surface::Surface, RenderPath},
-        particle_system::ParticleSystem,
+        particle_system::{emitter::Emitter, ParticleSystem},
         sprite::Sprite,
         terrain::{Layer, Terrain},
         transform::Transform,
     },
     utils::log::{Log, MessageKind},
 };
-use std::fmt::Debug;
 use std::{
     any::{Any, TypeId},
+    fmt::Debug,
     sync::{mpsc::Sender, Arc, Mutex},
 };
 
@@ -175,6 +175,9 @@ fn make_property_editors_container(
     ));
     container.insert(Arc::new(
         VecCollectionPropertyEditorDefinition::<Layer>::new(),
+    ));
+    container.insert(Arc::new(
+        VecCollectionPropertyEditorDefinition::<Emitter>::new(),
     ));
     container.insert(Arc::new(make_physics_binding_enum_editor_definition()));
     container.insert(Arc::new(make_mobility_enum_editor_definition()));
@@ -327,7 +330,7 @@ impl Inspector {
                             } else if args.owner_type_id == TypeId::of::<SpotLight>() {
                                 // TODO
                             } else if args.owner_type_id == TypeId::of::<ParticleSystem>() {
-                                // TODO
+                                handle_particle_system_property_changed(args, node_handle, &helper)
                             } else if args.owner_type_id == TypeId::of::<Decal>() {
                                 // TODO
                             } else if args.owner_type_id == TypeId::of::<Terrain>() {
