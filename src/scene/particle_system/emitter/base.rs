@@ -40,6 +40,7 @@ pub struct BaseEmitter {
     /// Range of initial rotation for a particle
     rotation: NumericRange,
     pub(crate) alive_particles: u32,
+    #[visit(skip)]
     time: f32,
     #[visit(skip)]
     pub(crate) particles_to_spawn: u32,
