@@ -6,7 +6,6 @@
 
 use std::{
     any::{Any, TypeId},
-    cmp::PartialEq,
     fmt::{self, Debug},
 };
 
@@ -68,15 +67,6 @@ impl<'a> fmt::Debug for PropertyInfo<'a> {
             .field("group", &self.group)
             .field("value", &format_args!("{:?}", self.value as *const _))
             .finish()
-    }
-}
-
-impl<'a> PartialEq<Self> for PropertyInfo<'a> {
-    fn eq(&self, other: &Self) -> bool {
-        self.name == other.name
-            && self.group == other.group
-            && self.display_name == other.display_name
-            && self.value as *const _ == other.value as *const _
     }
 }
 

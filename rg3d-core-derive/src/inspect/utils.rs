@@ -135,9 +135,7 @@ fn impl_inspect_generics<'a>(
     generics: &Generics,
     _field_args: impl Iterator<Item = &'a args::FieldArgs>,
 ) -> Generics {
-    let generics = generics.clone();
-
-    generics
+    generics.clone()
 }
 
 pub fn gen_inspect_fn_body(
@@ -155,7 +153,7 @@ pub fn gen_inspect_fn_body(
         .fields
         .iter()
         .enumerate()
-        .filter(|(_i, f)| !f.skip && !(f.expand || f.expand_subtree))
+        .filter(|(_i, f)| !(f.skip || f.expand || f.expand_subtree))
         .map(|(i, field)| {
             self::quote_field_prop(&owner_name, field_prefix, i, field, field_args.style)
         });
@@ -230,11 +228,7 @@ fn quote_field_prop(
     let display_name = display_name.to_case(Case::Title);
 
     // consider #[inspect(group = ..)]
-    let group = field
-        .group
-        .as_ref()
-        .map(|s| s.as_str())
-        .unwrap_or(owner_name);
+    let group = field.group.as_deref().unwrap_or(owner_name);
 
     let read_only = field.read_only;
 
