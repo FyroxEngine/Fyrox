@@ -1,3 +1,4 @@
+use crate::scene::commands::particle_system::DeleteEmitterCommand;
 use crate::{
     inspector::SenderHelper,
     scene::commands::particle_system::{
@@ -146,7 +147,9 @@ impl ParticleSystemHandler {
                         MessageDirection::ToWidget,
                         true,
                     )),
-                    CollectionChanged::Remove(_) => {}
+                    CollectionChanged::Remove(index) => {
+                        helper.do_scene_command(DeleteEmitterCommand::new(node_handle, *index));
+                    }
                     CollectionChanged::ItemChanged { .. } => {}
                 },
                 _ => (),
