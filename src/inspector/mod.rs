@@ -6,8 +6,8 @@ use crate::{
         },
         handlers::{
             base::handle_base_property_changed, camera::handle_camera_property_changed,
-            particle_system::handle_particle_system_property_changed,
-            terrain::handle_terrain_property_changed, transform::handle_transform_property_changed,
+            particle_system::ParticleSystemHandler, terrain::handle_terrain_property_changed,
+            transform::handle_transform_property_changed,
         },
     },
     scene::{EditorScene, Selection},
@@ -71,6 +71,7 @@ pub struct Inspector {
     // got new context - in this case we don't need to sync with model, because
     // inspector is already in correct state.
     needs_sync: bool,
+    particle_system_handler: ParticleSystemHandler,
 }
 
 pub struct SenderHelper {
@@ -210,6 +211,7 @@ impl Inspector {
             inspector,
             property_editors,
             needs_sync: true,
+            particle_system_handler: ParticleSystemHandler::new(ctx),
         }
     }
 
@@ -300,21 +302,27 @@ impl Inspector {
             sender: sender.clone(),
         };
 
-        if message.destination() == self.inspector
-            && message.direction() == MessageDirection::FromWidget
-        {
-            if let UiMessageData::Inspector(InspectorMessage::PropertyChanged(args)) =
-                message.data()
-            {
-                let scene = &engine.scenes[editor_scene.scene];
+        let scene = &engine.scenes[editor_scene.scene];
 
-                if let Selection::Graph(selection) = &editor_scene.selection {
-                    if selection.is_single_selection() {
-                        let node_handle = selection.nodes()[0];
+        if let Selection::Graph(selection) = &editor_scene.selection {
+            if selection.is_single_selection() {
+                let node_handle = selection.nodes()[0];
+                let node = &scene.graph[node_handle];
 
-                        let node = &scene.graph[node_handle];
+                self.particle_system_handler.handle_ui_message(
+                    message,
+                    node_handle,
+                    &helper,
+                    &engine.user_interface,
+                );
 
-                        if scene.graph.is_valid_handle(node_handle) {
+                if scene.graph.is_valid_handle(node_handle) {
+                    if message.destination() == self.inspector
+                        && message.direction() == MessageDirection::FromWidget
+                    {
+                        if let UiMessageData::Inspector(InspectorMessage::PropertyChanged(args)) =
+                            message.data()
+                        {
                             if args.owner_type_id == TypeId::of::<Base>() {
                                 handle_base_property_changed(args, node_handle, &helper);
                             } else if args.owner_type_id == TypeId::of::<Transform>() {
@@ -330,7 +338,12 @@ impl Inspector {
                             } else if args.owner_type_id == TypeId::of::<SpotLight>() {
                                 // TODO
                             } else if args.owner_type_id == TypeId::of::<ParticleSystem>() {
-                                handle_particle_system_property_changed(args, node_handle, &helper)
+                                self.particle_system_handler.handle(
+                                    args,
+                                    node_handle,
+                                    &helper,
+                                    &engine.user_interface,
+                                )
                             } else if args.owner_type_id == TypeId::of::<Decal>() {
                                 // TODO
                             } else if args.owner_type_id == TypeId::of::<Terrain>() {
