@@ -3,8 +3,8 @@ use crate::{
     inspector::{
         editors::make_property_editors_container,
         handlers::{
-            particle_system::ParticleSystemHandler, sound::handle_generic_source_property_changed,
-            sound::handle_spatial_source_property_changed, SceneNodePropertyChangedHandler,
+            node::{particle_system::ParticleSystemHandler, SceneNodePropertyChangedHandler},
+            sound::*,
         },
     },
     scene::{EditorScene, Selection},
