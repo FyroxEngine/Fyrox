@@ -15,18 +15,19 @@ pub mod generic;
 pub mod spatial;
 
 /// Status (state) of sound source.
-#[derive(Eq, PartialEq, Copy, Clone, Debug)]
+#[derive(Eq, PartialEq, Copy, Clone, Debug, Inspect)]
+#[repr(u32)]
 pub enum Status {
     /// Sound is stopped - it won't produces any sample and won't load mixer. This is default
     /// state of all sound sources.
-    Stopped,
+    Stopped = 0,
 
     /// Sound is playing.
-    Playing,
+    Playing = 1,
 
     /// Sound is paused, it can stay in this state any amount if time. Playback can be continued by
     /// setting `Playing` status.
-    Paused,
+    Paused = 2,
 }
 
 /// See module docs.
@@ -96,11 +97,7 @@ impl DerefMut for SoundSource {
 
 impl Visit for Status {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        let mut kind: u8 = match self {
-            Status::Stopped => 0,
-            Status::Playing => 1,
-            Status::Paused => 2,
-        };
+        let mut kind = *self as u8;
 
         kind.visit(name, visitor)?;
 
