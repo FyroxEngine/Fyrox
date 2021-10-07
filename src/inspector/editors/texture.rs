@@ -93,6 +93,8 @@ impl Control for TextureEditor {
                             MessageDirection::ToWidget,
                             self.texture.clone().map(|t| into_gui_texture(t)),
                         ));
+
+                        ui.send_message(message.reverse());
                     }
                 }
             }

@@ -1,3 +1,4 @@
+use crate::inspector::handlers::sprite::handle_sprite_property_changed;
 use crate::{
     command::Command,
     inspector::{
@@ -330,7 +331,7 @@ impl Inspector {
                             } else if args.owner_type_id == TypeId::of::<Camera>() {
                                 handle_camera_property_changed(args, node_handle, node, &helper);
                             } else if args.owner_type_id == TypeId::of::<Sprite>() {
-                                // TODO
+                                handle_sprite_property_changed(args, node_handle, &helper)
                             } else if args.owner_type_id == TypeId::of::<BaseLight>() {
                                 // TODO
                             } else if args.owner_type_id == TypeId::of::<PointLight>() {
