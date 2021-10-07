@@ -4,8 +4,7 @@ use crate::{
     sidebar::{
         base::BaseSection, camera::CameraSection, decal::DecalSection, light::LightSection,
         lod::LodGroupEditor, mesh::MeshSection, particle::ParticleSystemSection,
-        physics::PhysicsSection, sound::SoundSection, sprite::SpriteSection,
-        terrain::TerrainSection,
+        physics::PhysicsSection, sprite::SpriteSection, terrain::TerrainSection,
     },
     GameEngine, Message,
 };
@@ -40,7 +39,6 @@ mod lod;
 mod mesh;
 mod particle;
 mod physics;
-mod sound;
 mod sprite;
 mod terrain;
 
@@ -59,7 +57,6 @@ pub struct SideBar {
     sprite_section: SpriteSection,
     mesh_section: MeshSection,
     physics_section: PhysicsSection,
-    sound_section: SoundSection,
     decal_section: DecalSection,
     pub terrain_section: TerrainSection,
 }
@@ -180,7 +177,6 @@ impl SideBar {
         let mesh_section = MeshSection::new(ctx, sender.clone());
         let physics_section = PhysicsSection::new(ctx, sender.clone());
         let terrain_section = TerrainSection::new(ctx);
-        let sound_section = SoundSection::new(ctx);
         let decal_section = DecalSection::new(ctx);
 
         let window = WindowBuilder::new(WidgetBuilder::new())
@@ -198,7 +194,6 @@ impl SideBar {
                                 mesh_section.section,
                                 terrain_section.section,
                                 physics_section.section,
-                                sound_section.section,
                                 decal_section.section,
                             ]))
                             .build(ctx),
@@ -222,7 +217,6 @@ impl SideBar {
             mesh_section,
             physics_section,
             terrain_section,
-            sound_section,
             decal_section,
         }
     }
@@ -240,7 +234,6 @@ impl SideBar {
         );
 
         let scene = &engine.scenes[editor_scene.scene];
-        let ui = &engine.user_interface;
 
         match &editor_scene.selection {
             Selection::Graph(selection) => {
@@ -259,14 +252,6 @@ impl SideBar {
                                 true,
                             ),
                         );
-                        send_sync_message(
-                            ui,
-                            WidgetMessage::visibility(
-                                self.sound_section.section,
-                                MessageDirection::ToWidget,
-                                false,
-                            ),
-                        );
 
                         self.base_section.sync_to_model(node, ui);
                         self.lod_editor.sync_to_model(node, scene, ui);
@@ -278,44 +263,6 @@ impl SideBar {
                         self.mesh_section.sync_to_model(node, ui);
                         self.terrain_section.sync_to_model(node, ui);
                         self.physics_section.sync_to_model(editor_scene, engine);
-                    }
-                }
-            }
-            Selection::Sound(selection) => {
-                for &section in &[
-                    self.base_section.section,
-                    self.sprite_section.section,
-                    self.decal_section.section,
-                    self.light_section.section,
-                    self.camera_section.section,
-                    self.particle_system_section.section,
-                    self.mesh_section.section,
-                    self.terrain_section.section,
-                    self.physics_section.section,
-                ] {
-                    send_sync_message(
-                        ui,
-                        WidgetMessage::visibility(section, MessageDirection::ToWidget, false),
-                    );
-                }
-
-                send_sync_message(
-                    ui,
-                    WidgetMessage::visibility(
-                        self.sound_section.section,
-                        MessageDirection::ToWidget,
-                        true,
-                    ),
-                );
-
-                if selection.is_single_selection() {
-                    if let Some(first) = selection.first() {
-                        let state = scene.sound_context.state();
-
-                        if state.is_valid_handle(first) {
-                            self.sound_section
-                                .sync_to_model(state.source(first), &mut engine.user_interface);
-                        }
                     }
                 }
             }
@@ -392,24 +339,6 @@ impl SideBar {
                             scene,
                             &mut engine.user_interface,
                         );
-                    }
-                }
-            }
-            Selection::Sound(selection) => {
-                if selection.is_single_selection() {
-                    if let Some(first) = selection.first() {
-                        let scene = &mut engine.scenes[editor_scene.scene];
-                        let state = scene.sound_context.state();
-                        if state.is_valid_handle(first) {
-                            self.sound_section.handle_message(
-                                message,
-                                &self.sender,
-                                state.source(first),
-                                first,
-                                &engine.user_interface,
-                                engine.resource_manager.clone(),
-                            );
-                        }
                     }
                 }
             }
