@@ -20,7 +20,6 @@ use rg3d::{
         window::{WindowBuilder, WindowTitle},
         BuildContext, UiNode, UserInterface,
     },
-    resource::texture::Texture,
     scene::{
         node::Node,
         particle_system::{emitter::Emitter, ParticleSystem},

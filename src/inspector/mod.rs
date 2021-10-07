@@ -1,13 +1,10 @@
-use crate::inspector::handlers::sound::handle_spatial_source_property_changed;
 use crate::{
     command::Command,
     inspector::{
         editors::make_property_editors_container,
         handlers::{
-            base::handle_base_property_changed, camera::handle_camera_property_changed,
             particle_system::ParticleSystemHandler, sound::handle_generic_source_property_changed,
-            sprite::handle_sprite_property_changed, terrain::handle_terrain_property_changed,
-            transform::handle_transform_property_changed,
+            sound::handle_spatial_source_property_changed, SceneNodePropertyChangedHandler,
         },
     },
     scene::{EditorScene, Selection},
@@ -26,16 +23,6 @@ use rg3d::{
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
         BuildContext, UiNode, UserInterface,
-    },
-    scene::{
-        base::Base,
-        camera::Camera,
-        decal::Decal,
-        light::{point::PointLight, spot::SpotLight, BaseLight},
-        particle_system::ParticleSystem,
-        sprite::Sprite,
-        terrain::Terrain,
-        transform::Transform,
     },
     sound::source::{generic::GenericSource, spatial::SpatialSource},
     utils::log::{Log, MessageKind},
@@ -67,7 +54,7 @@ pub struct Inspector {
     // got new context - in this case we don't need to sync with model, because
     // inspector is already in correct state.
     needs_sync: bool,
-    particle_system_handler: ParticleSystemHandler,
+    node_property_changed_handler: SceneNodePropertyChangedHandler,
 }
 
 pub struct SenderHelper {
@@ -111,7 +98,9 @@ impl Inspector {
             inspector,
             property_editors,
             needs_sync: true,
-            particle_system_handler: ParticleSystemHandler::new(ctx),
+            node_property_changed_handler: SceneNodePropertyChangedHandler {
+                particle_system_handler: ParticleSystemHandler::new(ctx),
+            },
         }
     }
 
@@ -244,12 +233,9 @@ impl Inspector {
                     let node_handle = selection.nodes()[0];
                     let node = &scene.graph[node_handle];
 
-                    self.particle_system_handler.handle_ui_message(
-                        message,
-                        node_handle,
-                        &helper,
-                        &engine.user_interface,
-                    );
+                    self.node_property_changed_handler
+                        .particle_system_handler
+                        .handle_ui_message(message, node_handle, &helper, &engine.user_interface);
 
                     if scene.graph.is_valid_handle(node_handle) {
                         if message.destination() == self.inspector
@@ -259,44 +245,14 @@ impl Inspector {
                                 args,
                             )) = message.data()
                             {
-                                success = if args.owner_type_id == TypeId::of::<Base>() {
-                                    handle_base_property_changed(args, node_handle, &helper)
-                                } else if args.owner_type_id == TypeId::of::<Transform>() {
-                                    handle_transform_property_changed(
-                                        args,
-                                        node_handle,
-                                        node,
-                                        &helper,
-                                    )
-                                } else if args.owner_type_id == TypeId::of::<Camera>() {
-                                    handle_camera_property_changed(args, node_handle, node, &helper)
-                                } else if args.owner_type_id == TypeId::of::<Sprite>() {
-                                    handle_sprite_property_changed(args, node_handle, &helper)
-                                } else if args.owner_type_id == TypeId::of::<BaseLight>() {
-                                    Some(()) // TODO
-                                } else if args.owner_type_id == TypeId::of::<PointLight>() {
-                                    Some(()) // TODO
-                                } else if args.owner_type_id == TypeId::of::<SpotLight>() {
-                                    Some(()) // TODO
-                                } else if args.owner_type_id == TypeId::of::<ParticleSystem>() {
-                                    self.particle_system_handler.handle(
-                                        args,
-                                        node_handle,
-                                        &helper,
-                                        &engine.user_interface,
-                                    )
-                                } else if args.owner_type_id == TypeId::of::<Decal>() {
-                                    Some(()) // TODO
-                                } else if args.owner_type_id == TypeId::of::<Terrain>() {
-                                    handle_terrain_property_changed(
-                                        args,
-                                        node_handle,
-                                        &helper,
-                                        &scene.graph,
-                                    )
-                                } else {
-                                    Some(())
-                                };
+                                success = self.node_property_changed_handler.handle(
+                                    args,
+                                    node_handle,
+                                    node,
+                                    &helper,
+                                    &engine.user_interface,
+                                    scene,
+                                );
                             }
                         }
                     }
