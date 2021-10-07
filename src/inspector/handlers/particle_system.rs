@@ -114,30 +114,24 @@ impl ParticleSystemHandler {
         node_handle: Handle<Node>,
         helper: &SenderHelper,
         ui: &UserInterface,
-    ) {
+    ) -> Option<()> {
         match args.value {
             FieldKind::Object(ref value) => match args.name.as_ref() {
                 ParticleSystem::TEXTURE => {
                     helper.do_scene_command(SetParticleSystemTextureCommand::new(
                         node_handle,
-                        value.cast_value::<Option<Texture>>().unwrap().clone(),
+                        value.cast_value::<Option<Texture>>()?.clone(),
                     ));
                 }
-                ParticleSystem::ACCELERATION => {
-                    helper.do_scene_command(SetParticleSystemAccelerationCommand::new(
-                        node_handle,
-                        *value.cast_value().unwrap(),
-                    ))
-                }
-                ParticleSystem::ENABLED => helper.do_scene_command(
-                    SetParticleSystemEnabledCommand::new(node_handle, *value.cast_value().unwrap()),
+                ParticleSystem::ACCELERATION => helper.do_scene_command(
+                    SetParticleSystemAccelerationCommand::new(node_handle, *value.cast_value()?),
                 ),
-                ParticleSystem::SOFT_BOUNDARY_SHARPNESS_FACTOR => {
-                    helper.do_scene_command(SetSoftBoundarySharpnessFactorCommand::new(
-                        node_handle,
-                        *value.cast_value().unwrap(),
-                    ))
-                }
+                ParticleSystem::ENABLED => helper.do_scene_command(
+                    SetParticleSystemEnabledCommand::new(node_handle, *value.cast_value()?),
+                ),
+                ParticleSystem::SOFT_BOUNDARY_SHARPNESS_FACTOR => helper.do_scene_command(
+                    SetSoftBoundarySharpnessFactorCommand::new(node_handle, *value.cast_value()?),
+                ),
                 _ => println!("Unhandled property of Transform: {:?}", args),
             },
             FieldKind::Collection(ref collection_changed) => match args.name.as_ref() {
@@ -156,5 +150,7 @@ impl ParticleSystemHandler {
             },
             _ => {}
         }
+
+        Some(())
     }
 }

@@ -229,6 +229,8 @@ impl Inspector {
 
         let scene = &engine.scenes[editor_scene.scene];
 
+        let mut success = Some(());
+
         match &editor_scene.selection {
             Selection::Graph(selection) => {
                 if selection.is_single_selection() {
@@ -250,30 +252,25 @@ impl Inspector {
                                 args,
                             )) = message.data()
                             {
-                                if args.owner_type_id == TypeId::of::<Base>() {
-                                    handle_base_property_changed(args, node_handle, &helper);
+                                success = if args.owner_type_id == TypeId::of::<Base>() {
+                                    handle_base_property_changed(args, node_handle, &helper)
                                 } else if args.owner_type_id == TypeId::of::<Transform>() {
                                     handle_transform_property_changed(
                                         args,
                                         node_handle,
                                         node,
                                         &helper,
-                                    );
+                                    )
                                 } else if args.owner_type_id == TypeId::of::<Camera>() {
-                                    handle_camera_property_changed(
-                                        args,
-                                        node_handle,
-                                        node,
-                                        &helper,
-                                    );
+                                    handle_camera_property_changed(args, node_handle, node, &helper)
                                 } else if args.owner_type_id == TypeId::of::<Sprite>() {
                                     handle_sprite_property_changed(args, node_handle, &helper)
                                 } else if args.owner_type_id == TypeId::of::<BaseLight>() {
-                                    // TODO
+                                    Some(()) // TODO
                                 } else if args.owner_type_id == TypeId::of::<PointLight>() {
-                                    // TODO
+                                    Some(()) // TODO
                                 } else if args.owner_type_id == TypeId::of::<SpotLight>() {
-                                    // TODO
+                                    Some(()) // TODO
                                 } else if args.owner_type_id == TypeId::of::<ParticleSystem>() {
                                     self.particle_system_handler.handle(
                                         args,
@@ -282,15 +279,17 @@ impl Inspector {
                                         &engine.user_interface,
                                     )
                                 } else if args.owner_type_id == TypeId::of::<Decal>() {
-                                    // TODO
+                                    Some(()) // TODO
                                 } else if args.owner_type_id == TypeId::of::<Terrain>() {
                                     handle_terrain_property_changed(
                                         args,
                                         node_handle,
                                         &helper,
                                         &scene.graph,
-                                    );
-                                }
+                                    )
+                                } else {
+                                    Some(())
+                                };
                             }
                         }
                     }
@@ -305,20 +304,29 @@ impl Inspector {
                         if let UiMessageData::Inspector(InspectorMessage::PropertyChanged(args)) =
                             message.data()
                         {
-                            if args.owner_type_id == TypeId::of::<GenericSource>() {
-                                handle_generic_source_property_changed(
-                                    args,
-                                    source_handle,
-                                    &helper,
-                                );
+                            success = if args.owner_type_id == TypeId::of::<GenericSource>() {
+                                handle_generic_source_property_changed(args, source_handle, &helper)
                             } else if args.owner_type_id == TypeId::of::<SpatialSource>() {
                                 handle_spatial_source_property_changed(args, source_handle, &helper)
+                            } else {
+                                Some(())
                             }
                         }
                     }
                 }
             }
             _ => {}
+        }
+
+        if let UiMessageData::Inspector(InspectorMessage::PropertyChanged(args)) = message.data() {
+            if success.is_none() {
+                sender
+                    .send(Message::Log(format!(
+                        "Failed to handle property {}",
+                        args.name
+                    )))
+                    .unwrap();
+            }
         }
     }
 }

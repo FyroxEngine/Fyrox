@@ -18,7 +18,7 @@ pub fn handle_terrain_property_changed(
     node_handle: Handle<Node>,
     helper: &SenderHelper,
     graph: &Graph,
-) {
+) -> Option<()> {
     match args.name.as_ref() {
         Terrain::LAYERS => {
             if let FieldKind::Collection(ref collection_changed) = args.value {
@@ -37,10 +37,7 @@ pub fn handle_terrain_property_changed(
                                     SetTerrainLayerMaskPropertyNameCommand {
                                         handle: node_handle,
                                         layer_index: *index,
-                                        value: args
-                                            .cast_value::<String>()
-                                            .expect("mask_property_name must be String!")
-                                            .clone(),
+                                        value: args.cast_value::<String>().cloned()?,
                                     },
                                 ),
                                 _ => (),
@@ -54,10 +51,11 @@ pub fn handle_terrain_property_changed(
             if let FieldKind::Object(ref args) = args.value {
                 helper.do_scene_command(SetTerrainDecalLayerIndexCommand::new(
                     node_handle,
-                    *args.cast_value::<u8>().expect("Must be u8"),
+                    *args.cast_value()?,
                 ))
             }
         }
         _ => println!("Unhandled property of Camera: {:?}", args),
     }
+    Some(())
 }

@@ -21,7 +21,7 @@ pub fn handle_camera_property_changed(
     node_handle: Handle<Node>,
     node: &Node,
     helper: &SenderHelper,
-) {
+) -> Option<()> {
     if let Node::Camera(camera) = node {
         match args.name.as_ref() {
             Camera::EXPOSURE => {
@@ -30,7 +30,7 @@ pub fn handle_camera_property_changed(
                     FieldKind::Object(ref value) => {
                         helper.do_scene_command(SetExposureCommand::new(
                             node_handle,
-                            value.cast_value::<Exposure>().unwrap().clone(),
+                            value.cast_value::<Exposure>()?.clone(),
                         ))
                     }
                     // Some inner property has changed
@@ -43,7 +43,7 @@ pub fn handle_camera_property_changed(
                                         ref mut key_value, ..
                                     } = current_auto_exposure
                                     {
-                                        *key_value = *value.cast_value::<f32>().unwrap();
+                                        *key_value = *value.cast_value::<f32>()?;
                                     }
 
                                     helper.do_scene_command(SetExposureCommand::new(
@@ -58,7 +58,7 @@ pub fn handle_camera_property_changed(
                                         ..
                                     } = current_auto_exposure
                                     {
-                                        *min_luminance = *value.cast_value::<f32>().unwrap();
+                                        *min_luminance = *value.cast_value::<f32>()?;
                                     }
 
                                     helper.do_scene_command(SetExposureCommand::new(
@@ -73,7 +73,7 @@ pub fn handle_camera_property_changed(
                                         ..
                                     } = current_auto_exposure
                                     {
-                                        *max_luminance = *value.cast_value::<f32>().unwrap();
+                                        *max_luminance = *value.cast_value::<f32>()?;
                                     }
 
                                     helper.do_scene_command(SetExposureCommand::new(
@@ -94,51 +94,47 @@ pub fn handle_camera_property_changed(
                     match args.name.as_ref() {
                         Camera::Z_NEAR => helper.do_scene_command(SetZNearCommand::new(
                             node_handle,
-                            *value.cast_value().unwrap(),
+                            *value.cast_value()?,
                         )),
                         Camera::Z_FAR => helper.do_scene_command(SetZFarCommand::new(
                             node_handle,
-                            *value.cast_value().unwrap(),
+                            *value.cast_value()?,
                         )),
                         Camera::FOV => helper.do_scene_command(SetFovCommand::new(
                             node_handle,
-                            *value.cast_value().unwrap(),
+                            *value.cast_value()?,
                         )),
                         Camera::VIEWPORT => helper.do_scene_command(SetViewportCommand::new(
                             node_handle,
-                            *value.cast_value().unwrap(),
+                            *value.cast_value()?,
                         )),
                         Camera::ENABLED => helper.do_scene_command(SetCameraPreviewCommand::new(
                             node_handle,
-                            *value.cast_value().unwrap(),
+                            *value.cast_value()?,
                         )),
                         Camera::SKY_BOX => helper.do_scene_command(SetSkyBoxCommand::new(
                             node_handle,
-                            value.cast_value::<Option<Box<SkyBox>>>().unwrap().clone(),
+                            value.cast_value::<Option<Box<SkyBox>>>()?.clone(),
                         )),
                         Camera::ENVIRONMENT => helper.do_scene_command(SetEnvironmentMap::new(
                             node_handle,
-                            value.cast_value::<Option<Texture>>().cloned().unwrap(),
+                            value.cast_value::<Option<Texture>>().cloned()?,
                         )),
                         Camera::COLOR_GRADING_LUT => {
                             helper.do_scene_command(SetColorGradingLutCommand::new(
                                 node_handle,
-                                value
-                                    .cast_value::<Option<ColorGradingLut>>()
-                                    .unwrap()
-                                    .clone(),
+                                value.cast_value::<Option<ColorGradingLut>>()?.clone(),
                             ))
                         }
-                        Camera::COLOR_GRADING_ENABLED => {
-                            helper.do_scene_command(SetColorGradingEnabledCommand::new(
-                                node_handle,
-                                *value.cast_value().unwrap(),
-                            ))
-                        }
+                        Camera::COLOR_GRADING_ENABLED => helper.do_scene_command(
+                            SetColorGradingEnabledCommand::new(node_handle, *value.cast_value()?),
+                        ),
                         _ => println!("Unhandled property of Camera: {:?}", args),
                     }
                 }
             }
         }
     }
+
+    Some(())
 }
