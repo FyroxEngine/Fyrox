@@ -7,6 +7,7 @@
 //! spatial). See docs at those modules for more info.
 
 use crate::source::{generic::GenericSource, spatial::SpatialSource};
+use rg3d_core::inspect::{Inspect, PropertyInfo};
 use rg3d_core::visitor::{Visit, VisitError, VisitResult, Visitor};
 use std::ops::{Deref, DerefMut};
 
@@ -36,6 +37,15 @@ pub enum SoundSource {
 
     /// See `spatial` module docs.
     Spatial(SpatialSource),
+}
+
+impl Inspect for SoundSource {
+    fn properties(&self) -> Vec<PropertyInfo<'_>> {
+        match self {
+            SoundSource::Generic(v) => v.properties(),
+            SoundSource::Spatial(v) => v.properties(),
+        }
+    }
 }
 
 impl SoundSource {

@@ -32,22 +32,30 @@ use crate::{
     listener::Listener,
     source::{generic::GenericSource, SoundSource},
 };
-use rg3d_core::algebra::Vector3;
-use rg3d_core::visitor::{Visit, VisitResult, Visitor};
+use rg3d_core::{
+    algebra::Vector3,
+    inspect::{Inspect, PropertyInfo},
+    visitor::{Visit, VisitResult, Visitor},
+};
 use std::ops::{Deref, DerefMut};
 
 /// See module docs.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Inspect)]
 pub struct SpatialSource {
+    #[inspect(expand)]
     pub(in crate) generic: GenericSource,
     radius: f32,
     position: Vector3<f32>,
     max_distance: f32,
     rolloff_factor: f32,
     // Some data that needed for iterative overlap-save convolution.
+    #[inspect(skip)]
     pub(in crate) prev_left_samples: Vec<f32>,
+    #[inspect(skip)]
     pub(in crate) prev_right_samples: Vec<f32>,
+    #[inspect(skip)]
     pub(in crate) prev_sampling_vector: Vector3<f32>,
+    #[inspect(skip)]
     pub(in crate) prev_distance_gain: Option<f32>,
 }
 
