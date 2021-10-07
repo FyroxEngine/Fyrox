@@ -6,14 +6,10 @@ use crate::{
     },
 };
 use rg3d::{
-    core::{
-        algebra::{UnitQuaternion, Vector3},
-        pool::Handle,
-    },
+    core::pool::Handle,
     gui::{message::FieldKind, message::PropertyChanged},
     resource::texture::Texture,
-    scene::node::Node,
-    scene::sprite::Sprite,
+    scene::{node::Node, sprite::Sprite},
 };
 
 pub fn handle_sprite_property_changed(
