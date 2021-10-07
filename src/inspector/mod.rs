@@ -1,3 +1,4 @@
+use crate::inspector::handlers::sound::handle_spatial_source_property_changed;
 use crate::{
     command::Command,
     inspector::{
@@ -311,6 +312,7 @@ impl Inspector {
                                     &helper,
                                 );
                             } else if args.owner_type_id == TypeId::of::<SpatialSource>() {
+                                handle_spatial_source_property_changed(args, source_handle, &helper)
                             }
                         }
                     }

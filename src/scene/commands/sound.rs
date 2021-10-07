@@ -253,6 +253,10 @@ define_sound_source_command!(SetSoundSourceBufferCommand("Set Sound Source Buffe
     get_set_swap!(self, source, buffer, set_buffer);
 });
 
+define_sound_source_command!(SetSoundSourcePanningCommand("Set Sound Source Panning", f32) where fn swap(self, source) {
+    get_set_swap!(self, source, panning, set_panning);
+});
+
 define_sound_source_command!(SetSoundSourceNameCommand("Set Sound Source Name", String) where fn swap(self, source) {
     get_set_swap!(self, source, name_owned, set_name);
 });
