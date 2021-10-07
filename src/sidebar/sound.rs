@@ -1,7 +1,6 @@
 use crate::asset::AssetItem;
 use crate::scene::commands::sound::{
-    SetSpatialSoundSourceMaxDistanceCommand, SetSpatialSoundSourceRadiusCommand,
-    SetSpatialSoundSourceRolloffFactorCommand,
+    SetMaxDistanceCommand, SetRolloffFactorCommand, SetSpatialSoundSourceRadiusCommand,
 };
 use crate::sidebar::make_section;
 use crate::{
@@ -159,17 +158,17 @@ impl SpatialSection {
                     && message.destination() == self.rolloff_factor
                 {
                     sender
-                        .send(Message::do_scene_command(
-                            SetSpatialSoundSourceRolloffFactorCommand::new(handle, value),
-                        ))
+                        .send(Message::do_scene_command(SetRolloffFactorCommand::new(
+                            handle, value,
+                        )))
                         .unwrap();
                 } else if spatial.max_distance().ne(&value)
                     && message.destination() == self.max_distance
                 {
                     sender
-                        .send(Message::do_scene_command(
-                            SetSpatialSoundSourceMaxDistanceCommand::new(handle, value),
-                        ))
+                        .send(Message::do_scene_command(SetMaxDistanceCommand::new(
+                            handle, value,
+                        )))
                         .unwrap();
                 }
             }

@@ -1,11 +1,11 @@
 use crate::{
+    do_command,
     inspector::SenderHelper,
     scene::commands::sound::{
-        SetSoundSourceBufferCommand, SetSoundSourceGainCommand, SetSoundSourceLoopingCommand,
-        SetSoundSourceNameCommand, SetSoundSourcePanningCommand, SetSoundSourcePitchCommand,
-        SetSoundSourcePlayOnceCommand, SetSpatialSoundSourceMaxDistanceCommand,
+        SetMaxDistanceCommand, SetRolloffFactorCommand, SetSoundSourceBufferCommand,
+        SetSoundSourceGainCommand, SetSoundSourceLoopingCommand, SetSoundSourceNameCommand,
+        SetSoundSourcePanningCommand, SetSoundSourcePitchCommand, SetSoundSourcePlayOnceCommand,
         SetSpatialSoundSourcePositionCommand, SetSpatialSoundSourceRadiusCommand,
-        SetSpatialSoundSourceRolloffFactorCommand,
     },
 };
 use rg3d::{
@@ -16,43 +16,35 @@ use rg3d::{
 
 pub fn handle_generic_source_property_changed(
     args: &PropertyChanged,
-    source_handle: Handle<SoundSource>,
+    handle: Handle<SoundSource>,
     helper: &SenderHelper,
 ) -> Option<()> {
     if let FieldKind::Object(ref value) = args.value {
         match args.name.as_ref() {
-            GenericSource::NAME => helper.do_scene_command(SetSoundSourceNameCommand::new(
-                source_handle,
-                value.cast_value().cloned()?,
-            )),
-            GenericSource::GAIN => {
-                helper.do_scene_command(SetSoundSourceGainCommand::new(
-                    source_handle,
-                    *value.cast_value()?,
-                ));
+            GenericSource::NAME => {
+                do_command!(helper, SetSoundSourceNameCommand, handle, value)
             }
-            GenericSource::BUFFER => helper.do_scene_command(SetSoundSourceBufferCommand::new(
-                source_handle,
-                value.cast_value().cloned()?,
-            )),
-            GenericSource::PANNING => helper.do_scene_command(SetSoundSourcePanningCommand::new(
-                source_handle,
-                *value.cast_value()?,
-            )),
-            GenericSource::PITCH => helper.do_scene_command(SetSoundSourcePitchCommand::new(
-                source_handle,
-                *value.cast_value()?,
-            )),
-            GenericSource::LOOPING => helper.do_scene_command(SetSoundSourceLoopingCommand::new(
-                source_handle,
-                *value.cast_value()?,
-            )),
+            GenericSource::GAIN => {
+                do_command!(helper, SetSoundSourceGainCommand, handle, value)
+            }
+            GenericSource::BUFFER => {
+                do_command!(helper, SetSoundSourceBufferCommand, handle, value)
+            }
+            GenericSource::PANNING => {
+                do_command!(helper, SetSoundSourcePanningCommand, handle, value)
+            }
+            GenericSource::PITCH => {
+                do_command!(helper, SetSoundSourcePitchCommand, handle, value)
+            }
+            GenericSource::LOOPING => {
+                do_command!(helper, SetSoundSourceLoopingCommand, handle, value)
+            }
             GenericSource::STATUS => {
                 // TODO
             }
-            GenericSource::PLAY_ONCE => helper.do_scene_command(
-                SetSoundSourcePlayOnceCommand::new(source_handle, *value.cast_value()?),
-            ),
+            GenericSource::PLAY_ONCE => {
+                do_command!(helper, SetSoundSourcePlayOnceCommand, handle, value)
+            }
             _ => println!("Unhandled property of GenericSource: {:?}", args),
         }
     }
@@ -61,23 +53,23 @@ pub fn handle_generic_source_property_changed(
 
 pub fn handle_spatial_source_property_changed(
     args: &PropertyChanged,
-    source_handle: Handle<SoundSource>,
+    handle: Handle<SoundSource>,
     helper: &SenderHelper,
 ) -> Option<()> {
     if let FieldKind::Object(ref value) = args.value {
         match args.name.as_ref() {
-            SpatialSource::RADIUS => helper.do_scene_command(
-                SetSpatialSoundSourceRadiusCommand::new(source_handle, *value.cast_value()?),
-            ),
-            SpatialSource::POSITION => helper.do_scene_command(
-                SetSpatialSoundSourcePositionCommand::new(source_handle, *value.cast_value()?),
-            ),
-            SpatialSource::MAX_DISTANCE => helper.do_scene_command(
-                SetSpatialSoundSourceMaxDistanceCommand::new(source_handle, *value.cast_value()?),
-            ),
-            SpatialSource::ROLLOFF_FACTOR => helper.do_scene_command(
-                SetSpatialSoundSourceRolloffFactorCommand::new(source_handle, *value.cast_value()?),
-            ),
+            SpatialSource::RADIUS => {
+                do_command!(helper, SetSpatialSoundSourceRadiusCommand, handle, value)
+            }
+            SpatialSource::POSITION => {
+                do_command!(helper, SetSpatialSoundSourcePositionCommand, handle, value)
+            }
+            SpatialSource::MAX_DISTANCE => {
+                do_command!(helper, SetMaxDistanceCommand, handle, value)
+            }
+            SpatialSource::ROLLOFF_FACTOR => {
+                do_command!(helper, SetRolloffFactorCommand, handle, value)
+            }
             _ => println!("Unhandled property of SpatialSource: {:?}", args),
         }
     }

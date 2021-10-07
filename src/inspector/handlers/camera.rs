@@ -1,4 +1,5 @@
 use crate::{
+    do_command,
     inspector::SenderHelper,
     scene::commands::camera::{
         SetCameraPreviewCommand, SetColorGradingEnabledCommand, SetColorGradingLutCommand,
@@ -9,16 +10,15 @@ use crate::{
 use rg3d::{
     core::pool::Handle,
     gui::message::{FieldKind, PropertyChanged},
-    resource::texture::Texture,
     scene::{
-        camera::{Camera, ColorGradingLut, Exposure, SkyBox},
+        camera::{Camera, Exposure},
         node::Node,
     },
 };
 
 pub fn handle_camera_property_changed(
     args: &PropertyChanged,
-    node_handle: Handle<Node>,
+    handle: Handle<Node>,
     node: &Node,
     helper: &SenderHelper,
 ) -> Option<()> {
@@ -27,12 +27,9 @@ pub fn handle_camera_property_changed(
             Camera::EXPOSURE => {
                 match args.value {
                     // Exposure variant has changed.
-                    FieldKind::Object(ref value) => {
-                        helper.do_scene_command(SetExposureCommand::new(
-                            node_handle,
-                            value.cast_value::<Exposure>()?.clone(),
-                        ))
-                    }
+                    FieldKind::Object(ref value) => helper.do_scene_command(
+                        SetExposureCommand::new(handle, value.cast_value::<Exposure>()?.clone()),
+                    ),
                     // Some inner property has changed
                     FieldKind::EnumerationVariant(ref args) => {
                         if let FieldKind::Object(ref value) = args.value {
@@ -47,7 +44,7 @@ pub fn handle_camera_property_changed(
                                     }
 
                                     helper.do_scene_command(SetExposureCommand::new(
-                                        node_handle,
+                                        handle,
                                         current_auto_exposure,
                                     ))
                                 }
@@ -62,7 +59,7 @@ pub fn handle_camera_property_changed(
                                     }
 
                                     helper.do_scene_command(SetExposureCommand::new(
-                                        node_handle,
+                                        handle,
                                         current_auto_exposure,
                                     ))
                                 }
@@ -77,7 +74,7 @@ pub fn handle_camera_property_changed(
                                     }
 
                                     helper.do_scene_command(SetExposureCommand::new(
-                                        node_handle,
+                                        handle,
                                         current_auto_exposure,
                                     ))
                                 }
@@ -92,43 +89,33 @@ pub fn handle_camera_property_changed(
             _ => {
                 if let FieldKind::Object(ref value) = args.value {
                     match args.name.as_ref() {
-                        Camera::Z_NEAR => helper.do_scene_command(SetZNearCommand::new(
-                            node_handle,
-                            *value.cast_value()?,
-                        )),
-                        Camera::Z_FAR => helper.do_scene_command(SetZFarCommand::new(
-                            node_handle,
-                            *value.cast_value()?,
-                        )),
-                        Camera::FOV => helper.do_scene_command(SetFovCommand::new(
-                            node_handle,
-                            *value.cast_value()?,
-                        )),
-                        Camera::VIEWPORT => helper.do_scene_command(SetViewportCommand::new(
-                            node_handle,
-                            *value.cast_value()?,
-                        )),
-                        Camera::ENABLED => helper.do_scene_command(SetCameraPreviewCommand::new(
-                            node_handle,
-                            *value.cast_value()?,
-                        )),
-                        Camera::SKY_BOX => helper.do_scene_command(SetSkyBoxCommand::new(
-                            node_handle,
-                            value.cast_value::<Option<Box<SkyBox>>>()?.clone(),
-                        )),
-                        Camera::ENVIRONMENT => helper.do_scene_command(SetEnvironmentMap::new(
-                            node_handle,
-                            value.cast_value::<Option<Texture>>().cloned()?,
-                        )),
-                        Camera::COLOR_GRADING_LUT => {
-                            helper.do_scene_command(SetColorGradingLutCommand::new(
-                                node_handle,
-                                value.cast_value::<Option<ColorGradingLut>>()?.clone(),
-                            ))
+                        Camera::Z_NEAR => {
+                            do_command!(helper, SetZNearCommand, handle, value)
                         }
-                        Camera::COLOR_GRADING_ENABLED => helper.do_scene_command(
-                            SetColorGradingEnabledCommand::new(node_handle, *value.cast_value()?),
-                        ),
+                        Camera::Z_FAR => {
+                            do_command!(helper, SetZFarCommand, handle, value)
+                        }
+                        Camera::FOV => {
+                            do_command!(helper, SetFovCommand, handle, value)
+                        }
+                        Camera::VIEWPORT => {
+                            do_command!(helper, SetViewportCommand, handle, value)
+                        }
+                        Camera::ENABLED => {
+                            do_command!(helper, SetCameraPreviewCommand, handle, value)
+                        }
+                        Camera::SKY_BOX => {
+                            do_command!(helper, SetSkyBoxCommand, handle, value)
+                        }
+                        Camera::ENVIRONMENT => {
+                            do_command!(helper, SetEnvironmentMap, handle, value)
+                        }
+                        Camera::COLOR_GRADING_LUT => {
+                            do_command!(helper, SetColorGradingLutCommand, handle, value)
+                        }
+                        Camera::COLOR_GRADING_ENABLED => {
+                            do_command!(helper, SetColorGradingEnabledCommand, handle, value)
+                        }
                         _ => println!("Unhandled property of Camera: {:?}", args),
                     }
                 }

@@ -309,7 +309,7 @@ define_node_command!(SetParticleSystemTextureCommand("Set Particle System Textur
     get_set_swap!(self, node.as_particle_system_mut(), texture, set_texture);
 });
 
-define_node_command!(SetParticleSystemAccelerationCommand("Set Particle System Acceleration", Vector3<f32>) where fn swap(self, node) {
+define_node_command!(SetAccelerationCommand("Set Particle System Acceleration", Vector3<f32>) where fn swap(self, node) {
     get_set_swap!(self, node.as_particle_system_mut(), acceleration, set_acceleration);
 });
 

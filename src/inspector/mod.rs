@@ -82,6 +82,13 @@ impl SenderHelper {
     }
 }
 
+#[macro_export]
+macro_rules! do_command {
+    ($helper:expr, $cmd:ty, $handle:expr, $value:expr) => {
+        $helper.do_scene_command(<$cmd>::new($handle, $value.cast_value().cloned()?))
+    };
+}
+
 impl Inspector {
     pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
         let property_editors = make_property_editors_container(sender);

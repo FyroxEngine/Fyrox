@@ -1,4 +1,5 @@
 use crate::{
+    do_command,
     inspector::SenderHelper,
     scene::commands::graph::{
         SetDepthOffsetCommand, SetLifetimeCommand, SetMobilityCommand, SetNameCommand,
@@ -13,40 +14,32 @@ use rg3d::{
 
 pub fn handle_base_property_changed(
     args: &PropertyChanged,
-    node_handle: Handle<Node>,
+    handle: Handle<Node>,
     helper: &SenderHelper,
 ) -> Option<()> {
     if let FieldKind::Object(ref value) = args.value {
         match args.name.as_ref() {
             Base::NAME => {
-                helper.do_scene_command(SetNameCommand::new(
-                    node_handle,
-                    value.cast_value::<String>()?.clone(),
-                ));
+                do_command!(helper, SetNameCommand, handle, value)
             }
             Base::TAG => {
-                helper.do_scene_command(SetTagCommand::new(
-                    node_handle,
-                    value.cast_value::<String>()?.clone(),
-                ));
+                do_command!(helper, SetTagCommand, handle, value)
             }
             Base::VISIBILITY => {
-                helper.do_scene_command(SetVisibleCommand::new(node_handle, *value.cast_value()?));
+                do_command!(helper, SetVisibleCommand, handle, value)
             }
             Base::MOBILITY => {
-                helper.do_scene_command(SetMobilityCommand::new(node_handle, *value.cast_value()?))
+                do_command!(helper, SetMobilityCommand, handle, value)
             }
-            Base::PHYSICS_BINDING => helper.do_scene_command(SetPhysicsBindingCommand::new(
-                node_handle,
-                *value.cast_value()?,
-            )),
+            Base::PHYSICS_BINDING => {
+                do_command!(helper, SetPhysicsBindingCommand, handle, value)
+            }
             Base::LIFETIME => {
-                helper.do_scene_command(SetLifetimeCommand::new(node_handle, *value.cast_value()?))
+                do_command!(helper, SetLifetimeCommand, handle, value)
             }
-            Base::DEPTH_OFFSET => helper.do_scene_command(SetDepthOffsetCommand::new(
-                node_handle,
-                *value.cast_value()?,
-            )),
+            Base::DEPTH_OFFSET => {
+                do_command!(helper, SetDepthOffsetCommand, handle, value)
+            }
             _ => println!("Unhandled property of Base: {:?}", args),
         }
     }

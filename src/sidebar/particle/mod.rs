@@ -4,7 +4,7 @@ use crate::{
     gui::{DeletableItemBuilder, DeletableItemMessage},
     load_image,
     scene::commands::particle_system::{
-        AddParticleSystemEmitterCommand, DeleteEmitterCommand, SetParticleSystemAccelerationCommand,
+        AddParticleSystemEmitterCommand, DeleteEmitterCommand, SetAccelerationCommand,
     },
     send_sync_message,
     sidebar::{
@@ -333,9 +333,9 @@ impl ParticleSystemSection {
                         && message.destination() == self.acceleration
                     {
                         self.sender
-                            .send(Message::do_scene_command(
-                                SetParticleSystemAccelerationCommand::new(handle, *value),
-                            ))
+                            .send(Message::do_scene_command(SetAccelerationCommand::new(
+                                handle, *value,
+                            )))
                             .unwrap();
                     }
                 }

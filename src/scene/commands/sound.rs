@@ -281,10 +281,10 @@ define_spatial_sound_source_command!(SetSpatialSoundSourceRadiusCommand("Set Spa
     get_set_swap!(self, source, radius, set_radius);
 });
 
-define_spatial_sound_source_command!(SetSpatialSoundSourceRolloffFactorCommand("Set Spatial Sound Source Rolloff Factor", f32) where fn swap(self, source) {
+define_spatial_sound_source_command!(SetRolloffFactorCommand("Set Spatial Sound Source Rolloff Factor", f32) where fn swap(self, source) {
     get_set_swap!(self, source, rolloff_factor, set_rolloff_factor);
 });
 
-define_spatial_sound_source_command!(SetSpatialSoundSourceMaxDistanceCommand("Set Spatial Sound Source Max Distance", f32) where fn swap(self, source) {
+define_spatial_sound_source_command!(SetMaxDistanceCommand("Set Max Distance", f32) where fn swap(self, source) {
     get_set_swap!(self, source, max_distance, set_max_distance);
 });

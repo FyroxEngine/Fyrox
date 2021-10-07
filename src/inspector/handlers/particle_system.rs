@@ -1,8 +1,8 @@
-use crate::scene::commands::particle_system::DeleteEmitterCommand;
 use crate::{
+    do_command,
     inspector::SenderHelper,
     scene::commands::particle_system::{
-        AddParticleSystemEmitterCommand, SetParticleSystemAccelerationCommand,
+        AddParticleSystemEmitterCommand, DeleteEmitterCommand, SetAccelerationCommand,
         SetParticleSystemEnabledCommand, SetParticleSystemTextureCommand,
         SetSoftBoundarySharpnessFactorCommand,
     },
@@ -111,28 +111,25 @@ impl ParticleSystemHandler {
     pub fn handle(
         &self,
         args: &PropertyChanged,
-        node_handle: Handle<Node>,
+        handle: Handle<Node>,
         helper: &SenderHelper,
         ui: &UserInterface,
     ) -> Option<()> {
         match args.value {
             FieldKind::Object(ref value) => match args.name.as_ref() {
                 ParticleSystem::TEXTURE => {
-                    helper.do_scene_command(SetParticleSystemTextureCommand::new(
-                        node_handle,
-                        value.cast_value::<Option<Texture>>()?.clone(),
-                    ));
+                    do_command!(helper, SetParticleSystemTextureCommand, handle, value)
                 }
-                ParticleSystem::ACCELERATION => helper.do_scene_command(
-                    SetParticleSystemAccelerationCommand::new(node_handle, *value.cast_value()?),
-                ),
-                ParticleSystem::ENABLED => helper.do_scene_command(
-                    SetParticleSystemEnabledCommand::new(node_handle, *value.cast_value()?),
-                ),
-                ParticleSystem::SOFT_BOUNDARY_SHARPNESS_FACTOR => helper.do_scene_command(
-                    SetSoftBoundarySharpnessFactorCommand::new(node_handle, *value.cast_value()?),
-                ),
-                _ => println!("Unhandled property of Transform: {:?}", args),
+                ParticleSystem::ACCELERATION => {
+                    do_command!(helper, SetAccelerationCommand, handle, value)
+                }
+                ParticleSystem::ENABLED => {
+                    do_command!(helper, SetParticleSystemEnabledCommand, handle, value)
+                }
+                ParticleSystem::SOFT_BOUNDARY_SHARPNESS_FACTOR => {
+                    do_command!(helper, SetSoftBoundarySharpnessFactorCommand, handle, value)
+                }
+                _ => println!("Unhandled property of ParticleSystem: {:?}", args),
             },
             FieldKind::Collection(ref collection_changed) => match args.name.as_ref() {
                 ParticleSystem::EMITTERS => match &**collection_changed {
@@ -142,7 +139,7 @@ impl ParticleSystemHandler {
                         true,
                     )),
                     CollectionChanged::Remove(index) => {
-                        helper.do_scene_command(DeleteEmitterCommand::new(node_handle, *index));
+                        helper.do_scene_command(DeleteEmitterCommand::new(handle, *index));
                     }
                     CollectionChanged::ItemChanged { .. } => {}
                 },
