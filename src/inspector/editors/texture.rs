@@ -1,4 +1,5 @@
 use crate::{asset::AssetItem, inspector::EditorEnvironment, make_relative_path};
+use rg3d::gui::Thickness;
 use rg3d::{
     asset::core::pool::Handle,
     engine::resource_manager::ResourceManager,
@@ -130,9 +131,13 @@ impl TextureEditorBuilder {
         let widget = self
             .widget_builder
             .with_child({
-                image = ImageBuilder::new(WidgetBuilder::new().with_allow_drop(true))
-                    .with_opt_texture(self.texture.clone().map(|t| into_gui_texture(t)))
-                    .build(ctx);
+                image = ImageBuilder::new(
+                    WidgetBuilder::new()
+                        .with_margin(Thickness::uniform(1.0))
+                        .with_allow_drop(true),
+                )
+                .with_opt_texture(self.texture.clone().map(|t| into_gui_texture(t)))
+                .build(ctx);
                 image
             })
             .build();
