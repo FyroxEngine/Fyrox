@@ -1,12 +1,4 @@
-use crate::{
-    do_command,
-    inspector::SenderHelper,
-    scene::commands::camera::{
-        SetCameraPreviewCommand, SetColorGradingEnabledCommand, SetColorGradingLutCommand,
-        SetEnvironmentMap, SetExposureCommand, SetFovCommand, SetSkyBoxCommand, SetViewportCommand,
-        SetZFarCommand, SetZNearCommand,
-    },
-};
+use crate::{do_command, inspector::SenderHelper, scene::commands::camera::*};
 use rg3d::{
     core::pool::Handle,
     gui::message::{FieldKind, PropertyChanged},

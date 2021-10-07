@@ -1,13 +1,4 @@
-use crate::{
-    do_command,
-    inspector::SenderHelper,
-    scene::commands::sound::{
-        SetMaxDistanceCommand, SetRolloffFactorCommand, SetSoundSourceBufferCommand,
-        SetSoundSourceGainCommand, SetSoundSourceLoopingCommand, SetSoundSourceNameCommand,
-        SetSoundSourcePanningCommand, SetSoundSourcePitchCommand, SetSoundSourcePlayOnceCommand,
-        SetSpatialSoundSourcePositionCommand, SetSpatialSoundSourceRadiusCommand,
-    },
-};
+use crate::{do_command, inspector::SenderHelper, scene::commands::sound::*};
 use rg3d::{
     core::pool::Handle,
     gui::message::{FieldKind, PropertyChanged},

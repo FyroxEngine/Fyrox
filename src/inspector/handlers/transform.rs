@@ -1,7 +1,4 @@
-use crate::{
-    inspector::SenderHelper,
-    scene::commands::graph::{MoveNodeCommand, RotateNodeCommand, ScaleNodeCommand},
-};
+use crate::{inspector::SenderHelper, scene::commands::graph::*};
 use rg3d::{
     core::pool::Handle,
     gui::message::{FieldKind, PropertyChanged},

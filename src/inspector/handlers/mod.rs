@@ -1,6 +1,6 @@
 use crate::inspector::{
     handlers::{
-        base::handle_base_property_changed, camera::handle_camera_property_changed,
+        base::handle_base_property_changed, camera::handle_camera_property_changed, light::*,
         particle_system::ParticleSystemHandler, sprite::handle_sprite_property_changed,
         terrain::handle_terrain_property_changed, transform::handle_transform_property_changed,
     },
@@ -26,6 +26,7 @@ use std::any::TypeId;
 
 pub mod base;
 pub mod camera;
+pub mod light;
 pub mod particle_system;
 pub mod sound;
 pub mod sprite;
@@ -55,11 +56,11 @@ impl SceneNodePropertyChangedHandler {
         } else if args.owner_type_id == TypeId::of::<Sprite>() {
             handle_sprite_property_changed(args, node_handle, &helper)
         } else if args.owner_type_id == TypeId::of::<BaseLight>() {
-            Some(()) // TODO
+            handle_base_light_property_changed(args, node_handle, helper)
         } else if args.owner_type_id == TypeId::of::<PointLight>() {
-            Some(()) // TODO
+            handle_point_light_property_changed(args, node_handle, helper)
         } else if args.owner_type_id == TypeId::of::<SpotLight>() {
-            Some(()) // TODO
+            handle_spot_light_property_changed(args, node_handle, helper)
         } else if args.owner_type_id == TypeId::of::<ParticleSystem>() {
             self.particle_system_handler
                 .handle(args, node_handle, &helper, ui)

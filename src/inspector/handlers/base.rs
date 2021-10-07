@@ -1,11 +1,4 @@
-use crate::{
-    do_command,
-    inspector::SenderHelper,
-    scene::commands::graph::{
-        SetDepthOffsetCommand, SetLifetimeCommand, SetMobilityCommand, SetNameCommand,
-        SetPhysicsBindingCommand, SetTagCommand, SetVisibleCommand,
-    },
-};
+use crate::{do_command, inspector::SenderHelper, scene::commands::graph::*};
 use rg3d::{
     core::pool::Handle,
     gui::message::{FieldKind, PropertyChanged},

@@ -1,12 +1,4 @@
-use crate::{
-    do_command,
-    inspector::SenderHelper,
-    scene::commands::particle_system::{
-        AddParticleSystemEmitterCommand, DeleteEmitterCommand, SetAccelerationCommand,
-        SetParticleSystemEnabledCommand, SetParticleSystemTextureCommand,
-        SetSoftBoundarySharpnessFactorCommand,
-    },
-};
+use crate::{do_command, inspector::SenderHelper, scene::commands::particle_system::*};
 use rg3d::{
     core::pool::Handle,
     gui::{

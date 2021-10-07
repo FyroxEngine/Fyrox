@@ -1,11 +1,4 @@
-use crate::{
-    do_command,
-    inspector::SenderHelper,
-    scene::commands::terrain::{
-        AddTerrainLayerCommand, DeleteTerrainLayerCommand, SetTerrainDecalLayerIndexCommand,
-        SetTerrainLayerMaskPropertyNameCommand,
-    },
-};
+use crate::{do_command, inspector::SenderHelper, scene::commands::terrain::*};
 use rg3d::{
     core::pool::Handle,
     gui::message::{CollectionChanged, FieldKind, PropertyChanged},

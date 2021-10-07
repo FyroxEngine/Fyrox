@@ -1,11 +1,4 @@
-use crate::{
-    do_command,
-    inspector::SenderHelper,
-    scene::commands::sprite::{
-        SetSpriteColorCommand, SetSpriteRotationCommand, SetSpriteSizeCommand,
-        SetSpriteTextureCommand,
-    },
-};
+use crate::{do_command, inspector::SenderHelper, scene::commands::sprite::*};
 use rg3d::{
     core::pool::Handle,
     gui::{message::FieldKind, message::PropertyChanged},
