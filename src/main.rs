@@ -29,18 +29,18 @@ pub mod project_dirs;
 pub mod scene;
 pub mod settings;
 pub mod sidebar;
-pub mod sound;
 pub mod utils;
-pub mod world_outliner;
+pub mod world;
 
 use crate::asset::AssetItem;
 use crate::command::Command;
 use crate::inspector::Inspector;
 use crate::scene::commands::SceneCommand;
+use crate::world::physics::PhysicsViewer;
 use crate::{
-    asset::{AssetBrowser, AssetKind},
+    asset::{AssetBrowser, AssetItem, AssetKind},
     camera::CameraController,
-    command::{panel::CommandStackViewer, CommandStack},
+    command::{panel::CommandStackViewer, Command, CommandStack},
     configurator::Configurator,
     gui::make_dropdown_list_option,
     interaction::{
@@ -66,19 +66,16 @@ use crate::{
             graph::LoadModelCommand, make_delete_selection_command, mesh::SetMeshTextureCommand,
             particle_system::SetParticleSystemTextureCommand, sound::DeleteSoundSourceCommand,
             sprite::SetSpriteTextureCommand, ChangeSelectionCommand, CommandGroup, PasteCommand,
-            SceneContext,
+            SceneCommand, SceneContext,
         },
         EditorScene, Selection,
     },
     settings::{Settings, SettingsSectionKind},
     sidebar::SideBar,
-    sound::SoundPanel,
     utils::path_fixer::PathFixer,
-    world_outliner::WorldOutliner,
+    world::graph::SceneGraphViewer,
+    world::sound::SoundPanel,
 };
-use rg3d::gui::image::Image;
-use rg3d::gui::message::UiMessage;
-use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::{
         algebra::{Point3, Vector2},
@@ -101,7 +98,9 @@ use rg3d::{
         dropdown_list::DropdownListBuilder,
         file_browser::{FileBrowserMode, FileSelectorBuilder, Filter},
         grid::{Column, GridBuilder, Row},
+        image::Image,
         image::ImageBuilder,
+        message::UiMessage,
         message::{
             ButtonMessage, FileSelectorMessage, ImageMessage, KeyCode, MessageBoxMessage,
             MessageDirection, MouseButton, UiMessageData, WidgetMessage, WindowMessage,
@@ -114,7 +113,8 @@ use rg3d::{
         ttf::Font,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
-        HorizontalAlignment, Orientation, Thickness, VerticalAlignment,
+        BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+        VerticalAlignment,
     },
     material::{Material, PropertyValue},
     resource::texture::{CompressionOptions, Texture, TextureKind, TextureState},
@@ -812,7 +812,7 @@ struct Editor {
     message_receiver: Receiver<Message>,
     interaction_modes: Vec<InteractionMode>,
     current_interaction_mode: Option<InteractionModeKind>,
-    world_outliner: WorldOutliner,
+    world_outliner: SceneGraphViewer,
     root_grid: Handle<UiNode>,
     preview: ScenePreview,
     asset_browser: AssetBrowser,
@@ -832,6 +832,7 @@ struct Editor {
     path_fixer: PathFixer,
     material_editor: MaterialEditor,
     inspector: Inspector,
+    physics_viewer: PhysicsViewer,
 }
 
 impl Editor {
@@ -889,11 +890,12 @@ impl Editor {
         let asset_browser = AssetBrowser::new(engine);
         let menu = Menu::new(engine, message_sender.clone(), &settings);
         let light_panel = LightPanel::new(engine);
+        let physics_viewer = PhysicsViewer::new(engine);
 
         let ctx = &mut engine.user_interface.build_ctx();
         let sidebar = SideBar::new(ctx, message_sender.clone());
         let navmesh_panel = NavmeshPanel::new(ctx, message_sender.clone());
-        let world_outliner = WorldOutliner::new(ctx, message_sender.clone());
+        let world_outliner = SceneGraphViewer::new(ctx, message_sender.clone());
         let command_stack_viewer = CommandStackViewer::new(ctx, message_sender.clone());
         let sound_panel = SoundPanel::new(ctx);
         let log = Log::new(ctx);
@@ -917,7 +919,7 @@ impl Editor {
                                             tiles: [
                                                 TileBuilder::new(WidgetBuilder::new())
                                                     .with_content(TileContent::VerticalTiles {
-                                                        splitter: 0.6,
+                                                        splitter: 0.5,
                                                         tiles: [
                                                             TileBuilder::new(WidgetBuilder::new())
                                                                 .with_content(TileContent::Window(
@@ -925,9 +927,35 @@ impl Editor {
                                                                 ))
                                                                 .build(ctx),
                                                             TileBuilder::new(WidgetBuilder::new())
-                                                                .with_content(TileContent::Window(
-                                                                    sound_panel.window,
-                                                                ))
+                                                                .with_content(
+                                                                    TileContent::VerticalTiles {
+                                                                        splitter: 0.5,
+                                                                        tiles: [
+                                                                            TileBuilder::new(
+                                                                                WidgetBuilder::new(
+                                                                                ),
+                                                                            )
+                                                                            .with_content(
+                                                                                TileContent::Window(
+                                                                                    sound_panel
+                                                                                        .window,
+                                                                                ),
+                                                                            )
+                                                                            .build(ctx),
+                                                                            TileBuilder::new(
+                                                                                WidgetBuilder::new(
+                                                                                ),
+                                                                            )
+                                                                            .with_content(
+                                                                                TileContent::Window(
+                                                                                    physics_viewer
+                                                                                        .window,
+                                                                                ),
+                                                                            )
+                                                                            .build(ctx),
+                                                                        ],
+                                                                    },
+                                                                )
                                                                 .build(ctx),
                                                         ],
                                                     })
@@ -1055,9 +1083,7 @@ impl Editor {
 
         let path_fixer = PathFixer::new(ctx);
 
-        let test_material = Arc::new(Mutex::new(Material::standard()));
-        let mut material_editor = MaterialEditor::new(engine);
-        material_editor.set_material(Some(test_material), engine);
+        let material_editor = MaterialEditor::new(engine);
 
         let mut editor = Self {
             navmesh_panel,
@@ -1087,6 +1113,7 @@ impl Editor {
             path_fixer,
             material_editor,
             inspector,
+            physics_viewer,
         };
 
         editor.set_interaction_mode(Some(InteractionModeKind::Move), engine);
@@ -1284,6 +1311,13 @@ impl Editor {
 
             self.material_editor
                 .handle_ui_message(message, engine, &self.message_sender);
+
+            self.physics_viewer.handle_ui_message(
+                &self.message_sender,
+                editor_scene,
+                message,
+                engine,
+            );
 
             self.model_import_dialog.handle_ui_message(
                 message,
@@ -1646,6 +1680,7 @@ impl Editor {
             self.sound_panel.sync_to_model(editor_scene, engine);
             self.material_editor
                 .sync_to_model(&mut engine.user_interface);
+            self.physics_viewer.sync_to_model(editor_scene, engine);
             self.command_stack_viewer.sync_to_model(
                 &mut self.command_stack,
                 &SceneContext {

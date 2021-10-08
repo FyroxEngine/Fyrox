@@ -1,6 +1,6 @@
 use crate::scene::commands::sound::MoveSpatialSoundSourceCommand;
 use crate::scene::commands::SceneCommand;
-use crate::sound::SoundSelection;
+use crate::world::sound::SoundSelection;
 use crate::{
     camera::CameraController,
     interaction::{
