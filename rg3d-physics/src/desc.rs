@@ -1044,6 +1044,7 @@ where
 {
     pub body1: R,
     pub body2: R,
+    #[inspect(expand)]
     pub params: JointParamsDesc,
 }
 
