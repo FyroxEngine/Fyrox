@@ -662,7 +662,7 @@ impl DeferredLightRenderer {
                     let shader = &self.spot_light_shader;
 
                     let (cookie_enabled, cookie_texture) =
-                        if let Some(texture) = spot_light.cookie_texture() {
+                        if let Some(texture) = spot_light.cookie_texture_ref() {
                             if let Some(cookie) = textures.get(state, texture) {
                                 (true, cookie)
                             } else {
