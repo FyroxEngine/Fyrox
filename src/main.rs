@@ -31,6 +31,7 @@ pub mod sidebar;
 pub mod utils;
 pub mod world;
 
+use crate::world::physics::PhysicsViewer;
 use crate::{
     asset::{AssetBrowser, AssetItem, AssetKind},
     camera::CameraController,
@@ -825,6 +826,7 @@ struct Editor {
     model_import_dialog: ModelImportDialog,
     path_fixer: PathFixer,
     material_editor: MaterialEditor,
+    physics_viewer: PhysicsViewer,
 }
 
 impl Editor {
@@ -882,6 +884,7 @@ impl Editor {
         let asset_browser = AssetBrowser::new(engine);
         let menu = Menu::new(engine, message_sender.clone(), &settings);
         let light_panel = LightPanel::new(engine);
+        let physics_viewer = PhysicsViewer::new(engine);
 
         let ctx = &mut engine.user_interface.build_ctx();
         let sidebar = SideBar::new(ctx, message_sender.clone());
@@ -909,7 +912,7 @@ impl Editor {
                                             tiles: [
                                                 TileBuilder::new(WidgetBuilder::new())
                                                     .with_content(TileContent::VerticalTiles {
-                                                        splitter: 0.6,
+                                                        splitter: 0.5,
                                                         tiles: [
                                                             TileBuilder::new(WidgetBuilder::new())
                                                                 .with_content(TileContent::Window(
@@ -917,9 +920,35 @@ impl Editor {
                                                                 ))
                                                                 .build(ctx),
                                                             TileBuilder::new(WidgetBuilder::new())
-                                                                .with_content(TileContent::Window(
-                                                                    sound_panel.window,
-                                                                ))
+                                                                .with_content(
+                                                                    TileContent::VerticalTiles {
+                                                                        splitter: 0.5,
+                                                                        tiles: [
+                                                                            TileBuilder::new(
+                                                                                WidgetBuilder::new(
+                                                                                ),
+                                                                            )
+                                                                            .with_content(
+                                                                                TileContent::Window(
+                                                                                    sound_panel
+                                                                                        .window,
+                                                                                ),
+                                                                            )
+                                                                            .build(ctx),
+                                                                            TileBuilder::new(
+                                                                                WidgetBuilder::new(
+                                                                                ),
+                                                                            )
+                                                                            .with_content(
+                                                                                TileContent::Window(
+                                                                                    physics_viewer
+                                                                                        .window,
+                                                                                ),
+                                                                            )
+                                                                            .build(ctx),
+                                                                        ],
+                                                                    },
+                                                                )
                                                                 .build(ctx),
                                                         ],
                                                     })
@@ -1022,9 +1051,7 @@ impl Editor {
 
         let path_fixer = PathFixer::new(ctx);
 
-        let test_material = Arc::new(Mutex::new(Material::standard()));
-        let mut material_editor = MaterialEditor::new(engine);
-        material_editor.set_material(Some(test_material), engine);
+        let material_editor = MaterialEditor::new(engine);
 
         let mut editor = Self {
             navmesh_panel,
@@ -1053,6 +1080,7 @@ impl Editor {
             model_import_dialog,
             path_fixer,
             material_editor,
+            physics_viewer,
         };
 
         editor.set_interaction_mode(Some(InteractionModeKind::Move), engine);
@@ -1247,6 +1275,13 @@ impl Editor {
 
             self.material_editor
                 .handle_ui_message(message, engine, &self.message_sender);
+
+            self.physics_viewer.handle_ui_message(
+                &self.message_sender,
+                editor_scene,
+                message,
+                engine,
+            );
 
             self.model_import_dialog.handle_ui_message(
                 message,
@@ -1608,6 +1643,7 @@ impl Editor {
             self.sound_panel.sync_to_model(editor_scene, engine);
             self.material_editor
                 .sync_to_model(&mut engine.user_interface);
+            self.physics_viewer.sync_to_model(editor_scene, engine);
             self.command_stack_viewer.sync_to_model(
                 &mut self.command_stack,
                 &SceneContext {

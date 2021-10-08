@@ -226,6 +226,8 @@ impl ChangeSelectionCommand {
                 Selection::Graph(_) => "Change Selection: Graph",
                 Selection::Navmesh(_) => "Change Selection: Navmesh",
                 Selection::Sound(_) => "Change Selection: Sound",
+                Selection::RigidBody(_) => "Change Selection: RigidBody",
+                Selection::Joint(_) => "Change Selection: Joint",
             }
             .to_owned(),
             new_selection,
