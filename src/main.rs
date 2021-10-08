@@ -32,10 +32,7 @@ pub mod sidebar;
 pub mod utils;
 pub mod world;
 
-use crate::asset::AssetItem;
-use crate::command::Command;
 use crate::inspector::Inspector;
-use crate::scene::commands::SceneCommand;
 use crate::world::physics::PhysicsViewer;
 use crate::{
     asset::{AssetBrowser, AssetItem, AssetKind},

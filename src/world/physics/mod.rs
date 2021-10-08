@@ -1,26 +1,21 @@
-use crate::physics::Joint;
-use crate::world::physics::selection::JointSelection;
 use crate::{
-    physics::RigidBody,
+    physics::{Joint, RigidBody},
     scene::{commands::ChangeSelectionCommand, EditorScene, Selection},
     send_sync_message,
     world::physics::{
         item::{PhysicsItem, PhysicsItemBuilder, PhysicsItemMessage},
-        selection::RigidBodySelection,
+        selection::{JointSelection, RigidBodySelection},
     },
     GameEngine, Message,
 };
-use rg3d::core::pool::Pool;
-use rg3d::gui::text::TextBuilder;
 use rg3d::{
-    core::pool::Handle,
+    core::pool::{Handle, Pool},
     engine::Engine,
     gui::{
-        button::ButtonBuilder,
         grid::{Column, GridBuilder, Row},
         list_view::{ListView, ListViewBuilder},
         message::{ListViewMessage, MessageDirection, UiMessage, UiMessageData},
-        stack_panel::StackPanelBuilder,
+        text::TextBuilder,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
         UiNode, UserInterface,

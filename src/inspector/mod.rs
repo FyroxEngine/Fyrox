@@ -127,21 +127,31 @@ impl Inspector {
 
         if self.needs_sync {
             if editor_scene.selection.is_single_selection() {
-                match &editor_scene.selection {
-                    Selection::Graph(selection) => {
-                        let node_handle = selection.nodes()[0];
-                        if scene.graph.is_valid_handle(node_handle) {
-                            self.sync_to(&scene.graph[node_handle], &mut engine.user_interface);
-                        }
-                    }
-                    Selection::Sound(selection) => {
-                        let source_handle = selection.sources()[0];
-                        let ctx = scene.sound_context.state();
-                        if ctx.is_valid_handle(source_handle) {
-                            self.sync_to(ctx.source(source_handle), &mut engine.user_interface);
-                        }
-                    }
-                    _ => {}
+                let ctx = scene.sound_context.state();
+                let obj: Option<&dyn Inspect> = match &editor_scene.selection {
+                    Selection::Graph(selection) => scene
+                        .graph
+                        .try_get(selection.nodes()[0])
+                        .map(|n| n as &dyn Inspect),
+                    Selection::Sound(selection) => ctx
+                        .sources()
+                        .try_borrow(selection.sources()[0])
+                        .map(|s| s as &dyn Inspect),
+                    Selection::RigidBody(selection) => editor_scene
+                        .physics
+                        .bodies
+                        .try_borrow(selection.bodies()[0])
+                        .map(|s| s as &dyn Inspect),
+                    Selection::Joint(selection) => editor_scene
+                        .physics
+                        .joints
+                        .try_borrow(selection.joints()[0])
+                        .map(|s| s as &dyn Inspect),
+                    _ => None,
+                };
+
+                if let Some(obj) = obj {
+                    self.sync_to(obj, &mut engine.user_interface);
                 }
             }
         } else {
@@ -184,29 +194,35 @@ impl Inspector {
             let scene = &engine.scenes[editor_scene.scene];
 
             if editor_scene.selection.is_single_selection() {
-                match &editor_scene.selection {
-                    Selection::Graph(selection) => {
-                        let node_handle = selection.nodes()[0];
-                        if scene.graph.is_valid_handle(node_handle) {
-                            self.change_context(
-                                &scene.graph[node_handle],
-                                &mut engine.user_interface,
-                                engine.resource_manager.clone(),
-                            )
-                        }
-                    }
-                    Selection::Sound(selection) => {
-                        let source_handle = selection.sources()[0];
-                        let ctx = scene.sound_context.state();
-                        if ctx.is_valid_handle(source_handle) {
-                            self.change_context(
-                                ctx.source(source_handle),
-                                &mut engine.user_interface,
-                                engine.resource_manager.clone(),
-                            )
-                        }
-                    }
-                    _ => {}
+                let ctx = scene.sound_context.state();
+                let obj: Option<&dyn Inspect> = match &editor_scene.selection {
+                    Selection::Graph(selection) => scene
+                        .graph
+                        .try_get(selection.nodes()[0])
+                        .map(|n| n as &dyn Inspect),
+                    Selection::Sound(selection) => ctx
+                        .sources()
+                        .try_borrow(selection.sources()[0])
+                        .map(|s| s as &dyn Inspect),
+                    Selection::RigidBody(selection) => editor_scene
+                        .physics
+                        .bodies
+                        .try_borrow(selection.bodies()[0])
+                        .map(|s| s as &dyn Inspect),
+                    Selection::Joint(selection) => editor_scene
+                        .physics
+                        .joints
+                        .try_borrow(selection.joints()[0])
+                        .map(|s| s as &dyn Inspect),
+                    _ => None,
+                };
+
+                if let Some(obj) = obj {
+                    self.change_context(
+                        obj,
+                        &mut engine.user_interface,
+                        engine.resource_manager.clone(),
+                    )
                 }
             }
         }
