@@ -28,17 +28,13 @@ pub mod project_dirs;
 pub mod scene;
 pub mod settings;
 pub mod sidebar;
-pub mod sound;
 pub mod utils;
-pub mod world_outliner;
+pub mod world;
 
-use crate::asset::AssetItem;
-use crate::command::Command;
-use crate::scene::commands::SceneCommand;
 use crate::{
-    asset::{AssetBrowser, AssetKind},
+    asset::{AssetBrowser, AssetItem, AssetKind},
     camera::CameraController,
-    command::{panel::CommandStackViewer, CommandStack},
+    command::{panel::CommandStackViewer, Command, CommandStack},
     configurator::Configurator,
     gui::make_dropdown_list_option,
     interaction::{
@@ -64,19 +60,16 @@ use crate::{
             graph::LoadModelCommand, make_delete_selection_command, mesh::SetMeshTextureCommand,
             particle_system::SetParticleSystemTextureCommand, sound::DeleteSoundSourceCommand,
             sprite::SetSpriteTextureCommand, ChangeSelectionCommand, CommandGroup, PasteCommand,
-            SceneContext,
+            SceneCommand, SceneContext,
         },
         EditorScene, Selection,
     },
     settings::{Settings, SettingsSectionKind},
     sidebar::SideBar,
-    sound::SoundPanel,
     utils::path_fixer::PathFixer,
-    world_outliner::WorldOutliner,
+    world::graph::SceneGraphViewer,
+    world::sound::SoundPanel,
 };
-use rg3d::gui::image::Image;
-use rg3d::gui::message::UiMessage;
-use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::{
         algebra::{Point3, Vector2},
@@ -99,7 +92,9 @@ use rg3d::{
         dropdown_list::DropdownListBuilder,
         file_browser::{FileBrowserMode, FileSelectorBuilder, Filter},
         grid::{Column, GridBuilder, Row},
+        image::Image,
         image::ImageBuilder,
+        message::UiMessage,
         message::{
             ButtonMessage, FileSelectorMessage, ImageMessage, KeyCode, MessageBoxMessage,
             MessageDirection, MouseButton, UiMessageData, WidgetMessage, WindowMessage,
@@ -112,7 +107,8 @@ use rg3d::{
         ttf::Font,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
-        HorizontalAlignment, Orientation, Thickness, VerticalAlignment,
+        BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+        VerticalAlignment,
     },
     material::{Material, PropertyValue},
     resource::texture::{CompressionOptions, Texture, TextureKind, TextureState},
@@ -810,7 +806,7 @@ struct Editor {
     message_receiver: Receiver<Message>,
     interaction_modes: Vec<InteractionMode>,
     current_interaction_mode: Option<InteractionModeKind>,
-    world_outliner: WorldOutliner,
+    world_outliner: SceneGraphViewer,
     root_grid: Handle<UiNode>,
     preview: ScenePreview,
     asset_browser: AssetBrowser,
@@ -890,7 +886,7 @@ impl Editor {
         let ctx = &mut engine.user_interface.build_ctx();
         let sidebar = SideBar::new(ctx, message_sender.clone());
         let navmesh_panel = NavmeshPanel::new(ctx, message_sender.clone());
-        let world_outliner = WorldOutliner::new(ctx, message_sender.clone());
+        let world_outliner = SceneGraphViewer::new(ctx, message_sender.clone());
         let command_stack_viewer = CommandStackViewer::new(ctx, message_sender.clone());
         let sound_panel = SoundPanel::new(ctx);
         let log = Log::new(ctx);

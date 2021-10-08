@@ -1,4 +1,4 @@
-use crate::world_outliner::menu::ItemContextMenu;
+use crate::world::graph::menu::ItemContextMenu;
 use crate::{
     gui::SceneItemMessage,
     load_image,
@@ -7,7 +7,7 @@ use crate::{
         EditorScene, GraphSelection, Selection,
     },
     send_sync_message,
-    world_outliner::item::{SceneItem, SceneItemBuilder},
+    world::graph::item::{SceneItem, SceneItemBuilder},
     GameEngine, Message,
 };
 use rg3d::{
@@ -36,7 +36,7 @@ use std::{collections::HashMap, sync::mpsc::Sender};
 pub mod item;
 pub mod menu;
 
-pub struct WorldOutliner {
+pub struct SceneGraphViewer {
     pub window: Handle<UiNode>,
     root: Handle<UiNode>,
     sender: Sender<Message>,
@@ -63,8 +63,8 @@ fn make_tree(
     context_menu: Handle<UiNode>,
 ) -> Handle<UiNode> {
     let icon = match node {
-        Node::Light(_) => load_image(include_bytes!("../../resources/embed/light.png")),
-        _ => load_image(include_bytes!("../../resources/embed/cube.png")),
+        Node::Light(_) => load_image(include_bytes!("../../../resources/embed/light.png")),
+        _ => load_image(include_bytes!("../../../resources/embed/cube.png")),
     };
 
     SceneItemBuilder::new()
@@ -105,7 +105,7 @@ fn colorize(tree: Handle<UiNode>, ui: &UserInterface, index: &mut usize) {
     }
 }
 
-impl WorldOutliner {
+impl SceneGraphViewer {
     pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
         let root;
         let node_path;

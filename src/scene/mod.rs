@@ -3,8 +3,9 @@ use crate::{
     interaction::navmesh::{data_model::Navmesh, selection::NavmeshSelection},
     physics::Physics,
     scene::clipboard::Clipboard,
-    sound::SoundSelection,
-    utils, GameEngine,
+    utils,
+    world::sound::SoundSelection,
+    GameEngine,
 };
 use rg3d::{
     core::{

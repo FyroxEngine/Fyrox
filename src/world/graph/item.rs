@@ -108,10 +108,12 @@ impl Control for SceneItem {
                             {
                                 self.visibility = visibility;
                                 let image = if visibility {
-                                    load_image(include_bytes!("../../resources/embed/visible.png"))
+                                    load_image(include_bytes!(
+                                        "../../../resources/embed/visible.png"
+                                    ))
                                 } else {
                                     load_image(include_bytes!(
-                                        "../../resources/embed/invisible.png"
+                                        "../../../resources/embed/invisible.png"
                                     ))
                                 };
                                 let image = ImageBuilder::new(WidgetBuilder::new())
@@ -230,7 +232,7 @@ impl SceneItemBuilder {
         resource_manager: ResourceManager,
         node: &Node,
     ) -> Handle<UiNode> {
-        let visible_texture = load_image(include_bytes!("../../resources/embed/visible.png"));
+        let visible_texture = load_image(include_bytes!("../../../resources/embed/visible.png"));
 
         let text_name;
         let visibility_toggle;
