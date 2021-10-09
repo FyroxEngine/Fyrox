@@ -311,7 +311,6 @@ impl GenericSource {
     }
 
     pub(in crate) fn render(&mut self, amount: usize) {
-        println!("render({})", amount);
         if self.frame_samples.capacity() < amount {
             self.frame_samples = Vec::with_capacity(amount);
         }
