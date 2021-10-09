@@ -1102,13 +1102,15 @@ impl Renderer {
         }
     }
 
-    /// Sets new frame size, should be called when received a Resize event.
+    /// Sets new frame size. You should call the same method on [`crate::engine::Engine`]
+    /// instead, which will update the size for the user interface and rendering context
+    /// as well as this one.
     ///
     /// # Notes
     ///
     /// Input values will be set to 1 pixel if new size is 0. Rendering cannot
     /// be performed into 0x0 texture.
-    pub fn set_frame_size(&mut self, new_size: (u32, u32)) -> Result<(), FrameworkError> {
+    pub(in crate) fn set_frame_size(&mut self, new_size: (u32, u32)) -> Result<(), FrameworkError> {
         self.frame_size.0 = new_size.0.max(1);
         self.frame_size.1 = new_size.1.max(1);
 
