@@ -73,7 +73,7 @@ impl GenericBuffer {
                 channel_count,
                 samples,
             } => {
-                if samples.len() % channel_count != 0 {
+                if channel_count < 1 || channel_count > 2 || samples.len() % channel_count != 0 {
                     Err(DataSource::Raw {
                         sample_rate,
                         channel_count,
@@ -95,7 +95,28 @@ impl GenericBuffer {
                     Default::default()
                 };
 
+                // Store cursor to handle errors.
+                let (is_memory, external_cursor) = if let DataSource::Memory(cursor) = &source {
+                    (true, cursor.clone())
+                } else {
+                    (false, Default::default())
+                };
+
                 let decoder = Decoder::new(source)?;
+                if decoder.get_channel_count() < 1 || decoder.get_channel_count() > 2 {
+                    if is_memory {
+                        return Err(DataSource::Memory(external_cursor));
+                    } else {
+                        // There is not much we can do here: if the user supplied DataSource::File,
+                        // they probably do not want us to re-read the file again in
+                        // DataSource::from_file.
+                        return Err(DataSource::Raw {
+                            sample_rate: decoder.get_sample_rate(),
+                            channel_count: decoder.get_channel_count(),
+                            samples: vec![],
+                        });
+                    }
+                }
 
                 Ok(Self {
                     sample_rate: decoder.get_sample_rate(),
@@ -155,10 +176,5 @@ impl GenericBuffer {
         Duration::from_secs_f64(
             (self.samples.len() / (self.channel_count * self.sample_rate)) as f64,
         )
-    }
-
-    #[inline]
-    pub(in crate) fn index_of_last_sample(&self) -> usize {
-        self.samples.len() - self.channel_count
     }
 }
