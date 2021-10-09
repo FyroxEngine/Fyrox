@@ -137,15 +137,22 @@ impl SpotLight {
     /// Set cookie texture. Also called gobo this texture gets projected
     /// by the spot light.
     #[inline]
-    pub fn set_cookie_texture(&mut self, texture: Texture) -> &mut Self {
-        self.cookie_texture = Some(texture);
+    pub fn set_cookie_texture(&mut self, texture: Option<Texture>) -> &mut Self {
+        self.cookie_texture = texture;
         self
     }
 
     /// Get cookie texture. Also called gobo this texture gets projected
     /// by the spot light.
     #[inline]
-    pub fn cookie_texture(&self) -> Option<&Texture> {
+    pub fn cookie_texture(&self) -> Option<Texture> {
+        self.cookie_texture.clone()
+    }
+
+    /// Get cookie texture by ref. Also called gobo this texture gets projected
+    /// by the spot light.
+    #[inline]
+    pub fn cookie_texture_ref(&self) -> Option<&Texture> {
         self.cookie_texture.as_ref()
     }
 

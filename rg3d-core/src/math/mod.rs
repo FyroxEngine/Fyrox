@@ -114,21 +114,21 @@ where
 
         if clipped.position.x < other.position.x {
             clipped.position.x = other.position.x;
-            clipped.size.x = clipped.size.x - (other.position.x - clipped.position.x);
+            clipped.size.x -= other.position.x - clipped.position.x;
         }
         if clipped.position.y < other.position.y {
             clipped.position.y = other.position.y;
-            clipped.size.y = clipped.size.y - (other.position.y - clipped.position.y);
+            clipped.size.y -= other.position.y - clipped.position.y;
         }
 
         let clipped_right_bottom = clipped.right_bottom_corner();
         let other_right_bottom = other.right_bottom_corner();
 
         if clipped_right_bottom.x > other_right_bottom.x {
-            clipped.size.x = clipped.size.x - (clipped_right_bottom.x - other_right_bottom.x);
+            clipped.size.x -= clipped_right_bottom.x - other_right_bottom.x;
         }
         if clipped_right_bottom.y > other_right_bottom.y {
-            clipped.size.y = clipped.size.y - (clipped_right_bottom.y - other_right_bottom.y);
+            clipped.size.y -= clipped_right_bottom.y - other_right_bottom.y;
         }
 
         clipped

@@ -151,6 +151,11 @@ impl Camera {
         self
     }
 
+    /// Returns current viewport.
+    pub fn viewport(&self) -> Rect<f32> {
+        self.viewport
+    }
+
     /// Calculates viewport rectangle in pixels based on internal resolution-independent
     /// viewport. It is useful when you need to get real viewport rectangle in pixels.
     ///
@@ -262,6 +267,11 @@ impl Camera {
     /// Return optional shared reference to current skybox.
     pub fn skybox_ref(&self) -> Option<&SkyBox> {
         self.sky_box.as_deref()
+    }
+
+    /// Replaces the skybox.
+    pub fn replace_skybox(&mut self, new: Option<Box<SkyBox>>) -> Option<Box<SkyBox>> {
+        std::mem::replace(&mut self.sky_box, new)
     }
 
     /// Sets new environment.

@@ -80,17 +80,17 @@ impl BatchStorage {
                         };
 
                         let data = surface.data();
-                        let key = surface.batch_id();
+                        let batch_id = surface.batch_id();
 
-                        let batch = if let Some(&batch_index) = self.batch_map.get(&key) {
+                        let batch = if let Some(&batch_index) = self.batch_map.get(&batch_id) {
                             self.batches.get_mut(batch_index).unwrap()
                         } else {
-                            self.batch_map.insert(key, self.batches.len());
+                            self.batch_map.insert(batch_id, self.batches.len());
                             self.batches.push(Batch {
                                 data,
-                                // Batches from meshes will be sorted using diffuse textures.
+                                // Batches from meshes will be sorted using materials.
                                 // This will significantly reduce pipeline state changes.
-                                sort_index: surface.batch_id(),
+                                sort_index: surface.material_id(),
                                 instances: self.buffers.pop().unwrap_or_default(),
                                 material: surface.material().clone(),
                                 is_skinned: !surface.bones.is_empty(),
@@ -100,7 +100,7 @@ impl BatchStorage {
                             self.batches.last_mut().unwrap()
                         };
 
-                        batch.sort_index = surface.batch_id();
+                        batch.sort_index = surface.material_id();
                         batch.material = surface.material().clone();
 
                         batch.instances.push(SurfaceInstance {

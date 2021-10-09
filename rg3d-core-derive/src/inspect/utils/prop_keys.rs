@@ -61,9 +61,9 @@ fn struct_field_prop(ty_args: &args::TypeArgs, nth: usize, field: &args::FieldAr
         ast::Data::Struct(xs) => xs,
         _ => unreachable!(),
     };
-    let field_ident = self::field_ident(&fields, nth, field);
+    let field_ident = self::field_ident(fields, nth, field);
 
-    let ident = format!("{}", field_ident).to_case(Case::UpperSnake);
+    let ident = field_ident.to_case(Case::UpperSnake);
     syn::parse_str(&ident).unwrap()
 }
 

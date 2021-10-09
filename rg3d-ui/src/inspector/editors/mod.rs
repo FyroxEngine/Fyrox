@@ -3,13 +3,13 @@ use crate::{
     inspector::{
         editors::{
             bool::BoolPropertyEditorDefinition,
+            color::ColorPropertyEditorDefinition,
             f32::F32PropertyEditorDefinition,
-            int::I32PropertyEditorDefinition,
             int::{
-                I16PropertyEditorDefinition, I64PropertyEditorDefinition,
-                I8PropertyEditorDefinition, U16PropertyEditorDefinition,
-                U32PropertyEditorDefinition, U64PropertyEditorDefinition,
-                U8PropertyEditorDefinition,
+                I16PropertyEditorDefinition, I32PropertyEditorDefinition,
+                I64PropertyEditorDefinition, I8PropertyEditorDefinition,
+                U16PropertyEditorDefinition, U32PropertyEditorDefinition,
+                U64PropertyEditorDefinition, U8PropertyEditorDefinition,
             },
             quat::QuatPropertyEditorDefinition,
             rect::RectPropertyEditorDefinition,
@@ -28,6 +28,7 @@ use std::{any::TypeId, collections::HashMap, fmt::Debug, sync::Arc};
 
 pub mod bool;
 pub mod collection;
+pub mod color;
 pub mod enumeration;
 pub mod f32;
 pub mod int;
@@ -136,6 +137,7 @@ impl PropertyEditorDefinitionContainer {
         container.insert(Arc::new(RectPropertyEditorDefinition::<u16>::new()));
         container.insert(Arc::new(RectPropertyEditorDefinition::<i8>::new()));
         container.insert(Arc::new(RectPropertyEditorDefinition::<u8>::new()));
+        container.insert(Arc::new(ColorPropertyEditorDefinition));
         container
     }
 

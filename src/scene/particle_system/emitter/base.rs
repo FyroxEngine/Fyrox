@@ -1,12 +1,18 @@
 //! Base emitter contains properties for all other "derived" emitters.
 
 use crate::{
-    core::{algebra::Vector3, color::Color, numeric_range::NumericRange, visitor::prelude::*},
+    core::{
+        algebra::Vector3,
+        color::Color,
+        inspect::{Inspect, PropertyInfo},
+        numeric_range::NumericRange,
+        visitor::prelude::*,
+    },
     scene::particle_system::{Particle, ParticleLimit},
 };
 
 /// See module docs.
-#[derive(Debug, Visit)]
+#[derive(Debug, Visit, Inspect)]
 pub struct BaseEmitter {
     /// Offset from center of particle system.
     position: Vector3<f32>,
@@ -34,6 +40,7 @@ pub struct BaseEmitter {
     /// Range of initial rotation for a particle
     rotation: NumericRange,
     pub(crate) alive_particles: u32,
+    #[visit(skip)]
     time: f32,
     #[visit(skip)]
     pub(crate) particles_to_spawn: u32,

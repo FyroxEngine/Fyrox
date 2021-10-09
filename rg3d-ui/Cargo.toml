@@ -18,7 +18,7 @@ resolver = "2"
 rg3d-core = { path = "../rg3d-core", version = "0.18.0" }
 lazy_static = "1.4.0"
 copypasta = "0.7.1"
-fontdue = "0.5.2"
+fontdue = "0.6.2"
 notify = "4.0"
 
 [features]

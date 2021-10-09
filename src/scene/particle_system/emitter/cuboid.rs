@@ -2,7 +2,12 @@
 //! layer.
 
 use crate::{
-    core::{algebra::Vector3, numeric_range::NumericRange, visitor::prelude::*},
+    core::{
+        algebra::Vector3,
+        inspect::{Inspect, PropertyInfo},
+        numeric_range::NumericRange,
+        visitor::prelude::*,
+    },
     scene::particle_system::{
         emitter::{
             base::{BaseEmitter, BaseEmitterBuilder},
@@ -14,8 +19,9 @@ use crate::{
 use std::ops::{Deref, DerefMut};
 
 /// See module docs.
-#[derive(Debug, Clone, Visit)]
+#[derive(Debug, Clone, Visit, Inspect)]
 pub struct CuboidEmitter {
+    #[inspect(expand)]
     emitter: BaseEmitter,
     half_width: f32,
     half_height: f32,

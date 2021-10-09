@@ -1,7 +1,12 @@
 //! Vertical cylinder emitter.
 
 use crate::{
-    core::{algebra::Vector3, numeric_range::NumericRange, visitor::prelude::*},
+    core::{
+        algebra::Vector3,
+        inspect::{Inspect, PropertyInfo},
+        numeric_range::NumericRange,
+        visitor::prelude::*,
+    },
     scene::particle_system::{
         emitter::{
             base::{BaseEmitter, BaseEmitterBuilder},
@@ -13,8 +18,9 @@ use crate::{
 use std::ops::{Deref, DerefMut};
 
 /// See module docs.
-#[derive(Clone, Debug, Visit)]
+#[derive(Clone, Debug, Visit, Inspect)]
 pub struct CylinderEmitter {
+    #[inspect(expand)]
     emitter: BaseEmitter,
     height: f32,
     radius: f32,

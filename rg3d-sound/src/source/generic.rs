@@ -28,18 +28,20 @@
 //!
 //! ```
 
-use crate::buffer::SoundBufferState;
 use crate::{
-    buffer::{streaming::StreamingBuffer, SoundBufferResource},
+    buffer::{streaming::StreamingBuffer, SoundBufferResource, SoundBufferState},
     error::SoundError,
     source::{SoundSource, Status},
 };
-use rg3d_core::visitor::{Visit, VisitResult, Visitor};
+use rg3d_core::{
+    inspect::{Inspect, PropertyInfo},
+    visitor::{Visit, VisitResult, Visitor},
+};
 use rg3d_resource::ResourceState;
 use std::time::Duration;
 
 /// See module info.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Inspect)]
 pub struct GenericSource {
     name: String,
     buffer: Option<SoundBufferResource>,
@@ -47,8 +49,10 @@ pub struct GenericSource {
     // In case of streaming buffer its maximum value will be some fixed value which is
     // implementation defined. It can be less than zero, this happens when we are in the process
     // of reading next block in streaming buffer (see also prev_buffer_sample).
+    #[inspect(skip)]
     buf_read_pos: f64,
     // Real playback position in samples.
+    #[inspect(skip)]
     playback_pos: f64,
     panning: f32,
     pitch: f64,
@@ -62,6 +66,7 @@ pub struct GenericSource {
     // hear that sound will have high pitch (2.0), to fix that we'll just pre-multiply
     // playback speed by 0.5.
     // However such auto-resampling has poor quality, but it is fast.
+    #[inspect(read_only)]
     resampling_multiplier: f64,
     status: Status,
     play_once: bool,
@@ -71,10 +76,14 @@ pub struct GenericSource {
     // can be with no respect to real distance attenuation (or what else affects channel
     // gain). So if these are None engine will set correct values first and only then it
     // will start interpolation of gain.
+    #[inspect(skip)]
     pub(in crate) last_left_gain: Option<f32>,
+    #[inspect(skip)]
     pub(in crate) last_right_gain: Option<f32>,
+    #[inspect(skip)]
     pub(in crate) frame_samples: Vec<(f32, f32)>,
     // This sample is used when doing linear interpolation between two blocks of streaming buffer.
+    #[inspect(skip)]
     prev_buffer_sample: (f32, f32),
 }
 

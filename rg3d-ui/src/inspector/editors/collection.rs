@@ -21,7 +21,8 @@ use crate::{
     stack_panel::StackPanelBuilder,
     text::TextBuilder,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
+    BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
+    VerticalAlignment,
 };
 use std::{
     any::TypeId,
@@ -333,6 +334,7 @@ where
 
         let add = ButtonBuilder::new(
             WidgetBuilder::new()
+                .with_horizontal_alignment(HorizontalAlignment::Right)
                 .with_width(16.0)
                 .with_height(16.0)
                 .on_column(1)
