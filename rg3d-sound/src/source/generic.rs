@@ -43,11 +43,12 @@ use std::time::Duration;
 pub struct GenericSource {
     name: String,
     buffer: Option<SoundBufferResource>,
-    // Read position in the buffer. Differs from `playback_pos` if buffer is streaming.
+    // Read position in the buffer in samples. Differs from `playback_pos` if buffer is streaming.
     // In case of streaming buffer its maximum value will be some fixed value which is
-    // implementation defined.
+    // implementation defined. It can be less than zero, this happens when we are in the process
+    // of reading next block in streaming buffer (see also prev_buffer_sample).
     buf_read_pos: f64,
-    // Real playback position.
+    // Real playback position in samples.
     playback_pos: f64,
     panning: f32,
     pitch: f64,
@@ -73,6 +74,8 @@ pub struct GenericSource {
     pub(in crate) last_left_gain: Option<f32>,
     pub(in crate) last_right_gain: Option<f32>,
     pub(in crate) frame_samples: Vec<(f32, f32)>,
+    // This sample is used when doing linear interpolation between two blocks of streaming buffer.
+    prev_buffer_sample: (f32, f32),
 }
 
 impl Default for GenericSource {
@@ -92,32 +95,9 @@ impl Default for GenericSource {
             last_left_gain: None,
             last_right_gain: None,
             frame_samples: Default::default(),
+            prev_buffer_sample: (0.0, 0.0),
         }
     }
-}
-
-/// Returns index of sample aligned to first channel by given arbitrary position.
-/// Buffers has samples in interleaved format, it means that for channel amount > 1
-/// samples will have this layout: LRLRLR..., when we reading from buffer we want
-/// to start reading from first channel in buffer, but since we using automatic
-/// resampling and variable pitch, read pos can have fractional part and even be
-/// unaligned to first channel. This function fixes that, it takes arbitrary
-/// position and aligns it to first channel so we can start reading samples for
-/// each channel by:
-/// left = read(index)
-/// right = read(index + 1)
-fn position_to_index(position: f64, channel_count: usize) -> usize {
-    let index = position as usize;
-
-    let aligned = if channel_count == 1 {
-        index
-    } else {
-        index - index % channel_count
-    };
-
-    debug_assert_eq!(aligned % channel_count, 0);
-
-    aligned
 }
 
 impl GenericSource {
@@ -168,8 +148,7 @@ impl GenericSource {
                     // Make sure to recalculate resampling multiplier, otherwise sound will play incorrectly.
                     let device_sample_rate = f64::from(crate::context::SAMPLE_RATE);
                     let sample_rate = locked_buffer.sample_rate() as f64;
-                    let channel_count = locked_buffer.channel_count() as f64;
-                    self.resampling_multiplier = sample_rate / device_sample_rate * channel_count;
+                    self.resampling_multiplier = sample_rate / device_sample_rate;
                 }
                 ResourceState::Pending { .. } => unreachable!(),
             }
@@ -289,8 +268,7 @@ impl GenericSource {
     pub fn playback_time(&self) -> Duration {
         if let Some(buffer) = self.buffer.as_ref() {
             let buffer = buffer.data_ref();
-            let i = position_to_index(self.playback_pos, buffer.channel_count());
-            Duration::from_secs_f64((i / buffer.sample_rate()) as f64)
+            Duration::from_secs_f64(self.playback_pos / (buffer.sample_rate() as f64))
         } else {
             Duration::from_secs(0)
         }
@@ -305,8 +283,7 @@ impl GenericSource {
                 streaming.time_seek(time);
             }
             // Set absolute position first.
-            self.playback_pos = (time.as_secs_f64() * buffer.channel_count() as f64)
-                .min(buffer.index_of_last_sample() as f64);
+            self.playback_pos = time.as_secs_f64() * buffer.sample_rate as f64;
             // Then adjust buffer read position.
             self.buf_read_pos = match *buffer {
                 SoundBufferState::Streaming(ref mut streaming) => {
@@ -314,57 +291,18 @@ impl GenericSource {
                     streaming.read_next_block();
                     // Streaming sources has different buffer read position because
                     // buffer contains only small portion of data.
-                    self.playback_pos % streaming.generic.samples.len() as f64
+                    self.playback_pos % (StreamingBuffer::STREAM_SAMPLE_COUNT as f64)
                 }
                 SoundBufferState::Generic(_) => self.playback_pos,
             };
             assert!(
-                position_to_index(self.buf_read_pos, buffer.channel_count())
-                    < buffer.samples().len()
+                self.buf_read_pos * (buffer.channel_count() as f64) < buffer.samples().len() as f64
             );
         }
     }
 
-    fn next_sample_pair(&mut self, buffer: &mut SoundBufferState) -> (f32, f32) {
-        let step = self.pitch * self.resampling_multiplier;
-
-        self.buf_read_pos += step;
-        self.playback_pos += step;
-
-        let channel_count = buffer.channel_count();
-        let mut i = position_to_index(self.buf_read_pos, channel_count);
-
-        let len = buffer.samples().len();
-        if i > buffer.index_of_last_sample() {
-            let mut end_reached = true;
-            if let SoundBufferState::Streaming(streaming) = buffer {
-                // Means that this is the last available block.
-                if len != channel_count * StreamingBuffer::STREAM_SAMPLE_COUNT {
-                    let _ = streaming.rewind();
-                } else {
-                    end_reached = false;
-                }
-                streaming.read_next_block();
-            }
-            if end_reached {
-                if !self.looping {
-                    self.status = Status::Stopped;
-                }
-                self.playback_pos = 0.0;
-            }
-            self.buf_read_pos = 0.0;
-            i = 0;
-        }
-
-        let samples = buffer.samples();
-        if channel_count == 2 {
-            (samples[i], samples[i + 1])
-        } else {
-            (samples[i], samples[i])
-        }
-    }
-
     pub(in crate) fn render(&mut self, amount: usize) {
+        println!("render({})", amount);
         if self.frame_samples.capacity() < amount {
             self.frame_samples = Vec::with_capacity(amount);
         }
@@ -373,38 +311,174 @@ impl GenericSource {
 
         if let Some(buffer) = self.buffer.clone() {
             let mut state = buffer.state();
-            match *state {
-                ResourceState::Ok(ref mut buffer) => {
-                    if buffer.is_empty() {
-                        for _ in 0..amount {
-                            self.frame_samples.push((0.0, 0.0));
-                        }
-                    } else {
-                        for _ in 0..amount {
-                            if self.status == Status::Playing {
-                                let pair = self.next_sample_pair(buffer);
-                                self.frame_samples.push(pair);
-                            } else {
-                                self.frame_samples.push((0.0, 0.0));
-                            }
-                        }
-                    }
-                }
-                _ => {
-                    for _ in 0..amount {
-                        self.frame_samples.push((0.0, 0.0));
-                    }
+            if let ResourceState::Ok(ref mut buffer) = *state {
+                if self.status == Status::Playing && !buffer.is_empty() {
+                    self.render_playing(buffer, amount);
                 }
             }
-        } else {
-            for _ in 0..amount {
-                self.frame_samples.push((0.0, 0.0));
+        }
+        // Fill the remaining part of frame_samples.
+        self.frame_samples.resize(amount, (0.0, 0.0));
+    }
+
+    fn render_playing(&mut self, buffer: &mut SoundBufferState, amount: usize) {
+        let mut count = 0;
+        loop {
+            count += self.render_until_block_end(buffer, amount - count);
+            if count == amount {
+                break;
+            }
+
+            let channel_count = buffer.channel_count();
+            let len = buffer.samples().len();
+            let mut end_reached = true;
+            if let SoundBufferState::Streaming(streaming) = buffer {
+                // Means that this is the last available block.
+                if len != channel_count * StreamingBuffer::STREAM_SAMPLE_COUNT {
+                    let _ = streaming.rewind();
+                } else {
+                    end_reached = false;
+                }
+                self.prev_buffer_sample = get_last_sample(&streaming);
+                streaming.read_next_block();
+            }
+            if end_reached {
+                if !self.looping {
+                    self.status = Status::Stopped;
+                    return;
+                }
+                self.buf_read_pos = 0.0;
+                self.playback_pos = 0.0;
+            } else {
+                self.buf_read_pos -= len as f64 / channel_count as f64;
             }
         }
     }
 
+    // Renders until the end of the block or until amount samples is written and returns
+    // the number of written samples.
+    fn render_until_block_end(&mut self, buffer: &mut SoundBufferState, mut amount: usize) -> usize {
+        let step = self.pitch * self.resampling_multiplier;
+        if step == 1.0 {
+            if self.buf_read_pos < 0.0 {
+                // This can theoretically happen if we change pitch on the fly.
+                self.frame_samples.push(self.prev_buffer_sample);
+                self.buf_read_pos = 0.0;
+                amount -= 1;
+            }
+            // Fast-path for common case when there is no resampling and no pitch change.
+            let from = self.buf_read_pos as usize;
+            let buffer_len = buffer.samples.len() / buffer.channel_count;
+            let rendered = (buffer_len - from).min(amount);
+            if buffer.channel_count == 2 {
+                for i in from..from + rendered {
+                    self.frame_samples.push((buffer.samples[i * 2], buffer.samples[i * 2 + 1]))
+                }
+            } else {
+                for i in from..from + rendered {
+                    self.frame_samples.push((buffer.samples[i], buffer.samples[i]))
+                }
+            }
+            self.buf_read_pos += rendered as f64;
+            self.playback_pos += rendered as f64;
+            rendered
+        } else {
+            self.render_until_block_end_resample(buffer, amount, step)
+        }
+    }
+
+    // Does linear resampling while rendering until the end of the block.
+    fn render_until_block_end_resample(
+        &mut self,
+        buffer: &mut SoundBufferState,
+        amount: usize,
+        step: f64,
+    ) -> usize {
+        let mut rendered = 0;
+
+        while self.buf_read_pos < 0.0 {
+            // Interpolate between last sample of previous buffer and first sample of current
+            // buffer. This is important, otherwise there will be quiet but audible pops
+            // in the output.
+            let w = (self.buf_read_pos - self.buf_read_pos.floor()) as f32;
+            let cur_first_sample = if buffer.channel_count == 2 {
+                (buffer.samples[0], buffer.samples[1])
+            } else {
+                (buffer.samples[0], buffer.samples[0])
+            };
+            let l = self.prev_buffer_sample.0 * (1.0 - w) + cur_first_sample.0 * w;
+            let r = self.prev_buffer_sample.1 * (1.0 - w) + cur_first_sample.1 * w;
+            self.frame_samples.push((l, r));
+            self.buf_read_pos += step;
+            self.playback_pos += step;
+            rendered += 1;
+        }
+
+        // We want to keep global positions in f64, but use f32 in inner loops (this improves
+        // code generation and performance at least on some systems), so we split the buf_read_pos
+        // into integer and f32 part.
+        let buffer_base_idx = self.buf_read_pos as usize;
+        let mut buffer_rel_pos = (self.buf_read_pos - buffer_base_idx as f64) as f32;
+        let start_buffer_rel_pos = buffer_rel_pos;
+        let rel_step = step as f32;
+        // We skip one last element because the hot loop resampling between current and next
+        // element. Last elements are appended after the hot loop.
+        let buffer_last = buffer.samples.len() / buffer.channel_count - 1;
+        if buffer.channel_count == 2 {
+            while rendered < amount {
+                let (idx, w) = {
+                    let idx = buffer_rel_pos as usize;
+                    // This looks a bit complicated but fract() is quite a bit slower on x86,
+                    // because it turns into a function call on targets < SSE4.1, unlike aarch64)
+                    (idx + buffer_base_idx, buffer_rel_pos - idx as f32)
+                };
+                if idx >= buffer_last {
+                    break;
+                }
+                let l = buffer.samples[idx * 2] * (1.0 - w)
+                    + buffer.samples[idx * 2 + 2] * w;
+                let r = buffer.samples[idx * 2 + 1] * (1.0 - w)
+                    + buffer.samples[idx * 2 + 3] * w;
+                self.frame_samples.push((l, r));
+                buffer_rel_pos += rel_step;
+                rendered += 1;
+            }
+        } else {
+            while rendered < amount {
+                let (idx, w) = {
+                    let idx = buffer_rel_pos as usize;
+                    // See comment above.
+                    (idx + buffer_base_idx, buffer_rel_pos - idx as f32)
+                };
+                if idx >= buffer_last {
+                    break;
+                }
+                let v = buffer.samples[idx] * (1.0 - w) + buffer.samples[idx + 1] * w;
+                self.frame_samples.push((v, v));
+                buffer_rel_pos += rel_step;
+                rendered += 1;
+            }
+        }
+
+        self.buf_read_pos += (buffer_rel_pos - start_buffer_rel_pos) as f64;
+        self.playback_pos += (buffer_rel_pos - start_buffer_rel_pos) as f64;
+        rendered
+    }
+
     pub(in crate) fn frame_samples(&self) -> &[(f32, f32)] {
         &self.frame_samples
+    }
+}
+
+fn get_last_sample(buffer: &StreamingBuffer) -> (f32, f32) {
+    let len = buffer.samples.len();
+    if len == 0 {
+        return (0.0, 0.0);
+    }
+    if buffer.channel_count == 2 {
+        (buffer.samples[len - 2], buffer.samples[len - 1])
+    } else {
+        (buffer.samples[len - 1], buffer.samples[len - 1])
     }
 }
 
