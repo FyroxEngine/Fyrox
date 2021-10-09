@@ -360,6 +360,7 @@ impl TreeBuilder {
                             .on_row(1)
                             .on_column(0)
                             .with_margin(Thickness::left(15.0))
+                            .with_visibility(self.is_expanded)
                             .with_children(self.items.iter().cloned()),
                     )
                     .build(ctx);
