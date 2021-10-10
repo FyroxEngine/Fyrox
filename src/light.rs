@@ -1,5 +1,6 @@
 use crate::{scene::EditorScene, GameEngine};
 use rg3d::gui::message::UiMessage;
+use rg3d::gui::numeric::NumericUpDownMessage;
 use rg3d::gui::UiNode;
 use rg3d::{
     core::{pool::Handle, scope_profile},
@@ -7,7 +8,7 @@ use rg3d::{
         button::ButtonBuilder,
         grid::{Column, GridBuilder, Row},
         message::ButtonMessage,
-        message::{MessageDirection, NumericUpDownMessage, UiMessageData},
+        message::{MessageDirection, UiMessageData},
         numeric::NumericUpDownBuilder,
         text::TextBuilder,
         widget::WidgetBuilder,
@@ -128,7 +129,7 @@ impl LightPanel {
     ) {
         scope_profile!();
 
-        match *message.data() {
+        match message.data() {
             UiMessageData::Button(ButtonMessage::Click) => {
                 if message.destination() == self.generate {
                     let scene = &mut engine.scenes[editor_scene.scene];
@@ -146,13 +147,15 @@ impl LightPanel {
                     scene.set_lightmap(lightmap).unwrap();
                 }
             }
-            UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value))
-                if message.direction() == MessageDirection::FromWidget =>
-            {
-                if message.destination() == self.nud_texels_per_unit {
-                    self.texels_per_unit = value as u32;
-                } else if message.destination() == self.nud_spacing {
-                    self.spacing = value;
+            UiMessageData::User(msg) if message.direction() == MessageDirection::FromWidget => {
+                if let Some(&NumericUpDownMessage::Value(value)) =
+                    msg.cast::<NumericUpDownMessage<f32>>()
+                {
+                    if message.destination() == self.nud_texels_per_unit {
+                        self.texels_per_unit = value as u32;
+                    } else if message.destination() == self.nud_spacing {
+                        self.spacing = value;
+                    }
                 }
             }
             _ => {}

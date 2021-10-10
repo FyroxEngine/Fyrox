@@ -1,11 +1,12 @@
 use crate::settings::{make_bool_input_field, make_f32_input_field, make_text_mark};
 use rg3d::gui::message::UiMessage;
+use rg3d::gui::numeric::NumericUpDownMessage;
 use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::pool::Handle,
     gui::{
         grid::{Column, GridBuilder, Row},
-        message::{CheckBoxMessage, MessageDirection, NumericUpDownMessage, UiMessageData},
+        message::{CheckBoxMessage, MessageDirection, UiMessageData},
         widget::WidgetBuilder,
     },
 };
@@ -111,17 +112,21 @@ impl MoveModeSection {
         message: &UiMessage,
         settings: &mut MoveInteractionModeSettings,
     ) {
-        match *message.data() {
-            UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) => {
-                if message.destination() == self.x_snap_step {
-                    settings.x_snap_step = value;
-                } else if message.destination() == self.y_snap_step {
-                    settings.y_snap_step = value;
-                } else if message.destination() == self.z_snap_step {
-                    settings.z_snap_step = value;
+        match message.data() {
+            UiMessageData::User(msg) if message.direction() == MessageDirection::FromWidget => {
+                if let Some(&NumericUpDownMessage::Value(value)) =
+                    msg.cast::<NumericUpDownMessage<f32>>()
+                {
+                    if message.destination() == self.x_snap_step {
+                        settings.x_snap_step = value;
+                    } else if message.destination() == self.y_snap_step {
+                        settings.y_snap_step = value;
+                    } else if message.destination() == self.z_snap_step {
+                        settings.z_snap_step = value;
+                    }
                 }
             }
-            UiMessageData::CheckBox(CheckBoxMessage::Check(Some(value))) => {
+            &UiMessageData::CheckBox(CheckBoxMessage::Check(Some(value))) => {
                 if message.destination() == self.snapping {
                     settings.grid_snapping = value;
                 }

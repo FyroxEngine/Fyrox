@@ -10,12 +10,13 @@ use crate::{
     Message,
 };
 use rg3d::gui::message::UiMessage;
+use rg3d::gui::vec::vec3::Vec3EditorMessage;
 use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::pool::Handle,
     gui::{
         grid::{Column, GridBuilder, Row},
-        message::{MessageDirection, UiMessageData, Vec3EditorMessage},
+        message::{MessageDirection, UiMessageData},
         widget::WidgetBuilder,
     },
     physics3d::desc::PrismaticJointDesc,
@@ -126,39 +127,42 @@ impl PrismaticJointSection {
         prismatic: &PrismaticJointDesc,
         handle: Handle<Joint>,
     ) {
-        if let UiMessageData::Vec3Editor(Vec3EditorMessage::Value(value)) = *message.data() {
-            if message.direction() == MessageDirection::FromWidget {
-                if message.destination() == self.joint_anchor && prismatic.local_anchor1.ne(&value)
-                {
-                    self.sender
-                        .send(Message::do_scene_command(
-                            SetPrismaticJointAnchor1Command::new(handle, value),
-                        ))
-                        .unwrap();
-                } else if message.destination() == self.joint_axis
-                    && prismatic.local_axis1.ne(&value)
-                {
-                    self.sender
-                        .send(Message::do_scene_command(
-                            SetPrismaticJointAxis1Command::new(handle, value),
-                        ))
-                        .unwrap();
-                } else if message.destination() == self.connected_anchor
-                    && prismatic.local_anchor2.ne(&value)
-                {
-                    self.sender
-                        .send(Message::do_scene_command(
-                            SetPrismaticJointAnchor2Command::new(handle, value),
-                        ))
-                        .unwrap();
-                } else if message.destination() == self.connected_axis
-                    && prismatic.local_axis2.ne(&value)
-                {
-                    self.sender
-                        .send(Message::do_scene_command(
-                            SetPrismaticJointAxis2Command::new(handle, value),
-                        ))
-                        .unwrap();
+        if let UiMessageData::User(msg) = message.data() {
+            if let Some(&Vec3EditorMessage::Value(value)) = msg.cast() {
+                if message.direction() == MessageDirection::FromWidget {
+                    if message.destination() == self.joint_anchor
+                        && prismatic.local_anchor1.ne(&value)
+                    {
+                        self.sender
+                            .send(Message::do_scene_command(
+                                SetPrismaticJointAnchor1Command::new(handle, value),
+                            ))
+                            .unwrap();
+                    } else if message.destination() == self.joint_axis
+                        && prismatic.local_axis1.ne(&value)
+                    {
+                        self.sender
+                            .send(Message::do_scene_command(
+                                SetPrismaticJointAxis1Command::new(handle, value),
+                            ))
+                            .unwrap();
+                    } else if message.destination() == self.connected_anchor
+                        && prismatic.local_anchor2.ne(&value)
+                    {
+                        self.sender
+                            .send(Message::do_scene_command(
+                                SetPrismaticJointAnchor2Command::new(handle, value),
+                            ))
+                            .unwrap();
+                    } else if message.destination() == self.connected_axis
+                        && prismatic.local_axis2.ne(&value)
+                    {
+                        self.sender
+                            .send(Message::do_scene_command(
+                                SetPrismaticJointAxis2Command::new(handle, value),
+                            ))
+                            .unwrap();
+                    }
                 }
             }
         }

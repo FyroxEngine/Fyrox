@@ -20,6 +20,8 @@ use crate::{
     Message,
 };
 use rg3d::gui::message::UiMessage;
+use rg3d::gui::numeric::NumericUpDownMessage;
+use rg3d::gui::vec::vec3::Vec3EditorMessage;
 use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::{futures::executor::block_on, pool::Handle, scope_profile},
@@ -27,8 +29,7 @@ use rg3d::{
     gui::{
         grid::{Column, GridBuilder, Row},
         message::{
-            CheckBoxMessage, MessageDirection, NumericUpDownMessage, TextBoxMessage, UiMessageData,
-            Vec3EditorMessage, WidgetMessage,
+            CheckBoxMessage, MessageDirection, TextBoxMessage, UiMessageData, WidgetMessage,
         },
         stack_panel::StackPanelBuilder,
         text_box::TextBoxBuilder,
@@ -138,39 +139,44 @@ impl SpatialSection {
     ) {
         scope_profile!();
 
-        match *message.data() {
-            UiMessageData::Vec3Editor(Vec3EditorMessage::Value(value)) => {
-                if spatial.position() != value && message.destination() == self.position {
-                    sender
-                        .send(Message::do_scene_command(
-                            SetSpatialSoundSourcePositionCommand::new(handle, value),
-                        ))
-                        .unwrap();
-                }
-            }
-            UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) => {
-                if spatial.radius().ne(&value) && message.destination() == self.radius {
-                    sender
-                        .send(Message::do_scene_command(
-                            SetSpatialSoundSourceRadiusCommand::new(handle, value),
-                        ))
-                        .unwrap();
-                } else if spatial.rolloff_factor().ne(&value)
-                    && message.destination() == self.rolloff_factor
+        match message.data() {
+            UiMessageData::User(msg) => {
+                if let Some(&NumericUpDownMessage::Value(value)) =
+                    msg.cast::<NumericUpDownMessage<f32>>()
                 {
-                    sender
-                        .send(Message::do_scene_command(
-                            SetSpatialSoundSourceRolloffFactorCommand::new(handle, value),
-                        ))
-                        .unwrap();
-                } else if spatial.max_distance().ne(&value)
-                    && message.destination() == self.max_distance
+                    if spatial.radius().ne(&value) && message.destination() == self.radius {
+                        sender
+                            .send(Message::do_scene_command(
+                                SetSpatialSoundSourceRadiusCommand::new(handle, value),
+                            ))
+                            .unwrap();
+                    } else if spatial.rolloff_factor().ne(&value)
+                        && message.destination() == self.rolloff_factor
+                    {
+                        sender
+                            .send(Message::do_scene_command(
+                                SetSpatialSoundSourceRolloffFactorCommand::new(handle, value),
+                            ))
+                            .unwrap();
+                    } else if spatial.max_distance().ne(&value)
+                        && message.destination() == self.max_distance
+                    {
+                        sender
+                            .send(Message::do_scene_command(
+                                SetSpatialSoundSourceMaxDistanceCommand::new(handle, value),
+                            ))
+                            .unwrap();
+                    }
+                } else if let Some(&Vec3EditorMessage::Value(value)) =
+                    msg.cast::<Vec3EditorMessage<f32>>()
                 {
-                    sender
-                        .send(Message::do_scene_command(
-                            SetSpatialSoundSourceMaxDistanceCommand::new(handle, value),
-                        ))
-                        .unwrap();
+                    if spatial.position() != value && message.destination() == self.position {
+                        sender
+                            .send(Message::do_scene_command(
+                                SetSpatialSoundSourcePositionCommand::new(handle, value),
+                            ))
+                            .unwrap();
+                    }
                 }
             }
             _ => {}
@@ -364,21 +370,26 @@ impl SoundSection {
         }
 
         match message.data() {
-            &UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) => {
-                if source.gain().ne(&value) && message.destination() == self.gain {
-                    sender
-                        .send(Message::do_scene_command(SetSoundSourceGainCommand::new(
-                            handle, value,
-                        )))
-                        .unwrap();
-                } else if (source.pitch() as f32).ne(&value) && message.destination() == self.pitch
+            UiMessageData::User(msg) => {
+                if let Some(&NumericUpDownMessage::Value(value)) =
+                    msg.cast::<NumericUpDownMessage<f32>>()
                 {
-                    sender
-                        .send(Message::do_scene_command(SetSoundSourcePitchCommand::new(
-                            handle,
-                            value as f64,
-                        )))
-                        .unwrap();
+                    if source.gain().ne(&value) && message.destination() == self.gain {
+                        sender
+                            .send(Message::do_scene_command(SetSoundSourceGainCommand::new(
+                                handle, value,
+                            )))
+                            .unwrap();
+                    } else if (source.pitch() as f32).ne(&value)
+                        && message.destination() == self.pitch
+                    {
+                        sender
+                            .send(Message::do_scene_command(SetSoundSourcePitchCommand::new(
+                                handle,
+                                value as f64,
+                            )))
+                            .unwrap();
+                    }
                 }
             }
             &UiMessageData::CheckBox(CheckBoxMessage::Check(Some(value))) => {

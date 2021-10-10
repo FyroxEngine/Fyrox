@@ -97,7 +97,7 @@ fn make_section(name: &str, content: Handle<UiNode>, ctx: &mut BuildContext) -> 
 }
 
 fn make_vec3_input_field(ctx: &mut BuildContext, row: usize) -> Handle<UiNode> {
-    Vec3EditorBuilder::new(
+    Vec3EditorBuilder::<f32>::new(
         WidgetBuilder::new()
             .with_margin(Thickness::uniform(1.0))
             .on_row(row)

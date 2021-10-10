@@ -7,12 +7,13 @@ use crate::{
     Message,
 };
 use rg3d::gui::message::UiMessage;
+use rg3d::gui::vec::vec3::Vec3EditorMessage;
 use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::pool::Handle,
     gui::{
         grid::{Column, GridBuilder, Row},
-        message::{MessageDirection, UiMessageData, Vec3EditorMessage},
+        message::{MessageDirection, UiMessageData},
         widget::WidgetBuilder,
     },
     physics3d::desc::BallJointDesc,
@@ -87,22 +88,24 @@ impl BallJointSection {
         ball: &BallJointDesc,
         handle: Handle<Joint>,
     ) {
-        if let UiMessageData::Vec3Editor(Vec3EditorMessage::Value(value)) = *message.data() {
-            if message.direction() == MessageDirection::FromWidget {
-                if message.destination() == self.joint_anchor && ball.local_anchor1.ne(&value) {
-                    self.sender
-                        .send(Message::do_scene_command(SetBallJointAnchor1Command::new(
-                            handle, value,
-                        )))
-                        .unwrap();
-                } else if message.destination() == self.connected_anchor
-                    && ball.local_anchor2.ne(&value)
-                {
-                    self.sender
-                        .send(Message::do_scene_command(SetBallJointAnchor2Command::new(
-                            handle, value,
-                        )))
-                        .unwrap();
+        if let UiMessageData::User(msg) = message.data() {
+            if let Some(&Vec3EditorMessage::Value(value)) = msg.cast::<Vec3EditorMessage<f32>>() {
+                if message.direction() == MessageDirection::FromWidget {
+                    if message.destination() == self.joint_anchor && ball.local_anchor1.ne(&value) {
+                        self.sender
+                            .send(Message::do_scene_command(SetBallJointAnchor1Command::new(
+                                handle, value,
+                            )))
+                            .unwrap();
+                    } else if message.destination() == self.connected_anchor
+                        && ball.local_anchor2.ne(&value)
+                    {
+                        self.sender
+                            .send(Message::do_scene_command(SetBallJointAnchor2Command::new(
+                                handle, value,
+                            )))
+                            .unwrap();
+                    }
                 }
             }
         }

@@ -14,6 +14,7 @@ use crate::{
     Message,
 };
 use rg3d::gui::message::UiMessage;
+use rg3d::gui::numeric::NumericUpDownMessage;
 use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::{futures::executor::block_on, pool::Handle, scope_profile},
@@ -23,8 +24,8 @@ use rg3d::{
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
         message::{
-            CheckBoxMessage, DropdownListMessage, ImageMessage, MessageDirection,
-            NumericUpDownMessage, UiMessageData, WidgetMessage,
+            CheckBoxMessage, DropdownListMessage, ImageMessage, MessageDirection, UiMessageData,
+            WidgetMessage,
         },
         stack_panel::StackPanelBuilder,
         widget::WidgetBuilder,
@@ -416,78 +417,83 @@ impl CameraSection {
         scope_profile!();
 
         if let Node::Camera(camera) = node {
-            match *message.data() {
-                UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) => {
-                    if message.destination() == self.fov && camera.fov().ne(&value) {
-                        self.sender
-                            .send(Message::do_scene_command(SetFovCommand::new(handle, value)))
-                            .unwrap();
-                    } else if message.destination() == self.z_far && camera.z_far().ne(&value) {
-                        self.sender
-                            .send(Message::do_scene_command(SetZFarCommand::new(
-                                handle, value,
-                            )))
-                            .unwrap();
-                    } else if message.destination() == self.z_near && camera.z_near().ne(&value) {
-                        self.sender
-                            .send(Message::do_scene_command(SetZNearCommand::new(
-                                handle, value,
-                            )))
-                            .unwrap();
-                    } else if message.destination() == self.exposure_value {
-                        self.sender
-                            .send(Message::do_scene_command(SetExposureCommand::new(
-                                handle,
-                                Exposure::Manual(value),
-                            )))
-                            .unwrap();
-                    } else if message.destination() == self.key_value {
-                        let mut current_auto_exposure = camera.exposure().clone();
-                        if let Exposure::Auto {
-                            ref mut key_value, ..
-                        } = current_auto_exposure
+            match message.data() {
+                UiMessageData::User(msg) if message.direction() == MessageDirection::FromWidget => {
+                    if let Some(&NumericUpDownMessage::Value(value)) =
+                        msg.cast::<NumericUpDownMessage<f32>>()
+                    {
+                        if message.destination() == self.fov && camera.fov().ne(&value) {
+                            self.sender
+                                .send(Message::do_scene_command(SetFovCommand::new(handle, value)))
+                                .unwrap();
+                        } else if message.destination() == self.z_far && camera.z_far().ne(&value) {
+                            self.sender
+                                .send(Message::do_scene_command(SetZFarCommand::new(
+                                    handle, value,
+                                )))
+                                .unwrap();
+                        } else if message.destination() == self.z_near && camera.z_near().ne(&value)
                         {
-                            *key_value = value;
-                        }
+                            self.sender
+                                .send(Message::do_scene_command(SetZNearCommand::new(
+                                    handle, value,
+                                )))
+                                .unwrap();
+                        } else if message.destination() == self.exposure_value {
+                            self.sender
+                                .send(Message::do_scene_command(SetExposureCommand::new(
+                                    handle,
+                                    Exposure::Manual(value),
+                                )))
+                                .unwrap();
+                        } else if message.destination() == self.key_value {
+                            let mut current_auto_exposure = camera.exposure().clone();
+                            if let Exposure::Auto {
+                                ref mut key_value, ..
+                            } = current_auto_exposure
+                            {
+                                *key_value = value;
+                            }
 
-                        self.sender
-                            .send(Message::do_scene_command(SetExposureCommand::new(
-                                handle,
-                                current_auto_exposure,
-                            )))
-                            .unwrap();
-                    } else if message.destination() == self.min_luminance {
-                        let mut current_auto_exposure = camera.exposure().clone();
-                        if let Exposure::Auto {
-                            ref mut min_luminance,
-                            ..
-                        } = current_auto_exposure
-                        {
-                            *min_luminance = value;
-                        }
+                            self.sender
+                                .send(Message::do_scene_command(SetExposureCommand::new(
+                                    handle,
+                                    current_auto_exposure,
+                                )))
+                                .unwrap();
+                        } else if message.destination() == self.min_luminance {
+                            let mut current_auto_exposure = camera.exposure().clone();
+                            if let Exposure::Auto {
+                                ref mut min_luminance,
+                                ..
+                            } = current_auto_exposure
+                            {
+                                *min_luminance = value;
+                            }
 
-                        self.sender
-                            .send(Message::do_scene_command(SetExposureCommand::new(
-                                handle,
-                                current_auto_exposure,
-                            )))
-                            .unwrap();
-                    } else if message.destination() == self.min_luminance {
-                        let mut current_auto_exposure = camera.exposure().clone();
-                        if let Exposure::Auto {
-                            ref mut max_luminance,
-                            ..
-                        } = current_auto_exposure
-                        {
-                            *max_luminance = value;
-                        }
+                            self.sender
+                                .send(Message::do_scene_command(SetExposureCommand::new(
+                                    handle,
+                                    current_auto_exposure,
+                                )))
+                                .unwrap();
+                        } else if message.destination() == self.min_luminance {
+                            let mut current_auto_exposure = camera.exposure().clone();
+                            if let Exposure::Auto {
+                                ref mut max_luminance,
+                                ..
+                            } = current_auto_exposure
+                            {
+                                *max_luminance = value;
+                            }
 
-                        self.sender
-                            .send(Message::do_scene_command(SetExposureCommand::new(
-                                handle,
-                                current_auto_exposure,
-                            )))
-                            .unwrap();
+                            self.sender
+                                .send(Message::do_scene_command(SetExposureCommand::new(
+                                    handle,
+                                    current_auto_exposure,
+                                )))
+                                .unwrap();
+                        }
                     }
                 }
                 UiMessageData::CheckBox(CheckBoxMessage::Check(value)) => {
@@ -526,7 +532,7 @@ impl CameraSection {
                             .unwrap();
                     }
                 }
-                UiMessageData::Widget(WidgetMessage::Drop(dropped)) => {
+                &UiMessageData::Widget(WidgetMessage::Drop(dropped)) => {
                     if message.destination() == self.color_grading_lut {
                         if let Some(item) = ui.node(dropped).cast::<AssetItem>() {
                             let relative_path = make_relative_path(&item.path);

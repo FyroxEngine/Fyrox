@@ -6,12 +6,13 @@ use crate::{
     Message,
 };
 use rg3d::gui::message::UiMessage;
+use rg3d::gui::numeric::NumericUpDownMessage;
 use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::pool::Handle,
     gui::{
         grid::{Column, GridBuilder, Row},
-        message::{MessageDirection, NumericUpDownMessage, UiMessageData},
+        message::{MessageDirection, UiMessageData},
         widget::WidgetBuilder,
     },
     scene::{node::Node, particle_system::emitter::sphere::SphereEmitter},
@@ -65,16 +66,20 @@ impl SphereSection {
         handle: Handle<Node>,
         emitter_index: usize,
     ) {
-        if let UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) = *message.data() {
-            if message.direction() == MessageDirection::FromWidget
-                && message.destination() == self.radius
-                && sphere.radius().ne(&value)
+        if let UiMessageData::User(msg) = message.data() {
+            if let Some(&NumericUpDownMessage::Value(value)) =
+                msg.cast::<NumericUpDownMessage<f32>>()
             {
-                self.sender
-                    .send(Message::do_scene_command(
-                        SetSphereEmitterRadiusCommand::new(handle, emitter_index, value),
-                    ))
-                    .unwrap();
+                if message.direction() == MessageDirection::FromWidget
+                    && message.destination() == self.radius
+                    && sphere.radius().ne(&value)
+                {
+                    self.sender
+                        .send(Message::do_scene_command(
+                            SetSphereEmitterRadiusCommand::new(handle, emitter_index, value),
+                        ))
+                        .unwrap();
+                }
             }
         }
     }

@@ -12,6 +12,7 @@ use crate::{
 };
 use rg3d::gui::dropdown_list::DropdownList;
 use rg3d::gui::message::UiMessage;
+use rg3d::gui::numeric::NumericUpDownMessage;
 use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::{pool::Handle, scope_profile},
@@ -20,8 +21,8 @@ use rg3d::{
         dropdown_list::DropdownListBuilder,
         grid::{Column, GridBuilder, Row},
         message::{
-            ButtonMessage, CheckBoxMessage, DropdownListMessage, MessageDirection,
-            NumericUpDownMessage, UiMessageData, WidgetMessage,
+            ButtonMessage, CheckBoxMessage, DropdownListMessage, MessageDirection, UiMessageData,
+            WidgetMessage,
         },
         stack_panel::StackPanelBuilder,
         widget::WidgetBuilder,
@@ -234,7 +235,7 @@ impl MeshSection {
         scope_profile!();
 
         if let Node::Mesh(mesh) = node {
-            match *message.data() {
+            match message.data() {
                 UiMessageData::CheckBox(CheckBoxMessage::Check(value)) => {
                     let value = value.unwrap_or(false);
                     if message.destination() == self.cast_shadows && mesh.cast_shadows().ne(&value)
@@ -246,7 +247,7 @@ impl MeshSection {
                             .unwrap();
                     }
                 }
-                UiMessageData::DropdownList(DropdownListMessage::SelectionChanged(selection)) => {
+                &UiMessageData::DropdownList(DropdownListMessage::SelectionChanged(selection)) => {
                     if message.destination() == self.render_path {
                         if let Some(selection) = selection {
                             let new_render_path = match selection {
@@ -280,17 +281,21 @@ impl MeshSection {
                         }
                     }
                 }
-                UiMessageData::NumericUpDown(NumericUpDownMessage::Value(index))
-                    if message.destination() == self.decal_layer_index =>
-                {
-                    let index = index.clamp(0.0, 255.0) as u8;
+                UiMessageData::User(msg) => {
+                    if let Some(&NumericUpDownMessage::Value(value)) =
+                        msg.cast::<NumericUpDownMessage<f32>>()
+                    {
+                        if message.destination() == self.decal_layer_index {
+                            let index = value.clamp(0.0, 255.0) as u8;
 
-                    if index != mesh.decal_layer_index() {
-                        self.sender
-                            .send(Message::do_scene_command(
-                                SetMeshDecalLayerIndexCommand::new(handle, index),
-                            ))
-                            .unwrap();
+                            if index != mesh.decal_layer_index() {
+                                self.sender
+                                    .send(Message::do_scene_command(
+                                        SetMeshDecalLayerIndexCommand::new(handle, index),
+                                    ))
+                                    .unwrap();
+                            }
+                        }
                     }
                 }
                 _ => {}

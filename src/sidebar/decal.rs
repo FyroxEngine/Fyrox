@@ -13,6 +13,7 @@ use crate::{
     Message,
 };
 use rg3d::gui::message::UiMessage;
+use rg3d::gui::numeric::NumericUpDownMessage;
 use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::{pool::Handle, scope_profile},
@@ -21,8 +22,7 @@ use rg3d::{
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
         message::{
-            ColorFieldMessage, ImageMessage, MessageDirection, NumericUpDownMessage, UiMessageData,
-            WidgetMessage,
+            ColorFieldMessage, ImageMessage, MessageDirection, UiMessageData, WidgetMessage,
         },
         widget::WidgetBuilder,
         Thickness,
@@ -147,8 +147,8 @@ impl DecalSection {
     ) {
         scope_profile!();
 
-        match *message.data() {
-            UiMessageData::Widget(WidgetMessage::Drop(handle)) => {
+        match message.data() {
+            &UiMessageData::Widget(WidgetMessage::Drop(handle)) => {
                 if let Some(item) = ui.node(handle).cast::<AssetItem>() {
                     let relative_path = make_relative_path(&item.path);
 
@@ -189,17 +189,21 @@ impl DecalSection {
                     }
                 }
             }
-            UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value))
-                if message.destination() == self.layer_index =>
-            {
-                sender
-                    .send(Message::do_scene_command(SetDecalLayerIndexCommand::new(
-                        node_handle,
-                        value.clamp(0.0, 255.0) as u8,
-                    )))
-                    .unwrap();
+            UiMessageData::User(msg) => {
+                if let Some(&NumericUpDownMessage::Value(value)) =
+                    msg.cast::<NumericUpDownMessage<f32>>()
+                {
+                    if message.destination() == self.layer_index {
+                        sender
+                            .send(Message::do_scene_command(SetDecalLayerIndexCommand::new(
+                                node_handle,
+                                value.clamp(0.0, 255.0) as u8,
+                            )))
+                            .unwrap();
+                    }
+                }
             }
-            UiMessageData::ColorField(ColorFieldMessage::Color(color))
+            &UiMessageData::ColorField(ColorFieldMessage::Color(color))
                 if message.destination() == self.color =>
             {
                 sender

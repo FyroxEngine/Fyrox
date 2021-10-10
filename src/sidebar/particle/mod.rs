@@ -15,6 +15,7 @@ use crate::{
 };
 use rg3d::gui::dropdown_list::DropdownList;
 use rg3d::gui::message::UiMessage;
+use rg3d::gui::vec::vec3::Vec3EditorMessage;
 use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::{pool::Handle, scope_profile},
@@ -24,8 +25,7 @@ use rg3d::{
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
         message::{
-            ButtonMessage, DropdownListMessage, MessageDirection, UiMessageData, Vec3EditorMessage,
-            WidgetMessage,
+            ButtonMessage, DropdownListMessage, MessageDirection, UiMessageData, WidgetMessage,
         },
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
@@ -328,17 +328,6 @@ impl ParticleSystemSection {
             }
 
             match message.data() {
-                UiMessageData::Vec3Editor(Vec3EditorMessage::Value(value)) => {
-                    if particle_system.acceleration() != *value
-                        && message.destination() == self.acceleration
-                    {
-                        self.sender
-                            .send(Message::do_scene_command(
-                                SetParticleSystemAccelerationCommand::new(handle, *value),
-                            ))
-                            .unwrap();
-                    }
-                }
                 UiMessageData::Button(ButtonMessage::Click) => {
                     if message.destination() == self.add_box_emitter {
                         self.sender
@@ -399,6 +388,18 @@ impl ParticleSystemSection {
                             } else {
                                 unreachable!()
                             }
+                        }
+                    } else if let Some(Vec3EditorMessage::Value(value)) =
+                        msg.cast::<Vec3EditorMessage<f32>>()
+                    {
+                        if particle_system.acceleration() != *value
+                            && message.destination() == self.acceleration
+                        {
+                            self.sender
+                                .send(Message::do_scene_command(
+                                    SetParticleSystemAccelerationCommand::new(handle, *value),
+                                ))
+                                .unwrap();
                         }
                     }
                 }

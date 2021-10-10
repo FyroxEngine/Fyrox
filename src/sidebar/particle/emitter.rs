@@ -13,15 +13,14 @@ use crate::{
     Message,
 };
 use rg3d::gui::message::UiMessage;
+use rg3d::gui::numeric::NumericUpDownMessage;
+use rg3d::gui::vec::vec3::Vec3EditorMessage;
 use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::pool::Handle,
     gui::{
         grid::{Column, GridBuilder, Row},
-        message::{
-            CheckBoxMessage, MessageDirection, NumericUpDownMessage, UiMessageData,
-            Vec3EditorMessage, WidgetMessage,
-        },
+        message::{CheckBoxMessage, MessageDirection, UiMessageData, WidgetMessage},
         numeric::NumericUpDownBuilder,
         stack_panel::StackPanelBuilder,
         widget::WidgetBuilder,
@@ -61,7 +60,7 @@ pub struct EmitterSection {
 }
 
 fn make_range_field(ctx: &mut BuildContext, column: usize) -> Handle<UiNode> {
-    NumericUpDownBuilder::new(
+    NumericUpDownBuilder::<f32>::new(
         WidgetBuilder::new()
             .on_column(column)
             .with_margin(Thickness::uniform(1.0)),
@@ -359,104 +358,120 @@ impl EmitterSection {
         }
 
         match message.data() {
-            &UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) => {
-                let mut parameter = None;
-                let mut final_value = value;
+            UiMessageData::User(msg) => {
+                if let Some(&NumericUpDownMessage::Value(value)) =
+                    msg.cast::<NumericUpDownMessage<f32>>()
+                {
+                    let mut parameter = None;
+                    let mut final_value = value;
 
-                if message.destination() == self.max_particles {
-                    let max_particles = match emitter.max_particles() {
-                        ParticleLimit::Unlimited => -1.0,
-                        ParticleLimit::Strict(value) => value as f32,
-                    };
-                    if max_particles.ne(&value) {
-                        parameter = Some(EmitterNumericParameter::MaxParticles);
+                    if message.destination() == self.max_particles {
+                        let max_particles = match emitter.max_particles() {
+                            ParticleLimit::Unlimited => -1.0,
+                            ParticleLimit::Strict(value) => value as f32,
+                        };
+                        if max_particles.ne(&value) {
+                            parameter = Some(EmitterNumericParameter::MaxParticles);
+                        }
+                    } else if message.destination() == self.spawn_rate
+                        && (emitter.spawn_rate() as f32).ne(&value)
+                    {
+                        parameter = Some(EmitterNumericParameter::SpawnRate);
+                    } else if message.destination() == self.min_lifetime
+                        && emitter.life_time_range().bounds[0].ne(&value)
+                    {
+                        parameter = Some(EmitterNumericParameter::MinLifetime);
+                        emitter.life_time_range().clamp_value(&mut final_value);
+                    } else if message.destination() == self.max_lifetime
+                        && emitter.life_time_range().bounds[1].ne(&value)
+                    {
+                        parameter = Some(EmitterNumericParameter::MaxLifetime);
+                        emitter.life_time_range().clamp_value(&mut final_value);
+                    } else if message.destination() == self.min_size_modifier
+                        && emitter.size_modifier_range().bounds[0].ne(&value)
+                    {
+                        parameter = Some(EmitterNumericParameter::MinSizeModifier);
+                        emitter.size_modifier_range().clamp_value(&mut final_value);
+                    } else if message.destination() == self.max_size_modifier
+                        && emitter.size_modifier_range().bounds[1].ne(&value)
+                    {
+                        parameter = Some(EmitterNumericParameter::MaxSizeModifier);
+                        emitter.size_modifier_range().clamp_value(&mut final_value);
+                    } else if message.destination() == self.min_x_velocity
+                        && emitter.x_velocity_range().bounds[0].ne(&value)
+                    {
+                        parameter = Some(EmitterNumericParameter::MinXVelocity);
+                        emitter.x_velocity_range().clamp_value(&mut final_value);
+                    } else if message.destination() == self.max_x_velocity
+                        && emitter.x_velocity_range().bounds[1].ne(&value)
+                    {
+                        parameter = Some(EmitterNumericParameter::MaxXVelocity);
+                        emitter.x_velocity_range().clamp_value(&mut final_value);
+                    } else if message.destination() == self.min_y_velocity
+                        && emitter.y_velocity_range().bounds[0].ne(&value)
+                    {
+                        parameter = Some(EmitterNumericParameter::MinYVelocity);
+                        emitter.y_velocity_range().clamp_value(&mut final_value);
+                    } else if message.destination() == self.max_y_velocity
+                        && emitter.y_velocity_range().bounds[1].ne(&value)
+                    {
+                        parameter = Some(EmitterNumericParameter::MaxYVelocity);
+                        emitter.y_velocity_range().clamp_value(&mut final_value);
+                    } else if message.destination() == self.min_z_velocity
+                        && emitter.z_velocity_range().bounds[0].ne(&value)
+                    {
+                        emitter.z_velocity_range().clamp_value(&mut final_value);
+                        parameter = Some(EmitterNumericParameter::MinZVelocity);
+                    } else if message.destination() == self.max_z_velocity
+                        && emitter.z_velocity_range().bounds[1].ne(&value)
+                    {
+                        parameter = Some(EmitterNumericParameter::MaxZVelocity);
+                        emitter.z_velocity_range().clamp_value(&mut final_value);
+                    } else if message.destination() == self.min_rotation_speed
+                        && emitter.rotation_speed_range().bounds[0].ne(&value)
+                    {
+                        parameter = Some(EmitterNumericParameter::MinRotationSpeed);
+                        emitter.rotation_speed_range().clamp_value(&mut final_value);
+                    } else if message.destination() == self.max_rotation_speed
+                        && emitter.rotation_speed_range().bounds[1].ne(&value)
+                    {
+                        parameter = Some(EmitterNumericParameter::MaxRotationSpeed);
+                        emitter.rotation_speed_range().clamp_value(&mut final_value);
+                    } else if message.destination() == self.min_rotation
+                        && emitter.rotation_range().bounds[0].ne(&value)
+                    {
+                        parameter = Some(EmitterNumericParameter::MinRotation);
+                        emitter.rotation_range().clamp_value(&mut final_value);
+                    } else if message.destination() == self.max_rotation
+                        && emitter.rotation_range().bounds[1].ne(&value)
+                    {
+                        parameter = Some(EmitterNumericParameter::MaxRotation);
+                        emitter.rotation_range().clamp_value(&mut final_value);
                     }
-                } else if message.destination() == self.spawn_rate
-                    && (emitter.spawn_rate() as f32).ne(&value)
+                    if let Some(parameter) = parameter {
+                        self.sender
+                            .send(Message::do_scene_command(
+                                SetEmitterNumericParameterCommand::new(
+                                    handle,
+                                    emitter_index,
+                                    parameter,
+                                    final_value,
+                                ),
+                            ))
+                            .unwrap();
+                    }
+                } else if let Some(&Vec3EditorMessage::Value(value)) =
+                    msg.cast::<Vec3EditorMessage<f32>>()
                 {
-                    parameter = Some(EmitterNumericParameter::SpawnRate);
-                } else if message.destination() == self.min_lifetime
-                    && emitter.life_time_range().bounds[0].ne(&value)
-                {
-                    parameter = Some(EmitterNumericParameter::MinLifetime);
-                    emitter.life_time_range().clamp_value(&mut final_value);
-                } else if message.destination() == self.max_lifetime
-                    && emitter.life_time_range().bounds[1].ne(&value)
-                {
-                    parameter = Some(EmitterNumericParameter::MaxLifetime);
-                    emitter.life_time_range().clamp_value(&mut final_value);
-                } else if message.destination() == self.min_size_modifier
-                    && emitter.size_modifier_range().bounds[0].ne(&value)
-                {
-                    parameter = Some(EmitterNumericParameter::MinSizeModifier);
-                    emitter.size_modifier_range().clamp_value(&mut final_value);
-                } else if message.destination() == self.max_size_modifier
-                    && emitter.size_modifier_range().bounds[1].ne(&value)
-                {
-                    parameter = Some(EmitterNumericParameter::MaxSizeModifier);
-                    emitter.size_modifier_range().clamp_value(&mut final_value);
-                } else if message.destination() == self.min_x_velocity
-                    && emitter.x_velocity_range().bounds[0].ne(&value)
-                {
-                    parameter = Some(EmitterNumericParameter::MinXVelocity);
-                    emitter.x_velocity_range().clamp_value(&mut final_value);
-                } else if message.destination() == self.max_x_velocity
-                    && emitter.x_velocity_range().bounds[1].ne(&value)
-                {
-                    parameter = Some(EmitterNumericParameter::MaxXVelocity);
-                    emitter.x_velocity_range().clamp_value(&mut final_value);
-                } else if message.destination() == self.min_y_velocity
-                    && emitter.y_velocity_range().bounds[0].ne(&value)
-                {
-                    parameter = Some(EmitterNumericParameter::MinYVelocity);
-                    emitter.y_velocity_range().clamp_value(&mut final_value);
-                } else if message.destination() == self.max_y_velocity
-                    && emitter.y_velocity_range().bounds[1].ne(&value)
-                {
-                    parameter = Some(EmitterNumericParameter::MaxYVelocity);
-                    emitter.y_velocity_range().clamp_value(&mut final_value);
-                } else if message.destination() == self.min_z_velocity
-                    && emitter.z_velocity_range().bounds[0].ne(&value)
-                {
-                    emitter.z_velocity_range().clamp_value(&mut final_value);
-                    parameter = Some(EmitterNumericParameter::MinZVelocity);
-                } else if message.destination() == self.max_z_velocity
-                    && emitter.z_velocity_range().bounds[1].ne(&value)
-                {
-                    parameter = Some(EmitterNumericParameter::MaxZVelocity);
-                    emitter.z_velocity_range().clamp_value(&mut final_value);
-                } else if message.destination() == self.min_rotation_speed
-                    && emitter.rotation_speed_range().bounds[0].ne(&value)
-                {
-                    parameter = Some(EmitterNumericParameter::MinRotationSpeed);
-                    emitter.rotation_speed_range().clamp_value(&mut final_value);
-                } else if message.destination() == self.max_rotation_speed
-                    && emitter.rotation_speed_range().bounds[1].ne(&value)
-                {
-                    parameter = Some(EmitterNumericParameter::MaxRotationSpeed);
-                    emitter.rotation_speed_range().clamp_value(&mut final_value);
-                } else if message.destination() == self.min_rotation
-                    && emitter.rotation_range().bounds[0].ne(&value)
-                {
-                    parameter = Some(EmitterNumericParameter::MinRotation);
-                    emitter.rotation_range().clamp_value(&mut final_value);
-                } else if message.destination() == self.max_rotation
-                    && emitter.rotation_range().bounds[1].ne(&value)
-                {
-                    parameter = Some(EmitterNumericParameter::MaxRotation);
-                    emitter.rotation_range().clamp_value(&mut final_value);
-                }
-                if let Some(parameter) = parameter {
-                    self.sender
-                        .send(Message::do_scene_command(
-                            SetEmitterNumericParameterCommand::new(
+                    if message.destination() == self.position && emitter.position().ne(&value) {
+                        self.sender
+                            .send(Message::do_scene_command(SetEmitterPositionCommand::new(
                                 handle,
                                 emitter_index,
-                                parameter,
-                                final_value,
-                            ),
-                        ))
-                        .unwrap();
+                                value,
+                            )))
+                            .unwrap();
+                    }
                 }
             }
             UiMessageData::CheckBox(CheckBoxMessage::Check(Some(value)))
@@ -470,17 +485,7 @@ impl EmitterSection {
                         .unwrap();
                 }
             }
-            UiMessageData::Vec3Editor(Vec3EditorMessage::Value(value)) => {
-                if message.destination() == self.position && emitter.position().ne(value) {
-                    self.sender
-                        .send(Message::do_scene_command(SetEmitterPositionCommand::new(
-                            handle,
-                            emitter_index,
-                            *value,
-                        )))
-                        .unwrap();
-                }
-            }
+
             _ => {}
         }
     }

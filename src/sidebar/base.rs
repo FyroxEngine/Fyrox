@@ -15,11 +15,12 @@ use crate::{
     Message,
 };
 use rg3d::gui::message::UiMessage;
+use rg3d::gui::vec::vec3::Vec3EditorMessage;
 use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::{
         algebra::Vector3,
-        math::{quat_from_euler, RotationOrder, UnitQuaternionExt},
+        math::{quat_from_euler, RotationOrder},
         pool::Handle,
     },
     gui::{
@@ -28,7 +29,7 @@ use rg3d::{
         grid::{Column, GridBuilder, Row},
         message::{
             ButtonMessage, DropdownListMessage, MessageDirection, TextBoxMessage, TextMessage,
-            UiMessageData, Vec3EditorMessage, WidgetMessage,
+            UiMessageData, WidgetMessage,
         },
         text::TextBuilder,
         text_box::TextBoxBuilder,
@@ -249,11 +250,11 @@ impl BaseSection {
             ),
         );
 
-        let euler = node.local_transform().rotation().to_euler();
+        let euler = node.local_transform().rotation().euler_angles();
         let euler_degrees = Vector3::new(
-            euler.x.to_degrees(),
-            euler.y.to_degrees(),
-            euler.z.to_degrees(),
+            euler.0.to_degrees(),
+            euler.1.to_degrees(),
+            euler.2.to_degrees(),
         );
         send_sync_message(
             ui,
@@ -337,46 +338,49 @@ impl BaseSection {
                     lod_editor.open(ui);
                 }
             }
-            &UiMessageData::Vec3Editor(Vec3EditorMessage::Value(value)) => {
-                let transform = node.local_transform();
-                if message.destination() == self.rotation {
-                    let old_rotation = **transform.rotation();
-                    let euler = Vector3::new(
-                        value.x.to_radians(),
-                        value.y.to_radians(),
-                        value.z.to_radians(),
-                    );
-                    let new_rotation = quat_from_euler(euler, RotationOrder::XYZ);
-                    if !old_rotation.approx_eq(&new_rotation, 0.00001) {
-                        sender
-                            .send(Message::do_scene_command(RotateNodeCommand::new(
-                                node_handle,
-                                old_rotation,
-                                new_rotation,
-                            )))
-                            .unwrap();
-                    }
-                } else if message.destination() == self.position {
-                    let old_position = **transform.position();
-                    if old_position != value {
-                        sender
-                            .send(Message::do_scene_command(MoveNodeCommand::new(
-                                node_handle,
-                                old_position,
-                                value,
-                            )))
-                            .unwrap();
-                    }
-                } else if message.destination() == self.scale {
-                    let old_scale = **transform.scale();
-                    if old_scale != value {
-                        sender
-                            .send(Message::do_scene_command(ScaleNodeCommand::new(
-                                node_handle,
-                                old_scale,
-                                value,
-                            )))
-                            .unwrap();
+            UiMessageData::User(msg) => {
+                if let Some(&Vec3EditorMessage::Value(value)) = msg.cast::<Vec3EditorMessage<f32>>()
+                {
+                    let transform = node.local_transform();
+                    if message.destination() == self.rotation {
+                        let old_rotation = **transform.rotation();
+                        let euler = Vector3::new(
+                            value.x.to_radians(),
+                            value.y.to_radians(),
+                            value.z.to_radians(),
+                        );
+                        let new_rotation = quat_from_euler(euler, RotationOrder::XYZ);
+                        if old_rotation.ne(&new_rotation) {
+                            sender
+                                .send(Message::do_scene_command(RotateNodeCommand::new(
+                                    node_handle,
+                                    old_rotation,
+                                    new_rotation,
+                                )))
+                                .unwrap();
+                        }
+                    } else if message.destination() == self.position {
+                        let old_position = **transform.position();
+                        if old_position != value {
+                            sender
+                                .send(Message::do_scene_command(MoveNodeCommand::new(
+                                    node_handle,
+                                    old_position,
+                                    value,
+                                )))
+                                .unwrap();
+                        }
+                    } else if message.destination() == self.scale {
+                        let old_scale = **transform.scale();
+                        if old_scale != value {
+                            sender
+                                .send(Message::do_scene_command(ScaleNodeCommand::new(
+                                    node_handle,
+                                    old_scale,
+                                    value,
+                                )))
+                                .unwrap();
+                        }
                     }
                 }
             }

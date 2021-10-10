@@ -16,11 +16,9 @@ use rg3d::{
     core::pool::Handle,
     engine::Engine,
     gui::{
-        button::ButtonBuilder,
         grid::{Column, GridBuilder, Row},
         list_view::{ListView, ListViewBuilder},
         message::{ListViewMessage, MessageDirection, UiMessage, UiMessageData},
-        stack_panel::StackPanelBuilder,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
         UiNode, UserInterface,

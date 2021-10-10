@@ -8,6 +8,10 @@ use crate::{
 };
 use rg3d::gui::image::Image;
 use rg3d::gui::message::UiMessage;
+use rg3d::gui::numeric::NumericUpDownMessage;
+use rg3d::gui::vec::vec2::Vec2EditorMessage;
+use rg3d::gui::vec::vec3::Vec3EditorMessage;
+use rg3d::gui::vec::vec4::Vec4EditorMessage;
 use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::resource::texture::TextureState;
 use rg3d::{
@@ -29,8 +33,7 @@ use rg3d::{
         menu::{MenuItemBuilder, MenuItemContent},
         message::{
             CheckBoxMessage, ColorFieldMessage, DropdownListMessage, ImageMessage, ListViewMessage,
-            MenuItemMessage, MessageDirection, NumericUpDownMessage, PopupMessage, UiMessageData,
-            Vec2EditorMessage, Vec3EditorMessage, Vec4EditorMessage, WidgetMessage,
+            MenuItemMessage, MessageDirection, PopupMessage, UiMessageData, WidgetMessage,
         },
         numeric::NumericUpDownBuilder,
         popup::{Placement, PopupBuilder},
@@ -699,37 +702,40 @@ impl MaterialEditor {
 
             if let Some(property_name) = self.properties.key_of(&message.destination()) {
                 let property_value = match message.data() {
-                    UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value))
+                    UiMessageData::User(msg)
                         if message.direction() == MessageDirection::FromWidget =>
                     {
-                        // NumericUpDown is used for Float, Int, UInt properties, so we have to check
-                        // the actual property "type" to create suitable value from f32.
-                        match material
-                            .lock()
-                            .unwrap()
-                            .property_ref(property_name)
-                            .unwrap()
+                        if let Some(NumericUpDownMessage::Value(value)) =
+                            msg.cast::<NumericUpDownMessage<f32>>()
                         {
-                            PropertyValue::Float(_) => Some(PropertyValue::Float(*value)),
-                            PropertyValue::Int(_) => Some(PropertyValue::Int(*value as i32)),
-                            PropertyValue::UInt(_) => Some(PropertyValue::UInt(*value as u32)),
-                            _ => None,
+                            // NumericUpDown is used for Float, Int, UInt properties, so we have to check
+                            // the actual property "type" to create suitable value from f32.
+                            match material
+                                .lock()
+                                .unwrap()
+                                .property_ref(property_name)
+                                .unwrap()
+                            {
+                                PropertyValue::Float(_) => Some(PropertyValue::Float(*value)),
+                                PropertyValue::Int(_) => Some(PropertyValue::Int(*value as i32)),
+                                PropertyValue::UInt(_) => Some(PropertyValue::UInt(*value as u32)),
+                                _ => None,
+                            }
+                        } else if let Some(Vec2EditorMessage::Value(value)) =
+                            msg.cast::<Vec2EditorMessage<f32>>()
+                        {
+                            Some(PropertyValue::Vector2(*value))
+                        } else if let Some(Vec3EditorMessage::Value(value)) =
+                            msg.cast::<Vec3EditorMessage<f32>>()
+                        {
+                            Some(PropertyValue::Vector3(*value))
+                        } else if let Some(Vec4EditorMessage::Value(value)) =
+                            msg.cast::<Vec4EditorMessage<f32>>()
+                        {
+                            Some(PropertyValue::Vector4(*value))
+                        } else {
+                            None
                         }
-                    }
-                    UiMessageData::Vec2Editor(Vec2EditorMessage::Value(value))
-                        if message.direction() == MessageDirection::FromWidget =>
-                    {
-                        Some(PropertyValue::Vector2(*value))
-                    }
-                    UiMessageData::Vec3Editor(Vec3EditorMessage::Value(value))
-                        if message.direction() == MessageDirection::FromWidget =>
-                    {
-                        Some(PropertyValue::Vector3(*value))
-                    }
-                    UiMessageData::Vec4Editor(Vec4EditorMessage::Value(value))
-                        if message.direction() == MessageDirection::FromWidget =>
-                    {
-                        Some(PropertyValue::Vector4(*value))
                     }
                     UiMessageData::ColorField(ColorFieldMessage::Color(color))
                         if message.direction() == MessageDirection::FromWidget =>

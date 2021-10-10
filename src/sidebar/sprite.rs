@@ -10,14 +10,13 @@ use crate::{
     Message,
 };
 use rg3d::gui::message::UiMessage;
+use rg3d::gui::numeric::NumericUpDownMessage;
 use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::{pool::Handle, scope_profile},
     gui::{
         grid::{Column, GridBuilder, Row},
-        message::{
-            ColorFieldMessage, MessageDirection, NumericUpDownMessage, UiMessageData, WidgetMessage,
-        },
+        message::{ColorFieldMessage, MessageDirection, UiMessageData, WidgetMessage},
         widget::WidgetBuilder,
     },
     scene::node::Node,
@@ -107,24 +106,29 @@ impl SpriteSection {
         scope_profile!();
 
         if let Node::Sprite(sprite) = node {
-            match *message.data() {
-                UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) => {
-                    if message.destination() == self.size && sprite.size().ne(&value) {
-                        self.sender
-                            .send(Message::do_scene_command(SetSpriteSizeCommand::new(
-                                handle, value,
-                            )))
-                            .unwrap();
-                    } else if message.destination() == self.rotation && sprite.rotation().ne(&value)
+            match message.data() {
+                UiMessageData::User(msg) => {
+                    if let Some(&NumericUpDownMessage::Value(value)) =
+                        msg.cast::<NumericUpDownMessage<f32>>()
                     {
-                        self.sender
-                            .send(Message::do_scene_command(SetSpriteRotationCommand::new(
-                                handle, value,
-                            )))
-                            .unwrap();
+                        if message.destination() == self.size && sprite.size().ne(&value) {
+                            self.sender
+                                .send(Message::do_scene_command(SetSpriteSizeCommand::new(
+                                    handle, value,
+                                )))
+                                .unwrap();
+                        } else if message.destination() == self.rotation
+                            && sprite.rotation().ne(&value)
+                        {
+                            self.sender
+                                .send(Message::do_scene_command(SetSpriteRotationCommand::new(
+                                    handle, value,
+                                )))
+                                .unwrap();
+                        }
                     }
                 }
-                UiMessageData::ColorField(ColorFieldMessage::Color(color)) => {
+                &UiMessageData::ColorField(ColorFieldMessage::Color(color)) => {
                     if message.destination() == self.color && sprite.color() != color {
                         self.sender
                             .send(Message::do_scene_command(SetSpriteColorCommand::new(

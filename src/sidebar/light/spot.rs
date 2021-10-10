@@ -8,12 +8,13 @@ use crate::{
     Message,
 };
 use rg3d::gui::message::UiMessage;
+use rg3d::gui::numeric::NumericUpDownMessage;
 use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::pool::Handle,
     gui::{
         grid::{Column, GridBuilder, Row},
-        message::{MessageDirection, NumericUpDownMessage, UiMessageData, WidgetMessage},
+        message::{MessageDirection, UiMessageData, WidgetMessage},
         widget::WidgetBuilder,
     },
     scene::{light::Light, node::Node},
@@ -114,29 +115,32 @@ impl SpotLightSection {
 
     pub fn handle_message(&mut self, message: &UiMessage, node: &Node, handle: Handle<Node>) {
         if let Node::Light(Light::Spot(spot)) = node {
-            if let UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) =
-                *message.data()
-            {
-                if message.destination() == self.hotspot && spot.hotspot_cone_angle().ne(&value) {
-                    self.sender
-                        .send(Message::do_scene_command(SetSpotLightHotspotCommand::new(
-                            handle, value,
-                        )))
-                        .unwrap();
-                } else if message.destination() == self.falloff_delta
-                    && spot.falloff_angle_delta().ne(&value)
+            if let UiMessageData::User(msg) = message.data() {
+                if let Some(&NumericUpDownMessage::Value(value)) =
+                    msg.cast::<NumericUpDownMessage<f32>>()
                 {
-                    self.sender
-                        .send(Message::do_scene_command(
-                            SetSpotLightFalloffAngleDeltaCommand::new(handle, value),
-                        ))
-                        .unwrap();
-                } else if message.destination() == self.distance && spot.distance().ne(&value) {
-                    self.sender
-                        .send(Message::do_scene_command(SetSpotLightDistanceCommand::new(
-                            handle, value,
-                        )))
-                        .unwrap();
+                    if message.destination() == self.hotspot && spot.hotspot_cone_angle().ne(&value)
+                    {
+                        self.sender
+                            .send(Message::do_scene_command(SetSpotLightHotspotCommand::new(
+                                handle, value,
+                            )))
+                            .unwrap();
+                    } else if message.destination() == self.falloff_delta
+                        && spot.falloff_angle_delta().ne(&value)
+                    {
+                        self.sender
+                            .send(Message::do_scene_command(
+                                SetSpotLightFalloffAngleDeltaCommand::new(handle, value),
+                            ))
+                            .unwrap();
+                    } else if message.destination() == self.distance && spot.distance().ne(&value) {
+                        self.sender
+                            .send(Message::do_scene_command(SetSpotLightDistanceCommand::new(
+                                handle, value,
+                            )))
+                            .unwrap();
+                    }
                 }
             }
         }

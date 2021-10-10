@@ -13,6 +13,7 @@ use crate::{
     Message,
 };
 use rg3d::gui::message::UiMessage;
+use rg3d::gui::numeric::NumericUpDownMessage;
 use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::pool::Handle,
@@ -23,8 +24,8 @@ use rg3d::{
         grid::{Column, GridBuilder, Row},
         list_view::ListViewBuilder,
         message::{
-            ButtonMessage, ListViewMessage, MessageDirection, NumericUpDownMessage, TreeMessage,
-            TreeRootMessage, UiMessageData, WidgetMessage, WindowMessage,
+            ButtonMessage, ListViewMessage, MessageDirection, TreeMessage, TreeRootMessage,
+            UiMessageData, WidgetMessage, WindowMessage,
         },
         numeric::NumericUpDownBuilder,
         stack_panel::StackPanelBuilder,
@@ -607,24 +608,28 @@ impl LodGroupEditor {
                     ));
                 }
             }
-            UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) => {
-                if let Some(current_lod_level) = self.current_lod_level {
-                    if message.destination() == self.lod_begin {
-                        self.sender
-                            .send(Message::do_scene_command(ChangeLodRangeBeginCommand::new(
-                                node_handle,
-                                current_lod_level,
-                                *value,
-                            )))
-                            .unwrap();
-                    } else if message.destination() == self.lod_end {
-                        self.sender
-                            .send(Message::do_scene_command(ChangeLodRangeEndCommand::new(
-                                node_handle,
-                                current_lod_level,
-                                *value,
-                            )))
-                            .unwrap();
+            UiMessageData::User(msg) => {
+                if let Some(&NumericUpDownMessage::Value(value)) =
+                    msg.cast::<NumericUpDownMessage<f32>>()
+                {
+                    if let Some(current_lod_level) = self.current_lod_level {
+                        if message.destination() == self.lod_begin {
+                            self.sender
+                                .send(Message::do_scene_command(ChangeLodRangeBeginCommand::new(
+                                    node_handle,
+                                    current_lod_level,
+                                    value,
+                                )))
+                                .unwrap();
+                        } else if message.destination() == self.lod_end {
+                            self.sender
+                                .send(Message::do_scene_command(ChangeLodRangeEndCommand::new(
+                                    node_handle,
+                                    current_lod_level,
+                                    value,
+                                )))
+                                .unwrap();
+                        }
                     }
                 }
             }

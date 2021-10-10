@@ -14,19 +14,18 @@ use crate::{
     Message,
 };
 use rg3d::gui::message::UiMessage;
+use rg3d::gui::numeric::NumericUpDownMessage;
+use rg3d::gui::vec::vec3::Vec3EditorMessage;
 use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::{
         algebra::Vector3,
-        math::{quat_from_euler, RotationOrder, UnitQuaternionExt},
+        math::{quat_from_euler, RotationOrder},
         pool::Handle,
     },
     gui::{
         grid::{Column, GridBuilder, Row},
-        message::{
-            CheckBoxMessage, MessageDirection, NumericUpDownMessage, UiMessageData,
-            Vec3EditorMessage,
-        },
+        message::{CheckBoxMessage, MessageDirection, UiMessageData},
         widget::WidgetBuilder,
     },
 };
@@ -147,11 +146,11 @@ impl ColliderSection {
             ),
         );
 
-        let euler = collider.rotation.to_euler();
+        let euler = collider.rotation.euler_angles();
         let euler_degrees = Vector3::new(
-            euler.x.to_degrees(),
-            euler.y.to_degrees(),
-            euler.z.to_degrees(),
+            euler.0.to_degrees(),
+            euler.1.to_degrees(),
+            euler.2.to_degrees(),
         );
         send_sync_message(
             ui,
@@ -194,60 +193,67 @@ impl ColliderSection {
     ) {
         if message.direction() == MessageDirection::FromWidget {
             match message.data() {
-                &UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) => {
-                    if message.destination() == self.friction && collider.friction.ne(&value) {
-                        self.sender
-                            .send(Message::do_scene_command(SetColliderFrictionCommand::new(
-                                handle, value,
-                            )))
-                            .unwrap();
-                    } else if message.destination() == self.restitution
-                        && collider.restitution.ne(&value)
+                UiMessageData::User(msg) => {
+                    if let Some(&NumericUpDownMessage::Value(value)) =
+                        msg.cast::<NumericUpDownMessage<f32>>()
                     {
-                        self.sender
-                            .send(Message::do_scene_command(
-                                SetColliderRestitutionCommand::new(handle, value),
-                            ))
-                            .unwrap();
-                    } else if message.destination() == self.collision_mask {
-                        let mask = collider.collision_groups.filter | (value as u32);
-                        self.sender
-                            .send(Message::do_scene_command(
-                                SetColliderCollisionGroupsFilterCommand::new(handle, mask),
-                            ))
-                            .unwrap();
-                    } else if message.destination() == self.collision_groups {
-                        let groups =
-                            (collider.collision_groups.memberships & 0x0000FFFF) | value as u32;
-                        self.sender
-                            .send(Message::do_scene_command(
-                                SetColliderCollisionGroupsMembershipsCommand::new(handle, groups),
-                            ))
-                            .unwrap();
-                    }
-                }
-                UiMessageData::Vec3Editor(Vec3EditorMessage::Value(value)) => {
-                    if message.destination() == self.position && collider.translation.ne(value) {
-                        self.sender
-                            .send(Message::do_scene_command(SetColliderPositionCommand::new(
-                                handle, *value,
-                            )))
-                            .unwrap();
-                    } else if message.destination() == self.rotation {
-                        let old_rotation = collider.rotation;
-                        let euler = Vector3::new(
-                            value.x.to_radians(),
-                            value.y.to_radians(),
-                            value.z.to_radians(),
-                        );
-                        let new_rotation = quat_from_euler(euler, RotationOrder::XYZ);
-                        if !old_rotation.approx_eq(&new_rotation, 0.00001) {
+                        if message.destination() == self.friction && collider.friction.ne(&value) {
                             self.sender
-                                .send(Message::do_scene_command(SetColliderRotationCommand::new(
-                                    handle,
-                                    new_rotation,
+                                .send(Message::do_scene_command(SetColliderFrictionCommand::new(
+                                    handle, value,
                                 )))
                                 .unwrap();
+                        } else if message.destination() == self.restitution
+                            && collider.restitution.ne(&value)
+                        {
+                            self.sender
+                                .send(Message::do_scene_command(
+                                    SetColliderRestitutionCommand::new(handle, value),
+                                ))
+                                .unwrap();
+                        } else if message.destination() == self.collision_mask {
+                            let mask = collider.collision_groups.filter | (value as u32);
+                            self.sender
+                                .send(Message::do_scene_command(
+                                    SetColliderCollisionGroupsFilterCommand::new(handle, mask),
+                                ))
+                                .unwrap();
+                        } else if message.destination() == self.collision_groups {
+                            let groups =
+                                (collider.collision_groups.memberships & 0x0000FFFF) | value as u32;
+                            self.sender
+                                .send(Message::do_scene_command(
+                                    SetColliderCollisionGroupsMembershipsCommand::new(
+                                        handle, groups,
+                                    ),
+                                ))
+                                .unwrap();
+                        }
+                    } else if let Some(&Vec3EditorMessage::Value(value)) =
+                        msg.cast::<Vec3EditorMessage<f32>>()
+                    {
+                        if message.destination() == self.position && collider.translation.ne(&value)
+                        {
+                            self.sender
+                                .send(Message::do_scene_command(SetColliderPositionCommand::new(
+                                    handle, value,
+                                )))
+                                .unwrap();
+                        } else if message.destination() == self.rotation {
+                            let old_rotation = collider.rotation;
+                            let euler = Vector3::new(
+                                value.x.to_radians(),
+                                value.y.to_radians(),
+                                value.z.to_radians(),
+                            );
+                            let new_rotation = quat_from_euler(euler, RotationOrder::XYZ);
+                            if old_rotation.ne(&new_rotation) {
+                                self.sender
+                                    .send(Message::do_scene_command(
+                                        SetColliderRotationCommand::new(handle, new_rotation),
+                                    ))
+                                    .unwrap();
+                            }
                         }
                     }
                 }
