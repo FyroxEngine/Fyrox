@@ -13,13 +13,13 @@
 //! However [WidgetMessage::GotFocus](enum.WidgetMessage.html) has "Direction: From UI" which means that only
 //! internal library code can send such messages without a risk of breaking anything.
 
-use crate::core::inspect::PropertyValue;
 use crate::{
     brush::Brush,
     core::{
-        algebra::{Vector2, Vector3, Vector4},
+        algebra::Vector2,
         color::{Color, Hsv},
         curve::{Curve, CurveKeyKind},
+        inspect::PropertyValue,
         pool::Handle,
     },
     dock::{SplitDirection, TileContent},
@@ -33,52 +33,16 @@ use crate::{
     window::WindowTitle,
     HorizontalAlignment, MouseState, Orientation, Thickness, UiNode, VerticalAlignment,
 };
-use std::any::{Any, TypeId};
-use std::ops::{Deref, DerefMut};
-use std::{cell::Cell, fmt::Debug, path::PathBuf, sync::Arc};
+use std::{
+    any::{Any, TypeId},
+    cell::Cell,
+    fmt::Debug,
+    ops::{Deref, DerefMut},
+    path::PathBuf,
+    sync::Arc,
+};
 
 macro_rules! define_constructor {
-    ($var:tt($inner:ident : $inner_var:tt) => fn $name:ident(), layout: $perform_layout:expr) => {
-        pub fn $name(destination: Handle<UiNode>, direction: MessageDirection) -> UiMessage {
-            UiMessage {
-                handled: Cell::new(false),
-                data: UiMessageData::$var($inner::$inner_var),
-                destination,
-                direction,
-                perform_layout: Cell::new($perform_layout),
-                flags: 0
-            }
-        }
-    };
-
-    ($var:tt($inner:ident : $inner_var:tt) => fn $name:ident($typ:ty), layout: $perform_layout:expr) => {
-        pub fn $name(destination: Handle<UiNode>, direction: MessageDirection, value:$typ) -> UiMessage {
-            UiMessage {
-                handled: Cell::new(false),
-                data: UiMessageData::$var($inner::$inner_var(value)),
-                destination,
-                direction,
-                perform_layout: Cell::new($perform_layout),
-                flags: 0
-            }
-        }
-    };
-
-    ($var:tt($inner:ident : $inner_var:tt) => fn $name:ident( $($params:ident : $types:ty),+ ), layout: $perform_layout:expr) => {
-        pub fn $name(destination: Handle<UiNode>, direction: MessageDirection, $($params : $types),+) -> UiMessage {
-            UiMessage {
-                handled: Cell::new(false),
-                data: UiMessageData::$var($inner::$inner_var { $($params),+ } ),
-                destination,
-                direction,
-                perform_layout: Cell::new($perform_layout),
-                flags: 0
-            }
-        }
-    }
-}
-
-macro_rules! define_constructor_unbound {
     ($var:tt($inner:ident : $inner_var:tt) => fn $name:ident(), layout: $perform_layout:expr) => {
         pub fn $name(destination: Handle<UiNode>, direction: MessageDirection) -> UiMessage {
             UiMessage {
@@ -431,9 +395,9 @@ pub enum ScrollBarMessage {
 }
 
 impl ScrollBarMessage {
-    define_constructor_unbound!(ScrollBar(ScrollBarMessage:Value) => fn value(f32), layout: false);
-    define_constructor_unbound!(ScrollBar(ScrollBarMessage:MaxValue) => fn max_value(f32), layout: false);
-    define_constructor_unbound!(ScrollBar(ScrollBarMessage:MinValue) => fn min_value(f32), layout: false);
+    define_constructor!(ScrollBar(ScrollBarMessage:Value) => fn value(f32), layout: false);
+    define_constructor!(ScrollBar(ScrollBarMessage:MaxValue) => fn max_value(f32), layout: false);
+    define_constructor!(ScrollBar(ScrollBarMessage:MinValue) => fn min_value(f32), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -442,7 +406,7 @@ pub enum CheckBoxMessage {
 }
 
 impl CheckBoxMessage {
-    define_constructor_unbound!(CheckBox(CheckBoxMessage:Check) => fn checked(Option<bool>), layout: false);
+    define_constructor!(CheckBox(CheckBoxMessage:Check) => fn checked(Option<bool>), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -451,7 +415,7 @@ pub enum ExpanderMessage {
 }
 
 impl ExpanderMessage {
-    define_constructor_unbound!(Expander(ExpanderMessage:Expand) => fn expand(bool), layout: false);
+    define_constructor!(Expander(ExpanderMessage:Expand) => fn expand(bool), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -577,11 +541,11 @@ pub enum FileSelectorMessage {
 }
 
 impl FileSelectorMessage {
-    define_constructor_unbound!(FileSelector(FileSelectorMessage:Commit) => fn commit(PathBuf), layout: false);
-    define_constructor_unbound!(FileSelector(FileSelectorMessage:Root) => fn root(Option<PathBuf>), layout: false);
-    define_constructor_unbound!(FileSelector(FileSelectorMessage:Path) => fn path(PathBuf), layout: false);
-    define_constructor_unbound!(FileSelector(FileSelectorMessage:Cancel) => fn cancel(), layout: false);
-    define_constructor_unbound!(FileSelector(FileSelectorMessage:Filter) => fn filter(Option<Filter>), layout: false);
+    define_constructor!(FileSelector(FileSelectorMessage:Commit) => fn commit(PathBuf), layout: false);
+    define_constructor!(FileSelector(FileSelectorMessage:Root) => fn root(Option<PathBuf>), layout: false);
+    define_constructor!(FileSelector(FileSelectorMessage:Path) => fn path(PathBuf), layout: false);
+    define_constructor!(FileSelector(FileSelectorMessage:Cancel) => fn cancel(), layout: false);
+    define_constructor!(FileSelector(FileSelectorMessage:Filter) => fn filter(Option<Filter>), layout: false);
 }
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Ord, Eq, Hash, Debug)]
@@ -664,12 +628,12 @@ pub enum FileBrowserMessage {
 }
 
 impl FileBrowserMessage {
-    define_constructor_unbound!(FileBrowser(FileBrowserMessage:Root) => fn root(Option<PathBuf>), layout: false);
-    define_constructor_unbound!(FileBrowser(FileBrowserMessage:Path) => fn path(PathBuf), layout: false);
-    define_constructor_unbound!(FileBrowser(FileBrowserMessage:Filter) => fn filter(Option<Filter>), layout: false);
-    define_constructor_unbound!(FileBrowser(FileBrowserMessage:Add) => fn add(PathBuf), layout: false);
-    define_constructor_unbound!(FileBrowser(FileBrowserMessage:Remove) => fn remove(PathBuf), layout: false);
-    define_constructor_unbound!(FileBrowser(FileBrowserMessage:Rescan) => fn rescan(), layout: false);
+    define_constructor!(FileBrowser(FileBrowserMessage:Root) => fn root(Option<PathBuf>), layout: false);
+    define_constructor!(FileBrowser(FileBrowserMessage:Path) => fn path(PathBuf), layout: false);
+    define_constructor!(FileBrowser(FileBrowserMessage:Filter) => fn filter(Option<Filter>), layout: false);
+    define_constructor!(FileBrowser(FileBrowserMessage:Add) => fn add(PathBuf), layout: false);
+    define_constructor!(FileBrowser(FileBrowserMessage:Remove) => fn remove(PathBuf), layout: false);
+    define_constructor!(FileBrowser(FileBrowserMessage:Rescan) => fn rescan(), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -678,7 +642,7 @@ pub enum TextBoxMessage {
 }
 
 impl TextBoxMessage {
-    define_constructor_unbound!(TextBox(TextBoxMessage:Text) => fn text(String), layout: false);
+    define_constructor!(TextBox(TextBoxMessage:Text) => fn text(String), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -691,11 +655,11 @@ pub enum TextMessage {
 }
 
 impl TextMessage {
-    define_constructor_unbound!(Text(TextMessage:Text) => fn text(String), layout: false);
-    define_constructor_unbound!(Text(TextMessage:Wrap) => fn wrap(WrapMode), layout: false);
-    define_constructor_unbound!(Text(TextMessage:Font) => fn font(SharedFont), layout: false);
-    define_constructor_unbound!(Text(TextMessage:VerticalAlignment) => fn vertical_alignment(VerticalAlignment), layout: false);
-    define_constructor_unbound!(Text(TextMessage:HorizontalAlignment) => fn horizontal_alignment(HorizontalAlignment), layout: false);
+    define_constructor!(Text(TextMessage:Text) => fn text(String), layout: false);
+    define_constructor!(Text(TextMessage:Wrap) => fn wrap(WrapMode), layout: false);
+    define_constructor!(Text(TextMessage:Font) => fn font(SharedFont), layout: false);
+    define_constructor!(Text(TextMessage:VerticalAlignment) => fn vertical_alignment(VerticalAlignment), layout: false);
+    define_constructor!(Text(TextMessage:HorizontalAlignment) => fn horizontal_alignment(HorizontalAlignment), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -705,8 +669,8 @@ pub enum ImageMessage {
 }
 
 impl ImageMessage {
-    define_constructor_unbound!(Image(ImageMessage:Texture) => fn texture(Option<SharedTexture>), layout: false);
-    define_constructor_unbound!(Image(ImageMessage:Flip) => fn flip(bool), layout: false);
+    define_constructor!(Image(ImageMessage:Texture) => fn texture(Option<SharedTexture>), layout: false);
+    define_constructor!(Image(ImageMessage:Flip) => fn flip(bool), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -746,42 +710,6 @@ impl TileMessage {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum NumericUpDownMessage {
-    Value(f32),
-}
-
-impl NumericUpDownMessage {
-    define_constructor_unbound!(NumericUpDown(NumericUpDownMessage:Value) => fn value(f32), layout: false);
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum Vec2EditorMessage {
-    Value(Vector2<f32>),
-}
-
-impl Vec2EditorMessage {
-    define_constructor_unbound!(Vec2Editor(Vec2EditorMessage:Value) => fn value(Vector2<f32>), layout: false);
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum Vec3EditorMessage {
-    Value(Vector3<f32>),
-}
-
-impl Vec3EditorMessage {
-    define_constructor_unbound!(Vec3Editor(Vec3EditorMessage:Value) => fn value(Vector3<f32>), layout: false);
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum Vec4EditorMessage {
-    Value(Vector4<f32>),
-}
-
-impl Vec4EditorMessage {
-    define_constructor_unbound!(Vec4Editor(Vec4EditorMessage:Value) => fn value(Vector4<f32>), layout: false);
-}
-
-#[derive(Debug, Clone, PartialEq)]
 pub enum ScrollPanelMessage {
     VerticalScroll(f32),
     HorizontalScroll(f32),
@@ -803,8 +731,8 @@ pub enum MenuMessage {
 }
 
 impl MenuMessage {
-    define_constructor_unbound!(Menu(MenuMessage:Activate) => fn activate(), layout: false);
-    define_constructor_unbound!(Menu(MenuMessage:Deactivate) => fn deactivate(), layout: false);
+    define_constructor!(Menu(MenuMessage:Activate) => fn activate(), layout: false);
+    define_constructor!(Menu(MenuMessage:Deactivate) => fn deactivate(), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -815,9 +743,9 @@ pub enum MenuItemMessage {
 }
 
 impl MenuItemMessage {
-    define_constructor_unbound!(MenuItem(MenuItemMessage:Open) => fn open(), layout: false);
-    define_constructor_unbound!(MenuItem(MenuItemMessage:Close) => fn close(), layout: false);
-    define_constructor_unbound!(MenuItem(MenuItemMessage:Click) => fn click(), layout: false);
+    define_constructor!(MenuItem(MenuItemMessage:Open) => fn open(), layout: false);
+    define_constructor!(MenuItem(MenuItemMessage:Close) => fn close(), layout: false);
+    define_constructor!(MenuItem(MenuItemMessage:Click) => fn click(), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -830,8 +758,8 @@ pub enum MessageBoxMessage {
 }
 
 impl MessageBoxMessage {
-    define_constructor_unbound!(MessageBox(MessageBoxMessage:Open) => fn open(title: Option<String>, text: Option<String>), layout: false);
-    define_constructor_unbound!(MessageBox(MessageBoxMessage:Close) => fn close(MessageBoxResult), layout: false);
+    define_constructor!(MessageBox(MessageBoxMessage:Open) => fn open(title: Option<String>, text: Option<String>), layout: false);
+    define_constructor!(MessageBox(MessageBoxMessage:Close) => fn close(MessageBoxResult), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -844,11 +772,11 @@ pub enum DecoratorMessage {
 }
 
 impl DecoratorMessage {
-    define_constructor_unbound!(Decorator(DecoratorMessage:Select) => fn select(bool), layout: false);
-    define_constructor_unbound!(Decorator(DecoratorMessage:HoverBrush) => fn hover_brush(Brush), layout: false);
-    define_constructor_unbound!(Decorator(DecoratorMessage:NormalBrush) => fn normal_brush(Brush), layout: false);
-    define_constructor_unbound!(Decorator(DecoratorMessage:PressedBrush) => fn pressed_brush(Brush), layout: false);
-    define_constructor_unbound!(Decorator(DecoratorMessage:SelectedBrush) => fn selected_brush(Brush), layout: false);
+    define_constructor!(Decorator(DecoratorMessage:Select) => fn select(bool), layout: false);
+    define_constructor!(Decorator(DecoratorMessage:HoverBrush) => fn hover_brush(Brush), layout: false);
+    define_constructor!(Decorator(DecoratorMessage:NormalBrush) => fn normal_brush(Brush), layout: false);
+    define_constructor!(Decorator(DecoratorMessage:PressedBrush) => fn pressed_brush(Brush), layout: false);
+    define_constructor!(Decorator(DecoratorMessage:SelectedBrush) => fn selected_brush(Brush), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -857,7 +785,7 @@ pub enum ProgressBarMessage {
 }
 
 impl ProgressBarMessage {
-    define_constructor_unbound!(ProgressBar(ProgressBarMessage:Progress) => fn progress(f32), layout: false);
+    define_constructor!(ProgressBar(ProgressBarMessage:Progress) => fn progress(f32), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -870,8 +798,8 @@ pub enum HueBarMessage {
 }
 
 impl HueBarMessage {
-    define_constructor_unbound!(HueBar(HueBarMessage:Hue) => fn hue(f32), layout: false);
-    define_constructor_unbound!(HueBar(HueBarMessage:Orientation) => fn orientation(Orientation), layout: false);
+    define_constructor!(HueBar(HueBarMessage:Hue) => fn hue(f32), layout: false);
+    define_constructor!(HueBar(HueBarMessage:Orientation) => fn orientation(Orientation), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -884,8 +812,8 @@ pub enum AlphaBarMessage {
 }
 
 impl AlphaBarMessage {
-    define_constructor_unbound!(AlphaBar(AlphaBarMessage:Alpha) => fn alpha(f32), layout: false);
-    define_constructor_unbound!(AlphaBar(AlphaBarMessage:Orientation) => fn orientation(Orientation), layout: false);
+    define_constructor!(AlphaBar(AlphaBarMessage:Alpha) => fn alpha(f32), layout: false);
+    define_constructor!(AlphaBar(AlphaBarMessage:Orientation) => fn orientation(Orientation), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -901,9 +829,9 @@ pub enum SaturationBrightnessFieldMessage {
 }
 
 impl SaturationBrightnessFieldMessage {
-    define_constructor_unbound!(SaturationBrightnessField(SaturationBrightnessFieldMessage:Hue) => fn hue(f32), layout: false);
-    define_constructor_unbound!(SaturationBrightnessField(SaturationBrightnessFieldMessage:Saturation) => fn saturation(f32), layout: false);
-    define_constructor_unbound!(SaturationBrightnessField(SaturationBrightnessFieldMessage:Brightness) => fn brightness(f32), layout: false);
+    define_constructor!(SaturationBrightnessField(SaturationBrightnessFieldMessage:Hue) => fn hue(f32), layout: false);
+    define_constructor!(SaturationBrightnessField(SaturationBrightnessFieldMessage:Saturation) => fn saturation(f32), layout: false);
+    define_constructor!(SaturationBrightnessField(SaturationBrightnessFieldMessage:Brightness) => fn brightness(f32), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -920,8 +848,8 @@ pub enum ColorPickerMessage {
 }
 
 impl ColorPickerMessage {
-    define_constructor_unbound!(ColorPicker(ColorPickerMessage:Color) => fn color(Color), layout: false);
-    define_constructor_unbound!(ColorPicker(ColorPickerMessage:Hsv) => fn hsv(Hsv), layout: false);
+    define_constructor!(ColorPicker(ColorPickerMessage:Color) => fn color(Color), layout: false);
+    define_constructor!(ColorPicker(ColorPickerMessage:Hsv) => fn hsv(Hsv), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -930,7 +858,7 @@ pub enum ColorFieldMessage {
 }
 
 impl ColorFieldMessage {
-    define_constructor_unbound!(ColorField(ColorFieldMessage:Color) => fn color(Color), layout: false);
+    define_constructor!(ColorField(ColorFieldMessage:Color) => fn color(Color), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -950,14 +878,14 @@ pub enum CurveEditorMessage {
 }
 
 impl CurveEditorMessage {
-    define_constructor_unbound!(CurveEditor(CurveEditorMessage:Sync) => fn sync(Curve), layout: false);
-    define_constructor_unbound!(CurveEditor(CurveEditorMessage:ViewPosition) => fn view_position(Vector2<f32>), layout: false);
-    define_constructor_unbound!(CurveEditor(CurveEditorMessage:Zoom) => fn zoom(f32), layout: false);
-    define_constructor_unbound!(CurveEditor(CurveEditorMessage:ZoomToFit) => fn zoom_to_fit(), layout: false);
+    define_constructor!(CurveEditor(CurveEditorMessage:Sync) => fn sync(Curve), layout: false);
+    define_constructor!(CurveEditor(CurveEditorMessage:ViewPosition) => fn view_position(Vector2<f32>), layout: false);
+    define_constructor!(CurveEditor(CurveEditorMessage:Zoom) => fn zoom(f32), layout: false);
+    define_constructor!(CurveEditor(CurveEditorMessage:ZoomToFit) => fn zoom_to_fit(), layout: false);
     // Internal. Use only when you know what you're doing.
-    define_constructor_unbound!(CurveEditor(CurveEditorMessage:RemoveSelection) => fn remove_selection(), layout: false);
-    define_constructor_unbound!(CurveEditor(CurveEditorMessage:ChangeSelectedKeysKind) => fn change_selected_keys_kind(CurveKeyKind), layout: false);
-    define_constructor_unbound!(CurveEditor(CurveEditorMessage:AddKey) => fn add_key(Vector2<f32>), layout: false);
+    define_constructor!(CurveEditor(CurveEditorMessage:RemoveSelection) => fn remove_selection(), layout: false);
+    define_constructor!(CurveEditor(CurveEditorMessage:ChangeSelectedKeysKind) => fn change_selected_keys_kind(CurveKeyKind), layout: false);
+    define_constructor!(CurveEditor(CurveEditorMessage:AddKey) => fn add_key(Vector2<f32>), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -1083,10 +1011,6 @@ pub enum UiMessageData {
     FileBrowser(FileBrowserMessage),
     FileSelector(FileSelectorMessage),
     TextBox(TextBoxMessage),
-    NumericUpDown(NumericUpDownMessage),
-    Vec2Editor(Vec2EditorMessage),
-    Vec3Editor(Vec3EditorMessage),
-    Vec4Editor(Vec4EditorMessage),
     Menu(MenuMessage),
     MenuItem(MenuItemMessage),
     MessageBox(MessageBoxMessage),

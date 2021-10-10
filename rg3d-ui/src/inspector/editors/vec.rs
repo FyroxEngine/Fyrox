@@ -1,3 +1,4 @@
+use crate::numeric::NumericType;
 use crate::{
     core::algebra::{Vector2, Vector3, Vector4},
     inspector::{
@@ -7,22 +8,34 @@ use crate::{
         },
         InspectorError,
     },
-    message::{
-        FieldKind, MessageDirection, PropertyChanged, UiMessage, UiMessageData, Vec2EditorMessage,
-        Vec3EditorMessage, Vec4EditorMessage,
+    message::{FieldKind, MessageDirection, PropertyChanged, UiMessage, UiMessageData},
+    vec::{
+        vec2::{Vec2EditorBuilder, Vec2EditorMessage},
+        vec3::{Vec3EditorBuilder, Vec3EditorMessage},
+        vec4::{Vec4EditorBuilder, Vec4EditorMessage},
     },
-    vec::{vec2::Vec2EditorBuilder, vec3::Vec3EditorBuilder, vec4::Vec4EditorBuilder},
     widget::WidgetBuilder,
     Thickness,
 };
 use std::any::TypeId;
+use std::marker::PhantomData;
 
 macro_rules! define_vector_editor {
-    ($name:ident, $builder:ty, $message:tt, $message_variant:ident, $value:ty) => {
+    ($name:ident, $t:ident, $bounds:tt, $builder:ty, $message:tt, $value:ty) => {
         #[derive(Debug)]
-        pub struct $name;
+        pub struct $name<$t: $bounds> {
+            pub phantom: PhantomData<T>,
+        }
 
-        impl PropertyEditorDefinition for $name {
+        impl<$t: $bounds> Default for $name<$t> {
+            fn default() -> Self {
+                Self {
+                    phantom: PhantomData,
+                }
+            }
+        }
+
+        impl<$t: $bounds> PropertyEditorDefinition for $name<$t> {
             fn value_type_id(&self) -> TypeId {
                 TypeId::of::<$value>()
             }
@@ -47,7 +60,7 @@ macro_rules! define_vector_editor {
                 ctx: PropertyEditorMessageContext,
             ) -> Result<Option<UiMessage>, InspectorError> {
                 let value = ctx.property_info.cast_value::<$value>()?;
-                Ok(Some($message::value(
+                Ok(Some(<$message<$t>>::value(
                     ctx.instance,
                     MessageDirection::ToWidget,
                     *value,
@@ -61,13 +74,14 @@ macro_rules! define_vector_editor {
                 message: &UiMessage,
             ) -> Option<PropertyChanged> {
                 if message.direction() == MessageDirection::FromWidget {
-                    if let UiMessageData::$message_variant($message::Value(value)) = message.data()
-                    {
-                        return Some(PropertyChanged {
-                            owner_type_id,
-                            name: name.to_string(),
-                            value: FieldKind::object(*value),
-                        });
+                    if let UiMessageData::User(msg) = message.data() {
+                        if let Some($message::Value(value)) = msg.cast::<$message<$t>>() {
+                            return Some(PropertyChanged {
+                                owner_type_id,
+                                name: name.to_string(),
+                                value: FieldKind::object(*value),
+                            });
+                        }
                     }
                 }
                 None
@@ -82,24 +96,27 @@ macro_rules! define_vector_editor {
 
 define_vector_editor!(
     Vec4PropertyEditorDefinition,
-    Vec4EditorBuilder,
+    T,
+    NumericType,
+    Vec4EditorBuilder::<T>,
     Vec4EditorMessage,
-    Vec4Editor,
-    Vector4<f32>
+    Vector4::<T>
 );
 
 define_vector_editor!(
     Vec3PropertyEditorDefinition,
-    Vec3EditorBuilder,
+    T,
+    NumericType,
+    Vec3EditorBuilder::<T>,
     Vec3EditorMessage,
-    Vec3Editor,
-    Vector3<f32>
+    Vector3::<T>
 );
 
 define_vector_editor!(
     Vec2PropertyEditorDefinition,
-    Vec2EditorBuilder,
+    T,
+    NumericType,
+    Vec2EditorBuilder::<T>,
     Vec2EditorMessage,
-    Vec2Editor,
-    Vector2<f32>
+    Vector2::<T>
 );

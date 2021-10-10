@@ -1,14 +1,10 @@
 use crate::{
-    core::{
-        algebra::{Scalar, Vector2},
-        math::Rect,
-        num_traits::{cast::*, NumAssign},
-        pool::Handle,
-    },
+    core::{algebra::Vector2, math::Rect, pool::Handle},
     grid::{Column, GridBuilder, Row},
-    message::{MessageDirection, UiMessage, UiMessageData, Vec2EditorMessage},
+    message::{MessageDirection, UiMessage, UiMessageData},
+    numeric::NumericType,
     text::TextBuilder,
-    vec::vec2::Vec2EditorBuilder,
+    vec::vec2::{Vec2EditorBuilder, Vec2EditorMessage},
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
@@ -20,7 +16,7 @@ use std::{
 #[derive(Debug, Clone, PartialEq)]
 pub enum RectEditorMessage<T>
 where
-    T: NumAssign + Scalar + PartialOrd + Debug + Copy + Send + Sync + NumCast + 'static,
+    T: NumericType,
 {
     Value(Rect<T>),
 }
@@ -28,7 +24,7 @@ where
 #[derive(Debug, Clone)]
 pub struct RectEditor<T>
 where
-    T: NumAssign + Scalar + PartialOrd + Debug + Copy + Send + Sync + NumCast + 'static,
+    T: NumericType,
 {
     widget: Widget,
     position: Handle<UiNode>,
@@ -38,7 +34,7 @@ where
 
 impl<T> Deref for RectEditor<T>
 where
-    T: NumAssign + Scalar + PartialOrd + Copy + Send + Sync + NumCast + 'static,
+    T: NumericType,
 {
     type Target = Widget;
 
@@ -49,77 +45,61 @@ where
 
 impl<T> DerefMut for RectEditor<T>
 where
-    T: NumAssign + Scalar + Copy + PartialOrd + Send + Sync + NumCast + 'static,
+    T: NumericType,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-// TODO: Fix this when VecNEditor become generic over internal type.
-fn to_vec2f32<T>(value: Vector2<T>) -> Vector2<f32>
-where
-    T: NumAssign + Scalar + Copy + PartialOrd + Send + Sync + NumCast + 'static,
-{
-    Vector2::new(
-        NumCast::from(value.x).unwrap_or_default(),
-        NumCast::from(value.y).unwrap_or_default(),
-    )
-}
-
 impl<T> Control for RectEditor<T>
 where
-    T: NumAssign + Scalar + Copy + PartialOrd + Send + Sync + NumCast + 'static,
+    T: NumericType,
 {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
         match message.data() {
-            UiMessageData::Vec2Editor(Vec2EditorMessage::Value(value)) => {
-                if message.direction() == MessageDirection::FromWidget {
-                    if message.destination() == self.position {
-                        let position = to_vec2f32(self.value.position);
-                        if position != *value {
-                            ui.send_message(UiMessage::user(
-                                self.handle,
-                                MessageDirection::ToWidget,
-                                Box::new(RectEditorMessage::Value(Rect::new(
-                                    value.x,
-                                    value.y,
-                                    NumCast::from(self.value.size.x).unwrap_or_default(),
-                                    NumCast::from(self.value.size.y).unwrap_or_default(),
-                                ))),
-                            ));
-                        }
-                    } else if message.destination() == self.size {
-                        let size = to_vec2f32(self.value.size);
-                        if size != *value {
-                            ui.send_message(UiMessage::user(
-                                self.handle,
-                                MessageDirection::ToWidget,
-                                Box::new(RectEditorMessage::Value(Rect::new(
-                                    NumCast::from(self.value.position.x).unwrap_or_default(),
-                                    NumCast::from(self.value.position.y).unwrap_or_default(),
-                                    value.x,
-                                    value.y,
-                                ))),
-                            ));
+            UiMessageData::User(msg) => {
+                if let Some(RectEditorMessage::Value(value)) = msg.cast::<RectEditorMessage<T>>() {
+                    if message.destination() == self.handle
+                        && message.direction() == MessageDirection::ToWidget
+                    {
+                        if *value != self.value {
+                            self.value = *value;
+
+                            ui.send_message(message.reverse());
                         }
                     }
-                }
-            }
-            UiMessageData::User(msg) => {
-                if message.destination() == self.handle
-                    && message.direction() == MessageDirection::ToWidget
+                } else if let Some(Vec2EditorMessage::Value(value)) =
+                    msg.cast::<Vec2EditorMessage<T>>()
                 {
-                    if let Some(msg) = msg.cast::<RectEditorMessage<T>>() {
-                        match msg {
-                            RectEditorMessage::Value(value) => {
-                                if *value != self.value {
-                                    self.value = *value;
-
-                                    ui.send_message(message.reverse());
-                                }
+                    if message.direction() == MessageDirection::FromWidget {
+                        if message.destination() == self.position {
+                            if self.value.position != *value {
+                                ui.send_message(UiMessage::user(
+                                    self.handle,
+                                    MessageDirection::ToWidget,
+                                    Box::new(RectEditorMessage::Value(Rect::new(
+                                        value.x,
+                                        value.y,
+                                        self.value.size.x,
+                                        self.value.size.y,
+                                    ))),
+                                ));
+                            }
+                        } else if message.destination() == self.size {
+                            if self.value.size != *value {
+                                ui.send_message(UiMessage::user(
+                                    self.handle,
+                                    MessageDirection::ToWidget,
+                                    Box::new(RectEditorMessage::Value(Rect::new(
+                                        self.value.position.x,
+                                        self.value.position.y,
+                                        value.x,
+                                        value.y,
+                                    ))),
+                                ));
                             }
                         }
                     }
@@ -132,16 +112,16 @@ where
 
 pub struct RectEditorBuilder<T>
 where
-    T: NumAssign + Scalar + PartialOrd + Copy + Send + Sync + NumCast + 'static,
+    T: NumericType,
 {
     widget_builder: WidgetBuilder,
     value: Rect<T>,
 }
 
-fn create_field(
+fn create_field<T: NumericType>(
     ctx: &mut BuildContext,
     name: &str,
-    value: Vector2<f32>,
+    value: Vector2<T>,
     row: usize,
 ) -> (Handle<UiNode>, Handle<UiNode>) {
     let editor;
@@ -171,7 +151,7 @@ fn create_field(
 
 impl<T> RectEditorBuilder<T>
 where
-    T: NumAssign + Scalar + PartialOrd + Copy + Send + Sync + NumCast + 'static,
+    T: NumericType,
 {
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
@@ -186,9 +166,8 @@ where
     }
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        let (position_grid, position) =
-            create_field(ctx, "Position", to_vec2f32(self.value.position), 0);
-        let (size_grid, size) = create_field(ctx, "Size", to_vec2f32(self.value.size), 1);
+        let (position_grid, position) = create_field(ctx, "Position", self.value.position, 0);
+        let (size_grid, size) = create_field(ctx, "Size", self.value.size, 1);
         let node = RectEditor {
             widget: self
                 .widget_builder

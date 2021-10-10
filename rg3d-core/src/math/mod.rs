@@ -7,6 +7,7 @@ pub mod plane;
 pub mod ray;
 pub mod triangulator;
 
+use crate::algebra::{RealField, SimdRealField};
 use crate::{
     algebra::{Matrix3, Matrix4, Scalar, UnitQuaternion, Vector2, Vector3},
     math::ray::IntersectionResult,
@@ -873,7 +874,10 @@ pub enum RotationOrder {
     ZYX,
 }
 
-pub fn quat_from_euler(euler_radians: Vector3<f32>, order: RotationOrder) -> UnitQuaternion<f32> {
+pub fn quat_from_euler<T: SimdRealField + RealField + Copy + Clone>(
+    euler_radians: Vector3<T>,
+    order: RotationOrder,
+) -> UnitQuaternion<T> {
     let qx = UnitQuaternion::from_axis_angle(&Vector3::x_axis(), euler_radians.x);
     let qy = UnitQuaternion::from_axis_angle(&Vector3::y_axis(), euler_radians.y);
     let qz = UnitQuaternion::from_axis_angle(&Vector3::z_axis(), euler_radians.z);
@@ -884,43 +888,6 @@ pub fn quat_from_euler(euler_radians: Vector3<f32>, order: RotationOrder) -> Uni
         RotationOrder::YXZ => qz * qx * qy,
         RotationOrder::ZXY => qy * qx * qz,
         RotationOrder::ZYX => qx * qy * qz,
-    }
-}
-
-pub trait UnitQuaternionExt {
-    fn to_euler(&self) -> Vector3<f32>;
-
-    fn approx_eq(&self, other: &Self, tolerance: f32) -> bool;
-}
-
-impl UnitQuaternionExt for UnitQuaternion<f32> {
-    fn to_euler(&self) -> Vector3<f32> {
-        // roll (x-axis rotation)
-        let sinr_cosp = 2.0 * (self.w * self.i + self.j * self.k);
-        let cosr_cosp = 1.0 - 2.0 * (self.i * self.i + self.j * self.j);
-        let roll = sinr_cosp.atan2(cosr_cosp);
-
-        // pitch (y-axis rotation)
-        let sinp = 2.0 * (self.w * self.j - self.k * self.i);
-        let pitch = if sinp.abs() >= 1.0 {
-            std::f32::consts::FRAC_PI_2.copysign(sinp)
-        } else {
-            sinp.asin()
-        };
-
-        // yaw (z-axis rotation)
-        let siny_cosp = 2.0 * (self.w * self.k + self.i * self.j);
-        let cosy_cosp = 1.0 - 2.0 * (self.j * self.j + self.k * self.k);
-        let yaw = siny_cosp.atan2(cosy_cosp);
-
-        Vector3::new(roll, pitch, yaw)
-    }
-
-    fn approx_eq(&self, other: &Self, tolerance: f32) -> bool {
-        (self.w - other.w).abs() <= tolerance
-            && (self.i - other.i).abs() <= tolerance
-            && (self.j - other.j).abs() <= tolerance
-            && (self.k - other.k).abs() <= tolerance
     }
 }
 

@@ -1,3 +1,4 @@
+use crate::numeric::NumericType;
 use crate::{
     border::BorderBuilder, brush::Brush, core::color::Color, core::pool::Handle,
     numeric::NumericUpDownBuilder, text::TextBuilder, widget::WidgetBuilder, BuildContext,
@@ -8,7 +9,11 @@ pub mod vec2;
 pub mod vec3;
 pub mod vec4;
 
-pub fn make_numeric_input(ctx: &mut BuildContext, column: usize, value: f32) -> Handle<UiNode> {
+pub fn make_numeric_input<T: NumericType>(
+    ctx: &mut BuildContext,
+    column: usize,
+    value: T,
+) -> Handle<UiNode> {
     NumericUpDownBuilder::new(
         WidgetBuilder::new()
             .on_row(0)

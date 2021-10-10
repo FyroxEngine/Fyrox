@@ -2,13 +2,18 @@ use crate::{
     border::BorderBuilder,
     brush::Brush,
     button::ButtonBuilder,
-    core::{color::Color, pool::Handle},
+    core::{
+        color::Color,
+        num_traits::NumOps,
+        num_traits::{clamp, Bounded, NumAssign},
+        pool::Handle,
+    },
     decorator::DecoratorBuilder,
     formatted_text::WrapMode,
     grid::{Column, GridBuilder, Row},
     message::{
-        ButtonMessage, KeyCode, MessageDirection, NumericUpDownMessage, TextBoxMessage, UiMessage,
-        UiMessageData, WidgetMessage,
+        ButtonMessage, KeyCode, MessageDirection, TextBoxMessage, UiMessage, UiMessageData,
+        WidgetMessage,
     },
     text_box::{TextBox, TextBoxBuilder},
     utils::{make_arrow, ArrowDirection},
@@ -16,29 +21,96 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Thickness, UiNode,
     UserInterface, VerticalAlignment, BRUSH_DARK, BRUSH_LIGHT,
 };
-use std::ops::{Deref, DerefMut};
+use std::{
+    fmt::{Debug, Display},
+    ops::{Deref, DerefMut},
+    str::FromStr,
+};
+
+pub trait NumericType:
+    NumAssign
+    + FromStr
+    + Clone
+    + Copy
+    + NumOps
+    + PartialOrd
+    + Display
+    + Bounded
+    + Debug
+    + Send
+    + Sync
+    + 'static
+{
+}
+
+impl<T> NumericType for T where
+    T: NumAssign
+        + FromStr
+        + Clone
+        + Copy
+        + NumOps
+        + PartialOrd
+        + Bounded
+        + Display
+        + Debug
+        + Send
+        + Sync
+        + 'static
+{
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum NumericUpDownMessage<T: NumericType> {
+    Value(T),
+}
+
+impl<T: NumericType> NumericUpDownMessage<T> {
+    pub fn value(destination: Handle<UiNode>, direction: MessageDirection, value: T) -> UiMessage {
+        UiMessage::user(
+            destination,
+            direction,
+            Box::new(NumericUpDownMessage::Value(value)),
+        )
+    }
+}
 
 #[derive(Clone)]
-pub struct NumericUpDown {
+pub struct NumericUpDown<T: NumericType> {
     widget: Widget,
     field: Handle<UiNode>,
     increase: Handle<UiNode>,
     decrease: Handle<UiNode>,
-    value: f32,
-    step: f32,
-    min_value: f32,
-    max_value: f32,
+    value: T,
+    step: T,
+    min_value: T,
+    max_value: T,
     precision: usize,
 }
 
-crate::define_widget_deref!(NumericUpDown);
+impl<T: NumericType> Deref for NumericUpDown<T> {
+    type Target = Widget;
 
-impl NumericUpDown {
+    fn deref(&self) -> &Self::Target {
+        &self.widget
+    }
+}
+
+impl<T: NumericType> DerefMut for NumericUpDown<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.widget
+    }
+}
+
+impl<T: NumericType> NumericUpDown<T> {
+    fn clamp_value(&self, value: T) -> T {
+        clamp(value, self.min_value, self.max_value)
+    }
+
     fn try_parse_value(&mut self, ui: &mut UserInterface) {
         // Parse input only when focus is lost from text field.
         if let Some(field) = ui.node(self.field).cast::<TextBox>() {
-            if let Ok(value) = field.text().parse::<f32>() {
-                let value = value.min(self.max_value).max(self.min_value);
+            if let Ok(value) = field.text().parse::<T>() {
+                let value = self.clamp_value(value);
                 ui.send_message(NumericUpDownMessage::value(
                     self.handle(),
                     MessageDirection::ToWidget,
@@ -49,7 +121,7 @@ impl NumericUpDown {
     }
 }
 
-impl Control for NumericUpDown {
+impl<T: NumericType> Control for NumericUpDown<T> {
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.field);
         node_map.resolve(&mut self.increase);
@@ -73,46 +145,48 @@ impl Control for NumericUpDown {
                     }
                 }
             }
-            &UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value))
-                if message.direction() == MessageDirection::ToWidget
-                    && message.destination() == self.handle() =>
-            {
-                let clamped = value.min(self.max_value).max(self.min_value);
-                if self.value != clamped {
-                    self.value = clamped;
+            &UiMessageData::User(msg) => {
+                if let Some(NumericUpDownMessage::Value(value)) =
+                    msg.cast::<NumericUpDownMessage<T>>()
+                {
+                    if message.direction() == MessageDirection::ToWidget
+                        && message.destination() == self.handle()
+                    {
+                        let clamped = self.clamp_value(*value);
+                        if self.value != clamped {
+                            self.value = clamped;
 
-                    // Sync text field.
-                    ui.send_message(TextBoxMessage::text(
-                        self.field,
-                        MessageDirection::ToWidget,
-                        format!("{:.1$}", self.value, self.precision),
-                    ));
+                            // Sync text field.
+                            ui.send_message(TextBoxMessage::text(
+                                self.field,
+                                MessageDirection::ToWidget,
+                                format!("{:.1$}", self.value, self.precision),
+                            ));
 
-                    let mut msg = NumericUpDownMessage::value(
-                        self.handle,
-                        MessageDirection::FromWidget,
-                        self.value,
-                    );
-                    // We must maintain flags
-                    msg.set_handled(message.handled());
-                    msg.flags = message.flags;
-                    ui.send_message(msg);
+                            let mut msg = NumericUpDownMessage::value(
+                                self.handle,
+                                MessageDirection::FromWidget,
+                                self.value,
+                            );
+                            // We must maintain flags
+                            msg.set_handled(message.handled());
+                            msg.flags = message.flags;
+                            ui.send_message(msg);
+                        }
+                    }
                 }
             }
             UiMessageData::Button(ButtonMessage::Click) => {
                 if message.destination() == self.decrease {
-                    let value = (self.value - self.step)
-                        .min(self.max_value)
-                        .max(self.min_value);
+                    let value = self.clamp_value(self.value - self.step);
                     ui.send_message(NumericUpDownMessage::value(
                         self.handle(),
                         MessageDirection::ToWidget,
                         value,
                     ));
                 } else if message.destination() == self.increase {
-                    let value = (self.value + self.step)
-                        .min(self.max_value)
-                        .max(self.min_value);
+                    let value = self.clamp_value(self.value + self.step);
+
                     ui.send_message(NumericUpDownMessage::value(
                         self.handle(),
                         MessageDirection::ToWidget,
@@ -125,12 +199,12 @@ impl Control for NumericUpDown {
     }
 }
 
-pub struct NumericUpDownBuilder {
+pub struct NumericUpDownBuilder<T: NumericType> {
     widget_builder: WidgetBuilder,
-    value: f32,
-    step: f32,
-    min_value: f32,
-    max_value: f32,
+    value: T,
+    step: T,
+    min_value: T,
+    max_value: T,
     precision: usize,
 }
 
@@ -153,41 +227,41 @@ pub fn make_button(ctx: &mut BuildContext, arrow: ArrowDirection, row: usize) ->
     .build(ctx)
 }
 
-impl NumericUpDownBuilder {
+impl<T: NumericType> NumericUpDownBuilder<T> {
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
-            value: 0.0,
-            step: 0.1,
-            min_value: -f32::MAX,
-            max_value: f32::MAX,
+            value: T::zero(),
+            step: T::one(),
+            min_value: T::min_value(),
+            max_value: T::max_value(),
             precision: 3,
         }
     }
 
-    fn set_value(&mut self, value: f32) {
-        self.value = value.max(self.min_value).min(self.max_value);
+    fn set_value(&mut self, value: T) {
+        self.value = clamp(value, self.min_value, self.max_value);
     }
 
-    pub fn with_min_value(mut self, value: f32) -> Self {
+    pub fn with_min_value(mut self, value: T) -> Self {
         self.min_value = value;
         self.set_value(self.value);
         self
     }
 
-    pub fn with_max_value(mut self, value: f32) -> Self {
+    pub fn with_max_value(mut self, value: T) -> Self {
         self.max_value = value;
         self.set_value(self.value);
         self
     }
 
-    pub fn with_value(mut self, value: f32) -> Self {
+    pub fn with_value(mut self, value: T) -> Self {
         self.value = value;
         self.set_value(value);
         self
     }
 
-    pub fn with_step(mut self, step: f32) -> Self {
+    pub fn with_step(mut self, step: T) -> Self {
         self.step = step;
         self
     }

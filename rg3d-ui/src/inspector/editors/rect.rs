@@ -1,9 +1,5 @@
 use crate::{
-    core::{
-        algebra::Scalar,
-        math::Rect,
-        num_traits::{cast::*, NumAssign},
-    },
+    core::math::Rect,
     inspector::{
         editors::{
             Layout, PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
@@ -12,6 +8,7 @@ use crate::{
         InspectorError,
     },
     message::{FieldKind, MessageDirection, PropertyChanged, UiMessage, UiMessageData},
+    numeric::NumericType,
     rect::{RectEditorBuilder, RectEditorMessage},
     widget::WidgetBuilder,
 };
@@ -20,14 +17,14 @@ use std::{any::TypeId, fmt::Debug, marker::PhantomData};
 #[derive(Debug)]
 pub struct RectPropertyEditorDefinition<T>
 where
-    T: NumAssign + Scalar + PartialOrd + Debug + Copy + Send + Sync + NumCast + 'static,
+    T: NumericType,
 {
     phantom: PhantomData<T>,
 }
 
 impl<T> RectPropertyEditorDefinition<T>
 where
-    T: NumAssign + Scalar + PartialOrd + Debug + Copy + Send + Sync + NumCast + 'static,
+    T: NumericType,
 {
     pub fn new() -> Self {
         Self::default()
@@ -36,7 +33,7 @@ where
 
 impl<T> Default for RectPropertyEditorDefinition<T>
 where
-    T: NumAssign + Scalar + PartialOrd + Debug + Copy + Send + Sync + NumCast + 'static,
+    T: NumericType,
 {
     fn default() -> Self {
         Self {
@@ -47,7 +44,7 @@ where
 
 impl<T> PropertyEditorDefinition for RectPropertyEditorDefinition<T>
 where
-    T: NumAssign + Scalar + PartialOrd + Debug + Copy + Send + Sync + NumCast + 'static,
+    T: NumericType,
 {
     fn value_type_id(&self) -> TypeId {
         TypeId::of::<Rect<T>>()
