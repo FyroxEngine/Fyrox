@@ -18,7 +18,11 @@
 
 #![allow(clippy::unneeded_field_pattern)]
 
-use crate::visitor::{Visit, VisitResult, Visitor};
+use crate::{
+    inspect::{Inspect, PropertyInfo},
+    visitor::{Visit, VisitResult, Visitor},
+};
+use std::any::TypeId;
 use std::{
     fmt::{Debug, Formatter},
     hash::{Hash, Hasher},
@@ -61,16 +65,41 @@ pub struct Handle<T> {
     type_marker: PhantomData<T>,
 }
 
+impl<T: 'static> Inspect for Handle<T> {
+    fn properties(&self) -> Vec<PropertyInfo<'_>> {
+        vec![
+            PropertyInfo {
+                owner_type_id: TypeId::of::<Self>(),
+                name: "index",
+                display_name: "Index",
+                group: "Handle",
+                value: &self.index,
+                read_only: true,
+            },
+            PropertyInfo {
+                owner_type_id: TypeId::of::<Self>(),
+                name: "generation",
+                display_name: "Generation",
+                group: "Handle",
+                value: &self.generation,
+                read_only: true,
+            },
+        ]
+    }
+}
+
 unsafe impl<T> Send for Handle<T> {}
 unsafe impl<T> Sync for Handle<T> {}
 
 /// Type-erased handle.
-#[derive(Copy, Clone, Debug, Ord, PartialOrd, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Debug, Ord, PartialOrd, PartialEq, Eq, Hash, Inspect)]
 pub struct ErasedHandle {
     /// Index of object in pool.
+    #[inspect(read_only)]
     index: u32,
     /// Generation number, if it is same as generation of pool record at
     /// index of handle then this is valid handle.
+    #[inspect(read_only)]
     generation: u32,
 }
 

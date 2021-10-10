@@ -40,7 +40,7 @@ use rg3d_core::{
 use std::fmt::Debug;
 use std::{collections::HashMap, hash::Hash, sync::Arc};
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Inspect)]
 #[repr(u32)]
 #[doc(hidden)]
 pub enum RigidBodyTypeDesc {
