@@ -7,12 +7,13 @@ use crate::{
     Message,
 };
 use rg3d::gui::message::UiMessage;
+use rg3d::gui::numeric::NumericUpDownMessage;
 use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::pool::Handle,
     gui::{
         grid::{Column, GridBuilder, Row},
-        message::{MessageDirection, NumericUpDownMessage, UiMessageData},
+        message::{MessageDirection, UiMessageData},
         widget::WidgetBuilder,
     },
     physics3d::desc::ConeDesc,
@@ -83,20 +84,24 @@ impl ConeSection {
         cone: &ConeDesc,
         handle: Handle<Collider>,
     ) {
-        if let UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) = *message.data() {
-            if message.direction() == MessageDirection::FromWidget {
-                if message.destination() == self.half_height && cone.half_height.ne(&value) {
-                    self.sender
-                        .send(Message::do_scene_command(SetConeHalfHeightCommand::new(
-                            handle, value,
-                        )))
-                        .unwrap();
-                } else if message.destination() == self.radius && cone.radius.ne(&value) {
-                    self.sender
-                        .send(Message::do_scene_command(SetConeRadiusCommand::new(
-                            handle, value,
-                        )))
-                        .unwrap();
+        if let UiMessageData::User(msg) = message.data() {
+            if let Some(&NumericUpDownMessage::Value(value)) =
+                msg.cast::<NumericUpDownMessage<f32>>()
+            {
+                if message.direction() == MessageDirection::FromWidget {
+                    if message.destination() == self.half_height && cone.half_height.ne(&value) {
+                        self.sender
+                            .send(Message::do_scene_command(SetConeHalfHeightCommand::new(
+                                handle, value,
+                            )))
+                            .unwrap();
+                    } else if message.destination() == self.radius && cone.radius.ne(&value) {
+                        self.sender
+                            .send(Message::do_scene_command(SetConeRadiusCommand::new(
+                                handle, value,
+                            )))
+                            .unwrap();
+                    }
                 }
             }
         }

@@ -7,12 +7,13 @@ use crate::{
     Message,
 };
 use rg3d::gui::message::UiMessage;
+use rg3d::gui::numeric::NumericUpDownMessage;
 use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::{algebra::Vector3, pool::Handle},
     gui::{
         grid::{Column, GridBuilder, Row},
-        message::{MessageDirection, NumericUpDownMessage, UiMessageData},
+        message::{MessageDirection, UiMessageData},
         widget::WidgetBuilder,
     },
     physics3d::desc::CuboidDesc,
@@ -103,33 +104,38 @@ impl CuboidSection {
         cuboid: &CuboidDesc,
         handle: Handle<Collider>,
     ) {
-        if let UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) = *message.data() {
-            if message.direction() == MessageDirection::FromWidget {
-                if message.destination() == self.half_width && cuboid.half_extents.x.ne(&value) {
-                    self.sender
-                        .send(Message::do_scene_command(SetCuboidHalfExtentsCommand::new(
-                            handle,
-                            Vector3::new(value, cuboid.half_extents.y, cuboid.half_extents.z),
-                        )))
-                        .unwrap();
-                } else if message.destination() == self.half_height
-                    && cuboid.half_extents.y.ne(&value)
-                {
-                    self.sender
-                        .send(Message::do_scene_command(SetCuboidHalfExtentsCommand::new(
-                            handle,
-                            Vector3::new(cuboid.half_extents.x, value, cuboid.half_extents.z),
-                        )))
-                        .unwrap();
-                } else if message.destination() == self.half_depth
-                    && cuboid.half_extents.z.ne(&value)
-                {
-                    self.sender
-                        .send(Message::do_scene_command(SetCuboidHalfExtentsCommand::new(
-                            handle,
-                            Vector3::new(cuboid.half_extents.x, cuboid.half_extents.y, value),
-                        )))
-                        .unwrap();
+        if let UiMessageData::User(msg) = message.data() {
+            if let Some(&NumericUpDownMessage::Value(value)) =
+                msg.cast::<NumericUpDownMessage<f32>>()
+            {
+                if message.direction() == MessageDirection::FromWidget {
+                    if message.destination() == self.half_width && cuboid.half_extents.x.ne(&value)
+                    {
+                        self.sender
+                            .send(Message::do_scene_command(SetCuboidHalfExtentsCommand::new(
+                                handle,
+                                Vector3::new(value, cuboid.half_extents.y, cuboid.half_extents.z),
+                            )))
+                            .unwrap();
+                    } else if message.destination() == self.half_height
+                        && cuboid.half_extents.y.ne(&value)
+                    {
+                        self.sender
+                            .send(Message::do_scene_command(SetCuboidHalfExtentsCommand::new(
+                                handle,
+                                Vector3::new(cuboid.half_extents.x, value, cuboid.half_extents.z),
+                            )))
+                            .unwrap();
+                    } else if message.destination() == self.half_depth
+                        && cuboid.half_extents.z.ne(&value)
+                    {
+                        self.sender
+                            .send(Message::do_scene_command(SetCuboidHalfExtentsCommand::new(
+                                handle,
+                                Vector3::new(cuboid.half_extents.x, cuboid.half_extents.y, value),
+                            )))
+                            .unwrap();
+                    }
                 }
             }
         }

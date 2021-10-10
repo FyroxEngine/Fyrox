@@ -6,12 +6,13 @@ use crate::{
     Message,
 };
 use rg3d::gui::message::UiMessage;
+use rg3d::gui::numeric::NumericUpDownMessage;
 use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::pool::Handle,
     gui::{
         grid::{Column, GridBuilder, Row},
-        message::{MessageDirection, NumericUpDownMessage, UiMessageData, WidgetMessage},
+        message::{MessageDirection, UiMessageData, WidgetMessage},
         widget::WidgetBuilder,
     },
     scene::{light::Light, node::Node},
@@ -74,15 +75,17 @@ impl PointLightSection {
 
     pub fn handle_message(&mut self, message: &UiMessage, node: &Node, handle: Handle<Node>) {
         if let Node::Light(Light::Point(point)) = node {
-            if let UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) =
-                *message.data()
-            {
-                if message.destination() == self.radius && point.radius().ne(&value) {
-                    self.sender
-                        .send(Message::do_scene_command(SetPointLightRadiusCommand::new(
-                            handle, value,
-                        )))
-                        .unwrap();
+            if let UiMessageData::User(msg) = message.data() {
+                if let Some(&NumericUpDownMessage::Value(value)) =
+                    msg.cast::<NumericUpDownMessage<f32>>()
+                {
+                    if message.destination() == self.radius && point.radius().ne(&value) {
+                        self.sender
+                            .send(Message::do_scene_command(SetPointLightRadiusCommand::new(
+                                handle, value,
+                            )))
+                            .unwrap();
+                    }
                 }
             }
         }

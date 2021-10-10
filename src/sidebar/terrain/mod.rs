@@ -11,6 +11,7 @@ use crate::{
     Message,
 };
 use rg3d::gui::message::UiMessage;
+use rg3d::gui::numeric::NumericUpDownMessage;
 use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::{algebra::Vector2, pool::Handle, scope_profile},
@@ -20,10 +21,7 @@ use rg3d::{
         decorator::DecoratorBuilder,
         grid::{Column, GridBuilder, Row},
         list_view::ListViewBuilder,
-        message::{
-            ButtonMessage, ListViewMessage, MessageDirection, NumericUpDownMessage, UiMessageData,
-            WidgetMessage,
-        },
+        message::{ButtonMessage, ListViewMessage, MessageDirection, UiMessageData, WidgetMessage},
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
         widget::WidgetBuilder,
@@ -204,7 +202,7 @@ impl TerrainSection {
         drop(brush);
 
         if let Node::Terrain(terrain) = node {
-            match *message.data() {
+            match message.data() {
                 UiMessageData::Button(ButtonMessage::Click) => {
                     if message.destination() == self.add_layer {
                         sender
@@ -222,23 +220,27 @@ impl TerrainSection {
                         }
                     }
                 }
-                UiMessageData::ListView(ListViewMessage::SelectionChanged(layer_index)) => {
+                &UiMessageData::ListView(ListViewMessage::SelectionChanged(layer_index)) => {
                     if message.destination() == self.layers && self.current_layer != layer_index {
                         self.current_layer = layer_index;
                         self.sync_to_model(node, ui);
                     }
                 }
-                UiMessageData::NumericUpDown(NumericUpDownMessage::Value(index))
-                    if message.destination() == self.decal_layer_index =>
-                {
-                    let index = index.clamp(0.0, 255.0) as u8;
+                UiMessageData::User(msg) => {
+                    if let Some(&NumericUpDownMessage::Value(value)) =
+                        msg.cast::<NumericUpDownMessage<f32>>()
+                    {
+                        if message.destination() == self.decal_layer_index {
+                            let index = value.clamp(0.0, 255.0) as u8;
 
-                    if index != terrain.decal_layer_index() {
-                        sender
-                            .send(Message::do_scene_command(
-                                SetTerrainDecalLayerIndexCommand::new(handle, index),
-                            ))
-                            .unwrap();
+                            if index != terrain.decal_layer_index() {
+                                sender
+                                    .send(Message::do_scene_command(
+                                        SetTerrainDecalLayerIndexCommand::new(handle, index),
+                                    ))
+                                    .unwrap();
+                            }
+                        }
                     }
                 }
                 _ => {}

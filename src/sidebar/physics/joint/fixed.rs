@@ -8,8 +8,8 @@ use crate::{
     sidebar::{make_section, make_text_mark, make_vec3_input_field, COLUMN_WIDTH, ROW_HEIGHT},
     Message,
 };
-use rg3d::core::math::UnitQuaternionExt;
 use rg3d::gui::message::UiMessage;
+use rg3d::gui::vec::vec3::Vec3EditorMessage;
 use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::{
@@ -19,7 +19,7 @@ use rg3d::{
     },
     gui::{
         grid::{Column, GridBuilder, Row},
-        message::{MessageDirection, UiMessageData, Vec3EditorMessage},
+        message::{MessageDirection, UiMessageData},
         widget::WidgetBuilder,
     },
     physics3d::desc::FixedJointDesc,
@@ -96,16 +96,16 @@ impl FixedJointSection {
             ),
         );
 
-        let euler = fixed.local_anchor1_rotation.to_euler();
+        let euler = fixed.local_anchor1_rotation.euler_angles();
         send_sync_message(
             ui,
             Vec3EditorMessage::value(
                 self.joint_anchor_rotation,
                 MessageDirection::ToWidget,
                 Vector3::new(
-                    euler.x.to_degrees(),
-                    euler.y.to_degrees(),
-                    euler.z.to_degrees(),
+                    euler.0.to_degrees(),
+                    euler.1.to_degrees(),
+                    euler.2.to_degrees(),
                 ),
             ),
         );
@@ -119,16 +119,16 @@ impl FixedJointSection {
             ),
         );
 
-        let euler = fixed.local_anchor2_rotation.to_euler();
+        let euler = fixed.local_anchor2_rotation.euler_angles();
         send_sync_message(
             ui,
             Vec3EditorMessage::value(
                 self.connected_anchor_rotation,
                 MessageDirection::ToWidget,
                 Vector3::new(
-                    euler.x.to_degrees(),
-                    euler.y.to_degrees(),
-                    euler.z.to_degrees(),
+                    euler.0.to_degrees(),
+                    euler.1.to_degrees(),
+                    euler.2.to_degrees(),
                 ),
             ),
         );
@@ -140,53 +140,55 @@ impl FixedJointSection {
         fixed: &FixedJointDesc,
         handle: Handle<Joint>,
     ) {
-        if let UiMessageData::Vec3Editor(Vec3EditorMessage::Value(value)) = *message.data() {
-            if message.direction() == MessageDirection::FromWidget {
-                if message.destination() == self.joint_anchor_translation
-                    && fixed.local_anchor1_translation.ne(&value)
-                {
-                    self.sender
-                        .send(Message::do_scene_command(
-                            SetFixedJointAnchor1TranslationCommand::new(handle, value),
-                        ))
-                        .unwrap();
-                } else if message.destination() == self.joint_anchor_rotation {
-                    let old_rotation = fixed.local_anchor1_rotation;
-                    let euler = Vector3::new(
-                        value.x.to_radians(),
-                        value.y.to_radians(),
-                        value.z.to_radians(),
-                    );
-                    let new_rotation = quat_from_euler(euler, RotationOrder::XYZ);
-                    if !old_rotation.approx_eq(&new_rotation, 0.00001) {
+        if let UiMessageData::User(msg) = message.data() {
+            if let Some(&Vec3EditorMessage::Value(value)) = msg.cast::<Vec3EditorMessage<f32>>() {
+                if message.direction() == MessageDirection::FromWidget {
+                    if message.destination() == self.joint_anchor_translation
+                        && fixed.local_anchor1_translation.ne(&value)
+                    {
                         self.sender
                             .send(Message::do_scene_command(
-                                SetFixedJointAnchor1RotationCommand::new(handle, new_rotation),
+                                SetFixedJointAnchor1TranslationCommand::new(handle, value),
                             ))
                             .unwrap();
-                    }
-                } else if message.destination() == self.connected_anchor_translation
-                    && fixed.local_anchor2_translation.ne(&value)
-                {
-                    self.sender
-                        .send(Message::do_scene_command(
-                            SetFixedJointAnchor2TranslationCommand::new(handle, value),
-                        ))
-                        .unwrap();
-                } else if message.destination() == self.connected_anchor_rotation {
-                    let old_rotation = fixed.local_anchor2_rotation;
-                    let euler = Vector3::new(
-                        value.x.to_radians(),
-                        value.y.to_radians(),
-                        value.z.to_radians(),
-                    );
-                    let new_rotation = quat_from_euler(euler, RotationOrder::XYZ);
-                    if !old_rotation.approx_eq(&new_rotation, 0.00001) {
+                    } else if message.destination() == self.joint_anchor_rotation {
+                        let old_rotation = fixed.local_anchor1_rotation;
+                        let euler = Vector3::new(
+                            value.x.to_radians(),
+                            value.y.to_radians(),
+                            value.z.to_radians(),
+                        );
+                        let new_rotation = quat_from_euler(euler, RotationOrder::XYZ);
+                        if old_rotation.ne(&new_rotation) {
+                            self.sender
+                                .send(Message::do_scene_command(
+                                    SetFixedJointAnchor1RotationCommand::new(handle, new_rotation),
+                                ))
+                                .unwrap();
+                        }
+                    } else if message.destination() == self.connected_anchor_translation
+                        && fixed.local_anchor2_translation.ne(&value)
+                    {
                         self.sender
                             .send(Message::do_scene_command(
-                                SetFixedJointAnchor2RotationCommand::new(handle, new_rotation),
+                                SetFixedJointAnchor2TranslationCommand::new(handle, value),
                             ))
                             .unwrap();
+                    } else if message.destination() == self.connected_anchor_rotation {
+                        let old_rotation = fixed.local_anchor2_rotation;
+                        let euler = Vector3::new(
+                            value.x.to_radians(),
+                            value.y.to_radians(),
+                            value.z.to_radians(),
+                        );
+                        let new_rotation = quat_from_euler(euler, RotationOrder::XYZ);
+                        if old_rotation.ne(&new_rotation) {
+                            self.sender
+                                .send(Message::do_scene_command(
+                                    SetFixedJointAnchor2RotationCommand::new(handle, new_rotation),
+                                ))
+                                .unwrap();
+                        }
                     }
                 }
             }

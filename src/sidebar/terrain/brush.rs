@@ -5,13 +5,14 @@ use crate::{
     sidebar::{make_f32_input_field, make_text_mark, COLUMN_WIDTH, ROW_HEIGHT},
 };
 use rg3d::gui::message::UiMessage;
+use rg3d::gui::numeric::NumericUpDownMessage;
 use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::{pool::Handle, scope_profile},
     gui::{
         dropdown_list::DropdownListBuilder,
         grid::{Column, GridBuilder, Row},
-        message::{DropdownListMessage, MessageDirection, NumericUpDownMessage, UiMessageData},
+        message::{DropdownListMessage, MessageDirection, UiMessageData},
         widget::WidgetBuilder,
     },
     scene::terrain::{Brush, BrushMode, BrushShape},
@@ -187,18 +188,22 @@ impl BrushSection {
                     }
                 }
             }
-            UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) => {
-                match &mut brush.shape {
-                    BrushShape::Circle { radius } => {
-                        if message.destination() == self.radius {
-                            *radius = *value;
+            UiMessageData::User(msg) => {
+                if let Some(&NumericUpDownMessage::Value(value)) =
+                    msg.cast::<NumericUpDownMessage<f32>>()
+                {
+                    match &mut brush.shape {
+                        BrushShape::Circle { radius } => {
+                            if message.destination() == self.radius {
+                                *radius = value;
+                            }
                         }
-                    }
-                    BrushShape::Rectangle { width, length } => {
-                        if message.destination() == self.length {
-                            *length = *value;
-                        } else if message.destination() == self.width {
-                            *width = *value;
+                        BrushShape::Rectangle { width, length } => {
+                            if message.destination() == self.length {
+                                *length = value;
+                            } else if message.destination() == self.width {
+                                *width = value;
+                            }
                         }
                     }
                 }

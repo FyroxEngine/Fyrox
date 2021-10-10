@@ -9,12 +9,13 @@ use crate::{
     Message,
 };
 use rg3d::gui::message::UiMessage;
+use rg3d::gui::vec::vec3::Vec3EditorMessage;
 use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::pool::Handle,
     gui::{
         grid::{Column, GridBuilder, Row},
-        message::{MessageDirection, UiMessageData, Vec3EditorMessage},
+        message::{MessageDirection, UiMessageData},
         widget::WidgetBuilder,
     },
     physics3d::desc::RevoluteJointDesc,
@@ -125,8 +126,8 @@ impl RevoluteJointSection {
         revolute: &RevoluteJointDesc,
         handle: Handle<Joint>,
     ) {
-        if let UiMessageData::Vec3Editor(Vec3EditorMessage::Value(value)) = *message.data() {
-            if message.direction() == MessageDirection::FromWidget {
+        if let UiMessageData::User(msg) = message.data() {
+            if let Some(&Vec3EditorMessage::Value(value)) = msg.cast() {
                 if message.destination() == self.joint_anchor && revolute.local_anchor1.ne(&value) {
                     self.sender
                         .send(Message::do_scene_command(

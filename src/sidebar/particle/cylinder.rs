@@ -8,12 +8,13 @@ use crate::{
     Message,
 };
 use rg3d::gui::message::UiMessage;
+use rg3d::gui::numeric::NumericUpDownMessage;
 use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::pool::Handle,
     gui::{
         grid::{Column, GridBuilder, Row},
-        message::{MessageDirection, NumericUpDownMessage, UiMessageData},
+        message::{MessageDirection, UiMessageData},
         widget::WidgetBuilder,
     },
     scene::{node::Node, particle_system::emitter::cylinder::CylinderEmitter},
@@ -81,20 +82,24 @@ impl CylinderSection {
         handle: Handle<Node>,
         emitter_index: usize,
     ) {
-        if let UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) = *message.data() {
-            if message.direction() == MessageDirection::FromWidget {
-                if message.destination() == self.radius && cylinder.radius().ne(&value) {
-                    self.sender
-                        .send(Message::do_scene_command(
-                            SetCylinderEmitterRadiusCommand::new(handle, emitter_index, value),
-                        ))
-                        .unwrap();
-                } else if message.destination() == self.height && cylinder.height().ne(&value) {
-                    self.sender
-                        .send(Message::do_scene_command(
-                            SetCylinderEmitterHeightCommand::new(handle, emitter_index, value),
-                        ))
-                        .unwrap();
+        if let UiMessageData::User(msg) = message.data() {
+            if let Some(&NumericUpDownMessage::Value(value)) =
+                msg.cast::<NumericUpDownMessage<f32>>()
+            {
+                if message.direction() == MessageDirection::FromWidget {
+                    if message.destination() == self.radius && cylinder.radius().ne(&value) {
+                        self.sender
+                            .send(Message::do_scene_command(
+                                SetCylinderEmitterRadiusCommand::new(handle, emitter_index, value),
+                            ))
+                            .unwrap();
+                    } else if message.destination() == self.height && cylinder.height().ne(&value) {
+                        self.sender
+                            .send(Message::do_scene_command(
+                                SetCylinderEmitterHeightCommand::new(handle, emitter_index, value),
+                            ))
+                            .unwrap();
+                    }
                 }
             }
         }

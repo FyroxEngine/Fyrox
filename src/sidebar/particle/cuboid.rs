@@ -9,12 +9,13 @@ use crate::{
     Message,
 };
 use rg3d::gui::message::UiMessage;
+use rg3d::gui::numeric::NumericUpDownMessage;
 use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::pool::Handle,
     gui::{
         grid::{Column, GridBuilder, Row},
-        message::{MessageDirection, NumericUpDownMessage, UiMessageData},
+        message::{MessageDirection, UiMessageData},
         widget::WidgetBuilder,
     },
     scene::{node::Node, particle_system::emitter::cuboid::CuboidEmitter},
@@ -108,30 +109,36 @@ impl BoxSection {
         handle: Handle<Node>,
         emitter_index: usize,
     ) {
-        if let UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) = *message.data() {
-            if message.direction() == MessageDirection::FromWidget {
-                if message.destination() == self.half_width && box_emitter.half_width().ne(&value) {
-                    self.sender
-                        .send(Message::do_scene_command(
-                            SetBoxEmitterHalfWidthCommand::new(handle, emitter_index, value),
-                        ))
-                        .unwrap();
-                } else if message.destination() == self.half_height
-                    && box_emitter.half_height().ne(&value)
-                {
-                    self.sender
-                        .send(Message::do_scene_command(
-                            SetBoxEmitterHalfHeightCommand::new(handle, emitter_index, value),
-                        ))
-                        .unwrap();
-                } else if message.destination() == self.half_depth
-                    && box_emitter.half_depth().ne(&value)
-                {
-                    self.sender
-                        .send(Message::do_scene_command(
-                            SetBoxEmitterHalfDepthCommand::new(handle, emitter_index, value),
-                        ))
-                        .unwrap();
+        if let UiMessageData::User(msg) = message.data() {
+            if let Some(&NumericUpDownMessage::Value(value)) =
+                msg.cast::<NumericUpDownMessage<f32>>()
+            {
+                if message.direction() == MessageDirection::FromWidget {
+                    if message.destination() == self.half_width
+                        && box_emitter.half_width().ne(&value)
+                    {
+                        self.sender
+                            .send(Message::do_scene_command(
+                                SetBoxEmitterHalfWidthCommand::new(handle, emitter_index, value),
+                            ))
+                            .unwrap();
+                    } else if message.destination() == self.half_height
+                        && box_emitter.half_height().ne(&value)
+                    {
+                        self.sender
+                            .send(Message::do_scene_command(
+                                SetBoxEmitterHalfHeightCommand::new(handle, emitter_index, value),
+                            ))
+                            .unwrap();
+                    } else if message.destination() == self.half_depth
+                        && box_emitter.half_depth().ne(&value)
+                    {
+                        self.sender
+                            .send(Message::do_scene_command(
+                                SetBoxEmitterHalfDepthCommand::new(handle, emitter_index, value),
+                            ))
+                            .unwrap();
+                    }
                 }
             }
         }

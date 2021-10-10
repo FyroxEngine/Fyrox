@@ -11,12 +11,14 @@ use crate::{
     Message,
 };
 use rg3d::gui::message::UiMessage;
+use rg3d::gui::numeric::NumericUpDownMessage;
+use rg3d::gui::vec::vec3::Vec3EditorMessage;
 use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::pool::Handle,
     gui::{
         grid::{Column, GridBuilder, Row},
-        message::{MessageDirection, NumericUpDownMessage, UiMessageData, Vec3EditorMessage},
+        message::{MessageDirection, UiMessageData},
         widget::WidgetBuilder,
     },
     physics3d::desc::CapsuleDesc,
@@ -98,33 +100,39 @@ impl CapsuleSection {
         handle: Handle<Collider>,
     ) {
         match message.data() {
-            &UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) => {
-                if message.direction() == MessageDirection::FromWidget
-                    && message.destination() == self.radius
-                    && capsule.radius.ne(&value)
+            UiMessageData::User(msg) => {
+                if let Some(&NumericUpDownMessage::Value(value)) =
+                    msg.cast::<NumericUpDownMessage<f32>>()
                 {
-                    self.sender
-                        .send(Message::do_scene_command(SetCapsuleRadiusCommand::new(
-                            handle, value,
-                        )))
-                        .unwrap();
+                    if message.direction() == MessageDirection::FromWidget
+                        && message.destination() == self.radius
+                        && capsule.radius.ne(&value)
+                    {
+                        self.sender
+                            .send(Message::do_scene_command(SetCapsuleRadiusCommand::new(
+                                handle, value,
+                            )))
+                            .unwrap();
+                    }
+                } else if let Some(&Vec3EditorMessage::Value(value)) =
+                    msg.cast::<Vec3EditorMessage<f32>>()
+                {
+                    if message.destination() == self.begin && capsule.begin.ne(&value) {
+                        self.sender
+                            .send(Message::do_scene_command(SetCapsuleBeginCommand::new(
+                                handle, value,
+                            )))
+                            .unwrap();
+                    } else if message.destination() == self.end && capsule.end.ne(&value) {
+                        self.sender
+                            .send(Message::do_scene_command(SetCapsuleEndCommand::new(
+                                handle, value,
+                            )))
+                            .unwrap();
+                    }
                 }
             }
-            UiMessageData::Vec3Editor(Vec3EditorMessage::Value(value)) => {
-                if message.destination() == self.begin && capsule.begin.ne(value) {
-                    self.sender
-                        .send(Message::do_scene_command(SetCapsuleBeginCommand::new(
-                            handle, *value,
-                        )))
-                        .unwrap();
-                } else if message.destination() == self.end && capsule.end.ne(value) {
-                    self.sender
-                        .send(Message::do_scene_command(SetCapsuleEndCommand::new(
-                            handle, *value,
-                        )))
-                        .unwrap();
-                }
-            }
+
             _ => {}
         }
     }

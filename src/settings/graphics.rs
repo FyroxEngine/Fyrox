@@ -4,16 +4,14 @@ use crate::{
     GameEngine,
 };
 use rg3d::gui::message::UiMessage;
+use rg3d::gui::numeric::NumericUpDownMessage;
 use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::pool::Handle,
     gui::{
         color::ColorFieldBuilder,
         grid::{Column, GridBuilder, Row},
-        message::{
-            CheckBoxMessage, ColorFieldMessage, MessageDirection, NumericUpDownMessage,
-            UiMessageData,
-        },
+        message::{CheckBoxMessage, ColorFieldMessage, MessageDirection, UiMessageData},
         numeric::NumericUpDownBuilder,
         widget::WidgetBuilder,
         Thickness,
@@ -213,11 +211,15 @@ impl GraphicsSection {
                     }
                 }
             }
-            &UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) => {
-                if message.destination() == self.near_plane {
-                    settings.z_near = value;
-                } else if message.destination() == self.far_plane {
-                    settings.z_far = value;
+            UiMessageData::User(msg) if message.direction() == MessageDirection::FromWidget => {
+                if let Some(&NumericUpDownMessage::Value(value)) =
+                    msg.cast::<NumericUpDownMessage<f32>>()
+                {
+                    if message.destination() == self.near_plane {
+                        settings.z_near = value;
+                    } else if message.destination() == self.far_plane {
+                        settings.z_far = value;
+                    }
                 }
             }
             _ => {}

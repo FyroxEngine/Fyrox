@@ -14,6 +14,8 @@ use crate::{
     Message,
 };
 use rg3d::gui::message::UiMessage;
+use rg3d::gui::numeric::NumericUpDownMessage;
+use rg3d::gui::vec::vec3::Vec3EditorMessage;
 use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::{pool::Handle, scope_profile},
@@ -21,8 +23,7 @@ use rg3d::{
         color::ColorFieldBuilder,
         grid::{Column, GridBuilder, Row},
         message::{
-            CheckBoxMessage, ColorFieldMessage, MessageDirection, NumericUpDownMessage,
-            UiMessageData, Vec3EditorMessage, WidgetMessage,
+            CheckBoxMessage, ColorFieldMessage, MessageDirection, UiMessageData, WidgetMessage,
         },
         stack_panel::StackPanelBuilder,
         widget::WidgetBuilder,
@@ -172,16 +173,7 @@ impl LightSection {
         scope_profile!();
 
         if let Node::Light(light) = node {
-            match *message.data() {
-                UiMessageData::Vec3Editor(Vec3EditorMessage::Value(value)) => {
-                    if message.destination() == self.light_scatter && light.scatter() != value {
-                        self.sender
-                            .send(Message::do_scene_command(SetLightScatterCommand::new(
-                                handle, value,
-                            )))
-                            .unwrap();
-                    }
-                }
+            match message.data() {
                 UiMessageData::CheckBox(CheckBoxMessage::Check(value)) => {
                     let value = value.unwrap_or(false);
 
@@ -203,7 +195,7 @@ impl LightSection {
                             .unwrap();
                     }
                 }
-                UiMessageData::ColorField(ColorFieldMessage::Color(color)) => {
+                &UiMessageData::ColorField(ColorFieldMessage::Color(color)) => {
                     if message.destination() == self.color && light.color() != color {
                         self.sender
                             .send(Message::do_scene_command(SetLightColorCommand::new(
@@ -212,13 +204,27 @@ impl LightSection {
                             .unwrap();
                     }
                 }
-                UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)) => {
-                    if message.destination() == self.intensity && light.intensity().ne(&value) {
-                        self.sender
-                            .send(Message::do_scene_command(SetLightIntensityCommand::new(
-                                handle, value,
-                            )))
-                            .unwrap_or_default();
+                UiMessageData::User(msg) => {
+                    if let Some(&NumericUpDownMessage::Value(value)) =
+                        msg.cast::<NumericUpDownMessage<f32>>()
+                    {
+                        if message.destination() == self.intensity && light.intensity().ne(&value) {
+                            self.sender
+                                .send(Message::do_scene_command(SetLightIntensityCommand::new(
+                                    handle, value,
+                                )))
+                                .unwrap_or_default();
+                        }
+                    } else if let Some(&Vec3EditorMessage::Value(value)) =
+                        msg.cast::<Vec3EditorMessage<f32>>()
+                    {
+                        if message.destination() == self.light_scatter && light.scatter() != value {
+                            self.sender
+                                .send(Message::do_scene_command(SetLightScatterCommand::new(
+                                    handle, value,
+                                )))
+                                .unwrap();
+                        }
                     }
                 }
                 _ => {}
