@@ -58,6 +58,17 @@ pub struct PropertyInfo<'a> {
     pub read_only: bool,
 }
 
+#[allow(clippy::vtable_address_comparisons)]
+impl<'a> PartialEq<Self> for PropertyInfo<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        self.owner_type_id == other.owner_type_id
+            && self.name == other.name
+            && self.display_name == other.display_name
+            && self.group == other.group
+            && std::ptr::eq(self.value, other.value)
+    }
+}
+
 impl<'a> fmt::Debug for PropertyInfo<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("PropertyInfo")
