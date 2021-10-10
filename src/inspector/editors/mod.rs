@@ -1,4 +1,3 @@
-use crate::physics::Collider;
 use crate::{
     inspector::editors::{
         material::MaterialPropertyEditorDefinition, texture::TexturePropertyEditorDefinition,

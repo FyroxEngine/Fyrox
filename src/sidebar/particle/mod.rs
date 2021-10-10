@@ -396,9 +396,9 @@ impl ParticleSystemSection {
                             && message.destination() == self.acceleration
                         {
                             self.sender
-                                .send(Message::do_scene_command(
-                                    SetParticleSystemAccelerationCommand::new(handle, *value),
-                                ))
+                                .send(Message::do_scene_command(SetAccelerationCommand::new(
+                                    handle, *value,
+                                )))
                                 .unwrap();
                         }
                     }
