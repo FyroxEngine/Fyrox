@@ -414,6 +414,8 @@ where
                 Box::new(CollectionEditorMessage::Items(items)),
             )))
         } else {
+            let mut error_group = Vec::new();
+
             // Just sync inspector of every item.
             for (item, obj) in instance_ref.items.clone().iter().zip(value.iter()) {
                 let ctx = ui
@@ -422,12 +424,16 @@ where
                     .expect("Must be Inspector!")
                     .context()
                     .clone();
-                if let Err(_) = ctx.sync(obj, ui) {
-                    // TODO
+                if let Err(e) = ctx.sync(obj, ui) {
+                    error_group.extend(e.into_iter())
                 }
             }
 
-            Ok(None)
+            if error_group.is_empty() {
+                Ok(None)
+            } else {
+                Err(InspectorError::Group(error_group))
+            }
         }
     }
 

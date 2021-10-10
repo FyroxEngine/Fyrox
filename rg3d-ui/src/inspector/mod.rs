@@ -61,6 +61,7 @@ pub enum InspectorError {
     CastError(CastError),
     OutOfSync,
     Custom(String),
+    Group(Vec<InspectorError>),
 }
 
 impl From<CastError> for InspectorError {

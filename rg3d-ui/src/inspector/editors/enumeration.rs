@@ -335,15 +335,15 @@ where
             .context()
             .clone();
 
-        if let Err(_) = inspector_ctx.sync(value, ctx.ui) {
-            // TODO
+        if let Err(e) = inspector_ctx.sync(value, ctx.ui) {
+            Err(InspectorError::Group(e))
+        } else {
+            Ok(Some(DropdownListMessage::selection(
+                ctx.instance,
+                MessageDirection::ToWidget,
+                Some((self.index_generator)(value)),
+            )))
         }
-
-        Ok(Some(DropdownListMessage::selection(
-            ctx.instance,
-            MessageDirection::ToWidget,
-            Some((self.index_generator)(value)),
-        )))
     }
 
     fn translate_message(
