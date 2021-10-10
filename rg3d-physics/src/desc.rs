@@ -94,9 +94,9 @@ impl From<RigidBodyType> for RigidBodyTypeDesc {
     }
 }
 
-impl Into<RigidBodyType> for RigidBodyTypeDesc {
-    fn into(self) -> RigidBodyType {
-        match self {
+impl From<RigidBodyTypeDesc> for RigidBodyType {
+    fn from(v: RigidBodyTypeDesc) -> Self {
+        match v {
             RigidBodyTypeDesc::Dynamic => RigidBodyType::Dynamic,
             RigidBodyTypeDesc::Static => RigidBodyType::Static,
             RigidBodyTypeDesc::KinematicPositionBased => RigidBodyType::KinematicPositionBased,
@@ -166,7 +166,12 @@ where
             position: body.position().translation.vector,
             rotation: body.position().rotation,
             lin_vel: *body.linvel(),
-            ang_vel: body.angvel().clone(),
+            ang_vel: {
+                // lint disable due to conditional compilation, the underlying type is different for
+                // 2d and 3d.
+                #[allow(clippy::clone_on_copy)]
+                body.angvel().clone()
+            },
             status: body.body_type().into(),
             sleeping: body.is_sleeping(),
             colliders: body
@@ -758,26 +763,26 @@ impl From<IntegrationParameters> for IntegrationParametersDesc {
     }
 }
 
-impl Into<IntegrationParameters> for IntegrationParametersDesc {
-    fn into(self) -> IntegrationParameters {
+impl From<IntegrationParametersDesc> for IntegrationParameters {
+    fn from(params: IntegrationParametersDesc) -> Self {
         IntegrationParameters {
-            dt: self.dt,
-            min_ccd_dt: self.min_ccd_dt,
-            erp: self.erp,
-            joint_erp: self.joint_erp,
-            warmstart_coeff: self.warmstart_coeff,
-            warmstart_correction_slope: self.warmstart_correction_slope,
-            velocity_solve_fraction: self.velocity_solve_fraction,
-            velocity_based_erp: self.velocity_based_erp,
-            allowed_linear_error: self.allowed_linear_error,
-            allowed_angular_error: self.allowed_angular_error,
-            max_linear_correction: self.max_linear_correction,
-            max_angular_correction: self.max_angular_correction,
-            prediction_distance: self.prediction_distance,
-            max_velocity_iterations: self.max_velocity_iterations as usize,
-            max_position_iterations: self.max_position_iterations as usize,
-            min_island_size: self.min_island_size as usize,
-            max_ccd_substeps: self.max_ccd_substeps as usize,
+            dt: params.dt,
+            min_ccd_dt: params.min_ccd_dt,
+            erp: params.erp,
+            joint_erp: params.joint_erp,
+            warmstart_coeff: params.warmstart_coeff,
+            warmstart_correction_slope: params.warmstart_correction_slope,
+            velocity_solve_fraction: params.velocity_solve_fraction,
+            velocity_based_erp: params.velocity_based_erp,
+            allowed_linear_error: params.allowed_linear_error,
+            allowed_angular_error: params.allowed_angular_error,
+            max_linear_correction: params.max_linear_correction,
+            max_angular_correction: params.max_angular_correction,
+            prediction_distance: params.prediction_distance,
+            max_velocity_iterations: params.max_velocity_iterations as usize,
+            max_position_iterations: params.max_position_iterations as usize,
+            min_island_size: params.min_island_size as usize,
+            max_ccd_substeps: params.max_ccd_substeps as usize,
         }
     }
 }
@@ -905,9 +910,9 @@ impl Default for JointParamsDesc {
     }
 }
 
-impl Into<JointParams> for JointParamsDesc {
-    fn into(self) -> JointParams {
-        match self {
+impl From<JointParamsDesc> for JointParams {
+    fn from(params: JointParamsDesc) -> Self {
+        match params {
             JointParamsDesc::BallJoint(v) => JointParams::from(BallJoint::new(
                 Point::from(v.local_anchor1),
                 Point::from(v.local_anchor2),

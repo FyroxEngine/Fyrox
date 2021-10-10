@@ -89,27 +89,24 @@ impl<T: InspectableEnum> Control for EnumPropertyEditor<T> {
 
         match message.data() {
             UiMessageData::User(msg) if message.destination() == self.handle => {
-                if let Some(msg) = msg.cast::<EnumPropertyEditorMessage>() {
-                    match msg {
-                        EnumPropertyEditorMessage::Variant(variant) => {
-                            let variant = (self.definition.variant_generator)(*variant);
+                if let Some(EnumPropertyEditorMessage::Variant(variant)) =
+                    msg.cast::<EnumPropertyEditorMessage>()
+                {
+                    let variant = (self.definition.variant_generator)(*variant);
 
-                            let ctx = InspectorContext::from_object(
-                                &variant,
-                                &mut ui.build_ctx(),
-                                self.definition_container.clone(),
-                                self.environment.clone(),
-                                self.sync_flag,
-                            );
+                    let ctx = InspectorContext::from_object(
+                        &variant,
+                        &mut ui.build_ctx(),
+                        self.definition_container.clone(),
+                        self.environment.clone(),
+                        self.sync_flag,
+                    );
 
-                            ui.send_message(InspectorMessage::context(
-                                self.inspector,
-                                MessageDirection::ToWidget,
-                                ctx,
-                            ));
-                        }
-                        _ => (),
-                    }
+                    ui.send_message(InspectorMessage::context(
+                        self.inspector,
+                        MessageDirection::ToWidget,
+                        ctx,
+                    ));
                 }
             }
             UiMessageData::Inspector(InspectorMessage::PropertyChanged(property_changed)) => {
@@ -206,17 +203,15 @@ impl EnumPropertyEditorBuilder {
             self.sync_flag,
         );
 
-        let inspector;
+        let inspector = InspectorBuilder::new(WidgetBuilder::new())
+            .with_context(context)
+            .build(ctx);
+
         let editor = EnumPropertyEditor {
             widget: self
                 .widget_builder
                 .with_preview_messages(true)
-                .with_child({
-                    inspector = InspectorBuilder::new(WidgetBuilder::new())
-                        .with_context(context)
-                        .build(ctx);
-                    inspector
-                })
+                .with_child(inspector)
                 .build(),
             variant_selector: self.variant_selector,
             inspector,

@@ -253,7 +253,7 @@ impl ParticleSystem {
                     emitter_index: i as u32,
                     ..Particle::default()
                 };
-                emitter.alive_particles = emitter.alive_particles + 1;
+                emitter.alive_particles += 1;
                 emitter.emit(&mut particle);
                 if let Some(free_index) = self.free_particles.pop() {
                     self.particles[free_index as usize] = particle;
@@ -271,7 +271,7 @@ impl ParticleSystem {
                 if particle.lifetime >= particle.initial_lifetime {
                     self.free_particles.push(i as u32);
                     if let Some(emitter) = self.emitters.get_mut(particle.emitter_index as usize) {
-                        emitter.alive_particles = emitter.alive_particles - 1;
+                        emitter.alive_particles -= 1;
                     }
                     particle.alive = false;
                     particle.lifetime = particle.initial_lifetime;

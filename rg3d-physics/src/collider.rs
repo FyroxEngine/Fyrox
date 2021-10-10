@@ -41,12 +41,14 @@ impl ColliderContainer {
     pub fn from_raw_parts(
         set: ColliderSet,
         handle_map: BiDirHashMap<ColliderHandle, NativeColliderHandle>,
-    ) -> Result<Self, ()> {
+    ) -> Result<Self, &'static str> {
         assert_eq!(set.len(), handle_map.len());
 
         for handle in handle_map.forward_map().values() {
             if !set.contains(*handle) {
-                return Err(());
+                return Err(
+                    "Unable to create collider container because handle map is out of sync!",
+                );
             }
         }
 

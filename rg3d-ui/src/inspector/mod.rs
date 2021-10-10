@@ -77,6 +77,7 @@ pub struct ContextEntry {
     pub property_editor: Handle<UiNode>,
 }
 
+#[allow(clippy::vtable_address_comparisons)]
 impl PartialEq for ContextEntry {
     fn eq(&self, other: &Self) -> bool {
         self.property_editor == other.property_editor

@@ -118,9 +118,9 @@ macro_rules! define_rapier_handle {
             }
         }
 
-        impl Into<rg3d_core::uuid::Uuid> for $type_name {
-            fn into(self) -> rg3d_core::uuid::Uuid {
-                self.0
+        impl From<$type_name> for rg3d_core::uuid::Uuid {
+            fn from(v: $type_name) -> Self {
+                v.0
             }
         }
 

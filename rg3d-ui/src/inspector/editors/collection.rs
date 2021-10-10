@@ -277,18 +277,16 @@ where
             })
             .unwrap_or_default();
 
-        let panel;
+        let panel = StackPanelBuilder::new(
+            WidgetBuilder::new().with_children(create_item_views(&items, ctx)),
+        )
+        .build(ctx);
+
         let ce = CollectionEditor {
             widget: self
                 .widget_builder
                 .with_preview_messages(true)
-                .with_child({
-                    panel = StackPanelBuilder::new(
-                        WidgetBuilder::new().with_children(create_item_views(&items, ctx)),
-                    )
-                    .build(ctx);
-                    panel
-                })
+                .with_child(panel)
                 .build(),
             add: self.add,
             items,
@@ -312,6 +310,15 @@ where
     T: Inspect + Debug + Send + Sync + 'static,
 {
     pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl<T> Default for VecCollectionPropertyEditorDefinition<T>
+where
+    T: Inspect + Debug + Send + Sync + 'static,
+{
+    fn default() -> Self {
         Self {
             phantom: PhantomData::default(),
         }

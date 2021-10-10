@@ -30,6 +30,15 @@ where
     T: NumAssign + Scalar + PartialOrd + Debug + Copy + Send + Sync + NumCast + 'static,
 {
     pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl<T> Default for RectPropertyEditorDefinition<T>
+where
+    T: NumAssign + Scalar + PartialOrd + Debug + Copy + Send + Sync + NumCast + 'static,
+{
+    fn default() -> Self {
         Self {
             phantom: PhantomData,
         }
@@ -53,7 +62,7 @@ where
         Ok(PropertyEditorInstance {
             title: Default::default(),
             editor: RectEditorBuilder::new(WidgetBuilder::new().with_height(36.0))
-                .with_value(value.clone())
+                .with_value(*value)
                 .build(ctx.build_context),
         })
     }
@@ -66,7 +75,7 @@ where
         Ok(Some(UiMessage::user(
             ctx.instance,
             MessageDirection::ToWidget,
-            Box::new(RectEditorMessage::Value(value.clone())),
+            Box::new(RectEditorMessage::Value(*value)),
         )))
     }
 
@@ -78,14 +87,12 @@ where
     ) -> Option<PropertyChanged> {
         if message.direction() == MessageDirection::FromWidget {
             if let UiMessageData::User(msg) = message.data() {
-                if let Some(msg) = msg.cast::<RectEditorMessage<T>>() {
-                    if let RectEditorMessage::Value(value) = msg {
-                        return Some(PropertyChanged {
-                            name: name.to_string(),
-                            owner_type_id,
-                            value: FieldKind::object(*value),
-                        });
-                    }
+                if let Some(RectEditorMessage::Value(value)) = msg.cast::<RectEditorMessage<T>>() {
+                    return Some(PropertyChanged {
+                        name: name.to_string(),
+                        owner_type_id,
+                        value: FieldKind::object(*value),
+                    });
                 }
             }
         }

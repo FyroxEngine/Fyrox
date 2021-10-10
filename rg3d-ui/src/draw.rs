@@ -1,6 +1,3 @@
-// Don't know how to correctly fix this so lower priority for now.
-#![warn(clippy::vtable_address_comparisons)]
-
 use crate::core::algebra::Vector2;
 use crate::{
     brush::Brush,
@@ -43,6 +40,7 @@ impl<T: Any + Sync + Send> From<Arc<T>> for SharedTexture {
     }
 }
 
+#[allow(clippy::vtable_address_comparisons)]
 impl PartialEq for SharedTexture {
     fn eq(&self, other: &Self) -> bool {
         std::ptr::eq(self.0.deref(), other.0.deref())

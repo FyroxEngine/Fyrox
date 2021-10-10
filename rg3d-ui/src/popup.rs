@@ -160,7 +160,7 @@ impl Control for Popup {
                     ));
                 }
                 PopupMessage::Placement(placement) => {
-                    self.placement = placement.clone();
+                    self.placement = *placement;
                     self.invalidate_layout();
                 }
             },

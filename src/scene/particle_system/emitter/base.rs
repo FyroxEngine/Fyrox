@@ -406,7 +406,7 @@ impl Clone for BaseEmitter {
             z_velocity: self.z_velocity,
             rotation_speed: self.rotation_speed,
             rotation: self.rotation,
-            alive_particles: self.alive_particles.clone(),
+            alive_particles: self.alive_particles,
             time: self.time,
             particles_to_spawn: 0,
             resurrect_particles: self.resurrect_particles,

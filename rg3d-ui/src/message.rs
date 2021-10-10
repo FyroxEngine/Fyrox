@@ -986,6 +986,7 @@ pub struct ObjectValue {
     value: Arc<dyn PropertyValue>,
 }
 
+#[allow(clippy::vtable_address_comparisons)]
 impl PartialEq for ObjectValue {
     fn eq(&self, other: &Self) -> bool {
         std::ptr::eq(&*self.value, &*other.value)

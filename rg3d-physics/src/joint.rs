@@ -35,12 +35,12 @@ impl JointContainer {
     pub fn from_raw_parts(
         set: JointSet,
         handle_map: BiDirHashMap<JointHandle, NativeJointHandle>,
-    ) -> Result<Self, ()> {
+    ) -> Result<Self, &'static str> {
         assert_eq!(set.len(), handle_map.len());
 
         for handle in handle_map.forward_map().values() {
             if !set.contains(*handle) {
-                return Err(());
+                return Err("Unable to create joint container because handle map is out of sync!");
             }
         }
 
