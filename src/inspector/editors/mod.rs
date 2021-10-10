@@ -1,9 +1,11 @@
+use crate::physics::Collider;
 use crate::{
     inspector::editors::{
         material::MaterialPropertyEditorDefinition, texture::TexturePropertyEditorDefinition,
     },
     Message,
 };
+use rg3d::core::pool::ErasedHandle;
 use rg3d::sound::source::Status;
 use rg3d::{
     core::inspect::Inspect,
@@ -11,6 +13,7 @@ use rg3d::{
         collection::VecCollectionPropertyEditorDefinition,
         enumeration::EnumPropertyEditorDefinition, PropertyEditorDefinitionContainer,
     },
+    physics3d,
     scene::{
         base::{Mobility, PhysicsBinding},
         camera::Exposure,
@@ -106,6 +109,28 @@ pub fn make_status_enum_editor_definition() -> EnumPropertyEditorDefinition<Stat
     }
 }
 
+pub fn make_rigid_body_type_editor_definition(
+) -> EnumPropertyEditorDefinition<physics3d::desc::RigidBodyTypeDesc> {
+    EnumPropertyEditorDefinition {
+        variant_generator: |i| match i {
+            0 => physics3d::desc::RigidBodyTypeDesc::Dynamic,
+            1 => physics3d::desc::RigidBodyTypeDesc::Static,
+            2 => physics3d::desc::RigidBodyTypeDesc::KinematicPositionBased,
+            3 => physics3d::desc::RigidBodyTypeDesc::KinematicVelocityBased,
+            _ => unreachable!(),
+        },
+        index_generator: |v| *v as usize,
+        names_generator: || {
+            vec![
+                "Dynamic".to_string(),
+                "Static".to_string(),
+                "Kinematic (Position Based)".to_string(),
+                "Kinematic (Velocity Based)".to_string(),
+            ]
+        },
+    }
+}
+
 pub fn make_option_editor_definition<T>() -> EnumPropertyEditorDefinition<Option<T>>
 where
     T: Inspect + Default + Debug + Send + Sync + 'static,
@@ -142,11 +167,15 @@ pub fn make_property_editors_container(
     container.insert(Arc::new(
         VecCollectionPropertyEditorDefinition::<Emitter>::new(),
     ));
+    container.insert(Arc::new(VecCollectionPropertyEditorDefinition::<
+        ErasedHandle,
+    >::new()));
     container.insert(Arc::new(make_physics_binding_enum_editor_definition()));
     container.insert(Arc::new(make_mobility_enum_editor_definition()));
     container.insert(Arc::new(make_exposure_enum_editor_definition()));
     container.insert(Arc::new(make_render_path_enum_editor_definition()));
     container.insert(Arc::new(make_status_enum_editor_definition()));
+    container.insert(Arc::new(make_rigid_body_type_editor_definition()));
     container.insert(Arc::new(make_option_editor_definition::<f32>()));
 
     Arc::new(container)
