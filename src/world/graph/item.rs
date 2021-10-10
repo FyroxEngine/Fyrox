@@ -34,7 +34,7 @@ use std::{
 };
 
 #[derive(Clone)]
-pub struct SceneItem {
+pub struct GraphNodeItem {
     pub tree: Tree,
     text_name: Handle<UiNode>,
     pub node: Handle<Node>,
@@ -44,13 +44,13 @@ pub struct SceneItem {
     resource_manager: ResourceManager,
 }
 
-impl Debug for SceneItem {
+impl Debug for GraphNodeItem {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "SceneItem")
     }
 }
 
-impl Deref for SceneItem {
+impl Deref for GraphNodeItem {
     type Target = Widget;
 
     fn deref(&self) -> &Self::Target {
@@ -58,13 +58,13 @@ impl Deref for SceneItem {
     }
 }
 
-impl DerefMut for SceneItem {
+impl DerefMut for GraphNodeItem {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.tree
     }
 }
 
-impl Control for SceneItem {
+impl Control for GraphNodeItem {
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         self.tree.resolve(node_map);
         node_map.resolve(&mut self.text_name);
@@ -309,7 +309,7 @@ impl SceneItemBuilder {
         )
         .build_tree(ctx);
 
-        let item = SceneItem {
+        let item = GraphNodeItem {
             tree,
             node: self.node,
             visibility_toggle,

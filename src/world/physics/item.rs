@@ -1,10 +1,11 @@
 use rg3d::{
+    asset::core::algebra::Vector2,
     core::pool::Handle,
     gui::{
-        border::BorderBuilder,
-        decorator::DecoratorBuilder,
-        message::{MessageDirection, TextMessage, UiMessage, UiMessageData},
+        draw::DrawingContext,
+        message::{MessageDirection, OsEvent, TextMessage, UiMessage, UiMessageData},
         text::TextBuilder,
+        tree::{Tree, TreeBuilder},
         widget::{Widget, WidgetBuilder},
         BuildContext, Control, NodeHandleMapping, UiNode, UserInterface,
     },
@@ -13,7 +14,7 @@ use std::ops::{Deref, DerefMut};
 
 #[derive(Debug)]
 pub struct PhysicsItem<T> {
-    widget: Widget,
+    pub tree: Tree,
     text: Handle<UiNode>,
     pub physics_entity: Handle<T>,
 }
@@ -21,7 +22,7 @@ pub struct PhysicsItem<T> {
 impl<T> Clone for PhysicsItem<T> {
     fn clone(&self) -> Self {
         Self {
-            widget: self.widget.clone(),
+            tree: self.tree.clone(),
             text: self.text,
             physics_entity: self.physics_entity,
         }
@@ -37,22 +38,40 @@ impl<T> Deref for PhysicsItem<T> {
     type Target = Widget;
 
     fn deref(&self) -> &Self::Target {
-        &self.widget
+        &self.tree
     }
 }
 
 impl<T> DerefMut for PhysicsItem<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.widget
+        &mut self.tree
     }
 }
 
 impl<T: 'static> Control for PhysicsItem<T> {
-    fn resolve(&mut self, node_map: &NodeHandleMapping) {
-        node_map.resolve(&mut self.text)
+    fn resolve(&mut self, _node_map: &NodeHandleMapping) {
+        self.tree.resolve(_node_map)
+    }
+
+    fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
+        self.tree.measure_override(ui, available_size)
+    }
+
+    fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
+        self.tree.arrange_override(ui, final_size)
+    }
+
+    fn draw(&self, _drawing_context: &mut DrawingContext) {
+        self.tree.draw(_drawing_context)
+    }
+
+    fn update(&mut self, _dt: f32) {
+        self.tree.update(_dt)
     }
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
+        self.tree.handle_routed_message(ui, message);
+
         if let UiMessageData::User(msg) = message.data() {
             if let Some(PhysicsItemMessage::Name(name)) = msg.cast::<PhysicsItemMessage>() {
                 ui.send_message(TextMessage::text(
@@ -63,10 +82,27 @@ impl<T: 'static> Control for PhysicsItem<T> {
             }
         }
     }
+
+    fn preview_message(&self, _ui: &UserInterface, _message: &mut UiMessage) {
+        self.tree.preview_message(_ui, _message)
+    }
+
+    fn handle_os_event(
+        &mut self,
+        _self_handle: Handle<UiNode>,
+        _ui: &mut UserInterface,
+        _event: &OsEvent,
+    ) {
+        self.tree.handle_os_event(_self_handle, _ui, _event)
+    }
+
+    fn remove_ref(&mut self, _handle: Handle<UiNode>) {
+        self.tree.remove_ref(_handle)
+    }
 }
 
 pub struct PhysicsItemBuilder<T> {
-    widget_builder: WidgetBuilder,
+    tree_builder: TreeBuilder,
     name: String,
     physics_entity: Handle<T>,
 }
@@ -76,9 +112,9 @@ fn make_item_name<T>(name: &str, handle: Handle<T>) -> String {
 }
 
 impl<T: 'static> PhysicsItemBuilder<T> {
-    pub fn new(widget_builder: WidgetBuilder) -> Self {
+    pub fn new(tree_builder: TreeBuilder) -> Self {
         Self {
-            widget_builder,
+            tree_builder,
             name: Default::default(),
             physics_entity: Default::default(),
         }
@@ -95,18 +131,12 @@ impl<T: 'static> PhysicsItemBuilder<T> {
     }
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        let text;
-        let decorator =
-            DecoratorBuilder::new(BorderBuilder::new(WidgetBuilder::new().with_child({
-                text = TextBuilder::new(WidgetBuilder::new())
-                    .with_text(make_item_name(&self.name, self.physics_entity))
-                    .build(ctx);
-                text
-            })))
+        let text = TextBuilder::new(WidgetBuilder::new())
+            .with_text(make_item_name(&self.name, self.physics_entity))
             .build(ctx);
 
         let node = PhysicsItem {
-            widget: self.widget_builder.with_child(decorator).build(),
+            tree: self.tree_builder.with_content(text).build_tree(ctx),
             text,
             physics_entity: self.physics_entity,
         };

@@ -31,7 +31,6 @@ pub mod sidebar;
 pub mod utils;
 pub mod world;
 
-use crate::world::physics::PhysicsViewer;
 use crate::{
     asset::{AssetBrowser, AssetItem, AssetKind},
     camera::CameraController,
@@ -68,8 +67,7 @@ use crate::{
     settings::{Settings, SettingsSectionKind},
     sidebar::SideBar,
     utils::path_fixer::PathFixer,
-    world::graph::SceneGraphViewer,
-    world::sound::SoundPanel,
+    world::graph::WorldViewer,
 };
 use rg3d::{
     core::{
@@ -807,14 +805,13 @@ struct Editor {
     message_receiver: Receiver<Message>,
     interaction_modes: Vec<InteractionMode>,
     current_interaction_mode: Option<InteractionModeKind>,
-    world_outliner: SceneGraphViewer,
+    world_viewer: WorldViewer,
     root_grid: Handle<UiNode>,
     preview: ScenePreview,
     asset_browser: AssetBrowser,
     exit_message_box: Handle<UiNode>,
     save_file_selector: Handle<UiNode>,
     light_panel: LightPanel,
-    sound_panel: SoundPanel,
     menu: Menu,
     exit: bool,
     configurator: Configurator,
@@ -826,7 +823,6 @@ struct Editor {
     model_import_dialog: ModelImportDialog,
     path_fixer: PathFixer,
     material_editor: MaterialEditor,
-    physics_viewer: PhysicsViewer,
 }
 
 impl Editor {
@@ -884,14 +880,12 @@ impl Editor {
         let asset_browser = AssetBrowser::new(engine);
         let menu = Menu::new(engine, message_sender.clone(), &settings);
         let light_panel = LightPanel::new(engine);
-        let physics_viewer = PhysicsViewer::new(engine);
 
         let ctx = &mut engine.user_interface.build_ctx();
         let sidebar = SideBar::new(ctx, message_sender.clone());
         let navmesh_panel = NavmeshPanel::new(ctx, message_sender.clone());
-        let world_outliner = SceneGraphViewer::new(ctx, message_sender.clone());
+        let world_outliner = WorldViewer::new(ctx, message_sender.clone());
         let command_stack_viewer = CommandStackViewer::new(ctx, message_sender.clone());
-        let sound_panel = SoundPanel::new(ctx);
         let log = Log::new(ctx);
         let model_import_dialog = ModelImportDialog::new(ctx);
 
@@ -911,47 +905,9 @@ impl Editor {
                                             splitter: 0.25,
                                             tiles: [
                                                 TileBuilder::new(WidgetBuilder::new())
-                                                    .with_content(TileContent::VerticalTiles {
-                                                        splitter: 0.5,
-                                                        tiles: [
-                                                            TileBuilder::new(WidgetBuilder::new())
-                                                                .with_content(TileContent::Window(
-                                                                    world_outliner.window,
-                                                                ))
-                                                                .build(ctx),
-                                                            TileBuilder::new(WidgetBuilder::new())
-                                                                .with_content(
-                                                                    TileContent::VerticalTiles {
-                                                                        splitter: 0.5,
-                                                                        tiles: [
-                                                                            TileBuilder::new(
-                                                                                WidgetBuilder::new(
-                                                                                ),
-                                                                            )
-                                                                            .with_content(
-                                                                                TileContent::Window(
-                                                                                    sound_panel
-                                                                                        .window,
-                                                                                ),
-                                                                            )
-                                                                            .build(ctx),
-                                                                            TileBuilder::new(
-                                                                                WidgetBuilder::new(
-                                                                                ),
-                                                                            )
-                                                                            .with_content(
-                                                                                TileContent::Window(
-                                                                                    physics_viewer
-                                                                                        .window,
-                                                                                ),
-                                                                            )
-                                                                            .build(ctx),
-                                                                        ],
-                                                                    },
-                                                                )
-                                                                .build(ctx),
-                                                        ],
-                                                    })
+                                                    .with_content(TileContent::Window(
+                                                        world_outliner.window,
+                                                    ))
                                                     .build(ctx),
                                                 TileBuilder::new(WidgetBuilder::new())
                                                     .with_content(TileContent::HorizontalTiles {
@@ -1056,7 +1012,6 @@ impl Editor {
         let mut editor = Self {
             navmesh_panel,
             sidebar,
-            sound_panel,
             preview,
             scene: None,
             command_stack: CommandStack::new(false),
@@ -1064,7 +1019,7 @@ impl Editor {
             message_receiver,
             interaction_modes: Default::default(),
             current_interaction_mode: None,
-            world_outliner,
+            world_viewer: world_outliner,
             root_grid,
             menu,
             exit: false,
@@ -1080,7 +1035,6 @@ impl Editor {
             model_import_dialog,
             path_fixer,
             material_editor,
-            physics_viewer,
         };
 
         editor.set_interaction_mode(Some(InteractionModeKind::Move), engine);
@@ -1228,7 +1182,7 @@ impl Editor {
                 engine,
                 editor_scene: self.scene.as_mut(),
                 sidebar_window: self.sidebar.window,
-                world_outliner_window: self.world_outliner.window,
+                world_outliner_window: self.world_viewer.window,
                 asset_window: self.asset_browser.window,
                 configurator_window: self.configurator.window,
                 light_panel: self.light_panel.window,
@@ -1258,13 +1212,10 @@ impl Editor {
                 },
             );
 
-            self.sound_panel
-                .handle_ui_message(&self.message_sender, editor_scene, message, engine);
-
             self.sidebar
                 .handle_ui_message(message, editor_scene, engine);
 
-            self.world_outliner
+            self.world_viewer
                 .handle_ui_message(message, editor_scene, engine);
 
             self.light_panel
@@ -1275,13 +1226,6 @@ impl Editor {
 
             self.material_editor
                 .handle_ui_message(message, engine, &self.message_sender);
-
-            self.physics_viewer.handle_ui_message(
-                &self.message_sender,
-                editor_scene,
-                message,
-                engine,
-            );
 
             self.model_import_dialog.handle_ui_message(
                 message,
@@ -1637,13 +1581,11 @@ impl Editor {
             .sync_to_model(self.scene.as_ref(), &mut engine.user_interface);
 
         if let Some(editor_scene) = self.scene.as_mut() {
-            self.world_outliner.sync_to_model(editor_scene, engine);
+            self.world_viewer.sync_to_model(editor_scene, engine);
             self.sidebar.sync_to_model(editor_scene, engine);
             self.navmesh_panel.sync_to_model(editor_scene, engine);
-            self.sound_panel.sync_to_model(editor_scene, engine);
             self.material_editor
                 .sync_to_model(&mut engine.user_interface);
-            self.physics_viewer.sync_to_model(editor_scene, engine);
             self.command_stack_viewer.sync_to_model(
                 &mut self.command_stack,
                 &SceneContext {
@@ -1655,13 +1597,13 @@ impl Editor {
                 &mut engine.user_interface,
             )
         } else {
-            self.world_outliner.clear(&mut engine.user_interface);
+            self.world_viewer.clear(&mut engine.user_interface);
         }
     }
 
     fn post_update(&mut self, engine: &mut GameEngine) {
         if let Some(scene) = self.scene.as_mut() {
-            self.world_outliner.post_update(scene, engine);
+            self.world_viewer.post_update(scene, engine);
         }
     }
 
@@ -1724,7 +1666,7 @@ impl Editor {
                     }
                 }
                 Message::SelectionChanged => {
-                    self.world_outliner.sync_selection = true;
+                    self.world_viewer.sync_selection = true;
                 }
                 Message::SyncToModel => {
                     needs_sync = true;
