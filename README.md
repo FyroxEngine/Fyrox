@@ -215,6 +215,14 @@ There are many examples covering various aspects of the engine. Also don't hesit
 
 [![editor](https://raw.githubusercontent.com/mrDIMAS/rusty-editor/master/screenshots/latest.png)](https://github.com/mrDIMAS/rusty-editor/)
 
+## Dependencies
+
+### Linux
+
+```shell
+sudo apt install libxcb-shape0-dev libxcb-xfixes0-dev libxcb1-dev libxkbcommon-dev libasound2-dev
+```
+
 ## Contributing
 
 Contributions are very welcome! Feel free to open Issues and Pull Requests.
