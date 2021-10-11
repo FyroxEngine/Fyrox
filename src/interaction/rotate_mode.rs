@@ -1,11 +1,12 @@
 use crate::scene::commands::SceneCommand;
+use crate::world::graph::selection::GraphSelection;
 use crate::{
     interaction::{
         calculate_gizmo_distance_scaling, gizmo::rotate_gizmo::RotationGizmo, InteractionModeTrait,
     },
     scene::{
         commands::{graph::RotateNodeCommand, ChangeSelectionCommand, CommandGroup},
-        EditorScene, GraphSelection, Selection,
+        EditorScene, Selection,
     },
     settings::Settings,
     GameEngine, Message,

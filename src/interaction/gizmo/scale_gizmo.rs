@@ -1,8 +1,5 @@
-use crate::{
-    make_color_material,
-    scene::{EditorScene, GraphSelection},
-    set_mesh_diffuse_color, GameEngine,
-};
+use crate::world::graph::selection::GraphSelection;
+use crate::{make_color_material, scene::EditorScene, set_mesh_diffuse_color, GameEngine};
 use rg3d::{
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},

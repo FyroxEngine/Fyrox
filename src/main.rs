@@ -67,7 +67,7 @@ use crate::{
     settings::{Settings, SettingsSectionKind},
     sidebar::SideBar,
     utils::path_fixer::PathFixer,
-    world::graph::WorldViewer,
+    world::WorldViewer,
 };
 use rg3d::{
     core::{
