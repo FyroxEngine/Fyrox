@@ -2090,7 +2090,7 @@ fn main() {
                         .unwrap();
                 }
                 WindowEvent::Resized(size) => {
-                    if let Err(e) = engine.renderer.set_frame_size(size.into()) {
+                    if let Err(e) = engine.set_frame_size(size.into()) {
                         rg3d::utils::log::Log::writeln(
                             MessageKind::Error,
                             format!("Failed to set renderer size! Reason: {:?}", e),
