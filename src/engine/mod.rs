@@ -162,6 +162,18 @@ impl Engine {
         })
     }
 
+    /// Adjust size of the frame to be rendered. Must be called after the window size changes.
+    /// Will update the renderer and GL context frame size.
+    /// When using the [`framework::Framework`], you don't need to call this yourself.
+    pub fn set_frame_size(&mut self, new_size: (u32, u32)) -> Result<(), FrameworkError> {
+        self.renderer.set_frame_size(new_size)?;
+
+        #[cfg(not(target_arch = "wasm32"))]
+        self.context.resize(new_size.into());
+
+        Ok(())
+    }
+
     /// Returns reference to main window. Could be useful to set fullscreen mode, change
     /// size of window, its title, etc.
     #[inline]

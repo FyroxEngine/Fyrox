@@ -115,7 +115,7 @@ impl<State: GameState> Framework<State> {
                     match event {
                         WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
                         WindowEvent::Resized(size) => {
-                            if let Err(e) = engine.renderer.set_frame_size(size.into()) {
+                            if let Err(e) = engine.set_frame_size(size.into()) {
                                 Log::writeln(
                                     MessageKind::Error,
                                     format!("Unable to set frame size: {:?}", e),
