@@ -6,35 +6,27 @@ use rg3d::{
         message::{MessageDirection, OsEvent, TextMessage, UiMessage, UiMessageData},
         text::TextBuilder,
         tree::{Tree, TreeBuilder},
-        widget::{Widget, WidgetBuilder},
+        widget::Widget,
+        widget::WidgetBuilder,
         BuildContext, Control, NodeHandleMapping, UiNode, UserInterface,
     },
+    sound::source::SoundSource,
 };
 use std::ops::{Deref, DerefMut};
 
-#[derive(Debug)]
-pub struct PhysicsItem<T> {
+#[derive(Clone, Debug)]
+pub struct SoundItem {
     pub tree: Tree,
     text: Handle<UiNode>,
-    pub physics_entity: Handle<T>,
-}
-
-impl<T> Clone for PhysicsItem<T> {
-    fn clone(&self) -> Self {
-        Self {
-            tree: self.tree.clone(),
-            text: self.text,
-            physics_entity: self.physics_entity,
-        }
-    }
+    pub sound_source: Handle<SoundSource>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum PhysicsItemMessage {
+pub enum SoundItemMessage {
     Name(String),
 }
 
-impl<T> Deref for PhysicsItem<T> {
+impl Deref for SoundItem {
     type Target = Widget;
 
     fn deref(&self) -> &Self::Target {
@@ -42,13 +34,13 @@ impl<T> Deref for PhysicsItem<T> {
     }
 }
 
-impl<T> DerefMut for PhysicsItem<T> {
+impl DerefMut for SoundItem {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.tree
     }
 }
 
-impl<T: 'static> Control for PhysicsItem<T> {
+impl Control for SoundItem {
     fn resolve(&mut self, _node_map: &NodeHandleMapping) {
         self.tree.resolve(_node_map)
     }
@@ -73,11 +65,11 @@ impl<T: 'static> Control for PhysicsItem<T> {
         self.tree.handle_routed_message(ui, message);
 
         if let UiMessageData::User(msg) = message.data() {
-            if let Some(PhysicsItemMessage::Name(name)) = msg.cast::<PhysicsItemMessage>() {
+            if let Some(SoundItemMessage::Name(name)) = msg.cast::<SoundItemMessage>() {
                 ui.send_message(TextMessage::text(
                     self.text,
                     MessageDirection::ToWidget,
-                    make_item_name(name, self.physics_entity),
+                    make_item_name(name, self.sound_source),
                 ));
             }
         }
@@ -101,22 +93,22 @@ impl<T: 'static> Control for PhysicsItem<T> {
     }
 }
 
-pub struct PhysicsItemBuilder<T> {
+pub struct SoundItemBuilder {
     tree_builder: TreeBuilder,
     name: String,
-    physics_entity: Handle<T>,
+    sound_source: Handle<SoundSource>,
 }
 
-fn make_item_name<T>(name: &str, handle: Handle<T>) -> String {
+fn make_item_name(name: &str, handle: Handle<SoundSource>) -> String {
     format!("{} ({}:{})", name, handle.index(), handle.generation())
 }
 
-impl<T: 'static> PhysicsItemBuilder<T> {
+impl SoundItemBuilder {
     pub fn new(tree_builder: TreeBuilder) -> Self {
         Self {
             tree_builder,
             name: Default::default(),
-            physics_entity: Default::default(),
+            sound_source: Default::default(),
         }
     }
 
@@ -125,20 +117,20 @@ impl<T: 'static> PhysicsItemBuilder<T> {
         self
     }
 
-    pub fn with_physics_entity(mut self, entity: Handle<T>) -> Self {
-        self.physics_entity = entity;
+    pub fn with_sound_source(mut self, source: Handle<SoundSource>) -> Self {
+        self.sound_source = source;
         self
     }
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let text = TextBuilder::new(WidgetBuilder::new())
-            .with_text(make_item_name(&self.name, self.physics_entity))
+            .with_text(make_item_name(&self.name, self.sound_source))
             .build(ctx);
 
-        let node = PhysicsItem {
+        let node = SoundItem {
             tree: self.tree_builder.with_content(text).build_tree(ctx),
             text,
-            physics_entity: self.physics_entity,
+            sound_source: self.sound_source,
         };
 
         ctx.add_node(UiNode::new(node))

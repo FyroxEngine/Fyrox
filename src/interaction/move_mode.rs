@@ -1,6 +1,4 @@
-use crate::scene::commands::sound::MoveSpatialSoundSourceCommand;
-use crate::scene::commands::SceneCommand;
-use crate::world::sound::SoundSelection;
+use crate::world::graph::selection::GraphSelection;
 use crate::{
     camera::CameraController,
     interaction::{
@@ -8,13 +6,16 @@ use crate::{
         InteractionModeTrait,
     },
     scene::{
-        commands::{graph::MoveNodeCommand, ChangeSelectionCommand, CommandGroup},
-        EditorScene, GraphSelection, Selection,
+        commands::{
+            graph::MoveNodeCommand, sound::MoveSpatialSoundSourceCommand, ChangeSelectionCommand,
+            CommandGroup, SceneCommand,
+        },
+        EditorScene, Selection,
     },
     settings::Settings,
+    world::sound::selection::SoundSelection,
     GameEngine, Message,
 };
-use rg3d::sound::context::SoundContext;
 use rg3d::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
@@ -22,7 +23,7 @@ use rg3d::{
         pool::Handle,
     },
     scene::{graph::Graph, node::Node, Scene},
-    sound::source::SoundSource,
+    sound::{context::SoundContext, source::SoundSource},
 };
 use std::sync::mpsc::Sender;
 

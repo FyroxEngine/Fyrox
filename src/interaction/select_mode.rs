@@ -1,14 +1,18 @@
-use crate::interaction::InteractionModeTrait;
-use crate::scene::commands::ChangeSelectionCommand;
-use crate::scene::{EditorScene, GraphSelection, Selection};
-use crate::settings::Settings;
-use crate::{GameEngine, Message};
-use rg3d::core::algebra::Vector2;
-use rg3d::core::math::aabb::AxisAlignedBoundingBox;
-use rg3d::core::pool::Handle;
-use rg3d::gui::message::{MessageDirection, WidgetMessage};
-use rg3d::gui::UiNode;
-use rg3d::scene::node::Node;
+use crate::world::graph::selection::GraphSelection;
+use crate::{
+    interaction::InteractionModeTrait,
+    scene::{commands::ChangeSelectionCommand, EditorScene, Selection},
+    settings::Settings,
+    GameEngine, Message,
+};
+use rg3d::{
+    core::{algebra::Vector2, math::aabb::AxisAlignedBoundingBox, pool::Handle},
+    gui::{
+        message::{MessageDirection, WidgetMessage},
+        UiNode,
+    },
+    scene::node::Node,
+};
 use std::sync::mpsc::Sender;
 
 pub struct SelectInteractionMode {
