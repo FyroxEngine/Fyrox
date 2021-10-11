@@ -25,6 +25,7 @@ use crate::{
     },
     GameEngine, Message,
 };
+use rg3d::scene::Scene;
 use rg3d::{
     core::{
         color::Color,
@@ -72,7 +73,7 @@ pub struct WorldViewer {
     /// this moment UI is completely built and we can do syncing.
     pub sync_selection: bool,
     node_path: Handle<UiNode>,
-    breadcrumbs: HashMap<Handle<UiNode>, Handle<Node>>,
+    breadcrumbs: HashMap<Handle<UiNode>, Handle<UiNode>>,
     collapse_all: Handle<UiNode>,
     expand_all: Handle<UiNode>,
     locate_selection: Handle<UiNode>,
@@ -376,46 +377,103 @@ impl WorldViewer {
             );
         }
 
-        self.update_breadcrumbs(ui, editor_scene, graph);
+        self.update_breadcrumbs(ui, editor_scene, scene);
+    }
+
+    fn build_breadcrumb(
+        &mut self,
+        name: &str,
+        associated_item: Handle<UiNode>,
+        ui: &mut UserInterface,
+    ) {
+        let element = ButtonBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
+            .with_text(name)
+            .build(&mut ui.build_ctx());
+
+        send_sync_message(
+            ui,
+            WidgetMessage::link_reverse(element, MessageDirection::ToWidget, self.node_path),
+        );
+
+        self.breadcrumbs.insert(element, associated_item);
     }
 
     fn update_breadcrumbs(
         &mut self,
         ui: &mut UserInterface,
         editor_scene: &EditorScene,
-        graph: &Graph,
+        scene: &Scene,
     ) {
         // Update breadcrumbs.
         self.breadcrumbs.clear();
         for &child in ui.node(self.node_path).children() {
             send_sync_message(ui, WidgetMessage::remove(child, MessageDirection::ToWidget));
         }
-        if let Selection::Graph(selection) = &editor_scene.selection {
-            if let Some(&first_selected) = selection.nodes().first() {
-                let mut item = first_selected;
-                while item.is_some() {
-                    let node = &graph[item];
 
-                    let element = ButtonBuilder::new(
-                        WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
-                    )
-                    .with_text(node.name())
-                    .build(&mut ui.build_ctx());
+        match &editor_scene.selection {
+            Selection::Graph(selection) => {
+                if let Some(&first_selected) = selection.nodes().first() {
+                    let mut item = first_selected;
+                    while item.is_some() {
+                        let node = &scene.graph[item];
 
-                    send_sync_message(
-                        ui,
-                        WidgetMessage::link_reverse(
-                            element,
-                            MessageDirection::ToWidget,
-                            self.node_path,
-                        ),
-                    );
+                        let view = ui.find_by_criteria_down(self.graph_folder, &|n| {
+                            n.cast::<GraphNodeItem>()
+                                .map(|i| i.node == item)
+                                .unwrap_or_default()
+                        });
+                        assert!(view.is_some());
+                        self.build_breadcrumb(node.name(), view, ui);
 
-                    self.breadcrumbs.insert(element, item);
-
-                    item = node.parent();
+                        item = node.parent();
+                    }
                 }
             }
+            Selection::Navmesh(_) => {
+                // TODO
+            }
+            Selection::Sound(selection) => {
+                if let Some(&first_selected) = selection.sources().first() {
+                    let view = ui.find_by_criteria_down(self.sounds_folder, &|n| {
+                        n.cast::<SoundItem>()
+                            .map(|i| i.sound_source == first_selected)
+                            .unwrap_or_default()
+                    });
+                    assert!(view.is_some());
+                    self.build_breadcrumb(
+                        scene.sound_context.state().source(first_selected).name(),
+                        view,
+                        ui,
+                    );
+                }
+            }
+            Selection::RigidBody(selection) => {
+                if let Some(&first_selected) = selection.bodies().first() {
+                    let view = ui.find_by_criteria_down(self.rigid_bodies_folder, &|n| {
+                        n.cast::<PhysicsItem<RigidBody>>()
+                            .map(|i| i.physics_entity == first_selected)
+                            .unwrap_or_default()
+                    });
+                    assert!(view.is_some());
+                    self.build_breadcrumb(
+                        &fetch_name(first_selected, editor_scene, &scene.graph),
+                        view,
+                        ui,
+                    );
+                }
+            }
+            Selection::Joint(selection) => {
+                if let Some(&first_selected) = selection.joints().first() {
+                    let view = ui.find_by_criteria_down(self.joints_folder, &|n| {
+                        n.cast::<PhysicsItem<Joint>>()
+                            .map(|i| i.physics_entity == first_selected)
+                            .unwrap_or_default()
+                    });
+                    assert!(view.is_some());
+                    self.build_breadcrumb("Joint", view, ui);
+                }
+            }
+            Selection::None => {}
         }
     }
 
@@ -777,13 +835,21 @@ impl WorldViewer {
                 }
             }
             UiMessageData::Button(ButtonMessage::Click) => {
-                if let Some(&node) = self.breadcrumbs.get(&message.destination()) {
-                    self.sender
-                        .send(Message::do_scene_command(ChangeSelectionCommand::new(
-                            Selection::Graph(GraphSelection::single_or_empty(node)),
-                            editor_scene.selection.clone(),
-                        )))
-                        .unwrap();
+                if let Some(&view) = self.breadcrumbs.get(&message.destination()) {
+                    if let Some(graph_node) =
+                        engine.user_interface.node(view).cast::<GraphNodeItem>()
+                    {
+                        self.sender
+                            .send(Message::do_scene_command(ChangeSelectionCommand::new(
+                                Selection::Graph(GraphSelection::single_or_empty(graph_node.node)),
+                                editor_scene.selection.clone(),
+                            )))
+                            .unwrap();
+                    } else {
+                        // Rest are not handled intentionally because other entities cannot have
+                        // hierarchy and thus there is no need to change selection when we already
+                        // have it selected.
+                    }
                 } else if message.destination() == self.collapse_all {
                     engine
                         .user_interface
