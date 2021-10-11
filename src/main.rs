@@ -1617,6 +1617,7 @@ impl Editor {
             self.inspector.sync_to_model(editor_scene, engine);
             self.sidebar.sync_to_model(editor_scene, engine);
             self.navmesh_panel.sync_to_model(editor_scene, engine);
+            self.world_viewer.sync_to_model(editor_scene, engine);
             self.material_editor
                 .sync_to_model(&mut engine.user_interface);
             self.command_stack_viewer.sync_to_model(
