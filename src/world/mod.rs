@@ -541,7 +541,7 @@ impl WorldViewer {
             } else {
                 None
             },
-            PhantomData::<PhysicsItem<RigidBody>>,
+            PhantomData::<PhysicsItem<Joint>>,
             |ui, handle, _| {
                 PhysicsItemBuilder::<Joint>::new(TreeBuilder::new(WidgetBuilder::new()))
                     .with_name("Joint".to_owned())
