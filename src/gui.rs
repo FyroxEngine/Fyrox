@@ -24,7 +24,7 @@ pub enum AssetItemMessage {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum SceneItemMessage {
+pub enum GraphNodeItemMessage {
     NodeVisibility(bool),
     Name(String),
     /// Odd or even.
@@ -44,12 +44,12 @@ pub fn make_dropdown_list_option(ctx: &mut BuildContext, name: &str) -> Handle<U
     .build(ctx)
 }
 
-impl SceneItemMessage {
+impl GraphNodeItemMessage {
     pub fn node_visibility(destination: Handle<UiNode>, visibility: bool) -> UiMessage {
         UiMessage::user(
             destination,
             MessageDirection::ToWidget,
-            Box::new(SceneItemMessage::NodeVisibility(visibility)),
+            Box::new(GraphNodeItemMessage::NodeVisibility(visibility)),
         )
     }
 
@@ -57,7 +57,7 @@ impl SceneItemMessage {
         UiMessage::user(
             destination,
             MessageDirection::ToWidget,
-            Box::new(SceneItemMessage::Name(name)),
+            Box::new(GraphNodeItemMessage::Name(name)),
         )
     }
 }

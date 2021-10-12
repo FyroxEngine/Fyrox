@@ -120,6 +120,66 @@ impl Command for DeleteJointCommand {
 }
 
 #[derive(Debug)]
+pub struct LinkBodyCommand {
+    pub node: Handle<Node>,
+    pub handle: Handle<RigidBody>,
+}
+
+impl Command for LinkBodyCommand {
+    fn name(&mut self, _: &SceneContext) -> String {
+        "Link Body Command".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut SceneContext) {
+        assert!(context
+            .editor_scene
+            .physics
+            .binder
+            .insert(self.node, self.handle)
+            .is_none());
+    }
+
+    fn revert(&mut self, context: &mut SceneContext) {
+        assert!(context
+            .editor_scene
+            .physics
+            .binder
+            .remove_by_key(&self.node)
+            .is_some())
+    }
+}
+
+#[derive(Debug)]
+pub struct UnlinkBodyCommand {
+    pub node: Handle<Node>,
+    pub handle: Handle<RigidBody>,
+}
+
+impl Command for UnlinkBodyCommand {
+    fn name(&mut self, _: &SceneContext) -> String {
+        "Unlink Body Command".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut SceneContext) {
+        assert!(context
+            .editor_scene
+            .physics
+            .binder
+            .remove_by_key(&self.node)
+            .is_some())
+    }
+
+    fn revert(&mut self, context: &mut SceneContext) {
+        assert!(context
+            .editor_scene
+            .physics
+            .binder
+            .insert(self.node, self.handle)
+            .is_none());
+    }
+}
+
+#[derive(Debug)]
 pub struct SetBodyCommand {
     node: Handle<Node>,
     ticket: Option<Ticket<RigidBody>>,

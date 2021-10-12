@@ -1,41 +1,48 @@
-use rg3d::gui::VerticalAlignment;
+use rg3d::gui::{Thickness, VerticalAlignment};
 use rg3d::{
     asset::core::algebra::Vector2,
+    core::color::Color,
     core::pool::Handle,
+    gui::brush::Brush,
     gui::{
         draw::DrawingContext,
         message::{MessageDirection, OsEvent, TextMessage, UiMessage, UiMessageData},
         text::TextBuilder,
         tree::{Tree, TreeBuilder},
-        widget::{Widget, WidgetBuilder},
+        widget::Widget,
+        widget::WidgetBuilder,
         BuildContext, Control, NodeHandleMapping, UiNode, UserInterface,
     },
 };
 use std::ops::{Deref, DerefMut};
 
+pub mod menu;
+
 #[derive(Debug)]
-pub struct PhysicsItem<T> {
+pub struct LinkItem<S, D> {
     pub tree: Tree,
     text: Handle<UiNode>,
-    pub physics_entity: Handle<T>,
+    pub source: Handle<S>,
+    pub dest: Handle<D>,
 }
 
-impl<T> Clone for PhysicsItem<T> {
+impl<S, D> Clone for LinkItem<S, D> {
     fn clone(&self) -> Self {
         Self {
             tree: self.tree.clone(),
-            text: self.text,
-            physics_entity: self.physics_entity,
+            text: self.text.clone(),
+            source: self.source.clone(),
+            dest: self.dest.clone(),
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum PhysicsItemMessage {
+pub enum LinkItemMessage {
     Name(String),
 }
 
-impl<T> Deref for PhysicsItem<T> {
+impl<S, D> Deref for LinkItem<S, D> {
     type Target = Widget;
 
     fn deref(&self) -> &Self::Target {
@@ -43,13 +50,13 @@ impl<T> Deref for PhysicsItem<T> {
     }
 }
 
-impl<T> DerefMut for PhysicsItem<T> {
+impl<S, D> DerefMut for LinkItem<S, D> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.tree
     }
 }
 
-impl<T: 'static> Control for PhysicsItem<T> {
+impl<S: 'static, D: 'static> Control for LinkItem<S, D> {
     fn resolve(&mut self, _node_map: &NodeHandleMapping) {
         self.tree.resolve(_node_map)
     }
@@ -74,11 +81,11 @@ impl<T: 'static> Control for PhysicsItem<T> {
         self.tree.handle_routed_message(ui, message);
 
         if let UiMessageData::User(msg) = message.data() {
-            if let Some(PhysicsItemMessage::Name(name)) = msg.cast::<PhysicsItemMessage>() {
+            if let Some(LinkItemMessage::Name(name)) = msg.cast::<LinkItemMessage>() {
                 ui.send_message(TextMessage::text(
                     self.text,
                     MessageDirection::ToWidget,
-                    make_item_name(name, self.physics_entity),
+                    make_item_name(name, self.source, self.dest),
                 ));
             }
         }
@@ -102,45 +109,64 @@ impl<T: 'static> Control for PhysicsItem<T> {
     }
 }
 
-pub struct PhysicsItemBuilder<T> {
+pub struct LinkItemBuilder<S, D> {
     tree_builder: TreeBuilder,
     name: String,
-    physics_entity: Handle<T>,
+    source: Handle<S>,
+    dest: Handle<D>,
 }
 
-fn make_item_name<T>(name: &str, handle: Handle<T>) -> String {
-    format!("{} ({}:{})", name, handle.index(), handle.generation())
+fn make_item_name<S, D>(name: &str, source: Handle<S>, dest: Handle<D>) -> String {
+    format!(
+        "{} ({}:{}) - ({}:{})",
+        name,
+        source.index(),
+        source.generation(),
+        dest.index(),
+        dest.generation()
+    )
 }
 
-impl<T: 'static> PhysicsItemBuilder<T> {
+impl<S: 'static, D: 'static> LinkItemBuilder<S, D> {
     pub fn new(tree_builder: TreeBuilder) -> Self {
         Self {
             tree_builder,
             name: Default::default(),
-            physics_entity: Default::default(),
+            source: Default::default(),
+            dest: Default::default(),
         }
     }
 
-    pub fn with_name(mut self, name: String) -> Self {
-        self.name = name;
+    pub fn with_name<N: AsRef<str>>(mut self, name: N) -> Self {
+        self.name = name.as_ref().to_owned();
         self
     }
 
-    pub fn with_physics_entity(mut self, entity: Handle<T>) -> Self {
-        self.physics_entity = entity;
+    pub fn with_source(mut self, source: Handle<S>) -> Self {
+        self.source = source;
+        self
+    }
+
+    pub fn with_dest(mut self, dest: Handle<D>) -> Self {
+        self.dest = dest;
         self
     }
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        let text = TextBuilder::new(WidgetBuilder::new())
-            .with_vertical_text_alignment(VerticalAlignment::Center)
-            .with_text(make_item_name(&self.name, self.physics_entity))
-            .build(ctx);
+        let text = TextBuilder::new(
+            WidgetBuilder::new()
+                .with_margin(Thickness::uniform(1.0))
+                .with_foreground(Brush::Solid(Color::opaque(34, 177, 76))),
+        )
+        .with_vertical_text_alignment(VerticalAlignment::Center)
+        .with_text(make_item_name(&self.name, self.source, self.dest))
+        .build(ctx);
 
-        let node = PhysicsItem {
+        let node = LinkItem {
             tree: self.tree_builder.with_content(text).build_tree(ctx),
             text,
-            physics_entity: self.physics_entity,
+            source: self.source,
+            dest: self.dest,
         };
 
         ctx.add_node(UiNode::new(node))

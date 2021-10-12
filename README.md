@@ -18,7 +18,7 @@ It should be noted that this editor is the **scene** editor, it does **not** all
 #### Linux
 
 ```shell
-sudo apt install libxcb-shape0-dev libxcb-xfixes0-dev libxcb1-dev libxkbcommon-dev
+sudo apt install libxcb-shape0-dev libxcb-xfixes0-dev libxcb1-dev libxkbcommon-dev libasound2-dev
 ```
 
 ### Clean build
