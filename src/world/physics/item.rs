@@ -1,3 +1,4 @@
+use rg3d::gui::VerticalAlignment;
 use rg3d::{
     asset::core::algebra::Vector2,
     core::pool::Handle,
@@ -132,6 +133,7 @@ impl<T: 'static> PhysicsItemBuilder<T> {
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let text = TextBuilder::new(WidgetBuilder::new())
+            .with_vertical_text_alignment(VerticalAlignment::Center)
             .with_text(make_item_name(&self.name, self.physics_entity))
             .build(ctx);
 

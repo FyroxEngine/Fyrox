@@ -1,3 +1,4 @@
+use rg3d::gui::{Thickness, VerticalAlignment};
 use rg3d::{
     asset::core::algebra::Vector2,
     core::color::Color,
@@ -153,8 +154,11 @@ impl<S: 'static, D: 'static> LinkItemBuilder<S, D> {
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let text = TextBuilder::new(
-            WidgetBuilder::new().with_foreground(Brush::Solid(Color::opaque(34, 177, 76))),
+            WidgetBuilder::new()
+                .with_margin(Thickness::uniform(1.0))
+                .with_foreground(Brush::Solid(Color::opaque(34, 177, 76))),
         )
+        .with_vertical_text_alignment(VerticalAlignment::Center)
         .with_text(make_item_name(&self.name, self.source, self.dest))
         .build(ctx);
 
