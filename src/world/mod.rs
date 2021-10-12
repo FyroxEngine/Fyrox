@@ -1,18 +1,22 @@
-use crate::world::graph::selection::GraphSelection;
 use crate::{
-    gui::SceneItemMessage,
+    gui::GraphNodeItemMessage,
     load_image,
     physics::{Joint, RigidBody},
     scene::{
-        commands::{graph::LinkNodesCommand, ChangeSelectionCommand},
+        commands::{
+            graph::LinkNodesCommand, physics::LinkBodyCommand, physics::UnlinkBodyCommand,
+            ChangeSelectionCommand,
+        },
         EditorScene, Selection,
     },
     send_sync_message,
     world::{
         graph::{
-            item::{GraphNodeItem, SceneItemBuilder},
+            item::{GraphNodeItem, GraphNodeItemBuilder},
             menu::ItemContextMenu,
+            selection::GraphSelection,
         },
+        link::{menu::LinkContextMenu, LinkItem, LinkItemBuilder},
         physics::{
             fetch_name,
             item::{PhysicsItem, PhysicsItemBuilder, PhysicsItemMessage},
@@ -25,21 +29,21 @@ use crate::{
     },
     GameEngine, Message,
 };
-use rg3d::scene::Scene;
 use rg3d::{
     core::{
         color::Color,
         pool::{Handle, Pool},
         scope_profile,
     },
-    engine::resource_manager::ResourceManager,
+    engine::{resource_manager::ResourceManager, Engine},
     gui::{
         brush::Brush,
         button::ButtonBuilder,
         grid::{Column, GridBuilder, Row},
         message::{
-            ButtonMessage, MessageDirection, ScrollViewerMessage, TreeExpansionStrategy,
-            TreeMessage, TreeRootMessage, UiMessage, UiMessageData, WidgetMessage,
+            ButtonMessage, MenuItemMessage, MessageDirection, ScrollViewerMessage,
+            TreeExpansionStrategy, TreeMessage, TreeRootMessage, UiMessage, UiMessageData,
+            WidgetMessage,
         },
         scroll_viewer::ScrollViewerBuilder,
         stack_panel::StackPanelBuilder,
@@ -50,12 +54,13 @@ use rg3d::{
         BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
         VerticalAlignment,
     },
-    scene::{graph::Graph, node::Node},
+    scene::{graph::Graph, node::Node, Scene},
     sound::context::SoundContext,
 };
 use std::{cmp::Ordering, collections::HashMap, marker::PhantomData, sync::mpsc::Sender};
 
 pub mod graph;
+pub mod link;
 pub mod physics;
 pub mod sound;
 
@@ -79,9 +84,11 @@ pub struct WorldViewer {
     locate_selection: Handle<UiNode>,
     scroll_view: Handle<UiNode>,
     item_context_menu: ItemContextMenu,
+    link_context_menu: LinkContextMenu,
+    node_to_view_map: HashMap<Handle<Node>, Handle<UiNode>>,
 }
 
-fn make_tree(
+fn make_graph_node_item(
     node: &Node,
     handle: Handle<Node>,
     ctx: &mut BuildContext,
@@ -94,7 +101,7 @@ fn make_tree(
         _ => load_image(include_bytes!("../../resources/embed/cube.png")),
     };
 
-    SceneItemBuilder::new()
+    GraphNodeItemBuilder::new()
         .with_name(node.name().to_owned())
         .with_node(handle)
         .with_visibility(node.visibility())
@@ -117,7 +124,7 @@ fn colorize(tree: Handle<UiNode>, ui: &UserInterface, index: &mut usize) {
         ui.send_message(UiMessage::user(
             tree,
             MessageDirection::ToWidget,
-            Box::new(SceneItemMessage::Order(*index % 2 == 0)),
+            Box::new(GraphNodeItemMessage::Order(*index % 2 == 0)),
         ));
 
         *index += 1;
@@ -147,11 +154,12 @@ fn make_folder(ctx: &mut BuildContext, name: &str) -> Handle<UiNode> {
         .build(ctx)
 }
 
-pub fn sync_pool<T, N, M, F>(
+pub fn sync_pool<T, N, M, F, V>(
     folder: Handle<UiNode>,
     pool: &Pool<T>,
     ui: &mut UserInterface,
     selection: Option<&[Handle<T>]>,
+    _: PhantomData<V>,
     mut make_view: M,
     mut make_name: N,
     mut fetch_entity: F,
@@ -161,8 +169,17 @@ where
     N: FnMut(Handle<T>) -> String,
     M: FnMut(&mut UserInterface, Handle<T>, &T) -> Handle<UiNode>,
     F: FnMut(Handle<UiNode>, &UserInterface) -> Handle<T>,
+    V: Control,
 {
-    let folder_items = ui.node(folder).cast::<Tree>().unwrap().items().to_vec();
+    let folder_items = ui
+        .node(folder)
+        .cast::<Tree>()
+        .unwrap()
+        .items()
+        .iter()
+        .cloned()
+        .filter(|i| ui.node(*i).cast::<V>().is_some())
+        .collect::<Vec<_>>();
 
     match pool.alive_count().cmp(&folder_items.len()) {
         Ordering::Less => {
@@ -330,6 +347,7 @@ impl WorldViewer {
             .build(ctx);
 
         let item_context_menu = ItemContextMenu::new(ctx);
+        let link_context_menu = LinkContextMenu::new(ctx);
 
         Self {
             window,
@@ -348,6 +366,8 @@ impl WorldViewer {
             scroll_view,
             item_context_menu,
             sounds_folder,
+            link_context_menu,
+            node_to_view_map: Default::default(),
         }
     }
 
@@ -377,7 +397,7 @@ impl WorldViewer {
             );
         }
 
-        self.update_breadcrumbs(ui, editor_scene, scene);
+        self.sync_links(editor_scene, engine);
     }
 
     fn build_breadcrumb(
@@ -494,6 +514,7 @@ impl WorldViewer {
             } else {
                 None
             },
+            PhantomData::<SoundItem>,
             |ui, handle, _| {
                 SoundItemBuilder::new(TreeBuilder::new(WidgetBuilder::new()))
                     .with_name(ctx.source(handle).name_owned())
@@ -519,6 +540,7 @@ impl WorldViewer {
             } else {
                 None
             },
+            PhantomData::<PhysicsItem<RigidBody>>,
             |ui, handle, _| {
                 PhysicsItemBuilder::<Joint>::new(TreeBuilder::new(WidgetBuilder::new()))
                     .with_name("Joint".to_owned())
@@ -550,6 +572,7 @@ impl WorldViewer {
             } else {
                 None
             },
+            PhantomData::<PhysicsItem<RigidBody>>,
             |ui, handle, _| {
                 PhysicsItemBuilder::<RigidBody>::new(TreeBuilder::new(WidgetBuilder::new()))
                     .with_name(fetch_name(handle, editor_scene, graph))
@@ -595,7 +618,17 @@ impl WorldViewer {
                         child_count += 1;
                     }
                 }
-                let items = item.tree.items().to_vec();
+
+                // We're interested only scene graph child items.
+                // Such filtering is needed because we can have links as children in UI.
+                let items = item
+                    .tree
+                    .items()
+                    .iter()
+                    .cloned()
+                    .filter(|i| ui.node(*i).cast::<GraphNodeItem>().is_some())
+                    .collect::<Vec<_>>();
+
                 if child_count < items.len() {
                     for &item in items.iter() {
                         let child_node = tree_node(ui, item);
@@ -608,11 +641,13 @@ impl WorldViewer {
                                     item,
                                 ),
                             );
+                            let removed_view = self.node_to_view_map.remove(&child_node);
+                            assert!(removed_view.is_some());
                         } else {
                             self.stack.push((item, child_node));
                         }
                     }
-                } else if child_count > item.tree.items().len() {
+                } else if child_count > items.len() {
                     for &child_handle in node.children() {
                         // Hide all editor nodes.
                         if child_handle == editor_scene.root {
@@ -628,7 +663,7 @@ impl WorldViewer {
                             }
                         }
                         if !found {
-                            let tree = make_tree(
+                            let graph_node_item = make_graph_node_item(
                                 &graph[child_handle],
                                 child_handle,
                                 &mut ui.build_ctx(),
@@ -641,15 +676,16 @@ impl WorldViewer {
                                 TreeMessage::add_item(
                                     tree_handle,
                                     MessageDirection::ToWidget,
-                                    tree,
+                                    graph_node_item,
                                 ),
                             );
                             if let Selection::Graph(selection) = &editor_scene.selection {
                                 if selection.contains(child_handle) {
-                                    selected_items.push(tree);
+                                    selected_items.push(graph_node_item);
                                 }
                             }
-                            self.stack.push((tree, child_handle));
+                            self.node_to_view_map.insert(child_handle, graph_node_item);
+                            self.stack.push((graph_node_item, child_handle));
                         }
                     }
                 } else {
@@ -660,7 +696,7 @@ impl WorldViewer {
                 }
             } else if let Some(folder) = ui_node.cast::<Tree>() {
                 if folder.items().is_empty() {
-                    let tree = make_tree(
+                    let graph_node_item = make_graph_node_item(
                         node,
                         node_handle,
                         &mut ui.build_ctx(),
@@ -670,9 +706,14 @@ impl WorldViewer {
                     );
                     send_sync_message(
                         ui,
-                        TreeMessage::add_item(tree_handle, MessageDirection::ToWidget, tree),
+                        TreeMessage::add_item(
+                            tree_handle,
+                            MessageDirection::ToWidget,
+                            graph_node_item,
+                        ),
                     );
-                    self.stack.push((tree, node_handle));
+                    self.node_to_view_map.insert(node_handle, graph_node_item);
+                    self.stack.push((graph_node_item, node_handle));
                 } else {
                     self.stack.push((folder.items()[0], node_handle));
                 }
@@ -689,9 +730,12 @@ impl WorldViewer {
                     let node = &graph[item.node];
                     send_sync_message(
                         ui,
-                        SceneItemMessage::node_visibility(handle, node.visibility()),
+                        GraphNodeItemMessage::node_visibility(handle, node.visibility()),
                     );
-                    send_sync_message(ui, SceneItemMessage::name(handle, node.name().to_owned()));
+                    send_sync_message(
+                        ui,
+                        GraphNodeItemMessage::name(handle, node.name().to_owned()),
+                    );
                     stack.extend_from_slice(item.tree.items());
                 }
             } else if let Some(root) = ui_node.cast::<TreeRoot>() {
@@ -702,6 +746,54 @@ impl WorldViewer {
         self.colorize(ui);
 
         selected_items
+    }
+
+    pub fn sync_links(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
+        let ui = &mut engine.user_interface;
+
+        for (&node, &view) in self.node_to_view_map.iter() {
+            let node_view_ref = ui
+                .node(view)
+                .cast::<GraphNodeItem>()
+                .expect("Must be GraphNodeItem");
+
+            let rigid_body_links = node_view_ref
+                .tree
+                .items()
+                .iter()
+                .cloned()
+                .filter(|i| ui.node(*i).cast::<LinkItem<RigidBody, Node>>().is_some())
+                .collect::<Vec<_>>();
+
+            let linked_body = editor_scene.physics.binder.forward_map().get(&node);
+
+            if rigid_body_links.is_empty() {
+                if let Some(linked_body) = linked_body {
+                    let link = LinkItemBuilder::new(TreeBuilder::new(
+                        WidgetBuilder::new().with_context_menu(self.link_context_menu.menu),
+                    ))
+                    .with_name("Linked Rigid Body")
+                    .with_source(*linked_body)
+                    .with_dest(node)
+                    .build(&mut ui.build_ctx());
+
+                    ui.send_message(TreeMessage::add_item(
+                        view,
+                        MessageDirection::ToWidget,
+                        link,
+                    ));
+                }
+            } else if linked_body.is_none() {
+                assert_eq!(rigid_body_links.len(), 1);
+
+                // Remove link.
+                ui.send_message(TreeMessage::remove_item(
+                    view,
+                    MessageDirection::ToWidget,
+                    rigid_body_links[0],
+                ));
+            }
+        }
     }
 
     pub fn colorize(&mut self, ui: &UserInterface) {
@@ -719,6 +811,7 @@ impl WorldViewer {
 
         self.item_context_menu
             .handle_ui_message(message, editor_scene, engine, &self.sender);
+        self.link_context_menu.handle_ui_message(message);
 
         match message.data() {
             UiMessageData::TreeRoot(msg) => {
@@ -797,42 +890,7 @@ impl WorldViewer {
                 }
             }
             &UiMessageData::Widget(WidgetMessage::Drop(node)) => {
-                if engine.user_interface.is_node_child_of(node, self.tree_root)
-                    && engine
-                        .user_interface
-                        .is_node_child_of(message.destination(), self.tree_root)
-                    && node != message.destination()
-                {
-                    if let (Some(child), Some(parent)) = (
-                        engine.user_interface.node(node).cast::<GraphNodeItem>(),
-                        engine
-                            .user_interface
-                            .node(message.destination())
-                            .cast::<GraphNodeItem>(),
-                    ) {
-                        // Make sure we won't create any loops - child must not have parent in its
-                        // descendants.
-                        let mut attach = true;
-                        let graph = &engine.scenes[editor_scene.scene].graph;
-                        let mut p = parent.node;
-                        while p.is_some() {
-                            if p == child.node {
-                                attach = false;
-                                break;
-                            }
-                            p = graph[p].parent();
-                        }
-
-                        if attach {
-                            self.sender
-                                .send(Message::do_scene_command(LinkNodesCommand::new(
-                                    child.node,
-                                    parent.node,
-                                )))
-                                .unwrap();
-                        }
-                    }
-                }
+                self.handle_drop(engine, editor_scene, message.destination(), node);
             }
             UiMessageData::Button(ButtonMessage::Click) => {
                 if let Some(&view) = self.breadcrumbs.get(&message.destination()) {
@@ -885,7 +943,91 @@ impl WorldViewer {
                     }
                 }
             }
+            UiMessageData::MenuItem(MenuItemMessage::Click) => {
+                if message.destination() == self.link_context_menu.unlink {
+                    self.handle_unlink(&engine.user_interface);
+                }
+            }
             _ => {}
+        }
+    }
+
+    fn handle_unlink(&self, ui: &UserInterface) {
+        assert!(self.link_context_menu.target.is_some());
+
+        if let Some(rigid_body_link) = ui
+            .node(self.link_context_menu.target)
+            .cast::<LinkItem<RigidBody, Node>>()
+        {
+            self.sender
+                .send(Message::do_scene_command(UnlinkBodyCommand {
+                    node: rigid_body_link.dest,
+                    handle: rigid_body_link.source,
+                }))
+                .unwrap();
+        }
+    }
+
+    /// `target` - is a node at which `dropped` was dropped.
+    /// `dropped` - is a node which was dropped at `target`.
+    fn handle_drop(
+        &self,
+        engine: &Engine,
+        editor_scene: &EditorScene,
+        target: Handle<UiNode>,
+        dropped: Handle<UiNode>,
+    ) {
+        let ui = &engine.user_interface;
+
+        if ui.is_node_child_of(dropped, self.tree_root)
+            && ui.is_node_child_of(target, self.tree_root)
+            && dropped != target
+        {
+            if let (Some(child), Some(parent)) = (
+                ui.node(dropped).cast::<GraphNodeItem>(),
+                ui.node(target).cast::<GraphNodeItem>(),
+            ) {
+                // Make sure we won't create any loops - child must not have parent in its
+                // descendants.
+                let mut attach = true;
+                let graph = &engine.scenes[editor_scene.scene].graph;
+                let mut p = parent.node;
+                while p.is_some() {
+                    if p == child.node {
+                        attach = false;
+                        break;
+                    }
+                    p = graph[p].parent();
+                }
+
+                if attach {
+                    self.sender
+                        .send(Message::do_scene_command(LinkNodesCommand::new(
+                            child.node,
+                            parent.node,
+                        )))
+                        .unwrap();
+                }
+            } else if let (Some(rigid_body), Some(node)) = (
+                ui.node(dropped).cast::<PhysicsItem<RigidBody>>(),
+                ui.node(target).cast::<GraphNodeItem>(),
+            ) {
+                let already_linked = editor_scene
+                    .physics
+                    .binder
+                    .forward_map()
+                    .iter()
+                    .any(|(n, b)| node.node == *n && rigid_body.physics_entity == *b);
+
+                if !already_linked {
+                    self.sender
+                        .send(Message::do_scene_command(LinkBodyCommand {
+                            node: node.node,
+                            handle: rigid_body.physics_entity,
+                        }))
+                        .unwrap();
+                }
+            }
         }
     }
 
@@ -927,17 +1069,18 @@ impl WorldViewer {
         }
     }
 
-    pub fn post_update(&mut self, editor_scene: &EditorScene, engine: &GameEngine) {
+    pub fn post_update(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
         // Hack. See `self.sync_selection` for details.
         if self.sync_selection {
-            let ui = &engine.user_interface;
-
             let trees = self.map_selection(editor_scene, engine);
 
+            let ui = &mut engine.user_interface;
             send_sync_message(
                 ui,
                 TreeRootMessage::select(self.tree_root, MessageDirection::ToWidget, trees),
             );
+
+            self.update_breadcrumbs(ui, editor_scene, &engine.scenes[editor_scene.scene]);
 
             self.sync_selection = false;
         }

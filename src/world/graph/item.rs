@@ -1,5 +1,5 @@
 use crate::{
-    gui::SceneItemMessage,
+    gui::GraphNodeItemMessage,
     load_image,
     scene::commands::{graph::SetVisibleCommand, SceneCommand},
     Message,
@@ -46,7 +46,7 @@ pub struct GraphNodeItem {
 
 impl Debug for GraphNodeItem {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "SceneItem")
+        write!(f, "GraphNodeItem")
     }
 }
 
@@ -100,9 +100,9 @@ impl Control for GraphNodeItem {
                 }
             }
             UiMessageData::User(msg) => {
-                if let Some(msg) = msg.cast::<SceneItemMessage>() {
+                if let Some(msg) = msg.cast::<GraphNodeItemMessage>() {
                     match msg {
-                        &SceneItemMessage::NodeVisibility(visibility) => {
+                        &GraphNodeItemMessage::NodeVisibility(visibility) => {
                             if self.visibility != visibility
                                 && message.destination() == self.handle()
                             {
@@ -126,7 +126,7 @@ impl Control for GraphNodeItem {
                                 ));
                             }
                         }
-                        &SceneItemMessage::Order(order) => {
+                        &GraphNodeItemMessage::Order(order) => {
                             if message.destination() == self.handle() {
                                 ui.send_message(DecoratorMessage::normal_brush(
                                     self.tree.back(),
@@ -139,7 +139,7 @@ impl Control for GraphNodeItem {
                                 ));
                             }
                         }
-                        SceneItemMessage::Name(name) => {
+                        GraphNodeItemMessage::Name(name) => {
                             if message.destination() == self.handle() {
                                 let name = format!(
                                     "{} ({}:{})",
@@ -181,7 +181,7 @@ impl Control for GraphNodeItem {
 }
 
 #[derive(Default)]
-pub struct SceneItemBuilder {
+pub struct GraphNodeItemBuilder {
     node: Handle<Node>,
     name: String,
     visibility: bool,
@@ -189,7 +189,7 @@ pub struct SceneItemBuilder {
     context_menu: Handle<UiNode>,
 }
 
-impl SceneItemBuilder {
+impl GraphNodeItemBuilder {
     pub fn new() -> Self {
         Self {
             node: Default::default(),
