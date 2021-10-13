@@ -228,6 +228,7 @@ impl ChangeSelectionCommand {
                 Selection::Sound(_) => "Change Selection: Sound",
                 Selection::RigidBody(_) => "Change Selection: RigidBody",
                 Selection::Joint(_) => "Change Selection: Joint",
+                Selection::Collider(_) => "Change Selection: Collider",
             }
             .to_owned(),
             new_selection,
