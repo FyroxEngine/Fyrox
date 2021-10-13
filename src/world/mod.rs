@@ -1,3 +1,5 @@
+use crate::physics::Collider;
+use crate::world::physics::selection::ColliderSelection;
 use crate::{
     gui::GraphNodeItemMessage,
     load_image,
@@ -19,6 +21,7 @@ use crate::{
         link::{menu::LinkContextMenu, LinkItem, LinkItemBuilder},
         physics::{
             item::{PhysicsItem, PhysicsItemBuilder, PhysicsItemMessage},
+            menu::RigidBodyContextMenu,
             selection::{JointSelection, RigidBodySelection},
         },
         sound::{
@@ -28,7 +31,7 @@ use crate::{
     },
     GameEngine, Message,
 };
-use rg3d::sound::source::SoundSource;
+use rg3d::physics3d::desc::ColliderShapeDesc;
 use rg3d::{
     core::{
         color::Color,
@@ -55,7 +58,7 @@ use rg3d::{
         VerticalAlignment,
     },
     scene::{graph::Graph, node::Node, Scene},
-    sound::context::SoundContext,
+    sound::{context::SoundContext, source::SoundSource},
 };
 use std::{cmp::Ordering, collections::HashMap, marker::PhantomData, sync::mpsc::Sender};
 
@@ -85,6 +88,7 @@ pub struct WorldViewer {
     scroll_view: Handle<UiNode>,
     item_context_menu: ItemContextMenu,
     link_context_menu: LinkContextMenu,
+    rigid_body_context_menu: RigidBodyContextMenu,
     node_to_view_map: HashMap<Handle<Node>, Handle<UiNode>>,
     rigid_body_to_view_map: HashMap<Handle<RigidBody>, Handle<UiNode>>,
     joint_to_view_map: HashMap<Handle<Joint>, Handle<UiNode>>,
@@ -361,6 +365,7 @@ impl WorldViewer {
 
         let item_context_menu = ItemContextMenu::new(ctx);
         let link_context_menu = LinkContextMenu::new(ctx);
+        let rigid_body_context_menu = RigidBodyContextMenu::new(ctx);
 
         Self {
             window,
@@ -380,6 +385,7 @@ impl WorldViewer {
             item_context_menu,
             sounds_folder,
             link_context_menu,
+            rigid_body_context_menu,
             node_to_view_map: Default::default(),
             rigid_body_to_view_map: Default::default(),
             joint_to_view_map: Default::default(),
@@ -403,6 +409,7 @@ impl WorldViewer {
             engine.resource_manager.clone(),
         ));
         selected_items.extend(self.sync_rigid_bodies(ui, editor_scene));
+        selected_items.extend(self.sync_colliders(ui, editor_scene));
         selected_items.extend(self.sync_joints(ui, editor_scene));
         selected_items.extend(self.sync_sounds(ui, editor_scene, scene.sound_context.clone()));
 
@@ -505,6 +512,17 @@ impl WorldViewer {
                     self.build_breadcrumb("Joint", view, ui);
                 }
             }
+            Selection::Collider(selection) => {
+                if let Some(&first_selected) = selection.colliders().first() {
+                    let view = ui.find_by_criteria_down(self.rigid_bodies_folder, &|n| {
+                        n.cast::<PhysicsItem<Collider>>()
+                            .map(|i| i.physics_entity == first_selected)
+                            .unwrap_or_default()
+                    });
+                    assert!(view.is_some());
+                    self.build_breadcrumb("Collider", view, ui);
+                }
+            }
             Selection::None => {}
         }
     }
@@ -576,6 +594,7 @@ impl WorldViewer {
         ui: &mut UserInterface,
         editor_scene: &EditorScene,
     ) -> Vec<Handle<UiNode>> {
+        let context_menu = self.rigid_body_context_menu.menu;
         sync_pool(
             self.rigid_bodies_folder,
             &editor_scene.physics.bodies,
@@ -588,10 +607,12 @@ impl WorldViewer {
             PhantomData::<PhysicsItem<RigidBody>>,
             &mut self.rigid_body_to_view_map,
             |ui, handle, _| {
-                PhysicsItemBuilder::<RigidBody>::new(TreeBuilder::new(WidgetBuilder::new()))
-                    .with_name("Rigid Body".to_owned())
-                    .with_physics_entity(handle)
-                    .build(&mut ui.build_ctx())
+                PhysicsItemBuilder::<RigidBody>::new(TreeBuilder::new(
+                    WidgetBuilder::new().with_context_menu(context_menu),
+                ))
+                .with_name("Rigid Body".to_owned())
+                .with_physics_entity(handle)
+                .build(&mut ui.build_ctx())
             },
             |_| "Rigid Body".to_owned(),
             |s, ui| {
@@ -863,6 +884,121 @@ impl WorldViewer {
         self.sync_rigid_body_node_links(editor_scene, engine);
     }
 
+    pub fn sync_colliders(
+        &mut self,
+        ui: &mut UserInterface,
+        editor_scene: &EditorScene,
+    ) -> Vec<Handle<UiNode>> {
+        let mut selected_colliders = Vec::new();
+
+        for (&rigid_body_handle, &rigid_body_view) in self.rigid_body_to_view_map.iter() {
+            let rigid_body_view_ref = ui
+                .node(rigid_body_view)
+                .cast::<PhysicsItem<RigidBody>>()
+                .expect("Must be a PhysicsItem<RigidBody>");
+
+            let collider_views = rigid_body_view_ref
+                .tree
+                .items()
+                .iter()
+                .cloned()
+                .filter(|i| ui.node(*i).cast::<PhysicsItem<Collider>>().is_some())
+                .collect::<Vec<_>>();
+
+            let rigid_body = &editor_scene.physics.bodies[rigid_body_handle];
+
+            if rigid_body.colliders.len() > collider_views.len() {
+                // A collider was added.
+                for collider_handle in rigid_body
+                    .colliders
+                    .iter()
+                    .map(|&h| Handle::<Collider>::from(h))
+                {
+                    if collider_views.iter().all(|v| {
+                        ui.node(*v)
+                            .cast::<PhysicsItem<Collider>>()
+                            .expect("Must be a PhysicsItem<Collider>")
+                            .physics_entity
+                            != collider_handle
+                    }) {
+                        let collider_ref = &editor_scene.physics.colliders[collider_handle];
+
+                        let name = match &collider_ref.shape {
+                            ColliderShapeDesc::Ball(_) => "Bal Collider",
+                            ColliderShapeDesc::Cylinder(_) => "Cylinder Collider",
+                            ColliderShapeDesc::RoundCylinder(_) => "Round Cylinder Collider",
+                            ColliderShapeDesc::Cone(_) => "Cone  Collider",
+                            ColliderShapeDesc::Cuboid(_) => "Cuboid Collider",
+                            ColliderShapeDesc::Capsule(_) => "Capsule Collider",
+                            ColliderShapeDesc::Segment(_) => "Segment Collider",
+                            ColliderShapeDesc::Triangle(_) => "Triangle Collider",
+                            ColliderShapeDesc::Trimesh(_) => "Triangle Mesh Collider",
+                            ColliderShapeDesc::Heightfield(_) => "Height Field Collider",
+                        };
+
+                        let view = PhysicsItemBuilder::new(TreeBuilder::new(WidgetBuilder::new()))
+                            .with_name(name.to_owned())
+                            .with_physics_entity(collider_handle)
+                            .build(&mut ui.build_ctx());
+
+                        ui.send_message(TreeMessage::add_item(
+                            rigid_body_view,
+                            MessageDirection::ToWidget,
+                            view,
+                        ));
+                    }
+                }
+            } else if rigid_body.colliders.len() < collider_views.len() {
+                // A collider was removed.
+                for (&collider_view, collider_view_ref) in collider_views.iter().map(|v| {
+                    (
+                        v,
+                        ui.node(*v)
+                            .cast::<PhysicsItem<Collider>>()
+                            .expect("Must be a PhysicsItem<Collider>!"),
+                    )
+                }) {
+                    if rigid_body
+                        .colliders
+                        .iter()
+                        .map(|&c| Handle::<Collider>::from(c))
+                        .all(|c| c != collider_view_ref.physics_entity)
+                    {
+                        ui.send_message(TreeMessage::remove_item(
+                            rigid_body_view,
+                            MessageDirection::ToWidget,
+                            collider_view,
+                        ));
+                    }
+                }
+            }
+        }
+
+        // Sync selection.
+        if let Selection::Collider(ref selection) = editor_scene.selection {
+            for rigid_body_view_ref in self.rigid_body_to_view_map.values().map(|v| {
+                ui.node(*v)
+                    .cast::<PhysicsItem<RigidBody>>()
+                    .expect("Must be PhysicsItem<RigidBody>!")
+            }) {
+                for (collider_view, collider_view_ref) in
+                    rigid_body_view_ref.tree.items().iter().filter_map(|i| {
+                        ui.node(*i).cast::<PhysicsItem<Collider>>().map(|c| (*i, c))
+                    })
+                {
+                    if selection
+                        .colliders
+                        .contains(&collider_view_ref.physics_entity)
+                    {
+                        selected_colliders.push(collider_view);
+                    }
+                }
+            }
+        }
+
+        selected_colliders
+    }
+
     pub fn colorize(&mut self, ui: &UserInterface) {
         let mut index = 0;
         colorize(self.tree_root, ui, &mut index);
@@ -879,6 +1015,11 @@ impl WorldViewer {
         self.item_context_menu
             .handle_ui_message(message, editor_scene, engine, &self.sender);
         self.link_context_menu.handle_ui_message(message);
+        self.rigid_body_context_menu.handle_ui_message(
+            message,
+            &self.sender,
+            &engine.user_interface,
+        );
 
         match message.data() {
             UiMessageData::TreeRoot(msg) => {
@@ -998,6 +1139,18 @@ impl WorldViewer {
                     }
                     _ => (),
                 }
+            } else if let Some(collider) = selected_item_ref.cast::<PhysicsItem<Collider>>() {
+                match new_selection {
+                    Selection::None => {
+                        new_selection = Selection::Collider(ColliderSelection {
+                            colliders: vec![collider.physics_entity],
+                        });
+                    }
+                    Selection::Collider(ref mut selection) => {
+                        selection.colliders.push(collider.physics_entity)
+                    }
+                    _ => (),
+                }
             } else if let Some(sound) = selected_item_ref.cast::<SoundItem>() {
                 match new_selection {
                     Selection::None => {
@@ -1029,8 +1182,8 @@ impl WorldViewer {
         assert!(self.link_context_menu.target.is_some());
 
         if let Some(rigid_body_link) = ui
-            .node(self.link_context_menu.target)
-            .cast::<LinkItem<RigidBody, Node>>()
+            .try_get_node(self.link_context_menu.target)
+            .and_then(|n| n.cast::<LinkItem<RigidBody, Node>>())
         {
             self.sender
                 .send(Message::do_scene_command(UnlinkBodyCommand {
@@ -1039,8 +1192,8 @@ impl WorldViewer {
                 }))
                 .unwrap();
         } else if let Some(node_link) = ui
-            .node(self.link_context_menu.target)
-            .cast::<LinkItem<Node, RigidBody>>()
+            .try_get_node(self.link_context_menu.target)
+            .and_then(|n| n.cast::<LinkItem<Node, RigidBody>>())
         {
             self.sender
                 .send(Message::do_scene_command(UnlinkBodyCommand {
@@ -1160,6 +1313,13 @@ impl WorldViewer {
                 &engine.user_interface,
                 |n, handle| n.physics_entity == handle,
                 PhantomData::<PhysicsItem<Joint>>,
+            ),
+            Selection::Collider(selection) => map_selection(
+                selection.colliders(),
+                self.rigid_bodies_folder, // Collider views stored as rigid body child.
+                &engine.user_interface,
+                |n, handle| n.physics_entity == handle,
+                PhantomData::<PhysicsItem<Collider>>,
             ),
             Selection::None | Selection::Navmesh(_) => Default::default(),
         }
