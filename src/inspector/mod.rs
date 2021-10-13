@@ -214,6 +214,11 @@ impl Inspector {
                         .joints
                         .try_borrow(selection.joints()[0])
                         .map(|s| s as &dyn Inspect),
+                    Selection::Collider(selection) => editor_scene
+                        .physics
+                        .colliders
+                        .try_borrow(selection.colliders()[0])
+                        .map(|s| s as &dyn Inspect),
                     _ => None,
                 };
 
