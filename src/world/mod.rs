@@ -19,6 +19,7 @@ use crate::{
         link::{menu::LinkContextMenu, LinkItem, LinkItemBuilder},
         physics::{
             item::{PhysicsItem, PhysicsItemBuilder, PhysicsItemMessage},
+            menu::RigidBodyContextMenu,
             selection::{JointSelection, RigidBodySelection},
         },
         sound::{
@@ -28,7 +29,6 @@ use crate::{
     },
     GameEngine, Message,
 };
-use rg3d::sound::source::SoundSource;
 use rg3d::{
     core::{
         color::Color,
@@ -55,7 +55,7 @@ use rg3d::{
         VerticalAlignment,
     },
     scene::{graph::Graph, node::Node, Scene},
-    sound::context::SoundContext,
+    sound::{context::SoundContext, source::SoundSource},
 };
 use std::{cmp::Ordering, collections::HashMap, marker::PhantomData, sync::mpsc::Sender};
 
@@ -85,6 +85,7 @@ pub struct WorldViewer {
     scroll_view: Handle<UiNode>,
     item_context_menu: ItemContextMenu,
     link_context_menu: LinkContextMenu,
+    rigid_body_context_menu: RigidBodyContextMenu,
     node_to_view_map: HashMap<Handle<Node>, Handle<UiNode>>,
     rigid_body_to_view_map: HashMap<Handle<RigidBody>, Handle<UiNode>>,
     joint_to_view_map: HashMap<Handle<Joint>, Handle<UiNode>>,
@@ -361,6 +362,7 @@ impl WorldViewer {
 
         let item_context_menu = ItemContextMenu::new(ctx);
         let link_context_menu = LinkContextMenu::new(ctx);
+        let rigid_body_context_menu = RigidBodyContextMenu::new(ctx);
 
         Self {
             window,
@@ -380,6 +382,7 @@ impl WorldViewer {
             item_context_menu,
             sounds_folder,
             link_context_menu,
+            rigid_body_context_menu,
             node_to_view_map: Default::default(),
             rigid_body_to_view_map: Default::default(),
             joint_to_view_map: Default::default(),
@@ -576,6 +579,7 @@ impl WorldViewer {
         ui: &mut UserInterface,
         editor_scene: &EditorScene,
     ) -> Vec<Handle<UiNode>> {
+        let context_menu = self.rigid_body_context_menu.menu;
         sync_pool(
             self.rigid_bodies_folder,
             &editor_scene.physics.bodies,
@@ -588,10 +592,12 @@ impl WorldViewer {
             PhantomData::<PhysicsItem<RigidBody>>,
             &mut self.rigid_body_to_view_map,
             |ui, handle, _| {
-                PhysicsItemBuilder::<RigidBody>::new(TreeBuilder::new(WidgetBuilder::new()))
-                    .with_name("Rigid Body".to_owned())
-                    .with_physics_entity(handle)
-                    .build(&mut ui.build_ctx())
+                PhysicsItemBuilder::<RigidBody>::new(TreeBuilder::new(
+                    WidgetBuilder::new().with_context_menu(context_menu),
+                ))
+                .with_name("Rigid Body".to_owned())
+                .with_physics_entity(handle)
+                .build(&mut ui.build_ctx())
             },
             |_| "Rigid Body".to_owned(),
             |s, ui| {
@@ -879,6 +885,11 @@ impl WorldViewer {
         self.item_context_menu
             .handle_ui_message(message, editor_scene, engine, &self.sender);
         self.link_context_menu.handle_ui_message(message);
+        self.rigid_body_context_menu.handle_ui_message(
+            message,
+            &self.sender,
+            &engine.user_interface,
+        );
 
         match message.data() {
             UiMessageData::TreeRoot(msg) => {
@@ -1029,8 +1040,8 @@ impl WorldViewer {
         assert!(self.link_context_menu.target.is_some());
 
         if let Some(rigid_body_link) = ui
-            .node(self.link_context_menu.target)
-            .cast::<LinkItem<RigidBody, Node>>()
+            .try_get_node(self.link_context_menu.target)
+            .and_then(|n| n.cast::<LinkItem<RigidBody, Node>>())
         {
             self.sender
                 .send(Message::do_scene_command(UnlinkBodyCommand {
@@ -1039,8 +1050,8 @@ impl WorldViewer {
                 }))
                 .unwrap();
         } else if let Some(node_link) = ui
-            .node(self.link_context_menu.target)
-            .cast::<LinkItem<Node, RigidBody>>()
+            .try_get_node(self.link_context_menu.target)
+            .and_then(|n| n.cast::<LinkItem<Node, RigidBody>>())
         {
             self.sender
                 .send(Message::do_scene_command(UnlinkBodyCommand {

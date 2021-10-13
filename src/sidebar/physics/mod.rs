@@ -6,8 +6,8 @@ use crate::{
     scene::commands::CommandGroup,
     scene::{
         commands::physics::{
-            AddJointCommand, DeleteBodyCommand, DeleteColliderCommand, DeleteJointCommand,
-            SetBallRadiusCommand, SetBodyCommand, SetColliderCommand, SetColliderPositionCommand,
+            AddColliderCommand, AddJointCommand, DeleteBodyCommand, DeleteColliderCommand,
+            DeleteJointCommand, SetBallRadiusCommand, SetBodyCommand, SetColliderPositionCommand,
             SetCuboidHalfExtentsCommand, SetCylinderHalfHeightCommand, SetCylinderRadiusCommand,
         },
         EditorScene, Selection,
@@ -708,7 +708,7 @@ impl PhysicsSection {
                         first_collider.into(),
                     )))
                 }
-                commands.push(SceneCommand::new(SetColliderCommand::new(body, collider)));
+                commands.push(SceneCommand::new(AddColliderCommand::new(body, collider)));
                 self.sender
                     .send(Message::do_scene_command(CommandGroup::from(commands)))
                     .unwrap();

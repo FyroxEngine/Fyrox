@@ -255,14 +255,14 @@ impl Command for SetBodyCommand {
 }
 
 #[derive(Debug)]
-pub struct SetColliderCommand {
+pub struct AddColliderCommand {
     body: Handle<RigidBody>,
     ticket: Option<Ticket<Collider>>,
     handle: Handle<Collider>,
     collider: Option<Collider>,
 }
 
-impl SetColliderCommand {
+impl AddColliderCommand {
     pub fn new(body: Handle<RigidBody>, collider: Collider) -> Self {
         Self {
             body,
@@ -273,9 +273,9 @@ impl SetColliderCommand {
     }
 }
 
-impl Command for SetColliderCommand {
+impl Command for AddColliderCommand {
     fn name(&mut self, _context: &SceneContext) -> String {
-        "Set Collider".to_owned()
+        "Add Collider".to_owned()
     }
 
     fn execute(&mut self, context: &mut SceneContext) {
