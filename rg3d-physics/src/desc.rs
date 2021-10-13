@@ -575,6 +575,7 @@ pub struct ColliderDesc<R>
 where
     R: Debug + Send + Sync + 'static,
 {
+    #[inspect(expand)]
     pub shape: ColliderShapeDesc,
     pub parent: R,
     pub friction: f32,
