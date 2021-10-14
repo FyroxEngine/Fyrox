@@ -1,7 +1,8 @@
-use crate::world::graph::item::SceneItem;
+use crate::scene::commands::physics::DeleteColliderCommand;
 use crate::{
     physics::{Collider, RigidBody},
     scene::commands::physics::{AddColliderCommand, DeleteBodyCommand},
+    world::graph::item::SceneItem,
     Message,
 };
 use rg3d::{
@@ -223,6 +224,70 @@ impl RigidBodyContextMenu {
                                     shape,
                                     ..Default::default()
                                 },
+                            )))
+                            .unwrap();
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+pub struct ColliderContextMenu {
+    pub menu: Handle<UiNode>,
+    pub delete: Handle<UiNode>,
+    /// A collider item above which the menu was opened.
+    pub target: Handle<UiNode>,
+}
+
+impl ColliderContextMenu {
+    pub fn new(ctx: &mut BuildContext) -> Self {
+        let delete;
+        let menu = PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
+            .with_content(
+                StackPanelBuilder::new(WidgetBuilder::new().with_child({
+                    delete = MenuItemBuilder::new(
+                        WidgetBuilder::new().with_min_size(Vector2::new(120.0, 20.0)),
+                    )
+                    .with_content(MenuItemContent::Text {
+                        text: "Delete",
+                        shortcut: "Del",
+                        icon: Default::default(),
+                    })
+                    .build(ctx);
+                    delete
+                }))
+                .build(ctx),
+            )
+            .build(ctx);
+
+        Self {
+            menu,
+            delete,
+            target: Default::default(),
+        }
+    }
+
+    pub fn handle_ui_message(
+        &mut self,
+        message: &UiMessage,
+        ui: &UserInterface,
+        sender: &Sender<Message>,
+    ) {
+        match message.data() {
+            UiMessageData::Popup(PopupMessage::Placement(Placement::Cursor(target))) => {
+                if message.destination() == self.menu {
+                    self.target = *target;
+                }
+            }
+            UiMessageData::MenuItem(MenuItemMessage::Click) => {
+                if message.destination() == self.delete {
+                    if let Some(collider_item) = ui.node(self.target).cast::<SceneItem<Collider>>()
+                    {
+                        sender
+                            .send(Message::do_scene_command(DeleteColliderCommand::new(
+                                collider_item.entity_handle,
                             )))
                             .unwrap();
                     }
