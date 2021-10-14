@@ -1,5 +1,7 @@
 use crate::physics::Joint;
 use crate::scene::commands::physics::{DeleteColliderCommand, DeleteJointCommand};
+use crate::scene::commands::{CommandGroup, SceneCommand};
+use crate::scene::EditorScene;
 use crate::{
     physics::{Collider, RigidBody},
     scene::commands::physics::{AddColliderCommand, DeleteBodyCommand},
@@ -146,6 +148,7 @@ impl RigidBodyContextMenu {
         &mut self,
         message: &UiMessage,
         sender: &Sender<Message>,
+        editor_scene: &EditorScene,
         ui: &UserInterface,
     ) {
         match message.data() {
@@ -162,10 +165,20 @@ impl RigidBodyContextMenu {
                     let rigid_body_handle = rigid_body_view_ref.entity_handle;
 
                     if message.destination() == self.delete {
+                        let mut group = Vec::new();
+
+                        for collider in editor_scene.physics.bodies[rigid_body_handle]
+                            .colliders
+                            .iter()
+                            .map(|h| Handle::<Collider>::from(*h))
+                        {
+                            group.push(SceneCommand::new(DeleteColliderCommand::new(collider)));
+                        }
+
+                        group.push(SceneCommand::new(DeleteBodyCommand::new(rigid_body_handle)));
+
                         sender
-                            .send(Message::do_scene_command(DeleteBodyCommand::new(
-                                rigid_body_handle,
-                            )))
+                            .send(Message::do_scene_command(CommandGroup::from(group)))
                             .unwrap();
                     }
 

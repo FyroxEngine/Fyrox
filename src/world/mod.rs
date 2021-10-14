@@ -1024,6 +1024,7 @@ impl WorldViewer {
         self.rigid_body_context_menu.handle_ui_message(
             message,
             &self.sender,
+            editor_scene,
             &engine.user_interface,
         );
         self.deletable_context_menu.handle_ui_message(
