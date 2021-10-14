@@ -250,76 +250,60 @@ impl Inspector {
 
         let mut success = Some(());
 
-        match &editor_scene.selection {
-            Selection::Graph(selection) => {
-                if selection.is_single_selection() {
-                    let node_handle = selection.nodes()[0];
-                    let node = &scene.graph[node_handle];
+        // Special case for particle systems.
+        if let Selection::Graph(selection) = &editor_scene.selection {
+            self.node_property_changed_handler
+                .particle_system_handler
+                .handle_ui_message(
+                    message,
+                    selection.nodes()[0],
+                    &helper,
+                    &engine.user_interface,
+                );
+        }
 
-                    self.node_property_changed_handler
-                        .particle_system_handler
-                        .handle_ui_message(message, node_handle, &helper, &engine.user_interface);
-
-                    if scene.graph.is_valid_handle(node_handle) {
-                        if message.destination() == self.inspector
-                            && message.direction() == MessageDirection::FromWidget
-                        {
-                            if let UiMessageData::Inspector(InspectorMessage::PropertyChanged(
+        if editor_scene.selection.is_single_selection()
+            && message.destination() == self.inspector
+            && message.direction() == MessageDirection::FromWidget
+        {
+            if let UiMessageData::Inspector(InspectorMessage::PropertyChanged(args)) =
+                message.data()
+            {
+                match &editor_scene.selection {
+                    Selection::Graph(selection) => {
+                        let node_handle = selection.nodes()[0];
+                        if scene.graph.is_valid_handle(node_handle) {
+                            success = self.node_property_changed_handler.handle(
                                 args,
-                            )) = message.data()
-                            {
-                                success = self.node_property_changed_handler.handle(
-                                    args,
-                                    node_handle,
-                                    node,
-                                    &helper,
-                                    &engine.user_interface,
-                                    scene,
-                                );
-                            }
+                                node_handle,
+                                &scene.graph[node_handle],
+                                &helper,
+                                &engine.user_interface,
+                                scene,
+                            );
                         }
                     }
-                }
-            }
-            Selection::Sound(selection) => {
-                if selection.is_single_selection() {
-                    let source_handle = selection.sources()[0];
-                    if message.destination() == self.inspector
-                        && message.direction() == MessageDirection::FromWidget
-                    {
-                        if let UiMessageData::Inspector(InspectorMessage::PropertyChanged(args)) =
-                            message.data()
-                        {
-                            success = if args.owner_type_id == TypeId::of::<GenericSource>() {
-                                handle_generic_source_property_changed(args, source_handle, &helper)
-                            } else if args.owner_type_id == TypeId::of::<SpatialSource>() {
-                                handle_spatial_source_property_changed(args, source_handle, &helper)
-                            } else {
-                                Some(())
-                            }
+                    Selection::Sound(selection) => {
+                        let source_handle = selection.sources()[0];
+                        success = if args.owner_type_id == TypeId::of::<GenericSource>() {
+                            handle_generic_source_property_changed(args, source_handle, &helper)
+                        } else if args.owner_type_id == TypeId::of::<SpatialSource>() {
+                            handle_spatial_source_property_changed(args, source_handle, &helper)
+                        } else {
+                            Some(())
                         }
                     }
-                }
-            }
-            Selection::RigidBody(selection) => {
-                if selection.is_single_selection() {
-                    let rigid_body_handle = selection.bodies()[0];
-                    if message.destination() == self.inspector
-                        && message.direction() == MessageDirection::FromWidget
-                    {
-                        if let UiMessageData::Inspector(InspectorMessage::PropertyChanged(args)) =
-                            message.data()
-                        {
-                            success = if args.owner_type_id == TypeId::of::<RigidBody>() {
-                                handle_rigid_body_property_changed(args, rigid_body_handle, &helper)
-                            } else {
-                                Some(())
-                            }
+                    Selection::RigidBody(selection) => {
+                        let rigid_body_handle = selection.bodies()[0];
+                        success = if args.owner_type_id == TypeId::of::<RigidBody>() {
+                            handle_rigid_body_property_changed(args, rigid_body_handle, &helper)
+                        } else {
+                            Some(())
                         }
                     }
+                    _ => {}
                 }
             }
-            _ => {}
         }
 
         if let UiMessageData::Inspector(InspectorMessage::PropertyChanged(args)) = message.data() {
