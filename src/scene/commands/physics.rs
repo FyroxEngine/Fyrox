@@ -4,6 +4,7 @@ use crate::{
     scene::commands::SceneContext,
     Physics,
 };
+use rg3d::physics3d::desc::RigidBodyTypeDesc;
 use rg3d::{
     core::{
         algebra::{UnitQuaternion, Vector3},
@@ -534,6 +535,42 @@ macro_rules! define_collider_variant_command {
 
 define_body_command!(SetBodyMassCommand("Set Body Mass", f32) where fn swap(self, physics, body) {
     std::mem::swap(&mut body.mass, &mut self.value);
+});
+
+define_body_command!(SetBodyPositionCommand("Set Body Position", Vector3<f32>) where fn swap(self, physics, body) {
+    std::mem::swap(&mut body.position, &mut self.value);
+});
+
+define_body_command!(SetBodyRotationCommand("Set Body Rotation", UnitQuaternion<f32>) where fn swap(self, physics, body) {
+    std::mem::swap(&mut body.rotation, &mut self.value);
+});
+
+define_body_command!(SetBodyLinVelCommand("Set Body Linear Velocity", Vector3<f32>) where fn swap(self, physics, body) {
+    std::mem::swap(&mut body.lin_vel, &mut self.value);
+});
+
+define_body_command!(SetBodyAngVelCommand("Set Body Angular Velocity", Vector3<f32>) where fn swap(self, physics, body) {
+    std::mem::swap(&mut body.ang_vel, &mut self.value);
+});
+
+define_body_command!(SetBodyStatusCommand("Set Body Status", RigidBodyTypeDesc) where fn swap(self, physics, body) {
+    std::mem::swap(&mut body.status, &mut self.value);
+});
+
+define_body_command!(SetBodyXRotationLockedCommand("Set Body X Rotation Locked", bool) where fn swap(self, physics, body) {
+    std::mem::swap(&mut body.x_rotation_locked, &mut self.value);
+});
+
+define_body_command!(SetBodyYRotationLockedCommand("Set Body Y Rotation Locked", bool) where fn swap(self, physics, body) {
+    std::mem::swap(&mut body.y_rotation_locked, &mut self.value);
+});
+
+define_body_command!(SetBodyZRotationLockedCommand("Set Body Z Rotation Locked", bool) where fn swap(self, physics, body) {
+    std::mem::swap(&mut body.z_rotation_locked, &mut self.value);
+});
+
+define_body_command!(SetBodyTranslationLockedCommand("Set Body Translation Locked", bool) where fn swap(self, physics, body) {
+    std::mem::swap(&mut body.translation_locked, &mut self.value);
 });
 
 define_collider_command!(SetColliderFrictionCommand("Set Collider Friction", f32) where fn swap(self, physics, collider) {

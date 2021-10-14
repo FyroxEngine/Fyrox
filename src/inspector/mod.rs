@@ -1,3 +1,5 @@
+use crate::inspector::handlers::rigid_body::handle_rigid_body_property_changed;
+use crate::physics::RigidBody;
 use crate::{
     command::Command,
     inspector::{
@@ -292,6 +294,24 @@ impl Inspector {
                                 handle_generic_source_property_changed(args, source_handle, &helper)
                             } else if args.owner_type_id == TypeId::of::<SpatialSource>() {
                                 handle_spatial_source_property_changed(args, source_handle, &helper)
+                            } else {
+                                Some(())
+                            }
+                        }
+                    }
+                }
+            }
+            Selection::RigidBody(selection) => {
+                if selection.is_single_selection() {
+                    let rigid_body_handle = selection.bodies()[0];
+                    if message.destination() == self.inspector
+                        && message.direction() == MessageDirection::FromWidget
+                    {
+                        if let UiMessageData::Inspector(InspectorMessage::PropertyChanged(args)) =
+                            message.data()
+                        {
+                            success = if args.owner_type_id == TypeId::of::<RigidBody>() {
+                                handle_rigid_body_property_changed(args, rigid_body_handle, &helper)
                             } else {
                                 Some(())
                             }

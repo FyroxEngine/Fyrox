@@ -1,13 +1,5 @@
-use crate::inspector::handlers::node::mesh::handle_mesh_property_changed;
-use crate::inspector::{
-    handlers::node::{
-        base::handle_base_property_changed, camera::handle_camera_property_changed,
-        decal::handle_decal_property_changed, light::*, particle_system::ParticleSystemHandler,
-        sprite::handle_sprite_property_changed, terrain::handle_terrain_property_changed,
-        transform::handle_transform_property_changed,
-    },
-    SenderHelper,
-};
+use std::any::TypeId;
+
 use rg3d::scene::mesh::Mesh;
 use rg3d::{
     core::pool::Handle,
@@ -25,7 +17,17 @@ use rg3d::{
         Scene,
     },
 };
-use std::any::TypeId;
+
+use crate::inspector::handlers::node::mesh::handle_mesh_property_changed;
+use crate::inspector::{
+    handlers::node::{
+        base::handle_base_property_changed, camera::handle_camera_property_changed,
+        decal::handle_decal_property_changed, light::*, particle_system::ParticleSystemHandler,
+        sprite::handle_sprite_property_changed, terrain::handle_terrain_property_changed,
+        transform::handle_transform_property_changed,
+    },
+    SenderHelper,
+};
 
 pub mod base;
 pub mod camera;
