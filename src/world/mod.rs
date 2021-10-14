@@ -547,6 +547,9 @@ impl WorldViewer {
             |ui, handle, _| {
                 SceneItemBuilder::<SoundSource>::new(TreeBuilder::new(WidgetBuilder::new()))
                     .with_name(ctx.source(handle).name_owned())
+                    .with_icon(load_image(include_bytes!(
+                        "../../resources/embed/sound_source.png"
+                    )))
                     .with_entity_handle(handle)
                     .build(&mut ui.build_ctx())
             },
@@ -579,6 +582,9 @@ impl WorldViewer {
             |ui, handle, _| {
                 SceneItemBuilder::<Joint>::new(TreeBuilder::new(WidgetBuilder::new()))
                     .with_name("Joint".to_owned())
+                    .with_icon(load_image(include_bytes!(
+                        "../../resources/embed/joint.png"
+                    )))
                     .with_entity_handle(handle)
                     .build(&mut ui.build_ctx())
             },
@@ -608,6 +614,9 @@ impl WorldViewer {
                 SceneItemBuilder::<RigidBody>::new(TreeBuilder::new(
                     WidgetBuilder::new().with_context_menu(context_menu),
                 ))
+                .with_icon(load_image(include_bytes!(
+                    "../../resources/embed/rigid_body.png"
+                )))
                 .with_name("Rigid Body".to_owned())
                 .with_entity_handle(handle)
                 .build(&mut ui.build_ctx())
@@ -938,10 +947,15 @@ impl WorldViewer {
                             ColliderShapeDesc::Heightfield(_) => "Height Field Collider",
                         };
 
-                        let view = SceneItemBuilder::new(TreeBuilder::new(WidgetBuilder::new()))
-                            .with_name(name.to_owned())
-                            .with_entity_handle(collider_handle)
-                            .build(&mut ui.build_ctx());
+                        let view = SceneItemBuilder::<Collider>::new(TreeBuilder::new(
+                            WidgetBuilder::new(),
+                        ))
+                        .with_name(name.to_owned())
+                        .with_icon(load_image(include_bytes!(
+                            "../../resources/embed/collider.png"
+                        )))
+                        .with_entity_handle(collider_handle)
+                        .build(&mut ui.build_ctx());
 
                         ui.send_message(TreeMessage::add_item(
                             rigid_body_view,
@@ -1294,42 +1308,24 @@ impl WorldViewer {
         editor_scene: &EditorScene,
         engine: &GameEngine,
     ) -> Vec<Handle<UiNode>> {
+        let ui = &engine.user_interface;
         match &editor_scene.selection {
-            Selection::Graph(selection) => map_selection(
-                selection.nodes(),
-                self.graph_folder,
-                &engine.user_interface,
-                |n, handle| n.entity_handle == handle,
-                PhantomData::<SceneItem<Node>>,
-            ),
-            Selection::Sound(selection) => map_selection(
-                selection.sources(),
-                self.sounds_folder,
-                &engine.user_interface,
-                |n, handle| n.entity_handle == handle,
-                PhantomData::<SceneItem<SoundSource>>,
-            ),
-            Selection::RigidBody(selection) => map_selection(
-                selection.bodies(),
-                self.rigid_bodies_folder,
-                &engine.user_interface,
-                |n, handle| n.entity_handle == handle,
-                PhantomData::<SceneItem<RigidBody>>,
-            ),
-            Selection::Joint(selection) => map_selection(
-                selection.joints(),
-                self.joints_folder,
-                &engine.user_interface,
-                |n, handle| n.entity_handle == handle,
-                PhantomData::<SceneItem<Joint>>,
-            ),
-            Selection::Collider(selection) => map_selection(
-                selection.colliders(),
-                self.rigid_bodies_folder, // Collider views stored as rigid body child.
-                &engine.user_interface,
-                |n, handle| n.entity_handle == handle,
-                PhantomData::<SceneItem<Collider>>,
-            ),
+            Selection::Graph(selection) => {
+                map_selection(selection.nodes(), self.graph_folder, &engine.user_interface)
+            }
+            Selection::Sound(selection) => {
+                map_selection(selection.sources(), self.sounds_folder, ui)
+            }
+            Selection::RigidBody(selection) => {
+                map_selection(selection.bodies(), self.rigid_bodies_folder, ui)
+            }
+            Selection::Joint(selection) => {
+                map_selection(selection.joints(), self.joints_folder, ui)
+            }
+            Selection::Collider(selection) => {
+                // Collider views stored as rigid body child.
+                map_selection(selection.colliders(), self.rigid_bodies_folder, ui)
+            }
             Selection::None | Selection::Navmesh(_) => Default::default(),
         }
     }
@@ -1372,22 +1368,21 @@ impl WorldViewer {
     }
 }
 
-fn map_selection<T, V, C>(
+fn map_selection<T>(
     selection: &[Handle<T>],
     folder: Handle<UiNode>,
     ui: &UserInterface,
-    cmp: C,
-    _phantom: PhantomData<V>,
 ) -> Vec<Handle<UiNode>>
 where
-    C: Fn(&V, Handle<T>) -> bool,
-    V: Control,
+    T: 'static,
 {
     selection
         .iter()
         .filter_map(|&handle| {
             let item = ui.find_by_criteria_down(folder, &|n| {
-                n.cast::<V>().map(|n| (cmp)(n, handle)).unwrap_or_default()
+                n.cast::<SceneItem<T>>()
+                    .map(|n| n.entity_handle == handle)
+                    .unwrap_or_default()
             });
             if item.is_some() {
                 Some(item)
