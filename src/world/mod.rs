@@ -1,9 +1,7 @@
-use crate::physics::Collider;
-use crate::world::physics::selection::ColliderSelection;
 use crate::{
     gui::GraphNodeItemMessage,
     load_image,
-    physics::{Joint, RigidBody},
+    physics::{Collider, Joint, RigidBody},
     scene::{
         commands::{
             graph::LinkNodesCommand, physics::LinkBodyCommand, physics::UnlinkBodyCommand,
@@ -18,11 +16,11 @@ use crate::{
             menu::ItemContextMenu,
             selection::GraphSelection,
         },
-        link::{menu::LinkContextMenu, LinkItem, LinkItemBuilder},
+        link::{menu::LinkContextMenu, LinkItem, LinkItemBuilder, LinkItemMessage},
         physics::{
             item::{PhysicsItem, PhysicsItemBuilder, PhysicsItemMessage},
             menu::RigidBodyContextMenu,
-            selection::{JointSelection, RigidBodySelection},
+            selection::{ColliderSelection, JointSelection, RigidBodySelection},
         },
         sound::{
             item::{SoundItem, SoundItemBuilder},
@@ -31,7 +29,6 @@ use crate::{
     },
     GameEngine, Message,
 };
-use rg3d::physics3d::desc::ColliderShapeDesc;
 use rg3d::{
     core::{
         color::Color,
@@ -57,6 +54,7 @@ use rg3d::{
         BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
         VerticalAlignment,
     },
+    physics3d::desc::ColliderShapeDesc,
     scene::{graph::Graph, node::Node, Scene},
     sound::{context::SoundContext, source::SoundSource},
 };
@@ -834,6 +832,8 @@ impl WorldViewer {
     fn sync_rigid_body_node_links(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
         let ui = &mut engine.user_interface;
 
+        let graph = &engine.scenes[editor_scene.scene].graph;
+
         for (&rigid_body, &view) in self.rigid_body_to_view_map.iter() {
             let rigid_body_view_ref = ui
                 .node(view)
@@ -855,7 +855,7 @@ impl WorldViewer {
                     let link = LinkItemBuilder::<Node, RigidBody>::new(TreeBuilder::new(
                         WidgetBuilder::new().with_context_menu(self.link_context_menu.menu),
                     ))
-                    .with_name("Linked Node")
+                    .with_name(format!("Linked Node {}", graph[*linked_node].name()))
                     .with_source(*linked_node)
                     .with_dest(rigid_body)
                     .build(&mut ui.build_ctx());
@@ -874,6 +874,20 @@ impl WorldViewer {
                     view,
                     MessageDirection::ToWidget,
                     node_links[0],
+                ));
+            }
+
+            for (node_link, node_link_ref) in node_links
+                .into_iter()
+                .map(|h| (h, ui.node(h).cast::<LinkItem<Node, RigidBody>>().unwrap()))
+            {
+                ui.send_message(UiMessage::user(
+                    node_link,
+                    MessageDirection::ToWidget,
+                    Box::new(LinkItemMessage::Name(format!(
+                        "Linked Node {}",
+                        graph[node_link_ref.source].name()
+                    ))),
                 ));
             }
         }
