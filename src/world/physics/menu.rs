@@ -1,4 +1,5 @@
-use crate::scene::commands::physics::DeleteColliderCommand;
+use crate::physics::Joint;
+use crate::scene::commands::physics::{DeleteColliderCommand, DeleteJointCommand};
 use crate::{
     physics::{Collider, RigidBody},
     scene::commands::physics::{AddColliderCommand, DeleteBodyCommand},
@@ -234,14 +235,13 @@ impl RigidBodyContextMenu {
     }
 }
 
-pub struct ColliderContextMenu {
+pub struct DeletableSceneItemContextMenu {
     pub menu: Handle<UiNode>,
     pub delete: Handle<UiNode>,
-    /// A collider item above which the menu was opened.
     pub target: Handle<UiNode>,
 }
 
-impl ColliderContextMenu {
+impl DeletableSceneItemContextMenu {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let delete;
         let menu = PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
@@ -287,6 +287,14 @@ impl ColliderContextMenu {
                     {
                         sender
                             .send(Message::do_scene_command(DeleteColliderCommand::new(
+                                collider_item.entity_handle,
+                            )))
+                            .unwrap();
+                    } else if let Some(collider_item) =
+                        ui.node(self.target).cast::<SceneItem<Joint>>()
+                    {
+                        sender
+                            .send(Message::do_scene_command(DeleteJointCommand::new(
                                 collider_item.entity_handle,
                             )))
                             .unwrap();

@@ -1,4 +1,4 @@
-use crate::world::physics::menu::ColliderContextMenu;
+use crate::world::physics::menu::DeletableSceneItemContextMenu;
 use crate::{
     load_image,
     physics::{Collider, Joint, RigidBody},
@@ -83,7 +83,7 @@ pub struct WorldViewer {
     item_context_menu: ItemContextMenu,
     link_context_menu: LinkContextMenu,
     rigid_body_context_menu: RigidBodyContextMenu,
-    collider_context_menu: ColliderContextMenu,
+    deletable_context_menu: DeletableSceneItemContextMenu,
     node_to_view_map: HashMap<Handle<Node>, Handle<UiNode>>,
     rigid_body_to_view_map: HashMap<Handle<RigidBody>, Handle<UiNode>>,
     joint_to_view_map: HashMap<Handle<Joint>, Handle<UiNode>>,
@@ -371,7 +371,7 @@ impl WorldViewer {
         let item_context_menu = ItemContextMenu::new(ctx);
         let link_context_menu = LinkContextMenu::new(ctx);
         let rigid_body_context_menu = RigidBodyContextMenu::new(ctx);
-        let collider_context_menu = ColliderContextMenu::new(ctx);
+        let deletable_context_menu = DeletableSceneItemContextMenu::new(ctx);
 
         Self {
             window,
@@ -392,7 +392,7 @@ impl WorldViewer {
             sounds_folder,
             link_context_menu,
             rigid_body_context_menu,
-            collider_context_menu,
+            deletable_context_menu: deletable_context_menu,
             node_to_view_map: Default::default(),
             rigid_body_to_view_map: Default::default(),
             joint_to_view_map: Default::default(),
@@ -572,6 +572,7 @@ impl WorldViewer {
         ui: &mut UserInterface,
         editor_scene: &EditorScene,
     ) -> Vec<Handle<UiNode>> {
+        let context_menu = self.deletable_context_menu.menu;
         sync_pool(
             self.joints_folder,
             &editor_scene.physics.joints,
@@ -584,13 +585,15 @@ impl WorldViewer {
             PhantomData::<SceneItem<Joint>>,
             &mut self.joint_to_view_map,
             |ui, handle, _| {
-                SceneItemBuilder::<Joint>::new(TreeBuilder::new(WidgetBuilder::new()))
-                    .with_name("Joint".to_owned())
-                    .with_icon(load_image(include_bytes!(
-                        "../../resources/embed/joint.png"
-                    )))
-                    .with_entity_handle(handle)
-                    .build(&mut ui.build_ctx())
+                SceneItemBuilder::<Joint>::new(TreeBuilder::new(
+                    WidgetBuilder::new().with_context_menu(context_menu),
+                ))
+                .with_name("Joint".to_owned())
+                .with_icon(load_image(include_bytes!(
+                    "../../resources/embed/joint.png"
+                )))
+                .with_entity_handle(handle)
+                .build(&mut ui.build_ctx())
             },
             |_| "Joint".to_owned(),
             |s, ui| ui.node(s).cast::<SceneItem<Joint>>().unwrap().entity_handle,
@@ -952,7 +955,8 @@ impl WorldViewer {
                         };
 
                         let view = SceneItemBuilder::<Collider>::new(TreeBuilder::new(
-                            WidgetBuilder::new().with_context_menu(self.collider_context_menu.menu),
+                            WidgetBuilder::new()
+                                .with_context_menu(self.deletable_context_menu.menu),
                         ))
                         .with_name(name.to_owned())
                         .with_icon(load_image(include_bytes!(
@@ -1041,8 +1045,11 @@ impl WorldViewer {
             &self.sender,
             &engine.user_interface,
         );
-        self.collider_context_menu
-            .handle_ui_message(message, &engine.user_interface, &self.sender);
+        self.deletable_context_menu.handle_ui_message(
+            message,
+            &engine.user_interface,
+            &self.sender,
+        );
 
         match message.data() {
             UiMessageData::TreeRoot(msg) => {
