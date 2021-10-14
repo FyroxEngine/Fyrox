@@ -1,4 +1,4 @@
-use crate::{inspector::SenderHelper, scene::commands::graph::*};
+use crate::{do_command, inspector::SenderHelper, scene::commands::graph::*};
 use rg3d::{
     core::pool::Handle,
     gui::message::{FieldKind, PropertyChanged},
@@ -33,6 +33,24 @@ pub fn handle_transform_property_changed(
                     **node.local_transform().scale(),
                     *value.cast_value()?,
                 ));
+            }
+            "pre_rotation" => {
+                do_command!(helper, SetPreRotationCommand, node_handle, value)
+            }
+            "post_rotation" => {
+                do_command!(helper, SetPostRotationCommand, node_handle, value)
+            }
+            "rotation_offset" => {
+                do_command!(helper, SetRotationOffsetCommand, node_handle, value)
+            }
+            "rotation_pivot" => {
+                do_command!(helper, SetRotationPivotCommand, node_handle, value)
+            }
+            "scaling_offset" => {
+                do_command!(helper, SetScaleOffsetCommand, node_handle, value)
+            }
+            "scaling_pivot" => {
+                do_command!(helper, SetScalePivotCommand, node_handle, value)
             }
             _ => println!("Unhandled property of Transform: {:?}", args),
         }
