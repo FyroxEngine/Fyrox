@@ -584,7 +584,9 @@ where
     pub is_sensor: bool,
     pub translation: Vector<f32>,
     pub rotation: Rotation<f32>,
+    #[inspect(expand)]
     pub collision_groups: InteractionGroupsDesc,
+    #[inspect(expand)]
     pub solver_groups: InteractionGroupsDesc,
 }
 
