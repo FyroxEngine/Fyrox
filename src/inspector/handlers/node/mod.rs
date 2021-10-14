@@ -1,3 +1,4 @@
+use crate::inspector::handlers::node::mesh::handle_mesh_property_changed;
 use crate::inspector::{
     handlers::node::{
         base::handle_base_property_changed, camera::handle_camera_property_changed,
@@ -7,6 +8,7 @@ use crate::inspector::{
     },
     SenderHelper,
 };
+use rg3d::scene::mesh::Mesh;
 use rg3d::{
     core::pool::Handle,
     gui::{message::PropertyChanged, UserInterface},
@@ -29,6 +31,7 @@ pub mod base;
 pub mod camera;
 pub mod decal;
 pub mod light;
+pub mod mesh;
 pub mod particle_system;
 pub mod sprite;
 pub mod terrain;
@@ -69,6 +72,8 @@ impl SceneNodePropertyChangedHandler {
             handle_decal_property_changed(args, handle, helper)
         } else if args.owner_type_id == TypeId::of::<Terrain>() {
             handle_terrain_property_changed(args, handle, &helper, &scene.graph)
+        } else if args.owner_type_id == TypeId::of::<Mesh>() {
+            handle_mesh_property_changed(args, handle, &helper)
         } else {
             Some(())
         }
