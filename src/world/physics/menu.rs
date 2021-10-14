@@ -1,7 +1,7 @@
+use crate::world::graph::item::SceneItem;
 use crate::{
     physics::{Collider, RigidBody},
     scene::commands::physics::{AddColliderCommand, DeleteBodyCommand},
-    world::physics::item::PhysicsItem,
     Message,
 };
 use rg3d::{
@@ -154,10 +154,10 @@ impl RigidBodyContextMenu {
             }
             UiMessageData::MenuItem(MenuItemMessage::Click) => {
                 if let Some(rigid_body_view_ref) = ui.try_get_node(self.target).map(|n| {
-                    n.cast::<PhysicsItem<RigidBody>>()
-                        .expect("Rigid body context menu must have PhysicsItem<RigidBody> target!")
+                    n.cast::<SceneItem<RigidBody>>()
+                        .expect("Rigid body context menu must have SceneItem<RigidBody> target!")
                 }) {
-                    let rigid_body_handle = rigid_body_view_ref.physics_entity;
+                    let rigid_body_handle = rigid_body_view_ref.entity_handle;
 
                     if message.destination() == self.delete {
                         sender

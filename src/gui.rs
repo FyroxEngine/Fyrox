@@ -23,14 +23,6 @@ pub enum AssetItemMessage {
     Select(bool),
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum GraphNodeItemMessage {
-    NodeVisibility(bool),
-    Name(String),
-    /// Odd or even.
-    Order(bool),
-}
-
 pub fn make_dropdown_list_option(ctx: &mut BuildContext, name: &str) -> Handle<UiNode> {
     DecoratorBuilder::new(BorderBuilder::new(
         WidgetBuilder::new().with_height(26.0).with_child(
@@ -42,24 +34,6 @@ pub fn make_dropdown_list_option(ctx: &mut BuildContext, name: &str) -> Handle<U
         ),
     ))
     .build(ctx)
-}
-
-impl GraphNodeItemMessage {
-    pub fn node_visibility(destination: Handle<UiNode>, visibility: bool) -> UiMessage {
-        UiMessage::user(
-            destination,
-            MessageDirection::ToWidget,
-            Box::new(GraphNodeItemMessage::NodeVisibility(visibility)),
-        )
-    }
-
-    pub fn name(destination: Handle<UiNode>, name: String) -> UiMessage {
-        UiMessage::user(
-            destination,
-            MessageDirection::ToWidget,
-            Box::new(GraphNodeItemMessage::Name(name)),
-        )
-    }
 }
 
 impl AssetItemMessage {

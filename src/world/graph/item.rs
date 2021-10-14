@@ -1,56 +1,67 @@
-use crate::{
-    gui::GraphNodeItemMessage,
-    load_image,
-    scene::commands::{graph::SetVisibleCommand, SceneCommand},
-    Message,
-};
 use rg3d::{
     core::{algebra::Vector2, pool::Handle},
-    engine::resource_manager::ResourceManager,
     gui::{
         brush::Brush,
-        button::ButtonBuilder,
         core::color::Color,
         draw::{DrawingContext, SharedTexture},
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
         message::{
-            ButtonMessage, DecoratorMessage, MessageDirection, OsEvent, TextMessage, UiMessage,
-            UiMessageData,
+            DecoratorMessage, MessageDirection, OsEvent, TextMessage, UiMessage, UiMessageData,
         },
         text::TextBuilder,
         tree::{Tree, TreeBuilder},
         widget::Widget,
         widget::WidgetBuilder,
-        BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Thickness, UiNode,
-        UserInterface, VerticalAlignment,
+        BuildContext, Control, NodeHandleMapping, Thickness, UiNode, UserInterface,
+        VerticalAlignment,
     },
-    scene::node::Node,
 };
 use std::{
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
-    sync::mpsc::Sender,
 };
 
-#[derive(Clone)]
-pub struct GraphNodeItem {
-    pub tree: Tree,
-    text_name: Handle<UiNode>,
-    pub node: Handle<Node>,
-    visibility_toggle: Handle<UiNode>,
-    sender: Sender<Message>,
-    visibility: bool,
-    resource_manager: ResourceManager,
+#[derive(Debug, Clone, PartialEq)]
+pub enum SceneItemMessage {
+    Name(String),
+    /// Odd or even.
+    Order(bool),
 }
 
-impl Debug for GraphNodeItem {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "GraphNodeItem")
+impl SceneItemMessage {
+    pub fn name(destination: Handle<UiNode>, name: String) -> UiMessage {
+        UiMessage::user(
+            destination,
+            MessageDirection::ToWidget,
+            Box::new(SceneItemMessage::Name(name)),
+        )
     }
 }
 
-impl Deref for GraphNodeItem {
+pub struct SceneItem<T> {
+    pub tree: Tree,
+    text_name: Handle<UiNode>,
+    pub entity_handle: Handle<T>,
+}
+
+impl<T> Clone for SceneItem<T> {
+    fn clone(&self) -> Self {
+        Self {
+            tree: self.tree.clone(),
+            text_name: self.text_name,
+            entity_handle: self.entity_handle,
+        }
+    }
+}
+
+impl<T> Debug for SceneItem<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "SceneItem")
+    }
+}
+
+impl<T> Deref for SceneItem<T> {
     type Target = Widget;
 
     fn deref(&self) -> &Self::Target {
@@ -58,13 +69,13 @@ impl Deref for GraphNodeItem {
     }
 }
 
-impl DerefMut for GraphNodeItem {
+impl<T> DerefMut for SceneItem<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.tree
     }
 }
 
-impl Control for GraphNodeItem {
+impl<T: 'static> Control for SceneItem<T> {
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         self.tree.resolve(node_map);
         node_map.resolve(&mut self.text_name);
@@ -90,43 +101,10 @@ impl Control for GraphNodeItem {
         self.tree.handle_routed_message(ui, message);
 
         match message.data() {
-            UiMessageData::Button(msg) => {
-                if message.destination() == self.visibility_toggle {
-                    if let ButtonMessage::Click = msg {
-                        let command =
-                            SceneCommand::new(SetVisibleCommand::new(self.node, !self.visibility));
-                        self.sender.send(Message::DoSceneCommand(command)).unwrap();
-                    }
-                }
-            }
             UiMessageData::User(msg) => {
-                if let Some(msg) = msg.cast::<GraphNodeItemMessage>() {
+                if let Some(msg) = msg.cast::<SceneItemMessage>() {
                     match msg {
-                        &GraphNodeItemMessage::NodeVisibility(visibility) => {
-                            if self.visibility != visibility
-                                && message.destination() == self.handle()
-                            {
-                                self.visibility = visibility;
-                                let image = if visibility {
-                                    load_image(include_bytes!(
-                                        "../../../resources/embed/visible.png"
-                                    ))
-                                } else {
-                                    load_image(include_bytes!(
-                                        "../../../resources/embed/invisible.png"
-                                    ))
-                                };
-                                let image = ImageBuilder::new(WidgetBuilder::new())
-                                    .with_opt_texture(image)
-                                    .build(&mut ui.build_ctx());
-                                ui.send_message(ButtonMessage::content(
-                                    self.visibility_toggle,
-                                    MessageDirection::ToWidget,
-                                    image,
-                                ));
-                            }
-                        }
-                        &GraphNodeItemMessage::Order(order) => {
+                        &SceneItemMessage::Order(order) => {
                             if message.destination() == self.handle() {
                                 ui.send_message(DecoratorMessage::normal_brush(
                                     self.tree.back(),
@@ -139,13 +117,13 @@ impl Control for GraphNodeItem {
                                 ));
                             }
                         }
-                        GraphNodeItemMessage::Name(name) => {
+                        SceneItemMessage::Name(name) => {
                             if message.destination() == self.handle() {
                                 let name = format!(
                                     "{} ({}:{})",
                                     name,
-                                    self.node.index(),
-                                    self.node.generation()
+                                    self.entity_handle.index(),
+                                    self.entity_handle.generation()
                                 );
 
                                 ui.send_message(TextMessage::text(
@@ -180,28 +158,27 @@ impl Control for GraphNodeItem {
     }
 }
 
-#[derive(Default)]
-pub struct GraphNodeItemBuilder {
-    node: Handle<Node>,
+pub struct SceneItemBuilder<T> {
+    tree_builder: TreeBuilder,
+    entity_handle: Handle<T>,
     name: String,
-    visibility: bool,
     icon: Option<SharedTexture>,
-    context_menu: Handle<UiNode>,
+    text_brush: Option<Brush>,
 }
 
-impl GraphNodeItemBuilder {
-    pub fn new() -> Self {
+impl<T: 'static> SceneItemBuilder<T> {
+    pub fn new(tree_builder: TreeBuilder) -> Self {
         Self {
-            node: Default::default(),
+            tree_builder,
+            entity_handle: Default::default(),
             name: Default::default(),
-            visibility: true,
             icon: None,
-            context_menu: Default::default(),
+            text_brush: None,
         }
     }
 
-    pub fn with_node(mut self, node: Handle<Node>) -> Self {
-        self.node = node;
+    pub fn with_entity_handle(mut self, entity_handle: Handle<T>) -> Self {
+        self.entity_handle = entity_handle;
         self
     }
 
@@ -210,112 +187,62 @@ impl GraphNodeItemBuilder {
         self
     }
 
-    pub fn with_visibility(mut self, visibility: bool) -> Self {
-        self.visibility = visibility;
-        self
-    }
-
     pub fn with_icon(mut self, icon: Option<SharedTexture>) -> Self {
         self.icon = icon;
         self
     }
 
-    pub fn with_context_menu(mut self, menu: Handle<UiNode>) -> Self {
-        self.context_menu = menu;
+    pub fn with_text_brush(mut self, brush: Brush) -> Self {
+        self.text_brush = Some(brush);
         self
     }
 
-    pub fn build(
-        self,
-        ctx: &mut BuildContext,
-        sender: Sender<Message>,
-        resource_manager: ResourceManager,
-        node: &Node,
-    ) -> Handle<UiNode> {
-        let visible_texture = load_image(include_bytes!("../../../resources/embed/visible.png"));
-
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let text_name;
-        let visibility_toggle;
-        let tree = TreeBuilder::new(
+        let content = GridBuilder::new(
             WidgetBuilder::new()
-                .with_context_menu(self.context_menu)
-                .with_margin(Thickness {
-                    left: 1.0,
-                    top: 1.0,
-                    right: 0.0,
-                    bottom: 0.0,
+                .with_child(
+                    ImageBuilder::new(
+                        WidgetBuilder::new()
+                            .with_width(16.0)
+                            .with_height(16.0)
+                            .on_column(0)
+                            .with_margin(Thickness::uniform(1.0)),
+                    )
+                    .with_opt_texture(self.icon)
+                    .build(ctx),
+                )
+                .with_child({
+                    text_name = TextBuilder::new(
+                        WidgetBuilder::new()
+                            .with_foreground(
+                                self.text_brush
+                                    .unwrap_or(Brush::Solid(rg3d::gui::COLOR_FOREGROUND)),
+                            )
+                            .with_margin(Thickness::uniform(1.0))
+                            .on_column(1)
+                            .with_vertical_alignment(VerticalAlignment::Center),
+                    )
+                    .with_text(format!(
+                        "{} ({}:{})",
+                        self.name,
+                        self.entity_handle.index(),
+                        self.entity_handle.generation()
+                    ))
+                    .build(ctx);
+                    text_name
                 }),
         )
-        .with_content(
-            GridBuilder::new(
-                WidgetBuilder::new()
-                    .with_child(
-                        ImageBuilder::new(
-                            WidgetBuilder::new()
-                                .with_width(16.0)
-                                .with_height(16.0)
-                                .on_column(0)
-                                .with_margin(Thickness::uniform(1.0)),
-                        )
-                        .with_opt_texture(self.icon)
-                        .build(ctx),
-                    )
-                    .with_child({
-                        text_name = TextBuilder::new(
-                            WidgetBuilder::new()
-                                .with_foreground(if node.resource().is_some() {
-                                    Brush::Solid(Color::opaque(160, 160, 200))
-                                } else {
-                                    Brush::Solid(rg3d::gui::COLOR_FOREGROUND)
-                                })
-                                .with_margin(Thickness::uniform(1.0))
-                                .on_column(1)
-                                .with_vertical_alignment(VerticalAlignment::Center),
-                        )
-                        .with_text(format!(
-                            "{} ({}:{})",
-                            self.name,
-                            self.node.index(),
-                            self.node.generation()
-                        ))
-                        .build(ctx);
-                        text_name
-                    })
-                    .with_child({
-                        visibility_toggle = ButtonBuilder::new(
-                            WidgetBuilder::new()
-                                .with_margin(Thickness::uniform(1.0))
-                                .with_width(22.0)
-                                .with_height(16.0)
-                                .with_horizontal_alignment(HorizontalAlignment::Right)
-                                .on_column(2),
-                        )
-                        .with_content(
-                            ImageBuilder::new(
-                                WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
-                            )
-                            .with_opt_texture(visible_texture)
-                            .build(ctx),
-                        )
-                        .build(ctx);
-                        visibility_toggle
-                    }),
-            )
-            .add_row(Row::stretch())
-            .add_column(Column::auto())
-            .add_column(Column::auto())
-            .add_column(Column::stretch())
-            .build(ctx),
-        )
-        .build_tree(ctx);
+        .add_row(Row::stretch())
+        .add_column(Column::auto())
+        .add_column(Column::stretch())
+        .build(ctx);
 
-        let item = GraphNodeItem {
+        let tree = self.tree_builder.with_content(content).build_tree(ctx);
+
+        let item = SceneItem {
             tree,
-            node: self.node,
-            visibility_toggle,
-            sender,
-            visibility: self.visibility,
-            resource_manager,
+            entity_handle: self.entity_handle,
             text_name,
         };
 
