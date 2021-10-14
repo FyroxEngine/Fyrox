@@ -47,14 +47,14 @@ use rg3d::{
         tree::{Tree, TreeBuilder, TreeRoot, TreeRootBuilder},
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
-        BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+        BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
         VerticalAlignment,
     },
     physics3d::desc::ColliderShapeDesc,
     scene::{graph::Graph, node::Node, Scene},
     sound::{context::SoundContext, source::SoundSource},
 };
-use std::{cmp::Ordering, collections::HashMap, marker::PhantomData, sync::mpsc::Sender};
+use std::{cmp::Ordering, collections::HashMap, sync::mpsc::Sender};
 
 pub mod graph;
 pub mod link;
@@ -166,23 +166,19 @@ fn make_folder(ctx: &mut BuildContext, name: &str) -> Handle<UiNode> {
         .build(ctx)
 }
 
-pub fn sync_pool<T, N, M, F, V>(
+pub fn sync_pool<T, N, M>(
     folder: Handle<UiNode>,
     pool: &Pool<T>,
     ui: &mut UserInterface,
     selection: Option<&[Handle<T>]>,
-    _: PhantomData<V>,
     view_map: &mut HashMap<Handle<T>, Handle<UiNode>>,
     mut make_view: M,
     mut make_name: N,
-    mut fetch_entity: F,
 ) -> Vec<Handle<UiNode>>
 where
     T: 'static,
     N: FnMut(Handle<T>) -> String,
     M: FnMut(&mut UserInterface, Handle<T>, &T) -> Handle<UiNode>,
-    F: FnMut(Handle<UiNode>, &UserInterface) -> Handle<T>,
-    V: Control,
 {
     let folder_items = ui
         .node(folder)
@@ -191,17 +187,17 @@ where
         .items()
         .iter()
         .cloned()
-        .filter(|i| ui.node(*i).cast::<V>().is_some())
+        .filter(|i| ui.node(*i).cast::<SceneItem<T>>().is_some())
         .collect::<Vec<_>>();
 
     match pool.alive_count().cmp(&folder_items.len()) {
         Ordering::Less => {
             // An entity was removed.
             for &item in folder_items.iter() {
-                let associated_source = (fetch_entity)(item, ui);
+                let entity_handle = ui.node(item).cast::<SceneItem<T>>().unwrap().entity_handle;
 
-                if pool.pair_iter().all(|(h, _)| h != associated_source) {
-                    let removed = view_map.remove(&associated_source);
+                if pool.pair_iter().all(|(h, _)| h != entity_handle) {
+                    let removed = view_map.remove(&entity_handle);
 
                     assert!(removed.is_some());
 
@@ -217,7 +213,7 @@ where
             for (handle, elem) in pool.pair_iter() {
                 if folder_items
                     .iter()
-                    .all(|i| (fetch_entity)(*i, ui) != handle)
+                    .all(|i| ui.node(*i).cast::<SceneItem<T>>().unwrap().entity_handle != handle)
                 {
                     let view = (make_view)(ui, handle, elem);
 
@@ -246,9 +242,10 @@ where
                 .unwrap()
                 .items()
                 .iter()
-                .find(|i| (fetch_entity)(**i, ui) == *selected)
+                .cloned()
+                .find(|i| ui.node(*i).cast::<SceneItem<T>>().unwrap().entity_handle == *selected)
             {
-                selected_items.push(*associated_item)
+                selected_items.push(associated_item)
             }
         }
     }
@@ -256,7 +253,7 @@ where
     // Sync names. Since rigid body cannot have a name, we just take the name of an associated
     // scene node (if any), or a placeholder "Rigid Body" if there is no associated scene node.
     for item in ui.node(folder).cast::<Tree>().unwrap().items() {
-        let rigid_body = (fetch_entity)(*item, ui);
+        let rigid_body = ui.node(*item).cast::<SceneItem<T>>().unwrap().entity_handle;
         ui.send_message(UiMessage::user(
             *item,
             MessageDirection::ToWidget,
@@ -546,7 +543,6 @@ impl WorldViewer {
             } else {
                 None
             },
-            PhantomData::<SceneItem<SoundSource>>,
             &mut self.sound_to_view_map,
             |ui, handle, _| {
                 SceneItemBuilder::<SoundSource>::new(TreeBuilder::new(WidgetBuilder::new()))
@@ -558,12 +554,6 @@ impl WorldViewer {
                     .build(&mut ui.build_ctx())
             },
             |s| ctx.source(s).name_owned(),
-            |s, ui| {
-                ui.node(s)
-                    .cast::<SceneItem<SoundSource>>()
-                    .unwrap()
-                    .entity_handle
-            },
         )
     }
 
@@ -582,7 +572,6 @@ impl WorldViewer {
             } else {
                 None
             },
-            PhantomData::<SceneItem<Joint>>,
             &mut self.joint_to_view_map,
             |ui, handle, _| {
                 SceneItemBuilder::<Joint>::new(TreeBuilder::new(
@@ -596,7 +585,6 @@ impl WorldViewer {
                 .build(&mut ui.build_ctx())
             },
             |_| "Joint".to_owned(),
-            |s, ui| ui.node(s).cast::<SceneItem<Joint>>().unwrap().entity_handle,
         )
     }
 
@@ -615,7 +603,6 @@ impl WorldViewer {
             } else {
                 None
             },
-            PhantomData::<SceneItem<RigidBody>>,
             &mut self.rigid_body_to_view_map,
             |ui, handle, _| {
                 SceneItemBuilder::<RigidBody>::new(TreeBuilder::new(
@@ -629,12 +616,6 @@ impl WorldViewer {
                 .build(&mut ui.build_ctx())
             },
             |_| "Rigid Body".to_owned(),
-            |s, ui| {
-                ui.node(s)
-                    .cast::<SceneItem<RigidBody>>()
-                    .unwrap()
-                    .entity_handle
-            },
         )
     }
 
