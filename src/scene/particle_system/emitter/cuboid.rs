@@ -23,8 +23,11 @@ use std::ops::{Deref, DerefMut};
 pub struct CuboidEmitter {
     #[inspect(expand)]
     emitter: BaseEmitter,
+    #[inspect(min_value = 0.0, step = 0.1)]
     half_width: f32,
+    #[inspect(min_value = 0.0, step = 0.1)]
     half_height: f32,
+    #[inspect(min_value = 0.0, step = 0.1)]
     half_depth: f32,
 }
 

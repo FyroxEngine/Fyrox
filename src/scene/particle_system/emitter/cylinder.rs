@@ -22,7 +22,9 @@ use std::ops::{Deref, DerefMut};
 pub struct CylinderEmitter {
     #[inspect(expand)]
     emitter: BaseEmitter,
+    #[inspect(min_value = 0.0, step = 0.1)]
     height: f32,
+    #[inspect(min_value = 0.0, step = 0.1)]
     radius: f32,
 }
 

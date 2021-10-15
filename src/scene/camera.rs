@@ -47,10 +47,13 @@ pub enum Exposure {
     /// `exposure = key_value / clamp(avg_luminance, min_luminance, max_luminance)`
     Auto {
         /// A key value in the formula above. Default is 0.01556.
+        #[inspect(min_value = 0.0, step = 0.1)]
         key_value: f32,
         /// A min luminance value in the formula above. Default is 0.00778.
+        #[inspect(min_value = 0.0, step = 0.1)]
         min_luminance: f32,
         /// A max luminance value in the formula above. Default is 64.0.
+        #[inspect(min_value = 0.0, step = 0.1)]
         max_luminance: f32,
     },
 
@@ -73,8 +76,11 @@ impl Default for Exposure {
 pub struct Camera {
     #[inspect(expand)]
     base: Base,
+    #[inspect(min_value = 0.0, max_value = 3.14159, step = 0.1)]
     fov: f32,
+    #[inspect(min_value = 0.0, step = 0.1)]
     z_near: f32,
+    #[inspect(min_value = 0.0, step = 0.1)]
     z_far: f32,
     viewport: Rect<f32>,
     #[visit(skip)]

@@ -63,6 +63,7 @@ pub struct Sprite {
     base: Base,
     texture: Option<Texture>,
     color: Color,
+    #[inspect(min_value = 0.0, step = 0.1)]
     size: f32,
     rotation: f32,
 }

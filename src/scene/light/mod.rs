@@ -161,6 +161,7 @@ pub struct BaseLight {
     cast_shadows: bool,
     scatter: Vector3<f32>,
     scatter_enabled: bool,
+    #[inspect(min_value = 0.0, step = 0.1)]
     intensity: f32,
 }
 

@@ -42,9 +42,13 @@ use std::ops::{Deref, DerefMut};
 pub struct SpotLight {
     #[inspect(expand)]
     base_light: BaseLight,
+    #[inspect(min_value = 0.0, max_value = 3.14159, step = 0.1)]
     hotspot_cone_angle: f32,
+    #[inspect(min_value = 0.0, step = 0.1)]
     falloff_angle_delta: f32,
+    #[inspect(min_value = 0.0, step = 0.001)]
     shadow_bias: f32,
+    #[inspect(min_value = 0.0, step = 0.1)]
     distance: f32,
     cookie_texture: Option<Texture>,
 }

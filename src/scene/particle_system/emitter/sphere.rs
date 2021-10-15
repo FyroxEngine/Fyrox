@@ -23,6 +23,7 @@ use std::ops::{Deref, DerefMut};
 pub struct SphereEmitter {
     #[inspect(expand)]
     emitter: BaseEmitter,
+    #[inspect(min_value = 0.0, step = 0.1)]
     radius: f32,
 }
 
