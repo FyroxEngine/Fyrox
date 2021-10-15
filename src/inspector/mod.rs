@@ -1,14 +1,16 @@
-use crate::inspector::handlers::rigid_body::handle_rigid_body_property_changed;
-use crate::physics::RigidBody;
+use crate::physics::Collider;
 use crate::{
     command::Command,
     inspector::{
         editors::make_property_editors_container,
         handlers::{
+            collider::handle_collider_property_changed,
             node::{particle_system::ParticleSystemHandler, SceneNodePropertyChangedHandler},
+            rigid_body::handle_rigid_body_property_changed,
             sound::*,
         },
     },
+    physics::RigidBody,
     scene::{EditorScene, Selection},
     GameEngine, Message, MSG_SYNC_FLAG,
 };
@@ -297,6 +299,14 @@ impl Inspector {
                         let rigid_body_handle = selection.bodies()[0];
                         success = if args.owner_type_id == TypeId::of::<RigidBody>() {
                             handle_rigid_body_property_changed(args, rigid_body_handle, &helper)
+                        } else {
+                            Some(())
+                        }
+                    }
+                    Selection::Collider(selection) => {
+                        let collider_handle = selection.colliders()[0];
+                        success = if args.owner_type_id == TypeId::of::<Collider>() {
+                            handle_collider_property_changed(args, collider_handle, &helper)
                         } else {
                             Some(())
                         }

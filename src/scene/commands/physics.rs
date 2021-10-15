@@ -4,13 +4,12 @@ use crate::{
     scene::commands::SceneContext,
     Physics,
 };
-use rg3d::physics3d::desc::RigidBodyTypeDesc;
 use rg3d::{
     core::{
         algebra::{UnitQuaternion, Vector3},
         pool::{ErasedHandle, Handle, Ticket},
     },
-    physics3d::desc::{ColliderShapeDesc, JointParamsDesc},
+    physics3d::desc::{ColliderShapeDesc, JointParamsDesc, RigidBodyTypeDesc},
     scene::node::Node,
 };
 
@@ -593,12 +592,24 @@ define_collider_command!(SetColliderIsSensorCommand("Set Collider Is Sensor", bo
     std::mem::swap(&mut collider.is_sensor, &mut self.value);
 });
 
+define_collider_command!(SetColliderDensityCommand("Set Collider Density", Option<f32>) where fn swap(self, physics, collider) {
+    std::mem::swap(&mut collider.density, &mut self.value);
+});
+
 define_collider_command!(SetColliderCollisionGroupsMembershipsCommand("Set Collider Collision Groups Memberships", u32) where fn swap(self, physics, collider) {
     std::mem::swap(&mut collider.collision_groups.memberships, &mut self.value);
 });
 
 define_collider_command!(SetColliderCollisionGroupsFilterCommand("Set Collider Collision Groups Filter", u32) where fn swap(self, physics, collider) {
     std::mem::swap(&mut collider.collision_groups.filter, &mut self.value);
+});
+
+define_collider_command!(SetColliderSolverGroupsMembershipsCommand("Set Collider Solver Groups Memberships", u32) where fn swap(self, physics, collider) {
+    std::mem::swap(&mut collider.solver_groups.memberships, &mut self.value);
+});
+
+define_collider_command!(SetColliderSolverGroupsFilterCommand("Set Collider Solver Groups Filter", u32) where fn swap(self, physics, collider) {
+    std::mem::swap(&mut collider.solver_groups.filter, &mut self.value);
 });
 
 define_collider_variant_command!(SetCylinderHalfHeightCommand("Set Cylinder Half Height", f32) where fn swap(self, physics, Cylinder, cylinder) {

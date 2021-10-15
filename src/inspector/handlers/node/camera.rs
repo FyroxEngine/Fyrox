@@ -23,7 +23,7 @@ pub fn handle_camera_property_changed(
                         SetExposureCommand::new(handle, value.cast_value::<Exposure>()?.clone()),
                     ),
                     // Some inner property has changed
-                    FieldKind::EnumerationVariant(ref args) => {
+                    FieldKind::Inspectable(ref args) => {
                         if let FieldKind::Object(ref value) = args.value {
                             match args.name.as_ref() {
                                 Exposure::AUTO_KEY_VALUE => {

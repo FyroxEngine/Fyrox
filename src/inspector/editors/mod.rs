@@ -5,6 +5,8 @@ use crate::{
     Message,
 };
 use rg3d::core::pool::ErasedHandle;
+use rg3d::gui::inspector::editors::inspectable::InspectablePropertyEditorDefinition;
+use rg3d::physics3d::desc::InteractionGroupsDesc;
 use rg3d::sound::source::Status;
 use rg3d::{
     core::inspect::Inspect,
@@ -176,6 +178,9 @@ pub fn make_property_editors_container(
     container.insert(Arc::new(make_status_enum_editor_definition()));
     container.insert(Arc::new(make_rigid_body_type_editor_definition()));
     container.insert(Arc::new(make_option_editor_definition::<f32>()));
+    container.insert(Arc::new(InspectablePropertyEditorDefinition::<
+        InteractionGroupsDesc,
+    >::new()));
 
     Arc::new(container)
 }
