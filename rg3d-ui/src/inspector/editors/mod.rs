@@ -24,6 +24,7 @@ pub mod bool;
 pub mod collection;
 pub mod color;
 pub mod enumeration;
+pub mod inspectable;
 pub mod numeric;
 pub mod quat;
 pub mod rect;

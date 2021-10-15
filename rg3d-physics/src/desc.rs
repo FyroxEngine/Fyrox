@@ -115,6 +115,7 @@ where
     pub rotation: Rotation<f32>,
     pub lin_vel: Vector<f32>,
     pub ang_vel: AngVector<f32>,
+    #[inspect(read_only)]
     pub sleeping: bool,
     pub status: RigidBodyTypeDesc,
     pub colliders: Vec<C>,
@@ -577,6 +578,7 @@ where
 {
     #[inspect(expand)]
     pub shape: ColliderShapeDesc,
+    #[inspect(read_only)]
     pub parent: R,
     pub friction: f32,
     pub density: Option<f32>,
@@ -584,9 +586,7 @@ where
     pub is_sensor: bool,
     pub translation: Vector<f32>,
     pub rotation: Rotation<f32>,
-    #[inspect(expand)]
     pub collision_groups: InteractionGroupsDesc,
-    #[inspect(expand)]
     pub solver_groups: InteractionGroupsDesc,
 }
 
