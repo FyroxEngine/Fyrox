@@ -67,7 +67,7 @@ impl Visit for PhysicsBinding {
 /// Normalized distance is a distance in (0; 1) range where 0 - closest to camera,
 /// 1 - farthest. Real distance can be obtained by multiplying normalized distance
 /// with z_far of current projection matrix.
-#[derive(Debug, Default, Clone, Visit)]
+#[derive(Debug, Default, Clone, Visit, Inspect)]
 pub struct LevelOfDetail {
     begin: f32,
     end: f32,
@@ -131,7 +131,7 @@ impl LevelOfDetail {
 /// Lod group must contain non-overlapping cascades, each cascade with its own set of objects
 /// that belongs to level of detail. Engine does not care if you create overlapping cascades,
 /// it is your responsibility to create non-overlapping cascades.
-#[derive(Debug, Default, Clone, Visit)]
+#[derive(Debug, Default, Clone, Visit, Inspect)]
 pub struct LodGroup {
     /// Set of cascades.
     pub levels: Vec<LevelOfDetail>,
@@ -228,7 +228,7 @@ pub struct Base {
     visibility: bool,
     #[inspect(skip)]
     pub(in crate) global_visibility: Cell<bool>,
-    #[inspect(read_only)]
+    #[inspect(skip)]
     pub(in crate) parent: Handle<Node>,
     #[inspect(skip)]
     pub(in crate) children: Vec<Handle<Node>>,
@@ -243,7 +243,7 @@ pub struct Base {
     pub(in crate) resource: Option<Model>,
     // Handle to node in scene of model resource from which this node
     // was instantiated from.
-    #[inspect(read_only)]
+    #[inspect(skip)]
     pub(in crate) original_handle_in_resource: Handle<Node>,
     // When `true` it means that this node is instance of `resource`.
     // More precisely - this node is root of whole descendant nodes
