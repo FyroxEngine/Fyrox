@@ -100,6 +100,7 @@ pub struct Group {
 pub struct InspectorContext {
     groups: Vec<Group>,
     property_definitions: Arc<PropertyEditorDefinitionContainer>,
+    environment: Option<Arc<dyn InspectorEnvironment>>,
     sync_flag: u64,
 }
 
@@ -114,6 +115,7 @@ impl Default for InspectorContext {
         Self {
             groups: Default::default(),
             property_definitions: Arc::new(PropertyEditorDefinitionContainer::new()),
+            environment: None,
             sync_flag: 0,
         }
     }
@@ -290,6 +292,7 @@ impl InspectorContext {
             groups,
             property_definitions: definition_container,
             sync_flag,
+            environment,
         }
     }
 

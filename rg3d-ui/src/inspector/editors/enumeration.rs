@@ -1,3 +1,4 @@
+use crate::dropdown_list::DropdownList;
 use crate::{
     border::BorderBuilder,
     core::{inspect::Inspect, pool::Handle},
@@ -28,6 +29,8 @@ use std::{
     ops::{Deref, DerefMut},
     sync::Arc,
 };
+
+const LOCAL_SYNC_FLAG: u64 = 0xFF;
 
 pub trait InspectableEnum: Debug + Send + Sync + Inspect + 'static {}
 
@@ -129,6 +132,7 @@ impl<T: InspectableEnum> Control for EnumPropertyEditor<T> {
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
         if message.direction() == MessageDirection::FromWidget
             && message.destination() == self.variant_selector
+            && message.flags != LOCAL_SYNC_FLAG
         {
             if let UiMessageData::DropdownList(DropdownListMessage::SelectionChanged(Some(index))) =
                 message.data()
@@ -327,22 +331,60 @@ where
             .cast::<EnumPropertyEditor<T>>()
             .expect("Must be EnumPropertyEditor!");
 
-        let inspector_ctx = ctx
+        let variant_selector_ref = ctx
             .ui
-            .node(instance_ref.inspector)
-            .cast::<Inspector>()
-            .expect("Must be Inspector!")
-            .context()
-            .clone();
+            .node(instance_ref.variant_selector)
+            .cast::<DropdownList>()
+            .expect("Must be a DropDownList");
 
-        if let Err(e) = inspector_ctx.sync(value, ctx.ui) {
-            Err(InspectorError::Group(e))
-        } else {
-            Ok(Some(DropdownListMessage::selection(
-                ctx.instance,
+        let variant_index = (self.index_generator)(value);
+        if Some(variant_index) != variant_selector_ref.selection() {
+            let environment = ctx
+                .ui
+                .node(instance_ref.inspector)
+                .cast::<Inspector>()
+                .expect("Must be Inspector!")
+                .context()
+                .environment
+                .clone();
+
+            let mut selection_message = DropdownListMessage::selection(
+                instance_ref.variant_selector,
                 MessageDirection::ToWidget,
-                Some((self.index_generator)(value)),
+                Some(variant_index),
+            );
+            selection_message.flags = LOCAL_SYNC_FLAG;
+            ctx.ui.send_message(selection_message);
+
+            let inspector = instance_ref.inspector;
+
+            let context = InspectorContext::from_object(
+                value,
+                &mut ctx.ui.build_ctx(),
+                ctx.definition_container.clone(),
+                environment,
+                ctx.sync_flag,
+            );
+
+            Ok(Some(InspectorMessage::context(
+                inspector,
+                MessageDirection::ToWidget,
+                context,
             )))
+        } else {
+            let inspector_ctx = ctx
+                .ui
+                .node(instance_ref.inspector)
+                .cast::<Inspector>()
+                .expect("Must be Inspector!")
+                .context()
+                .clone();
+
+            if let Err(e) = inspector_ctx.sync(value, ctx.ui) {
+                Err(InspectorError::Group(e))
+            } else {
+                Ok(None)
+            }
         }
     }
 
