@@ -1,3 +1,4 @@
+use crate::core::num_traits::NumCast;
 use crate::numeric::{NumericType, NumericUpDownMessage};
 use crate::{
     inspector::{
@@ -51,6 +52,24 @@ where
             title: Default::default(),
             editor: NumericUpDownBuilder::new(
                 WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
+            )
+            .with_min_value(
+                ctx.property_info
+                    .min_value
+                    .and_then(|v| NumCast::from(v))
+                    .unwrap_or(T::min_value()),
+            )
+            .with_max_value(
+                ctx.property_info
+                    .max_value
+                    .and_then(|v| NumCast::from(v))
+                    .unwrap_or(T::max_value()),
+            )
+            .with_step(
+                ctx.property_info
+                    .step
+                    .and_then(|v| NumCast::from(v))
+                    .unwrap_or(T::one()),
             )
             .with_value(*value)
             .build(ctx.build_context),

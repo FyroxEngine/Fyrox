@@ -87,6 +87,9 @@ impl Inspect for Transform {
                 group: "Transform",
                 value: &*self.local_scale,
                 read_only: false,
+                min_value: None,
+                max_value: None,
+                step: None,
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Self>(),
@@ -95,6 +98,9 @@ impl Inspect for Transform {
                 group: "Transform",
                 value: &*self.local_position,
                 read_only: false,
+                min_value: None,
+                max_value: None,
+                step: None,
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Self>(),
@@ -103,6 +109,9 @@ impl Inspect for Transform {
                 group: "Transform",
                 value: &*self.local_rotation,
                 read_only: false,
+                min_value: None,
+                max_value: None,
+                step: None,
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Self>(),
@@ -111,6 +120,9 @@ impl Inspect for Transform {
                 group: "Transform",
                 value: &*self.pre_rotation,
                 read_only: false,
+                min_value: None,
+                max_value: None,
+                step: None,
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Self>(),
@@ -119,6 +131,9 @@ impl Inspect for Transform {
                 group: "Transform",
                 value: &*self.post_rotation,
                 read_only: false,
+                min_value: None,
+                max_value: None,
+                step: None,
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Self>(),
@@ -127,6 +142,9 @@ impl Inspect for Transform {
                 group: "Transform",
                 value: &*self.rotation_offset,
                 read_only: false,
+                min_value: None,
+                max_value: None,
+                step: None,
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Self>(),
@@ -135,6 +153,9 @@ impl Inspect for Transform {
                 group: "Transform",
                 value: &*self.rotation_pivot,
                 read_only: false,
+                min_value: None,
+                max_value: None,
+                step: None,
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Self>(),
@@ -143,6 +164,9 @@ impl Inspect for Transform {
                 group: "Transform",
                 value: &*self.scaling_offset,
                 read_only: false,
+                min_value: None,
+                max_value: None,
+                step: None,
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Self>(),
@@ -151,6 +175,9 @@ impl Inspect for Transform {
                 group: "Transform",
                 value: &*self.scaling_pivot,
                 read_only: false,
+                min_value: None,
+                max_value: None,
+                step: None,
             },
         ]
     }

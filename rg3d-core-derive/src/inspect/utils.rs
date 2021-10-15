@@ -188,7 +188,7 @@ pub fn gen_inspect_fn_body(
         });
     }
 
-    // concatanate the quotes
+    // concatenate the quotes
     quote! {
         #(#quotes)*
         props
@@ -230,6 +230,21 @@ fn quote_field_prop(
     // consider #[inspect(group = ..)]
     let group = field.group.as_deref().unwrap_or(owner_name);
 
+    let min_value = match field.min_value {
+        None => quote! { None },
+        Some(v) => quote! { Some(#v)},
+    };
+
+    let max_value = match field.max_value {
+        None => quote! { None },
+        Some(v) => quote! { Some(#v)},
+    };
+
+    let step = match field.step {
+        None => quote! { None },
+        Some(v) => quote! { Some(#v) },
+    };
+
     let read_only = field.read_only;
 
     quote! {
@@ -240,6 +255,9 @@ fn quote_field_prop(
             group: #group,
             value: #field_ref,
             read_only: #read_only,
+            min_value: #min_value,
+            max_value: #max_value,
+            step: #step,
         }
     }
 }

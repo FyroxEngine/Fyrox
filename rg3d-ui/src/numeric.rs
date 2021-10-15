@@ -1,3 +1,4 @@
+use crate::core::num_traits::NumCast;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -39,6 +40,7 @@ pub trait NumericType:
     + Debug
     + Send
     + Sync
+    + NumCast
     + 'static
 {
 }
@@ -55,6 +57,7 @@ impl<T> NumericType for T where
         + Debug
         + Send
         + Sync
+        + NumCast
         + 'static
 {
 }

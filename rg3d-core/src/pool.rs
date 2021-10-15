@@ -75,6 +75,9 @@ impl<T: 'static> Inspect for Handle<T> {
                 group: "Handle",
                 value: &self.index,
                 read_only: true,
+                min_value: None,
+                max_value: None,
+                step: None,
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Self>(),
@@ -83,6 +86,9 @@ impl<T: 'static> Inspect for Handle<T> {
                 group: "Handle",
                 value: &self.generation,
                 read_only: true,
+                min_value: None,
+                max_value: None,
+                step: None,
             },
         ]
     }
