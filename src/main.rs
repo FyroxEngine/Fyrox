@@ -31,6 +31,7 @@ pub mod sidebar;
 pub mod utils;
 pub mod world;
 
+use crate::menu::Panels;
 use crate::{
     asset::{AssetBrowser, AssetItem, AssetKind},
     camera::CameraController,
@@ -1181,14 +1182,16 @@ impl Editor {
             MenuContext {
                 engine,
                 editor_scene: self.scene.as_mut(),
-                sidebar_window: self.sidebar.window,
-                world_outliner_window: self.world_viewer.window,
-                asset_window: self.asset_browser.window,
-                configurator_window: self.configurator.window,
-                light_panel: self.light_panel.window,
-                log_panel: self.log.window,
+                panels: Panels {
+                    sidebar_window: self.sidebar.window,
+                    world_outliner_window: self.world_viewer.window,
+                    asset_window: self.asset_browser.window,
+                    light_panel: self.light_panel.window,
+                    log_panel: self.log.window,
+                    configurator_window: self.configurator.window,
+                    path_fixer: self.path_fixer.window,
+                },
                 settings: &mut self.settings,
-                path_fixer: self.path_fixer.window,
             },
         );
 
@@ -1793,9 +1796,11 @@ impl Editor {
                     needs_sync = true;
                 }
                 Message::OpenSettings(section) => {
-                    self.menu
-                        .settings
-                        .open(&engine.user_interface, &self.settings, Some(section));
+                    self.menu.file_menu.settings.open(
+                        &engine.user_interface,
+                        &self.settings,
+                        Some(section),
+                    );
                 }
                 Message::OpenMaterialEditor(material) => {
                     self.material_editor.set_material(Some(material), engine);
