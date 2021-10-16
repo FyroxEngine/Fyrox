@@ -255,6 +255,64 @@ impl Command for SetBodyCommand {
 }
 
 #[derive(Debug)]
+pub struct CreateRigidBodyCommand {
+    ticket: Option<Ticket<RigidBody>>,
+    handle: Handle<RigidBody>,
+    body: Option<RigidBody>,
+}
+
+impl CreateRigidBodyCommand {
+    pub fn new(body: RigidBody) -> Self {
+        Self {
+            ticket: None,
+            handle: Default::default(),
+            body: Some(body),
+        }
+    }
+}
+
+impl Command for CreateRigidBodyCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
+        "Create Rigid Body".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut SceneContext) {
+        match self.ticket.take() {
+            None => {
+                self.handle = context
+                    .editor_scene
+                    .physics
+                    .bodies
+                    .spawn(self.body.take().unwrap());
+            }
+            Some(ticket) => {
+                context
+                    .editor_scene
+                    .physics
+                    .bodies
+                    .put_back(ticket, self.body.take().unwrap());
+            }
+        }
+    }
+
+    fn revert(&mut self, context: &mut SceneContext) {
+        let (ticket, node) = context
+            .editor_scene
+            .physics
+            .bodies
+            .take_reserve(self.handle);
+        self.ticket = Some(ticket);
+        self.body = Some(node);
+    }
+
+    fn finalize(&mut self, context: &mut SceneContext) {
+        if let Some(ticket) = self.ticket.take() {
+            context.editor_scene.physics.bodies.forget_ticket(ticket);
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct AddColliderCommand {
     body: Handle<RigidBody>,
     ticket: Option<Ticket<Collider>>,
