@@ -293,7 +293,7 @@ impl<T: NumericType> NumericUpDownBuilder<T> {
                         .with_vertical_text_alignment(VerticalAlignment::Center)
                         .with_horizontal_text_alignment(HorizontalAlignment::Left)
                         .with_wrap(WrapMode::Letter)
-                        .with_text(self.value.to_string())
+                        .with_text(format!("{:.1$}", self.value, self.precision))
                         .build(ctx);
                     field
                 })

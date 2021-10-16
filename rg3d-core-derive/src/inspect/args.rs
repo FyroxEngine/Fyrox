@@ -85,6 +85,12 @@ pub struct FieldArgs {
     /// Increment/decrement step of the field. Works only for numeric fields!
     #[darling(default)]
     pub step: Option<f64>,
+
+    /// `#[inspect(precision = "3")]`
+    ///
+    /// Maximum amount of decimal places for a numeric property.
+    #[darling(default)]
+    pub precision: Option<usize>,
 }
 
 #[derive(FromVariant)]

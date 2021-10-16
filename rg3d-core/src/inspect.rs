@@ -65,6 +65,9 @@ pub struct PropertyInfo<'a> {
 
     /// A minimal value of the property. Works only with numeric properties!
     pub step: Option<f64>,
+
+    /// Maximum amount of decimal places for a numeric property.
+    pub precision: Option<usize>,
 }
 
 #[allow(clippy::vtable_address_comparisons)]
@@ -138,7 +141,7 @@ impl<T: Inspect> Inspect for Option<T> {
 }
 
 macro_rules! impl_self_inspect {
-    ($ty:ty, $min:expr, $max:expr, $step:expr) => {
+    ($ty:ty, $min:expr, $max:expr, $step:expr, $precision:expr) => {
         impl Inspect for $ty {
             fn properties(&self) -> Vec<PropertyInfo<'_>> {
                 vec![PropertyInfo {
@@ -151,21 +154,22 @@ macro_rules! impl_self_inspect {
                     min_value: Some($min),
                     max_value: Some($max),
                     step: Some($step),
+                    precision: Some($precision),
                 }]
             }
         }
     };
 }
 
-impl_self_inspect!(f32, f32::MIN as f64, f32::MAX as f64, 1.0);
-impl_self_inspect!(f64, f64::MIN, f64::MAX, 1.0);
-impl_self_inspect!(i64, i64::MIN as f64, i64::MAX as f64, 1.0);
-impl_self_inspect!(u64, u64::MIN as f64, u64::MAX as f64, 1.0);
-impl_self_inspect!(i32, i32::MIN as f64, i32::MAX as f64, 1.0);
-impl_self_inspect!(u32, u32::MIN as f64, u32::MAX as f64, 1.0);
-impl_self_inspect!(i16, i16::MIN as f64, i16::MAX as f64, 1.0);
-impl_self_inspect!(u16, u16::MIN as f64, u16::MAX as f64, 1.0);
-impl_self_inspect!(i8, i8::MIN as f64, i8::MAX as f64, 1.0);
-impl_self_inspect!(u8, u8::MIN as f64, u8::MAX as f64, 1.0);
+impl_self_inspect!(f32, f32::MIN as f64, f32::MAX as f64, 1.0, 7);
+impl_self_inspect!(f64, f64::MIN, f64::MAX, 1.0, 15);
+impl_self_inspect!(i64, i64::MIN as f64, i64::MAX as f64, 1.0, 0);
+impl_self_inspect!(u64, u64::MIN as f64, u64::MAX as f64, 1.0, 0);
+impl_self_inspect!(i32, i32::MIN as f64, i32::MAX as f64, 1.0, 0);
+impl_self_inspect!(u32, u32::MIN as f64, u32::MAX as f64, 1.0, 0);
+impl_self_inspect!(i16, i16::MIN as f64, i16::MAX as f64, 1.0, 0);
+impl_self_inspect!(u16, u16::MIN as f64, u16::MAX as f64, 1.0, 0);
+impl_self_inspect!(i8, i8::MIN as f64, i8::MAX as f64, 1.0, 0);
+impl_self_inspect!(u8, u8::MIN as f64, u8::MAX as f64, 1.0, 0);
 
 pub use rg3d_core_derive::Inspect;

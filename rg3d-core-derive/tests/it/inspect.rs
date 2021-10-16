@@ -25,6 +25,7 @@ fn inspect_default() {
             min_value: None,
             max_value: None,
             step: None,
+            precision: None,
         },
         PropertyInfo {
             owner_type_id: TypeId::of::<Data>(),
@@ -36,6 +37,7 @@ fn inspect_default() {
             min_value: None,
             max_value: None,
             step: None,
+            precision: None,
         },
     ];
 
@@ -61,7 +63,14 @@ fn inspect_attributes() {
         // NOTE: Even though this field inspection is postponed, this field is given index `2`
         #[inspect(expand)]
         aar_gee: AarGee,
-        #[inspect(group = "Pos", read_only, min_value = 0.1, max_value = 1.1, step = 0.1)]
+        #[inspect(
+            group = "Pos",
+            read_only,
+            min_value = 0.1,
+            max_value = 1.1,
+            step = 0.1,
+            precision = 3
+        )]
         y: f32,
     }
 
@@ -78,6 +87,7 @@ fn inspect_attributes() {
             min_value: None,
             max_value: None,
             step: None,
+            precision: None,
         },
         PropertyInfo {
             owner_type_id: TypeId::of::<Data>(),
@@ -89,6 +99,7 @@ fn inspect_attributes() {
             min_value: Some(0.1),
             max_value: Some(1.1),
             step: Some(0.1),
+            precision: Some(3),
         },
     ];
 
@@ -128,7 +139,8 @@ fn inspect_struct() {
                 read_only: false,
                 min_value: None,
                 max_value: None,
-                step: None
+                step: None,
+                precision: None
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Tuple>(),
@@ -139,7 +151,8 @@ fn inspect_struct() {
                 read_only: false,
                 min_value: None,
                 max_value: None,
-                step: None
+                step: None,
+                precision: None
             },
         ]
     );
@@ -186,7 +199,8 @@ fn inspect_enum() {
                 read_only: false,
                 min_value: None,
                 max_value: None,
-                step: None
+                step: None,
+                precision: None
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Data>(),
@@ -200,7 +214,8 @@ fn inspect_enum() {
                 read_only: false,
                 min_value: None,
                 max_value: None,
-                step: None
+                step: None,
+                precision: None
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Data>(),
@@ -214,7 +229,8 @@ fn inspect_enum() {
                 read_only: false,
                 min_value: None,
                 max_value: None,
-                step: None
+                step: None,
+                precision: None
             },
         ]
     );
@@ -236,7 +252,8 @@ fn inspect_enum() {
                 read_only: false,
                 min_value: None,
                 max_value: None,
-                step: None
+                step: None,
+                precision: None
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Data>(),
@@ -250,7 +267,8 @@ fn inspect_enum() {
                 read_only: false,
                 min_value: None,
                 max_value: None,
-                step: None
+                step: None,
+                precision: None
             },
         ]
     );

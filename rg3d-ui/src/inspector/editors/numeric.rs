@@ -71,6 +71,7 @@ where
                     .and_then(|v| NumCast::from(v))
                     .unwrap_or(T::one()),
             )
+            .with_precision(ctx.property_info.precision.unwrap_or(3))
             .with_value(*value)
             .build(ctx.build_context),
         })

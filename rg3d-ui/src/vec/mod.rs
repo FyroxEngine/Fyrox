@@ -25,6 +25,7 @@ pub fn make_numeric_input<T: NumericType>(
                 bottom: 0.0,
             }),
     )
+    .with_precision(3)
     .with_value(value)
     .build(ctx)
 }

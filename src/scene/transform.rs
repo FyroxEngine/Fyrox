@@ -90,6 +90,7 @@ impl Inspect for Transform {
                 min_value: None,
                 max_value: None,
                 step: None,
+                precision: None,
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Self>(),
@@ -101,6 +102,7 @@ impl Inspect for Transform {
                 min_value: None,
                 max_value: None,
                 step: None,
+                precision: None,
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Self>(),
@@ -112,6 +114,7 @@ impl Inspect for Transform {
                 min_value: None,
                 max_value: None,
                 step: None,
+                precision: None,
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Self>(),
@@ -123,6 +126,7 @@ impl Inspect for Transform {
                 min_value: None,
                 max_value: None,
                 step: None,
+                precision: None,
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Self>(),
@@ -134,6 +138,7 @@ impl Inspect for Transform {
                 min_value: None,
                 max_value: None,
                 step: None,
+                precision: None,
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Self>(),
@@ -145,6 +150,7 @@ impl Inspect for Transform {
                 min_value: None,
                 max_value: None,
                 step: None,
+                precision: None,
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Self>(),
@@ -156,6 +162,7 @@ impl Inspect for Transform {
                 min_value: None,
                 max_value: None,
                 step: None,
+                precision: None,
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Self>(),
@@ -167,6 +174,7 @@ impl Inspect for Transform {
                 min_value: None,
                 max_value: None,
                 step: None,
+                precision: None,
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Self>(),
@@ -178,6 +186,7 @@ impl Inspect for Transform {
                 min_value: None,
                 max_value: None,
                 step: None,
+                precision: None,
             },
         ]
     }

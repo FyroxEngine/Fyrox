@@ -245,6 +245,11 @@ fn quote_field_prop(
         Some(v) => quote! { Some(#v) },
     };
 
+    let precision = match field.precision {
+        None => quote! { None },
+        Some(v) => quote! { Some(#v) },
+    };
+
     let read_only = field.read_only;
 
     quote! {
@@ -258,6 +263,7 @@ fn quote_field_prop(
             min_value: #min_value,
             max_value: #max_value,
             step: #step,
+            precision: #precision
         }
     }
 }
