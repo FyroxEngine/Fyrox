@@ -1,3 +1,4 @@
+use crate::menu::physics::PhysicsMenu;
 use crate::{
     create_terrain_layer_material,
     menu::{create_menu_item, create_root_menu_item},
@@ -52,6 +53,7 @@ pub struct CreateEntityMenu {
     create_particle_system: Handle<UiNode>,
     create_sound_source: Handle<UiNode>,
     create_spatial_sound_source: Handle<UiNode>,
+    physics_menu: PhysicsMenu,
 }
 
 impl CreateEntityMenu {
@@ -72,6 +74,8 @@ impl CreateEntityMenu {
         let create_pivot;
         let create_sound_source;
         let create_spatial_sound_source;
+
+        let physics_menu = PhysicsMenu::new(ctx);
 
         let menu = create_root_menu_item(
             "Create",
@@ -140,6 +144,7 @@ impl CreateEntityMenu {
                     ],
                     ctx,
                 ),
+                physics_menu.menu,
                 {
                     create_camera = create_menu_item("Camera", vec![], ctx);
                     create_camera
@@ -182,10 +187,13 @@ impl CreateEntityMenu {
             create_sound_source,
             create_spatial_sound_source,
             create_decal,
+            physics_menu,
         }
     }
 
     pub fn handle_ui_message(&mut self, message: &UiMessage, sender: &Sender<Message>) {
+        self.physics_menu.handle_ui_message(message, sender);
+
         if let UiMessageData::MenuItem(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.create_cube {
                 let mut mesh = Mesh::default();

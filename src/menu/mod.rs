@@ -21,6 +21,7 @@ use std::sync::mpsc::Sender;
 pub mod create;
 pub mod edit;
 pub mod file;
+pub mod physics;
 pub mod utils;
 pub mod view;
 
@@ -101,8 +102,8 @@ impl Menu {
         let menu = MenuBuilder::new(WidgetBuilder::new().on_row(0))
             .with_items(vec![
                 file_menu.menu,
-                create_entity_menu.menu,
                 edit_menu.menu,
+                create_entity_menu.menu,
                 view_menu.menu,
                 utils_menu.menu,
             ])
