@@ -56,20 +56,20 @@ where
             .with_min_value(
                 ctx.property_info
                     .min_value
-                    .and_then(|v| NumCast::from(v))
-                    .unwrap_or(T::min_value()),
+                    .and_then(NumCast::from)
+                    .unwrap_or_else(T::min_value),
             )
             .with_max_value(
                 ctx.property_info
                     .max_value
-                    .and_then(|v| NumCast::from(v))
-                    .unwrap_or(T::max_value()),
+                    .and_then(NumCast::from)
+                    .unwrap_or_else(T::max_value),
             )
             .with_step(
                 ctx.property_info
                     .step
-                    .and_then(|v| NumCast::from(v))
-                    .unwrap_or(T::one()),
+                    .and_then(NumCast::from)
+                    .unwrap_or_else(T::one),
             )
             .with_precision(ctx.property_info.precision.unwrap_or(3))
             .with_value(*value)

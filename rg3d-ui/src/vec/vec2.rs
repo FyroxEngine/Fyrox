@@ -58,57 +58,51 @@ impl<T: NumericType> Control for Vec2Editor<T> {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        match message.data() {
-            UiMessageData::User(msg) => {
-                if let Some(&NumericUpDownMessage::Value(value)) =
-                    msg.cast::<NumericUpDownMessage<T>>()
-                {
-                    if message.direction() == MessageDirection::FromWidget {
-                        if message.destination() == self.x_field {
-                            ui.send_message(Vec2EditorMessage::value(
-                                self.handle(),
-                                MessageDirection::ToWidget,
-                                Vector2::new(value, self.value.y),
-                            ));
-                        } else if message.destination() == self.y_field {
-                            ui.send_message(Vec2EditorMessage::value(
-                                self.handle(),
-                                MessageDirection::ToWidget,
-                                Vector2::new(self.value.x, value),
-                            ));
-                        }
+        if let UiMessageData::User(msg) = message.data() {
+            if let Some(&NumericUpDownMessage::Value(value)) = msg.cast::<NumericUpDownMessage<T>>()
+            {
+                if message.direction() == MessageDirection::FromWidget {
+                    if message.destination() == self.x_field {
+                        ui.send_message(Vec2EditorMessage::value(
+                            self.handle(),
+                            MessageDirection::ToWidget,
+                            Vector2::new(value, self.value.y),
+                        ));
+                    } else if message.destination() == self.y_field {
+                        ui.send_message(Vec2EditorMessage::value(
+                            self.handle(),
+                            MessageDirection::ToWidget,
+                            Vector2::new(self.value.x, value),
+                        ));
                     }
-                } else if let Some(Vec2EditorMessage::Value(value)) =
-                    msg.cast::<Vec2EditorMessage<T>>()
-                {
-                    if message.direction() == MessageDirection::ToWidget {
-                        let mut changed = false;
-                        if self.value.x != value.x {
-                            self.value.x = value.x;
-                            ui.send_message(NumericUpDownMessage::value(
-                                self.x_field,
-                                MessageDirection::ToWidget,
-                                value.x,
-                            ));
-                            changed = true;
-                        }
-                        if self.value.y != value.y {
-                            self.value.y = value.y;
-                            ui.send_message(NumericUpDownMessage::value(
-                                self.y_field,
-                                MessageDirection::ToWidget,
-                                value.y,
-                            ));
-                            changed = true;
-                        }
-                        if changed {
-                            ui.send_message(message.reverse());
-                        }
+                }
+            } else if let Some(Vec2EditorMessage::Value(value)) = msg.cast::<Vec2EditorMessage<T>>()
+            {
+                if message.direction() == MessageDirection::ToWidget {
+                    let mut changed = false;
+                    if self.value.x != value.x {
+                        self.value.x = value.x;
+                        ui.send_message(NumericUpDownMessage::value(
+                            self.x_field,
+                            MessageDirection::ToWidget,
+                            value.x,
+                        ));
+                        changed = true;
+                    }
+                    if self.value.y != value.y {
+                        self.value.y = value.y;
+                        ui.send_message(NumericUpDownMessage::value(
+                            self.y_field,
+                            MessageDirection::ToWidget,
+                            value.y,
+                        ));
+                        changed = true;
+                    }
+                    if changed {
+                        ui.send_message(message.reverse());
                     }
                 }
             }
-
-            _ => (),
         }
     }
 }

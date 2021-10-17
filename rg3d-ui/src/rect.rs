@@ -59,53 +59,46 @@ where
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        match message.data() {
-            UiMessageData::User(msg) => {
-                if let Some(RectEditorMessage::Value(value)) = msg.cast::<RectEditorMessage<T>>() {
-                    if message.destination() == self.handle
-                        && message.direction() == MessageDirection::ToWidget
-                    {
-                        if *value != self.value {
-                            self.value = *value;
-
-                            ui.send_message(message.reverse());
-                        }
-                    }
-                } else if let Some(Vec2EditorMessage::Value(value)) =
-                    msg.cast::<Vec2EditorMessage<T>>()
+        if let UiMessageData::User(msg) = message.data() {
+            if let Some(RectEditorMessage::Value(value)) = msg.cast::<RectEditorMessage<T>>() {
+                if message.destination() == self.handle
+                    && message.direction() == MessageDirection::ToWidget
+                    && *value != self.value
                 {
-                    if message.direction() == MessageDirection::FromWidget {
-                        if message.destination() == self.position {
-                            if self.value.position != *value {
-                                ui.send_message(UiMessage::user(
-                                    self.handle,
-                                    MessageDirection::ToWidget,
-                                    Box::new(RectEditorMessage::Value(Rect::new(
-                                        value.x,
-                                        value.y,
-                                        self.value.size.x,
-                                        self.value.size.y,
-                                    ))),
-                                ));
-                            }
-                        } else if message.destination() == self.size {
-                            if self.value.size != *value {
-                                ui.send_message(UiMessage::user(
-                                    self.handle,
-                                    MessageDirection::ToWidget,
-                                    Box::new(RectEditorMessage::Value(Rect::new(
-                                        self.value.position.x,
-                                        self.value.position.y,
-                                        value.x,
-                                        value.y,
-                                    ))),
-                                ));
-                            }
+                    self.value = *value;
+
+                    ui.send_message(message.reverse());
+                }
+            } else if let Some(Vec2EditorMessage::Value(value)) = msg.cast::<Vec2EditorMessage<T>>()
+            {
+                if message.direction() == MessageDirection::FromWidget {
+                    if message.destination() == self.position {
+                        if self.value.position != *value {
+                            ui.send_message(UiMessage::user(
+                                self.handle,
+                                MessageDirection::ToWidget,
+                                Box::new(RectEditorMessage::Value(Rect::new(
+                                    value.x,
+                                    value.y,
+                                    self.value.size.x,
+                                    self.value.size.y,
+                                ))),
+                            ));
                         }
+                    } else if message.destination() == self.size && self.value.size != *value {
+                        ui.send_message(UiMessage::user(
+                            self.handle,
+                            MessageDirection::ToWidget,
+                            Box::new(RectEditorMessage::Value(Rect::new(
+                                self.value.position.x,
+                                self.value.position.y,
+                                value.x,
+                                value.y,
+                            ))),
+                        ));
                     }
                 }
             }
-            _ => (),
         }
     }
 }

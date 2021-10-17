@@ -7,6 +7,7 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::from_over_into)]
+#![allow(clippy::approx_constant)]
 
 pub mod animation;
 pub mod engine;

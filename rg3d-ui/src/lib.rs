@@ -7,6 +7,7 @@
 #![allow(clippy::float_cmp)]
 #![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::from_over_into)]
+#![allow(clippy::new_without_default)]
 
 #[macro_use]
 extern crate lazy_static;
