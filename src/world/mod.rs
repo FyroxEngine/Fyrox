@@ -25,6 +25,9 @@ use crate::{
     },
     GameEngine, Message,
 };
+use rg3d::gui::button::Button;
+use rg3d::gui::decorator::Decorator;
+use rg3d::gui::message::DecoratorMessage;
 use rg3d::{
     core::{
         color::Color,
@@ -129,25 +132,27 @@ fn tree_node(ui: &UserInterface, tree: Handle<UiNode>) -> Handle<Node> {
     unreachable!()
 }
 
-fn colorize(tree: Handle<UiNode>, ui: &UserInterface, index: &mut usize) {
-    let node = ui.node(tree);
+fn colorize(handle: Handle<UiNode>, ui: &UserInterface, index: &mut usize) {
+    let node = ui.node(handle);
 
-    if let Some(i) = node.cast::<SceneItem<Node>>() {
-        ui.send_message(UiMessage::user(
-            tree,
-            MessageDirection::ToWidget,
-            Box::new(SceneItemMessage::Order(*index % 2 == 0)),
-        ));
-
-        *index += 1;
-
-        for &item in i.tree.items() {
-            colorize(item, ui, index);
+    if node.cast::<Decorator>().is_some() {
+        if node.parent().is_some() && ui.node(node.parent()).cast::<Button>().is_none() {
+            ui.send_message(DecoratorMessage::normal_brush(
+                handle,
+                MessageDirection::ToWidget,
+                Brush::Solid(if *index % 2 == 0 {
+                    Color::opaque(50, 50, 50)
+                } else {
+                    Color::opaque(60, 60, 60)
+                }),
+            ));
         }
-    } else if let Some(root) = node.cast::<TreeRoot>() {
-        for &item in root.items() {
-            colorize(item, ui, index);
-        }
+    }
+
+    *index += 1;
+
+    for &item in node.children() {
+        colorize(item, ui, index);
     }
 }
 
