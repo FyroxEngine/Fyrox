@@ -1,4 +1,3 @@
-use crate::world::physics::menu::DeletableSceneItemContextMenu;
 use crate::{
     load_image,
     physics::{Collider, Joint, RigidBody},
@@ -18,16 +17,13 @@ use crate::{
         },
         link::{menu::LinkContextMenu, LinkItem, LinkItemBuilder, LinkItemMessage},
         physics::{
-            menu::RigidBodyContextMenu,
+            menu::{DeletableSceneItemContextMenu, RigidBodyContextMenu},
             selection::{ColliderSelection, JointSelection, RigidBodySelection},
         },
         sound::selection::SoundSelection,
     },
     GameEngine, Message,
 };
-use rg3d::gui::button::Button;
-use rg3d::gui::decorator::Decorator;
-use rg3d::gui::message::DecoratorMessage;
 use rg3d::{
     core::{
         color::Color,
@@ -37,13 +33,16 @@ use rg3d::{
     engine::Engine,
     gui::{
         brush::Brush,
-        button::ButtonBuilder,
+        button::{Button, ButtonBuilder},
+        check_box::CheckBoxBuilder,
+        decorator::Decorator,
         grid::{Column, GridBuilder, Row},
         message::{
             ButtonMessage, MenuItemMessage, MessageDirection, ScrollViewerMessage,
             TreeExpansionStrategy, TreeMessage, TreeRootMessage, UiMessage, UiMessageData,
             WidgetMessage,
         },
+        message::{CheckBoxMessage, DecoratorMessage},
         scroll_viewer::ScrollViewerBuilder,
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
@@ -72,6 +71,8 @@ pub struct WorldViewer {
     joints_folder: Handle<UiNode>,
     sounds_folder: Handle<UiNode>,
     sender: Sender<Message>,
+    track_selection: Handle<UiNode>,
+    track_selection_state: bool,
     stack: Vec<(Handle<UiNode>, Handle<Node>)>,
     /// Hack. Due to delayed execution of UI code we can't sync immediately after we
     /// did sync_to_model, instead we defer selection syncing to post_update() - at
@@ -271,12 +272,14 @@ where
 
 impl WorldViewer {
     pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
+        let track_selection_state = true;
         let tree_root;
         let node_path;
         let collapse_all;
         let expand_all;
         let locate_selection;
         let scroll_view;
+        let track_selection;
         let graph_folder = make_folder(ctx, "Scene Graph");
         let rigid_bodies_folder = make_folder(ctx, "Rigid Bodies");
         let joints_folder = make_folder(ctx, "Joints");
@@ -318,6 +321,23 @@ impl WorldViewer {
                                         .with_text("Locate Selection")
                                         .build(ctx);
                                         locate_selection
+                                    })
+                                    .with_child({
+                                        track_selection = CheckBoxBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_margin(Thickness::uniform(1.0)),
+                                        )
+                                        .with_content(
+                                            TextBuilder::new(WidgetBuilder::new())
+                                                .with_vertical_text_alignment(
+                                                    VerticalAlignment::Center,
+                                                )
+                                                .with_text("Track Selection")
+                                                .build(ctx),
+                                        )
+                                        .checked(Some(track_selection_state))
+                                        .build(ctx);
+                                        track_selection
                                     }),
                             )
                             .with_orientation(Orientation::Horizontal)
@@ -376,6 +396,8 @@ impl WorldViewer {
         let deletable_context_menu = DeletableSceneItemContextMenu::new(ctx);
 
         Self {
+            track_selection,
+            track_selection_state,
             window,
             sender,
             tree_root,
@@ -1094,23 +1116,14 @@ impl WorldViewer {
                             MessageDirection::ToWidget,
                         ));
                 } else if message.destination() == self.locate_selection {
-                    let tree_to_focus = self.map_selection(editor_scene, engine);
-
-                    if let Some(tree_to_focus) = tree_to_focus.first() {
-                        engine.user_interface.send_message(TreeMessage::expand(
-                            *tree_to_focus,
-                            MessageDirection::ToWidget,
-                            true,
-                            TreeExpansionStrategy::RecursiveAncestors,
-                        ));
-
-                        engine
-                            .user_interface
-                            .send_message(ScrollViewerMessage::bring_into_view(
-                                self.scroll_view,
-                                MessageDirection::ToWidget,
-                                *tree_to_focus,
-                            ));
+                    self.locate_selection(editor_scene, engine)
+                }
+            }
+            UiMessageData::CheckBox(CheckBoxMessage::Check(Some(value))) => {
+                if message.destination() == self.track_selection {
+                    self.track_selection_state = *value;
+                    if *value {
+                        self.locate_selection(editor_scene, engine);
                     }
                 }
             }
@@ -1120,6 +1133,27 @@ impl WorldViewer {
                 }
             }
             _ => {}
+        }
+    }
+
+    fn locate_selection(&self, editor_scene: &EditorScene, engine: &Engine) {
+        let tree_to_focus = self.map_selection(editor_scene, engine);
+
+        if let Some(tree_to_focus) = tree_to_focus.first() {
+            engine.user_interface.send_message(TreeMessage::expand(
+                *tree_to_focus,
+                MessageDirection::ToWidget,
+                true,
+                TreeExpansionStrategy::RecursiveAncestors,
+            ));
+
+            engine
+                .user_interface
+                .send_message(ScrollViewerMessage::bring_into_view(
+                    self.scroll_view,
+                    MessageDirection::ToWidget,
+                    *tree_to_focus,
+                ));
         }
     }
 
@@ -1352,6 +1386,9 @@ impl WorldViewer {
             );
 
             self.update_breadcrumbs(ui, editor_scene, &engine.scenes[editor_scene.scene]);
+            if self.track_selection_state {
+                self.locate_selection(editor_scene, engine);
+            }
 
             self.sync_selection = false;
         }

@@ -2,13 +2,10 @@ use rg3d::{
     core::{algebra::Vector2, pool::Handle},
     gui::{
         brush::Brush,
-        core::color::Color,
         draw::{DrawingContext, SharedTexture},
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
-        message::{
-            DecoratorMessage, MessageDirection, OsEvent, TextMessage, UiMessage, UiMessageData,
-        },
+        message::{MessageDirection, OsEvent, TextMessage, UiMessage, UiMessageData},
         text::TextBuilder,
         tree::{Tree, TreeBuilder},
         widget::Widget,
