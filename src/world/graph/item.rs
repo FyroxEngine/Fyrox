@@ -100,43 +100,40 @@ impl<T: 'static> Control for SceneItem<T> {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.tree.handle_routed_message(ui, message);
 
-        match message.data() {
-            UiMessageData::User(msg) => {
-                if let Some(msg) = msg.cast::<SceneItemMessage>() {
-                    match msg {
-                        &SceneItemMessage::Order(order) => {
-                            if message.destination() == self.handle() {
-                                ui.send_message(DecoratorMessage::normal_brush(
-                                    self.tree.back(),
-                                    MessageDirection::ToWidget,
-                                    Brush::Solid(if order {
-                                        Color::opaque(50, 50, 50)
-                                    } else {
-                                        Color::opaque(60, 60, 60)
-                                    }),
-                                ));
-                            }
+        if let UiMessageData::User(msg) = message.data() {
+            if let Some(msg) = msg.cast::<SceneItemMessage>() {
+                match msg {
+                    &SceneItemMessage::Order(order) => {
+                        if message.destination() == self.handle() {
+                            ui.send_message(DecoratorMessage::normal_brush(
+                                self.tree.back(),
+                                MessageDirection::ToWidget,
+                                Brush::Solid(if order {
+                                    Color::opaque(50, 50, 50)
+                                } else {
+                                    Color::opaque(60, 60, 60)
+                                }),
+                            ));
                         }
-                        SceneItemMessage::Name(name) => {
-                            if message.destination() == self.handle() {
-                                let name = format!(
-                                    "{} ({}:{})",
-                                    name,
-                                    self.entity_handle.index(),
-                                    self.entity_handle.generation()
-                                );
+                    }
+                    SceneItemMessage::Name(name) => {
+                        if message.destination() == self.handle() {
+                            let name = format!(
+                                "{} ({}:{})",
+                                name,
+                                self.entity_handle.index(),
+                                self.entity_handle.generation()
+                            );
 
-                                ui.send_message(TextMessage::text(
-                                    self.text_name,
-                                    MessageDirection::ToWidget,
-                                    name,
-                                ));
-                            }
+                            ui.send_message(TextMessage::text(
+                                self.text_name,
+                                MessageDirection::ToWidget,
+                                name,
+                            ));
                         }
                     }
                 }
             }
-            _ => {}
         }
     }
 

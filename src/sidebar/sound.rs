@@ -139,47 +139,44 @@ impl SpatialSection {
     ) {
         scope_profile!();
 
-        match message.data() {
-            UiMessageData::User(msg) => {
-                if let Some(&NumericUpDownMessage::Value(value)) =
-                    msg.cast::<NumericUpDownMessage<f32>>()
+        if let UiMessageData::User(msg) = message.data() {
+            if let Some(&NumericUpDownMessage::Value(value)) =
+                msg.cast::<NumericUpDownMessage<f32>>()
+            {
+                if spatial.radius().ne(&value) && message.destination() == self.radius {
+                    sender
+                        .send(Message::do_scene_command(
+                            SetSpatialSoundSourceRadiusCommand::new(handle, value),
+                        ))
+                        .unwrap();
+                } else if spatial.rolloff_factor().ne(&value)
+                    && message.destination() == self.rolloff_factor
                 {
-                    if spatial.radius().ne(&value) && message.destination() == self.radius {
-                        sender
-                            .send(Message::do_scene_command(
-                                SetSpatialSoundSourceRadiusCommand::new(handle, value),
-                            ))
-                            .unwrap();
-                    } else if spatial.rolloff_factor().ne(&value)
-                        && message.destination() == self.rolloff_factor
-                    {
-                        sender
-                            .send(Message::do_scene_command(
-                                SetSpatialSoundSourceRolloffFactorCommand::new(handle, value),
-                            ))
-                            .unwrap();
-                    } else if spatial.max_distance().ne(&value)
-                        && message.destination() == self.max_distance
-                    {
-                        sender
-                            .send(Message::do_scene_command(
-                                SetSpatialSoundSourceMaxDistanceCommand::new(handle, value),
-                            ))
-                            .unwrap();
-                    }
-                } else if let Some(&Vec3EditorMessage::Value(value)) =
-                    msg.cast::<Vec3EditorMessage<f32>>()
+                    sender
+                        .send(Message::do_scene_command(
+                            SetSpatialSoundSourceRolloffFactorCommand::new(handle, value),
+                        ))
+                        .unwrap();
+                } else if spatial.max_distance().ne(&value)
+                    && message.destination() == self.max_distance
                 {
-                    if spatial.position() != value && message.destination() == self.position {
-                        sender
-                            .send(Message::do_scene_command(
-                                SetSpatialSoundSourcePositionCommand::new(handle, value),
-                            ))
-                            .unwrap();
-                    }
+                    sender
+                        .send(Message::do_scene_command(
+                            SetSpatialSoundSourceMaxDistanceCommand::new(handle, value),
+                        ))
+                        .unwrap();
+                }
+            } else if let Some(&Vec3EditorMessage::Value(value)) =
+                msg.cast::<Vec3EditorMessage<f32>>()
+            {
+                if spatial.position() != value && message.destination() == self.position {
+                    sender
+                        .send(Message::do_scene_command(
+                            SetSpatialSoundSourcePositionCommand::new(handle, value),
+                        ))
+                        .unwrap();
                 }
             }
-            _ => {}
         }
     }
 }

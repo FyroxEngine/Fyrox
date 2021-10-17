@@ -30,9 +30,9 @@ impl<S, D> Clone for LinkItem<S, D> {
     fn clone(&self) -> Self {
         Self {
             tree: self.tree.clone(),
-            text: self.text.clone(),
-            source: self.source.clone(),
-            dest: self.dest.clone(),
+            text: self.text,
+            source: self.source,
+            dest: self.dest,
         }
     }
 }

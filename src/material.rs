@@ -677,23 +677,23 @@ impl MaterialEditor {
                     }
                 }
                 UiMessageData::MenuItem(MenuItemMessage::Click) => {
-                    if message.destination() == self.texture_context_menu.show_in_asset_browser {
-                        if self.texture_context_menu.target.is_some() {
-                            let path = engine
-                                .user_interface
-                                .node(self.texture_context_menu.target)
-                                .cast::<Image>()
-                                .unwrap()
-                                .texture()
-                                .and_then(|t| {
-                                    t.0.downcast::<Mutex<TextureState>>()
-                                        .map(|t| t.lock().unwrap().path().to_path_buf())
-                                        .ok()
-                                });
+                    if message.destination() == self.texture_context_menu.show_in_asset_browser
+                        && self.texture_context_menu.target.is_some()
+                    {
+                        let path = engine
+                            .user_interface
+                            .node(self.texture_context_menu.target)
+                            .cast::<Image>()
+                            .unwrap()
+                            .texture()
+                            .and_then(|t| {
+                                t.0.downcast::<Mutex<TextureState>>()
+                                    .map(|t| t.lock().unwrap().path().to_path_buf())
+                                    .ok()
+                            });
 
-                            if let Some(path) = path {
-                                sender.send(Message::ShowInAssetBrowser(path)).unwrap();
-                            }
+                        if let Some(path) = path {
+                            sender.send(Message::ShowInAssetBrowser(path)).unwrap();
                         }
                     }
                 }

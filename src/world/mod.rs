@@ -389,7 +389,7 @@ impl WorldViewer {
             sounds_folder,
             link_context_menu,
             rigid_body_context_menu,
-            deletable_context_menu: deletable_context_menu,
+            deletable_context_menu,
             node_to_view_map: Default::default(),
             rigid_body_to_view_map: Default::default(),
             joint_to_view_map: Default::default(),
@@ -658,67 +658,71 @@ impl WorldViewer {
                     .filter(|i| ui.node(*i).cast::<SceneItem<Node>>().is_some())
                     .collect::<Vec<_>>();
 
-                if child_count < items.len() {
-                    for &item in items.iter() {
-                        let child_node = tree_node(ui, item);
-                        if !node.children().contains(&child_node) {
-                            send_sync_message(
-                                ui,
-                                TreeMessage::remove_item(
-                                    tree_handle,
-                                    MessageDirection::ToWidget,
-                                    item,
-                                ),
-                            );
-                            let removed_view = self.node_to_view_map.remove(&child_node);
-                            assert!(removed_view.is_some());
-                        } else {
-                            self.stack.push((item, child_node));
-                        }
-                    }
-                } else if child_count > items.len() {
-                    for &child_handle in node.children() {
-                        // Hide all editor nodes.
-                        if child_handle == editor_scene.root {
-                            continue;
-                        }
-                        let mut found = false;
+                match child_count.cmp(&items.len()) {
+                    Ordering::Less => {
                         for &item in items.iter() {
-                            let tree_node_handle = tree_node(ui, item);
-                            if tree_node_handle == child_handle {
-                                self.stack.push((item, child_handle));
-                                found = true;
-                                break;
+                            let child_node = tree_node(ui, item);
+                            if !node.children().contains(&child_node) {
+                                send_sync_message(
+                                    ui,
+                                    TreeMessage::remove_item(
+                                        tree_handle,
+                                        MessageDirection::ToWidget,
+                                        item,
+                                    ),
+                                );
+                                let removed_view = self.node_to_view_map.remove(&child_node);
+                                assert!(removed_view.is_some());
+                            } else {
+                                self.stack.push((item, child_node));
                             }
                         }
-                        if !found {
-                            let graph_node_item = make_graph_node_item(
-                                &graph[child_handle],
-                                child_handle,
-                                &mut ui.build_ctx(),
-                                self.item_context_menu.menu,
-                            );
-                            send_sync_message(
-                                ui,
-                                TreeMessage::add_item(
-                                    tree_handle,
-                                    MessageDirection::ToWidget,
-                                    graph_node_item,
-                                ),
-                            );
-                            if let Selection::Graph(selection) = &editor_scene.selection {
-                                if selection.contains(child_handle) {
-                                    selected_items.push(graph_node_item);
+                    }
+                    Ordering::Equal => {
+                        for &tree in items.iter() {
+                            let child = tree_node(ui, tree);
+                            self.stack.push((tree, child));
+                        }
+                    }
+                    Ordering::Greater => {
+                        for &child_handle in node.children() {
+                            // Hide all editor nodes.
+                            if child_handle == editor_scene.root {
+                                continue;
+                            }
+                            let mut found = false;
+                            for &item in items.iter() {
+                                let tree_node_handle = tree_node(ui, item);
+                                if tree_node_handle == child_handle {
+                                    self.stack.push((item, child_handle));
+                                    found = true;
+                                    break;
                                 }
                             }
-                            self.node_to_view_map.insert(child_handle, graph_node_item);
-                            self.stack.push((graph_node_item, child_handle));
+                            if !found {
+                                let graph_node_item = make_graph_node_item(
+                                    &graph[child_handle],
+                                    child_handle,
+                                    &mut ui.build_ctx(),
+                                    self.item_context_menu.menu,
+                                );
+                                send_sync_message(
+                                    ui,
+                                    TreeMessage::add_item(
+                                        tree_handle,
+                                        MessageDirection::ToWidget,
+                                        graph_node_item,
+                                    ),
+                                );
+                                if let Selection::Graph(selection) = &editor_scene.selection {
+                                    if selection.contains(child_handle) {
+                                        selected_items.push(graph_node_item);
+                                    }
+                                }
+                                self.node_to_view_map.insert(child_handle, graph_node_item);
+                                self.stack.push((graph_node_item, child_handle));
+                            }
                         }
-                    }
-                } else {
-                    for &tree in items.iter() {
-                        let child = tree_node(ui, tree);
-                        self.stack.push((tree, child));
                     }
                 }
             } else if let Some(folder) = ui_node.cast::<Tree>() {
@@ -906,75 +910,81 @@ impl WorldViewer {
 
             let rigid_body = &editor_scene.physics.bodies[rigid_body_handle];
 
-            if rigid_body.colliders.len() > collider_views.len() {
-                // A collider was added.
-                for collider_handle in rigid_body
-                    .colliders
-                    .iter()
-                    .map(|&h| Handle::<Collider>::from(h))
-                {
-                    if collider_views.iter().all(|v| {
-                        ui.node(*v)
-                            .cast::<SceneItem<Collider>>()
-                            .expect("Must be a SceneItem<Collider>")
-                            .entity_handle
-                            != collider_handle
+            match rigid_body.colliders.len().cmp(&collider_views.len()) {
+                Ordering::Less => {
+                    // A collider was removed.
+                    for (&collider_view, collider_view_ref) in collider_views.iter().map(|v| {
+                        (
+                            v,
+                            ui.node(*v)
+                                .cast::<SceneItem<Collider>>()
+                                .expect("Must be a SceneItem<Collider>!"),
+                        )
                     }) {
-                        let collider_ref = &editor_scene.physics.colliders[collider_handle];
-
-                        let name = match &collider_ref.shape {
-                            ColliderShapeDesc::Ball(_) => "Bal Collider",
-                            ColliderShapeDesc::Cylinder(_) => "Cylinder Collider",
-                            ColliderShapeDesc::RoundCylinder(_) => "Round Cylinder Collider",
-                            ColliderShapeDesc::Cone(_) => "Cone  Collider",
-                            ColliderShapeDesc::Cuboid(_) => "Cuboid Collider",
-                            ColliderShapeDesc::Capsule(_) => "Capsule Collider",
-                            ColliderShapeDesc::Segment(_) => "Segment Collider",
-                            ColliderShapeDesc::Triangle(_) => "Triangle Collider",
-                            ColliderShapeDesc::Trimesh(_) => "Triangle Mesh Collider",
-                            ColliderShapeDesc::Heightfield(_) => "Height Field Collider",
-                        };
-
-                        let view = SceneItemBuilder::<Collider>::new(TreeBuilder::new(
-                            WidgetBuilder::new()
-                                .with_context_menu(self.deletable_context_menu.menu),
-                        ))
-                        .with_name(name.to_owned())
-                        .with_icon(load_image(include_bytes!(
-                            "../../resources/embed/collider.png"
-                        )))
-                        .with_entity_handle(collider_handle)
-                        .build(&mut ui.build_ctx());
-
-                        ui.send_message(TreeMessage::add_item(
-                            rigid_body_view,
-                            MessageDirection::ToWidget,
-                            view,
-                        ));
+                        if rigid_body
+                            .colliders
+                            .iter()
+                            .map(|&c| Handle::<Collider>::from(c))
+                            .all(|c| c != collider_view_ref.entity_handle)
+                        {
+                            ui.send_message(TreeMessage::remove_item(
+                                rigid_body_view,
+                                MessageDirection::ToWidget,
+                                collider_view,
+                            ));
+                        }
                     }
                 }
-            } else if rigid_body.colliders.len() < collider_views.len() {
-                // A collider was removed.
-                for (&collider_view, collider_view_ref) in collider_views.iter().map(|v| {
-                    (
-                        v,
-                        ui.node(*v)
-                            .cast::<SceneItem<Collider>>()
-                            .expect("Must be a SceneItem<Collider>!"),
-                    )
-                }) {
-                    if rigid_body
+                Ordering::Greater => {
+                    // A collider was added.
+                    for collider_handle in rigid_body
                         .colliders
                         .iter()
-                        .map(|&c| Handle::<Collider>::from(c))
-                        .all(|c| c != collider_view_ref.entity_handle)
+                        .map(|&h| Handle::<Collider>::from(h))
                     {
-                        ui.send_message(TreeMessage::remove_item(
-                            rigid_body_view,
-                            MessageDirection::ToWidget,
-                            collider_view,
-                        ));
+                        if collider_views.iter().all(|v| {
+                            ui.node(*v)
+                                .cast::<SceneItem<Collider>>()
+                                .expect("Must be a SceneItem<Collider>")
+                                .entity_handle
+                                != collider_handle
+                        }) {
+                            let collider_ref = &editor_scene.physics.colliders[collider_handle];
+
+                            let name = match &collider_ref.shape {
+                                ColliderShapeDesc::Ball(_) => "Bal Collider",
+                                ColliderShapeDesc::Cylinder(_) => "Cylinder Collider",
+                                ColliderShapeDesc::RoundCylinder(_) => "Round Cylinder Collider",
+                                ColliderShapeDesc::Cone(_) => "Cone  Collider",
+                                ColliderShapeDesc::Cuboid(_) => "Cuboid Collider",
+                                ColliderShapeDesc::Capsule(_) => "Capsule Collider",
+                                ColliderShapeDesc::Segment(_) => "Segment Collider",
+                                ColliderShapeDesc::Triangle(_) => "Triangle Collider",
+                                ColliderShapeDesc::Trimesh(_) => "Triangle Mesh Collider",
+                                ColliderShapeDesc::Heightfield(_) => "Height Field Collider",
+                            };
+
+                            let view = SceneItemBuilder::<Collider>::new(TreeBuilder::new(
+                                WidgetBuilder::new()
+                                    .with_context_menu(self.deletable_context_menu.menu),
+                            ))
+                            .with_name(name.to_owned())
+                            .with_icon(load_image(include_bytes!(
+                                "../../resources/embed/collider.png"
+                            )))
+                            .with_entity_handle(collider_handle)
+                            .build(&mut ui.build_ctx());
+
+                            ui.send_message(TreeMessage::add_item(
+                                rigid_body_view,
+                                MessageDirection::ToWidget,
+                                view,
+                            ));
+                        }
                     }
+                }
+                Ordering::Equal => {
+                    // Do nothing.
                 }
             }
         }

@@ -4,7 +4,6 @@ use crate::{
     GameEngine, Message,
 };
 use rg3d::gui::message::{MessageDirection, PopupMessage, WidgetMessage};
-use rg3d::gui::popup::Placement;
 use rg3d::{
     core::{algebra::Vector2, pool::Handle, scope_profile},
     gui::{
@@ -107,16 +106,16 @@ impl ItemContextMenu {
                             engine,
                         );
                     }
-                } else if message.destination() == self.add_rigid_body {
-                    if editor_scene.selection.is_single_selection() {
-                        if let Selection::Graph(graph_selection) = &editor_scene.selection {
-                            sender
-                                .send(Message::do_scene_command(SetBodyCommand::new(
-                                    *graph_selection.nodes.first().unwrap(),
-                                    Default::default(),
-                                )))
-                                .unwrap();
-                        }
+                } else if message.destination() == self.add_rigid_body
+                    && editor_scene.selection.is_single_selection()
+                {
+                    if let Selection::Graph(graph_selection) = &editor_scene.selection {
+                        sender
+                            .send(Message::do_scene_command(SetBodyCommand::new(
+                                *graph_selection.nodes.first().unwrap(),
+                                Default::default(),
+                            )))
+                            .unwrap();
                     }
                 }
             }
@@ -135,7 +134,7 @@ impl ItemContextMenu {
                     engine.user_interface.send_message(WidgetMessage::enabled(
                         self.add_rigid_body,
                         MessageDirection::ToWidget,
-                        dbg!(enabled),
+                        enabled,
                     ));
                 }
             }
