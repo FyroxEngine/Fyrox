@@ -1,4 +1,5 @@
 use crate::Message;
+use rg3d::gui::text_box::TextCommitMode;
 use rg3d::{
     core::pool::Handle,
     gui::{
@@ -27,6 +28,7 @@ impl SearchBar {
                 .on_row(1)
                 .with_child({
                     text = TextBoxBuilder::new(WidgetBuilder::new().on_column(0))
+                        .with_text_commit_mode(TextCommitMode::Immediate)
                         .with_vertical_text_alignment(VerticalAlignment::Center)
                         .build(ctx);
                     text
