@@ -1,3 +1,4 @@
+use crate::world::search::SearchBar;
 use crate::{
     load_image,
     physics::{Collider, Joint, RigidBody},
@@ -24,6 +25,7 @@ use crate::{
     },
     GameEngine, Message,
 };
+use rg3d::gui::text::Text;
 use rg3d::{
     core::{
         color::Color,
@@ -61,6 +63,7 @@ use std::{cmp::Ordering, collections::HashMap, sync::mpsc::Sender};
 pub mod graph;
 pub mod link;
 pub mod physics;
+pub mod search;
 pub mod sound;
 
 pub struct WorldViewer {
@@ -73,6 +76,8 @@ pub struct WorldViewer {
     sender: Sender<Message>,
     track_selection: Handle<UiNode>,
     track_selection_state: bool,
+    search_bar: SearchBar,
+    filter: String,
     stack: Vec<(Handle<UiNode>, Handle<Node>)>,
     /// Hack. Due to delayed execution of UI code we can't sync immediately after we
     /// did sync_to_model, instead we defer selection syncing to post_update() - at
@@ -280,6 +285,7 @@ impl WorldViewer {
         let locate_selection;
         let scroll_view;
         let track_selection;
+        let search_bar = SearchBar::new(ctx);
         let graph_folder = make_folder(ctx, "Scene Graph");
         let rigid_bodies_folder = make_folder(ctx, "Rigid Bodies");
         let joints_folder = make_folder(ctx, "Joints");
@@ -343,10 +349,11 @@ impl WorldViewer {
                             .with_orientation(Orientation::Horizontal)
                             .build(ctx),
                         )
+                        .with_child(search_bar.container)
                         .with_child(
                             TextBuilder::new(
                                 WidgetBuilder::new()
-                                    .on_row(1)
+                                    .on_row(2)
                                     .on_column(0)
                                     .with_opacity(0.4),
                             )
@@ -356,7 +363,7 @@ impl WorldViewer {
                             .build(ctx),
                         )
                         .with_child(
-                            ScrollViewerBuilder::new(WidgetBuilder::new().on_row(1))
+                            ScrollViewerBuilder::new(WidgetBuilder::new().on_row(2))
                                 .with_content({
                                     node_path = StackPanelBuilder::new(WidgetBuilder::new())
                                         .with_orientation(Orientation::Horizontal)
@@ -366,7 +373,7 @@ impl WorldViewer {
                                 .build(ctx),
                         )
                         .with_child({
-                            scroll_view = ScrollViewerBuilder::new(WidgetBuilder::new().on_row(2))
+                            scroll_view = ScrollViewerBuilder::new(WidgetBuilder::new().on_row(3))
                                 .with_content({
                                     tree_root = TreeRootBuilder::new(WidgetBuilder::new())
                                         .with_items(vec![
@@ -385,6 +392,7 @@ impl WorldViewer {
                 .add_column(Column::stretch())
                 .add_row(Row::strict(24.0))
                 .add_row(Row::strict(24.0))
+                .add_row(Row::strict(24.0))
                 .add_row(Row::stretch())
                 .build(ctx),
             )
@@ -396,6 +404,7 @@ impl WorldViewer {
         let deletable_context_menu = DeletableSceneItemContextMenu::new(ctx);
 
         Self {
+            search_bar,
             track_selection,
             track_selection_state,
             window,
@@ -421,6 +430,7 @@ impl WorldViewer {
             rigid_body_to_view_map: Default::default(),
             joint_to_view_map: Default::default(),
             sound_to_view_map: Default::default(),
+            filter: Default::default(),
         }
     }
 
@@ -1047,6 +1057,51 @@ impl WorldViewer {
         colorize(self.tree_root, ui, &mut index);
     }
 
+    fn apply_filter(&self, ui: &UserInterface) {
+        fn apply_filter_recursive(node: Handle<UiNode>, filter: &str, ui: &UserInterface) -> bool {
+            let node_ref = ui.node(node);
+
+            let mut is_any_match = false;
+            for &child in node_ref.children() {
+                is_any_match |= apply_filter_recursive(child, filter, ui)
+            }
+
+            // TODO: It is very easy to forget to add a new condition here if a new type
+            // of a scene item is added. Find a way of doing this in a better way.
+            // Also due to very simple RTTI in Rust, it becomes boilerplate-ish very quick.
+            let name = if let Some(item) = node_ref.cast::<SceneItem<Node>>() {
+                Some(item.name())
+            } else if let Some(item) = node_ref.cast::<SceneItem<RigidBody>>() {
+                Some(item.name())
+            } else if let Some(item) = node_ref.cast::<SceneItem<Joint>>() {
+                Some(item.name())
+            } else if let Some(item) = node_ref.cast::<SceneItem<Collider>>() {
+                Some(item.name())
+            } else {
+                None
+            };
+
+            if let Some(name) = name {
+                is_any_match |= name.contains(filter);
+
+                ui.send_message(WidgetMessage::visibility(
+                    node,
+                    MessageDirection::ToWidget,
+                    is_any_match,
+                ));
+            }
+
+            is_any_match
+        }
+
+        apply_filter_recursive(self.tree_root, &self.filter, ui);
+    }
+
+    pub fn set_filter(&mut self, filter: String, ui: &UserInterface) {
+        self.filter = filter;
+        self.apply_filter(ui)
+    }
+
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
@@ -1069,6 +1124,8 @@ impl WorldViewer {
             &engine.user_interface,
             &self.sender,
         );
+        self.search_bar
+            .handle_ui_message(message, &engine.user_interface, &self.sender);
 
         match message.data() {
             UiMessageData::TreeRoot(msg) => {

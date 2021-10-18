@@ -766,6 +766,7 @@ pub enum Message {
     OpenSettings(SettingsSectionKind),
     OpenMaterialEditor(Arc<Mutex<Material>>),
     ShowInAssetBrowser(PathBuf),
+    SetWorldViewerFilter(String),
 }
 
 impl Message {
@@ -1813,6 +1814,9 @@ impl Editor {
                 }
                 Message::ShowInAssetBrowser(path) => {
                     self.asset_browser.locate_path(&engine.user_interface, path);
+                }
+                Message::SetWorldViewerFilter(filter) => {
+                    self.world_viewer.set_filter(filter, &engine.user_interface);
                 }
             }
         }

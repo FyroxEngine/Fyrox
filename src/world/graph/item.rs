@@ -37,7 +37,14 @@ impl SceneItemMessage {
 pub struct SceneItem<T> {
     pub tree: Tree,
     text_name: Handle<UiNode>,
+    name_value: String,
     pub entity_handle: Handle<T>,
+}
+
+impl<T> SceneItem<T> {
+    pub fn name(&self) -> &str {
+        &self.name_value
+    }
 }
 
 impl<T> Clone for SceneItem<T> {
@@ -45,6 +52,7 @@ impl<T> Clone for SceneItem<T> {
         Self {
             tree: self.tree.clone(),
             text_name: self.text_name,
+            name_value: self.name_value.clone(),
             entity_handle: self.entity_handle,
         }
     }
@@ -99,7 +107,7 @@ impl<T: 'static> Control for SceneItem<T> {
             if let Some(msg) = msg.cast::<SceneItemMessage>() {
                 if let SceneItemMessage::Name(name) = msg {
                     if message.destination() == self.handle() {
-                        let name = format!(
+                        self.name_value = format!(
                             "{} ({}:{})",
                             name,
                             self.entity_handle.index(),
@@ -109,7 +117,7 @@ impl<T: 'static> Control for SceneItem<T> {
                         ui.send_message(TextMessage::text(
                             self.text_name,
                             MessageDirection::ToWidget,
-                            name,
+                            self.name_value.clone(),
                         ));
                     }
                 }
@@ -220,6 +228,7 @@ impl<T: 'static> SceneItemBuilder<T> {
         let item = SceneItem {
             tree,
             entity_handle: self.entity_handle,
+            name_value: self.name,
             text_name,
         };
 
