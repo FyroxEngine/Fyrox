@@ -252,6 +252,8 @@ fn quote_field_prop(
 
     let read_only = field.read_only;
 
+    let description = field.description.clone().unwrap_or_default();
+
     quote! {
         PropertyInfo {
             owner_type_id: std::any::TypeId::of::<Self>(),
@@ -263,7 +265,8 @@ fn quote_field_prop(
             min_value: #min_value,
             max_value: #max_value,
             step: #step,
-            precision: #precision
+            precision: #precision,
+            description: (#description).to_string()
         }
     }
 }

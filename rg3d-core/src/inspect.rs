@@ -68,6 +68,9 @@ pub struct PropertyInfo<'a> {
 
     /// Maximum amount of decimal places for a numeric property.
     pub precision: Option<usize>,
+
+    /// Description of the property.
+    pub description: String,
 }
 
 #[allow(clippy::vtable_address_comparisons)]
@@ -78,6 +81,12 @@ impl<'a> PartialEq<Self> for PropertyInfo<'a> {
             && self.display_name == other.display_name
             && self.group == other.group
             && std::ptr::eq(self.value, other.value)
+            && self.read_only == other.read_only
+            && self.min_value == other.min_value
+            && self.max_value == other.max_value
+            && self.step == other.step
+            && self.precision == other.precision
+            && self.description == other.description
     }
 }
 
@@ -89,6 +98,12 @@ impl<'a> fmt::Debug for PropertyInfo<'a> {
             .field("display_name", &self.display_name)
             .field("group", &self.group)
             .field("value", &format_args!("{:?}", self.value as *const _))
+            .field("read_only", &self.read_only)
+            .field("min_value", &self.min_value)
+            .field("max_value", &self.max_value)
+            .field("step", &self.step)
+            .field("precision", &self.precision)
+            .field("description", &self.description)
             .finish()
     }
 }
@@ -155,6 +170,7 @@ macro_rules! impl_self_inspect {
                     max_value: Some($max),
                     step: Some($step),
                     precision: Some($precision),
+                    description: "".to_string(),
                 }]
             }
         }

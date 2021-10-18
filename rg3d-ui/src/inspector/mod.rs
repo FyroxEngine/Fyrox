@@ -1,3 +1,4 @@
+use crate::core::algebra::Vector2;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -134,10 +135,30 @@ fn create_header(ctx: &mut BuildContext, text: &str) -> Handle<UiNode> {
         .build(ctx)
 }
 
+fn make_tooltip(ctx: &mut BuildContext, text: &str) -> Handle<UiNode> {
+    if text.is_empty() {
+        Handle::NONE
+    } else {
+        BorderBuilder::new(
+            WidgetBuilder::new()
+                .with_foreground(Brush::Solid(Color::opaque(160, 160, 160)))
+                .with_max_size(Vector2::new(250.0, f32::INFINITY))
+                .with_child(
+                    TextBuilder::new(WidgetBuilder::new())
+                        .with_wrap(WrapMode::Word)
+                        .with_text(text)
+                        .build(ctx),
+                ),
+        )
+        .build(ctx)
+    }
+}
+
 fn wrap_property(
     title: Handle<UiNode>,
     editor: Handle<UiNode>,
     layout: Layout,
+    description: &str,
     ctx: &mut BuildContext,
 ) -> Handle<UiNode> {
     match layout {
@@ -149,24 +170,29 @@ fn wrap_property(
         }
     }
 
-    GridBuilder::new(WidgetBuilder::new().with_child(title).with_child(editor))
-        .add_rows(match layout {
-            Layout::Horizontal => {
-                vec![Row::strict(26.0)]
-            }
-            Layout::Vertical => {
-                vec![Row::strict(26.0), Row::stretch()]
-            }
-        })
-        .add_columns(match layout {
-            Layout::Horizontal => {
-                vec![Column::strict(NAME_COLUMN_WIDTH), Column::stretch()]
-            }
-            Layout::Vertical => {
-                vec![Column::stretch()]
-            }
-        })
-        .build(ctx)
+    GridBuilder::new(
+        WidgetBuilder::new()
+            .with_tooltip(make_tooltip(ctx, description))
+            .with_child(title)
+            .with_child(editor),
+    )
+    .add_rows(match layout {
+        Layout::Horizontal => {
+            vec![Row::strict(26.0)]
+        }
+        Layout::Vertical => {
+            vec![Row::strict(26.0), Row::stretch()]
+        }
+    })
+    .add_columns(match layout {
+        Layout::Horizontal => {
+            vec![Column::strict(NAME_COLUMN_WIDTH), Column::stretch()]
+        }
+        Layout::Vertical => {
+            vec![Column::stretch()]
+        }
+    })
+    .build(ctx)
 }
 
 impl InspectorContext {
@@ -233,6 +259,7 @@ impl InspectorContext {
                                         },
                                         instance.editor,
                                         definition.layout(),
+                                        &info.description,
                                         ctx,
                                     )
                                 }
@@ -248,6 +275,7 @@ impl InspectorContext {
                                         ))
                                         .build(ctx),
                                     Layout::Horizontal,
+                                    &info.description,
                                     ctx,
                                 ),
                             }
@@ -260,6 +288,7 @@ impl InspectorContext {
                                     .with_text("Property Editor Is Missing!")
                                     .build(ctx),
                                 Layout::Horizontal,
+                                &info.description,
                                 ctx,
                             )
                         }

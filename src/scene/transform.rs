@@ -91,6 +91,7 @@ impl Inspect for Transform {
                 max_value: None,
                 step: None,
                 precision: None,
+                description: "Local scale of the transform".to_string(),
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Self>(),
@@ -103,6 +104,7 @@ impl Inspect for Transform {
                 max_value: None,
                 step: None,
                 precision: None,
+                description: "Local position of the transform".to_string(),
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Self>(),
@@ -115,6 +117,7 @@ impl Inspect for Transform {
                 max_value: None,
                 step: None,
                 precision: None,
+                description: "Local rotation of the transform".to_string(),
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Self>(),
@@ -127,6 +130,8 @@ impl Inspect for Transform {
                 max_value: None,
                 step: None,
                 precision: None,
+                description: "Pre rotation of the transform. Applied before local rotation."
+                    .to_string(),
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Self>(),
@@ -139,6 +144,8 @@ impl Inspect for Transform {
                 max_value: None,
                 step: None,
                 precision: None,
+                description: "Post rotation of the transform. Applied after local rotation."
+                    .to_string(),
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Self>(),
@@ -151,6 +158,7 @@ impl Inspect for Transform {
                 max_value: None,
                 step: None,
                 precision: None,
+                description: "Rotation offset of the transform.".to_string(),
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Self>(),
@@ -163,6 +171,7 @@ impl Inspect for Transform {
                 max_value: None,
                 step: None,
                 precision: None,
+                description: "Rotation pivot of the transform.".to_string(),
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Self>(),
@@ -175,6 +184,7 @@ impl Inspect for Transform {
                 max_value: None,
                 step: None,
                 precision: None,
+                description: "Scale offset of the transform.".to_string(),
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Self>(),
@@ -187,6 +197,7 @@ impl Inspect for Transform {
                 max_value: None,
                 step: None,
                 precision: None,
+                description: "Scale pivot of the transform.".to_string(),
             },
         ]
     }
