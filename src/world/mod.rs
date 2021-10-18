@@ -1186,6 +1186,8 @@ impl WorldViewer {
             UiMessageData::MenuItem(MenuItemMessage::Click) => {
                 if message.destination() == self.link_context_menu.unlink {
                     self.handle_unlink(&engine.user_interface);
+                } else if message.destination() == self.link_context_menu.select_target {
+                    self.select_link_target(&engine.user_interface, editor_scene)
                 }
             }
             _ => {}
@@ -1210,6 +1212,34 @@ impl WorldViewer {
                     MessageDirection::ToWidget,
                     *tree_to_focus,
                 ));
+        }
+    }
+
+    fn select_link_target(&self, ui: &UserInterface, editor_scene: &EditorScene) {
+        assert!(self.link_context_menu.target.is_some());
+
+        if let Some(rigid_body_link) = ui
+            .try_get_node(self.link_context_menu.target)
+            .and_then(|n| n.cast::<LinkItem<RigidBody, Node>>())
+        {
+            self.sender
+                .send(Message::do_scene_command(ChangeSelectionCommand::new(
+                    Selection::RigidBody(RigidBodySelection {
+                        bodies: vec![rigid_body_link.source],
+                    }),
+                    editor_scene.selection.clone(),
+                )))
+                .unwrap();
+        } else if let Some(node_link) = ui
+            .try_get_node(self.link_context_menu.target)
+            .and_then(|n| n.cast::<LinkItem<Node, RigidBody>>())
+        {
+            self.sender
+                .send(Message::do_scene_command(ChangeSelectionCommand::new(
+                    Selection::Graph(GraphSelection::single_or_empty(node_link.source)),
+                    editor_scene.selection.clone(),
+                )))
+                .unwrap();
         }
     }
 
