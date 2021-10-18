@@ -1,4 +1,4 @@
-use crate::world::physics::menu::DeletableSceneItemContextMenu;
+use crate::world::search::SearchBar;
 use crate::{
     load_image,
     physics::{Collider, Joint, RigidBody},
@@ -18,7 +18,7 @@ use crate::{
         },
         link::{menu::LinkContextMenu, LinkItem, LinkItemBuilder, LinkItemMessage},
         physics::{
-            menu::RigidBodyContextMenu,
+            menu::{DeletableSceneItemContextMenu, RigidBodyContextMenu},
             selection::{ColliderSelection, JointSelection, RigidBodySelection},
         },
         sound::selection::SoundSelection,
@@ -34,13 +34,16 @@ use rg3d::{
     engine::Engine,
     gui::{
         brush::Brush,
-        button::ButtonBuilder,
+        button::{Button, ButtonBuilder},
+        check_box::CheckBoxBuilder,
+        decorator::Decorator,
         grid::{Column, GridBuilder, Row},
         message::{
             ButtonMessage, MenuItemMessage, MessageDirection, ScrollViewerMessage,
             TreeExpansionStrategy, TreeMessage, TreeRootMessage, UiMessage, UiMessageData,
             WidgetMessage,
         },
+        message::{CheckBoxMessage, DecoratorMessage},
         scroll_viewer::ScrollViewerBuilder,
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
@@ -59,6 +62,7 @@ use std::{cmp::Ordering, collections::HashMap, sync::mpsc::Sender};
 pub mod graph;
 pub mod link;
 pub mod physics;
+pub mod search;
 pub mod sound;
 
 pub struct WorldViewer {
@@ -69,6 +73,10 @@ pub struct WorldViewer {
     joints_folder: Handle<UiNode>,
     sounds_folder: Handle<UiNode>,
     sender: Sender<Message>,
+    track_selection: Handle<UiNode>,
+    track_selection_state: bool,
+    search_bar: SearchBar,
+    filter: String,
     stack: Vec<(Handle<UiNode>, Handle<Node>)>,
     /// Hack. Due to delayed execution of UI code we can't sync immediately after we
     /// did sync_to_model, instead we defer selection syncing to post_update() - at
@@ -129,25 +137,27 @@ fn tree_node(ui: &UserInterface, tree: Handle<UiNode>) -> Handle<Node> {
     unreachable!()
 }
 
-fn colorize(tree: Handle<UiNode>, ui: &UserInterface, index: &mut usize) {
-    let node = ui.node(tree);
+fn colorize(handle: Handle<UiNode>, ui: &UserInterface, index: &mut usize) {
+    let node = ui.node(handle);
 
-    if let Some(i) = node.cast::<SceneItem<Node>>() {
-        ui.send_message(UiMessage::user(
-            tree,
-            MessageDirection::ToWidget,
-            Box::new(SceneItemMessage::Order(*index % 2 == 0)),
-        ));
-
-        *index += 1;
-
-        for &item in i.tree.items() {
-            colorize(item, ui, index);
+    if node.cast::<Decorator>().is_some() {
+        if node.parent().is_some() && ui.node(node.parent()).cast::<Button>().is_none() {
+            ui.send_message(DecoratorMessage::normal_brush(
+                handle,
+                MessageDirection::ToWidget,
+                Brush::Solid(if *index % 2 == 0 {
+                    Color::opaque(50, 50, 50)
+                } else {
+                    Color::opaque(60, 60, 60)
+                }),
+            ));
         }
-    } else if let Some(root) = node.cast::<TreeRoot>() {
-        for &item in root.items() {
-            colorize(item, ui, index);
-        }
+    }
+
+    *index += 1;
+
+    for &item in node.children() {
+        colorize(item, ui, index);
     }
 }
 
@@ -266,12 +276,15 @@ where
 
 impl WorldViewer {
     pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
+        let track_selection_state = true;
         let tree_root;
         let node_path;
         let collapse_all;
         let expand_all;
         let locate_selection;
         let scroll_view;
+        let track_selection;
+        let search_bar = SearchBar::new(ctx);
         let graph_folder = make_folder(ctx, "Scene Graph");
         let rigid_bodies_folder = make_folder(ctx, "Rigid Bodies");
         let joints_folder = make_folder(ctx, "Joints");
@@ -313,15 +326,33 @@ impl WorldViewer {
                                         .with_text("Locate Selection")
                                         .build(ctx);
                                         locate_selection
+                                    })
+                                    .with_child({
+                                        track_selection = CheckBoxBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_margin(Thickness::uniform(1.0)),
+                                        )
+                                        .with_content(
+                                            TextBuilder::new(WidgetBuilder::new())
+                                                .with_vertical_text_alignment(
+                                                    VerticalAlignment::Center,
+                                                )
+                                                .with_text("Track Selection")
+                                                .build(ctx),
+                                        )
+                                        .checked(Some(track_selection_state))
+                                        .build(ctx);
+                                        track_selection
                                     }),
                             )
                             .with_orientation(Orientation::Horizontal)
                             .build(ctx),
                         )
+                        .with_child(search_bar.container)
                         .with_child(
                             TextBuilder::new(
                                 WidgetBuilder::new()
-                                    .on_row(1)
+                                    .on_row(2)
                                     .on_column(0)
                                     .with_opacity(0.4),
                             )
@@ -331,7 +362,7 @@ impl WorldViewer {
                             .build(ctx),
                         )
                         .with_child(
-                            ScrollViewerBuilder::new(WidgetBuilder::new().on_row(1))
+                            ScrollViewerBuilder::new(WidgetBuilder::new().on_row(2))
                                 .with_content({
                                     node_path = StackPanelBuilder::new(WidgetBuilder::new())
                                         .with_orientation(Orientation::Horizontal)
@@ -341,7 +372,7 @@ impl WorldViewer {
                                 .build(ctx),
                         )
                         .with_child({
-                            scroll_view = ScrollViewerBuilder::new(WidgetBuilder::new().on_row(2))
+                            scroll_view = ScrollViewerBuilder::new(WidgetBuilder::new().on_row(3))
                                 .with_content({
                                     tree_root = TreeRootBuilder::new(WidgetBuilder::new())
                                         .with_items(vec![
@@ -360,6 +391,7 @@ impl WorldViewer {
                 .add_column(Column::stretch())
                 .add_row(Row::strict(24.0))
                 .add_row(Row::strict(24.0))
+                .add_row(Row::strict(24.0))
                 .add_row(Row::stretch())
                 .build(ctx),
             )
@@ -371,6 +403,9 @@ impl WorldViewer {
         let deletable_context_menu = DeletableSceneItemContextMenu::new(ctx);
 
         Self {
+            search_bar,
+            track_selection,
+            track_selection_state,
             window,
             sender,
             tree_root,
@@ -389,11 +424,12 @@ impl WorldViewer {
             sounds_folder,
             link_context_menu,
             rigid_body_context_menu,
-            deletable_context_menu: deletable_context_menu,
+            deletable_context_menu,
             node_to_view_map: Default::default(),
             rigid_body_to_view_map: Default::default(),
             joint_to_view_map: Default::default(),
             sound_to_view_map: Default::default(),
+            filter: Default::default(),
         }
     }
 
@@ -658,67 +694,71 @@ impl WorldViewer {
                     .filter(|i| ui.node(*i).cast::<SceneItem<Node>>().is_some())
                     .collect::<Vec<_>>();
 
-                if child_count < items.len() {
-                    for &item in items.iter() {
-                        let child_node = tree_node(ui, item);
-                        if !node.children().contains(&child_node) {
-                            send_sync_message(
-                                ui,
-                                TreeMessage::remove_item(
-                                    tree_handle,
-                                    MessageDirection::ToWidget,
-                                    item,
-                                ),
-                            );
-                            let removed_view = self.node_to_view_map.remove(&child_node);
-                            assert!(removed_view.is_some());
-                        } else {
-                            self.stack.push((item, child_node));
-                        }
-                    }
-                } else if child_count > items.len() {
-                    for &child_handle in node.children() {
-                        // Hide all editor nodes.
-                        if child_handle == editor_scene.root {
-                            continue;
-                        }
-                        let mut found = false;
+                match child_count.cmp(&items.len()) {
+                    Ordering::Less => {
                         for &item in items.iter() {
-                            let tree_node_handle = tree_node(ui, item);
-                            if tree_node_handle == child_handle {
-                                self.stack.push((item, child_handle));
-                                found = true;
-                                break;
+                            let child_node = tree_node(ui, item);
+                            if !node.children().contains(&child_node) {
+                                send_sync_message(
+                                    ui,
+                                    TreeMessage::remove_item(
+                                        tree_handle,
+                                        MessageDirection::ToWidget,
+                                        item,
+                                    ),
+                                );
+                                let removed_view = self.node_to_view_map.remove(&child_node);
+                                assert!(removed_view.is_some());
+                            } else {
+                                self.stack.push((item, child_node));
                             }
                         }
-                        if !found {
-                            let graph_node_item = make_graph_node_item(
-                                &graph[child_handle],
-                                child_handle,
-                                &mut ui.build_ctx(),
-                                self.item_context_menu.menu,
-                            );
-                            send_sync_message(
-                                ui,
-                                TreeMessage::add_item(
-                                    tree_handle,
-                                    MessageDirection::ToWidget,
-                                    graph_node_item,
-                                ),
-                            );
-                            if let Selection::Graph(selection) = &editor_scene.selection {
-                                if selection.contains(child_handle) {
-                                    selected_items.push(graph_node_item);
+                    }
+                    Ordering::Equal => {
+                        for &tree in items.iter() {
+                            let child = tree_node(ui, tree);
+                            self.stack.push((tree, child));
+                        }
+                    }
+                    Ordering::Greater => {
+                        for &child_handle in node.children() {
+                            // Hide all editor nodes.
+                            if child_handle == editor_scene.root {
+                                continue;
+                            }
+                            let mut found = false;
+                            for &item in items.iter() {
+                                let tree_node_handle = tree_node(ui, item);
+                                if tree_node_handle == child_handle {
+                                    self.stack.push((item, child_handle));
+                                    found = true;
+                                    break;
                                 }
                             }
-                            self.node_to_view_map.insert(child_handle, graph_node_item);
-                            self.stack.push((graph_node_item, child_handle));
+                            if !found {
+                                let graph_node_item = make_graph_node_item(
+                                    &graph[child_handle],
+                                    child_handle,
+                                    &mut ui.build_ctx(),
+                                    self.item_context_menu.menu,
+                                );
+                                send_sync_message(
+                                    ui,
+                                    TreeMessage::add_item(
+                                        tree_handle,
+                                        MessageDirection::ToWidget,
+                                        graph_node_item,
+                                    ),
+                                );
+                                if let Selection::Graph(selection) = &editor_scene.selection {
+                                    if selection.contains(child_handle) {
+                                        selected_items.push(graph_node_item);
+                                    }
+                                }
+                                self.node_to_view_map.insert(child_handle, graph_node_item);
+                                self.stack.push((graph_node_item, child_handle));
+                            }
                         }
-                    }
-                } else {
-                    for &tree in items.iter() {
-                        let child = tree_node(ui, tree);
-                        self.stack.push((tree, child));
                     }
                 }
             } else if let Some(folder) = ui_node.cast::<Tree>() {
@@ -906,75 +946,81 @@ impl WorldViewer {
 
             let rigid_body = &editor_scene.physics.bodies[rigid_body_handle];
 
-            if rigid_body.colliders.len() > collider_views.len() {
-                // A collider was added.
-                for collider_handle in rigid_body
-                    .colliders
-                    .iter()
-                    .map(|&h| Handle::<Collider>::from(h))
-                {
-                    if collider_views.iter().all(|v| {
-                        ui.node(*v)
-                            .cast::<SceneItem<Collider>>()
-                            .expect("Must be a SceneItem<Collider>")
-                            .entity_handle
-                            != collider_handle
+            match rigid_body.colliders.len().cmp(&collider_views.len()) {
+                Ordering::Less => {
+                    // A collider was removed.
+                    for (&collider_view, collider_view_ref) in collider_views.iter().map(|v| {
+                        (
+                            v,
+                            ui.node(*v)
+                                .cast::<SceneItem<Collider>>()
+                                .expect("Must be a SceneItem<Collider>!"),
+                        )
                     }) {
-                        let collider_ref = &editor_scene.physics.colliders[collider_handle];
-
-                        let name = match &collider_ref.shape {
-                            ColliderShapeDesc::Ball(_) => "Bal Collider",
-                            ColliderShapeDesc::Cylinder(_) => "Cylinder Collider",
-                            ColliderShapeDesc::RoundCylinder(_) => "Round Cylinder Collider",
-                            ColliderShapeDesc::Cone(_) => "Cone  Collider",
-                            ColliderShapeDesc::Cuboid(_) => "Cuboid Collider",
-                            ColliderShapeDesc::Capsule(_) => "Capsule Collider",
-                            ColliderShapeDesc::Segment(_) => "Segment Collider",
-                            ColliderShapeDesc::Triangle(_) => "Triangle Collider",
-                            ColliderShapeDesc::Trimesh(_) => "Triangle Mesh Collider",
-                            ColliderShapeDesc::Heightfield(_) => "Height Field Collider",
-                        };
-
-                        let view = SceneItemBuilder::<Collider>::new(TreeBuilder::new(
-                            WidgetBuilder::new()
-                                .with_context_menu(self.deletable_context_menu.menu),
-                        ))
-                        .with_name(name.to_owned())
-                        .with_icon(load_image(include_bytes!(
-                            "../../resources/embed/collider.png"
-                        )))
-                        .with_entity_handle(collider_handle)
-                        .build(&mut ui.build_ctx());
-
-                        ui.send_message(TreeMessage::add_item(
-                            rigid_body_view,
-                            MessageDirection::ToWidget,
-                            view,
-                        ));
+                        if rigid_body
+                            .colliders
+                            .iter()
+                            .map(|&c| Handle::<Collider>::from(c))
+                            .all(|c| c != collider_view_ref.entity_handle)
+                        {
+                            ui.send_message(TreeMessage::remove_item(
+                                rigid_body_view,
+                                MessageDirection::ToWidget,
+                                collider_view,
+                            ));
+                        }
                     }
                 }
-            } else if rigid_body.colliders.len() < collider_views.len() {
-                // A collider was removed.
-                for (&collider_view, collider_view_ref) in collider_views.iter().map(|v| {
-                    (
-                        v,
-                        ui.node(*v)
-                            .cast::<SceneItem<Collider>>()
-                            .expect("Must be a SceneItem<Collider>!"),
-                    )
-                }) {
-                    if rigid_body
+                Ordering::Greater => {
+                    // A collider was added.
+                    for collider_handle in rigid_body
                         .colliders
                         .iter()
-                        .map(|&c| Handle::<Collider>::from(c))
-                        .all(|c| c != collider_view_ref.entity_handle)
+                        .map(|&h| Handle::<Collider>::from(h))
                     {
-                        ui.send_message(TreeMessage::remove_item(
-                            rigid_body_view,
-                            MessageDirection::ToWidget,
-                            collider_view,
-                        ));
+                        if collider_views.iter().all(|v| {
+                            ui.node(*v)
+                                .cast::<SceneItem<Collider>>()
+                                .expect("Must be a SceneItem<Collider>")
+                                .entity_handle
+                                != collider_handle
+                        }) {
+                            let collider_ref = &editor_scene.physics.colliders[collider_handle];
+
+                            let name = match &collider_ref.shape {
+                                ColliderShapeDesc::Ball(_) => "Bal Collider",
+                                ColliderShapeDesc::Cylinder(_) => "Cylinder Collider",
+                                ColliderShapeDesc::RoundCylinder(_) => "Round Cylinder Collider",
+                                ColliderShapeDesc::Cone(_) => "Cone  Collider",
+                                ColliderShapeDesc::Cuboid(_) => "Cuboid Collider",
+                                ColliderShapeDesc::Capsule(_) => "Capsule Collider",
+                                ColliderShapeDesc::Segment(_) => "Segment Collider",
+                                ColliderShapeDesc::Triangle(_) => "Triangle Collider",
+                                ColliderShapeDesc::Trimesh(_) => "Triangle Mesh Collider",
+                                ColliderShapeDesc::Heightfield(_) => "Height Field Collider",
+                            };
+
+                            let view = SceneItemBuilder::<Collider>::new(TreeBuilder::new(
+                                WidgetBuilder::new()
+                                    .with_context_menu(self.deletable_context_menu.menu),
+                            ))
+                            .with_name(name.to_owned())
+                            .with_icon(load_image(include_bytes!(
+                                "../../resources/embed/collider.png"
+                            )))
+                            .with_entity_handle(collider_handle)
+                            .build(&mut ui.build_ctx());
+
+                            ui.send_message(TreeMessage::add_item(
+                                rigid_body_view,
+                                MessageDirection::ToWidget,
+                                view,
+                            ));
+                        }
                     }
+                }
+                Ordering::Equal => {
+                    // Do nothing.
                 }
             }
         }
@@ -1010,6 +1056,51 @@ impl WorldViewer {
         colorize(self.tree_root, ui, &mut index);
     }
 
+    fn apply_filter(&self, ui: &UserInterface) {
+        fn apply_filter_recursive(node: Handle<UiNode>, filter: &str, ui: &UserInterface) -> bool {
+            let node_ref = ui.node(node);
+
+            let mut is_any_match = false;
+            for &child in node_ref.children() {
+                is_any_match |= apply_filter_recursive(child, filter, ui)
+            }
+
+            // TODO: It is very easy to forget to add a new condition here if a new type
+            // of a scene item is added. Find a way of doing this in a better way.
+            // Also due to very simple RTTI in Rust, it becomes boilerplate-ish very quick.
+            let name = if let Some(item) = node_ref.cast::<SceneItem<Node>>() {
+                Some(item.name())
+            } else if let Some(item) = node_ref.cast::<SceneItem<RigidBody>>() {
+                Some(item.name())
+            } else if let Some(item) = node_ref.cast::<SceneItem<Joint>>() {
+                Some(item.name())
+            } else if let Some(item) = node_ref.cast::<SceneItem<Collider>>() {
+                Some(item.name())
+            } else {
+                None
+            };
+
+            if let Some(name) = name {
+                is_any_match |= name.contains(filter);
+
+                ui.send_message(WidgetMessage::visibility(
+                    node,
+                    MessageDirection::ToWidget,
+                    is_any_match,
+                ));
+            }
+
+            is_any_match
+        }
+
+        apply_filter_recursive(self.tree_root, &self.filter, ui);
+    }
+
+    pub fn set_filter(&mut self, filter: String, ui: &UserInterface) {
+        self.filter = filter;
+        self.apply_filter(ui)
+    }
+
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
@@ -1032,6 +1123,8 @@ impl WorldViewer {
             &engine.user_interface,
             &self.sender,
         );
+        self.search_bar
+            .handle_ui_message(message, &engine.user_interface, &self.sender);
 
         match message.data() {
             UiMessageData::TreeRoot(msg) => {
@@ -1079,23 +1172,14 @@ impl WorldViewer {
                             MessageDirection::ToWidget,
                         ));
                 } else if message.destination() == self.locate_selection {
-                    let tree_to_focus = self.map_selection(editor_scene, engine);
-
-                    if let Some(tree_to_focus) = tree_to_focus.first() {
-                        engine.user_interface.send_message(TreeMessage::expand(
-                            *tree_to_focus,
-                            MessageDirection::ToWidget,
-                            true,
-                            TreeExpansionStrategy::RecursiveAncestors,
-                        ));
-
-                        engine
-                            .user_interface
-                            .send_message(ScrollViewerMessage::bring_into_view(
-                                self.scroll_view,
-                                MessageDirection::ToWidget,
-                                *tree_to_focus,
-                            ));
+                    self.locate_selection(editor_scene, engine)
+                }
+            }
+            UiMessageData::CheckBox(CheckBoxMessage::Check(Some(value))) => {
+                if message.destination() == self.track_selection {
+                    self.track_selection_state = *value;
+                    if *value {
+                        self.locate_selection(editor_scene, engine);
                     }
                 }
             }
@@ -1105,6 +1189,27 @@ impl WorldViewer {
                 }
             }
             _ => {}
+        }
+    }
+
+    fn locate_selection(&self, editor_scene: &EditorScene, engine: &Engine) {
+        let tree_to_focus = self.map_selection(editor_scene, engine);
+
+        if let Some(tree_to_focus) = tree_to_focus.first() {
+            engine.user_interface.send_message(TreeMessage::expand(
+                *tree_to_focus,
+                MessageDirection::ToWidget,
+                true,
+                TreeExpansionStrategy::RecursiveAncestors,
+            ));
+
+            engine
+                .user_interface
+                .send_message(ScrollViewerMessage::bring_into_view(
+                    self.scroll_view,
+                    MessageDirection::ToWidget,
+                    *tree_to_focus,
+                ));
         }
     }
 
@@ -1337,6 +1442,9 @@ impl WorldViewer {
             );
 
             self.update_breadcrumbs(ui, editor_scene, &engine.scenes[editor_scene.scene]);
+            if self.track_selection_state {
+                self.locate_selection(editor_scene, engine);
+            }
 
             self.sync_selection = false;
         }

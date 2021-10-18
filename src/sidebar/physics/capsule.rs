@@ -99,41 +99,37 @@ impl CapsuleSection {
         capsule: &CapsuleDesc,
         handle: Handle<Collider>,
     ) {
-        match message.data() {
-            UiMessageData::User(msg) => {
-                if let Some(&NumericUpDownMessage::Value(value)) =
-                    msg.cast::<NumericUpDownMessage<f32>>()
+        if let UiMessageData::User(msg) = message.data() {
+            if let Some(&NumericUpDownMessage::Value(value)) =
+                msg.cast::<NumericUpDownMessage<f32>>()
+            {
+                if message.direction() == MessageDirection::FromWidget
+                    && message.destination() == self.radius
+                    && capsule.radius.ne(&value)
                 {
-                    if message.direction() == MessageDirection::FromWidget
-                        && message.destination() == self.radius
-                        && capsule.radius.ne(&value)
-                    {
-                        self.sender
-                            .send(Message::do_scene_command(SetCapsuleRadiusCommand::new(
-                                handle, value,
-                            )))
-                            .unwrap();
-                    }
-                } else if let Some(&Vec3EditorMessage::Value(value)) =
-                    msg.cast::<Vec3EditorMessage<f32>>()
-                {
-                    if message.destination() == self.begin && capsule.begin.ne(&value) {
-                        self.sender
-                            .send(Message::do_scene_command(SetCapsuleBeginCommand::new(
-                                handle, value,
-                            )))
-                            .unwrap();
-                    } else if message.destination() == self.end && capsule.end.ne(&value) {
-                        self.sender
-                            .send(Message::do_scene_command(SetCapsuleEndCommand::new(
-                                handle, value,
-                            )))
-                            .unwrap();
-                    }
+                    self.sender
+                        .send(Message::do_scene_command(SetCapsuleRadiusCommand::new(
+                            handle, value,
+                        )))
+                        .unwrap();
+                }
+            } else if let Some(&Vec3EditorMessage::Value(value)) =
+                msg.cast::<Vec3EditorMessage<f32>>()
+            {
+                if message.destination() == self.begin && capsule.begin.ne(&value) {
+                    self.sender
+                        .send(Message::do_scene_command(SetCapsuleBeginCommand::new(
+                            handle, value,
+                        )))
+                        .unwrap();
+                } else if message.destination() == self.end && capsule.end.ne(&value) {
+                    self.sender
+                        .send(Message::do_scene_command(SetCapsuleEndCommand::new(
+                            handle, value,
+                        )))
+                        .unwrap();
                 }
             }
-
-            _ => {}
         }
     }
 }

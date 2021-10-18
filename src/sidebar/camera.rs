@@ -305,7 +305,7 @@ impl CameraSection {
                     MessageDirection::ToWidget,
                     camera
                         .color_grading_lut_ref()
-                        .map(|lut| into_gui_texture(lut.unwrapped_lut().clone())),
+                        .map(|lut| into_gui_texture(lut.unwrapped_lut())),
                 ),
             );
 
@@ -447,7 +447,7 @@ impl CameraSection {
                                 )))
                                 .unwrap();
                         } else if message.destination() == self.key_value {
-                            let mut current_auto_exposure = camera.exposure().clone();
+                            let mut current_auto_exposure = camera.exposure();
                             if let Exposure::Auto {
                                 ref mut key_value, ..
                             } = current_auto_exposure
@@ -462,7 +462,7 @@ impl CameraSection {
                                 )))
                                 .unwrap();
                         } else if message.destination() == self.min_luminance {
-                            let mut current_auto_exposure = camera.exposure().clone();
+                            let mut current_auto_exposure = camera.exposure();
                             if let Exposure::Auto {
                                 ref mut min_luminance,
                                 ..
@@ -478,7 +478,7 @@ impl CameraSection {
                                 )))
                                 .unwrap();
                         } else if message.destination() == self.min_luminance {
-                            let mut current_auto_exposure = camera.exposure().clone();
+                            let mut current_auto_exposure = camera.exposure();
                             if let Exposure::Auto {
                                 ref mut max_luminance,
                                 ..
