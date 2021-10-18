@@ -621,7 +621,7 @@ impl Terrain {
 }
 
 /// Shape of a brush.
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Inspect, Debug)]
 pub enum BrushShape {
     /// Circle with given radius.
     Circle {
@@ -653,7 +653,7 @@ impl BrushShape {
 }
 
 /// Paint mode of a brush. It defines operation that will be performed on the terrain.
-#[derive(Clone, PartialEq, PartialOrd)]
+#[derive(Clone, PartialEq, PartialOrd, Inspect, Debug)]
 pub enum BrushMode {
     /// Modifies height map.
     ModifyHeightMap {
@@ -671,7 +671,7 @@ pub enum BrushMode {
 }
 
 /// Brush is used to modify terrain. It supports multiple shapes and modes.
-#[derive(Clone)]
+#[derive(Clone, Inspect, Debug)]
 pub struct Brush {
     /// Center of the brush.
     pub center: Vector3<f32>,
