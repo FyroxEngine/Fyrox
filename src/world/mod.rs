@@ -25,7 +25,6 @@ use crate::{
     },
     GameEngine, Message,
 };
-use rg3d::gui::text::Text;
 use rg3d::{
     core::{
         color::Color,

@@ -62,9 +62,13 @@ impl SearchBar {
     ) {
         match message.data() {
             UiMessageData::TextBox(TextBoxMessage::Text(text)) => {
-                sender
-                    .send(Message::SetWorldViewerFilter(text.clone()))
-                    .unwrap();
+                if message.destination() == self.text
+                    && message.direction() == MessageDirection::FromWidget
+                {
+                    sender
+                        .send(Message::SetWorldViewerFilter(text.clone()))
+                        .unwrap();
+                }
             }
             UiMessageData::Button(ButtonMessage::Click) => {
                 if message.destination() == self.reset {
