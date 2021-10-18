@@ -254,14 +254,11 @@ impl Inspector {
 
         // Special case for particle systems.
         if let Selection::Graph(selection) = &editor_scene.selection {
-            self.node_property_changed_handler
-                .particle_system_handler
-                .handle_ui_message(
-                    message,
-                    selection.nodes()[0],
-                    &helper,
-                    &engine.user_interface,
-                );
+            if let Some(first) = selection.nodes().first() {
+                self.node_property_changed_handler
+                    .particle_system_handler
+                    .handle_ui_message(message, *first, &helper, &engine.user_interface);
+            }
         }
 
         if editor_scene.selection.is_single_selection()
