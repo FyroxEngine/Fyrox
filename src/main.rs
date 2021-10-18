@@ -1216,6 +1216,14 @@ impl Editor {
                 },
             );
 
+            if let Some(current_im) = self.current_interaction_mode {
+                self.interaction_modes[current_im as usize].handle_ui_message(
+                    message,
+                    editor_scene,
+                    engine,
+                );
+            }
+
             self.sidebar
                 .handle_ui_message(message, editor_scene, engine);
 

@@ -6,8 +6,16 @@ use crate::{
         commands::terrain::{ModifyTerrainHeightCommand, ModifyTerrainLayerMaskCommand},
         EditorScene, Selection,
     },
-    GameEngine, Message,
+    GameEngine, Message, MSG_SYNC_FLAG,
 };
+use rg3d::gui::inspector::editors::enumeration::EnumPropertyEditorDefinition;
+use rg3d::gui::inspector::editors::PropertyEditorDefinitionContainer;
+use rg3d::gui::inspector::{Inspector, InspectorBuilder, InspectorContext};
+use rg3d::gui::message::{FieldKind, InspectorMessage, UiMessage, UiMessageData};
+use rg3d::gui::widget::WidgetBuilder;
+use rg3d::gui::window::{WindowBuilder, WindowTitle};
+use rg3d::gui::{BuildContext, UiNode, UserInterface};
+use rg3d::utils::log::{Log, MessageKind};
 use rg3d::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
@@ -36,6 +44,7 @@ pub struct TerrainInteractionMode {
     interacting: bool,
     brush_gizmo: BrushGizmo,
     brush: Arc<Mutex<Brush>>,
+    brush_panel: BrushPanel,
 }
 
 impl TerrainInteractionMode {
@@ -45,7 +54,12 @@ impl TerrainInteractionMode {
         message_sender: Sender<Message>,
         brush: Arc<Mutex<Brush>>,
     ) -> Self {
+        let brush_guard = brush.lock().unwrap();
+        let brush_panel = BrushPanel::new(&mut engine.user_interface.build_ctx(), &*brush_guard);
+        drop(brush_guard);
+
         Self {
+            brush_panel,
             heightmaps: Default::default(),
             brush_gizmo: BrushGizmo::new(editor_scene, engine),
             interacting: false,
@@ -265,5 +279,121 @@ impl InteractionModeTrait for TerrainInteractionMode {
     fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
         let graph = &mut engine.scenes[editor_scene.scene].graph;
         self.brush_gizmo.set_visible(graph, false);
+    }
+
+    fn handle_ui_message(
+        &mut self,
+        message: &UiMessage,
+        _editor_scene: &mut EditorScene,
+        _engine: &mut GameEngine,
+    ) {
+        self.brush_panel
+            .handle_ui_message(message, &mut *self.brush.lock().unwrap());
+    }
+}
+
+struct BrushPanel {
+    inspector: Handle<UiNode>,
+}
+
+fn make_brush_mode_enum_property_editor_definition() -> Arc<EnumPropertyEditorDefinition<BrushMode>>
+{
+    Arc::new(EnumPropertyEditorDefinition {
+        variant_generator: |i| match i {
+            0 => BrushMode::ModifyHeightMap { amount: 0.1 },
+            1 => BrushMode::DrawOnMask {
+                layer: 0,
+                alpha: 1.0,
+            },
+            _ => unreachable!(),
+        },
+        index_generator: |v| match v {
+            BrushMode::ModifyHeightMap { .. } => 0,
+            BrushMode::DrawOnMask { .. } => 1,
+        },
+        names_generator: || vec!["Modify Height Map".to_string(), "Draw On Mask".to_string()],
+    })
+}
+
+fn make_brush_shape_enum_property_editor_definition(
+) -> Arc<EnumPropertyEditorDefinition<BrushShape>> {
+    Arc::new(EnumPropertyEditorDefinition {
+        variant_generator: |i| match i {
+            0 => BrushShape::Circle { radius: 0.5 },
+            1 => BrushShape::Rectangle {
+                width: 0.5,
+                length: 0.5,
+            },
+            _ => unreachable!(),
+        },
+        index_generator: |v| match v {
+            BrushShape::Circle { .. } => 0,
+            BrushShape::Rectangle { .. } => 1,
+        },
+        names_generator: || vec!["Circle".to_string(), "Rectangle".to_string()],
+    })
+}
+
+impl BrushPanel {
+    fn new(ctx: &mut BuildContext, brush: &Brush) -> Self {
+        let mut property_editors = PropertyEditorDefinitionContainer::new();
+        property_editors.insert(make_brush_mode_enum_property_editor_definition());
+        property_editors.insert(make_brush_shape_enum_property_editor_definition());
+
+        let context = InspectorContext::from_object(
+            brush,
+            ctx,
+            Arc::new(property_editors),
+            None,
+            MSG_SYNC_FLAG,
+        );
+
+        let inspector;
+        WindowBuilder::new(WidgetBuilder::new())
+            .with_content({
+                inspector = InspectorBuilder::new(WidgetBuilder::new())
+                    .with_context(context)
+                    .build(ctx);
+                inspector
+            })
+            .open(false) // TODO
+            .with_title(WindowTitle::text("Brush Options"))
+            .build(ctx);
+
+        Self { inspector }
+    }
+
+    fn sync_to_model(&self, ui: &mut UserInterface, brush: &Brush) {
+        let ctx = ui
+            .node(self.inspector)
+            .cast::<Inspector>()
+            .expect("Must be Inspector!")
+            .context()
+            .clone();
+
+        if let Err(e) = ctx.sync(brush, ui) {
+            Log::writeln(
+                MessageKind::Error,
+                format!("Failed to sync BrushPanel's inspector. Reason: {:?}", e),
+            )
+        }
+    }
+
+    fn handle_ui_message(&self, message: &UiMessage, brush: &mut Brush) -> Option<()> {
+        if let UiMessageData::Inspector(InspectorMessage::PropertyChanged(msg)) = message.data() {
+            match msg.value {
+                FieldKind::Object(ref args) => match msg.name.as_ref() {
+                    Brush::CENTER => {
+                        brush.center = args.cast_value().cloned()?;
+                    }
+                    Brush::SHAPE => {}
+                    Brush::MODE => {}
+                    _ => (),
+                },
+                FieldKind::Inspectable(ref args) => {}
+                _ => {}
+            }
+        }
+        Some(())
     }
 }

@@ -8,6 +8,7 @@ use crate::{
     scene::EditorScene,
     GameEngine,
 };
+use rg3d::gui::message::UiMessage;
 use rg3d::{
     core::{
         algebra::{Vector2, Vector3},
@@ -75,6 +76,14 @@ pub trait InteractionModeTrait {
     fn on_key_up(
         &mut self,
         _key: KeyCode,
+        _editor_scene: &mut EditorScene,
+        _engine: &mut GameEngine,
+    ) {
+    }
+
+    fn handle_ui_message(
+        &mut self,
+        _message: &UiMessage,
         _editor_scene: &mut EditorScene,
         _engine: &mut GameEngine,
     ) {
@@ -227,5 +236,16 @@ impl InteractionModeTrait for InteractionMode {
         scope_profile!();
 
         static_dispatch!(self, on_key_up, key, editor_scene, engine)
+    }
+
+    fn handle_ui_message(
+        &mut self,
+        _message: &UiMessage,
+        _editor_scene: &mut EditorScene,
+        _engine: &mut GameEngine,
+    ) {
+        scope_profile!();
+
+        static_dispatch!(self, handle_ui_message, _message, _editor_scene, _engine)
     }
 }
