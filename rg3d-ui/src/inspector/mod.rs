@@ -141,6 +141,7 @@ fn make_tooltip(ctx: &mut BuildContext, text: &str) -> Handle<UiNode> {
     } else {
         BorderBuilder::new(
             WidgetBuilder::new()
+                .with_visibility(false)
                 .with_foreground(Brush::Solid(Color::opaque(160, 160, 160)))
                 .with_max_size(Vector2::new(250.0, f32::INFINITY))
                 .with_child(
@@ -170,29 +171,27 @@ fn wrap_property(
         }
     }
 
-    GridBuilder::new(
-        WidgetBuilder::new()
-            .with_tooltip(make_tooltip(ctx, description))
-            .with_child(title)
-            .with_child(editor),
-    )
-    .add_rows(match layout {
-        Layout::Horizontal => {
-            vec![Row::strict(26.0)]
-        }
-        Layout::Vertical => {
-            vec![Row::strict(26.0), Row::stretch()]
-        }
-    })
-    .add_columns(match layout {
-        Layout::Horizontal => {
-            vec![Column::strict(NAME_COLUMN_WIDTH), Column::stretch()]
-        }
-        Layout::Vertical => {
-            vec![Column::stretch()]
-        }
-    })
-    .build(ctx)
+    let tooltip = make_tooltip(ctx, description);
+    ctx[title].set_tooltip(tooltip);
+
+    GridBuilder::new(WidgetBuilder::new().with_child(title).with_child(editor))
+        .add_rows(match layout {
+            Layout::Horizontal => {
+                vec![Row::strict(26.0)]
+            }
+            Layout::Vertical => {
+                vec![Row::strict(26.0), Row::stretch()]
+            }
+        })
+        .add_columns(match layout {
+            Layout::Horizontal => {
+                vec![Column::strict(NAME_COLUMN_WIDTH), Column::stretch()]
+            }
+            Layout::Vertical => {
+                vec![Column::stretch()]
+            }
+        })
+        .build(ctx)
 }
 
 impl InspectorContext {
