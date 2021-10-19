@@ -64,7 +64,7 @@ use crate::{
         math::clampf,
         math::Rect,
         pool::{Handle, Pool},
-        scope_profile, VecExtensions,
+        scope_profile,
     },
     draw::{CommandTexture, Draw, DrawingContext},
     message::{
@@ -77,8 +77,8 @@ use crate::{
 };
 
 use copypasta::ClipboardContext;
-use std::any::Any;
 use std::{
+    any::Any,
     cell::Cell,
     collections::{HashMap, HashSet, VecDeque},
     fmt::Debug,
@@ -509,7 +509,7 @@ pub struct UserInterface {
     mouse_state: MouseState,
     keyboard_modifiers: KeyboardModifiers,
     cursor_icon: CursorIcon,
-    visible_tooltips: Vec<TooltipEntry>,
+    active_tooltip: Option<TooltipEntry>,
     preview_set: HashSet<Handle<UiNode>>,
     clipboard: Option<ClipboardContext>,
 }
@@ -612,7 +612,7 @@ impl UserInterface {
             mouse_state: Default::default(),
             keyboard_modifiers: Default::default(),
             cursor_icon: Default::default(),
-            visible_tooltips: Default::default(),
+            active_tooltip: Default::default(),
             preview_set: Default::default(),
             clipboard: ClipboardContext::new().ok(),
         };
@@ -1432,61 +1432,64 @@ impl UserInterface {
         }
     }
 
-    /// Adds a tooltip if it doesn't already exist.
-    /// If it already exists then it refreshes the timer to `time`
-    /// Returns the instance that was added or already existed
-    fn add_tooltip(&mut self, tooltip: Handle<UiNode>, time: f32) -> &mut TooltipEntry {
-        let index = if let Some(index) = self
-            .visible_tooltips
-            .iter()
-            .position(|e| e.tooltip == tooltip)
-        {
-            self.visible_tooltips[index].time = time;
-            index
+    fn show_tooltip(&self, tooltip: Handle<UiNode>) {
+        self.send_message(WidgetMessage::visibility(
+            tooltip,
+            MessageDirection::ToWidget,
+            true,
+        ));
+        self.send_message(WidgetMessage::topmost(tooltip, MessageDirection::ToWidget));
+        self.send_message(WidgetMessage::desired_position(
+            tooltip,
+            MessageDirection::ToWidget,
+            self.cursor_position() + Vector2::new(0.0, 16.0),
+        ));
+    }
+
+    fn replace_or_update_tooltip(&mut self, tooltip: Handle<UiNode>, time: f32) {
+        if let Some(entry) = self.active_tooltip.as_mut() {
+            if entry.tooltip == tooltip {
+                // Keep current visible.
+                entry.time = time;
+            } else {
+                let old_tooltip = entry.tooltip;
+
+                entry.tooltip = tooltip;
+                self.show_tooltip(tooltip);
+
+                // Hide previous.
+                self.send_message(WidgetMessage::visibility(
+                    old_tooltip,
+                    MessageDirection::ToWidget,
+                    false,
+                ));
+            }
         } else {
-            self.send_message(WidgetMessage::visibility(
-                tooltip,
-                MessageDirection::ToWidget,
-                true,
-            ));
-            self.send_message(WidgetMessage::topmost(tooltip, MessageDirection::ToWidget));
-            self.send_message(WidgetMessage::desired_position(
-                tooltip,
-                MessageDirection::ToWidget,
-                self.cursor_position(),
-            ));
-            self.visible_tooltips.push(TooltipEntry::new(tooltip, time));
-
-            // Index of the entry we just added
-            self.visible_tooltips.len() - 1
-        };
-
-        &mut self.visible_tooltips[index]
+            self.show_tooltip(tooltip);
+            self.active_tooltip = Some(TooltipEntry::new(tooltip, time));
+        }
     }
 
     /// Find any tooltips that are being hovered and activate them.
     /// As well, update their time.
     fn update_tooltips(&mut self, dt: f32) {
-        // Decrease all tooltip times, removing those which have had their timer run out
         let sender = &self.sender;
-        self.visible_tooltips
-            .retain_mut(|entry: &mut TooltipEntry| {
-                entry.decrease(dt);
-                if entry.should_display() {
-                    true
-                } else {
-                    // This uses sender directly since we're currently mutably borrowing
-                    // visible_tooltips
-                    sender
-                        .send(WidgetMessage::visibility(
-                            entry.tooltip,
-                            MessageDirection::ToWidget,
-                            false,
-                        ))
-                        .unwrap();
-                    false
-                }
-            });
+        if let Some(entry) = self.active_tooltip.as_mut() {
+            entry.decrease(dt);
+            if !entry.should_display() {
+                // This uses sender directly since we're currently mutably borrowing
+                // visible_tooltips
+                sender
+                    .send(WidgetMessage::visibility(
+                        entry.tooltip,
+                        MessageDirection::ToWidget,
+                        false,
+                    ))
+                    .unwrap();
+
+                self.active_tooltip = None;
+            }
+        }
 
         // Check for hovering over a widget with a tooltip, or hovering over a tooltip.
         let mut handle = self.picked_node;
@@ -1499,20 +1502,15 @@ impl UserInterface {
                 // They have a tooltip, we stop here and use that.
                 let tooltip = node.tooltip();
                 let tooltip_time = node.tooltip_time();
-                let entry = self.add_tooltip(tooltip, tooltip_time);
-                // Update max time, just in case it was changed.
-                // We can't do this in the case where we're hovering over the tooltip, though.
-                entry.max_time = tooltip_time;
+                self.replace_or_update_tooltip(tooltip, tooltip_time);
                 break;
-            } else if let Some(entry) = self
-                .visible_tooltips
-                .iter_mut()
-                .find(|e| e.tooltip == handle)
-            {
-                // The current node was a tooltip.
-                // We refresh the timer back to the stored max time.
-                entry.time = entry.max_time;
-                break;
+            } else if let Some(entry) = self.active_tooltip.as_mut() {
+                if entry.tooltip == handle {
+                    // The current node was a tooltip.
+                    // We refresh the timer back to the stored max time.
+                    entry.time = entry.max_time;
+                    break;
+                }
             }
 
             handle = parent;
