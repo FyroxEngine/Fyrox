@@ -124,6 +124,8 @@ impl PropertyEditorDefinitionContainer {
         container.insert(Arc::new(NumericPropertyEditorDefinition::<u16>::default()));
         container.insert(Arc::new(NumericPropertyEditorDefinition::<i8>::default()));
         container.insert(Arc::new(NumericPropertyEditorDefinition::<u8>::default()));
+        container.insert(Arc::new(NumericPropertyEditorDefinition::<usize>::default()));
+        container.insert(Arc::new(NumericPropertyEditorDefinition::<isize>::default()));
 
         container.insert(Arc::new(Vec4PropertyEditorDefinition::<f64>::default()));
         container.insert(Arc::new(Vec4PropertyEditorDefinition::<f32>::default()));
@@ -135,6 +137,8 @@ impl PropertyEditorDefinitionContainer {
         container.insert(Arc::new(Vec4PropertyEditorDefinition::<u16>::default()));
         container.insert(Arc::new(Vec4PropertyEditorDefinition::<i8>::default()));
         container.insert(Arc::new(Vec4PropertyEditorDefinition::<u8>::default()));
+        container.insert(Arc::new(Vec4PropertyEditorDefinition::<usize>::default()));
+        container.insert(Arc::new(Vec4PropertyEditorDefinition::<isize>::default()));
 
         container.insert(Arc::new(Vec3PropertyEditorDefinition::<f64>::default()));
         container.insert(Arc::new(Vec3PropertyEditorDefinition::<f32>::default()));
@@ -146,6 +150,8 @@ impl PropertyEditorDefinitionContainer {
         container.insert(Arc::new(Vec3PropertyEditorDefinition::<u16>::default()));
         container.insert(Arc::new(Vec3PropertyEditorDefinition::<i8>::default()));
         container.insert(Arc::new(Vec3PropertyEditorDefinition::<u8>::default()));
+        container.insert(Arc::new(Vec3PropertyEditorDefinition::<usize>::default()));
+        container.insert(Arc::new(Vec3PropertyEditorDefinition::<isize>::default()));
 
         container.insert(Arc::new(Vec2PropertyEditorDefinition::<f64>::default()));
         container.insert(Arc::new(Vec2PropertyEditorDefinition::<f32>::default()));
@@ -157,6 +163,8 @@ impl PropertyEditorDefinitionContainer {
         container.insert(Arc::new(Vec2PropertyEditorDefinition::<u16>::default()));
         container.insert(Arc::new(Vec2PropertyEditorDefinition::<i8>::default()));
         container.insert(Arc::new(Vec2PropertyEditorDefinition::<u8>::default()));
+        container.insert(Arc::new(Vec2PropertyEditorDefinition::<usize>::default()));
+        container.insert(Arc::new(Vec2PropertyEditorDefinition::<isize>::default()));
 
         container.insert(Arc::new(QuatPropertyEditorDefinition::<f64>::default()));
         container.insert(Arc::new(QuatPropertyEditorDefinition::<f32>::default()));
@@ -169,6 +177,8 @@ impl PropertyEditorDefinitionContainer {
         container.insert(Arc::new(RectPropertyEditorDefinition::<u16>::new()));
         container.insert(Arc::new(RectPropertyEditorDefinition::<i8>::new()));
         container.insert(Arc::new(RectPropertyEditorDefinition::<u8>::new()));
+        container.insert(Arc::new(RectPropertyEditorDefinition::<usize>::new()));
+        container.insert(Arc::new(RectPropertyEditorDefinition::<isize>::new()));
 
         container.insert(Arc::new(ColorPropertyEditorDefinition));
 
