@@ -28,6 +28,8 @@
 //!
 //! ```
 
+#![allow(clippy::float_cmp)]
+
 use crate::{
     buffer::{streaming::StreamingBuffer, SoundBufferResource, SoundBufferState},
     error::SoundError,
@@ -347,7 +349,7 @@ impl GenericSource {
                 } else {
                     end_reached = false;
                 }
-                self.prev_buffer_sample = get_last_sample(&streaming);
+                self.prev_buffer_sample = get_last_sample(streaming);
                 streaming.read_next_block();
             }
             if end_reached {

@@ -5,6 +5,8 @@
 //! Renderer processes samples from each sound source before they'll be passed to output device. Exact
 //! behaviour of renderer depends of variant being used.
 
+#![allow(clippy::float_cmp)]
+
 use crate::{
     context::DistanceModel,
     listener::Listener,

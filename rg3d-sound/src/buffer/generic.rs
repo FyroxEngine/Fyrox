@@ -20,6 +20,8 @@
 //! }
 //! ```
 
+#![allow(clippy::manual_range_contains)]
+
 use crate::{buffer::DataSource, decoder::Decoder};
 use rg3d_core::visitor::{Visit, VisitResult, Visitor};
 use std::path::Path;
