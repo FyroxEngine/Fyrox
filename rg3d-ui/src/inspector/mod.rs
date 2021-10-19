@@ -49,7 +49,7 @@ impl Inspector {
     }
 }
 
-pub const NAME_COLUMN_WIDTH: f32 = 150.0;
+pub const NAME_COLUMN_WIDTH: f32 = 110.0;
 pub const HEADER_MARGIN: Thickness = Thickness {
     left: 4.0,
     top: 1.0,
@@ -227,6 +227,12 @@ impl InspectorContext {
                     .iter()
                     .enumerate()
                     .map(|(i, info)| {
+                        let description = if info.description.is_empty() {
+                            format!("{}", info.display_name)
+                        } else {
+                            format!("{}\n\n{}", info.display_name, info.description)
+                        };
+
                         if let Some(definition) = definition_container
                             .definitions()
                             .get(&info.value.type_id())
@@ -258,7 +264,7 @@ impl InspectorContext {
                                         },
                                         instance.editor,
                                         definition.layout(),
-                                        &info.description,
+                                        &description,
                                         ctx,
                                     )
                                 }
@@ -274,7 +280,7 @@ impl InspectorContext {
                                         ))
                                         .build(ctx),
                                     Layout::Horizontal,
-                                    &info.description,
+                                    &description,
                                     ctx,
                                 ),
                             }
@@ -287,7 +293,7 @@ impl InspectorContext {
                                     .with_text("Property Editor Is Missing!")
                                     .build(ctx),
                                 Layout::Horizontal,
-                                &info.description,
+                                &description,
                                 ctx,
                             )
                         }
