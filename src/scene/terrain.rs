@@ -674,6 +674,7 @@ pub enum BrushMode {
 #[derive(Clone, Inspect, Debug)]
 pub struct Brush {
     /// Center of the brush.
+    #[inspect(skip)]
     pub center: Vector3<f32>,
     /// Shape of the brush.
     pub shape: BrushShape,
