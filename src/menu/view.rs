@@ -80,7 +80,7 @@ impl ViewMenu {
             } else if message.destination() == self.world_outliner {
                 switch_window_state(panels.world_outliner_window, ui, false);
             } else if message.destination() == self.sidebar {
-                switch_window_state(panels.sidebar_window, ui, false);
+                switch_window_state(panels.inspector_window, ui, false);
             } else if message.destination() == self.log_panel {
                 switch_window_state(panels.log_panel, ui, false);
             }

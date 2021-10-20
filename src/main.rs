@@ -28,12 +28,11 @@ pub mod preview;
 pub mod project_dirs;
 pub mod scene;
 pub mod settings;
-pub mod sidebar;
 pub mod utils;
 pub mod world;
 
-use crate::menu::Panels;
 use crate::inspector::Inspector;
+use crate::menu::Panels;
 use crate::{
     asset::{AssetBrowser, AssetItem, AssetKind},
     camera::CameraController,
@@ -68,7 +67,6 @@ use crate::{
         EditorScene, Selection,
     },
     settings::{Settings, SettingsSectionKind},
-    sidebar::SideBar,
     utils::path_fixer::PathFixer,
     world::WorldViewer,
 };
@@ -802,7 +800,6 @@ pub fn make_save_file_selector(ctx: &mut BuildContext) -> Handle<UiNode> {
 }
 
 struct Editor {
-    sidebar: SideBar,
     scene: Option<EditorScene>,
     command_stack: CommandStack,
     message_sender: Sender<Message>,
@@ -887,7 +884,6 @@ impl Editor {
         let light_panel = LightPanel::new(engine);
 
         let ctx = &mut engine.user_interface.build_ctx();
-        let sidebar = SideBar::new(ctx, message_sender.clone());
         let navmesh_panel = NavmeshPanel::new(ctx, message_sender.clone());
         let world_outliner = WorldViewer::new(ctx, message_sender.clone());
         let command_stack_viewer = CommandStackViewer::new(ctx, message_sender.clone());
@@ -925,34 +921,9 @@ impl Editor {
                                                                 ))
                                                                 .build(ctx),
                                                             TileBuilder::new(WidgetBuilder::new())
-                                                                .with_content(
-                                                                    TileContent::VerticalTiles {
-                                                                        splitter: 0.5,
-                                                                        tiles: [
-                                                                            TileBuilder::new(
-                                                                                WidgetBuilder::new(
-                                                                                ),
-                                                                            )
-                                                                            .with_content(
-                                                                                TileContent::Window(
-                                                                                    sidebar.window,
-                                                                                ),
-                                                                            )
-                                                                            .build(ctx),
-                                                                            TileBuilder::new(
-                                                                                WidgetBuilder::new(
-                                                                                ),
-                                                                            )
-                                                                            .with_content(
-                                                                                TileContent::Window(
-                                                                                    inspector
-                                                                                        .window,
-                                                                                ),
-                                                                            )
-                                                                            .build(ctx),
-                                                                        ],
-                                                                    },
-                                                                )
+                                                                .with_content(TileContent::Window(
+                                                                    inspector.window,
+                                                                ))
                                                                 .build(ctx),
                                                         ],
                                                     })
@@ -1042,7 +1013,6 @@ impl Editor {
 
         let mut editor = Self {
             navmesh_panel,
-            sidebar,
             preview,
             scene: None,
             command_stack: CommandStack::new(false),
@@ -1222,7 +1192,7 @@ impl Editor {
                 engine,
                 editor_scene: self.scene.as_mut(),
                 panels: Panels {
-                    sidebar_window: self.sidebar.window,
+                    inspector_window: self.inspector.window,
                     world_outliner_window: self.world_viewer.window,
                     asset_window: self.asset_browser.window,
                     light_panel: self.light_panel.window,
@@ -1266,9 +1236,6 @@ impl Editor {
                     engine,
                 );
             }
-
-            self.sidebar
-                .handle_ui_message(message, editor_scene, engine);
 
             self.world_viewer
                 .handle_ui_message(message, editor_scene, engine);
@@ -1637,7 +1604,6 @@ impl Editor {
 
         if let Some(editor_scene) = self.scene.as_mut() {
             self.inspector.sync_to_model(editor_scene, engine);
-            self.sidebar.sync_to_model(editor_scene, engine);
             self.navmesh_panel.sync_to_model(editor_scene, engine);
             self.world_viewer.sync_to_model(editor_scene, engine);
             self.material_editor
