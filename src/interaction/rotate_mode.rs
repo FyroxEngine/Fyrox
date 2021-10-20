@@ -2,7 +2,7 @@ use crate::scene::commands::SceneCommand;
 use crate::world::graph::selection::GraphSelection;
 use crate::{
     interaction::{
-        calculate_gizmo_distance_scaling, gizmo::rotate_gizmo::RotationGizmo, InteractionModeTrait,
+        calculate_gizmo_distance_scaling, gizmo::rotate_gizmo::RotationGizmo, InteractionMode,
     },
     scene::{
         commands::{graph::RotateNodeCommand, ChangeSelectionCommand, CommandGroup},
@@ -42,7 +42,7 @@ impl RotateInteractionMode {
     }
 }
 
-impl InteractionModeTrait for RotateInteractionMode {
+impl InteractionMode for RotateInteractionMode {
     fn on_left_mouse_button_down(
         &mut self,
         editor_scene: &mut EditorScene,

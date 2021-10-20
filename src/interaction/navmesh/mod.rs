@@ -9,7 +9,7 @@ use crate::{
             data_model::{Navmesh, NavmeshEdge, NavmeshEntity, NavmeshVertex},
             selection::NavmeshSelection,
         },
-        InteractionModeTrait,
+        InteractionMode,
     },
     scene::{
         commands::{
@@ -382,7 +382,7 @@ impl EditNavmeshMode {
     }
 }
 
-impl InteractionModeTrait for EditNavmeshMode {
+impl InteractionMode for EditNavmeshMode {
     fn on_left_mouse_button_down(
         &mut self,
         editor_scene: &mut EditorScene,

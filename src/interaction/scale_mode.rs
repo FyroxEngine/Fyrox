@@ -2,7 +2,7 @@ use crate::scene::commands::SceneCommand;
 use crate::world::graph::selection::GraphSelection;
 use crate::{
     interaction::{
-        calculate_gizmo_distance_scaling, gizmo::scale_gizmo::ScaleGizmo, InteractionModeTrait,
+        calculate_gizmo_distance_scaling, gizmo::scale_gizmo::ScaleGizmo, InteractionMode,
     },
     scene::{
         commands::{graph::ScaleNodeCommand, ChangeSelectionCommand, CommandGroup},
@@ -42,7 +42,7 @@ impl ScaleInteractionMode {
     }
 }
 
-impl InteractionModeTrait for ScaleInteractionMode {
+impl InteractionMode for ScaleInteractionMode {
     fn on_left_mouse_button_down(
         &mut self,
         editor_scene: &mut EditorScene,

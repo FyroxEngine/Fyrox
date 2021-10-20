@@ -1,5 +1,5 @@
 use crate::{
-    interaction::InteractionModeTrait,
+    interaction::InteractionMode,
     make_color_material,
     scene::{
         commands::terrain::{ModifyTerrainHeightCommand, ModifyTerrainLayerMaskCommand},
@@ -118,7 +118,7 @@ fn copy_layer_masks(terrain: &Terrain, layer: usize) -> Vec<Vec<u8>> {
         .collect()
 }
 
-impl InteractionModeTrait for TerrainInteractionMode {
+impl InteractionMode for TerrainInteractionMode {
     fn on_left_mouse_button_down(
         &mut self,
         editor_scene: &mut EditorScene,

@@ -3,7 +3,7 @@ use crate::{
     camera::CameraController,
     interaction::{
         calculate_gizmo_distance_scaling, gizmo::move_gizmo::MoveGizmo, plane::PlaneKind,
-        InteractionModeTrait,
+        InteractionMode,
     },
     scene::{
         commands::{
@@ -279,7 +279,7 @@ impl MoveInteractionMode {
     }
 }
 
-impl InteractionModeTrait for MoveInteractionMode {
+impl InteractionMode for MoveInteractionMode {
     fn on_left_mouse_button_down(
         &mut self,
         editor_scene: &mut EditorScene,

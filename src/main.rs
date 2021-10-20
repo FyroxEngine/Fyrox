@@ -48,7 +48,7 @@ use crate::{
         scale_mode::ScaleInteractionMode,
         select_mode::SelectInteractionMode,
         terrain::TerrainInteractionMode,
-        InteractionMode, InteractionModeKind, InteractionModeTrait,
+        InteractionMode, InteractionModeKind,
     },
     light::LightPanel,
     log::Log,
@@ -805,7 +805,7 @@ struct Editor {
     command_stack: CommandStack,
     message_sender: Sender<Message>,
     message_receiver: Receiver<Message>,
-    interaction_modes: Vec<InteractionMode>,
+    interaction_modes: Vec<Box<dyn InteractionMode>>,
     current_interaction_mode: Option<InteractionModeKind>,
     world_viewer: WorldViewer,
     root_grid: Handle<UiNode>,
@@ -1103,32 +1103,32 @@ impl Editor {
         };
 
         self.interaction_modes = vec![
-            InteractionMode::Select(SelectInteractionMode::new(
+            Box::new(SelectInteractionMode::new(
                 self.preview.frame,
                 self.preview.selection_frame,
                 self.message_sender.clone(),
             )),
-            InteractionMode::Move(MoveInteractionMode::new(
+            Box::new(MoveInteractionMode::new(
                 &editor_scene,
                 engine,
                 self.message_sender.clone(),
             )),
-            InteractionMode::Scale(ScaleInteractionMode::new(
+            Box::new(ScaleInteractionMode::new(
                 &editor_scene,
                 engine,
                 self.message_sender.clone(),
             )),
-            InteractionMode::Rotate(RotateInteractionMode::new(
+            Box::new(RotateInteractionMode::new(
                 &editor_scene,
                 engine,
                 self.message_sender.clone(),
             )),
-            InteractionMode::Navmesh(EditNavmeshMode::new(
+            Box::new(EditNavmeshMode::new(
                 &editor_scene,
                 engine,
                 self.message_sender.clone(),
             )),
-            InteractionMode::Terrain(TerrainInteractionMode::new(
+            Box::new(TerrainInteractionMode::new(
                 &editor_scene,
                 engine,
                 self.message_sender.clone(),
@@ -1207,8 +1207,10 @@ impl Editor {
                 message,
                 editor_scene,
                 engine,
-                if let InteractionMode::Navmesh(edit_mode) =
-                    &mut self.interaction_modes[InteractionModeKind::Navmesh as usize]
+                if let Some(edit_mode) = self.interaction_modes
+                    [InteractionModeKind::Navmesh as usize]
+                    .as_any_mut()
+                    .downcast_mut()
                 {
                     edit_mode
                 } else {
