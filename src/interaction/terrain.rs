@@ -24,7 +24,8 @@ use rg3d::{
             Inspector, InspectorBuilder, InspectorContext,
         },
         message::{
-            FieldKind, InspectorMessage, MessageDirection, UiMessage, UiMessageData, WindowMessage,
+            FieldKind, InspectorMessage, MessageDirection, UiMessage, UiMessageData, WidgetMessage,
+            WindowMessage,
         },
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
@@ -305,6 +306,13 @@ impl InteractionMode for TerrainInteractionMode {
     ) {
         self.brush_panel
             .handle_ui_message(message, &mut *self.brush.lock().unwrap());
+    }
+
+    fn on_drop(&mut self, engine: &mut GameEngine) {
+        engine.user_interface.send_message(WidgetMessage::remove(
+            self.brush_panel.window,
+            MessageDirection::ToWidget,
+        ));
     }
 }
 

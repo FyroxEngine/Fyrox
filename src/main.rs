@@ -1102,6 +1102,10 @@ impl Editor {
             clipboard: Default::default(),
         };
 
+        for mut interaction_mode in self.interaction_modes.drain(..) {
+            interaction_mode.on_drop(engine);
+        }
+
         self.interaction_modes = vec![
             Box::new(SelectInteractionMode::new(
                 self.preview.frame,

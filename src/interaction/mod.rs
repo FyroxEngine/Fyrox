@@ -97,6 +97,8 @@ pub trait InteractionMode: BaseInteractionMode {
         _engine: &mut GameEngine,
     ) {
     }
+
+    fn on_drop(&mut self, _engine: &mut GameEngine) {}
 }
 
 pub fn calculate_gizmo_distance_scaling(
