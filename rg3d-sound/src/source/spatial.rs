@@ -44,9 +44,12 @@ use std::ops::{Deref, DerefMut};
 pub struct SpatialSource {
     #[inspect(expand)]
     pub(in crate) generic: GenericSource,
+    #[inspect(min_value = 0.0, step = 0.05)]
     radius: f32,
     position: Vector3<f32>,
+    #[inspect(min_value = 0.0, step = 0.05)]
     max_distance: f32,
+    #[inspect(min_value = 0.0, step = 0.05)]
     rolloff_factor: f32,
     // Some data that needed for iterative overlap-save convolution.
     #[inspect(skip)]

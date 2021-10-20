@@ -53,8 +53,11 @@ pub struct GenericSource {
     // Real playback position.
     #[inspect(skip)]
     playback_pos: f64,
+    #[inspect(min_value = 0.0, step = 0.05)]
     panning: f32,
+    #[inspect(min_value = 0.0, step = 0.05)]
     pitch: f64,
+    #[inspect(min_value = 0.0, step = 0.05)]
     gain: f32,
     looping: bool,
     // Important coefficient for runtime resampling. It is used to modify playback speed

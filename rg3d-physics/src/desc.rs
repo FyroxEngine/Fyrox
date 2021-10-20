@@ -119,6 +119,7 @@ where
     pub sleeping: bool,
     pub status: RigidBodyTypeDesc,
     pub colliders: Vec<C>,
+    #[inspect(min_value = 0.0, step = 0.05)]
     pub mass: f32,
     #[cfg(feature = "dim3")]
     pub x_rotation_locked: bool,
@@ -242,28 +243,36 @@ where
 #[derive(Default, Copy, Clone, Debug, Visit, Inspect)]
 #[doc(hidden)]
 pub struct BallDesc {
+    #[inspect(min_value = 0.0, step = 0.05)]
     pub radius: f32,
 }
 
 #[derive(Default, Copy, Clone, Debug, Visit, Inspect)]
 #[doc(hidden)]
 pub struct CylinderDesc {
+    #[inspect(min_value = 0.0, step = 0.05)]
     pub half_height: f32,
+    #[inspect(min_value = 0.0, step = 0.05)]
     pub radius: f32,
 }
 
 #[derive(Default, Copy, Clone, Debug, Visit, Inspect)]
 #[doc(hidden)]
 pub struct RoundCylinderDesc {
+    #[inspect(min_value = 0.0, step = 0.05)]
     pub half_height: f32,
+    #[inspect(min_value = 0.0, step = 0.05)]
     pub radius: f32,
+    #[inspect(min_value = 0.0, step = 0.05)]
     pub border_radius: f32,
 }
 
 #[derive(Default, Copy, Clone, Debug, Visit, Inspect)]
 #[doc(hidden)]
 pub struct ConeDesc {
+    #[inspect(min_value = 0.0, step = 0.05)]
     pub half_height: f32,
+    #[inspect(min_value = 0.0, step = 0.05)]
     pub radius: f32,
 }
 
@@ -278,6 +287,7 @@ pub struct CuboidDesc {
 pub struct CapsuleDesc {
     pub begin: Vector<f32>,
     pub end: Vector<f32>,
+    #[inspect(min_value = 0.0, step = 0.05)]
     pub radius: f32,
 }
 
@@ -580,8 +590,10 @@ where
     pub shape: ColliderShapeDesc,
     #[inspect(read_only)]
     pub parent: R,
+    #[inspect(min_value = 0.0, step = 0.05)]
     pub friction: f32,
     pub density: Option<f32>,
+    #[inspect(min_value = 0.0, step = 0.05)]
     pub restitution: f32,
     pub is_sensor: bool,
     pub translation: Vector<f32>,

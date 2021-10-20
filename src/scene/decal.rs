@@ -87,6 +87,7 @@ pub struct Decal {
     #[visit(optional)] // Backward compatibility
     color: Color,
     #[visit(optional)] // Backward compatibility
+    #[inspect(min_value = 0.0)]
     layer: u8,
 }
 
