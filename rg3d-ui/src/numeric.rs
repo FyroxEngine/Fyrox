@@ -124,6 +124,22 @@ impl<T: NumericType> NumericUpDown<T> {
     }
 }
 
+fn saturating_sub<T: NumericType>(a: T, b: T) -> T {
+    if b <= a - T::min_value() {
+        a - b
+    } else {
+        T::min_value()
+    }
+}
+
+fn saturating_add<T: NumericType>(a: T, b: T) -> T {
+    if b <= T::max_value() - a {
+        a + b
+    } else {
+        T::max_value()
+    }
+}
+
 impl<T: NumericType> Control for NumericUpDown<T> {
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.field);
@@ -181,14 +197,14 @@ impl<T: NumericType> Control for NumericUpDown<T> {
             }
             UiMessageData::Button(ButtonMessage::Click) => {
                 if message.destination() == self.decrease {
-                    let value = self.clamp_value(self.value - self.step);
+                    let value = self.clamp_value(saturating_sub(self.value, self.step));
                     ui.send_message(NumericUpDownMessage::value(
                         self.handle(),
                         MessageDirection::ToWidget,
                         value,
                     ));
                 } else if message.destination() == self.increase {
-                    let value = self.clamp_value(self.value + self.step);
+                    let value = self.clamp_value(saturating_add(self.value, self.step));
 
                     ui.send_message(NumericUpDownMessage::value(
                         self.handle(),
