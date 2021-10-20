@@ -8,6 +8,7 @@ use crate::{
     settings::Settings,
     GameEngine, Message, MSG_SYNC_FLAG,
 };
+use rg3d::engine::Engine;
 use rg3d::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
@@ -303,10 +304,20 @@ impl InteractionMode for TerrainInteractionMode {
     fn handle_ui_message(
         &mut self,
         message: &UiMessage,
-        _editor_scene: &mut EditorScene,
-        _engine: &mut GameEngine,
+        editor_scene: &mut EditorScene,
+        engine: &mut GameEngine,
     ) {
-        self.brush_panel.handle_ui_message(message, &mut self.brush);
+        if let Selection::Graph(selection) = &editor_scene.selection {
+            if selection.is_single_selection() {
+                self.brush_panel.handle_ui_message(
+                    message,
+                    &mut self.brush,
+                    selection.nodes()[0],
+                    editor_scene,
+                    engine,
+                );
+            }
+        }
     }
 
     fn on_drop(&mut self, engine: &mut GameEngine) {
@@ -406,7 +417,14 @@ impl BrushPanel {
         }
     }
 
-    fn handle_ui_message(&self, message: &UiMessage, brush: &mut Brush) -> Option<()> {
+    fn handle_ui_message(
+        &self,
+        message: &UiMessage,
+        brush: &mut Brush,
+        terrain: Handle<Node>,
+        editor_scene: &EditorScene,
+        engine: &Engine,
+    ) -> Option<()> {
         if message.destination() == self.inspector
             && message.direction() == MessageDirection::FromWidget
         {
@@ -459,7 +477,16 @@ impl BrushPanel {
                                         if let BrushMode::DrawOnMask { ref mut layer, .. } =
                                             brush.mode
                                         {
-                                            *layer = args.cast_value().cloned()?;
+                                            let node =
+                                                &engine.scenes[editor_scene.scene].graph[terrain];
+                                            if node.is_terrain() {
+                                                let terrain = node.as_terrain();
+
+                                                *layer = args
+                                                    .cast_value::<usize>()
+                                                    .cloned()?
+                                                    .min(terrain.layers().len());
+                                            }
                                         }
                                     }
                                     BrushMode::DRAW_ON_MASK_ALPHA => {
