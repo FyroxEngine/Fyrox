@@ -1136,7 +1136,6 @@ impl Editor {
                 &editor_scene,
                 engine,
                 self.message_sender.clone(),
-                self.sidebar.terrain_section.brush_section.brush.clone(),
             )),
         ];
 

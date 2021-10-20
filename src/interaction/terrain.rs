@@ -43,7 +43,7 @@ use rg3d::{
     },
     utils::log::{Log, MessageKind},
 };
-use std::sync::{mpsc::Sender, Arc, Mutex, RwLock};
+use std::sync::{mpsc::Sender, Arc, RwLock};
 
 pub struct TerrainInteractionMode {
     heightmaps: Vec<Vec<f32>>,
@@ -51,7 +51,7 @@ pub struct TerrainInteractionMode {
     message_sender: Sender<Message>,
     interacting: bool,
     brush_gizmo: BrushGizmo,
-    brush: Arc<Mutex<Brush>>,
+    brush: Brush,
     brush_panel: BrushPanel,
 }
 
@@ -60,11 +60,14 @@ impl TerrainInteractionMode {
         editor_scene: &EditorScene,
         engine: &mut GameEngine,
         message_sender: Sender<Message>,
-        brush: Arc<Mutex<Brush>>,
     ) -> Self {
-        let brush_guard = brush.lock().unwrap();
-        let brush_panel = BrushPanel::new(&mut engine.user_interface.build_ctx(), &*brush_guard);
-        drop(brush_guard);
+        let brush = Brush {
+            center: Default::default(),
+            shape: BrushShape::Circle { radius: 1.0 },
+            mode: BrushMode::ModifyHeightMap { amount: 1.0 },
+        };
+
+        let brush_panel = BrushPanel::new(&mut engine.user_interface.build_ctx(), &brush);
 
         Self {
             brush_panel,
@@ -134,7 +137,7 @@ impl InteractionMode for TerrainInteractionMode {
                 let handle = selection.nodes()[0];
 
                 if let Node::Terrain(terrain) = &graph[handle] {
-                    match self.brush.lock().unwrap().mode {
+                    match self.brush.mode {
                         BrushMode::ModifyHeightMap { .. } => {
                             self.heightmaps = terrain
                                 .chunks_ref()
@@ -173,7 +176,7 @@ impl InteractionMode for TerrainInteractionMode {
                             .map(|c| c.heightmap().to_vec())
                             .collect();
 
-                        match self.brush.lock().unwrap().mode {
+                        match self.brush.mode {
                             BrushMode::ModifyHeightMap { .. } => {
                                 self.message_sender
                                     .send(Message::do_scene_command(
@@ -234,10 +237,9 @@ impl InteractionMode for TerrainInteractionMode {
                                 .transform_point(&Point3::from(closest.position))
                                 .coords;
 
-                            let mut brush = self.brush.lock().unwrap();
-                            brush.center = global_position;
+                            self.brush.center = global_position;
 
-                            let mut brush_copy = brush.clone();
+                            let mut brush_copy = self.brush.clone();
                             match &mut brush_copy.mode {
                                 BrushMode::ModifyHeightMap { amount } => {
                                     if engine.user_interface.keyboard_modifiers().shift {
@@ -255,7 +257,7 @@ impl InteractionMode for TerrainInteractionMode {
                                 terrain.draw(&brush_copy);
                             }
 
-                            let scale = match brush.shape {
+                            let scale = match self.brush.shape {
                                 BrushShape::Circle { radius } => Vector3::new(radius, 1.0, radius),
                                 BrushShape::Rectangle { width, length } => {
                                     Vector3::new(width, 1.0, length)
@@ -279,7 +281,7 @@ impl InteractionMode for TerrainInteractionMode {
             .set_visible(&mut engine.scenes[editor_scene.scene].graph, true);
 
         self.brush_panel
-            .sync_to_model(&mut engine.user_interface, &*self.brush.lock().unwrap());
+            .sync_to_model(&mut engine.user_interface, &self.brush);
 
         engine.user_interface.send_message(WindowMessage::open(
             self.brush_panel.window,
@@ -304,8 +306,7 @@ impl InteractionMode for TerrainInteractionMode {
         _editor_scene: &mut EditorScene,
         _engine: &mut GameEngine,
     ) {
-        self.brush_panel
-            .handle_ui_message(message, &mut *self.brush.lock().unwrap());
+        self.brush_panel.handle_ui_message(message, &mut self.brush);
     }
 
     fn on_drop(&mut self, engine: &mut GameEngine) {
