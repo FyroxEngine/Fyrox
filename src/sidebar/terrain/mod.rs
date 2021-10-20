@@ -4,15 +4,11 @@ use crate::{
     },
     send_sync_message,
     sidebar::{
-        make_int_input_field, make_section, make_text_mark,
-        terrain::{brush::BrushSection, layer::LayerSection},
+        make_int_input_field, make_section, make_text_mark, terrain::layer::LayerSection,
         COLUMN_WIDTH, ROW_HEIGHT,
     },
     Message,
 };
-use rg3d::gui::message::UiMessage;
-use rg3d::gui::numeric::NumericUpDownMessage;
-use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::{algebra::Vector2, pool::Handle, scope_profile},
     gui::{
@@ -21,22 +17,24 @@ use rg3d::{
         decorator::DecoratorBuilder,
         grid::{Column, GridBuilder, Row},
         list_view::ListViewBuilder,
-        message::{ButtonMessage, ListViewMessage, MessageDirection, UiMessageData, WidgetMessage},
+        message::{
+            ButtonMessage, ListViewMessage, MessageDirection, UiMessage, UiMessageData,
+            WidgetMessage,
+        },
+        numeric::NumericUpDownMessage,
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
         widget::WidgetBuilder,
-        Orientation,
+        BuildContext, Orientation, UiNode, UserInterface,
     },
-    scene::{graph::Graph, node::Node, terrain::BrushMode},
+    scene::{graph::Graph, node::Node},
 };
 use std::sync::mpsc::Sender;
 
-mod brush;
 mod layer;
 
 pub struct TerrainSection {
     pub section: Handle<UiNode>,
-    pub brush_section: BrushSection,
     layers: Handle<UiNode>,
     add_layer: Handle<UiNode>,
     remove_layer: Handle<UiNode>,
@@ -47,7 +45,6 @@ pub struct TerrainSection {
 
 impl TerrainSection {
     pub fn new(ctx: &mut BuildContext) -> Self {
-        let brush_section = BrushSection::new(ctx);
         let layer_section = LayerSection::new(ctx);
 
         let layers;
@@ -112,7 +109,6 @@ impl TerrainSection {
                         .add_column(Column::stretch())
                         .build(ctx),
                     )
-                    .with_child(brush_section.section)
                     .with_child(layer_section.section),
             )
             .with_orientation(Orientation::Vertical)
@@ -124,7 +120,6 @@ impl TerrainSection {
             section,
             layers,
             add_layer,
-            brush_section,
             remove_layer,
             layer_section,
             decal_layer_index,
@@ -172,8 +167,6 @@ impl TerrainSection {
             self.layer_section
                 .sync_to_model(self.current_layer.and_then(|i| terrain.layers().get(i)), ui);
         }
-
-        self.brush_section.sync_to_model(ui);
     }
 
     pub fn handle_ui_message(
@@ -192,14 +185,6 @@ impl TerrainSection {
             self.layer_section
                 .handle_message(message, graph, handle, index, sender);
         }
-
-        self.brush_section.handle_message(message);
-
-        let mut brush = self.brush_section.brush.lock().unwrap();
-        if let BrushMode::DrawOnMask { layer, .. } = &mut brush.mode {
-            *layer = self.current_layer.unwrap_or(0);
-        }
-        drop(brush);
 
         if let Node::Terrain(terrain) = node {
             match message.data() {

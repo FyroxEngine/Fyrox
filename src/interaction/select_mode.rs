@@ -1,6 +1,6 @@
 use crate::world::graph::selection::GraphSelection;
 use crate::{
-    interaction::InteractionModeTrait,
+    interaction::InteractionMode,
     scene::{commands::ChangeSelectionCommand, EditorScene, Selection},
     settings::Settings,
     GameEngine, Message,
@@ -39,7 +39,7 @@ impl SelectInteractionMode {
     }
 }
 
-impl InteractionModeTrait for SelectInteractionMode {
+impl InteractionMode for SelectInteractionMode {
     fn on_left_mouse_button_down(
         &mut self,
         _editor_scene: &mut EditorScene,

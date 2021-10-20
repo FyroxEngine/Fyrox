@@ -1,22 +1,13 @@
-use crate::settings::Settings;
-use crate::{
-    interaction::{
-        move_mode::MoveInteractionMode, navmesh::EditNavmeshMode,
-        rotate_mode::RotateInteractionMode, scale_mode::ScaleInteractionMode,
-        select_mode::SelectInteractionMode, terrain::TerrainInteractionMode,
-    },
-    scene::EditorScene,
-    GameEngine,
-};
+use crate::{scene::EditorScene, settings::Settings, GameEngine};
 use rg3d::{
     core::{
         algebra::{Vector2, Vector3},
         pool::Handle,
-        scope_profile,
     },
-    gui::message::KeyCode,
+    gui::message::{KeyCode, UiMessage},
     scene::{graph::Graph, node::Node},
 };
+use std::any::Any;
 
 pub mod gizmo;
 pub mod move_mode;
@@ -27,7 +18,23 @@ pub mod scale_mode;
 pub mod select_mode;
 pub mod terrain;
 
-pub trait InteractionModeTrait {
+pub trait BaseInteractionMode {
+    fn as_any(&self) -> &dyn Any;
+
+    fn as_any_mut(&mut self) -> &mut dyn Any;
+}
+
+impl<T: 'static> BaseInteractionMode for T {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+}
+
+pub trait InteractionMode: BaseInteractionMode {
     fn on_left_mouse_button_down(
         &mut self,
         editor_scene: &mut EditorScene,
@@ -57,10 +64,13 @@ pub trait InteractionModeTrait {
 
     fn update(
         &mut self,
-        editor_scene: &mut EditorScene,
-        camera: Handle<Node>,
-        engine: &mut GameEngine,
-    );
+        _editor_scene: &mut EditorScene,
+        _camera: Handle<Node>,
+        _engine: &mut GameEngine,
+    ) {
+    }
+
+    fn activate(&mut self, _editor_scene: &EditorScene, _engine: &mut GameEngine) {}
 
     fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine);
 
@@ -79,6 +89,16 @@ pub trait InteractionModeTrait {
         _engine: &mut GameEngine,
     ) {
     }
+
+    fn handle_ui_message(
+        &mut self,
+        _message: &UiMessage,
+        _editor_scene: &mut EditorScene,
+        _engine: &mut GameEngine,
+    ) {
+    }
+
+    fn on_drop(&mut self, _engine: &mut GameEngine) {}
 }
 
 pub fn calculate_gizmo_distance_scaling(
@@ -107,125 +127,4 @@ pub enum InteractionModeKind {
     Rotate = 3,
     Navmesh = 4,
     Terrain = 5,
-}
-
-pub enum InteractionMode {
-    Select(SelectInteractionMode),
-    Move(MoveInteractionMode),
-    Scale(ScaleInteractionMode),
-    Rotate(RotateInteractionMode),
-    Navmesh(EditNavmeshMode),
-    Terrain(TerrainInteractionMode),
-}
-
-macro_rules! static_dispatch {
-    ($self:ident, $func:ident, $($args:expr),*) => {
-        match $self {
-            InteractionMode::Select(v) => v.$func($($args),*),
-            InteractionMode::Move(v) => v.$func($($args),*),
-            InteractionMode::Scale(v) => v.$func($($args),*),
-            InteractionMode::Rotate(v) => v.$func($($args),*),
-            InteractionMode::Navmesh(v) => v.$func($($args),*),
-            InteractionMode::Terrain(v) => v.$func($($args),*),
-        }
-    }
-}
-
-impl InteractionModeTrait for InteractionMode {
-    fn on_left_mouse_button_down(
-        &mut self,
-        editor_scene: &mut EditorScene,
-        engine: &mut GameEngine,
-        mouse_pos: Vector2<f32>,
-        frame_size: Vector2<f32>,
-    ) {
-        scope_profile!();
-
-        static_dispatch!(
-            self,
-            on_left_mouse_button_down,
-            editor_scene,
-            engine,
-            mouse_pos,
-            frame_size
-        )
-    }
-
-    fn on_left_mouse_button_up(
-        &mut self,
-        editor_scene: &mut EditorScene,
-        engine: &mut GameEngine,
-        mouse_pos: Vector2<f32>,
-        frame_size: Vector2<f32>,
-    ) {
-        scope_profile!();
-
-        static_dispatch!(
-            self,
-            on_left_mouse_button_up,
-            editor_scene,
-            engine,
-            mouse_pos,
-            frame_size
-        )
-    }
-
-    fn on_mouse_move(
-        &mut self,
-        mouse_offset: Vector2<f32>,
-        mouse_position: Vector2<f32>,
-        camera: Handle<Node>,
-        editor_scene: &mut EditorScene,
-        engine: &mut GameEngine,
-        frame_size: Vector2<f32>,
-        settings: &Settings,
-    ) {
-        scope_profile!();
-
-        static_dispatch!(
-            self,
-            on_mouse_move,
-            mouse_offset,
-            mouse_position,
-            camera,
-            editor_scene,
-            engine,
-            frame_size,
-            settings
-        )
-    }
-
-    fn update(
-        &mut self,
-        editor_scene: &mut EditorScene,
-        camera: Handle<Node>,
-        engine: &mut GameEngine,
-    ) {
-        scope_profile!();
-
-        static_dispatch!(self, update, editor_scene, camera, engine)
-    }
-
-    fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
-        scope_profile!();
-
-        static_dispatch!(self, deactivate, editor_scene, engine)
-    }
-
-    fn on_key_down(
-        &mut self,
-        key: KeyCode,
-        editor_scene: &mut EditorScene,
-        engine: &mut GameEngine,
-    ) {
-        scope_profile!();
-
-        static_dispatch!(self, on_key_down, key, editor_scene, engine)
-    }
-
-    fn on_key_up(&mut self, key: KeyCode, editor_scene: &mut EditorScene, engine: &mut GameEngine) {
-        scope_profile!();
-
-        static_dispatch!(self, on_key_up, key, editor_scene, engine)
-    }
 }
