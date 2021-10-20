@@ -1,4 +1,3 @@
-use crate::settings::Settings;
 use crate::{
     interaction::InteractionModeTrait,
     make_color_material,
@@ -6,16 +5,10 @@ use crate::{
         commands::terrain::{ModifyTerrainHeightCommand, ModifyTerrainLayerMaskCommand},
         EditorScene, Selection,
     },
+    settings::Settings,
     GameEngine, Message, MSG_SYNC_FLAG,
 };
-use rg3d::gui::inspector::editors::enumeration::EnumPropertyEditorDefinition;
-use rg3d::gui::inspector::editors::PropertyEditorDefinitionContainer;
-use rg3d::gui::inspector::{Inspector, InspectorBuilder, InspectorContext};
-use rg3d::gui::message::{FieldKind, InspectorMessage, UiMessage, UiMessageData};
-use rg3d::gui::widget::WidgetBuilder;
-use rg3d::gui::window::{WindowBuilder, WindowTitle};
-use rg3d::gui::{BuildContext, UiNode, UserInterface};
-use rg3d::utils::log::{Log, MessageKind};
+use rg3d::gui::message::MessageDirection;
 use rg3d::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
@@ -23,6 +16,18 @@ use rg3d::{
         color::Color,
         math::vector_to_quat,
         pool::Handle,
+    },
+    gui::{
+        inspector::{
+            editors::{
+                enumeration::EnumPropertyEditorDefinition, PropertyEditorDefinitionContainer,
+            },
+            Inspector, InspectorBuilder, InspectorContext,
+        },
+        message::{FieldKind, InspectorMessage, UiMessage, UiMessageData},
+        widget::WidgetBuilder,
+        window::{WindowBuilder, WindowTitle},
+        BuildContext, UiNode, UserInterface,
     },
     scene::{
         base::BaseBuilder,
@@ -34,6 +39,7 @@ use rg3d::{
         node::Node,
         terrain::{Brush, BrushMode, BrushShape, Terrain, TerrainRayCastResult},
     },
+    utils::log::{Log, MessageKind},
 };
 use std::sync::{mpsc::Sender, Arc, Mutex, RwLock};
 
@@ -349,7 +355,7 @@ impl BrushPanel {
         );
 
         let inspector;
-        WindowBuilder::new(WidgetBuilder::new())
+        WindowBuilder::new(WidgetBuilder::new().with_width(200.0).with_height(250.0))
             .with_content({
                 inspector = InspectorBuilder::new(WidgetBuilder::new())
                     .with_context(context)
@@ -363,6 +369,7 @@ impl BrushPanel {
         Self { inspector }
     }
 
+    #[allow(dead_code)] // TODO
     fn sync_to_model(&self, ui: &mut UserInterface, brush: &Brush) {
         let ctx = ui
             .node(self.inspector)
@@ -380,18 +387,76 @@ impl BrushPanel {
     }
 
     fn handle_ui_message(&self, message: &UiMessage, brush: &mut Brush) -> Option<()> {
-        if let UiMessageData::Inspector(InspectorMessage::PropertyChanged(msg)) = message.data() {
-            match msg.value {
-                FieldKind::Object(ref args) => match msg.name.as_ref() {
-                    Brush::CENTER => {
-                        brush.center = args.cast_value().cloned()?;
+        if message.destination() == self.inspector
+            && message.direction() == MessageDirection::FromWidget
+        {
+            if let UiMessageData::Inspector(InspectorMessage::PropertyChanged(msg)) = message.data()
+            {
+                match msg.value {
+                    FieldKind::Object(ref args) => match msg.name.as_ref() {
+                        Brush::SHAPE => {
+                            brush.shape = args.cast_value().cloned()?;
+                        }
+                        Brush::MODE => {
+                            brush.mode = args.cast_value().cloned()?;
+                        }
+                        _ => (),
+                    },
+                    FieldKind::Inspectable(ref inner) => {
+                        if let FieldKind::Object(ref args) = inner.value {
+                            match msg.name.as_ref() {
+                                Brush::SHAPE => match inner.name.as_ref() {
+                                    BrushShape::CIRCLE_RADIUS => {
+                                        if let BrushShape::Circle { ref mut radius } = brush.shape {
+                                            *radius = args.cast_value().cloned()?;
+                                        }
+                                    }
+                                    BrushShape::RECTANGLE_WIDTH => {
+                                        if let BrushShape::Rectangle { ref mut width, .. } =
+                                            brush.shape
+                                        {
+                                            *width = args.cast_value().cloned()?;
+                                        }
+                                    }
+                                    BrushShape::RECTANGLE_LENGTH => {
+                                        if let BrushShape::Rectangle { ref mut length, .. } =
+                                            brush.shape
+                                        {
+                                            *length = args.cast_value().cloned()?;
+                                        }
+                                    }
+                                    _ => (),
+                                },
+                                Brush::MODE => match inner.name.as_ref() {
+                                    BrushMode::MODIFY_HEIGHT_MAP_AMOUNT => {
+                                        if let BrushMode::ModifyHeightMap { ref mut amount } =
+                                            brush.mode
+                                        {
+                                            *amount = args.cast_value().cloned()?;
+                                        }
+                                    }
+                                    BrushMode::DRAW_ON_MASK_LAYER => {
+                                        if let BrushMode::DrawOnMask { ref mut layer, .. } =
+                                            brush.mode
+                                        {
+                                            *layer = args.cast_value().cloned()?;
+                                        }
+                                    }
+                                    BrushMode::DRAW_ON_MASK_ALPHA => {
+                                        if let BrushMode::DrawOnMask { ref mut alpha, .. } =
+                                            brush.mode
+                                        {
+                                            *alpha = args.cast_value().cloned()?;
+                                        }
+                                    }
+                                    _ => (),
+                                },
+                                _ => (),
+                            }
+                        }
                     }
-                    Brush::SHAPE => {}
-                    Brush::MODE => {}
-                    _ => (),
-                },
-                FieldKind::Inspectable(ref args) => {}
-                _ => {}
+                    _ => {}
+                }
             }
         }
         Some(())
