@@ -64,10 +64,13 @@ pub trait InteractionMode: BaseInteractionMode {
 
     fn update(
         &mut self,
-        editor_scene: &mut EditorScene,
-        camera: Handle<Node>,
-        engine: &mut GameEngine,
-    );
+        _editor_scene: &mut EditorScene,
+        _camera: Handle<Node>,
+        _engine: &mut GameEngine,
+    ) {
+    }
+
+    fn activate(&mut self, _editor_scene: &EditorScene, _engine: &mut GameEngine) {}
 
     fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine);
 

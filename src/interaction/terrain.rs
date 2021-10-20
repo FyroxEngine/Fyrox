@@ -8,7 +8,6 @@ use crate::{
     settings::Settings,
     GameEngine, Message, MSG_SYNC_FLAG,
 };
-use rg3d::gui::message::MessageDirection;
 use rg3d::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
@@ -24,7 +23,9 @@ use rg3d::{
             },
             Inspector, InspectorBuilder, InspectorContext,
         },
-        message::{FieldKind, InspectorMessage, UiMessage, UiMessageData},
+        message::{
+            FieldKind, InspectorMessage, MessageDirection, UiMessage, UiMessageData, WindowMessage,
+        },
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
         BuildContext, UiNode, UserInterface,
@@ -272,19 +273,28 @@ impl InteractionMode for TerrainInteractionMode {
         }
     }
 
-    fn update(
-        &mut self,
-        editor_scene: &mut EditorScene,
-        _camera: Handle<Node>,
-        engine: &mut GameEngine,
-    ) {
-        let graph = &mut engine.scenes[editor_scene.scene].graph;
-        self.brush_gizmo.set_visible(graph, true);
+    fn activate(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
+        self.brush_gizmo
+            .set_visible(&mut engine.scenes[editor_scene.scene].graph, true);
+
+        self.brush_panel
+            .sync_to_model(&mut engine.user_interface, &*self.brush.lock().unwrap());
+
+        engine.user_interface.send_message(WindowMessage::open(
+            self.brush_panel.window,
+            MessageDirection::ToWidget,
+            false,
+        ));
     }
 
     fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
-        let graph = &mut engine.scenes[editor_scene.scene].graph;
-        self.brush_gizmo.set_visible(graph, false);
+        self.brush_gizmo
+            .set_visible(&mut engine.scenes[editor_scene.scene].graph, false);
+
+        engine.user_interface.send_message(WindowMessage::close(
+            self.brush_panel.window,
+            MessageDirection::ToWidget,
+        ));
     }
 
     fn handle_ui_message(
@@ -299,6 +309,7 @@ impl InteractionMode for TerrainInteractionMode {
 }
 
 struct BrushPanel {
+    window: Handle<UiNode>,
     inspector: Handle<UiNode>,
 }
 
@@ -355,21 +366,21 @@ impl BrushPanel {
         );
 
         let inspector;
-        WindowBuilder::new(WidgetBuilder::new().with_width(200.0).with_height(250.0))
+        let window = WindowBuilder::new(WidgetBuilder::new().with_width(200.0).with_height(250.0))
+            .can_close(false)
             .with_content({
                 inspector = InspectorBuilder::new(WidgetBuilder::new())
                     .with_context(context)
                     .build(ctx);
                 inspector
             })
-            .open(false) // TODO
+            .open(false)
             .with_title(WindowTitle::text("Brush Options"))
             .build(ctx);
 
-        Self { inspector }
+        Self { window, inspector }
     }
 
-    #[allow(dead_code)] // TODO
     fn sync_to_model(&self, ui: &mut UserInterface, brush: &Brush) {
         let ctx = ui
             .node(self.inspector)

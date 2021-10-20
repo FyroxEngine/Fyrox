@@ -1165,6 +1165,11 @@ impl Editor {
                 }
 
                 self.current_interaction_mode = mode;
+
+                // Activate new.
+                if let Some(current_mode) = self.current_interaction_mode {
+                    self.interaction_modes[current_mode as usize].activate(editor_scene, engine);
+                }
             }
         }
     }
