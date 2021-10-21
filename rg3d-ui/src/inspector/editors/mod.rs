@@ -110,87 +110,87 @@ impl PropertyEditorDefinitionContainer {
     pub fn new() -> Self {
         let mut container = Self::default();
 
-        container.insert(Rc::new(BoolPropertyEditorDefinition));
+        container.insert(BoolPropertyEditorDefinition);
 
-        container.insert(Rc::new(StringPropertyEditorDefinition));
+        container.insert(StringPropertyEditorDefinition);
 
-        container.insert(Rc::new(NumericPropertyEditorDefinition::<f64>::default()));
-        container.insert(Rc::new(NumericPropertyEditorDefinition::<f32>::default()));
-        container.insert(Rc::new(NumericPropertyEditorDefinition::<i64>::default()));
-        container.insert(Rc::new(NumericPropertyEditorDefinition::<u64>::default()));
-        container.insert(Rc::new(NumericPropertyEditorDefinition::<i32>::default()));
-        container.insert(Rc::new(NumericPropertyEditorDefinition::<u32>::default()));
-        container.insert(Rc::new(NumericPropertyEditorDefinition::<i16>::default()));
-        container.insert(Rc::new(NumericPropertyEditorDefinition::<u16>::default()));
-        container.insert(Rc::new(NumericPropertyEditorDefinition::<i8>::default()));
-        container.insert(Rc::new(NumericPropertyEditorDefinition::<u8>::default()));
-        container.insert(Rc::new(NumericPropertyEditorDefinition::<usize>::default()));
-        container.insert(Rc::new(NumericPropertyEditorDefinition::<isize>::default()));
+        container.insert(NumericPropertyEditorDefinition::<f64>::default());
+        container.insert(NumericPropertyEditorDefinition::<f32>::default());
+        container.insert(NumericPropertyEditorDefinition::<i64>::default());
+        container.insert(NumericPropertyEditorDefinition::<u64>::default());
+        container.insert(NumericPropertyEditorDefinition::<i32>::default());
+        container.insert(NumericPropertyEditorDefinition::<u32>::default());
+        container.insert(NumericPropertyEditorDefinition::<i16>::default());
+        container.insert(NumericPropertyEditorDefinition::<u16>::default());
+        container.insert(NumericPropertyEditorDefinition::<i8>::default());
+        container.insert(NumericPropertyEditorDefinition::<u8>::default());
+        container.insert(NumericPropertyEditorDefinition::<usize>::default());
+        container.insert(NumericPropertyEditorDefinition::<isize>::default());
 
-        container.insert(Rc::new(Vec4PropertyEditorDefinition::<f64>::default()));
-        container.insert(Rc::new(Vec4PropertyEditorDefinition::<f32>::default()));
-        container.insert(Rc::new(Vec4PropertyEditorDefinition::<i64>::default()));
-        container.insert(Rc::new(Vec4PropertyEditorDefinition::<u64>::default()));
-        container.insert(Rc::new(Vec4PropertyEditorDefinition::<i32>::default()));
-        container.insert(Rc::new(Vec4PropertyEditorDefinition::<u32>::default()));
-        container.insert(Rc::new(Vec4PropertyEditorDefinition::<i16>::default()));
-        container.insert(Rc::new(Vec4PropertyEditorDefinition::<u16>::default()));
-        container.insert(Rc::new(Vec4PropertyEditorDefinition::<i8>::default()));
-        container.insert(Rc::new(Vec4PropertyEditorDefinition::<u8>::default()));
-        container.insert(Rc::new(Vec4PropertyEditorDefinition::<usize>::default()));
-        container.insert(Rc::new(Vec4PropertyEditorDefinition::<isize>::default()));
+        container.insert(Vec4PropertyEditorDefinition::<f64>::default());
+        container.insert(Vec4PropertyEditorDefinition::<f32>::default());
+        container.insert(Vec4PropertyEditorDefinition::<i64>::default());
+        container.insert(Vec4PropertyEditorDefinition::<u64>::default());
+        container.insert(Vec4PropertyEditorDefinition::<i32>::default());
+        container.insert(Vec4PropertyEditorDefinition::<u32>::default());
+        container.insert(Vec4PropertyEditorDefinition::<i16>::default());
+        container.insert(Vec4PropertyEditorDefinition::<u16>::default());
+        container.insert(Vec4PropertyEditorDefinition::<i8>::default());
+        container.insert(Vec4PropertyEditorDefinition::<u8>::default());
+        container.insert(Vec4PropertyEditorDefinition::<usize>::default());
+        container.insert(Vec4PropertyEditorDefinition::<isize>::default());
 
-        container.insert(Rc::new(Vec3PropertyEditorDefinition::<f64>::default()));
-        container.insert(Rc::new(Vec3PropertyEditorDefinition::<f32>::default()));
-        container.insert(Rc::new(Vec3PropertyEditorDefinition::<i64>::default()));
-        container.insert(Rc::new(Vec3PropertyEditorDefinition::<u64>::default()));
-        container.insert(Rc::new(Vec3PropertyEditorDefinition::<i32>::default()));
-        container.insert(Rc::new(Vec3PropertyEditorDefinition::<u32>::default()));
-        container.insert(Rc::new(Vec3PropertyEditorDefinition::<i16>::default()));
-        container.insert(Rc::new(Vec3PropertyEditorDefinition::<u16>::default()));
-        container.insert(Rc::new(Vec3PropertyEditorDefinition::<i8>::default()));
-        container.insert(Rc::new(Vec3PropertyEditorDefinition::<u8>::default()));
-        container.insert(Rc::new(Vec3PropertyEditorDefinition::<usize>::default()));
-        container.insert(Rc::new(Vec3PropertyEditorDefinition::<isize>::default()));
+        container.insert(Vec3PropertyEditorDefinition::<f64>::default());
+        container.insert(Vec3PropertyEditorDefinition::<f32>::default());
+        container.insert(Vec3PropertyEditorDefinition::<i64>::default());
+        container.insert(Vec3PropertyEditorDefinition::<u64>::default());
+        container.insert(Vec3PropertyEditorDefinition::<i32>::default());
+        container.insert(Vec3PropertyEditorDefinition::<u32>::default());
+        container.insert(Vec3PropertyEditorDefinition::<i16>::default());
+        container.insert(Vec3PropertyEditorDefinition::<u16>::default());
+        container.insert(Vec3PropertyEditorDefinition::<i8>::default());
+        container.insert(Vec3PropertyEditorDefinition::<u8>::default());
+        container.insert(Vec3PropertyEditorDefinition::<usize>::default());
+        container.insert(Vec3PropertyEditorDefinition::<isize>::default());
 
-        container.insert(Rc::new(Vec2PropertyEditorDefinition::<f64>::default()));
-        container.insert(Rc::new(Vec2PropertyEditorDefinition::<f32>::default()));
-        container.insert(Rc::new(Vec2PropertyEditorDefinition::<i64>::default()));
-        container.insert(Rc::new(Vec2PropertyEditorDefinition::<u64>::default()));
-        container.insert(Rc::new(Vec2PropertyEditorDefinition::<i32>::default()));
-        container.insert(Rc::new(Vec2PropertyEditorDefinition::<u32>::default()));
-        container.insert(Rc::new(Vec2PropertyEditorDefinition::<i16>::default()));
-        container.insert(Rc::new(Vec2PropertyEditorDefinition::<u16>::default()));
-        container.insert(Rc::new(Vec2PropertyEditorDefinition::<i8>::default()));
-        container.insert(Rc::new(Vec2PropertyEditorDefinition::<u8>::default()));
-        container.insert(Rc::new(Vec2PropertyEditorDefinition::<usize>::default()));
-        container.insert(Rc::new(Vec2PropertyEditorDefinition::<isize>::default()));
+        container.insert(Vec2PropertyEditorDefinition::<f64>::default());
+        container.insert(Vec2PropertyEditorDefinition::<f32>::default());
+        container.insert(Vec2PropertyEditorDefinition::<i64>::default());
+        container.insert(Vec2PropertyEditorDefinition::<u64>::default());
+        container.insert(Vec2PropertyEditorDefinition::<i32>::default());
+        container.insert(Vec2PropertyEditorDefinition::<u32>::default());
+        container.insert(Vec2PropertyEditorDefinition::<i16>::default());
+        container.insert(Vec2PropertyEditorDefinition::<u16>::default());
+        container.insert(Vec2PropertyEditorDefinition::<i8>::default());
+        container.insert(Vec2PropertyEditorDefinition::<u8>::default());
+        container.insert(Vec2PropertyEditorDefinition::<usize>::default());
+        container.insert(Vec2PropertyEditorDefinition::<isize>::default());
 
-        container.insert(Rc::new(QuatPropertyEditorDefinition::<f64>::default()));
-        container.insert(Rc::new(QuatPropertyEditorDefinition::<f32>::default()));
+        container.insert(QuatPropertyEditorDefinition::<f64>::default());
+        container.insert(QuatPropertyEditorDefinition::<f32>::default());
 
-        container.insert(Rc::new(RectPropertyEditorDefinition::<f64>::new()));
-        container.insert(Rc::new(RectPropertyEditorDefinition::<f32>::new()));
-        container.insert(Rc::new(RectPropertyEditorDefinition::<i32>::new()));
-        container.insert(Rc::new(RectPropertyEditorDefinition::<u32>::new()));
-        container.insert(Rc::new(RectPropertyEditorDefinition::<i16>::new()));
-        container.insert(Rc::new(RectPropertyEditorDefinition::<u16>::new()));
-        container.insert(Rc::new(RectPropertyEditorDefinition::<i8>::new()));
-        container.insert(Rc::new(RectPropertyEditorDefinition::<u8>::new()));
-        container.insert(Rc::new(RectPropertyEditorDefinition::<usize>::new()));
-        container.insert(Rc::new(RectPropertyEditorDefinition::<isize>::new()));
+        container.insert(RectPropertyEditorDefinition::<f64>::new());
+        container.insert(RectPropertyEditorDefinition::<f32>::new());
+        container.insert(RectPropertyEditorDefinition::<i32>::new());
+        container.insert(RectPropertyEditorDefinition::<u32>::new());
+        container.insert(RectPropertyEditorDefinition::<i16>::new());
+        container.insert(RectPropertyEditorDefinition::<u16>::new());
+        container.insert(RectPropertyEditorDefinition::<i8>::new());
+        container.insert(RectPropertyEditorDefinition::<u8>::new());
+        container.insert(RectPropertyEditorDefinition::<usize>::new());
+        container.insert(RectPropertyEditorDefinition::<isize>::new());
 
-        container.insert(Rc::new(ColorPropertyEditorDefinition));
+        container.insert(ColorPropertyEditorDefinition);
 
         container
     }
 
-    pub fn insert(
+    pub fn insert<T: PropertyEditorDefinition + 'static>(
         &mut self,
-        definition: Rc<dyn PropertyEditorDefinition>,
+        definition: T,
     ) -> Option<Rc<dyn PropertyEditorDefinition>> {
         self.definitions
-            .insert(definition.value_type_id(), definition)
+            .insert(definition.value_type_id(), Rc::new(definition))
     }
 
     pub fn definitions(&self) -> &HashMap<TypeId, Rc<dyn PropertyEditorDefinition>> {
