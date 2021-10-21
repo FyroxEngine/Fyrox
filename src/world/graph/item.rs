@@ -17,6 +17,7 @@ use rg3d::{
 use std::{
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
+    sync::mpsc::Sender,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -96,8 +97,8 @@ impl<T: 'static> Control for SceneItem<T> {
         self.tree.draw(drawing_context);
     }
 
-    fn update(&mut self, dt: f32) {
-        self.tree.update(dt);
+    fn update(&mut self, dt: f32, sender: &Sender<UiMessage>) {
+        self.tree.update(dt, sender);
     }
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
