@@ -26,15 +26,12 @@ pub fn handle_sprite_property_changed(
             Sprite::ROTATION => {
                 do_command!(helper, SetSpriteRotationCommand, handle, value)
             }
-            _ => println!("Unhandled property of Sprite: {:?}", args),
+            _ => None,
         },
-        FieldKind::Inspectable(ref inner) => {
-            if let Sprite::BASE = args.name.as_ref() {
-                handle_base_property_changed(&inner, handle, node, helper)?
-            }
-        }
-        _ => {}
+        FieldKind::Inspectable(ref inner) => match args.name.as_ref() {
+            Sprite::BASE => handle_base_property_changed(&inner, handle, node, helper),
+            _ => None,
+        },
+        _ => None,
     }
-
-    Some(())
 }

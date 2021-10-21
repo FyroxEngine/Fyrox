@@ -9,8 +9,8 @@ pub fn handle_rigid_body_property_changed(
     handle: Handle<RigidBody>,
     helper: &SenderHelper,
 ) -> Option<()> {
-    if let FieldKind::Object(ref value) = args.value {
-        match args.name.as_ref() {
+    match args.value {
+        FieldKind::Object(ref value) => match args.name.as_ref() {
             RigidBody::MASS => {
                 do_command!(helper, SetBodyMassCommand, handle, value)
             }
@@ -41,9 +41,8 @@ pub fn handle_rigid_body_property_changed(
             RigidBody::TRANSLATION_LOCKED => {
                 do_command!(helper, SetBodyTranslationLockedCommand, handle, value)
             }
-            _ => println!("Unhandled property of Sprite: {:?}", args),
-        }
+            _ => None,
+        },
+        _ => None,
     }
-
-    Some(())
 }

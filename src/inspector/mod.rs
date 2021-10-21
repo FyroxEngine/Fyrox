@@ -67,17 +67,18 @@ pub struct SenderHelper {
 }
 
 impl SenderHelper {
-    pub fn do_scene_command<C: Command>(&self, command: C) {
+    pub fn do_scene_command<C: Command>(&self, command: C) -> Option<()> {
         self.sender
             .send(Message::do_scene_command(command))
             .unwrap();
+        Some(())
     }
 }
 
 #[macro_export]
 macro_rules! do_command {
     ($helper:expr, $cmd:ty, $handle:expr, $value:expr) => {
-        $helper.do_scene_command(<$cmd>::new($handle, $value.cast_value().cloned()?))
+        $helper.do_scene_command(<$cmd>::new($handle, $value.cast_value().cloned()?));
     };
 }
 
@@ -319,7 +320,7 @@ impl Inspector {
                 sender
                     .send(Message::Log(format!(
                         "Failed to handle property {}",
-                        args.name
+                        args.path()
                     )))
                     .unwrap();
             }

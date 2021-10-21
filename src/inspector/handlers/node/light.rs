@@ -33,16 +33,14 @@ pub fn handle_base_light_property_changed(
             BaseLight::INTENSITY => {
                 do_command!(helper, SetLightIntensityCommand, handle, value)
             }
-            _ => println!("Unhandled property of BaseLight: {:?}", args),
+            _ => None,
         },
-        FieldKind::Inspectable(ref inner) => {
-            if let BaseLight::BASE = args.name.as_ref() {
-                handle_base_property_changed(&inner, handle, node, helper)?
-            }
-        }
-        _ => {}
+        FieldKind::Inspectable(ref inner) => match args.name.as_ref() {
+            BaseLight::BASE => handle_base_property_changed(&inner, handle, node, helper),
+            _ => None,
+        },
+        _ => None,
     }
-    Some(())
 }
 
 pub fn handle_spot_light_property_changed(
@@ -68,16 +66,16 @@ pub fn handle_spot_light_property_changed(
             SpotLight::COOKIE_TEXTURE => {
                 do_command!(helper, SetSpotLightCookieTextureCommand, handle, value)
             }
-            _ => println!("Unhandled property of SpotLight: {:?}", args),
+            _ => None,
         },
-        FieldKind::Inspectable(ref inner) => {
-            if let SpotLight::BASE_LIGHT = args.name.as_ref() {
-                handle_base_light_property_changed(inner, handle, node, helper)?
+        FieldKind::Inspectable(ref inner) => match args.name.as_ref() {
+            SpotLight::BASE_LIGHT => {
+                handle_base_light_property_changed(inner, handle, node, helper)
             }
-        }
-        _ => {}
+            _ => None,
+        },
+        _ => None,
     }
-    Some(())
 }
 
 pub fn handle_point_light_property_changed(
@@ -94,16 +92,16 @@ pub fn handle_point_light_property_changed(
             PointLight::RADIUS => {
                 do_command!(helper, SetPointLightRadiusCommand, handle, value)
             }
-            _ => println!("Unhandled property of PointLight: {:?}", args),
+            _ => None,
         },
-        FieldKind::Inspectable(ref inner) => {
-            if let PointLight::BASE_LIGHT = args.name.as_ref() {
-                handle_base_light_property_changed(inner, handle, node, helper)?
+        FieldKind::Inspectable(ref inner) => match args.name.as_ref() {
+            PointLight::BASE_LIGHT => {
+                handle_base_light_property_changed(inner, handle, node, helper)
             }
-        }
-        _ => {}
+            _ => None,
+        },
+        _ => None,
     }
-    Some(())
 }
 
 pub fn handle_directional_light_property_changed(
@@ -113,12 +111,12 @@ pub fn handle_directional_light_property_changed(
     helper: &SenderHelper,
 ) -> Option<()> {
     match args.value {
-        FieldKind::Inspectable(ref inner) => {
-            if let DirectionalLight::BASE_LIGHT = args.name.as_ref() {
-                handle_base_light_property_changed(inner, handle, node, helper)?
+        FieldKind::Inspectable(ref inner) => match args.name.as_ref() {
+            DirectionalLight::BASE_LIGHT => {
+                handle_base_light_property_changed(inner, handle, node, helper)
             }
-        }
-        _ => {}
+            _ => None,
+        },
+        _ => None,
     }
-    Some(())
 }

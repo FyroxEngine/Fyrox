@@ -11,14 +11,15 @@ pub fn handle_transform_property_changed(
     node: &Node,
     helper: &SenderHelper,
 ) -> Option<()> {
-    if let FieldKind::Object(ref value) = args.value {
-        match args.name.as_ref() {
+    match args.value {
+        FieldKind::Object(ref value) => match args.name.as_ref() {
             "local_position" => {
                 helper.do_scene_command(MoveNodeCommand::new(
                     node_handle,
                     **node.local_transform().position(),
                     *value.cast_value()?,
                 ));
+                Some(())
             }
             "local_rotation" => {
                 helper.do_scene_command(RotateNodeCommand::new(
@@ -26,6 +27,7 @@ pub fn handle_transform_property_changed(
                     **node.local_transform().rotation(),
                     *value.cast_value()?,
                 ));
+                Some(())
             }
             "local_scale" => {
                 helper.do_scene_command(ScaleNodeCommand::new(
@@ -33,6 +35,7 @@ pub fn handle_transform_property_changed(
                     **node.local_transform().scale(),
                     *value.cast_value()?,
                 ));
+                Some(())
             }
             "pre_rotation" => {
                 do_command!(helper, SetPreRotationCommand, node_handle, value)
@@ -52,8 +55,8 @@ pub fn handle_transform_property_changed(
             "scaling_pivot" => {
                 do_command!(helper, SetScalePivotCommand, node_handle, value)
             }
-            _ => println!("Unhandled property of Transform: {:?}", args),
-        }
+            _ => None,
+        },
+        _ => None,
     }
-    Some(())
 }

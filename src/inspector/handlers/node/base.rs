@@ -45,51 +45,50 @@ pub fn handle_base_property_changed(
             Base::LOD_GROUP => {
                 do_command!(helper, SetLodGroupCommand, handle, value)
             }
-            _ => println!("Unhandled property of Base: {:?}", args),
+            _ => None,
         },
         FieldKind::Inspectable(ref inner_value) => match args.name.as_ref() {
-            Base::LOD_GROUP => {
-                if let FieldKind::Collection(ref collection_changed) = inner_value.value {
-                    match **collection_changed {
-                        CollectionChanged::Add => helper.do_scene_command(
-                            AddLodGroupLevelCommand::new(handle, Default::default()),
-                        ),
-                        CollectionChanged::Remove(i) => {
-                            helper.do_scene_command(RemoveLodGroupLevelCommand::new(handle, i))
-                        }
-                        CollectionChanged::ItemChanged {
-                            index,
-                            ref property,
-                        } => {
-                            if let FieldKind::Object(ref value) = property.value {
-                                match property.name.as_ref() {
-                                    LevelOfDetail::BEGIN => {
-                                        helper.do_scene_command(ChangeLodRangeBeginCommand::new(
-                                            handle,
-                                            index,
-                                            *value.cast_value()?,
-                                        ));
-                                    }
-                                    LevelOfDetail::END => {
-                                        helper.do_scene_command(ChangeLodRangeEndCommand::new(
-                                            handle,
-                                            index,
-                                            *value.cast_value()?,
-                                        ));
-                                    }
-                                    _ => (),
+            Base::LOD_GROUP => match inner_value.value {
+                FieldKind::Collection(ref collection_changed) => match **collection_changed {
+                    CollectionChanged::Add => helper
+                        .do_scene_command(AddLodGroupLevelCommand::new(handle, Default::default())),
+                    CollectionChanged::Remove(i) => {
+                        helper.do_scene_command(RemoveLodGroupLevelCommand::new(handle, i))
+                    }
+                    CollectionChanged::ItemChanged {
+                        index,
+                        ref property,
+                    } => {
+                        if let FieldKind::Object(ref value) = property.value {
+                            match property.name.as_ref() {
+                                LevelOfDetail::BEGIN => {
+                                    helper.do_scene_command(ChangeLodRangeBeginCommand::new(
+                                        handle,
+                                        index,
+                                        *value.cast_value()?,
+                                    ))
                                 }
+                                LevelOfDetail::END => {
+                                    helper.do_scene_command(ChangeLodRangeEndCommand::new(
+                                        handle,
+                                        index,
+                                        *value.cast_value()?,
+                                    ))
+                                }
+                                _ => None,
                             }
+                        } else {
+                            None
                         }
                     }
-                }
-            }
+                },
+                _ => None,
+            },
             Base::LOCAL_TRANSFORM => {
-                handle_transform_property_changed(inner_value, handle, node, helper);
+                handle_transform_property_changed(inner_value, handle, node, helper)
             }
-            _ => {}
+            _ => None,
         },
-        _ => {}
+        _ => None,
     }
-    Some(())
 }

@@ -10,36 +10,39 @@ pub fn handle_generic_source_property_changed(
     handle: Handle<SoundSource>,
     helper: &SenderHelper,
 ) -> Option<()> {
-    if let FieldKind::Object(ref value) = args.value {
-        match args.name.as_ref() {
-            GenericSource::NAME => {
-                do_command!(helper, SetSoundSourceNameCommand, handle, value)
+    match args.value {
+        FieldKind::Object(ref value) => {
+            match args.name.as_ref() {
+                GenericSource::NAME => {
+                    do_command!(helper, SetSoundSourceNameCommand, handle, value)
+                }
+                GenericSource::GAIN => {
+                    do_command!(helper, SetSoundSourceGainCommand, handle, value)
+                }
+                GenericSource::BUFFER => {
+                    do_command!(helper, SetSoundSourceBufferCommand, handle, value)
+                }
+                GenericSource::PANNING => {
+                    do_command!(helper, SetSoundSourcePanningCommand, handle, value)
+                }
+                GenericSource::PITCH => {
+                    do_command!(helper, SetSoundSourcePitchCommand, handle, value)
+                }
+                GenericSource::LOOPING => {
+                    do_command!(helper, SetSoundSourceLoopingCommand, handle, value)
+                }
+                GenericSource::STATUS => {
+                    // TODO
+                    None
+                }
+                GenericSource::PLAY_ONCE => {
+                    do_command!(helper, SetSoundSourcePlayOnceCommand, handle, value)
+                }
+                _ => None,
             }
-            GenericSource::GAIN => {
-                do_command!(helper, SetSoundSourceGainCommand, handle, value)
-            }
-            GenericSource::BUFFER => {
-                do_command!(helper, SetSoundSourceBufferCommand, handle, value)
-            }
-            GenericSource::PANNING => {
-                do_command!(helper, SetSoundSourcePanningCommand, handle, value)
-            }
-            GenericSource::PITCH => {
-                do_command!(helper, SetSoundSourcePitchCommand, handle, value)
-            }
-            GenericSource::LOOPING => {
-                do_command!(helper, SetSoundSourceLoopingCommand, handle, value)
-            }
-            GenericSource::STATUS => {
-                // TODO
-            }
-            GenericSource::PLAY_ONCE => {
-                do_command!(helper, SetSoundSourcePlayOnceCommand, handle, value)
-            }
-            _ => println!("Unhandled property of GenericSource: {:?}", args),
         }
+        _ => None,
     }
-    Some(())
 }
 
 pub fn handle_spatial_source_property_changed(
@@ -61,14 +64,14 @@ pub fn handle_spatial_source_property_changed(
             SpatialSource::ROLLOFF_FACTOR => {
                 do_command!(helper, SetRolloffFactorCommand, handle, value)
             }
-            _ => println!("Unhandled property of SpatialSource: {:?}", args),
+            _ => None,
         },
-        FieldKind::Inspectable(ref inner) => {
-            if let SpatialSource::GENERIC = args.name.as_ref() {
-                handle_generic_source_property_changed(&inner, handle, helper)?
+        FieldKind::Inspectable(ref inner) => match args.name.as_ref() {
+            SpatialSource::GENERIC => {
+                handle_generic_source_property_changed(&inner, handle, helper)
             }
-        }
-        _ => {}
+            _ => None,
+        },
+        _ => None,
     }
-    Some(())
 }

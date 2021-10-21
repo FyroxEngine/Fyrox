@@ -26,14 +26,12 @@ pub fn handle_decal_property_changed(
             Decal::LAYER => {
                 do_command!(helper, SetDecalLayerIndexCommand, handle, value)
             }
-            _ => println!("Unhandled property of Decal: {:?}", args),
+            _ => None,
         },
-        FieldKind::Inspectable(ref inner) => {
-            if let Decal::BASE = args.name.as_ref() {
-                handle_base_property_changed(&inner, handle, node, helper)?
-            }
-        }
-        _ => {}
+        FieldKind::Inspectable(ref inner) => match args.name.as_ref() {
+            Decal::BASE => handle_base_property_changed(&inner, handle, node, helper),
+            _ => None,
+        },
+        _ => None,
     }
-    Some(())
 }

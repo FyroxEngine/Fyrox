@@ -122,29 +122,32 @@ impl ParticleSystemHandler {
                 ParticleSystem::SOFT_BOUNDARY_SHARPNESS_FACTOR => {
                     do_command!(helper, SetSoftBoundarySharpnessFactorCommand, handle, value)
                 }
-                _ => println!("Unhandled property of ParticleSystem: {:?}", args),
+                _ => None,
             },
             FieldKind::Collection(ref collection_changed) => match args.name.as_ref() {
                 ParticleSystem::EMITTERS => match &**collection_changed {
-                    CollectionChanged::Add => ui.send_message(WindowMessage::open_modal(
-                        self.selector_window,
-                        MessageDirection::ToWidget,
-                        true,
-                    )),
-                    CollectionChanged::Remove(index) => {
-                        helper.do_scene_command(DeleteEmitterCommand::new(handle, *index));
+                    CollectionChanged::Add => {
+                        ui.send_message(WindowMessage::open_modal(
+                            self.selector_window,
+                            MessageDirection::ToWidget,
+                            true,
+                        ));
+                        Some(())
                     }
-                    CollectionChanged::ItemChanged { .. } => {}
+                    CollectionChanged::Remove(index) => {
+                        helper.do_scene_command(DeleteEmitterCommand::new(handle, *index))
+                    }
+                    CollectionChanged::ItemChanged { .. } => {
+                        // TODO
+                        None
+                    }
                 },
-                _ => (),
+                _ => None,
             },
-            FieldKind::Inspectable(ref inner) => {
-                if let ParticleSystem::BASE = args.name.as_ref() {
-                    handle_base_property_changed(&inner, handle, node, helper)?
-                }
-            }
+            FieldKind::Inspectable(ref inner) => match args.name.as_ref() {
+                ParticleSystem::BASE => handle_base_property_changed(&inner, handle, node, helper),
+                _ => None,
+            },
         }
-
-        Some(())
     }
 }

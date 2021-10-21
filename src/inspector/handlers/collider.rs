@@ -30,54 +30,50 @@ pub fn handle_collider_property_changed(
             Collider::ROTATION => {
                 do_command!(helper, SetColliderRotationCommand, handle, value)
             }
-            _ => (),
+            _ => None,
         },
         FieldKind::Inspectable(ref inner_property) => match args.name.as_ref() {
-            Collider::COLLISION_GROUPS => {
-                if let FieldKind::Object(ref value) = inner_property.value {
-                    match inner_property.name.as_ref() {
-                        InteractionGroupsDesc::MEMBERSHIPS => {
-                            do_command!(
-                                helper,
-                                SetColliderCollisionGroupsMembershipsCommand,
-                                handle,
-                                value
-                            )
-                        }
-                        InteractionGroupsDesc::FILTER => {
-                            do_command!(
-                                helper,
-                                SetColliderCollisionGroupsFilterCommand,
-                                handle,
-                                value
-                            )
-                        }
-                        _ => (),
+            Collider::COLLISION_GROUPS => match inner_property.value {
+                FieldKind::Object(ref value) => match inner_property.name.as_ref() {
+                    InteractionGroupsDesc::MEMBERSHIPS => {
+                        do_command!(
+                            helper,
+                            SetColliderCollisionGroupsMembershipsCommand,
+                            handle,
+                            value
+                        )
                     }
-                }
-            }
-            Collider::SOLVER_GROUPS => {
-                if let FieldKind::Object(ref value) = inner_property.value {
-                    match inner_property.name.as_ref() {
-                        InteractionGroupsDesc::MEMBERSHIPS => {
-                            do_command!(
-                                helper,
-                                SetColliderSolverGroupsMembershipsCommand,
-                                handle,
-                                value
-                            )
-                        }
-                        InteractionGroupsDesc::FILTER => {
-                            do_command!(helper, SetColliderSolverGroupsFilterCommand, handle, value)
-                        }
-                        _ => (),
+                    InteractionGroupsDesc::FILTER => {
+                        do_command!(
+                            helper,
+                            SetColliderCollisionGroupsFilterCommand,
+                            handle,
+                            value
+                        )
                     }
-                }
-            }
-            _ => (),
+                    _ => None,
+                },
+                _ => None,
+            },
+            Collider::SOLVER_GROUPS => match inner_property.value {
+                FieldKind::Object(ref value) => match inner_property.name.as_ref() {
+                    InteractionGroupsDesc::MEMBERSHIPS => {
+                        do_command!(
+                            helper,
+                            SetColliderSolverGroupsMembershipsCommand,
+                            handle,
+                            value
+                        )
+                    }
+                    InteractionGroupsDesc::FILTER => {
+                        do_command!(helper, SetColliderSolverGroupsFilterCommand, handle, value)
+                    }
+                    _ => None,
+                },
+                _ => None,
+            },
+            _ => None,
         },
-        _ => {}
+        _ => None,
     }
-
-    Some(())
 }

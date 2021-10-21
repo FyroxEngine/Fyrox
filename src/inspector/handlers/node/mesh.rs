@@ -23,19 +23,25 @@ pub fn handle_mesh_property_changed(
             Mesh::DECAL_LAYER_INDEX => {
                 do_command!(helper, SetMeshDecalLayerIndexCommand, handle, value)
             }
-            _ => println!("Unhandled property of Sprite: {:?}", args),
+            _ => None,
         },
         FieldKind::Collection(ref args) => match **args {
-            CollectionChanged::Add => {}
-            CollectionChanged::Remove(_) => {}
-            CollectionChanged::ItemChanged { .. } => {}
-        },
-        FieldKind::Inspectable(ref inner) => {
-            if let Mesh::BASE = args.name.as_ref() {
-                handle_base_property_changed(&inner, handle, node, helper)?
+            CollectionChanged::Add => {
+                // TODO
+                None
             }
-        }
+            CollectionChanged::Remove(_) => {
+                // TODO
+                None
+            }
+            CollectionChanged::ItemChanged { .. } => {
+                // TODO
+                None
+            }
+        },
+        FieldKind::Inspectable(ref inner) => match args.name.as_ref() {
+            Mesh::BASE => handle_base_property_changed(&inner, handle, node, helper),
+            _ => None,
+        },
     }
-
-    Some(())
 }

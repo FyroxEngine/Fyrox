@@ -49,7 +49,7 @@ pub fn handle_camera_property_changed(
                 Camera::COLOR_GRADING_ENABLED => {
                     do_command!(helper, SetColorGradingEnabledCommand, handle, value)
                 }
-                _ => (),
+                _ => None,
             },
             FieldKind::Inspectable(ref inner) => match args.name.as_ref() {
                 Camera::EXPOSURE => {
@@ -105,16 +105,18 @@ pub fn handle_camera_property_changed(
                                     Exposure::Manual(value.cast_value::<f32>().cloned()?),
                                 ))
                             }
-                            _ => println!("Unhandled property of Camera: {:?}", inner),
+                            _ => None,
                         }
+                    } else {
+                        None
                     }
                 }
-                Camera::BASE => handle_base_property_changed(inner, handle, node, helper)?,
-                _ => (),
+                Camera::BASE => handle_base_property_changed(inner, handle, node, helper),
+                _ => None,
             },
-            _ => {}
+            _ => None,
         }
+    } else {
+        None
     }
-
-    Some(())
 }
