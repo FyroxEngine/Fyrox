@@ -159,64 +159,40 @@ pub fn make_property_editors_container(
 ) -> Rc<PropertyEditorDefinitionContainer> {
     let mut container = PropertyEditorDefinitionContainer::new();
 
-    container.insert(Rc::new(TexturePropertyEditorDefinition));
-    container.insert(Rc::new(MaterialPropertyEditorDefinition {
+    container.insert(TexturePropertyEditorDefinition);
+    container.insert(MaterialPropertyEditorDefinition {
         sender: Mutex::new(sender),
-    }));
-    container.insert(Rc::new(
-        VecCollectionPropertyEditorDefinition::<Surface>::new(),
-    ));
-    container.insert(Rc::new(
-        VecCollectionPropertyEditorDefinition::<Layer>::new(),
-    ));
-    container.insert(Rc::new(
-        VecCollectionPropertyEditorDefinition::<Emitter>::new(),
-    ));
-    container.insert(Rc::new(VecCollectionPropertyEditorDefinition::<
-        LevelOfDetail,
-    >::new()));
-    container.insert(Rc::new(
-        VecCollectionPropertyEditorDefinition::<ErasedHandle>::new(),
-    ));
-    container.insert(Rc::new(make_physics_binding_enum_editor_definition()));
-    container.insert(Rc::new(make_mobility_enum_editor_definition()));
-    container.insert(Rc::new(make_exposure_enum_editor_definition()));
-    container.insert(Rc::new(make_render_path_enum_editor_definition()));
-    container.insert(Rc::new(make_status_enum_editor_definition()));
-    container.insert(Rc::new(make_rigid_body_type_editor_definition()));
-    container.insert(Rc::new(make_option_editor_definition::<f32>()));
-    container.insert(Rc::new(make_option_editor_definition::<LodGroup>()));
-    container.insert(Rc::new(InspectablePropertyEditorDefinition::<
-        InteractionGroupsDesc,
-    >::new()));
-    container.insert(Rc::new(InspectablePropertyEditorDefinition::<
-        ColliderShapeDesc,
-    >::new()));
-    container.insert(Rc::new(InspectablePropertyEditorDefinition::<
-        JointParamsDesc,
-    >::new()));
-    container.insert(Rc::new(InspectablePropertyEditorDefinition::<Base>::new()));
-    container.insert(Rc::new(InspectablePropertyEditorDefinition::<
-        scene2d::base::Base,
-    >::new()));
-    container.insert(Rc::new(
-        InspectablePropertyEditorDefinition::<BaseLight>::new(),
-    ));
-    container.insert(Rc::new(InspectablePropertyEditorDefinition::<
+    });
+    container.insert(VecCollectionPropertyEditorDefinition::<Surface>::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<Layer>::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<Emitter>::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<LevelOfDetail>::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<ErasedHandle>::new());
+    container.insert(make_physics_binding_enum_editor_definition());
+    container.insert(make_mobility_enum_editor_definition());
+    container.insert(make_exposure_enum_editor_definition());
+    container.insert(make_render_path_enum_editor_definition());
+    container.insert(make_status_enum_editor_definition());
+    container.insert(make_rigid_body_type_editor_definition());
+    container.insert(make_option_editor_definition::<f32>());
+    container.insert(make_option_editor_definition::<LodGroup>());
+    container.insert(InspectablePropertyEditorDefinition::<InteractionGroupsDesc>::new());
+    container.insert(InspectablePropertyEditorDefinition::<ColliderShapeDesc>::new());
+    container.insert(InspectablePropertyEditorDefinition::<JointParamsDesc>::new());
+    container.insert(InspectablePropertyEditorDefinition::<Base>::new());
+    container.insert(InspectablePropertyEditorDefinition::<scene2d::base::Base>::new());
+    container.insert(InspectablePropertyEditorDefinition::<BaseLight>::new());
+    container.insert(InspectablePropertyEditorDefinition::<
         scene2d::light::BaseLight,
-    >::new()));
-    container.insert(Rc::new(
-        InspectablePropertyEditorDefinition::<BaseEmitter>::new(),
-    ));
-    container.insert(Rc::new(InspectablePropertyEditorDefinition::<
+    >::new());
+    container.insert(InspectablePropertyEditorDefinition::<BaseEmitter>::new());
+    container.insert(InspectablePropertyEditorDefinition::<
         scene::transform::Transform,
-    >::new()));
-    container.insert(Rc::new(InspectablePropertyEditorDefinition::<
+    >::new());
+    container.insert(InspectablePropertyEditorDefinition::<
         scene2d::transform::Transform,
-    >::new()));
-    container.insert(Rc::new(
-        InspectablePropertyEditorDefinition::<GenericSource>::new(),
-    ));
+    >::new());
+    container.insert(InspectablePropertyEditorDefinition::<GenericSource>::new());
 
     Rc::new(container)
 }
