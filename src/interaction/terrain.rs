@@ -336,9 +336,8 @@ struct BrushPanel {
     inspector: Handle<UiNode>,
 }
 
-fn make_brush_mode_enum_property_editor_definition() -> Rc<EnumPropertyEditorDefinition<BrushMode>>
-{
-    Rc::new(EnumPropertyEditorDefinition {
+fn make_brush_mode_enum_property_editor_definition() -> EnumPropertyEditorDefinition<BrushMode> {
+    EnumPropertyEditorDefinition {
         variant_generator: |i| match i {
             0 => BrushMode::ModifyHeightMap { amount: 0.1 },
             1 => BrushMode::DrawOnMask {
@@ -352,12 +351,11 @@ fn make_brush_mode_enum_property_editor_definition() -> Rc<EnumPropertyEditorDef
             BrushMode::DrawOnMask { .. } => 1,
         },
         names_generator: || vec!["Modify Height Map".to_string(), "Draw On Mask".to_string()],
-    })
+    }
 }
 
-fn make_brush_shape_enum_property_editor_definition() -> Rc<EnumPropertyEditorDefinition<BrushShape>>
-{
-    Rc::new(EnumPropertyEditorDefinition {
+fn make_brush_shape_enum_property_editor_definition() -> EnumPropertyEditorDefinition<BrushShape> {
+    EnumPropertyEditorDefinition {
         variant_generator: |i| match i {
             0 => BrushShape::Circle { radius: 0.5 },
             1 => BrushShape::Rectangle {
@@ -371,7 +369,7 @@ fn make_brush_shape_enum_property_editor_definition() -> Rc<EnumPropertyEditorDe
             BrushShape::Rectangle { .. } => 1,
         },
         names_generator: || vec!["Circle".to_string(), "Rectangle".to_string()],
-    })
+    }
 }
 
 impl BrushPanel {
