@@ -401,7 +401,7 @@ where
                         Some(PropertyChanged {
                             name: name.to_string(),
                             owner_type_id,
-                            value: FieldKind::Inspectable(Arc::new(property_changed.clone())),
+                            value: FieldKind::Inspectable(Box::new(property_changed.clone())),
                         })
                     }
                     EnumPropertyEditorMessage::Variant(index) => Some(PropertyChanged {

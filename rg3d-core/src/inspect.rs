@@ -10,12 +10,12 @@ use std::{
 };
 
 /// A value of a property.
-pub trait PropertyValue: Any + Send + Sync + Debug {
+pub trait PropertyValue: Any + Debug {
     /// Casts `self` to a `&dyn Any`
     fn as_any(&self) -> &dyn Any;
 }
 
-impl<T: Send + Sync + Debug + 'static> PropertyValue for T {
+impl<T: Debug + 'static> PropertyValue for T {
     fn as_any(&self) -> &dyn Any {
         self
     }

@@ -449,7 +449,7 @@ where
                     return Some(PropertyChanged {
                         name: name.to_string(),
                         owner_type_id,
-                        value: FieldKind::Collection(Arc::new(collection_changed.clone())),
+                        value: FieldKind::Collection(Box::new(collection_changed.clone())),
                     });
                 }
             }

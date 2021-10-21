@@ -39,7 +39,7 @@ use std::{
     fmt::Debug,
     ops::{Deref, DerefMut},
     path::PathBuf,
-    sync::Arc,
+    rc::Rc,
 };
 
 macro_rules! define_constructor {
@@ -47,7 +47,7 @@ macro_rules! define_constructor {
         pub fn $name(destination: Handle<UiNode>, direction: MessageDirection) -> UiMessage {
             UiMessage {
                 handled: Cell::new(false),
-                data: UiMessageData::$var($inner::$inner_var),
+                data: Rc::new(UiMessageData::$var($inner::$inner_var)),
                 destination,
                 direction,
                 perform_layout: Cell::new($perform_layout),
@@ -60,7 +60,7 @@ macro_rules! define_constructor {
         pub fn $name(destination: Handle<UiNode>, direction: MessageDirection, value:$typ) -> UiMessage {
             UiMessage {
                 handled: Cell::new(false),
-                data: UiMessageData::$var($inner::$inner_var(value)),
+                data: Rc::new(UiMessageData::$var($inner::$inner_var(value))),
                 destination,
                 direction,
                 perform_layout: Cell::new($perform_layout),
@@ -73,7 +73,7 @@ macro_rules! define_constructor {
         pub fn $name(destination: Handle<UiNode>, direction: MessageDirection, $($params : $types),+) -> UiMessage {
             UiMessage {
                 handled: Cell::new(false),
-                data: UiMessageData::$var($inner::$inner_var { $($params),+ } ),
+                data: Rc::new(UiMessageData::$var($inner::$inner_var { $($params),+ } )),
                 destination,
                 direction,
                 perform_layout: Cell::new($perform_layout),
@@ -589,7 +589,9 @@ impl TreeMessage {
     ) -> UiMessage {
         UiMessage {
             handled: Cell::new(false),
-            data: UiMessageData::Tree(TreeMessage::Select(SelectionState(select))),
+            data: Rc::new(UiMessageData::Tree(TreeMessage::Select(SelectionState(
+                select,
+            )))),
             destination,
             direction,
             perform_layout: Cell::new(false),
@@ -696,11 +698,11 @@ impl TileMessage {
     ) -> UiMessage {
         UiMessage {
             handled: Cell::new(false),
-            data: UiMessageData::Tile(TileMessage::Split {
+            data: Rc::new(UiMessageData::Tile(TileMessage::Split {
                 window,
                 direction: split_direction,
                 first,
-            }),
+            })),
             destination,
             direction,
             perform_layout: Cell::new(false),
@@ -904,14 +906,14 @@ pub enum CollectionChanged {
 
 #[derive(Debug, Clone)]
 pub enum FieldKind {
-    Collection(Arc<CollectionChanged>),
-    Inspectable(Arc<PropertyChanged>),
+    Collection(Box<CollectionChanged>),
+    Inspectable(Box<PropertyChanged>),
     Object(ObjectValue),
 }
 
 #[derive(Debug, Clone)]
 pub struct ObjectValue {
-    value: Arc<dyn PropertyValue>,
+    value: Rc<dyn PropertyValue>,
 }
 
 #[allow(clippy::vtable_address_comparisons)]
@@ -941,7 +943,7 @@ impl PartialEq for FieldKind {
 impl FieldKind {
     pub fn object<T: PropertyValue>(value: T) -> Self {
         Self::Object(ObjectValue {
-            value: Arc::new(value),
+            value: Rc::new(value),
         })
     }
 }
@@ -987,13 +989,7 @@ impl PartialEq for UserMessageData {
     }
 }
 
-impl Clone for UserMessageData {
-    fn clone(&self) -> Self {
-        Self(self.0.clone_boxed())
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum UiMessageData {
     Widget(WidgetMessage),
     Button(ButtonMessage),
@@ -1063,24 +1059,18 @@ impl MessageDirection {
     }
 }
 
-pub trait MessageData: 'static + Debug + Send + Any {
+pub trait MessageData: 'static + Debug + Any {
     fn as_any(&self) -> &dyn Any;
-
-    fn clone_boxed(&self) -> Box<dyn MessageData>;
 
     fn compare(&self, other: &dyn MessageData) -> bool;
 }
 
 impl<T> MessageData for T
 where
-    T: 'static + Debug + Clone + PartialEq + Send + Any,
+    T: 'static + Debug + PartialEq + Any,
 {
     fn as_any(&self) -> &dyn Any {
         self
-    }
-
-    fn clone_boxed(&self) -> Box<dyn MessageData> {
-        Box::new(self.clone())
     }
 
     fn compare(&self, other: &dyn MessageData) -> bool {
@@ -1100,13 +1090,17 @@ impl dyn MessageData {
 
 /// Message is basic communication element that is used to deliver information to UI nodes
 /// or to user code.
+///
+/// # Threading
+///
+/// UiMessage is nor Send or Sync. User interface is a single-thread thing, as well as its messages.
 #[derive(Debug, Clone, PartialEq)]
 pub struct UiMessage {
     /// Useful flag to check if a message was already handled.
     handled: Cell<bool>,
 
     /// Actual message data. Use pattern matching to get type specific data.
-    data: UiMessageData,
+    data: Rc<UiMessageData>,
 
     /// Handle of node that will receive message. Please note that all nodes in hierarchy will
     /// also receive this message, order is "up-on-tree".
@@ -1139,7 +1133,7 @@ impl UiMessage {
     ) -> Self {
         Self {
             handled: Cell::new(false),
-            data: UiMessageData::User(UserMessageData(data)),
+            data: Rc::new(UiMessageData::User(UserMessageData(data))),
             destination,
             direction,
             perform_layout: Cell::new(false),

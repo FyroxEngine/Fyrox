@@ -17,7 +17,6 @@ use std::{
     any::TypeId,
     fmt::{Debug, Formatter},
     marker::PhantomData,
-    sync::Arc,
 };
 
 pub struct InspectablePropertyEditorDefinition<T>
@@ -115,7 +114,7 @@ where
                 return Some(PropertyChanged {
                     name: name.to_owned(),
                     owner_type_id,
-                    value: FieldKind::Inspectable(Arc::new(msg.clone())),
+                    value: FieldKind::Inspectable(Box::new(msg.clone())),
                 });
             }
         }
