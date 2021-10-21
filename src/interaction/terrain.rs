@@ -44,8 +44,10 @@ use rg3d::{
     },
     utils::log::{Log, MessageKind},
 };
-use std::rc::Rc;
-use std::sync::{mpsc::Sender, Arc, RwLock};
+use std::{
+    rc::Rc,
+    sync::{mpsc::Sender, Arc, RwLock},
+};
 
 pub struct TerrainInteractionMode {
     heightmaps: Vec<Vec<f32>>,
