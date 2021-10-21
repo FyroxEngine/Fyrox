@@ -33,7 +33,8 @@ use rg3d::{
 };
 use std::{
     any::{Any, TypeId},
-    sync::{mpsc::Sender, Arc},
+    rc::Rc,
+    sync::mpsc::Sender,
 };
 
 pub mod editors;
@@ -52,7 +53,7 @@ impl InspectorEnvironment for EditorEnvironment {
 pub struct Inspector {
     pub window: Handle<UiNode>,
     inspector: Handle<UiNode>,
-    property_editors: Arc<PropertyEditorDefinitionContainer>,
+    property_editors: Rc<PropertyEditorDefinitionContainer>,
     // Hack. This flag tells whether the inspector should sync with model or not.
     // There is only one situation when it has to be `false` - when inspector has
     // got new context - in this case we don't need to sync with model, because
@@ -169,7 +170,7 @@ impl Inspector {
         ui: &mut UserInterface,
         resource_manager: ResourceManager,
     ) {
-        let environment = Arc::new(EditorEnvironment { resource_manager });
+        let environment = Rc::new(EditorEnvironment { resource_manager });
 
         let context = InspectorContext::from_object(
             obj,
