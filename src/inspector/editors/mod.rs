@@ -4,26 +4,28 @@ use crate::{
     },
     Message,
 };
-use rg3d::core::pool::ErasedHandle;
-use rg3d::gui::inspector::editors::inspectable::InspectablePropertyEditorDefinition;
-use rg3d::physics3d::desc::InteractionGroupsDesc;
-use rg3d::scene::base::{LevelOfDetail, LodGroup};
-use rg3d::sound::source::Status;
 use rg3d::{
-    core::inspect::Inspect,
+    core::{inspect::Inspect, pool::ErasedHandle},
     gui::inspector::editors::{
         collection::VecCollectionPropertyEditorDefinition,
-        enumeration::EnumPropertyEditorDefinition, PropertyEditorDefinitionContainer,
+        enumeration::EnumPropertyEditorDefinition,
+        inspectable::InspectablePropertyEditorDefinition, PropertyEditorDefinitionContainer,
     },
-    physics3d,
+    physics3d::{
+        self,
+        desc::{ColliderShapeDesc, InteractionGroupsDesc, JointParamsDesc},
+    },
     scene::{
-        base::{Mobility, PhysicsBinding},
+        self,
+        base::{Base, LevelOfDetail, LodGroup, Mobility, PhysicsBinding},
         camera::Exposure,
-        mesh::surface::Surface,
-        mesh::RenderPath,
-        particle_system::emitter::Emitter,
+        light::BaseLight,
+        mesh::{surface::Surface, RenderPath},
+        particle_system::emitter::{base::BaseEmitter, Emitter},
         terrain::Layer,
     },
+    scene2d,
+    sound::source::{generic::GenericSource, Status},
 };
 use std::{
     fmt::Debug,
@@ -186,6 +188,34 @@ pub fn make_property_editors_container(
     container.insert(Arc::new(InspectablePropertyEditorDefinition::<
         InteractionGroupsDesc,
     >::new()));
+    container.insert(Arc::new(InspectablePropertyEditorDefinition::<
+        ColliderShapeDesc,
+    >::new()));
+    container.insert(Arc::new(InspectablePropertyEditorDefinition::<
+        JointParamsDesc,
+    >::new()));
+    container.insert(Arc::new(InspectablePropertyEditorDefinition::<Base>::new()));
+    container.insert(Arc::new(InspectablePropertyEditorDefinition::<
+        scene2d::base::Base,
+    >::new()));
+    container.insert(Arc::new(
+        InspectablePropertyEditorDefinition::<BaseLight>::new(),
+    ));
+    container.insert(Arc::new(InspectablePropertyEditorDefinition::<
+        scene2d::light::BaseLight,
+    >::new()));
+    container.insert(Arc::new(
+        InspectablePropertyEditorDefinition::<BaseEmitter>::new(),
+    ));
+    container.insert(Arc::new(InspectablePropertyEditorDefinition::<
+        scene::transform::Transform,
+    >::new()));
+    container.insert(Arc::new(InspectablePropertyEditorDefinition::<
+        scene2d::transform::Transform,
+    >::new()));
+    container.insert(Arc::new(
+        InspectablePropertyEditorDefinition::<GenericSource>::new(),
+    ));
 
     Arc::new(container)
 }
