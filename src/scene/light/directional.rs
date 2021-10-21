@@ -24,7 +24,6 @@ use std::ops::{Deref, DerefMut};
 /// See module docs.
 #[derive(Default, Debug, Inspect)]
 pub struct DirectionalLight {
-    #[inspect(expand)]
     base_light: BaseLight,
 }
 

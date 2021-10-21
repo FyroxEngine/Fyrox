@@ -586,7 +586,6 @@ pub struct ColliderDesc<R>
 where
     R: Debug + Send + Sync + 'static,
 {
-    #[inspect(expand)]
     pub shape: ColliderShapeDesc,
     #[inspect(read_only)]
     pub parent: R,
@@ -1064,7 +1063,6 @@ where
 {
     pub body1: R,
     pub body2: R,
-    #[inspect(expand)]
     pub params: JointParamsDesc,
 }
 

@@ -138,7 +138,6 @@ impl Visit for ParticleLimit {
 /// See module docs.
 #[derive(Debug, Visit, Inspect)]
 pub struct ParticleSystem {
-    #[inspect(expand)]
     base: Base,
     #[inspect(skip)]
     particles: Vec<Particle>,

@@ -66,7 +66,6 @@ impl Default for Light {
 
 #[derive(Default, Visit, Inspect, Debug)]
 pub struct BaseLight {
-    #[inspect(expand)]
     base: Base,
     color: Color,
 }

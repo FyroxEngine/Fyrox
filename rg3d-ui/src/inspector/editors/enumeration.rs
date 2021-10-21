@@ -27,14 +27,14 @@ use std::{
     any::TypeId,
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
-    sync::Arc,
+    rc::Rc,
 };
 
 const LOCAL_SYNC_FLAG: u64 = 0xFF;
 
-pub trait InspectableEnum: Debug + Send + Sync + Inspect + 'static {}
+pub trait InspectableEnum: Debug + Inspect + 'static {}
 
-impl<T: Debug + Send + Sync + Inspect + 'static> InspectableEnum for T {}
+impl<T: Debug + Inspect + 'static> InspectableEnum for T {}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum EnumPropertyEditorMessage {
@@ -47,8 +47,8 @@ pub struct EnumPropertyEditor<T: InspectableEnum> {
     variant_selector: Handle<UiNode>,
     inspector: Handle<UiNode>,
     definition: EnumPropertyEditorDefinition<T>,
-    definition_container: Arc<PropertyEditorDefinitionContainer>,
-    environment: Option<Arc<dyn InspectorEnvironment>>,
+    definition_container: Rc<PropertyEditorDefinitionContainer>,
+    environment: Option<Rc<dyn InspectorEnvironment>>,
     sync_flag: u64,
 }
 
@@ -149,8 +149,8 @@ impl<T: InspectableEnum> Control for EnumPropertyEditor<T> {
 
 pub struct EnumPropertyEditorBuilder {
     widget_builder: WidgetBuilder,
-    definition_container: Option<Arc<PropertyEditorDefinitionContainer>>,
-    environment: Option<Arc<dyn InspectorEnvironment>>,
+    definition_container: Option<Rc<PropertyEditorDefinitionContainer>>,
+    environment: Option<Rc<dyn InspectorEnvironment>>,
     sync_flag: u64,
     variant_selector: Handle<UiNode>,
 }
@@ -168,7 +168,7 @@ impl EnumPropertyEditorBuilder {
 
     pub fn with_definition_container(
         mut self,
-        definition_container: Arc<PropertyEditorDefinitionContainer>,
+        definition_container: Rc<PropertyEditorDefinitionContainer>,
     ) -> Self {
         self.definition_container = Some(definition_container);
         self
@@ -179,7 +179,7 @@ impl EnumPropertyEditorBuilder {
         self
     }
 
-    pub fn with_environment(mut self, environment: Option<Arc<dyn InspectorEnvironment>>) -> Self {
+    pub fn with_environment(mut self, environment: Option<Rc<dyn InspectorEnvironment>>) -> Self {
         self.environment = environment;
         self
     }
@@ -197,7 +197,7 @@ impl EnumPropertyEditorBuilder {
     ) -> Handle<UiNode> {
         let definition_container = self
             .definition_container
-            .unwrap_or_else(|| Arc::new(PropertyEditorDefinitionContainer::new()));
+            .unwrap_or_else(|| Rc::new(PropertyEditorDefinitionContainer::new()));
 
         let context = InspectorContext::from_object(
             value,

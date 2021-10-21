@@ -25,7 +25,7 @@ use std::{
     collections::{hash_map::Entry, HashMap},
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
-    sync::Arc,
+    rc::Rc,
 };
 
 pub mod editors;
@@ -75,7 +75,7 @@ impl From<CastError> for InspectorError {
 pub struct ContextEntry {
     pub property_name: String,
     pub property_owner_type_id: TypeId,
-    pub property_editor_definition: Arc<dyn PropertyEditorDefinition>,
+    pub property_editor_definition: Rc<dyn PropertyEditorDefinition>,
     pub property_editor: Handle<UiNode>,
 }
 
@@ -100,8 +100,8 @@ pub struct Group {
 #[derive(Clone)]
 pub struct InspectorContext {
     groups: Vec<Group>,
-    property_definitions: Arc<PropertyEditorDefinitionContainer>,
-    environment: Option<Arc<dyn InspectorEnvironment>>,
+    property_definitions: Rc<PropertyEditorDefinitionContainer>,
+    environment: Option<Rc<dyn InspectorEnvironment>>,
     sync_flag: u64,
 }
 
@@ -115,7 +115,7 @@ impl Default for InspectorContext {
     fn default() -> Self {
         Self {
             groups: Default::default(),
-            property_definitions: Arc::new(PropertyEditorDefinitionContainer::new()),
+            property_definitions: Rc::new(PropertyEditorDefinitionContainer::new()),
             environment: None,
             sync_flag: 0,
         }
@@ -198,8 +198,8 @@ impl InspectorContext {
     pub fn from_object(
         object: &dyn Inspect,
         ctx: &mut BuildContext,
-        definition_container: Arc<PropertyEditorDefinitionContainer>,
-        environment: Option<Arc<dyn InspectorEnvironment>>,
+        definition_container: Rc<PropertyEditorDefinitionContainer>,
+        environment: Option<Rc<dyn InspectorEnvironment>>,
         sync_flag: u64,
     ) -> Self {
         let mut property_groups = HashMap::<&'static str, Vec<PropertyInfo>>::new();

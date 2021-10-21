@@ -68,7 +68,6 @@ impl RenderPath {
 /// See module docs.
 #[derive(Debug, Inspect)]
 pub struct Mesh {
-    #[inspect(expand)]
     base: Base,
     surfaces: Vec<Surface>,
     #[inspect(skip)]

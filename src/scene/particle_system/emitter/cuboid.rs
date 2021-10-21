@@ -21,7 +21,6 @@ use std::ops::{Deref, DerefMut};
 /// See module docs.
 #[derive(Debug, Clone, Visit, Inspect)]
 pub struct CuboidEmitter {
-    #[inspect(expand)]
     emitter: BaseEmitter,
     #[inspect(min_value = 0.0, step = 0.1)]
     half_width: f32,

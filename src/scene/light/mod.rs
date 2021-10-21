@@ -155,7 +155,6 @@ impl Visit for Light {
 /// behavior defined by specific light kind.
 #[derive(Debug, Inspect)]
 pub struct BaseLight {
-    #[inspect(expand)]
     base: Base,
     color: Color,
     cast_shadows: bool,

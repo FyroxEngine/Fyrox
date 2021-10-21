@@ -80,7 +80,6 @@ use std::ops::{Deref, DerefMut};
 /// ```
 #[derive(Debug, Visit, Default, Inspect)]
 pub struct Decal {
-    #[inspect(expand)]
     base: Base,
     diffuse_texture: Option<Texture>,
     normal_texture: Option<Texture>,

@@ -74,7 +74,6 @@ impl Default for Exposure {
 /// See module docs.
 #[derive(Debug, Visit, Inspect)]
 pub struct Camera {
-    #[inspect(expand)]
     base: Base,
     #[inspect(min_value = 0.0, max_value = 3.14159, step = 0.1)]
     fov: f32,

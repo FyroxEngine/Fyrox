@@ -42,7 +42,6 @@ use std::ops::{Deref, DerefMut};
 /// See module docs.
 #[derive(Debug, Clone, Inspect)]
 pub struct SpatialSource {
-    #[inspect(expand)]
     pub(in crate) generic: GenericSource,
     #[inspect(min_value = 0.0, step = 0.05)]
     radius: f32,

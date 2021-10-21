@@ -14,7 +14,6 @@ use std::ops::{Deref, DerefMut};
 
 #[derive(Visit, Debug, Inspect)]
 pub struct SpotLight {
-    #[inspect(expand)]
     base_light: BaseLight,
     radius: f32,
     hotspot_angle: f32,

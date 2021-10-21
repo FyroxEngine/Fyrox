@@ -228,7 +228,6 @@ pub struct TerrainRayCastResult {
 /// See module docs.
 #[derive(Visit, Debug, Default, Inspect)]
 pub struct Terrain {
-    #[inspect(expand)]
     base: Base,
     #[inspect(read_only)]
     width: f32,

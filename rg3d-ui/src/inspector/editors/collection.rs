@@ -29,7 +29,7 @@ use std::{
     fmt::Debug,
     marker::PhantomData,
     ops::{Deref, DerefMut},
-    sync::Arc,
+    rc::Rc,
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -137,8 +137,8 @@ where
 {
     widget_builder: WidgetBuilder,
     collection: Option<I>,
-    environment: Option<Arc<dyn InspectorEnvironment>>,
-    definition_container: Option<Arc<PropertyEditorDefinitionContainer>>,
+    environment: Option<Rc<dyn InspectorEnvironment>>,
+    definition_container: Option<Rc<PropertyEditorDefinitionContainer>>,
     add: Handle<UiNode>,
 }
 
@@ -181,8 +181,8 @@ fn create_item_views(items: &[Item], ctx: &mut BuildContext) -> Vec<Handle<UiNod
 
 fn create_items<'a, T, I>(
     iter: I,
-    environment: Option<Arc<dyn InspectorEnvironment>>,
-    definition_container: Arc<PropertyEditorDefinitionContainer>,
+    environment: Option<Rc<dyn InspectorEnvironment>>,
+    definition_container: Rc<PropertyEditorDefinitionContainer>,
     ctx: &mut BuildContext,
     sync_flag: u64,
 ) -> Vec<Item>
@@ -240,7 +240,7 @@ where
         self
     }
 
-    pub fn with_environment(mut self, environment: Option<Arc<dyn InspectorEnvironment>>) -> Self {
+    pub fn with_environment(mut self, environment: Option<Rc<dyn InspectorEnvironment>>) -> Self {
         self.environment = environment;
         self
     }
@@ -252,7 +252,7 @@ where
 
     pub fn with_definition_container(
         mut self,
-        definition_container: Arc<PropertyEditorDefinitionContainer>,
+        definition_container: Rc<PropertyEditorDefinitionContainer>,
     ) -> Self {
         self.definition_container = Some(definition_container);
         self
@@ -261,7 +261,7 @@ where
     pub fn build(self, ctx: &mut BuildContext, sync_flag: u64) -> Handle<UiNode> {
         let definition_container = self
             .definition_container
-            .unwrap_or_else(|| Arc::new(PropertyEditorDefinitionContainer::new()));
+            .unwrap_or_else(|| Rc::new(PropertyEditorDefinitionContainer::new()));
 
         let environment = self.environment;
         let items = self
@@ -300,14 +300,14 @@ where
 #[derive(Debug)]
 pub struct VecCollectionPropertyEditorDefinition<T>
 where
-    T: Inspect + Debug + Send + Sync + 'static,
+    T: Inspect + Debug + 'static,
 {
     phantom: PhantomData<T>,
 }
 
 impl<T> VecCollectionPropertyEditorDefinition<T>
 where
-    T: Inspect + Debug + Send + Sync + 'static,
+    T: Inspect + Debug + 'static,
 {
     pub fn new() -> Self {
         Self::default()
@@ -316,7 +316,7 @@ where
 
 impl<T> Default for VecCollectionPropertyEditorDefinition<T>
 where
-    T: Inspect + Debug + Send + Sync + 'static,
+    T: Inspect + Debug + 'static,
 {
     fn default() -> Self {
         Self {
@@ -327,7 +327,7 @@ where
 
 impl<T> PropertyEditorDefinition for VecCollectionPropertyEditorDefinition<T>
 where
-    T: Inspect + Debug + Send + Sync + 'static,
+    T: Inspect + Debug + 'static,
 {
     fn value_type_id(&self) -> TypeId {
         TypeId::of::<Vec<T>>()

@@ -18,7 +18,6 @@ use std::ops::{Deref, DerefMut};
 
 #[derive(Visit, Inspect, Debug)]
 pub struct Sprite {
-    #[inspect(expand)]
     base: Base,
     texture: Option<Texture>,
     color: Color,

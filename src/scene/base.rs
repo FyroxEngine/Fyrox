@@ -223,7 +223,6 @@ impl Visit for Mobility {
 #[derive(Debug, Inspect)]
 pub struct Base {
     name: String,
-    #[inspect(expand)]
     local_transform: Transform,
     visibility: bool,
     #[inspect(skip)]

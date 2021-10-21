@@ -16,7 +16,6 @@ use std::ops::{Deref, DerefMut};
 
 #[derive(Visit, Inspect, Debug)]
 pub struct Camera {
-    #[inspect(expand)]
     base: Base,
     viewport: Rect<f32>,
     view_matrix: Matrix4<f32>,

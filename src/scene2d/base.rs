@@ -12,7 +12,6 @@ use std::cell::Cell;
 
 #[derive(Visit, Inspect, Debug)]
 pub struct Base {
-    #[inspect(expand)]
     transform: Transform,
     #[inspect(skip)]
     pub(in crate) global_transform: Cell<Matrix4<f32>>,
