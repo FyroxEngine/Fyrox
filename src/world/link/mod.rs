@@ -1,20 +1,21 @@
-use rg3d::gui::{Thickness, VerticalAlignment};
 use rg3d::{
     asset::core::algebra::Vector2,
-    core::color::Color,
-    core::pool::Handle,
-    gui::brush::Brush,
+    core::{color::Color, pool::Handle},
     gui::{
+        brush::Brush,
         draw::DrawingContext,
         message::{MessageDirection, OsEvent, TextMessage, UiMessage, UiMessageData},
         text::TextBuilder,
         tree::{Tree, TreeBuilder},
-        widget::Widget,
-        widget::WidgetBuilder,
-        BuildContext, Control, NodeHandleMapping, UiNode, UserInterface,
+        widget::{Widget, WidgetBuilder},
+        BuildContext, Control, NodeHandleMapping, Thickness, UiNode, UserInterface,
+        VerticalAlignment,
     },
 };
-use std::ops::{Deref, DerefMut};
+use std::{
+    ops::{Deref, DerefMut},
+    sync::mpsc::Sender,
+};
 
 pub mod menu;
 
@@ -73,8 +74,8 @@ impl<S: 'static, D: 'static> Control for LinkItem<S, D> {
         self.tree.draw(_drawing_context)
     }
 
-    fn update(&mut self, _dt: f32) {
-        self.tree.update(_dt)
+    fn update(&mut self, _dt: f32, sender: &Sender<UiMessage>) {
+        self.tree.update(_dt, sender)
     }
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
