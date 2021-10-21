@@ -3,9 +3,6 @@
 pub mod shared;
 
 use crate::shared::create_camera;
-use rg3d::engine::Engine;
-use rg3d::gui::message::FieldKind;
-use rg3d::gui::UiNode;
 use rg3d::{
     animation::Animation,
     core::{
@@ -13,17 +10,22 @@ use rg3d::{
         color::Color,
         pool::Handle,
     },
-    engine::resource_manager::{MaterialSearchOptions, ResourceManager},
+    engine::{
+        resource_manager::{MaterialSearchOptions, ResourceManager},
+        Engine,
+    },
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
         inspector::{
             editors::PropertyEditorDefinitionContainer, InspectorBuilder, InspectorContext,
         },
+        message::FieldKind,
         message::{InspectorMessage, MessageDirection, TextMessage, UiMessageData},
         text::TextBuilder,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
+        UiNode,
     },
     scene::{node::Node, Scene},
     utils::{
@@ -31,12 +33,12 @@ use rg3d::{
         translate_event,
     },
 };
-use std::{sync::Arc, time::Instant};
+use std::{rc::Rc, time::Instant};
 
 struct Interface {
     debug_text: Handle<UiNode>,
     inspector: Handle<UiNode>,
-    definition_container: Arc<PropertyEditorDefinitionContainer>,
+    definition_container: Rc<PropertyEditorDefinitionContainer>,
 }
 
 fn create_ui(engine: &mut Engine) -> Interface {
@@ -44,7 +46,7 @@ fn create_ui(engine: &mut Engine) -> Interface {
 
     let debug_text = TextBuilder::new(WidgetBuilder::new()).build(ctx);
 
-    let definition_container = Arc::new(PropertyEditorDefinitionContainer::new());
+    let definition_container = Rc::new(PropertyEditorDefinitionContainer::new());
 
     let inspector;
     WindowBuilder::new(WidgetBuilder::new().with_width(400.0))

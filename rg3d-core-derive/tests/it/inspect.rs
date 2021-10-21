@@ -26,6 +26,7 @@ fn inspect_default() {
             max_value: None,
             step: None,
             precision: None,
+            description: "".to_string(),
         },
         PropertyInfo {
             owner_type_id: TypeId::of::<Data>(),
@@ -38,6 +39,7 @@ fn inspect_default() {
             max_value: None,
             step: None,
             precision: None,
+            description: "".to_string(),
         },
     ];
 
@@ -69,7 +71,8 @@ fn inspect_attributes() {
             min_value = 0.1,
             max_value = 1.1,
             step = 0.1,
-            precision = 3
+            precision = 3,
+            description = "This is a property description."
         )]
         y: f32,
     }
@@ -88,6 +91,7 @@ fn inspect_attributes() {
             max_value: None,
             step: None,
             precision: None,
+            description: "".to_string(),
         },
         PropertyInfo {
             owner_type_id: TypeId::of::<Data>(),
@@ -100,6 +104,7 @@ fn inspect_attributes() {
             max_value: Some(1.1),
             step: Some(0.1),
             precision: Some(3),
+            description: "This is a property description.".to_string(),
         },
     ];
 
@@ -140,7 +145,8 @@ fn inspect_struct() {
                 min_value: None,
                 max_value: None,
                 step: None,
-                precision: None
+                precision: None,
+                description: "".to_string()
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Tuple>(),
@@ -152,7 +158,8 @@ fn inspect_struct() {
                 min_value: None,
                 max_value: None,
                 step: None,
-                precision: None
+                precision: None,
+                description: "".to_string()
             },
         ]
     );
@@ -200,7 +207,8 @@ fn inspect_enum() {
                 min_value: None,
                 max_value: None,
                 step: None,
-                precision: None
+                precision: None,
+                description: "".to_string()
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Data>(),
@@ -215,7 +223,8 @@ fn inspect_enum() {
                 min_value: None,
                 max_value: None,
                 step: None,
-                precision: None
+                precision: None,
+                description: "".to_string()
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Data>(),
@@ -230,7 +239,8 @@ fn inspect_enum() {
                 min_value: None,
                 max_value: None,
                 step: None,
-                precision: None
+                precision: None,
+                description: "".to_string()
             },
         ]
     );
@@ -253,7 +263,8 @@ fn inspect_enum() {
                 min_value: None,
                 max_value: None,
                 step: None,
-                precision: None
+                precision: None,
+                description: "".to_string()
             },
             PropertyInfo {
                 owner_type_id: TypeId::of::<Data>(),
@@ -268,7 +279,8 @@ fn inspect_enum() {
                 min_value: None,
                 max_value: None,
                 step: None,
-                precision: None
+                precision: None,
+                description: "".to_string()
             },
         ]
     );
