@@ -955,6 +955,25 @@ pub struct PropertyChanged {
     pub value: FieldKind,
 }
 
+impl PropertyChanged {
+    pub fn path(&self) -> String {
+        let mut path = self.name.clone();
+        match self.value {
+            FieldKind::Collection(ref collection_changed) => match **collection_changed {
+                CollectionChanged::ItemChanged { ref property, .. } => {
+                    path += format!(".{}", property.path()).as_ref();
+                }
+                _ => (),
+            },
+            FieldKind::Inspectable(ref inspectable) => {
+                path += format!(".{}", inspectable.path()).as_ref();
+            }
+            FieldKind::Object(_) => {}
+        }
+        path
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum InspectorMessage {
     Context(InspectorContext),
