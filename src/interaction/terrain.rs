@@ -44,7 +44,10 @@ use rg3d::{
     },
     utils::log::{Log, MessageKind},
 };
-use std::sync::{mpsc::Sender, Arc, RwLock};
+use std::{
+    rc::Rc,
+    sync::{mpsc::Sender, Arc, RwLock},
+};
 
 pub struct TerrainInteractionMode {
     heightmaps: Vec<Vec<f32>>,
@@ -333,9 +336,9 @@ struct BrushPanel {
     inspector: Handle<UiNode>,
 }
 
-fn make_brush_mode_enum_property_editor_definition() -> Arc<EnumPropertyEditorDefinition<BrushMode>>
+fn make_brush_mode_enum_property_editor_definition() -> Rc<EnumPropertyEditorDefinition<BrushMode>>
 {
-    Arc::new(EnumPropertyEditorDefinition {
+    Rc::new(EnumPropertyEditorDefinition {
         variant_generator: |i| match i {
             0 => BrushMode::ModifyHeightMap { amount: 0.1 },
             1 => BrushMode::DrawOnMask {
@@ -352,9 +355,9 @@ fn make_brush_mode_enum_property_editor_definition() -> Arc<EnumPropertyEditorDe
     })
 }
 
-fn make_brush_shape_enum_property_editor_definition(
-) -> Arc<EnumPropertyEditorDefinition<BrushShape>> {
-    Arc::new(EnumPropertyEditorDefinition {
+fn make_brush_shape_enum_property_editor_definition() -> Rc<EnumPropertyEditorDefinition<BrushShape>>
+{
+    Rc::new(EnumPropertyEditorDefinition {
         variant_generator: |i| match i {
             0 => BrushShape::Circle { radius: 0.5 },
             1 => BrushShape::Rectangle {
@@ -380,7 +383,7 @@ impl BrushPanel {
         let context = InspectorContext::from_object(
             brush,
             ctx,
-            Arc::new(property_editors),
+            Rc::new(property_editors),
             None,
             MSG_SYNC_FLAG,
         );
