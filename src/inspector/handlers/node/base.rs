@@ -1,3 +1,4 @@
+use crate::inspector::handlers::node::transform::handle_transform_property_changed;
 use crate::{
     do_command,
     inspector::SenderHelper,
@@ -15,6 +16,7 @@ use rg3d::{
 pub fn handle_base_property_changed(
     args: &PropertyChanged,
     handle: Handle<Node>,
+    node: &Node,
     helper: &SenderHelper,
 ) -> Option<()> {
     match args.value {
@@ -45,8 +47,8 @@ pub fn handle_base_property_changed(
             }
             _ => println!("Unhandled property of Base: {:?}", args),
         },
-        FieldKind::Inspectable(ref inner_value) => {
-            if let Base::LOD_GROUP = args.name.as_ref() {
+        FieldKind::Inspectable(ref inner_value) => match args.name.as_ref() {
+            Base::LOD_GROUP => {
                 if let FieldKind::Collection(ref collection_changed) = inner_value.value {
                     match **collection_changed {
                         CollectionChanged::Add => helper.do_scene_command(
@@ -82,7 +84,11 @@ pub fn handle_base_property_changed(
                     }
                 }
             }
-        }
+            Base::LOCAL_TRANSFORM => {
+                handle_transform_property_changed(inner_value, handle, node, helper);
+            }
+            _ => {}
+        },
         _ => {}
     }
     Some(())

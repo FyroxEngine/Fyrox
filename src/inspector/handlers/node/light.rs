@@ -1,4 +1,6 @@
+use crate::inspector::handlers::node::base::handle_base_property_changed;
 use crate::{do_command, inspector::SenderHelper, scene::commands::light::*};
+use rg3d::scene::light::directional::DirectionalLight;
 use rg3d::{
     core::pool::Handle,
     gui::message::{FieldKind, PropertyChanged},
@@ -11,10 +13,11 @@ use rg3d::{
 pub fn handle_base_light_property_changed(
     args: &PropertyChanged,
     handle: Handle<Node>,
+    node: &Node,
     helper: &SenderHelper,
 ) -> Option<()> {
-    if let FieldKind::Object(ref value) = args.value {
-        match args.name.as_ref() {
+    match args.value {
+        FieldKind::Object(ref value) => match args.name.as_ref() {
             BaseLight::COLOR => {
                 do_command!(helper, SetLightColorCommand, handle, value)
             }
@@ -31,7 +34,13 @@ pub fn handle_base_light_property_changed(
                 do_command!(helper, SetLightIntensityCommand, handle, value)
             }
             _ => println!("Unhandled property of BaseLight: {:?}", args),
+        },
+        FieldKind::Inspectable(ref inner) => {
+            if let BaseLight::BASE = args.name.as_ref() {
+                handle_base_property_changed(&inner, handle, node, helper)?
+            }
         }
+        _ => {}
     }
     Some(())
 }
@@ -39,10 +48,11 @@ pub fn handle_base_light_property_changed(
 pub fn handle_spot_light_property_changed(
     args: &PropertyChanged,
     handle: Handle<Node>,
+    node: &Node,
     helper: &SenderHelper,
 ) -> Option<()> {
-    if let FieldKind::Object(ref value) = args.value {
-        match args.name.as_ref() {
+    match args.value {
+        FieldKind::Object(ref value) => match args.name.as_ref() {
             SpotLight::HOTSPOT_CONE_ANGLE => {
                 do_command!(helper, SetSpotLightHotspotCommand, handle, value)
             }
@@ -59,7 +69,13 @@ pub fn handle_spot_light_property_changed(
                 do_command!(helper, SetSpotLightCookieTextureCommand, handle, value)
             }
             _ => println!("Unhandled property of SpotLight: {:?}", args),
+        },
+        FieldKind::Inspectable(ref inner) => {
+            if let SpotLight::BASE_LIGHT = args.name.as_ref() {
+                handle_base_light_property_changed(inner, handle, node, helper)?
+            }
         }
+        _ => {}
     }
     Some(())
 }
@@ -67,10 +83,11 @@ pub fn handle_spot_light_property_changed(
 pub fn handle_point_light_property_changed(
     args: &PropertyChanged,
     handle: Handle<Node>,
+    node: &Node,
     helper: &SenderHelper,
 ) -> Option<()> {
-    if let FieldKind::Object(ref value) = args.value {
-        match args.name.as_ref() {
+    match args.value {
+        FieldKind::Object(ref value) => match args.name.as_ref() {
             PointLight::SHADOW_BIAS => {
                 do_command!(helper, SetPointLightShadowBiasCommand, handle, value)
             }
@@ -78,7 +95,30 @@ pub fn handle_point_light_property_changed(
                 do_command!(helper, SetPointLightRadiusCommand, handle, value)
             }
             _ => println!("Unhandled property of PointLight: {:?}", args),
+        },
+        FieldKind::Inspectable(ref inner) => {
+            if let PointLight::BASE_LIGHT = args.name.as_ref() {
+                handle_base_light_property_changed(inner, handle, node, helper)?
+            }
         }
+        _ => {}
+    }
+    Some(())
+}
+
+pub fn handle_directional_light_property_changed(
+    args: &PropertyChanged,
+    handle: Handle<Node>,
+    node: &Node,
+    helper: &SenderHelper,
+) -> Option<()> {
+    match args.value {
+        FieldKind::Inspectable(ref inner) => {
+            if let DirectionalLight::BASE_LIGHT = args.name.as_ref() {
+                handle_base_light_property_changed(inner, handle, node, helper)?
+            }
+        }
+        _ => {}
     }
     Some(())
 }

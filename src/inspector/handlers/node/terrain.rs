@@ -1,3 +1,4 @@
+use crate::inspector::handlers::node::base::handle_base_property_changed;
 use crate::{do_command, inspector::SenderHelper, scene::commands::terrain::*};
 use rg3d::{
     core::pool::Handle,
@@ -9,12 +10,13 @@ use std::any::TypeId;
 pub fn handle_terrain_property_changed(
     args: &PropertyChanged,
     handle: Handle<Node>,
+    node: &Node,
     helper: &SenderHelper,
     graph: &Graph,
 ) -> Option<()> {
-    match args.name.as_ref() {
-        Terrain::LAYERS => {
-            if let FieldKind::Collection(ref collection_changed) = args.value {
+    match args.value {
+        FieldKind::Collection(ref collection_changed) => {
+            if let Terrain::LAYERS = args.name.as_ref() {
                 match &**collection_changed {
                     CollectionChanged::Add => {
                         helper.do_scene_command(AddTerrainLayerCommand::new(handle, graph))
@@ -40,12 +42,16 @@ pub fn handle_terrain_property_changed(
                 }
             }
         }
-        Terrain::DECAL_LAYER_INDEX => {
-            if let FieldKind::Object(ref args) = args.value {
-                do_command!(helper, SetTerrainDecalLayerIndexCommand, handle, args)
+        FieldKind::Object(ref value) => {
+            if let Terrain::DECAL_LAYER_INDEX = args.name.as_ref() {
+                do_command!(helper, SetTerrainDecalLayerIndexCommand, handle, value)
             }
         }
-        _ => println!("Unhandled property of Camera: {:?}", args),
+        FieldKind::Inspectable(ref inner) => {
+            if let Terrain::BASE = args.name.as_ref() {
+                handle_base_property_changed(&inner, handle, node, helper)?
+            }
+        }
     }
     Some(())
 }

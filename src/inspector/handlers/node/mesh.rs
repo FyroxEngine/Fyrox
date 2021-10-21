@@ -1,3 +1,4 @@
+use crate::inspector::handlers::node::base::handle_base_property_changed;
 use crate::{do_command, inspector::SenderHelper, scene::commands::mesh::*};
 use rg3d::{
     core::pool::Handle,
@@ -8,6 +9,7 @@ use rg3d::{
 pub fn handle_mesh_property_changed(
     args: &PropertyChanged,
     handle: Handle<Node>,
+    node: &Node,
     helper: &SenderHelper,
 ) -> Option<()> {
     match args.value {
@@ -28,7 +30,11 @@ pub fn handle_mesh_property_changed(
             CollectionChanged::Remove(_) => {}
             CollectionChanged::ItemChanged { .. } => {}
         },
-        _ => {}
+        FieldKind::Inspectable(ref inner) => {
+            if let Mesh::BASE = args.name.as_ref() {
+                handle_base_property_changed(&inner, handle, node, helper)?
+            }
+        }
     }
 
     Some(())

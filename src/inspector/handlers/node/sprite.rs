@@ -1,3 +1,4 @@
+use crate::inspector::handlers::node::base::handle_base_property_changed;
 use crate::{do_command, inspector::SenderHelper, scene::commands::sprite::*};
 use rg3d::{
     core::pool::Handle,
@@ -8,10 +9,11 @@ use rg3d::{
 pub fn handle_sprite_property_changed(
     args: &PropertyChanged,
     handle: Handle<Node>,
+    node: &Node,
     helper: &SenderHelper,
 ) -> Option<()> {
-    if let FieldKind::Object(ref value) = args.value {
-        match args.name.as_ref() {
+    match args.value {
+        FieldKind::Object(ref value) => match args.name.as_ref() {
             Sprite::TEXTURE => {
                 do_command!(helper, SetSpriteTextureCommand, handle, value)
             }
@@ -25,7 +27,13 @@ pub fn handle_sprite_property_changed(
                 do_command!(helper, SetSpriteRotationCommand, handle, value)
             }
             _ => println!("Unhandled property of Sprite: {:?}", args),
+        },
+        FieldKind::Inspectable(ref inner) => {
+            if let Sprite::BASE = args.name.as_ref() {
+                handle_base_property_changed(&inner, handle, node, helper)?
+            }
         }
+        _ => {}
     }
 
     Some(())

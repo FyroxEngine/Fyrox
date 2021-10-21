@@ -1,3 +1,4 @@
+use crate::inspector::handlers::node::base::handle_base_property_changed;
 use crate::{do_command, inspector::SenderHelper, scene::commands::particle_system::*};
 use rg3d::{
     core::pool::Handle,
@@ -103,6 +104,7 @@ impl ParticleSystemHandler {
         &self,
         args: &PropertyChanged,
         handle: Handle<Node>,
+        node: &Node,
         helper: &SenderHelper,
         ui: &UserInterface,
     ) -> Option<()> {
@@ -136,7 +138,11 @@ impl ParticleSystemHandler {
                 },
                 _ => (),
             },
-            _ => {}
+            FieldKind::Inspectable(ref inner) => {
+                if let ParticleSystem::BASE = args.name.as_ref() {
+                    handle_base_property_changed(&inner, handle, node, helper)?
+                }
+            }
         }
 
         Some(())

@@ -47,8 +47,8 @@ pub fn handle_spatial_source_property_changed(
     handle: Handle<SoundSource>,
     helper: &SenderHelper,
 ) -> Option<()> {
-    if let FieldKind::Object(ref value) = args.value {
-        match args.name.as_ref() {
+    match args.value {
+        FieldKind::Object(ref value) => match args.name.as_ref() {
             SpatialSource::RADIUS => {
                 do_command!(helper, SetSpatialSoundSourceRadiusCommand, handle, value)
             }
@@ -62,7 +62,13 @@ pub fn handle_spatial_source_property_changed(
                 do_command!(helper, SetRolloffFactorCommand, handle, value)
             }
             _ => println!("Unhandled property of SpatialSource: {:?}", args),
+        },
+        FieldKind::Inspectable(ref inner) => {
+            if let SpatialSource::GENERIC = args.name.as_ref() {
+                handle_generic_source_property_changed(&inner, handle, helper)?
+            }
         }
+        _ => {}
     }
     Some(())
 }
