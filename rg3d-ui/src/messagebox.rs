@@ -16,6 +16,7 @@ use crate::{
     Thickness, UiNode, UserInterface,
 };
 use std::ops::{Deref, DerefMut};
+use std::sync::mpsc::Sender;
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Ord, Eq, Hash, Debug)]
 pub enum MessageBoxResult {
@@ -79,8 +80,8 @@ impl Control for MessageBox {
         self.window.draw(drawing_context)
     }
 
-    fn update(&mut self, dt: f32) {
-        self.window.update(dt);
+    fn update(&mut self, dt: f32, sender: &Sender<UiMessage>) {
+        self.window.update(dt, sender);
     }
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {

@@ -15,6 +15,7 @@ use crate::{
     BRUSH_DARKER, BRUSH_TEXT,
 };
 use copypasta::ClipboardProvider;
+use std::sync::mpsc::Sender;
 use std::{
     cell::RefCell,
     cmp::{self, Ordering},
@@ -542,7 +543,7 @@ impl Control for TextBox {
         }
     }
 
-    fn update(&mut self, dt: f32) {
+    fn update(&mut self, dt: f32, _sender: &Sender<UiMessage>) {
         if self.has_focus {
             self.blink_timer += dt;
             if self.blink_timer >= self.blink_interval {

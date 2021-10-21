@@ -25,6 +25,7 @@ use crate::{
     UserInterface, VerticalAlignment,
 };
 use core::time;
+use std::sync::mpsc::{Receiver, Sender};
 use std::{
     borrow::BorrowMut,
     cell,
@@ -79,6 +80,7 @@ pub struct FileBrowser {
     mode: FileBrowserMode,
     file_name: Handle<UiNode>,
     file_name_value: PathBuf,
+    fs_receiver: Rc<Receiver<notify::DebouncedEvent>>,
     #[allow(clippy::type_complexity)]
     watcher: Rc<cell::Cell<Option<(notify::RecommendedWatcher, thread::JoinHandle<()>)>>>,
 }
@@ -373,6 +375,38 @@ impl Control for FileBrowser {
                 }
             }
             _ => {}
+        }
+    }
+
+    fn update(&mut self, _dt: f32, sender: &Sender<UiMessage>) {
+        if let Ok(event) = self.fs_receiver.try_recv() {
+            match event {
+                notify::DebouncedEvent::Remove(path) => {
+                    let _ = sender.send(FileBrowserMessage::remove(
+                        self.handle,
+                        MessageDirection::ToWidget,
+                        path,
+                    ));
+                }
+                notify::DebouncedEvent::Create(path) => {
+                    let _ = sender.send(FileBrowserMessage::add(
+                        self.handle,
+                        MessageDirection::ToWidget,
+                        path,
+                    ));
+                }
+                notify::DebouncedEvent::Rescan | notify::DebouncedEvent::Error(_, _) => {
+                    let _ = sender.send(FileBrowserMessage::rescan(
+                        self.handle,
+                        MessageDirection::ToWidget,
+                    ));
+                }
+                notify::DebouncedEvent::NoticeRemove(_) => (),
+                notify::DebouncedEvent::NoticeWrite(_) => (),
+                notify::DebouncedEvent::Write(_) => (),
+                notify::DebouncedEvent::Chmod(_) => (),
+                notify::DebouncedEvent::Rename(_, _) => (),
+            }
         }
     }
 
@@ -826,7 +860,9 @@ impl FileBrowserBuilder {
             Some(path) => path.clone(),
             _ => self.path.clone(),
         };
+        let (fs_sender, fs_receiver) = mpsc::channel();
         let browser = FileBrowser {
+            fs_receiver: Rc::new(fs_receiver),
             widget,
             tree_root,
             path_text,
@@ -852,18 +888,13 @@ impl FileBrowserBuilder {
         let watcher = browser.watcher.clone();
         let filebrowser_node = UiNode::new(browser);
         let node = ctx.add_node(filebrowser_node);
-        watcher.replace(setup_filebrowser_fs_watcher(
-            ctx.ui.sender(),
-            node,
-            the_path,
-        ));
+        watcher.replace(setup_filebrowser_fs_watcher(fs_sender, the_path));
         node
     }
 }
 
 fn setup_filebrowser_fs_watcher(
-    ui_sender: mpsc::Sender<UiMessage>,
-    filebrowser_widget_handle: Handle<UiNode>,
+    fs_sender: mpsc::Sender<notify::DebouncedEvent>,
     the_path: PathBuf,
 ) -> Option<(notify::RecommendedWatcher, thread::JoinHandle<()>)> {
     let (tx, rx) = mpsc::channel();
@@ -872,33 +903,9 @@ fn setup_filebrowser_fs_watcher(
             #[allow(clippy::while_let_loop)]
             let watcher_conversion_thread = std::thread::spawn(move || loop {
                 match rx.recv() {
-                    Ok(event) => match event {
-                        notify::DebouncedEvent::Remove(path) => {
-                            let _ = ui_sender.send(FileBrowserMessage::remove(
-                                filebrowser_widget_handle,
-                                MessageDirection::ToWidget,
-                                path,
-                            ));
-                        }
-                        notify::DebouncedEvent::Create(path) => {
-                            let _ = ui_sender.send(FileBrowserMessage::add(
-                                filebrowser_widget_handle,
-                                MessageDirection::ToWidget,
-                                path,
-                            ));
-                        }
-                        notify::DebouncedEvent::Rescan | notify::DebouncedEvent::Error(_, _) => {
-                            let _ = ui_sender.send(FileBrowserMessage::rescan(
-                                filebrowser_widget_handle,
-                                MessageDirection::ToWidget,
-                            ));
-                        }
-                        notify::DebouncedEvent::NoticeRemove(_) => (),
-                        notify::DebouncedEvent::NoticeWrite(_) => (),
-                        notify::DebouncedEvent::Write(_) => (),
-                        notify::DebouncedEvent::Chmod(_) => (),
-                        notify::DebouncedEvent::Rename(_, _) => (),
-                    },
+                    Ok(event) => {
+                        let _ = fs_sender.send(event);
+                    }
                     Err(_) => {
                         break;
                     }
@@ -956,8 +963,8 @@ impl Control for FileSelector {
         self.window.draw(drawing_context)
     }
 
-    fn update(&mut self, dt: f32) {
-        self.window.update(dt);
+    fn update(&mut self, dt: f32, sender: &Sender<UiMessage>) {
+        self.window.update(dt, sender);
     }
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {

@@ -295,7 +295,7 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut {
 
     fn draw(&self, _drawing_context: &mut DrawingContext) {}
 
-    fn update(&mut self, _dt: f32) {}
+    fn update(&mut self, _dt: f32, _sender: &Sender<UiMessage>) {}
 
     /// Performs event-specific actions. Must call widget.handle_message()!
     ///
@@ -731,8 +731,9 @@ impl UserInterface {
         );
         self.update_transform();
 
+        let sender = self.sender.clone();
         for node in self.nodes.iter_mut() {
-            node.update(dt)
+            node.update(dt, &sender)
         }
 
         self.update_tooltips(dt);

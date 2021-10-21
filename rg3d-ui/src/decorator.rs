@@ -9,6 +9,7 @@ use crate::{
     BRUSH_LIGHTER, BRUSH_LIGHTEST, COLOR_DARKEST, COLOR_LIGHTEST,
 };
 use std::ops::{Deref, DerefMut};
+use std::sync::mpsc::Sender;
 
 /// A visual element that changes its appearance by listening specific events.
 /// It can has "pressed", "hover", "selected" or normal appearance:
@@ -63,8 +64,8 @@ impl Control for Decorator {
         self.border.draw(drawing_context)
     }
 
-    fn update(&mut self, dt: f32) {
-        self.border.update(dt)
+    fn update(&mut self, dt: f32, sender: &Sender<UiMessage>) {
+        self.border.update(dt, sender)
     }
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
