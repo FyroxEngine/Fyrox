@@ -29,6 +29,8 @@ where
     T: Num + PartialOrd + SampleUniform + Copy,
 {
     fn random(&self) -> T;
+
+    fn clamp_value(&self, value: &mut T) -> T;
 }
 
 impl<T: Num + PartialOrd + SampleUniform + Copy> RangeExt<T> for Range<T> {
@@ -36,5 +38,18 @@ impl<T: Num + PartialOrd + SampleUniform + Copy> RangeExt<T> for Range<T> {
         let start = min(self.start, self.end);
         let end = max(self.start, self.end);
         rand::thread_rng().gen_range(Range { start, end })
+    }
+
+    fn clamp_value(&self, value: &mut T) -> T {
+        let start = min(self.start, self.end);
+        let end = max(self.start, self.end);
+
+        if *value < start {
+            start
+        } else if *value > end {
+            end
+        } else {
+            *value
+        }
     }
 }
