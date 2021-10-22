@@ -41,6 +41,7 @@ pub trait NumericType:
     + Send
     + Sync
     + NumCast
+    + Default
     + 'static
 {
 }
@@ -58,6 +59,7 @@ impl<T> NumericType for T where
         + Send
         + Sync
         + NumCast
+        + Default
         + 'static
 {
 }
