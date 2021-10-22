@@ -304,8 +304,14 @@ impl Inspector {
                     }
                     Selection::Collider(selection) => {
                         let collider_handle = selection.colliders()[0];
+                        let collider = &editor_scene.physics.colliders[collider_handle];
                         success = if args.owner_type_id == TypeId::of::<Collider>() {
-                            handle_collider_property_changed(args, collider_handle, &helper)
+                            handle_collider_property_changed(
+                                args,
+                                collider_handle,
+                                collider,
+                                &helper,
+                            )
                         } else {
                             Some(())
                         }
