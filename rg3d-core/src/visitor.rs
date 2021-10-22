@@ -26,6 +26,7 @@ use crate::{
 };
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use std::ops::Range;
 use std::{
     any::Any,
     cell::{Cell, RefCell},
@@ -1360,6 +1361,17 @@ impl<T: Default + Visit, const SIZE: usize> Visit for [T; SIZE] {
                 visitor.leave_region()?;
             }
         }
+
+        visitor.leave_region()
+    }
+}
+
+impl<T: Visit> Visit for Range<T> {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.start.visit("Start", visitor)?;
+        self.end.visit("End", visitor)?;
 
         visitor.leave_region()
     }
