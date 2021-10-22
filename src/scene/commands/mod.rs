@@ -1,3 +1,4 @@
+use crate::scene::commands::physics::{SetJointBody1Command, SetJointBody2Command};
 use crate::{
     command::Command,
     physics::{Collider, Joint, RigidBody},
@@ -5,10 +6,7 @@ use crate::{
         clipboard::DeepCloneResult,
         commands::{
             graph::DeleteSubGraphCommand,
-            physics::{
-                DeleteBodyCommand, DeleteColliderCommand, DeleteJointCommand,
-                SetJointConnectedBodyCommand,
-            },
+            physics::{DeleteBodyCommand, DeleteColliderCommand, DeleteJointCommand},
         },
         EditorScene, GraphSelection, Selection,
     },
@@ -190,11 +188,15 @@ pub fn make_delete_selection_command(
                 command_group.push(SceneCommand::new(DeleteJointCommand::new(joint)));
             }
 
-            // Also check if this node is attached to a joint as
-            // "connected body".
+            // Also check if this node is attached to a joint.
             for (handle, joint) in editor_scene.physics.joints.pair_iter() {
-                if joint.body2 == ErasedHandle::from(body) {
-                    command_group.push(SceneCommand::new(SetJointConnectedBodyCommand::new(
+                if joint.body1 == ErasedHandle::from(body) {
+                    command_group.push(SceneCommand::new(SetJointBody1Command::new(
+                        handle,
+                        ErasedHandle::none(),
+                    )));
+                } else if joint.body2 == ErasedHandle::from(body) {
+                    command_group.push(SceneCommand::new(SetJointBody2Command::new(
                         handle,
                         ErasedHandle::none(),
                     )));

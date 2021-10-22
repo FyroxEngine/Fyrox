@@ -1,4 +1,5 @@
-use crate::physics::Collider;
+use crate::inspector::handlers::joint::handle_joint_property_changed;
+use crate::physics::{Collider, Joint};
 use crate::{
     command::Command,
     inspector::{
@@ -312,6 +313,15 @@ impl Inspector {
                                 collider,
                                 &helper,
                             )
+                        } else {
+                            Some(())
+                        }
+                    }
+                    Selection::Joint(selection) => {
+                        let joint_handle = selection.joints()[0];
+                        let joint = &editor_scene.physics.joints[joint_handle];
+                        success = if args.owner_type_id == TypeId::of::<Joint>() {
+                            handle_joint_property_changed(args, joint_handle, joint, &helper)
                         } else {
                             Some(())
                         }

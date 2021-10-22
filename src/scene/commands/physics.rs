@@ -794,6 +794,10 @@ define_joint_variant_command!(SetPrismaticJointAxis2Command("Set Prismatic Joint
     std::mem::swap(&mut prismatic.local_axis2, &mut self.value);
 });
 
-define_joint_command!(SetJointConnectedBodyCommand("Set Joint Connected Body", ErasedHandle) where fn swap(self, physics, joint) {
+define_joint_command!(SetJointBody1Command("Set Joint Body 1", ErasedHandle) where fn swap(self, physics, joint) {
+    std::mem::swap(&mut joint.body1, &mut self.value);
+});
+
+define_joint_command!(SetJointBody2Command("Set Joint Body 2", ErasedHandle) where fn swap(self, physics, joint) {
     std::mem::swap(&mut joint.body2, &mut self.value);
 });
