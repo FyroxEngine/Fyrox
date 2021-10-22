@@ -2,7 +2,7 @@
 name = "rg3d"
 version = "0.23.1"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
-edition = "2018"
+edition = "2021"
 license = "MIT"
 description = "3D Game engine"
 keywords = ["sound", "game", "engine", "3d", "gui"]
@@ -13,6 +13,7 @@ documentation = "https://docs.rs/rg3d"
 repository = "https://github.com/mrDIMAS/rg3d"
 readme = "README.md"
 resolver = "2"
+rust-version = "1.56"
 
 [workspace]
 members = [

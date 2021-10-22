@@ -2,13 +2,14 @@
 name = "rg3d-core-derive"
 version = "0.13.0"
 authors = ["toyboot4e <toyboot4e@gmail.com>, Dmitry Stepanov <d1maxa@yandex.ru>"]
-edition = "2018"
+edition = "2021"
 license = "MIT"
 description = "Proc-macro for the Visit trait"
 repository = "https://github.com/mrDIMAS/rg3d"
 include = ["/src/**/*", "/Cargo.toml", "/README.md"]
 readme = "README.md"
 resolver = "2"
+rust-version = "1.56"
 
 [lib]
 proc-macro = true
