@@ -408,6 +408,7 @@ pub fn wrapf(mut n: f32, mut min_limit: f32, mut max_limit: f32) -> f32 {
     n + offset
 }
 
+#[inline(always)]
 pub fn lerpf(a: f32, b: f32, t: f32) -> f32 {
     a + (b - a) * t
 }
