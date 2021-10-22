@@ -12,6 +12,7 @@ use crate::{
     },
     Message,
 };
+use rg3d::core::numeric_range::RangeExt;
 use rg3d::gui::message::UiMessage;
 use rg3d::gui::numeric::NumericUpDownMessage;
 use rg3d::gui::vec::vec3::Vec3EditorMessage;
@@ -270,32 +271,23 @@ impl EmitterSection {
             },
         );
         sync_f32(self.spawn_rate, emitter.spawn_rate() as f32);
-        sync_f32(self.min_lifetime, emitter.life_time_range().bounds[0]);
-        sync_f32(self.max_lifetime, emitter.life_time_range().bounds[1]);
-        sync_f32(
-            self.min_size_modifier,
-            emitter.size_modifier_range().bounds[0],
-        );
-        sync_f32(
-            self.max_size_modifier,
-            emitter.size_modifier_range().bounds[1],
-        );
-        sync_f32(self.min_x_velocity, emitter.x_velocity_range().bounds[0]);
-        sync_f32(self.max_x_velocity, emitter.x_velocity_range().bounds[1]);
-        sync_f32(self.min_y_velocity, emitter.y_velocity_range().bounds[0]);
-        sync_f32(self.max_y_velocity, emitter.y_velocity_range().bounds[1]);
-        sync_f32(self.min_z_velocity, emitter.z_velocity_range().bounds[0]);
-        sync_f32(self.max_z_velocity, emitter.z_velocity_range().bounds[1]);
+        sync_f32(self.min_lifetime, emitter.life_time_range().start);
+        sync_f32(self.max_lifetime, emitter.life_time_range().end);
+        sync_f32(self.min_size_modifier, emitter.size_modifier_range().start);
+        sync_f32(self.max_size_modifier, emitter.size_modifier_range().end);
+        sync_f32(self.min_x_velocity, emitter.x_velocity_range().start);
+        sync_f32(self.max_x_velocity, emitter.x_velocity_range().end);
+        sync_f32(self.min_y_velocity, emitter.y_velocity_range().start);
+        sync_f32(self.max_y_velocity, emitter.y_velocity_range().end);
+        sync_f32(self.min_z_velocity, emitter.z_velocity_range().start);
+        sync_f32(self.max_z_velocity, emitter.z_velocity_range().end);
         sync_f32(
             self.min_rotation_speed,
-            emitter.rotation_speed_range().bounds[0],
+            emitter.rotation_speed_range().start,
         );
-        sync_f32(
-            self.max_rotation_speed,
-            emitter.rotation_speed_range().bounds[1],
-        );
-        sync_f32(self.min_rotation, emitter.rotation_range().bounds[0]);
-        sync_f32(self.max_rotation, emitter.rotation_range().bounds[1]);
+        sync_f32(self.max_rotation_speed, emitter.rotation_speed_range().end);
+        sync_f32(self.min_rotation, emitter.rotation_range().start);
+        sync_f32(self.max_rotation, emitter.rotation_range().end);
 
         send_sync_message(
             ui,
@@ -378,72 +370,72 @@ impl EmitterSection {
                     {
                         parameter = Some(EmitterNumericParameter::SpawnRate);
                     } else if message.destination() == self.min_lifetime
-                        && emitter.life_time_range().bounds[0].ne(&value)
+                        && emitter.life_time_range().start.ne(&value)
                     {
                         parameter = Some(EmitterNumericParameter::MinLifetime);
                         emitter.life_time_range().clamp_value(&mut final_value);
                     } else if message.destination() == self.max_lifetime
-                        && emitter.life_time_range().bounds[1].ne(&value)
+                        && emitter.life_time_range().end.ne(&value)
                     {
                         parameter = Some(EmitterNumericParameter::MaxLifetime);
                         emitter.life_time_range().clamp_value(&mut final_value);
                     } else if message.destination() == self.min_size_modifier
-                        && emitter.size_modifier_range().bounds[0].ne(&value)
+                        && emitter.size_modifier_range().start.ne(&value)
                     {
                         parameter = Some(EmitterNumericParameter::MinSizeModifier);
                         emitter.size_modifier_range().clamp_value(&mut final_value);
                     } else if message.destination() == self.max_size_modifier
-                        && emitter.size_modifier_range().bounds[1].ne(&value)
+                        && emitter.size_modifier_range().end.ne(&value)
                     {
                         parameter = Some(EmitterNumericParameter::MaxSizeModifier);
                         emitter.size_modifier_range().clamp_value(&mut final_value);
                     } else if message.destination() == self.min_x_velocity
-                        && emitter.x_velocity_range().bounds[0].ne(&value)
+                        && emitter.x_velocity_range().start.ne(&value)
                     {
                         parameter = Some(EmitterNumericParameter::MinXVelocity);
                         emitter.x_velocity_range().clamp_value(&mut final_value);
                     } else if message.destination() == self.max_x_velocity
-                        && emitter.x_velocity_range().bounds[1].ne(&value)
+                        && emitter.x_velocity_range().end.ne(&value)
                     {
                         parameter = Some(EmitterNumericParameter::MaxXVelocity);
                         emitter.x_velocity_range().clamp_value(&mut final_value);
                     } else if message.destination() == self.min_y_velocity
-                        && emitter.y_velocity_range().bounds[0].ne(&value)
+                        && emitter.y_velocity_range().start.ne(&value)
                     {
                         parameter = Some(EmitterNumericParameter::MinYVelocity);
                         emitter.y_velocity_range().clamp_value(&mut final_value);
                     } else if message.destination() == self.max_y_velocity
-                        && emitter.y_velocity_range().bounds[1].ne(&value)
+                        && emitter.y_velocity_range().end.ne(&value)
                     {
                         parameter = Some(EmitterNumericParameter::MaxYVelocity);
                         emitter.y_velocity_range().clamp_value(&mut final_value);
                     } else if message.destination() == self.min_z_velocity
-                        && emitter.z_velocity_range().bounds[0].ne(&value)
+                        && emitter.z_velocity_range().start.ne(&value)
                     {
                         emitter.z_velocity_range().clamp_value(&mut final_value);
                         parameter = Some(EmitterNumericParameter::MinZVelocity);
                     } else if message.destination() == self.max_z_velocity
-                        && emitter.z_velocity_range().bounds[1].ne(&value)
+                        && emitter.z_velocity_range().end.ne(&value)
                     {
                         parameter = Some(EmitterNumericParameter::MaxZVelocity);
                         emitter.z_velocity_range().clamp_value(&mut final_value);
                     } else if message.destination() == self.min_rotation_speed
-                        && emitter.rotation_speed_range().bounds[0].ne(&value)
+                        && emitter.rotation_speed_range().start.ne(&value)
                     {
                         parameter = Some(EmitterNumericParameter::MinRotationSpeed);
                         emitter.rotation_speed_range().clamp_value(&mut final_value);
                     } else if message.destination() == self.max_rotation_speed
-                        && emitter.rotation_speed_range().bounds[1].ne(&value)
+                        && emitter.rotation_speed_range().end.ne(&value)
                     {
                         parameter = Some(EmitterNumericParameter::MaxRotationSpeed);
                         emitter.rotation_speed_range().clamp_value(&mut final_value);
                     } else if message.destination() == self.min_rotation
-                        && emitter.rotation_range().bounds[0].ne(&value)
+                        && emitter.rotation_range().start.ne(&value)
                     {
                         parameter = Some(EmitterNumericParameter::MinRotation);
                         emitter.rotation_range().clamp_value(&mut final_value);
                     } else if message.destination() == self.max_rotation
-                        && emitter.rotation_range().bounds[1].ne(&value)
+                        && emitter.rotation_range().end.ne(&value)
                     {
                         parameter = Some(EmitterNumericParameter::MaxRotation);
                         emitter.rotation_range().clamp_value(&mut final_value);

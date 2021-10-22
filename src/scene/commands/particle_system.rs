@@ -1,6 +1,6 @@
 use crate::{command::Command, define_node_command, get_set_swap, scene::commands::SceneContext};
 use rg3d::{
-    core::{algebra::Vector3, numeric_range::NumericRange, pool::Handle},
+    core::{algebra::Vector3, pool::Handle},
     resource::texture::Texture,
     scene::{
         graph::Graph,
@@ -181,73 +181,73 @@ impl SetEmitterNumericParameterCommand {
             }
             EmitterNumericParameter::MinLifetime => {
                 let old = emitter.life_time_range();
-                emitter.set_life_time_range(NumericRange::new(self.value, old.bounds[1]));
-                self.value = old.bounds[0];
+                emitter.set_life_time_range(self.value..old.end);
+                self.value = old.start;
             }
             EmitterNumericParameter::MaxLifetime => {
                 let old = emitter.life_time_range();
-                emitter.set_life_time_range(NumericRange::new(old.bounds[0], self.value));
-                self.value = old.bounds[1];
+                emitter.set_life_time_range(old.start..self.value);
+                self.value = old.end;
             }
             EmitterNumericParameter::MinSizeModifier => {
                 let old = emitter.size_modifier_range();
-                emitter.set_size_modifier_range(NumericRange::new(self.value, old.bounds[1]));
-                self.value = old.bounds[0];
+                emitter.set_size_modifier_range(self.value..old.end);
+                self.value = old.start;
             }
             EmitterNumericParameter::MaxSizeModifier => {
                 let old = emitter.size_modifier_range();
-                emitter.set_size_modifier_range(NumericRange::new(old.bounds[0], self.value));
-                self.value = old.bounds[1];
+                emitter.set_size_modifier_range(old.start..self.value);
+                self.value = old.end;
             }
             EmitterNumericParameter::MinXVelocity => {
                 let old = emitter.x_velocity_range();
-                emitter.set_x_velocity_range(NumericRange::new(self.value, old.bounds[1]));
-                self.value = old.bounds[0];
+                emitter.set_x_velocity_range(self.value..old.end);
+                self.value = old.start;
             }
             EmitterNumericParameter::MaxXVelocity => {
                 let old = emitter.x_velocity_range();
-                emitter.set_x_velocity_range(NumericRange::new(old.bounds[0], self.value));
-                self.value = old.bounds[1];
+                emitter.set_x_velocity_range(old.start..self.value);
+                self.value = old.end;
             }
             EmitterNumericParameter::MinYVelocity => {
                 let old = emitter.y_velocity_range();
-                emitter.set_y_velocity_range(NumericRange::new(self.value, old.bounds[1]));
-                self.value = old.bounds[0];
+                emitter.set_y_velocity_range(self.value..old.end);
+                self.value = old.start;
             }
             EmitterNumericParameter::MaxYVelocity => {
                 let old = emitter.y_velocity_range();
-                emitter.set_y_velocity_range(NumericRange::new(old.bounds[0], self.value));
-                self.value = old.bounds[1];
+                emitter.set_y_velocity_range(old.start..self.value);
+                self.value = old.end;
             }
             EmitterNumericParameter::MinZVelocity => {
                 let old = emitter.z_velocity_range();
-                emitter.set_z_velocity_range(NumericRange::new(self.value, old.bounds[1]));
-                self.value = old.bounds[0];
+                emitter.set_z_velocity_range(self.value..old.end);
+                self.value = old.start;
             }
             EmitterNumericParameter::MaxZVelocity => {
                 let old = emitter.z_velocity_range();
-                emitter.set_z_velocity_range(NumericRange::new(old.bounds[0], self.value));
-                self.value = old.bounds[1];
+                emitter.set_z_velocity_range(old.start..self.value);
+                self.value = old.end;
             }
             EmitterNumericParameter::MinRotationSpeed => {
                 let old = emitter.rotation_speed_range();
-                emitter.set_rotation_speed_range(NumericRange::new(self.value, old.bounds[1]));
-                self.value = old.bounds[0];
+                emitter.set_rotation_speed_range(self.value..old.end);
+                self.value = old.start;
             }
             EmitterNumericParameter::MaxRotationSpeed => {
                 let old = emitter.rotation_speed_range();
-                emitter.set_rotation_speed_range(NumericRange::new(old.bounds[0], self.value));
-                self.value = old.bounds[1];
+                emitter.set_rotation_speed_range(old.start..self.value);
+                self.value = old.end;
             }
             EmitterNumericParameter::MinRotation => {
                 let old = emitter.rotation_range();
-                emitter.set_rotation_range(NumericRange::new(self.value, old.bounds[1]));
-                self.value = old.bounds[0];
+                emitter.set_rotation_range(self.value..old.end);
+                self.value = old.start;
             }
             EmitterNumericParameter::MaxRotation => {
                 let old = emitter.rotation_range();
-                emitter.set_rotation_range(NumericRange::new(old.bounds[0], self.value));
-                self.value = old.bounds[1];
+                emitter.set_rotation_range(old.start..self.value);
+                self.value = old.end;
             }
         };
     }
