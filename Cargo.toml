@@ -3,8 +3,8 @@ name = "rusty-editor"
 license = "MIT"
 version = "0.10.0"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
-edition = "2018"
-
+edition = "2021"
+rust-version = "1.56"
 description = "A scene editor for rg3d game engine"
 documentation = "https://github.com/rg3dengine/rusty-editor"
 homepage = "https://github.com/rg3dengine/rusty-editor"
