@@ -78,7 +78,7 @@ impl SenderHelper {
 #[macro_export]
 macro_rules! do_command {
     ($helper:expr, $cmd:ty, $handle:expr, $value:expr) => {
-        $helper.do_scene_command(<$cmd>::new($handle, $value.cast_value().cloned()?));
+        $helper.do_scene_command(<$cmd>::new($handle, $value.cast_value().cloned()?))
     };
 }
 
