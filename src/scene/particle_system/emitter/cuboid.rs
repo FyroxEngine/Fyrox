@@ -1,11 +1,11 @@
 //! Box emitter emits particles uniformly in its volume. Can be used to create simple fog
 //! layer.
 
+use crate::core::numeric_range::RangeExt;
 use crate::{
     core::{
         algebra::Vector3,
         inspect::{Inspect, PropertyInfo},
-        numeric_range::NumericRange,
         visitor::prelude::*,
     },
     scene::particle_system::{
@@ -102,9 +102,9 @@ impl Emit for CuboidEmitter {
         self.emitter.emit(particle);
         let position = self.position();
         particle.position = Vector3::new(
-            position.x + NumericRange::new(-self.half_width, self.half_width).random(),
-            position.y + NumericRange::new(-self.half_height, self.half_height).random(),
-            position.z + NumericRange::new(-self.half_depth, self.half_depth).random(),
+            position.x + (-self.half_width..self.half_width).random(),
+            position.y + (-self.half_height..self.half_height).random(),
+            position.z + (-self.half_depth..self.half_depth).random(),
         )
     }
 }

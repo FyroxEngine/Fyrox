@@ -1,11 +1,11 @@
 //! Sphere emitter uniformly places particles in spherical volume. Can be used with
 //! radius = 0, then it represents point emitter.   
 
+use crate::core::numeric_range::RangeExt;
 use crate::{
     core::{
         algebra::Vector3,
         inspect::{Inspect, PropertyInfo},
-        numeric_range::NumericRange,
         visitor::prelude::*,
     },
     scene::particle_system::{
@@ -69,9 +69,9 @@ impl SphereEmitter {
 impl Emit for SphereEmitter {
     fn emit(&self, particle: &mut Particle) {
         self.emitter.emit(particle);
-        let phi = NumericRange::new(0.0, std::f32::consts::PI).random();
-        let theta = NumericRange::new(0.0, 2.0 * std::f32::consts::PI).random();
-        let radius = NumericRange::new(0.0, self.radius).random();
+        let phi = (0.0..std::f32::consts::PI).random();
+        let theta = (0.0..2.0 * std::f32::consts::PI).random();
+        let radius = (0.0..self.radius).random();
         let cos_theta = theta.cos();
         let sin_theta = theta.sin();
         let cos_phi = phi.cos();
