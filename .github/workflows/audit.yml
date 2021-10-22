@@ -25,4 +25,5 @@ jobs:
           crate: cargo-audit
           version: latest
       - run: cargo audit --version
-      - run: cargo audit --deny warnings
+      # RUSTSEC-2020-0056 is stdweb - https://github.com/rg3dengine/rg3d/issues/208
+      - run: cargo audit --deny warnings --ignore RUSTSEC-2020-0056
