@@ -1,4 +1,5 @@
 use crate::inspector::editors::bool::BoolPropertyEditorDefinition;
+use crate::inspector::editors::range::RangePropertyEditorDefinition;
 use crate::{
     core::{inspect::PropertyInfo, pool::Handle},
     inspector::{
@@ -27,6 +28,7 @@ pub mod enumeration;
 pub mod inspectable;
 pub mod numeric;
 pub mod quat;
+pub mod range;
 pub mod rect;
 pub mod string;
 pub mod vec;
@@ -165,6 +167,19 @@ impl PropertyEditorDefinitionContainer {
         container.insert(Vec2PropertyEditorDefinition::<u8>::default());
         container.insert(Vec2PropertyEditorDefinition::<usize>::default());
         container.insert(Vec2PropertyEditorDefinition::<isize>::default());
+
+        container.insert(RangePropertyEditorDefinition::<f64>::new());
+        container.insert(RangePropertyEditorDefinition::<f32>::new());
+        container.insert(RangePropertyEditorDefinition::<i64>::new());
+        container.insert(RangePropertyEditorDefinition::<u64>::new());
+        container.insert(RangePropertyEditorDefinition::<i32>::new());
+        container.insert(RangePropertyEditorDefinition::<u32>::new());
+        container.insert(RangePropertyEditorDefinition::<i16>::new());
+        container.insert(RangePropertyEditorDefinition::<u16>::new());
+        container.insert(RangePropertyEditorDefinition::<i8>::new());
+        container.insert(RangePropertyEditorDefinition::<u8>::new());
+        container.insert(RangePropertyEditorDefinition::<usize>::new());
+        container.insert(RangePropertyEditorDefinition::<isize>::new());
 
         container.insert(QuatPropertyEditorDefinition::<f64>::default());
         container.insert(QuatPropertyEditorDefinition::<f32>::default());
