@@ -750,7 +750,7 @@ impl WidgetBuilder {
             cursor: None,
             opacity: 1.0,
             tooltip: Handle::default(),
-            tooltip_time: 1.0,
+            tooltip_time: 0.1,
             context_menu: Handle::default(),
             preview_messages: false,
             handle_os_events: false,
