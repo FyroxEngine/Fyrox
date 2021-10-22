@@ -1,5 +1,7 @@
-use crate::inspector::handlers::node::base::handle_base_property_changed;
-use crate::{do_command, inspector::SenderHelper, scene::commands::particle_system::*};
+use crate::{
+    do_command, inspector::handlers::node::base::handle_base_property_changed,
+    inspector::SenderHelper, scene::commands::particle_system::*,
+};
 use rg3d::{
     core::pool::Handle,
     gui::{
@@ -15,9 +17,13 @@ use rg3d::{
     },
     scene::{
         node::Node,
-        particle_system::{emitter::Emitter, ParticleSystem},
+        particle_system::{
+            emitter::{base::BaseEmitter, sphere::SphereEmitter, Emitter},
+            ParticleSystem,
+        },
     },
 };
+use std::any::TypeId;
 
 pub struct ParticleSystemHandler {
     selector_window: Handle<UiNode>,
@@ -108,46 +114,105 @@ impl ParticleSystemHandler {
         helper: &SenderHelper,
         ui: &UserInterface,
     ) -> Option<()> {
-        match args.value {
-            FieldKind::Object(ref value) => match args.name.as_ref() {
-                ParticleSystem::TEXTURE => {
-                    do_command!(helper, SetParticleSystemTextureCommand, handle, value)
-                }
-                ParticleSystem::ACCELERATION => {
-                    do_command!(helper, SetAccelerationCommand, handle, value)
-                }
-                ParticleSystem::ENABLED => {
-                    do_command!(helper, SetParticleSystemEnabledCommand, handle, value)
-                }
-                ParticleSystem::SOFT_BOUNDARY_SHARPNESS_FACTOR => {
-                    do_command!(helper, SetSoftBoundarySharpnessFactorCommand, handle, value)
-                }
-                _ => None,
-            },
-            FieldKind::Collection(ref collection_changed) => match args.name.as_ref() {
-                ParticleSystem::EMITTERS => match &**collection_changed {
-                    CollectionChanged::Add => {
-                        ui.send_message(WindowMessage::open_modal(
-                            self.selector_window,
-                            MessageDirection::ToWidget,
-                            true,
-                        ));
-                        Some(())
+        if let Node::ParticleSystem(particle_system) = node {
+            match args.value {
+                FieldKind::Object(ref value) => match args.name.as_ref() {
+                    ParticleSystem::TEXTURE => {
+                        do_command!(helper, SetParticleSystemTextureCommand, handle, value)
                     }
-                    CollectionChanged::Remove(index) => {
-                        helper.do_scene_command(DeleteEmitterCommand::new(handle, *index))
+                    ParticleSystem::ACCELERATION => {
+                        do_command!(helper, SetAccelerationCommand, handle, value)
                     }
-                    CollectionChanged::ItemChanged { .. } => {
-                        // TODO
-                        None
+                    ParticleSystem::ENABLED => {
+                        do_command!(helper, SetParticleSystemEnabledCommand, handle, value)
                     }
+                    ParticleSystem::SOFT_BOUNDARY_SHARPNESS_FACTOR => {
+                        do_command!(helper, SetSoftBoundarySharpnessFactorCommand, handle, value)
+                    }
+                    _ => None,
                 },
-                _ => None,
-            },
-            FieldKind::Inspectable(ref inner) => match args.name.as_ref() {
-                ParticleSystem::BASE => handle_base_property_changed(&inner, handle, node, helper),
-                _ => None,
-            },
+                FieldKind::Collection(ref collection_changed) => match args.name.as_ref() {
+                    ParticleSystem::EMITTERS => match &**collection_changed {
+                        CollectionChanged::Add => {
+                            ui.send_message(WindowMessage::open_modal(
+                                self.selector_window,
+                                MessageDirection::ToWidget,
+                                true,
+                            ));
+                            Some(())
+                        }
+                        CollectionChanged::Remove(index) => {
+                            helper.do_scene_command(DeleteEmitterCommand::new(handle, *index))
+                        }
+                        CollectionChanged::ItemChanged { index, property } => {
+                            let emitter = particle_system.emitters.get(*index)?;
+                            if property.owner_type_id == TypeId::of::<SphereEmitter>() {
+                                handle_sphere_emitter_property_changed(
+                                    handle, emitter, property, helper, *index,
+                                )
+                            } else {
+                                None
+                            }
+                        }
+                    },
+                    _ => None,
+                },
+                FieldKind::Inspectable(ref inner) => match args.name.as_ref() {
+                    ParticleSystem::BASE => {
+                        handle_base_property_changed(&inner, handle, node, helper)
+                    }
+                    _ => None,
+                },
+            }
+        } else {
+            None
         }
+    }
+}
+
+fn handle_base_emitter_property_changed(
+    handle: Handle<Node>,
+    property_changed: &PropertyChanged,
+    helper: &SenderHelper,
+    index: usize,
+) -> Option<()> {
+    match property_changed.value {
+        FieldKind::Object(ref value) => match property_changed.name.as_ref() {
+            BaseEmitter::POSITION => helper.do_scene_command(SetEmitterPositionCommand::new(
+                handle,
+                index,
+                value.cast_value().cloned()?,
+            )),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+fn handle_sphere_emitter_property_changed(
+    handle: Handle<Node>,
+    emitter: &Emitter,
+    property_changed: &PropertyChanged,
+    helper: &SenderHelper,
+    index: usize,
+) -> Option<()> {
+    if let Emitter::Sphere(_) = emitter {
+        match property_changed.value {
+            FieldKind::Object(ref value) => match property_changed.name.as_ref() {
+                SphereEmitter::RADIUS => helper.do_scene_command(
+                    SetSphereEmitterRadiusCommand::new(handle, index, value.cast_value().cloned()?),
+                ),
+                _ => None,
+            },
+            FieldKind::Inspectable(ref inner) => match property_changed.name.as_ref() {
+                SphereEmitter::EMITTER => {
+                    handle_base_emitter_property_changed(handle, inner, helper, index)
+                }
+                _ => None,
+            },
+            _ => None,
+        }
+    } else {
+        None
     }
 }
