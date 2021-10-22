@@ -960,8 +960,11 @@ impl PropertyChanged {
         let mut path = self.name.clone();
         match self.value {
             FieldKind::Collection(ref collection_changed) => match **collection_changed {
-                CollectionChanged::ItemChanged { ref property, .. } => {
-                    path += format!(".{}", property.path()).as_ref();
+                CollectionChanged::ItemChanged {
+                    ref property,
+                    index,
+                } => {
+                    path += format!("[{}].{}", index, property.path()).as_ref();
                 }
                 _ => (),
             },
