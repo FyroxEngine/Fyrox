@@ -1,11 +1,12 @@
-use crate::scene::commands::physics::{SetJointBody1Command, SetJointBody2Command};
-use crate::world::search::SearchBar;
 use crate::{
     load_image,
     physics::{Collider, Joint, RigidBody},
     scene::{
         commands::{
-            graph::LinkNodesCommand, physics::LinkBodyCommand, physics::UnlinkBodyCommand,
+            graph::LinkNodesCommand,
+            physics::{
+                LinkBodyCommand, SetJointBody1Command, SetJointBody2Command, UnlinkBodyCommand,
+            },
             ChangeSelectionCommand, CommandGroup, SceneCommand,
         },
         EditorScene, Selection,
@@ -22,14 +23,14 @@ use crate::{
             menu::{DeletableSceneItemContextMenu, RigidBodyContextMenu},
             selection::{ColliderSelection, JointSelection, RigidBodySelection},
         },
+        search::SearchBar,
         sound::selection::SoundSelection,
     },
     GameEngine, Message,
 };
-use rg3d::core::arrayvec::ArrayVec;
-use rg3d::physics3d::desc::JointParamsDesc;
 use rg3d::{
     core::{
+        arrayvec::ArrayVec,
         color::Color,
         pool::{Handle, Pool},
         scope_profile,
@@ -42,11 +43,10 @@ use rg3d::{
         decorator::Decorator,
         grid::{Column, GridBuilder, Row},
         message::{
-            ButtonMessage, MenuItemMessage, MessageDirection, ScrollViewerMessage,
-            TreeExpansionStrategy, TreeMessage, TreeRootMessage, UiMessage, UiMessageData,
-            WidgetMessage,
+            ButtonMessage, CheckBoxMessage, DecoratorMessage, MenuItemMessage, MessageDirection,
+            ScrollViewerMessage, TreeExpansionStrategy, TreeMessage, TreeRootMessage, UiMessage,
+            UiMessageData, WidgetMessage,
         },
-        message::{CheckBoxMessage, DecoratorMessage},
         scroll_viewer::ScrollViewerBuilder,
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
@@ -56,7 +56,7 @@ use rg3d::{
         BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
         VerticalAlignment,
     },
-    physics3d::desc::ColliderShapeDesc,
+    physics3d::desc::{ColliderShapeDesc, JointParamsDesc},
     scene::{graph::Graph, node::Node, Scene},
     sound::{context::SoundContext, source::SoundSource},
 };
@@ -1545,6 +1545,27 @@ impl WorldViewer {
 
                     self.sender
                         .send(Message::do_scene_command(CommandGroup::from(group)))
+                        .unwrap();
+                }
+            } else if let (Some(rigid_body), Some(joint)) = (
+                ui.node(dropped).cast::<SceneItem<RigidBody>>(),
+                ui.node(target).cast::<SceneItem<Joint>>(),
+            ) {
+                let joint_ref = &editor_scene.physics.joints[joint.entity_handle];
+
+                if joint_ref.body1.is_none() {
+                    self.sender
+                        .send(Message::do_scene_command(SetJointBody1Command::new(
+                            joint.entity_handle,
+                            rigid_body.entity_handle.into(),
+                        )))
+                        .unwrap();
+                } else if joint_ref.body2.is_none() {
+                    self.sender
+                        .send(Message::do_scene_command(SetJointBody2Command::new(
+                            joint.entity_handle,
+                            rigid_body.entity_handle.into(),
+                        )))
                         .unwrap();
                 }
             }
