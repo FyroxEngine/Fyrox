@@ -927,6 +927,10 @@ impl ObjectValue {
     pub fn cast_value<T: 'static>(&self) -> Option<&T> {
         (*self.value).as_any().downcast_ref::<T>()
     }
+
+    pub fn cast_value_cloned<T: Clone + 'static>(&self) -> Option<T> {
+        (*self.value).as_any().downcast_ref::<T>().cloned()
+    }
 }
 
 impl PartialEq for FieldKind {
