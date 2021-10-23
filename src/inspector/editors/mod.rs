@@ -1,3 +1,4 @@
+use crate::inspector::editors::resource::OptModelResourcePropertyEditorDefinition;
 use crate::{
     inspector::editors::{
         material::MaterialPropertyEditorDefinition, texture::TexturePropertyEditorDefinition,
@@ -34,6 +35,7 @@ use std::{
 };
 
 pub mod material;
+pub mod resource;
 pub mod texture;
 
 pub fn make_physics_binding_enum_editor_definition() -> EnumPropertyEditorDefinition<PhysicsBinding>
@@ -176,6 +178,7 @@ pub fn make_property_editors_container(
     container.insert(make_rigid_body_type_editor_definition());
     container.insert(make_option_editor_definition::<f32>());
     container.insert(make_option_editor_definition::<LodGroup>());
+    container.insert(OptModelResourcePropertyEditorDefinition);
     container.insert(InspectablePropertyEditorDefinition::<InteractionGroupsDesc>::new());
     container.insert(InspectablePropertyEditorDefinition::<ColliderShapeDesc>::new());
     container.insert(InspectablePropertyEditorDefinition::<JointParamsDesc>::new());
