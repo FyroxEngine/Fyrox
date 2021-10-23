@@ -7,8 +7,8 @@ use rg3d::{
         image::ImageBuilder,
         inspector::{
             editors::{
-                Layout, PropertyEditorBuildContext, PropertyEditorDefinition,
-                PropertyEditorInstance, PropertyEditorMessageContext,
+                PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
+                PropertyEditorMessageContext,
             },
             InspectorError,
         },
@@ -217,9 +217,5 @@ impl PropertyEditorDefinition for TexturePropertyEditorDefinition {
             }
         }
         None
-    }
-
-    fn layout(&self) -> Layout {
-        Layout::Horizontal
     }
 }
