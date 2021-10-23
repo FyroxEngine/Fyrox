@@ -167,8 +167,20 @@ where
     }
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        let start;
-        let end;
+        let start = NumericUpDownBuilder::new(
+            WidgetBuilder::new()
+                .with_margin(Thickness::uniform(1.0))
+                .on_column(1),
+        )
+        .with_value(self.value.start)
+        .build(ctx);
+        let end = NumericUpDownBuilder::new(
+            WidgetBuilder::new()
+                .with_margin(Thickness::uniform(1.0))
+                .on_column(3),
+        )
+        .with_value(self.value.end)
+        .build(ctx);
         let editor = RangeEditor {
             widget: self
                 .widget_builder
@@ -181,32 +193,14 @@ where
                                     .with_vertical_text_alignment(VerticalAlignment::Center)
                                     .build(ctx),
                             )
-                            .with_child({
-                                start = NumericUpDownBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_margin(Thickness::uniform(1.0))
-                                        .on_column(1),
-                                )
-                                .with_value(self.value.start)
-                                .build(ctx);
-                                start
-                            })
+                            .with_child(start)
                             .with_child(
                                 TextBuilder::new(WidgetBuilder::new().on_column(2))
                                     .with_vertical_text_alignment(VerticalAlignment::Center)
                                     .with_text("End")
                                     .build(ctx),
                             )
-                            .with_child({
-                                end = NumericUpDownBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_margin(Thickness::uniform(1.0))
-                                        .on_column(3),
-                                )
-                                .with_value(self.value.end)
-                                .build(ctx);
-                                end
-                            }),
+                            .with_child(end),
                     )
                     .add_column(Column::strict(30.0))
                     .add_column(Column::stretch())
