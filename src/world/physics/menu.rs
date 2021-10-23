@@ -1,10 +1,16 @@
-use crate::physics::Joint;
-use crate::scene::commands::physics::{DeleteColliderCommand, DeleteJointCommand};
-use crate::scene::commands::{CommandGroup, SceneCommand};
-use crate::scene::EditorScene;
 use crate::{
+    physics::Joint,
     physics::{Collider, RigidBody},
-    scene::commands::physics::{AddColliderCommand, DeleteBodyCommand},
+    scene::{
+        commands::{
+            physics::{
+                AddColliderCommand, DeleteBodyCommand, DeleteColliderCommand, DeleteJointCommand,
+                SetJointBody1Command, SetJointBody2Command,
+            },
+            CommandGroup, SceneCommand,
+        },
+        EditorScene,
+    },
     world::graph::item::SceneItem,
     Message,
 };
@@ -176,6 +182,20 @@ impl RigidBodyContextMenu {
                         }
 
                         group.push(SceneCommand::new(DeleteBodyCommand::new(rigid_body_handle)));
+
+                        for (joint_handle, joint_ref) in editor_scene.physics.joints.pair_iter() {
+                            if joint_ref.body1 == rigid_body_handle.into() {
+                                group.push(SceneCommand::new(SetJointBody1Command::new(
+                                    joint_handle,
+                                    Default::default(),
+                                )));
+                            } else if joint_ref.body2 == rigid_body_handle.into() {
+                                group.push(SceneCommand::new(SetJointBody2Command::new(
+                                    joint_handle,
+                                    Default::default(),
+                                )));
+                            }
+                        }
 
                         sender
                             .send(Message::do_scene_command(CommandGroup::from(group)))

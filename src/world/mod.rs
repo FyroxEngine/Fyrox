@@ -1,3 +1,4 @@
+use crate::scene::commands::physics::{SetJointBody1Command, SetJointBody2Command};
 use crate::world::search::SearchBar;
 use crate::{
     load_image,
@@ -25,6 +26,7 @@ use crate::{
     },
     GameEngine, Message,
 };
+use rg3d::core::arrayvec::ArrayVec;
 use rg3d::physics3d::desc::JointParamsDesc;
 use rg3d::{
     core::{
@@ -261,15 +263,16 @@ where
         }
     }
 
-    // Sync names. Since rigid body cannot have a name, we just take the name of an associated
-    // scene node (if any), or a placeholder "Rigid Body" if there is no associated scene node.
+    // Sync names.
     for item in ui.node(folder).cast::<Tree>().unwrap().items() {
-        let rigid_body = ui.node(*item).cast::<SceneItem<T>>().unwrap().entity_handle;
-        ui.send_message(UiMessage::user(
-            *item,
-            MessageDirection::ToWidget,
-            Box::new(SceneItemMessage::Name((make_name)(rigid_body))),
-        ));
+        let entity_handle = ui.node(*item).cast::<SceneItem<T>>().unwrap().entity_handle;
+        if pool.is_valid_handle(entity_handle) {
+            ui.send_message(UiMessage::user(
+                *item,
+                MessageDirection::ToWidget,
+                Box::new(SceneItemMessage::Name((make_name)(entity_handle))),
+            ));
+        }
     }
 
     selected_items
@@ -929,6 +932,81 @@ impl WorldViewer {
     fn sync_links(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
         self.sync_node_rigid_body_links(editor_scene, engine);
         self.sync_rigid_body_node_links(editor_scene, engine);
+        self.sync_joint_body_links(editor_scene, engine);
+    }
+
+    fn sync_joint_body_links(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
+        let ui = &mut engine.user_interface;
+
+        for (&joint, &view) in self.joint_to_view_map.iter() {
+            let joint_view_ref = ui
+                .node(view)
+                .cast::<SceneItem<Joint>>()
+                .expect("Must be SceneItem<Joint>");
+
+            let rigid_body_links = joint_view_ref
+                .tree
+                .items()
+                .iter()
+                .cloned()
+                .filter(|i| ui.node(*i).cast::<LinkItem<RigidBody, Joint>>().is_some())
+                .collect::<Vec<_>>();
+
+            let joint_ref = &editor_scene.physics.joints[joint];
+
+            let linked_bodies = ArrayVec::<Handle<RigidBody>, 2>::from_iter(
+                [joint_ref.body1, joint_ref.body2].iter().filter_map(|&j| {
+                    if j.is_none() {
+                        None
+                    } else {
+                        Some(Handle::<RigidBody>::from(j))
+                    }
+                }),
+            );
+
+            if linked_bodies.len() < rigid_body_links.len() {
+                for rigid_body_link in rigid_body_links.iter() {
+                    if linked_bodies.iter().all(|b| {
+                        ui.node(*rigid_body_link)
+                            .cast::<LinkItem<RigidBody, Joint>>()
+                            .unwrap()
+                            .source
+                            != *b
+                    }) {
+                        // Remove link.
+                        ui.send_message(TreeMessage::remove_item(
+                            view,
+                            MessageDirection::ToWidget,
+                            *rigid_body_link,
+                        ));
+                    }
+                }
+            } else if linked_bodies.len() > rigid_body_links.len() {
+                for linked_body in linked_bodies.iter() {
+                    if rigid_body_links.iter().all(|l| {
+                        ui.node(*l)
+                            .cast::<LinkItem<RigidBody, Joint>>()
+                            .unwrap()
+                            .source
+                            != *linked_body
+                    }) {
+                        let link = LinkItemBuilder::new(TreeBuilder::new(
+                            WidgetBuilder::new().with_context_menu(self.link_context_menu.menu),
+                        ))
+                        .with_name("Linked Rigid Body")
+                        .with_source(*linked_body)
+                        .with_dest(joint)
+                        .build(&mut ui.build_ctx());
+
+                        ui.send_message(TreeMessage::add_item(
+                            view,
+                            MessageDirection::ToWidget,
+                            link,
+                        ));
+                    }
+                }
+            }
+        }
     }
 
     pub fn sync_colliders(
@@ -1193,7 +1271,7 @@ impl WorldViewer {
             }
             UiMessageData::MenuItem(MenuItemMessage::Click) => {
                 if message.destination() == self.link_context_menu.unlink {
-                    self.handle_unlink(&engine.user_interface);
+                    self.handle_unlink(&engine.user_interface, editor_scene);
                 } else if message.destination() == self.link_context_menu.select_target {
                     self.select_link_target(&engine.user_interface, editor_scene)
                 }
@@ -1245,6 +1323,18 @@ impl WorldViewer {
             self.sender
                 .send(Message::do_scene_command(ChangeSelectionCommand::new(
                     Selection::Graph(GraphSelection::single_or_empty(node_link.source)),
+                    editor_scene.selection.clone(),
+                )))
+                .unwrap();
+        } else if let Some(joint_link) = ui
+            .try_get_node(self.link_context_menu.target)
+            .and_then(|n| n.cast::<LinkItem<RigidBody, Joint>>())
+        {
+            self.sender
+                .send(Message::do_scene_command(ChangeSelectionCommand::new(
+                    Selection::RigidBody(RigidBodySelection {
+                        bodies: vec![joint_link.source],
+                    }),
                     editor_scene.selection.clone(),
                 )))
                 .unwrap();
@@ -1336,7 +1426,7 @@ impl WorldViewer {
         }
     }
 
-    fn handle_unlink(&self, ui: &UserInterface) {
+    fn handle_unlink(&self, ui: &UserInterface, editor_scene: &EditorScene) {
         assert!(self.link_context_menu.target.is_some());
 
         if let Some(rigid_body_link) = ui
@@ -1359,6 +1449,26 @@ impl WorldViewer {
                     handle: node_link.dest,
                 }))
                 .unwrap();
+        } else if let Some(joint_link) = ui
+            .try_get_node(self.link_context_menu.target)
+            .and_then(|n| n.cast::<LinkItem<RigidBody, Joint>>())
+        {
+            let joint_ref = &editor_scene.physics.joints[joint_link.dest];
+            if joint_ref.body1 == joint_link.source.into() {
+                self.sender
+                    .send(Message::do_scene_command(SetJointBody1Command::new(
+                        joint_link.dest,
+                        Default::default(),
+                    )))
+                    .unwrap();
+            } else if joint_ref.body2 == joint_link.source.into() {
+                self.sender
+                    .send(Message::do_scene_command(SetJointBody2Command::new(
+                        joint_link.dest,
+                        Default::default(),
+                    )))
+                    .unwrap();
+            }
         }
     }
 
