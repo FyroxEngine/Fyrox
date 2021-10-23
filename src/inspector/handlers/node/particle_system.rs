@@ -2,6 +2,8 @@ use crate::{
     do_command, inspector::handlers::node::base::handle_base_property_changed,
     inspector::SenderHelper, scene::commands::particle_system::*,
 };
+use rg3d::scene::particle_system::emitter::cuboid::CuboidEmitter;
+use rg3d::scene::particle_system::emitter::cylinder::CylinderEmitter;
 use rg3d::{
     core::pool::Handle,
     gui::{
@@ -150,6 +152,14 @@ impl ParticleSystemHandler {
                                 handle_sphere_emitter_property_changed(
                                     handle, emitter, property, helper, *index,
                                 )
+                            } else if property.owner_type_id == TypeId::of::<CylinderEmitter>() {
+                                handle_cylinder_emitter_property_changed(
+                                    handle, emitter, property, helper, *index,
+                                )
+                            } else if property.owner_type_id == TypeId::of::<CuboidEmitter>() {
+                                handle_cuboid_emitter_property_changed(
+                                    handle, emitter, property, helper, *index,
+                                )
                             } else {
                                 None
                             }
@@ -245,6 +255,71 @@ fn handle_sphere_emitter_property_changed(
             },
             FieldKind::Inspectable(ref inner) => match property_changed.name.as_ref() {
                 SphereEmitter::EMITTER => {
+                    handle_base_emitter_property_changed(handle, inner, helper, index)
+                }
+                _ => None,
+            },
+            _ => None,
+        }
+    } else {
+        None
+    }
+}
+
+fn handle_cylinder_emitter_property_changed(
+    handle: Handle<Node>,
+    emitter: &Emitter,
+    property_changed: &PropertyChanged,
+    helper: &SenderHelper,
+    index: usize,
+) -> Option<()> {
+    if let Emitter::Cylinder(_) = emitter {
+        match property_changed.value {
+            FieldKind::Object(ref value) => match property_changed.name.as_ref() {
+                CylinderEmitter::RADIUS => helper.do_scene_command(
+                    SetCylinderEmitterRadiusCommand::new(handle, index, value.cast_value_cloned()?),
+                ),
+                CylinderEmitter::HEIGHT => helper.do_scene_command(
+                    SetCylinderEmitterHeightCommand::new(handle, index, value.cast_value_cloned()?),
+                ),
+                _ => None,
+            },
+            FieldKind::Inspectable(ref inner) => match property_changed.name.as_ref() {
+                CylinderEmitter::EMITTER => {
+                    handle_base_emitter_property_changed(handle, inner, helper, index)
+                }
+                _ => None,
+            },
+            _ => None,
+        }
+    } else {
+        None
+    }
+}
+
+fn handle_cuboid_emitter_property_changed(
+    handle: Handle<Node>,
+    emitter: &Emitter,
+    property_changed: &PropertyChanged,
+    helper: &SenderHelper,
+    index: usize,
+) -> Option<()> {
+    if let Emitter::Cuboid(_) = emitter {
+        match property_changed.value {
+            FieldKind::Object(ref value) => match property_changed.name.as_ref() {
+                CuboidEmitter::HALF_HEIGHT => helper.do_scene_command(
+                    SetBoxEmitterHalfHeightCommand::new(handle, index, value.cast_value_cloned()?),
+                ),
+                CuboidEmitter::HALF_WIDTH => helper.do_scene_command(
+                    SetBoxEmitterHalfWidthCommand::new(handle, index, value.cast_value_cloned()?),
+                ),
+                CuboidEmitter::HALF_DEPTH => helper.do_scene_command(
+                    SetBoxEmitterHalfDepthCommand::new(handle, index, value.cast_value_cloned()?),
+                ),
+                _ => None,
+            },
+            FieldKind::Inspectable(ref inner) => match property_changed.name.as_ref() {
+                CylinderEmitter::EMITTER => {
                     handle_base_emitter_property_changed(handle, inner, helper, index)
                 }
                 _ => None,
