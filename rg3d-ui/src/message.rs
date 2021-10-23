@@ -963,15 +963,15 @@ impl PropertyChanged {
     pub fn path(&self) -> String {
         let mut path = self.name.clone();
         match self.value {
-            FieldKind::Collection(ref collection_changed) => match **collection_changed {
-                CollectionChanged::ItemChanged {
+            FieldKind::Collection(ref collection_changed) => {
+                if let CollectionChanged::ItemChanged {
                     ref property,
                     index,
-                } => {
+                } = **collection_changed
+                {
                     path += format!("[{}].{}", index, property.path()).as_ref();
                 }
-                _ => (),
-            },
+            }
             FieldKind::Inspectable(ref inspectable) => {
                 path += format!(".{}", inspectable.path()).as_ref();
             }
