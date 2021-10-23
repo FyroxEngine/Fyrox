@@ -29,7 +29,9 @@ use std::sync::mpsc::{Receiver, Sender};
 use std::{
     borrow::BorrowMut,
     cell,
+    cmp::Ordering,
     fmt::{Debug, Formatter},
+    fs::DirEntry,
     ops::{Deref, DerefMut},
     path::{Component, Path, PathBuf, Prefix},
     rc::Rc,
@@ -306,7 +308,9 @@ impl Control for FileBrowser {
                         .unwrap()
                         .clone();
                     if let Ok(dir_iter) = std::fs::read_dir(&parent_path) {
-                        for entry in dir_iter.flatten() {
+                        let mut entries: Vec<_> = dir_iter.flatten().collect();
+                        entries.sort_unstable_by(sort_dir_entries);
+                        for entry in entries {
                             let path = entry.path();
                             let build = if let Some(filter) = self.filter.as_mut() {
                                 filter.0.borrow_mut().deref_mut().lock().unwrap()(&path)
@@ -441,6 +445,19 @@ fn ignore_nonexistent_sub_dirs(path: &Path) -> PathBuf {
         }
     }
     existing_path
+}
+
+fn sort_dir_entries(a: &DirEntry, b: &DirEntry) -> Ordering {
+    let a_is_dir = a.path().is_dir();
+    let b_is_dir = b.path().is_dir();
+
+    if a_is_dir && !b_is_dir {
+        Ordering::Less
+    } else if !a_is_dir && b_is_dir {
+        Ordering::Greater
+    } else {
+        a.file_name().to_ascii_lowercase().cmp(&b.file_name().to_ascii_lowercase())
+    }
 }
 
 fn make_fs_watcher_event_path_relative_to_tree_root(
@@ -641,7 +658,9 @@ fn build_all(
 
         let mut new_parent = parent;
         if let Ok(dir_iter) = std::fs::read_dir(&full_path) {
-            for entry in dir_iter.flatten() {
+            let mut entries: Vec<_> = dir_iter.flatten().collect();
+            entries.sort_unstable_by(sort_dir_entries);
+            for entry in entries {
                 let path = entry.path();
                 #[allow(clippy::blocks_in_if_conditions)]
                 if filter.as_mut().map_or(true, |f| {
