@@ -384,7 +384,7 @@ mod test {
         saved_tree.visit("Tree", &mut visitor).unwrap();
         visitor.save_binary(bin.clone()).unwrap();
         let mut file = File::create(&txt).unwrap();
-        file.write(visitor.save_text().as_bytes()).unwrap();
+        file.write_all(visitor.save_text().as_bytes()).unwrap();
 
         // Load
         let mut visitor = block_on(Visitor::load_binary(bin)).unwrap();
