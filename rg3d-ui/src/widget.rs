@@ -55,7 +55,7 @@ pub struct Widget {
     draw_on_top: bool,
     enabled: bool,
     cursor: Option<CursorIcon>,
-    opacity: f32,
+    opacity: Option<f32>,
     tooltip: Handle<UiNode>,
     tooltip_time: f32,
     context_menu: Handle<UiNode>,
@@ -629,7 +629,13 @@ impl Widget {
     }
 
     #[inline]
-    pub fn opacity(&self) -> f32 {
+    pub fn set_opacity(&mut self, opacity: Option<f32>) -> &mut Self {
+        self.opacity = opacity;
+        self
+    }
+
+    #[inline]
+    pub fn opacity(&self) -> Option<f32> {
         self.opacity
     }
 
@@ -639,8 +645,9 @@ impl Widget {
     }
 
     #[inline]
-    pub fn set_tooltip(&mut self, tooltip: Handle<UiNode>) {
+    pub fn set_tooltip(&mut self, tooltip: Handle<UiNode>) -> &mut Self {
         self.tooltip = tooltip;
+        self
     }
 
     #[inline]
@@ -649,8 +656,9 @@ impl Widget {
     }
 
     #[inline]
-    pub fn set_tooltip_time(&mut self, tooltip_time: f32) {
+    pub fn set_tooltip_time(&mut self, tooltip_time: f32) -> &mut Self {
         self.tooltip_time = tooltip_time;
+        self
     }
 
     #[inline]
@@ -660,8 +668,9 @@ impl Widget {
 
     #[inline]
     /// The context menu receives `PopupMessage`s for being displayed, and so should support those.
-    pub fn set_context_menu(&mut self, context_menu: Handle<UiNode>) {
+    pub fn set_context_menu(&mut self, context_menu: Handle<UiNode>) -> &mut Self {
         self.context_menu = context_menu;
+        self
     }
 }
 
@@ -708,7 +717,7 @@ pub struct WidgetBuilder {
     pub draw_on_top: bool,
     pub enabled: bool,
     pub cursor: Option<CursorIcon>,
-    pub opacity: f32,
+    pub opacity: Option<f32>,
     pub tooltip: Handle<UiNode>,
     pub tooltip_time: f32,
     pub context_menu: Handle<UiNode>,
@@ -748,7 +757,7 @@ impl WidgetBuilder {
             draw_on_top: false,
             enabled: true,
             cursor: None,
-            opacity: 1.0,
+            opacity: None,
             tooltip: Handle::default(),
             tooltip_time: 0.1,
             context_menu: Handle::default(),
@@ -893,7 +902,7 @@ impl WidgetBuilder {
         self
     }
 
-    pub fn with_opacity(mut self, opacity: f32) -> Self {
+    pub fn with_opacity(mut self, opacity: Option<f32>) -> Self {
         self.opacity = opacity;
         self
     }

@@ -238,14 +238,18 @@ impl NodeHandleMapping {
     pub fn resolve(&self, old: &mut Handle<UiNode>) {
         // None handles aren't mapped.
         if old.is_some() {
-            *old = *self.hash_map.get(old).unwrap()
+            if let Some(clone) = self.hash_map.get(&old) {
+                *old = *clone;
+            }
         }
     }
 
     pub fn resolve_cell(&self, old: &mut Cell<Handle<UiNode>>) {
         // None handles aren't mapped.
         if old.get().is_some() {
-            old.set(*self.hash_map.get(&old.get()).unwrap())
+            if let Some(clone) = self.hash_map.get(&old.get()) {
+                old.set(*clone)
+            }
         }
     }
 
@@ -355,6 +359,7 @@ pub struct DragContext {
     is_dragging: bool,
     drag_node: Handle<UiNode>,
     click_pos: Vector2<f32>,
+    drag_preview: Handle<UiNode>,
 }
 
 impl Default for DragContext {
@@ -363,6 +368,7 @@ impl Default for DragContext {
             is_dragging: false,
             drag_node: Default::default(),
             click_pos: Vector2::new(0.0, 0.0),
+            drag_preview: Default::default(),
         }
     }
 }
@@ -551,11 +557,15 @@ fn draw_node(
 
     let start_index = drawing_context.get_commands().len();
 
-    drawing_context.push_opacity(if is_node_enabled(nodes, node_handle) {
-        node.opacity()
+    let pushed = if !is_node_enabled(nodes, node_handle) {
+        drawing_context.push_opacity(0.4);
+        true
+    } else if let Some(opacity) = node.opacity() {
+        drawing_context.push_opacity(opacity);
+        true
     } else {
-        0.4
-    });
+        false
+    };
 
     node.draw(drawing_context);
 
@@ -572,7 +582,9 @@ fn draw_node(
         }
     }
 
-    drawing_context.pop_opacity();
+    if pushed {
+        drawing_context.pop_opacity();
+    }
 }
 
 fn is_node_enabled(nodes: &Pool<UiNode>, handle: Handle<UiNode>) -> bool {
@@ -1550,6 +1562,11 @@ impl UserInterface {
                                 let node = &self.nodes[handle];
                                 if node.is_drag_allowed() {
                                     self.drag_context.drag_node = handle;
+                                    self.drag_context.drag_preview =
+                                        self.copy_node_with_limit(handle, Some(30));
+                                    self.nodes[self.drag_context.drag_preview]
+                                        .set_opacity(Some(0.5));
+
                                     self.stack.clear();
                                     break;
                                 } else if node.parent().is_some() {
@@ -1612,6 +1629,10 @@ impl UserInterface {
                                 }
                             }
                             self.drag_context.drag_node = Handle::NONE;
+                            if self.nodes.is_valid_handle(self.drag_context.drag_preview) {
+                                self.remove_node(self.drag_context.drag_preview);
+                                self.drag_context.drag_preview = Default::default();
+                            }
 
                             self.send_message(WidgetMessage::mouse_up(
                                 self.picked_node,
@@ -1643,6 +1664,16 @@ impl UserInterface {
                     ));
 
                     self.cursor_icon = CursorIcon::Crosshair;
+                }
+
+                if self.drag_context.is_dragging {
+                    if self.nodes.is_valid_handle(self.drag_context.drag_preview) {
+                        self.send_message(WidgetMessage::desired_position(
+                            self.drag_context.drag_preview,
+                            MessageDirection::ToWidget,
+                            *position,
+                        ));
+                    }
                 }
 
                 // Fire mouse leave for previously picked node
@@ -1918,6 +1949,58 @@ impl UserInterface {
         cloned.set_children(cloned_children);
         let copy_handle = self.add_node(cloned);
         map.add_mapping(node_handle, copy_handle);
+        copy_handle
+    }
+
+    pub fn copy_node_with_limit(
+        &mut self,
+        node: Handle<UiNode>,
+        limit: Option<usize>,
+    ) -> Handle<UiNode> {
+        let mut map = NodeHandleMapping::default();
+        let mut counter = 0;
+
+        let root = self.copy_node_recursive_with_limit(node, &mut map, limit, &mut counter);
+
+        for &node_handle in map.hash_map.values() {
+            self.nodes[node_handle].resolve(&map);
+        }
+
+        root
+    }
+
+    fn copy_node_recursive_with_limit(
+        &mut self,
+        node_handle: Handle<UiNode>,
+        map: &mut NodeHandleMapping,
+        limit: Option<usize>,
+        counter: &mut usize,
+    ) -> Handle<UiNode> {
+        if let Some(limit) = limit {
+            if *counter >= limit {
+                return Default::default();
+            }
+        }
+
+        let node = self.nodes.borrow(node_handle);
+        let mut cloned = UiNode(node.clone_boxed());
+
+        let mut cloned_children = Vec::new();
+        for child in node.children().to_vec() {
+            let cloned_child = self.copy_node_recursive_with_limit(child, map, limit, counter);
+            if cloned_child.is_some() {
+                cloned_children.push(cloned_child);
+            } else {
+                break;
+            }
+        }
+
+        cloned.set_children(cloned_children);
+        let copy_handle = self.add_node(cloned);
+        map.add_mapping(node_handle, copy_handle);
+
+        *counter += 1;
+
         copy_handle
     }
 }
