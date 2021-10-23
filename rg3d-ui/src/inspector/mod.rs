@@ -228,7 +228,7 @@ impl InspectorContext {
                     .enumerate()
                     .map(|(i, info)| {
                         let description = if info.description.is_empty() {
-                            format!("{}", info.display_name)
+                            info.display_name.to_string()
                         } else {
                             format!("{}\n\n{}", info.display_name, info.description)
                         };
