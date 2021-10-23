@@ -67,8 +67,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
         )
         .await
         .unwrap()
-        .instantiate(&mut scene)
-        .root;
+        .instantiate(&mut scene);
 
     GameScene { scene, pivot }
 }
