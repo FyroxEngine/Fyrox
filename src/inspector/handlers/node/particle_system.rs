@@ -181,8 +181,47 @@ fn handle_base_emitter_property_changed(
             BaseEmitter::POSITION => helper.do_scene_command(SetEmitterPositionCommand::new(
                 handle,
                 index,
-                value.cast_value().cloned()?,
+                value.cast_value_cloned()?,
             )),
+            BaseEmitter::PARTICLE_SPAWN_RATE => helper.do_scene_command(
+                SetEmitterSpawnRateCommand::new(handle, index, value.cast_value_cloned()?),
+            ),
+            BaseEmitter::MAX_PARTICLES => helper.do_scene_command(
+                SetEmitterParticleLimitCommand::new(handle, index, value.cast_value_cloned()?),
+            ),
+            BaseEmitter::LIFETIME => helper.do_scene_command(SetEmitterLifetimeRangeCommand::new(
+                handle,
+                index,
+                value.cast_value_cloned()?,
+            )),
+            BaseEmitter::SIZE => helper.do_scene_command(SetEmitterSizeRangeCommand::new(
+                handle,
+                index,
+                value.cast_value_cloned()?,
+            )),
+            BaseEmitter::SIZE_MODIFIER => helper.do_scene_command(
+                SetEmitterSizeModifierRangeCommand::new(handle, index, value.cast_value_cloned()?),
+            ),
+            BaseEmitter::X_VELOCITY => helper.do_scene_command(
+                SetEmitterXVelocityRangeCommand::new(handle, index, value.cast_value_cloned()?),
+            ),
+            BaseEmitter::Y_VELOCITY => helper.do_scene_command(
+                SetEmitterYVelocityRangeCommand::new(handle, index, value.cast_value_cloned()?),
+            ),
+            BaseEmitter::Z_VELOCITY => helper.do_scene_command(
+                SetEmitterZVelocityRangeCommand::new(handle, index, value.cast_value_cloned()?),
+            ),
+            BaseEmitter::ROTATION_SPEED => helper.do_scene_command(
+                SetEmitterRotationSpeedRangeCommand::new(handle, index, value.cast_value_cloned()?),
+            ),
+            BaseEmitter::ROTATION => helper.do_scene_command(SetEmitterRotationRangeCommand::new(
+                handle,
+                index,
+                value.cast_value_cloned()?,
+            )),
+            BaseEmitter::RESURRECT_PARTICLES => helper.do_scene_command(
+                SetEmitterResurrectParticlesCommand::new(handle, index, value.cast_value_cloned()?),
+            ),
             _ => None,
         },
         _ => None,
