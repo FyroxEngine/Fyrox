@@ -25,6 +25,7 @@ use crate::{
     },
     GameEngine, Message,
 };
+use rg3d::physics3d::desc::JointParamsDesc;
 use rg3d::{
     core::{
         color::Color,
@@ -598,6 +599,13 @@ impl WorldViewer {
         ui: &mut UserInterface,
         editor_scene: &EditorScene,
     ) -> Vec<Handle<UiNode>> {
+        let make_name = |j: Handle<Joint>| match editor_scene.physics.joints[j].params {
+            JointParamsDesc::BallJoint(_) => "Ball Joint".to_owned(),
+            JointParamsDesc::FixedJoint(_) => "Fixed Joint".to_owned(),
+            JointParamsDesc::PrismaticJoint(_) => "Prismatic Joint".to_owned(),
+            JointParamsDesc::RevoluteJoint(_) => "Revolute Joint".to_owned(),
+        };
+
         let context_menu = self.deletable_context_menu.menu;
         sync_pool(
             self.joints_folder,
@@ -613,14 +621,14 @@ impl WorldViewer {
                 SceneItemBuilder::<Joint>::new(TreeBuilder::new(
                     WidgetBuilder::new().with_context_menu(context_menu),
                 ))
-                .with_name("Joint".to_owned())
+                .with_name(make_name(handle))
                 .with_icon(load_image(include_bytes!(
                     "../../resources/embed/joint.png"
                 )))
                 .with_entity_handle(handle)
                 .build(&mut ui.build_ctx())
             },
-            |_| "Joint".to_owned(),
+            make_name,
         )
     }
 
@@ -988,7 +996,7 @@ impl WorldViewer {
                             let collider_ref = &editor_scene.physics.colliders[collider_handle];
 
                             let name = match &collider_ref.shape {
-                                ColliderShapeDesc::Ball(_) => "Bal Collider",
+                                ColliderShapeDesc::Ball(_) => "Ball Collider",
                                 ColliderShapeDesc::Cylinder(_) => "Cylinder Collider",
                                 ColliderShapeDesc::RoundCylinder(_) => "Round Cylinder Collider",
                                 ColliderShapeDesc::Cone(_) => "Cone  Collider",
