@@ -1252,7 +1252,7 @@ pub enum OsEvent {
     MouseWheel(f32, f32),
 }
 
-#[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Copy, Default)]
 pub struct KeyboardModifiers {
     pub alt: bool,
     pub shift: bool,
@@ -1263,17 +1263,6 @@ pub struct KeyboardModifiers {
 impl KeyboardModifiers {
     pub fn is_none(self) -> bool {
         !self.shift && !self.control && !self.alt && !self.system
-    }
-}
-
-impl Default for KeyboardModifiers {
-    fn default() -> Self {
-        Self {
-            alt: false,
-            shift: false,
-            control: false,
-            system: false,
-        }
     }
 }
 

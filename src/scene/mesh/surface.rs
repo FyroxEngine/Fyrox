@@ -35,7 +35,7 @@ use std::{
 /// Data source of a surface. Each surface can share same data source, this is used
 /// in instancing technique to render multiple instances of same model at different
 /// places.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct SurfaceData {
     /// Current vertex buffer.
     pub vertex_buffer: VertexBuffer,
@@ -44,16 +44,6 @@ pub struct SurfaceData {
     // If true - indicates that surface was generated and does not have reference
     // resource. Procedural data will be serialized.
     is_procedural: bool,
-}
-
-impl Default for SurfaceData {
-    fn default() -> Self {
-        Self {
-            vertex_buffer: Default::default(),
-            geometry_buffer: Default::default(),
-            is_procedural: false,
-        }
-    }
 }
 
 impl SurfaceData {
@@ -852,19 +842,10 @@ impl Default for VertexWeight {
 }
 
 /// Weight set contains up to four pairs of (bone; weight).
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 pub struct VertexWeightSet {
     weights: [VertexWeight; 4],
     count: usize,
-}
-
-impl Default for VertexWeightSet {
-    fn default() -> Self {
-        Self {
-            weights: Default::default(),
-            count: 0,
-        }
-    }
 }
 
 impl VertexWeightSet {

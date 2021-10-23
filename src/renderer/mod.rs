@@ -132,7 +132,7 @@ impl Display for Statistics {
 }
 
 /// GPU statistics for single frame.
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 pub struct RenderPassStatistics {
     /// Amount of draw calls per frame - lower the better.
     pub draw_calls: usize,
@@ -148,15 +148,6 @@ impl Display for RenderPassStatistics {
             Triangles Rendered: {}",
             self.draw_calls, self.triangles_rendered
         )
-    }
-}
-
-impl Default for RenderPassStatistics {
-    fn default() -> Self {
-        Self {
-            draw_calls: 0,
-            triangles_rendered: 0,
-        }
     }
 }
 

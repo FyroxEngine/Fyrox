@@ -14,18 +14,10 @@ pub struct Vertex {
 }
 
 /// Particle system is "rendered" into special buffer, which contains vertices and faces.
+#[derive(Default)]
 pub struct DrawData {
     pub(super) vertices: Vec<Vertex>,
     pub(super) triangles: Vec<TriangleDefinition>,
-}
-
-impl Default for DrawData {
-    fn default() -> Self {
-        Self {
-            vertices: Vec::new(),
-            triangles: Vec::new(),
-        }
-    }
 }
 
 impl DrawData {

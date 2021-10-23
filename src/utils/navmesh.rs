@@ -27,7 +27,7 @@ use std::{
 };
 
 /// See module docs.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Navmesh {
     octree: Octree,
     triangles: Vec<TriangleDefinition>,
@@ -83,17 +83,6 @@ impl Hash for Edge {
     fn hash<H: Hasher>(&self, state: &mut H) {
         // Direction-agnostic hash.
         (self.a as u64 + self.b as u64).hash(state)
-    }
-}
-
-impl Default for Navmesh {
-    fn default() -> Self {
-        Self {
-            octree: Default::default(),
-            triangles: Default::default(),
-            pathfinder: Default::default(),
-            query_buffer: Default::default(),
-        }
     }
 }
 

@@ -218,16 +218,9 @@ impl Thickness {
 
 type NodeHandle = Handle<UiNode>;
 
+#[derive(Default)]
 pub struct NodeHandleMapping {
     hash_map: HashMap<NodeHandle, NodeHandle>,
-}
-
-impl Default for NodeHandleMapping {
-    fn default() -> Self {
-        Self {
-            hash_map: Default::default(),
-        }
-    }
 }
 
 impl NodeHandleMapping {
