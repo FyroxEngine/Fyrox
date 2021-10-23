@@ -6,39 +6,42 @@ env:
 jobs:
   windows:
     name: Windows CI
-    runs-on: windows-2019
+    runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Build
-      run: cargo check --verbose
-    - name: Test
-      run: cargo test --verbose
+      - uses: actions/checkout@v2
+      - run: rustc --version && cargo --version
+      - name: Build
+        run: cargo check --verbose
+      - name: Test
+        run: cargo test --verbose
 
   macosx:
     name: MacOSX CI
     runs-on: macos-latest
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Build
-      run: cargo check --verbose
-    - name: Test
-      run: cargo test --verbose
+      - uses: actions/checkout@v2
+      - run: rustc --version && cargo --version
+      - name: Build
+        run: cargo check --verbose
+      - name: Test
+        run: cargo test --verbose
 
   linux:
     name: Linux CI
     runs-on: ubuntu-latest
     steps:
-    - name: Update
-      run: sudo apt update
-    - name: Install Dependencies
-      run: sudo apt-get install libasound2-dev libudev-dev pkg-config xorg-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev
-    - uses: actions/checkout@v2
-    - name: Build
-      run: cargo check --verbose
-    - name: Test
-      run: cargo test --verbose
+      - name: Update
+        run: sudo apt update
+      - name: Install Dependencies
+        run: sudo apt-get install libasound2-dev libudev-dev pkg-config xorg-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev
+      - uses: actions/checkout@v2
+      - run: rustc --version && cargo --version
+      - name: Build
+        run: cargo check --verbose
+      - name: Test
+        run: cargo test --verbose
 
   wasm:
     name: Wasm CI
@@ -48,31 +51,40 @@ jobs:
 
       - name: Install Dependencies
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      - run: rustc --version && cargo --version && wasm-pack --version
       - name: Build
         run: |
-             cd examples/wasm
-             wasm-pack build --target web
+          cd examples/wasm
+          wasm-pack build --target web
       - name: Test
         run: |
-             cd examples/wasm
-             wasm-pack test --headless --chrome
-             wasm-pack test --headless --firefox
+          cd examples/wasm
+          wasm-pack test --headless --chrome
+          wasm-pack test --headless --firefox
+
+  format:
+    name: Rustfmt CI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: cargo fmt --version
+      - run: cargo fmt -- --check
+
   docs:
     name: Documentation CI
-    runs-on: windows-2019
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly
+          toolchain: nightly # docs.rs uses nightly: https://docs.rs/about/builds
           override: true
       - run: rustc --version && cargo --version
       - name: Build Docs
         run: cargo doc --all-features
         env:
           RUSTDOCFLAGS: --deny warnings
-
 
   # MacOS 11 CI is currently in beta. Uncomment the below lines when it's out of beta.
   # macos11:

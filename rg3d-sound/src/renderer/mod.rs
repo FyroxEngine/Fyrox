@@ -68,7 +68,7 @@ fn render_with_params(
         let step = 1.0 / mix_buffer.len() as f32;
         let mut t = 0.0;
         for ((out_left, out_right), &(raw_left, raw_right)) in
-        mix_buffer.iter_mut().zip(source.frame_samples())
+            mix_buffer.iter_mut().zip(source.frame_samples())
         {
             // Interpolation of gain is very important to remove clicks which appears
             // when gain changes by significant value between frames.
@@ -79,7 +79,7 @@ fn render_with_params(
         }
     } else {
         for ((out_left, out_right), &(raw_left, raw_right)) in
-        mix_buffer.iter_mut().zip(source.frame_samples())
+            mix_buffer.iter_mut().zip(source.frame_samples())
         {
             // Optimize the common case when the gain did not change since the last call.
             *out_left += left_gain * raw_left;

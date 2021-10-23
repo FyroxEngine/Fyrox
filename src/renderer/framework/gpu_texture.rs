@@ -926,7 +926,9 @@ impl GpuTexture {
             {
                 state.gl.generate_mipmap(target);
             } else {
-                state.gl.tex_parameter_i32(target, glow::TEXTURE_MAX_LEVEL, mip_count as i32 - 1);
+                state
+                    .gl
+                    .tex_parameter_i32(target, glow::TEXTURE_MAX_LEVEL, mip_count as i32 - 1);
             }
 
             state.set_texture(0, target, Default::default());

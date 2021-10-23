@@ -370,7 +370,11 @@ impl GenericSource {
 
     // Renders until the end of the block or until amount samples is written and returns
     // the number of written samples.
-    fn render_until_block_end(&mut self, buffer: &mut SoundBufferState, mut amount: usize) -> usize {
+    fn render_until_block_end(
+        &mut self,
+        buffer: &mut SoundBufferState,
+        mut amount: usize,
+    ) -> usize {
         let step = self.pitch * self.resampling_multiplier;
         if step == 1.0 {
             if self.buf_read_pos < 0.0 {
@@ -385,11 +389,13 @@ impl GenericSource {
             let rendered = (buffer_len - from).min(amount);
             if buffer.channel_count == 2 {
                 for i in from..from + rendered {
-                    self.frame_samples.push((buffer.samples[i * 2], buffer.samples[i * 2 + 1]))
+                    self.frame_samples
+                        .push((buffer.samples[i * 2], buffer.samples[i * 2 + 1]))
                 }
             } else {
                 for i in from..from + rendered {
-                    self.frame_samples.push((buffer.samples[i], buffer.samples[i]))
+                    self.frame_samples
+                        .push((buffer.samples[i], buffer.samples[i]))
                 }
             }
             self.buf_read_pos += rendered as f64;
@@ -448,10 +454,8 @@ impl GenericSource {
                 if idx >= buffer_last {
                     break;
                 }
-                let l = buffer.samples[idx * 2] * (1.0 - w)
-                    + buffer.samples[idx * 2 + 2] * w;
-                let r = buffer.samples[idx * 2 + 1] * (1.0 - w)
-                    + buffer.samples[idx * 2 + 3] * w;
+                let l = buffer.samples[idx * 2] * (1.0 - w) + buffer.samples[idx * 2 + 2] * w;
+                let r = buffer.samples[idx * 2 + 1] * (1.0 - w) + buffer.samples[idx * 2 + 3] * w;
                 self.frame_samples.push((l, r));
                 buffer_rel_pos += rel_step;
                 rendered += 1;
