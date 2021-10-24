@@ -1,3 +1,5 @@
+use crate::scene::commands::ChangeSelectionCommand;
+use crate::scene::Selection;
 use crate::{
     physics::Joint,
     physics::{Collider, RigidBody},
@@ -172,6 +174,11 @@ impl RigidBodyContextMenu {
 
                     if message.destination() == self.delete {
                         let mut group = Vec::new();
+
+                        group.push(SceneCommand::new(ChangeSelectionCommand::new(
+                            Selection::None,
+                            editor_scene.selection.clone(),
+                        )));
 
                         for collider in editor_scene.physics.bodies[rigid_body_handle]
                             .colliders
