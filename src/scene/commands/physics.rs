@@ -4,6 +4,7 @@ use crate::{
     scene::commands::SceneContext,
     Physics,
 };
+use rg3d::scene::graph::Graph;
 use rg3d::{
     core::{
         algebra::{UnitQuaternion, Vector3},
@@ -725,3 +726,61 @@ define_joint_command!(SetJointBody1Command("Set Joint Body 1", ErasedHandle) whe
 define_joint_command!(SetJointBody2Command("Set Joint Body 2", ErasedHandle) where fn swap(self, physics, joint) {
     std::mem::swap(&mut joint.body2, &mut self.value);
 });
+
+#[derive(Debug)]
+pub struct MoveRigidBodyCommand {
+    rigid_body: Handle<RigidBody>,
+    old_position: Vector3<f32>,
+    new_position: Vector3<f32>,
+}
+
+impl MoveRigidBodyCommand {
+    pub fn new(
+        rigid_body: Handle<RigidBody>,
+        old_position: Vector3<f32>,
+        new_position: Vector3<f32>,
+    ) -> Self {
+        Self {
+            rigid_body,
+            old_position,
+            new_position,
+        }
+    }
+
+    fn swap(&mut self) -> Vector3<f32> {
+        let position = self.new_position;
+        std::mem::swap(&mut self.new_position, &mut self.old_position);
+        position
+    }
+
+    fn set_position(&self, graph: &mut Graph, physics: &mut Physics, position: Vector3<f32>) {
+        physics.bodies[self.rigid_body].position = position;
+        if let Some(&node) = physics.binder.key_of(&self.rigid_body) {
+            graph[node].local_transform_mut().set_position(position);
+        }
+    }
+}
+
+impl Command for MoveRigidBodyCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
+        "Move Rigid Body".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut SceneContext) {
+        let position = self.swap();
+        self.set_position(
+            &mut context.scene.graph,
+            &mut context.editor_scene.physics,
+            position,
+        );
+    }
+
+    fn revert(&mut self, context: &mut SceneContext) {
+        let position = self.swap();
+        self.set_position(
+            &mut context.scene.graph,
+            &mut context.editor_scene.physics,
+            position,
+        );
+    }
+}
