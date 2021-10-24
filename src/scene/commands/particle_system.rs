@@ -8,6 +8,7 @@ use rg3d::{
         particle_system::{emitter::Emitter, ParticleLimit, ParticleSystem},
     },
 };
+use std::ops::Range;
 
 #[derive(Debug)]
 pub struct AddParticleSystemEmitterCommand {
@@ -91,182 +92,6 @@ impl Command for DeleteEmitterCommand {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
-pub enum EmitterNumericParameter {
-    SpawnRate,
-    MaxParticles,
-    MinLifetime,
-    MaxLifetime,
-    MinSizeModifier,
-    MaxSizeModifier,
-    MinXVelocity,
-    MaxXVelocity,
-    MinYVelocity,
-    MaxYVelocity,
-    MinZVelocity,
-    MaxZVelocity,
-    MinRotationSpeed,
-    MaxRotationSpeed,
-    MinRotation,
-    MaxRotation,
-}
-
-impl EmitterNumericParameter {
-    fn name(self) -> &'static str {
-        match self {
-            EmitterNumericParameter::SpawnRate => "SpawnRate",
-            EmitterNumericParameter::MaxParticles => "MaxParticles",
-            EmitterNumericParameter::MinLifetime => "MinLifetime",
-            EmitterNumericParameter::MaxLifetime => "MaxLifetime",
-            EmitterNumericParameter::MinSizeModifier => "MinSizeModifier",
-            EmitterNumericParameter::MaxSizeModifier => "MaxSizeModifier",
-            EmitterNumericParameter::MinXVelocity => "MinXVelocity",
-            EmitterNumericParameter::MaxXVelocity => "MaxXVelocity",
-            EmitterNumericParameter::MinYVelocity => "MinYVelocity",
-            EmitterNumericParameter::MaxYVelocity => "MaxYVelocity",
-            EmitterNumericParameter::MinZVelocity => "MinZVelocity",
-            EmitterNumericParameter::MaxZVelocity => "MaxZVelocity",
-            EmitterNumericParameter::MinRotationSpeed => "MinRotationSpeed",
-            EmitterNumericParameter::MaxRotationSpeed => "MaxRotationSpeed",
-            EmitterNumericParameter::MinRotation => "MinRotation",
-            EmitterNumericParameter::MaxRotation => "MaxRotation",
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct SetEmitterNumericParameterCommand {
-    node: Handle<Node>,
-    parameter: EmitterNumericParameter,
-    value: f32,
-    emitter_index: usize,
-}
-
-impl SetEmitterNumericParameterCommand {
-    pub fn new(
-        node: Handle<Node>,
-        emitter_index: usize,
-        parameter: EmitterNumericParameter,
-        value: f32,
-    ) -> Self {
-        Self {
-            node,
-            parameter,
-            value,
-            emitter_index,
-        }
-    }
-
-    fn swap(&mut self, context: &mut SceneContext) {
-        let emitter: &mut Emitter = &mut context.scene.graph[self.node]
-            .as_particle_system_mut()
-            .emitters[self.emitter_index];
-        match self.parameter {
-            EmitterNumericParameter::SpawnRate => {
-                let old = emitter.spawn_rate();
-                emitter.set_spawn_rate(self.value as u32);
-                self.value = old as f32;
-            }
-            EmitterNumericParameter::MaxParticles => {
-                let old = emitter.max_particles();
-                emitter.set_max_particles(if self.value < 0.0 {
-                    ParticleLimit::Unlimited
-                } else {
-                    ParticleLimit::Strict(self.value as u32)
-                });
-                self.value = match old {
-                    ParticleLimit::Unlimited => -1.0,
-                    ParticleLimit::Strict(value) => value as f32,
-                };
-            }
-            EmitterNumericParameter::MinLifetime => {
-                let old = emitter.life_time_range();
-                emitter.set_life_time_range(self.value..old.end);
-                self.value = old.start;
-            }
-            EmitterNumericParameter::MaxLifetime => {
-                let old = emitter.life_time_range();
-                emitter.set_life_time_range(old.start..self.value);
-                self.value = old.end;
-            }
-            EmitterNumericParameter::MinSizeModifier => {
-                let old = emitter.size_modifier_range();
-                emitter.set_size_modifier_range(self.value..old.end);
-                self.value = old.start;
-            }
-            EmitterNumericParameter::MaxSizeModifier => {
-                let old = emitter.size_modifier_range();
-                emitter.set_size_modifier_range(old.start..self.value);
-                self.value = old.end;
-            }
-            EmitterNumericParameter::MinXVelocity => {
-                let old = emitter.x_velocity_range();
-                emitter.set_x_velocity_range(self.value..old.end);
-                self.value = old.start;
-            }
-            EmitterNumericParameter::MaxXVelocity => {
-                let old = emitter.x_velocity_range();
-                emitter.set_x_velocity_range(old.start..self.value);
-                self.value = old.end;
-            }
-            EmitterNumericParameter::MinYVelocity => {
-                let old = emitter.y_velocity_range();
-                emitter.set_y_velocity_range(self.value..old.end);
-                self.value = old.start;
-            }
-            EmitterNumericParameter::MaxYVelocity => {
-                let old = emitter.y_velocity_range();
-                emitter.set_y_velocity_range(old.start..self.value);
-                self.value = old.end;
-            }
-            EmitterNumericParameter::MinZVelocity => {
-                let old = emitter.z_velocity_range();
-                emitter.set_z_velocity_range(self.value..old.end);
-                self.value = old.start;
-            }
-            EmitterNumericParameter::MaxZVelocity => {
-                let old = emitter.z_velocity_range();
-                emitter.set_z_velocity_range(old.start..self.value);
-                self.value = old.end;
-            }
-            EmitterNumericParameter::MinRotationSpeed => {
-                let old = emitter.rotation_speed_range();
-                emitter.set_rotation_speed_range(self.value..old.end);
-                self.value = old.start;
-            }
-            EmitterNumericParameter::MaxRotationSpeed => {
-                let old = emitter.rotation_speed_range();
-                emitter.set_rotation_speed_range(old.start..self.value);
-                self.value = old.end;
-            }
-            EmitterNumericParameter::MinRotation => {
-                let old = emitter.rotation_range();
-                emitter.set_rotation_range(self.value..old.end);
-                self.value = old.start;
-            }
-            EmitterNumericParameter::MaxRotation => {
-                let old = emitter.rotation_range();
-                emitter.set_rotation_range(old.start..self.value);
-                self.value = old.end;
-            }
-        };
-    }
-}
-
-impl Command for SetEmitterNumericParameterCommand {
-    fn name(&mut self, _context: &SceneContext) -> String {
-        format!("Set Emitter F32 Parameter: {}", self.parameter.name())
-    }
-
-    fn execute(&mut self, context: &mut SceneContext) {
-        self.swap(context);
-    }
-
-    fn revert(&mut self, context: &mut SceneContext) {
-        self.swap(context);
-    }
-}
-
 macro_rules! define_emitter_command {
     ($name:ident($human_readable_name:expr, $value_type:ty) where fn swap($self:ident, $emitter:ident) $apply_method:block ) => {
         #[derive(Debug)]
@@ -309,8 +134,16 @@ define_node_command!(SetParticleSystemTextureCommand("Set Particle System Textur
     get_set_swap!(self, node.as_particle_system_mut(), texture, set_texture);
 });
 
-define_node_command!(SetParticleSystemAccelerationCommand("Set Particle System Acceleration", Vector3<f32>) where fn swap(self, node) {
+define_node_command!(SetAccelerationCommand("Set Particle System Acceleration", Vector3<f32>) where fn swap(self, node) {
     get_set_swap!(self, node.as_particle_system_mut(), acceleration, set_acceleration);
+});
+
+define_node_command!(SetParticleSystemEnabledCommand("Set Particle System Enabled", bool) where fn swap(self, node) {
+    get_set_swap!(self, node.as_particle_system_mut(), is_enabled, set_enabled);
+});
+
+define_node_command!(SetSoftBoundarySharpnessFactorCommand("Set Soft Boundary Sharpness Factor", f32) where fn swap(self, node) {
+    get_set_swap!(self, node.as_particle_system_mut(), soft_boundary_sharpness_factor, set_soft_boundary_sharpness_factor);
 });
 
 macro_rules! define_emitter_variant_command {
@@ -351,6 +184,46 @@ define_emitter_variant_command!(SetBoxEmitterHalfDepthCommand("Set Box Emitter H
 
 define_emitter_command!(SetEmitterPositionCommand("Set Emitter Position", Vector3<f32>) where fn swap(self, emitter) {
     get_set_swap!(self, emitter, position, set_position);
+});
+
+define_emitter_command!(SetEmitterSpawnRateCommand("Set Emitter Spawn Rate", u32) where fn swap(self, emitter) {
+    get_set_swap!(self, emitter, spawn_rate, set_spawn_rate);
+});
+
+define_emitter_command!(SetEmitterParticleLimitCommand("Set Emitter Particle Limit", ParticleLimit) where fn swap(self, emitter) {
+    get_set_swap!(self, emitter, max_particles, set_max_particles);
+});
+
+define_emitter_command!(SetEmitterLifetimeRangeCommand("Set Emitter Lifetime Range", Range<f32>) where fn swap(self, emitter) {
+    get_set_swap!(self, emitter, life_time_range, set_life_time_range);
+});
+
+define_emitter_command!(SetEmitterSizeRangeCommand("Set Emitter Size Range", Range<f32>) where fn swap(self, emitter) {
+    get_set_swap!(self, emitter, size_range, set_size_range);
+});
+
+define_emitter_command!(SetEmitterSizeModifierRangeCommand("Set Emitter Size Modifier Range", Range<f32>) where fn swap(self, emitter) {
+    get_set_swap!(self, emitter, size_modifier_range, set_size_modifier_range);
+});
+
+define_emitter_command!(SetEmitterXVelocityRangeCommand("Set Emitter X Velocity Range", Range<f32>) where fn swap(self, emitter) {
+    get_set_swap!(self, emitter, x_velocity_range, set_x_velocity_range);
+});
+
+define_emitter_command!(SetEmitterYVelocityRangeCommand("Set Emitter Y Velocity Range", Range<f32>) where fn swap(self, emitter) {
+    get_set_swap!(self, emitter, y_velocity_range, set_y_velocity_range);
+});
+
+define_emitter_command!(SetEmitterZVelocityRangeCommand("Set Emitter Z Velocity Range", Range<f32>) where fn swap(self, emitter) {
+    get_set_swap!(self, emitter, z_velocity_range, set_z_velocity_range);
+});
+
+define_emitter_command!(SetEmitterRotationSpeedRangeCommand("Set Emitter Rotation Speed Range", Range<f32>) where fn swap(self, emitter) {
+    get_set_swap!(self, emitter, rotation_speed_range, set_rotation_speed_range);
+});
+
+define_emitter_command!(SetEmitterRotationRangeCommand("Set Emitter Rotation Range", Range<f32>) where fn swap(self, emitter) {
+    get_set_swap!(self, emitter, rotation_range, set_rotation_range);
 });
 
 define_emitter_command!(SetEmitterResurrectParticlesCommand("Set Emitter Resurrect Particles", bool) where fn swap(self, emitter) {

@@ -38,7 +38,7 @@ pub struct Menu {
 pub struct Panels {
     pub light_panel: Handle<UiNode>,
     pub log_panel: Handle<UiNode>,
-    pub sidebar_window: Handle<UiNode>,
+    pub inspector_window: Handle<UiNode>,
     pub world_outliner_window: Handle<UiNode>,
     pub asset_window: Handle<UiNode>,
     pub configurator_window: Handle<UiNode>,
