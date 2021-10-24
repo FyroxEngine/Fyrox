@@ -70,6 +70,7 @@ use crate::{
     utils::path_fixer::PathFixer,
     world::WorldViewer,
 };
+use rg3d::gui::formatted_text::WrapMode;
 use rg3d::{
     core::{
         algebra::{Point3, Vector2},
@@ -504,9 +505,73 @@ impl ModelImportDialog {
     }
 }
 
+fn make_interaction_mode_button(
+    ctx: &mut BuildContext,
+    image: &[u8],
+    tooltip: &str,
+) -> Handle<UiNode> {
+    ButtonBuilder::new(
+        WidgetBuilder::new()
+            .with_tooltip(
+                BorderBuilder::new(
+                    WidgetBuilder::new()
+                        .with_max_size(Vector2::new(300.0, f32::MAX))
+                        .with_child(
+                            TextBuilder::new(
+                                WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
+                            )
+                            .with_wrap(WrapMode::Word)
+                            .with_text(tooltip)
+                            .build(ctx),
+                        ),
+                )
+                .build(ctx),
+            )
+            .with_margin(Thickness::uniform(1.0)),
+    )
+    .with_content(
+        ImageBuilder::new(
+            WidgetBuilder::new()
+                .with_margin(Thickness::uniform(1.0))
+                .with_width(32.0)
+                .with_height(32.0),
+        )
+        .with_opt_texture(load_image(image))
+        .build(ctx),
+    )
+    .build(ctx)
+}
+
 impl ScenePreview {
     pub fn new(engine: &mut GameEngine, sender: Sender<Message>) -> Self {
         let ctx = &mut engine.user_interface.build_ctx();
+
+        let select_mode_tooltip = "Select Object(s) - Shortcut: [1]\n\nSelection interaction mode \
+        allows you to select an object by a single left mouse button click or multiple objects using either \
+        frame selection (click and drag) or by holding Ctrl+Click";
+
+        let move_mode_tooltip =
+            "Move Object(s) - Shortcut: [2]\n\nMovement interaction mode allows you to move selected \
+        objects. Keep in mind that movement always works in local coordinates!\n\n\
+        This also allows you to select an object or add an object to current selection using Ctrl+Click";
+
+        let rotate_mode_tooltip =
+            "Rotate Object(s) - Shortcut: [3]\n\nRotation interaction mode allows you to rotate selected \
+        objects. Keep in mind that rotation always works in local coordinates!\n\n\
+        This also allows you to select an object or add an object to current selection using Ctrl+Click";
+
+        let scale_mode_tooltip =
+            "Rotate Object(s) - Shortcut: [4]\n\nScaling interaction mode allows you to scale selected \
+        objects. Keep in mind that scaling always works in local coordinates!\n\n\
+        This also allows you to select an object or add an object to current selection using Ctrl+Click";
+
+        let navmesh_mode_tooltip =
+            "Edit Navmesh\n\nNavmesh edit mode allows you to modify selected \
+        navigational mesh.";
+
+        let terrain_mode_tooltip =
+            "Edit Terrain\n\nTerrain edit mode allows you to modify selected \
+        terrain.";
 
         let frame;
         let select_mode;
@@ -556,120 +621,51 @@ impl ScenePreview {
                                     .on_row(0)
                                     .on_column(0)
                                     .with_child({
-                                        select_mode = ButtonBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_margin(Thickness::uniform(1.0)),
-                                        )
-                                        .with_content(
-                                            ImageBuilder::new(
-                                                WidgetBuilder::new()
-                                                    .with_margin(Thickness::uniform(1.0))
-                                                    .with_width(32.0)
-                                                    .with_height(32.0),
-                                            )
-                                            .with_opt_texture(load_image(include_bytes!(
-                                                "../resources/embed/select.png"
-                                            )))
-                                            .build(ctx),
-                                        )
-                                        .build(ctx);
+                                        select_mode = make_interaction_mode_button(
+                                            ctx,
+                                            include_bytes!("../resources/embed/select.png"),
+                                            select_mode_tooltip,
+                                        );
                                         select_mode
                                     })
                                     .with_child({
-                                        move_mode = ButtonBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_margin(Thickness::uniform(1.0)),
-                                        )
-                                        .with_content(
-                                            ImageBuilder::new(
-                                                WidgetBuilder::new()
-                                                    .with_margin(Thickness::uniform(1.0))
-                                                    .with_width(32.0)
-                                                    .with_height(32.0),
-                                            )
-                                            .with_opt_texture(load_image(include_bytes!(
-                                                "../resources/embed/move_arrow.png"
-                                            )))
-                                            .build(ctx),
-                                        )
-                                        .build(ctx);
+                                        move_mode = make_interaction_mode_button(
+                                            ctx,
+                                            include_bytes!("../resources/embed/move_arrow.png"),
+                                            move_mode_tooltip,
+                                        );
                                         move_mode
                                     })
                                     .with_child({
-                                        rotate_mode = ButtonBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_margin(Thickness::uniform(1.0)),
-                                        )
-                                        .with_content(
-                                            ImageBuilder::new(
-                                                WidgetBuilder::new()
-                                                    .with_margin(Thickness::uniform(1.0))
-                                                    .with_width(32.0)
-                                                    .with_height(32.0),
-                                            )
-                                            .with_opt_texture(load_image(include_bytes!(
-                                                "../resources/embed/rotate_arrow.png"
-                                            )))
-                                            .build(ctx),
-                                        )
-                                        .build(ctx);
+                                        rotate_mode = make_interaction_mode_button(
+                                            ctx,
+                                            include_bytes!("../resources/embed/rotate_arrow.png"),
+                                            rotate_mode_tooltip,
+                                        );
                                         rotate_mode
                                     })
                                     .with_child({
-                                        scale_mode = ButtonBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_margin(Thickness::uniform(1.0)),
-                                        )
-                                        .with_content(
-                                            ImageBuilder::new(
-                                                WidgetBuilder::new()
-                                                    .with_width(32.0)
-                                                    .with_height(32.0),
-                                            )
-                                            .with_opt_texture(load_image(include_bytes!(
-                                                "../resources/embed/scale_arrow.png"
-                                            )))
-                                            .build(ctx),
-                                        )
-                                        .build(ctx);
+                                        scale_mode = make_interaction_mode_button(
+                                            ctx,
+                                            include_bytes!("../resources/embed/scale_arrow.png"),
+                                            scale_mode_tooltip,
+                                        );
                                         scale_mode
                                     })
                                     .with_child({
-                                        navmesh_mode = ButtonBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_margin(Thickness::uniform(1.0)),
-                                        )
-                                        .with_content(
-                                            ImageBuilder::new(
-                                                WidgetBuilder::new()
-                                                    .with_width(32.0)
-                                                    .with_height(32.0),
-                                            )
-                                            .with_opt_texture(load_image(include_bytes!(
-                                                "../resources/embed/navmesh.png"
-                                            )))
-                                            .build(ctx),
-                                        )
-                                        .build(ctx);
+                                        navmesh_mode = make_interaction_mode_button(
+                                            ctx,
+                                            include_bytes!("../resources/embed/navmesh.png"),
+                                            navmesh_mode_tooltip,
+                                        );
                                         navmesh_mode
                                     })
                                     .with_child({
-                                        terrain_mode = ButtonBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_margin(Thickness::uniform(1.0)),
-                                        )
-                                        .with_content(
-                                            ImageBuilder::new(
-                                                WidgetBuilder::new()
-                                                    .with_width(32.0)
-                                                    .with_height(32.0),
-                                            )
-                                            .with_opt_texture(load_image(include_bytes!(
-                                                "../resources/embed/terrain.png"
-                                            )))
-                                            .build(ctx),
-                                        )
-                                        .build(ctx);
+                                        terrain_mode = make_interaction_mode_button(
+                                            ctx,
+                                            include_bytes!("../resources/embed/terrain.png"),
+                                            terrain_mode_tooltip,
+                                        );
                                         terrain_mode
                                     }),
                             )

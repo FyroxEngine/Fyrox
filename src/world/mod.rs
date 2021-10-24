@@ -686,7 +686,7 @@ impl WorldViewer {
             let ui_node = ui.node(tree_handle);
 
             if let Some(item) = ui_node.cast::<SceneItem<Node>>() {
-                // Since we are filtering out editor stuff from world outliner, we must
+                // Since we are filtering out editor stuff from world viewer, we must
                 // correctly count children, excluding editor nodes.
                 let mut child_count = 0;
                 for &child in node.children() {
@@ -718,8 +718,7 @@ impl WorldViewer {
                                         item,
                                     ),
                                 );
-                                let removed_view = self.node_to_view_map.remove(&child_node);
-                                assert!(removed_view.is_some());
+                                self.node_to_view_map.remove(&child_node);
                             } else {
                                 self.stack.push((item, child_node));
                             }
