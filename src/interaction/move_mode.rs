@@ -1,4 +1,3 @@
-use crate::world::graph::selection::GraphSelection;
 use crate::{
     camera::CameraController,
     interaction::{
@@ -13,7 +12,7 @@ use crate::{
         EditorScene, Selection,
     },
     settings::Settings,
-    world::sound::selection::SoundSelection,
+    world::{graph::selection::GraphSelection, sound::selection::SoundSelection},
     GameEngine, Message,
 };
 use rg3d::{
@@ -23,7 +22,7 @@ use rg3d::{
         pool::Handle,
     },
     scene::{graph::Graph, node::Node, Scene},
-    sound::{context::SoundContext, source::SoundSource},
+    sound::source::SoundSource,
 };
 use std::sync::mpsc::Sender;
 
@@ -81,15 +80,20 @@ struct MoveContext {
 }
 
 impl MoveContext {
-    pub fn from_graph_selection(
-        selection: &GraphSelection,
-        graph: &Graph,
+    pub fn from_filler<F>(
+        scene: &Scene,
         move_gizmo: &MoveGizmo,
         camera_controller: &CameraController,
         plane_kind: PlaneKind,
         mouse_pos: Vector2<f32>,
         frame_size: Vector2<f32>,
-    ) -> Self {
+        mut fill: F,
+    ) -> Self
+    where
+        F: FnMut(Vector3<f32>, Matrix4<f32>, Vector3<f32>) -> Vec<Entry>,
+    {
+        let graph = &scene.graph;
+
         let gizmo_origin = &graph[move_gizmo.origin];
 
         let gizmo_inv_transform = gizmo_origin
@@ -110,99 +114,108 @@ impl MoveContext {
 
         Self {
             plane,
-            objects: selection
-                .root_nodes(graph)
-                .iter()
-                .map(|&node_handle| {
-                    let node = &graph[node_handle];
-                    Entry {
-                        entity: MovableEntity::Node(node_handle),
-                        initial_offset_gizmo_space: gizmo_inv_transform
-                            .transform_point(&Point3::from(node.global_position()))
-                            .coords
-                            - plane_point
-                            - gizmo_inv_transform.transform_vector(
-                                &(node.global_position() - gizmo_origin.global_position()),
-                            ),
-                        new_local_position: **node.local_transform().position(),
-                        initial_local_position: **node.local_transform().position(),
-                        initial_parent_inv_global_transform: if node.parent().is_some() {
-                            graph[node.parent()]
-                                .global_transform()
-                                .try_inverse()
-                                .unwrap_or_default()
-                        } else {
-                            Matrix4::identity()
-                        },
-                    }
-                })
-                .collect(),
+            objects: fill(
+                plane_point,
+                gizmo_inv_transform,
+                gizmo_origin.global_position(),
+            ),
             gizmo_local_transform: gizmo_origin.local_transform().matrix(),
             gizmo_inv_transform,
             plane_kind,
         }
     }
 
-    pub fn from_sound_selection(
-        selection: &SoundSelection,
-        sound_context: &SoundContext,
-        graph: &Graph,
+    pub fn from_graph_selection(
+        selection: &GraphSelection,
+        scene: &Scene,
         move_gizmo: &MoveGizmo,
         camera_controller: &CameraController,
         plane_kind: PlaneKind,
         mouse_pos: Vector2<f32>,
         frame_size: Vector2<f32>,
     ) -> Self {
-        let gizmo_origin = &graph[move_gizmo.origin];
-
-        let gizmo_inv_transform = gizmo_origin
-            .global_transform()
-            .try_inverse()
-            .unwrap_or_default();
-
-        let look_direction =
-            gizmo_inv_transform.transform_vector(&graph[camera_controller.camera].look_vector());
-
-        let plane = plane_kind.make_plane_from_view(look_direction);
-
-        let plane_point = plane_kind.project_point(
-            camera_controller
-                .pick_on_plane(plane, graph, mouse_pos, frame_size, gizmo_inv_transform)
-                .unwrap_or_default(),
-        );
-
-        let state = sound_context.state();
-
-        Self {
-            plane,
-            objects: selection
-                .sources()
-                .iter()
-                .map(|&source_handle| {
-                    let source = state.source(source_handle);
-                    match source {
-                        SoundSource::Generic(_) => None,
-                        SoundSource::Spatial(spatial) => Some(Entry {
-                            entity: MovableEntity::Sound(source_handle),
+        Self::from_filler(
+            scene,
+            move_gizmo,
+            camera_controller,
+            plane_kind,
+            mouse_pos,
+            frame_size,
+            |plane_point, gizmo_inv_transform, gizmo_origin| {
+                let graph = &scene.graph;
+                selection
+                    .root_nodes(graph)
+                    .iter()
+                    .map(|&node_handle| {
+                        let node = &graph[node_handle];
+                        Entry {
+                            entity: MovableEntity::Node(node_handle),
                             initial_offset_gizmo_space: gizmo_inv_transform
-                                .transform_point(&Point3::from(spatial.position()))
+                                .transform_point(&Point3::from(node.global_position()))
                                 .coords
                                 - plane_point
-                                - gizmo_inv_transform.transform_vector(
-                                    &(spatial.position() - gizmo_origin.global_position()),
-                                ),
-                            new_local_position: spatial.position(),
-                            initial_local_position: spatial.position(),
-                            initial_parent_inv_global_transform: Matrix4::identity(),
-                        }),
-                    }
-                })
-                .flatten()
-                .collect(),
-            gizmo_local_transform: gizmo_origin.local_transform().matrix(),
-            gizmo_inv_transform,
+                                - gizmo_inv_transform
+                                    .transform_vector(&(node.global_position() - gizmo_origin)),
+                            new_local_position: **node.local_transform().position(),
+                            initial_local_position: **node.local_transform().position(),
+                            initial_parent_inv_global_transform: if node.parent().is_some() {
+                                graph[node.parent()]
+                                    .global_transform()
+                                    .try_inverse()
+                                    .unwrap_or_default()
+                            } else {
+                                Matrix4::identity()
+                            },
+                        }
+                    })
+                    .collect()
+            },
+        )
+    }
+
+    pub fn from_sound_selection(
+        selection: &SoundSelection,
+        scene: &Scene,
+        move_gizmo: &MoveGizmo,
+        camera_controller: &CameraController,
+        plane_kind: PlaneKind,
+        mouse_pos: Vector2<f32>,
+        frame_size: Vector2<f32>,
+    ) -> Self {
+        let state = scene.sound_context.state();
+        Self::from_filler(
+            scene,
+            move_gizmo,
+            camera_controller,
             plane_kind,
-        }
+            mouse_pos,
+            frame_size,
+            |plane_point, gizmo_inv_transform, gizmo_origin| {
+                selection
+                    .sources()
+                    .iter()
+                    .map(|&source_handle| {
+                        let source = state.source(source_handle);
+                        match source {
+                            SoundSource::Generic(_) => None,
+                            SoundSource::Spatial(spatial) => Some(Entry {
+                                entity: MovableEntity::Sound(source_handle),
+                                initial_offset_gizmo_space: gizmo_inv_transform
+                                    .transform_point(&Point3::from(spatial.position()))
+                                    .coords
+                                    - plane_point
+                                    - gizmo_inv_transform
+                                        .transform_vector(&(spatial.position() - gizmo_origin)),
+                                new_local_position: spatial.position(),
+                                initial_local_position: spatial.position(),
+                                initial_parent_inv_global_transform: Matrix4::identity(),
+                            }),
+                        }
+                    })
+                    .flatten()
+                    .collect()
+            },
+        )
     }
 
     pub fn update(
@@ -307,7 +320,7 @@ impl InteractionMode for MoveInteractionMode {
                     Selection::Graph(selection) => {
                         self.move_context = Some(MoveContext::from_graph_selection(
                             selection,
-                            graph,
+                            scene,
                             &self.move_gizmo,
                             &editor_scene.camera_controller,
                             plane_kind,
@@ -318,8 +331,7 @@ impl InteractionMode for MoveInteractionMode {
                     Selection::Sound(selection) => {
                         self.move_context = Some(MoveContext::from_sound_selection(
                             selection,
-                            &scene.sound_context.clone(),
-                            graph,
+                            scene,
                             &self.move_gizmo,
                             &editor_scene.camera_controller,
                             plane_kind,
