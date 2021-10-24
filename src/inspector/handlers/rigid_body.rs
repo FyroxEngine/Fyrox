@@ -1,4 +1,5 @@
 use crate::{do_command, inspector::SenderHelper, physics::RigidBody, scene::commands::physics::*};
+use rg3d::gui::message::CollectionChanged;
 use rg3d::{
     core::pool::Handle,
     gui::{message::FieldKind, message::PropertyChanged},
@@ -7,6 +8,7 @@ use rg3d::{
 pub fn handle_rigid_body_property_changed(
     args: &PropertyChanged,
     handle: Handle<RigidBody>,
+    rigid_body: &RigidBody,
     helper: &SenderHelper,
 ) -> Option<()> {
     match args.value {
@@ -43,6 +45,19 @@ pub fn handle_rigid_body_property_changed(
             }
             _ => None,
         },
+        FieldKind::Collection(ref collection_changed) => {
+            if args.name == RigidBody::COLLIDERS {
+                match **collection_changed {
+                    CollectionChanged::Add => None,
+                    CollectionChanged::Remove(index) => helper.do_scene_command(
+                        DeleteColliderCommand::new(rigid_body.colliders[index].into()),
+                    ),
+                    CollectionChanged::ItemChanged { .. } => None,
+                }
+            } else {
+                None
+            }
+        }
         _ => None,
     }
 }

@@ -297,8 +297,14 @@ impl Inspector {
                     }
                     Selection::RigidBody(selection) => {
                         let rigid_body_handle = selection.bodies()[0];
+                        let rigid_body_ref = &editor_scene.physics.bodies[rigid_body_handle];
                         success = if args.owner_type_id == TypeId::of::<RigidBody>() {
-                            handle_rigid_body_property_changed(args, rigid_body_handle, &helper)
+                            handle_rigid_body_property_changed(
+                                args,
+                                rigid_body_handle,
+                                rigid_body_ref,
+                                &helper,
+                            )
                         } else {
                             Some(())
                         }
