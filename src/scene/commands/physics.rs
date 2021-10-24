@@ -427,11 +427,13 @@ impl Command for DeleteBodyCommand {
             .physics
             .bodies
             .put_back(self.ticket.take().unwrap(), self.body.take().unwrap());
-        context
-            .editor_scene
-            .physics
-            .binder
-            .insert(self.node, self.handle);
+        if self.node.is_some() {
+            context
+                .editor_scene
+                .physics
+                .binder
+                .insert(self.node, self.handle);
+        }
     }
 
     fn finalize(&mut self, context: &mut SceneContext) {
