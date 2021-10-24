@@ -358,7 +358,7 @@ impl WorldViewer {
                                 WidgetBuilder::new()
                                     .on_row(2)
                                     .on_column(0)
-                                    .with_opacity(0.4),
+                                    .with_opacity(Some(0.4)),
                             )
                             .with_text("Breadcrumbs")
                             .with_vertical_text_alignment(VerticalAlignment::Center)
