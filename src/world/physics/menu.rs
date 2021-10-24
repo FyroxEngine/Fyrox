@@ -1,17 +1,14 @@
-use crate::scene::commands::ChangeSelectionCommand;
-use crate::scene::Selection;
 use crate::{
-    physics::Joint,
-    physics::{Collider, RigidBody},
+    physics::{Collider, Joint, RigidBody},
     scene::{
         commands::{
             physics::{
                 AddColliderCommand, DeleteBodyCommand, DeleteColliderCommand, DeleteJointCommand,
                 SetJointBody1Command, SetJointBody2Command,
             },
-            CommandGroup, SceneCommand,
+            ChangeSelectionCommand, CommandGroup, SceneCommand,
         },
-        EditorScene,
+        EditorScene, Selection,
     },
     world::graph::item::SceneItem,
     Message,
@@ -314,6 +311,7 @@ impl DeletableSceneItemContextMenu {
         message: &UiMessage,
         ui: &UserInterface,
         sender: &Sender<Message>,
+        editor_scene: &EditorScene,
     ) {
         match message.data() {
             UiMessageData::Popup(PopupMessage::Placement(Placement::Cursor(target))) => {
@@ -325,18 +323,32 @@ impl DeletableSceneItemContextMenu {
                 if message.destination() == self.delete {
                     if let Some(collider_item) = ui.node(self.target).cast::<SceneItem<Collider>>()
                     {
-                        sender
-                            .send(Message::do_scene_command(DeleteColliderCommand::new(
+                        let group = vec![
+                            SceneCommand::new(ChangeSelectionCommand::new(
+                                Selection::None,
+                                editor_scene.selection.clone(),
+                            )),
+                            SceneCommand::new(DeleteColliderCommand::new(
                                 collider_item.entity_handle,
-                            )))
+                            )),
+                        ];
+
+                        sender
+                            .send(Message::do_scene_command(CommandGroup::from(group)))
                             .unwrap();
                     } else if let Some(collider_item) =
                         ui.node(self.target).cast::<SceneItem<Joint>>()
                     {
+                        let group = vec![
+                            SceneCommand::new(ChangeSelectionCommand::new(
+                                Selection::None,
+                                editor_scene.selection.clone(),
+                            )),
+                            SceneCommand::new(DeleteJointCommand::new(collider_item.entity_handle)),
+                        ];
+
                         sender
-                            .send(Message::do_scene_command(DeleteJointCommand::new(
-                                collider_item.entity_handle,
-                            )))
+                            .send(Message::do_scene_command(CommandGroup::from(group)))
                             .unwrap();
                     }
                 }

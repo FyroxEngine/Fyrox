@@ -1207,6 +1207,7 @@ impl WorldViewer {
             message,
             &engine.user_interface,
             &self.sender,
+            editor_scene,
         );
         self.search_bar
             .handle_ui_message(message, &engine.user_interface, &self.sender);
