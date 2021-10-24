@@ -1,3 +1,4 @@
+use crate::physics::Physics;
 use crate::{
     interaction::plane::PlaneKind,
     make_color_material,
@@ -300,7 +301,13 @@ impl MoveGizmo {
         Vector3::default()
     }
 
-    pub fn sync_transform(&self, scene: &mut Scene, selection: &Selection, scale: Vector3<f32>) {
+    pub fn sync_transform(
+        &self,
+        scene: &mut Scene,
+        selection: &Selection,
+        physics: &Physics,
+        scale: Vector3<f32>,
+    ) {
         let graph = &mut scene.graph;
         match selection {
             Selection::Graph(selection) => {
@@ -315,6 +322,16 @@ impl MoveGizmo {
             }
             Selection::Sound(selection) => {
                 if let Some(center) = selection.center(&scene.sound_context) {
+                    graph[self.origin]
+                        .set_visibility(true)
+                        .local_transform_mut()
+                        .set_position(center)
+                        .set_rotation(Default::default())
+                        .set_scale(scale);
+                }
+            }
+            Selection::RigidBody(selection) => {
+                if let Some(center) = selection.center(physics) {
                     graph[self.origin]
                         .set_visibility(true)
                         .local_transform_mut()
