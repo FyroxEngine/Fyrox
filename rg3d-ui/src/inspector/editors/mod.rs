@@ -95,17 +95,9 @@ pub trait PropertyEditorDefinition: Debug {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct PropertyEditorDefinitionContainer {
     definitions: HashMap<TypeId, Rc<dyn PropertyEditorDefinition>>,
-}
-
-impl Default for PropertyEditorDefinitionContainer {
-    fn default() -> Self {
-        Self {
-            definitions: Default::default(),
-        }
-    }
 }
 
 impl PropertyEditorDefinitionContainer {

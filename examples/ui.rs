@@ -422,11 +422,9 @@ fn main() {
                 // from UI elements and works well with borrow checker.
                 while let Some(ui_message) = engine.user_interface.poll_message() {
                     match ui_message.data() {
-                        UiMessageData::ScrollBar(msg)
-                            if ui_message.direction() == MessageDirection::FromWidget =>
-                        {
-                            // Some of our scroll bars has changed its value. Check which one.
-                            if let ScrollBarMessage::Value(value) = msg {
+                        UiMessageData::ScrollBar(ScrollBarMessage::Value(value)) => {
+                            if ui_message.direction() == MessageDirection::FromWidget {
+                                // Some of our scroll bars has changed its value. Check which one.
                                 // Each message has source - a handle of UI element that created this message.
                                 // It is used to understand from which UI element message has come.
                                 if ui_message.destination() == interface.scale {
@@ -436,47 +434,45 @@ fn main() {
                                 }
                             }
                         }
-                        UiMessageData::Button(msg) => {
-                            if let ButtonMessage::Click = msg {
-                                // Once we received Click event from Reset button, we have to reset angle and scale
-                                // of model. To do that we borrow each UI element in engine and set its value directly.
-                                // This is not ideal because there is tight coupling between UI code and model values,
-                                // but still good enough for example.
-                                if ui_message.destination() == interface.reset {
-                                    engine.user_interface.send_message(ScrollBarMessage::value(
-                                        interface.scale,
-                                        MessageDirection::ToWidget,
-                                        DEFAULT_MODEL_SCALE,
-                                    ));
-                                    engine.user_interface.send_message(ScrollBarMessage::value(
-                                        interface.yaw,
-                                        MessageDirection::ToWidget,
-                                        DEFAULT_MODEL_ROTATION,
-                                    ));
-                                }
+                        UiMessageData::Button(ButtonMessage::Click) => {
+                            // Once we received Click event from Reset button, we have to reset angle and scale
+                            // of model. To do that we borrow each UI element in engine and set its value directly.
+                            // This is not ideal because there is tight coupling between UI code and model values,
+                            // but still good enough for example.
+                            if ui_message.destination() == interface.reset {
+                                engine.user_interface.send_message(ScrollBarMessage::value(
+                                    interface.scale,
+                                    MessageDirection::ToWidget,
+                                    DEFAULT_MODEL_SCALE,
+                                ));
+                                engine.user_interface.send_message(ScrollBarMessage::value(
+                                    interface.yaw,
+                                    MessageDirection::ToWidget,
+                                    DEFAULT_MODEL_ROTATION,
+                                ));
                             }
                         }
-                        UiMessageData::DropdownList(msg) => {
-                            if let DropdownListMessage::SelectionChanged(idx) = msg {
-                                // Video mode has changed and we must change video mode to what user wants.
-                                if let Some(idx) = idx {
-                                    if ui_message.destination() == interface.resolutions {
-                                        let video_mode = interface.video_modes.get(*idx).unwrap();
-                                        engine.get_window().set_fullscreen(Some(
-                                            Fullscreen::Exclusive(video_mode.clone()),
-                                        ));
+                        UiMessageData::DropdownList(DropdownListMessage::SelectionChanged(
+                            Some(idx),
+                        )) => {
+                            // Video mode has changed and we must change video mode to what user wants.
+                            if ui_message.destination() == interface.resolutions {
+                                let video_mode = interface.video_modes.get(*idx).unwrap();
+                                engine
+                                    .get_window()
+                                    .set_fullscreen(Some(Fullscreen::Exclusive(
+                                        video_mode.clone(),
+                                    )));
 
-                                        // Due to some weird bug in winit it does not send Resized event.
-                                        if let Err(e) = engine.set_frame_size((
-                                            video_mode.size().width,
-                                            video_mode.size().height,
-                                        )) {
-                                            Log::writeln(
-                                                MessageKind::Error,
-                                                format!("Unable to set frame size: {:?}", e),
-                                            );
-                                        }
-                                    }
+                                // Due to some weird bug in winit it does not send Resized event.
+                                if let Err(e) = engine.set_frame_size((
+                                    video_mode.size().width,
+                                    video_mode.size().height,
+                                )) {
+                                    Log::writeln(
+                                        MessageKind::Error,
+                                        format!("Unable to set frame size: {:?}", e),
+                                    );
                                 }
                             }
                         }

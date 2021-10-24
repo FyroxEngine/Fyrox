@@ -628,12 +628,10 @@ impl Player {
                 } else {
                     -90.0
                 }
+            } else if self.controller.walk_backward {
+                180.0
             } else {
-                if self.controller.walk_backward {
-                    180.0
-                } else {
-                    0.0
-                }
+                0.0
             };
 
             self.model_yaw.set_target(angle.to_radians()).update(dt);

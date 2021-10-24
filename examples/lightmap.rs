@@ -461,53 +461,51 @@ fn main() {
                     ));
 
                     while let Some(ui_event) = engine.user_interface.poll_message() {
-                        if let UiMessageData::Button(msg) = ui_event.data() {
-                            if let ButtonMessage::Click = msg {
-                                if ui_event.destination() == interface.cancel {
-                                    game_scene.lock().unwrap().cancellation_token.cancel();
-                                    engine
-                                        .user_interface
-                                        .send_message(WidgetMessage::visibility(
-                                            interface.progress_grid,
-                                            MessageDirection::ToWidget,
-                                            false,
-                                        ));
-                                    engine
-                                        .user_interface
-                                        .send_message(WindowMessage::open_modal(
-                                            interface.choice_window,
-                                            MessageDirection::ToWidget,
-                                            true,
-                                        ));
-                                } else if ui_event.destination() == interface.generate_new {
-                                    game_scene =
-                                        create_scene_async(engine.resource_manager.clone(), true);
-                                    engine.user_interface.send_message(WindowMessage::close(
+                        if let UiMessageData::Button(ButtonMessage::Click) = ui_event.data() {
+                            if ui_event.destination() == interface.cancel {
+                                game_scene.lock().unwrap().cancellation_token.cancel();
+                                engine
+                                    .user_interface
+                                    .send_message(WidgetMessage::visibility(
+                                        interface.progress_grid,
+                                        MessageDirection::ToWidget,
+                                        false,
+                                    ));
+                                engine
+                                    .user_interface
+                                    .send_message(WindowMessage::open_modal(
                                         interface.choice_window,
                                         MessageDirection::ToWidget,
+                                        true,
                                     ));
-                                    engine
-                                        .user_interface
-                                        .send_message(WidgetMessage::visibility(
-                                            interface.progress_grid,
-                                            MessageDirection::ToWidget,
-                                            true,
-                                        ));
-                                } else if ui_event.destination() == interface.load_existing {
-                                    game_scene =
-                                        create_scene_async(engine.resource_manager.clone(), false);
-                                    engine.user_interface.send_message(WindowMessage::close(
-                                        interface.choice_window,
+                            } else if ui_event.destination() == interface.generate_new {
+                                game_scene =
+                                    create_scene_async(engine.resource_manager.clone(), true);
+                                engine.user_interface.send_message(WindowMessage::close(
+                                    interface.choice_window,
+                                    MessageDirection::ToWidget,
+                                ));
+                                engine
+                                    .user_interface
+                                    .send_message(WidgetMessage::visibility(
+                                        interface.progress_grid,
                                         MessageDirection::ToWidget,
+                                        true,
                                     ));
-                                    engine
-                                        .user_interface
-                                        .send_message(WidgetMessage::visibility(
-                                            interface.progress_grid,
-                                            MessageDirection::ToWidget,
-                                            true,
-                                        ));
-                                }
+                            } else if ui_event.destination() == interface.load_existing {
+                                game_scene =
+                                    create_scene_async(engine.resource_manager.clone(), false);
+                                engine.user_interface.send_message(WindowMessage::close(
+                                    interface.choice_window,
+                                    MessageDirection::ToWidget,
+                                ));
+                                engine
+                                    .user_interface
+                                    .send_message(WidgetMessage::visibility(
+                                        interface.progress_grid,
+                                        MessageDirection::ToWidget,
+                                        true,
+                                    ));
                             }
                         }
                     }

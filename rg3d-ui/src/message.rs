@@ -963,15 +963,15 @@ impl PropertyChanged {
     pub fn path(&self) -> String {
         let mut path = self.name.clone();
         match self.value {
-            FieldKind::Collection(ref collection_changed) => match **collection_changed {
-                CollectionChanged::ItemChanged {
+            FieldKind::Collection(ref collection_changed) => {
+                if let CollectionChanged::ItemChanged {
                     ref property,
                     index,
-                } => {
+                } = **collection_changed
+                {
                     path += format!("[{}].{}", index, property.path()).as_ref();
                 }
-                _ => (),
-            },
+            }
             FieldKind::Inspectable(ref inspectable) => {
                 path += format!(".{}", inspectable.path()).as_ref();
             }
@@ -1252,7 +1252,7 @@ pub enum OsEvent {
     MouseWheel(f32, f32),
 }
 
-#[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Copy, Default)]
 pub struct KeyboardModifiers {
     pub alt: bool,
     pub shift: bool,
@@ -1263,17 +1263,6 @@ pub struct KeyboardModifiers {
 impl KeyboardModifiers {
     pub fn is_none(self) -> bool {
         !self.shift && !self.control && !self.alt && !self.system
-    }
-}
-
-impl Default for KeyboardModifiers {
-    fn default() -> Self {
-        Self {
-            alt: false,
-            shift: false,
-            control: false,
-            system: false,
-        }
     }
 }
 

@@ -27,16 +27,10 @@ mod dummy;
 mod web;
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Default)]
 pub struct NativeSample {
     pub left: i16,
     pub right: i16,
-}
-
-impl Default for NativeSample {
-    fn default() -> Self {
-        Self { left: 0, right: 0 }
-    }
 }
 
 pub type FeedCallback = dyn FnMut(&mut [(f32, f32)]) + Send;
