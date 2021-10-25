@@ -228,3 +228,13 @@ sudo apt install libxcb-shape0-dev libxcb-xfixes0-dev libxcb1-dev libxkbcommon-d
 Contributions are very welcome! Feel free to open Issues and Pull Requests.
 
 Check the [good first issue](https://github.com/mrDIMAS/rg3d/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) label to see where you can help.
+
+## Sponsors
+
+### JetBrains
+
+JetBrains provided an open-source all-products license for their products which drastically helps in development of the engine.
+
+<img src="https://resources.jetbrains.com/storage/products/company/brand/logos/jb_beam.png" alt="JetBrains logo." width="200" height="200">
+
+_Copyright © 2000-2021 [JetBrains](https://jb.gg/OpenSource) s.r.o. JetBrains and the JetBrains logo are registered trademarks of JetBrains s.r.o._
