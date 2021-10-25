@@ -9,8 +9,11 @@
 //! just 1 second will take ~172 Kb of memory (with 44100 Hz sampling rate and float sample representation).
 
 use crate::buffer::{generic::GenericBuffer, streaming::StreamingBuffer};
+use crate::error::SoundError;
 use rg3d_core::{io::FileLoadError, visitor::prelude::*};
 use rg3d_resource::{define_new_resource, Resource, ResourceData, ResourceState};
+use std::fmt::Debug;
+use std::time::Duration;
 use std::{
     borrow::Cow,
     io::{Cursor, Read, Seek, SeekFrom},
@@ -60,6 +63,38 @@ pub enum DataSource {
         /// get error at attempt to use such buffer.
         samples: Vec<f32>,
     },
+
+    /// Raw streaming source.
+    RawStreaming(Box<dyn RawStreamingDataSource>),
+}
+
+/// A samples generator.
+///
+/// # Notes
+///
+/// Iterator implementation (the `next()` method) must produce samples in interleaved format, this
+/// means that samples emitted by the method should be in `LRLRLR..` order, where `L` and `R` are
+/// samples from left and right channels respectively. The sound engine supports both mono and
+/// stereo sample sources.
+pub trait RawStreamingDataSource: Iterator<Item = f32> + Send + Sync + Debug {
+    /// Should return sample rate of the source.
+    fn sample_rate(&self) -> usize;
+
+    /// Should return total channel count.
+    fn channel_count(&self) -> usize;
+
+    /// Tells whether the provider should restart.
+    fn rewind(&mut self) -> Result<(), SoundError> {
+        Ok(())
+    }
+
+    /// Allows you to start playback from given duration.
+    fn time_seek(&mut self, _duration: Duration) {}
+
+    /// Returns total duration of data. Can be `None` if internal decoder does not supports seeking.
+    fn duration(&self) -> Option<Duration> {
+        None
+    }
 }
 
 impl DataSource {
@@ -95,6 +130,9 @@ impl Read for DataSource {
             DataSource::File { data, .. } => data.read(buf),
             DataSource::Memory(b) => b.read(buf),
             DataSource::Raw { .. } => unreachable!("Raw data source does not supports Read trait!"),
+            DataSource::RawStreaming { .. } => {
+                unreachable!("Raw data source does not supports Read trait!")
+            }
         }
     }
 }
@@ -105,6 +143,9 @@ impl Seek for DataSource {
             DataSource::File { data, .. } => data.seek(pos),
             DataSource::Memory(b) => b.seek(pos),
             DataSource::Raw { .. } => unreachable!("Raw data source does not supports Seek trait!"),
+            DataSource::RawStreaming { .. } => {
+                unreachable!("Raw data source does not supports Seek trait!")
+            }
         }
     }
 }

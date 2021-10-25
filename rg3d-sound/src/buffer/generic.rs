@@ -55,6 +55,9 @@ impl GenericBuffer {
     ///
     /// # Notes
     ///
+    /// `DataSource::RawStreaming` is **not** supported with generic buffers, use streaming buffer
+    /// instead!
+    ///
     /// Data source with raw samples must have sample count multiple of channel count, otherwise this
     /// function will return `Err`.
     pub fn new(source: DataSource) -> Result<Self, DataSource> {
@@ -79,6 +82,7 @@ impl GenericBuffer {
                     })
                 }
             }
+            DataSource::RawStreaming(_) => Err(source),
             _ => {
                 let external_source_path = if let DataSource::File { path, .. } = &source {
                     path.clone()

@@ -10,7 +10,6 @@ mod wav;
 
 #[derive(Debug)]
 pub(in crate) enum Decoder {
-    Null,
     Wav(WavDecoder),
     Ogg(OggDecoder),
 }
@@ -22,7 +21,6 @@ impl Iterator for Decoder {
         match self {
             Decoder::Wav(wav) => wav.next(),
             Decoder::Ogg(ogg) => ogg.next(),
-            Decoder::Null => None,
         }
     }
 }
@@ -46,7 +44,6 @@ impl Decoder {
         match self {
             Decoder::Wav(wav) => wav.rewind(),
             Decoder::Ogg(ogg) => ogg.rewind(),
-            Decoder::Null => Ok(()),
         }
     }
 
@@ -54,7 +51,6 @@ impl Decoder {
         match self {
             Decoder::Wav(wav) => wav.time_seek(location),
             Decoder::Ogg(ogg) => ogg.time_seek(location),
-            Decoder::Null => (),
         }
     }
 
@@ -62,7 +58,6 @@ impl Decoder {
         match self {
             Decoder::Wav(wav) => wav.channel_count(),
             Decoder::Ogg(ogg) => ogg.channel_count,
-            Decoder::Null => 0,
         }
     }
 
@@ -70,7 +65,6 @@ impl Decoder {
         match self {
             Decoder::Wav(wav) => wav.sample_rate(),
             Decoder::Ogg(ogg) => ogg.sample_rate,
-            Decoder::Null => 0,
         }
     }
 
@@ -82,7 +76,6 @@ impl Decoder {
         match self {
             Decoder::Wav(wav) => wav.duration(),
             Decoder::Ogg(ogg) => ogg.duration(),
-            Decoder::Null => None,
         }
     }
 }
