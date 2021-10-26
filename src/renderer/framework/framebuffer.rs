@@ -328,7 +328,7 @@ impl FrameBuffer {
         }
     }
 
-    pub fn draw<F: FnOnce(GpuProgramBinding<'_>)>(
+    pub fn draw<F: FnOnce(GpuProgramBinding<'_, '_>)>(
         &mut self,
         geometry: &GeometryBuffer,
         state: &mut PipelineState,
@@ -343,7 +343,7 @@ impl FrameBuffer {
         geometry.bind(state).draw()
     }
 
-    pub fn draw_instances<F: FnOnce(GpuProgramBinding<'_>)>(
+    pub fn draw_instances<F: FnOnce(GpuProgramBinding<'_, '_>)>(
         &mut self,
         count: usize,
         geometry: &GeometryBuffer,
@@ -359,7 +359,7 @@ impl FrameBuffer {
         geometry.bind(state).draw_instances(count)
     }
 
-    pub fn draw_part<F: FnOnce(GpuProgramBinding<'_>)>(
+    pub fn draw_part<F: FnOnce(GpuProgramBinding<'_, '_>)>(
         &mut self,
         geometry: &mut GeometryBuffer,
         state: &mut PipelineState,
@@ -377,7 +377,7 @@ impl FrameBuffer {
     }
 }
 
-fn pre_draw<F: FnOnce(GpuProgramBinding<'_>)>(
+fn pre_draw<F: FnOnce(GpuProgramBinding<'_, '_>)>(
     fbo: Option<glow::Framebuffer>,
     state: &mut PipelineState,
     viewport: Rect<i32>,

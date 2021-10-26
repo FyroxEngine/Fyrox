@@ -32,6 +32,7 @@ opt-level = 0
 
 [profile.release]
 opt-level = 3
+debug = true
 
 [dependencies]
 rg3d-core = { path = "rg3d-core", version = "0.18.0", features = ["serde"] }
@@ -52,6 +53,7 @@ glow = "0.11"
 walkdir = "2.3.2"
 thiserror = "1.0.26"
 ron = "0.6.4"
+fxhash = "0.2.1"
 
 [features]
 enable_profiler = ["rg3d-core/enable_profiler"]

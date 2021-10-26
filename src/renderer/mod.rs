@@ -818,9 +818,9 @@ fn blit_pixels(
     )
 }
 
-pub(in crate) struct MaterialContext<'a, 'b> {
+pub(in crate) struct MaterialContext<'a, 'b, 'c> {
     pub material: &'a Material,
-    pub program_binding: &'a mut GpuProgramBinding<'b>,
+    pub program_binding: &'a mut GpuProgramBinding<'b, 'c>,
     pub texture_cache: &'a mut TextureCache,
 
     // Built-in uniforms.

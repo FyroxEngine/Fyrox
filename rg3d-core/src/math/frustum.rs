@@ -112,6 +112,7 @@ impl Frustum {
         self.right().intersection_point(self.top(), self.near())
     }
 
+    #[inline]
     pub fn is_intersects_point_cloud(&self, points: &[Vector3<f32>]) -> bool {
         for plane in self.planes.iter() {
             let mut back_points = 0;
@@ -128,6 +129,7 @@ impl Frustum {
         true
     }
 
+    #[inline]
     pub fn is_intersects_aabb(&self, aabb: &AxisAlignedBoundingBox) -> bool {
         let corners = [
             Vector3::new(aabb.min.x, aabb.min.y, aabb.min.z),
@@ -143,6 +145,7 @@ impl Frustum {
         self.is_intersects_point_cloud(&corners)
     }
 
+    #[inline]
     pub fn is_intersects_aabb_offset(
         &self,
         aabb: &AxisAlignedBoundingBox,
@@ -162,6 +165,7 @@ impl Frustum {
         self.is_intersects_point_cloud(&corners)
     }
 
+    #[inline]
     pub fn is_intersects_aabb_transform(
         &self,
         aabb: &AxisAlignedBoundingBox,
@@ -205,6 +209,7 @@ impl Frustum {
         self.is_intersects_point_cloud(&corners)
     }
 
+    #[inline]
     pub fn is_contains_point(&self, pt: Vector3<f32>) -> bool {
         for plane in self.planes.iter() {
             if plane.dot(&pt) <= 0.0 {
@@ -214,6 +219,7 @@ impl Frustum {
         true
     }
 
+    #[inline]
     pub fn is_intersects_sphere(&self, p: Vector3<f32>, r: f32) -> bool {
         for plane in self.planes.iter() {
             let d = plane.dot(&p);
