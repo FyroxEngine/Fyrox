@@ -2,9 +2,10 @@ use crate::{
     brush::Brush,
     core::{algebra::Vector2, math::Rect, pool::Handle},
     message::{CursorIcon, MessageDirection, UiMessage, UiMessageData, WidgetMessage},
-    HorizontalAlignment, Thickness, UiNode, UserInterface, VerticalAlignment, BRUSH_FOREGROUND,
-    BRUSH_PRIMARY,
+    HorizontalAlignment, LayoutEvent, Thickness, UiNode, UserInterface, VerticalAlignment,
+    BRUSH_FOREGROUND, BRUSH_PRIMARY,
 };
+use std::sync::mpsc::Sender;
 use std::{
     any::Any,
     cell::{Cell, RefCell},
@@ -61,6 +62,7 @@ pub struct Widget {
     context_menu: Handle<UiNode>,
     pub(in crate) preview_messages: bool,
     pub(in crate) handle_os_events: bool,
+    pub(in crate) layout_events_sender: Option<Sender<LayoutEvent>>,
 
     /// Layout. Interior mutability is a must here because layout performed in
     /// a series of recursive calls.
@@ -140,11 +142,19 @@ impl Widget {
     #[inline]
     pub fn invalidate_measure(&self) {
         self.measure_valid.set(false);
+
+        if let Some(layout_events_sender) = self.layout_events_sender.as_ref() {
+            let _ = layout_events_sender.send(LayoutEvent::MeasurementInvalidated(self.handle));
+        }
     }
 
     #[inline]
     pub fn invalidate_arrange(&self) {
         self.arrange_valid.set(false);
+
+        if let Some(layout_events_sender) = self.layout_events_sender.as_ref() {
+            let _ = layout_events_sender.send(LayoutEvent::ArrangementInvalidated(self.handle));
+        }
     }
 
     #[inline]
@@ -357,34 +367,6 @@ impl Widget {
             parent_handle = parent_node.parent;
         }
         Handle::NONE
-    }
-
-    pub fn is_measure_valid_with_descendants(&self, ui: &UserInterface) -> bool {
-        let mut valid =
-            self.is_measure_valid() && self.prev_global_visibility == self.is_globally_visible();
-        if valid {
-            for &child in self.children.iter() {
-                valid &= ui.node(child).is_measure_valid_with_descendants(ui);
-                if !valid {
-                    break;
-                }
-            }
-        }
-        valid
-    }
-
-    pub fn is_arrange_valid_with_descendants(&self, ui: &UserInterface) -> bool {
-        let mut valid =
-            self.is_arrange_valid() && self.prev_global_visibility == self.is_globally_visible();
-        if valid {
-            for &child in self.children.iter() {
-                valid &= ui.node(child).is_arrange_valid_with_descendants(ui);
-                if !valid {
-                    break;
-                }
-            }
-        }
-        valid
     }
 
     pub fn handle_routed_message(&mut self, _ui: &mut UserInterface, msg: &mut UiMessage) {
@@ -975,6 +957,7 @@ impl WidgetBuilder {
             context_menu: self.context_menu,
             preview_messages: self.preview_messages,
             handle_os_events: self.handle_os_events,
+            layout_events_sender: None,
         }
     }
 }

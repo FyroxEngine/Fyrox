@@ -489,6 +489,12 @@ impl TooltipEntry {
     }
 }
 
+#[derive(Debug)]
+enum LayoutEvent {
+    MeasurementInvalidated(Handle<UiNode>),
+    ArrangementInvalidated(Handle<UiNode>),
+}
+
 pub struct UserInterface {
     screen_size: Vector2<f32>,
     nodes: Pool<UiNode>,
@@ -512,6 +518,8 @@ pub struct UserInterface {
     active_tooltip: Option<TooltipEntry>,
     preview_set: HashSet<Handle<UiNode>>,
     clipboard: Option<ClipboardContext>,
+    layout_events_receiver: Receiver<LayoutEvent>,
+    layout_events_sender: Sender<LayoutEvent>,
 }
 
 lazy_static! {
@@ -598,6 +606,7 @@ fn is_node_enabled(nodes: &Pool<UiNode>, handle: Handle<UiNode>) -> bool {
 impl UserInterface {
     pub fn new(screen_size: Vector2<f32>) -> UserInterface {
         let (sender, receiver) = mpsc::channel();
+        let (layout_events_sender, layout_events_receiver) = mpsc::channel();
         let mut ui = UserInterface {
             screen_size,
             sender,
@@ -621,6 +630,8 @@ impl UserInterface {
             active_tooltip: Default::default(),
             preview_set: Default::default(),
             clipboard: ClipboardContext::new().ok(),
+            layout_events_receiver,
+            layout_events_sender,
         };
         ui.root_canvas = ui.add_node(UiNode::new(Canvas::new(WidgetBuilder::new().build())));
         ui
@@ -684,6 +695,15 @@ impl UserInterface {
             };
 
             widget.set_global_visibility(visibility);
+
+            if widget.prev_global_visibility != visibility {
+                let _ = self
+                    .layout_events_sender
+                    .send(LayoutEvent::MeasurementInvalidated(node_handle));
+                let _ = self
+                    .layout_events_sender
+                    .send(LayoutEvent::ArrangementInvalidated(node_handle));
+            }
         }
     }
 
@@ -717,11 +737,52 @@ impl UserInterface {
         self.screen_size
     }
 
+    fn handle_layout_events(&self) {
+        while let Ok(layout_event) = self.layout_events_receiver.try_recv() {
+            match layout_event {
+                LayoutEvent::MeasurementInvalidated(node) => {
+                    fn invalidate_measurement_recursive_up(
+                        nodes: &Pool<UiNode>,
+                        node: Handle<UiNode>,
+                    ) {
+                        let node_ref = &nodes[node];
+
+                        node_ref.measure_valid.set(false);
+
+                        if node_ref.parent().is_some() {
+                            invalidate_measurement_recursive_up(nodes, node_ref.parent());
+                        }
+                    }
+
+                    invalidate_measurement_recursive_up(&self.nodes, node);
+                }
+                LayoutEvent::ArrangementInvalidated(node) => {
+                    fn invalidate_arrangement_recursive_up(
+                        nodes: &Pool<UiNode>,
+                        node: Handle<UiNode>,
+                    ) {
+                        let node_ref = &nodes[node];
+
+                        node_ref.arrange_valid.set(false);
+
+                        if node_ref.parent().is_some() {
+                            invalidate_arrangement_recursive_up(nodes, node_ref.parent());
+                        }
+                    }
+
+                    invalidate_arrangement_recursive_up(&self.nodes, node);
+                }
+            }
+        }
+    }
+
     pub fn update(&mut self, screen_size: Vector2<f32>, dt: f32) {
         scope_profile!();
 
         self.screen_size = screen_size;
         self.update_visibility();
+
+        self.handle_layout_events();
 
         for n in self.nodes.iter() {
             if !n.is_globally_visible() && n.prev_global_visibility == n.is_globally_visible() {
@@ -835,7 +896,7 @@ impl UserInterface {
 
         let node = self.node(handle);
 
-        if node.is_arrange_valid_with_descendants(self) && node.prev_arrange.get() == *final_rect {
+        if node.is_arrange_valid() && node.prev_arrange.get() == *final_rect {
             return false;
         }
 
@@ -899,8 +960,7 @@ impl UserInterface {
 
         let node = self.node(handle);
 
-        if node.is_measure_valid_with_descendants(self) && node.prev_measure.get() == available_size
-        {
+        if node.is_measure_valid() && node.prev_measure.get() == available_size {
             return false;
         }
 
@@ -1795,6 +1855,7 @@ impl UserInterface {
             self.link_nodes_internal(child, node_handle, false)
         }
         let node = self.nodes[node_handle].deref_mut();
+        node.layout_events_sender = Some(self.layout_events_sender.clone());
         if node.preview_messages {
             self.preview_set.insert(node_handle);
         }
