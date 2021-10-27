@@ -26,6 +26,7 @@ impl Polygon {
     ///
     /// Excludes vertex from polygon. Does not remove it from vertices array!
     ///
+    #[inline]
     fn remove_vertex(&mut self, index: usize) {
         let next_index = self.vertices[index].next;
         let prev_index = self.vertices[index].prev;

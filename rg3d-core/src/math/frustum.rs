@@ -1,5 +1,5 @@
-use crate::algebra::{Matrix4, Vector3};
 use crate::{
+    algebra::{Matrix4, Vector3},
     math::{aabb::AxisAlignedBoundingBox, plane::Plane},
     visitor::{Visit, VisitResult, Visitor},
 };
@@ -12,6 +12,7 @@ pub struct Frustum {
 }
 
 impl Default for Frustum {
+    #[inline]
     fn default() -> Self {
         Self::from(Matrix4::new_perspective(
             1.0,
@@ -24,6 +25,7 @@ impl Default for Frustum {
 }
 
 impl Frustum {
+    #[inline]
     pub fn from(m: Matrix4<f32>) -> Option<Self> {
         Some(Self {
             planes: [

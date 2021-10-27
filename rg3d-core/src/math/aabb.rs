@@ -8,6 +8,7 @@ pub struct AxisAlignedBoundingBox {
 }
 
 impl Default for AxisAlignedBoundingBox {
+    #[inline]
     fn default() -> Self {
         Self {
             min: Vector3::new(f32::MAX, f32::MAX, f32::MAX),
@@ -17,14 +18,17 @@ impl Default for AxisAlignedBoundingBox {
 }
 
 impl AxisAlignedBoundingBox {
+    #[inline]
     pub fn unit() -> Self {
         Self::from_min_max(Vector3::new(-0.5, -0.5, -0.5), Vector3::new(0.5, 0.5, 0.5))
     }
 
+    #[inline]
     pub const fn from_min_max(min: Vector3<f32>, max: Vector3<f32>) -> Self {
         Self { min, max }
     }
 
+    #[inline]
     pub fn from_points(points: &[Vector3<f32>]) -> Self {
         let mut aabb = AxisAlignedBoundingBox::default();
         for pt in points {
@@ -33,6 +37,7 @@ impl AxisAlignedBoundingBox {
         aabb
     }
 
+    #[inline]
     pub fn add_point(&mut self, a: Vector3<f32>) {
         if a.x < self.min.x {
             self.min.x = a.x;
@@ -55,16 +60,19 @@ impl AxisAlignedBoundingBox {
         }
     }
 
+    #[inline]
     pub fn inflate(&mut self, delta: Vector3<f32>) {
         self.min -= delta.scale(0.5);
         self.max += delta.scale(0.5);
     }
 
+    #[inline]
     pub fn add_box(&mut self, other: Self) {
         self.add_point(other.min);
         self.add_point(other.max);
     }
 
+    #[inline]
     pub fn corners(&self) -> [Vector3<f32>; 8] {
         [
             Vector3::new(self.min.x, self.min.y, self.min.z),
@@ -78,23 +86,28 @@ impl AxisAlignedBoundingBox {
         ]
     }
 
+    #[inline]
     pub fn offset(&mut self, v: Vector3<f32>) {
         self.min += v;
         self.max += v;
     }
 
+    #[inline]
     pub fn center(&self) -> Vector3<f32> {
         (self.max + self.min).scale(0.5)
     }
 
+    #[inline]
     pub fn half_extents(&self) -> Vector3<f32> {
         (self.max - self.min).scale(0.5)
     }
 
+    #[inline]
     pub fn invalidate(&mut self) {
         *self = Default::default();
     }
 
+    #[inline]
     pub fn is_contains_point(&self, point: Vector3<f32>) -> bool {
         point.x >= self.min.x
             && point.x <= self.max.x
@@ -104,6 +117,7 @@ impl AxisAlignedBoundingBox {
             && point.z <= self.max.z
     }
 
+    #[inline]
     pub fn is_intersects_sphere(&self, position: Vector3<f32>, radius: f32) -> bool {
         let r2 = radius.powi(2);
         let mut dmin = 0.0;
@@ -135,6 +149,7 @@ impl AxisAlignedBoundingBox {
                 && (position.z <= self.max.z))
     }
 
+    #[inline]
     pub fn intersect_aabb(&self, other: &Self) -> bool {
         let self_center = self.center();
         let self_half_extents = self.half_extents();
@@ -157,6 +172,7 @@ impl AxisAlignedBoundingBox {
         true
     }
 
+    #[inline]
     pub fn transform(&mut self, m: Matrix4<f32>) {
         self.max = m.transform_point(&Point3::from(self.max)).coords;
         self.min = m.transform_point(&Point3::from(self.min)).coords;

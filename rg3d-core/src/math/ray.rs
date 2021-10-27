@@ -12,6 +12,7 @@ pub struct Ray {
 }
 
 impl Default for Ray {
+    #[inline]
     fn default() -> Self {
         Ray {
             origin: Vector3::new(0.0, 0.0, 0.0),
@@ -28,6 +29,7 @@ pub struct IntersectionResult {
 }
 
 impl IntersectionResult {
+    #[inline]
     pub fn from_slice(roots: &[f32]) -> Self {
         let mut min = f32::MAX;
         let mut max = -f32::MAX;
@@ -38,6 +40,7 @@ impl IntersectionResult {
         Self { min, max }
     }
 
+    #[inline]
     pub fn from_set(results: &[Option<IntersectionResult>]) -> Option<Self> {
         let mut result = None;
         for v in results {
@@ -56,6 +59,7 @@ impl IntersectionResult {
 
     /// Updates min and max ray equation parameters according to a new parameter -
     /// expands range if `param` was outside of that range.
+    #[inline]
     pub fn merge(&mut self, param: f32) {
         if param < self.min {
             self.min = param;
@@ -65,6 +69,7 @@ impl IntersectionResult {
         }
     }
 
+    #[inline]
     pub fn merge_slice(&mut self, params: &[f32]) {
         for param in params {
             self.merge(*param)
@@ -88,6 +93,7 @@ impl Ray {
         }
     }
 
+    #[inline]
     pub fn new(origin: Vector3<f32>, dir: Vector3<f32>) -> Self {
         Self { origin, dir }
     }
@@ -103,6 +109,7 @@ impl Ray {
         self.try_eval_points(self.sphere_intersection(position, radius))
     }
 
+    #[inline]
     pub fn sphere_intersection(
         &self,
         position: &Vector3<f32>,
@@ -138,6 +145,7 @@ impl Ray {
         self.origin + self.dir.scale(t)
     }
 
+    #[inline]
     pub fn box_intersection(
         &self,
         min: &Vector3<f32>,
@@ -207,6 +215,7 @@ impl Ray {
         }
     }
 
+    #[inline]
     pub fn box_intersection_points(
         &self,
         min: &Vector3<f32>,
@@ -215,10 +224,12 @@ impl Ray {
         self.try_eval_points(self.box_intersection(min, max))
     }
 
+    #[inline]
     pub fn aabb_intersection(&self, aabb: &AxisAlignedBoundingBox) -> Option<IntersectionResult> {
         self.box_intersection(&aabb.min, &aabb.max)
     }
 
+    #[inline]
     pub fn aabb_intersection_points(
         &self,
         aabb: &AxisAlignedBoundingBox,
@@ -228,12 +239,14 @@ impl Ray {
 
     /// Solves plane equation in order to find ray equation parameter.
     /// There is no intersection if result < 0.
+    #[inline]
     pub fn plane_intersection(&self, plane: &Plane) -> f32 {
         let u = -(self.origin.dot(&plane.normal) + plane.d);
         let v = self.dir.dot(&plane.normal);
         u / v
     }
 
+    #[inline]
     pub fn plane_intersection_point(&self, plane: &Plane) -> Option<Vector3<f32>> {
         let t = self.plane_intersection(plane);
         if !(0.0..=1.0).contains(&t) {
@@ -243,6 +256,7 @@ impl Ray {
         }
     }
 
+    #[inline]
     pub fn triangle_intersection(
         &self,
         vertices: &[Vector3<f32>; 3],
@@ -261,6 +275,7 @@ impl Ray {
         None
     }
 
+    #[inline]
     pub fn triangle_intersection_point(
         &self,
         vertices: &[Vector3<f32>; 3],
@@ -292,6 +307,7 @@ impl Ray {
     ///     where dp = p - pa
     ///  to find intersection points we have to solve quadratic equation
     ///  to get root which will be t parameter of ray equation.
+    #[inline]
     pub fn cylinder_intersection(
         &self,
         pa: &Vector3<f32>,
@@ -359,6 +375,7 @@ impl Ray {
         }
     }
 
+    #[inline]
     pub fn try_eval_points(&self, result: Option<IntersectionResult>) -> Option<[Vector3<f32>; 2]> {
         match result {
             None => None,
@@ -386,6 +403,7 @@ impl Ray {
         }
     }
 
+    #[inline]
     pub fn capsule_intersection(
         &self,
         pa: &Vector3<f32>,
@@ -408,6 +426,7 @@ impl Ray {
     /// be to put ray into object space and do intersection test in object space. This
     /// removes vertex*matrix multiplication and significantly improves performance.
     #[must_use = "Method does not modify ray, instead it returns transformed copy"]
+    #[inline]
     pub fn transform(&self, mat: Matrix4<f32>) -> Self {
         Self {
             origin: mat.transform_point(&Point3::from(self.origin)).coords,

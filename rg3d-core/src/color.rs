@@ -12,12 +12,14 @@ pub struct Color {
 }
 
 impl Default for Color {
+    #[inline]
     fn default() -> Self {
         Self::WHITE
     }
 }
 
 impl Into<u32> for Color {
+    #[inline]
     fn into(self) -> u32 {
         ((self.a as u32) << 24) | ((self.b as u32) << 16) | ((self.g as u32) << 8) | (self.r as u32)
     }
@@ -56,6 +58,7 @@ pub struct Hsv {
 }
 
 impl Hsv {
+    #[inline]
     pub fn new(hue: f32, saturation: f32, brightness: f32) -> Self {
         Self {
             hue: hue.min(360.0).max(0.0),
@@ -64,32 +67,39 @@ impl Hsv {
         }
     }
 
+    #[inline]
     pub fn hue(&self) -> f32 {
         self.hue
     }
 
+    #[inline]
     pub fn set_hue(&mut self, hue: f32) {
         self.hue = hue.min(360.0).max(0.0);
     }
 
+    #[inline]
     pub fn saturation(&self) -> f32 {
         self.saturation
     }
 
+    #[inline]
     pub fn set_saturation(&mut self, saturation: f32) {
         self.saturation = saturation.min(100.0).max(0.0);
     }
 
+    #[inline]
     pub fn brightness(&self) -> f32 {
         self.brightness
     }
 
+    #[inline]
     pub fn set_brightness(&mut self, brightness: f32) {
         self.brightness = brightness.min(100.0).max(0.0);
     }
 }
 
 impl From<Color> for Hsv {
+    #[inline]
     fn from(color: Color) -> Self {
         let r = color.r as f32 / 255.0;
         let g = color.g as f32 / 255.0;
@@ -125,6 +135,7 @@ impl From<Color> for Hsv {
 }
 
 impl From<Hsv> for Color {
+    #[inline]
     fn from(hsv: Hsv) -> Self {
         let hi = ((hsv.hue / 60.0) % 6.0) as i32;
         let vmin = ((100.0 - hsv.saturation) * hsv.brightness) / 100.0;
@@ -184,15 +195,18 @@ impl Color {
         a: 0,
     };
 
+    #[inline]
     pub const fn opaque(r: u8, g: u8, b: u8) -> Self {
         Self { r, g, b, a: 255 }
     }
 
+    #[inline]
     pub const fn from_rgba(r: u8, g: u8, b: u8, a: u8) -> Self {
         Self { r, g, b, a }
     }
 
     #[must_use]
+    #[inline]
     pub fn srgb_to_linear(self) -> Self {
         let r = ((self.r as f32 / 255.0).powf(2.2).clamp(0.0, 1.0) * 255.0) as u8;
         let g = ((self.g as f32 / 255.0).powf(2.2).clamp(0.0, 1.0) * 255.0) as u8;
@@ -201,6 +215,7 @@ impl Color {
     }
 
     #[must_use]
+    #[inline]
     pub fn srgb_to_linear_f32(self) -> Vector4<f32> {
         let r = (self.r as f32 / 255.0).powf(2.2).clamp(0.0, 1.0);
         let g = (self.g as f32 / 255.0).powf(2.2).clamp(0.0, 1.0);
@@ -209,6 +224,7 @@ impl Color {
     }
 
     #[must_use]
+    #[inline]
     pub fn linear_to_srgb(self) -> Self {
         let r = ((self.r as f32 / 255.0).powf(1.0 / 2.2).clamp(0.0, 1.0) * 255.0) as u8;
         let g = ((self.g as f32 / 255.0).powf(1.0 / 2.2).clamp(0.0, 1.0) * 255.0) as u8;
@@ -216,6 +232,7 @@ impl Color {
         Self::from_rgba(r, g, b, self.a)
     }
 
+    #[inline]
     pub fn as_frgba(self) -> Vector4<f32> {
         Vector4::new(
             f32::from(self.r) / 255.0,
@@ -225,6 +242,7 @@ impl Color {
         )
     }
 
+    #[inline]
     pub fn as_frgb(self) -> Vector3<f32> {
         Vector3::new(
             f32::from(self.r) / 255.0,
@@ -233,6 +251,7 @@ impl Color {
         )
     }
 
+    #[inline]
     pub fn to_opaque(self) -> Self {
         Self {
             r: self.r,
@@ -242,6 +261,7 @@ impl Color {
         }
     }
 
+    #[inline]
     pub fn lerp(self, other: Self, t: f32) -> Self {
         let dr = (t * (i32::from(other.r) - i32::from(self.r)) as f32) as i32;
         let dg = (t * (i32::from(other.g) - i32::from(self.g)) as f32) as i32;
@@ -261,6 +281,7 @@ impl Color {
         }
     }
 
+    #[inline]
     pub fn with_new_alpha(self, a: u8) -> Self {
         Self {
             r: self.r,
