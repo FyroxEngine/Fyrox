@@ -26,6 +26,7 @@ pub enum CurveKeyKind {
 }
 
 impl CurveKeyKind {
+    #[inline]
     pub fn new_cubic(left_angle_radians: f32, right_angle_radians: f32) -> Self {
         Self::Cubic {
             left_tangent: left_angle_radians.tan(),
@@ -35,6 +36,7 @@ impl CurveKeyKind {
 }
 
 impl Default for CurveKeyKind {
+    #[inline]
     fn default() -> Self {
         Self::Constant
     }
@@ -49,6 +51,7 @@ pub struct CurveKey {
 }
 
 impl CurveKey {
+    #[inline]
     pub fn new(location: f32, value: f32, kind: CurveKeyKind) -> Self {
         Self {
             id: Uuid::new_v4(),
@@ -60,10 +63,12 @@ impl CurveKey {
 }
 
 impl CurveKey {
+    #[inline]
     pub fn location(&self) -> f32 {
         self.location
     }
 
+    #[inline]
     pub fn interpolate(&self, other: &Self, t: f32) -> f32 {
         match (&self.kind, &other.kind) {
             // Constant-to-any
@@ -136,23 +141,28 @@ impl From<Vec<CurveKey>> for Curve {
 }
 
 impl Curve {
+    #[inline]
     pub fn clear(&mut self) {
         self.keys.clear()
     }
 
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.keys.is_empty()
     }
 
+    #[inline]
     pub fn keys(&self) -> &[CurveKey] {
         &self.keys
     }
 
+    #[inline]
     pub fn add_key(&mut self, new_key: CurveKey) {
         self.keys.push(new_key);
         sort_keys(&mut self.keys);
     }
 
+    #[inline]
     pub fn move_key(&mut self, key_id: usize, location: f32) {
         if let Some(key) = self.keys.get_mut(key_id) {
             key.location = location;
@@ -160,6 +170,7 @@ impl Curve {
         }
     }
 
+    #[inline]
     pub fn value_at(&self, location: f32) -> f32 {
         if self.keys.is_empty() {
             // Stub - zero

@@ -8,6 +8,7 @@ pub struct Plane {
 }
 
 impl Default for Plane {
+    #[inline]
     fn default() -> Self {
         Plane {
             normal: Vector3::new(0.0, 1.0, 0.0),
