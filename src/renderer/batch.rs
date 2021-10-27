@@ -186,6 +186,10 @@ impl BatchStorage {
             }
         }
 
+        for batch in self.batches.iter_mut() {
+            batch.instances.shrink_to_fit();
+        }
+
         self.batches.sort_unstable_by_key(|b| b.sort_index);
     }
 }
