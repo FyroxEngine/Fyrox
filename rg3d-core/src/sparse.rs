@@ -124,6 +124,10 @@ impl<T> SparseBuffer<T> {
         self.vec.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.filled() == 0
+    }
+
     pub fn filled(&self) -> usize {
         self.vec
             .iter()

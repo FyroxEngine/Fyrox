@@ -231,7 +231,7 @@ impl NodeHandleMapping {
     pub fn resolve(&self, old: &mut Handle<UiNode>) {
         // None handles aren't mapped.
         if old.is_some() {
-            if let Some(clone) = self.hash_map.get(&old) {
+            if let Some(clone) = self.hash_map.get(old) {
                 *old = *clone;
             }
         }
@@ -1719,14 +1719,14 @@ impl UserInterface {
                     self.cursor_icon = CursorIcon::Crosshair;
                 }
 
-                if self.drag_context.is_dragging {
-                    if self.nodes.is_valid_handle(self.drag_context.drag_preview) {
-                        self.send_message(WidgetMessage::desired_position(
-                            self.drag_context.drag_preview,
-                            MessageDirection::ToWidget,
-                            *position,
-                        ));
-                    }
+                if self.drag_context.is_dragging
+                    && self.nodes.is_valid_handle(self.drag_context.drag_preview)
+                {
+                    self.send_message(WidgetMessage::desired_position(
+                        self.drag_context.drag_preview,
+                        MessageDirection::ToWidget,
+                        *position,
+                    ));
                 }
 
                 // Fire mouse leave for previously picked node

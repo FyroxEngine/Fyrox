@@ -466,11 +466,11 @@ impl GpuProgram {
         let mut locations = self.uniform_locations.borrow_mut();
 
         if let Some(cached_location) = locations.get(name) {
-            cached_location.clone()
+            *cached_location
         } else {
             let location = fetch_uniform_location(state, self.id, name);
 
-            locations.insert(name.to_owned(), location.clone());
+            locations.insert(name.to_owned(), location);
 
             location
         }
