@@ -31,6 +31,7 @@ pub mod pool;
 pub mod profiler;
 pub mod quadtree;
 pub mod rectpack;
+pub mod sparse;
 pub mod visitor;
 
 pub use futures;
@@ -279,4 +280,9 @@ impl<T> VecExtensions<T> for Vec<T> {
             self.truncate(len - del);
         }
     }
+}
+
+#[inline]
+pub fn hash_combine(lhs: u64, rhs: u64) -> u64 {
+    lhs ^ (rhs + 0x9e3779b9 + (lhs << 6) + (lhs >> 2))
 }
