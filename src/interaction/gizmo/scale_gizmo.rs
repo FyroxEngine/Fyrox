@@ -1,10 +1,13 @@
-use crate::world::graph::selection::GraphSelection;
-use crate::{make_color_material, scene::EditorScene, set_mesh_diffuse_color, GameEngine};
+use crate::{
+    make_color_material, scene::EditorScene, set_mesh_diffuse_color,
+    world::graph::selection::GraphSelection, GameEngine,
+};
 use rg3d::{
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
         color::Color,
         math::{plane::Plane, Matrix4Ext},
+        parking_lot::Mutex,
         pool::Handle,
     },
     scene::{
@@ -18,7 +21,7 @@ use rg3d::{
         transform::TransformBuilder,
     },
 };
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
 pub enum ScaleGizmoMode {
     None,
@@ -61,7 +64,7 @@ fn make_scale_axis(
                 )
                 .with_render_path(RenderPath::Forward)
                 .with_cast_shadows(false)
-                .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
+                .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
                     SurfaceData::make_cube(Matrix4::new_nonuniform_scaling(&Vector3::new(
                         0.1, 0.1, 0.1,
                     ))),
@@ -81,7 +84,7 @@ fn make_scale_axis(
     )
     .with_render_path(RenderPath::Forward)
     .with_cast_shadows(false)
-    .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
+    .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
         SurfaceData::make_cylinder(10, 0.015, 1.0, true, &Matrix4::identity()),
     )))
     .with_material(make_color_material(color))
@@ -104,7 +107,7 @@ impl ScaleGizmo {
         )
         .with_render_path(RenderPath::Forward)
         .with_cast_shadows(false)
-        .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
+        .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
             SurfaceData::make_cube(Matrix4::new_nonuniform_scaling(&Vector3::new(
                 0.1, 0.1, 0.1,
             ))),

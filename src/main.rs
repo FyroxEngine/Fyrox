@@ -31,14 +31,13 @@ pub mod settings;
 pub mod utils;
 pub mod world;
 
-use crate::inspector::Inspector;
-use crate::menu::Panels;
 use crate::{
     asset::{AssetBrowser, AssetItem, AssetKind},
     camera::CameraController,
     command::{panel::CommandStackViewer, Command, CommandStack},
     configurator::Configurator,
     gui::make_dropdown_list_option,
+    inspector::Inspector,
     interaction::{
         move_mode::MoveInteractionMode,
         navmesh::{
@@ -54,7 +53,7 @@ use crate::{
     light::LightPanel,
     log::Log,
     material::MaterialEditor,
-    menu::{Menu, MenuContext},
+    menu::{Menu, MenuContext, Panels},
     overlay::OverlayRenderPass,
     physics::Physics,
     scene::{
@@ -70,12 +69,12 @@ use crate::{
     utils::path_fixer::PathFixer,
     world::WorldViewer,
 };
-use rg3d::gui::formatted_text::WrapMode;
 use rg3d::{
     core::{
         algebra::{Point3, Vector2},
         color::Color,
         math::aabb::AxisAlignedBoundingBox,
+        parking_lot::Mutex,
         pool::{Handle, Pool},
         scope_profile,
     },
@@ -92,15 +91,15 @@ use rg3d::{
         draw,
         dropdown_list::DropdownListBuilder,
         file_browser::{FileBrowserMode, FileSelectorBuilder, Filter},
+        formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
         image::Image,
         image::ImageBuilder,
-        message::UiMessage,
         message::{
-            ButtonMessage, FileSelectorMessage, ImageMessage, KeyCode, MessageBoxMessage,
-            MessageDirection, MouseButton, UiMessageData, WidgetMessage, WindowMessage,
+            ButtonMessage, DropdownListMessage, FileSelectorMessage, ImageMessage, KeyCode,
+            MessageBoxMessage, MessageDirection, MouseButton, TextBoxMessage, UiMessage,
+            UiMessageData, WidgetMessage, WindowMessage,
         },
-        message::{DropdownListMessage, TextBoxMessage},
         messagebox::{MessageBoxBuilder, MessageBoxButtons, MessageBoxResult},
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
@@ -133,7 +132,7 @@ use std::{
     str::from_utf8,
     sync::{
         mpsc::{self, Receiver, Sender},
-        Arc, Mutex,
+        Arc,
     },
     time::Instant,
 };
@@ -205,7 +204,6 @@ pub fn set_mesh_diffuse_color(mesh: &mut Mesh, color: Color) {
         surface
             .material()
             .lock()
-            .unwrap()
             .set_property("diffuseColor", PropertyValue::Color(color))
             .unwrap();
     }
@@ -1929,7 +1927,7 @@ impl Editor {
                             let transform = node.global_transform();
 
                             for surface in mesh.surfaces() {
-                                for vertex in surface.data().read().unwrap().vertex_buffer.iter() {
+                                for vertex in surface.data().lock().vertex_buffer.iter() {
                                     let len = 0.025;
                                     let position = transform
                                         .transform_point(&Point3::from(

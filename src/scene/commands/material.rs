@@ -1,6 +1,9 @@
 use crate::{command::Command, scene::commands::SceneContext};
-use rg3d::material::{shader::Shader, Material, PropertyValue};
-use std::sync::{Arc, Mutex};
+use rg3d::{
+    core::parking_lot::Mutex,
+    material::{shader::Shader, Material, PropertyValue},
+};
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct SetMaterialPropertyValueCommand {
@@ -19,7 +22,7 @@ impl SetMaterialPropertyValueCommand {
     }
 
     fn swap(&mut self) {
-        let mut material = self.material.lock().unwrap();
+        let mut material = self.material.lock();
 
         let old_value = material.property_ref(&self.name).unwrap().clone();
 
@@ -71,7 +74,7 @@ impl SetMaterialShaderCommand {
                 unreachable!()
             }
             SetMaterialShaderCommandState::NonExecuted { new_shader } => {
-                let mut material = self.material.lock().unwrap();
+                let mut material = self.material.lock();
 
                 let old_material = std::mem::replace(
                     &mut *material,
@@ -81,14 +84,14 @@ impl SetMaterialShaderCommand {
                 self.state = SetMaterialShaderCommandState::Executed { old_material };
             }
             SetMaterialShaderCommandState::Executed { old_material } => {
-                let mut material = self.material.lock().unwrap();
+                let mut material = self.material.lock();
 
                 let new_material = std::mem::replace(&mut *material, old_material);
 
                 self.state = SetMaterialShaderCommandState::Reverted { new_material };
             }
             SetMaterialShaderCommandState::Reverted { new_material } => {
-                let mut material = self.material.lock().unwrap();
+                let mut material = self.material.lock();
 
                 let old_material = std::mem::replace(&mut *material, new_material);
 

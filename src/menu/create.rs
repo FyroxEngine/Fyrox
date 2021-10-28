@@ -1,12 +1,11 @@
-use crate::menu::physics::PhysicsMenu;
 use crate::{
     create_terrain_layer_material,
-    menu::{create_menu_item, create_root_menu_item},
+    menu::{create_menu_item, create_root_menu_item, physics::PhysicsMenu},
     scene::commands::{graph::AddNodeCommand, sound::AddSoundSourceCommand},
     Message,
 };
 use rg3d::{
-    core::{algebra::Matrix4, pool::Handle},
+    core::{algebra::Matrix4, parking_lot::Mutex, pool::Handle},
     gui::{
         message::{MenuItemMessage, UiMessage, UiMessageData},
         BuildContext, UiNode,
@@ -33,7 +32,7 @@ use rg3d::{
     },
     sound::source::{generic::GenericSourceBuilder, spatial::SpatialSourceBuilder},
 };
-use std::sync::{mpsc::Sender, Arc, RwLock};
+use std::sync::{mpsc::Sender, Arc};
 
 pub struct CreateEntityMenu {
     pub menu: Handle<UiNode>,
@@ -198,7 +197,7 @@ impl CreateEntityMenu {
             if message.destination() == self.create_cube {
                 let mut mesh = Mesh::default();
                 mesh.set_name("Cube");
-                mesh.add_surface(Surface::new(Arc::new(RwLock::new(SurfaceData::make_cube(
+                mesh.add_surface(Surface::new(Arc::new(Mutex::new(SurfaceData::make_cube(
                     Matrix4::identity(),
                 )))));
                 let node = Node::Mesh(mesh);
@@ -244,7 +243,7 @@ impl CreateEntityMenu {
                     .unwrap();
             } else if message.destination() == self.create_cone {
                 let mesh = MeshBuilder::new(BaseBuilder::new().with_name("Cone"))
-                    .with_surfaces(vec![Surface::new(Arc::new(RwLock::new(
+                    .with_surfaces(vec![Surface::new(Arc::new(Mutex::new(
                         SurfaceData::make_cone(16, 0.5, 1.0, &Matrix4::identity()),
                     )))])
                     .build_node();
@@ -253,7 +252,7 @@ impl CreateEntityMenu {
                     .unwrap();
             } else if message.destination() == self.create_cylinder {
                 let mesh = MeshBuilder::new(BaseBuilder::new().with_name("Cylinder"))
-                    .with_surfaces(vec![Surface::new(Arc::new(RwLock::new(
+                    .with_surfaces(vec![Surface::new(Arc::new(Mutex::new(
                         SurfaceData::make_cylinder(16, 0.5, 1.0, true, &Matrix4::identity()),
                     )))])
                     .build_node();
@@ -262,7 +261,7 @@ impl CreateEntityMenu {
                     .unwrap();
             } else if message.destination() == self.create_sphere {
                 let mesh = MeshBuilder::new(BaseBuilder::new().with_name("Sphere"))
-                    .with_surfaces(vec![Surface::new(Arc::new(RwLock::new(
+                    .with_surfaces(vec![Surface::new(Arc::new(Mutex::new(
                         SurfaceData::make_sphere(16, 16, 0.5, &Matrix4::identity()),
                     )))])
                     .build_node();
@@ -271,7 +270,7 @@ impl CreateEntityMenu {
                     .unwrap();
             } else if message.destination() == self.create_quad {
                 let mesh = MeshBuilder::new(BaseBuilder::new().with_name("Quad"))
-                    .with_surfaces(vec![Surface::new(Arc::new(RwLock::new(
+                    .with_surfaces(vec![Surface::new(Arc::new(Mutex::new(
                         SurfaceData::make_quad(&Matrix4::identity()),
                     )))])
                     .build_node();

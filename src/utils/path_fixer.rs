@@ -355,7 +355,6 @@ impl PathFixer {
                                                 for texture in surface
                                                     .material()
                                                     .lock()
-                                                    .unwrap()
                                                     .properties()
                                                     .values()
                                                     .filter_map(|v| {
@@ -405,7 +404,6 @@ impl PathFixer {
                                                 for texture in layer
                                                     .material
                                                     .lock()
-                                                    .unwrap()
                                                     .properties()
                                                     .values()
                                                     .filter_map(|v| {

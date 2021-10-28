@@ -9,7 +9,7 @@ use crate::{
     Message,
 };
 use rg3d::{
-    core::{inspect::Inspect, pool::ErasedHandle},
+    core::{inspect::Inspect, parking_lot::Mutex, pool::ErasedHandle},
     gui::inspector::editors::{
         collection::VecCollectionPropertyEditorDefinition,
         enumeration::EnumPropertyEditorDefinition,
@@ -31,11 +31,7 @@ use rg3d::{
     scene2d,
     sound::source::{generic::GenericSource, Status},
 };
-use std::{
-    fmt::Debug,
-    rc::Rc,
-    sync::{mpsc::Sender, Mutex},
-};
+use std::{fmt::Debug, rc::Rc, sync::mpsc::Sender};
 
 pub mod material;
 pub mod resource;

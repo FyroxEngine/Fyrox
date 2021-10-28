@@ -8,15 +8,16 @@ use crate::{
     settings::Settings,
     GameEngine, Message, MSG_SYNC_FLAG,
 };
-use rg3d::engine::Engine;
 use rg3d::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
         arrayvec::ArrayVec,
         color::Color,
         math::vector_to_quat,
+        parking_lot::Mutex,
         pool::Handle,
     },
+    engine::Engine,
     gui::{
         inspector::{
             editors::{
@@ -46,7 +47,7 @@ use rg3d::{
 };
 use std::{
     rc::Rc,
-    sync::{mpsc::Sender, Arc, RwLock},
+    sync::{mpsc::Sender, Arc},
 };
 
 pub struct TerrainInteractionMode {
@@ -102,7 +103,7 @@ impl BrushGizmo {
         )
         .with_render_path(RenderPath::Forward)
         .with_cast_shadows(false)
-        .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
+        .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
             SurfaceData::make_quad(&Matrix4::identity()),
         )))
         .with_material(make_color_material(Color::from_rgba(0, 255, 0, 130)))

@@ -92,7 +92,7 @@ impl Settings {
     const FILE_NAME: &'static str = "settings.ron";
 
     fn full_path() -> PathBuf {
-        CONFIG_DIR.lock().unwrap().join(Self::FILE_NAME)
+        CONFIG_DIR.lock().join(Self::FILE_NAME)
     }
 
     pub fn load() -> Result<Self, SettingsError> {

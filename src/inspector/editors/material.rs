@@ -1,6 +1,7 @@
 use crate::Message;
 use rg3d::{
     asset::core::pool::Handle,
+    core::parking_lot::Mutex,
     gui::{
         button::ButtonBuilder,
         grid::{Column, GridBuilder, Row},
@@ -22,7 +23,7 @@ use std::{
     any::TypeId,
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
-    sync::{mpsc::Sender, Arc, Mutex},
+    sync::{mpsc::Sender, Arc},
 };
 
 #[derive(Clone)]
@@ -82,14 +83,7 @@ impl MaterialFieldEditorBuilder {
         sender: Sender<Message>,
         material: Arc<Mutex<Material>>,
     ) -> Handle<UiNode> {
-        let name = material
-            .lock()
-            .unwrap()
-            .shader()
-            .data_ref()
-            .definition
-            .name
-            .clone();
+        let name = material.lock().shader().data_ref().definition.name.clone();
 
         let edit;
         let editor = MaterialFieldEditor {
@@ -150,7 +144,7 @@ impl PropertyEditorDefinition for MaterialPropertyEditorDefinition {
             title: Default::default(),
             editor: MaterialFieldEditorBuilder::new(WidgetBuilder::new()).build(
                 ctx.build_context,
-                self.sender.lock().unwrap().clone(),
+                self.sender.lock().clone(),
                 value.clone(),
             ),
         })

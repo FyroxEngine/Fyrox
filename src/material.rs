@@ -1,23 +1,16 @@
-use crate::asset::AssetItem;
 use crate::{
+    asset::AssetItem,
     gui::make_dropdown_list_option,
     make_relative_path,
     preview::PreviewPanel,
     scene::commands::material::{SetMaterialPropertyValueCommand, SetMaterialShaderCommand},
     send_sync_message, GameEngine, Message,
 };
-use rg3d::gui::image::Image;
-use rg3d::gui::message::UiMessage;
-use rg3d::gui::numeric::NumericUpDownMessage;
-use rg3d::gui::vec::vec2::Vec2EditorMessage;
-use rg3d::gui::vec::vec3::Vec3EditorMessage;
-use rg3d::gui::vec::vec4::Vec4EditorMessage;
-use rg3d::gui::{BuildContext, UiNode, UserInterface};
-use rg3d::resource::texture::TextureState;
 use rg3d::{
     core::{
         algebra::{Matrix4, Vector2, Vector3, Vector4},
         futures::executor::block_on,
+        parking_lot::Mutex,
         pool::Handle,
         BiDirHashMap,
     },
@@ -28,24 +21,30 @@ use rg3d::{
         color::ColorFieldBuilder,
         dropdown_list::DropdownListBuilder,
         grid::{Column, GridBuilder, Row},
-        image::ImageBuilder,
+        image::{Image, ImageBuilder},
         list_view::ListViewBuilder,
         menu::{MenuItemBuilder, MenuItemContent},
         message::{
             CheckBoxMessage, ColorFieldMessage, DropdownListMessage, ImageMessage, ListViewMessage,
-            MenuItemMessage, MessageDirection, PopupMessage, UiMessageData, WidgetMessage,
+            MenuItemMessage, MessageDirection, PopupMessage, UiMessage, UiMessageData,
+            WidgetMessage,
         },
-        numeric::NumericUpDownBuilder,
+        numeric::{NumericUpDownBuilder, NumericUpDownMessage},
         popup::{Placement, PopupBuilder},
         scroll_viewer::ScrollViewerBuilder,
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
-        vec::{vec2::Vec2EditorBuilder, vec3::Vec3EditorBuilder, vec4::Vec4EditorBuilder},
+        vec::{
+            vec2::{Vec2EditorBuilder, Vec2EditorMessage},
+            vec3::{Vec3EditorBuilder, Vec3EditorMessage},
+            vec4::{Vec4EditorBuilder, Vec4EditorMessage},
+        },
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
-        Thickness, VerticalAlignment,
+        BuildContext, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
     material::{shader::Shader, Material, PropertyValue},
+    resource::texture::TextureState,
     scene::{
         base::BaseBuilder,
         mesh::{
@@ -55,7 +54,7 @@ use rg3d::{
     },
     utils::into_gui_texture,
 };
-use std::sync::{mpsc::Sender, Arc, Mutex, RwLock};
+use std::sync::{mpsc::Sender, Arc};
 
 struct TextureContextMenu {
     popup: Handle<UiNode>,
@@ -243,7 +242,7 @@ impl MaterialEditor {
 
         let graph = &mut engine.scenes[preview.scene()].graph;
         let sphere = MeshBuilder::new(BaseBuilder::new())
-            .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
+            .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
                 SurfaceData::make_sphere(30, 30, 1.0, &Matrix4::identity()),
             )))
             .build()])
@@ -395,7 +394,7 @@ impl MaterialEditor {
 
     pub fn sync_to_model(&mut self, ui: &mut UserInterface) {
         if let Some(material) = self.material.as_ref() {
-            let material = material.lock().unwrap();
+            let material = material.lock();
 
             // Remove properties from ui.
             for name in self
@@ -664,7 +663,7 @@ impl MaterialEditor {
                                 self.sync_available_shaders_list(engine.resource_manager.clone());
                                 self.create_shaders_items(
                                     &mut engine.user_interface,
-                                    &*material.lock().unwrap(),
+                                    &*material.lock(),
                                 );
                             }
                             _ => (),
@@ -688,7 +687,7 @@ impl MaterialEditor {
                             .texture()
                             .and_then(|t| {
                                 t.0.downcast::<Mutex<TextureState>>()
-                                    .map(|t| t.lock().unwrap().path().to_path_buf())
+                                    .map(|t| t.lock().path().to_path_buf())
                                     .ok()
                             });
 
@@ -710,12 +709,7 @@ impl MaterialEditor {
                         {
                             // NumericUpDown is used for Float, Int, UInt properties, so we have to check
                             // the actual property "type" to create suitable value from f32.
-                            match material
-                                .lock()
-                                .unwrap()
-                                .property_ref(property_name)
-                                .unwrap()
-                            {
+                            match material.lock().property_ref(property_name).unwrap() {
                                 PropertyValue::Float(_) => Some(PropertyValue::Float(*value)),
                                 PropertyValue::Int(_) => Some(PropertyValue::Int(*value as i32)),
                                 PropertyValue::UInt(_) => Some(PropertyValue::UInt(*value as u32)),

@@ -46,7 +46,6 @@ impl Command for SetMeshTextureCommand {
                 .map(|s| {
                     s.material()
                         .lock()
-                        .unwrap()
                         .property_ref("diffuseTexture")
                         .and_then(|p| {
                             if let PropertyValue::Sampler { value, .. } = p {
@@ -61,7 +60,6 @@ impl Command for SetMeshTextureCommand {
                 surface
                     .material()
                     .lock()
-                    .unwrap()
                     .set_property(
                         "diffuseTexture",
                         PropertyValue::Sampler {
@@ -83,7 +81,6 @@ impl Command for SetMeshTextureCommand {
             let new_value = mesh.surfaces_mut()[0]
                 .material()
                 .lock()
-                .unwrap()
                 .property_ref("diffuseTexture")
                 .and_then(|p| {
                     if let PropertyValue::Sampler { value, .. } = p {
@@ -98,7 +95,6 @@ impl Command for SetMeshTextureCommand {
                 surface
                     .material()
                     .lock()
-                    .unwrap()
                     .set_property(
                         "diffuseTexture",
                         PropertyValue::Sampler {

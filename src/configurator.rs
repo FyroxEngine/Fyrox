@@ -101,7 +101,7 @@ impl Configurator {
         // Load history.
         let mut history: Vec<HistoryEntry> = Vec::new();
         if let Ok(mut visitor) = rg3d::core::futures::executor::block_on(Visitor::load_binary(
-            CONFIG_DIR.lock().unwrap().join(HISTORY_PATH),
+            CONFIG_DIR.lock().join(HISTORY_PATH),
         )) {
             history.visit("History", &mut visitor).unwrap();
         }
@@ -267,7 +267,7 @@ impl Configurator {
                         let mut visitor = Visitor::new();
                         self.history.visit("History", &mut visitor).unwrap();
                         visitor
-                            .save_binary(CONFIG_DIR.lock().unwrap().join(HISTORY_PATH))
+                            .save_binary(CONFIG_DIR.lock().join(HISTORY_PATH))
                             .unwrap();
                     }
                 }

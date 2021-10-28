@@ -499,7 +499,7 @@ impl Physics {
                                 let transform = mesh.global_transform();
                                 for surface in mesh.surfaces() {
                                     let data = surface.data();
-                                    let data = data.read().unwrap();
+                                    let data = data.lock();
                                     draw_mesh(&data, &transform, context, color);
                                 }
                             }
@@ -513,7 +513,7 @@ impl Physics {
                             let transform = terrain.global_transform();
                             for chunk in terrain.chunks_ref() {
                                 let data = chunk.data();
-                                let data = data.read().unwrap();
+                                let data = data.lock();
                                 draw_mesh(&data, &transform, context, color);
                             }
                         }

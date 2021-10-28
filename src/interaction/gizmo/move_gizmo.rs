@@ -1,7 +1,7 @@
-use crate::physics::Physics;
 use crate::{
     interaction::plane::PlaneKind,
     make_color_material,
+    physics::Physics,
     scene::{EditorScene, Selection},
     set_mesh_diffuse_color, GameEngine,
 };
@@ -10,6 +10,7 @@ use rg3d::{
         algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
         color::Color,
         math::Matrix4Ext,
+        parking_lot::Mutex,
         pool::Handle,
     },
     scene::{
@@ -24,7 +25,7 @@ use rg3d::{
         Scene,
     },
 };
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
 pub struct MoveGizmo {
     pub origin: Handle<Node>,
@@ -61,7 +62,7 @@ fn make_move_axis(
                 )
                 .with_render_path(RenderPath::Forward)
                 .with_cast_shadows(false)
-                .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
+                .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
                     SurfaceData::make_cone(10, 0.05, 0.1, &Matrix4::identity()),
                 )))
                 .with_material(make_color_material(color))
@@ -79,7 +80,7 @@ fn make_move_axis(
     )
     .with_render_path(RenderPath::Forward)
     .with_cast_shadows(false)
-    .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
+    .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
         SurfaceData::make_cylinder(10, 0.015, 1.0, true, &Matrix4::identity()),
     )))
     .with_material(make_color_material(color))
@@ -108,7 +109,7 @@ fn create_quad_plane(
     .with_render_path(RenderPath::Forward)
     .with_cast_shadows(false)
     .with_surfaces(vec![{
-        SurfaceBuilder::new(Arc::new(RwLock::new(SurfaceData::make_quad(
+        SurfaceBuilder::new(Arc::new(Mutex::new(SurfaceData::make_quad(
             &(transform
                 * UnitQuaternion::from_axis_angle(&Vector3::x_axis(), 90.0f32.to_radians())
                     .to_homogeneous()),
