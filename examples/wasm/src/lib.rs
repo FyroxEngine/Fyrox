@@ -4,22 +4,20 @@
 //!
 //! Warning - Work in progress!
 
-use rg3d::engine::resource_manager::MaterialSearchOptions;
-use rg3d::engine::Engine;
-use rg3d::gui::{BuildContext, UiNode};
-use rg3d::material::shader::SamplerFallback;
-use rg3d::material::{Material, PropertyValue};
-use rg3d::scene::camera::SkyBoxBuilder;
 use rg3d::{
     animation::Animation,
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector3},
         color::Color,
+        parking_lot::Mutex,
         pool::Handle,
         wasm_bindgen::{self, prelude::*},
     },
     dpi::LogicalSize,
-    engine::resource_manager::{ResourceManager, TextureImportOptions},
+    engine::{
+        resource_manager::{MaterialSearchOptions, ResourceManager, TextureImportOptions},
+        Engine,
+    },
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
@@ -27,10 +25,12 @@ use rg3d::{
         text::TextBuilder,
         widget::WidgetBuilder,
     },
+    gui::{BuildContext, UiNode},
+    material::{shader::SamplerFallback, Material, PropertyValue},
     resource::texture::{CompressionOptions, TextureWrapMode},
     scene::{
         base::BaseBuilder,
-        camera::CameraBuilder,
+        camera::{CameraBuilder, SkyBoxBuilder},
         graph::Graph,
         light::{point::PointLightBuilder, BaseLightBuilder},
         mesh::{
@@ -47,10 +47,7 @@ use rg3d::{
     },
     utils::translate_event,
 };
-use std::{
-    panic,
-    sync::{Arc, Mutex, RwLock},
-};
+use std::{panic, sync::Arc};
 
 fn create_ui(ctx: &mut BuildContext) -> Handle<UiNode> {
     TextBuilder::new(WidgetBuilder::new()).build(ctx)
@@ -260,7 +257,7 @@ async fn create_scene(resource_manager: ResourceManager, context: Arc<Mutex<Scen
                 .build(),
         ),
     )
-    .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
+    .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
         SurfaceData::make_cube(Matrix4::new_nonuniform_scaling(&Vector3::new(
             25.0, 0.25, 25.0,
         ))),

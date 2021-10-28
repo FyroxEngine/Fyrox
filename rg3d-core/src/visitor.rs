@@ -1108,6 +1108,15 @@ where
     }
 }
 
+impl<T> Visit for parking_lot::Mutex<T>
+where
+    T: Visit + Send,
+{
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        self.get_mut().visit(name, visitor)
+    }
+}
+
 impl<T> Visit for Box<T>
 where
     T: Visit,

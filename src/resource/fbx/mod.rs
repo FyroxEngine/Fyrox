@@ -10,7 +10,6 @@ mod document;
 pub mod error;
 mod scene;
 
-use crate::material::shader::SamplerFallback;
 use crate::{
     animation::{Animation, AnimationContainer, KeyFrame, Track},
     core::{
@@ -18,10 +17,11 @@ use crate::{
         instant::Instant,
         io,
         math::{self, triangulator::triangulate, RotationOrder},
+        parking_lot::Mutex,
         pool::Handle,
     },
     engine::resource_manager::{MaterialSearchOptions, ResourceManager},
-    material::PropertyValue,
+    material::{shader::SamplerFallback, PropertyValue},
     resource::fbx::{
         document::FbxDocument,
         error::FbxError,
@@ -52,7 +52,7 @@ use std::{
     cmp::Ordering,
     collections::{HashMap, HashSet},
     path::Path,
-    sync::{Arc, RwLock},
+    sync::Arc,
 };
 use walkdir::WalkDir;
 
@@ -259,13 +259,13 @@ async fn create_surfaces(
     if model.materials.is_empty() {
         assert_eq!(data_set.len(), 1);
         let data = data_set.into_iter().next().unwrap();
-        let mut surface = Surface::new(Arc::new(RwLock::new(data.builder.build())));
+        let mut surface = Surface::new(Arc::new(Mutex::new(data.builder.build())));
         surface.vertex_weights = data.skin_data;
         surfaces.push(surface);
     } else {
         assert_eq!(data_set.len(), model.materials.len());
         for (&material_handle, data) in model.materials.iter().zip(data_set.into_iter()) {
-            let mut surface = Surface::new(Arc::new(RwLock::new(data.builder.build())));
+            let mut surface = Surface::new(Arc::new(Mutex::new(data.builder.build())));
             surface.vertex_weights = data.skin_data;
             let material = fbx_scene.get(material_handle).as_material()?;
             for (name, texture_handle) in material.textures.iter() {
@@ -339,7 +339,7 @@ async fn create_surfaces(
                         };
 
                         if let Some((property_name, usage)) = name_usage {
-                            if let Err(e) = surface.material().lock().unwrap().set_property(
+                            if let Err(e) = surface.material().lock().set_property(
                                 property_name,
                                 PropertyValue::Sampler {
                                     value: Some(texture),
@@ -465,12 +465,7 @@ async fn convert_mesh(
 
         if geom.tangents.is_none() {
             for surface in surfaces.iter_mut() {
-                surface
-                    .data()
-                    .write()
-                    .unwrap()
-                    .calculate_tangents()
-                    .unwrap();
+                surface.data().lock().calculate_tangents().unwrap();
             }
         }
 
@@ -665,7 +660,7 @@ async fn convert(
                 surface.bones = surface_bones.iter().copied().collect();
 
                 let data_rc = surface.data();
-                let mut data = data_rc.write().unwrap();
+                let mut data = data_rc.lock();
                 if data.vertex_buffer.vertex_count() as usize == surface.vertex_weights.len() {
                     let mut vertex_buffer_mut = data.vertex_buffer.modify();
                     for (mut view, weight_set) in vertex_buffer_mut

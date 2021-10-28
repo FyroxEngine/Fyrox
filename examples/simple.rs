@@ -7,26 +7,27 @@
 pub mod shared;
 
 use crate::shared::create_camera;
-use rg3d::engine::resource_manager::MaterialSearchOptions;
-use rg3d::engine::Engine;
-use rg3d::gui::UiNode;
-use rg3d::material::shader::SamplerFallback;
-use rg3d::material::{Material, PropertyValue};
 use rg3d::{
     animation::Animation,
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector3},
         color::Color,
+        parking_lot::Mutex,
         pool::Handle,
     },
-    engine::{framework::prelude::*, resource_manager::ResourceManager},
+    engine::{
+        framework::prelude::*, resource_manager::MaterialSearchOptions,
+        resource_manager::ResourceManager, Engine,
+    },
     event::{ElementState, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
     gui::{
         message::{MessageDirection, TextMessage},
         text::TextBuilder,
         widget::WidgetBuilder,
+        UiNode,
     },
+    material::{shader::SamplerFallback, Material, PropertyValue},
     scene::{
         base::BaseBuilder,
         light::{point::PointLightBuilder, BaseLightBuilder},
@@ -39,7 +40,7 @@ use rg3d::{
         Scene,
     },
 };
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::Arc;
 
 struct GameSceneLoader {
     scene: Scene,
@@ -135,7 +136,7 @@ impl GameSceneLoader {
                     .build(),
             ),
         )
-        .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
+        .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
             SurfaceData::make_cube(Matrix4::new_nonuniform_scaling(&Vector3::new(
                 25.0, 0.25, 25.0,
             ))),

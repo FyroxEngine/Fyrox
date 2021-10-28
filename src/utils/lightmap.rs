@@ -9,21 +9,28 @@
 
 #![forbid(unsafe_code)]
 
-use crate::asset::Resource;
-use crate::scene::mesh::buffer::{VertexAttributeUsage, VertexFetchError, VertexReadTrait};
 use crate::{
+    asset::Resource,
     core::{
         algebra::{Matrix3, Matrix4, Point3, Vector2, Vector3, Vector4},
         arrayvec::ArrayVec,
         math::{self, ray::Ray, Matrix4Ext, Rect, TriangleDefinition, Vector2Ext},
         octree::{Octree, OctreeNode},
+        parking_lot::Mutex,
         pool::Handle,
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::{ResourceManager, TextureRegistrationError},
     resource::texture::{Texture, TextureData, TextureKind, TexturePixelKind, TextureState},
-    scene::mesh::surface::SurfaceData,
-    scene::{light::Light, node::Node, Scene},
+    scene::{
+        light::Light,
+        mesh::{
+            buffer::{VertexAttributeUsage, VertexFetchError, VertexReadTrait},
+            surface::SurfaceData,
+        },
+        node::Node,
+        Scene,
+    },
     utils::{uvgen, uvgen::SurfaceDataPatch},
 };
 use rayon::prelude::*;
@@ -33,7 +40,7 @@ use std::{
     path::Path,
     sync::{
         atomic::{self, AtomicBool, AtomicU32},
-        Arc, RwLock,
+        Arc,
     },
 };
 
@@ -101,7 +108,7 @@ struct InstanceData {
 
 struct Instance {
     owner: Handle<Node>,
-    source_data: Arc<RwLock<SurfaceData>>,
+    source_data: Arc<Mutex<SurfaceData>>,
     data: Option<InstanceData>,
     transform: Matrix4<f32>,
 }
@@ -321,7 +328,7 @@ impl Lightmap {
                 for surface in mesh.surfaces() {
                     // Gather unique "list" of surface data to generate UVs for.
                     let data = surface.data();
-                    let key = &*data.read().unwrap() as *const _ as u64;
+                    let key = &*data.lock() as *const _ as u64;
                     data_set.entry(key).or_insert_with(|| surface.data());
 
                     instances.push(Instance {
@@ -343,7 +350,7 @@ impl Lightmap {
                 if cancellation_token.is_cancelled() {
                     Err(LightmapGenerationError::Cancelled)
                 } else {
-                    let mut data = data.write().unwrap();
+                    let mut data = data.lock();
                     let patch = uvgen::generate_uvs(&mut data, 0.005)?;
                     progress_indicator.advance_progress();
                     Ok((patch.data_id, patch))
@@ -359,7 +366,7 @@ impl Lightmap {
                 if cancellation_token.is_cancelled() {
                     Err(LightmapGenerationError::Cancelled)
                 } else {
-                    let data = instance.source_data.read().unwrap();
+                    let data = instance.source_data.lock();
 
                     let normal_matrix = instance
                         .transform
@@ -882,7 +889,10 @@ fn generate_lightmap(
 #[cfg(test)]
 mod test {
     use crate::{
-        core::algebra::{Matrix4, Vector3},
+        core::{
+            algebra::{Matrix4, Vector3},
+            parking_lot::Mutex,
+        },
         scene::{
             base::BaseBuilder,
             light::{point::PointLightBuilder, BaseLightBuilder},
@@ -895,7 +905,7 @@ mod test {
         },
         utils::lightmap::Lightmap,
     };
-    use std::sync::{Arc, RwLock};
+    use std::sync::Arc;
 
     #[test]
     fn test_generate_lightmap() {
@@ -909,9 +919,7 @@ mod test {
         );
 
         MeshBuilder::new(BaseBuilder::new())
-            .with_surfaces(vec![
-                SurfaceBuilder::new(Arc::new(RwLock::new(data))).build()
-            ])
+            .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(data))).build()])
             .build(&mut scene.graph);
 
         PointLightBuilder::new(BaseLightBuilder::new(

@@ -7,8 +7,10 @@
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
+        hash_combine,
         inspect::{Inspect, PropertyInfo},
         math::TriangleDefinition,
+        parking_lot::Mutex,
         pool::{ErasedHandle, Handle},
         sparse::AtomicIndex,
         visitor::{Visit, VisitResult, Visitor},
@@ -27,12 +29,7 @@ use crate::{
     },
     utils::raw_mesh::{RawMesh, RawMeshBuilder},
 };
-use rg3d_resource::core::hash_combine;
-use std::{
-    collections::hash_map::DefaultHasher,
-    hash::Hasher,
-    sync::{Arc, Mutex, RwLock},
-};
+use std::{collections::hash_map::DefaultHasher, hash::Hasher, sync::Arc};
 
 /// Data source of a surface. Each surface can share same data source, this is used
 /// in instancing technique to render multiple instances of same model at different
@@ -906,7 +903,7 @@ impl VertexWeightSet {
 pub struct Surface {
     // Wrapped into option to be able to implement Default for serialization.
     // In normal conditions it must never be None!
-    data: Option<Arc<RwLock<SurfaceData>>>,
+    data: Option<Arc<Mutex<SurfaceData>>>,
     material: Arc<Mutex<Material>>,
     /// Temporal array for FBX conversion needs, it holds skinning data (weight + bone handle)
     /// and will be used to fill actual bone indices and weight in vertices that will be
@@ -934,7 +931,7 @@ impl Default for Surface {
 impl Surface {
     /// Creates new surface instance with given data and without any texture.
     #[inline]
-    pub fn new(data: Arc<RwLock<SurfaceData>>) -> Self {
+    pub fn new(data: Arc<Mutex<SurfaceData>>) -> Self {
         Self {
             data: Some(data),
             ..Default::default()
@@ -956,7 +953,7 @@ impl Surface {
 
     /// Returns current data used by surface.
     #[inline]
-    pub fn data(&self) -> Arc<RwLock<SurfaceData>> {
+    pub fn data(&self) -> Arc<Mutex<SurfaceData>> {
         self.data.as_ref().unwrap().clone()
     }
 
@@ -992,14 +989,14 @@ impl Visit for Surface {
 
 /// Surface builder allows you to create surfaces in declarative manner.
 pub struct SurfaceBuilder {
-    data: Arc<RwLock<SurfaceData>>,
+    data: Arc<Mutex<SurfaceData>>,
     material: Option<Arc<Mutex<Material>>>,
     bones: Vec<Handle<Node>>,
 }
 
 impl SurfaceBuilder {
     /// Creates new builder instance with given data and no textures or bones.
-    pub fn new(data: Arc<RwLock<SurfaceData>>) -> Self {
+    pub fn new(data: Arc<Mutex<SurfaceData>>) -> Self {
         Self {
             data,
             material: None,

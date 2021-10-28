@@ -3,13 +3,11 @@ use crate::{
     device::{Device, MixContext, NativeSample},
 };
 use rg3d_core::{
+    parking_lot::{Mutex, RwLock},
     wasm_bindgen::{self, prelude::*, JsCast},
     web_sys::{AudioContext, AudioContextOptions},
 };
-use std::{
-    mem::size_of,
-    sync::{Arc, Mutex, RwLock},
-};
+use std::{mem::size_of, sync::Arc};
 
 pub struct WebAudioDevice {
     ctx: Arc<AudioContext>,
@@ -64,7 +62,7 @@ impl WebAudioDevice {
                         current_time
                     };
 
-                    callback.lock().unwrap()(&mut mix_buffer);
+                    callback.lock()(&mut mix_buffer);
 
                     // Fill left channel.
                     for ((l, _), sample) in mix_buffer.iter().zip(temp_samples.iter_mut()) {

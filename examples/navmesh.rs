@@ -7,19 +7,17 @@
 pub mod shared;
 
 use crate::shared::create_camera;
-use rg3d::core::algebra::Point3;
-use rg3d::engine::Engine;
-use rg3d::gui::{BuildContext, UiNode};
 use rg3d::{
     core::{
-        algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
+        algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
         arrayvec::ArrayVec,
         color::Color,
         math::PositionProvider,
+        parking_lot::Mutex,
         pool::Handle,
     },
     dpi::LogicalPosition,
-    engine::{resource_manager::MaterialSearchOptions, resource_manager::ResourceManager},
+    engine::{resource_manager::MaterialSearchOptions, resource_manager::ResourceManager, Engine},
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
@@ -27,6 +25,7 @@ use rg3d::{
         text::TextBuilder,
         widget::WidgetBuilder,
     },
+    gui::{BuildContext, UiNode},
     material::{Material, PropertyValue},
     physics3d::{Intersection, RayCastOptions},
     scene::{
@@ -46,10 +45,7 @@ use rg3d::{
         translate_event,
     },
 };
-use std::{
-    sync::{Arc, Mutex, RwLock},
-    time::Instant,
-};
+use std::{sync::Arc, time::Instant};
 
 fn create_ui(ctx: &mut BuildContext) -> Handle<UiNode> {
     TextBuilder::new(WidgetBuilder::new()).build(ctx)
@@ -101,7 +97,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
         .unwrap();
 
     let cursor = MeshBuilder::new(BaseBuilder::new())
-        .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
+        .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
             SurfaceData::make_sphere(10, 10, 0.1, &Matrix4::identity()),
         )))
         .with_material(Arc::new(Mutex::new(cursor_material)))
@@ -123,7 +119,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
                 .build(),
         ),
     )
-    .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
+    .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
         SurfaceData::make_sphere(10, 10, 0.2, &Matrix4::identity()),
     )))
     .with_material(Arc::new(Mutex::new(agent_material)))

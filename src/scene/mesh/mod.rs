@@ -175,7 +175,7 @@ impl Mesh {
             let mut bounding_box = AxisAlignedBoundingBox::default();
             for surface in self.surfaces.iter() {
                 let data = surface.data();
-                let data = data.read().unwrap();
+                let data = data.lock();
                 for view in data.vertex_buffer.iter() {
                     bounding_box
                         .add_point(view.read_3_f32(VertexAttributeUsage::Position).unwrap());
@@ -203,7 +203,7 @@ impl Mesh {
         let mut bounding_box = AxisAlignedBoundingBox::default();
         for surface in self.surfaces.iter() {
             let data = surface.data();
-            let data = data.read().unwrap();
+            let data = data.lock();
             for view in data.vertex_buffer.iter() {
                 bounding_box.add_point(
                     self.global_transform()
@@ -223,7 +223,7 @@ impl Mesh {
         let mut bounding_box = AxisAlignedBoundingBox::default();
         for surface in self.surfaces.iter() {
             let data = surface.data();
-            let data = data.read().unwrap();
+            let data = data.lock();
             if surface.bones().is_empty() {
                 for view in data.vertex_buffer.iter() {
                     bounding_box.add_point(

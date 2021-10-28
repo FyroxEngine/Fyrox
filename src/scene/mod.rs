@@ -314,11 +314,7 @@ impl Scene {
             match node {
                 Node::Mesh(mesh) => {
                     for surface in mesh.surfaces_mut() {
-                        surface
-                            .material()
-                            .lock()
-                            .unwrap()
-                            .resolve(resource_manager.clone());
+                        surface.material().lock().resolve(resource_manager.clone());
                     }
                 }
                 Node::Sprite(sprite) => {
@@ -348,11 +344,7 @@ impl Scene {
                 }
                 Node::Terrain(terrain) => {
                     for layer in terrain.layers() {
-                        layer
-                            .material
-                            .lock()
-                            .unwrap()
-                            .resolve(resource_manager.clone());
+                        layer.material.lock().resolve(resource_manager.clone());
                     }
                 }
                 Node::Decal(decal) => {
@@ -488,7 +480,7 @@ impl Scene {
             }
 
             for (_, data) in unique_data_set.into_iter() {
-                let mut data = data.write().unwrap();
+                let mut data = data.lock();
 
                 if let Some(patch) = lightmap.patches.get(&data.content_hash()) {
                     if !data
@@ -542,7 +534,7 @@ impl Scene {
             for (&handle, entries) in lightmap.map.iter_mut() {
                 if let Node::Mesh(mesh) = &mut self.graph[handle] {
                     for (entry, surface) in entries.iter_mut().zip(mesh.surfaces_mut()) {
-                        if let Err(e) = surface.material().lock().unwrap().set_property(
+                        if let Err(e) = surface.material().lock().set_property(
                             "lightmapTexture",
                             PropertyValue::Sampler {
                                 value: entry.texture.clone(),
@@ -578,7 +570,7 @@ impl Scene {
                     // This unwrap() call must never panic in normal conditions, because texture wrapped in Option
                     // only to implement Default trait to be serializable.
                     let texture = entry.texture.clone().unwrap();
-                    if let Err(e) = surface.material().lock().unwrap().set_property(
+                    if let Err(e) = surface.material().lock().set_property(
                         "lightmapTexture",
                         PropertyValue::Sampler {
                             value: Some(texture),

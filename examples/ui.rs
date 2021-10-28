@@ -407,13 +407,11 @@ fn main() {
                         ));
 
                     let fps = engine.renderer.get_statistics().frames_per_second;
-                    /*
                     engine.user_interface.send_message(TextMessage::text(
                         interface.debug_text,
                         MessageDirection::ToWidget,
                         format!("Example 04 - User Interface\nFPS: {}", fps),
-                    ));*/
-
+                    ));
                     engine.update(fixed_timestep);
                 }
 

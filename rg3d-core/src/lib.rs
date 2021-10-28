@@ -10,6 +10,7 @@ pub use arrayvec;
 pub use byteorder;
 pub use nalgebra as algebra;
 pub use num_traits;
+pub use parking_lot;
 pub use rand;
 pub use uuid;
 
@@ -284,5 +285,8 @@ impl<T> VecExtensions<T> for Vec<T> {
 
 #[inline]
 pub fn hash_combine(lhs: u64, rhs: u64) -> u64 {
-    lhs ^ (rhs + 0x9e3779b9 + (lhs << 6) + (lhs >> 2))
+    lhs ^ (rhs
+        .wrapping_add(0x9e3779b9)
+        .wrapping_add(lhs << 6)
+        .wrapping_add(lhs >> 2))
 }

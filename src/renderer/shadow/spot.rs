@@ -140,8 +140,8 @@ impl SpotShadowMapRenderer {
         let frustum = Frustum::from(*light_view_projection).unwrap_or_default();
 
         for batch in batches.batches.iter() {
-            let material = batch.material.lock().unwrap();
-            let geometry = geom_cache.get(state, &batch.data.read().unwrap());
+            let material = batch.material.lock();
+            let geometry = geom_cache.get(state, &batch.data.lock());
 
             if let Some(render_pass) = shader_cache
                 .get(state, material.shader())

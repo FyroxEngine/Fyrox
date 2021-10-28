@@ -7,21 +7,21 @@
 pub mod shared;
 
 use crate::shared::create_camera;
-use rg3d::engine::Engine;
-use rg3d::gui::UiNode;
 use rg3d::{
     core::{
         algebra::{Matrix4, Vector3},
         color::Color,
         futures::executor::block_on,
+        parking_lot::Mutex,
         pool::Handle,
     },
-    engine::{framework::prelude::*, resource_manager::ResourceManager},
+    engine::{framework::prelude::*, resource_manager::ResourceManager, Engine},
     event_loop::ControlFlow,
     gui::{
         message::{MessageDirection, TextMessage},
         text::TextBuilder,
         widget::WidgetBuilder,
+        UiNode,
     },
     material::{shader::SamplerFallback, Material, PropertyValue},
     scene::{
@@ -35,7 +35,7 @@ use rg3d::{
         Scene,
     },
 };
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::Arc;
 
 struct Game {
     debug_text: Handle<UiNode>,
@@ -94,7 +94,7 @@ impl GameState for Game {
 
         // Add cylinder with custom shader.
         MeshBuilder::new(BaseBuilder::new())
-            .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
+            .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
                 SurfaceData::make_cylinder(20, 0.75, 2.0, true, &Matrix4::identity()),
             )))
             .with_material(material.clone())
@@ -114,7 +114,6 @@ impl GameState for Game {
     fn on_tick(&mut self, engine: &mut Engine, dt: f32, _: &mut ControlFlow) {
         self.material
             .lock()
-            .unwrap()
             .set_property("time", PropertyValue::Float(self.time))
             .unwrap();
 

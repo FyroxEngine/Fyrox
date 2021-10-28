@@ -3,22 +3,22 @@
 pub mod shared;
 
 use crate::shared::create_camera;
-use rg3d::engine::Engine;
-use rg3d::gui::UiNode;
 use rg3d::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
         color::Color,
+        parking_lot::Mutex,
         pool::Handle,
         rand::Rng,
     },
-    engine::{framework::prelude::*, resource_manager::ResourceManager},
+    engine::{framework::prelude::*, resource_manager::ResourceManager, Engine},
     event::{ElementState, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
     gui::{
         message::{MessageDirection, TextMessage},
         text::TextBuilder,
         widget::WidgetBuilder,
+        UiNode,
     },
     material::{shader::SamplerFallback, Material, PropertyValue},
     rand::thread_rng,
@@ -31,7 +31,7 @@ use rg3d::{
         Scene,
     },
 };
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 struct SceneLoader {
     scene: Scene,

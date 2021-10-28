@@ -2,6 +2,7 @@
 
 //! Resource module contains all structures and method to manage resources.
 
+use crate::core::parking_lot::{Mutex, MutexGuard};
 use crate::core::visitor::prelude::*;
 use std::{
     borrow::Cow,
@@ -10,7 +11,7 @@ use std::{
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     pin::Pin,
-    sync::{Arc, Mutex, MutexGuard},
+    sync::Arc,
     task::{Context, Poll, Waker},
 };
 
@@ -164,12 +165,12 @@ impl<T: ResourceData, E: ResourceLoadError> Resource<T, E> {
 
     /// Locks internal mutex provides access to the state.
     pub fn state(&self) -> MutexGuard<'_, ResourceState<T, E>> {
-        self.state.as_ref().unwrap().lock().unwrap()
+        self.state.as_ref().unwrap().lock()
     }
 
     /// Tries to lock internal mutex provides access to the state.
     pub fn try_acquire_state(&self) -> Option<MutexGuard<'_, ResourceState<T, E>>> {
-        self.state.as_ref().unwrap().try_lock().ok()
+        self.state.as_ref().unwrap().try_lock()
     }
 
     /// Returns exact amount of users of the resource.
@@ -234,7 +235,7 @@ impl<T: ResourceData, E: ResourceLoadError> Future for Resource<T, E> {
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let state = self.as_ref().state.clone();
-        match *state.unwrap().lock().unwrap() {
+        match *state.unwrap().lock() {
             ResourceState::Pending { ref mut wakers, .. } => {
                 // Collect wakers, so we'll be able to wake task when worker thread finish loading.
                 let cx_waker = cx.waker();

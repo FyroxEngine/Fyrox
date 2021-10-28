@@ -1,20 +1,18 @@
-use crate::material::PropertyValue;
-use crate::utils::log::{Log, MessageKind};
 use crate::{
-    core::{algebra::Matrix4, arrayvec::ArrayVec, pool::Handle, scope_profile},
-    material::Material,
+    core::{algebra::Matrix4, arrayvec::ArrayVec, parking_lot::Mutex, pool::Handle, scope_profile},
+    material::{Material, PropertyValue},
     scene::{
         graph::Graph,
         mesh::{surface::SurfaceData, RenderPath},
         node::Node,
     },
+    utils::log::{Log, MessageKind},
 };
-use std::collections::hash_map::DefaultHasher;
-use std::hash::Hasher;
 use std::{
-    collections::HashMap,
+    collections::{hash_map::DefaultHasher, HashMap},
     fmt::{Debug, Formatter},
-    sync::{Arc, Mutex, RwLock},
+    hash::Hasher,
+    sync::Arc,
 };
 
 pub const BONE_MATRICES_COUNT: usize = 64;
@@ -27,7 +25,7 @@ pub struct SurfaceInstance {
 }
 
 pub struct Batch {
-    pub data: Arc<RwLock<SurfaceData>>,
+    pub data: Arc<Mutex<SurfaceData>>,
     pub instances: Vec<SurfaceInstance>,
     pub material: Arc<Mutex<Material>>,
     pub is_skinned: bool,
@@ -125,7 +123,7 @@ impl BatchStorage {
                             let data = chunk.data();
                             let data_key = &*data as *const _ as u64;
 
-                            let mut material = (*layer.material.lock().unwrap()).clone();
+                            let mut material = (*layer.material.lock()).clone();
                             match material.set_property(
                                 &layer.mask_property_name,
                                 PropertyValue::Sampler {

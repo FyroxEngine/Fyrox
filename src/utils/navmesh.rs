@@ -158,7 +158,7 @@ impl Navmesh {
         let global_transform = mesh.global_transform();
         for surface in mesh.surfaces() {
             let shared_data = surface.data();
-            let shared_data = shared_data.read().unwrap();
+            let shared_data = shared_data.lock();
 
             let vertex_buffer = &shared_data.vertex_buffer;
             for triangle in shared_data.geometry_buffer.iter() {

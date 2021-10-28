@@ -282,8 +282,8 @@ impl GBuffer {
             .iter()
             .filter(|b| b.render_path == RenderPath::Deferred)
         {
-            let material = batch.material.lock().unwrap();
-            let data = batch.data.read().unwrap();
+            let material = batch.material.lock();
+            let data = batch.data.lock();
             let geometry = geom_cache.get(state, &data);
 
             if let Some(render_pass) = shader_cache

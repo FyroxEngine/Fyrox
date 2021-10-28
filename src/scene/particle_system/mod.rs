@@ -35,7 +35,6 @@
 //! use rg3d::scene::node::Node;
 //! use rg3d::scene::transform::TransformBuilder;
 //! use rg3d::core::color_gradient::{GradientPoint, ColorGradient};
-//! use rg3d::core::numeric_range::NumericRange;
 //! use rg3d::scene::base::BaseBuilder;
 //! use rg3d::core::color::Color;
 //! use std::path::Path;
@@ -60,9 +59,9 @@
 //!             SphereEmitterBuilder::new(BaseEmitterBuilder::new()
 //!                 .with_max_particles(100)
 //!                 .with_spawn_rate(50)
-//!                 .with_x_velocity_range(NumericRange::new(-0.01, 0.01))
-//!                 .with_y_velocity_range(NumericRange::new(0.02, 0.03))
-//!                 .with_z_velocity_range(NumericRange::new(-0.01, 0.01)))
+//!                 .with_x_velocity_range(-0.01..0.01)
+//!                 .with_y_velocity_range(0.02..0.03)
+//!                 .with_z_velocity_range(-0.01..0.01))
 //!                 .with_radius(0.01)
 //!                 .build()
 //!         ])

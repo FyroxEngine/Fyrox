@@ -440,7 +440,7 @@ pub fn generate_uvs_mesh(
 
     let patches = data_set
         .into_par_iter()
-        .map(|data| generate_uvs(&mut data.write().unwrap(), spacing))
+        .map(|data| generate_uvs(&mut data.lock(), spacing))
         .collect::<Result<Vec<SurfaceDataPatch>, VertexFetchError>>()?;
 
     println!("Generate UVs: {:?}", instant::Instant::now() - last);

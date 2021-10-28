@@ -1,10 +1,10 @@
-use crate::renderer::framework::state::{BlendFactor, BlendFunc, CompareFunc, StencilAction};
 use crate::{
     asset::Resource,
     core::{
         algebra::{Matrix4, Vector2, Vector4},
         color::Color,
         math::Rect,
+        parking_lot::Mutex,
         scope_profile,
     },
     gui::{
@@ -21,17 +21,16 @@ use crate::{
             },
             gpu_program::{GpuProgram, UniformLocation},
             gpu_texture::GpuTexture,
-            state::{ColorMask, PipelineState, StencilFunc, StencilOp},
+            state::{
+                BlendFactor, BlendFunc, ColorMask, CompareFunc, PipelineState, StencilAction,
+                StencilFunc, StencilOp,
+            },
         },
         RenderPassStatistics, TextureCache,
     },
     resource::texture::{Texture, TextureData, TextureKind, TexturePixelKind, TextureState},
 };
-use std::{
-    cell::RefCell,
-    rc::Rc,
-    sync::{Arc, Mutex},
-};
+use std::{cell::RefCell, rc::Rc, sync::Arc};
 
 struct UiShader {
     program: GpuProgram,

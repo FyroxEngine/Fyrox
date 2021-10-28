@@ -276,7 +276,7 @@ impl Physics {
 
                 for surface in mesh.surfaces() {
                     let shared_data = surface.data();
-                    let shared_data = shared_data.read().unwrap();
+                    let shared_data = shared_data.lock();
 
                     let vertices = &shared_data.vertex_buffer;
                     for triangle in shared_data.geometry_buffer.iter() {

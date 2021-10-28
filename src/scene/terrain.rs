@@ -8,6 +8,7 @@ use crate::{
         math::{
             aabb::AxisAlignedBoundingBox, ray::Ray, ray_rect_intersection, Rect, TriangleDefinition,
         },
+        parking_lot::Mutex,
         pool::Handle,
         visitor::{prelude::*, PodVecView},
     },
@@ -28,7 +29,7 @@ use std::{
     cell::Cell,
     cmp::Ordering,
     ops::{Deref, DerefMut},
-    sync::{Arc, Mutex, RwLock},
+    sync::Arc,
 };
 
 /// Layers is a set of textures for rendering + mask texture to exclude some pixels from
@@ -71,7 +72,7 @@ pub struct Chunk {
     length: f32,
     width_point_count: u32,
     length_point_count: u32,
-    surface_data: Arc<RwLock<SurfaceData>>,
+    surface_data: Arc<Mutex<SurfaceData>>,
     dirty: Cell<bool>,
 }
 
@@ -114,7 +115,7 @@ impl Chunk {
     /// to call this method manually, engine will automatically call it when needed.
     pub fn update(&mut self) {
         if self.dirty.get() {
-            let mut surface_data = self.surface_data.write().unwrap();
+            let mut surface_data = self.surface_data.lock();
             surface_data.clear();
 
             assert_eq!(self.width_point_count & 1, 0);
@@ -192,7 +193,7 @@ impl Chunk {
     }
 
     /// Returns data for rendering (vertex and index buffers).
-    pub fn data(&self) -> Arc<RwLock<SurfaceData>> {
+    pub fn data(&self) -> Arc<Mutex<SurfaceData>> {
         self.surface_data.clone()
     }
 
@@ -734,8 +735,8 @@ fn create_layer_mask(width: u32, height: u32, value: u8) -> Texture {
     mask
 }
 
-fn make_surface_data() -> Arc<RwLock<SurfaceData>> {
-    Arc::new(RwLock::new(SurfaceData::new(
+fn make_surface_data() -> Arc<Mutex<SurfaceData>> {
+    Arc::new(Mutex::new(SurfaceData::new(
         VertexBuffer::new::<StaticVertex>(0, StaticVertex::layout(), vec![]).unwrap(),
         GeometryBuffer::default(),
         false,
