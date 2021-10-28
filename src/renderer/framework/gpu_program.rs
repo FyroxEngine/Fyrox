@@ -17,9 +17,24 @@ pub struct GpuProgram {
     // Force compiler to not implement Send and Sync, because OpenGL is not thread-safe.
     thread_mark: PhantomData<*const u8>,
     uniform_locations: RefCell<FxHashMap<String, Option<UniformLocation>>>,
+    pub(crate) built_in_uniform_locations:
+        [Option<UniformLocation>; BuiltInUniform::Count as usize],
 }
 
-#[derive(Clone, Debug)]
+#[repr(usize)]
+pub enum BuiltInUniform {
+    WorldMatrix,
+    WorldViewProjectionMatrix,
+    BoneMatrices,
+    UseSkeletalAnimation,
+    CameraPosition,
+    UsePOM,
+    LightPosition,
+    // Must be last.
+    Count,
+}
+
+#[derive(Clone, Copy, Debug)]
 pub struct UniformLocation {
     id: glow::UniformLocation,
     // Force compiler to not implement Send and Sync, because OpenGL is not thread-safe.
@@ -90,7 +105,7 @@ fn prepare_source_code(code: &str) -> String {
 pub struct GpuProgramBinding<'a, 'b> {
     pub state: &'a mut PipelineState,
     active_sampler: u32,
-    program: &'b GpuProgram,
+    pub(crate) program: &'b GpuProgram,
 }
 
 impl<'a, 'b> GpuProgramBinding<'a, 'b> {
@@ -349,6 +364,46 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
     }
 }
 
+fn fetch_uniform_location(
+    state: &PipelineState,
+    program: glow::Program,
+    id: &str,
+) -> Option<UniformLocation> {
+    unsafe {
+        state
+            .gl
+            .get_uniform_location(program, id)
+            .map(|id| UniformLocation {
+                id,
+                thread_mark: PhantomData,
+            })
+    }
+}
+
+fn fetch_built_in_uniform_locations(
+    state: &PipelineState,
+    program: glow::Program,
+) -> [Option<UniformLocation>; BuiltInUniform::Count as usize] {
+    let mut locations = [None; BuiltInUniform::Count as usize];
+
+    locations[BuiltInUniform::WorldMatrix as usize] =
+        fetch_uniform_location(state, program, "rg3d_worldMatrix");
+    locations[BuiltInUniform::WorldViewProjectionMatrix as usize] =
+        fetch_uniform_location(state, program, "rg3d_worldViewProjection");
+    locations[BuiltInUniform::BoneMatrices as usize] =
+        fetch_uniform_location(state, program, "rg3d_boneMatrices");
+    locations[BuiltInUniform::UseSkeletalAnimation as usize] =
+        fetch_uniform_location(state, program, "rg3d_useSkeletalAnimation");
+    locations[BuiltInUniform::CameraPosition as usize] =
+        fetch_uniform_location(state, program, "rg3d_cameraPosition");
+    locations[BuiltInUniform::UsePOM as usize] =
+        fetch_uniform_location(state, program, "rg3d_usePOM");
+    locations[BuiltInUniform::LightPosition as usize] =
+        fetch_uniform_location(state, program, "rg3d_lightPosition");
+
+    locations
+}
+
 impl GpuProgram {
     pub fn from_source(
         state: &mut PipelineState,
@@ -397,6 +452,7 @@ impl GpuProgram {
                     id: program,
                     thread_mark: PhantomData,
                     uniform_locations: Default::default(),
+                    built_in_uniform_locations: fetch_built_in_uniform_locations(state, program),
                 })
             }
         }
@@ -412,15 +468,7 @@ impl GpuProgram {
         if let Some(cached_location) = locations.get(name) {
             cached_location.clone()
         } else {
-            let location = unsafe {
-                state
-                    .gl
-                    .get_uniform_location(self.id, name)
-                    .map(|id| UniformLocation {
-                        id,
-                        thread_mark: PhantomData,
-                    })
-            };
+            let location = fetch_uniform_location(state, self.id, name);
 
             locations.insert(name.to_owned(), location.clone());
 

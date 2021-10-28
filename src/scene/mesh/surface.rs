@@ -30,7 +30,7 @@ use crate::{
 use rg3d_resource::core::hash_combine;
 use std::{
     collections::hash_map::DefaultHasher,
-    hash::{Hash, Hasher},
+    hash::Hasher,
     sync::{Arc, Mutex, RwLock},
 };
 
