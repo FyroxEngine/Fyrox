@@ -10,9 +10,11 @@ use crate::{
         inspect::{Inspect, PropertyInfo},
         math::TriangleDefinition,
         pool::{ErasedHandle, Handle},
+        sparse::AtomicIndex,
         visitor::{Visit, VisitResult, Visitor},
     },
     material::Material,
+    renderer::{cache::CacheEntry, framework},
     scene::{
         mesh::{
             buffer::{
@@ -25,11 +27,11 @@ use crate::{
     },
     utils::raw_mesh::{RawMesh, RawMeshBuilder},
 };
-use std::sync::Mutex;
+use rg3d_resource::core::hash_combine;
 use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
-    sync::{Arc, RwLock},
+    sync::{Arc, Mutex, RwLock},
 };
 
 /// Data source of a surface. Each surface can share same data source, this is used
@@ -44,6 +46,7 @@ pub struct SurfaceData {
     // If true - indicates that surface was generated and does not have reference
     // resource. Procedural data will be serialized.
     is_procedural: bool,
+    pub(in crate) cache_entry: AtomicIndex<CacheEntry<framework::geometry_buffer::GeometryBuffer>>,
 }
 
 impl SurfaceData {
@@ -57,6 +60,7 @@ impl SurfaceData {
             vertex_buffer,
             geometry_buffer: triangles,
             is_procedural,
+            cache_entry: AtomicIndex::unassigned(),
         }
     }
 
@@ -100,6 +104,7 @@ impl SurfaceData {
             vertex_buffer: VertexBuffer::new(raw.vertices.len(), layout, raw.vertices).unwrap(),
             geometry_buffer: GeometryBuffer::new(raw.triangles),
             is_procedural,
+            cache_entry: AtomicIndex::unassigned(),
         }
     }
 
@@ -774,10 +779,10 @@ impl SurfaceData {
 
     /// Calculates hash based on contents of surface shared data.
     pub fn content_hash(&self) -> u64 {
-        let mut hasher = DefaultHasher::new();
-        self.geometry_buffer.data_hash().hash(&mut hasher);
-        self.vertex_buffer.data_hash().hash(&mut hasher);
-        hasher.finish()
+        hash_combine(
+            self.geometry_buffer.data_hash(),
+            self.vertex_buffer.data_hash(),
+        )
     }
 
     /// Clears both vertex and index buffers.
