@@ -152,6 +152,7 @@ impl<'a, T: ResourceData, E: ResourceLoadError> DerefMut for ResourceDataRef<'a,
 
 impl<T: ResourceData, E: ResourceLoadError> Resource<T, E> {
     /// Creates new resource with a given state.
+    #[inline]
     pub fn new(state: ResourceState<T, E>) -> Self {
         Self {
             state: Some(Arc::new(Mutex::new(state))),
@@ -159,26 +160,31 @@ impl<T: ResourceData, E: ResourceLoadError> Resource<T, E> {
     }
 
     /// Converts self to internal value.
+    #[inline]
     pub fn into_inner(self) -> Arc<Mutex<ResourceState<T, E>>> {
         self.state.unwrap()
     }
 
     /// Locks internal mutex provides access to the state.
+    #[inline]
     pub fn state(&self) -> MutexGuard<'_, ResourceState<T, E>> {
         self.state.as_ref().unwrap().lock()
     }
 
     /// Tries to lock internal mutex provides access to the state.
+    #[inline]
     pub fn try_acquire_state(&self) -> Option<MutexGuard<'_, ResourceState<T, E>>> {
         self.state.as_ref().unwrap().try_lock()
     }
 
     /// Returns exact amount of users of the resource.
+    #[inline]
     pub fn use_count(&self) -> usize {
         Arc::strong_count(self.state.as_ref().unwrap())
     }
 
     /// Returns a pointer as numeric value which can be used as a hash.
+    #[inline]
     pub fn key(&self) -> usize {
         (&**self.state.as_ref().unwrap() as *const _) as usize
     }
@@ -192,6 +198,7 @@ impl<T: ResourceData, E: ResourceLoadError> Resource<T, E> {
     /// like this `resource.await?.data_ref()`. Every resource implements Future trait
     /// and it returns Result, so if you'll await future then you'll get Result, so
     /// call to `data_ref` will be fine.  
+    #[inline]
     pub fn data_ref(&self) -> ResourceDataRef<'_, T, E> {
         ResourceDataRef {
             guard: self.state(),
@@ -200,12 +207,14 @@ impl<T: ResourceData, E: ResourceLoadError> Resource<T, E> {
 }
 
 impl<T: ResourceData, E: ResourceLoadError> Default for Resource<T, E> {
+    #[inline]
     fn default() -> Self {
         Self { state: None }
     }
 }
 
 impl<T: ResourceData, E: ResourceLoadError> Clone for Resource<T, E> {
+    #[inline]
     fn clone(&self) -> Self {
         Self {
             state: self.state.clone(),
@@ -216,6 +225,7 @@ impl<T: ResourceData, E: ResourceLoadError> Clone for Resource<T, E> {
 impl<T: ResourceData, E: ResourceLoadError> From<Arc<Mutex<ResourceState<T, E>>>>
     for Resource<T, E>
 {
+    #[inline]
     fn from(state: Arc<Mutex<ResourceState<T, E>>>) -> Self {
         Self { state: Some(state) }
     }
@@ -225,6 +235,7 @@ impl<T: ResourceData, E: ResourceLoadError> From<Arc<Mutex<ResourceState<T, E>>>
 impl<T: ResourceData, E: ResourceLoadError> Into<Arc<Mutex<ResourceState<T, E>>>>
     for Resource<T, E>
 {
+    #[inline]
     fn into(self) -> Arc<Mutex<ResourceState<T, E>>> {
         self.state.unwrap()
     }
@@ -255,6 +266,7 @@ impl<T: ResourceData, E: ResourceLoadError> Future for Resource<T, E> {
 
 impl<T: ResourceData, E: ResourceLoadError> ResourceState<T, E> {
     /// Creates new resource in pending state.
+    #[inline]
     pub fn new_pending(path: PathBuf) -> Self {
         Self::Pending {
             path,
@@ -262,6 +274,7 @@ impl<T: ResourceData, E: ResourceLoadError> ResourceState<T, E> {
         }
     }
 
+    #[inline]
     fn id(&self) -> u32 {
         match self {
             Self::Pending { .. } => 0,
@@ -270,6 +283,7 @@ impl<T: ResourceData, E: ResourceLoadError> ResourceState<T, E> {
         }
     }
 
+    #[inline]
     fn from_id(id: u32) -> Result<Self, String> {
         match id {
             0 => Ok(Self::Pending {
@@ -286,6 +300,7 @@ impl<T: ResourceData, E: ResourceLoadError> ResourceState<T, E> {
     }
 
     /// Returns a path to the resource source.
+    #[inline]
     pub fn path(&self) -> Cow<Path> {
         match self {
             Self::Pending { path, .. } => Cow::Borrowed(path.as_path()),
@@ -296,6 +311,7 @@ impl<T: ResourceData, E: ResourceLoadError> ResourceState<T, E> {
 
     /// Changes ResourceState::Pending state to ResourceState::Ok(data) with given `data`.
     /// Additionally it wakes all futures.
+    #[inline]
     pub fn commit(&mut self, state: ResourceState<T, E>) {
         let wakers = if let ResourceState::Pending { ref mut wakers, .. } = self {
             std::mem::take(wakers)

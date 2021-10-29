@@ -2,15 +2,19 @@
 //!
 //! For more info see [`Shader`] struct docs.
 
-use crate::core::algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4};
-use crate::renderer::framework::framebuffer::DrawParameters;
 use crate::{
     asset::{define_new_resource, Resource, ResourceData, ResourceState},
     core::{
+        algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
         io::{self, FileLoadError},
+        sparse::AtomicIndex,
         visitor::prelude::*,
     },
     lazy_static::lazy_static,
+    renderer::{
+        cache::{shader::ShaderSet, CacheEntry},
+        framework::framebuffer::DrawParameters,
+    },
 };
 use ron::Error;
 use serde::Deserialize;
@@ -38,6 +42,8 @@ pub struct ShaderState {
 
     /// Shader definition contains description of properties and render passes.
     pub definition: ShaderDefinition,
+
+    pub(in crate) cache_index: AtomicIndex<CacheEntry<ShaderSet>>,
 }
 
 impl Visit for ShaderState {
@@ -236,6 +242,7 @@ impl ShaderState {
         Ok(Self {
             path: path.as_ref().to_owned(),
             definition: ShaderDefinition::from_buf(content)?,
+            cache_index: Default::default(),
         })
     }
 
@@ -243,6 +250,7 @@ impl ShaderState {
         Ok(Self {
             path: path.as_ref().to_owned(),
             definition: ShaderDefinition::from_str(str)?,
+            cache_index: Default::default(),
         })
     }
 }

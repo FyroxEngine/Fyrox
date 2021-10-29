@@ -1,19 +1,15 @@
 use crate::{
     asset::ResourceState,
-    core::scope_profile,
+    core::{scope_profile, sparse::SparseBuffer},
     engine::resource_manager::DEFAULT_RESOURCE_LIFETIME,
     material::shader::{Shader, ShaderState},
     renderer::{
         cache::CacheEntry,
         framework::{framebuffer::DrawParameters, gpu_program::GpuProgram, state::PipelineState},
     },
-    resource::texture::Texture,
     utils::log::{Log, MessageKind},
 };
-use std::{
-    collections::{hash_map::Entry, HashMap},
-    ops::Deref,
-};
+use std::{collections::HashMap, ops::Deref};
 
 pub struct RenderPassData {
     pub program: GpuProgram,
@@ -63,7 +59,7 @@ impl ShaderSet {
 
 #[derive(Default)]
 pub struct ShaderCache {
-    pub(super) map: HashMap<usize, CacheEntry<ShaderSet>>,
+    pub(super) buffer: SparseBuffer<CacheEntry<ShaderSet>>,
 }
 
 impl ShaderCache {
@@ -74,16 +70,17 @@ impl ShaderCache {
         let shader = shader.state();
 
         if let ResourceState::Ok(shader_state) = shader.deref() {
-            let entry = match self.map.entry(key) {
-                Entry::Occupied(e) => e.into_mut(),
-                Entry::Vacant(e) => e.insert(CacheEntry {
+            if self.buffer.is_index_valid(&shader_state.cache_index) {
+                Some(&self.buffer.get(&shader_state.cache_index).unwrap().value)
+            } else {
+                let index = self.buffer.spawn(CacheEntry {
                     value: ShaderSet::new(state, shader_state)?,
                     time_to_live: DEFAULT_RESOURCE_LIFETIME,
                     value_hash: key as u64,
-                }),
-            };
-
-            Some(&entry.value)
+                });
+                shader_state.cache_index.set(index.get());
+                Some(&self.buffer.get(&index).unwrap().value)
+            }
         } else {
             None
         }
@@ -92,18 +89,20 @@ impl ShaderCache {
     pub fn update(&mut self, dt: f32) {
         scope_profile!();
 
-        for entry in self.map.values_mut() {
+        for entry in self.buffer.iter_mut() {
             entry.time_to_live -= dt;
         }
 
-        self.map.retain(|_, v| v.time_to_live > 0.0);
+        for i in 0..self.buffer.len() {
+            if let Some(entry) = self.buffer.get_raw(i) {
+                if entry.time_to_live <= 0.0 {
+                    self.buffer.free_raw(i);
+                }
+            }
+        }
     }
 
     pub fn clear(&mut self) {
-        self.map.clear();
-    }
-
-    pub fn unload(&mut self, texture: Texture) {
-        self.map.remove(&texture.key());
+        self.buffer.clear();
     }
 }
