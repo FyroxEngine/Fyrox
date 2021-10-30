@@ -1881,19 +1881,11 @@ impl Editor {
             if let Selection::Graph(selection) = &editor_scene.selection {
                 for &node in selection.nodes() {
                     let node = &scene.graph[node];
-                    let aabb = match node {
-                        Node::Base(_) => AxisAlignedBoundingBox::unit(),
-                        Node::Light(_) => AxisAlignedBoundingBox::unit(),
-                        Node::Camera(_) => AxisAlignedBoundingBox::unit(),
-                        Node::Mesh(ref mesh) => mesh.bounding_box(),
-                        Node::Sprite(_) => AxisAlignedBoundingBox::unit(),
-                        Node::ParticleSystem(_) => AxisAlignedBoundingBox::unit(),
-                        Node::Terrain(ref terrain) => terrain.bounding_box(),
-                        Node::Decal(_) => AxisAlignedBoundingBox::unit(),
-                    };
-                    scene
-                        .drawing_context
-                        .draw_oob(&aabb, node.global_transform(), Color::GREEN);
+                    scene.drawing_context.draw_oob(
+                        &node.local_bounding_box(),
+                        node.global_transform(),
+                        Color::GREEN,
+                    );
                 }
             }
 

@@ -1,12 +1,12 @@
-use crate::world::graph::selection::GraphSelection;
 use crate::{
     interaction::InteractionMode,
     scene::{commands::ChangeSelectionCommand, EditorScene, Selection},
     settings::Settings,
+    world::graph::selection::GraphSelection,
     GameEngine, Message,
 };
 use rg3d::{
-    core::{algebra::Vector2, math::aabb::AxisAlignedBoundingBox, pool::Handle},
+    core::{algebra::Vector2, pool::Handle},
     gui::{
         message::{MessageDirection, WidgetMessage},
         UiNode,
@@ -98,18 +98,9 @@ impl InteractionMode for SelectInteractionMode {
                 self.stack.extend_from_slice(node.children());
                 continue;
             }
-            let aabb = match node {
-                Node::Base(_) => AxisAlignedBoundingBox::unit(),
-                Node::Light(_) => AxisAlignedBoundingBox::unit(),
-                Node::Camera(_) => AxisAlignedBoundingBox::unit(),
-                Node::Mesh(mesh) => mesh.bounding_box(),
-                Node::Sprite(_) => AxisAlignedBoundingBox::unit(),
-                Node::Decal(_) => AxisAlignedBoundingBox::unit(),
-                Node::ParticleSystem(_) => AxisAlignedBoundingBox::unit(),
-                Node::Terrain(ref terrain) => terrain.bounding_box(),
-            };
 
-            for screen_corner in aabb
+            for screen_corner in node
+                .local_bounding_box()
                 .corners()
                 .iter()
                 .filter_map(|&p| camera.project(p + node.global_position(), frame_size))

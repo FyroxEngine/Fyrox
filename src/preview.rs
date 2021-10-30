@@ -194,7 +194,7 @@ impl PreviewPanel {
         let mut bounding_box = AxisAlignedBoundingBox::default();
         for node in scene.graph.linear_iter() {
             if let Node::Mesh(mesh) = node {
-                bounding_box.add_box(mesh.full_world_bounding_box(&scene.graph))
+                bounding_box.add_box(mesh.accurate_world_bounding_box(&scene.graph))
             }
         }
 

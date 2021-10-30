@@ -1,10 +1,8 @@
 use crate::rg3d::core::math::Matrix4Ext;
-use rg3d::core::algebra::Matrix4;
-use rg3d::core::math::plane::Plane;
 use rg3d::{
     core::{
-        algebra::{Point3, UnitQuaternion, Vector2, Vector3},
-        math::aabb::AxisAlignedBoundingBox,
+        algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
+        math::plane::Plane,
         pool::Handle,
     },
     gui::message::{KeyCode, MouseButton},
@@ -267,23 +265,14 @@ impl CameraController {
                     continue;
                 }
 
-                let (aabb, surfaces) = match node {
-                    Node::Mesh(mesh) => (mesh.bounding_box(), Some(mesh.surfaces())),
-                    Node::Base(_) if handle == graph.get_root() || handle == root => {
-                        (AxisAlignedBoundingBox::default(), None)
-                    }
-                    _ => (AxisAlignedBoundingBox::unit(), None),
-                };
-
                 if handle != graph.get_root() {
                     let object_space_ray =
                         ray.transform(node.global_transform().try_inverse().unwrap_or_default());
                     // Do coarse intersection test with bounding box.
-                    if let Some(points) = object_space_ray.aabb_intersection_points(&aabb) {
-                        // Do fine intersection test with surfaces if any
-                        if let Some(_surfaces) = surfaces {
-                            // TODO
-                        }
+                    if let Some(points) =
+                        object_space_ray.aabb_intersection_points(&node.local_bounding_box())
+                    {
+                        // TODO: Do fine intersection test with surfaces if any
 
                         let da = points[0].metric_distance(&object_space_ray.origin);
                         let db = points[1].metric_distance(&object_space_ray.origin);
