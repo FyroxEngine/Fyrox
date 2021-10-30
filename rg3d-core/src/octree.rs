@@ -205,7 +205,7 @@ fn build_recursive(
         nodes.spawn(OctreeNode::Leaf { bounds, indices })
     } else {
         let mut leaves = [Handle::NONE; 8];
-        let leaf_bounds = split_bounds(bounds);
+        let leaf_bounds = bounds.split();
 
         for i in 0..8 {
             let mut leaf_indices = Vec::new();
@@ -232,44 +232,4 @@ fn build_recursive(
 
         nodes.spawn(OctreeNode::Branch { leaves, bounds })
     }
-}
-
-fn split_bounds(bounds: AxisAlignedBoundingBox) -> [AxisAlignedBoundingBox; 8] {
-    let center = bounds.center();
-    let min = &bounds.min;
-    let max = &bounds.max;
-    [
-        AxisAlignedBoundingBox::from_min_max(
-            Vector3::new(min.x, min.y, min.z),
-            Vector3::new(center.x, center.y, center.z),
-        ),
-        AxisAlignedBoundingBox::from_min_max(
-            Vector3::new(center.x, min.y, min.z),
-            Vector3::new(max.x, center.y, center.z),
-        ),
-        AxisAlignedBoundingBox::from_min_max(
-            Vector3::new(min.x, min.y, center.z),
-            Vector3::new(center.x, center.y, max.z),
-        ),
-        AxisAlignedBoundingBox::from_min_max(
-            Vector3::new(center.x, min.y, center.z),
-            Vector3::new(max.x, center.y, max.z),
-        ),
-        AxisAlignedBoundingBox::from_min_max(
-            Vector3::new(min.x, center.y, min.z),
-            Vector3::new(center.x, max.y, center.z),
-        ),
-        AxisAlignedBoundingBox::from_min_max(
-            Vector3::new(center.x, center.y, min.z),
-            Vector3::new(max.x, max.y, center.z),
-        ),
-        AxisAlignedBoundingBox::from_min_max(
-            Vector3::new(min.x, center.y, center.z),
-            Vector3::new(center.x, max.y, max.z),
-        ),
-        AxisAlignedBoundingBox::from_min_max(
-            Vector3::new(center.x, center.y, center.z),
-            Vector3::new(max.x, max.y, max.z),
-        ),
-    ]
 }
