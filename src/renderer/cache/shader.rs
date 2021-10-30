@@ -9,7 +9,8 @@ use crate::{
     },
     utils::log::{Log, MessageKind},
 };
-use std::{collections::HashMap, ops::Deref};
+use fxhash::FxHashMap;
+use std::ops::Deref;
 
 pub struct RenderPassData {
     pub program: GpuProgram,
@@ -17,12 +18,12 @@ pub struct RenderPassData {
 }
 
 pub struct ShaderSet {
-    pub render_passes: HashMap<String, RenderPassData>,
+    pub render_passes: FxHashMap<String, RenderPassData>,
 }
 
 impl ShaderSet {
     pub fn new(state: &mut PipelineState, shader: &ShaderState) -> Option<Self> {
-        let mut map = HashMap::new();
+        let mut map = FxHashMap::default();
         for render_pass in shader.definition.passes.iter() {
             let program_name = format!("{}_{}", shader.definition.name, render_pass.name);
             match GpuProgram::from_source(
