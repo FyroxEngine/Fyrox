@@ -1,5 +1,8 @@
-use crate::algebra::{Matrix4, Point3, Vector3};
-use crate::visitor::{Visit, VisitResult, Visitor};
+use crate::{
+    algebra::{Matrix4, Vector3},
+    math::Matrix4Ext,
+    visitor::{Visit, VisitResult, Visitor},
+};
 
 #[derive(Copy, Clone, Debug)]
 pub struct AxisAlignedBoundingBox {
@@ -19,8 +22,16 @@ impl Default for AxisAlignedBoundingBox {
 
 impl AxisAlignedBoundingBox {
     #[inline]
-    pub fn unit() -> Self {
+    pub const fn unit() -> Self {
         Self::from_min_max(Vector3::new(-0.5, -0.5, -0.5), Vector3::new(0.5, 0.5, 0.5))
+    }
+
+    #[inline]
+    pub fn from_radius(radius: f32) -> Self {
+        Self {
+            min: Vector3::new(-radius, -radius, -radius),
+            max: Vector3::new(radius, radius, radius),
+        }
     }
 
     #[inline]
@@ -172,10 +183,77 @@ impl AxisAlignedBoundingBox {
         true
     }
 
+    /// Transforms axis-aligned bounding box using given affine transformation matrix.
+    ///
+    /// # References
+    ///     
+    /// Transforming Axis-Aligned Bounding Boxes by Jim Arvo, "Graphics Gems", Academic Press, 1990
     #[inline]
-    pub fn transform(&mut self, m: Matrix4<f32>) {
-        self.max = m.transform_point(&Point3::from(self.max)).coords;
-        self.min = m.transform_point(&Point3::from(self.min)).coords;
+    #[must_use]
+    pub fn transform(&self, m: &Matrix4<f32>) -> AxisAlignedBoundingBox {
+        let basis = m.basis();
+
+        let mut transformed = Self {
+            min: m.position(),
+            max: m.position(),
+        };
+
+        for i in 0..3 {
+            for j in 0..3 {
+                let a = basis[(i, j)] * self.min[j];
+                let b = basis[(i, j)] * self.max[j];
+                if a < b {
+                    transformed.min[i] += a;
+                    transformed.max[i] += b;
+                } else {
+                    transformed.min[i] += b;
+                    transformed.max[i] += a;
+                }
+            }
+        }
+
+        transformed
+    }
+
+    #[inline]
+    pub fn split(&self) -> [AxisAlignedBoundingBox; 8] {
+        let center = self.center();
+        let min = &self.min;
+        let max = &self.max;
+        [
+            AxisAlignedBoundingBox::from_min_max(
+                Vector3::new(min.x, min.y, min.z),
+                Vector3::new(center.x, center.y, center.z),
+            ),
+            AxisAlignedBoundingBox::from_min_max(
+                Vector3::new(center.x, min.y, min.z),
+                Vector3::new(max.x, center.y, center.z),
+            ),
+            AxisAlignedBoundingBox::from_min_max(
+                Vector3::new(min.x, min.y, center.z),
+                Vector3::new(center.x, center.y, max.z),
+            ),
+            AxisAlignedBoundingBox::from_min_max(
+                Vector3::new(center.x, min.y, center.z),
+                Vector3::new(max.x, center.y, max.z),
+            ),
+            AxisAlignedBoundingBox::from_min_max(
+                Vector3::new(min.x, center.y, min.z),
+                Vector3::new(center.x, max.y, center.z),
+            ),
+            AxisAlignedBoundingBox::from_min_max(
+                Vector3::new(center.x, center.y, min.z),
+                Vector3::new(max.x, max.y, center.z),
+            ),
+            AxisAlignedBoundingBox::from_min_max(
+                Vector3::new(min.x, center.y, center.z),
+                Vector3::new(center.x, max.y, max.z),
+            ),
+            AxisAlignedBoundingBox::from_min_max(
+                Vector3::new(center.x, center.y, center.z),
+                Vector3::new(max.x, max.y, max.z),
+            ),
+        ]
     }
 }
 
@@ -187,5 +265,27 @@ impl Visit for AxisAlignedBoundingBox {
         self.max.visit("Max", visitor)?;
 
         visitor.leave_region()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::algebra::{Matrix4, Vector3};
+    use crate::math::aabb::AxisAlignedBoundingBox;
+
+    #[test]
+    fn test_aabb_transform() {
+        let aabb = AxisAlignedBoundingBox {
+            min: Vector3::new(0.0, 0.0, 0.0),
+            max: Vector3::new(1.0, 1.0, 1.0),
+        };
+
+        let transform = Matrix4::new_translation(&Vector3::new(1.0, 1.0, 1.0))
+            * Matrix4::new_nonuniform_scaling(&Vector3::new(2.0, 2.0, 2.0));
+
+        let transformed_aabb = aabb.transform(&transform);
+
+        assert_eq!(transformed_aabb.min, Vector3::new(1.0, 1.0, 1.0));
+        assert_eq!(transformed_aabb.max, Vector3::new(3.0, 3.0, 3.0));
     }
 }
