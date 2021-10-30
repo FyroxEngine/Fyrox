@@ -834,6 +834,7 @@ impl Graph {
                         }
                         Node::ParticleSystem(particle_system) => particle_system.update(dt),
                         Node::Terrain(terrain) => terrain.update(),
+                        Node::Mesh(_) => self.pool.at(i).unwrap().as_mesh().update(self),
                         _ => (),
                     }
                 }

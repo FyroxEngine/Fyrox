@@ -6,6 +6,7 @@
 
 use crate::asset::core::inspect::PropertyInfo;
 use crate::core::inspect::Inspect;
+use crate::core::math::aabb::AxisAlignedBoundingBox;
 use crate::{
     core::{
         define_is_as,
@@ -187,6 +188,16 @@ impl Default for Node {
 }
 
 impl Node {
+    /// Returns axis-aligned bounding box in **local space** of the node.
+    pub fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
+        static_dispatch!(self, local_bounding_box,)
+    }
+
+    /// Returns axis-aligned bounding box in **world space** of the node.
+    pub fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
+        static_dispatch!(self, world_bounding_box,)
+    }
+
     /// Creates new Node based on variant id.
     pub fn from_id(id: u8) -> Result<Self, String> {
         match id {

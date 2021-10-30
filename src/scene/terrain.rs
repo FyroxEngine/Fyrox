@@ -343,7 +343,7 @@ impl Terrain {
 
     /// Returns pre-cached bounding axis-aligned bounding box of the terrain. Keep in mind that
     /// if you're modified terrain, bounding box will be recalculated and it is not fast.
-    pub fn bounding_box(&self) -> AxisAlignedBoundingBox {
+    pub fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         if self.bounding_box_dirty.get() {
             let mut max_height = -f32::MAX;
             for chunk in self.chunks.iter() {
@@ -355,8 +355,8 @@ impl Terrain {
             }
 
             let bounding_box = AxisAlignedBoundingBox::from_min_max(
-                self.global_position(),
-                self.global_position() + Vector3::new(self.width, max_height, self.length),
+                Default::default(),
+                Vector3::new(self.width, max_height, self.length),
             );
             self.bounding_box.set(bounding_box);
             self.bounding_box_dirty.set(false);
@@ -365,6 +365,12 @@ impl Terrain {
         } else {
             self.bounding_box.get()
         }
+    }
+
+    /// Returns current **world-space** bounding box.
+    pub fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
+        self.local_bounding_box()
+            .transform(&self.global_transform())
     }
 
     /// Projects given 3D point on the surface of terrain and returns 2D vector

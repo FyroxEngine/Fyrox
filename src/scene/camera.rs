@@ -14,6 +14,7 @@
 //! Each camera forces engine to re-render same scene one more time, which may cause
 //! almost double load of your GPU.
 
+use crate::core::math::aabb::AxisAlignedBoundingBox;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
@@ -298,6 +299,18 @@ impl Camera {
     /// Return current environment map.
     pub fn environment_map(&self) -> Option<Texture> {
         self.environment.clone()
+    }
+
+    /// Returns current **local-space** bounding box.
+    #[inline]
+    pub fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
+        // TODO: Maybe calculate AABB using frustum corners?
+        self.base.local_bounding_box()
+    }
+
+    /// Returns current **world-space** bounding box.
+    pub fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
+        self.base.world_bounding_box()
     }
 
     /// Creates picking ray from given screen coordinates.

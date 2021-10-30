@@ -2,6 +2,7 @@
 //!
 //! For more info see [`Base`]
 
+use crate::core::math::aabb::AxisAlignedBoundingBox;
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
@@ -359,6 +360,19 @@ impl Base {
     /// Returns local visibility of a node.
     pub fn visibility(&self) -> bool {
         self.visibility
+    }
+
+    /// Returns current **local-space** bounding box. Keep in mind that this value is just
+    /// a placeholder, because there is not information to calculate actual bounding box.
+    #[inline]
+    pub fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
+        AxisAlignedBoundingBox::unit()
+    }
+
+    /// Returns current **world-space** bounding box.
+    pub fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
+        self.local_bounding_box()
+            .transform(&self.global_transform())
     }
 
     /// Set new mobility for the node.

@@ -6,6 +6,7 @@ use crate::{
     core::{
         color::Color,
         inspect::{Inspect, PropertyInfo},
+        math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         visitor::{Visit, VisitResult, Visitor},
     },
@@ -145,6 +146,17 @@ impl Sprite {
     /// Returns current texture of sprite by ref. Can be None if sprite has no texture.
     pub fn texture_ref(&self) -> Option<&Texture> {
         self.texture.as_ref()
+    }
+
+    /// Returns current **local-space** bounding box.
+    #[inline]
+    pub fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
+        AxisAlignedBoundingBox::from_radius(self.size)
+    }
+
+    /// Returns current **world-space** bounding box.
+    pub fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
+        self.base.world_bounding_box()
     }
 }
 

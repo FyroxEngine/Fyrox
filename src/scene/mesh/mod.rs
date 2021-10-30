@@ -12,7 +12,7 @@ use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3},
         inspect::{Inspect, PropertyInfo},
-        math::{aabb::AxisAlignedBoundingBox, frustum::Frustum},
+        math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         visitor::{Visit, VisitResult, Visitor},
     },
@@ -71,9 +71,11 @@ pub struct Mesh {
     base: Base,
     surfaces: Vec<Surface>,
     #[inspect(skip)]
-    bounding_box: Cell<AxisAlignedBoundingBox>,
+    local_bounding_box: Cell<AxisAlignedBoundingBox>,
     #[inspect(skip)]
-    bounding_box_dirty: Cell<bool>,
+    local_bounding_box_dirty: Cell<bool>,
+    #[inspect(skip)]
+    world_bounding_box: Cell<AxisAlignedBoundingBox>,
     cast_shadows: bool,
     render_path: RenderPath,
     decal_layer_index: u8,
@@ -84,8 +86,9 @@ impl Default for Mesh {
         Self {
             base: Default::default(),
             surfaces: Default::default(),
-            bounding_box: Default::default(),
-            bounding_box_dirty: Cell::new(true),
+            local_bounding_box: Default::default(),
+            world_bounding_box: Default::default(),
+            local_bounding_box_dirty: Cell::new(true),
             cast_shadows: true,
             render_path: RenderPath::Deferred,
             decal_layer_index: 0,
@@ -146,14 +149,14 @@ impl Mesh {
     #[inline]
     pub fn clear_surfaces(&mut self) {
         self.surfaces.clear();
-        self.bounding_box_dirty.set(true);
+        self.local_bounding_box_dirty.set(true);
     }
 
     /// Adds new surface into mesh, can be used to procedurally generate meshes.
     #[inline]
     pub fn add_surface(&mut self, surface: Surface) {
         self.surfaces.push(surface);
-        self.bounding_box_dirty.set(true);
+        self.local_bounding_box_dirty.set(true);
     }
 
     /// Returns true if mesh should cast shadows, false - otherwise.
@@ -168,10 +171,19 @@ impl Mesh {
         self.cast_shadows = cast_shadows;
     }
 
-    /// Performs lazy bounding box evaluation. Bounding box presented in *local coordinates*
+    /// Returns current bounding box. Bounding box presented in *local coordinates*
     /// WARNING: This method does *not* includes bounds of bones!
-    pub fn bounding_box(&self) -> AxisAlignedBoundingBox {
-        if self.bounding_box_dirty.get() {
+    pub fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
+        self.local_bounding_box.get()
+    }
+
+    /// Returns current **world-space** bounding box.
+    pub fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
+        self.world_bounding_box.get()
+    }
+
+    pub(in crate) fn update(&self, graph: &Graph) {
+        if self.local_bounding_box_dirty.get() {
             let mut bounding_box = AxisAlignedBoundingBox::default();
             for surface in self.surfaces.iter() {
                 let data = surface.data();
@@ -181,10 +193,25 @@ impl Mesh {
                         .add_point(view.read_3_f32(VertexAttributeUsage::Position).unwrap());
                 }
             }
-            self.bounding_box.set(bounding_box);
-            self.bounding_box_dirty.set(false);
+            self.local_bounding_box.set(bounding_box);
+            self.local_bounding_box_dirty.set(false);
         }
-        self.bounding_box.get()
+
+        if self.surfaces.iter().any(|s| !s.bones.is_empty()) {
+            let mut world_aabb = AxisAlignedBoundingBox::default();
+            // Special case for skinned meshes.
+            for surface in self.surfaces.iter() {
+                for &bone in surface.bones() {
+                    world_aabb.add_point(graph[bone].global_position())
+                }
+            }
+            self.world_bounding_box.set(world_aabb)
+        } else {
+            self.world_bounding_box.set(
+                self.local_bounding_box()
+                    .transform(&self.global_transform()),
+            );
+        }
     }
 
     /// Sets new render path for the mesh.
@@ -197,29 +224,9 @@ impl Mesh {
         self.render_path
     }
 
-    /// Calculate bounding box in *world coordinates*. This method is very heavy and not
-    /// intended to use every frame! WARNING: This method does *not* includes bounds of bones!
-    pub fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
-        let mut bounding_box = AxisAlignedBoundingBox::default();
-        for surface in self.surfaces.iter() {
-            let data = surface.data();
-            let data = data.lock();
-            for view in data.vertex_buffer.iter() {
-                bounding_box.add_point(
-                    self.global_transform()
-                        .transform_point(&Point3::from(
-                            view.read_3_f32(VertexAttributeUsage::Position).unwrap(),
-                        ))
-                        .coords,
-                );
-            }
-        }
-        bounding_box
-    }
-
-    /// Calculate bounding box in *world coordinates* including influence of bones. This method
-    /// is very heavy and not intended to use every frame!
-    pub fn full_world_bounding_box(&self, graph: &Graph) -> AxisAlignedBoundingBox {
+    /// Calculate very accurate bounding box in *world coordinates* including influence of bones.
+    /// This method is very heavy and not intended to use every frame!
+    pub fn accurate_world_bounding_box(&self, graph: &Graph) -> AxisAlignedBoundingBox {
         let mut bounding_box = AxisAlignedBoundingBox::default();
         for surface in self.surfaces.iter() {
             let data = surface.data();
@@ -275,26 +282,6 @@ impl Mesh {
         bounding_box
     }
 
-    /// Performs frustum visibility test. It uses mesh bounding box *and* positions of bones.
-    /// Mesh is considered visible if its bounding box visible by frustum, or if any bones
-    /// position is inside frustum.
-    pub fn is_intersect_frustum(&self, graph: &Graph, frustum: &Frustum) -> bool {
-        if frustum.is_intersects_aabb_transform(&self.bounding_box(), &self.global_transform.get())
-        {
-            return true;
-        }
-
-        for surface in self.surfaces.iter() {
-            for &bone in surface.bones.iter() {
-                if frustum.is_contains_point(graph[bone].global_position()) {
-                    return true;
-                }
-            }
-        }
-
-        false
-    }
-
     /// Sets new decal layer index. It defines which decals will be applies to the mesh,
     /// for example iff a decal has index == 0 and a mesh has index == 0, then decals will
     /// be applied. This allows you to apply decals only on needed surfaces.
@@ -312,8 +299,9 @@ impl Mesh {
         Self {
             base: self.base.raw_copy(),
             surfaces: self.surfaces.clone(),
-            bounding_box: self.bounding_box.clone(),
-            bounding_box_dirty: self.bounding_box_dirty.clone(),
+            local_bounding_box: self.local_bounding_box.clone(),
+            local_bounding_box_dirty: self.local_bounding_box_dirty.clone(),
+            world_bounding_box: Default::default(),
             cast_shadows: self.cast_shadows,
             render_path: self.render_path,
             decal_layer_index: self.decal_layer_index,
@@ -373,10 +361,11 @@ impl MeshBuilder {
             base: self.base_builder.build_base(),
             cast_shadows: self.cast_shadows,
             surfaces: self.surfaces,
-            bounding_box: Default::default(),
-            bounding_box_dirty: Cell::new(true),
+            local_bounding_box: Default::default(),
+            local_bounding_box_dirty: Cell::new(true),
             render_path: self.render_path,
             decal_layer_index: self.decal_layer_index,
+            world_bounding_box: Default::default(),
         })
     }
 

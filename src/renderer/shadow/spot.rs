@@ -153,7 +153,8 @@ impl SpotShadowMapRenderer {
                     let visible = node.global_visibility() && {
                         match node {
                             Node::Mesh(mesh) => {
-                                mesh.cast_shadows() && mesh.is_intersect_frustum(graph, &frustum)
+                                mesh.cast_shadows()
+                                    && frustum.is_intersects_aabb(&mesh.world_bounding_box())
                             }
                             Node::Terrain(_) => {
                                 // https://github.com/rg3dengine/rg3d/issues/117

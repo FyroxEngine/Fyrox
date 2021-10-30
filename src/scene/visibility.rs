@@ -4,7 +4,7 @@
 
 use crate::{
     core::{algebra::Vector3, math::frustum::Frustum, pool::Handle},
-    scene::{graph::Graph, light::Light, node::Node},
+    scene::{graph::Graph, node::Node},
 };
 use std::collections::HashMap;
 
@@ -80,33 +80,9 @@ impl VisibilityCache {
                     if let Some(frustums) = frustums {
                         let mut visible_by_any_frustum = false;
                         for frustum in frustums {
-                            match node {
-                                Node::Mesh(mesh) => {
-                                    if mesh.is_intersect_frustum(graph, frustum) {
-                                        visible_by_any_frustum = true;
-                                        break;
-                                    }
-                                }
-                                Node::Light(light) => {
-                                    let radius = match light {
-                                        Light::Spot(spot_light) => spot_light.distance(),
-                                        Light::Point(point_light) => point_light.radius(),
-                                        Light::Directional(_) => f32::MAX,
-                                    };
-
-                                    // Rough intersection check should cover most of the use cases,
-                                    // however spot lights require more precise check, for now this
-                                    // is a TODO.
-                                    if frustum.is_intersects_sphere(node.global_position(), radius)
-                                    {
-                                        visible_by_any_frustum = true;
-                                        break;
-                                    }
-                                }
-                                Node::Terrain(_) => {
-                                    visible_by_any_frustum = true; // TODO
-                                }
-                                _ => {}
+                            if frustum.is_intersects_aabb(&node.world_bounding_box()) {
+                                visible_by_any_frustum = true;
+                                break;
                             }
                         }
                         visibility = visible_by_any_frustum;

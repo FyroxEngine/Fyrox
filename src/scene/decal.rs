@@ -2,6 +2,7 @@
 //!
 //! For more info see [`Decal`]
 
+use crate::core::math::aabb::AxisAlignedBoundingBox;
 use crate::{
     core::{
         color::Color,
@@ -168,6 +169,18 @@ impl Decal {
     /// Returns current layer index.
     pub fn layer(&self) -> u8 {
         self.layer
+    }
+
+    /// Returns current **local-space** bounding box.
+    #[inline]
+    pub fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
+        // TODO: Maybe calculate AABB using frustum corners?
+        self.base.local_bounding_box()
+    }
+
+    /// Returns current **world-space** bounding box.
+    pub fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
+        self.base.world_bounding_box()
     }
 }
 
