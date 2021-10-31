@@ -833,6 +833,7 @@ impl TerrainBuilder {
         self
     }
 
+    /// Sets whether terrain should cast shadows or not.
     pub fn with_cast_shadows(mut self, value: bool) -> Self {
         self.cast_shadows = value;
         self

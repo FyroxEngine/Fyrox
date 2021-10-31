@@ -1,3 +1,4 @@
+use crate::core::color::Color;
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
@@ -63,8 +64,10 @@ impl FbxScene {
                     )));
                 }
                 "Material" => {
-                    component_handle =
-                        components.spawn(FbxComponent::Material(FbxMaterial::read(*object_handle)));
+                    component_handle = components.spawn(FbxComponent::Material(FbxMaterial::read(
+                        *object_handle,
+                        nodes,
+                    )?));
                 }
                 "Texture" => {
                     component_handle = components.spawn(FbxComponent::Texture(FbxTexture::read(
@@ -294,13 +297,34 @@ impl FbxSubDeformer {
 
 pub struct FbxMaterial {
     pub textures: Vec<(String, Handle<FbxComponent>)>,
+    pub diffuse_color: Color,
 }
 
 impl FbxMaterial {
-    fn read(_material_node_handle: Handle<FbxNode>) -> FbxMaterial {
-        FbxMaterial {
-            textures: Default::default(),
+    fn read(
+        material_node_handle: Handle<FbxNode>,
+        nodes: &FbxNodeContainer,
+    ) -> Result<FbxMaterial, FbxError> {
+        let mut diffuse_color = Color::WHITE;
+
+        let props = nodes.get_by_name(material_node_handle, "Properties70")?;
+        for prop_handle in props.children() {
+            let prop = nodes.get(*prop_handle);
+            match prop.get_attrib(0)?.as_string().as_str() {
+                "DiffuseColor" => {
+                    let r = (prop.get_attrib(4)?.as_f64()? * 255.0) as u8;
+                    let g = (prop.get_attrib(5)?.as_f64()? * 255.0) as u8;
+                    let b = (prop.get_attrib(6)?.as_f64()? * 255.0) as u8;
+                    diffuse_color = Color::from_rgba(r, g, b, 255);
+                }
+                _ => (),
+            }
         }
+
+        Ok(FbxMaterial {
+            textures: Default::default(),
+            diffuse_color,
+        })
     }
 }
 

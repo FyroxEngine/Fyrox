@@ -269,6 +269,18 @@ async fn create_surfaces(
             let mut surface = Surface::new(Arc::new(Mutex::new(data.builder.build())));
             surface.vertex_weights = data.skin_data;
             let material = fbx_scene.get(material_handle).as_material()?;
+            if let Err(e) = surface.material().lock().set_property(
+                &ImmutableString::new("diffuseColor"),
+                PropertyValue::Color(material.diffuse_color),
+            ) {
+                Log::writeln(
+                    MessageKind::Error,
+                    format!(
+                        "Failed to set diffuseColor property for material. Reason: {:?}",
+                        e,
+                    ),
+                )
+            }
             for (name, texture_handle) in material.textures.iter() {
                 let texture = fbx_scene.get(*texture_handle).as_texture()?;
                 let path = texture.get_file_path();
