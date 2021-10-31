@@ -113,40 +113,42 @@ impl Control for ScrollPanel {
                         self.invalidate_arrange();
                     }
                     ScrollPanelMessage::BringIntoView(handle) => {
-                        let size = ui.node(handle).actual_size();
-                        let mut parent = handle;
-                        let mut relative_position = Vector2::default();
-                        while parent.is_some() && parent != self.handle {
-                            let node = ui.node(parent);
-                            relative_position += node.actual_local_position();
-                            parent = node.parent();
-                        }
-                        // Check if requested item already in "view box", this will prevent weird "jumping" effect
-                        // when bring into view was requested on already visible element.
-                        if relative_position.x < 0.0
-                            || relative_position.y < 0.0
-                            || relative_position.x > self.actual_size().x
-                            || relative_position.y > self.actual_size().y
-                            || (relative_position.x + size.x) > self.actual_size().x
-                            || (relative_position.y + size.y) > self.actual_size().y
-                        {
-                            relative_position += self.scroll;
-                            // This check is needed because it possible that given handle is not in
-                            // sub-tree of current scroll panel.
-                            if parent == self.handle {
-                                if self.vertical_scroll_allowed {
-                                    ui.send_message(ScrollPanelMessage::vertical_scroll(
-                                        self.handle,
-                                        MessageDirection::ToWidget,
-                                        relative_position.y,
-                                    ));
-                                }
-                                if self.horizontal_scroll_allowed {
-                                    ui.send_message(ScrollPanelMessage::horizontal_scroll(
-                                        self.handle,
-                                        MessageDirection::ToWidget,
-                                        relative_position.x,
-                                    ));
+                        if let Some(node_to_focus_ref) = ui.try_get_node(handle) {
+                            let size = node_to_focus_ref.actual_size();
+                            let mut parent = handle;
+                            let mut relative_position = Vector2::default();
+                            while parent.is_some() && parent != self.handle {
+                                let node = ui.node(parent);
+                                relative_position += node.actual_local_position();
+                                parent = node.parent();
+                            }
+                            // Check if requested item already in "view box", this will prevent weird "jumping" effect
+                            // when bring into view was requested on already visible element.
+                            if relative_position.x < 0.0
+                                || relative_position.y < 0.0
+                                || relative_position.x > self.actual_size().x
+                                || relative_position.y > self.actual_size().y
+                                || (relative_position.x + size.x) > self.actual_size().x
+                                || (relative_position.y + size.y) > self.actual_size().y
+                            {
+                                relative_position += self.scroll;
+                                // This check is needed because it possible that given handle is not in
+                                // sub-tree of current scroll panel.
+                                if parent == self.handle {
+                                    if self.vertical_scroll_allowed {
+                                        ui.send_message(ScrollPanelMessage::vertical_scroll(
+                                            self.handle,
+                                            MessageDirection::ToWidget,
+                                            relative_position.y,
+                                        ));
+                                    }
+                                    if self.horizontal_scroll_allowed {
+                                        ui.send_message(ScrollPanelMessage::horizontal_scroll(
+                                            self.handle,
+                                            MessageDirection::ToWidget,
+                                            relative_position.x,
+                                        ));
+                                    }
                                 }
                             }
                         }
