@@ -20,9 +20,9 @@ impl SkyboxShader {
             GpuProgram::from_source(state, "SkyboxShader", vertex_source, fragment_source)?;
         Ok(Self {
             wvp_matrix: program
-                .uniform_location(state, ImmutableString::new("worldViewProjection"))?,
+                .uniform_location(state, &ImmutableString::new("worldViewProjection"))?,
             cubemap_texture: program
-                .uniform_location(state, ImmutableString::new("cubemapTexture"))?,
+                .uniform_location(state, &ImmutableString::new("cubemapTexture"))?,
             program,
         })
     }

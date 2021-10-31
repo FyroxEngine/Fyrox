@@ -10,6 +10,7 @@ mod document;
 pub mod error;
 mod scene;
 
+use crate::core::sstorage::ImmutableString;
 use crate::{
     animation::{Animation, AnimationContainer, KeyFrame, Track},
     core::{
@@ -340,7 +341,7 @@ async fn create_surfaces(
 
                         if let Some((property_name, usage)) = name_usage {
                             if let Err(e) = surface.material().lock().set_property(
-                                property_name,
+                                &ImmutableString::new(property_name),
                                 PropertyValue::Sampler {
                                     value: Some(texture),
                                     fallback: usage,

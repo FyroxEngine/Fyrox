@@ -32,11 +32,11 @@ impl FxaaShader {
         let program = GpuProgram::from_source(state, "FXAAShader", vertex_source, fragment_source)?;
         Ok(Self {
             wvp_matrix: program
-                .uniform_location(state, ImmutableString::new("worldViewProjection"))?,
+                .uniform_location(state, &ImmutableString::new("worldViewProjection"))?,
             screen_texture: program
-                .uniform_location(state, ImmutableString::new("screenTexture"))?,
+                .uniform_location(state, &ImmutableString::new("screenTexture"))?,
             inverse_screen_size: program
-                .uniform_location(state, ImmutableString::new("inverseScreenSize"))?,
+                .uniform_location(state, &ImmutableString::new("inverseScreenSize"))?,
             program,
         })
     }

@@ -19,9 +19,9 @@ impl FlatShader {
         let program = GpuProgram::from_source(state, "FlatShader", vertex_source, fragment_source)?;
         Ok(Self {
             wvp_matrix: program
-                .uniform_location(state, ImmutableString::new("worldViewProjection"))?,
+                .uniform_location(state, &ImmutableString::new("worldViewProjection"))?,
             diffuse_texture: program
-                .uniform_location(state, ImmutableString::new("diffuseTexture"))?,
+                .uniform_location(state, &ImmutableString::new("diffuseTexture"))?,
             program,
         })
     }

@@ -28,12 +28,12 @@ impl AdaptationShader {
 
         Ok(Self {
             wvp_matrix: program
-                .uniform_location(state, ImmutableString::new("worldViewProjection"))?,
+                .uniform_location(state, &ImmutableString::new("worldViewProjection"))?,
             old_lum_sampler: program
-                .uniform_location(state, ImmutableString::new("oldLumSampler"))?,
+                .uniform_location(state, &ImmutableString::new("oldLumSampler"))?,
             new_lum_sampler: program
-                .uniform_location(state, ImmutableString::new("newLumSampler"))?,
-            speed: program.uniform_location(state, ImmutableString::new("speed"))?,
+                .uniform_location(state, &ImmutableString::new("newLumSampler"))?,
+            speed: program.uniform_location(state, &ImmutableString::new("speed"))?,
             program,
         })
     }

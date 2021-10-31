@@ -3,6 +3,7 @@
 pub mod shared;
 
 use crate::shared::create_camera;
+use rg3d::core::sstorage::ImmutableString;
 use rg3d::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
@@ -46,7 +47,7 @@ fn setup_layer_material(
 ) {
     material
         .set_property(
-            "diffuseTexture",
+            &ImmutableString::new("diffuseTexture"),
             PropertyValue::Sampler {
                 value: Some(resource_manager.request_texture(diffuse_texture, None)),
                 fallback: SamplerFallback::White,
@@ -55,7 +56,7 @@ fn setup_layer_material(
         .unwrap();
     material
         .set_property(
-            "normalTexture",
+            &ImmutableString::new("normalTexture"),
             PropertyValue::Sampler {
                 value: Some(resource_manager.request_texture(normal_texture, None)),
                 fallback: SamplerFallback::Normal,
@@ -64,7 +65,7 @@ fn setup_layer_material(
         .unwrap();
     material
         .set_property(
-            "texCoordScale",
+            &ImmutableString::new("texCoordScale"),
             PropertyValue::Vector2(Vector2::new(10.0, 10.0)),
         )
         .unwrap();

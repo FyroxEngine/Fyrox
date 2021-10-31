@@ -43,21 +43,21 @@ impl ParticleSystemShader {
         )?;
         Ok(Self {
             view_projection_matrix: program
-                .uniform_location(state, ImmutableString::new("viewProjectionMatrix"))?,
-            world_matrix: program.uniform_location(state, ImmutableString::new("worldMatrix"))?,
+                .uniform_location(state, &ImmutableString::new("viewProjectionMatrix"))?,
+            world_matrix: program.uniform_location(state, &ImmutableString::new("worldMatrix"))?,
             camera_side_vector: program
-                .uniform_location(state, ImmutableString::new("cameraSideVector"))?,
+                .uniform_location(state, &ImmutableString::new("cameraSideVector"))?,
             camera_up_vector: program
-                .uniform_location(state, ImmutableString::new("cameraUpVector"))?,
+                .uniform_location(state, &ImmutableString::new("cameraUpVector"))?,
             diffuse_texture: program
-                .uniform_location(state, ImmutableString::new("diffuseTexture"))?,
+                .uniform_location(state, &ImmutableString::new("diffuseTexture"))?,
             depth_buffer_texture: program
-                .uniform_location(state, ImmutableString::new("depthBufferTexture"))?,
+                .uniform_location(state, &ImmutableString::new("depthBufferTexture"))?,
             inv_screen_size: program
-                .uniform_location(state, ImmutableString::new("invScreenSize"))?,
-            proj_params: program.uniform_location(state, ImmutableString::new("projParams"))?,
+                .uniform_location(state, &ImmutableString::new("invScreenSize"))?,
+            proj_params: program.uniform_location(state, &ImmutableString::new("projParams"))?,
             soft_boundary_sharpness_factor: program
-                .uniform_location(state, ImmutableString::new("softBoundarySharpnessFactor"))?,
+                .uniform_location(state, &ImmutableString::new("softBoundarySharpnessFactor"))?,
             program,
         })
     }

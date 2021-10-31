@@ -35,10 +35,10 @@ impl Shader {
             GpuProgram::from_source(state, "GaussianBlurShader", vertex_source, fragment_source)?;
         Ok(Self {
             world_view_projection_matrix: program
-                .uniform_location(state, ImmutableString::new("worldViewProjection"))?,
-            image: program.uniform_location(state, ImmutableString::new("image"))?,
-            pixel_size: program.uniform_location(state, ImmutableString::new("pixelSize"))?,
-            horizontal: program.uniform_location(state, ImmutableString::new("horizontal"))?,
+                .uniform_location(state, &ImmutableString::new("worldViewProjection"))?,
+            image: program.uniform_location(state, &ImmutableString::new("image"))?,
+            pixel_size: program.uniform_location(state, &ImmutableString::new("pixelSize"))?,
+            horizontal: program.uniform_location(state, &ImmutableString::new("horizontal"))?,
             program,
         })
     }

@@ -18,6 +18,7 @@ use crate::{
     resource::texture::Texture,
 };
 use std::collections::HashMap;
+use std::ops::Deref;
 
 pub mod shader;
 
@@ -283,14 +284,15 @@ impl Default for PropertyValue {
 /// use rg3d::{
 ///     material::shader::{Shader, SamplerFallback},
 ///     engine::resource_manager::ResourceManager,
-///     material::{Material, PropertyValue}
+///     material::{Material, PropertyValue},
+///     core::sstorage::ImmutableString,
 /// };
 ///
 /// fn create_brick_material(resource_manager: ResourceManager) -> Material {
 ///     let mut material = Material::standard();
 ///
 ///     material.set_property(
-///         "diffuseTexture",
+///         &ImmutableString::new("diffuseTexture"),
 ///         PropertyValue::Sampler {
 ///             value: Some(resource_manager.request_texture("Brick_DiffuseTexture.jpg", None)),
 ///             fallback: SamplerFallback::White
@@ -315,7 +317,7 @@ impl Default for PropertyValue {
 /// use rg3d::{
 ///     engine::resource_manager::ResourceManager,
 ///     material::{Material, PropertyValue},
-///     core::algebra::Vector3
+///     core::{sstorage::ImmutableString, algebra::Vector3}
 /// };
 ///
 /// async fn create_grass_material(resource_manager: ResourceManager) -> Material {
@@ -325,7 +327,7 @@ impl Default for PropertyValue {
 ///     let mut material = Material::from_shader(shader, Some(resource_manager));
 ///
 ///     material.set_property(
-///         "windDirection",
+///         &ImmutableString::new("windDirection"),
 ///         PropertyValue::Vector3(Vector3::new(1.0, 0.0, 0.5))
 ///         )
 ///         .unwrap();
@@ -381,14 +383,15 @@ impl Material {
     /// use rg3d::{
     ///     material::shader::{Shader, SamplerFallback},
     ///     engine::resource_manager::ResourceManager,
-    ///     material::{Material, PropertyValue}
+    ///     material::{Material, PropertyValue},
+    ///     core::sstorage::ImmutableString
     /// };
     ///
     /// fn create_brick_material(resource_manager: ResourceManager) -> Material {
     ///     let mut material = Material::standard();
     ///
     ///     material.set_property(
-    ///         "diffuseTexture",
+    ///         &ImmutableString::new("diffuseTexture"),
     ///         PropertyValue::Sampler {
     ///             value: Some(resource_manager.request_texture("Brick_DiffuseTexture.jpg", None)),
     ///             fallback: SamplerFallback::White
@@ -421,7 +424,7 @@ impl Material {
     /// use rg3d::{
     ///     engine::resource_manager::ResourceManager,
     ///     material::{Material, PropertyValue},
-    ///     core::algebra::Vector3
+    ///     core::{sstorage::ImmutableString, algebra::Vector3}
     /// };
     ///
     /// async fn create_grass_material(resource_manager: ResourceManager) -> Material {
@@ -431,7 +434,7 @@ impl Material {
     ///     let mut material = Material::from_shader(shader, Some(resource_manager));
     ///
     ///     material.set_property(
-    ///         "windDirection",
+    ///         &ImmutableString::new("windDirection"),
     ///         PropertyValue::Vector3(Vector3::new(1.0, 0.0, 0.5))
     ///         )
     ///         .unwrap();
@@ -529,14 +532,15 @@ impl Material {
     /// # Examples
     ///
     /// ```no_run
-    /// # use rg3d::material::Material;
+    /// # use rg3d::core::sstorage::ImmutableString;
+    /// use rg3d::material::Material;
     ///
     /// let mut material = Material::standard();
     ///
-    /// let color = material.property_ref("diffuseColor").unwrap().as_color();
+    /// let color = material.property_ref(&ImmutableString::new("diffuseColor")).unwrap().as_color();
     /// ```
-    pub fn property_ref<N: AsRef<str>>(&self, name: N) -> Option<&PropertyValue> {
-        self.properties.get(&ImmutableString::new(name))
+    pub fn property_ref(&self, name: &ImmutableString) -> Option<&PropertyValue> {
+        self.properties.get(name)
     }
 
     /// Sets new value of the property with given name.
@@ -553,17 +557,18 @@ impl Material {
     /// ```no_run
     /// # use rg3d::material::{Material, PropertyValue};
     /// # use rg3d::core::color::Color;
+    /// # use rg3d::core::sstorage::ImmutableString;
     ///
     /// let mut material = Material::standard();
     ///
-    /// assert!(material.set_property("diffuseColor", PropertyValue::Color(Color::WHITE)).is_ok());
+    /// assert!(material.set_property(&ImmutableString::new("diffuseColor"), PropertyValue::Color(Color::WHITE)).is_ok());
     /// ```
-    pub fn set_property<N: AsRef<str>>(
+    pub fn set_property(
         &mut self,
-        name: N,
+        name: &ImmutableString,
         new_value: PropertyValue,
     ) -> Result<(), MaterialError> {
-        if let Some(value) = self.properties.get_mut(&ImmutableString::new(&name)) {
+        if let Some(value) = self.properties.get_mut(&name) {
             match (value, new_value) {
                 (
                     PropertyValue::Sampler {
@@ -637,7 +642,7 @@ impl Material {
                 }
                 (value, new_value) => {
                     return Err(MaterialError::TypeMismatch {
-                        property_name: name.as_ref().to_owned(),
+                        property_name: name.deref().to_owned(),
                         expected: value.clone(),
                         given: new_value,
                     })
@@ -647,7 +652,7 @@ impl Material {
             Ok(())
         } else {
             Err(MaterialError::NoSuchProperty {
-                property_name: name.as_ref().to_owned(),
+                property_name: name.deref().to_owned(),
             })
         }
     }

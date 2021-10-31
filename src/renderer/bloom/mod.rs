@@ -36,8 +36,8 @@ impl Shader {
             GpuProgram::from_source(state, "BloomShader", vertex_source, fragment_source)?;
         Ok(Self {
             world_view_projection_matrix: program
-                .uniform_location(state, ImmutableString::new("worldViewProjection"))?,
-            hdr_sampler: program.uniform_location(state, ImmutableString::new("hdrSampler"))?,
+                .uniform_location(state, &ImmutableString::new("worldViewProjection"))?,
+            hdr_sampler: program.uniform_location(state, &ImmutableString::new("hdrSampler"))?,
             program,
         })
     }

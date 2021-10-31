@@ -52,18 +52,18 @@ impl SpriteShader {
         let program =
             GpuProgram::from_source(state, "SpriteShader2D", vertex_source, fragment_source)?;
         Ok(Self {
-            wvp_matrix: program.uniform_location(state, ImmutableString::new("viewProjection"))?,
+            wvp_matrix: program.uniform_location(state, &ImmutableString::new("viewProjection"))?,
             diffuse_texture: program
-                .uniform_location(state, ImmutableString::new("diffuseTexture"))?,
-            light_count: program.uniform_location(state, ImmutableString::new("lightCount"))?,
+                .uniform_location(state, &ImmutableString::new("diffuseTexture"))?,
+            light_count: program.uniform_location(state, &ImmutableString::new("lightCount"))?,
             light_color_radius: program
-                .uniform_location(state, ImmutableString::new("lightColorRadius"))?,
+                .uniform_location(state, &ImmutableString::new("lightColorRadius"))?,
             light_position_direction: program
-                .uniform_location(state, ImmutableString::new("lightPositionDirection"))?,
+                .uniform_location(state, &ImmutableString::new("lightPositionDirection"))?,
             light_parameters: program
-                .uniform_location(state, ImmutableString::new("lightParameters"))?,
+                .uniform_location(state, &ImmutableString::new("lightParameters"))?,
             ambient_light_color: program
-                .uniform_location(state, ImmutableString::new("ambientLightColor"))?,
+                .uniform_location(state, &ImmutableString::new("ambientLightColor"))?,
             program,
         })
     }

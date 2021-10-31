@@ -111,7 +111,7 @@ pub struct GpuProgramBinding<'a, 'b> {
 }
 
 impl<'a, 'b> GpuProgramBinding<'a, 'b> {
-    pub fn uniform_location(&self, name: ImmutableString) -> Option<UniformLocation> {
+    pub fn uniform_location(&self, name: &ImmutableString) -> Option<UniformLocation> {
         self.program.uniform_location_internal(self.state, name)
     }
 
@@ -463,16 +463,16 @@ impl GpuProgram {
     pub fn uniform_location_internal(
         &self,
         state: &PipelineState,
-        name: ImmutableString,
+        name: &ImmutableString,
     ) -> Option<UniformLocation> {
         let mut locations = self.uniform_locations.borrow_mut();
 
-        if let Some(cached_location) = locations.get(&name) {
+        if let Some(cached_location) = locations.get(name) {
             *cached_location
         } else {
             let location = fetch_uniform_location(state, self.id, name.deref());
 
-            locations.insert(name, location);
+            locations.insert(name.clone(), location);
 
             location
         }
@@ -481,9 +481,9 @@ impl GpuProgram {
     pub fn uniform_location(
         &self,
         state: &PipelineState,
-        name: ImmutableString,
+        name: &ImmutableString,
     ) -> Result<UniformLocation, FrameworkError> {
-        self.uniform_location_internal(state, name.clone())
+        self.uniform_location_internal(state, name)
             .ok_or_else(|| FrameworkError::UnableToFindShaderUniform(name.deref().to_owned()))
     }
 

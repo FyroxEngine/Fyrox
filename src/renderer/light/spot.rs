@@ -39,42 +39,44 @@ impl SpotLightShader {
             GpuProgram::from_source(state, "SpotLightShader", vertex_source, fragment_source)?;
         Ok(Self {
             wvp_matrix: program
-                .uniform_location(state, ImmutableString::new("worldViewProjection"))?,
-            depth_sampler: program.uniform_location(state, ImmutableString::new("depthTexture"))?,
-            color_sampler: program.uniform_location(state, ImmutableString::new("colorTexture"))?,
+                .uniform_location(state, &ImmutableString::new("worldViewProjection"))?,
+            depth_sampler: program
+                .uniform_location(state, &ImmutableString::new("depthTexture"))?,
+            color_sampler: program
+                .uniform_location(state, &ImmutableString::new("colorTexture"))?,
             normal_sampler: program
-                .uniform_location(state, ImmutableString::new("normalTexture"))?,
+                .uniform_location(state, &ImmutableString::new("normalTexture"))?,
             material_sampler: program
-                .uniform_location(state, ImmutableString::new("materialTexture"))?,
+                .uniform_location(state, &ImmutableString::new("materialTexture"))?,
             spot_shadow_texture: program
-                .uniform_location(state, ImmutableString::new("spotShadowTexture"))?,
+                .uniform_location(state, &ImmutableString::new("spotShadowTexture"))?,
             cookie_enabled: program
-                .uniform_location(state, ImmutableString::new("cookieEnabled"))?,
+                .uniform_location(state, &ImmutableString::new("cookieEnabled"))?,
             cookie_texture: program
-                .uniform_location(state, ImmutableString::new("cookieTexture"))?,
+                .uniform_location(state, &ImmutableString::new("cookieTexture"))?,
             light_view_proj_matrix: program
-                .uniform_location(state, ImmutableString::new("lightViewProjMatrix"))?,
+                .uniform_location(state, &ImmutableString::new("lightViewProjMatrix"))?,
             shadows_enabled: program
-                .uniform_location(state, ImmutableString::new("shadowsEnabled"))?,
-            soft_shadows: program.uniform_location(state, ImmutableString::new("softShadows"))?,
+                .uniform_location(state, &ImmutableString::new("shadowsEnabled"))?,
+            soft_shadows: program.uniform_location(state, &ImmutableString::new("softShadows"))?,
             shadow_map_inv_size: program
-                .uniform_location(state, ImmutableString::new("shadowMapInvSize"))?,
-            light_position: program.uniform_location(state, ImmutableString::new("lightPos"))?,
-            light_radius: program.uniform_location(state, ImmutableString::new("lightRadius"))?,
-            light_color: program.uniform_location(state, ImmutableString::new("lightColor"))?,
+                .uniform_location(state, &ImmutableString::new("shadowMapInvSize"))?,
+            light_position: program.uniform_location(state, &ImmutableString::new("lightPos"))?,
+            light_radius: program.uniform_location(state, &ImmutableString::new("lightRadius"))?,
+            light_color: program.uniform_location(state, &ImmutableString::new("lightColor"))?,
             light_direction: program
-                .uniform_location(state, ImmutableString::new("lightDirection"))?,
+                .uniform_location(state, &ImmutableString::new("lightDirection"))?,
             half_hotspot_cone_angle_cos: program
-                .uniform_location(state, ImmutableString::new("halfHotspotConeAngleCos"))?,
+                .uniform_location(state, &ImmutableString::new("halfHotspotConeAngleCos"))?,
             half_cone_angle_cos: program
-                .uniform_location(state, ImmutableString::new("halfConeAngleCos"))?,
+                .uniform_location(state, &ImmutableString::new("halfConeAngleCos"))?,
             inv_view_proj_matrix: program
-                .uniform_location(state, ImmutableString::new("invViewProj"))?,
+                .uniform_location(state, &ImmutableString::new("invViewProj"))?,
             camera_position: program
-                .uniform_location(state, ImmutableString::new("cameraPosition"))?,
-            shadow_bias: program.uniform_location(state, ImmutableString::new("shadowBias"))?,
+                .uniform_location(state, &ImmutableString::new("cameraPosition"))?,
+            shadow_bias: program.uniform_location(state, &ImmutableString::new("shadowBias"))?,
             light_intensity: program
-                .uniform_location(state, ImmutableString::new("lightIntensity"))?,
+                .uniform_location(state, &ImmutableString::new("lightIntensity"))?,
             program,
         })
     }

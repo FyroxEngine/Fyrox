@@ -7,6 +7,7 @@
 pub mod shared;
 
 use crate::shared::create_camera;
+use rg3d::core::sstorage::ImmutableString;
 use rg3d::{
     core::{
         algebra::{Matrix4, Vector3},
@@ -51,7 +52,7 @@ fn create_custom_material(resource_manager: ResourceManager) -> Arc<Mutex<Materi
 
     material
         .set_property(
-            "diffuseTexture",
+            &ImmutableString::new("diffuseTexture"),
             PropertyValue::Sampler {
                 value: Some(resource_manager.request_texture("examples/data/concrete2.dds", None)),
                 fallback: SamplerFallback::White,
@@ -114,7 +115,10 @@ impl GameState for Game {
     fn on_tick(&mut self, engine: &mut Engine, dt: f32, _: &mut ControlFlow) {
         self.material
             .lock()
-            .set_property("time", PropertyValue::Float(self.time))
+            .set_property(
+                &ImmutableString::new("time"),
+                PropertyValue::Float(self.time),
+            )
             .unwrap();
 
         self.time += dt;

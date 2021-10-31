@@ -1,3 +1,4 @@
+use crate::core::sstorage::ImmutableString;
 use crate::{
     core::{algebra::Matrix4, arrayvec::ArrayVec, parking_lot::Mutex, pool::Handle, scope_profile},
     material::{Material, PropertyValue},
@@ -125,7 +126,7 @@ impl BatchStorage {
 
                             let mut material = (*layer.material.lock()).clone();
                             match material.set_property(
-                                &layer.mask_property_name,
+                                &ImmutableString::new(&layer.mask_property_name),
                                 PropertyValue::Sampler {
                                     value: Some(layer.chunk_masks[chunk_index].clone()),
                                     fallback: Default::default(),

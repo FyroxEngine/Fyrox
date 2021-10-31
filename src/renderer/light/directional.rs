@@ -31,22 +31,24 @@ impl DirectionalLightShader {
         )?;
         Ok(Self {
             wvp_matrix: program
-                .uniform_location(state, ImmutableString::new("worldViewProjection"))?,
-            depth_sampler: program.uniform_location(state, ImmutableString::new("depthTexture"))?,
-            color_sampler: program.uniform_location(state, ImmutableString::new("colorTexture"))?,
+                .uniform_location(state, &ImmutableString::new("worldViewProjection"))?,
+            depth_sampler: program
+                .uniform_location(state, &ImmutableString::new("depthTexture"))?,
+            color_sampler: program
+                .uniform_location(state, &ImmutableString::new("colorTexture"))?,
             normal_sampler: program
-                .uniform_location(state, ImmutableString::new("normalTexture"))?,
+                .uniform_location(state, &ImmutableString::new("normalTexture"))?,
             material_sampler: program
-                .uniform_location(state, ImmutableString::new("materialTexture"))?,
+                .uniform_location(state, &ImmutableString::new("materialTexture"))?,
             light_direction: program
-                .uniform_location(state, ImmutableString::new("lightDirection"))?,
-            light_color: program.uniform_location(state, ImmutableString::new("lightColor"))?,
+                .uniform_location(state, &ImmutableString::new("lightDirection"))?,
+            light_color: program.uniform_location(state, &ImmutableString::new("lightColor"))?,
             inv_view_proj_matrix: program
-                .uniform_location(state, ImmutableString::new("invViewProj"))?,
+                .uniform_location(state, &ImmutableString::new("invViewProj"))?,
             camera_position: program
-                .uniform_location(state, ImmutableString::new("cameraPosition"))?,
+                .uniform_location(state, &ImmutableString::new("cameraPosition"))?,
             light_intensity: program
-                .uniform_location(state, ImmutableString::new("lightIntensity"))?,
+                .uniform_location(state, &ImmutableString::new("lightIntensity"))?,
             program,
         })
     }

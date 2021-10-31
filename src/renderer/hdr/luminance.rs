@@ -22,9 +22,10 @@ impl LuminanceShader {
 
         Ok(Self {
             wvp_matrix: program
-                .uniform_location(state, ImmutableString::new("worldViewProjection"))?,
-            frame_sampler: program.uniform_location(state, ImmutableString::new("frameSampler"))?,
-            inv_size: program.uniform_location(state, ImmutableString::new("invSize"))?,
+                .uniform_location(state, &ImmutableString::new("worldViewProjection"))?,
+            frame_sampler: program
+                .uniform_location(state, &ImmutableString::new("frameSampler"))?,
+            inv_size: program.uniform_location(state, &ImmutableString::new("invSize"))?,
             program,
         })
     }

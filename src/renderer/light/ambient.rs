@@ -22,13 +22,14 @@ impl AmbientLightShader {
             GpuProgram::from_source(state, "AmbientLightShader", vertex_source, fragment_source)?;
         Ok(Self {
             wvp_matrix: program
-                .uniform_location(state, ImmutableString::new("worldViewProjection"))?,
+                .uniform_location(state, &ImmutableString::new("worldViewProjection"))?,
             diffuse_texture: program
-                .uniform_location(state, ImmutableString::new("diffuseTexture"))?,
-            ambient_color: program.uniform_location(state, ImmutableString::new("ambientColor"))?,
-            ao_sampler: program.uniform_location(state, ImmutableString::new("aoSampler"))?,
+                .uniform_location(state, &ImmutableString::new("diffuseTexture"))?,
+            ambient_color: program
+                .uniform_location(state, &ImmutableString::new("ambientColor"))?,
+            ao_sampler: program.uniform_location(state, &ImmutableString::new("aoSampler"))?,
             ambient_texture: program
-                .uniform_location(state, ImmutableString::new("ambientTexture"))?,
+                .uniform_location(state, &ImmutableString::new("ambientTexture"))?,
             program,
         })
     }

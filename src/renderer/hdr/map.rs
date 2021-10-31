@@ -30,20 +30,24 @@ impl MapShader {
 
         Ok(Self {
             wvp_matrix: program
-                .uniform_location(state, ImmutableString::new("worldViewProjection"))?,
-            hdr_sampler: program.uniform_location(state, ImmutableString::new("hdrSampler"))?,
-            lum_sampler: program.uniform_location(state, ImmutableString::new("lumSampler"))?,
-            bloom_sampler: program.uniform_location(state, ImmutableString::new("bloomSampler"))?,
+                .uniform_location(state, &ImmutableString::new("worldViewProjection"))?,
+            hdr_sampler: program.uniform_location(state, &ImmutableString::new("hdrSampler"))?,
+            lum_sampler: program.uniform_location(state, &ImmutableString::new("lumSampler"))?,
+            bloom_sampler: program
+                .uniform_location(state, &ImmutableString::new("bloomSampler"))?,
             color_map_sampler: program
-                .uniform_location(state, ImmutableString::new("colorMapSampler"))?,
+                .uniform_location(state, &ImmutableString::new("colorMapSampler"))?,
             use_color_grading: program
-                .uniform_location(state, ImmutableString::new("useColorGrading"))?,
-            key_value: program.uniform_location(state, ImmutableString::new("keyValue"))?,
-            min_luminance: program.uniform_location(state, ImmutableString::new("minLuminance"))?,
-            max_luminance: program.uniform_location(state, ImmutableString::new("maxLuminance"))?,
-            auto_exposure: program.uniform_location(state, ImmutableString::new("autoExposure"))?,
+                .uniform_location(state, &ImmutableString::new("useColorGrading"))?,
+            key_value: program.uniform_location(state, &ImmutableString::new("keyValue"))?,
+            min_luminance: program
+                .uniform_location(state, &ImmutableString::new("minLuminance"))?,
+            max_luminance: program
+                .uniform_location(state, &ImmutableString::new("maxLuminance"))?,
+            auto_exposure: program
+                .uniform_location(state, &ImmutableString::new("autoExposure"))?,
             fixed_exposure: program
-                .uniform_location(state, ImmutableString::new("fixedExposure"))?,
+                .uniform_location(state, &ImmutableString::new("fixedExposure"))?,
             program,
         })
     }

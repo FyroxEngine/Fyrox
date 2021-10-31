@@ -7,6 +7,7 @@
 pub mod shared;
 
 use crate::shared::create_camera;
+use rg3d::core::sstorage::ImmutableString;
 use rg3d::{
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
@@ -91,7 +92,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     let mut cursor_material = Material::standard();
     cursor_material
         .set_property(
-            "diffuseColor",
+            &ImmutableString::new("diffuseColor"),
             PropertyValue::Color(Color::opaque(255, 0, 0)),
         )
         .unwrap();
@@ -107,7 +108,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     let mut agent_material = Material::standard();
     agent_material
         .set_property(
-            "diffuseColor",
+            &ImmutableString::new("diffuseColor"),
             PropertyValue::Color(Color::opaque(0, 200, 0)),
         )
         .unwrap();

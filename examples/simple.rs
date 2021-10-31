@@ -7,6 +7,7 @@
 pub mod shared;
 
 use crate::shared::create_camera;
+use rg3d::core::sstorage::ImmutableString;
 use rg3d::{
     animation::Animation,
     core::{
@@ -118,7 +119,7 @@ impl GameSceneLoader {
 
         material
             .set_property(
-                "diffuseTexture",
+                &ImmutableString::new("diffuseTexture"),
                 PropertyValue::Sampler {
                     value: Some(
                         resource_manager.request_texture("examples/data/concrete2.dds", None),

@@ -28,19 +28,19 @@ impl DecalShader {
             GpuProgram::from_source(state, "DecalShader", vertex_source, fragment_source)?;
         Ok(Self {
             world_view_projection: program
-                .uniform_location(state, ImmutableString::new("worldViewProjection"))?,
-            scene_depth: program.uniform_location(state, ImmutableString::new("sceneDepth"))?,
+                .uniform_location(state, &ImmutableString::new("worldViewProjection"))?,
+            scene_depth: program.uniform_location(state, &ImmutableString::new("sceneDepth"))?,
             diffuse_texture: program
-                .uniform_location(state, ImmutableString::new("diffuseTexture"))?,
+                .uniform_location(state, &ImmutableString::new("diffuseTexture"))?,
             normal_texture: program
-                .uniform_location(state, ImmutableString::new("normalTexture"))?,
-            inv_view_proj: program.uniform_location(state, ImmutableString::new("invViewProj"))?,
+                .uniform_location(state, &ImmutableString::new("normalTexture"))?,
+            inv_view_proj: program.uniform_location(state, &ImmutableString::new("invViewProj"))?,
             inv_world_decal: program
-                .uniform_location(state, ImmutableString::new("invWorldDecal"))?,
-            resolution: program.uniform_location(state, ImmutableString::new("resolution"))?,
-            color: program.uniform_location(state, ImmutableString::new("color"))?,
-            layer_index: program.uniform_location(state, ImmutableString::new("layerIndex"))?,
-            decal_mask: program.uniform_location(state, ImmutableString::new("decalMask"))?,
+                .uniform_location(state, &ImmutableString::new("invWorldDecal"))?,
+            resolution: program.uniform_location(state, &ImmutableString::new("resolution"))?,
+            color: program.uniform_location(state, &ImmutableString::new("color"))?,
+            layer_index: program.uniform_location(state, &ImmutableString::new("layerIndex"))?,
+            decal_mask: program.uniform_location(state, &ImmutableString::new("decalMask"))?,
             program,
         })
     }

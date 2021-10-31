@@ -22,9 +22,9 @@ impl DownscaleShader {
 
         Ok(Self {
             wvp_matrix: program
-                .uniform_location(state, ImmutableString::new("worldViewProjection"))?,
-            lum_sampler: program.uniform_location(state, ImmutableString::new("lumSampler"))?,
-            inv_size: program.uniform_location(state, ImmutableString::new("invSize"))?,
+                .uniform_location(state, &ImmutableString::new("worldViewProjection"))?,
+            lum_sampler: program.uniform_location(state, &ImmutableString::new("lumSampler"))?,
+            inv_size: program.uniform_location(state, &ImmutableString::new("invSize"))?,
             program,
         })
     }

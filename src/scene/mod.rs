@@ -21,6 +21,7 @@ pub mod transform;
 pub mod variable;
 pub mod visibility;
 
+use crate::core::sstorage::ImmutableString;
 use crate::physics3d::{PhysicsPerformanceStatistics, RigidBodyHandle};
 use crate::{
     animation::AnimationContainer,
@@ -536,7 +537,7 @@ impl Scene {
                 if let Node::Mesh(mesh) = &mut self.graph[handle] {
                     for (entry, surface) in entries.iter_mut().zip(mesh.surfaces_mut()) {
                         if let Err(e) = surface.material().lock().set_property(
-                            "lightmapTexture",
+                            &ImmutableString::new("lightmapTexture"),
                             PropertyValue::Sampler {
                                 value: entry.texture.clone(),
                                 fallback: SamplerFallback::Black,
@@ -572,7 +573,7 @@ impl Scene {
                     // only to implement Default trait to be serializable.
                     let texture = entry.texture.clone().unwrap();
                     if let Err(e) = surface.material().lock().set_property(
-                        "lightmapTexture",
+                        &ImmutableString::new("lightmapTexture"),
                         PropertyValue::Sampler {
                             value: Some(texture),
                             fallback: SamplerFallback::Black,
