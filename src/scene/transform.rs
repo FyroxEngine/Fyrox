@@ -319,10 +319,7 @@ impl Transform {
         &self.local_scale
     }
 
-    /// Sets scale of transform. It is strongly advised to use only uniform scaling,
-    /// non-uniform is possible but it can lead to very "interesting" effects, also
-    /// non-uniform scaling possible will be removed in future, especially if engine
-    /// migrate to some full-featured physics engine.
+    /// Sets scale of transform.
     #[inline]
     pub fn set_scale(&mut self, local_scale: Vector3<f32>) -> &mut Self {
         if self.dirty.get() || *self.local_scale != local_scale {
