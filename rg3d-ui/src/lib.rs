@@ -745,12 +745,12 @@ impl UserInterface {
                         nodes: &Pool<UiNode>,
                         node: Handle<UiNode>,
                     ) {
-                        let node_ref = &nodes[node];
+                        if let Some(node_ref) = nodes.try_borrow(node) {
+                            node_ref.measure_valid.set(false);
 
-                        node_ref.measure_valid.set(false);
-
-                        if node_ref.parent().is_some() {
-                            invalidate_measurement_recursive_up(nodes, node_ref.parent());
+                            if node_ref.parent().is_some() {
+                                invalidate_measurement_recursive_up(nodes, node_ref.parent());
+                            }
                         }
                     }
 
@@ -761,12 +761,12 @@ impl UserInterface {
                         nodes: &Pool<UiNode>,
                         node: Handle<UiNode>,
                     ) {
-                        let node_ref = &nodes[node];
+                        if let Some(node_ref) = nodes.try_borrow(node) {
+                            node_ref.arrange_valid.set(false);
 
-                        node_ref.arrange_valid.set(false);
-
-                        if node_ref.parent().is_some() {
-                            invalidate_arrangement_recursive_up(nodes, node_ref.parent());
+                            if node_ref.parent().is_some() {
+                                invalidate_arrangement_recursive_up(nodes, node_ref.parent());
+                            }
                         }
                     }
 
