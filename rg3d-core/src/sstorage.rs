@@ -1,15 +1,31 @@
+//! Immutable string + immutable string storage. See docs of [`ImmutableString`] and
+//! [`ImmutableStringStorage`] for more info.
+
+#![warn(missing_docs)]
+
 use crate::{
     parking_lot::Mutex,
     visitor::{Visit, VisitResult, Visitor},
 };
-use std::fmt::{Display, Formatter};
 use std::{
     collections::{hash_map::DefaultHasher, HashMap},
+    fmt::{Display, Formatter},
     hash::{Hash, Hasher},
     ops::Deref,
     sync::Arc,
 };
 
+/// Immutable string is a string with constant content. Immutability gives some nice properties:
+///
+/// - Address of the string could be used as a hash, which improves hashing performance dramatically
+/// and basically making it constant in terms of complexity (O(1))
+/// - Equality comparison becomes constant in terms of complexity.
+/// - Uniqueness guarantees - means that calling multiple times will allocate memory only once
+/// `ImmutableString::new("foo")` and in consecutive calls existing string will be used.
+///
+/// # Use cases
+///
+/// Most common use case for immutable strings is hash map keys in performance-critical places.
 #[derive(Clone, Debug)]
 pub struct ImmutableString(Arc<String>);
 
@@ -40,16 +56,26 @@ impl Default for ImmutableString {
 }
 
 impl ImmutableString {
+    /// Creates new immutable string from given string slice.
+    ///
+    /// # Performance
+    ///
+    /// This method has amortized O(1) complexity, in worst case (when there is no such string
+    /// in backing storage) it allocates memory which could lead to complexity defined by current
+    /// memory allocator.
     #[inline]
     pub fn new<S: AsRef<str>>(string: S) -> ImmutableString {
         SSTORAGE.lock().insert(string)
     }
 
+    /// Returns unique identifier of the string. Keep in mind that uniqueness is guaranteed only
+    /// for a single session, uniqueness is not preserved between application runs.
     #[inline]
     pub fn id(&self) -> u64 {
         &*self.0 as *const _ as u64
     }
 
+    /// Clones content of inner immutable string to a mutable string.
     #[inline]
     pub fn to_mutable(&self) -> String {
         (*self.0).clone()
@@ -81,6 +107,8 @@ impl PartialEq for ImmutableString {
 
 impl Eq for ImmutableString {}
 
+/// Immutable string storage is a backing storage for every immutable string in the application,
+/// storage is a singleton. In normal circumstances you should never use it directly.
 #[derive(Default)]
 pub struct ImmutableStringStorage {
     vec: HashMap<u64, Arc<String>>,
@@ -104,6 +132,7 @@ impl ImmutableStringStorage {
 }
 
 impl ImmutableStringStorage {
+    /// Returns total amount of immutable strings in the storage.
     pub fn entry_count() -> usize {
         SSTORAGE.lock().vec.len()
     }
