@@ -69,6 +69,7 @@ use crate::{
     utils::path_fixer::PathFixer,
     world::WorldViewer,
 };
+use rg3d::core::sstorage::ImmutableString;
 use rg3d::{
     core::{
         algebra::{Point3, Vector2},
@@ -194,7 +195,10 @@ pub fn load_image(data: &[u8]) -> Option<draw::SharedTexture> {
 pub fn make_color_material(color: Color) -> Arc<Mutex<Material>> {
     let mut material = Material::standard();
     material
-        .set_property("diffuseColor", PropertyValue::Color(color))
+        .set_property(
+            &ImmutableString::new("diffuseColor"),
+            PropertyValue::Color(color),
+        )
         .unwrap();
     Arc::new(Mutex::new(material))
 }
@@ -204,7 +208,10 @@ pub fn set_mesh_diffuse_color(mesh: &mut Mesh, color: Color) {
         surface
             .material()
             .lock()
-            .set_property("diffuseColor", PropertyValue::Color(color))
+            .set_property(
+                &ImmutableString::new("diffuseColor"),
+                PropertyValue::Color(color),
+            )
             .unwrap();
     }
 }
@@ -213,7 +220,7 @@ pub fn create_terrain_layer_material() -> Arc<Mutex<Material>> {
     let mut material = Material::standard_terrain();
     material
         .set_property(
-            "texCoordScale",
+            &ImmutableString::new("texCoordScale"),
             PropertyValue::Vector2(Vector2::new(10.0, 10.0)),
         )
         .unwrap();

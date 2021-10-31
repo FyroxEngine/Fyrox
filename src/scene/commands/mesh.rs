@@ -1,4 +1,5 @@
 use crate::{command::Command, define_node_command, get_set_swap, scene::commands::SceneContext};
+use rg3d::core::sstorage::ImmutableString;
 use rg3d::material::shader::SamplerFallback;
 use rg3d::material::PropertyValue;
 use rg3d::{
@@ -46,7 +47,7 @@ impl Command for SetMeshTextureCommand {
                 .map(|s| {
                     s.material()
                         .lock()
-                        .property_ref("diffuseTexture")
+                        .property_ref(&ImmutableString::new("diffuseTexture"))
                         .and_then(|p| {
                             if let PropertyValue::Sampler { value, .. } = p {
                                 value.clone()
@@ -61,7 +62,7 @@ impl Command for SetMeshTextureCommand {
                     .material()
                     .lock()
                     .set_property(
-                        "diffuseTexture",
+                        &ImmutableString::new("diffuseTexture"),
                         PropertyValue::Sampler {
                             value: Some(texture.clone()),
                             fallback: SamplerFallback::White,
@@ -81,7 +82,7 @@ impl Command for SetMeshTextureCommand {
             let new_value = mesh.surfaces_mut()[0]
                 .material()
                 .lock()
-                .property_ref("diffuseTexture")
+                .property_ref(&ImmutableString::new("diffuseTexture"))
                 .and_then(|p| {
                     if let PropertyValue::Sampler { value, .. } = p {
                         value.clone()
@@ -96,7 +97,7 @@ impl Command for SetMeshTextureCommand {
                     .material()
                     .lock()
                     .set_property(
-                        "diffuseTexture",
+                        &ImmutableString::new("diffuseTexture"),
                         PropertyValue::Sampler {
                             value: old_texture.clone(),
                             fallback: SamplerFallback::White,

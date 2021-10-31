@@ -1,3 +1,4 @@
+use rg3d::core::sstorage::ImmutableString;
 use rg3d::renderer::framework::state::{BlendFactor, BlendFunc};
 use rg3d::{
     core::{algebra::Matrix4, math::Matrix4Ext},
@@ -33,12 +34,16 @@ impl OverlayShader {
         let program =
             GpuProgram::from_source(state, "OverlayShader", vertex_source, fragment_source)?;
         Ok(Self {
-            view_projection_matrix: program.uniform_location(state, "viewProjectionMatrix")?,
-            world_matrix: program.uniform_location(state, "worldMatrix")?,
-            camera_side_vector: program.uniform_location(state, "cameraSideVector")?,
-            camera_up_vector: program.uniform_location(state, "cameraUpVector")?,
-            size: program.uniform_location(state, "size")?,
-            diffuse_texture: program.uniform_location(state, "diffuseTexture")?,
+            view_projection_matrix: program
+                .uniform_location(state, ImmutableString::new("viewProjectionMatrix"))?,
+            world_matrix: program.uniform_location(state, ImmutableString::new("worldMatrix"))?,
+            camera_side_vector: program
+                .uniform_location(state, ImmutableString::new("cameraSideVector"))?,
+            camera_up_vector: program
+                .uniform_location(state, ImmutableString::new("cameraUpVector"))?,
+            size: program.uniform_location(state, ImmutableString::new("size"))?,
+            diffuse_texture: program
+                .uniform_location(state, ImmutableString::new("diffuseTexture"))?,
             program,
         })
     }

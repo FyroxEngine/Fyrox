@@ -6,6 +6,7 @@ use crate::{
     scene::commands::material::{SetMaterialPropertyValueCommand, SetMaterialShaderCommand},
     send_sync_message, GameEngine, Message,
 };
+use rg3d::core::sstorage::ImmutableString;
 use rg3d::{
     core::{
         algebra::{Matrix4, Vector2, Vector3, Vector4},
@@ -88,7 +89,7 @@ impl TextureContextMenu {
 pub struct MaterialEditor {
     pub window: Handle<UiNode>,
     properties_panel: Handle<UiNode>,
-    properties: BiDirHashMap<String, Handle<UiNode>>,
+    properties: BiDirHashMap<ImmutableString, Handle<UiNode>>,
     preview: PreviewPanel,
     material: Option<Arc<Mutex<Material>>>,
     available_shaders: Handle<UiNode>,

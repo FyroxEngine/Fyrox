@@ -1,4 +1,5 @@
 use crate::{command::Command, scene::commands::SceneContext};
+use rg3d::core::sstorage::ImmutableString;
 use rg3d::{
     core::parking_lot::Mutex,
     material::{shader::Shader, Material, PropertyValue},
@@ -8,12 +9,16 @@ use std::sync::Arc;
 #[derive(Debug)]
 pub struct SetMaterialPropertyValueCommand {
     material: Arc<Mutex<Material>>,
-    name: String,
+    name: ImmutableString,
     value: PropertyValue,
 }
 
 impl SetMaterialPropertyValueCommand {
-    pub fn new(material: Arc<Mutex<Material>>, name: String, value: PropertyValue) -> Self {
+    pub fn new(
+        material: Arc<Mutex<Material>>,
+        name: ImmutableString,
+        value: PropertyValue,
+    ) -> Self {
         Self {
             material,
             name,
