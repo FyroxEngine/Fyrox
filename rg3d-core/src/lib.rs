@@ -33,6 +33,7 @@ pub mod profiler;
 pub mod quadtree;
 pub mod rectpack;
 pub mod sparse;
+pub mod sstorage;
 pub mod visitor;
 
 pub use futures;
