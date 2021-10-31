@@ -58,7 +58,7 @@ pub enum Exposure {
         max_luminance: f32,
     },
 
-    /// Specific exposure level.
+    /// Specific exposure level. To "disable" any HDR effects use [`std::f32::consts::E`] as a value.
     Manual(f32),
 }
 
@@ -665,6 +665,12 @@ impl CameraBuilder {
     /// Sets whether color grading should be enabled or not.
     pub fn with_color_grading_enabled(mut self, enabled: bool) -> Self {
         self.color_grading_enabled = enabled;
+        self
+    }
+
+    /// Sets desired exposure options.
+    pub fn with_exposure(mut self, exposure: Exposure) -> Self {
+        self.exposure = exposure;
         self
     }
 
