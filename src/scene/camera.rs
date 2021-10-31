@@ -608,7 +608,7 @@ impl CameraBuilder {
             viewport: Rect::new(0.0, 0.0, 1.0, 1.0),
             skybox: None,
             environment: None,
-            exposure: Default::default(),
+            exposure: Exposure::Manual(std::f32::consts::E),
             color_grading_lut: None,
             color_grading_enabled: false,
         }
