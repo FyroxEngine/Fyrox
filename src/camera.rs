@@ -1,4 +1,5 @@
 use crate::rg3d::core::math::Matrix4Ext;
+use rg3d::scene::camera::Exposure;
 use rg3d::{
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
@@ -58,6 +59,7 @@ impl CameraController {
         let pivot = BaseBuilder::new()
             .with_children(&[{
                 camera = CameraBuilder::new(BaseBuilder::new().with_name("EditorCamera"))
+                    .with_exposure(Exposure::Manual(std::f32::consts::E))
                     .with_z_far(512.0)
                     .build(graph);
                 camera
