@@ -1,10 +1,10 @@
-use crate::core::sstorage::ImmutableString;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3},
         color::Color,
         math::{frustum::Frustum, Rect},
         scope_profile,
+        sstorage::ImmutableString,
     },
     renderer::{
         apply_material,
@@ -19,10 +19,10 @@ use crate::{
             },
             state::PipelineState,
         },
-        shadow::cascade_size,
+        shadow::{cascade_size, should_cast_shadows},
         GeometryCache, MaterialContext, RenderPassStatistics, ShadowMapPrecision,
     },
-    scene::{graph::Graph, node::Node},
+    scene::graph::Graph,
 };
 use std::{cell::RefCell, rc::Rc};
 
@@ -243,21 +243,7 @@ impl PointShadowMapRenderer {
                     for instance in batch.instances.iter() {
                         let node = &graph[instance.owner];
 
-                        let visible = node.global_visibility() && {
-                            match node {
-                                Node::Mesh(mesh) => {
-                                    mesh.cast_shadows()
-                                        && frustum.is_intersects_aabb(&mesh.world_bounding_box())
-                                }
-                                Node::Terrain(_) => {
-                                    // https://github.com/rg3dengine/rg3d/issues/117
-                                    true
-                                }
-                                _ => false,
-                            }
-                        };
-
-                        if visible {
+                        if should_cast_shadows(node, &frustum) {
                             statistics += framebuffer.draw(
                                 geometry,
                                 state,

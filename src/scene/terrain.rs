@@ -251,6 +251,7 @@ pub struct Terrain {
     bounding_box: Cell<AxisAlignedBoundingBox>,
     #[visit(optional)] // Backward compatibility
     decal_layer_index: u8,
+    cast_shadows: bool,
 }
 
 impl Deref for Terrain {
@@ -322,6 +323,16 @@ impl Terrain {
         self.decal_layer_index
     }
 
+    /// Returns true if terrain should cast shadows.
+    pub fn cast_shadows(&self) -> bool {
+        self.cast_shadows
+    }
+
+    /// Sets whether terrain should cast shadows or not.
+    pub fn set_cast_shadows(&mut self, value: bool) {
+        self.cast_shadows = value;
+    }
+
     /// Creates raw copy of the terrain. Do not use this method directly, use
     /// Graph::copy_node.
     pub fn raw_copy(&self) -> Self {
@@ -338,6 +349,7 @@ impl Terrain {
             bounding_box: Default::default(),
             decal_layer_index: self.decal_layer_index,
             layers: self.layers.clone(),
+            cast_shadows: self.cast_shadows,
         }
     }
 
@@ -713,6 +725,7 @@ pub struct TerrainBuilder {
     height_map_resolution: f32,
     layers: Vec<LayerDefinition>,
     decal_layer_index: u8,
+    cast_shadows: bool,
 }
 
 fn make_divisible_by_2(n: u32) -> u32 {
@@ -762,6 +775,7 @@ impl TerrainBuilder {
             height_map_resolution: 8.0,
             layers: Default::default(),
             decal_layer_index: 0,
+            cast_shadows: true,
         }
     }
 
@@ -816,6 +830,11 @@ impl TerrainBuilder {
     /// Sets desired decal layer index.
     pub fn with_decal_layer_index(mut self, decal_layer_index: u8) -> Self {
         self.decal_layer_index = decal_layer_index;
+        self
+    }
+
+    pub fn with_cast_shadows(mut self, value: bool) -> Self {
+        self.cast_shadows = value;
         self
     }
 
@@ -879,6 +898,7 @@ impl TerrainBuilder {
             width_chunks: self.width_chunks as u32,
             length_chunks: self.length_chunks as u32,
             decal_layer_index: self.decal_layer_index,
+            cast_shadows: self.cast_shadows,
         };
 
         Node::Terrain(terrain)
