@@ -35,15 +35,15 @@ impl OverlayShader {
             GpuProgram::from_source(state, "OverlayShader", vertex_source, fragment_source)?;
         Ok(Self {
             view_projection_matrix: program
-                .uniform_location(state, ImmutableString::new("viewProjectionMatrix"))?,
-            world_matrix: program.uniform_location(state, ImmutableString::new("worldMatrix"))?,
+                .uniform_location(state, &ImmutableString::new("viewProjectionMatrix"))?,
+            world_matrix: program.uniform_location(state, &ImmutableString::new("worldMatrix"))?,
             camera_side_vector: program
-                .uniform_location(state, ImmutableString::new("cameraSideVector"))?,
+                .uniform_location(state, &ImmutableString::new("cameraSideVector"))?,
             camera_up_vector: program
-                .uniform_location(state, ImmutableString::new("cameraUpVector"))?,
-            size: program.uniform_location(state, ImmutableString::new("size"))?,
+                .uniform_location(state, &ImmutableString::new("cameraUpVector"))?,
+            size: program.uniform_location(state, &ImmutableString::new("size"))?,
             diffuse_texture: program
-                .uniform_location(state, ImmutableString::new("diffuseTexture"))?,
+                .uniform_location(state, &ImmutableString::new("diffuseTexture"))?,
             program,
         })
     }
