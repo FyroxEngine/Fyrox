@@ -813,6 +813,9 @@ impl WorldViewer {
 
         self.colorize(ui);
 
+        self.node_to_view_map
+            .retain(|k, v| graph.is_valid_handle(*k) && ui.try_get_node(*v).is_some());
+
         selected_items
     }
 
