@@ -1,5 +1,6 @@
 //! A renderer responsible for drawing 2D scenes.
 
+use crate::core::sstorage::ImmutableString;
 use crate::renderer::framework::state::{BlendFactor, BlendFunc};
 use crate::{
     core::{
@@ -51,13 +52,18 @@ impl SpriteShader {
         let program =
             GpuProgram::from_source(state, "SpriteShader2D", vertex_source, fragment_source)?;
         Ok(Self {
-            wvp_matrix: program.uniform_location(state, "viewProjection")?,
-            diffuse_texture: program.uniform_location(state, "diffuseTexture")?,
-            light_count: program.uniform_location(state, "lightCount")?,
-            light_color_radius: program.uniform_location(state, "lightColorRadius")?,
-            light_position_direction: program.uniform_location(state, "lightPositionDirection")?,
-            light_parameters: program.uniform_location(state, "lightParameters")?,
-            ambient_light_color: program.uniform_location(state, "ambientLightColor")?,
+            wvp_matrix: program.uniform_location(state, ImmutableString::new("viewProjection"))?,
+            diffuse_texture: program
+                .uniform_location(state, ImmutableString::new("diffuseTexture"))?,
+            light_count: program.uniform_location(state, ImmutableString::new("lightCount"))?,
+            light_color_radius: program
+                .uniform_location(state, ImmutableString::new("lightColorRadius"))?,
+            light_position_direction: program
+                .uniform_location(state, ImmutableString::new("lightPositionDirection"))?,
+            light_parameters: program
+                .uniform_location(state, ImmutableString::new("lightParameters"))?,
+            ambient_light_color: program
+                .uniform_location(state, ImmutableString::new("ambientLightColor"))?,
             program,
         })
     }

@@ -1,3 +1,4 @@
+use crate::core::sstorage::ImmutableString;
 use crate::{
     core::{
         algebra::Matrix2,
@@ -9,6 +10,7 @@ use crate::{
 };
 use fxhash::FxHashMap;
 use glow::HasContext;
+use std::ops::Deref;
 use std::{cell::RefCell, marker::PhantomData, rc::Rc};
 
 pub struct GpuProgram {
@@ -16,7 +18,7 @@ pub struct GpuProgram {
     id: glow::Program,
     // Force compiler to not implement Send and Sync, because OpenGL is not thread-safe.
     thread_mark: PhantomData<*const u8>,
-    uniform_locations: RefCell<FxHashMap<String, Option<UniformLocation>>>,
+    uniform_locations: RefCell<FxHashMap<ImmutableString, Option<UniformLocation>>>,
     pub(crate) built_in_uniform_locations:
         [Option<UniformLocation>; BuiltInUniform::Count as usize],
 }
@@ -109,7 +111,7 @@ pub struct GpuProgramBinding<'a, 'b> {
 }
 
 impl<'a, 'b> GpuProgramBinding<'a, 'b> {
-    pub fn uniform_location(&self, name: &str) -> Option<UniformLocation> {
+    pub fn uniform_location(&self, name: ImmutableString) -> Option<UniformLocation> {
         self.program.uniform_location_internal(self.state, name)
     }
 
@@ -461,16 +463,16 @@ impl GpuProgram {
     pub fn uniform_location_internal(
         &self,
         state: &PipelineState,
-        name: &str,
+        name: ImmutableString,
     ) -> Option<UniformLocation> {
         let mut locations = self.uniform_locations.borrow_mut();
 
-        if let Some(cached_location) = locations.get(name) {
+        if let Some(cached_location) = locations.get(&name) {
             *cached_location
         } else {
-            let location = fetch_uniform_location(state, self.id, name);
+            let location = fetch_uniform_location(state, self.id, name.deref());
 
-            locations.insert(name.to_owned(), location);
+            locations.insert(name, location);
 
             location
         }
@@ -479,10 +481,10 @@ impl GpuProgram {
     pub fn uniform_location(
         &self,
         state: &PipelineState,
-        name: &str,
+        name: ImmutableString,
     ) -> Result<UniformLocation, FrameworkError> {
-        self.uniform_location_internal(state, name)
-            .ok_or_else(|| FrameworkError::UnableToFindShaderUniform(name.to_owned()))
+        self.uniform_location_internal(state, name.clone())
+            .ok_or_else(|| FrameworkError::UnableToFindShaderUniform(name.deref().to_owned()))
     }
 
     pub fn bind<'a, 'b>(&'b self, state: &'a mut PipelineState) -> GpuProgramBinding<'a, 'b> {

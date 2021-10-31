@@ -1,3 +1,4 @@
+use crate::core::sstorage::ImmutableString;
 use crate::{
     core::{
         algebra::Matrix4,
@@ -33,6 +34,7 @@ pub struct SpotShadowMapRenderer {
     //  2 - small, for farthest lights.
     cascades: [FrameBuffer; 3],
     size: usize,
+    render_pass_name: ImmutableString,
 }
 
 impl SpotShadowMapRenderer {
@@ -89,6 +91,7 @@ impl SpotShadowMapRenderer {
                 make_cascade(state, cascade_size(size, 1), precision)?,
                 make_cascade(state, cascade_size(size, 2), precision)?,
             ],
+            render_pass_name: ImmutableString::new("SpotShadow"),
         })
     }
 
@@ -145,7 +148,7 @@ impl SpotShadowMapRenderer {
 
             if let Some(render_pass) = shader_cache
                 .get(state, material.shader())
-                .and_then(|shader_set| shader_set.render_passes.get("SpotShadow"))
+                .and_then(|shader_set| shader_set.render_passes.get(&self.render_pass_name))
             {
                 for instance in batch.instances.iter() {
                     let node = &graph[instance.owner];

@@ -4,6 +4,7 @@
 
 #![warn(missing_docs)]
 
+use crate::core::sstorage::ImmutableString;
 use crate::renderer::framework::framebuffer::DrawParameters;
 use crate::{
     asset::ResourceState,
@@ -340,7 +341,7 @@ impl Default for PropertyValue {
 pub struct Material {
     shader: Shader,
     draw_parameters: DrawParameters,
-    properties: HashMap<String, PropertyValue>,
+    properties: HashMap<ImmutableString, PropertyValue>,
 }
 
 /// A set of possible errors that can occur when working with materials.
@@ -479,7 +480,7 @@ impl Material {
                 PropertyKind::Matrix4Array(value) => PropertyValue::Matrix4Array(value.clone()),
             };
 
-            property_values.insert(property_definition.name.clone(), value);
+            property_values.insert(ImmutableString::new(&property_definition.name), value);
         }
 
         drop(data);
@@ -535,7 +536,7 @@ impl Material {
     /// let color = material.property_ref("diffuseColor").unwrap().as_color();
     /// ```
     pub fn property_ref<N: AsRef<str>>(&self, name: N) -> Option<&PropertyValue> {
-        self.properties.get(name.as_ref())
+        self.properties.get(&ImmutableString::new(name))
     }
 
     /// Sets new value of the property with given name.
@@ -562,7 +563,7 @@ impl Material {
         name: N,
         new_value: PropertyValue,
     ) -> Result<(), MaterialError> {
-        if let Some(value) = self.properties.get_mut(name.as_ref()) {
+        if let Some(value) = self.properties.get_mut(&ImmutableString::new(&name)) {
             match (value, new_value) {
                 (
                     PropertyValue::Sampler {
@@ -657,7 +658,7 @@ impl Material {
     }
 
     /// Returns immutable reference to internal property storage.
-    pub fn properties(&self) -> &HashMap<String, PropertyValue> {
+    pub fn properties(&self) -> &HashMap<ImmutableString, PropertyValue> {
         &self.properties
     }
 }

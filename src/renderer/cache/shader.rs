@@ -1,3 +1,4 @@
+use crate::core::sstorage::ImmutableString;
 use crate::{
     asset::ResourceState,
     core::{scope_profile, sparse::SparseBuffer},
@@ -18,7 +19,7 @@ pub struct RenderPassData {
 }
 
 pub struct ShaderSet {
-    pub render_passes: FxHashMap<String, RenderPassData>,
+    pub render_passes: FxHashMap<ImmutableString, RenderPassData>,
 }
 
 impl ShaderSet {
@@ -34,7 +35,7 @@ impl ShaderSet {
             ) {
                 Ok(gpu_program) => {
                     map.insert(
-                        render_pass.name.clone(),
+                        ImmutableString::new(&render_pass.name),
                         RenderPassData {
                             program: gpu_program,
                             draw_params: render_pass.draw_parameters.clone(),

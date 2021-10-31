@@ -3,6 +3,7 @@
 //! shapes, contact information (normals, positions, etc.), paths build by navmesh and so
 //! on. It contains implementations to draw most common shapes (line, box, oob, frustum, etc).
 
+use crate::core::sstorage::ImmutableString;
 use crate::{
     core::{algebra::Vector3, math::Rect, scope_profile},
     renderer::framework::{
@@ -45,7 +46,8 @@ impl DebugShader {
         let program =
             GpuProgram::from_source(state, "DebugShader", vertex_source, fragment_source)?;
         Ok(Self {
-            wvp_matrix: program.uniform_location(state, "worldViewProjection")?,
+            wvp_matrix: program
+                .uniform_location(state, ImmutableString::new("worldViewProjection"))?,
             program,
         })
     }

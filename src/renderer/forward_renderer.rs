@@ -6,6 +6,7 @@
 //! For now it is used **only** to render transparent meshes (or any other mesh that has Forward render
 //! path).
 
+use crate::core::sstorage::ImmutableString;
 use crate::{
     core::{math::Rect, scope_profile},
     renderer::{
@@ -19,7 +20,9 @@ use crate::{
 };
 use std::{cell::RefCell, rc::Rc};
 
-pub(in crate) struct ForwardRenderer {}
+pub(in crate) struct ForwardRenderer {
+    render_pass_name: ImmutableString,
+}
 
 pub(in crate) struct ForwardRenderContext<'a, 'b> {
     pub state: &'a mut PipelineState,
@@ -38,7 +41,9 @@ pub(in crate) struct ForwardRenderContext<'a, 'b> {
 
 impl ForwardRenderer {
     pub(in crate) fn new() -> Self {
-        Self {}
+        Self {
+            render_pass_name: ImmutableString::new("Forward"),
+        }
     }
 
     pub(in crate) fn render(&self, args: ForwardRenderContext) -> RenderPassStatistics {
@@ -74,7 +79,7 @@ impl ForwardRenderer {
 
             if let Some(render_pass) = shader_cache
                 .get(state, material.shader())
-                .and_then(|shader_set| shader_set.render_passes.get("Forward"))
+                .and_then(|shader_set| shader_set.render_passes.get(&self.render_pass_name))
             {
                 for instance in batch.instances.iter() {
                     if camera.visibility_cache.is_visible(instance.owner) {

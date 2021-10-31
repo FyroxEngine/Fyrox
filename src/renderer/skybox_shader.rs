@@ -1,3 +1,4 @@
+use crate::core::sstorage::ImmutableString;
 use crate::renderer::framework::{
     error::FrameworkError,
     gpu_program::{GpuProgram, UniformLocation},
@@ -18,8 +19,10 @@ impl SkyboxShader {
         let program =
             GpuProgram::from_source(state, "SkyboxShader", vertex_source, fragment_source)?;
         Ok(Self {
-            wvp_matrix: program.uniform_location(state, "worldViewProjection")?,
-            cubemap_texture: program.uniform_location(state, "cubemapTexture")?,
+            wvp_matrix: program
+                .uniform_location(state, ImmutableString::new("worldViewProjection"))?,
+            cubemap_texture: program
+                .uniform_location(state, ImmutableString::new("cubemapTexture"))?,
             program,
         })
     }

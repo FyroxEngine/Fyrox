@@ -1,3 +1,4 @@
+use crate::core::sstorage::ImmutableString;
 use crate::renderer::framework::{
     error::FrameworkError,
     gpu_program::{GpuProgram, UniformLocation},
@@ -20,11 +21,14 @@ impl AmbientLightShader {
         let program =
             GpuProgram::from_source(state, "AmbientLightShader", vertex_source, fragment_source)?;
         Ok(Self {
-            wvp_matrix: program.uniform_location(state, "worldViewProjection")?,
-            diffuse_texture: program.uniform_location(state, "diffuseTexture")?,
-            ambient_color: program.uniform_location(state, "ambientColor")?,
-            ao_sampler: program.uniform_location(state, "aoSampler")?,
-            ambient_texture: program.uniform_location(state, "ambientTexture")?,
+            wvp_matrix: program
+                .uniform_location(state, ImmutableString::new("worldViewProjection"))?,
+            diffuse_texture: program
+                .uniform_location(state, ImmutableString::new("diffuseTexture"))?,
+            ambient_color: program.uniform_location(state, ImmutableString::new("ambientColor"))?,
+            ao_sampler: program.uniform_location(state, ImmutableString::new("aoSampler"))?,
+            ambient_texture: program
+                .uniform_location(state, ImmutableString::new("ambientTexture"))?,
             program,
         })
     }

@@ -1,3 +1,4 @@
+use crate::core::sstorage::ImmutableString;
 use crate::renderer::framework::framebuffer::FrameBuffer;
 use crate::{
     core::{
@@ -30,9 +31,12 @@ impl FxaaShader {
 
         let program = GpuProgram::from_source(state, "FXAAShader", vertex_source, fragment_source)?;
         Ok(Self {
-            wvp_matrix: program.uniform_location(state, "worldViewProjection")?,
-            screen_texture: program.uniform_location(state, "screenTexture")?,
-            inverse_screen_size: program.uniform_location(state, "inverseScreenSize")?,
+            wvp_matrix: program
+                .uniform_location(state, ImmutableString::new("worldViewProjection"))?,
+            screen_texture: program
+                .uniform_location(state, ImmutableString::new("screenTexture"))?,
+            inverse_screen_size: program
+                .uniform_location(state, ImmutableString::new("inverseScreenSize"))?,
             program,
         })
     }

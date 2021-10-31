@@ -1,3 +1,4 @@
+use crate::core::sstorage::ImmutableString;
 use crate::renderer::make_viewport_matrix;
 use crate::{
     core::{math::Rect, scope_profile},
@@ -29,8 +30,9 @@ impl Shader {
 
         let program = GpuProgram::from_source(state, "BlurShader", vertex_source, fragment_source)?;
         Ok(Self {
-            world_view_projection_matrix: program.uniform_location(state, "worldViewProjection")?,
-            input_texture: program.uniform_location(state, "inputTexture")?,
+            world_view_projection_matrix: program
+                .uniform_location(state, ImmutableString::new("worldViewProjection"))?,
+            input_texture: program.uniform_location(state, ImmutableString::new("inputTexture"))?,
             program,
         })
     }

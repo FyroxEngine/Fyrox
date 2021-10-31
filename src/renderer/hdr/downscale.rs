@@ -1,3 +1,4 @@
+use crate::core::sstorage::ImmutableString;
 use crate::renderer::framework::{
     error::FrameworkError,
     gpu_program::{GpuProgram, UniformLocation},
@@ -20,9 +21,10 @@ impl DownscaleShader {
             GpuProgram::from_source(state, "DownscaleShader", vertex_source, fragment_source)?;
 
         Ok(Self {
-            wvp_matrix: program.uniform_location(state, "worldViewProjection")?,
-            lum_sampler: program.uniform_location(state, "lumSampler")?,
-            inv_size: program.uniform_location(state, "invSize")?,
+            wvp_matrix: program
+                .uniform_location(state, ImmutableString::new("worldViewProjection"))?,
+            lum_sampler: program.uniform_location(state, ImmutableString::new("lumSampler"))?,
+            inv_size: program.uniform_location(state, ImmutableString::new("invSize"))?,
             program,
         })
     }

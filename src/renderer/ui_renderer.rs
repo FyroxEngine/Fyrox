@@ -1,3 +1,4 @@
+use crate::core::sstorage::ImmutableString;
 use crate::{
     asset::Resource,
     core::{
@@ -56,20 +57,26 @@ impl UiShader {
         let vertex_source = include_str!("shaders/ui_vs.glsl");
         let program = GpuProgram::from_source(state, "UIShader", vertex_source, fragment_source)?;
         Ok(Self {
-            wvp_matrix: program.uniform_location(state, "worldViewProjection")?,
-            diffuse_texture: program.uniform_location(state, "diffuseTexture")?,
-            is_font: program.uniform_location(state, "isFont")?,
-            solid_color: program.uniform_location(state, "solidColor")?,
-            brush_type: program.uniform_location(state, "brushType")?,
-            gradient_point_count: program.uniform_location(state, "gradientPointCount")?,
-            gradient_colors: program.uniform_location(state, "gradientColors")?,
-            gradient_stops: program.uniform_location(state, "gradientStops")?,
-            gradient_origin: program.uniform_location(state, "gradientOrigin")?,
-            gradient_end: program.uniform_location(state, "gradientEnd")?,
-            bounds_min: program.uniform_location(state, "boundsMin")?,
-            bounds_max: program.uniform_location(state, "boundsMax")?,
-            resolution: program.uniform_location(state, "resolution")?,
-            opacity: program.uniform_location(state, "opacity")?,
+            wvp_matrix: program
+                .uniform_location(state, ImmutableString::new("worldViewProjection"))?,
+            diffuse_texture: program
+                .uniform_location(state, ImmutableString::new("diffuseTexture"))?,
+            is_font: program.uniform_location(state, ImmutableString::new("isFont"))?,
+            solid_color: program.uniform_location(state, ImmutableString::new("solidColor"))?,
+            brush_type: program.uniform_location(state, ImmutableString::new("brushType"))?,
+            gradient_point_count: program
+                .uniform_location(state, ImmutableString::new("gradientPointCount"))?,
+            gradient_colors: program
+                .uniform_location(state, ImmutableString::new("gradientColors"))?,
+            gradient_stops: program
+                .uniform_location(state, ImmutableString::new("gradientStops"))?,
+            gradient_origin: program
+                .uniform_location(state, ImmutableString::new("gradientOrigin"))?,
+            gradient_end: program.uniform_location(state, ImmutableString::new("gradientEnd"))?,
+            bounds_min: program.uniform_location(state, ImmutableString::new("boundsMin"))?,
+            bounds_max: program.uniform_location(state, ImmutableString::new("boundsMax"))?,
+            resolution: program.uniform_location(state, ImmutableString::new("resolution"))?,
+            opacity: program.uniform_location(state, ImmutableString::new("opacity"))?,
             program,
         })
     }

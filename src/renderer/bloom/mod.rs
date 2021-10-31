@@ -1,3 +1,4 @@
+use crate::core::sstorage::ImmutableString;
 use crate::{
     core::{math::Rect, scope_profile},
     renderer::{
@@ -34,8 +35,9 @@ impl Shader {
         let program =
             GpuProgram::from_source(state, "BloomShader", vertex_source, fragment_source)?;
         Ok(Self {
-            world_view_projection_matrix: program.uniform_location(state, "worldViewProjection")?,
-            hdr_sampler: program.uniform_location(state, "hdrSampler")?,
+            world_view_projection_matrix: program
+                .uniform_location(state, ImmutableString::new("worldViewProjection"))?,
+            hdr_sampler: program.uniform_location(state, ImmutableString::new("hdrSampler"))?,
             program,
         })
     }

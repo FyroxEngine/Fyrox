@@ -871,7 +871,7 @@ pub(in crate) fn apply_material(ctx: MaterialContext) {
 
     // Apply material properties.
     for (name, value) in ctx.material.properties() {
-        if let Some(uniform) = ctx.program_binding.uniform_location(name) {
+        if let Some(uniform) = ctx.program_binding.uniform_location(name.clone()) {
             match value {
                 PropertyValue::Float(v) => {
                     ctx.program_binding.set_f32(&uniform, *v);

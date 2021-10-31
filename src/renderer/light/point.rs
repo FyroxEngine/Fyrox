@@ -1,3 +1,4 @@
+use crate::core::sstorage::ImmutableString;
 use crate::renderer::framework::{
     error::FrameworkError,
     gpu_program::{GpuProgram, UniformLocation},
@@ -30,21 +31,29 @@ impl PointLightShader {
         let program =
             GpuProgram::from_source(state, "PointLightShader", vertex_source, fragment_source)?;
         Ok(Self {
-            wvp_matrix: program.uniform_location(state, "worldViewProjection")?,
-            depth_sampler: program.uniform_location(state, "depthTexture")?,
-            color_sampler: program.uniform_location(state, "colorTexture")?,
-            normal_sampler: program.uniform_location(state, "normalTexture")?,
-            material_sampler: program.uniform_location(state, "materialTexture")?,
-            point_shadow_texture: program.uniform_location(state, "pointShadowTexture")?,
-            shadows_enabled: program.uniform_location(state, "shadowsEnabled")?,
-            soft_shadows: program.uniform_location(state, "softShadows")?,
-            light_position: program.uniform_location(state, "lightPos")?,
-            light_radius: program.uniform_location(state, "lightRadius")?,
-            light_color: program.uniform_location(state, "lightColor")?,
-            inv_view_proj_matrix: program.uniform_location(state, "invViewProj")?,
-            camera_position: program.uniform_location(state, "cameraPosition")?,
-            shadow_bias: program.uniform_location(state, "shadowBias")?,
-            light_intensity: program.uniform_location(state, "lightIntensity")?,
+            wvp_matrix: program
+                .uniform_location(state, ImmutableString::new("worldViewProjection"))?,
+            depth_sampler: program.uniform_location(state, ImmutableString::new("depthTexture"))?,
+            color_sampler: program.uniform_location(state, ImmutableString::new("colorTexture"))?,
+            normal_sampler: program
+                .uniform_location(state, ImmutableString::new("normalTexture"))?,
+            material_sampler: program
+                .uniform_location(state, ImmutableString::new("materialTexture"))?,
+            point_shadow_texture: program
+                .uniform_location(state, ImmutableString::new("pointShadowTexture"))?,
+            shadows_enabled: program
+                .uniform_location(state, ImmutableString::new("shadowsEnabled"))?,
+            soft_shadows: program.uniform_location(state, ImmutableString::new("softShadows"))?,
+            light_position: program.uniform_location(state, ImmutableString::new("lightPos"))?,
+            light_radius: program.uniform_location(state, ImmutableString::new("lightRadius"))?,
+            light_color: program.uniform_location(state, ImmutableString::new("lightColor"))?,
+            inv_view_proj_matrix: program
+                .uniform_location(state, ImmutableString::new("invViewProj"))?,
+            camera_position: program
+                .uniform_location(state, ImmutableString::new("cameraPosition"))?,
+            shadow_bias: program.uniform_location(state, ImmutableString::new("shadowBias"))?,
+            light_intensity: program
+                .uniform_location(state, ImmutableString::new("lightIntensity"))?,
             program,
         })
     }

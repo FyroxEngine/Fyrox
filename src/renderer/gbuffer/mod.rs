@@ -9,6 +9,7 @@
 //! Every alpha channel is used for layer blending for terrains. This is inefficient, but for
 //! now I don't know better solution.
 
+use crate::core::sstorage::ImmutableString;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2},
@@ -48,6 +49,7 @@ pub struct GBuffer {
     pub height: i32,
     cube: SurfaceData,
     decal_shader: DecalShader,
+    render_pass_name: ImmutableString,
 }
 
 pub(in crate) struct GBufferRenderContext<'a, 'b> {
@@ -214,6 +216,7 @@ impl GBuffer {
             decal_shader: DecalShader::new(state)?,
             cube: SurfaceData::make_cube(Matrix4::identity()),
             decal_framebuffer,
+            render_pass_name: ImmutableString::new("GBuffer"),
         })
     }
 
@@ -288,7 +291,7 @@ impl GBuffer {
 
             if let Some(render_pass) = shader_cache
                 .get(state, material.shader())
-                .and_then(|shader_set| shader_set.render_passes.get("GBuffer"))
+                .and_then(|shader_set| shader_set.render_passes.get(&self.render_pass_name))
             {
                 for instance in batch.instances.iter() {
                     if camera.visibility_cache.is_visible(instance.owner) {

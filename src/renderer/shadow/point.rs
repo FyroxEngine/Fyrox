@@ -1,3 +1,4 @@
+use crate::core::sstorage::ImmutableString;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3},
@@ -30,6 +31,7 @@ pub struct PointShadowMapRenderer {
     cascades: [FrameBuffer; 3],
     size: usize,
     faces: [PointShadowCubeMapFace; 6],
+    render_pass_name: ImmutableString,
 }
 
 struct PointShadowCubeMapFace {
@@ -165,6 +167,7 @@ impl PointShadowMapRenderer {
                     up: Vector3::new(0.0, -1.0, 0.0),
                 },
             ],
+            render_pass_name: ImmutableString::new("PointShadow"),
         })
     }
 
@@ -235,7 +238,7 @@ impl PointShadowMapRenderer {
 
                 if let Some(render_pass) = shader_cache
                     .get(state, material.shader())
-                    .and_then(|shader_set| shader_set.render_passes.get("PointShadow"))
+                    .and_then(|shader_set| shader_set.render_passes.get(&self.render_pass_name))
                 {
                     for instance in batch.instances.iter() {
                         let node = &graph[instance.owner];

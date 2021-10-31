@@ -1,3 +1,4 @@
+use crate::core::sstorage::ImmutableString;
 use crate::renderer::framework::{
     error::FrameworkError,
     gpu_program::{GpuProgram, UniformLocation},
@@ -29,16 +30,23 @@ impl DirectionalLightShader {
             fragment_source,
         )?;
         Ok(Self {
-            wvp_matrix: program.uniform_location(state, "worldViewProjection")?,
-            depth_sampler: program.uniform_location(state, "depthTexture")?,
-            color_sampler: program.uniform_location(state, "colorTexture")?,
-            normal_sampler: program.uniform_location(state, "normalTexture")?,
-            material_sampler: program.uniform_location(state, "materialTexture")?,
-            light_direction: program.uniform_location(state, "lightDirection")?,
-            light_color: program.uniform_location(state, "lightColor")?,
-            inv_view_proj_matrix: program.uniform_location(state, "invViewProj")?,
-            camera_position: program.uniform_location(state, "cameraPosition")?,
-            light_intensity: program.uniform_location(state, "lightIntensity")?,
+            wvp_matrix: program
+                .uniform_location(state, ImmutableString::new("worldViewProjection"))?,
+            depth_sampler: program.uniform_location(state, ImmutableString::new("depthTexture"))?,
+            color_sampler: program.uniform_location(state, ImmutableString::new("colorTexture"))?,
+            normal_sampler: program
+                .uniform_location(state, ImmutableString::new("normalTexture"))?,
+            material_sampler: program
+                .uniform_location(state, ImmutableString::new("materialTexture"))?,
+            light_direction: program
+                .uniform_location(state, ImmutableString::new("lightDirection"))?,
+            light_color: program.uniform_location(state, ImmutableString::new("lightColor"))?,
+            inv_view_proj_matrix: program
+                .uniform_location(state, ImmutableString::new("invViewProj"))?,
+            camera_position: program
+                .uniform_location(state, ImmutableString::new("cameraPosition"))?,
+            light_intensity: program
+                .uniform_location(state, ImmutableString::new("lightIntensity"))?,
             program,
         })
     }

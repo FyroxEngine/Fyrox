@@ -1,3 +1,4 @@
+use crate::core::sstorage::ImmutableString;
 use crate::renderer::{
     framework::{
         error::FrameworkError,
@@ -26,10 +27,13 @@ impl AdaptationShader {
             GpuProgram::from_source(state, "AdaptationShader", vertex_source, fragment_source)?;
 
         Ok(Self {
-            wvp_matrix: program.uniform_location(state, "worldViewProjection")?,
-            old_lum_sampler: program.uniform_location(state, "oldLumSampler")?,
-            new_lum_sampler: program.uniform_location(state, "newLumSampler")?,
-            speed: program.uniform_location(state, "speed")?,
+            wvp_matrix: program
+                .uniform_location(state, ImmutableString::new("worldViewProjection"))?,
+            old_lum_sampler: program
+                .uniform_location(state, ImmutableString::new("oldLumSampler"))?,
+            new_lum_sampler: program
+                .uniform_location(state, ImmutableString::new("newLumSampler"))?,
+            speed: program.uniform_location(state, ImmutableString::new("speed"))?,
             program,
         })
     }

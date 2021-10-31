@@ -1,3 +1,4 @@
+use crate::core::sstorage::ImmutableString;
 use crate::renderer::framework::state::{BlendFactor, BlendFunc};
 use crate::{
     core::{algebra::Vector2, math::Matrix4Ext, math::Rect, scope_profile},
@@ -41,16 +42,22 @@ impl ParticleSystemShader {
             fragment_source,
         )?;
         Ok(Self {
-            view_projection_matrix: program.uniform_location(state, "viewProjectionMatrix")?,
-            world_matrix: program.uniform_location(state, "worldMatrix")?,
-            camera_side_vector: program.uniform_location(state, "cameraSideVector")?,
-            camera_up_vector: program.uniform_location(state, "cameraUpVector")?,
-            diffuse_texture: program.uniform_location(state, "diffuseTexture")?,
-            depth_buffer_texture: program.uniform_location(state, "depthBufferTexture")?,
-            inv_screen_size: program.uniform_location(state, "invScreenSize")?,
-            proj_params: program.uniform_location(state, "projParams")?,
+            view_projection_matrix: program
+                .uniform_location(state, ImmutableString::new("viewProjectionMatrix"))?,
+            world_matrix: program.uniform_location(state, ImmutableString::new("worldMatrix"))?,
+            camera_side_vector: program
+                .uniform_location(state, ImmutableString::new("cameraSideVector"))?,
+            camera_up_vector: program
+                .uniform_location(state, ImmutableString::new("cameraUpVector"))?,
+            diffuse_texture: program
+                .uniform_location(state, ImmutableString::new("diffuseTexture"))?,
+            depth_buffer_texture: program
+                .uniform_location(state, ImmutableString::new("depthBufferTexture"))?,
+            inv_screen_size: program
+                .uniform_location(state, ImmutableString::new("invScreenSize"))?,
+            proj_params: program.uniform_location(state, ImmutableString::new("projParams"))?,
             soft_boundary_sharpness_factor: program
-                .uniform_location(state, "softBoundarySharpnessFactor")?,
+                .uniform_location(state, ImmutableString::new("softBoundarySharpnessFactor"))?,
             program,
         })
     }

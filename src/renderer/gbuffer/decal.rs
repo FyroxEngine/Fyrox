@@ -1,3 +1,4 @@
+use crate::core::sstorage::ImmutableString;
 use crate::renderer::framework::{
     error::FrameworkError,
     gpu_program::{GpuProgram, UniformLocation},
@@ -26,16 +27,20 @@ impl DecalShader {
         let program =
             GpuProgram::from_source(state, "DecalShader", vertex_source, fragment_source)?;
         Ok(Self {
-            world_view_projection: program.uniform_location(state, "worldViewProjection")?,
-            scene_depth: program.uniform_location(state, "sceneDepth")?,
-            diffuse_texture: program.uniform_location(state, "diffuseTexture")?,
-            normal_texture: program.uniform_location(state, "normalTexture")?,
-            inv_view_proj: program.uniform_location(state, "invViewProj")?,
-            inv_world_decal: program.uniform_location(state, "invWorldDecal")?,
-            resolution: program.uniform_location(state, "resolution")?,
-            color: program.uniform_location(state, "color")?,
-            layer_index: program.uniform_location(state, "layerIndex")?,
-            decal_mask: program.uniform_location(state, "decalMask")?,
+            world_view_projection: program
+                .uniform_location(state, ImmutableString::new("worldViewProjection"))?,
+            scene_depth: program.uniform_location(state, ImmutableString::new("sceneDepth"))?,
+            diffuse_texture: program
+                .uniform_location(state, ImmutableString::new("diffuseTexture"))?,
+            normal_texture: program
+                .uniform_location(state, ImmutableString::new("normalTexture"))?,
+            inv_view_proj: program.uniform_location(state, ImmutableString::new("invViewProj"))?,
+            inv_world_decal: program
+                .uniform_location(state, ImmutableString::new("invWorldDecal"))?,
+            resolution: program.uniform_location(state, ImmutableString::new("resolution"))?,
+            color: program.uniform_location(state, ImmutableString::new("color"))?,
+            layer_index: program.uniform_location(state, ImmutableString::new("layerIndex"))?,
+            decal_mask: program.uniform_location(state, ImmutableString::new("decalMask"))?,
             program,
         })
     }

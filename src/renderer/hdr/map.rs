@@ -1,3 +1,4 @@
+use crate::core::sstorage::ImmutableString;
 use crate::renderer::framework::{
     error::FrameworkError,
     gpu_program::{GpuProgram, UniformLocation},
@@ -28,17 +29,21 @@ impl MapShader {
             GpuProgram::from_source(state, "HdrToLdrShader", vertex_source, fragment_source)?;
 
         Ok(Self {
-            wvp_matrix: program.uniform_location(state, "worldViewProjection")?,
-            hdr_sampler: program.uniform_location(state, "hdrSampler")?,
-            lum_sampler: program.uniform_location(state, "lumSampler")?,
-            bloom_sampler: program.uniform_location(state, "bloomSampler")?,
-            color_map_sampler: program.uniform_location(state, "colorMapSampler")?,
-            use_color_grading: program.uniform_location(state, "useColorGrading")?,
-            key_value: program.uniform_location(state, "keyValue")?,
-            min_luminance: program.uniform_location(state, "minLuminance")?,
-            max_luminance: program.uniform_location(state, "maxLuminance")?,
-            auto_exposure: program.uniform_location(state, "autoExposure")?,
-            fixed_exposure: program.uniform_location(state, "fixedExposure")?,
+            wvp_matrix: program
+                .uniform_location(state, ImmutableString::new("worldViewProjection"))?,
+            hdr_sampler: program.uniform_location(state, ImmutableString::new("hdrSampler"))?,
+            lum_sampler: program.uniform_location(state, ImmutableString::new("lumSampler"))?,
+            bloom_sampler: program.uniform_location(state, ImmutableString::new("bloomSampler"))?,
+            color_map_sampler: program
+                .uniform_location(state, ImmutableString::new("colorMapSampler"))?,
+            use_color_grading: program
+                .uniform_location(state, ImmutableString::new("useColorGrading"))?,
+            key_value: program.uniform_location(state, ImmutableString::new("keyValue"))?,
+            min_luminance: program.uniform_location(state, ImmutableString::new("minLuminance"))?,
+            max_luminance: program.uniform_location(state, ImmutableString::new("maxLuminance"))?,
+            auto_exposure: program.uniform_location(state, ImmutableString::new("autoExposure"))?,
+            fixed_exposure: program
+                .uniform_location(state, ImmutableString::new("fixedExposure"))?,
             program,
         })
     }

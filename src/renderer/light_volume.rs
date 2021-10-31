@@ -1,3 +1,4 @@
+use crate::core::sstorage::ImmutableString;
 use crate::renderer::framework::state::{BlendFactor, BlendFunc, CompareFunc, StencilAction};
 use crate::{
     core::{
@@ -39,14 +40,19 @@ impl SpotLightShader {
         let program =
             GpuProgram::from_source(state, "SpotVolumetricLight", vertex_source, fragment_source)?;
         Ok(Self {
-            world_view_proj_matrix: program.uniform_location(state, "worldViewProjection")?,
-            depth_sampler: program.uniform_location(state, "depthSampler")?,
-            light_position: program.uniform_location(state, "lightPosition")?,
-            light_direction: program.uniform_location(state, "lightDirection")?,
-            cone_angle_cos: program.uniform_location(state, "coneAngleCos")?,
-            light_color: program.uniform_location(state, "lightColor")?,
-            scatter_factor: program.uniform_location(state, "scatterFactor")?,
-            inv_proj: program.uniform_location(state, "invProj")?,
+            world_view_proj_matrix: program
+                .uniform_location(state, ImmutableString::new("worldViewProjection"))?,
+            depth_sampler: program.uniform_location(state, ImmutableString::new("depthSampler"))?,
+            light_position: program
+                .uniform_location(state, ImmutableString::new("lightPosition"))?,
+            light_direction: program
+                .uniform_location(state, ImmutableString::new("lightDirection"))?,
+            cone_angle_cos: program
+                .uniform_location(state, ImmutableString::new("coneAngleCos"))?,
+            light_color: program.uniform_location(state, ImmutableString::new("lightColor"))?,
+            scatter_factor: program
+                .uniform_location(state, ImmutableString::new("scatterFactor"))?,
+            inv_proj: program.uniform_location(state, ImmutableString::new("invProj"))?,
             program,
         })
     }
@@ -74,13 +80,16 @@ impl PointLightShader {
             fragment_source,
         )?;
         Ok(Self {
-            world_view_proj_matrix: program.uniform_location(state, "worldViewProjection")?,
-            depth_sampler: program.uniform_location(state, "depthSampler")?,
-            light_position: program.uniform_location(state, "lightPosition")?,
-            inv_proj: program.uniform_location(state, "invProj")?,
-            light_radius: program.uniform_location(state, "lightRadius")?,
-            light_color: program.uniform_location(state, "lightColor")?,
-            scatter_factor: program.uniform_location(state, "scatterFactor")?,
+            world_view_proj_matrix: program
+                .uniform_location(state, ImmutableString::new("worldViewProjection"))?,
+            depth_sampler: program.uniform_location(state, ImmutableString::new("depthSampler"))?,
+            light_position: program
+                .uniform_location(state, ImmutableString::new("lightPosition"))?,
+            inv_proj: program.uniform_location(state, ImmutableString::new("invProj"))?,
+            light_radius: program.uniform_location(state, ImmutableString::new("lightRadius"))?,
+            light_color: program.uniform_location(state, ImmutableString::new("lightColor"))?,
+            scatter_factor: program
+                .uniform_location(state, ImmutableString::new("scatterFactor"))?,
             program,
         })
     }

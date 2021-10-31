@@ -1,3 +1,4 @@
+use crate::core::sstorage::ImmutableString;
 use crate::{
     core::{
         algebra::{Matrix3, Matrix4, Vector2, Vector3},
@@ -49,16 +50,20 @@ impl Shader {
         let vertex_source = include_str!("../shaders/ssao_vs.glsl");
         let program = GpuProgram::from_source(state, "SsaoShader", vertex_source, fragment_source)?;
         Ok(Self {
-            depth_sampler: program.uniform_location(state, "depthSampler")?,
-            normal_sampler: program.uniform_location(state, "normalSampler")?,
-            noise_sampler: program.uniform_location(state, "noiseSampler")?,
-            kernel: program.uniform_location(state, "kernel")?,
-            radius: program.uniform_location(state, "radius")?,
-            projection_matrix: program.uniform_location(state, "projectionMatrix")?,
-            inv_proj_matrix: program.uniform_location(state, "inverseProjectionMatrix")?,
-            noise_scale: program.uniform_location(state, "noiseScale")?,
-            world_view_proj_matrix: program.uniform_location(state, "worldViewProjection")?,
-            view_matrix: program.uniform_location(state, "viewMatrix")?,
+            depth_sampler: program.uniform_location(state, ImmutableString::new("depthSampler"))?,
+            normal_sampler: program
+                .uniform_location(state, ImmutableString::new("normalSampler"))?,
+            noise_sampler: program.uniform_location(state, ImmutableString::new("noiseSampler"))?,
+            kernel: program.uniform_location(state, ImmutableString::new("kernel"))?,
+            radius: program.uniform_location(state, ImmutableString::new("radius"))?,
+            projection_matrix: program
+                .uniform_location(state, ImmutableString::new("projectionMatrix"))?,
+            inv_proj_matrix: program
+                .uniform_location(state, ImmutableString::new("inverseProjectionMatrix"))?,
+            noise_scale: program.uniform_location(state, ImmutableString::new("noiseScale"))?,
+            world_view_proj_matrix: program
+                .uniform_location(state, ImmutableString::new("worldViewProjection"))?,
+            view_matrix: program.uniform_location(state, ImmutableString::new("viewMatrix"))?,
             program,
         })
     }
