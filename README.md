@@ -28,6 +28,19 @@ use my savings to drive development forward, I'm looking for any financial suppo
 
 [Join the Discord server](https://discord.gg/xENF5Uh)
 
+## Tutorials and learning materials
+
+### Book
+[Read the official rg3d book here.](https://rg3d-book.github.io) 
+
+### Writing a 3D Shooter using rg3d:
+- [#1 Character controller](https://rg3d.rs/tutorials/2021/03/05/tutorial1.html)
+- [#2 Weapons](https://rg3d.rs/tutorials/2021/03/09/tutorial2.html)
+- [#3 Bots and AI](https://rg3d.rs/tutorials/2021/03/11/tutorial3.html)
+
+### Writing a role-playing game using rg3d
+- [#1 Character controller](https://rg3d.rs/tutorials/2021/07/09/rpg-tutorial1.html)
+
 ## Features
 
 [![Video](pics/video.png)](https://www.youtube.com/watch?v=N8kmZ9aBtZs)
@@ -179,16 +192,6 @@ use my savings to drive development forward, I'm looking for any financial suppo
 - Joints.
 - Ray cast.
 - Many other useful features.
-
-## Tutorials
-
-Writing a 3D Shooter using rg3d:
-- [#1 Character controller](https://rg3d.rs/tutorials/2021/03/05/tutorial1.html)
-- [#2 Weapons](https://rg3d.rs/tutorials/2021/03/09/tutorial2.html)
-- [#3 Bots and AI](https://rg3d.rs/tutorials/2021/03/11/tutorial3.html)
-
-Writing a role-playing game using rg3d
-- [#1 Character controller](https://rg3d.rs/tutorials/2021/07/09/rpg-tutorial1.html)
 
 ## Screenshots
 
