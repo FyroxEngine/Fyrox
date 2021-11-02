@@ -456,7 +456,9 @@ fn sort_dir_entries(a: &DirEntry, b: &DirEntry) -> Ordering {
     } else if !a_is_dir && b_is_dir {
         Ordering::Greater
     } else {
-        a.file_name().to_ascii_lowercase().cmp(&b.file_name().to_ascii_lowercase())
+        a.file_name()
+            .to_ascii_lowercase()
+            .cmp(&b.file_name().to_ascii_lowercase())
     }
 }
 

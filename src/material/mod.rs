@@ -568,7 +568,7 @@ impl Material {
         name: &ImmutableString,
         new_value: PropertyValue,
     ) -> Result<(), MaterialError> {
-        if let Some(value) = self.properties.get_mut(&name) {
+        if let Some(value) = self.properties.get_mut(name) {
             match (value, new_value) {
                 (
                     PropertyValue::Sampler {

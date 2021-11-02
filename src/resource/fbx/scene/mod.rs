@@ -310,14 +310,11 @@ impl FbxMaterial {
         let props = nodes.get_by_name(material_node_handle, "Properties70")?;
         for prop_handle in props.children() {
             let prop = nodes.get(*prop_handle);
-            match prop.get_attrib(0)?.as_string().as_str() {
-                "DiffuseColor" => {
-                    let r = (prop.get_attrib(4)?.as_f64()? * 255.0) as u8;
-                    let g = (prop.get_attrib(5)?.as_f64()? * 255.0) as u8;
-                    let b = (prop.get_attrib(6)?.as_f64()? * 255.0) as u8;
-                    diffuse_color = Color::from_rgba(r, g, b, 255);
-                }
-                _ => (),
+            if let "DiffuseColor" = prop.get_attrib(0)?.as_string().as_str() {
+                let r = (prop.get_attrib(4)?.as_f64()? * 255.0) as u8;
+                let g = (prop.get_attrib(5)?.as_f64()? * 255.0) as u8;
+                let b = (prop.get_attrib(6)?.as_f64()? * 255.0) as u8;
+                diffuse_color = Color::from_rgba(r, g, b, 255);
             }
         }
 

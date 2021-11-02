@@ -80,6 +80,8 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - run: rustup update
+      - name: Install Dependencies
+        run: sudo apt-get install libasound2-dev libudev-dev pkg-config xorg-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev
       - run: cargo clippy --version
         # Using --all-targets to also check tests and examples.
         # Note that technically --all-features doesn't check all code when something is *disabled* by a feature.

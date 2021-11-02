@@ -105,6 +105,7 @@ impl Inspect for Node {
 ///
 /// The node could control which children nodes should be drawn based on the distance to a camera, this is so called
 /// level of detail functionality. There is a separate article about LODs, it can be found [here](super::base::LevelOfDetail).
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
 pub enum Node {
     /// A node that offers basic functionality, every other node shares this functionality.
