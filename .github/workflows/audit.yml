@@ -24,6 +24,7 @@ jobs:
         with:
           crate: cargo-audit
           version: latest
+      - run: rustup update
       - run: cargo audit --version
       # RUSTSEC-2020-0016: net2 is unmaintained - fixed in notify 5.0 prerelease, waiting for release
       # RUSTSEC-2020-0056: stdweb is unmaintained - should be safe to ignore until stdweb is removed from instant
