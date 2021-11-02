@@ -843,30 +843,30 @@ pub(in crate) fn apply_material(ctx: MaterialContext) {
     let built_in_uniforms = &ctx.program_binding.program.built_in_uniform_locations;
 
     // Apply values for built-in uniforms.
-    if let Some(location) = built_in_uniforms[BuiltInUniform::WorldMatrix as usize] {
-        ctx.program_binding.set_matrix4(&location, ctx.world_matrix);
+    if let Some(location) = &built_in_uniforms[BuiltInUniform::WorldMatrix as usize] {
+        ctx.program_binding.set_matrix4(location, ctx.world_matrix);
     }
-    if let Some(location) = built_in_uniforms[BuiltInUniform::WorldViewProjectionMatrix as usize] {
-        ctx.program_binding.set_matrix4(&location, ctx.wvp_matrix);
+    if let Some(location) = &built_in_uniforms[BuiltInUniform::WorldViewProjectionMatrix as usize] {
+        ctx.program_binding.set_matrix4(location, ctx.wvp_matrix);
     }
-    if let Some(location) = built_in_uniforms[BuiltInUniform::BoneMatrices as usize] {
+    if let Some(location) = &built_in_uniforms[BuiltInUniform::BoneMatrices as usize] {
         ctx.program_binding
-            .set_matrix4_array(&location, ctx.bone_matrices);
+            .set_matrix4_array(location, ctx.bone_matrices);
     }
-    if let Some(location) = built_in_uniforms[BuiltInUniform::UseSkeletalAnimation as usize] {
+    if let Some(location) = &built_in_uniforms[BuiltInUniform::UseSkeletalAnimation as usize] {
         ctx.program_binding
-            .set_bool(&location, ctx.use_skeletal_animation);
+            .set_bool(location, ctx.use_skeletal_animation);
     }
-    if let Some(location) = built_in_uniforms[BuiltInUniform::CameraPosition as usize] {
+    if let Some(location) = &built_in_uniforms[BuiltInUniform::CameraPosition as usize] {
         ctx.program_binding
-            .set_vector3(&location, ctx.camera_position);
+            .set_vector3(location, ctx.camera_position);
     }
-    if let Some(location) = built_in_uniforms[BuiltInUniform::UsePOM as usize] {
-        ctx.program_binding.set_bool(&location, ctx.use_pom);
+    if let Some(location) = &built_in_uniforms[BuiltInUniform::UsePOM as usize] {
+        ctx.program_binding.set_bool(location, ctx.use_pom);
     }
-    if let Some(location) = built_in_uniforms[BuiltInUniform::LightPosition as usize] {
+    if let Some(location) = &built_in_uniforms[BuiltInUniform::LightPosition as usize] {
         ctx.program_binding
-            .set_vector3(&location, ctx.light_position);
+            .set_vector3(location, ctx.light_position);
     }
 
     // Apply material properties.

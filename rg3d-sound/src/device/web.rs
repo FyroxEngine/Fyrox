@@ -47,7 +47,6 @@ impl WebAudioDevice {
             let mut temp_samples = vec![0.0f32; samples_per_channel];
             onended_closure
                 .write()
-                .unwrap()
                 .replace(Closure::wrap(Box::new(move || {
                     for (l, r) in mix_buffer.iter_mut() {
                         *r = 0.0;
@@ -55,7 +54,7 @@ impl WebAudioDevice {
                     }
 
                     let current_time = ctx_clone.current_time() as f32;
-                    let raw_time = *time.read().unwrap();
+                    let raw_time = *time.read();
                     let start_time = if raw_time >= current_time {
                         raw_time
                     } else {
@@ -85,7 +84,6 @@ impl WebAudioDevice {
                     source.set_onended(Some(
                         onended_closure_clone
                             .read()
-                            .unwrap()
                             .as_ref()
                             .unwrap()
                             .as_ref()
@@ -93,7 +91,7 @@ impl WebAudioDevice {
                     ));
                     source.start_with_when(start_time as f64).unwrap();
 
-                    *time.write().unwrap() = start_time + buffer_duration_secs;
+                    *time.write() = start_time + buffer_duration_secs;
                 })));
 
             onended.push(onended_closure);
@@ -127,7 +125,6 @@ impl Device for WebAudioDevice {
                 .set_timeout_with_callback_and_timeout_and_arguments_0(
                     on_ended_closure
                         .read()
-                        .unwrap()
                         .as_ref()
                         .unwrap()
                         .as_ref()

@@ -4,6 +4,7 @@
 //!
 //! Warning - Work in progress!
 
+use rg3d::core::sstorage::ImmutableString;
 use rg3d::{
     animation::Animation,
     core::{
@@ -241,7 +242,7 @@ async fn create_scene(resource_manager: ResourceManager, context: Arc<Mutex<Scen
     let mut material = Material::standard();
     material
         .set_property(
-            "diffuseTexture",
+            &ImmutableString::new("diffuseTexture"),
             PropertyValue::Sampler {
                 value: Some(resource_manager.request_texture("data/textures/concrete.jpg", None)),
                 fallback: SamplerFallback::White,
@@ -266,7 +267,7 @@ async fn create_scene(resource_manager: ResourceManager, context: Arc<Mutex<Scen
     .build()])
     .build(&mut scene.graph);
 
-    context.lock().unwrap().data = Some(GameScene {
+    context.lock().data = Some(GameScene {
         scene,
         model,
         walk_animation,
@@ -342,7 +343,7 @@ pub fn main_js() {
                     dt -= fixed_timestep;
                     elapsed_time += fixed_timestep;
 
-                    if let Some(scene) = load_context.lock().unwrap().data.take() {
+                    if let Some(scene) = load_context.lock().data.take() {
                         scene_handle = engine.scenes.add(scene.scene);
                         model_handle = scene.model;
                         walk_animation = scene.walk_animation;

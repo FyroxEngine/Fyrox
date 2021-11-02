@@ -36,7 +36,7 @@ pub enum BuiltInUniform {
     Count,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct UniformLocation {
     id: glow::UniformLocation,
     // Force compiler to not implement Send and Sync, because OpenGL is not thread-safe.
@@ -386,7 +386,8 @@ fn fetch_built_in_uniform_locations(
     state: &PipelineState,
     program: glow::Program,
 ) -> [Option<UniformLocation>; BuiltInUniform::Count as usize] {
-    let mut locations = [None; BuiltInUniform::Count as usize];
+    const INIT: Option<UniformLocation> = None;
+    let mut locations = [INIT; BuiltInUniform::Count as usize];
 
     locations[BuiltInUniform::WorldMatrix as usize] =
         fetch_uniform_location(state, program, "rg3d_worldMatrix");
@@ -468,11 +469,11 @@ impl GpuProgram {
         let mut locations = self.uniform_locations.borrow_mut();
 
         if let Some(cached_location) = locations.get(name) {
-            *cached_location
+            cached_location.clone()
         } else {
             let location = fetch_uniform_location(state, self.id, name.deref());
 
-            locations.insert(name.clone(), location);
+            locations.insert(name.clone(), location.clone());
 
             location
         }

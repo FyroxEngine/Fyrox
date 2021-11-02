@@ -71,6 +71,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - run: rustup update
       - run: cargo fmt --version
       - run: cargo fmt -- --check
 
@@ -78,6 +79,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - run: rustup update
       - run: cargo clippy --version
         # Using --all-targets to also check tests and examples.
         # Note that technically --all-features doesn't check all code when something is *disabled* by a feature.
