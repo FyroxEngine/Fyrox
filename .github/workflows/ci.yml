@@ -10,6 +10,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+      - run: rustup update
       - run: rustc --version && cargo --version
       - name: Build
         run: cargo check --verbose
@@ -22,6 +23,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+      - run: rustup update
       - run: rustc --version && cargo --version
       - name: Build
         run: cargo check --verbose
@@ -37,6 +39,7 @@ jobs:
       - name: Install Dependencies
         run: sudo apt-get install libasound2-dev libudev-dev pkg-config xorg-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev
       - uses: actions/checkout@v2
+      - run: rustup update
       - run: rustc --version && cargo --version
       - name: Build
         run: cargo check --verbose
@@ -51,6 +54,7 @@ jobs:
 
       - name: Install Dependencies
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      - run: rustup update
       - run: rustc --version && cargo --version && wasm-pack --version
       - name: Build
         run: |
