@@ -40,7 +40,7 @@ pub fn handle_mesh_property_changed(
             }
         },
         FieldKind::Inspectable(ref inner) => match args.name.as_ref() {
-            Mesh::BASE => handle_base_property_changed(&inner, handle, node, helper),
+            Mesh::BASE => handle_base_property_changed(inner, handle, node, helper),
             _ => None,
         },
     }

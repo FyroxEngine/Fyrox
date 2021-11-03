@@ -29,7 +29,7 @@ pub fn handle_decal_property_changed(
             _ => None,
         },
         FieldKind::Inspectable(ref inner) => match args.name.as_ref() {
-            Decal::BASE => handle_base_property_changed(&inner, handle, node, helper),
+            Decal::BASE => handle_base_property_changed(inner, handle, node, helper),
             _ => None,
         },
         _ => None,

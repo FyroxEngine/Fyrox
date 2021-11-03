@@ -92,7 +92,7 @@ impl Control for TextureEditor {
                         ui.send_message(ImageMessage::texture(
                             self.image,
                             MessageDirection::ToWidget,
-                            self.texture.clone().map(|t| into_gui_texture(t)),
+                            self.texture.clone().map(into_gui_texture),
                         ));
 
                         ui.send_message(message.reverse());
@@ -136,7 +136,7 @@ impl TextureEditorBuilder {
                         .with_margin(Thickness::uniform(1.0))
                         .with_allow_drop(true),
                 )
-                .with_opt_texture(self.texture.clone().map(|t| into_gui_texture(t)))
+                .with_opt_texture(self.texture.map(into_gui_texture))
                 .build(ctx);
                 image
             })

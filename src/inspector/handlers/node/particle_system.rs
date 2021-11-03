@@ -169,7 +169,7 @@ impl ParticleSystemHandler {
                 },
                 FieldKind::Inspectable(ref inner) => match args.name.as_ref() {
                     ParticleSystem::BASE => {
-                        handle_base_property_changed(&inner, handle, node, helper)
+                        handle_base_property_changed(inner, handle, node, helper)
                     }
                     _ => None,
                 },

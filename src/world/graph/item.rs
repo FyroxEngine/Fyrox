@@ -105,22 +105,20 @@ impl<T: 'static> Control for SceneItem<T> {
         self.tree.handle_routed_message(ui, message);
 
         if let UiMessageData::User(msg) = message.data() {
-            if let Some(msg) = msg.cast::<SceneItemMessage>() {
-                if let SceneItemMessage::Name(name) = msg {
-                    if message.destination() == self.handle() {
-                        self.name_value = format!(
-                            "{} ({}:{})",
-                            name,
-                            self.entity_handle.index(),
-                            self.entity_handle.generation()
-                        );
+            if let Some(SceneItemMessage::Name(name)) = msg.cast::<SceneItemMessage>() {
+                if message.destination() == self.handle() {
+                    self.name_value = format!(
+                        "{} ({}:{})",
+                        name,
+                        self.entity_handle.index(),
+                        self.entity_handle.generation()
+                    );
 
-                        ui.send_message(TextMessage::text(
-                            self.text_name,
-                            MessageDirection::ToWidget,
-                            self.name_value.clone(),
-                        ));
-                    }
+                    ui.send_message(TextMessage::text(
+                        self.text_name,
+                        MessageDirection::ToWidget,
+                        self.name_value.clone(),
+                    ));
                 }
             }
         }

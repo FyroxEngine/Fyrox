@@ -67,9 +67,7 @@ pub fn handle_spatial_source_property_changed(
             _ => None,
         },
         FieldKind::Inspectable(ref inner) => match args.name.as_ref() {
-            SpatialSource::GENERIC => {
-                handle_generic_source_property_changed(&inner, handle, helper)
-            }
+            SpatialSource::GENERIC => handle_generic_source_property_changed(inner, handle, helper),
             _ => None,
         },
         _ => None,

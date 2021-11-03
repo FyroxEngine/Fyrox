@@ -143,18 +143,19 @@ fn tree_node(ui: &UserInterface, tree: Handle<UiNode>) -> Handle<Node> {
 fn colorize(handle: Handle<UiNode>, ui: &UserInterface, index: &mut usize) {
     let node = ui.node(handle);
 
-    if node.cast::<Decorator>().is_some() {
-        if node.parent().is_some() && ui.node(node.parent()).cast::<Button>().is_none() {
-            ui.send_message(DecoratorMessage::normal_brush(
-                handle,
-                MessageDirection::ToWidget,
-                Brush::Solid(if *index % 2 == 0 {
-                    Color::opaque(50, 50, 50)
-                } else {
-                    Color::opaque(60, 60, 60)
-                }),
-            ));
-        }
+    if node.cast::<Decorator>().is_some()
+        && node.parent().is_some()
+        && ui.node(node.parent()).cast::<Button>().is_none()
+    {
+        ui.send_message(DecoratorMessage::normal_brush(
+            handle,
+            MessageDirection::ToWidget,
+            Brush::Solid(if *index % 2 == 0 {
+                Color::opaque(50, 50, 50)
+            } else {
+                Color::opaque(60, 60, 60)
+            }),
+        ));
     }
 
     *index += 1;

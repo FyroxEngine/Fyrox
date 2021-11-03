@@ -29,7 +29,7 @@ pub fn handle_sprite_property_changed(
             _ => None,
         },
         FieldKind::Inspectable(ref inner) => match args.name.as_ref() {
-            Sprite::BASE => handle_base_property_changed(&inner, handle, node, helper),
+            Sprite::BASE => handle_base_property_changed(inner, handle, node, helper),
             _ => None,
         },
         _ => None,

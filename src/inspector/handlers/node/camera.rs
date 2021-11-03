@@ -20,7 +20,7 @@ pub fn handle_camera_property_changed(
             FieldKind::Object(ref value) => match args.name.as_ref() {
                 Camera::EXPOSURE => helper.do_scene_command(SetExposureCommand::new(
                     handle,
-                    value.cast_value::<Exposure>()?.clone(),
+                    *value.cast_value::<Exposure>()?,
                 )),
                 Camera::Z_NEAR => {
                     do_command!(helper, SetZNearCommand, handle, value)
@@ -56,7 +56,7 @@ pub fn handle_camera_property_changed(
                     if let FieldKind::Object(ref value) = inner.value {
                         match inner.name.as_ref() {
                             Exposure::AUTO_KEY_VALUE => {
-                                let mut current_auto_exposure = camera.exposure().clone();
+                                let mut current_auto_exposure = camera.exposure();
                                 if let Exposure::Auto {
                                     ref mut key_value, ..
                                 } = current_auto_exposure
@@ -70,7 +70,7 @@ pub fn handle_camera_property_changed(
                                 ))
                             }
                             Exposure::AUTO_MIN_LUMINANCE => {
-                                let mut current_auto_exposure = camera.exposure().clone();
+                                let mut current_auto_exposure = camera.exposure();
                                 if let Exposure::Auto {
                                     ref mut min_luminance,
                                     ..
@@ -85,7 +85,7 @@ pub fn handle_camera_property_changed(
                                 ))
                             }
                             Exposure::AUTO_MAX_LUMINANCE => {
-                                let mut current_auto_exposure = camera.exposure().clone();
+                                let mut current_auto_exposure = camera.exposure();
                                 if let Exposure::Auto {
                                     ref mut max_luminance,
                                     ..

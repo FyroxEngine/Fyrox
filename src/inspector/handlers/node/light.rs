@@ -36,7 +36,7 @@ pub fn handle_base_light_property_changed(
             _ => None,
         },
         FieldKind::Inspectable(ref inner) => match args.name.as_ref() {
-            BaseLight::BASE => handle_base_property_changed(&inner, handle, node, helper),
+            BaseLight::BASE => handle_base_property_changed(inner, handle, node, helper),
             _ => None,
         },
         _ => None,

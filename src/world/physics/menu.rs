@@ -170,12 +170,10 @@ impl RigidBodyContextMenu {
                     let rigid_body_handle = rigid_body_view_ref.entity_handle;
 
                     if message.destination() == self.delete {
-                        let mut group = Vec::new();
-
-                        group.push(SceneCommand::new(ChangeSelectionCommand::new(
+                        let mut group = vec![SceneCommand::new(ChangeSelectionCommand::new(
                             Selection::None,
                             editor_scene.selection.clone(),
-                        )));
+                        ))];
 
                         for collider in editor_scene.physics.bodies[rigid_body_handle]
                             .colliders
