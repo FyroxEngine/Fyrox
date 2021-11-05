@@ -68,10 +68,19 @@ unsafe fn create_shader(
             error_message: compilation_message,
         })
     } else {
-        Log::writeln(
-            MessageKind::Information,
-            format!("Shader {} compiled!\n{}", name, compilation_message),
-        );
+        let msg = if compilation_message.is_empty()
+            || compilation_message.chars().all(|c| c.is_whitespace())
+        {
+            format!("Shader {} compiled successfully!", name)
+        } else {
+            format!(
+                "Shader {} compiled successfully!\nAdditional info: {}",
+                name, compilation_message
+            )
+        };
+
+        Log::writeln(MessageKind::Information, msg);
+
         Ok(shader)
     }
 }
@@ -446,10 +455,18 @@ impl GpuProgram {
                     error_message: link_message,
                 })
             } else {
-                Log::writeln(
-                    MessageKind::Information,
-                    format!("Shader {} linked!\n{}", name, link_message),
-                );
+                let msg =
+                    if link_message.is_empty() || link_message.chars().all(|c| c.is_whitespace()) {
+                        format!("Shader {} linked successfully!", name)
+                    } else {
+                        format!(
+                            "Shader {} linked successfully!\nAdditional info: {}",
+                            name, link_message
+                        )
+                    };
+
+                Log::writeln(MessageKind::Information, msg);
+
                 Ok(Self {
                     state,
                     id: program,
