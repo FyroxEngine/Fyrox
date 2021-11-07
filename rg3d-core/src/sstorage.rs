@@ -38,7 +38,8 @@ impl Display for ImmutableString {
 impl Visit for ImmutableString {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         // Serialize/deserialize as ordinary string.
-        self.0.visit(name, visitor)?;
+        let mut string = self.0.deref().clone();
+        string.visit(name, visitor)?;
 
         // Deduplicate on deserialization.
         if visitor.is_reading() {
