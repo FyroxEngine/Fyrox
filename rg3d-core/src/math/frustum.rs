@@ -115,6 +115,20 @@ impl Frustum {
     }
 
     #[inline]
+    pub fn corners(&self) -> [Vector3<f32>; 8] {
+        [
+            self.left_top_front_corner(),
+            self.left_bottom_front_corner(),
+            self.right_bottom_front_corner(),
+            self.right_top_front_corner(),
+            self.left_top_back_corner(),
+            self.left_bottom_back_corner(),
+            self.right_bottom_back_corner(),
+            self.right_top_back_corner(),
+        ]
+    }
+
+    #[inline]
     pub fn is_intersects_point_cloud(&self, points: &[Vector3<f32>]) -> bool {
         for plane in self.planes.iter() {
             let mut back_points = 0;
