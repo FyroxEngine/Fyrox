@@ -145,11 +145,12 @@ impl Physics {
         &self,
         binder: &PhysicsBinder<Node, RigidBodyHandle>,
         graph: &Graph,
+        old_to_new_mapping: Option<&HashMap<Handle<Node>, Handle<Node>>>,
     ) -> Self {
         let mut phys = Self::new();
         phys.embedded_resources = self.embedded_resources.clone();
         phys.desc = Some(self.generate_desc());
-        phys.resolve(binder, graph);
+        phys.resolve(binder, graph, old_to_new_mapping);
         phys
     }
 
@@ -467,12 +468,20 @@ impl Physics {
         &mut self,
         binder: &PhysicsBinder<Node, RigidBodyHandle>,
         graph: &Graph,
+        old_to_new_mapping: Option<&HashMap<Handle<Node>, Handle<Node>>>,
     ) {
         assert_eq!(self.bodies.len(), 0);
         assert_eq!(self.colliders.len(), 0);
         assert_eq!(self.joints.len(), 0);
 
         let mut phys_desc = self.desc.take().unwrap();
+
+        assert_eq!(phys_desc.bodies.len(), phys_desc.body_handle_map.len());
+        assert_eq!(
+            dbg!(phys_desc.colliders.len()),
+            dbg!(phys_desc.collider_handle_map.len())
+        );
+        assert_eq!(phys_desc.joints.len(), phys_desc.joint_handle_map.len());
 
         self.integration_parameters = phys_desc.integration_parameters.into();
 
@@ -489,7 +498,13 @@ impl Physics {
                 ColliderShapeDesc::Trimesh(_) => {
                     // Trimeshes are special: we never store data for them, but only getting correct
                     // one from associated mesh in the scene.
-                    if let Some(associated_node) = binder.node_of(desc.parent) {
+                    if let Some(mut associated_node) = binder.node_of(desc.parent) {
+                        if let Some(old_to_new_mapping) = old_to_new_mapping {
+                            associated_node = *old_to_new_mapping
+                                .get(&associated_node)
+                                .expect("Old to new mapping must have corresponding node!");
+                        }
+
                         if graph.is_valid_handle(associated_node) {
                             // Restore data only for trimeshes.
                             let collider =
@@ -527,7 +542,13 @@ impl Physics {
                 ColliderShapeDesc::Heightfield(_) => {
                     // Height fields are special: we never store data for them, but only getting correct
                     // one from associated terrain in the scene.
-                    if let Some(associated_node) = binder.node_of(desc.parent) {
+                    if let Some(mut associated_node) = binder.node_of(desc.parent) {
+                        if let Some(old_to_new_mapping) = old_to_new_mapping {
+                            associated_node = *old_to_new_mapping
+                                .get(&associated_node)
+                                .expect("Old to new mapping must have corresponding node!");
+                        }
+
                         if graph.is_valid_handle(associated_node) {
                             if let Node::Terrain(_) = &graph[associated_node] {
                                 let collider =

@@ -462,7 +462,8 @@ impl Scene {
         self.animations.resolve(&self.graph);
 
         self.graph.update_hierarchical_data();
-        self.physics.resolve(&self.physics_binder, &self.graph);
+        self.physics
+            .resolve(&self.physics_binder, &self.graph, None);
 
         // Re-apply lightmap if any. This has to be done after resolve because we must patch surface
         // data at this stage, but if we'd do this before we wouldn't be able to do this because
@@ -633,7 +634,9 @@ impl Scene {
             }
         }
         // It is ok to use old binder here, because handles maps one-to-one.
-        let physics = self.physics.deep_copy(&self.physics_binder, &graph);
+        let physics = self
+            .physics
+            .deep_copy(&self.physics_binder, &graph, Some(&old_new_map));
         let mut physics_binder = PhysicsBinder::default();
         for (node, &body) in self.physics_binder.forward_map().iter() {
             // Make sure we bind existing node with new physical body.
