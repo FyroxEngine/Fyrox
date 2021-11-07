@@ -34,17 +34,13 @@ pub mod world;
 
 use crate::{
     asset::{AssetBrowser, AssetItem, AssetKind},
-    camera::CameraController,
     command::{panel::CommandStackViewer, Command, CommandStack},
     configurator::Configurator,
     gui::make_dropdown_list_option,
     inspector::Inspector,
     interaction::{
         move_mode::MoveInteractionMode,
-        navmesh::{
-            data_model::{Navmesh, NavmeshTriangle, NavmeshVertex},
-            EditNavmeshMode, NavmeshPanel,
-        },
+        navmesh::{EditNavmeshMode, NavmeshPanel},
         rotate_mode::RotateInteractionMode,
         scale_mode::ScaleInteractionMode,
         select_mode::SelectInteractionMode,
@@ -77,7 +73,7 @@ use rg3d::{
         color::Color,
         math::aabb::AxisAlignedBoundingBox,
         parking_lot::Mutex,
-        pool::{Handle, Pool},
+        pool::Handle,
         scope_profile,
     },
     dpi::LogicalSize,
@@ -115,7 +111,6 @@ use rg3d::{
     material::{Material, PropertyValue},
     resource::texture::{CompressionOptions, Texture, TextureKind, TextureState},
     scene::{
-        base::BaseBuilder,
         debug::{Line, SceneDrawingContext},
         graph::Graph,
         mesh::{
@@ -1065,44 +1060,7 @@ impl Editor {
             Some(into_gui_texture(scene.render_target.clone().unwrap())),
         ));
 
-        let root = BaseBuilder::new().build(&mut scene.graph);
-
-        let graph = &mut scene.graph;
-        let camera_controller = CameraController::new(graph, root);
-
-        let mut navmeshes = Pool::new();
-
-        for navmesh in scene.navmeshes.iter() {
-            let _ = navmeshes.spawn(Navmesh {
-                vertices: navmesh
-                    .vertices()
-                    .iter()
-                    .map(|vertex| NavmeshVertex {
-                        position: vertex.position,
-                    })
-                    .collect(),
-                triangles: navmesh
-                    .triangles()
-                    .iter()
-                    .map(|triangle| NavmeshTriangle {
-                        a: Handle::new(triangle[0], 1),
-                        b: Handle::new(triangle[1], 1),
-                        c: Handle::new(triangle[2], 1),
-                    })
-                    .collect(),
-            });
-        }
-
-        let editor_scene = EditorScene {
-            path: path.clone(),
-            root,
-            camera_controller,
-            physics: Physics::new(&scene),
-            navmeshes,
-            scene: engine.scenes.add(scene),
-            selection: Default::default(),
-            clipboard: Default::default(),
-        };
+        let editor_scene = EditorScene::from_native_scene(scene, engine, path.clone());
 
         for mut interaction_mode in self.interaction_modes.drain(..) {
             interaction_mode.on_drop(engine);

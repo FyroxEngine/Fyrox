@@ -1,3 +1,4 @@
+use crate::interaction::navmesh::data_model::{NavmeshTriangle, NavmeshVertex};
 use crate::world::physics::selection::ColliderSelection;
 use crate::{
     camera::CameraController,
@@ -11,6 +12,8 @@ use crate::{
     },
     GameEngine,
 };
+use rg3d::engine::Engine;
+use rg3d::scene::base::BaseBuilder;
 use rg3d::{
     core::{
         pool::{Handle, Pool},
@@ -40,7 +43,61 @@ pub struct EditorScene {
     pub navmeshes: Pool<Navmesh>,
 }
 
+fn convert_physics(scene: &mut Scene) -> Physics {
+    let physics = Physics::new(&scene);
+
+    // Once we've converted physics to editor's representation, we need to clear
+    // physics of the scene, this is needed because when saving, the native physics will
+    // be regenerated from editor's representation and having native physics and editor's
+    // at the same time is incorrect.
+    scene.physics = Default::default();
+    scene.physics_binder = Default::default();
+
+    physics
+}
+
 impl EditorScene {
+    pub fn from_native_scene(mut scene: Scene, engine: &mut Engine, path: Option<PathBuf>) -> Self {
+        let physics = convert_physics(&mut scene);
+
+        let root = BaseBuilder::new().build(&mut scene.graph);
+        let camera_controller = CameraController::new(&mut scene.graph, root);
+
+        let mut navmeshes = Pool::new();
+
+        for navmesh in scene.navmeshes.iter() {
+            let _ = navmeshes.spawn(Navmesh {
+                vertices: navmesh
+                    .vertices()
+                    .iter()
+                    .map(|vertex| NavmeshVertex {
+                        position: vertex.position,
+                    })
+                    .collect(),
+                triangles: navmesh
+                    .triangles()
+                    .iter()
+                    .map(|triangle| NavmeshTriangle {
+                        a: Handle::new(triangle[0], 1),
+                        b: Handle::new(triangle[1], 1),
+                        c: Handle::new(triangle[2], 1),
+                    })
+                    .collect(),
+            });
+        }
+
+        EditorScene {
+            path,
+            root,
+            camera_controller,
+            physics,
+            navmeshes,
+            scene: engine.scenes.add(scene),
+            selection: Default::default(),
+            clipboard: Default::default(),
+        }
+    }
+
     pub fn save(&mut self, path: PathBuf, engine: &mut GameEngine) -> Result<String, String> {
         let scene = &mut engine.scenes[self.scene];
 
