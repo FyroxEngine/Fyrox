@@ -1,8 +1,10 @@
-use crate::core::sstorage::ImmutableString;
-use crate::renderer::framework::{
-    error::FrameworkError,
-    gpu_program::{GpuProgram, UniformLocation},
-    state::PipelineState,
+use crate::{
+    core::sstorage::ImmutableString,
+    renderer::framework::{
+        error::FrameworkError,
+        gpu_program::{GpuProgram, UniformLocation},
+        state::PipelineState,
+    },
 };
 
 pub struct DirectionalLightShader {
@@ -17,6 +19,12 @@ pub struct DirectionalLightShader {
     pub inv_view_proj_matrix: UniformLocation,
     pub camera_position: UniformLocation,
     pub light_intensity: UniformLocation,
+    pub cascade_distances: UniformLocation,
+    pub shadow_cascade0: UniformLocation,
+    pub shadow_cascade1: UniformLocation,
+    pub shadow_cascade2: UniformLocation,
+    pub light_view_proj_matrices: UniformLocation,
+    pub view_matrix: UniformLocation,
 }
 
 impl DirectionalLightShader {
@@ -49,6 +57,17 @@ impl DirectionalLightShader {
                 .uniform_location(state, &ImmutableString::new("cameraPosition"))?,
             light_intensity: program
                 .uniform_location(state, &ImmutableString::new("lightIntensity"))?,
+            cascade_distances: program
+                .uniform_location(state, &ImmutableString::new("cascadeDistances"))?,
+            shadow_cascade0: program
+                .uniform_location(state, &ImmutableString::new("shadowCascade0"))?,
+            shadow_cascade1: program
+                .uniform_location(state, &ImmutableString::new("shadowCascade1"))?,
+            shadow_cascade2: program
+                .uniform_location(state, &ImmutableString::new("shadowCascade2"))?,
+            light_view_proj_matrices: program
+                .uniform_location(state, &ImmutableString::new("lightViewProjMatrices"))?,
+            view_matrix: program.uniform_location(state, &ImmutableString::new("viewMatrix"))?,
             program,
         })
     }

@@ -8,9 +8,29 @@ uniform vec4 lightColor;
 uniform mat4 invViewProj;
 uniform vec3 cameraPosition;
 uniform float lightIntensity;
+uniform mat4 viewMatrix;
+
+#define NUM_CASCADES 3
+
+uniform float cascadeDistances[NUM_CASCADES];
+uniform mat4 lightViewProjMatrices[NUM_CASCADES];
+
+uniform sampler2D shadowCascade0;
+uniform sampler2D shadowCascade1;
+uniform sampler2D shadowCascade2;
 
 in vec2 texCoord;
 out vec4 FragColor;
+
+float CsmGetShadow(in sampler2D sampler, in vec3 fragmentPosition, in mat4 lightViewProjMatrix) {
+    vec3 lightSpacePosition = S_Project(fragmentPosition, lightViewProjMatrix);
+
+    if (lightSpacePosition.z - 0.001 > texture(sampler, lightSpacePosition.xy).r) {
+        return 0.0;
+    } else {
+        return 1.0;
+    }
+}
 
 void main()
 {
@@ -29,5 +49,20 @@ void main()
 
     vec3 lighting = S_PBR_CalculateLight(ctx);
 
-    FragColor = vec4(lightIntensity * lighting, 1.0);
+    float fragmentZViewSpace = abs((viewMatrix * vec4(fragmentPosition, 1.0)).z);
+
+    vec4 cascadeDebug = vec4(1.0);
+    float shadow = 1.0;
+    if (fragmentZViewSpace <= cascadeDistances[0]) {
+        shadow = CsmGetShadow(shadowCascade0, fragmentPosition, lightViewProjMatrices[0]);
+       // cascadeDebug = vec4(1.0, 0.0, 0.0, 1.0);
+    } else if (fragmentZViewSpace <= cascadeDistances[1]) {
+        shadow = CsmGetShadow(shadowCascade1, fragmentPosition, lightViewProjMatrices[1]);
+       // cascadeDebug = vec4(0.0, 1.0, 0.0, 1.0);
+    } else if (fragmentZViewSpace <= cascadeDistances[2]) {
+        shadow = CsmGetShadow(shadowCascade2, fragmentPosition, lightViewProjMatrices[2]);
+       // cascadeDebug = vec4(0.0, 0.0, 1.0, 1.0);
+    }
+
+    FragColor = cascadeDebug * shadow * vec4(lightIntensity * lighting, 1.0);
 }

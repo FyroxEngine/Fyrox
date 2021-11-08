@@ -3,6 +3,7 @@
 use crate::core::math::frustum::Frustum;
 use crate::scene::node::Node;
 
+pub mod csm;
 pub mod point;
 pub mod spot;
 

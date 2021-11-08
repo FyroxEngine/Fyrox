@@ -296,6 +296,57 @@
                 "#,
         ),
         (
+            name: "DirectionalShadow",
+
+            draw_parameters: DrawParameters (
+                cull_face: Some(Back),
+                color_write: ColorMask(
+                    red: false,
+                    green: false,
+                    blue: false,
+                    alpha: false,
+                ),
+                depth_write: true,
+                stencil_test: None,
+                depth_test: true,
+                blend: None,
+                stencil_op: StencilOp(
+                    fail: Keep,
+                    zfail: Keep,
+                    zpass: Keep,
+                    write_mask: 0xFFFF_FFFF,
+                ),
+            ),
+
+            vertex_shader:
+                r#"
+                layout(location = 0) in vec3 vertexPosition;
+                layout(location = 1) in vec2 vertexTexCoord;
+
+                uniform mat4 rg3d_worldViewProjection;
+
+                out vec2 texCoord;
+
+                void main()
+                {
+                    gl_Position = rg3d_worldViewProjection * vec4(vertexPosition, 1.0);
+                    texCoord = vertexTexCoord;
+                }
+                "#,
+
+            fragment_shader:
+                r#"
+                uniform sampler2D diffuseTexture;
+
+                in vec2 texCoord;
+
+                void main()
+                {
+                    if (texture(diffuseTexture, texCoord).a < 0.2) discard;
+                }
+                "#,
+        ),
+        (
             name: "PointShadow",
 
             draw_parameters: DrawParameters (

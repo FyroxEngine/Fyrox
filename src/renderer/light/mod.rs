@@ -1,3 +1,4 @@
+use crate::renderer::shadow::csm::CsmRenderContext;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3},
@@ -25,6 +26,7 @@ use crate::{
         },
         light_volume::LightVolumeRenderer,
         shadow::{
+            csm::CsmRenderer,
             point::{PointShadowMapRenderContext, PointShadowMapRenderer},
             spot::SpotShadowMapRenderer,
         },
@@ -60,6 +62,7 @@ pub mod spot;
 pub struct LightingStatistics {
     pub point_lights_rendered: usize,
     pub point_shadow_maps_rendered: usize,
+    pub csm_rendered: usize,
     pub spot_lights_rendered: usize,
     pub spot_shadow_maps_rendered: usize,
     pub directional_lights_rendered: usize,
@@ -72,6 +75,7 @@ impl AddAssign for LightingStatistics {
         self.spot_lights_rendered += rhs.spot_lights_rendered;
         self.spot_shadow_maps_rendered += rhs.spot_shadow_maps_rendered;
         self.directional_lights_rendered += rhs.directional_lights_rendered;
+        self.csm_rendered += rhs.csm_rendered;
     }
 }
 
@@ -84,12 +88,14 @@ impl Display for LightingStatistics {
             \tSpot Lights: {}\n\
             \tDirectional Lights: {}\n\
             \tPoint Shadow Maps: {}\n\
-            \tSpot Shadow Maps: {}",
+            \tSpot Shadow Maps: {}\n\
+            \tSpot Shadow Maps: {}\n",
             self.point_lights_rendered,
             self.spot_lights_rendered,
             self.directional_lights_rendered,
             self.point_shadow_maps_rendered,
             self.spot_shadow_maps_rendered,
+            self.csm_rendered
         )
     }
 }
@@ -107,6 +113,7 @@ pub struct DeferredLightRenderer {
     skybox_shader: SkyboxShader,
     spot_shadow_map_renderer: SpotShadowMapRenderer,
     point_shadow_map_renderer: PointShadowMapRenderer,
+    csm_renderer: CsmRenderer,
     light_volume: LightVolumeRenderer,
 }
 
@@ -214,6 +221,8 @@ impl DeferredLightRenderer {
             },
         ];
 
+        let quality_defaults = QualitySettings::default();
+
         Ok(Self {
             ssao_renderer: ScreenSpaceAmbientOcclusionRenderer::new(
                 state,
@@ -249,14 +258,19 @@ impl DeferredLightRenderer {
             spot_shadow_map_renderer: SpotShadowMapRenderer::new(
                 state,
                 settings.spot_shadow_map_size,
-                QualitySettings::default().spot_shadow_map_precision,
+                quality_defaults.spot_shadow_map_precision,
             )?,
             point_shadow_map_renderer: PointShadowMapRenderer::new(
                 state,
                 settings.point_shadow_map_size,
-                QualitySettings::default().point_shadow_map_precision,
+                quality_defaults.point_shadow_map_precision,
             )?,
             light_volume: LightVolumeRenderer::new(state)?,
+            csm_renderer: CsmRenderer::new(
+                state,
+                quality_defaults.csm_settings.size,
+                quality_defaults.csm_settings.precision,
+            )?,
         })
     }
 
@@ -281,6 +295,15 @@ impl DeferredLightRenderer {
                 state,
                 settings.point_shadow_map_size,
                 settings.point_shadow_map_precision,
+            )?;
+        }
+        if settings.csm_settings.precision != self.csm_renderer.precision()
+            || settings.csm_settings.size != self.csm_renderer.size()
+        {
+            self.csm_renderer = CsmRenderer::new(
+                state,
+                settings.csm_settings.size,
+                settings.csm_settings.precision,
             )?;
         }
         self.ssao_renderer.set_radius(settings.ssao_radius);
@@ -565,8 +588,21 @@ impl DeferredLightRenderer {
 
                         true
                     }
-                    Light::Directional(_) => {
-                        // TODO: Add cascaded shadow map.
+                    Light::Directional(directional) => {
+                        pass_stats += self.csm_renderer.render(CsmRenderContext {
+                            aspect: viewport.w() as f32 / viewport.h() as f32,
+                            state,
+                            graph: &scene.graph,
+                            light: directional,
+                            camera,
+                            geom_cache: geometry_cache,
+                            batch_storage,
+                            shader_cache,
+                            texture_cache: textures,
+                            normal_dummy: normal_dummy.clone(),
+                            white_dummy: white_dummy.clone(),
+                            black_dummy: black_dummy.clone(),
+                        });
                         false
                     }
                     _ => false,
@@ -779,6 +815,17 @@ impl DeferredLightRenderer {
                             stencil_op: Default::default(),
                         },
                         |mut program_binding| {
+                            let distances = [
+                                self.csm_renderer.cascades()[0].z_far,
+                                self.csm_renderer.cascades()[1].z_far,
+                                self.csm_renderer.cascades()[2].z_far,
+                            ];
+                            let matrices = [
+                                self.csm_renderer.cascades()[0].view_proj_matrix,
+                                self.csm_renderer.cascades()[1].view_proj_matrix,
+                                self.csm_renderer.cascades()[2].view_proj_matrix,
+                            ];
+
                             program_binding
                                 .set_vector3(&shader.light_direction, &emit_direction)
                                 .set_matrix4(&shader.inv_view_proj_matrix, &inv_view_projection)
@@ -789,7 +836,22 @@ impl DeferredLightRenderer {
                                 .set_texture(&shader.depth_sampler, &gbuffer_depth_map)
                                 .set_texture(&shader.color_sampler, &gbuffer_diffuse_map)
                                 .set_texture(&shader.normal_sampler, &gbuffer_normal_map)
-                                .set_texture(&shader.material_sampler, &gbuffer_material_map);
+                                .set_texture(&shader.material_sampler, &gbuffer_material_map)
+                                .set_matrix4_array(&shader.light_view_proj_matrices, &matrices)
+                                .set_texture(
+                                    &shader.shadow_cascade0,
+                                    &self.csm_renderer.cascades()[0].texture(),
+                                )
+                                .set_texture(
+                                    &shader.shadow_cascade1,
+                                    &self.csm_renderer.cascades()[1].texture(),
+                                )
+                                .set_texture(
+                                    &shader.shadow_cascade2,
+                                    &self.csm_renderer.cascades()[2].texture(),
+                                )
+                                .set_f32_slice(&shader.cascade_distances, &distances)
+                                .set_matrix4(&shader.view_matrix, &camera.view_matrix());
                         },
                     )
                 }

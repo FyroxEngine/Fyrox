@@ -183,6 +183,34 @@ pub enum ShadowMapPrecision {
     Full,
 }
 
+/// Cascaded-shadow maps settings.
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CsmSettings {
+    /// Whether cascaded shadow maps enabled or not.
+    pub enabled: bool,
+
+    /// Size of texture for each cascade.
+    pub size: usize,
+
+    /// Bit-wise precision for each cascade, the lower precision the better performance is,
+    /// but the more artifacts may occur.
+    pub precision: ShadowMapPrecision,
+
+    /// Whether to use Percentage-Closer Filtering or not.
+    pub pcf: bool,
+}
+
+impl Default for CsmSettings {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            size: 2048,
+            precision: ShadowMapPrecision::Full,
+            pcf: true,
+        }
+    }
+}
+
 /// Quality settings allows you to find optimal balance between performance and
 /// graphics quality.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
@@ -212,6 +240,9 @@ pub struct QualitySettings {
     /// Spot shadow map precision. Allows you to select compromise between
     /// quality and performance.
     pub spot_shadow_map_precision: ShadowMapPrecision,
+
+    /// Cascaded-shadow maps settings.
+    pub csm_settings: CsmSettings,
 
     /// Whether to use screen space ambient occlusion or not.
     pub use_ssao: bool,
@@ -266,6 +297,8 @@ impl QualitySettings {
             use_bloom: true,
 
             use_parallax_mapping: false, // TODO: Enable when it is fixed!
+
+            csm_settings: Default::default(),
         }
     }
 
@@ -295,6 +328,13 @@ impl QualitySettings {
             use_bloom: true,
 
             use_parallax_mapping: false, // TODO: Enable when it is fixed!
+
+            csm_settings: CsmSettings {
+                enabled: true,
+                size: 1024,
+                precision: ShadowMapPrecision::Full,
+                pcf: true,
+            },
         }
     }
 
@@ -324,6 +364,13 @@ impl QualitySettings {
             use_bloom: true,
 
             use_parallax_mapping: false,
+
+            csm_settings: CsmSettings {
+                enabled: true,
+                size: 512,
+                precision: ShadowMapPrecision::Full,
+                pcf: false,
+            },
         }
     }
 
@@ -353,6 +400,13 @@ impl QualitySettings {
             use_bloom: false,
 
             use_parallax_mapping: false,
+
+            csm_settings: CsmSettings {
+                enabled: true,
+                size: 512,
+                precision: ShadowMapPrecision::Half,
+                pcf: false,
+            },
         }
     }
 }
