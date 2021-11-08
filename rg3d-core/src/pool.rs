@@ -888,6 +888,8 @@ impl<T> Pool<T> {
 
     /// Returns exact amount of "alive" objects in pool.
     ///
+    /// It iterates through the entire pool to count the live objects so the complexity is `O(n)`.
+    ///
     /// # Example
     ///
     /// ```
