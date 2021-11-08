@@ -331,7 +331,7 @@ impl QualitySettings {
 
             csm_settings: CsmSettings {
                 enabled: true,
-                size: 1024,
+                size: 2048,
                 precision: ShadowMapPrecision::Full,
                 pcf: true,
             },

@@ -107,6 +107,11 @@ pub(in crate) struct CsmRenderContext<'a, 'c> {
     pub black_dummy: Rc<RefCell<GpuTexture>>,
 }
 
+fn calc_z_i(n: f32, f: f32, i: usize, l: f32) -> f32 {
+    let k = i as f32 / NUM_CASCADES as f32;
+    l * n * (f / n).powf(k) + (1.0 - l) * (n + k * (f - n))
+}
+
 impl CsmRenderer {
     pub fn new(
         state: &mut PipelineState,
@@ -172,10 +177,8 @@ impl CsmRenderer {
         );
 
         for i in 0..NUM_CASCADES {
-            let z_range = camera.z_far() - camera.z_near();
-
-            let znear = camera.z_near() + (i as f32 / NUM_CASCADES as f32) * z_range;
-            let zfar = camera.z_near() + ((i + 1) as f32 / NUM_CASCADES as f32) * z_range;
+            let znear = calc_z_i(camera.z_near(), camera.z_far(), i, 0.5);
+            let zfar = calc_z_i(camera.z_near(), camera.z_far(), i + 1, 0.5);
 
             let perspective_proj = Matrix4::new_perspective(aspect, camera.fov(), znear, zfar);
 
@@ -191,7 +194,7 @@ impl CsmRenderer {
             }
 
             // TODO: For some reason this coefficient is crucial, without it CSM bugs when cascades
-            // don't overlap. Investigate why this is needed.
+            // don't overlap for some frustum orientations. Investigate why this is needed.
             const CASCADE_Z_OVERLAP: f32 = 10.0;
 
             let projection_matrix = Matrix4::new_orthographic(
@@ -199,7 +202,7 @@ impl CsmRenderer {
                 aabb.max.x,
                 aabb.min.y,
                 aabb.max.y,
-                aabb.min.z - CASCADE_Z_OVERLAP,
+                aabb.min.z,
                 aabb.max.z + CASCADE_Z_OVERLAP,
             );
 
