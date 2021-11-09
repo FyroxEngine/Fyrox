@@ -29,9 +29,9 @@ pub use winit::*;
 
 /// Core data structures and algorithms used throughout rg3d. Re-exported from the [rg3d_core](https://docs.rs/rg3d_core/*/rg3d_core/) crate.
 pub mod core { pub use ::rg3d_core::*; }
-/// Physics for 2D scenes using the Rapier physics engine. Re-exported from the rg3d_physics2d crate.
+/// Physics for 2D scenes using the Rapier physics engine. Re-exported from the [rg3d_physics2d](https://docs.rs/rg3d_physics2d/*/rg3d_physics2d/) crate.
 pub mod physics2d { pub use rg3d_physics2d::*; }
-/// Physics for 3D scenes using the Rapier physics engine. Re-exported from the rg3d_physics3d crate.
+/// Physics for 3D scenes using the Rapier physics engine. Re-exported from the [rg3d_physics3d](https://docs.rs/rg3d_physics3d/*/rg3d_physics3d/) crate.
 pub mod physics3d { pub use rg3d_physics3d::*; }
 /// Resource management. Re-exported from the [rg3d_resource](https://docs.rs/rg3d_resource/*/rg3d_resource/) crate.
 pub mod asset { pub use rg3d_resource::*; }
