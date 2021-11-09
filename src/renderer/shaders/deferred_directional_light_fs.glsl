@@ -51,18 +51,14 @@ void main()
 
     float fragmentZViewSpace = abs((viewMatrix * vec4(fragmentPosition, 1.0)).z);
 
-    vec4 cascadeDebug = vec4(1.0);
     float shadow = 1.0;
     if (fragmentZViewSpace <= cascadeDistances[0]) {
         shadow = CsmGetShadow(shadowCascade0, fragmentPosition, lightViewProjMatrices[0]);
-       // cascadeDebug = vec4(1.0, 0.0, 0.0, 1.0);
     } else if (fragmentZViewSpace <= cascadeDistances[1]) {
         shadow = CsmGetShadow(shadowCascade1, fragmentPosition, lightViewProjMatrices[1]);
-       // cascadeDebug = vec4(0.0, 1.0, 0.0, 1.0);
     } else if (fragmentZViewSpace <= cascadeDistances[2]) {
         shadow = CsmGetShadow(shadowCascade2, fragmentPosition, lightViewProjMatrices[2]);
-       // cascadeDebug = vec4(0.0, 0.0, 1.0, 1.0);
     }
 
-    FragColor = cascadeDebug * shadow * vec4(lightIntensity * lighting, 1.0);
+    FragColor = shadow * vec4(lightIntensity * lighting, 1.0);
 }

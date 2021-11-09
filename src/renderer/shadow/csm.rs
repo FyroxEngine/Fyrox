@@ -19,7 +19,12 @@ use crate::{
         },
         MaterialContext, RenderPassStatistics, ShadowMapPrecision,
     },
-    scene::{camera::Camera, graph::Graph, light::directional::DirectionalLight, node::Node},
+    scene::{
+        camera::Camera,
+        graph::Graph,
+        light::directional::{DirectionalLight, FrustumSplitOptions, CSM_NUM_CASCADES},
+        node::Node,
+    },
 };
 use std::{cell::RefCell, rc::Rc};
 
@@ -81,10 +86,8 @@ impl Cascade {
     }
 }
 
-const NUM_CASCADES: usize = 3;
-
 pub struct CsmRenderer {
-    cascades: [Cascade; NUM_CASCADES],
+    cascades: [Cascade; CSM_NUM_CASCADES],
     size: usize,
     precision: ShadowMapPrecision,
     render_pass_name: ImmutableString,
@@ -103,11 +106,6 @@ pub(in crate) struct CsmRenderContext<'a, 'c> {
     pub normal_dummy: Rc<RefCell<GpuTexture>>,
     pub white_dummy: Rc<RefCell<GpuTexture>>,
     pub black_dummy: Rc<RefCell<GpuTexture>>,
-}
-
-fn calc_z_i(near: f32, far: f32, i: usize, l: f32) -> f32 {
-    let k = i as f32 / NUM_CASCADES as f32;
-    l * near * (far / near).powf(k) + (1.0 - l) * (near + k * (far - near))
 }
 
 impl CsmRenderer {
@@ -174,9 +172,21 @@ impl CsmRenderer {
             &light_up_vec,
         );
 
-        for i in 0..NUM_CASCADES {
-            let znear = calc_z_i(camera.z_near(), camera.z_far(), i, 0.5);
-            let zfar = calc_z_i(camera.z_near(), camera.z_far(), i + 1, 0.5);
+        let z_values = match light.csm_options.split_options {
+            FrustumSplitOptions::Absolute { far_planes } => {
+                [camera.z_near(), far_planes[0], far_planes[1], far_planes[2]]
+            }
+            FrustumSplitOptions::Relative { fractions } => [
+                camera.z_near(),
+                camera.z_far() * fractions[0],
+                camera.z_far() * fractions[1],
+                camera.z_far() * fractions[2],
+            ],
+        };
+
+        for i in 0..CSM_NUM_CASCADES {
+            let znear = z_values[i];
+            let zfar = z_values[i + 1];
 
             let perspective_proj = Matrix4::new_perspective(aspect, camera.fov(), znear, zfar);
 

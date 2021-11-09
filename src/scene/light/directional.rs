@@ -21,15 +21,66 @@ use crate::{
 };
 use std::ops::{Deref, DerefMut};
 
+/// Maximum amount of cascades.
+pub const CSM_NUM_CASCADES: usize = 3;
+
+/// Frustum split options defines how to split camera's frustum to generate cascades.
+#[derive(Inspect, Clone, Visit, Debug)]
+pub enum FrustumSplitOptions {
+    /// Camera frustum will be split into a [`CSM_NUM_CASCADES`] splits where each sub-frustum
+    /// will have fixed far plane location.
+    ///
+    /// This option allows you to set far planes very precisely, thus allowing you to set desired
+    /// quality of each cascade.
+    ///
+    /// This is default option.
+    Absolute {
+        /// A fixed set of distances, where each distance sets the location of far plane of
+        /// of sub-frustum. If far plane exceeds far plane of current camera, then cascade will
+        /// be discarded and won't be used for rendering.
+        far_planes: [f32; CSM_NUM_CASCADES],
+    },
+    /// Camera frustum will be split into a [`CSM_NUM_CASCADES`] splits using provided fractions.
+    ///
+    /// This option might give lesser quality results with camera that have large far plane, however
+    /// it does not require any precise tweaking.
+    Relative {
+        /// A fixed set of fractions in `[0; 1]` range which defines how far the far plane of
+        /// sub-frustum will be relative to camera's frustum.
+        fractions: [f32; CSM_NUM_CASCADES],
+    },
+}
+
+impl Default for FrustumSplitOptions {
+    fn default() -> Self {
+        Self::Absolute {
+            far_planes: [5.0, 25.0, 64.0],
+        }
+    }
+}
+
+/// Cascade Shadow Mapping (CSM) options.
+#[derive(Inspect, Clone, Visit, Default, Debug)]
+pub struct CsmOptions {
+    /// See [`FrustumSplitOptions`].
+    pub split_options: FrustumSplitOptions,
+}
+
 /// See module docs.
-#[derive(Default, Debug, Inspect)]
+#[derive(Default, Debug, Visit, Inspect)]
 pub struct DirectionalLight {
     base_light: BaseLight,
+    /// See [`CsmOptions`].
+    #[visit(optional)] // Backward compatibility
+    pub csm_options: CsmOptions,
 }
 
 impl From<BaseLight> for DirectionalLight {
     fn from(base_light: BaseLight) -> Self {
-        Self { base_light }
+        Self {
+            base_light,
+            csm_options: Default::default(),
+        }
     }
 }
 
@@ -47,21 +98,12 @@ impl DerefMut for DirectionalLight {
     }
 }
 
-impl Visit for DirectionalLight {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.base_light.visit("BaseLight", visitor)?;
-
-        visitor.leave_region()
-    }
-}
-
 impl DirectionalLight {
     /// Creates a raw copy of a directional light node.
     pub fn raw_copy(&self) -> Self {
         Self {
             base_light: self.base_light.raw_copy(),
+            csm_options: self.csm_options.clone(),
         }
     }
 }
@@ -69,19 +111,30 @@ impl DirectionalLight {
 /// Allows you to build directional light in declarative manner.
 pub struct DirectionalLightBuilder {
     base_light_builder: BaseLightBuilder,
+    csm_options: CsmOptions,
 }
 
 impl DirectionalLightBuilder {
     /// Creates new builder instance.
     pub fn new(base_light_builder: BaseLightBuilder) -> Self {
-        Self { base_light_builder }
+        Self {
+            base_light_builder,
+            csm_options: Default::default(),
+        }
     }
 
     /// Creates new instance of directional light.
     pub fn build_directional_light(self) -> DirectionalLight {
         DirectionalLight {
             base_light: self.base_light_builder.build(),
+            csm_options: self.csm_options,
         }
+    }
+
+    /// Sets desired options for cascaded shadow maps.
+    pub fn with_csm_options(mut self, csm_options: CsmOptions) -> Self {
+        self.csm_options = csm_options;
+        self
     }
 
     /// Creates new instance of directional light node.
