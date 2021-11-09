@@ -21,6 +21,7 @@ use crate::{
 };
 use std::{any::TypeId, collections::HashMap, fmt::Debug, rc::Rc};
 
+pub mod array;
 pub mod bool;
 pub mod collection;
 pub mod color;
