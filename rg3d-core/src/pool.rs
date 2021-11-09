@@ -1247,7 +1247,7 @@ mod test {
         let d = pool.spawn(format!("Foo"));
         pool.free(d);
         let baz = pool.spawn(format!("Baz"));
-        for s in pool.iter {
+        for s in pool.iter() {
             println!("{}", s);
         }
         for s in pool.iter_mut() {
