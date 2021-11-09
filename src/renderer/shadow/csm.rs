@@ -1,9 +1,7 @@
-use crate::scene::light::directional::DirectionalLight;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3},
-        color::Color,
-        math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, vector_to_quat, Rect},
+        math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, Rect},
         sstorage::ImmutableString,
     },
     renderer::{
@@ -21,7 +19,7 @@ use crate::{
         },
         MaterialContext, RenderPassStatistics, ShadowMapPrecision,
     },
-    scene::{camera::Camera, graph::Graph},
+    scene::{camera::Camera, graph::Graph, light::directional::DirectionalLight, node::Node},
 };
 use std::{cell::RefCell, rc::Rc};
 
@@ -223,6 +221,20 @@ impl CsmRenderer {
                     .and_then(|shader_set| shader_set.render_passes.get(&self.render_pass_name))
                 {
                     for instance in batch.instances.iter() {
+                        let node = &graph[instance.owner];
+
+                        let visible = match node {
+                            Node::Mesh(mesh) => mesh.global_visibility() && mesh.cast_shadows(),
+                            Node::Terrain(terrain) => {
+                                terrain.global_visibility() && terrain.cast_shadows()
+                            }
+                            _ => false,
+                        };
+
+                        if !visible {
+                            continue;
+                        }
+
                         stats += framebuffer.draw(
                             geometry,
                             state,
