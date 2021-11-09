@@ -27,9 +27,27 @@ pub use walkdir;
 #[cfg(target_arch = "wasm32")]
 pub use winit::*;
 
-pub use rg3d_core as core;
-pub use rg3d_physics2d as physics2d;
-pub use rg3d_physics3d as physics3d;
-pub use rg3d_resource as asset;
-pub use rg3d_sound as sound;
-pub use rg3d_ui as gui;
+/// Core data structures and algorithms used throughout rg3d. Re-exported from the [rg3d_core](https://docs.rs/rg3d_core/*/rg3d_core/) crate.
+pub mod core {
+    pub use ::rg3d_core::*;
+}
+/// Physics for 2D scenes using the Rapier physics engine. Re-exported from the [rg3d_physics2d](https://docs.rs/rg3d_physics2d/*/rg3d_physics2d/) crate.
+pub mod physics2d {
+    pub use rg3d_physics2d::*;
+}
+/// Physics for 3D scenes using the Rapier physics engine. Re-exported from the [rg3d_physics3d](https://docs.rs/rg3d_physics3d/*/rg3d_physics3d/) crate.
+pub mod physics3d {
+    pub use rg3d_physics3d::*;
+}
+/// Resource management. Re-exported from the [rg3d_resource](https://docs.rs/rg3d_resource/*/rg3d_resource/) crate.
+pub mod asset {
+    pub use rg3d_resource::*;
+}
+/// Sound library for games and interactive applications. Re-exported from the [rg3d_sound](https://docs.rs/rg3d_sound/*/rg3d_sound/) crate.
+pub mod sound {
+    pub use rg3d_sound::*;
+}
+/// Extendable, retained mode, graphics API agnostic UI library. Re-exported from the [rg3d_ui](https://docs.rs/rg3d_ui/*/rg3d_ui/) crate.
+pub mod gui {
+    pub use rg3d_ui::*;
+}
