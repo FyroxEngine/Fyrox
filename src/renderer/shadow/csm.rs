@@ -105,9 +105,9 @@ pub(in crate) struct CsmRenderContext<'a, 'c> {
     pub black_dummy: Rc<RefCell<GpuTexture>>,
 }
 
-fn calc_z_i(n: f32, f: f32, i: usize, l: f32) -> f32 {
+fn calc_z_i(near: f32, far: f32, i: usize, l: f32) -> f32 {
     let k = i as f32 / NUM_CASCADES as f32;
-    l * n * (f / n).powf(k) + (1.0 - l) * (n + k * (f - n))
+    l * near * (far / near).powf(k) + (1.0 - l) * (near + k * (far - near))
 }
 
 impl CsmRenderer {

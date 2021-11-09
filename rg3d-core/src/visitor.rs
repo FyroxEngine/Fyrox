@@ -577,8 +577,7 @@ impl Field {
 
     fn load(file: &mut dyn Read) -> Result<Field, VisitError> {
         let name_len = file.read_u32::<LittleEndian>()? as usize;
-        let mut raw_name = Vec::with_capacity(name_len);
-        unsafe { raw_name.set_len(name_len) };
+        let mut raw_name = vec![Default::default(); name_len];
         file.read_exact(raw_name.as_mut_slice())?;
         let id = file.read_u8()?;
         Ok(Field::new(
@@ -616,8 +615,7 @@ impl Field {
                 }),
                 14 => FieldKind::Data({
                     let len = file.read_u32::<LittleEndian>()? as usize;
-                    let mut vec = Vec::with_capacity(len);
-                    unsafe { vec.set_len(len) };
+                    let mut vec = vec![Default::default(); len];
                     file.read_exact(vec.as_mut_slice())?;
                     vec
                 }),
@@ -859,8 +857,7 @@ impl Visitor {
 
     fn load_node_binary(&mut self, file: &mut dyn Read) -> Result<Handle<Node>, VisitError> {
         let name_len = file.read_u32::<LittleEndian>()? as usize;
-        let mut raw_name = Vec::with_capacity(name_len);
-        unsafe { raw_name.set_len(name_len) };
+        let mut raw_name = vec![Default::default(); name_len];
         file.read_exact(raw_name.as_mut_slice())?;
 
         let mut node = Node {
