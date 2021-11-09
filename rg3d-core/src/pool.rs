@@ -1,19 +1,23 @@
-//! Pool is contiguous block of memory with fixed-size entries, each entry can be
-//! either vacant or occupied. When you put an object into pool you get handle to
+//! A generational arena - a contiguous growable array type which allows removing
+//! from the middle without shifting and therefore without invalidating other indices.
+//!
+//! Pool is a contiguous block of memory with fixed-size entries, each entry can be
+//! either vacant or occupied. When you put an object into the pool you get a handle to
 //! that object. You can use that handle later on to borrow a reference to an object.
-//! Handle can point to some object or be invalid, this may look similar to raw
+//! A handle can point to some object or be invalid, this may look similar to raw
 //! pointers, but there is two major differences:
 //!
-//! 1) We can check if handle is valid before accessing object it might point to.
-//! 2) We can ensure that handle we using still valid for an object it points to.
-//! Each handle store special field that is shared across entry and handle, so
-//! handle is valid if these field in both handle and entry are same. This protects
-//! from situations where you have a handle that has valid index of a record, but
-//! payload in this record was replaced.
+//! 1) We can check if a handle is valid before accessing the object it might point to.
+//! 2) We can ensure the handle we're using is still valid for the object it points to
+//! to make sure it hasn't been replaced with a different object on the same position.
+//! Each handle stores a special field called generation which is shared across the entry
+//! and the handle, so the handle is valid if these fields are the same on both the entry
+//! and the handle. This protects from situations where you have a handle that has
+//! a valid index of a record, but the payload in this record has been replaced.
 //!
-//! Contiguous memory block increases efficiency of memory operations - CPU will
+//! Contiguous memory block increases efficiency of memory operations - the CPU will
 //! load portions of data into its cache piece by piece, it will be free from any
-//! indirections that might cause cache invalidation. This is so called cache
+//! indirections that might cause cache invalidation. This is the so called cache
 //! friendliness.
 
 #![allow(clippy::unneeded_field_pattern)]
@@ -887,6 +891,8 @@ impl<T> Pool<T> {
     }
 
     /// Returns exact amount of "alive" objects in pool.
+    ///
+    /// It iterates through the entire pool to count the live objects so the complexity is `O(n)`.
     ///
     /// # Example
     ///
