@@ -1140,6 +1140,24 @@ impl<T> IndexMut<Handle<T>> for Pool<T> {
     }
 }
 
+impl<'a, T> IntoIterator for &'a Pool<T> {
+    type Item = &'a T;
+    type IntoIter = PoolIterator<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a, T> IntoIterator for &'a mut Pool<T> {
+    type Item = &'a mut T;
+    type IntoIter = PoolIteratorMut<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
+    }
+}
+
 pub struct PoolIterator<'a, T> {
     ptr: *const PoolRecord<T>,
     end: *const PoolRecord<T>,
@@ -1280,7 +1298,16 @@ mod test {
         let d = pool.spawn(format!("Foo"));
         pool.free(d);
         let baz = pool.spawn(format!("Baz"));
+        for s in pool.iter() {
+            println!("{}", s);
+        }
         for s in pool.iter_mut() {
+            println!("{}", s);
+        }
+        for s in &pool {
+            println!("{}", s);
+        }
+        for s in &mut pool {
             println!("{}", s);
         }
         pool.free(foobar);
