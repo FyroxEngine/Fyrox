@@ -792,7 +792,7 @@ impl DeferredLightRenderer {
                         },
                     )
                 }
-                Light::Directional(_) => {
+                Light::Directional(directional) => {
                     let shader = &self.directional_light_shader;
 
                     light_stats.directional_lights_rendered += 1;
@@ -851,7 +851,11 @@ impl DeferredLightRenderer {
                                     &self.csm_renderer.cascades()[2].texture(),
                                 )
                                 .set_f32_slice(&shader.cascade_distances, &distances)
-                                .set_matrix4(&shader.view_matrix, &camera.view_matrix());
+                                .set_matrix4(&shader.view_matrix, &camera.view_matrix())
+                                .set_f32(
+                                    &shader.shadow_bias,
+                                    directional.csm_options.shadow_bias(),
+                                );
                         },
                     )
                 }

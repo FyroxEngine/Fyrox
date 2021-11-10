@@ -25,6 +25,7 @@ pub struct DirectionalLightShader {
     pub shadow_cascade2: UniformLocation,
     pub light_view_proj_matrices: UniformLocation,
     pub view_matrix: UniformLocation,
+    pub shadow_bias: UniformLocation,
 }
 
 impl DirectionalLightShader {
@@ -68,6 +69,7 @@ impl DirectionalLightShader {
             light_view_proj_matrices: program
                 .uniform_location(state, &ImmutableString::new("lightViewProjMatrices"))?,
             view_matrix: program.uniform_location(state, &ImmutableString::new("viewMatrix"))?,
+            shadow_bias: program.uniform_location(state, &ImmutableString::new("shadowBias"))?,
             program,
         })
     }

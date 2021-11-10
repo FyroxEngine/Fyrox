@@ -19,13 +19,17 @@ uniform sampler2D shadowCascade0;
 uniform sampler2D shadowCascade1;
 uniform sampler2D shadowCascade2;
 
+uniform float shadowBias;
+
 in vec2 texCoord;
 out vec4 FragColor;
 
 float CsmGetShadow(in sampler2D sampler, in vec3 fragmentPosition, in mat4 lightViewProjMatrix) {
     vec3 lightSpacePosition = S_Project(fragmentPosition, lightViewProjMatrix);
 
-    if (lightSpacePosition.z - 0.001 > texture(sampler, lightSpacePosition.xy).r) {
+    float biasedLightSpaceZ = lightSpacePosition.z - shadowBias;
+
+    if (biasedLightSpaceZ > texture(sampler, lightSpacePosition.xy).r) {
         return 0.0;
     } else {
         return 1.0;

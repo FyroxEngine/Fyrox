@@ -60,10 +60,36 @@ impl Default for FrustumSplitOptions {
 }
 
 /// Cascade Shadow Mapping (CSM) options.
-#[derive(Inspect, Clone, Visit, Default, Debug)]
+#[derive(Inspect, Clone, Visit, Debug)]
 pub struct CsmOptions {
     /// See [`FrustumSplitOptions`].
     pub split_options: FrustumSplitOptions,
+
+    #[inspect(min_value = 0.0, step = 0.000025)]
+    shadow_bias: f32,
+}
+
+impl Default for CsmOptions {
+    fn default() -> Self {
+        Self {
+            split_options: Default::default(),
+            shadow_bias: 0.00025,
+        }
+    }
+}
+
+impl CsmOptions {
+    /// Sets new shadow bias value. Shadow bias allows you to prevent "shadow-acne" effect by
+    /// shifting values fetched from shadow map by a certain value. "Shadow acne" occur due to
+    /// insufficient precision.
+    pub fn set_shadow_bias(&mut self, bias: f32) {
+        self.shadow_bias = bias.max(0.0);
+    }
+
+    /// Returns current shadow bias value.
+    pub fn shadow_bias(&self) -> f32 {
+        self.shadow_bias
+    }
 }
 
 /// See module docs.
