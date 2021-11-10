@@ -47,24 +47,21 @@ impl Control for ArrayEditor {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        match message.data() {
-            UiMessageData::Inspector(InspectorMessage::PropertyChanged(p)) => {
-                if let Some(index) = self
-                    .items
-                    .iter()
-                    .position(|i| i.inspector == message.destination())
-                {
-                    ui.send_message(UiMessage::user(
-                        self.handle,
-                        MessageDirection::FromWidget,
-                        Box::new(CollectionChanged::ItemChanged {
-                            index,
-                            property: p.clone(),
-                        }),
-                    ))
-                }
+        if let UiMessageData::Inspector(InspectorMessage::PropertyChanged(p)) = message.data() {
+            if let Some(index) = self
+                .items
+                .iter()
+                .position(|i| i.inspector == message.destination())
+            {
+                ui.send_message(UiMessage::user(
+                    self.handle,
+                    MessageDirection::FromWidget,
+                    Box::new(CollectionChanged::ItemChanged {
+                        index,
+                        property: p.clone(),
+                    }),
+                ))
             }
-            _ => {}
         }
     }
 }

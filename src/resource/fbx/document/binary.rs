@@ -39,8 +39,7 @@ where
             array.push(read_attribute(type_code, file)?);
         }
     } else {
-        let mut compressed = Vec::with_capacity(compressed_length);
-        unsafe { compressed.set_len(compressed_length) };
+        let mut compressed = vec![Default::default(); compressed_length];
         file.read_exact(compressed.as_mut_slice())?;
         let decompressed = inflate::inflate_bytes_zlib(&compressed)?;
         let mut cursor = Cursor::new(decompressed);
@@ -57,10 +56,7 @@ where
     R: Read,
 {
     let length = file.read_u32::<LittleEndian>()? as usize;
-    let mut raw_string = Vec::with_capacity(length);
-    unsafe {
-        raw_string.set_len(length);
-    };
+    let mut raw_string = vec![Default::default(); length];
     file.read_exact(raw_string.as_mut_slice())?;
     // Find null terminator. It is required because for some reason some strings
     // have additional data after null terminator like this: Omni004\x0\x1Model, but
@@ -112,8 +108,7 @@ where
 
     // Read name.
     let name_len = file.read_u8()? as usize;
-    let mut raw_name = Vec::with_capacity(name_len);
-    unsafe { raw_name.set_len(name_len) };
+    let mut raw_name = vec![Default::default(); name_len];
     file.read_exact(raw_name.as_mut_slice())?;
 
     let node = FbxNode {
