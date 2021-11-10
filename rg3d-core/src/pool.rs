@@ -377,6 +377,57 @@ impl<T> Pool<T> {
         self.spawn_with(|_| payload)
     }
 
+    /// Tries to put an object in the pool at given position. Returns `Err(payload)` if a corresponding
+    /// entry is occupied.
+    ///
+    /// # Performance
+    ///
+    /// The method has O(n) complexity in worst case, where `n` - amount of free records in the pool.
+    /// In typical uses cases `n` is very low. It should be noted that if a pool is filled entirely
+    /// and you trying to put an object at the end of pool, the method will have O(1) complexity.    
+    #[inline]
+    #[must_use]
+    pub fn spawn_at(&mut self, payload: T, index: usize) -> Result<Handle<T>, T> {
+        match self.records.get_mut(index) {
+            Some(record) => match record.payload {
+                Some(_) => Err(payload),
+                None => {
+                    let position = self
+                        .free_stack
+                        .iter()
+                        .rposition(|i| *i == index as u32)
+                        .expect("free_stack must contain the index of empty record!");
+
+                    self.free_stack.remove(position);
+
+                    let generation = record.generation + 1;
+
+                    record.generation = generation;
+                    record.payload = Some(payload);
+
+                    Ok(Handle::new(index as u32, generation))
+                }
+            },
+            None => {
+                // Spawn missing records to fill gaps.
+                for i in self.records.len()..index {
+                    self.records.push(PoolRecord {
+                        generation: 1,
+                        payload: None,
+                    });
+                    self.free_stack.push(i as u32);
+                }
+
+                self.records.push(PoolRecord {
+                    generation: 1,
+                    payload: Some(payload),
+                });
+
+                Ok(Handle::new(index as u32, 1))
+            }
+        }
+    }
+
     #[inline]
     #[must_use]
     /// Construct a value with the handle it would be given.
@@ -1195,7 +1246,7 @@ impl<'a, T> Iterator for PoolPairIteratorMut<'a, T> {
 
 #[cfg(test)]
 mod test {
-    use crate::pool::{Pool, INVALID_GENERATION};
+    use crate::pool::{Handle, Pool, INVALID_GENERATION};
 
     #[test]
     fn pool_sanity_tests() {
@@ -1256,5 +1307,28 @@ mod test {
         assert_eq!(pool.handle_of(pool.borrow(foobar)), foobar);
         assert_eq!(pool.handle_of(pool.borrow(bar)), bar);
         assert_eq!(pool.handle_of(pool.borrow(baz)), baz);
+    }
+
+    #[test]
+    fn pool_test_spawn_at() {
+        let mut pool = Pool::new();
+
+        #[derive(Debug, Eq, PartialEq)]
+        struct Payload;
+
+        assert_eq!(pool.spawn_at(Payload, 2), Ok(Handle::new(2, 1)));
+        assert_eq!(pool.spawn_at(Payload, 2), Err(Payload));
+        assert_eq!(pool.records[0].payload, None);
+        assert_eq!(pool.records[1].payload, None);
+        assert_ne!(pool.records[2].payload, None);
+
+        assert_eq!(pool.spawn_at(Payload, 2), Err(Payload));
+
+        pool.free(Handle::new(2, 1));
+
+        assert_eq!(pool.spawn_at(Payload, 2), Ok(Handle::new(2, 2)));
+
+        assert_eq!(pool.spawn(Payload), Handle::new(1, 2));
+        assert_eq!(pool.spawn(Payload), Handle::new(0, 2));
     }
 }
