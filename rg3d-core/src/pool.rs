@@ -386,8 +386,7 @@ impl<T> Pool<T> {
     /// In typical uses cases `n` is very low. It should be noted that if a pool is filled entirely
     /// and you trying to put an object at the end of pool, the method will have O(1) complexity.    
     #[inline]
-    #[must_use]
-    pub fn spawn_at(&mut self, payload: T, index: usize) -> Result<Handle<T>, T> {
+    pub fn spawn_at(&mut self, index: usize, payload: T) -> Result<Handle<T>, T> {
         match self.records.get_mut(index) {
             Some(record) => match record.payload {
                 Some(_) => Err(payload),
@@ -1343,17 +1342,17 @@ mod test {
         #[derive(Debug, Eq, PartialEq)]
         struct Payload;
 
-        assert_eq!(pool.spawn_at(Payload, 2), Ok(Handle::new(2, 1)));
-        assert_eq!(pool.spawn_at(Payload, 2), Err(Payload));
+        assert_eq!(pool.spawn_at(2, Payload), Ok(Handle::new(2, 1)));
+        assert_eq!(pool.spawn_at(2, Payload), Err(Payload));
         assert_eq!(pool.records[0].payload, None);
         assert_eq!(pool.records[1].payload, None);
         assert_ne!(pool.records[2].payload, None);
 
-        assert_eq!(pool.spawn_at(Payload, 2), Err(Payload));
+        assert_eq!(pool.spawn_at(2, Payload), Err(Payload));
 
         pool.free(Handle::new(2, 1));
 
-        assert_eq!(pool.spawn_at(Payload, 2), Ok(Handle::new(2, 2)));
+        assert_eq!(pool.spawn_at(2, Payload), Ok(Handle::new(2, 2)));
 
         assert_eq!(pool.spawn(Payload), Handle::new(1, 2));
         assert_eq!(pool.spawn(Payload), Handle::new(0, 2));
