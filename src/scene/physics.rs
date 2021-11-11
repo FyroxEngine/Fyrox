@@ -478,8 +478,8 @@ impl Physics {
 
         assert_eq!(phys_desc.bodies.len(), phys_desc.body_handle_map.len());
         assert_eq!(
-            dbg!(phys_desc.colliders.len()),
-            dbg!(phys_desc.collider_handle_map.len())
+            phys_desc.colliders.len(),
+            phys_desc.collider_handle_map.len()
         );
         assert_eq!(phys_desc.joints.len(), phys_desc.joint_handle_map.len());
 
