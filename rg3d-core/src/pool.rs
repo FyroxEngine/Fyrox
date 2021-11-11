@@ -387,6 +387,27 @@ impl<T> Pool<T> {
     /// and you trying to put an object at the end of pool, the method will have O(1) complexity.    
     #[inline]
     pub fn spawn_at(&mut self, index: usize, payload: T) -> Result<Handle<T>, T> {
+        self.spawn_at_internal(index, INVALID_GENERATION, payload)
+    }
+
+    /// Tries to put an object in the pool at given handle. Returns `Err(payload)` if a corresponding
+    /// entry is occupied.
+    ///
+    /// # Performance
+    ///
+    /// The method has O(n) complexity in worst case, where `n` - amount of free records in the pool.
+    /// In typical uses cases `n` is very low. It should be noted that if a pool is filled entirely
+    /// and you trying to put an object at the end of pool, the method will have O(1) complexity.   
+    pub fn spawn_at_handle(&mut self, handle: Handle<T>, payload: T) -> Result<Handle<T>, T> {
+        self.spawn_at_internal(handle.index as usize, handle.generation, payload)
+    }
+
+    fn spawn_at_internal(
+        &mut self,
+        index: usize,
+        desired_generation: u32,
+        payload: T,
+    ) -> Result<Handle<T>, T> {
         match self.records.get_mut(index) {
             Some(record) => match record.payload {
                 Some(_) => Err(payload),
@@ -399,7 +420,11 @@ impl<T> Pool<T> {
 
                     self.free_stack.remove(position);
 
-                    let generation = record.generation + 1;
+                    let generation = if desired_generation == INVALID_GENERATION {
+                        record.generation + 1
+                    } else {
+                        desired_generation
+                    };
 
                     record.generation = generation;
                     record.payload = Some(payload);
@@ -417,12 +442,18 @@ impl<T> Pool<T> {
                     self.free_stack.push(i as u32);
                 }
 
+                let generation = if desired_generation == INVALID_GENERATION {
+                    1
+                } else {
+                    desired_generation
+                };
+
                 self.records.push(PoolRecord {
-                    generation: 1,
+                    generation,
                     payload: Some(payload),
                 });
 
-                Ok(Handle::new(index as u32, 1))
+                Ok(Handle::new(index as u32, generation))
             }
         }
     }
