@@ -6,8 +6,8 @@ use crate::{
     core::{color::Color, pool::Handle},
     draw::DrawingContext,
     formatted_text::{FormattedText, FormattedTextBuilder},
+    message::TextMessage,
     message::UiMessage,
-    message::{TextMessage, UiMessageData},
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, HorizontalAlignment, UiNode, UserInterface, VerticalAlignment,
 };
@@ -46,7 +46,7 @@ impl Control for Text {
         self.widget.handle_routed_message(ui, message);
 
         if message.destination() == self.handle() {
-            if let UiMessageData::Text(msg) = &message.data() {
+            if let Some(msg) = message.data::<TextMessage>() {
                 match msg {
                     TextMessage::Text(text) => {
                         self.formatted_text.borrow_mut().set_text(text);

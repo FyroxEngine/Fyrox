@@ -3,7 +3,7 @@ use rg3d::{
     engine::{framework::prelude::*, Engine},
     gui::{
         button::ButtonBuilder,
-        message::{ButtonMessage, MessageDirection, UiMessage, UiMessageData, WidgetMessage},
+        message::{ButtonMessage, MessageDirection, UiMessage, WidgetMessage},
         widget::WidgetBuilder,
         UiNode,
     },
@@ -32,7 +32,7 @@ impl GameState for Game {
     fn on_ui_message(&mut self, engine: &mut Engine, message: UiMessage) {
         // Simple example of message system. We'll catch "Click" messages from the button
         // and send new message to the button that will contain new position for it.
-        if let UiMessageData::Button(ButtonMessage::Click) = message.data() {
+        if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             if message.destination() == self.button {
                 // Generate random position in the window.
                 let client_size = engine.get_window().inner_size();

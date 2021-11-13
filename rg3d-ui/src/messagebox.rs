@@ -6,7 +6,7 @@ use crate::{
     grid::{Column, GridBuilder, Row},
     message::{
         ButtonMessage, MessageBoxMessage, MessageDirection, OsEvent, TextMessage, UiMessage,
-        UiMessageData, WindowMessage,
+        WindowMessage,
     },
     stack_panel::StackPanelBuilder,
     text::TextBuilder,
@@ -87,68 +87,64 @@ impl Control for MessageBox {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.window.handle_routed_message(ui, message);
 
-        match &message.data() {
-            UiMessageData::Button(ButtonMessage::Click) => {
-                if message.destination() == self.ok_yes {
-                    let result = match self.buttons {
-                        MessageBoxButtons::Ok => MessageBoxResult::Ok,
-                        MessageBoxButtons::YesNo => MessageBoxResult::Yes,
-                        MessageBoxButtons::YesNoCancel => MessageBoxResult::Yes,
-                    };
-                    ui.send_message(MessageBoxMessage::close(
-                        self.handle,
-                        MessageDirection::ToWidget,
-                        result,
-                    ));
-                } else if message.destination() == self.cancel {
-                    ui.send_message(MessageBoxMessage::close(
+        if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
+            if message.destination() == self.ok_yes {
+                let result = match self.buttons {
+                    MessageBoxButtons::Ok => MessageBoxResult::Ok,
+                    MessageBoxButtons::YesNo => MessageBoxResult::Yes,
+                    MessageBoxButtons::YesNoCancel => MessageBoxResult::Yes,
+                };
+                ui.send_message(MessageBoxMessage::close(
+                    self.handle,
+                    MessageDirection::ToWidget,
+                    result,
+                ));
+            } else if message.destination() == self.cancel {
+                ui.send_message(MessageBoxMessage::close(
+                    self.handle(),
+                    MessageDirection::ToWidget,
+                    MessageBoxResult::Cancel,
+                ));
+            } else if message.destination() == self.no {
+                ui.send_message(MessageBoxMessage::close(
+                    self.handle(),
+                    MessageDirection::ToWidget,
+                    MessageBoxResult::No,
+                ));
+            }
+        } else if let Some(msg) = message.data::<MessageBoxMessage>() {
+            match msg {
+                MessageBoxMessage::Open { title, text } => {
+                    if let Some(title) = title {
+                        ui.send_message(WindowMessage::title(
+                            self.handle(),
+                            MessageDirection::ToWidget,
+                            WindowTitle::Text(title.clone()),
+                        ));
+                    }
+
+                    if let Some(text) = text {
+                        ui.send_message(TextMessage::text(
+                            self.text,
+                            MessageDirection::ToWidget,
+                            text.clone(),
+                        ));
+                    }
+
+                    ui.send_message(WindowMessage::open_modal(
                         self.handle(),
                         MessageDirection::ToWidget,
-                        MessageBoxResult::Cancel,
+                        true,
                     ));
-                } else if message.destination() == self.no {
-                    ui.send_message(MessageBoxMessage::close(
+                }
+                MessageBoxMessage::Close(_) => {
+                    // Translate message box message into window message.
+                    ui.send_message(WindowMessage::close(
                         self.handle(),
                         MessageDirection::ToWidget,
-                        MessageBoxResult::No,
                     ));
                 }
             }
-            UiMessageData::MessageBox(msg) => {
-                match msg {
-                    MessageBoxMessage::Open { title, text } => {
-                        if let Some(title) = title {
-                            ui.send_message(WindowMessage::title(
-                                self.handle(),
-                                MessageDirection::ToWidget,
-                                WindowTitle::Text(title.clone()),
-                            ));
-                        }
-
-                        if let Some(text) = text {
-                            ui.send_message(TextMessage::text(
-                                self.text,
-                                MessageDirection::ToWidget,
-                                text.clone(),
-                            ));
-                        }
-
-                        ui.send_message(WindowMessage::open_modal(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                            true,
-                        ));
-                    }
-                    MessageBoxMessage::Close(_) => {
-                        // Translate message box message into window message.
-                        ui.send_message(WindowMessage::close(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                        ));
-                    }
-                }
-            }
-            _ => {}
         }
     }
 

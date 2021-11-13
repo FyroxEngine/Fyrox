@@ -3,7 +3,7 @@ use crate::{
     brush::Brush,
     core::{color::Color, pool::Handle},
     grid::{Column, GridBuilder, Row},
-    message::{CheckBoxMessage, MessageDirection, UiMessage, UiMessageData, WidgetMessage},
+    message::{CheckBoxMessage, MessageDirection, UiMessage, WidgetMessage},
     vector_image::{Primitive, VectorImageBuilder},
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Thickness, UiNode,
@@ -34,92 +34,88 @@ impl Control for CheckBox {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        match message.data() {
-            UiMessageData::Widget(ref msg) => {
-                match msg {
-                    WidgetMessage::MouseDown { .. } => {
-                        if message.destination() == self.handle()
-                            || self.widget.has_descendant(message.destination(), ui)
-                        {
-                            ui.capture_mouse(self.handle());
-                        }
+        if let Some(msg) = message.data::<WidgetMessage>() {
+            match msg {
+                WidgetMessage::MouseDown { .. } => {
+                    if message.destination() == self.handle()
+                        || self.widget.has_descendant(message.destination(), ui)
+                    {
+                        ui.capture_mouse(self.handle());
                     }
-                    WidgetMessage::MouseUp { .. } => {
-                        if message.destination() == self.handle()
-                            || self.widget.has_descendant(message.destination(), ui)
-                        {
-                            ui.release_mouse_capture();
-
-                            if let Some(value) = self.checked {
-                                // Invert state if it is defined.
-                                ui.send_message(CheckBoxMessage::checked(
-                                    self.handle(),
-                                    MessageDirection::ToWidget,
-                                    Some(!value),
-                                ));
-                            } else {
-                                // Switch from undefined state to checked.
-                                ui.send_message(CheckBoxMessage::checked(
-                                    self.handle(),
-                                    MessageDirection::ToWidget,
-                                    Some(true),
-                                ));
-                            }
-                        }
-                    }
-                    _ => (),
                 }
+                WidgetMessage::MouseUp { .. } => {
+                    if message.destination() == self.handle()
+                        || self.widget.has_descendant(message.destination(), ui)
+                    {
+                        ui.release_mouse_capture();
+
+                        if let Some(value) = self.checked {
+                            // Invert state if it is defined.
+                            ui.send_message(CheckBoxMessage::checked(
+                                self.handle(),
+                                MessageDirection::ToWidget,
+                                Some(!value),
+                            ));
+                        } else {
+                            // Switch from undefined state to checked.
+                            ui.send_message(CheckBoxMessage::checked(
+                                self.handle(),
+                                MessageDirection::ToWidget,
+                                Some(true),
+                            ));
+                        }
+                    }
+                }
+                _ => (),
             }
-            &UiMessageData::CheckBox(CheckBoxMessage::Check(value))
-                if message.direction() == MessageDirection::ToWidget
-                    && message.destination() == self.handle() =>
+        } else if let Some(&CheckBoxMessage::Check(value)) = message.data::<CheckBoxMessage>() {
+            if message.direction() == MessageDirection::ToWidget
+                && message.destination() == self.handle()
+                && self.checked != value
             {
-                if self.checked != value {
-                    self.checked = value;
+                self.checked = value;
 
-                    ui.send_message(message.reverse());
+                ui.send_message(message.reverse());
 
-                    if self.check_mark.is_some() {
-                        match value {
-                            None => {
-                                ui.send_message(WidgetMessage::visibility(
-                                    self.check_mark,
-                                    MessageDirection::ToWidget,
-                                    false,
-                                ));
-                                ui.send_message(WidgetMessage::visibility(
-                                    self.uncheck_mark,
-                                    MessageDirection::ToWidget,
-                                    false,
-                                ));
-                                ui.send_message(WidgetMessage::visibility(
-                                    self.undefined_mark,
-                                    MessageDirection::ToWidget,
-                                    true,
-                                ));
-                            }
-                            Some(value) => {
-                                ui.send_message(WidgetMessage::visibility(
-                                    self.check_mark,
-                                    MessageDirection::ToWidget,
-                                    value,
-                                ));
-                                ui.send_message(WidgetMessage::visibility(
-                                    self.uncheck_mark,
-                                    MessageDirection::ToWidget,
-                                    !value,
-                                ));
-                                ui.send_message(WidgetMessage::visibility(
-                                    self.undefined_mark,
-                                    MessageDirection::ToWidget,
-                                    false,
-                                ));
-                            }
+                if self.check_mark.is_some() {
+                    match value {
+                        None => {
+                            ui.send_message(WidgetMessage::visibility(
+                                self.check_mark,
+                                MessageDirection::ToWidget,
+                                false,
+                            ));
+                            ui.send_message(WidgetMessage::visibility(
+                                self.uncheck_mark,
+                                MessageDirection::ToWidget,
+                                false,
+                            ));
+                            ui.send_message(WidgetMessage::visibility(
+                                self.undefined_mark,
+                                MessageDirection::ToWidget,
+                                true,
+                            ));
+                        }
+                        Some(value) => {
+                            ui.send_message(WidgetMessage::visibility(
+                                self.check_mark,
+                                MessageDirection::ToWidget,
+                                value,
+                            ));
+                            ui.send_message(WidgetMessage::visibility(
+                                self.uncheck_mark,
+                                MessageDirection::ToWidget,
+                                !value,
+                            ));
+                            ui.send_message(WidgetMessage::visibility(
+                                self.undefined_mark,
+                                MessageDirection::ToWidget,
+                                false,
+                            ));
                         }
                     }
                 }
             }
-            _ => {}
         }
     }
 

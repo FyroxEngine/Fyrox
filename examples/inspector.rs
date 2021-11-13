@@ -21,7 +21,7 @@ use rg3d::{
             editors::PropertyEditorDefinitionContainer, InspectorBuilder, InspectorContext,
         },
         message::FieldKind,
-        message::{InspectorMessage, MessageDirection, TextMessage, UiMessageData},
+        message::{InspectorMessage, MessageDirection, TextMessage},
         text::TextBuilder,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
@@ -209,8 +209,8 @@ fn main() {
                     if ui_message.destination() == interface.inspector
                         && ui_message.direction() == MessageDirection::FromWidget
                     {
-                        if let UiMessageData::Inspector(InspectorMessage::PropertyChanged(args)) =
-                            ui_message.data()
+                        if let Some(InspectorMessage::PropertyChanged(args)) =
+                            ui_message.data::<InspectorMessage>()
                         {
                             if let FieldKind::Object(ref value) = args.value {
                                 match args.name.as_str() {

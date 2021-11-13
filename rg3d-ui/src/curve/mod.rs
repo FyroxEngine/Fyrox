@@ -14,7 +14,7 @@ use crate::{
     menu::{MenuItemBuilder, MenuItemContent},
     message::{
         ButtonState, CurveEditorMessage, KeyCode, MenuItemMessage, MessageDirection, MouseButton,
-        UiMessage, UiMessageData, WidgetMessage,
+        UiMessage, WidgetMessage,
     },
     popup::PopupBuilder,
     stack_panel::StackPanelBuilder,
@@ -137,8 +137,8 @@ impl Control for CurveEditor {
         self.widget.handle_routed_message(ui, message);
 
         if message.destination() == self.handle {
-            match message.data() {
-                UiMessageData::Widget(msg) => match msg {
+            if let Some(msg) = message.data::<WidgetMessage>() {
+                match msg {
                     WidgetMessage::KeyUp(KeyCode::Delete) => {
                         self.remove_selection(ui);
                     }
@@ -366,10 +366,10 @@ impl Control for CurveEditor {
                         ));
                     }
                     _ => {}
-                },
-                UiMessageData::CurveEditor(msg)
-                    if message.destination() == self.handle
-                        && message.direction() == MessageDirection::ToWidget =>
+                }
+            } else if let Some(msg) = message.data::<CurveEditorMessage>() {
+                if message.destination() == self.handle
+                    && message.direction() == MessageDirection::ToWidget
                 {
                     match msg {
                         CurveEditorMessage::Sync(curve) => {
@@ -484,13 +484,12 @@ impl Control for CurveEditor {
                         }
                     }
                 }
-                _ => {}
             }
         }
     }
 
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
-        if let UiMessageData::MenuItem(MenuItemMessage::Click) = message.data() {
+        if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
             if message.destination() == self.context_menu.remove {
                 ui.send_message(CurveEditorMessage::remove_selection(
                     self.handle,

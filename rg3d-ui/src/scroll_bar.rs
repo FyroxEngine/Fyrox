@@ -12,8 +12,7 @@ use crate::{
     decorator::DecoratorBuilder,
     grid::{Column, GridBuilder, Row},
     message::{
-        ButtonMessage, MessageDirection, ScrollBarMessage, TextMessage, UiMessage, UiMessageData,
-        WidgetMessage,
+        ButtonMessage, MessageDirection, ScrollBarMessage, TextMessage, UiMessage, WidgetMessage,
     },
     text::TextBuilder,
     utils::{make_arrow, ArrowDirection},
@@ -127,25 +126,23 @@ impl Control for ScrollBar {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        match &message.data() {
-            UiMessageData::Button(ButtonMessage::Click) => {
-                if message.destination() == self.increase {
-                    ui.send_message(ScrollBarMessage::value(
-                        self.handle(),
-                        MessageDirection::ToWidget,
-                        self.value + self.step,
-                    ));
-                } else if message.destination() == self.decrease {
-                    ui.send_message(ScrollBarMessage::value(
-                        self.handle(),
-                        MessageDirection::ToWidget,
-                        self.value - self.step,
-                    ));
-                }
+        if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
+            if message.destination() == self.increase {
+                ui.send_message(ScrollBarMessage::value(
+                    self.handle(),
+                    MessageDirection::ToWidget,
+                    self.value + self.step,
+                ));
+            } else if message.destination() == self.decrease {
+                ui.send_message(ScrollBarMessage::value(
+                    self.handle(),
+                    MessageDirection::ToWidget,
+                    self.value - self.step,
+                ));
             }
-            UiMessageData::ScrollBar(msg)
-                if message.destination() == self.handle()
-                    && message.direction() == MessageDirection::ToWidget =>
+        } else if let Some(msg) = message.data::<ScrollBarMessage>() {
+            if message.destination() == self.handle()
+                && message.direction() == MessageDirection::ToWidget
             {
                 match *msg {
                     ScrollBarMessage::Value(value) => {
@@ -224,65 +221,63 @@ impl Control for ScrollBar {
                     }
                 }
             }
-            UiMessageData::Widget(msg) => {
-                if message.destination() == self.indicator {
-                    match msg {
-                        WidgetMessage::MouseDown { pos, .. } => {
-                            if self.indicator.is_some() {
-                                let indicator_pos = ui.nodes.borrow(self.indicator).screen_position;
-                                self.is_dragging = true;
-                                self.offset = indicator_pos - *pos;
-                                ui.capture_mouse(self.indicator);
+        } else if let Some(msg) = message.data::<WidgetMessage>() {
+            if message.destination() == self.indicator {
+                match msg {
+                    WidgetMessage::MouseDown { pos, .. } => {
+                        if self.indicator.is_some() {
+                            let indicator_pos = ui.nodes.borrow(self.indicator).screen_position;
+                            self.is_dragging = true;
+                            self.offset = indicator_pos - *pos;
+                            ui.capture_mouse(self.indicator);
+                            message.set_handled(true);
+                        }
+                    }
+                    WidgetMessage::MouseUp { .. } => {
+                        self.is_dragging = false;
+                        ui.release_mouse_capture();
+                        message.set_handled(true);
+                    }
+                    WidgetMessage::MouseMove { pos: mouse_pos, .. } => {
+                        if self.indicator.is_some() {
+                            let canvas =
+                                ui.borrow_by_name_up(self.indicator, ScrollBar::PART_CANVAS);
+                            let indicator_size = ui.nodes.borrow(self.indicator).actual_size();
+                            if self.is_dragging {
+                                let percent = match self.orientation {
+                                    Orientation::Horizontal => {
+                                        let span = canvas.actual_size().x - indicator_size.x;
+                                        let offset =
+                                            mouse_pos.x - canvas.screen_position.x + self.offset.x;
+                                        if span > 0.0 {
+                                            math::clampf(offset / span, 0.0, 1.0)
+                                        } else {
+                                            0.0
+                                        }
+                                    }
+                                    Orientation::Vertical => {
+                                        let span = canvas.actual_size().y - indicator_size.y;
+                                        let offset =
+                                            mouse_pos.y - canvas.screen_position.y + self.offset.y;
+                                        if span > 0.0 {
+                                            math::clampf(offset / span, 0.0, 1.0)
+                                        } else {
+                                            0.0
+                                        }
+                                    }
+                                };
+                                ui.send_message(ScrollBarMessage::value(
+                                    self.handle(),
+                                    MessageDirection::ToWidget,
+                                    self.min + percent * (self.max - self.min),
+                                ));
                                 message.set_handled(true);
                             }
                         }
-                        WidgetMessage::MouseUp { .. } => {
-                            self.is_dragging = false;
-                            ui.release_mouse_capture();
-                            message.set_handled(true);
-                        }
-                        WidgetMessage::MouseMove { pos: mouse_pos, .. } => {
-                            if self.indicator.is_some() {
-                                let canvas =
-                                    ui.borrow_by_name_up(self.indicator, ScrollBar::PART_CANVAS);
-                                let indicator_size = ui.nodes.borrow(self.indicator).actual_size();
-                                if self.is_dragging {
-                                    let percent = match self.orientation {
-                                        Orientation::Horizontal => {
-                                            let span = canvas.actual_size().x - indicator_size.x;
-                                            let offset = mouse_pos.x - canvas.screen_position.x
-                                                + self.offset.x;
-                                            if span > 0.0 {
-                                                math::clampf(offset / span, 0.0, 1.0)
-                                            } else {
-                                                0.0
-                                            }
-                                        }
-                                        Orientation::Vertical => {
-                                            let span = canvas.actual_size().y - indicator_size.y;
-                                            let offset = mouse_pos.y - canvas.screen_position.y
-                                                + self.offset.y;
-                                            if span > 0.0 {
-                                                math::clampf(offset / span, 0.0, 1.0)
-                                            } else {
-                                                0.0
-                                            }
-                                        }
-                                    };
-                                    ui.send_message(ScrollBarMessage::value(
-                                        self.handle(),
-                                        MessageDirection::ToWidget,
-                                        self.min + percent * (self.max - self.min),
-                                    ));
-                                    message.set_handled(true);
-                                }
-                            }
-                        }
-                        _ => (),
                     }
+                    _ => (),
                 }
             }
-            _ => {}
         }
     }
 

@@ -14,7 +14,7 @@ use crate::{
     },
     message::{
         CollectionChanged, FieldKind, InspectorMessage, MessageDirection, PropertyChanged,
-        UiMessage, UiMessageData,
+        UiMessage,
     },
     stack_panel::StackPanelBuilder,
     text::TextBuilder,
@@ -47,19 +47,17 @@ impl Control for ArrayEditor {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if let UiMessageData::Inspector(InspectorMessage::PropertyChanged(p)) = message.data() {
+        if let Some(InspectorMessage::PropertyChanged(p)) = message.data::<InspectorMessage>() {
             if let Some(index) = self
                 .items
                 .iter()
                 .position(|i| i.inspector == message.destination())
             {
-                ui.send_message(UiMessage::user(
+                ui.send_message(CollectionChanged::item_changed(
                     self.handle,
                     MessageDirection::FromWidget,
-                    Box::new(CollectionChanged::ItemChanged {
-                        index,
-                        property: p.clone(),
-                    }),
+                    index,
+                    p.clone(),
                 ))
             }
         }
@@ -305,14 +303,12 @@ where
         message: &UiMessage,
     ) -> Option<PropertyChanged> {
         if message.direction() == MessageDirection::FromWidget {
-            if let UiMessageData::User(msg) = message.data() {
-                if let Some(collection_changed) = msg.cast::<CollectionChanged>() {
-                    return Some(PropertyChanged {
-                        name: name.to_string(),
-                        owner_type_id,
-                        value: FieldKind::Collection(Box::new(collection_changed.clone())),
-                    });
-                }
+            if let Some(collection_changed) = message.data::<CollectionChanged>() {
+                return Some(PropertyChanged {
+                    name: name.to_string(),
+                    owner_type_id,
+                    value: FieldKind::Collection(Box::new(collection_changed.clone())),
+                });
             }
         }
         None

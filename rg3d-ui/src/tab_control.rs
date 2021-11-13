@@ -5,7 +5,7 @@ use crate::{
     button::ButtonBuilder,
     core::{color::Color, pool::Handle},
     grid::{Column, GridBuilder, Row},
-    message::{ButtonMessage, UiMessage, UiMessageData, WidgetMessage},
+    message::{ButtonMessage, UiMessage, WidgetMessage},
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, NodeHandleMapping, UiNode, UserInterface,
 };
@@ -36,7 +36,7 @@ impl Control for TabControl {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if let UiMessageData::Button(ButtonMessage::Click) = &message.data() {
+        if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             for (i, tab) in self.tabs.iter().enumerate() {
                 if message.destination() == tab.header_button
                     && tab.header_button.is_some()

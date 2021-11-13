@@ -3,6 +3,7 @@ use crate::{
     border::BorderBuilder,
     core::{inspect::Inspect, pool::Handle},
     decorator::DecoratorBuilder,
+    define_constructor,
     dropdown_list::DropdownListBuilder,
     grid::{Column, GridBuilder, Row},
     inspector::{
@@ -16,7 +17,7 @@ use crate::{
     },
     message::{
         DropdownListMessage, FieldKind, InspectorMessage, MessageDirection, PropertyChanged,
-        UiMessage, UiMessageData,
+        UiMessage,
     },
     text::TextBuilder,
     widget::{Widget, WidgetBuilder},
@@ -40,6 +41,11 @@ impl<T: Debug + Inspect + 'static> InspectableEnum for T {}
 pub enum EnumPropertyEditorMessage {
     Variant(usize),
     PropertyChanged(PropertyChanged),
+}
+
+impl EnumPropertyEditorMessage {
+    define_constructor!(EnumPropertyEditorMessage:Variant => fn variant(usize), layout: false);
+    define_constructor!(EnumPropertyEditorMessage:PropertyChanged => fn property_changed(PropertyChanged), layout: false);
 }
 
 pub struct EnumPropertyEditor<T: InspectableEnum> {
@@ -90,42 +96,38 @@ impl<T: InspectableEnum> Control for EnumPropertyEditor<T> {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        match message.data() {
-            UiMessageData::User(msg) if message.destination() == self.handle => {
-                if let Some(EnumPropertyEditorMessage::Variant(variant)) =
-                    msg.cast::<EnumPropertyEditorMessage>()
-                {
-                    let variant = (self.definition.variant_generator)(*variant);
+        if let Some(EnumPropertyEditorMessage::Variant(variant)) =
+            message.data::<EnumPropertyEditorMessage>()
+        {
+            if message.destination() == self.handle {
+                let variant = (self.definition.variant_generator)(*variant);
 
-                    let ctx = InspectorContext::from_object(
-                        &variant,
-                        &mut ui.build_ctx(),
-                        self.definition_container.clone(),
-                        self.environment.clone(),
-                        self.sync_flag,
-                    );
+                let ctx = InspectorContext::from_object(
+                    &variant,
+                    &mut ui.build_ctx(),
+                    self.definition_container.clone(),
+                    self.environment.clone(),
+                    self.sync_flag,
+                );
 
-                    ui.send_message(InspectorMessage::context(
-                        self.inspector,
-                        MessageDirection::ToWidget,
-                        ctx,
-                    ));
-                }
+                ui.send_message(InspectorMessage::context(
+                    self.inspector,
+                    MessageDirection::ToWidget,
+                    ctx,
+                ));
             }
-            UiMessageData::Inspector(InspectorMessage::PropertyChanged(property_changed)) => {
-                if message.destination() == self.inspector
-                    && message.direction() == MessageDirection::FromWidget
-                {
-                    ui.send_message(UiMessage::user(
-                        self.handle,
-                        MessageDirection::FromWidget,
-                        Box::new(EnumPropertyEditorMessage::PropertyChanged(
-                            property_changed.clone(),
-                        )),
-                    ))
-                }
+        } else if let Some(InspectorMessage::PropertyChanged(property_changed)) =
+            message.data::<InspectorMessage>()
+        {
+            if message.destination() == self.inspector
+                && message.direction() == MessageDirection::FromWidget
+            {
+                ui.send_message(EnumPropertyEditorMessage::property_changed(
+                    self.handle,
+                    MessageDirection::FromWidget,
+                    property_changed.clone(),
+                ))
             }
-            _ => {}
         }
     }
 
@@ -134,13 +136,13 @@ impl<T: InspectableEnum> Control for EnumPropertyEditor<T> {
             && message.destination() == self.variant_selector
             && message.flags != LOCAL_SYNC_FLAG
         {
-            if let UiMessageData::DropdownList(DropdownListMessage::SelectionChanged(Some(index))) =
-                message.data()
+            if let Some(DropdownListMessage::SelectionChanged(Some(index))) =
+                message.data::<DropdownListMessage>()
             {
-                ui.send_message(UiMessage::user(
+                ui.send_message(EnumPropertyEditorMessage::variant(
                     self.handle,
                     MessageDirection::ToWidget,
-                    Box::new(EnumPropertyEditorMessage::Variant(*index)),
+                    *index,
                 ));
             }
         }
@@ -394,23 +396,21 @@ where
         owner_type_id: TypeId,
         message: &UiMessage,
     ) -> Option<PropertyChanged> {
-        if let UiMessageData::User(msg) = message.data() {
-            if let Some(msg) = msg.cast::<EnumPropertyEditorMessage>() {
-                return match msg {
-                    EnumPropertyEditorMessage::PropertyChanged(property_changed) => {
-                        Some(PropertyChanged {
-                            name: name.to_string(),
-                            owner_type_id,
-                            value: FieldKind::Inspectable(Box::new(property_changed.clone())),
-                        })
-                    }
-                    EnumPropertyEditorMessage::Variant(index) => Some(PropertyChanged {
+        if let Some(msg) = message.data::<EnumPropertyEditorMessage>() {
+            return match msg {
+                EnumPropertyEditorMessage::PropertyChanged(property_changed) => {
+                    Some(PropertyChanged {
                         name: name.to_string(),
                         owner_type_id,
-                        value: FieldKind::object((self.variant_generator)(*index)),
-                    }),
-                };
-            }
+                        value: FieldKind::Inspectable(Box::new(property_changed.clone())),
+                    })
+                }
+                EnumPropertyEditorMessage::Variant(index) => Some(PropertyChanged {
+                    name: name.to_string(),
+                    owner_type_id,
+                    value: FieldKind::object((self.variant_generator)(*index)),
+                }),
+            };
         }
 
         None

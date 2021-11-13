@@ -8,7 +8,7 @@ use crate::{
     list_view::ListViewBuilder,
     message::{
         DropdownListMessage, ListViewMessage, MessageDirection, PopupMessage, UiMessage,
-        UiMessageData, WidgetMessage,
+        WidgetMessage,
     },
     popup::{Placement, PopupBuilder},
     utils::{make_arrow, ArrowDirection},
@@ -44,20 +44,18 @@ impl Control for DropdownList {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        match &message.data() {
-            UiMessageData::Widget(WidgetMessage::MouseDown { .. }) => {
-                if message.destination() == self.handle()
-                    || self.widget.has_descendant(message.destination(), ui)
-                {
-                    ui.send_message(DropdownListMessage::open(
-                        self.handle,
-                        MessageDirection::ToWidget,
-                    ));
-                }
+        if let Some(WidgetMessage::MouseDown { .. }) = message.data::<WidgetMessage>() {
+            if message.destination() == self.handle()
+                || self.widget.has_descendant(message.destination(), ui)
+            {
+                ui.send_message(DropdownListMessage::open(
+                    self.handle,
+                    MessageDirection::ToWidget,
+                ));
             }
-            UiMessageData::DropdownList(msg)
-                if message.destination() == self.handle()
-                    && message.direction() == MessageDirection::ToWidget =>
+        } else if let Some(msg) = message.data::<DropdownListMessage>() {
+            if message.destination() == self.handle()
+                && message.direction() == MessageDirection::ToWidget
             {
                 match msg {
                     DropdownListMessage::Open => {
@@ -137,47 +135,43 @@ impl Control for DropdownList {
                     }
                 }
             }
-            _ => {}
         }
     }
 
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
-        match &message.data() {
-            UiMessageData::ListView(msg) => {
-                if message.direction() == MessageDirection::FromWidget {
-                    if let ListViewMessage::SelectionChanged(selection) = msg {
-                        if message.destination() == self.list_view && &self.selection != selection {
-                            // Post message again but from name of this drop-down list so user can catch
-                            // message and respond properly.
-                            ui.send_message(DropdownListMessage::selection(
-                                self.handle,
-                                MessageDirection::ToWidget,
-                                *selection,
-                            ));
-                        }
+        if let Some(ListViewMessage::SelectionChanged(selection)) =
+            message.data::<ListViewMessage>()
+        {
+            if message.direction() == MessageDirection::FromWidget
+                && message.destination() == self.list_view
+                && &self.selection != selection
+            {
+                // Post message again but from name of this drop-down list so user can catch
+                // message and respond properly.
+                ui.send_message(DropdownListMessage::selection(
+                    self.handle,
+                    MessageDirection::ToWidget,
+                    *selection,
+                ));
+            }
+        } else if let Some(msg) = message.data::<PopupMessage>() {
+            if message.destination() == self.popup {
+                match msg {
+                    PopupMessage::Open => {
+                        ui.send_message(DropdownListMessage::open(
+                            self.handle,
+                            MessageDirection::FromWidget,
+                        ));
                     }
+                    PopupMessage::Close => {
+                        ui.send_message(DropdownListMessage::open(
+                            self.handle,
+                            MessageDirection::FromWidget,
+                        ));
+                    }
+                    _ => (),
                 }
             }
-            UiMessageData::Popup(msg) => {
-                if message.destination() == self.popup {
-                    match msg {
-                        PopupMessage::Open => {
-                            ui.send_message(DropdownListMessage::open(
-                                self.handle,
-                                MessageDirection::FromWidget,
-                            ));
-                        }
-                        PopupMessage::Close => {
-                            ui.send_message(DropdownListMessage::open(
-                                self.handle,
-                                MessageDirection::FromWidget,
-                            ));
-                        }
-                        _ => (),
-                    }
-                }
-            }
-            _ => {}
         }
     }
 }

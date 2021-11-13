@@ -10,12 +10,10 @@ use crate::{
         pool::Handle,
     },
     decorator::DecoratorBuilder,
+    define_constructor,
     formatted_text::WrapMode,
     grid::{Column, GridBuilder, Row},
-    message::{
-        ButtonMessage, KeyCode, MessageDirection, TextBoxMessage, UiMessage, UiMessageData,
-        WidgetMessage,
-    },
+    message::{ButtonMessage, KeyCode, MessageDirection, TextBoxMessage, UiMessage, WidgetMessage},
     text_box::{TextBox, TextBoxBuilder},
     utils::{make_arrow, ArrowDirection},
     widget::{Widget, WidgetBuilder},
@@ -70,13 +68,7 @@ pub enum NumericUpDownMessage<T: NumericType> {
 }
 
 impl<T: NumericType> NumericUpDownMessage<T> {
-    pub fn value(destination: Handle<UiNode>, direction: MessageDirection, value: T) -> UiMessage {
-        UiMessage::user(
-            destination,
-            direction,
-            Box::new(NumericUpDownMessage::Value(value)),
-        )
-    }
+    define_constructor!(NumericUpDownMessage:Value => fn value(T), layout: false);
 }
 
 #[derive(Clone)]
@@ -152,70 +144,63 @@ impl<T: NumericType> Control for NumericUpDown<T> {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        match &message.data() {
-            UiMessageData::Widget(msg) => {
-                if message.destination() == self.field {
-                    match msg {
-                        WidgetMessage::LostFocus => {
-                            self.try_parse_value(ui);
-                        }
-                        WidgetMessage::KeyDown(KeyCode::Return) => {
-                            self.try_parse_value(ui);
-                        }
-                        _ => {}
+        if let Some(msg) = message.data::<WidgetMessage>() {
+            if message.destination() == self.field {
+                match msg {
+                    WidgetMessage::LostFocus => {
+                        self.try_parse_value(ui);
                     }
-                }
-            }
-            &UiMessageData::User(msg) => {
-                if let Some(NumericUpDownMessage::Value(value)) =
-                    msg.cast::<NumericUpDownMessage<T>>()
-                {
-                    if message.direction() == MessageDirection::ToWidget
-                        && message.destination() == self.handle()
-                    {
-                        let clamped = self.clamp_value(*value);
-                        if self.value != clamped {
-                            self.value = clamped;
-
-                            // Sync text field.
-                            ui.send_message(TextBoxMessage::text(
-                                self.field,
-                                MessageDirection::ToWidget,
-                                format!("{:.1$}", self.value, self.precision),
-                            ));
-
-                            let mut msg = NumericUpDownMessage::value(
-                                self.handle,
-                                MessageDirection::FromWidget,
-                                self.value,
-                            );
-                            // We must maintain flags
-                            msg.set_handled(message.handled());
-                            msg.flags = message.flags;
-                            ui.send_message(msg);
-                        }
+                    WidgetMessage::KeyDown(KeyCode::Return) => {
+                        self.try_parse_value(ui);
                     }
+                    _ => {}
                 }
             }
-            UiMessageData::Button(ButtonMessage::Click) => {
-                if message.destination() == self.decrease {
-                    let value = self.clamp_value(saturating_sub(self.value, self.step));
-                    ui.send_message(NumericUpDownMessage::value(
-                        self.handle(),
-                        MessageDirection::ToWidget,
-                        value,
-                    ));
-                } else if message.destination() == self.increase {
-                    let value = self.clamp_value(saturating_add(self.value, self.step));
+        } else if let Some(NumericUpDownMessage::Value(value)) =
+            message.data::<NumericUpDownMessage<T>>()
+        {
+            if message.direction() == MessageDirection::ToWidget
+                && message.destination() == self.handle()
+            {
+                let clamped = self.clamp_value(*value);
+                if self.value != clamped {
+                    self.value = clamped;
 
-                    ui.send_message(NumericUpDownMessage::value(
-                        self.handle(),
+                    // Sync text field.
+                    ui.send_message(TextBoxMessage::text(
+                        self.field,
                         MessageDirection::ToWidget,
-                        value,
+                        format!("{:.1$}", self.value, self.precision),
                     ));
+
+                    let mut msg = NumericUpDownMessage::value(
+                        self.handle,
+                        MessageDirection::FromWidget,
+                        self.value,
+                    );
+                    // We must maintain flags
+                    msg.set_handled(message.handled());
+                    msg.flags = message.flags;
+                    ui.send_message(msg);
                 }
             }
-            _ => {}
+        } else if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
+            if message.destination() == self.decrease {
+                let value = self.clamp_value(saturating_sub(self.value, self.step));
+                ui.send_message(NumericUpDownMessage::value(
+                    self.handle(),
+                    MessageDirection::ToWidget,
+                    value,
+                ));
+            } else if message.destination() == self.increase {
+                let value = self.clamp_value(saturating_add(self.value, self.step));
+
+                ui.send_message(NumericUpDownMessage::value(
+                    self.handle(),
+                    MessageDirection::ToWidget,
+                    value,
+                ));
+            }
         }
     }
 }

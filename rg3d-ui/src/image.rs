@@ -3,7 +3,7 @@ use crate::{
     brush::Brush,
     core::{algebra::Vector2, color::Color, pool::Handle},
     draw::{CommandTexture, DrawingContext, SharedTexture},
-    message::{ImageMessage, UiMessage, UiMessageData},
+    message::{ImageMessage, UiMessage},
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
@@ -60,8 +60,8 @@ impl Control for Image {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if message.destination() == self.handle {
-            if let UiMessageData::Image(msg) = &message.data() {
+        if let Some(msg) = message.data::<ImageMessage>() {
+            if message.destination() == self.handle {
                 match msg {
                     ImageMessage::Texture(tex) => {
                         self.texture = tex.clone();

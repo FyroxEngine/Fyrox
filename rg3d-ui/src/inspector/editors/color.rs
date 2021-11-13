@@ -8,9 +8,7 @@ use crate::{
         },
         InspectorError,
     },
-    message::{
-        ColorFieldMessage, FieldKind, MessageDirection, PropertyChanged, UiMessage, UiMessageData,
-    },
+    message::{ColorFieldMessage, FieldKind, MessageDirection, PropertyChanged, UiMessage},
     widget::WidgetBuilder,
     Thickness,
 };
@@ -58,7 +56,7 @@ impl PropertyEditorDefinition for ColorPropertyEditorDefinition {
         message: &UiMessage,
     ) -> Option<PropertyChanged> {
         if message.direction() == MessageDirection::FromWidget {
-            if let UiMessageData::ColorField(ColorFieldMessage::Color(value)) = message.data() {
+            if let Some(ColorFieldMessage::Color(value)) = message.data::<ColorFieldMessage>() {
                 return Some(PropertyChanged {
                     name: name.to_string(),
                     owner_type_id,

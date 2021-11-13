@@ -8,7 +8,7 @@ use crate::{
         },
         InspectorError,
     },
-    message::{FieldKind, MessageDirection, PropertyChanged, UiMessage, UiMessageData},
+    message::{FieldKind, MessageDirection, PropertyChanged, UiMessage},
     numeric::NumericUpDownBuilder,
     widget::WidgetBuilder,
     Thickness,
@@ -96,16 +96,14 @@ where
         message: &UiMessage,
     ) -> Option<PropertyChanged> {
         if message.direction() == MessageDirection::FromWidget {
-            if let UiMessageData::User(msg) = message.data() {
-                if let Some(NumericUpDownMessage::Value(value)) =
-                    msg.cast::<NumericUpDownMessage<T>>()
-                {
-                    return Some(PropertyChanged {
-                        name: name.to_string(),
-                        owner_type_id,
-                        value: FieldKind::object(*value),
-                    });
-                }
+            if let Some(NumericUpDownMessage::Value(value)) =
+                message.data::<NumericUpDownMessage<T>>()
+            {
+                return Some(PropertyChanged {
+                    name: name.to_string(),
+                    owner_type_id,
+                    value: FieldKind::object(*value),
+                });
             }
         }
 

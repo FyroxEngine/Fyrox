@@ -4,10 +4,7 @@ use crate::{
     core::{color::Color, pool::Handle},
     decorator::Decorator,
     draw::{CommandTexture, Draw, DrawingContext},
-    message::{
-        DecoratorMessage, ListViewMessage, MessageDirection, UiMessage, UiMessageData,
-        WidgetMessage,
-    },
+    message::{DecoratorMessage, ListViewMessage, MessageDirection, UiMessage, WidgetMessage},
     scroll_viewer::{ScrollViewer, ScrollViewerBuilder},
     stack_panel::StackPanelBuilder,
     widget::{Widget, WidgetBuilder},
@@ -122,7 +119,7 @@ impl Control for ListViewItem {
         let parent_list_view =
             self.find_by_criteria_up(ui, |node| node.cast::<ListView>().is_some());
 
-        if let UiMessageData::Widget(WidgetMessage::MouseUp { .. }) = &message.data() {
+        if let Some(WidgetMessage::MouseUp { .. }) = message.data::<WidgetMessage>() {
             if !message.handled() {
                 let self_index = ui
                     .node(parent_list_view)
@@ -156,7 +153,7 @@ impl Control for ListView {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if let UiMessageData::ListView(msg) = &message.data() {
+        if let Some(msg) = message.data::<ListViewMessage>() {
             if message.destination() == self.handle()
                 && message.direction() == MessageDirection::ToWidget
             {

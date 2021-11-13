@@ -6,9 +6,7 @@ use crate::{
         },
         InspectorError,
     },
-    message::{
-        FieldKind, MessageDirection, PropertyChanged, TextBoxMessage, UiMessage, UiMessageData,
-    },
+    message::{FieldKind, MessageDirection, PropertyChanged, TextBoxMessage, UiMessage},
     text_box::TextBoxBuilder,
     widget::WidgetBuilder,
     Thickness, VerticalAlignment,
@@ -56,7 +54,7 @@ impl PropertyEditorDefinition for StringPropertyEditorDefinition {
         message: &UiMessage,
     ) -> Option<PropertyChanged> {
         if message.direction() == MessageDirection::FromWidget {
-            if let UiMessageData::TextBox(TextBoxMessage::Text(value)) = message.data() {
+            if let Some(TextBoxMessage::Text(value)) = message.data::<TextBoxMessage>() {
                 return Some(PropertyChanged {
                     owner_type_id,
                     name: name.to_string(),

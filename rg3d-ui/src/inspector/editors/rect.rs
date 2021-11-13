@@ -7,7 +7,7 @@ use crate::{
         },
         InspectorError,
     },
-    message::{FieldKind, MessageDirection, PropertyChanged, UiMessage, UiMessageData},
+    message::{FieldKind, MessageDirection, PropertyChanged, UiMessage},
     numeric::NumericType,
     rect::{RectEditorBuilder, RectEditorMessage},
     widget::WidgetBuilder,
@@ -69,10 +69,10 @@ where
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
         let value = ctx.property_info.cast_value::<Rect<T>>()?;
-        Ok(Some(UiMessage::user(
+        Ok(Some(RectEditorMessage::value(
             ctx.instance,
             MessageDirection::ToWidget,
-            Box::new(RectEditorMessage::Value(*value)),
+            *value,
         )))
     }
 
@@ -83,14 +83,12 @@ where
         message: &UiMessage,
     ) -> Option<PropertyChanged> {
         if message.direction() == MessageDirection::FromWidget {
-            if let UiMessageData::User(msg) = message.data() {
-                if let Some(RectEditorMessage::Value(value)) = msg.cast::<RectEditorMessage<T>>() {
-                    return Some(PropertyChanged {
-                        name: name.to_string(),
-                        owner_type_id,
-                        value: FieldKind::object(*value),
-                    });
-                }
+            if let Some(RectEditorMessage::Value(value)) = message.data::<RectEditorMessage<T>>() {
+                return Some(PropertyChanged {
+                    name: name.to_string(),
+                    owner_type_id,
+                    value: FieldKind::object(*value),
+                });
             }
         }
         None

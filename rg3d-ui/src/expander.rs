@@ -2,9 +2,7 @@ use crate::{
     check_box::CheckBoxBuilder,
     core::pool::Handle,
     grid::{Column, GridBuilder, Row},
-    message::{
-        CheckBoxMessage, ExpanderMessage, MessageDirection, UiMessage, UiMessageData, WidgetMessage,
-    },
+    message::{CheckBoxMessage, ExpanderMessage, MessageDirection, UiMessage, WidgetMessage},
     utils::{make_arrow, ArrowDirection},
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface, VerticalAlignment,
@@ -24,41 +22,36 @@ crate::define_widget_deref!(Expander);
 
 impl Control for Expander {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
-        match *message.data() {
-            UiMessageData::Expander(ExpanderMessage::Expand(expand)) => {
-                if message.destination() == self.handle()
-                    && message.direction() == MessageDirection::ToWidget
-                    && self.is_expanded != expand
-                {
-                    // Switch state of expander.
-                    ui.send_message(CheckBoxMessage::checked(
-                        self.expander,
-                        MessageDirection::ToWidget,
-                        Some(expand),
-                    ));
-                    // Show or hide content.
-                    ui.send_message(WidgetMessage::visibility(
-                        self.content,
-                        MessageDirection::ToWidget,
-                        expand,
-                    ));
-                    self.is_expanded = expand;
-                }
+        if let Some(&ExpanderMessage::Expand(expand)) = message.data::<ExpanderMessage>() {
+            if message.destination() == self.handle()
+                && message.direction() == MessageDirection::ToWidget
+                && self.is_expanded != expand
+            {
+                // Switch state of expander.
+                ui.send_message(CheckBoxMessage::checked(
+                    self.expander,
+                    MessageDirection::ToWidget,
+                    Some(expand),
+                ));
+                // Show or hide content.
+                ui.send_message(WidgetMessage::visibility(
+                    self.content,
+                    MessageDirection::ToWidget,
+                    expand,
+                ));
+                self.is_expanded = expand;
             }
-            UiMessageData::CheckBox(CheckBoxMessage::Check(value)) => {
-                if message.destination() == self.expander
-                    && message.direction() == MessageDirection::FromWidget
-                {
-                    ui.send_message(ExpanderMessage::expand(
-                        self.handle,
-                        MessageDirection::ToWidget,
-                        value.unwrap_or(false),
-                    ));
-                }
+        } else if let Some(CheckBoxMessage::Check(value)) = message.data::<CheckBoxMessage>() {
+            if message.destination() == self.expander
+                && message.direction() == MessageDirection::FromWidget
+            {
+                ui.send_message(ExpanderMessage::expand(
+                    self.handle,
+                    MessageDirection::ToWidget,
+                    value.unwrap_or(false),
+                ));
             }
-            _ => {}
         }
-
         self.widget.handle_routed_message(ui, message);
     }
 }

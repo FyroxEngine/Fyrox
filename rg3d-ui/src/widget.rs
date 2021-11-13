@@ -1,7 +1,7 @@
 use crate::{
     brush::Brush,
     core::{algebra::Vector2, math::Rect, pool::Handle},
-    message::{CursorIcon, MessageDirection, UiMessage, UiMessageData, WidgetMessage},
+    message::{CursorIcon, MessageDirection, UiMessage, WidgetMessage},
     HorizontalAlignment, LayoutEvent, Thickness, UiNode, UserInterface, VerticalAlignment,
     BRUSH_FOREGROUND, BRUSH_PRIMARY,
 };
@@ -371,7 +371,7 @@ impl Widget {
 
     pub fn handle_routed_message(&mut self, _ui: &mut UserInterface, msg: &mut UiMessage) {
         if msg.destination() == self.handle() && msg.direction() == MessageDirection::ToWidget {
-            if let UiMessageData::Widget(msg) = &msg.data() {
+            if let Some(msg) = msg.data::<WidgetMessage>() {
                 match msg {
                     &WidgetMessage::Opacity(opacity) => self.opacity = opacity,
                     WidgetMessage::Background(background) => self.background = background.clone(),

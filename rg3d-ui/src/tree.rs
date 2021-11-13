@@ -1,6 +1,6 @@
 use crate::button::Button;
 use crate::core::algebra::Vector2;
-use crate::message::TreeExpansionStrategy;
+use crate::message::{SelectionState, TreeExpansionStrategy};
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -10,7 +10,7 @@ use crate::{
     grid::{Column, GridBuilder, Row},
     message::{
         ButtonMessage, DecoratorMessage, MessageDirection, TextMessage, TreeMessage,
-        TreeRootMessage, UiMessage, UiMessageData, WidgetMessage,
+        TreeRootMessage, UiMessage, WidgetMessage,
     },
     stack_panel::StackPanelBuilder,
     widget::{Widget, WidgetBuilder},
@@ -58,155 +58,149 @@ impl Control for Tree {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        match &message.data() {
-            UiMessageData::Button(ButtonMessage::Click) => {
-                if message.destination() == self.expander {
-                    ui.send_message(TreeMessage::expand(
-                        self.handle(),
-                        MessageDirection::ToWidget,
-                        !self.is_expanded,
-                        TreeExpansionStrategy::Direct,
-                    ));
-                }
+        if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
+            if message.destination() == self.expander {
+                ui.send_message(TreeMessage::expand(
+                    self.handle(),
+                    MessageDirection::ToWidget,
+                    !self.is_expanded,
+                    TreeExpansionStrategy::Direct,
+                ));
             }
-            UiMessageData::Widget(WidgetMessage::MouseDown { .. }) => {
-                if !message.handled() {
-                    if let Some((tree_root_handle, tree_root)) =
-                        ui.try_borrow_by_type_up::<TreeRoot>(self.parent())
-                    {
-                        let selection = if ui.keyboard_modifiers().control {
-                            let mut selection = tree_root.selected.clone();
-                            if let Some(existing) = selection.iter().position(|&h| h == self.handle)
-                            {
-                                selection.remove(existing);
-                            } else {
-                                selection.push(self.handle);
-                            }
-                            Some(selection)
-                        } else if !self.is_selected {
-                            Some(vec![self.handle()])
+        } else if let Some(WidgetMessage::MouseDown { .. }) = message.data::<WidgetMessage>() {
+            if !message.handled() {
+                if let Some((tree_root_handle, tree_root)) =
+                    ui.try_borrow_by_type_up::<TreeRoot>(self.parent())
+                {
+                    let selection = if ui.keyboard_modifiers().control {
+                        let mut selection = tree_root.selected.clone();
+                        if let Some(existing) = selection.iter().position(|&h| h == self.handle) {
+                            selection.remove(existing);
                         } else {
-                            None
-                        };
-                        if let Some(selection) = selection {
-                            ui.send_message(TreeRootMessage::select(
-                                tree_root_handle,
-                                MessageDirection::ToWidget,
-                                selection,
-                            ));
+                            selection.push(self.handle);
                         }
-                        message.set_handled(true);
+                        Some(selection)
+                    } else if !self.is_selected {
+                        Some(vec![self.handle()])
+                    } else {
+                        None
+                    };
+                    if let Some(selection) = selection {
+                        ui.send_message(TreeRootMessage::select(
+                            tree_root_handle,
+                            MessageDirection::ToWidget,
+                            selection,
+                        ));
                     }
+                    message.set_handled(true);
                 }
             }
-            UiMessageData::Tree(msg) => {
-                if message.destination() == self.handle() {
-                    match msg {
-                        &TreeMessage::Expand {
-                            expand,
-                            expansion_strategy,
-                        } => {
-                            self.is_expanded = expand;
-                            ui.send_message(WidgetMessage::visibility(
-                                self.panel,
+        } else if let Some(msg) = message.data::<TreeMessage>() {
+            if message.destination() == self.handle() {
+                match msg {
+                    &TreeMessage::Expand {
+                        expand,
+                        expansion_strategy,
+                    } => {
+                        self.is_expanded = expand;
+                        ui.send_message(WidgetMessage::visibility(
+                            self.panel,
+                            MessageDirection::ToWidget,
+                            self.is_expanded,
+                        ));
+                        if let Some(expander) = ui.node(self.expander).cast::<Button>() {
+                            let content = expander.content();
+                            let text = if expand { "-" } else { "+" };
+                            ui.send_message(TextMessage::text(
+                                content,
                                 MessageDirection::ToWidget,
-                                self.is_expanded,
+                                text.to_owned(),
                             ));
-                            if let Some(expander) = ui.node(self.expander).cast::<Button>() {
-                                let content = expander.content();
-                                let text = if expand { "-" } else { "+" };
-                                ui.send_message(TextMessage::text(
-                                    content,
-                                    MessageDirection::ToWidget,
-                                    text.to_owned(),
-                                ));
-                            }
+                        }
 
-                            match expansion_strategy {
-                                TreeExpansionStrategy::RecursiveDescendants => {
-                                    for &item in self.items() {
-                                        ui.send_message(TreeMessage::expand(
-                                            item,
-                                            MessageDirection::ToWidget,
-                                            expand,
-                                            expansion_strategy,
-                                        ));
-                                    }
-                                }
-                                TreeExpansionStrategy::RecursiveAncestors => {
-                                    // CAVEAT: This may lead to potential false expansions when there are
-                                    // trees inside trees (this is insane, but possible) because we're searching
-                                    // up on visual tree and don't care about search bounds, ideally we should
-                                    // stop search if we're found TreeRoot.
-                                    let parent_tree = self
-                                        .find_by_criteria_up(ui, |n| n.cast::<Tree>().is_some());
-                                    if parent_tree.is_some() {
-                                        ui.send_message(TreeMessage::expand(
-                                            parent_tree,
-                                            MessageDirection::ToWidget,
-                                            expand,
-                                            expansion_strategy,
-                                        ));
-                                    }
-                                }
-                                TreeExpansionStrategy::Direct => {
-                                    // Handle this variant too instead of using _ => (),
-                                    // to force compiler to notify if new strategy is added.
+                        match expansion_strategy {
+                            TreeExpansionStrategy::RecursiveDescendants => {
+                                for &item in self.items() {
+                                    ui.send_message(TreeMessage::expand(
+                                        item,
+                                        MessageDirection::ToWidget,
+                                        expand,
+                                        expansion_strategy,
+                                    ));
                                 }
                             }
+                            TreeExpansionStrategy::RecursiveAncestors => {
+                                // CAVEAT: This may lead to potential false expansions when there are
+                                // trees inside trees (this is insane, but possible) because we're searching
+                                // up on visual tree and don't care about search bounds, ideally we should
+                                // stop search if we're found TreeRoot.
+                                let parent_tree =
+                                    self.find_by_criteria_up(ui, |n| n.cast::<Tree>().is_some());
+                                if parent_tree.is_some() {
+                                    ui.send_message(TreeMessage::expand(
+                                        parent_tree,
+                                        MessageDirection::ToWidget,
+                                        expand,
+                                        expansion_strategy,
+                                    ));
+                                }
+                            }
+                            TreeExpansionStrategy::Direct => {
+                                // Handle this variant too instead of using _ => (),
+                                // to force compiler to notify if new strategy is added.
+                            }
                         }
-                        &TreeMessage::SetExpanderShown(show) => {
-                            self.always_show_expander = show;
-                            self.invalidate_arrange();
+                    }
+                    &TreeMessage::SetExpanderShown(show) => {
+                        self.always_show_expander = show;
+                        self.invalidate_arrange();
+                    }
+                    &TreeMessage::AddItem(item) => {
+                        ui.send_message(WidgetMessage::link(
+                            item,
+                            MessageDirection::ToWidget,
+                            self.panel,
+                        ));
+
+                        self.items.push(item);
+                    }
+                    &TreeMessage::RemoveItem(item) => {
+                        if let Some(pos) = self.items.iter().position(|&i| i == item) {
+                            ui.send_message(WidgetMessage::remove(
+                                item,
+                                MessageDirection::ToWidget,
+                            ));
+                            self.items.remove(pos);
                         }
-                        &TreeMessage::AddItem(item) => {
+                    }
+                    TreeMessage::SetItems(items) => {
+                        for &item in self.items.iter() {
+                            ui.send_message(WidgetMessage::remove(
+                                item,
+                                MessageDirection::ToWidget,
+                            ));
+                        }
+                        for &item in items {
                             ui.send_message(WidgetMessage::link(
                                 item,
                                 MessageDirection::ToWidget,
                                 self.panel,
                             ));
-
-                            self.items.push(item);
                         }
-                        &TreeMessage::RemoveItem(item) => {
-                            if let Some(pos) = self.items.iter().position(|&i| i == item) {
-                                ui.send_message(WidgetMessage::remove(
-                                    item,
-                                    MessageDirection::ToWidget,
-                                ));
-                                self.items.remove(pos);
-                            }
-                        }
-                        TreeMessage::SetItems(items) => {
-                            for &item in self.items.iter() {
-                                ui.send_message(WidgetMessage::remove(
-                                    item,
-                                    MessageDirection::ToWidget,
-                                ));
-                            }
-                            for &item in items {
-                                ui.send_message(WidgetMessage::link(
-                                    item,
-                                    MessageDirection::ToWidget,
-                                    self.panel,
-                                ));
-                            }
-                            self.items = items.clone();
-                        }
-                        &TreeMessage::Select(state) => {
-                            if self.is_selected != state.0 {
-                                self.is_selected = state.0;
-                                ui.send_message(DecoratorMessage::select(
-                                    self.background,
-                                    MessageDirection::ToWidget,
-                                    self.is_selected,
-                                ));
-                            }
+                        self.items = items.clone();
+                    }
+                    &TreeMessage::Select(state) => {
+                        if self.is_selected != state.0 {
+                            self.is_selected = state.0;
+                            ui.send_message(DecoratorMessage::select(
+                                self.background,
+                                MessageDirection::ToWidget,
+                                self.is_selected,
+                            ));
                         }
                     }
                 }
             }
-            _ => (),
         }
     }
 
@@ -432,7 +426,7 @@ impl Control for TreeRoot {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if let UiMessageData::TreeRoot(msg) = &message.data() {
+        if let Some(msg) = message.data::<TreeRootMessage>() {
             if message.destination() == self.handle()
                 && message.direction() == MessageDirection::ToWidget
             {
@@ -481,13 +475,13 @@ impl Control for TreeRoot {
                                     ui.send_message(TreeMessage::select(
                                         handle,
                                         MessageDirection::ToWidget,
-                                        true,
+                                        SelectionState(true),
                                     ));
                                 } else {
                                     ui.send_message(TreeMessage::select(
                                         handle,
                                         MessageDirection::ToWidget,
-                                        false,
+                                        SelectionState(false),
                                     ));
                                 }
                             }

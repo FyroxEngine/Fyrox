@@ -70,7 +70,7 @@ use crate::{
     draw::{CommandTexture, Draw, DrawingContext},
     message::{
         ButtonState, CursorIcon, KeyboardModifiers, MessageDirection, MouseButton, OsEvent,
-        PopupMessage, UiMessage, UiMessageData, WidgetMessage,
+        PopupMessage, UiMessage, WidgetMessage,
     },
     popup::Placement,
     ttf::{Font, SharedFont},
@@ -1371,7 +1371,7 @@ impl UserInterface {
 
                 self.bubble_message(&mut message);
 
-                if let UiMessageData::Widget(msg) = &message.data() {
+                if let Some(msg) = message.data::<WidgetMessage>() {
                     match msg {
                         WidgetMessage::ZIndex(_) => {
                             // Keep order of children of a parent node of a node that changed z-index

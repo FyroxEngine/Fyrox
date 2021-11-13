@@ -14,7 +14,7 @@ use crate::{
         Layout, PropertyEditorBuildContext, PropertyEditorDefinition,
         PropertyEditorDefinitionContainer, PropertyEditorMessageContext,
     },
-    message::{InspectorMessage, MessageDirection, UiMessage, UiMessageData, WidgetMessage},
+    message::{InspectorMessage, MessageDirection, UiMessage, WidgetMessage},
     stack_panel::StackPanelBuilder,
     text::TextBuilder,
     widget::{Widget, WidgetBuilder},
@@ -395,7 +395,7 @@ impl Control for Inspector {
 
         if message.destination() == self.handle && message.direction() == MessageDirection::ToWidget
         {
-            if let UiMessageData::Inspector(InspectorMessage::Context(ctx)) = message.data() {
+            if let Some(InspectorMessage::Context(ctx)) = message.data::<InspectorMessage>() {
                 // Remove previous content.
                 for child in ui.node(self.stack_panel).children() {
                     ui.send_message(WidgetMessage::remove(*child, MessageDirection::ToWidget));

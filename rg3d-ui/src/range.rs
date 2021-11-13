@@ -1,9 +1,10 @@
 use crate::grid::{Column, Row};
-use crate::message::{MessageDirection, UiMessageData};
+use crate::message::MessageDirection;
 use crate::numeric::NumericUpDownMessage;
 use crate::text::TextBuilder;
 use crate::{
     core::pool::Handle,
+    define_constructor,
     grid::GridBuilder,
     message::UiMessage,
     numeric::{NumericType, NumericUpDownBuilder},
@@ -21,17 +22,7 @@ where
 }
 
 impl<T: NumericType> RangeEditorMessage<T> {
-    pub fn value(
-        destination: Handle<UiNode>,
-        direction: MessageDirection,
-        value: Range<T>,
-    ) -> UiMessage {
-        UiMessage::user(
-            destination,
-            direction,
-            Box::new(RangeEditorMessage::Value(value)),
-        )
-    }
+    define_constructor!(RangeEditorMessage:Value => fn value(Range<T>), layout: false);
 }
 
 #[derive(Debug, Clone)]
@@ -75,66 +66,64 @@ where
         self.widget.handle_routed_message(ui, message);
 
         if message.direction() == MessageDirection::ToWidget && message.flags != SYNC_FLAG {
-            if let UiMessageData::User(msg) = message.data() {
-                if let Some(RangeEditorMessage::Value(range)) = msg.cast::<RangeEditorMessage<T>>()
-                {
-                    if message.destination() == self.handle && self.value != *range {
-                        self.value = range.clone();
+            if let Some(RangeEditorMessage::Value(range)) = message.data::<RangeEditorMessage<T>>()
+            {
+                if message.destination() == self.handle && self.value != *range {
+                    self.value = range.clone();
 
-                        ui.send_message(NumericUpDownMessage::value(
+                    ui.send_message(NumericUpDownMessage::value(
+                        self.start,
+                        MessageDirection::ToWidget,
+                        range.start,
+                    ));
+                    ui.send_message(NumericUpDownMessage::value(
+                        self.end,
+                        MessageDirection::ToWidget,
+                        range.end,
+                    ));
+
+                    ui.send_message(message.reverse());
+                }
+            } else if let Some(NumericUpDownMessage::Value(value)) =
+                message.data::<NumericUpDownMessage<T>>()
+            {
+                if message.destination() == self.start {
+                    if *value < self.value.end {
+                        ui.send_message(RangeEditorMessage::value(
+                            self.handle,
+                            MessageDirection::ToWidget,
+                            Range {
+                                start: *value,
+                                end: self.value.end,
+                            },
+                        ));
+                    } else {
+                        let mut msg = NumericUpDownMessage::value(
                             self.start,
                             MessageDirection::ToWidget,
-                            range.start,
+                            self.value.end,
+                        );
+                        msg.flags = SYNC_FLAG;
+                        ui.send_message(msg);
+                    }
+                } else if message.destination() == self.end {
+                    if *value > self.value.start {
+                        ui.send_message(RangeEditorMessage::value(
+                            self.handle,
+                            MessageDirection::ToWidget,
+                            Range {
+                                start: self.value.start,
+                                end: *value,
+                            },
                         ));
-                        ui.send_message(NumericUpDownMessage::value(
+                    } else {
+                        let mut msg = NumericUpDownMessage::value(
                             self.end,
                             MessageDirection::ToWidget,
-                            range.end,
-                        ));
-
-                        ui.send_message(message.reverse());
-                    }
-                } else if let Some(NumericUpDownMessage::Value(value)) =
-                    msg.cast::<NumericUpDownMessage<T>>()
-                {
-                    if message.destination() == self.start {
-                        if *value < self.value.end {
-                            ui.send_message(RangeEditorMessage::value(
-                                self.handle,
-                                MessageDirection::ToWidget,
-                                Range {
-                                    start: *value,
-                                    end: self.value.end,
-                                },
-                            ));
-                        } else {
-                            let mut msg = NumericUpDownMessage::value(
-                                self.start,
-                                MessageDirection::ToWidget,
-                                self.value.end,
-                            );
-                            msg.flags = SYNC_FLAG;
-                            ui.send_message(msg);
-                        }
-                    } else if message.destination() == self.end {
-                        if *value > self.value.start {
-                            ui.send_message(RangeEditorMessage::value(
-                                self.handle,
-                                MessageDirection::ToWidget,
-                                Range {
-                                    start: self.value.start,
-                                    end: *value,
-                                },
-                            ));
-                        } else {
-                            let mut msg = NumericUpDownMessage::value(
-                                self.end,
-                                MessageDirection::ToWidget,
-                                self.value.start,
-                            );
-                            msg.flags = SYNC_FLAG;
-                            ui.send_message(msg);
-                        }
+                            self.value.start,
+                        );
+                        msg.flags = SYNC_FLAG;
+                        ui.send_message(msg);
                     }
                 }
             }

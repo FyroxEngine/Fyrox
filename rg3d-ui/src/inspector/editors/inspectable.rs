@@ -8,9 +8,7 @@ use crate::{
         InspectorError,
     },
     inspector::{Inspector, InspectorBuilder, InspectorContext},
-    message::{
-        FieldKind, InspectorMessage, MessageDirection, PropertyChanged, UiMessage, UiMessageData,
-    },
+    message::{FieldKind, InspectorMessage, MessageDirection, PropertyChanged, UiMessage},
     widget::WidgetBuilder,
 };
 use std::{
@@ -108,9 +106,8 @@ where
         owner_type_id: TypeId,
         message: &UiMessage,
     ) -> Option<PropertyChanged> {
-        if message.direction() == MessageDirection::FromWidget {
-            if let UiMessageData::Inspector(InspectorMessage::PropertyChanged(msg)) = message.data()
-            {
+        if let Some(InspectorMessage::PropertyChanged(msg)) = message.data::<InspectorMessage>() {
+            if message.direction() == MessageDirection::FromWidget {
                 return Some(PropertyChanged {
                     name: name.to_owned(),
                     owner_type_id,
@@ -118,6 +115,7 @@ where
                 });
             }
         }
+
         None
     }
 

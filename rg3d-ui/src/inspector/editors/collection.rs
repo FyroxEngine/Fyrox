@@ -3,6 +3,7 @@ use crate::{
     brush::Brush,
     button::ButtonBuilder,
     core::{color::Color, inspect::Inspect, pool::Handle},
+    define_constructor,
     expander::ExpanderBuilder,
     grid::{Column, GridBuilder, Row},
     inspector::{
@@ -16,7 +17,7 @@ use crate::{
     },
     message::{
         ButtonMessage, CollectionChanged, FieldKind, InspectorMessage, MessageDirection,
-        PropertyChanged, UiMessage, UiMessageData, WidgetMessage,
+        PropertyChanged, UiMessage, WidgetMessage,
     },
     stack_panel::StackPanelBuilder,
     text::TextBuilder,
@@ -53,77 +54,71 @@ pub enum CollectionEditorMessage {
     Items(Vec<Item>),
 }
 
+impl CollectionEditorMessage {
+    define_constructor!(CollectionEditorMessage:Items => fn items(Vec<Item>), layout: false);
+}
+
 impl Control for CollectionEditor {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        match message.data() {
-            UiMessageData::Inspector(InspectorMessage::PropertyChanged(p)) => {
-                if let Some(index) = self
-                    .items
-                    .iter()
-                    .position(|i| i.inspector == message.destination())
-                {
-                    ui.send_message(UiMessage::user(
-                        self.handle,
-                        MessageDirection::FromWidget,
-                        Box::new(CollectionChanged::ItemChanged {
-                            index,
-                            property: p.clone(),
-                        }),
-                    ))
-                }
+        if let Some(InspectorMessage::PropertyChanged(p)) = message.data::<InspectorMessage>() {
+            if let Some(index) = self
+                .items
+                .iter()
+                .position(|i| i.inspector == message.destination())
+            {
+                ui.send_message(CollectionChanged::item_changed(
+                    self.handle,
+                    MessageDirection::FromWidget,
+                    index,
+                    p.clone(),
+                ))
             }
-            UiMessageData::Button(ButtonMessage::Click) => {
-                if let Some(index) = self
-                    .items
-                    .iter()
-                    .position(|i| i.remove == message.destination())
-                {
-                    ui.send_message(UiMessage::user(
-                        self.handle,
-                        MessageDirection::FromWidget,
-                        Box::new(CollectionChanged::Remove(index)),
-                    ));
-                }
+        } else if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
+            if let Some(index) = self
+                .items
+                .iter()
+                .position(|i| i.remove == message.destination())
+            {
+                ui.send_message(CollectionChanged::remove(
+                    self.handle,
+                    MessageDirection::FromWidget,
+                    index,
+                ));
             }
-            UiMessageData::User(msg) => {
-                if let Some(msg) = msg.cast::<CollectionEditorMessage>() {
-                    match msg {
-                        CollectionEditorMessage::Items(items) => {
-                            let views = create_item_views(items, &mut ui.build_ctx());
+        } else if let Some(msg) = message.data::<CollectionEditorMessage>() {
+            match msg {
+                CollectionEditorMessage::Items(items) => {
+                    let views = create_item_views(items, &mut ui.build_ctx());
 
-                            for old_item in ui.node(self.panel).children() {
-                                ui.send_message(WidgetMessage::remove(
-                                    *old_item,
-                                    MessageDirection::ToWidget,
-                                ));
-                            }
-
-                            for view in views {
-                                ui.send_message(WidgetMessage::link(
-                                    view,
-                                    MessageDirection::ToWidget,
-                                    self.panel,
-                                ));
-                            }
-
-                            self.items = items.clone();
-                        }
+                    for old_item in ui.node(self.panel).children() {
+                        ui.send_message(WidgetMessage::remove(
+                            *old_item,
+                            MessageDirection::ToWidget,
+                        ));
                     }
+
+                    for view in views {
+                        ui.send_message(WidgetMessage::link(
+                            view,
+                            MessageDirection::ToWidget,
+                            self.panel,
+                        ));
+                    }
+
+                    self.items = items.clone();
                 }
             }
-            _ => {}
         }
     }
 
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
-        if let UiMessageData::Button(ButtonMessage::Click) = message.data() {
+        if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             if message.destination() == self.add {
-                ui.send_message(UiMessage::user(
+                ui.send_message(CollectionChanged::add(
                     self.handle,
                     MessageDirection::FromWidget,
-                    Box::new(CollectionChanged::Add),
                 ))
             }
         }
@@ -408,10 +403,10 @@ where
                 sync_flag,
             );
 
-            Ok(Some(UiMessage::user(
+            Ok(Some(CollectionEditorMessage::items(
                 instance,
                 MessageDirection::ToWidget,
-                Box::new(CollectionEditorMessage::Items(items)),
+                items,
             )))
         } else {
             let mut error_group = Vec::new();
@@ -444,14 +439,12 @@ where
         message: &UiMessage,
     ) -> Option<PropertyChanged> {
         if message.direction() == MessageDirection::FromWidget {
-            if let UiMessageData::User(msg) = message.data() {
-                if let Some(collection_changed) = msg.cast::<CollectionChanged>() {
-                    return Some(PropertyChanged {
-                        name: name.to_string(),
-                        owner_type_id,
-                        value: FieldKind::Collection(Box::new(collection_changed.clone())),
-                    });
-                }
+            if let Some(collection_changed) = message.data::<CollectionChanged>() {
+                return Some(PropertyChanged {
+                    name: name.to_string(),
+                    owner_type_id,
+                    value: FieldKind::Collection(Box::new(collection_changed.clone())),
+                });
             }
         }
         None

@@ -3,7 +3,7 @@ use crate::{
     brush::{Brush, GradientPoint},
     core::{algebra::Vector2, color::Color, pool::Handle},
     draw::DrawingContext,
-    message::{DecoratorMessage, MessageDirection, UiMessage, UiMessageData, WidgetMessage},
+    message::{DecoratorMessage, MessageDirection, UiMessage, WidgetMessage},
     widget::Widget,
     BuildContext, Control, NodeHandleMapping, UiNode, UserInterface, BRUSH_BRIGHT, BRUSH_LIGHT,
     BRUSH_LIGHTER, BRUSH_LIGHTEST, COLOR_DARKEST, COLOR_LIGHTEST,
@@ -71,8 +71,8 @@ impl Control for Decorator {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.border.handle_routed_message(ui, message);
 
-        match &message.data() {
-            UiMessageData::Decorator(msg) => match msg {
+        if let Some(msg) = message.data::<DecoratorMessage>() {
+            match msg {
                 &DecoratorMessage::Select(value) => {
                     if self.is_selected != value {
                         self.is_selected = value;
@@ -124,61 +124,59 @@ impl Control for Decorator {
                         ));
                     }
                 }
-            },
-            UiMessageData::Widget(msg) => {
-                if message.destination() == self.handle()
-                    || self.has_descendant(message.destination(), ui)
-                {
-                    match msg {
-                        WidgetMessage::MouseLeave => {
-                            if self.is_selected {
-                                ui.send_message(WidgetMessage::background(
-                                    self.handle(),
-                                    MessageDirection::ToWidget,
-                                    self.selected_brush.clone(),
-                                ));
-                            } else {
-                                ui.send_message(WidgetMessage::background(
-                                    self.handle(),
-                                    MessageDirection::ToWidget,
-                                    self.normal_brush.clone(),
-                                ));
-                            }
-                        }
-                        WidgetMessage::MouseEnter => {
+            }
+        } else if let Some(msg) = message.data::<WidgetMessage>() {
+            if message.destination() == self.handle()
+                || self.has_descendant(message.destination(), ui)
+            {
+                match msg {
+                    WidgetMessage::MouseLeave => {
+                        if self.is_selected {
                             ui.send_message(WidgetMessage::background(
                                 self.handle(),
                                 MessageDirection::ToWidget,
-                                self.hover_brush.clone(),
+                                self.selected_brush.clone(),
                             ));
-                        }
-                        WidgetMessage::MouseDown { .. } if self.pressable => {
+                        } else {
                             ui.send_message(WidgetMessage::background(
                                 self.handle(),
                                 MessageDirection::ToWidget,
-                                self.pressed_brush.clone(),
+                                self.normal_brush.clone(),
                             ));
                         }
-                        WidgetMessage::MouseUp { .. } => {
-                            if self.is_selected {
-                                ui.send_message(WidgetMessage::background(
-                                    self.handle(),
-                                    MessageDirection::ToWidget,
-                                    self.selected_brush.clone(),
-                                ));
-                            } else {
-                                ui.send_message(WidgetMessage::background(
-                                    self.handle(),
-                                    MessageDirection::ToWidget,
-                                    self.normal_brush.clone(),
-                                ));
-                            }
-                        }
-                        _ => {}
                     }
+                    WidgetMessage::MouseEnter => {
+                        ui.send_message(WidgetMessage::background(
+                            self.handle(),
+                            MessageDirection::ToWidget,
+                            self.hover_brush.clone(),
+                        ));
+                    }
+                    WidgetMessage::MouseDown { .. } if self.pressable => {
+                        ui.send_message(WidgetMessage::background(
+                            self.handle(),
+                            MessageDirection::ToWidget,
+                            self.pressed_brush.clone(),
+                        ));
+                    }
+                    WidgetMessage::MouseUp { .. } => {
+                        if self.is_selected {
+                            ui.send_message(WidgetMessage::background(
+                                self.handle(),
+                                MessageDirection::ToWidget,
+                                self.selected_brush.clone(),
+                            ));
+                        } else {
+                            ui.send_message(WidgetMessage::background(
+                                self.handle(),
+                                MessageDirection::ToWidget,
+                                self.normal_brush.clone(),
+                            ));
+                        }
+                    }
+                    _ => {}
                 }
             }
-            _ => {}
         }
     }
 

@@ -7,7 +7,7 @@ use crate::{
     formatted_text::{FormattedText, FormattedTextBuilder},
     message::{
         CursorIcon, KeyCode, MessageDirection, MouseButton, TextBoxMessage, UiMessage,
-        UiMessageData, WidgetMessage,
+        WidgetMessage,
     },
     ttf::SharedFont,
     widget::{Widget, WidgetBuilder},
@@ -559,8 +559,8 @@ impl Control for TextBox {
         self.widget.handle_routed_message(ui, message);
 
         if message.destination() == self.handle() {
-            match &message.data() {
-                UiMessageData::Widget(msg) => match msg {
+            if let Some(msg) = message.data::<WidgetMessage>() {
+                match msg {
                     &WidgetMessage::Text(symbol)
                         if !ui.keyboard_modifiers().control
                             && !ui.keyboard_modifiers().alt
@@ -779,10 +779,9 @@ impl Control for TextBox {
                         ui.release_mouse_capture();
                     }
                     _ => {}
-                },
-                UiMessageData::TextBox(TextBoxMessage::Text(new_text))
-                    if message.direction() == MessageDirection::ToWidget =>
-                {
+                }
+            } else if let Some(TextBoxMessage::Text(new_text)) = message.data::<TextBoxMessage>() {
+                if message.direction() == MessageDirection::ToWidget {
                     let mut equals = false;
                     for (&new, old) in self
                         .formatted_text
@@ -805,7 +804,6 @@ impl Control for TextBox {
                         }
                     }
                 }
-                _ => {}
             }
         }
     }

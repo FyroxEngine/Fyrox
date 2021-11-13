@@ -14,7 +14,7 @@ use crate::{
         },
         InspectorError,
     },
-    message::{FieldKind, MessageDirection, PropertyChanged, UiMessage, UiMessageData},
+    message::{FieldKind, MessageDirection, PropertyChanged, UiMessage},
     vec::vec3::Vec3EditorBuilder,
     widget::WidgetBuilder,
     Thickness,
@@ -97,20 +97,18 @@ where
         message: &UiMessage,
     ) -> Option<PropertyChanged> {
         if message.direction() == MessageDirection::FromWidget {
-            if let UiMessageData::User(msg) = message.data() {
-                if let Some(Vec3EditorMessage::Value(value)) = msg.cast::<Vec3EditorMessage<T>>() {
-                    let euler = Vector3::new(
-                        value.x.to_radians(),
-                        value.y.to_radians(),
-                        value.z.to_radians(),
-                    );
-                    let rotation = quat_from_euler(euler, RotationOrder::XYZ);
-                    return Some(PropertyChanged {
-                        owner_type_id,
-                        name: name.to_string(),
-                        value: FieldKind::object(rotation),
-                    });
-                }
+            if let Some(Vec3EditorMessage::Value(value)) = message.data::<Vec3EditorMessage<T>>() {
+                let euler = Vector3::new(
+                    value.x.to_radians(),
+                    value.y.to_radians(),
+                    value.z.to_radians(),
+                );
+                let rotation = quat_from_euler(euler, RotationOrder::XYZ);
+                return Some(PropertyChanged {
+                    owner_type_id,
+                    name: name.to_string(),
+                    value: FieldKind::object(rotation),
+                });
             }
         }
 

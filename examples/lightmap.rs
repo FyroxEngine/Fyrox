@@ -27,8 +27,7 @@ use rg3d::{
         button::ButtonBuilder,
         grid::{Column, GridBuilder, Row},
         message::{
-            ButtonMessage, MessageDirection, ProgressBarMessage, TextMessage, UiMessageData,
-            WidgetMessage,
+            ButtonMessage, MessageDirection, ProgressBarMessage, TextMessage, WidgetMessage,
         },
         progress_bar::ProgressBarBuilder,
         stack_panel::StackPanelBuilder,
@@ -461,7 +460,7 @@ fn main() {
                     ));
 
                     while let Some(ui_event) = engine.user_interface.poll_message() {
-                        if let UiMessageData::Button(ButtonMessage::Click) = ui_event.data() {
+                        if let Some(ButtonMessage::Click) = ui_event.data::<ButtonMessage>() {
                             if ui_event.destination() == interface.cancel {
                                 game_scene.lock().unwrap().cancellation_token.cancel();
                                 engine

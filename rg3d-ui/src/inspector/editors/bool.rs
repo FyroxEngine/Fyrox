@@ -7,9 +7,7 @@ use crate::{
         },
         InspectorError,
     },
-    message::{
-        CheckBoxMessage, FieldKind, MessageDirection, PropertyChanged, UiMessage, UiMessageData,
-    },
+    message::{CheckBoxMessage, FieldKind, MessageDirection, PropertyChanged, UiMessage},
     widget::WidgetBuilder,
     Thickness,
 };
@@ -55,7 +53,7 @@ impl PropertyEditorDefinition for BoolPropertyEditorDefinition {
         message: &UiMessage,
     ) -> Option<PropertyChanged> {
         if message.direction() == MessageDirection::FromWidget {
-            if let UiMessageData::CheckBox(CheckBoxMessage::Check(Some(value))) = message.data() {
+            if let Some(CheckBoxMessage::Check(Some(value))) = message.data::<CheckBoxMessage>() {
                 return Some(PropertyChanged {
                     name: name.to_string(),
                     owner_type_id,

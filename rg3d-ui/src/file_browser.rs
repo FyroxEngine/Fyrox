@@ -11,7 +11,7 @@ use crate::{
     message::{
         ButtonMessage, FileBrowserMessage, FileSelectorMessage, MessageDirection, OsEvent,
         ScrollViewerMessage, TextBoxMessage, TreeMessage, TreeRootMessage, UiMessage,
-        UiMessageData, WindowMessage,
+        WindowMessage,
     },
     scroll_viewer::ScrollViewerBuilder,
     stack_panel::StackPanelBuilder,
@@ -140,245 +140,236 @@ impl Control for FileBrowser {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        match &message.data() {
-            UiMessageData::FileBrowser(msg) => {
-                if message.destination() == self.handle() {
-                    match msg {
-                        FileBrowserMessage::Path(path) => {
-                            if message.direction() == MessageDirection::ToWidget
-                                && &self.path != path
-                            {
-                                let existing_path = ignore_nonexistent_sub_dirs(path);
+        if let Some(msg) = message.data::<FileBrowserMessage>() {
+            if message.destination() == self.handle() {
+                match msg {
+                    FileBrowserMessage::Path(path) => {
+                        if message.direction() == MessageDirection::ToWidget && &self.path != path {
+                            let existing_path = ignore_nonexistent_sub_dirs(path);
 
-                                let mut item = find_tree(self.tree_root, &existing_path, ui);
+                            let mut item = find_tree(self.tree_root, &existing_path, ui);
 
-                                if item.is_none() {
-                                    // Generate new tree contents.
-                                    let result = build_all(
-                                        self.root.as_ref(),
-                                        &existing_path,
-                                        self.filter.clone(),
-                                        &mut ui.build_ctx(),
-                                    );
+                            if item.is_none() {
+                                // Generate new tree contents.
+                                let result = build_all(
+                                    self.root.as_ref(),
+                                    &existing_path,
+                                    self.filter.clone(),
+                                    &mut ui.build_ctx(),
+                                );
 
-                                    // Replace tree contents.
-                                    ui.send_message(TreeRootMessage::items(
-                                        self.tree_root,
-                                        MessageDirection::ToWidget,
-                                        result.root_items,
-                                    ));
-
-                                    item = result.path_item;
-                                }
-
-                                self.path = path.clone();
-
-                                // Set value of text field.
-                                ui.send_message(TextBoxMessage::text(
-                                    self.path_text,
+                                // Replace tree contents.
+                                ui.send_message(TreeRootMessage::items(
+                                    self.tree_root,
                                     MessageDirection::ToWidget,
-                                    path.to_string_lossy().to_string(),
+                                    result.root_items,
                                 ));
 
-                                // Path can be invalid, so we shouldn't do anything in such case.
-                                if item.is_some() {
-                                    // Select item of new path.
-                                    ui.send_message(TreeRootMessage::select(
-                                        self.tree_root,
-                                        MessageDirection::ToWidget,
-                                        vec![item],
-                                    ));
+                                item = result.path_item;
+                            }
 
-                                    // Bring item of new path into view.
-                                    ui.send_message(ScrollViewerMessage::bring_into_view(
-                                        self.scroll_viewer,
-                                        MessageDirection::ToWidget,
-                                        item,
-                                    ));
-                                }
+                            self.path = path.clone();
 
-                                ui.send_message(message.reverse());
-                            }
-                        }
-                        FileBrowserMessage::Root(root) => {
-                            if &self.root != root {
-                                let watcher_replacment = match self.watcher.replace(None) {
-                                    Some((mut watcher, converter)) => {
-                                        let current_root = match &self.root {
-                                            Some(path) => path.clone(),
-                                            None => self.path.clone(),
-                                        };
-                                        let _ = watcher.unwatch(current_root);
-                                        let new_root = match &root {
-                                            Some(path) => path.clone(),
-                                            None => self.path.clone(),
-                                        };
-                                        let _ = watcher
-                                            .watch(new_root, notify::RecursiveMode::Recursive);
-                                        Some((watcher, converter))
-                                    }
-                                    None => None,
-                                };
-                                self.root = root.clone();
-                                self.path = root.clone().unwrap_or_default();
-                                self.rebuild_from_root(ui);
-                                self.watcher.replace(watcher_replacment);
-                            }
-                        }
-                        FileBrowserMessage::Filter(filter) => {
-                            let equal = match (&self.filter, filter) {
-                                (Some(current), Some(new)) => std::ptr::eq(&*new, &*current),
-                                _ => false,
-                            };
-                            if !equal {
-                                self.filter = filter.clone();
-                                self.rebuild_from_root(ui);
-                            }
-                        }
-                        FileBrowserMessage::Add(path) => {
-                            let path =
-                                make_fs_watcher_event_path_relative_to_tree_root(&self.root, path);
-                            if filtered_out(&mut self.filter, &path) {
-                                return;
-                            }
-                            let parent_path = parent_path(&path);
-                            let existing_parent_node = find_tree(self.tree_root, &parent_path, ui);
-                            if existing_parent_node.is_some() {
-                                if let Some(tree) = ui.node(existing_parent_node).cast::<Tree>() {
-                                    if tree.expanded() {
-                                        build_tree(
-                                            existing_parent_node,
-                                            existing_parent_node == self.tree_root,
-                                            path,
-                                            parent_path,
-                                            ui,
-                                        );
-                                    } else if !tree.expander_shown() {
-                                        ui.send_message(TreeMessage::set_expander_shown(
-                                            tree.handle(),
-                                            MessageDirection::ToWidget,
-                                            true,
-                                        ))
-                                    }
-                                }
-                            }
-                        }
-                        FileBrowserMessage::Remove(path) => {
-                            let path =
-                                make_fs_watcher_event_path_relative_to_tree_root(&self.root, path);
-                            let node = find_tree(self.tree_root, &path, ui);
-                            if node.is_some() {
-                                let parent_path = parent_path(&path);
-                                let parent_node = find_tree(self.tree_root, &parent_path, ui);
-                                ui.send_message(TreeMessage::remove_item(
-                                    parent_node,
+                            // Set value of text field.
+                            ui.send_message(TextBoxMessage::text(
+                                self.path_text,
+                                MessageDirection::ToWidget,
+                                path.to_string_lossy().to_string(),
+                            ));
+
+                            // Path can be invalid, so we shouldn't do anything in such case.
+                            if item.is_some() {
+                                // Select item of new path.
+                                ui.send_message(TreeRootMessage::select(
+                                    self.tree_root,
                                     MessageDirection::ToWidget,
-                                    node,
-                                ))
+                                    vec![item],
+                                ));
+
+                                // Bring item of new path into view.
+                                ui.send_message(ScrollViewerMessage::bring_into_view(
+                                    self.scroll_viewer,
+                                    MessageDirection::ToWidget,
+                                    item,
+                                ));
+                            }
+
+                            ui.send_message(message.reverse());
+                        }
+                    }
+                    FileBrowserMessage::Root(root) => {
+                        if &self.root != root {
+                            let watcher_replacment = match self.watcher.replace(None) {
+                                Some((mut watcher, converter)) => {
+                                    let current_root = match &self.root {
+                                        Some(path) => path.clone(),
+                                        None => self.path.clone(),
+                                    };
+                                    let _ = watcher.unwatch(current_root);
+                                    let new_root = match &root {
+                                        Some(path) => path.clone(),
+                                        None => self.path.clone(),
+                                    };
+                                    let _ =
+                                        watcher.watch(new_root, notify::RecursiveMode::Recursive);
+                                    Some((watcher, converter))
+                                }
+                                None => None,
+                            };
+                            self.root = root.clone();
+                            self.path = root.clone().unwrap_or_default();
+                            self.rebuild_from_root(ui);
+                            self.watcher.replace(watcher_replacment);
+                        }
+                    }
+                    FileBrowserMessage::Filter(filter) => {
+                        let equal = match (&self.filter, filter) {
+                            (Some(current), Some(new)) => std::ptr::eq(&*new, &*current),
+                            _ => false,
+                        };
+                        if !equal {
+                            self.filter = filter.clone();
+                            self.rebuild_from_root(ui);
+                        }
+                    }
+                    FileBrowserMessage::Add(path) => {
+                        let path =
+                            make_fs_watcher_event_path_relative_to_tree_root(&self.root, path);
+                        if filtered_out(&mut self.filter, &path) {
+                            return;
+                        }
+                        let parent_path = parent_path(&path);
+                        let existing_parent_node = find_tree(self.tree_root, &parent_path, ui);
+                        if existing_parent_node.is_some() {
+                            if let Some(tree) = ui.node(existing_parent_node).cast::<Tree>() {
+                                if tree.expanded() {
+                                    build_tree(
+                                        existing_parent_node,
+                                        existing_parent_node == self.tree_root,
+                                        path,
+                                        parent_path,
+                                        ui,
+                                    );
+                                } else if !tree.expander_shown() {
+                                    ui.send_message(TreeMessage::set_expander_shown(
+                                        tree.handle(),
+                                        MessageDirection::ToWidget,
+                                        true,
+                                    ))
+                                }
                             }
                         }
-                        FileBrowserMessage::Rescan => (),
                     }
+                    FileBrowserMessage::Remove(path) => {
+                        let path =
+                            make_fs_watcher_event_path_relative_to_tree_root(&self.root, path);
+                        let node = find_tree(self.tree_root, &path, ui);
+                        if node.is_some() {
+                            let parent_path = parent_path(&path);
+                            let parent_node = find_tree(self.tree_root, &parent_path, ui);
+                            ui.send_message(TreeMessage::remove_item(
+                                parent_node,
+                                MessageDirection::ToWidget,
+                                node,
+                            ))
+                        }
+                    }
+                    FileBrowserMessage::Rescan => (),
                 }
             }
-            UiMessageData::TextBox(TextBoxMessage::Text(txt)) => {
-                if message.direction() == MessageDirection::FromWidget {
-                    if message.destination() == self.path_text {
-                        self.path = txt.into();
-                    } else if message.destination() == self.file_name {
-                        self.file_name_value = txt.into();
+        } else if let Some(TextBoxMessage::Text(txt)) = message.data::<TextBoxMessage>() {
+            if message.direction() == MessageDirection::FromWidget {
+                if message.destination() == self.path_text {
+                    self.path = txt.into();
+                } else if message.destination() == self.file_name {
+                    self.file_name_value = txt.into();
+                    ui.send_message(FileBrowserMessage::path(
+                        self.handle,
+                        MessageDirection::ToWidget,
+                        {
+                            let mut combined = self.path.clone();
+                            combined.set_file_name(PathBuf::from(txt));
+                            combined
+                        },
+                    ));
+                }
+            }
+        } else if let Some(TreeMessage::Expand { expand, .. }) = message.data::<TreeMessage>() {
+            if *expand {
+                // Look into internals of directory and build tree items.
+                let parent_path = ui
+                    .node(message.destination())
+                    .user_data_ref::<PathBuf>()
+                    .unwrap()
+                    .clone();
+                if let Ok(dir_iter) = std::fs::read_dir(&parent_path) {
+                    let mut entries: Vec<_> = dir_iter.flatten().collect();
+                    entries.sort_unstable_by(sort_dir_entries);
+                    for entry in entries {
+                        let path = entry.path();
+                        let build = if let Some(filter) = self.filter.as_mut() {
+                            filter.0.borrow_mut().deref_mut().lock().unwrap()(&path)
+                        } else {
+                            true
+                        };
+                        if build {
+                            build_tree(message.destination(), false, &path, &parent_path, ui);
+                        }
+                    }
+                }
+            } else {
+                // Nuke everything in collapsed item. This also will free some resources
+                // and will speed up layout pass.
+                ui.send_message(TreeMessage::set_items(
+                    message.destination(),
+                    MessageDirection::ToWidget,
+                    vec![],
+                ));
+            }
+        } else if let Some(TreeRootMessage::Selected(selection)) = message.data::<TreeRootMessage>()
+        {
+            if message.destination() == self.tree_root
+                && message.direction() == MessageDirection::FromWidget
+            {
+                if let Some(&first_selected) = selection.first() {
+                    let mut path = ui
+                        .node(first_selected)
+                        .user_data_ref::<PathBuf>()
+                        .unwrap()
+                        .clone();
+
+                    if let FileBrowserMode::Save { .. } = self.mode {
+                        if path.is_file() {
+                            ui.send_message(TextBoxMessage::text(
+                                self.file_name,
+                                MessageDirection::ToWidget,
+                                path.file_name()
+                                    .map(|f| f.to_string_lossy().to_string())
+                                    .unwrap_or_default(),
+                            ));
+                        } else {
+                            path = path.join(&self.file_name_value);
+                        }
+                    }
+
+                    if self.path != path {
+                        self.path = path.clone();
+
+                        ui.send_message(TextBoxMessage::text(
+                            self.path_text,
+                            MessageDirection::ToWidget,
+                            path.to_string_lossy().to_string(),
+                        ));
+
+                        // Do response.
                         ui.send_message(FileBrowserMessage::path(
                             self.handle,
-                            MessageDirection::ToWidget,
-                            {
-                                let mut combined = self.path.clone();
-                                combined.set_file_name(PathBuf::from(txt));
-                                combined
-                            },
+                            MessageDirection::FromWidget,
+                            path,
                         ));
                     }
                 }
             }
-            UiMessageData::Tree(TreeMessage::Expand { expand, .. }) => {
-                if *expand {
-                    // Look into internals of directory and build tree items.
-                    let parent_path = ui
-                        .node(message.destination())
-                        .user_data_ref::<PathBuf>()
-                        .unwrap()
-                        .clone();
-                    if let Ok(dir_iter) = std::fs::read_dir(&parent_path) {
-                        let mut entries: Vec<_> = dir_iter.flatten().collect();
-                        entries.sort_unstable_by(sort_dir_entries);
-                        for entry in entries {
-                            let path = entry.path();
-                            let build = if let Some(filter) = self.filter.as_mut() {
-                                filter.0.borrow_mut().deref_mut().lock().unwrap()(&path)
-                            } else {
-                                true
-                            };
-                            if build {
-                                build_tree(message.destination(), false, &path, &parent_path, ui);
-                            }
-                        }
-                    }
-                } else {
-                    // Nuke everything in collapsed item. This also will free some resources
-                    // and will speed up layout pass.
-                    ui.send_message(TreeMessage::set_items(
-                        message.destination(),
-                        MessageDirection::ToWidget,
-                        vec![],
-                    ));
-                }
-            }
-            UiMessageData::TreeRoot(msg) => {
-                if message.destination() == self.tree_root
-                    && message.direction() == MessageDirection::FromWidget
-                {
-                    if let TreeRootMessage::Selected(selection) = msg {
-                        if let Some(&first_selected) = selection.first() {
-                            let mut path = ui
-                                .node(first_selected)
-                                .user_data_ref::<PathBuf>()
-                                .unwrap()
-                                .clone();
-
-                            if let FileBrowserMode::Save { .. } = self.mode {
-                                if path.is_file() {
-                                    ui.send_message(TextBoxMessage::text(
-                                        self.file_name,
-                                        MessageDirection::ToWidget,
-                                        path.file_name()
-                                            .map(|f| f.to_string_lossy().to_string())
-                                            .unwrap_or_default(),
-                                    ));
-                                } else {
-                                    path = path.join(&self.file_name_value);
-                                }
-                            }
-
-                            if self.path != path {
-                                self.path = path.clone();
-
-                                ui.send_message(TextBoxMessage::text(
-                                    self.path_text,
-                                    MessageDirection::ToWidget,
-                                    path.to_string_lossy().to_string(),
-                                ));
-
-                                // Do response.
-                                ui.send_message(FileBrowserMessage::path(
-                                    self.handle,
-                                    MessageDirection::FromWidget,
-                                    path,
-                                ));
-                            }
-                        }
-                    }
-                }
-            }
-            _ => {}
         }
     }
 
@@ -991,61 +982,55 @@ impl Control for FileSelector {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.window.handle_routed_message(ui, message);
 
-        match &message.data() {
-            UiMessageData::Button(ButtonMessage::Click) => {
-                if message.destination() == self.ok {
-                    let path = ui
-                        .node(self.browser)
-                        .cast::<FileBrowser>()
-                        .expect("self.browser must be FileBrowser")
-                        .path
-                        .clone();
+        if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
+            if message.destination() == self.ok {
+                let path = ui
+                    .node(self.browser)
+                    .cast::<FileBrowser>()
+                    .expect("self.browser must be FileBrowser")
+                    .path
+                    .clone();
 
-                    ui.send_message(FileSelectorMessage::commit(
-                        self.handle,
-                        MessageDirection::ToWidget,
-                        path,
-                    ));
-                } else if message.destination() == self.cancel {
-                    ui.send_message(FileSelectorMessage::cancel(
-                        self.handle,
-                        MessageDirection::ToWidget,
-                    ))
-                }
+                ui.send_message(FileSelectorMessage::commit(
+                    self.handle,
+                    MessageDirection::ToWidget,
+                    path,
+                ));
+            } else if message.destination() == self.cancel {
+                ui.send_message(FileSelectorMessage::cancel(
+                    self.handle,
+                    MessageDirection::ToWidget,
+                ))
             }
-            UiMessageData::FileSelector(msg) => {
-                if message.destination() == self.handle {
-                    match msg {
-                        FileSelectorMessage::Commit(_) | FileSelectorMessage::Cancel => ui
-                            .send_message(WindowMessage::close(
-                                self.handle,
-                                MessageDirection::ToWidget,
-                            )),
-                        FileSelectorMessage::Path(path) => {
-                            ui.send_message(FileBrowserMessage::path(
-                                self.browser,
-                                MessageDirection::ToWidget,
-                                path.clone(),
-                            ))
-                        }
-                        FileSelectorMessage::Root(root) => {
-                            ui.send_message(FileBrowserMessage::root(
-                                self.browser,
-                                MessageDirection::ToWidget,
-                                root.clone(),
-                            ));
-                        }
-                        FileSelectorMessage::Filter(filter) => {
-                            ui.send_message(FileBrowserMessage::filter(
-                                self.browser,
-                                MessageDirection::ToWidget,
-                                filter.clone(),
-                            ));
-                        }
+        } else if let Some(msg) = message.data::<FileSelectorMessage>() {
+            if message.destination() == self.handle {
+                match msg {
+                    FileSelectorMessage::Commit(_) | FileSelectorMessage::Cancel => ui
+                        .send_message(WindowMessage::close(
+                            self.handle,
+                            MessageDirection::ToWidget,
+                        )),
+                    FileSelectorMessage::Path(path) => ui.send_message(FileBrowserMessage::path(
+                        self.browser,
+                        MessageDirection::ToWidget,
+                        path.clone(),
+                    )),
+                    FileSelectorMessage::Root(root) => {
+                        ui.send_message(FileBrowserMessage::root(
+                            self.browser,
+                            MessageDirection::ToWidget,
+                            root.clone(),
+                        ));
+                    }
+                    FileSelectorMessage::Filter(filter) => {
+                        ui.send_message(FileBrowserMessage::filter(
+                            self.browser,
+                            MessageDirection::ToWidget,
+                            filter.clone(),
+                        ));
                     }
                 }
             }
-            _ => {}
         }
     }
 

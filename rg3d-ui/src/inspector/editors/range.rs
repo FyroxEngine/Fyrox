@@ -6,7 +6,7 @@ use crate::{
         },
         InspectorError,
     },
-    message::{FieldKind, MessageDirection, PropertyChanged, UiMessage, UiMessageData},
+    message::{FieldKind, MessageDirection, PropertyChanged, UiMessage},
     numeric::NumericType,
     range::{RangeEditorBuilder, RangeEditorMessage},
     widget::WidgetBuilder,
@@ -65,15 +65,13 @@ impl<T: NumericType> PropertyEditorDefinition for RangePropertyEditorDefinition<
         message: &UiMessage,
     ) -> Option<PropertyChanged> {
         if message.direction() == MessageDirection::FromWidget {
-            if let UiMessageData::User(msg) = message.data() {
-                if let Some(RangeEditorMessage::Value(value)) = msg.cast::<RangeEditorMessage<T>>()
-                {
-                    return Some(PropertyChanged {
-                        name: name.to_string(),
-                        owner_type_id,
-                        value: FieldKind::object(value.clone()),
-                    });
-                }
+            if let Some(RangeEditorMessage::Value(value)) = message.data::<RangeEditorMessage<T>>()
+            {
+                return Some(PropertyChanged {
+                    name: name.to_string(),
+                    owner_type_id,
+                    value: FieldKind::object(value.clone()),
+                });
             }
         }
 

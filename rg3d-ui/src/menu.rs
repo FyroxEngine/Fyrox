@@ -6,7 +6,7 @@ use crate::{
     grid::{Column, GridBuilder, Row},
     message::{
         ButtonState, MenuItemMessage, MenuMessage, MessageDirection, OsEvent, PopupMessage,
-        UiMessage, UiMessageData, WidgetMessage,
+        UiMessage, WidgetMessage,
     },
     popup::{Placement, Popup, PopupBuilder},
     stack_panel::StackPanelBuilder,
@@ -32,7 +32,7 @@ impl Control for Menu {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if let UiMessageData::Menu(msg) = &message.data() {
+        if let Some(msg) = message.data::<MenuMessage>() {
             match msg {
                 MenuMessage::Activate => {
                     if !self.active {
@@ -184,101 +184,88 @@ impl Control for MenuItem {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        match &message.data() {
-            UiMessageData::Widget(msg) => {
-                match msg {
-                    WidgetMessage::MouseDown { .. } => {
-                        let menu = find_menu(self.parent(), ui);
-                        if menu.is_some() {
-                            // Activate menu so it user will be able to open submenus by
-                            // mouse hover.
-                            ui.send_message(MenuMessage::activate(
-                                menu,
-                                MessageDirection::ToWidget,
-                            ));
+        if let Some(msg) = message.data::<WidgetMessage>() {
+            match msg {
+                WidgetMessage::MouseDown { .. } => {
+                    let menu = find_menu(self.parent(), ui);
+                    if menu.is_some() {
+                        // Activate menu so it user will be able to open submenus by
+                        // mouse hover.
+                        ui.send_message(MenuMessage::activate(menu, MessageDirection::ToWidget));
 
-                            ui.send_message(MenuItemMessage::open(
-                                self.handle(),
-                                MessageDirection::ToWidget,
-                            ));
-                        }
-                    }
-                    WidgetMessage::MouseUp { .. } => {
-                        if !message.handled() {
-                            ui.send_message(MenuItemMessage::click(
-                                self.handle(),
-                                MessageDirection::ToWidget,
-                            ));
-                            if self.items.is_empty() {
-                                let menu = find_menu(self.parent(), ui);
-                                if menu.is_some() {
-                                    // Deactivate menu if we have one.
-                                    ui.send_message(MenuMessage::deactivate(
-                                        menu,
-                                        MessageDirection::ToWidget,
-                                    ));
-                                } else {
-                                    // Or close menu chain if menu item is in "orphaned" state.
-                                    close_menu_chain(self.parent(), ui);
-                                }
-                            }
-                            message.set_handled(true);
-                        }
-                    }
-                    WidgetMessage::MouseEnter => {
-                        // While parent menu active it is possible to open submenus
-                        // by simple mouse hover.
-                        let menu = find_menu(self.parent(), ui);
-                        let open = if menu.is_some() {
-                            if let Some(menu) = ui.node(menu).cast::<Menu>() {
-                                menu.active
-                            } else {
-                                false
-                            }
-                        } else {
-                            true
-                        };
-                        if open {
-                            ui.send_message(MenuItemMessage::open(
-                                self.handle(),
-                                MessageDirection::ToWidget,
-                            ));
-                        }
-                    }
-                    _ => {}
-                }
-            }
-            UiMessageData::MenuItem(msg) => {
-                match msg {
-                    MenuItemMessage::Open => {
-                        if !self.items.is_empty() {
-                            let placement = match self.placement {
-                                MenuItemPlacement::Bottom => Placement::LeftBottom(self.handle),
-                                MenuItemPlacement::Right => Placement::RightTop(self.handle),
-                            };
-
-                            // Open popup.
-                            ui.send_message(PopupMessage::placement(
-                                self.popup,
-                                MessageDirection::ToWidget,
-                                placement,
-                            ));
-                            ui.send_message(PopupMessage::open(
-                                self.popup,
-                                MessageDirection::ToWidget,
-                            ));
-                        }
-                    }
-                    MenuItemMessage::Close => {
-                        ui.send_message(PopupMessage::close(
-                            self.popup,
+                        ui.send_message(MenuItemMessage::open(
+                            self.handle(),
                             MessageDirection::ToWidget,
                         ));
                     }
-                    MenuItemMessage::Click => {}
                 }
+                WidgetMessage::MouseUp { .. } => {
+                    if !message.handled() {
+                        ui.send_message(MenuItemMessage::click(
+                            self.handle(),
+                            MessageDirection::ToWidget,
+                        ));
+                        if self.items.is_empty() {
+                            let menu = find_menu(self.parent(), ui);
+                            if menu.is_some() {
+                                // Deactivate menu if we have one.
+                                ui.send_message(MenuMessage::deactivate(
+                                    menu,
+                                    MessageDirection::ToWidget,
+                                ));
+                            } else {
+                                // Or close menu chain if menu item is in "orphaned" state.
+                                close_menu_chain(self.parent(), ui);
+                            }
+                        }
+                        message.set_handled(true);
+                    }
+                }
+                WidgetMessage::MouseEnter => {
+                    // While parent menu active it is possible to open submenus
+                    // by simple mouse hover.
+                    let menu = find_menu(self.parent(), ui);
+                    let open = if menu.is_some() {
+                        if let Some(menu) = ui.node(menu).cast::<Menu>() {
+                            menu.active
+                        } else {
+                            false
+                        }
+                    } else {
+                        true
+                    };
+                    if open {
+                        ui.send_message(MenuItemMessage::open(
+                            self.handle(),
+                            MessageDirection::ToWidget,
+                        ));
+                    }
+                }
+                _ => {}
             }
-            _ => {}
+        } else if let Some(msg) = message.data::<MenuItemMessage>() {
+            match msg {
+                MenuItemMessage::Open => {
+                    if !self.items.is_empty() {
+                        let placement = match self.placement {
+                            MenuItemPlacement::Bottom => Placement::LeftBottom(self.handle),
+                            MenuItemPlacement::Right => Placement::RightTop(self.handle),
+                        };
+
+                        // Open popup.
+                        ui.send_message(PopupMessage::placement(
+                            self.popup,
+                            MessageDirection::ToWidget,
+                            placement,
+                        ));
+                        ui.send_message(PopupMessage::open(self.popup, MessageDirection::ToWidget));
+                    }
+                }
+                MenuItemMessage::Close => {
+                    ui.send_message(PopupMessage::close(self.popup, MessageDirection::ToWidget));
+                }
+                MenuItemMessage::Click => {}
+            }
         }
     }
 
@@ -286,7 +273,7 @@ impl Control for MenuItem {
         // We need to check if some new menu item opened and then close other not in
         // direct chain of menu items until to menu.
         if message.destination() != self.handle() {
-            if let UiMessageData::MenuItem(MenuItemMessage::Open) = &message.data() {
+            if let Some(MenuItemMessage::Open) = message.data::<MenuItemMessage>() {
                 let mut found = false;
                 let mut handle = message.destination();
                 while handle.is_some() {

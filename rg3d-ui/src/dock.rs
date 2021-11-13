@@ -11,10 +11,7 @@ use crate::{
     brush::Brush,
     core::{algebra::Vector2, color::Color, math::Rect, pool::Handle},
     grid::{Column, GridBuilder, Row},
-    message::{
-        CursorIcon, MessageDirection, TileMessage, UiMessage, UiMessageData, WidgetMessage,
-        WindowMessage,
-    },
+    message::{CursorIcon, MessageDirection, TileMessage, UiMessage, WidgetMessage, WindowMessage},
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, NodeHandleMapping, Thickness, UiNode, UserInterface,
 };
@@ -219,461 +216,439 @@ impl Control for Tile {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        match &message.data() {
-            UiMessageData::Tile(msg) => {
-                if message.destination() == self.handle() {
-                    match msg {
-                        TileMessage::Content(content) => {
-                            self.content = content.clone();
+        if let Some(msg) = message.data::<TileMessage>() {
+            if message.destination() == self.handle() {
+                match msg {
+                    TileMessage::Content(content) => {
+                        self.content = content.clone();
 
-                            match content {
-                                TileContent::Empty => {
-                                    ui.send_message(WidgetMessage::visibility(
-                                        self.splitter,
-                                        MessageDirection::ToWidget,
-                                        false,
-                                    ));
-                                }
-                                &TileContent::Window(window) => {
+                        match content {
+                            TileContent::Empty => {
+                                ui.send_message(WidgetMessage::visibility(
+                                    self.splitter,
+                                    MessageDirection::ToWidget,
+                                    false,
+                                ));
+                            }
+                            &TileContent::Window(window) => {
+                                ui.send_message(WidgetMessage::link(
+                                    window,
+                                    MessageDirection::ToWidget,
+                                    self.handle(),
+                                ));
+
+                                ui.send_message(WidgetMessage::visibility(
+                                    self.splitter,
+                                    MessageDirection::ToWidget,
+                                    false,
+                                ));
+
+                                ui.send_message(WindowMessage::can_resize(
+                                    window,
+                                    MessageDirection::ToWidget,
+                                    false,
+                                ));
+                            }
+                            TileContent::VerticalTiles { tiles, .. }
+                            | TileContent::HorizontalTiles { tiles, .. } => {
+                                for &tile in tiles {
                                     ui.send_message(WidgetMessage::link(
-                                        window,
+                                        tile,
                                         MessageDirection::ToWidget,
                                         self.handle(),
                                     ));
-
-                                    ui.send_message(WidgetMessage::visibility(
-                                        self.splitter,
-                                        MessageDirection::ToWidget,
-                                        false,
-                                    ));
-
-                                    ui.send_message(WindowMessage::can_resize(
-                                        window,
-                                        MessageDirection::ToWidget,
-                                        false,
-                                    ));
                                 }
-                                TileContent::VerticalTiles { tiles, .. }
-                                | TileContent::HorizontalTiles { tiles, .. } => {
-                                    for &tile in tiles {
-                                        ui.send_message(WidgetMessage::link(
-                                            tile,
+
+                                ui.send_message(WidgetMessage::visibility(
+                                    self.splitter,
+                                    MessageDirection::ToWidget,
+                                    true,
+                                ));
+
+                                match content {
+                                    TileContent::HorizontalTiles { .. } => {
+                                        ui.send_message(WidgetMessage::width(
+                                            self.splitter,
                                             MessageDirection::ToWidget,
-                                            self.handle(),
+                                            DEFAULT_SPLITTER_SIZE,
+                                        ));
+                                        ui.send_message(WidgetMessage::height(
+                                            self.splitter,
+                                            MessageDirection::ToWidget,
+                                            f32::INFINITY,
                                         ));
                                     }
-
-                                    ui.send_message(WidgetMessage::visibility(
-                                        self.splitter,
-                                        MessageDirection::ToWidget,
-                                        true,
-                                    ));
-
-                                    match content {
-                                        TileContent::HorizontalTiles { .. } => {
-                                            ui.send_message(WidgetMessage::width(
-                                                self.splitter,
-                                                MessageDirection::ToWidget,
-                                                DEFAULT_SPLITTER_SIZE,
-                                            ));
-                                            ui.send_message(WidgetMessage::height(
-                                                self.splitter,
-                                                MessageDirection::ToWidget,
-                                                f32::INFINITY,
-                                            ));
-                                        }
-                                        TileContent::VerticalTiles { .. } => {
-                                            ui.send_message(WidgetMessage::width(
-                                                self.splitter,
-                                                MessageDirection::ToWidget,
-                                                f32::INFINITY,
-                                            ));
-                                            ui.send_message(WidgetMessage::height(
-                                                self.splitter,
-                                                MessageDirection::ToWidget,
-                                                DEFAULT_SPLITTER_SIZE,
-                                            ));
-                                        }
-                                        _ => (),
+                                    TileContent::VerticalTiles { .. } => {
+                                        ui.send_message(WidgetMessage::width(
+                                            self.splitter,
+                                            MessageDirection::ToWidget,
+                                            f32::INFINITY,
+                                        ));
+                                        ui.send_message(WidgetMessage::height(
+                                            self.splitter,
+                                            MessageDirection::ToWidget,
+                                            DEFAULT_SPLITTER_SIZE,
+                                        ));
                                     }
+                                    _ => (),
                                 }
                             }
                         }
-                        &TileMessage::Split {
-                            window,
-                            direction,
-                            first,
-                        } => {
-                            if matches!(self.content, TileContent::Window(_)) {
-                                self.split(ui, window, direction, first);
-                            }
+                    }
+                    &TileMessage::Split {
+                        window,
+                        direction,
+                        first,
+                    } => {
+                        if matches!(self.content, TileContent::Window(_)) {
+                            self.split(ui, window, direction, first);
                         }
                     }
                 }
             }
-            UiMessageData::Widget(msg) => {
-                match msg {
-                    &WidgetMessage::MouseDown { .. } => {
-                        if !message.handled() && message.destination() == self.splitter {
-                            message.set_handled(true);
-                            self.dragging_splitter = true;
-                            ui.capture_mouse(self.splitter);
-                        }
+        } else if let Some(msg) = message.data::<WidgetMessage>() {
+            match msg {
+                &WidgetMessage::MouseDown { .. } => {
+                    if !message.handled() && message.destination() == self.splitter {
+                        message.set_handled(true);
+                        self.dragging_splitter = true;
+                        ui.capture_mouse(self.splitter);
                     }
-                    &WidgetMessage::MouseUp { .. } => {
-                        if !message.handled() && message.destination() == self.splitter {
-                            message.set_handled(true);
-                            self.dragging_splitter = false;
-                            ui.release_mouse_capture();
-                        }
+                }
+                &WidgetMessage::MouseUp { .. } => {
+                    if !message.handled() && message.destination() == self.splitter {
+                        message.set_handled(true);
+                        self.dragging_splitter = false;
+                        ui.release_mouse_capture();
                     }
-                    &WidgetMessage::MouseMove { pos, .. } => {
-                        if self.dragging_splitter {
-                            let bounds = self.screen_bounds();
-                            match self.content {
-                                TileContent::VerticalTiles {
-                                    ref mut splitter, ..
-                                } => {
-                                    *splitter =
-                                        ((pos.y - bounds.y()) / bounds.h()).max(0.0).min(1.0);
-                                    self.invalidate_layout();
-                                }
-                                TileContent::HorizontalTiles {
-                                    ref mut splitter, ..
-                                } => {
-                                    *splitter =
-                                        ((pos.x - bounds.x()) / bounds.w()).max(0.0).min(1.0);
-                                    self.invalidate_layout();
-                                }
-                                _ => (),
-                            }
-                        }
-                    }
-                    WidgetMessage::Unlink => {
-                        // Check if this tile can be removed: only if it is split and sub-tiles are empty.
+                }
+                &WidgetMessage::MouseMove { pos, .. } => {
+                    if self.dragging_splitter {
+                        let bounds = self.screen_bounds();
                         match self.content {
-                            TileContent::VerticalTiles { tiles, .. }
-                            | TileContent::HorizontalTiles { tiles, .. } => {
-                                let mut has_empty_sub_tile = false;
-                                for &tile in &tiles {
-                                    if let Some(sub_tile) = ui.node(tile).cast::<Tile>() {
-                                        if let TileContent::Empty = sub_tile.content {
-                                            has_empty_sub_tile = true;
-                                            break;
-                                        }
-                                    }
-                                }
-                                if has_empty_sub_tile {
-                                    for &tile in &tiles {
-                                        if let Some(sub_tile) = ui.node(tile).cast::<Tile>() {
-                                            match sub_tile.content {
-                                                TileContent::Window(sub_tile_wnd) => {
-                                                    // If we have only a tile with a window, then detach window and schedule
-                                                    // linking with current tile.
-                                                    ui.send_message(WidgetMessage::unlink(
-                                                        sub_tile_wnd,
-                                                        MessageDirection::ToWidget,
-                                                    ));
-
-                                                    ui.send_message(TileMessage::content(
-                                                        self.handle,
-                                                        MessageDirection::ToWidget,
-                                                        TileContent::Window(sub_tile_wnd),
-                                                    ));
-                                                    // Splitter must be hidden.
-                                                    ui.send_message(WidgetMessage::visibility(
-                                                        self.splitter,
-                                                        MessageDirection::ToWidget,
-                                                        false,
-                                                    ));
-                                                }
-                                                // In case if we have a split tile (vertically or horizontally) left in current tile
-                                                // (which is split too) we must set content of current tile to content of sub tile.
-                                                TileContent::VerticalTiles {
-                                                    splitter,
-                                                    tiles: sub_tiles,
-                                                } => {
-                                                    for &sub_tile in &sub_tiles {
-                                                        ui.send_message(WidgetMessage::unlink(
-                                                            sub_tile,
-                                                            MessageDirection::ToWidget,
-                                                        ));
-                                                    }
-                                                    // Transfer sub tiles to current tile.
-                                                    ui.send_message(TileMessage::content(
-                                                        self.handle,
-                                                        MessageDirection::ToWidget,
-                                                        TileContent::VerticalTiles {
-                                                            splitter,
-                                                            tiles: sub_tiles,
-                                                        },
-                                                    ));
-                                                }
-                                                TileContent::HorizontalTiles {
-                                                    splitter,
-                                                    tiles: sub_tiles,
-                                                } => {
-                                                    for &sub_tile in &sub_tiles {
-                                                        ui.send_message(WidgetMessage::unlink(
-                                                            sub_tile,
-                                                            MessageDirection::ToWidget,
-                                                        ));
-                                                    }
-                                                    // Transfer sub tiles to current tile.
-                                                    ui.send_message(TileMessage::content(
-                                                        self.handle,
-                                                        MessageDirection::ToWidget,
-                                                        TileContent::HorizontalTiles {
-                                                            splitter,
-                                                            tiles: sub_tiles,
-                                                        },
-                                                    ));
-                                                }
-                                                _ => {}
-                                            }
-                                        }
-                                    }
-
-                                    // Destroy tiles.
-                                    for &tile in &tiles {
-                                        ui.send_message(WidgetMessage::remove(
-                                            tile,
-                                            MessageDirection::ToWidget,
-                                        ));
-                                    }
-                                }
+                            TileContent::VerticalTiles {
+                                ref mut splitter, ..
+                            } => {
+                                *splitter = ((pos.y - bounds.y()) / bounds.h()).max(0.0).min(1.0);
+                                self.invalidate_layout();
+                            }
+                            TileContent::HorizontalTiles {
+                                ref mut splitter, ..
+                            } => {
+                                *splitter = ((pos.x - bounds.x()) / bounds.w()).max(0.0).min(1.0);
+                                self.invalidate_layout();
                             }
                             _ => (),
                         }
                     }
-                    _ => {}
                 }
+                WidgetMessage::Unlink => {
+                    // Check if this tile can be removed: only if it is split and sub-tiles are empty.
+                    match self.content {
+                        TileContent::VerticalTiles { tiles, .. }
+                        | TileContent::HorizontalTiles { tiles, .. } => {
+                            let mut has_empty_sub_tile = false;
+                            for &tile in &tiles {
+                                if let Some(sub_tile) = ui.node(tile).cast::<Tile>() {
+                                    if let TileContent::Empty = sub_tile.content {
+                                        has_empty_sub_tile = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            if has_empty_sub_tile {
+                                for &tile in &tiles {
+                                    if let Some(sub_tile) = ui.node(tile).cast::<Tile>() {
+                                        match sub_tile.content {
+                                            TileContent::Window(sub_tile_wnd) => {
+                                                // If we have only a tile with a window, then detach window and schedule
+                                                // linking with current tile.
+                                                ui.send_message(WidgetMessage::unlink(
+                                                    sub_tile_wnd,
+                                                    MessageDirection::ToWidget,
+                                                ));
+
+                                                ui.send_message(TileMessage::content(
+                                                    self.handle,
+                                                    MessageDirection::ToWidget,
+                                                    TileContent::Window(sub_tile_wnd),
+                                                ));
+                                                // Splitter must be hidden.
+                                                ui.send_message(WidgetMessage::visibility(
+                                                    self.splitter,
+                                                    MessageDirection::ToWidget,
+                                                    false,
+                                                ));
+                                            }
+                                            // In case if we have a split tile (vertically or horizontally) left in current tile
+                                            // (which is split too) we must set content of current tile to content of sub tile.
+                                            TileContent::VerticalTiles {
+                                                splitter,
+                                                tiles: sub_tiles,
+                                            } => {
+                                                for &sub_tile in &sub_tiles {
+                                                    ui.send_message(WidgetMessage::unlink(
+                                                        sub_tile,
+                                                        MessageDirection::ToWidget,
+                                                    ));
+                                                }
+                                                // Transfer sub tiles to current tile.
+                                                ui.send_message(TileMessage::content(
+                                                    self.handle,
+                                                    MessageDirection::ToWidget,
+                                                    TileContent::VerticalTiles {
+                                                        splitter,
+                                                        tiles: sub_tiles,
+                                                    },
+                                                ));
+                                            }
+                                            TileContent::HorizontalTiles {
+                                                splitter,
+                                                tiles: sub_tiles,
+                                            } => {
+                                                for &sub_tile in &sub_tiles {
+                                                    ui.send_message(WidgetMessage::unlink(
+                                                        sub_tile,
+                                                        MessageDirection::ToWidget,
+                                                    ));
+                                                }
+                                                // Transfer sub tiles to current tile.
+                                                ui.send_message(TileMessage::content(
+                                                    self.handle,
+                                                    MessageDirection::ToWidget,
+                                                    TileContent::HorizontalTiles {
+                                                        splitter,
+                                                        tiles: sub_tiles,
+                                                    },
+                                                ));
+                                            }
+                                            _ => {}
+                                        }
+                                    }
+                                }
+
+                                // Destroy tiles.
+                                for &tile in &tiles {
+                                    ui.send_message(WidgetMessage::remove(
+                                        tile,
+                                        MessageDirection::ToWidget,
+                                    ));
+                                }
+                            }
+                        }
+                        _ => (),
+                    }
+                }
+                _ => {}
             }
             // We can catch any message from window while it docked.
-            UiMessageData::Window(WindowMessage::Move(_)) => {
-                // Check if we dragging child window.
-                let content_moved = match self.content {
-                    TileContent::Window(window) => window == message.destination(),
-                    _ => false,
-                };
+        } else if let Some(WindowMessage::Move(_)) = message.data::<WindowMessage>() {
+            // Check if we dragging child window.
+            let content_moved = match self.content {
+                TileContent::Window(window) => window == message.destination(),
+                _ => false,
+            };
 
-                if content_moved {
-                    if let Some(window) = ui.node(message.destination()).cast::<Window>() {
-                        if window.drag_delta().norm() > 20.0 {
-                            ui.send_message(TileMessage::content(
-                                self.handle,
-                                MessageDirection::ToWidget,
-                                TileContent::Empty,
-                            ));
+            if content_moved {
+                if let Some(window) = ui.node(message.destination()).cast::<Window>() {
+                    if window.drag_delta().norm() > 20.0 {
+                        ui.send_message(TileMessage::content(
+                            self.handle,
+                            MessageDirection::ToWidget,
+                            TileContent::Empty,
+                        ));
 
-                            ui.send_message(WidgetMessage::unlink(
-                                message.destination(),
-                                MessageDirection::ToWidget,
-                            ));
+                        ui.send_message(WidgetMessage::unlink(
+                            message.destination(),
+                            MessageDirection::ToWidget,
+                        ));
 
-                            ui.send_message(WindowMessage::can_resize(
-                                message.destination(),
-                                MessageDirection::ToWidget,
-                                true,
-                            ));
+                        ui.send_message(WindowMessage::can_resize(
+                            message.destination(),
+                            MessageDirection::ToWidget,
+                            true,
+                        ));
 
-                            if let Some((_, docking_manager)) =
-                                ui.try_borrow_by_type_up::<DockingManager>(self.parent())
-                            {
-                                docking_manager
-                                    .floating_windows
-                                    .borrow_mut()
-                                    .push(message.destination());
-                            }
+                        if let Some((_, docking_manager)) =
+                            ui.try_borrow_by_type_up::<DockingManager>(self.parent())
+                        {
+                            docking_manager
+                                .floating_windows
+                                .borrow_mut()
+                                .push(message.destination());
                         }
                     }
                 }
             }
-            _ => {}
         }
     }
 
     // We have to use preview_message for docking purposes because dragged window detached
     // from docking manager and handle_routed_message won't receive any messages from window.
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
-        match &message.data() {
-            UiMessageData::Widget(WidgetMessage::Unlink) => {
-                if let TileContent::Empty | TileContent::Window(_) = self.content {
-                    // Show anchors.
-                    for &anchor in &self.anchors() {
-                        ui.send_message(WidgetMessage::visibility(
-                            anchor,
-                            MessageDirection::ToWidget,
-                            true,
-                        ));
-                    }
+        if let Some(WidgetMessage::Unlink) = message.data::<WidgetMessage>() {
+            if let TileContent::Empty | TileContent::Window(_) = self.content {
+                // Show anchors.
+                for &anchor in &self.anchors() {
+                    ui.send_message(WidgetMessage::visibility(
+                        anchor,
+                        MessageDirection::ToWidget,
+                        true,
+                    ));
                 }
             }
-            UiMessageData::Window(msg) => {
-                if let Some((_, docking_manager)) =
-                    ui.try_borrow_by_type_up::<DockingManager>(self.parent())
+        } else if let Some(msg) = message.data::<WindowMessage>() {
+            if let Some((_, docking_manager)) =
+                ui.try_borrow_by_type_up::<DockingManager>(self.parent())
+            {
+                // Make sure we are dragging one of floating windows of parent docking manager.
+                if docking_manager
+                    .floating_windows
+                    .borrow_mut()
+                    .contains(&message.destination())
                 {
-                    // Make sure we are dragging one of floating windows of parent docking manager.
-                    if docking_manager
-                        .floating_windows
-                        .borrow_mut()
-                        .contains(&message.destination())
-                    {
-                        match msg {
-                            &WindowMessage::Move(_) => {
-                                // Window can be docked only if current tile is not split already.
-                                if let TileContent::Empty | TileContent::Window(_) = self.content {
-                                    // When window is being dragged, we should check which tile can accept it.
-                                    let pos = ui.cursor_position;
-                                    for &anchor in &self.anchors() {
-                                        ui.send_message(WidgetMessage::background(
-                                            anchor,
-                                            MessageDirection::ToWidget,
-                                            Brush::Solid(DEFAULT_ANCHOR_COLOR),
-                                        ))
-                                    }
-                                    if ui.node(self.left_anchor).screen_bounds().contains(pos) {
-                                        ui.send_message(WidgetMessage::background(
-                                            self.left_anchor,
-                                            MessageDirection::ToWidget,
-                                            Brush::Solid(Color::WHITE),
-                                        ));
-                                        self.drop_anchor.set(self.left_anchor);
-                                    } else if ui
-                                        .node(self.right_anchor)
-                                        .screen_bounds()
-                                        .contains(pos)
-                                    {
-                                        ui.send_message(WidgetMessage::background(
-                                            self.right_anchor,
-                                            MessageDirection::ToWidget,
-                                            Brush::Solid(Color::WHITE),
-                                        ));
-                                        self.drop_anchor.set(self.right_anchor);
-                                    } else if ui.node(self.top_anchor).screen_bounds().contains(pos)
-                                    {
-                                        ui.send_message(WidgetMessage::background(
-                                            self.top_anchor,
-                                            MessageDirection::ToWidget,
-                                            Brush::Solid(Color::WHITE),
-                                        ));
-                                        self.drop_anchor.set(self.top_anchor);
-                                    } else if ui
-                                        .node(self.bottom_anchor)
-                                        .screen_bounds()
-                                        .contains(pos)
-                                    {
-                                        ui.send_message(WidgetMessage::background(
-                                            self.bottom_anchor,
-                                            MessageDirection::ToWidget,
-                                            Brush::Solid(Color::WHITE),
-                                        ));
-                                        self.drop_anchor.set(self.bottom_anchor);
-                                    } else if ui
-                                        .node(self.center_anchor)
-                                        .screen_bounds()
-                                        .contains(pos)
-                                    {
-                                        ui.send_message(WidgetMessage::background(
-                                            self.center_anchor,
-                                            MessageDirection::ToWidget,
-                                            Brush::Solid(Color::WHITE),
-                                        ));
-                                        self.drop_anchor.set(self.center_anchor);
-                                    } else {
-                                        self.drop_anchor.set(Handle::NONE);
-                                    }
+                    match msg {
+                        &WindowMessage::Move(_) => {
+                            // Window can be docked only if current tile is not split already.
+                            if let TileContent::Empty | TileContent::Window(_) = self.content {
+                                // When window is being dragged, we should check which tile can accept it.
+                                let pos = ui.cursor_position;
+                                for &anchor in &self.anchors() {
+                                    ui.send_message(WidgetMessage::background(
+                                        anchor,
+                                        MessageDirection::ToWidget,
+                                        Brush::Solid(DEFAULT_ANCHOR_COLOR),
+                                    ))
+                                }
+                                if ui.node(self.left_anchor).screen_bounds().contains(pos) {
+                                    ui.send_message(WidgetMessage::background(
+                                        self.left_anchor,
+                                        MessageDirection::ToWidget,
+                                        Brush::Solid(Color::WHITE),
+                                    ));
+                                    self.drop_anchor.set(self.left_anchor);
+                                } else if ui.node(self.right_anchor).screen_bounds().contains(pos) {
+                                    ui.send_message(WidgetMessage::background(
+                                        self.right_anchor,
+                                        MessageDirection::ToWidget,
+                                        Brush::Solid(Color::WHITE),
+                                    ));
+                                    self.drop_anchor.set(self.right_anchor);
+                                } else if ui.node(self.top_anchor).screen_bounds().contains(pos) {
+                                    ui.send_message(WidgetMessage::background(
+                                        self.top_anchor,
+                                        MessageDirection::ToWidget,
+                                        Brush::Solid(Color::WHITE),
+                                    ));
+                                    self.drop_anchor.set(self.top_anchor);
+                                } else if ui.node(self.bottom_anchor).screen_bounds().contains(pos)
+                                {
+                                    ui.send_message(WidgetMessage::background(
+                                        self.bottom_anchor,
+                                        MessageDirection::ToWidget,
+                                        Brush::Solid(Color::WHITE),
+                                    ));
+                                    self.drop_anchor.set(self.bottom_anchor);
+                                } else if ui.node(self.center_anchor).screen_bounds().contains(pos)
+                                {
+                                    ui.send_message(WidgetMessage::background(
+                                        self.center_anchor,
+                                        MessageDirection::ToWidget,
+                                        Brush::Solid(Color::WHITE),
+                                    ));
+                                    self.drop_anchor.set(self.center_anchor);
+                                } else {
+                                    self.drop_anchor.set(Handle::NONE);
                                 }
                             }
-                            WindowMessage::MoveStart => {
-                                if let TileContent::Empty | TileContent::Window(_) = self.content {
-                                    // Show anchors.
-                                    for &anchor in &self.anchors() {
-                                        ui.send_message(WidgetMessage::visibility(
-                                            anchor,
-                                            MessageDirection::ToWidget,
-                                            true,
-                                        ));
-                                    }
-                                }
-                            }
-                            WindowMessage::MoveEnd => {
-                                // Hide anchors.
+                        }
+                        WindowMessage::MoveStart => {
+                            if let TileContent::Empty | TileContent::Window(_) = self.content {
+                                // Show anchors.
                                 for &anchor in &self.anchors() {
                                     ui.send_message(WidgetMessage::visibility(
                                         anchor,
                                         MessageDirection::ToWidget,
-                                        false,
+                                        true,
                                     ));
                                 }
+                            }
+                        }
+                        WindowMessage::MoveEnd => {
+                            // Hide anchors.
+                            for &anchor in &self.anchors() {
+                                ui.send_message(WidgetMessage::visibility(
+                                    anchor,
+                                    MessageDirection::ToWidget,
+                                    false,
+                                ));
+                            }
 
-                                // Drop if has any drop anchor.
-                                if self.drop_anchor.get().is_some() {
-                                    match self.content {
-                                        TileContent::Empty => {
-                                            if self.drop_anchor.get() == self.center_anchor {
-                                                ui.send_message(TileMessage::content(
-                                                    self.handle,
-                                                    MessageDirection::ToWidget,
-                                                    TileContent::Window(message.destination()),
-                                                ));
-                                                ui.send_message(WidgetMessage::link(
-                                                    message.destination(),
-                                                    MessageDirection::ToWidget,
-                                                    self.handle,
-                                                ));
-                                            }
+                            // Drop if has any drop anchor.
+                            if self.drop_anchor.get().is_some() {
+                                match self.content {
+                                    TileContent::Empty => {
+                                        if self.drop_anchor.get() == self.center_anchor {
+                                            ui.send_message(TileMessage::content(
+                                                self.handle,
+                                                MessageDirection::ToWidget,
+                                                TileContent::Window(message.destination()),
+                                            ));
+                                            ui.send_message(WidgetMessage::link(
+                                                message.destination(),
+                                                MessageDirection::ToWidget,
+                                                self.handle,
+                                            ));
                                         }
-                                        TileContent::Window(_) => {
-                                            if self.drop_anchor.get() == self.left_anchor {
-                                                // Split horizontally, dock to left.
-                                                ui.send_message(TileMessage::split(
-                                                    self.handle,
-                                                    MessageDirection::ToWidget,
-                                                    message.destination(),
-                                                    SplitDirection::Horizontal,
-                                                    true,
-                                                ));
-                                            } else if self.drop_anchor.get() == self.right_anchor {
-                                                // Split horizontally, dock to right.
-                                                ui.send_message(TileMessage::split(
-                                                    self.handle,
-                                                    MessageDirection::ToWidget,
-                                                    message.destination(),
-                                                    SplitDirection::Horizontal,
-                                                    false,
-                                                ));
-                                            } else if self.drop_anchor.get() == self.top_anchor {
-                                                // Split vertically, dock to top.
-                                                ui.send_message(TileMessage::split(
-                                                    self.handle,
-                                                    MessageDirection::ToWidget,
-                                                    message.destination(),
-                                                    SplitDirection::Vertical,
-                                                    true,
-                                                ));
-                                            } else if self.drop_anchor.get() == self.bottom_anchor {
-                                                // Split vertically, dock to bottom.
-                                                ui.send_message(TileMessage::split(
-                                                    self.handle,
-                                                    MessageDirection::ToWidget,
-                                                    message.destination(),
-                                                    SplitDirection::Vertical,
-                                                    false,
-                                                ));
-                                            }
-                                        }
-                                        // Rest cannot accept windows.
-                                        _ => (),
                                     }
+                                    TileContent::Window(_) => {
+                                        if self.drop_anchor.get() == self.left_anchor {
+                                            // Split horizontally, dock to left.
+                                            ui.send_message(TileMessage::split(
+                                                self.handle,
+                                                MessageDirection::ToWidget,
+                                                message.destination(),
+                                                SplitDirection::Horizontal,
+                                                true,
+                                            ));
+                                        } else if self.drop_anchor.get() == self.right_anchor {
+                                            // Split horizontally, dock to right.
+                                            ui.send_message(TileMessage::split(
+                                                self.handle,
+                                                MessageDirection::ToWidget,
+                                                message.destination(),
+                                                SplitDirection::Horizontal,
+                                                false,
+                                            ));
+                                        } else if self.drop_anchor.get() == self.top_anchor {
+                                            // Split vertically, dock to top.
+                                            ui.send_message(TileMessage::split(
+                                                self.handle,
+                                                MessageDirection::ToWidget,
+                                                message.destination(),
+                                                SplitDirection::Vertical,
+                                                true,
+                                            ));
+                                        } else if self.drop_anchor.get() == self.bottom_anchor {
+                                            // Split vertically, dock to bottom.
+                                            ui.send_message(TileMessage::split(
+                                                self.handle,
+                                                MessageDirection::ToWidget,
+                                                message.destination(),
+                                                SplitDirection::Vertical,
+                                                false,
+                                            ));
+                                        }
+                                    }
+                                    // Rest cannot accept windows.
+                                    _ => (),
                                 }
                             }
-                            _ => (),
                         }
+                        _ => (),
                     }
                 }
             }
-            _ => {}
         }
     }
 }
@@ -770,7 +745,7 @@ impl Control for DockingManager {
     }
 
     fn preview_message(&self, _ui: &UserInterface, message: &mut UiMessage) {
-        if let UiMessageData::Widget(WidgetMessage::LinkWith(_)) = &message.data() {
+        if let Some(WidgetMessage::LinkWith(_)) = message.data::<WidgetMessage>() {
             let pos = self
                 .floating_windows
                 .borrow()

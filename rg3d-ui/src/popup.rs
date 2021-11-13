@@ -1,10 +1,7 @@
 use crate::{
     border::BorderBuilder,
     core::{algebra::Vector2, pool::Handle},
-    message::{
-        ButtonState, MessageDirection, OsEvent, PopupMessage, UiMessage, UiMessageData,
-        WidgetMessage,
-    },
+    message::{ButtonState, MessageDirection, OsEvent, PopupMessage, UiMessage, WidgetMessage},
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, NodeHandleMapping, RestrictionEntry, Thickness, UiNode, UserInterface,
     BRUSH_DARKER, BRUSH_LIGHTER,
@@ -69,102 +66,107 @@ impl Control for Popup {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        match &message.data() {
-            UiMessageData::Popup(msg) if message.destination() == self.handle() => match msg {
-                PopupMessage::Open => {
-                    if !self.is_open {
-                        self.is_open = true;
-                        ui.send_message(WidgetMessage::visibility(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                            true,
-                        ));
-                        ui.push_picking_restriction(RestrictionEntry {
-                            handle: self.handle(),
-                            stop: false,
-                        });
-                        ui.send_message(WidgetMessage::topmost(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                        ));
-                        let position = match self.placement {
-                            Placement::LeftTop(target) => ui
-                                .try_get_node(target)
-                                .map(|n| n.screen_position())
-                                .unwrap_or_default(),
-                            Placement::RightTop(target) => ui
-                                .try_get_node(target)
-                                .map(|n| n.screen_position() + Vector2::new(n.actual_size().x, 0.0))
-                                .unwrap_or_else(|| {
-                                    Vector2::new(
-                                        ui.screen_size().x - self.widget.actual_size().x,
-                                        0.0,
-                                    )
-                                }),
-                            Placement::Center(target) => ui
-                                .try_get_node(target)
-                                .map(|n| n.screen_position() + n.actual_size().scale(0.5))
-                                .unwrap_or_else(|| {
-                                    (ui.screen_size - self.widget.actual_size()).scale(0.5)
-                                }),
-                            Placement::LeftBottom(target) => ui
-                                .try_get_node(target)
-                                .map(|n| n.screen_position() + Vector2::new(0.0, n.actual_size().y))
-                                .unwrap_or_else(|| {
-                                    Vector2::new(
-                                        0.0,
-                                        ui.screen_size().y - self.widget.actual_size().y,
-                                    )
-                                }),
-                            Placement::RightBottom(target) => ui
-                                .try_get_node(target)
-                                .map(|n| n.screen_position() + n.actual_size())
-                                .unwrap_or_else(|| ui.screen_size - self.widget.actual_size()),
-                            Placement::Cursor(_) => ui.cursor_position(),
-                            Placement::Position { position, .. } => position,
-                        };
-                        ui.send_message(WidgetMessage::desired_position(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                            position,
-                        ));
-                    }
-                }
-                PopupMessage::Close => {
-                    if self.is_open {
-                        self.is_open = false;
-                        ui.send_message(WidgetMessage::visibility(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                            false,
-                        ));
-                        ui.remove_picking_restriction(self.handle());
-                        if ui.captured_node() == self.handle() {
-                            ui.release_mouse_capture();
+        if let Some(msg) = message.data::<PopupMessage>() {
+            if message.destination() == self.handle() {
+                match msg {
+                    PopupMessage::Open => {
+                        if !self.is_open {
+                            self.is_open = true;
+                            ui.send_message(WidgetMessage::visibility(
+                                self.handle(),
+                                MessageDirection::ToWidget,
+                                true,
+                            ));
+                            ui.push_picking_restriction(RestrictionEntry {
+                                handle: self.handle(),
+                                stop: false,
+                            });
+                            ui.send_message(WidgetMessage::topmost(
+                                self.handle(),
+                                MessageDirection::ToWidget,
+                            ));
+                            let position = match self.placement {
+                                Placement::LeftTop(target) => ui
+                                    .try_get_node(target)
+                                    .map(|n| n.screen_position())
+                                    .unwrap_or_default(),
+                                Placement::RightTop(target) => ui
+                                    .try_get_node(target)
+                                    .map(|n| {
+                                        n.screen_position() + Vector2::new(n.actual_size().x, 0.0)
+                                    })
+                                    .unwrap_or_else(|| {
+                                        Vector2::new(
+                                            ui.screen_size().x - self.widget.actual_size().x,
+                                            0.0,
+                                        )
+                                    }),
+                                Placement::Center(target) => ui
+                                    .try_get_node(target)
+                                    .map(|n| n.screen_position() + n.actual_size().scale(0.5))
+                                    .unwrap_or_else(|| {
+                                        (ui.screen_size - self.widget.actual_size()).scale(0.5)
+                                    }),
+                                Placement::LeftBottom(target) => ui
+                                    .try_get_node(target)
+                                    .map(|n| {
+                                        n.screen_position() + Vector2::new(0.0, n.actual_size().y)
+                                    })
+                                    .unwrap_or_else(|| {
+                                        Vector2::new(
+                                            0.0,
+                                            ui.screen_size().y - self.widget.actual_size().y,
+                                        )
+                                    }),
+                                Placement::RightBottom(target) => ui
+                                    .try_get_node(target)
+                                    .map(|n| n.screen_position() + n.actual_size())
+                                    .unwrap_or_else(|| ui.screen_size - self.widget.actual_size()),
+                                Placement::Cursor(_) => ui.cursor_position(),
+                                Placement::Position { position, .. } => position,
+                            };
+                            ui.send_message(WidgetMessage::desired_position(
+                                self.handle(),
+                                MessageDirection::ToWidget,
+                                position,
+                            ));
                         }
                     }
-                }
-                PopupMessage::Content(content) => {
-                    if self.content.is_some() {
-                        ui.send_message(WidgetMessage::remove(
+                    PopupMessage::Close => {
+                        if self.is_open {
+                            self.is_open = false;
+                            ui.send_message(WidgetMessage::visibility(
+                                self.handle(),
+                                MessageDirection::ToWidget,
+                                false,
+                            ));
+                            ui.remove_picking_restriction(self.handle());
+                            if ui.captured_node() == self.handle() {
+                                ui.release_mouse_capture();
+                            }
+                        }
+                    }
+                    PopupMessage::Content(content) => {
+                        if self.content.is_some() {
+                            ui.send_message(WidgetMessage::remove(
+                                self.content,
+                                MessageDirection::ToWidget,
+                            ));
+                        }
+                        self.content = *content;
+
+                        ui.send_message(WidgetMessage::link(
                             self.content,
                             MessageDirection::ToWidget,
+                            self.body,
                         ));
                     }
-                    self.content = *content;
-
-                    ui.send_message(WidgetMessage::link(
-                        self.content,
-                        MessageDirection::ToWidget,
-                        self.body,
-                    ));
+                    PopupMessage::Placement(placement) => {
+                        self.placement = *placement;
+                        self.invalidate_layout();
+                    }
                 }
-                PopupMessage::Placement(placement) => {
-                    self.placement = *placement;
-                    self.invalidate_layout();
-                }
-            },
-            _ => {}
+            }
         }
     }
 

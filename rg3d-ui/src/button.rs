@@ -3,7 +3,7 @@ use crate::{
     brush::{Brush, GradientPoint},
     core::{algebra::Vector2, pool::Handle},
     decorator::DecoratorBuilder,
-    message::{ButtonMessage, MessageDirection, UiMessage, UiMessageData, WidgetMessage},
+    message::{ButtonMessage, MessageDirection, UiMessage, WidgetMessage},
     text::TextBuilder,
     ttf::SharedFont,
     widget::{Widget, WidgetBuilder},
@@ -50,50 +50,46 @@ impl Control for Button {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        match &message.data() {
-            UiMessageData::Widget(msg) => {
-                if message.destination() == self.handle()
-                    || self.has_descendant(message.destination(), ui)
-                {
-                    match msg {
-                        WidgetMessage::MouseUp { .. } => {
-                            ui.send_message(ButtonMessage::click(
-                                self.handle(),
-                                MessageDirection::FromWidget,
-                            ));
-                            ui.release_mouse_capture();
-                            message.set_handled(true);
-                        }
-                        WidgetMessage::MouseDown { .. } => {
-                            ui.capture_mouse(message.destination());
-                            message.set_handled(true);
-                        }
-                        _ => (),
+        if let Some(msg) = message.data::<WidgetMessage>() {
+            if message.destination() == self.handle()
+                || self.has_descendant(message.destination(), ui)
+            {
+                match msg {
+                    WidgetMessage::MouseUp { .. } => {
+                        ui.send_message(ButtonMessage::click(
+                            self.handle(),
+                            MessageDirection::FromWidget,
+                        ));
+                        ui.release_mouse_capture();
+                        message.set_handled(true);
                     }
+                    WidgetMessage::MouseDown { .. } => {
+                        ui.capture_mouse(message.destination());
+                        message.set_handled(true);
+                    }
+                    _ => (),
                 }
             }
-            UiMessageData::Button(msg) => {
-                if message.destination() == self.handle() {
-                    match msg {
-                        ButtonMessage::Click => (),
-                        ButtonMessage::Content(content) => {
-                            if self.content.is_some() {
-                                ui.send_message(WidgetMessage::remove(
-                                    self.content,
-                                    MessageDirection::ToWidget,
-                                ));
-                            }
-                            self.content = *content;
-                            ui.send_message(WidgetMessage::link(
+        } else if let Some(msg) = message.data::<ButtonMessage>() {
+            if message.destination() == self.handle() {
+                match msg {
+                    ButtonMessage::Click => (),
+                    ButtonMessage::Content(content) => {
+                        if self.content.is_some() {
+                            ui.send_message(WidgetMessage::remove(
                                 self.content,
                                 MessageDirection::ToWidget,
-                                self.decorator,
                             ));
                         }
+                        self.content = *content;
+                        ui.send_message(WidgetMessage::link(
+                            self.content,
+                            MessageDirection::ToWidget,
+                            self.decorator,
+                        ));
                     }
                 }
             }
-            _ => (),
         }
     }
 

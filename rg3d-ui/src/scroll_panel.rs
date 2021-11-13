@@ -3,7 +3,7 @@ use crate::{
     brush::Brush,
     core::{algebra::Vector2, color::Color, math::Rect, pool::Handle, scope_profile},
     draw::{CommandTexture, DrawingContext},
-    message::{MessageDirection, ScrollPanelMessage, UiMessage, UiMessageData},
+    message::{MessageDirection, ScrollPanelMessage, UiMessage},
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
@@ -102,7 +102,7 @@ impl Control for ScrollPanel {
         self.widget.handle_routed_message(ui, message);
 
         if message.destination() == self.handle() {
-            if let UiMessageData::ScrollPanel(msg) = &message.data() {
+            if let Some(msg) = message.data::<ScrollPanelMessage>() {
                 match *msg {
                     ScrollPanelMessage::VerticalScroll(scroll) => {
                         self.scroll.y = scroll;

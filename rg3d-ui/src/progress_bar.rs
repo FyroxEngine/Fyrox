@@ -3,7 +3,7 @@ use crate::{
     brush::Brush,
     canvas::CanvasBuilder,
     core::{algebra::Vector2, color::Color, pool::Handle},
-    message::{MessageDirection, ProgressBarMessage, UiMessage, UiMessageData, WidgetMessage},
+    message::{MessageDirection, ProgressBarMessage, UiMessage, WidgetMessage},
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, NodeHandleMapping, UiNode, UserInterface,
 };
@@ -47,14 +47,12 @@ impl Control for ProgressBar {
         self.widget.handle_routed_message(ui, message);
 
         if message.destination() == self.handle {
-            if let UiMessageData::ProgressBar(msg) = &message.data() {
-                match *msg {
-                    ProgressBarMessage::Progress(progress) => {
-                        if progress != self.progress {
-                            self.set_progress(progress);
-                            self.invalidate_layout();
-                        }
-                    }
+            if let Some(&ProgressBarMessage::Progress(progress)) =
+                message.data::<ProgressBarMessage>()
+            {
+                if progress != self.progress {
+                    self.set_progress(progress);
+                    self.invalidate_layout();
                 }
             }
         }

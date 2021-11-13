@@ -8,7 +8,7 @@ use crate::{
         },
         InspectorError,
     },
-    message::{FieldKind, MessageDirection, PropertyChanged, UiMessage, UiMessageData},
+    message::{FieldKind, MessageDirection, PropertyChanged, UiMessage},
     vec::{
         vec2::{Vec2EditorBuilder, Vec2EditorMessage},
         vec3::{Vec3EditorBuilder, Vec3EditorMessage},
@@ -74,14 +74,12 @@ macro_rules! define_vector_editor {
                 message: &UiMessage,
             ) -> Option<PropertyChanged> {
                 if message.direction() == MessageDirection::FromWidget {
-                    if let UiMessageData::User(msg) = message.data() {
-                        if let Some($message::Value(value)) = msg.cast::<$message<$t>>() {
-                            return Some(PropertyChanged {
-                                owner_type_id,
-                                name: name.to_string(),
-                                value: FieldKind::object(*value),
-                            });
-                        }
+                    if let Some($message::Value(value)) = message.data::<$message<$t>>() {
+                        return Some(PropertyChanged {
+                            owner_type_id,
+                            name: name.to_string(),
+                            value: FieldKind::object(*value),
+                        });
                     }
                 }
                 None
