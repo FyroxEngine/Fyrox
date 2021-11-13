@@ -586,7 +586,7 @@ impl<T> Pool<T> {
                 }
             } else {
                 panic!(
-                    "Attempt to use dangling handle {:?}. Record has {} generation!",
+                    "Attempt to use dangling handle {:?}. Record has generation {}!",
                     handle, record.generation
                 );
             }
