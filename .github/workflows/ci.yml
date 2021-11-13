@@ -34,11 +34,11 @@ jobs:
     name: Linux CI
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v2
       - name: Update
         run: sudo apt update
       - name: Install Dependencies
         run: sudo apt-get install libasound2-dev libudev-dev pkg-config xorg-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev
-      - uses: actions/checkout@v2
       - run: rustup update
       - run: rustc --version && cargo --version
       - name: Build
@@ -51,7 +51,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-
       - name: Install Dependencies
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
       - run: rustup update
@@ -80,6 +79,8 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - run: rustup update
+      - name: Update
+        run: sudo apt update
       - name: Install Dependencies
         run: sudo apt-get install libasound2-dev libudev-dev pkg-config xorg-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev
       - run: cargo clippy --version
@@ -104,6 +105,7 @@ jobs:
           RUSTDOCFLAGS: --deny warnings
 
   # MacOS 11 CI is currently in beta. Uncomment the below lines when it's out of beta.
+  # For reference: https://github.com/actions/virtual-environments#available-environments
   # macos11:
   #   name: MacOS Big Sur (M1) CI
   #   runs-on: macos-11
