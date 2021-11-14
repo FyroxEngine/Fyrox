@@ -1,16 +1,15 @@
-use rg3d::gui::define_constructor;
 use rg3d::{
     core::{algebra::Vector2, pool::Handle},
     gui::{
         brush::Brush,
+        define_constructor,
         draw::{DrawingContext, SharedTexture},
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
-        message::{MessageDirection, OsEvent, TextMessage, UiMessage},
-        text::TextBuilder,
+        message::{MessageDirection, OsEvent, UiMessage},
+        text::{TextBuilder, TextMessage},
         tree::{Tree, TreeBuilder},
-        widget::Widget,
-        widget::WidgetBuilder,
+        widget::{Widget, WidgetBuilder},
         BuildContext, Control, NodeHandleMapping, Thickness, UiNode, UserInterface,
         VerticalAlignment,
     },

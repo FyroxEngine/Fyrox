@@ -1,21 +1,18 @@
 use crate::{GameEngine, Message};
-use rg3d::core::scope_profile;
-use rg3d::gui::formatted_text::WrapMode;
-use rg3d::gui::message::UiMessage;
-use rg3d::gui::{BuildContext, HorizontalAlignment, UiNode, VerticalAlignment, BRUSH_BRIGHT};
 use rg3d::{
-    core::{algebra::Vector2, pool::Handle},
+    core::{algebra::Vector2, pool::Handle, scope_profile},
     gui::{
-        button::ButtonBuilder,
+        button::{ButtonBuilder, ButtonMessage},
+        formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
-        list_view::ListViewBuilder,
-        message::{ButtonMessage, ListViewMessage, MessageDirection},
+        list_view::{ListViewBuilder, ListViewMessage},
+        message::{MessageDirection, UiMessage},
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
         vector_image::{Primitive, VectorImageBuilder},
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
-        Thickness,
+        BuildContext, HorizontalAlignment, Thickness, UiNode, VerticalAlignment, BRUSH_BRIGHT,
     },
 };
 

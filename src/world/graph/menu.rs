@@ -1,17 +1,18 @@
-use crate::scene::commands::physics::SetBodyCommand;
 use crate::{
-    scene::{commands::make_delete_selection_command, EditorScene, Selection},
+    scene::{
+        commands::{make_delete_selection_command, physics::SetBodyCommand},
+        EditorScene, Selection,
+    },
     GameEngine, Message,
 };
-use rg3d::gui::message::{MessageDirection, PopupMessage, WidgetMessage};
 use rg3d::{
     core::{algebra::Vector2, pool::Handle, scope_profile},
     gui::{
-        menu::{MenuItemBuilder, MenuItemContent},
-        message::{MenuItemMessage, UiMessage},
-        popup::PopupBuilder,
+        menu::{MenuItemBuilder, MenuItemContent, MenuItemMessage},
+        message::{MessageDirection, UiMessage},
+        popup::{PopupBuilder, PopupMessage},
         stack_panel::StackPanelBuilder,
-        widget::WidgetBuilder,
+        widget::{WidgetBuilder, WidgetMessage},
         BuildContext, UiNode,
     },
 };

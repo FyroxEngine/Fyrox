@@ -3,16 +3,16 @@ use rg3d::{
     asset::core::pool::Handle,
     core::parking_lot::Mutex,
     gui::{
-        button::ButtonBuilder,
+        button::{ButtonBuilder, ButtonMessage},
         grid::{Column, GridBuilder, Row},
         inspector::{
             editors::{
                 Layout, PropertyEditorBuildContext, PropertyEditorDefinition,
                 PropertyEditorInstance, PropertyEditorMessageContext,
             },
-            InspectorError,
+            InspectorError, PropertyChanged,
         },
-        message::{ButtonMessage, PropertyChanged, UiMessage},
+        message::UiMessage,
         text::TextBuilder,
         widget::{Widget, WidgetBuilder},
         BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,

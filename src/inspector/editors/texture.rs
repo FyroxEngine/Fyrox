@@ -1,22 +1,20 @@
 use crate::{asset::AssetItem, inspector::EditorEnvironment, make_relative_path};
-use rg3d::gui::{define_constructor, Thickness};
 use rg3d::{
     asset::core::pool::Handle,
     engine::resource_manager::ResourceManager,
     gui::{
-        image::ImageBuilder,
+        define_constructor,
+        image::{ImageBuilder, ImageMessage},
         inspector::{
             editors::{
                 PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
                 PropertyEditorMessageContext,
             },
-            InspectorError,
+            FieldKind, InspectorError, PropertyChanged,
         },
-        message::{
-            FieldKind, ImageMessage, MessageDirection, PropertyChanged, UiMessage, WidgetMessage,
-        },
-        widget::{Widget, WidgetBuilder},
-        BuildContext, Control, UiNode, UserInterface,
+        message::{MessageDirection, UiMessage},
+        widget::{Widget, WidgetBuilder, WidgetMessage},
+        BuildContext, Control, Thickness, UiNode, UserInterface,
     },
     resource::texture::Texture,
     utils::into_gui_texture,

@@ -1,19 +1,18 @@
 use crate::load_image;
-use rg3d::gui::message::UiMessage;
-use rg3d::gui::widget::Widget;
-use rg3d::gui::{define_constructor, BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::pool::Handle,
     gui::{
         border::BorderBuilder,
-        button::ButtonBuilder,
+        button::{ButtonBuilder, ButtonMessage},
         decorator::DecoratorBuilder,
+        define_constructor,
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
-        message::{ButtonMessage, MessageDirection},
+        message::{MessageDirection, UiMessage},
         text::TextBuilder,
-        widget::WidgetBuilder,
-        Control, HorizontalAlignment, NodeHandleMapping, Thickness, VerticalAlignment,
+        widget::{Widget, WidgetBuilder},
+        BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Thickness, UiNode,
+        UserInterface, VerticalAlignment,
     },
 };
 use std::ops::{Deref, DerefMut};

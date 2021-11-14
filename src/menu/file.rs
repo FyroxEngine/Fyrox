@@ -8,14 +8,12 @@ use crate::{
 use rg3d::{
     core::pool::Handle,
     gui::{
-        file_browser::FileSelectorBuilder,
-        message::{
-            FileSelectorMessage, MenuItemMessage, MessageBoxMessage, MessageDirection, UiMessage,
-            WindowMessage,
-        },
-        messagebox::{MessageBoxBuilder, MessageBoxButtons},
+        file_browser::{FileSelectorBuilder, FileSelectorMessage},
+        menu::MenuItemMessage,
+        message::{MessageDirection, UiMessage},
+        messagebox::{MessageBoxBuilder, MessageBoxButtons, MessageBoxMessage},
         widget::WidgetBuilder,
-        window::{WindowBuilder, WindowTitle},
+        window::{WindowBuilder, WindowMessage, WindowTitle},
         UiNode, UserInterface,
     },
 };

@@ -1,15 +1,15 @@
 use crate::load_image;
-use rg3d::gui::define_constructor;
 use rg3d::{
     asset::core::algebra::Vector2,
     core::{color::Color, pool::Handle},
     gui::{
         brush::Brush,
+        define_constructor,
         draw::DrawingContext,
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
-        message::{MessageDirection, OsEvent, TextMessage, UiMessage},
-        text::TextBuilder,
+        message::{MessageDirection, OsEvent, UiMessage},
+        text::{TextBuilder, TextMessage},
         tree::{Tree, TreeBuilder},
         widget::{Widget, WidgetBuilder},
         BuildContext, Control, NodeHandleMapping, Thickness, UiNode, UserInterface,

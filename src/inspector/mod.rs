@@ -1,17 +1,16 @@
-use crate::inspector::handlers::joint::handle_joint_property_changed;
-use crate::physics::{Collider, Joint};
 use crate::{
     command::Command,
     inspector::{
         editors::make_property_editors_container,
         handlers::{
             collider::handle_collider_property_changed,
+            joint::handle_joint_property_changed,
             node::{particle_system::ParticleSystemHandler, SceneNodePropertyChangedHandler},
             rigid_body::handle_rigid_body_property_changed,
             sound::*,
         },
     },
-    physics::RigidBody,
+    physics::{Collider, Joint, RigidBody},
     scene::{EditorScene, Selection},
     GameEngine, Message, MSG_SYNC_FLAG,
 };
@@ -21,9 +20,9 @@ use rg3d::{
     gui::{
         inspector::{
             editors::PropertyEditorDefinitionContainer, InspectorBuilder, InspectorContext,
-            InspectorEnvironment,
+            InspectorEnvironment, InspectorMessage,
         },
-        message::{InspectorMessage, MessageDirection, UiMessage},
+        message::{MessageDirection, UiMessage},
         scroll_viewer::ScrollViewerBuilder,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},

@@ -11,8 +11,8 @@ use rg3d::{
     core::{algebra::Vector2, pool::Handle, scope_profile},
     gui::{
         menu::{MenuBuilder, MenuItemBuilder, MenuItemContent},
-        message::{MessageDirection, UiMessage, WidgetMessage},
-        widget::WidgetBuilder,
+        message::{MessageDirection, UiMessage},
+        widget::{WidgetBuilder, WidgetMessage},
         BuildContext, Thickness, UiNode, UserInterface,
     },
 };

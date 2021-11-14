@@ -1,10 +1,10 @@
 use crate::{asset::AssetItem, inspector::EditorEnvironment, load_image, make_relative_path};
-use rg3d::gui::define_constructor;
 use rg3d::{
     asset::{Resource, ResourceData, ResourceLoadError},
     core::{futures::executor::block_on, pool::Handle},
     engine::resource_manager::ResourceManager,
     gui::{
+        define_constructor,
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
         inspector::{
@@ -12,13 +12,11 @@ use rg3d::{
                 PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
                 PropertyEditorMessageContext,
             },
-            InspectorError,
+            FieldKind, InspectorError, PropertyChanged,
         },
-        message::{
-            FieldKind, MessageDirection, PropertyChanged, TextMessage, UiMessage, WidgetMessage,
-        },
-        text::TextBuilder,
-        widget::{Widget, WidgetBuilder},
+        message::{MessageDirection, UiMessage},
+        text::{TextBuilder, TextMessage},
+        widget::{Widget, WidgetBuilder, WidgetMessage},
         BuildContext, Control, UiNode, UserInterface, VerticalAlignment,
     },
     resource::model::Model,

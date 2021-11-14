@@ -1,8 +1,7 @@
 use crate::{do_command, inspector::SenderHelper, physics::RigidBody, scene::commands::physics::*};
-use rg3d::gui::message::CollectionChanged;
 use rg3d::{
     core::pool::Handle,
-    gui::{message::FieldKind, message::PropertyChanged},
+    gui::inspector::{CollectionChanged, FieldKind, PropertyChanged},
 };
 
 pub fn handle_rigid_body_property_changed(

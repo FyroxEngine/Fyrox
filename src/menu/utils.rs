@@ -1,10 +1,11 @@
 use crate::menu::{create_menu_item, create_root_menu_item, Panels};
-use rg3d::gui::UserInterface;
 use rg3d::{
     asset::core::pool::Handle,
     gui::{
-        message::{MenuItemMessage, MessageDirection, UiMessage, WindowMessage},
-        BuildContext, UiNode,
+        menu::MenuItemMessage,
+        message::{MessageDirection, UiMessage},
+        window::WindowMessage,
+        BuildContext, UiNode, UserInterface,
     },
 };
 

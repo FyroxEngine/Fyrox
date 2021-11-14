@@ -1,7 +1,7 @@
 use crate::{do_command, inspector::SenderHelper, scene::commands::graph::*};
 use rg3d::{
     core::pool::Handle,
-    gui::message::{FieldKind, PropertyChanged},
+    gui::inspector::{FieldKind, PropertyChanged},
     scene::node::Node,
 };
 

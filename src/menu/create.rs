@@ -6,10 +6,7 @@ use crate::{
 };
 use rg3d::{
     core::{algebra::Matrix4, parking_lot::Mutex, pool::Handle},
-    gui::{
-        message::{MenuItemMessage, UiMessage},
-        BuildContext, UiNode,
-    },
+    gui::{menu::MenuItemMessage, message::UiMessage, BuildContext, UiNode},
     scene::{
         base::BaseBuilder,
         camera::CameraBuilder,

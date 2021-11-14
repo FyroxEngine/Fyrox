@@ -7,24 +7,23 @@ use crate::{
     },
     GameEngine, Message, CONFIG_DIR,
 };
-use rg3d::gui::formatted_text::WrapMode;
-use rg3d::gui::message::UiMessage;
-use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::{pool::Handle, scope_profile},
     gui::{
         border::BorderBuilder,
-        button::ButtonBuilder,
+        button::{ButtonBuilder, ButtonMessage},
         check_box::CheckBoxBuilder,
+        formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
-        message::{ButtonMessage, MessageDirection, TreeRootMessage, WidgetMessage, WindowMessage},
+        message::{MessageDirection, UiMessage},
         numeric::NumericUpDownBuilder,
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
-        tree::{TreeBuilder, TreeRootBuilder},
-        widget::WidgetBuilder,
-        window::{WindowBuilder, WindowTitle},
-        HorizontalAlignment, Orientation, Thickness, VerticalAlignment,
+        tree::{TreeBuilder, TreeRootBuilder, TreeRootMessage},
+        widget::{WidgetBuilder, WidgetMessage},
+        window::{WindowBuilder, WindowMessage, WindowTitle},
+        BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+        VerticalAlignment,
     },
 };
 use ron::ser::PrettyConfig;

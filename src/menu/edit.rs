@@ -5,10 +5,7 @@ use crate::{
 };
 use rg3d::{
     core::pool::Handle,
-    gui::{
-        message::{MenuItemMessage, UiMessage},
-        BuildContext, UiNode,
-    },
+    gui::{menu::MenuItemMessage, message::UiMessage, BuildContext, UiNode},
 };
 use std::sync::mpsc::Sender;
 

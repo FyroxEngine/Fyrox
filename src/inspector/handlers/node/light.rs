@@ -1,11 +1,18 @@
-use crate::inspector::handlers::node::base::handle_base_property_changed;
-use crate::{do_command, inspector::SenderHelper, scene::commands::light::*};
-use rg3d::scene::light::directional::DirectionalLight;
+use crate::{
+    do_command,
+    inspector::{handlers::node::base::handle_base_property_changed, SenderHelper},
+    scene::commands::light::*,
+};
 use rg3d::{
     core::pool::Handle,
-    gui::message::{FieldKind, PropertyChanged},
+    gui::inspector::{CollectionChanged, FieldKind, PropertyChanged},
     scene::{
-        light::{point::PointLight, spot::SpotLight, BaseLight},
+        light::{
+            directional::{CsmOptions, DirectionalLight, FrustumSplitOptions},
+            point::PointLight,
+            spot::SpotLight,
+            BaseLight,
+        },
         node::Node,
     },
 };
@@ -115,6 +122,31 @@ pub fn handle_directional_light_property_changed(
             DirectionalLight::BASE_LIGHT => {
                 handle_base_light_property_changed(inner, handle, node, helper)
             }
+            DirectionalLight::CSM_OPTIONS => match inner.name.as_ref() {
+                CsmOptions::SPLIT_OPTIONS => match inner.value {
+                    FieldKind::Inspectable(ref split_options_value) => {
+                        if let FieldKind::Collection(ref collection_changed) =
+                            split_options_value.value
+                        {
+                            if let CollectionChanged::ItemChanged { index, .. } =
+                                **collection_changed
+                            {
+                                match split_options_value.name.as_ref() {
+                                    FrustumSplitOptions::ABSOLUTE_FAR_PLANES => None,
+                                    FrustumSplitOptions::RELATIVE_FRACTIONS => None,
+                                    _ => None,
+                                }
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    }
+                    _ => None,
+                },
+                _ => None,
+            },
             _ => None,
         },
         _ => None,

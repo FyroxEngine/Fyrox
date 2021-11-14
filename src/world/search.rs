@@ -1,12 +1,11 @@
 use crate::Message;
-use rg3d::gui::text_box::TextCommitMode;
 use rg3d::{
     core::pool::Handle,
     gui::{
-        button::ButtonBuilder,
+        button::{ButtonBuilder, ButtonMessage},
         grid::{Column, GridBuilder, Row},
-        message::{ButtonMessage, MessageDirection, TextBoxMessage, UiMessage},
-        text_box::TextBoxBuilder,
+        message::{MessageDirection, UiMessage},
+        text_box::{TextBoxBuilder, TextBoxMessage, TextCommitMode},
         widget::WidgetBuilder,
         BuildContext, Thickness, UiNode, UserInterface, VerticalAlignment,
     },

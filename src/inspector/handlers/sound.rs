@@ -1,7 +1,7 @@
 use crate::{do_command, inspector::SenderHelper, scene::commands::sound::*};
 use rg3d::{
     core::pool::Handle,
-    gui::message::{FieldKind, PropertyChanged},
+    gui::inspector::{FieldKind, PropertyChanged},
     sound::source::{generic::GenericSource, spatial::SpatialSource, SoundSource},
 };
 

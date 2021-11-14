@@ -2,7 +2,7 @@ use std::any::TypeId;
 
 use rg3d::{
     core::pool::Handle,
-    gui::{message::PropertyChanged, UserInterface},
+    gui::{inspector::PropertyChanged, UserInterface},
     scene::{
         base::Base,
         camera::Camera,

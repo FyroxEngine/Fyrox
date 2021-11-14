@@ -1,6 +1,4 @@
 use crate::{GameEngine, Message, CONFIG_DIR};
-use rg3d::gui::message::UiMessage;
-use rg3d::gui::{BuildContext, UiNode};
 use rg3d::{
     core::{
         algebra::Vector2,
@@ -10,22 +8,19 @@ use rg3d::{
     },
     gui::{
         border::BorderBuilder,
-        button::ButtonBuilder,
+        button::{ButtonBuilder, ButtonMessage},
         decorator::DecoratorBuilder,
-        file_browser::{FileSelectorBuilder, Filter},
+        file_browser::{FileSelectorBuilder, FileSelectorMessage, Filter},
         formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
-        list_view::ListViewBuilder,
-        message::{
-            ButtonMessage, FileSelectorMessage, ListViewMessage, MessageDirection, TextBoxMessage,
-            WidgetMessage, WindowMessage,
-        },
+        list_view::{ListViewBuilder, ListViewMessage},
+        message::{MessageDirection, UiMessage},
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
-        text_box::TextBoxBuilder,
-        widget::WidgetBuilder,
-        window::{WindowBuilder, WindowTitle},
-        HorizontalAlignment, Orientation, Thickness, VerticalAlignment,
+        text_box::{TextBoxBuilder, TextBoxMessage},
+        widget::{WidgetBuilder, WidgetMessage},
+        window::{WindowBuilder, WindowMessage, WindowTitle},
+        BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, VerticalAlignment,
     },
 };
 use std::{

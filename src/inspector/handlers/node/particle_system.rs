@@ -2,25 +2,24 @@ use crate::{
     do_command, inspector::handlers::node::base::handle_base_property_changed,
     inspector::SenderHelper, scene::commands::particle_system::*,
 };
-use rg3d::scene::particle_system::emitter::cuboid::CuboidEmitter;
-use rg3d::scene::particle_system::emitter::cylinder::CylinderEmitter;
 use rg3d::{
     core::pool::Handle,
     gui::{
-        button::ButtonBuilder,
+        button::{ButtonBuilder, ButtonMessage},
         grid::{Column, GridBuilder, Row},
-        message::{
-            ButtonMessage, CollectionChanged, FieldKind, MessageDirection, PropertyChanged,
-            UiMessage, WindowMessage,
-        },
+        inspector::{CollectionChanged, FieldKind, PropertyChanged},
+        message::{MessageDirection, UiMessage},
         widget::WidgetBuilder,
-        window::{WindowBuilder, WindowTitle},
+        window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, UiNode, UserInterface,
     },
     scene::{
         node::Node,
         particle_system::{
-            emitter::{base::BaseEmitter, sphere::SphereEmitter, Emitter},
+            emitter::{
+                base::BaseEmitter, cuboid::CuboidEmitter, cylinder::CylinderEmitter,
+                sphere::SphereEmitter, Emitter,
+            },
             ParticleSystem,
         },
     },

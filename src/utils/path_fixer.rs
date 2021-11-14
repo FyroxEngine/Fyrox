@@ -2,46 +2,40 @@
 //! moved a resource in a file system, but a scene has old path.
 
 use crate::{make_scene_file_filter, Message};
-use rg3d::core::replace_slashes;
-use rg3d::gui::list_view::ListView;
-use rg3d::gui::message::UiMessage;
-use rg3d::gui::text::Text;
-use rg3d::gui::{BuildContext, UiNode, UserInterface};
-use rg3d::material::PropertyValue;
 use rg3d::{
     asset::ResourceData,
     core::{
         color::Color,
         futures::executor::block_on,
         pool::Handle,
+        replace_slashes,
         visitor::{Visit, Visitor},
     },
     gui::{
         border::BorderBuilder,
         brush::Brush,
-        button::ButtonBuilder,
+        button::{ButtonBuilder, ButtonMessage},
         decorator::DecoratorBuilder,
-        file_browser::FileSelectorBuilder,
+        file_browser::{FileSelectorBuilder, FileSelectorMessage},
         formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
-        list_view::ListViewBuilder,
-        message::{
-            ButtonMessage, FileSelectorMessage, ListViewMessage, MessageDirection, TextMessage,
-            WidgetMessage, WindowMessage,
-        },
+        list_view::{ListView, ListViewBuilder, ListViewMessage},
+        message::{MessageDirection, UiMessage},
         stack_panel::StackPanelBuilder,
-        text::TextBuilder,
-        widget::WidgetBuilder,
-        window::{WindowBuilder, WindowTitle},
-        HorizontalAlignment, Orientation, Thickness, VerticalAlignment,
+        text::{Text, TextBuilder, TextMessage},
+        widget::{WidgetBuilder, WidgetMessage},
+        window::{WindowBuilder, WindowMessage, WindowTitle},
+        BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+        VerticalAlignment,
     },
+    material::PropertyValue,
     resource::{model::Model, texture::Texture},
     scene::{light::Light, node::Node, Scene},
 };
-use std::path::Path;
 use std::{
     collections::HashSet,
     hash::{Hash, Hasher},
+    path::Path,
     path::PathBuf,
 };
 

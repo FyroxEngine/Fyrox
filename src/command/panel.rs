@@ -1,14 +1,15 @@
-use crate::scene::commands::SceneContext;
-use crate::{command::CommandStack, load_image, send_sync_message, Message};
+use crate::{
+    command::CommandStack, load_image, scene::commands::SceneContext, send_sync_message, Message,
+};
 use rg3d::{
     core::{color::Color, pool::Handle, scope_profile},
     gui::{
         brush::Brush,
-        button::ButtonBuilder,
+        button::{ButtonBuilder, ButtonMessage},
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
-        list_view::ListViewBuilder,
-        message::{ButtonMessage, ListViewMessage, MessageDirection, UiMessage},
+        list_view::{ListViewBuilder, ListViewMessage},
+        message::{MessageDirection, UiMessage},
         scroll_viewer::ScrollViewerBuilder,
         stack_panel::StackPanelBuilder,
         text::TextBuilder,

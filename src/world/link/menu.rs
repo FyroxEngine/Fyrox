@@ -2,8 +2,8 @@ use rg3d::{
     core::{algebra::Vector2, pool::Handle},
     gui::{
         menu::{MenuItemBuilder, MenuItemContent},
-        message::{PopupMessage, UiMessage},
-        popup::{Placement, PopupBuilder},
+        message::UiMessage,
+        popup::{Placement, PopupBuilder, PopupMessage},
         stack_panel::StackPanelBuilder,
         widget::WidgetBuilder,
         BuildContext, UiNode,

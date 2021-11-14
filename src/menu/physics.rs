@@ -6,10 +6,7 @@ use crate::{
 };
 use rg3d::{
     core::{algebra::Vector3, pool::Handle},
-    gui::{
-        message::{MenuItemMessage, UiMessage},
-        BuildContext, UiNode,
-    },
+    gui::{menu::MenuItemMessage, message::UiMessage, BuildContext, UiNode},
     physics3d::desc::{
         BallJointDesc, FixedJointDesc, JointParamsDesc, PrismaticJointDesc, RevoluteJointDesc,
     },

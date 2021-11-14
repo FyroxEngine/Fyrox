@@ -3,18 +3,16 @@ use crate::{
     settings::{make_bool_input_field, make_text_mark},
     GameEngine,
 };
-use rg3d::gui::message::UiMessage;
-use rg3d::gui::numeric::NumericUpDownMessage;
-use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::pool::Handle,
     gui::{
-        color::ColorFieldBuilder,
+        check_box::CheckBoxMessage,
+        color::{ColorFieldBuilder, ColorFieldMessage},
         grid::{Column, GridBuilder, Row},
-        message::{CheckBoxMessage, ColorFieldMessage, MessageDirection},
-        numeric::NumericUpDownBuilder,
+        message::{MessageDirection, UiMessage},
+        numeric::{NumericUpDownBuilder, NumericUpDownMessage},
         widget::WidgetBuilder,
-        Thickness,
+        BuildContext, Thickness, UiNode, UserInterface,
     },
     renderer::QualitySettings,
 };

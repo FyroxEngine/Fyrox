@@ -1,7 +1,4 @@
 use crate::{gui::AssetItemMessage, load_image, preview::PreviewPanel, GameEngine};
-use rg3d::gui::message::UiMessage;
-use rg3d::gui::widget::Widget;
-use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::{color::Color, pool::Handle, scope_profile},
     engine::resource_manager::ResourceManager,
@@ -9,18 +6,17 @@ use rg3d::{
         border::BorderBuilder,
         brush::Brush,
         draw::{CommandTexture, Draw, DrawingContext},
-        file_browser::{FileBrowserBuilder, Filter},
+        file_browser::{FileBrowserBuilder, FileBrowserMessage, Filter},
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
-        message::{
-            FileBrowserMessage, MessageDirection, ScrollViewerMessage, TextMessage, WidgetMessage,
-        },
-        scroll_viewer::ScrollViewerBuilder,
-        text::TextBuilder,
-        widget::WidgetBuilder,
+        message::{MessageDirection, UiMessage},
+        scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
+        text::{TextBuilder, TextMessage},
+        widget::{Widget, WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowTitle},
         wrap_panel::WrapPanelBuilder,
-        Control, HorizontalAlignment, Orientation, Thickness, VerticalAlignment, BRUSH_DARK,
+        BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+        VerticalAlignment, BRUSH_DARK,
     },
     utils::into_gui_texture,
 };

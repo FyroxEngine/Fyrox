@@ -19,9 +19,9 @@ use rg3d::{
         pool::Handle,
     },
     gui::{
-        menu::{MenuItemBuilder, MenuItemContent},
-        message::{MenuItemMessage, PopupMessage, UiMessage},
-        popup::{Placement, PopupBuilder},
+        menu::{MenuItemBuilder, MenuItemContent, MenuItemMessage},
+        message::UiMessage,
+        popup::{Placement, PopupBuilder, PopupMessage},
         stack_panel::StackPanelBuilder,
         widget::WidgetBuilder,
         BuildContext, UiNode, UserInterface,

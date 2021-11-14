@@ -7,10 +7,7 @@ use crate::{
 };
 use rg3d::{
     core::{algebra::Vector2, pool::Handle},
-    gui::{
-        message::{MessageDirection, WidgetMessage},
-        UiNode,
-    },
+    gui::{message::MessageDirection, widget::WidgetMessage, UiNode},
     scene::node::Node,
 };
 use std::sync::mpsc::Sender;

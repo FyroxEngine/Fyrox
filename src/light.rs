@@ -1,19 +1,15 @@
 use crate::{scene::EditorScene, GameEngine};
-use rg3d::gui::message::UiMessage;
-use rg3d::gui::numeric::NumericUpDownMessage;
-use rg3d::gui::UiNode;
 use rg3d::{
     core::{pool::Handle, scope_profile},
     gui::{
-        button::ButtonBuilder,
+        button::{ButtonBuilder, ButtonMessage},
         grid::{Column, GridBuilder, Row},
-        message::ButtonMessage,
-        message::MessageDirection,
-        numeric::NumericUpDownBuilder,
+        message::{MessageDirection, UiMessage},
+        numeric::{NumericUpDownBuilder, NumericUpDownMessage},
         text::TextBuilder,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
-        Thickness, VerticalAlignment,
+        Thickness, UiNode, VerticalAlignment,
     },
     utils::lightmap::Lightmap,
 };

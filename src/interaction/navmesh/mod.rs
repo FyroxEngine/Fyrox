@@ -1,14 +1,12 @@
-use crate::interaction::gizmo::move_gizmo::MoveGizmo;
-use crate::interaction::plane::PlaneKind;
-use crate::scene::commands::SceneCommand;
-use crate::settings::Settings;
 use crate::{
     interaction::{
         calculate_gizmo_distance_scaling,
+        gizmo::move_gizmo::MoveGizmo,
         navmesh::{
             data_model::{Navmesh, NavmeshEdge, NavmeshEntity, NavmeshVertex},
             selection::NavmeshSelection,
         },
+        plane::PlaneKind,
         InteractionMode,
     },
     scene::{
@@ -17,15 +15,14 @@ use crate::{
                 AddNavmeshCommand, AddNavmeshEdgeCommand, ConnectNavmeshEdgesCommand,
                 DeleteNavmeshCommand, DeleteNavmeshVertexCommand, MoveNavmeshVertexCommand,
             },
-            ChangeSelectionCommand, CommandGroup,
+            ChangeSelectionCommand, CommandGroup, SceneCommand,
         },
         EditorScene, Selection,
     },
-    send_sync_message, GameEngine, Message, MSG_SYNC_FLAG,
+    send_sync_message,
+    settings::Settings,
+    GameEngine, Message, MSG_SYNC_FLAG,
 };
-use rg3d::gui::list_view::ListView;
-use rg3d::gui::message::UiMessage;
-use rg3d::gui::{BuildContext, UiNode};
 use rg3d::{
     core::{
         algebra::{Vector2, Vector3},
@@ -36,17 +33,17 @@ use rg3d::{
     },
     gui::{
         border::BorderBuilder,
-        button::ButtonBuilder,
+        button::{ButtonBuilder, ButtonMessage},
         check_box::CheckBoxBuilder,
         decorator::DecoratorBuilder,
         grid::{Column, GridBuilder, Row},
-        list_view::ListViewBuilder,
-        message::{ButtonMessage, KeyCode, ListViewMessage, MessageDirection, WidgetMessage},
+        list_view::{ListView, ListViewBuilder, ListViewMessage},
+        message::{KeyCode, MessageDirection, UiMessage},
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
-        widget::WidgetBuilder,
+        widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowTitle},
-        Orientation, Thickness, VerticalAlignment,
+        BuildContext, Orientation, Thickness, UiNode, VerticalAlignment,
     },
     scene::{camera::Camera, node::Node},
 };

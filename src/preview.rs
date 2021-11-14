@@ -1,7 +1,4 @@
 use crate::GameEngine;
-use rg3d::gui::image::Image;
-use rg3d::gui::message::UiMessage;
-use rg3d::gui::UiNode;
 use rg3d::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
@@ -12,14 +9,12 @@ use rg3d::{
     },
     engine::resource_manager::MaterialSearchOptions,
     gui::{
-        button::ButtonBuilder,
+        button::{ButtonBuilder, ButtonMessage},
         grid::{Column, GridBuilder, Row},
-        image::ImageBuilder,
-        message::{
-            ButtonMessage, CursorIcon, ImageMessage, MessageDirection, MouseButton, WidgetMessage,
-        },
-        widget::WidgetBuilder,
-        Thickness,
+        image::{Image, ImageBuilder, ImageMessage},
+        message::{CursorIcon, MessageDirection, MouseButton, UiMessage},
+        widget::{WidgetBuilder, WidgetMessage},
+        Thickness, UiNode,
     },
     resource::texture::{Texture, TextureKind},
     scene::{

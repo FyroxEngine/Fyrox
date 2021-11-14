@@ -1,12 +1,11 @@
-use crate::inspector::handlers::node::transform::handle_transform_property_changed;
 use crate::{
     do_command,
-    inspector::SenderHelper,
+    inspector::{handlers::node::transform::handle_transform_property_changed, SenderHelper},
     scene::commands::{graph::*, lod::*},
 };
 use rg3d::{
     core::pool::Handle,
-    gui::message::{CollectionChanged, FieldKind, PropertyChanged},
+    gui::inspector::{CollectionChanged, FieldKind, PropertyChanged},
     scene::{
         base::{Base, LevelOfDetail},
         node::Node,

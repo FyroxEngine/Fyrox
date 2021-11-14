@@ -1,7 +1,7 @@
 use crate::{do_command, inspector::SenderHelper, physics::Joint, scene::commands::physics::*};
 use rg3d::{
     core::pool::Handle,
-    gui::{message::FieldKind, message::PropertyChanged},
+    gui::inspector::{FieldKind, PropertyChanged},
     physics3d::desc::{
         BallJointDesc, FixedJointDesc, JointParamsDesc, PrismaticJointDesc, RevoluteJointDesc,
     },

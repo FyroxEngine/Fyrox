@@ -2,7 +2,9 @@ use crate::menu::{create_menu_item, create_root_menu_item, Panels};
 use rg3d::{
     core::pool::Handle,
     gui::{
-        message::{MenuItemMessage, MessageDirection, UiMessage, WindowMessage},
+        menu::MenuItemMessage,
+        message::{MessageDirection, UiMessage},
+        window::WindowMessage,
         BuildContext, UiNode, UserInterface,
     },
 };

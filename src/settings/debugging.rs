@@ -1,12 +1,12 @@
 use crate::settings::{make_bool_input_field, make_text_mark};
-use rg3d::gui::message::UiMessage;
-use rg3d::gui::{BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::pool::Handle,
     gui::{
+        check_box::CheckBoxMessage,
         grid::{Column, GridBuilder, Row},
-        message::{CheckBoxMessage, MessageDirection},
+        message::{MessageDirection, UiMessage},
         widget::WidgetBuilder,
+        BuildContext, UiNode, UserInterface,
     },
 };
 use serde::{Deserialize, Serialize};

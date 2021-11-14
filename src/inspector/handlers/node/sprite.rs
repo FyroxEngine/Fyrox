@@ -1,8 +1,11 @@
-use crate::inspector::handlers::node::base::handle_base_property_changed;
-use crate::{do_command, inspector::SenderHelper, scene::commands::sprite::*};
+use crate::{
+    do_command,
+    inspector::{handlers::node::base::handle_base_property_changed, SenderHelper},
+    scene::commands::sprite::*,
+};
 use rg3d::{
     core::pool::Handle,
-    gui::{message::FieldKind, message::PropertyChanged},
+    gui::inspector::{FieldKind, PropertyChanged},
     scene::{node::Node, sprite::Sprite},
 };
 

@@ -23,13 +23,11 @@ use rg3d::{
             editors::{
                 enumeration::EnumPropertyEditorDefinition, PropertyEditorDefinitionContainer,
             },
-            Inspector, InspectorBuilder, InspectorContext,
+            FieldKind, Inspector, InspectorBuilder, InspectorContext, InspectorMessage,
         },
-        message::{
-            FieldKind, InspectorMessage, MessageDirection, UiMessage, WidgetMessage, WindowMessage,
-        },
-        widget::WidgetBuilder,
-        window::{WindowBuilder, WindowTitle},
+        message::{MessageDirection, UiMessage},
+        widget::{WidgetBuilder, WidgetMessage},
+        window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, UiNode, UserInterface,
     },
     scene::{

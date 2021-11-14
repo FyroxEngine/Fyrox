@@ -1,7 +1,7 @@
 use crate::{do_command, inspector::SenderHelper, physics::Collider, scene::commands::physics::*};
 use rg3d::{
     core::pool::Handle,
-    gui::{message::FieldKind, message::PropertyChanged},
+    gui::inspector::{FieldKind, PropertyChanged},
     physics3d::desc::*,
 };
 use std::any::TypeId;
