@@ -1045,12 +1045,6 @@ where
     }
 }
 
-impl dyn MessageData {
-    pub fn cast<T: MessageData>(&self) -> Option<&T> {
-        self.as_any().downcast_ref::<T>()
-    }
-}
-
 /// Message is basic communication element that is used to deliver information to UI nodes
 /// or to user code.
 ///
