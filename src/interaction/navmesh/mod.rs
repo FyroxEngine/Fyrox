@@ -41,9 +41,7 @@ use rg3d::{
         decorator::DecoratorBuilder,
         grid::{Column, GridBuilder, Row},
         list_view::ListViewBuilder,
-        message::{
-            ButtonMessage, KeyCode, ListViewMessage, MessageDirection, UiMessageData, WidgetMessage,
-        },
+        message::{ButtonMessage, KeyCode, ListViewMessage, MessageDirection, WidgetMessage},
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
         widget::WidgetBuilder,
@@ -256,88 +254,86 @@ impl NavmeshPanel {
     ) {
         scope_profile!();
 
-        match message.data() {
-            UiMessageData::Button(ButtonMessage::Click) => {
-                if message.destination() == self.add {
+        if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
+            if message.destination() == self.add {
+                self.sender
+                    .send(Message::do_scene_command(AddNavmeshCommand::new(
+                        Navmesh::new(),
+                    )))
+                    .unwrap();
+            } else if message.destination() == self.remove {
+                if editor_scene.navmeshes.is_valid_handle(self.selected) {
                     self.sender
-                        .send(Message::do_scene_command(AddNavmeshCommand::new(
-                            Navmesh::new(),
+                        .send(Message::do_scene_command(DeleteNavmeshCommand::new(
+                            self.selected,
                         )))
                         .unwrap();
-                } else if message.destination() == self.remove {
-                    if editor_scene.navmeshes.is_valid_handle(self.selected) {
-                        self.sender
-                            .send(Message::do_scene_command(DeleteNavmeshCommand::new(
-                                self.selected,
-                            )))
-                            .unwrap();
-                    }
-                } else if message.destination() == self.connect {
-                    if let Selection::Navmesh(selection) = &editor_scene.selection {
-                        let vertices = selection
-                            .entities()
-                            .iter()
-                            .filter_map(|entity| {
-                                if let NavmeshEntity::Edge(v) = *entity {
-                                    Some(v)
-                                } else {
-                                    None
-                                }
-                            })
-                            .collect::<Vec<_>>();
+                }
+            } else if message.destination() == self.connect {
+                if let Selection::Navmesh(selection) = &editor_scene.selection {
+                    let vertices = selection
+                        .entities()
+                        .iter()
+                        .filter_map(|entity| {
+                            if let NavmeshEntity::Edge(v) = *entity {
+                                Some(v)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>();
 
-                        self.sender
-                            .send(Message::do_scene_command(ConnectNavmeshEdgesCommand::new(
-                                self.selected,
-                                [vertices[0], vertices[1]],
-                            )))
-                            .unwrap();
-                    }
+                    self.sender
+                        .send(Message::do_scene_command(ConnectNavmeshEdgesCommand::new(
+                            self.selected,
+                            [vertices[0], vertices[1]],
+                        )))
+                        .unwrap();
                 }
             }
-            UiMessageData::ListView(ListViewMessage::SelectionChanged(selection)) => {
-                if message.destination() == self.navmeshes
-                    && message.direction() == MessageDirection::FromWidget
-                {
-                    let new_selection = if let Some(selection) = *selection {
-                        let navmeshes = engine.user_interface.node(self.navmeshes);
-                        let item = navmeshes.cast::<ListView>().unwrap().items()[selection];
-                        *engine
-                            .user_interface
-                            .node(item)
-                            .user_data_ref::<Handle<Navmesh>>()
-                            .unwrap()
-                    } else {
-                        Default::default()
-                    };
+        } else if let Some(ListViewMessage::SelectionChanged(selection)) =
+            message.data::<ListViewMessage>()
+        {
+            if message.destination() == self.navmeshes
+                && message.direction() == MessageDirection::FromWidget
+            {
+                let new_selection = if let Some(selection) = *selection {
+                    let navmeshes = engine.user_interface.node(self.navmeshes);
+                    let item = navmeshes.cast::<ListView>().unwrap().items()[selection];
+                    *engine
+                        .user_interface
+                        .node(item)
+                        .user_data_ref::<Handle<Navmesh>>()
+                        .unwrap()
+                } else {
+                    Default::default()
+                };
 
-                    if self.selected != new_selection {
-                        self.selected = new_selection;
-                        edit_mode.navmesh = self.selected;
+                if self.selected != new_selection {
+                    self.selected = new_selection;
+                    edit_mode.navmesh = self.selected;
 
-                        engine.user_interface.send_message(WidgetMessage::enabled(
-                            self.remove,
-                            MessageDirection::ToWidget,
-                            editor_scene.navmeshes.is_valid_handle(self.selected),
-                        ));
+                    engine.user_interface.send_message(WidgetMessage::enabled(
+                        self.remove,
+                        MessageDirection::ToWidget,
+                        editor_scene.navmeshes.is_valid_handle(self.selected),
+                    ));
 
-                        if !message.has_flags(MSG_SYNC_FLAG) {
-                            let new_selection =
-                                Selection::Navmesh(NavmeshSelection::empty(self.selected));
+                    if !message.has_flags(MSG_SYNC_FLAG) {
+                        let new_selection =
+                            Selection::Navmesh(NavmeshSelection::empty(self.selected));
 
-                            if new_selection != editor_scene.selection {
-                                self.sender
-                                    .send(Message::do_scene_command(ChangeSelectionCommand::new(
-                                        new_selection,
-                                        editor_scene.selection.clone(),
-                                    )))
-                                    .unwrap();
-                            }
+                        if new_selection != editor_scene.selection {
+                            self.sender
+                                .send(Message::do_scene_command(ChangeSelectionCommand::new(
+                                    new_selection,
+                                    editor_scene.selection.clone(),
+                                )))
+                                .unwrap();
                         }
                     }
                 }
             }
-            _ => {}
         }
     }
 }

@@ -1,5 +1,5 @@
 use crate::{asset::AssetItem, inspector::EditorEnvironment, make_relative_path};
-use rg3d::gui::Thickness;
+use rg3d::gui::{define_constructor, Thickness};
 use rg3d::{
     asset::core::pool::Handle,
     engine::resource_manager::ResourceManager,
@@ -13,8 +13,7 @@ use rg3d::{
             InspectorError,
         },
         message::{
-            FieldKind, ImageMessage, MessageDirection, PropertyChanged, UiMessage, UiMessageData,
-            WidgetMessage,
+            FieldKind, ImageMessage, MessageDirection, PropertyChanged, UiMessage, WidgetMessage,
         },
         widget::{Widget, WidgetBuilder},
         BuildContext, Control, UiNode, UserInterface,
@@ -61,45 +60,40 @@ pub enum TextureEditorMessage {
     Texture(Option<Texture>),
 }
 
+impl TextureEditorMessage {
+    define_constructor!(TextureEditorMessage:Texture => fn texture(Option<Texture>), layout: false);
+}
+
 impl Control for TextureEditor {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        match message.data() {
-            UiMessageData::Widget(WidgetMessage::Drop(dropped)) => {
-                if message.destination() == self.image {
-                    if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {
-                        let relative_path = make_relative_path(&item.path);
+        if let Some(WidgetMessage::Drop(dropped)) = message.data::<WidgetMessage>() {
+            if message.destination() == self.image {
+                if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {
+                    let relative_path = make_relative_path(&item.path);
 
-                        ui.send_message(UiMessage::user(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                            Box::new(TextureEditorMessage::Texture(Some(
-                                self.resource_manager.request_texture(relative_path, None),
-                            ))),
-                        ));
-                    }
+                    ui.send_message(TextureEditorMessage::texture(
+                        self.handle(),
+                        MessageDirection::ToWidget,
+                        Some(self.resource_manager.request_texture(relative_path, None)),
+                    ));
                 }
             }
-            UiMessageData::User(msg) => {
-                if let Some(TextureEditorMessage::Texture(texture)) =
-                    msg.cast::<TextureEditorMessage>()
-                {
-                    if &self.texture != texture && message.direction() == MessageDirection::ToWidget
-                    {
-                        self.texture = texture.clone();
+        } else if let Some(TextureEditorMessage::Texture(texture)) =
+            message.data::<TextureEditorMessage>()
+        {
+            if &self.texture != texture && message.direction() == MessageDirection::ToWidget {
+                self.texture = texture.clone();
 
-                        ui.send_message(ImageMessage::texture(
-                            self.image,
-                            MessageDirection::ToWidget,
-                            self.texture.clone().map(into_gui_texture),
-                        ));
+                ui.send_message(ImageMessage::texture(
+                    self.image,
+                    MessageDirection::ToWidget,
+                    self.texture.clone().map(into_gui_texture),
+                ));
 
-                        ui.send_message(message.reverse());
-                    }
-                }
+                ui.send_message(message.reverse());
             }
-            _ => {}
         }
     }
 }
@@ -190,10 +184,10 @@ impl PropertyEditorDefinition for TexturePropertyEditorDefinition {
     ) -> Result<Option<UiMessage>, InspectorError> {
         let value = ctx.property_info.cast_value::<Option<Texture>>()?;
 
-        Ok(Some(UiMessage::user(
+        Ok(Some(TextureEditorMessage::texture(
             ctx.instance,
             MessageDirection::ToWidget,
-            Box::new(TextureEditorMessage::Texture(value.clone())),
+            value.clone(),
         )))
     }
 
@@ -204,16 +198,14 @@ impl PropertyEditorDefinition for TexturePropertyEditorDefinition {
         message: &UiMessage,
     ) -> Option<PropertyChanged> {
         if message.direction() == MessageDirection::FromWidget {
-            if let UiMessageData::User(msg) = message.data() {
-                if let Some(TextureEditorMessage::Texture(value)) =
-                    msg.cast::<TextureEditorMessage>()
-                {
-                    return Some(PropertyChanged {
-                        owner_type_id,
-                        name: name.to_string(),
-                        value: FieldKind::object(value.clone()),
-                    });
-                }
+            if let Some(TextureEditorMessage::Texture(value)) =
+                message.data::<TextureEditorMessage>()
+            {
+                return Some(PropertyChanged {
+                    owner_type_id,
+                    name: name.to_string(),
+                    value: FieldKind::object(value.clone()),
+                });
             }
         }
         None

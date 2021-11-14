@@ -3,7 +3,7 @@ use rg3d::gui::UserInterface;
 use rg3d::{
     asset::core::pool::Handle,
     gui::{
-        message::{MenuItemMessage, MessageDirection, UiMessage, UiMessageData, WindowMessage},
+        message::{MenuItemMessage, MessageDirection, UiMessage, WindowMessage},
         BuildContext, UiNode,
     },
 };
@@ -32,7 +32,7 @@ impl UtilsMenu {
     }
 
     pub fn handle_ui_message(&mut self, message: &UiMessage, panels: &Panels, ui: &UserInterface) {
-        if let UiMessageData::MenuItem(MenuItemMessage::Click) = message.data() {
+        if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
             if message.destination() == self.open_path_fixer {
                 ui.send_message(WindowMessage::open_modal(
                     panels.path_fixer,

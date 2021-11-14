@@ -27,8 +27,7 @@ use rg3d::{
         menu::{MenuItemBuilder, MenuItemContent},
         message::{
             CheckBoxMessage, ColorFieldMessage, DropdownListMessage, ImageMessage, ListViewMessage,
-            MenuItemMessage, MessageDirection, PopupMessage, UiMessage, UiMessageData,
-            WidgetMessage,
+            MenuItemMessage, MessageDirection, PopupMessage, UiMessage, WidgetMessage,
         },
         numeric::{NumericUpDownBuilder, NumericUpDownMessage},
         popup::{Placement, PopupBuilder},
@@ -646,121 +645,129 @@ impl MaterialEditor {
         self.preview.handle_message(message, engine);
 
         if let Some(material) = self.material.clone() {
-            match message.data() {
-                UiMessageData::DropdownList(msg) => {
-                    if message.destination() == self.available_shaders
-                        && message.direction() == MessageDirection::FromWidget
-                    {
-                        match msg {
-                            DropdownListMessage::SelectionChanged(Some(value)) => {
-                                sender
-                                    .send(Message::do_scene_command(SetMaterialShaderCommand::new(
-                                        material.clone(),
-                                        self.shaders_list[*value].clone(),
-                                    )))
-                                    .unwrap();
-                            }
-                            DropdownListMessage::Open => {
-                                self.sync_available_shaders_list(engine.resource_manager.clone());
-                                self.create_shaders_items(
-                                    &mut engine.user_interface,
-                                    &*material.lock(),
-                                );
-                            }
-                            _ => (),
+            if let Some(msg) = message.data::<DropdownListMessage>() {
+                if message.destination() == self.available_shaders
+                    && message.direction() == MessageDirection::FromWidget
+                {
+                    match msg {
+                        DropdownListMessage::SelectionChanged(Some(value)) => {
+                            sender
+                                .send(Message::do_scene_command(SetMaterialShaderCommand::new(
+                                    material.clone(),
+                                    self.shaders_list[*value].clone(),
+                                )))
+                                .unwrap();
                         }
+                        DropdownListMessage::Open => {
+                            self.sync_available_shaders_list(engine.resource_manager.clone());
+                            self.create_shaders_items(
+                                &mut engine.user_interface,
+                                &*material.lock(),
+                            );
+                        }
+                        _ => (),
                     }
                 }
-                UiMessageData::Popup(PopupMessage::Placement(Placement::Cursor(target))) => {
-                    if message.destination() == self.texture_context_menu.popup {
-                        self.texture_context_menu.target = *target;
-                    }
+            } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) =
+                message.data::<PopupMessage>()
+            {
+                if message.destination() == self.texture_context_menu.popup {
+                    self.texture_context_menu.target = *target;
                 }
-                UiMessageData::MenuItem(MenuItemMessage::Click) => {
-                    if message.destination() == self.texture_context_menu.show_in_asset_browser
-                        && self.texture_context_menu.target.is_some()
-                    {
-                        let path = engine
-                            .user_interface
-                            .node(self.texture_context_menu.target)
-                            .cast::<Image>()
-                            .unwrap()
-                            .texture()
-                            .and_then(|t| {
-                                t.0.downcast::<Mutex<TextureState>>()
-                                    .map(|t| t.lock().path().to_path_buf())
-                                    .ok()
-                            });
+            } else if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
+                if message.destination() == self.texture_context_menu.show_in_asset_browser
+                    && self.texture_context_menu.target.is_some()
+                {
+                    let path = engine
+                        .user_interface
+                        .node(self.texture_context_menu.target)
+                        .cast::<Image>()
+                        .unwrap()
+                        .texture()
+                        .and_then(|t| {
+                            t.0.downcast::<Mutex<TextureState>>()
+                                .map(|t| t.lock().path().to_path_buf())
+                                .ok()
+                        });
 
-                        if let Some(path) = path {
-                            sender.send(Message::ShowInAssetBrowser(path)).unwrap();
-                        }
+                    if let Some(path) = path {
+                        sender.send(Message::ShowInAssetBrowser(path)).unwrap();
                     }
                 }
-                _ => {}
             }
 
             if let Some(property_name) = self.properties.key_of(&message.destination()) {
-                let property_value = match message.data() {
-                    UiMessageData::User(msg)
-                        if message.direction() == MessageDirection::FromWidget =>
-                    {
-                        if let Some(NumericUpDownMessage::Value(value)) =
-                            msg.cast::<NumericUpDownMessage<f32>>()
-                        {
-                            // NumericUpDown is used for Float, Int, UInt properties, so we have to check
-                            // the actual property "type" to create suitable value from f32.
-                            match material.lock().property_ref(property_name).unwrap() {
-                                PropertyValue::Float(_) => Some(PropertyValue::Float(*value)),
-                                PropertyValue::Int(_) => Some(PropertyValue::Int(*value as i32)),
-                                PropertyValue::UInt(_) => Some(PropertyValue::UInt(*value as u32)),
-                                _ => None,
-                            }
-                        } else if let Some(Vec2EditorMessage::Value(value)) =
-                            msg.cast::<Vec2EditorMessage<f32>>()
-                        {
-                            Some(PropertyValue::Vector2(*value))
-                        } else if let Some(Vec3EditorMessage::Value(value)) =
-                            msg.cast::<Vec3EditorMessage<f32>>()
-                        {
-                            Some(PropertyValue::Vector3(*value))
-                        } else if let Some(Vec4EditorMessage::Value(value)) =
-                            msg.cast::<Vec4EditorMessage<f32>>()
-                        {
-                            Some(PropertyValue::Vector4(*value))
-                        } else {
-                            None
+                let property_value = if let Some(NumericUpDownMessage::Value(value)) =
+                    message.data::<NumericUpDownMessage<f32>>()
+                {
+                    if message.direction() == MessageDirection::FromWidget {
+                        // NumericUpDown is used for Float, Int, UInt properties, so we have to check
+                        // the actual property "type" to create suitable value from f32.
+                        match material.lock().property_ref(property_name).unwrap() {
+                            PropertyValue::Float(_) => Some(PropertyValue::Float(*value)),
+                            PropertyValue::Int(_) => Some(PropertyValue::Int(*value as i32)),
+                            PropertyValue::UInt(_) => Some(PropertyValue::UInt(*value as u32)),
+                            _ => None,
                         }
+                    } else {
+                        None
                     }
-                    UiMessageData::ColorField(ColorFieldMessage::Color(color))
-                        if message.direction() == MessageDirection::FromWidget =>
-                    {
+                } else if let Some(Vec2EditorMessage::Value(value)) =
+                    message.data::<Vec2EditorMessage<f32>>()
+                {
+                    if message.direction() == MessageDirection::FromWidget {
+                        Some(PropertyValue::Vector2(*value))
+                    } else {
+                        None
+                    }
+                } else if let Some(Vec3EditorMessage::Value(value)) =
+                    message.data::<Vec3EditorMessage<f32>>()
+                {
+                    if message.direction() == MessageDirection::FromWidget {
+                        Some(PropertyValue::Vector3(*value))
+                    } else {
+                        None
+                    }
+                } else if let Some(Vec4EditorMessage::Value(value)) =
+                    message.data::<Vec4EditorMessage<f32>>()
+                {
+                    if message.direction() == MessageDirection::FromWidget {
+                        Some(PropertyValue::Vector4(*value))
+                    } else {
+                        None
+                    }
+                } else if let Some(ColorFieldMessage::Color(color)) =
+                    message.data::<ColorFieldMessage>()
+                {
+                    if message.direction() == MessageDirection::FromWidget {
                         Some(PropertyValue::Color(*color))
+                    } else {
+                        None
                     }
-                    UiMessageData::Widget(WidgetMessage::Drop(handle)) => {
-                        if let Some(asset_item) =
-                            engine.user_interface.node(*handle).cast::<AssetItem>()
-                        {
-                            let relative_path = make_relative_path(&asset_item.path);
+                } else if let Some(WidgetMessage::Drop(handle)) = message.data::<WidgetMessage>() {
+                    if let Some(asset_item) =
+                        engine.user_interface.node(*handle).cast::<AssetItem>()
+                    {
+                        let relative_path = make_relative_path(&asset_item.path);
 
-                            let texture =
-                                Some(engine.resource_manager.request_texture(relative_path, None));
+                        let texture =
+                            Some(engine.resource_manager.request_texture(relative_path, None));
 
-                            engine.user_interface.send_message(ImageMessage::texture(
-                                message.destination(),
-                                MessageDirection::ToWidget,
-                                texture.clone().map(into_gui_texture),
-                            ));
+                        engine.user_interface.send_message(ImageMessage::texture(
+                            message.destination(),
+                            MessageDirection::ToWidget,
+                            texture.clone().map(into_gui_texture),
+                        ));
 
-                            Some(PropertyValue::Sampler {
-                                value: texture,
-                                fallback: Default::default(),
-                            })
-                        } else {
-                            None
-                        }
+                        Some(PropertyValue::Sampler {
+                            value: texture,
+                            fallback: Default::default(),
+                        })
+                    } else {
+                        None
                     }
-                    _ => None,
+                } else {
+                    None
                 };
 
                 if let Some(property_value) = property_value {

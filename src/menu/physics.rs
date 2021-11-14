@@ -7,7 +7,7 @@ use crate::{
 use rg3d::{
     core::{algebra::Vector3, pool::Handle},
     gui::{
-        message::{MenuItemMessage, UiMessage, UiMessageData},
+        message::{MenuItemMessage, UiMessage},
         BuildContext, UiNode,
     },
     physics3d::desc::{
@@ -70,7 +70,7 @@ impl PhysicsMenu {
     }
 
     pub fn handle_ui_message(&mut self, message: &UiMessage, sender: &Sender<Message>) {
-        if let UiMessageData::MenuItem(MenuItemMessage::Click) = message.data() {
+        if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
             if message.destination() == self.create_rigid_body {
                 sender
                     .send(Message::do_scene_command(CreateRigidBodyCommand::new(

@@ -26,8 +26,7 @@ use rg3d::{
             Inspector, InspectorBuilder, InspectorContext,
         },
         message::{
-            FieldKind, InspectorMessage, MessageDirection, UiMessage, UiMessageData, WidgetMessage,
-            WindowMessage,
+            FieldKind, InspectorMessage, MessageDirection, UiMessage, WidgetMessage, WindowMessage,
         },
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
@@ -430,7 +429,7 @@ impl BrushPanel {
         if message.destination() == self.inspector
             && message.direction() == MessageDirection::FromWidget
         {
-            if let UiMessageData::Inspector(InspectorMessage::PropertyChanged(msg)) = message.data()
+            if let Some(InspectorMessage::PropertyChanged(msg)) = message.data::<InspectorMessage>()
             {
                 match msg.value {
                     FieldKind::Object(ref args) => match msg.name.as_ref() {

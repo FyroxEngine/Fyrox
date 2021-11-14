@@ -2,7 +2,7 @@ use rg3d::{
     core::{algebra::Vector2, pool::Handle},
     gui::{
         menu::{MenuItemBuilder, MenuItemContent},
-        message::{PopupMessage, UiMessage, UiMessageData},
+        message::{PopupMessage, UiMessage},
         popup::{Placement, PopupBuilder},
         stack_panel::StackPanelBuilder,
         widget::WidgetBuilder,
@@ -64,8 +64,8 @@ impl LinkContextMenu {
     }
 
     pub fn handle_ui_message(&mut self, message: &UiMessage) {
-        if let UiMessageData::Popup(PopupMessage::Placement(Placement::Cursor(target))) =
-            message.data()
+        if let Some(PopupMessage::Placement(Placement::Cursor(target))) =
+            message.data::<PopupMessage>()
         {
             if message.destination() == self.menu {
                 self.target = *target;

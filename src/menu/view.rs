@@ -2,7 +2,7 @@ use crate::menu::{create_menu_item, create_root_menu_item, Panels};
 use rg3d::{
     core::pool::Handle,
     gui::{
-        message::{MenuItemMessage, MessageDirection, UiMessage, UiMessageData, WindowMessage},
+        message::{MenuItemMessage, MessageDirection, UiMessage, WindowMessage},
         BuildContext, UiNode, UserInterface,
     },
 };
@@ -72,7 +72,7 @@ impl ViewMenu {
     }
 
     pub fn handle_ui_message(&mut self, message: &UiMessage, ui: &UserInterface, panels: &Panels) {
-        if let UiMessageData::MenuItem(MenuItemMessage::Click) = message.data() {
+        if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
             if message.destination() == self.asset_browser {
                 switch_window_state(panels.asset_window, ui, false);
             } else if message.destination() == self.light_panel {

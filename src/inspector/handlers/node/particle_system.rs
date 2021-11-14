@@ -11,7 +11,7 @@ use rg3d::{
         grid::{Column, GridBuilder, Row},
         message::{
             ButtonMessage, CollectionChanged, FieldKind, MessageDirection, PropertyChanged,
-            UiMessage, UiMessageData, WindowMessage,
+            UiMessage, WindowMessage,
         },
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
@@ -87,7 +87,7 @@ impl ParticleSystemHandler {
         helper: &SenderHelper,
         ui: &UserInterface,
     ) {
-        if let UiMessageData::Button(ButtonMessage::Click) = message.data() {
+        if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             let emitter = if message.destination() == self.cuboid {
                 Some(Emitter::Cuboid(Default::default()))
             } else if message.destination() == self.sphere {

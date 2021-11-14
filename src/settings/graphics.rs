@@ -11,7 +11,7 @@ use rg3d::{
     gui::{
         color::ColorFieldBuilder,
         grid::{Column, GridBuilder, Row},
-        message::{CheckBoxMessage, ColorFieldMessage, MessageDirection, UiMessageData},
+        message::{CheckBoxMessage, ColorFieldMessage, MessageDirection},
         numeric::NumericUpDownBuilder,
         widget::WidgetBuilder,
         Thickness,
@@ -186,43 +186,36 @@ impl GraphicsSection {
         engine: &mut GameEngine,
         settings: &mut GraphicsSettings,
     ) {
-        match message.data() {
-            UiMessageData::CheckBox(CheckBoxMessage::Check(check)) => {
-                let value = check.unwrap_or(false);
-                if message.destination() == self.ssao {
-                    settings.quality.use_ssao = value;
-                } else if message.destination() == self.point_shadows {
-                    settings.quality.point_shadows_enabled = value;
-                } else if message.destination() == self.spot_shadows {
-                    settings.quality.spot_shadows_enabled = value;
-                } else if message.destination() == self.light_scatter {
-                    settings.quality.light_scatter_enabled = value;
-                } else if message.destination() == self.parallax_mapping {
-                    settings.quality.use_parallax_mapping = value;
-                }
+        if let Some(CheckBoxMessage::Check(check)) = message.data::<CheckBoxMessage>() {
+            let value = check.unwrap_or(false);
+            if message.destination() == self.ssao {
+                settings.quality.use_ssao = value;
+            } else if message.destination() == self.point_shadows {
+                settings.quality.point_shadows_enabled = value;
+            } else if message.destination() == self.spot_shadows {
+                settings.quality.spot_shadows_enabled = value;
+            } else if message.destination() == self.light_scatter {
+                settings.quality.light_scatter_enabled = value;
+            } else if message.destination() == self.parallax_mapping {
+                settings.quality.use_parallax_mapping = value;
             }
-            UiMessageData::ColorField(msg)
-                if message.direction() == MessageDirection::FromWidget =>
+        } else if let Some(&ColorFieldMessage::Color(color)) = message.data::<ColorFieldMessage>() {
+            if message.direction() == MessageDirection::FromWidget
+                && message.destination() == self.ambient_color
             {
                 // TODO: Should not be here!
-                if message.destination() == self.ambient_color {
-                    if let ColorFieldMessage::Color(color) = *msg {
-                        engine.scenes[editor_scene.scene].ambient_lighting_color = color;
-                    }
+                engine.scenes[editor_scene.scene].ambient_lighting_color = color;
+            }
+        } else if let Some(&NumericUpDownMessage::Value(value)) =
+            message.data::<NumericUpDownMessage<f32>>()
+        {
+            if message.direction() == MessageDirection::FromWidget {
+                if message.destination() == self.near_plane {
+                    settings.z_near = value;
+                } else if message.destination() == self.far_plane {
+                    settings.z_far = value;
                 }
             }
-            UiMessageData::User(msg) if message.direction() == MessageDirection::FromWidget => {
-                if let Some(&NumericUpDownMessage::Value(value)) =
-                    msg.cast::<NumericUpDownMessage<f32>>()
-                {
-                    if message.destination() == self.near_plane {
-                        settings.z_near = value;
-                    } else if message.destination() == self.far_plane {
-                        settings.z_far = value;
-                    }
-                }
-            }
-            _ => {}
         }
     }
 }

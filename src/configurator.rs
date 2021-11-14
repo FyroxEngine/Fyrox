@@ -18,7 +18,7 @@ use rg3d::{
         list_view::ListViewBuilder,
         message::{
             ButtonMessage, FileSelectorMessage, ListViewMessage, MessageDirection, TextBoxMessage,
-            UiMessageData, WidgetMessage, WindowMessage,
+            WidgetMessage, WindowMessage,
         },
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
@@ -259,94 +259,88 @@ impl Configurator {
     pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut GameEngine) {
         scope_profile!();
 
-        match message.data() {
-            UiMessageData::Window(msg) => {
-                if message.destination() == self.window {
-                    if let WindowMessage::Close = msg {
-                        // Save history for next editor runs.
-                        let mut visitor = Visitor::new();
-                        self.history.visit("History", &mut visitor).unwrap();
-                        visitor
-                            .save_binary(CONFIG_DIR.lock().join(HISTORY_PATH))
-                            .unwrap();
-                    }
-                }
+        if let Some(WindowMessage::Close) = message.data::<WindowMessage>() {
+            if message.destination() == self.window {
+                // Save history for next editor runs.
+                let mut visitor = Visitor::new();
+                self.history.visit("History", &mut visitor).unwrap();
+                visitor
+                    .save_binary(CONFIG_DIR.lock().join(HISTORY_PATH))
+                    .unwrap();
             }
-            UiMessageData::ListView(msg) => {
-                if message.destination() == self.lv_history
-                    && message.direction() == MessageDirection::FromWidget
-                {
-                    if let ListViewMessage::SelectionChanged(Some(index)) = *msg {
-                        let entry = &self.history[index];
-                        self.work_dir = entry.work_dir.clone();
+        } else if let Some(&ListViewMessage::SelectionChanged(Some(index))) =
+            message.data::<ListViewMessage>()
+        {
+            if message.destination() == self.lv_history
+                && message.direction() == MessageDirection::FromWidget
+            {
+                let entry = &self.history[index];
+                self.work_dir = entry.work_dir.clone();
 
-                        engine.user_interface.send_message(TextBoxMessage::text(
-                            self.tb_work_dir,
-                            MessageDirection::ToWidget,
-                            self.work_dir.to_string_lossy().to_string(),
-                        ));
+                engine.user_interface.send_message(TextBoxMessage::text(
+                    self.tb_work_dir,
+                    MessageDirection::ToWidget,
+                    self.work_dir.to_string_lossy().to_string(),
+                ));
 
-                        self.validate(engine);
-                    }
-                }
+                self.validate(engine);
             }
-            UiMessageData::FileSelector(FileSelectorMessage::Commit(path)) => {
-                if message.destination() == self.work_dir_browser {
-                    if let Ok(work_dir) = path.clone().canonicalize() {
-                        self.work_dir = work_dir;
-                        engine.user_interface.send_message(TextBoxMessage::text(
-                            self.tb_work_dir,
-                            MessageDirection::ToWidget,
-                            self.work_dir.to_string_lossy().to_string(),
-                        ));
-
-                        self.validate(engine);
-                    }
-                }
-            }
-            UiMessageData::Button(ButtonMessage::Click) => {
-                if message.destination() == self.ok {
-                    self.sender
-                        .send(Message::Configure {
-                            working_directory: self.work_dir.clone(),
-                        })
-                        .unwrap();
-
-                    let new_entry = HistoryEntry {
-                        work_dir: self.work_dir.clone(),
-                    };
-                    if !self.history.iter().any(|e| e == &new_entry) {
-                        self.history.push(new_entry);
-
-                        let widget = make_history_entry_widget(
-                            &mut engine.user_interface.build_ctx(),
-                            self.history.last().unwrap(),
-                        );
-
-                        engine
-                            .user_interface
-                            .send_message(ListViewMessage::add_item(
-                                self.lv_history,
-                                MessageDirection::ToWidget,
-                                widget,
-                            ));
-                    }
-
-                    engine.user_interface.send_message(WindowMessage::close(
-                        self.window,
+        } else if let Some(FileSelectorMessage::Commit(path)) =
+            message.data::<FileSelectorMessage>()
+        {
+            if message.destination() == self.work_dir_browser {
+                if let Ok(work_dir) = path.clone().canonicalize() {
+                    self.work_dir = work_dir;
+                    engine.user_interface.send_message(TextBoxMessage::text(
+                        self.tb_work_dir,
                         MessageDirection::ToWidget,
+                        self.work_dir.to_string_lossy().to_string(),
                     ));
-                } else if message.destination() == self.select_work_dir {
+
+                    self.validate(engine);
+                }
+            }
+        } else if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
+            if message.destination() == self.ok {
+                self.sender
+                    .send(Message::Configure {
+                        working_directory: self.work_dir.clone(),
+                    })
+                    .unwrap();
+
+                let new_entry = HistoryEntry {
+                    work_dir: self.work_dir.clone(),
+                };
+                if !self.history.iter().any(|e| e == &new_entry) {
+                    self.history.push(new_entry);
+
+                    let widget = make_history_entry_widget(
+                        &mut engine.user_interface.build_ctx(),
+                        self.history.last().unwrap(),
+                    );
+
                     engine
                         .user_interface
-                        .send_message(WindowMessage::open_modal(
-                            self.work_dir_browser,
+                        .send_message(ListViewMessage::add_item(
+                            self.lv_history,
                             MessageDirection::ToWidget,
-                            true,
+                            widget,
                         ));
                 }
+
+                engine.user_interface.send_message(WindowMessage::close(
+                    self.window,
+                    MessageDirection::ToWidget,
+                ));
+            } else if message.destination() == self.select_work_dir {
+                engine
+                    .user_interface
+                    .send_message(WindowMessage::open_modal(
+                        self.work_dir_browser,
+                        MessageDirection::ToWidget,
+                        true,
+                    ));
             }
-            _ => {}
         }
     }
 }

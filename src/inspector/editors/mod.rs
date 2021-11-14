@@ -11,7 +11,7 @@ use crate::{
 use rg3d::{
     core::{inspect::Inspect, parking_lot::Mutex, pool::ErasedHandle},
     gui::inspector::editors::{
-        collection::VecCollectionPropertyEditorDefinition,
+        array::ArrayPropertyEditorDefinition, collection::VecCollectionPropertyEditorDefinition,
         enumeration::EnumPropertyEditorDefinition,
         inspectable::InspectablePropertyEditorDefinition, PropertyEditorDefinitionContainer,
     },
@@ -23,7 +23,10 @@ use rg3d::{
         self,
         base::{Base, LevelOfDetail, LodGroup, Mobility, PhysicsBinding},
         camera::Exposure,
-        light::BaseLight,
+        light::{
+            directional::{CsmOptions, FrustumSplitOptions},
+            BaseLight,
+        },
         mesh::{surface::Surface, RenderPath},
         particle_system::emitter::{base::BaseEmitter, Emitter},
         terrain::Layer,
@@ -155,6 +158,24 @@ where
     }
 }
 
+pub fn make_frustum_split_options_enum_editor_definition(
+) -> EnumPropertyEditorDefinition<FrustumSplitOptions> {
+    EnumPropertyEditorDefinition {
+        variant_generator: |i| match i {
+            0 => FrustumSplitOptions::default(),
+            1 => FrustumSplitOptions::Relative {
+                fractions: [0.33, 0.66, 1.0],
+            },
+            _ => unreachable!(),
+        },
+        index_generator: |v| match v {
+            FrustumSplitOptions::Absolute { .. } => 0,
+            FrustumSplitOptions::Relative { .. } => 1,
+        },
+        names_generator: || vec!["Absolute".to_string(), "Relative".to_string()],
+    }
+}
+
 pub fn make_property_editors_container(
     sender: Sender<Message>,
 ) -> Rc<PropertyEditorDefinitionContainer> {
@@ -196,6 +217,9 @@ pub fn make_property_editors_container(
         scene2d::transform::Transform,
     >::new());
     container.insert(InspectablePropertyEditorDefinition::<GenericSource>::new());
+    container.insert(InspectablePropertyEditorDefinition::<CsmOptions>::new());
+    container.insert(make_frustum_split_options_enum_editor_definition());
+    container.insert(ArrayPropertyEditorDefinition::<f32, 3>::new());
 
     Rc::new(container)
 }

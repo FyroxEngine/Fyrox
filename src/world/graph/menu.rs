@@ -8,7 +8,7 @@ use rg3d::{
     core::{algebra::Vector2, pool::Handle, scope_profile},
     gui::{
         menu::{MenuItemBuilder, MenuItemContent},
-        message::{MenuItemMessage, UiMessage, UiMessageData},
+        message::{MenuItemMessage, UiMessage},
         popup::PopupBuilder,
         stack_panel::StackPanelBuilder,
         widget::WidgetBuilder,
@@ -88,57 +88,52 @@ impl ItemContextMenu {
     ) {
         scope_profile!();
 
-        match message.data() {
-            UiMessageData::MenuItem(MenuItemMessage::Click) => {
-                if message.destination() == self.delete_selection {
+        if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
+            if message.destination() == self.delete_selection {
+                sender
+                    .send(Message::DoSceneCommand(make_delete_selection_command(
+                        editor_scene,
+                        engine,
+                    )))
+                    .unwrap();
+            } else if message.destination() == self.copy_selection {
+                if let Selection::Graph(graph_selection) = &editor_scene.selection {
+                    editor_scene.clipboard.fill_from_selection(
+                        graph_selection,
+                        editor_scene.scene,
+                        &editor_scene.physics,
+                        engine,
+                    );
+                }
+            } else if message.destination() == self.add_rigid_body
+                && editor_scene.selection.is_single_selection()
+            {
+                if let Selection::Graph(graph_selection) = &editor_scene.selection {
                     sender
-                        .send(Message::DoSceneCommand(make_delete_selection_command(
-                            editor_scene,
-                            engine,
+                        .send(Message::do_scene_command(SetBodyCommand::new(
+                            *graph_selection.nodes.first().unwrap(),
+                            Default::default(),
                         )))
                         .unwrap();
-                } else if message.destination() == self.copy_selection {
-                    if let Selection::Graph(graph_selection) = &editor_scene.selection {
-                        editor_scene.clipboard.fill_from_selection(
-                            graph_selection,
-                            editor_scene.scene,
-                            &editor_scene.physics,
-                            engine,
-                        );
-                    }
-                } else if message.destination() == self.add_rigid_body
-                    && editor_scene.selection.is_single_selection()
-                {
-                    if let Selection::Graph(graph_selection) = &editor_scene.selection {
-                        sender
-                            .send(Message::do_scene_command(SetBodyCommand::new(
-                                *graph_selection.nodes.first().unwrap(),
-                                Default::default(),
-                            )))
-                            .unwrap();
-                    }
                 }
             }
-            UiMessageData::Popup(PopupMessage::Open) => {
-                if message.destination() == self.menu {
-                    let enabled = if let Selection::Graph(graph_selection) = &editor_scene.selection
-                    {
-                        graph_selection.is_single_selection()
-                            && !editor_scene
-                                .physics
-                                .binder
-                                .contains_key(graph_selection.nodes.first().unwrap())
-                    } else {
-                        false
-                    };
-                    engine.user_interface.send_message(WidgetMessage::enabled(
-                        self.add_rigid_body,
-                        MessageDirection::ToWidget,
-                        enabled,
-                    ));
-                }
+        } else if let Some(PopupMessage::Open) = message.data::<PopupMessage>() {
+            if message.destination() == self.menu {
+                let enabled = if let Selection::Graph(graph_selection) = &editor_scene.selection {
+                    graph_selection.is_single_selection()
+                        && !editor_scene
+                            .physics
+                            .binder
+                            .contains_key(graph_selection.nodes.first().unwrap())
+                } else {
+                    false
+                };
+                engine.user_interface.send_message(WidgetMessage::enabled(
+                    self.add_rigid_body,
+                    MessageDirection::ToWidget,
+                    enabled,
+                ));
             }
-            _ => {}
         }
     }
 }

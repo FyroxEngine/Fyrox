@@ -7,7 +7,7 @@ use crate::{
 use rg3d::{
     core::{algebra::Matrix4, parking_lot::Mutex, pool::Handle},
     gui::{
-        message::{MenuItemMessage, UiMessage, UiMessageData},
+        message::{MenuItemMessage, UiMessage},
         BuildContext, UiNode,
     },
     scene::{
@@ -193,7 +193,7 @@ impl CreateEntityMenu {
     pub fn handle_ui_message(&mut self, message: &UiMessage, sender: &Sender<Message>) {
         self.physics_menu.handle_ui_message(message, sender);
 
-        if let UiMessageData::MenuItem(MenuItemMessage::Click) = message.data() {
+        if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
             if message.destination() == self.create_cube {
                 let mut mesh = Mesh::default();
                 mesh.set_name("Cube");

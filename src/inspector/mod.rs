@@ -23,7 +23,7 @@ use rg3d::{
             editors::PropertyEditorDefinitionContainer, InspectorBuilder, InspectorContext,
             InspectorEnvironment,
         },
-        message::{InspectorMessage, MessageDirection, UiMessage, UiMessageData},
+        message::{InspectorMessage, MessageDirection, UiMessage},
         scroll_viewer::ScrollViewerBuilder,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
@@ -268,8 +268,8 @@ impl Inspector {
             && message.destination() == self.inspector
             && message.direction() == MessageDirection::FromWidget
         {
-            if let UiMessageData::Inspector(InspectorMessage::PropertyChanged(args)) =
-                message.data()
+            if let Some(InspectorMessage::PropertyChanged(args)) =
+                message.data::<InspectorMessage>()
             {
                 match &editor_scene.selection {
                     Selection::Graph(selection) => {
@@ -337,7 +337,7 @@ impl Inspector {
             }
         }
 
-        if let UiMessageData::Inspector(InspectorMessage::PropertyChanged(args)) = message.data() {
+        if let Some(InspectorMessage::PropertyChanged(args)) = message.data::<InspectorMessage>() {
             if success.is_none() {
                 sender
                     .send(Message::Log(format!(

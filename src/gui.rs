@@ -1,7 +1,7 @@
 use crate::load_image;
 use rg3d::gui::message::UiMessage;
 use rg3d::gui::widget::Widget;
-use rg3d::gui::{BuildContext, UiNode, UserInterface};
+use rg3d::gui::{define_constructor, BuildContext, UiNode, UserInterface};
 use rg3d::{
     core::pool::Handle,
     gui::{
@@ -10,7 +10,7 @@ use rg3d::{
         decorator::DecoratorBuilder,
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
-        message::{ButtonMessage, MessageDirection, UiMessageData},
+        message::{ButtonMessage, MessageDirection},
         text::TextBuilder,
         widget::WidgetBuilder,
         Control, HorizontalAlignment, NodeHandleMapping, Thickness, VerticalAlignment,
@@ -37,18 +37,16 @@ pub fn make_dropdown_list_option(ctx: &mut BuildContext, name: &str) -> Handle<U
 }
 
 impl AssetItemMessage {
-    pub fn select(destination: Handle<UiNode>, select: bool) -> UiMessage {
-        UiMessage::user(
-            destination,
-            MessageDirection::ToWidget,
-            Box::new(AssetItemMessage::Select(select)),
-        )
-    }
+    define_constructor!(AssetItemMessage:Select => fn select(bool), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum DeletableItemMessage {
     Delete,
+}
+
+impl DeletableItemMessage {
+    define_constructor!(DeletableItemMessage:Delete => fn delete(), layout: false);
 }
 
 /// An item that has content and a button to request deletion.
@@ -81,12 +79,11 @@ impl<D: Clone + 'static> Control for DeletableItem<D> {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if let UiMessageData::Button(ButtonMessage::Click) = message.data() {
+        if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             if message.destination() == self.delete {
-                ui.send_message(UiMessage::user(
+                ui.send_message(DeletableItemMessage::delete(
                     self.handle(),
                     MessageDirection::FromWidget,
-                    Box::new(DeletableItemMessage::Delete),
                 ));
             }
         }

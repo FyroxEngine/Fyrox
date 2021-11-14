@@ -12,7 +12,7 @@ use rg3d::{
             },
             InspectorError,
         },
-        message::{ButtonMessage, PropertyChanged, UiMessage, UiMessageData},
+        message::{ButtonMessage, PropertyChanged, UiMessage},
         text::TextBuilder,
         widget::{Widget, WidgetBuilder},
         BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
@@ -59,7 +59,7 @@ impl Control for MaterialFieldEditor {
         self.widget.handle_routed_message(ui, message);
 
         if message.destination() == self.edit {
-            if let UiMessageData::Button(ButtonMessage::Click) = message.data() {
+            if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
                 self.sender
                     .send(Message::OpenMaterialEditor(self.material.clone()))
                     .unwrap();

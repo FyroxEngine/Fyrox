@@ -16,8 +16,7 @@ use rg3d::{
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
         message::{
-            ButtonMessage, CursorIcon, ImageMessage, MessageDirection, MouseButton, UiMessageData,
-            WidgetMessage,
+            ButtonMessage, CursorIcon, ImageMessage, MessageDirection, MouseButton, WidgetMessage,
         },
         widget::WidgetBuilder,
         Thickness,
@@ -211,17 +210,16 @@ impl PreviewPanel {
 
         let scene = &mut engine.scenes[self.scene];
 
-        match message.data() {
-            UiMessageData::Button(ButtonMessage::Click) if message.destination() == self.fit => {
+        if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
+            if message.destination() == self.fit {
                 self.fit_to_model(scene);
             }
-            _ => (),
         }
 
         if message.destination() == self.frame
             && message.direction() == MessageDirection::FromWidget
         {
-            if let UiMessageData::Widget(msg) = message.data() {
+            if let Some(msg) = message.data::<WidgetMessage>() {
                 match *msg {
                     WidgetMessage::MouseMove { pos, .. } => {
                         let delta = pos - self.prev_mouse_pos;

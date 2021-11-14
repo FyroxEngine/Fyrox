@@ -96,7 +96,7 @@ use rg3d::{
         message::{
             ButtonMessage, DropdownListMessage, FileSelectorMessage, ImageMessage, KeyCode,
             MessageBoxMessage, MessageDirection, MouseButton, TextBoxMessage, UiMessage,
-            UiMessageData, WidgetMessage, WindowMessage,
+            WidgetMessage, WindowMessage,
         },
         messagebox::{MessageBoxBuilder, MessageBoxButtons, MessageBoxResult},
         stack_panel::StackPanelBuilder,
@@ -436,36 +436,35 @@ impl ModelImportDialog {
         ui: &UserInterface,
         sender: &Sender<Message>,
     ) {
-        match message.data() {
-            UiMessageData::Button(ButtonMessage::Click) => {
-                if message.destination() == self.ok {
-                    ui.send_message(WindowMessage::close(
-                        self.window,
-                        MessageDirection::ToWidget,
-                    ));
+        if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
+            if message.destination() == self.ok {
+                ui.send_message(WindowMessage::close(
+                    self.window,
+                    MessageDirection::ToWidget,
+                ));
 
-                    sender
-                        .send(Message::do_scene_command(LoadModelCommand::new(
-                            self.model_path.clone(),
-                            self.material_search_options.clone(),
-                        )))
-                        .unwrap();
-                } else if message.destination() == self.cancel {
-                    ui.send_message(WindowMessage::close(
-                        self.window,
-                        MessageDirection::ToWidget,
-                    ));
-                } else if message.destination() == self.select_path {
-                    ui.send_message(WindowMessage::open_modal(
-                        self.path_selector,
-                        MessageDirection::ToWidget,
-                        true,
-                    ));
-                }
+                sender
+                    .send(Message::do_scene_command(LoadModelCommand::new(
+                        self.model_path.clone(),
+                        self.material_search_options.clone(),
+                    )))
+                    .unwrap();
+            } else if message.destination() == self.cancel {
+                ui.send_message(WindowMessage::close(
+                    self.window,
+                    MessageDirection::ToWidget,
+                ));
+            } else if message.destination() == self.select_path {
+                ui.send_message(WindowMessage::open_modal(
+                    self.path_selector,
+                    MessageDirection::ToWidget,
+                    true,
+                ));
             }
-            UiMessageData::DropdownList(DropdownListMessage::SelectionChanged(Some(value)))
-                if message.destination() == self.options =>
-            {
+        } else if let Some(DropdownListMessage::SelectionChanged(Some(value))) =
+            message.data::<DropdownListMessage>()
+        {
+            if message.destination() == self.options {
                 let show_path_selection_options = match *value {
                     0 => {
                         self.material_search_options = MaterialSearchOptions::RecursiveUp;
@@ -489,9 +488,10 @@ impl ModelImportDialog {
                     show_path_selection_options,
                 ));
             }
-            UiMessageData::FileSelector(FileSelectorMessage::Commit(path))
-                if message.destination() == self.path_selector =>
-            {
+        } else if let Some(FileSelectorMessage::Commit(path)) =
+            message.data::<FileSelectorMessage>()
+        {
+            if message.destination() == self.path_selector {
                 ui.send_message(TextBoxMessage::text(
                     self.path_field,
                     MessageDirection::ToWidget,
@@ -501,7 +501,6 @@ impl ModelImportDialog {
                 self.material_search_options =
                     MaterialSearchOptions::MaterialsDirectory(path.clone());
             }
-            _ => (),
         }
     }
 }
@@ -702,44 +701,42 @@ impl ScenePreview {
     fn handle_ui_message(&mut self, message: &UiMessage, ui: &UserInterface) {
         scope_profile!();
 
-        match &message.data() {
-            UiMessageData::Button(ButtonMessage::Click) => {
-                if message.destination() == self.scale_mode {
-                    self.sender
-                        .send(Message::SetInteractionMode(InteractionModeKind::Scale))
-                        .unwrap();
-                } else if message.destination() == self.rotate_mode {
-                    self.sender
-                        .send(Message::SetInteractionMode(InteractionModeKind::Rotate))
-                        .unwrap();
-                } else if message.destination() == self.move_mode {
-                    self.sender
-                        .send(Message::SetInteractionMode(InteractionModeKind::Move))
-                        .unwrap();
-                } else if message.destination() == self.select_mode {
-                    self.sender
-                        .send(Message::SetInteractionMode(InteractionModeKind::Select))
-                        .unwrap();
-                } else if message.destination() == self.navmesh_mode {
-                    self.sender
-                        .send(Message::SetInteractionMode(InteractionModeKind::Navmesh))
-                        .unwrap();
-                } else if message.destination() == self.terrain_mode {
-                    self.sender
-                        .send(Message::SetInteractionMode(InteractionModeKind::Terrain))
-                        .unwrap();
-                }
+        if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
+            if message.destination() == self.scale_mode {
+                self.sender
+                    .send(Message::SetInteractionMode(InteractionModeKind::Scale))
+                    .unwrap();
+            } else if message.destination() == self.rotate_mode {
+                self.sender
+                    .send(Message::SetInteractionMode(InteractionModeKind::Rotate))
+                    .unwrap();
+            } else if message.destination() == self.move_mode {
+                self.sender
+                    .send(Message::SetInteractionMode(InteractionModeKind::Move))
+                    .unwrap();
+            } else if message.destination() == self.select_mode {
+                self.sender
+                    .send(Message::SetInteractionMode(InteractionModeKind::Select))
+                    .unwrap();
+            } else if message.destination() == self.navmesh_mode {
+                self.sender
+                    .send(Message::SetInteractionMode(InteractionModeKind::Navmesh))
+                    .unwrap();
+            } else if message.destination() == self.terrain_mode {
+                self.sender
+                    .send(Message::SetInteractionMode(InteractionModeKind::Terrain))
+                    .unwrap();
             }
-            UiMessageData::Widget(WidgetMessage::MouseDown { button, .. }) => {
-                if ui.is_node_child_of(message.destination(), self.move_mode)
-                    && *button == MouseButton::Right
-                {
-                    self.sender
-                        .send(Message::OpenSettings(SettingsSectionKind::MoveModeSettings))
-                        .unwrap();
-                }
+        } else if let Some(WidgetMessage::MouseDown { button, .. }) =
+            message.data::<WidgetMessage>()
+        {
+            if ui.is_node_child_of(message.destination(), self.move_mode)
+                && *button == MouseButton::Right
+            {
+                self.sender
+                    .send(Message::OpenSettings(SettingsSectionKind::MoveModeSettings))
+                    .unwrap();
             }
-            _ => {}
         }
     }
 }
@@ -1222,7 +1219,7 @@ impl Editor {
                 .size;
 
             if message.destination() == self.preview.frame {
-                if let UiMessageData::Widget(msg) = &message.data() {
+                if let Some(msg) = message.data::<WidgetMessage>() {
                     match *msg {
                         WidgetMessage::MouseDown { button, pos, .. } => {
                             engine.user_interface.capture_mouse(self.preview.frame);
@@ -1483,13 +1480,13 @@ impl Editor {
                                                         }
                                                         Node::ParticleSystem(_) => {
                                                             self.message_sender
-                                                                    .send(Message::do_scene_command(
-                                                                            SetParticleSystemTextureCommand::new(
-                                                                                result.node, Some(tex),
-                                                                            ),
-                                                                        ),
-                                                                    )
-                                                                    .unwrap();
+                                                                .send(Message::do_scene_command(
+                                                                    SetParticleSystemTextureCommand::new(
+                                                                        result.node, Some(tex),
+                                                                    ),
+                                                                ),
+                                                                )
+                                                                .unwrap();
                                                         }
                                                         _ => {}
                                                     }
@@ -1506,10 +1503,8 @@ impl Editor {
                 }
             }
 
-            match message.data() {
-                UiMessageData::MessageBox(MessageBoxMessage::Close(result))
-                    if message.destination() == self.exit_message_box =>
-                {
+            if let Some(MessageBoxMessage::Close(result)) = message.data::<MessageBoxMessage>() {
+                if message.destination() == self.exit_message_box {
                     match result {
                         MessageBoxResult::No => {
                             self.message_sender
@@ -1540,9 +1535,10 @@ impl Editor {
                         _ => {}
                     }
                 }
-                UiMessageData::FileSelector(FileSelectorMessage::Commit(path))
-                    if message.destination() == self.save_file_selector =>
-                {
+            } else if let Some(FileSelectorMessage::Commit(path)) =
+                message.data::<FileSelectorMessage>()
+            {
+                if message.destination() == self.save_file_selector {
                     self.message_sender
                         .send(Message::SaveScene(path.clone()))
                         .unwrap();
@@ -1550,8 +1546,6 @@ impl Editor {
                         .send(Message::Exit { force: true })
                         .unwrap();
                 }
-
-                _ => (),
             }
         }
     }

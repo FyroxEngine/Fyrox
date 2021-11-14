@@ -8,7 +8,7 @@ use rg3d::{
         button::ButtonBuilder,
         grid::{Column, GridBuilder, Row},
         message::ButtonMessage,
-        message::{MessageDirection, UiMessageData},
+        message::MessageDirection,
         numeric::NumericUpDownBuilder,
         text::TextBuilder,
         widget::WidgetBuilder,
@@ -129,36 +129,32 @@ impl LightPanel {
     ) {
         scope_profile!();
 
-        match message.data() {
-            UiMessageData::Button(ButtonMessage::Click) => {
-                if message.destination() == self.generate {
-                    let scene = &mut engine.scenes[editor_scene.scene];
+        if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
+            if message.destination() == self.generate {
+                let scene = &mut engine.scenes[editor_scene.scene];
 
-                    let lightmap = Lightmap::new(
-                        scene,
-                        self.texels_per_unit,
-                        Default::default(),
-                        Default::default(),
-                    )
+                let lightmap = Lightmap::new(
+                    scene,
+                    self.texels_per_unit,
+                    Default::default(),
+                    Default::default(),
+                )
+                .unwrap();
+                lightmap
+                    .save("./", engine.resource_manager.clone())
                     .unwrap();
-                    lightmap
-                        .save("./", engine.resource_manager.clone())
-                        .unwrap();
-                    scene.set_lightmap(lightmap).unwrap();
+                scene.set_lightmap(lightmap).unwrap();
+            }
+        } else if let Some(&NumericUpDownMessage::Value(value)) =
+            message.data::<NumericUpDownMessage<f32>>()
+        {
+            if message.direction() == MessageDirection::FromWidget {
+                if message.destination() == self.nud_texels_per_unit {
+                    self.texels_per_unit = value as u32;
+                } else if message.destination() == self.nud_spacing {
+                    self.spacing = value;
                 }
             }
-            UiMessageData::User(msg) if message.direction() == MessageDirection::FromWidget => {
-                if let Some(&NumericUpDownMessage::Value(value)) =
-                    msg.cast::<NumericUpDownMessage<f32>>()
-                {
-                    if message.destination() == self.nud_texels_per_unit {
-                        self.texels_per_unit = value as u32;
-                    } else if message.destination() == self.nud_spacing {
-                        self.spacing = value;
-                    }
-                }
-            }
-            _ => {}
         }
     }
 }

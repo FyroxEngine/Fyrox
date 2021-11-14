@@ -55,3 +55,8 @@ define_node_command!(SetSpotLightCookieTextureCommand("Set Spot Light Cookie Tex
 define_node_command!(SetLightColorCommand("Set Light Color", Color) where fn swap(self, node) {
     get_set_swap!(self, node.as_light_mut(), color, set_color)
 });
+
+/*
+define_node_command!(SetDirectionalLightShadowBiasCommand("Set Spot Light Shadow Bias", f32) where fn swap(self, node) {
+    get_set_swap!(self, node.as_light_mut().as_spot_mut(), shadow_bias, set_shadow_bias)
+});*/

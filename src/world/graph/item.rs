@@ -1,3 +1,4 @@
+use rg3d::gui::define_constructor;
 use rg3d::{
     core::{algebra::Vector2, pool::Handle},
     gui::{
@@ -5,7 +6,7 @@ use rg3d::{
         draw::{DrawingContext, SharedTexture},
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
-        message::{MessageDirection, OsEvent, TextMessage, UiMessage, UiMessageData},
+        message::{MessageDirection, OsEvent, TextMessage, UiMessage},
         text::TextBuilder,
         tree::{Tree, TreeBuilder},
         widget::Widget,
@@ -26,13 +27,7 @@ pub enum SceneItemMessage {
 }
 
 impl SceneItemMessage {
-    pub fn name(destination: Handle<UiNode>, name: String) -> UiMessage {
-        UiMessage::user(
-            destination,
-            MessageDirection::ToWidget,
-            Box::new(SceneItemMessage::Name(name)),
-        )
-    }
+    define_constructor!(SceneItemMessage:Name => fn name(String), layout: false);
 }
 
 pub struct SceneItem<T> {
@@ -104,22 +99,20 @@ impl<T: 'static> Control for SceneItem<T> {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.tree.handle_routed_message(ui, message);
 
-        if let UiMessageData::User(msg) = message.data() {
-            if let Some(SceneItemMessage::Name(name)) = msg.cast::<SceneItemMessage>() {
-                if message.destination() == self.handle() {
-                    self.name_value = format!(
-                        "{} ({}:{})",
-                        name,
-                        self.entity_handle.index(),
-                        self.entity_handle.generation()
-                    );
+        if let Some(SceneItemMessage::Name(name)) = message.data::<SceneItemMessage>() {
+            if message.destination() == self.handle() {
+                self.name_value = format!(
+                    "{} ({}:{})",
+                    name,
+                    self.entity_handle.index(),
+                    self.entity_handle.generation()
+                );
 
-                    ui.send_message(TextMessage::text(
-                        self.text_name,
-                        MessageDirection::ToWidget,
-                        self.name_value.clone(),
-                    ));
-                }
+                ui.send_message(TextMessage::text(
+                    self.text_name,
+                    MessageDirection::ToWidget,
+                    self.name_value.clone(),
+                ));
             }
         }
     }

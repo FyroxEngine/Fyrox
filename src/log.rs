@@ -9,7 +9,7 @@ use rg3d::{
         button::ButtonBuilder,
         grid::{Column, GridBuilder, Row},
         list_view::ListViewBuilder,
-        message::{ButtonMessage, ListViewMessage, MessageDirection, UiMessageData},
+        message::{ButtonMessage, ListViewMessage, MessageDirection},
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
         vector_image::{Primitive, VectorImageBuilder},
@@ -93,7 +93,7 @@ impl Log {
     pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut GameEngine) {
         scope_profile!();
 
-        if let UiMessageData::Button(ButtonMessage::Click) = message.data() {
+        if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             if message.destination() == self.clear {
                 engine.user_interface.send_message(ListViewMessage::items(
                     self.messages,

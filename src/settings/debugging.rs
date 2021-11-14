@@ -5,7 +5,7 @@ use rg3d::{
     core::pool::Handle,
     gui::{
         grid::{Column, GridBuilder, Row},
-        message::{CheckBoxMessage, MessageDirection, UiMessageData},
+        message::{CheckBoxMessage, MessageDirection},
         widget::WidgetBuilder,
     },
 };
@@ -97,7 +97,7 @@ impl DebuggingSection {
     }
 
     pub fn handle_message(&mut self, message: &UiMessage, settings: &mut DebuggingSettings) {
-        if let UiMessageData::CheckBox(CheckBoxMessage::Check(Some(value))) = *message.data() {
+        if let Some(&CheckBoxMessage::Check(Some(value))) = message.data::<CheckBoxMessage>() {
             if message.destination() == self.show_bounds {
                 settings.show_bounds = value;
             } else if message.destination() == self.show_tbn {

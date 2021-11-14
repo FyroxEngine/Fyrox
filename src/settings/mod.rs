@@ -17,10 +17,7 @@ use rg3d::{
         button::ButtonBuilder,
         check_box::CheckBoxBuilder,
         grid::{Column, GridBuilder, Row},
-        message::{
-            ButtonMessage, MessageDirection, TreeRootMessage, UiMessageData, WidgetMessage,
-            WindowMessage,
-        },
+        message::{ButtonMessage, MessageDirection, TreeRootMessage, WidgetMessage, WindowMessage},
         numeric::NumericUpDownBuilder,
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
@@ -363,32 +360,28 @@ impl SettingsWindow {
         self.move_mode_section
             .handle_message(message, &mut settings.move_mode_settings);
 
-        match message.data() {
-            UiMessageData::Button(ButtonMessage::Click) => {
-                if message.destination() == self.ok {
-                    engine.user_interface.send_message(WindowMessage::close(
-                        self.window,
-                        MessageDirection::ToWidget,
-                    ));
-                } else if message.destination() == self.default {
-                    *settings = Default::default();
-                    self.sync_to_model(&engine.user_interface, settings);
+        if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
+            if message.destination() == self.ok {
+                engine.user_interface.send_message(WindowMessage::close(
+                    self.window,
+                    MessageDirection::ToWidget,
+                ));
+            } else if message.destination() == self.default {
+                *settings = Default::default();
+                self.sync_to_model(&engine.user_interface, settings);
+            }
+        } else if let Some(TreeRootMessage::Selected(items)) = message.data::<TreeRootMessage>() {
+            if let Some(selected) = items.first().cloned() {
+                for entry in self.section_switches.iter() {
+                    engine
+                        .user_interface
+                        .send_message(WidgetMessage::visibility(
+                            entry.section,
+                            MessageDirection::ToWidget,
+                            entry.tree_item == selected,
+                        ))
                 }
             }
-            UiMessageData::TreeRoot(TreeRootMessage::Selected(items)) => {
-                if let Some(selected) = items.first().cloned() {
-                    for entry in self.section_switches.iter() {
-                        engine
-                            .user_interface
-                            .send_message(WidgetMessage::visibility(
-                                entry.section,
-                                MessageDirection::ToWidget,
-                                entry.tree_item == selected,
-                            ))
-                    }
-                }
-            }
-            _ => {}
         }
 
         // Apply only if anything changed.

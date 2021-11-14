@@ -8,7 +8,7 @@ use rg3d::{
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
         list_view::ListViewBuilder,
-        message::{ButtonMessage, ListViewMessage, MessageDirection, UiMessage, UiMessageData},
+        message::{ButtonMessage, ListViewMessage, MessageDirection, UiMessage},
         scroll_viewer::ScrollViewerBuilder,
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
@@ -136,7 +136,7 @@ impl CommandStackViewer {
     pub fn handle_ui_message(&self, message: &UiMessage) {
         scope_profile!();
 
-        if let UiMessageData::Button(ButtonMessage::Click) = message.data() {
+        if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             if message.destination() == self.undo {
                 self.sender.send(Message::UndoSceneCommand).unwrap();
             } else if message.destination() == self.redo {

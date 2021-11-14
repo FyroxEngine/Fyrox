@@ -5,7 +5,7 @@ use rg3d::{
     gui::{
         button::ButtonBuilder,
         grid::{Column, GridBuilder, Row},
-        message::{ButtonMessage, MessageDirection, TextBoxMessage, UiMessage, UiMessageData},
+        message::{ButtonMessage, MessageDirection, TextBoxMessage, UiMessage},
         text_box::TextBoxBuilder,
         widget::WidgetBuilder,
         BuildContext, Thickness, UiNode, UserInterface, VerticalAlignment,
@@ -62,26 +62,22 @@ impl SearchBar {
         ui: &UserInterface,
         sender: &Sender<Message>,
     ) {
-        match message.data() {
-            UiMessageData::TextBox(TextBoxMessage::Text(text)) => {
-                if message.destination() == self.text
-                    && message.direction() == MessageDirection::FromWidget
-                {
-                    sender
-                        .send(Message::SetWorldViewerFilter(text.clone()))
-                        .unwrap();
-                }
+        if let Some(TextBoxMessage::Text(text)) = message.data::<TextBoxMessage>() {
+            if message.destination() == self.text
+                && message.direction() == MessageDirection::FromWidget
+            {
+                sender
+                    .send(Message::SetWorldViewerFilter(text.clone()))
+                    .unwrap();
             }
-            UiMessageData::Button(ButtonMessage::Click) => {
-                if message.destination() == self.reset {
-                    ui.send_message(TextBoxMessage::text(
-                        self.text,
-                        MessageDirection::ToWidget,
-                        Default::default(),
-                    ));
-                }
+        } else if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
+            if message.destination() == self.reset {
+                ui.send_message(TextBoxMessage::text(
+                    self.text,
+                    MessageDirection::ToWidget,
+                    Default::default(),
+                ));
             }
-            _ => (),
         }
     }
 }

@@ -11,7 +11,7 @@ use rg3d::{
         file_browser::FileSelectorBuilder,
         message::{
             FileSelectorMessage, MenuItemMessage, MessageBoxMessage, MessageDirection, UiMessage,
-            UiMessageData, WindowMessage,
+            WindowMessage,
         },
         messagebox::{MessageBoxBuilder, MessageBoxButtons},
         widget::WidgetBuilder,
@@ -157,38 +157,18 @@ impl FileMenu {
                 .handle_message(message, scene, engine, settings);
         }
 
-        match message.data() {
-            UiMessageData::FileSelector(FileSelectorMessage::Commit(path)) => {
-                if message.destination() == self.save_file_selector {
-                    sender.send(Message::SaveScene(path.to_owned())).unwrap();
-                } else if message.destination() == self.load_file_selector {
-                    sender.send(Message::LoadScene(path.to_owned())).unwrap();
-                }
+        if let Some(FileSelectorMessage::Commit(path)) = message.data::<FileSelectorMessage>() {
+            if message.destination() == self.save_file_selector {
+                sender.send(Message::SaveScene(path.to_owned())).unwrap();
+            } else if message.destination() == self.load_file_selector {
+                sender.send(Message::LoadScene(path.to_owned())).unwrap();
             }
-            UiMessageData::MenuItem(MenuItemMessage::Click) => {
-                if message.destination() == self.save {
-                    if let Some(scene_path) =
-                        editor_scene.as_ref().map(|s| s.path.as_ref()).flatten()
-                    {
-                        sender.send(Message::SaveScene(scene_path.clone())).unwrap();
-                    } else {
-                        // If scene wasn't saved yet - open Save As window.
-                        engine
-                            .user_interface
-                            .send_message(WindowMessage::open_modal(
-                                self.save_file_selector,
-                                MessageDirection::ToWidget,
-                                true,
-                            ));
-                        engine
-                            .user_interface
-                            .send_message(FileSelectorMessage::path(
-                                self.save_file_selector,
-                                MessageDirection::ToWidget,
-                                std::env::current_dir().unwrap(),
-                            ));
-                    }
-                } else if message.destination() == self.save_as {
+        } else if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
+            if message.destination() == self.save {
+                if let Some(scene_path) = editor_scene.as_ref().map(|s| s.path.as_ref()).flatten() {
+                    sender.send(Message::SaveScene(scene_path.clone())).unwrap();
+                } else {
+                    // If scene wasn't saved yet - open Save As window.
                     engine
                         .user_interface
                         .send_message(WindowMessage::open_modal(
@@ -203,36 +183,50 @@ impl FileMenu {
                             MessageDirection::ToWidget,
                             std::env::current_dir().unwrap(),
                         ));
-                } else if message.destination() == self.load {
-                    self.open_load_file_selector(&mut engine.user_interface);
-                } else if message.destination() == self.close_scene {
-                    sender.send(Message::CloseScene).unwrap();
-                } else if message.destination() == self.exit {
-                    sender.send(Message::Exit { force: false }).unwrap();
-                } else if message.destination() == self.new_scene {
-                    sender.send(Message::NewScene).unwrap();
-                } else if message.destination() == self.configure {
-                    if editor_scene.is_none() {
-                        engine
-                            .user_interface
-                            .send_message(WindowMessage::open_modal(
-                                configurator_window,
-                                MessageDirection::ToWidget,
-                                true,
-                            ));
-                    } else {
-                        engine.user_interface.send_message(MessageBoxMessage::open(
-                            self.configure_message,
-                            MessageDirection::ToWidget,
-                            None,
-                            None,
-                        ));
-                    }
-                } else if message.destination() == self.open_settings {
-                    self.settings.open(&engine.user_interface, settings, None);
                 }
+            } else if message.destination() == self.save_as {
+                engine
+                    .user_interface
+                    .send_message(WindowMessage::open_modal(
+                        self.save_file_selector,
+                        MessageDirection::ToWidget,
+                        true,
+                    ));
+                engine
+                    .user_interface
+                    .send_message(FileSelectorMessage::path(
+                        self.save_file_selector,
+                        MessageDirection::ToWidget,
+                        std::env::current_dir().unwrap(),
+                    ));
+            } else if message.destination() == self.load {
+                self.open_load_file_selector(&mut engine.user_interface);
+            } else if message.destination() == self.close_scene {
+                sender.send(Message::CloseScene).unwrap();
+            } else if message.destination() == self.exit {
+                sender.send(Message::Exit { force: false }).unwrap();
+            } else if message.destination() == self.new_scene {
+                sender.send(Message::NewScene).unwrap();
+            } else if message.destination() == self.configure {
+                if editor_scene.is_none() {
+                    engine
+                        .user_interface
+                        .send_message(WindowMessage::open_modal(
+                            configurator_window,
+                            MessageDirection::ToWidget,
+                            true,
+                        ));
+                } else {
+                    engine.user_interface.send_message(MessageBoxMessage::open(
+                        self.configure_message,
+                        MessageDirection::ToWidget,
+                        None,
+                        None,
+                    ));
+                }
+            } else if message.destination() == self.open_settings {
+                self.settings.open(&engine.user_interface, settings, None);
             }
-            _ => {}
         }
     }
 }

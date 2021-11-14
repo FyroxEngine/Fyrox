@@ -1,4 +1,5 @@
 use crate::load_image;
+use rg3d::gui::define_constructor;
 use rg3d::{
     asset::core::algebra::Vector2,
     core::{color::Color, pool::Handle},
@@ -7,7 +8,7 @@ use rg3d::{
         draw::DrawingContext,
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
-        message::{MessageDirection, OsEvent, TextMessage, UiMessage, UiMessageData},
+        message::{MessageDirection, OsEvent, TextMessage, UiMessage},
         text::TextBuilder,
         tree::{Tree, TreeBuilder},
         widget::{Widget, WidgetBuilder},
@@ -44,6 +45,10 @@ impl<S, D> Clone for LinkItem<S, D> {
 #[derive(Debug, Clone, PartialEq)]
 pub enum LinkItemMessage {
     Name(String),
+}
+
+impl LinkItemMessage {
+    define_constructor!(LinkItemMessage:Name => fn name(String), layout: false);
 }
 
 impl<S, D> Deref for LinkItem<S, D> {
@@ -84,14 +89,12 @@ impl<S: 'static, D: 'static> Control for LinkItem<S, D> {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.tree.handle_routed_message(ui, message);
 
-        if let UiMessageData::User(msg) = message.data() {
-            if let Some(LinkItemMessage::Name(name)) = msg.cast::<LinkItemMessage>() {
-                ui.send_message(TextMessage::text(
-                    self.text,
-                    MessageDirection::ToWidget,
-                    make_item_name(name, self.source, self.dest),
-                ));
-            }
+        if let Some(LinkItemMessage::Name(name)) = message.data::<LinkItemMessage>() {
+            ui.send_message(TextMessage::text(
+                self.text,
+                MessageDirection::ToWidget,
+                make_item_name(name, self.source, self.dest),
+            ));
         }
     }
 

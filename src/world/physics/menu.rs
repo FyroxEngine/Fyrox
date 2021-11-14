@@ -20,7 +20,7 @@ use rg3d::{
     },
     gui::{
         menu::{MenuItemBuilder, MenuItemContent},
-        message::{MenuItemMessage, PopupMessage, UiMessage, UiMessageData},
+        message::{MenuItemMessage, PopupMessage, UiMessage},
         popup::{Placement, PopupBuilder},
         stack_panel::StackPanelBuilder,
         widget::WidgetBuilder,
@@ -156,116 +156,114 @@ impl RigidBodyContextMenu {
         editor_scene: &EditorScene,
         ui: &UserInterface,
     ) {
-        match message.data() {
-            UiMessageData::Popup(PopupMessage::Placement(Placement::Cursor(target))) => {
-                if message.destination() == self.menu {
-                    self.target = *target;
-                }
+        if let Some(PopupMessage::Placement(Placement::Cursor(target))) =
+            message.data::<PopupMessage>()
+        {
+            if message.destination() == self.menu {
+                self.target = *target;
             }
-            UiMessageData::MenuItem(MenuItemMessage::Click) => {
-                if let Some(rigid_body_view_ref) = ui.try_get_node(self.target).map(|n| {
-                    n.cast::<SceneItem<RigidBody>>()
-                        .expect("Rigid body context menu must have SceneItem<RigidBody> target!")
-                }) {
-                    let rigid_body_handle = rigid_body_view_ref.entity_handle;
+        } else if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
+            if let Some(rigid_body_view_ref) = ui.try_get_node(self.target).map(|n| {
+                n.cast::<SceneItem<RigidBody>>()
+                    .expect("Rigid body context menu must have SceneItem<RigidBody> target!")
+            }) {
+                let rigid_body_handle = rigid_body_view_ref.entity_handle;
 
-                    if message.destination() == self.delete {
-                        let mut group = vec![SceneCommand::new(ChangeSelectionCommand::new(
-                            Selection::None,
-                            editor_scene.selection.clone(),
-                        ))];
+                if message.destination() == self.delete {
+                    let mut group = vec![SceneCommand::new(ChangeSelectionCommand::new(
+                        Selection::None,
+                        editor_scene.selection.clone(),
+                    ))];
 
-                        for collider in editor_scene.physics.bodies[rigid_body_handle]
-                            .colliders
-                            .iter()
-                            .map(|h| Handle::<Collider>::from(*h))
-                        {
-                            group.push(SceneCommand::new(DeleteColliderCommand::new(collider)));
-                        }
-
-                        group.push(SceneCommand::new(DeleteBodyCommand::new(rigid_body_handle)));
-
-                        for (joint_handle, joint_ref) in editor_scene.physics.joints.pair_iter() {
-                            if joint_ref.body1 == rigid_body_handle.into() {
-                                group.push(SceneCommand::new(SetJointBody1Command::new(
-                                    joint_handle,
-                                    Default::default(),
-                                )));
-                            } else if joint_ref.body2 == rigid_body_handle.into() {
-                                group.push(SceneCommand::new(SetJointBody2Command::new(
-                                    joint_handle,
-                                    Default::default(),
-                                )));
-                            }
-                        }
-
-                        sender
-                            .send(Message::do_scene_command(CommandGroup::from(group)))
-                            .unwrap();
+                    for collider in editor_scene.physics.bodies[rigid_body_handle]
+                        .colliders
+                        .iter()
+                        .map(|h| Handle::<Collider>::from(*h))
+                    {
+                        group.push(SceneCommand::new(DeleteColliderCommand::new(collider)));
                     }
 
-                    // Handle <add x collider> items
-                    let shape = if message.destination() == self.add_ball_collider {
-                        Some(ColliderShapeDesc::Ball(BallDesc { radius: 0.5 }))
-                    } else if message.destination() == self.add_cylinder_collider {
-                        Some(ColliderShapeDesc::Cylinder(CylinderDesc {
-                            half_height: 0.5,
-                            radius: 0.5,
-                        }))
-                    } else if message.destination() == self.add_round_cylinder_collider {
-                        Some(ColliderShapeDesc::RoundCylinder(RoundCylinderDesc {
-                            half_height: 0.5,
-                            radius: 0.5,
-                            border_radius: 0.1,
-                        }))
-                    } else if message.destination() == self.add_cone_collider {
-                        Some(ColliderShapeDesc::Cone(ConeDesc {
-                            half_height: 0.5,
-                            radius: 0.5,
-                        }))
-                    } else if message.destination() == self.add_cuboid_collider {
-                        Some(ColliderShapeDesc::Cuboid(CuboidDesc {
-                            half_extents: Vector3::new(0.5, 0.5, 0.5),
-                        }))
-                    } else if message.destination() == self.add_capsule_collider {
-                        Some(ColliderShapeDesc::Capsule(CapsuleDesc {
-                            begin: Vector3::new(0.0, 0.0, 0.0),
-                            end: Vector3::new(0.0, 1.0, 0.0),
-                            radius: 0.5,
-                        }))
-                    } else if message.destination() == self.add_segment_collider {
-                        Some(ColliderShapeDesc::Segment(SegmentDesc {
-                            begin: Vector3::new(0.0, 0.0, 0.0),
-                            end: Vector3::new(1.0, 0.0, 0.0),
-                        }))
-                    } else if message.destination() == self.add_triangle_collider {
-                        Some(ColliderShapeDesc::Triangle(TriangleDesc {
-                            a: Vector3::new(0.0, 0.0, 0.0),
-                            b: Vector3::new(1.0, 0.0, 0.0),
-                            c: Vector3::new(1.0, 0.0, 1.0),
-                        }))
-                    } else if message.destination() == self.add_trimesh_collider {
-                        Some(ColliderShapeDesc::Trimesh(TrimeshDesc))
-                    } else if message.destination() == self.add_heightfield_collider {
-                        Some(ColliderShapeDesc::Heightfield(HeightfieldDesc))
-                    } else {
-                        None
-                    };
+                    group.push(SceneCommand::new(DeleteBodyCommand::new(rigid_body_handle)));
 
-                    if let Some(shape) = shape {
-                        sender
-                            .send(Message::do_scene_command(AddColliderCommand::new(
-                                rigid_body_handle,
-                                Collider {
-                                    shape,
-                                    ..Default::default()
-                                },
-                            )))
-                            .unwrap();
+                    for (joint_handle, joint_ref) in editor_scene.physics.joints.pair_iter() {
+                        if joint_ref.body1 == rigid_body_handle.into() {
+                            group.push(SceneCommand::new(SetJointBody1Command::new(
+                                joint_handle,
+                                Default::default(),
+                            )));
+                        } else if joint_ref.body2 == rigid_body_handle.into() {
+                            group.push(SceneCommand::new(SetJointBody2Command::new(
+                                joint_handle,
+                                Default::default(),
+                            )));
+                        }
                     }
+
+                    sender
+                        .send(Message::do_scene_command(CommandGroup::from(group)))
+                        .unwrap();
+                }
+
+                // Handle <add x collider> items
+                let shape = if message.destination() == self.add_ball_collider {
+                    Some(ColliderShapeDesc::Ball(BallDesc { radius: 0.5 }))
+                } else if message.destination() == self.add_cylinder_collider {
+                    Some(ColliderShapeDesc::Cylinder(CylinderDesc {
+                        half_height: 0.5,
+                        radius: 0.5,
+                    }))
+                } else if message.destination() == self.add_round_cylinder_collider {
+                    Some(ColliderShapeDesc::RoundCylinder(RoundCylinderDesc {
+                        half_height: 0.5,
+                        radius: 0.5,
+                        border_radius: 0.1,
+                    }))
+                } else if message.destination() == self.add_cone_collider {
+                    Some(ColliderShapeDesc::Cone(ConeDesc {
+                        half_height: 0.5,
+                        radius: 0.5,
+                    }))
+                } else if message.destination() == self.add_cuboid_collider {
+                    Some(ColliderShapeDesc::Cuboid(CuboidDesc {
+                        half_extents: Vector3::new(0.5, 0.5, 0.5),
+                    }))
+                } else if message.destination() == self.add_capsule_collider {
+                    Some(ColliderShapeDesc::Capsule(CapsuleDesc {
+                        begin: Vector3::new(0.0, 0.0, 0.0),
+                        end: Vector3::new(0.0, 1.0, 0.0),
+                        radius: 0.5,
+                    }))
+                } else if message.destination() == self.add_segment_collider {
+                    Some(ColliderShapeDesc::Segment(SegmentDesc {
+                        begin: Vector3::new(0.0, 0.0, 0.0),
+                        end: Vector3::new(1.0, 0.0, 0.0),
+                    }))
+                } else if message.destination() == self.add_triangle_collider {
+                    Some(ColliderShapeDesc::Triangle(TriangleDesc {
+                        a: Vector3::new(0.0, 0.0, 0.0),
+                        b: Vector3::new(1.0, 0.0, 0.0),
+                        c: Vector3::new(1.0, 0.0, 1.0),
+                    }))
+                } else if message.destination() == self.add_trimesh_collider {
+                    Some(ColliderShapeDesc::Trimesh(TrimeshDesc))
+                } else if message.destination() == self.add_heightfield_collider {
+                    Some(ColliderShapeDesc::Heightfield(HeightfieldDesc))
+                } else {
+                    None
+                };
+
+                if let Some(shape) = shape {
+                    sender
+                        .send(Message::do_scene_command(AddColliderCommand::new(
+                            rigid_body_handle,
+                            Collider {
+                                shape,
+                                ..Default::default()
+                            },
+                        )))
+                        .unwrap();
                 }
             }
-            _ => {}
         }
     }
 }
@@ -311,47 +309,41 @@ impl DeletableSceneItemContextMenu {
         sender: &Sender<Message>,
         editor_scene: &EditorScene,
     ) {
-        match message.data() {
-            UiMessageData::Popup(PopupMessage::Placement(Placement::Cursor(target))) => {
-                if message.destination() == self.menu {
-                    self.target = *target;
+        if let Some(PopupMessage::Placement(Placement::Cursor(target))) =
+            message.data::<PopupMessage>()
+        {
+            if message.destination() == self.menu {
+                self.target = *target;
+            }
+        } else if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
+            if message.destination() == self.delete {
+                if let Some(collider_item) = ui.node(self.target).cast::<SceneItem<Collider>>() {
+                    let group = vec![
+                        SceneCommand::new(ChangeSelectionCommand::new(
+                            Selection::None,
+                            editor_scene.selection.clone(),
+                        )),
+                        SceneCommand::new(DeleteColliderCommand::new(collider_item.entity_handle)),
+                    ];
+
+                    sender
+                        .send(Message::do_scene_command(CommandGroup::from(group)))
+                        .unwrap();
+                } else if let Some(collider_item) = ui.node(self.target).cast::<SceneItem<Joint>>()
+                {
+                    let group = vec![
+                        SceneCommand::new(ChangeSelectionCommand::new(
+                            Selection::None,
+                            editor_scene.selection.clone(),
+                        )),
+                        SceneCommand::new(DeleteJointCommand::new(collider_item.entity_handle)),
+                    ];
+
+                    sender
+                        .send(Message::do_scene_command(CommandGroup::from(group)))
+                        .unwrap();
                 }
             }
-            UiMessageData::MenuItem(MenuItemMessage::Click) => {
-                if message.destination() == self.delete {
-                    if let Some(collider_item) = ui.node(self.target).cast::<SceneItem<Collider>>()
-                    {
-                        let group = vec![
-                            SceneCommand::new(ChangeSelectionCommand::new(
-                                Selection::None,
-                                editor_scene.selection.clone(),
-                            )),
-                            SceneCommand::new(DeleteColliderCommand::new(
-                                collider_item.entity_handle,
-                            )),
-                        ];
-
-                        sender
-                            .send(Message::do_scene_command(CommandGroup::from(group)))
-                            .unwrap();
-                    } else if let Some(collider_item) =
-                        ui.node(self.target).cast::<SceneItem<Joint>>()
-                    {
-                        let group = vec![
-                            SceneCommand::new(ChangeSelectionCommand::new(
-                                Selection::None,
-                                editor_scene.selection.clone(),
-                            )),
-                            SceneCommand::new(DeleteJointCommand::new(collider_item.entity_handle)),
-                        ];
-
-                        sender
-                            .send(Message::do_scene_command(CommandGroup::from(group)))
-                            .unwrap();
-                    }
-                }
-            }
-            _ => {}
         }
     }
 }

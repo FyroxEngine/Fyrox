@@ -45,7 +45,7 @@ use rg3d::{
         message::{
             ButtonMessage, CheckBoxMessage, DecoratorMessage, MenuItemMessage, MessageDirection,
             ScrollViewerMessage, TreeExpansionStrategy, TreeMessage, TreeRootMessage, UiMessage,
-            UiMessageData, WidgetMessage,
+            WidgetMessage,
         },
         scroll_viewer::ScrollViewerBuilder,
         stack_panel::StackPanelBuilder,
@@ -268,10 +268,10 @@ where
     for item in ui.node(folder).cast::<Tree>().unwrap().items() {
         let entity_handle = ui.node(*item).cast::<SceneItem<T>>().unwrap().entity_handle;
         if pool.is_valid_handle(entity_handle) {
-            ui.send_message(UiMessage::user(
+            ui.send_message(SceneItemMessage::name(
                 *item,
                 MessageDirection::ToWidget,
-                Box::new(SceneItemMessage::Name((make_name)(entity_handle))),
+                (make_name)(entity_handle),
             ));
         }
     }
@@ -804,7 +804,14 @@ impl WorldViewer {
             if let Some(item) = ui_node.cast::<SceneItem<Node>>() {
                 if graph.is_valid_handle(item.entity_handle) {
                     let node = &graph[item.entity_handle];
-                    send_sync_message(ui, SceneItemMessage::name(handle, node.name().to_owned()));
+                    send_sync_message(
+                        ui,
+                        SceneItemMessage::name(
+                            handle,
+                            MessageDirection::ToWidget,
+                            node.name().to_owned(),
+                        ),
+                    );
                     stack.extend_from_slice(item.tree.items());
                 }
             } else if let Some(root) = ui_node.cast::<TreeRoot>() {
@@ -920,13 +927,10 @@ impl WorldViewer {
                 .into_iter()
                 .map(|h| (h, ui.node(h).cast::<LinkItem<Node, RigidBody>>().unwrap()))
             {
-                ui.send_message(UiMessage::user(
+                ui.send_message(LinkItemMessage::name(
                     node_link,
                     MessageDirection::ToWidget,
-                    Box::new(LinkItemMessage::Name(format!(
-                        "Linked Node {}",
-                        graph[node_link_ref.source].name()
-                    ))),
+                    format!("Linked Node {}", graph[node_link_ref.source].name()),
                 ));
             }
         }
@@ -1216,71 +1220,62 @@ impl WorldViewer {
         self.search_bar
             .handle_ui_message(message, &engine.user_interface, &self.sender);
 
-        match message.data() {
-            UiMessageData::TreeRoot(msg) => {
-                if message.destination() == self.tree_root
-                    && message.direction() == MessageDirection::FromWidget
+        if let Some(TreeRootMessage::Selected(selection)) = message.data::<TreeRootMessage>() {
+            if message.destination() == self.tree_root
+                && message.direction() == MessageDirection::FromWidget
+            {
+                self.handle_selection(selection, editor_scene, engine);
+            }
+        } else if let Some(&WidgetMessage::Drop(node)) = message.data::<WidgetMessage>() {
+            self.handle_drop(engine, editor_scene, message.destination(), node);
+        } else if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
+            if let Some(&view) = self.breadcrumbs.get(&message.destination()) {
+                if let Some(graph_node) = engine.user_interface.node(view).cast::<SceneItem<Node>>()
                 {
-                    if let TreeRootMessage::Selected(selection) = msg {
-                        self.handle_selection(selection, editor_scene, engine);
-                    }
+                    self.sender
+                        .send(Message::do_scene_command(ChangeSelectionCommand::new(
+                            Selection::Graph(GraphSelection::single_or_empty(
+                                graph_node.entity_handle,
+                            )),
+                            editor_scene.selection.clone(),
+                        )))
+                        .unwrap();
+                } else {
+                    // Rest are not handled intentionally because other entities cannot have
+                    // hierarchy and thus there is no need to change selection when we already
+                    // have it selected.
+                }
+            } else if message.destination() == self.collapse_all {
+                engine
+                    .user_interface
+                    .send_message(TreeRootMessage::collapse_all(
+                        self.tree_root,
+                        MessageDirection::ToWidget,
+                    ));
+            } else if message.destination() == self.expand_all {
+                engine
+                    .user_interface
+                    .send_message(TreeRootMessage::expand_all(
+                        self.tree_root,
+                        MessageDirection::ToWidget,
+                    ));
+            } else if message.destination() == self.locate_selection {
+                self.locate_selection(editor_scene, engine)
+            }
+        } else if let Some(CheckBoxMessage::Check(Some(value))) = message.data::<CheckBoxMessage>()
+        {
+            if message.destination() == self.track_selection {
+                self.track_selection_state = *value;
+                if *value {
+                    self.locate_selection(editor_scene, engine);
                 }
             }
-            &UiMessageData::Widget(WidgetMessage::Drop(node)) => {
-                self.handle_drop(engine, editor_scene, message.destination(), node);
+        } else if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
+            if message.destination() == self.link_context_menu.unlink {
+                self.handle_unlink(&engine.user_interface, editor_scene);
+            } else if message.destination() == self.link_context_menu.select_target {
+                self.select_link_target(&engine.user_interface, editor_scene)
             }
-            UiMessageData::Button(ButtonMessage::Click) => {
-                if let Some(&view) = self.breadcrumbs.get(&message.destination()) {
-                    if let Some(graph_node) =
-                        engine.user_interface.node(view).cast::<SceneItem<Node>>()
-                    {
-                        self.sender
-                            .send(Message::do_scene_command(ChangeSelectionCommand::new(
-                                Selection::Graph(GraphSelection::single_or_empty(
-                                    graph_node.entity_handle,
-                                )),
-                                editor_scene.selection.clone(),
-                            )))
-                            .unwrap();
-                    } else {
-                        // Rest are not handled intentionally because other entities cannot have
-                        // hierarchy and thus there is no need to change selection when we already
-                        // have it selected.
-                    }
-                } else if message.destination() == self.collapse_all {
-                    engine
-                        .user_interface
-                        .send_message(TreeRootMessage::collapse_all(
-                            self.tree_root,
-                            MessageDirection::ToWidget,
-                        ));
-                } else if message.destination() == self.expand_all {
-                    engine
-                        .user_interface
-                        .send_message(TreeRootMessage::expand_all(
-                            self.tree_root,
-                            MessageDirection::ToWidget,
-                        ));
-                } else if message.destination() == self.locate_selection {
-                    self.locate_selection(editor_scene, engine)
-                }
-            }
-            UiMessageData::CheckBox(CheckBoxMessage::Check(Some(value))) => {
-                if message.destination() == self.track_selection {
-                    self.track_selection_state = *value;
-                    if *value {
-                        self.locate_selection(editor_scene, engine);
-                    }
-                }
-            }
-            UiMessageData::MenuItem(MenuItemMessage::Click) => {
-                if message.destination() == self.link_context_menu.unlink {
-                    self.handle_unlink(&engine.user_interface, editor_scene);
-                } else if message.destination() == self.link_context_menu.select_target {
-                    self.select_link_target(&engine.user_interface, editor_scene)
-                }
-            }
-            _ => {}
         }
     }
 

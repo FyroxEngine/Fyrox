@@ -1,4 +1,5 @@
 use crate::{asset::AssetItem, inspector::EditorEnvironment, load_image, make_relative_path};
+use rg3d::gui::define_constructor;
 use rg3d::{
     asset::{Resource, ResourceData, ResourceLoadError},
     core::{futures::executor::block_on, pool::Handle},
@@ -14,8 +15,7 @@ use rg3d::{
             InspectorError,
         },
         message::{
-            FieldKind, MessageDirection, PropertyChanged, TextMessage, UiMessage, UiMessageData,
-            WidgetMessage,
+            FieldKind, MessageDirection, PropertyChanged, TextMessage, UiMessage, WidgetMessage,
         },
         text::TextBuilder,
         widget::{Widget, WidgetBuilder},
@@ -94,17 +94,7 @@ pub enum SoundBufferFieldMessage {
 }
 
 impl SoundBufferFieldMessage {
-    pub fn value(
-        destination: Handle<UiNode>,
-        direction: MessageDirection,
-        value: Option<SoundBufferResource>,
-    ) -> UiMessage {
-        UiMessage::user(
-            destination,
-            direction,
-            Box::new(SoundBufferFieldMessage::Value(value)),
-        )
-    }
+    define_constructor!(SoundBufferFieldMessage:Value => fn value(Option<SoundBufferResource>), layout: false);
 }
 
 #[derive(Clone)]
@@ -139,46 +129,40 @@ impl Control for SoundBufferField {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        match message.data() {
-            UiMessageData::Widget(WidgetMessage::Drop(dropped)) => {
-                if message.destination() == self.handle() {
-                    if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {
-                        let relative_path = make_relative_path(&item.path);
+        if let Some(WidgetMessage::Drop(dropped)) = message.data::<WidgetMessage>() {
+            if message.destination() == self.handle() {
+                if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {
+                    let relative_path = make_relative_path(&item.path);
 
-                        if let Ok(value) = block_on(
-                            self.resource_manager
-                                .request_sound_buffer(relative_path, false),
-                        ) {
-                            ui.send_message(UiMessage::user(
-                                self.handle(),
-                                MessageDirection::ToWidget,
-                                Box::new(SoundBufferFieldMessage::Value(Some(value))),
-                            ));
-                        }
-                    }
-                }
-            }
-            UiMessageData::User(msg) => {
-                if let Some(SoundBufferFieldMessage::Value(sound_buffer)) =
-                    msg.cast::<SoundBufferFieldMessage>()
-                {
-                    if &self.sound_buffer != sound_buffer
-                        && message.destination() == self.handle()
-                        && message.direction() == MessageDirection::ToWidget
-                    {
-                        self.sound_buffer = sound_buffer.clone();
-
-                        ui.send_message(TextMessage::text(
-                            self.name,
+                    if let Ok(value) = block_on(
+                        self.resource_manager
+                            .request_sound_buffer(relative_path, false),
+                    ) {
+                        ui.send_message(SoundBufferFieldMessage::value(
+                            self.handle(),
                             MessageDirection::ToWidget,
-                            resource_path(sound_buffer),
+                            Some(value),
                         ));
-
-                        ui.send_message(message.reverse());
                     }
                 }
             }
-            _ => (),
+        } else if let Some(SoundBufferFieldMessage::Value(sound_buffer)) =
+            message.data::<SoundBufferFieldMessage>()
+        {
+            if &self.sound_buffer != sound_buffer
+                && message.destination() == self.handle()
+                && message.direction() == MessageDirection::ToWidget
+            {
+                self.sound_buffer = sound_buffer.clone();
+
+                ui.send_message(TextMessage::text(
+                    self.name,
+                    MessageDirection::ToWidget,
+                    resource_path(sound_buffer),
+                ));
+
+                ui.send_message(message.reverse());
+            }
         }
     }
 }
@@ -304,16 +288,14 @@ impl PropertyEditorDefinition for SoundBufferResourcePropertyEditorDefinition {
         message: &UiMessage,
     ) -> Option<PropertyChanged> {
         if message.direction() == MessageDirection::FromWidget {
-            if let UiMessageData::User(msg) = message.data() {
-                if let Some(SoundBufferFieldMessage::Value(value)) =
-                    msg.cast::<SoundBufferFieldMessage>()
-                {
-                    return Some(PropertyChanged {
-                        owner_type_id,
-                        name: name.to_string(),
-                        value: FieldKind::object(value.clone()),
-                    });
-                }
+            if let Some(SoundBufferFieldMessage::Value(value)) =
+                message.data::<SoundBufferFieldMessage>()
+            {
+                return Some(PropertyChanged {
+                    owner_type_id,
+                    name: name.to_string(),
+                    value: FieldKind::object(value.clone()),
+                });
             }
         }
         None

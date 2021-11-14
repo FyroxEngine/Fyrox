@@ -6,7 +6,7 @@ use crate::{
 use rg3d::{
     core::pool::Handle,
     gui::{
-        message::{MenuItemMessage, UiMessage, UiMessageData},
+        message::{MenuItemMessage, UiMessage},
         BuildContext, UiNode,
     },
 };
@@ -65,7 +65,7 @@ impl EditMenu {
         editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
     ) {
-        if let UiMessageData::MenuItem(MenuItemMessage::Click) = message.data() {
+        if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
             if message.destination() == self.copy {
                 if let Selection::Graph(selection) = &editor_scene.selection {
                     editor_scene.clipboard.fill_from_selection(
