@@ -8,7 +8,6 @@
 pub mod shared;
 
 use crate::shared::create_camera;
-use rg3d::core::sstorage::ImmutableString;
 use rg3d::{
     animation::Animation,
     core::{
@@ -16,6 +15,7 @@ use rg3d::{
         color::Color,
         parking_lot::Mutex,
         pool::Handle,
+        sstorage::ImmutableString,
     },
     engine::{
         framework::prelude::*, resource_manager::MaterialSearchOptions,
@@ -24,8 +24,8 @@ use rg3d::{
     event::{ElementState, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
     gui::{
-        message::{MessageDirection, TextMessage},
-        text::TextBuilder,
+        message::MessageDirection,
+        text::{TextBuilder, TextMessage},
         widget::WidgetBuilder,
         UiNode,
     },

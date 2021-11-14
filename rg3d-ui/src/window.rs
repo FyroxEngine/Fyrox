@@ -1,18 +1,15 @@
-use crate::text::Text;
 use crate::{
     border::BorderBuilder,
     brush::{Brush, GradientPoint},
-    button::ButtonBuilder,
+    button::{ButtonBuilder, ButtonMessage},
     core::{algebra::Vector2, color::Color, math::Rect, pool::Handle},
     decorator::DecoratorBuilder,
+    define_constructor,
     grid::{Column, GridBuilder, Row},
-    message::{
-        ButtonMessage, CursorIcon, MessageDirection, TextMessage, UiMessage, WidgetMessage,
-        WindowMessage,
-    },
-    text::TextBuilder,
+    message::{CursorIcon, MessageDirection, UiMessage},
+    text::{Text, TextBuilder, TextMessage},
     vector_image::{Primitive, VectorImageBuilder},
-    widget::{Widget, WidgetBuilder},
+    widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, RestrictionEntry, Thickness,
     UiNode, UserInterface, VerticalAlignment, BRUSH_BRIGHT, BRUSH_LIGHT, BRUSH_LIGHTER,
     BRUSH_LIGHTEST, COLOR_DARK, COLOR_DARKEST,
@@ -21,6 +18,59 @@ use std::{
     cell::RefCell,
     ops::{Deref, DerefMut},
 };
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum WindowMessage {
+    /// Opens a window.
+    Open { center: bool },
+
+    /// Opens window in modal mode. Modal mode does **not** blocks current thread, instead
+    /// it just restricts mouse and keyboard events only to window so other content is not
+    /// clickable/type-able. Closing a window removes that restriction.
+    OpenModal { center: bool },
+
+    /// Closes a window.
+    Close,
+
+    /// Minimizes a window - it differs from classic minimization in window managers,
+    /// instead of putting window in system tray, it just collapses internal content panel.
+    Minimize(bool),
+
+    /// Whether or not window can be minimized by _ mark. false hides _ mark.
+    CanMinimize(bool),
+
+    /// Whether or not window can be closed by X mark. false hides X mark.
+    CanClose(bool),
+
+    /// Whether or not window can be resized by resize grips.
+    CanResize(bool),
+
+    /// Indicates that move has been started. You should never send this message by hand.
+    MoveStart,
+
+    /// Moves window to a new position in local coordinates.
+    Move(Vector2<f32>),
+
+    /// Indicated that move has ended. You should never send this message by hand.
+    MoveEnd,
+
+    /// Sets new window title.
+    Title(WindowTitle),
+}
+
+impl WindowMessage {
+    define_constructor!(WindowMessage:Open => fn open(center: bool), layout: false);
+    define_constructor!(WindowMessage:OpenModal => fn open_modal(center: bool), layout: false);
+    define_constructor!(WindowMessage:Close => fn close(), layout: false);
+    define_constructor!(WindowMessage:Minimize => fn minimize(bool), layout: false);
+    define_constructor!(WindowMessage:CanMinimize => fn can_minimize(bool), layout: false);
+    define_constructor!(WindowMessage:CanClose => fn can_close(bool), layout: false);
+    define_constructor!(WindowMessage:CanResize => fn can_resize(bool), layout: false);
+    define_constructor!(WindowMessage:MoveStart => fn move_start(), layout: false);
+    define_constructor!(WindowMessage:Move => fn move_to(Vector2<f32>), layout: false);
+    define_constructor!(WindowMessage:MoveEnd => fn move_end(), layout: false);
+    define_constructor!(WindowMessage:Title => fn title(WindowTitle), layout: false);
+}
 
 /// Represents a widget looking as window in Windows - with title, minimize and close buttons.
 /// It has scrollable region for content, content can be any desired node or even other window.

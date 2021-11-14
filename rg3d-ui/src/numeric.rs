@@ -1,10 +1,10 @@
-use crate::core::num_traits::NumCast;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
-    button::ButtonBuilder,
+    button::{ButtonBuilder, ButtonMessage},
     core::{
         color::Color,
+        num_traits::NumCast,
         num_traits::NumOps,
         num_traits::{clamp, Bounded, NumAssign},
         pool::Handle,
@@ -13,10 +13,10 @@ use crate::{
     define_constructor,
     formatted_text::WrapMode,
     grid::{Column, GridBuilder, Row},
-    message::{ButtonMessage, KeyCode, MessageDirection, TextBoxMessage, UiMessage, WidgetMessage},
-    text_box::{TextBox, TextBoxBuilder},
+    message::{KeyCode, MessageDirection, UiMessage},
+    text_box::{TextBox, TextBoxBuilder, TextBoxMessage},
     utils::{make_arrow, ArrowDirection},
-    widget::{Widget, WidgetBuilder},
+    widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Thickness, UiNode,
     UserInterface, VerticalAlignment, BRUSH_DARK, BRUSH_LIGHT,
 };

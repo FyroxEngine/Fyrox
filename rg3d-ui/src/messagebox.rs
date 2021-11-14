@@ -1,22 +1,36 @@
-use crate::formatted_text::WrapMode;
 use crate::{
-    button::ButtonBuilder,
+    button::{ButtonBuilder, ButtonMessage},
     core::{algebra::Vector2, pool::Handle},
+    define_constructor,
     draw::DrawingContext,
+    formatted_text::WrapMode,
     grid::{Column, GridBuilder, Row},
-    message::{
-        ButtonMessage, MessageBoxMessage, MessageDirection, OsEvent, TextMessage, UiMessage,
-        WindowMessage,
-    },
+    message::{MessageDirection, OsEvent, UiMessage},
     stack_panel::StackPanelBuilder,
-    text::TextBuilder,
+    text::{TextBuilder, TextMessage},
     widget::{Widget, WidgetBuilder},
-    window::{Window, WindowBuilder, WindowTitle},
+    window::{Window, WindowBuilder, WindowMessage, WindowTitle},
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, RestrictionEntry,
     Thickness, UiNode, UserInterface,
 };
-use std::ops::{Deref, DerefMut};
-use std::sync::mpsc::Sender;
+use std::{
+    ops::{Deref, DerefMut},
+    sync::mpsc::Sender,
+};
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum MessageBoxMessage {
+    Open {
+        title: Option<String>,
+        text: Option<String>,
+    },
+    Close(MessageBoxResult),
+}
+
+impl MessageBoxMessage {
+    define_constructor!(MessageBoxMessage:Open => fn open(title: Option<String>, text: Option<String>), layout: false);
+    define_constructor!(MessageBoxMessage:Close => fn close(MessageBoxResult), layout: false);
+}
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Ord, Eq, Hash, Debug)]
 pub enum MessageBoxResult {

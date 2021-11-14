@@ -1,4 +1,3 @@
-use crate::numeric::NumericUpDownMessage;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -8,20 +7,91 @@ use crate::{
         math::Rect,
         pool::Handle,
     },
+    define_constructor,
     draw::{CommandTexture, Draw, DrawingContext},
     grid::{Column, GridBuilder, Row},
-    message::{
-        AlphaBarMessage, ColorFieldMessage, ColorPickerMessage, HueBarMessage, MessageDirection,
-        MouseButton, PopupMessage, SaturationBrightnessFieldMessage, UiMessage, WidgetMessage,
-    },
-    numeric::NumericUpDownBuilder,
-    popup::{Placement, PopupBuilder},
+    message::{MessageDirection, MouseButton, UiMessage},
+    numeric::{NumericUpDownBuilder, NumericUpDownMessage},
+    popup::{Placement, PopupBuilder, PopupMessage},
     text::TextBuilder,
-    widget::{Widget, WidgetBuilder},
+    widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, NodeHandleMapping, Orientation, Thickness, UiNode, UserInterface,
     VerticalAlignment,
 };
 use std::ops::{Deref, DerefMut};
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum HueBarMessage {
+    /// Sets new hue value.
+    Hue(f32),
+
+    /// Sets new orientation
+    Orientation(Orientation),
+}
+
+impl HueBarMessage {
+    define_constructor!(HueBarMessage:Hue => fn hue(f32), layout: false);
+    define_constructor!(HueBarMessage:Orientation => fn orientation(Orientation), layout: false);
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum AlphaBarMessage {
+    /// Sets new hue value.
+    Alpha(f32),
+
+    /// Sets new orientation
+    Orientation(Orientation),
+}
+
+impl AlphaBarMessage {
+    define_constructor!(AlphaBarMessage:Alpha => fn alpha(f32), layout: false);
+    define_constructor!(AlphaBarMessage:Orientation => fn orientation(Orientation), layout: false);
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum SaturationBrightnessFieldMessage {
+    /// Sets new hue value on the field.
+    Hue(f32),
+
+    /// Sets new saturation value on the field.
+    Saturation(f32),
+
+    /// Sets new brightness value on the field.
+    Brightness(f32),
+}
+
+impl SaturationBrightnessFieldMessage {
+    define_constructor!(SaturationBrightnessFieldMessage:Hue => fn hue(f32), layout: false);
+    define_constructor!(SaturationBrightnessFieldMessage:Saturation => fn saturation(f32), layout: false);
+    define_constructor!(SaturationBrightnessFieldMessage:Brightness => fn brightness(f32), layout: false);
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ColorPickerMessage {
+    /// Sets color in RGB.
+    ///
+    /// Direction: **To/From Widget**.
+    Color(Color),
+
+    /// Sets color in HSV.
+    ///
+    /// Direction: **To Widget**.
+    Hsv(Hsv),
+}
+
+impl ColorPickerMessage {
+    define_constructor!(ColorPickerMessage:Color => fn color(Color), layout: false);
+    define_constructor!(ColorPickerMessage:Hsv => fn hsv(Hsv), layout: false);
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ColorFieldMessage {
+    Color(Color),
+}
+
+impl ColorFieldMessage {
+    define_constructor!(ColorFieldMessage:Color => fn color(Color), layout: false);
+}
 
 #[derive(Clone)]
 pub struct AlphaBar {

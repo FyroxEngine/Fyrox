@@ -1,12 +1,28 @@
 use crate::{
     border::BorderBuilder,
     core::{algebra::Vector2, pool::Handle},
-    message::{ButtonState, MessageDirection, OsEvent, PopupMessage, UiMessage, WidgetMessage},
-    widget::{Widget, WidgetBuilder},
+    define_constructor,
+    message::{ButtonState, MessageDirection, OsEvent, UiMessage},
+    widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, NodeHandleMapping, RestrictionEntry, Thickness, UiNode, UserInterface,
     BRUSH_DARKER, BRUSH_LIGHTER,
 };
 use std::ops::{Deref, DerefMut};
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum PopupMessage {
+    Open,
+    Close,
+    Content(Handle<UiNode>),
+    Placement(Placement),
+}
+
+impl PopupMessage {
+    define_constructor!(PopupMessage:Open => fn open(), layout: false);
+    define_constructor!(PopupMessage:Close => fn close(), layout: false);
+    define_constructor!(PopupMessage:Content => fn content(Handle<UiNode>), layout: false);
+    define_constructor!(PopupMessage:Placement => fn placement(Placement), layout: false);
+}
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum Placement {

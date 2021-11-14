@@ -3,15 +3,27 @@ use crate::{
     brush::{Brush, GradientPoint},
     core::{algebra::Vector2, pool::Handle},
     decorator::DecoratorBuilder,
-    message::{ButtonMessage, MessageDirection, UiMessage, WidgetMessage},
+    define_constructor,
+    message::{MessageDirection, UiMessage},
     text::TextBuilder,
     ttf::SharedFont,
-    widget::{Widget, WidgetBuilder},
+    widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Thickness, UiNode,
     UserInterface, VerticalAlignment, BRUSH_LIGHT, BRUSH_LIGHTER, BRUSH_LIGHTEST, COLOR_DARKEST,
     COLOR_LIGHTEST,
 };
 use std::ops::{Deref, DerefMut};
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ButtonMessage {
+    Click,
+    Content(Handle<UiNode>),
+}
+
+impl ButtonMessage {
+    define_constructor!(ButtonMessage:Click => fn click(), layout: false);
+    define_constructor!(ButtonMessage:Content => fn content(Handle<UiNode>), layout: false);
+}
 
 #[derive(Clone)]
 pub struct Button {

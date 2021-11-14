@@ -9,27 +9,29 @@
 pub mod shared;
 
 use crate::shared::create_camera;
-use rg3d::engine::resource_manager::MaterialSearchOptions;
-use rg3d::engine::Engine;
-use rg3d::gui::{BuildContext, UiNode};
-use rg3d::scene::base::BaseBuilder;
-use rg3d::utils::log::{Log, MessageKind};
 use rg3d::{
     core::{
         algebra::{UnitQuaternion, Vector3},
         color::Color,
         pool::Handle,
     },
-    engine::resource_manager::ResourceManager,
+    engine::{
+        resource_manager::{MaterialSearchOptions, ResourceManager},
+        Engine,
+    },
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
-        message::{MessageDirection, TextMessage},
-        text::TextBuilder,
+        message::MessageDirection,
+        text::{TextBuilder, TextMessage},
         widget::WidgetBuilder,
+        BuildContext, UiNode,
     },
-    scene::{node::Node, Scene},
-    utils::translate_event,
+    scene::{base::BaseBuilder, node::Node, Scene},
+    utils::{
+        log::{Log, MessageKind},
+        translate_event,
+    },
 };
 use std::time::Instant;
 

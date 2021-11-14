@@ -4,28 +4,23 @@
 //! OS file selector.
 
 use crate::{
-    button::ButtonBuilder,
+    button::{ButtonBuilder, ButtonMessage},
     core::{algebra::Vector2, pool::Handle},
+    define_constructor,
     draw::DrawingContext,
     grid::{Column, GridBuilder, Row},
-    message::{
-        ButtonMessage, FileBrowserMessage, FileSelectorMessage, MessageDirection, OsEvent,
-        ScrollViewerMessage, TextBoxMessage, TreeMessage, TreeRootMessage, UiMessage,
-        WindowMessage,
-    },
-    scroll_viewer::ScrollViewerBuilder,
+    message::{MessageDirection, OsEvent, UiMessage},
+    scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
     stack_panel::StackPanelBuilder,
     text::TextBuilder,
-    text_box::{TextBoxBuilder, TextCommitMode},
-    tree::TreeRoot,
-    tree::{Tree, TreeBuilder, TreeRootBuilder},
+    text_box::{TextBoxBuilder, TextBoxMessage, TextCommitMode},
+    tree::{Tree, TreeBuilder, TreeMessage, TreeRoot, TreeRootBuilder, TreeRootMessage},
     widget::{Widget, WidgetBuilder},
-    window::{Window, WindowBuilder, WindowTitle},
+    window::{Window, WindowBuilder, WindowMessage, WindowTitle},
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, Thickness, UiNode,
     UserInterface, VerticalAlignment,
 };
 use core::time;
-use std::sync::mpsc::{Receiver, Sender};
 use std::{
     borrow::BorrowMut,
     cell,
@@ -35,6 +30,7 @@ use std::{
     ops::{Deref, DerefMut},
     path::{Component, Path, PathBuf, Prefix},
     rc::Rc,
+    sync::mpsc::{Receiver, Sender},
     sync::{mpsc, Arc, Mutex},
     thread,
 };
@@ -42,6 +38,42 @@ use std::{
 use notify::Watcher;
 #[cfg(not(target_arch = "wasm32"))]
 use sysinfo::{DiskExt, RefreshKind, SystemExt};
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum FileSelectorMessage {
+    Root(Option<PathBuf>),
+    Path(PathBuf),
+    Commit(PathBuf),
+    Cancel,
+    Filter(Option<Filter>),
+}
+
+impl FileSelectorMessage {
+    define_constructor!(FileSelectorMessage:Commit => fn commit(PathBuf), layout: false);
+    define_constructor!(FileSelectorMessage:Root => fn root(Option<PathBuf>), layout: false);
+    define_constructor!(FileSelectorMessage:Path => fn path(PathBuf), layout: false);
+    define_constructor!(FileSelectorMessage:Cancel => fn cancel(), layout: false);
+    define_constructor!(FileSelectorMessage:Filter => fn filter(Option<Filter>), layout: false);
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum FileBrowserMessage {
+    Root(Option<PathBuf>),
+    Path(PathBuf),
+    Filter(Option<Filter>),
+    Add(PathBuf),
+    Remove(PathBuf),
+    Rescan,
+}
+
+impl FileBrowserMessage {
+    define_constructor!(FileBrowserMessage:Root => fn root(Option<PathBuf>), layout: false);
+    define_constructor!(FileBrowserMessage:Path => fn path(PathBuf), layout: false);
+    define_constructor!(FileBrowserMessage:Filter => fn filter(Option<Filter>), layout: false);
+    define_constructor!(FileBrowserMessage:Add => fn add(PathBuf), layout: false);
+    define_constructor!(FileBrowserMessage:Remove => fn remove(PathBuf), layout: false);
+    define_constructor!(FileBrowserMessage:Rescan => fn rescan(), layout: false);
+}
 
 #[derive(Clone)]
 pub struct Filter(pub Arc<Mutex<dyn FnMut(&Path) -> bool + Send>>);

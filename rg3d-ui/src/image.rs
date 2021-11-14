@@ -1,13 +1,24 @@
-use crate::draw::Draw;
 use crate::{
     brush::Brush,
     core::{algebra::Vector2, color::Color, pool::Handle},
-    draw::{CommandTexture, DrawingContext, SharedTexture},
-    message::{ImageMessage, UiMessage},
+    define_constructor,
+    draw::{CommandTexture, Draw, DrawingContext, SharedTexture},
+    message::{MessageDirection, UiMessage},
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
 use std::ops::{Deref, DerefMut};
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ImageMessage {
+    Texture(Option<SharedTexture>),
+    Flip(bool),
+}
+
+impl ImageMessage {
+    define_constructor!(ImageMessage:Texture => fn texture(Option<SharedTexture>), layout: false);
+    define_constructor!(ImageMessage:Flip => fn flip(bool), layout: false);
+}
 
 #[derive(Clone)]
 pub struct Image {

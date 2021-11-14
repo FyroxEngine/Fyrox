@@ -7,6 +7,9 @@
 
 pub mod shared;
 
+use std::sync::{Arc, Mutex};
+
+use crate::shared::create_camera;
 use rg3d::{
     animation::Animation,
     core::{
@@ -15,25 +18,23 @@ use rg3d::{
         futures,
         pool::Handle,
     },
-    engine::{framework::prelude::*, resource_manager::ResourceManager},
+    engine::{
+        framework::prelude::*, resource_manager::MaterialSearchOptions,
+        resource_manager::ResourceManager, Engine,
+    },
     event::{ElementState, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
     gui::{
         grid::{Column, GridBuilder, Row},
-        message::{MessageDirection, ProgressBarMessage, TextMessage, WidgetMessage},
-        progress_bar::ProgressBarBuilder,
-        text::TextBuilder,
-        widget::WidgetBuilder,
+        message::MessageDirection,
+        progress_bar::{ProgressBarBuilder, ProgressBarMessage},
+        text::{TextBuilder, TextMessage},
+        widget::{WidgetBuilder, WidgetMessage},
         HorizontalAlignment, Thickness, VerticalAlignment,
     },
+    gui::{BuildContext, UiNode},
     scene::{node::Node, Scene},
 };
-use std::sync::{Arc, Mutex};
-
-use crate::shared::create_camera;
-use rg3d::engine::resource_manager::MaterialSearchOptions;
-use rg3d::engine::Engine;
-use rg3d::gui::{BuildContext, UiNode};
 
 struct Interface {
     root: Handle<UiNode>,

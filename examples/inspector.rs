@@ -18,11 +18,11 @@ use rg3d::{
     event_loop::{ControlFlow, EventLoop},
     gui::{
         inspector::{
-            editors::PropertyEditorDefinitionContainer, InspectorBuilder, InspectorContext,
+            editors::PropertyEditorDefinitionContainer, FieldKind, InspectorBuilder,
+            InspectorContext, InspectorMessage,
         },
-        message::FieldKind,
-        message::{InspectorMessage, MessageDirection, TextMessage},
-        text::TextBuilder,
+        message::MessageDirection,
+        text::{TextBuilder, TextMessage},
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
         UiNode,

@@ -18,18 +18,22 @@
 pub mod shared;
 
 use crate::shared::{create_ui, fix_shadows_distance, Game, GameScene, LocomotionMachine, Player};
-use rg3d::core::algebra::Vector2;
-use rg3d::utils::log::{Log, MessageKind};
 use rg3d::{
     core::{
-        visitor::VisitResult,
-        visitor::{Visit, Visitor},
+        algebra::Vector2,
+        visitor::{Visit, VisitResult, Visitor},
     },
     event::{Event, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
-    gui::message::{MessageDirection, ProgressBarMessage, TextMessage, WidgetMessage},
+    gui::{
+        message::MessageDirection, progress_bar::ProgressBarMessage, text::TextMessage,
+        widget::WidgetMessage,
+    },
     renderer::QualitySettings,
-    utils::translate_event,
+    utils::{
+        log::{Log, MessageKind},
+        translate_event,
+    },
 };
 use std::path::Path;
 

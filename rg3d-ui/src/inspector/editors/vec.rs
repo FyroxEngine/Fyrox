@@ -1,4 +1,3 @@
-use crate::numeric::NumericType;
 use crate::{
     core::algebra::{Vector2, Vector3, Vector4},
     inspector::{
@@ -6,9 +5,10 @@ use crate::{
             Layout, PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext,
         },
-        InspectorError,
+        FieldKind, InspectorError, PropertyChanged,
     },
-    message::{FieldKind, MessageDirection, PropertyChanged, UiMessage},
+    message::{MessageDirection, UiMessage},
+    numeric::NumericType,
     vec::{
         vec2::{Vec2EditorBuilder, Vec2EditorMessage},
         vec3::{Vec3EditorBuilder, Vec3EditorMessage},
@@ -17,8 +17,7 @@ use crate::{
     widget::WidgetBuilder,
     Thickness,
 };
-use std::any::TypeId;
-use std::marker::PhantomData;
+use std::{any::TypeId, marker::PhantomData};
 
 macro_rules! define_vector_editor {
     ($name:ident, $t:ident, $bounds:tt, $builder:ty, $message:tt, $value:ty) => {

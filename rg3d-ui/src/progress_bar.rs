@@ -3,11 +3,21 @@ use crate::{
     brush::Brush,
     canvas::CanvasBuilder,
     core::{algebra::Vector2, color::Color, pool::Handle},
-    message::{MessageDirection, ProgressBarMessage, UiMessage, WidgetMessage},
-    widget::{Widget, WidgetBuilder},
+    define_constructor,
+    message::{MessageDirection, UiMessage},
+    widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, NodeHandleMapping, UiNode, UserInterface,
 };
 use std::ops::{Deref, DerefMut};
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ProgressBarMessage {
+    Progress(f32),
+}
+
+impl ProgressBarMessage {
+    define_constructor!(ProgressBarMessage:Progress => fn progress(f32), layout: false);
+}
 
 #[derive(Clone)]
 pub struct ProgressBar {

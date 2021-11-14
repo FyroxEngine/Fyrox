@@ -3,7 +3,6 @@
 pub mod shared;
 
 use crate::shared::create_camera;
-use rg3d::core::sstorage::ImmutableString;
 use rg3d::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
@@ -11,13 +10,14 @@ use rg3d::{
         parking_lot::Mutex,
         pool::Handle,
         rand::Rng,
+        sstorage::ImmutableString,
     },
     engine::{framework::prelude::*, resource_manager::ResourceManager, Engine},
     event::{ElementState, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
     gui::{
-        message::{MessageDirection, TextMessage},
-        text::TextBuilder,
+        message::MessageDirection,
+        text::{TextBuilder, TextMessage},
         widget::WidgetBuilder,
         UiNode,
     },

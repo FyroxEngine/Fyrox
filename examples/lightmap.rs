@@ -8,43 +8,40 @@
 pub mod shared;
 
 use crate::shared::create_camera;
-use rg3d::core::futures;
-use rg3d::engine::resource_manager::MaterialSearchOptions;
-use rg3d::engine::Engine;
-use rg3d::gui::{BuildContext, UiNode};
-use rg3d::utils::log::{Log, MessageKind};
 use rg3d::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
         color::Color,
+        futures,
         pool::Handle,
         visitor::{Visit, Visitor},
     },
-    engine::resource_manager::ResourceManager,
+    engine::{
+        resource_manager::{MaterialSearchOptions, ResourceManager},
+        Engine,
+    },
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
-        button::ButtonBuilder,
+        button::{ButtonBuilder, ButtonMessage},
         grid::{Column, GridBuilder, Row},
-        message::{
-            ButtonMessage, MessageDirection, ProgressBarMessage, TextMessage, WidgetMessage,
-        },
-        progress_bar::ProgressBarBuilder,
+        message::MessageDirection,
+        progress_bar::{ProgressBarBuilder, ProgressBarMessage},
         stack_panel::StackPanelBuilder,
-        text::TextBuilder,
-        widget::WidgetBuilder,
-        HorizontalAlignment, Thickness, VerticalAlignment,
+        text::{TextBuilder, TextMessage},
+        widget::{WidgetBuilder, WidgetMessage},
+        window::{WindowBuilder, WindowMessage, WindowTitle},
+        BuildContext, HorizontalAlignment, Thickness, UiNode, VerticalAlignment,
     },
     scene::{node::Node, Scene},
     utils::{
         lightmap::{CancellationToken, Lightmap, ProgressIndicator, ProgressStage},
+        log::{Log, MessageKind},
         translate_event,
     },
 };
-use rg3d_ui::message::WindowMessage;
-use rg3d_ui::window::{WindowBuilder, WindowTitle};
-use std::path::Path;
 use std::{
+    path::Path,
     sync::{Arc, Mutex},
     time::Instant,
 };

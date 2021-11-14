@@ -9,16 +9,14 @@ use crate::{
         uuid::Uuid,
     },
     curve::key::{CurveKeyView, KeyContainer},
+    define_constructor,
     draw::{CommandTexture, Draw, DrawingContext},
     formatted_text::{FormattedText, FormattedTextBuilder},
-    menu::{MenuItemBuilder, MenuItemContent},
-    message::{
-        ButtonState, CurveEditorMessage, KeyCode, MenuItemMessage, MessageDirection, MouseButton,
-        UiMessage, WidgetMessage,
-    },
+    menu::{MenuItemBuilder, MenuItemContent, MenuItemMessage},
+    message::{ButtonState, KeyCode, MessageDirection, MouseButton, UiMessage},
     popup::PopupBuilder,
     stack_panel::StackPanelBuilder,
-    widget::{Widget, WidgetBuilder},
+    widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, UiNode, UserInterface,
 };
 use std::{
@@ -28,6 +26,33 @@ use std::{
 };
 
 pub mod key;
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum CurveEditorMessage {
+    Sync(Curve),
+    ViewPosition(Vector2<f32>),
+    Zoom(f32),
+    ZoomToFit,
+
+    // Internal messages. Use only when you know what you're doing.
+    // These are internal because you must use Sync message to request changes
+    // in the curve editor.
+    ChangeSelectedKeysKind(CurveKeyKind),
+    RemoveSelection,
+    // Position in screen coordinates.
+    AddKey(Vector2<f32>),
+}
+
+impl CurveEditorMessage {
+    define_constructor!(CurveEditorMessage:Sync => fn sync(Curve), layout: false);
+    define_constructor!(CurveEditorMessage:ViewPosition => fn view_position(Vector2<f32>), layout: false);
+    define_constructor!(CurveEditorMessage:Zoom => fn zoom(f32), layout: false);
+    define_constructor!(CurveEditorMessage:ZoomToFit => fn zoom_to_fit(), layout: false);
+    // Internal. Use only when you know what you're doing.
+    define_constructor!(CurveEditorMessage:RemoveSelection => fn remove_selection(), layout: false);
+    define_constructor!(CurveEditorMessage:ChangeSelectedKeysKind => fn change_selected_keys_kind(CurveKeyKind), layout: false);
+    define_constructor!(CurveEditorMessage:AddKey => fn add_key(Vector2<f32>), layout: false);
+}
 
 #[derive(Clone)]
 pub struct CurveEditor {

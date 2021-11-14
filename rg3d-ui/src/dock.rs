@@ -5,20 +5,39 @@
 //! Docking manager can hold any types of UI elements, but dragging works only
 //! for windows.
 
-use crate::window::Window;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
     core::{algebra::Vector2, color::Color, math::Rect, pool::Handle},
+    define_constructor,
     grid::{Column, GridBuilder, Row},
-    message::{CursorIcon, MessageDirection, TileMessage, UiMessage, WidgetMessage, WindowMessage},
-    widget::{Widget, WidgetBuilder},
+    message::{CursorIcon, MessageDirection, UiMessage},
+    widget::{Widget, WidgetBuilder, WidgetMessage},
+    window::{Window, WindowMessage},
     BuildContext, Control, NodeHandleMapping, Thickness, UiNode, UserInterface,
 };
 use std::{
     cell::{Cell, RefCell},
     ops::{Deref, DerefMut},
 };
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum TileMessage {
+    Content(TileContent),
+    /// Internal. Do not use.
+    Split {
+        window: Handle<UiNode>,
+        direction: SplitDirection,
+        first: bool,
+    },
+}
+
+impl TileMessage {
+    define_constructor!(TileMessage:Content => fn content(TileContent), layout: false);
+    define_constructor!(TileMessage:Split => fn split(window: Handle<UiNode>,
+        direction: SplitDirection,
+        first: bool), layout: false);
+}
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum TileContent {

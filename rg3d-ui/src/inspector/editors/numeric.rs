@@ -1,20 +1,18 @@
-use crate::core::num_traits::NumCast;
-use crate::numeric::{NumericType, NumericUpDownMessage};
 use crate::{
+    core::num_traits::NumCast,
     inspector::{
         editors::{
             Layout, PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext,
         },
-        InspectorError,
+        FieldKind, InspectorError, PropertyChanged,
     },
-    message::{FieldKind, MessageDirection, PropertyChanged, UiMessage},
-    numeric::NumericUpDownBuilder,
+    message::{MessageDirection, UiMessage},
+    numeric::{NumericType, NumericUpDownBuilder, NumericUpDownMessage},
     widget::WidgetBuilder,
     Thickness,
 };
-use std::any::TypeId;
-use std::marker::PhantomData;
+use std::{any::TypeId, marker::PhantomData};
 
 #[derive(Debug)]
 pub struct NumericPropertyEditorDefinition<T>

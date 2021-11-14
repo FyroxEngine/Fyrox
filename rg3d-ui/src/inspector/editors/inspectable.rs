@@ -5,10 +5,10 @@ use crate::{
             Layout, PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext,
         },
-        InspectorError,
+        FieldKind, InspectorError, InspectorMessage, PropertyChanged,
     },
     inspector::{Inspector, InspectorBuilder, InspectorContext},
-    message::{FieldKind, InspectorMessage, MessageDirection, PropertyChanged, UiMessage},
+    message::{MessageDirection, UiMessage},
     widget::WidgetBuilder,
 };
 use std::{

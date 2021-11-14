@@ -1,13 +1,13 @@
 use crate::{
-    check_box::CheckBoxBuilder,
+    check_box::{CheckBoxBuilder, CheckBoxMessage},
     inspector::{
         editors::{
             Layout, PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext,
         },
-        InspectorError,
+        FieldKind, InspectorError, PropertyChanged,
     },
-    message::{CheckBoxMessage, FieldKind, MessageDirection, PropertyChanged, UiMessage},
+    message::{MessageDirection, UiMessage},
     widget::WidgetBuilder,
     Thickness,
 };

@@ -1,23 +1,75 @@
-use crate::button::Button;
-use crate::core::algebra::Vector2;
-use crate::message::{SelectionState, TreeExpansionStrategy};
 use crate::{
     border::BorderBuilder,
     brush::Brush,
-    button::ButtonBuilder,
+    button::{Button, ButtonBuilder, ButtonMessage},
+    core::algebra::Vector2,
     core::{color::Color, pool::Handle},
-    decorator::DecoratorBuilder,
+    decorator::{DecoratorBuilder, DecoratorMessage},
+    define_constructor,
     grid::{Column, GridBuilder, Row},
-    message::{
-        ButtonMessage, DecoratorMessage, MessageDirection, TextMessage, TreeMessage,
-        TreeRootMessage, UiMessage, WidgetMessage,
-    },
+    message::{MessageDirection, UiMessage},
     stack_panel::StackPanelBuilder,
-    widget::{Widget, WidgetBuilder},
+    text::TextMessage,
+    widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, NodeHandleMapping, Thickness, UiNode, UserInterface, BRUSH_DARK,
     BRUSH_DARKEST, BRUSH_LIGHT,
 };
 use std::ops::{Deref, DerefMut};
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub struct SelectionState(pub(in crate) bool);
+
+#[derive(Copy, Clone, PartialOrd, PartialEq, Ord, Eq, Hash, Debug)]
+pub enum TreeExpansionStrategy {
+    /// Expand a single item.
+    Direct,
+    /// Expand an item and its descendants.
+    RecursiveDescendants,
+    /// Expand an item and its ancestors (chain of parent trees).
+    RecursiveAncestors,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum TreeMessage {
+    Expand {
+        expand: bool,
+        expansion_strategy: TreeExpansionStrategy,
+    },
+    AddItem(Handle<UiNode>),
+    RemoveItem(Handle<UiNode>),
+    SetExpanderShown(bool),
+    SetItems(Vec<Handle<UiNode>>),
+    // Private, do not use. For internal needs only. Use TreeRootMessage::Selected.
+    Select(SelectionState),
+}
+
+impl TreeMessage {
+    define_constructor!(TreeMessage:Expand => fn expand(expand: bool, expansion_strategy: TreeExpansionStrategy), layout: false);
+    define_constructor!(TreeMessage:AddItem => fn add_item(Handle<UiNode>), layout: false);
+    define_constructor!(TreeMessage:RemoveItem => fn remove_item(Handle<UiNode>), layout: false);
+    define_constructor!(TreeMessage:SetExpanderShown => fn set_expander_shown(bool), layout: false);
+    define_constructor!(TreeMessage:SetItems => fn set_items(Vec<Handle<UiNode >>), layout: false);
+    define_constructor!(TreeMessage:Select => fn select(SelectionState), layout: false);
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum TreeRootMessage {
+    AddItem(Handle<UiNode>),
+    RemoveItem(Handle<UiNode>),
+    Items(Vec<Handle<UiNode>>),
+    Selected(Vec<Handle<UiNode>>),
+    ExpandAll,
+    CollapseAll,
+}
+
+impl TreeRootMessage {
+    define_constructor!(TreeRootMessage:AddItem => fn add_item(Handle<UiNode>), layout: false);
+    define_constructor!(TreeRootMessage:RemoveItem=> fn remove_item(Handle<UiNode>), layout: false);
+    define_constructor!(TreeRootMessage:Items => fn items(Vec<Handle<UiNode >>), layout: false);
+    define_constructor!(TreeRootMessage:Selected => fn select(Vec<Handle<UiNode >>), layout: false);
+    define_constructor!(TreeRootMessage:ExpandAll => fn expand_all(), layout: false);
+    define_constructor!(TreeRootMessage:CollapseAll => fn collapse_all(), layout: false);
+}
 
 #[derive(Debug, Clone)]
 pub struct Tree {

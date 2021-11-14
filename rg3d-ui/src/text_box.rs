@@ -1,28 +1,33 @@
-use crate::draw::Draw;
-use crate::formatted_text::WrapMode;
 use crate::{
     brush::Brush,
     core::{algebra::Vector2, color::Color, math::Rect, pool::Handle},
-    draw::{CommandTexture, DrawingContext},
-    formatted_text::{FormattedText, FormattedTextBuilder},
-    message::{
-        CursorIcon, KeyCode, MessageDirection, MouseButton, TextBoxMessage, UiMessage,
-        WidgetMessage,
-    },
+    define_constructor,
+    draw::{CommandTexture, Draw, DrawingContext},
+    formatted_text::{FormattedText, FormattedTextBuilder, WrapMode},
+    message::{CursorIcon, KeyCode, MessageDirection, MouseButton, UiMessage},
     ttf::SharedFont,
-    widget::{Widget, WidgetBuilder},
+    widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, UiNode, UserInterface, VerticalAlignment,
     BRUSH_DARKER, BRUSH_TEXT,
 };
 use copypasta::ClipboardProvider;
-use std::sync::mpsc::Sender;
 use std::{
     cell::RefCell,
     cmp::{self, Ordering},
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
     rc::Rc,
+    sync::mpsc::Sender,
 };
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum TextBoxMessage {
+    Text(String),
+}
+
+impl TextBoxMessage {
+    define_constructor!(TextBoxMessage:Text => fn text(String), layout: false);
+}
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum HorizontalDirection {

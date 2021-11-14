@@ -1,13 +1,23 @@
 use crate::{
-    check_box::CheckBoxBuilder,
+    check_box::{CheckBoxBuilder, CheckBoxMessage},
     core::pool::Handle,
+    define_constructor,
     grid::{Column, GridBuilder, Row},
-    message::{CheckBoxMessage, ExpanderMessage, MessageDirection, UiMessage, WidgetMessage},
+    message::{MessageDirection, UiMessage},
     utils::{make_arrow, ArrowDirection},
-    widget::{Widget, WidgetBuilder},
+    widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, UiNode, UserInterface, VerticalAlignment,
 };
 use std::ops::{Deref, DerefMut};
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ExpanderMessage {
+    Expand(bool),
+}
+
+impl ExpanderMessage {
+    define_constructor!(ExpanderMessage:Expand => fn expand(bool), layout: false);
+}
 
 #[derive(Clone)]
 pub struct Expander {

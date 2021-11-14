@@ -2,9 +2,9 @@ use rg3d::{
     core::{algebra::Vector2, pool::Handle, rand::Rng},
     engine::{framework::prelude::*, Engine},
     gui::{
-        button::ButtonBuilder,
-        message::{ButtonMessage, MessageDirection, UiMessage, WidgetMessage},
-        widget::WidgetBuilder,
+        button::{ButtonBuilder, ButtonMessage},
+        message::{MessageDirection, UiMessage},
+        widget::{WidgetBuilder, WidgetMessage},
         UiNode,
     },
     rand::thread_rng,

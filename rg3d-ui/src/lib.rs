@@ -62,19 +62,18 @@ use crate::{
     core::{
         algebra::Vector2,
         color::Color,
-        math::clampf,
-        math::Rect,
+        math::{clampf, Rect},
         pool::{Handle, Pool},
         scope_profile,
     },
     draw::{CommandTexture, Draw, DrawingContext},
     message::{
         ButtonState, CursorIcon, KeyboardModifiers, MessageDirection, MouseButton, OsEvent,
-        PopupMessage, UiMessage, WidgetMessage,
+        UiMessage,
     },
-    popup::Placement,
+    popup::{Placement, PopupMessage},
     ttf::{Font, SharedFont},
-    widget::{Widget, WidgetBuilder},
+    widget::{Widget, WidgetBuilder, WidgetMessage},
 };
 
 use copypasta::ClipboardContext;
@@ -2064,8 +2063,8 @@ mod test {
     use crate::{
         border::BorderBuilder,
         core::algebra::Vector2,
-        message::{MessageDirection, WidgetMessage},
-        widget::WidgetBuilder,
+        message::MessageDirection,
+        widget::{WidgetBuilder, WidgetMessage},
         UserInterface,
     };
 

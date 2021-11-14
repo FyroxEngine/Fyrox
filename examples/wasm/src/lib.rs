@@ -4,7 +4,6 @@
 //!
 //! Warning - Work in progress!
 
-use rg3d::core::sstorage::ImmutableString;
 use rg3d::{
     animation::Animation,
     core::{
@@ -12,6 +11,7 @@ use rg3d::{
         color::Color,
         parking_lot::Mutex,
         pool::Handle,
+        sstorage::ImmutableString,
         wasm_bindgen::{self, prelude::*},
     },
     dpi::LogicalSize,
@@ -22,8 +22,8 @@ use rg3d::{
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
-        message::{MessageDirection, TextMessage},
-        text::TextBuilder,
+        message::MessageDirection,
+        text::{TextBuilder, TextMessage},
         widget::WidgetBuilder,
     },
     gui::{BuildContext, UiNode},

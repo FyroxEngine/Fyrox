@@ -1,12 +1,13 @@
-use crate::core::algebra::Vector2;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
     core::{
+        algebra::Vector2,
         color::Color,
-        inspect::{CastError, Inspect, PropertyInfo},
+        inspect::{CastError, Inspect, PropertyInfo, PropertyValue},
         pool::Handle,
     },
+    define_constructor,
     expander::ExpanderBuilder,
     formatted_text::WrapMode,
     grid::{Column, GridBuilder, Row},
@@ -14,10 +15,10 @@ use crate::{
         Layout, PropertyEditorBuildContext, PropertyEditorDefinition,
         PropertyEditorDefinitionContainer, PropertyEditorMessageContext,
     },
-    message::{InspectorMessage, MessageDirection, UiMessage, WidgetMessage},
+    message::{MessageDirection, UiMessage},
     stack_panel::StackPanelBuilder,
     text::TextBuilder,
-    widget::{Widget, WidgetBuilder},
+    widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use std::{
@@ -29,6 +30,114 @@ use std::{
 };
 
 pub mod editors;
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum CollectionChanged {
+    /// An item should be added in the collection.
+    Add,
+    /// An item in the collection should be removed.
+    Remove(usize),
+    /// An item in the collection has changed one of its properties.
+    ItemChanged {
+        /// Index of an item in the collection.
+        index: usize,
+        property: PropertyChanged,
+    },
+}
+
+impl CollectionChanged {
+    define_constructor!(CollectionChanged:Add => fn add(), layout: false);
+    define_constructor!(CollectionChanged:Remove => fn remove(usize), layout: false);
+    define_constructor!(CollectionChanged:ItemChanged => fn item_changed(index: usize, property: PropertyChanged), layout: false);
+}
+
+#[derive(Debug, Clone)]
+pub enum FieldKind {
+    Collection(Box<CollectionChanged>),
+    Inspectable(Box<PropertyChanged>),
+    Object(ObjectValue),
+}
+
+#[derive(Debug, Clone)]
+pub struct ObjectValue {
+    value: Rc<dyn PropertyValue>,
+}
+
+#[allow(clippy::vtable_address_comparisons)]
+impl PartialEq for ObjectValue {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(&*self.value, &*other.value)
+    }
+}
+
+impl ObjectValue {
+    pub fn cast_value<T: 'static>(&self) -> Option<&T> {
+        (*self.value).as_any().downcast_ref::<T>()
+    }
+
+    pub fn cast_value_cloned<T: Clone + 'static>(&self) -> Option<T> {
+        (*self.value).as_any().downcast_ref::<T>().cloned()
+    }
+}
+
+impl PartialEq for FieldKind {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (FieldKind::Collection(l), FieldKind::Collection(r)) => std::ptr::eq(&**l, &**r),
+            (FieldKind::Inspectable(l), FieldKind::Inspectable(r)) => std::ptr::eq(&**l, &**r),
+            (FieldKind::Object(l), FieldKind::Object(r)) => l == r,
+            _ => false,
+        }
+    }
+}
+
+impl FieldKind {
+    pub fn object<T: PropertyValue>(value: T) -> Self {
+        Self::Object(ObjectValue {
+            value: Rc::new(value),
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PropertyChanged {
+    pub name: String,
+    pub owner_type_id: TypeId,
+    pub value: FieldKind,
+}
+
+impl PropertyChanged {
+    pub fn path(&self) -> String {
+        let mut path = self.name.clone();
+        match self.value {
+            FieldKind::Collection(ref collection_changed) => {
+                if let CollectionChanged::ItemChanged {
+                    ref property,
+                    index,
+                } = **collection_changed
+                {
+                    path += format!("[{}].{}", index, property.path()).as_ref();
+                }
+            }
+            FieldKind::Inspectable(ref inspectable) => {
+                path += format!(".{}", inspectable.path()).as_ref();
+            }
+            FieldKind::Object(_) => {}
+        }
+        path
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum InspectorMessage {
+    Context(InspectorContext),
+    PropertyChanged(PropertyChanged),
+}
+
+impl InspectorMessage {
+    define_constructor!(InspectorMessage:Context => fn context(InspectorContext), layout: false);
+    define_constructor!(InspectorMessage:PropertyChanged => fn property_changed(PropertyChanged), layout: false);
+}
 
 pub trait InspectorEnvironment: Any + Send + Sync {
     fn as_any(&self) -> &dyn Any;

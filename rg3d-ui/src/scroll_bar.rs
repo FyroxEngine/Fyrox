@@ -1,7 +1,7 @@
 use crate::{
     border::BorderBuilder,
     brush::{Brush, GradientPoint},
-    button::ButtonBuilder,
+    button::{ButtonBuilder, ButtonMessage},
     canvas::CanvasBuilder,
     core::{
         algebra::Vector2,
@@ -10,18 +10,30 @@ use crate::{
         pool::Handle,
     },
     decorator::DecoratorBuilder,
+    define_constructor,
     grid::{Column, GridBuilder, Row},
-    message::{
-        ButtonMessage, MessageDirection, ScrollBarMessage, TextMessage, UiMessage, WidgetMessage,
-    },
-    text::TextBuilder,
+    message::{MessageDirection, UiMessage},
+    text::{TextBuilder, TextMessage},
     utils::{make_arrow, ArrowDirection},
-    widget::{Widget, WidgetBuilder},
+    widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, Thickness, UiNode,
     UserInterface, VerticalAlignment, BRUSH_LIGHT, BRUSH_LIGHTER, BRUSH_LIGHTEST, COLOR_DARKEST,
     COLOR_LIGHTEST,
 };
 use std::ops::{Deref, DerefMut};
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ScrollBarMessage {
+    Value(f32),
+    MinValue(f32),
+    MaxValue(f32),
+}
+
+impl ScrollBarMessage {
+    define_constructor!(ScrollBarMessage:Value => fn value(f32), layout: false);
+    define_constructor!(ScrollBarMessage:MaxValue => fn max_value(f32), layout: false);
+    define_constructor!(ScrollBarMessage:MinValue => fn min_value(f32), layout: false);
+}
 
 #[derive(Clone)]
 pub struct ScrollBar {

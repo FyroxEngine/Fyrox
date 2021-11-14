@@ -1,14 +1,14 @@
 use crate::{
-    color::ColorFieldBuilder,
+    color::{ColorFieldBuilder, ColorFieldMessage},
     core::color::Color,
     inspector::{
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext,
         },
-        InspectorError,
+        FieldKind, InspectorError, PropertyChanged,
     },
-    message::{ColorFieldMessage, FieldKind, MessageDirection, PropertyChanged, UiMessage},
+    message::{MessageDirection, UiMessage},
     widget::WidgetBuilder,
     Thickness,
 };

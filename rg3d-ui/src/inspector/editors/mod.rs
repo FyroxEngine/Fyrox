@@ -1,12 +1,12 @@
-use crate::inspector::editors::bool::BoolPropertyEditorDefinition;
-use crate::inspector::editors::range::RangePropertyEditorDefinition;
 use crate::{
     core::{inspect::PropertyInfo, pool::Handle},
     inspector::{
         editors::{
+            bool::BoolPropertyEditorDefinition,
             color::ColorPropertyEditorDefinition,
             numeric::NumericPropertyEditorDefinition,
             quat::QuatPropertyEditorDefinition,
+            range::RangePropertyEditorDefinition,
             rect::RectPropertyEditorDefinition,
             string::StringPropertyEditorDefinition,
             vec::{
@@ -14,9 +14,9 @@ use crate::{
                 Vec4PropertyEditorDefinition,
             },
         },
-        InspectorEnvironment, InspectorError,
+        InspectorEnvironment, InspectorError, PropertyChanged,
     },
-    message::{PropertyChanged, UiMessage},
+    message::UiMessage,
     BuildContext, UiNode, UserInterface,
 };
 use std::{any::TypeId, collections::HashMap, fmt::Debug, rc::Rc};

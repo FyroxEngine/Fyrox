@@ -9,10 +9,6 @@
 pub mod shared;
 
 use crate::shared::create_camera;
-use rg3d::engine::resource_manager::MaterialSearchOptions;
-use rg3d::engine::Engine;
-use rg3d::gui::UiNode;
-use rg3d::utils::log::{Log, MessageKind};
 use rg3d::{
     animation::Animation,
     core::{
@@ -20,31 +16,35 @@ use rg3d::{
         color::Color,
         pool::Handle,
     },
-    engine::resource_manager::ResourceManager,
+    engine::{
+        resource_manager::{MaterialSearchOptions, ResourceManager},
+        Engine,
+    },
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
         border::BorderBuilder,
-        button::ButtonBuilder,
+        button::{ButtonBuilder, ButtonMessage},
         decorator::DecoratorBuilder,
-        dropdown_list::DropdownListBuilder,
+        dropdown_list::{DropdownListBuilder, DropdownListMessage},
+        formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
-        message::{
-            ButtonMessage, DropdownListMessage, MessageDirection, ScrollBarMessage, TextMessage,
-        },
-        scroll_bar::ScrollBarBuilder,
+        message::MessageDirection,
+        scroll_bar::{ScrollBarBuilder, ScrollBarMessage},
         stack_panel::StackPanelBuilder,
-        text::TextBuilder,
+        text::{TextBuilder, TextMessage},
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
-        HorizontalAlignment, Orientation, Thickness, VerticalAlignment,
+        HorizontalAlignment, Orientation, Thickness, UiNode, VerticalAlignment,
     },
     monitor::VideoMode,
     scene::{node::Node, Scene},
-    utils::translate_event,
+    utils::{
+        log::{Log, MessageKind},
+        translate_event,
+    },
     window::Fullscreen,
 };
-use rg3d_ui::formatted_text::WrapMode;
 use std::time::Instant;
 
 const DEFAULT_MODEL_ROTATION: f32 = 180.0;

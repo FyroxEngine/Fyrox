@@ -2,14 +2,34 @@ use crate::{
     border::{Border, BorderBuilder},
     brush::{Brush, GradientPoint},
     core::{algebra::Vector2, color::Color, pool::Handle},
+    define_constructor,
     draw::DrawingContext,
-    message::{DecoratorMessage, MessageDirection, UiMessage, WidgetMessage},
-    widget::Widget,
+    message::{MessageDirection, UiMessage},
+    widget::{Widget, WidgetMessage},
     BuildContext, Control, NodeHandleMapping, UiNode, UserInterface, BRUSH_BRIGHT, BRUSH_LIGHT,
     BRUSH_LIGHTER, BRUSH_LIGHTEST, COLOR_DARKEST, COLOR_LIGHTEST,
 };
-use std::ops::{Deref, DerefMut};
-use std::sync::mpsc::Sender;
+use std::{
+    ops::{Deref, DerefMut},
+    sync::mpsc::Sender,
+};
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum DecoratorMessage {
+    Select(bool),
+    HoverBrush(Brush),
+    NormalBrush(Brush),
+    PressedBrush(Brush),
+    SelectedBrush(Brush),
+}
+
+impl DecoratorMessage {
+    define_constructor!(DecoratorMessage:Select => fn select(bool), layout: false);
+    define_constructor!(DecoratorMessage:HoverBrush => fn hover_brush(Brush), layout: false);
+    define_constructor!(DecoratorMessage:NormalBrush => fn normal_brush(Brush), layout: false);
+    define_constructor!(DecoratorMessage:PressedBrush => fn pressed_brush(Brush), layout: false);
+    define_constructor!(DecoratorMessage:SelectedBrush => fn selected_brush(Brush), layout: false);
+}
 
 /// A visual element that changes its appearance by listening specific events.
 /// It can has "pressed", "hover", "selected" or normal appearance:

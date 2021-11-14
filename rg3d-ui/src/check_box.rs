@@ -2,16 +2,26 @@ use crate::{
     border::BorderBuilder,
     brush::Brush,
     core::{color::Color, pool::Handle},
+    define_constructor,
     grid::{Column, GridBuilder, Row},
-    message::{CheckBoxMessage, MessageDirection, UiMessage, WidgetMessage},
+    message::{MessageDirection, UiMessage},
     vector_image::{Primitive, VectorImageBuilder},
-    widget::{Widget, WidgetBuilder},
+    widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Thickness, UiNode,
     UserInterface, VerticalAlignment, BRUSH_BRIGHT, BRUSH_DARK, BRUSH_LIGHT, BRUSH_TEXT,
 };
 use rg3d_core::algebra::Vector2;
 
 use std::ops::{Deref, DerefMut};
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum CheckBoxMessage {
+    Check(Option<bool>),
+}
+
+impl CheckBoxMessage {
+    define_constructor!(CheckBoxMessage:Check => fn checked(Option<bool>), layout: false);
+}
 
 #[derive(Clone)]
 pub struct CheckBox {
@@ -261,12 +271,10 @@ impl CheckBoxBuilder {
 
 #[cfg(test)]
 mod test {
+    use crate::check_box::CheckBoxMessage;
     use crate::{
-        check_box::CheckBoxBuilder,
-        core::algebra::Vector2,
-        message::{CheckBoxMessage, MessageDirection},
-        widget::WidgetBuilder,
-        UserInterface,
+        check_box::CheckBoxBuilder, core::algebra::Vector2, message::MessageDirection,
+        widget::WidgetBuilder, UserInterface,
     };
 
     #[test]

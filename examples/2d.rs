@@ -4,17 +4,16 @@
 //!
 //! This example shows simple 2D scene with light sources.
 
-use rg3d::engine::Engine;
-use rg3d::gui::UiNode;
 use rg3d::{
     core::{algebra::Vector2, pool::Handle},
-    engine::{framework::prelude::*, resource_manager::ResourceManager},
+    engine::{framework::prelude::*, resource_manager::ResourceManager, Engine},
     event::{ElementState, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
     gui::{
-        message::{MessageDirection, TextMessage},
-        text::TextBuilder,
+        message::MessageDirection,
+        text::{TextBuilder, TextMessage},
         widget::WidgetBuilder,
+        UiNode,
     },
     scene2d::{
         base::BaseBuilder, camera::CameraBuilder, light::point::PointLightBuilder,

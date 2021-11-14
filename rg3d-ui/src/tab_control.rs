@@ -1,12 +1,11 @@
-use crate::message::MessageDirection;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
-    button::ButtonBuilder,
+    button::{ButtonBuilder, ButtonMessage},
     core::{color::Color, pool::Handle},
     grid::{Column, GridBuilder, Row},
-    message::{ButtonMessage, UiMessage, WidgetMessage},
-    widget::{Widget, WidgetBuilder},
+    message::{MessageDirection, UiMessage},
+    widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, NodeHandleMapping, UiNode, UserInterface,
 };
 use std::ops::{Deref, DerefMut};

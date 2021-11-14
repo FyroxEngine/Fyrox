@@ -4,19 +4,34 @@
 use crate::{
     border::BorderBuilder,
     core::{algebra::Vector2, pool::Handle},
+    define_constructor,
     grid::{Column, GridBuilder, Row},
-    list_view::ListViewBuilder,
-    message::{
-        DropdownListMessage, ListViewMessage, MessageDirection, PopupMessage, UiMessage,
-        WidgetMessage,
-    },
-    popup::{Placement, PopupBuilder},
+    list_view::{ListViewBuilder, ListViewMessage},
+    message::{MessageDirection, UiMessage},
+    popup::{Placement, PopupBuilder, PopupMessage},
     utils::{make_arrow, ArrowDirection},
     widget::Widget,
-    widget::WidgetBuilder,
+    widget::{WidgetBuilder, WidgetMessage},
     BuildContext, Control, NodeHandleMapping, UiNode, UserInterface, BRUSH_LIGHT,
 };
 use std::ops::{Deref, DerefMut};
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum DropdownListMessage {
+    SelectionChanged(Option<usize>),
+    Items(Vec<Handle<UiNode>>),
+    AddItem(Handle<UiNode>),
+    Open,
+    Close,
+}
+
+impl DropdownListMessage {
+    define_constructor!(DropdownListMessage:SelectionChanged => fn selection(Option<usize>), layout: false);
+    define_constructor!(DropdownListMessage:Items => fn items(Vec<Handle<UiNode >>), layout: false);
+    define_constructor!(DropdownListMessage:AddItem => fn add_item(Handle<UiNode>), layout: false);
+    define_constructor!(DropdownListMessage:Open => fn open(), layout: false);
+    define_constructor!(DropdownListMessage:Close => fn close(), layout: false);
+}
 
 #[derive(Clone)]
 pub struct DropdownList {

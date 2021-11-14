@@ -1,26 +1,23 @@
-use crate::core::algebra::{RealField, SimdRealField, SimdValue};
-use crate::core::num_traits::real::Real;
-use crate::numeric::NumericType;
-use crate::vec::vec3::Vec3EditorMessage;
 use crate::{
     core::{
-        algebra::{UnitQuaternion, Vector3},
+        algebra::{RealField, SimdRealField, SimdValue, UnitQuaternion, Vector3},
         math::{quat_from_euler, RotationOrder},
+        num_traits::real::Real,
     },
     inspector::{
         editors::{
             Layout, PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext,
         },
-        InspectorError,
+        FieldKind, InspectorError, PropertyChanged,
     },
-    message::{FieldKind, MessageDirection, PropertyChanged, UiMessage},
-    vec::vec3::Vec3EditorBuilder,
+    message::{MessageDirection, UiMessage},
+    numeric::NumericType,
+    vec::vec3::{Vec3EditorBuilder, Vec3EditorMessage},
     widget::WidgetBuilder,
     Thickness,
 };
-use std::any::TypeId;
-use std::marker::PhantomData;
+use std::{any::TypeId, marker::PhantomData};
 
 #[derive(Debug)]
 pub struct QuatPropertyEditorDefinition<T>

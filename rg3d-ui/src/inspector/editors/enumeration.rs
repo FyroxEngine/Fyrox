@@ -1,10 +1,9 @@
-use crate::dropdown_list::DropdownList;
 use crate::{
     border::BorderBuilder,
     core::{inspect::Inspect, pool::Handle},
     decorator::DecoratorBuilder,
     define_constructor,
-    dropdown_list::DropdownListBuilder,
+    dropdown_list::{DropdownList, DropdownListBuilder, DropdownListMessage},
     grid::{Column, GridBuilder, Row},
     inspector::{
         editors::{
@@ -12,13 +11,10 @@ use crate::{
             PropertyEditorDefinitionContainer, PropertyEditorInstance,
             PropertyEditorMessageContext,
         },
-        Inspector, InspectorBuilder, InspectorContext, InspectorEnvironment, InspectorError,
-        HEADER_MARGIN, NAME_COLUMN_WIDTH,
+        FieldKind, Inspector, InspectorBuilder, InspectorContext, InspectorEnvironment,
+        InspectorError, InspectorMessage, PropertyChanged, HEADER_MARGIN, NAME_COLUMN_WIDTH,
     },
-    message::{
-        DropdownListMessage, FieldKind, InspectorMessage, MessageDirection, PropertyChanged,
-        UiMessage,
-    },
+    message::{MessageDirection, UiMessage},
     text::TextBuilder,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,

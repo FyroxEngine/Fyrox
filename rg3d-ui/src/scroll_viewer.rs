@@ -1,18 +1,28 @@
-use crate::core::algebra::Vector2;
-use crate::scroll_bar::ScrollBar;
 use crate::{
+    core::algebra::Vector2,
     core::pool::Handle,
+    define_constructor,
     grid::{Column, GridBuilder, Row},
-    message::{
-        MessageDirection, ScrollBarMessage, ScrollPanelMessage, ScrollViewerMessage, UiMessage,
-        WidgetMessage,
-    },
-    scroll_bar::ScrollBarBuilder,
-    scroll_panel::ScrollPanelBuilder,
-    widget::{Widget, WidgetBuilder},
+    message::{MessageDirection, UiMessage},
+    scroll_bar::{ScrollBar, ScrollBarBuilder, ScrollBarMessage},
+    scroll_panel::{ScrollPanelBuilder, ScrollPanelMessage},
+    widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, NodeHandleMapping, Orientation, UiNode, UserInterface,
 };
 use std::ops::{Deref, DerefMut};
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ScrollViewerMessage {
+    Content(Handle<UiNode>),
+    /// Adjusts vertical and horizontal scroll values so given node will be in "view box"
+    /// of scroll viewer.
+    BringIntoView(Handle<UiNode>),
+}
+
+impl ScrollViewerMessage {
+    define_constructor!(ScrollViewerMessage:Content => fn content(Handle<UiNode>), layout: false);
+    define_constructor!(ScrollViewerMessage:BringIntoView=> fn bring_into_view(Handle<UiNode>), layout: true);
+}
 
 #[derive(Clone)]
 pub struct ScrollViewer {

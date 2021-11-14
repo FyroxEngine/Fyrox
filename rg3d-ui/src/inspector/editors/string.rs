@@ -4,10 +4,10 @@ use crate::{
             Layout, PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext,
         },
-        InspectorError,
+        FieldKind, InspectorError, PropertyChanged,
     },
-    message::{FieldKind, MessageDirection, PropertyChanged, TextBoxMessage, UiMessage},
-    text_box::TextBoxBuilder,
+    message::{MessageDirection, UiMessage},
+    text_box::{TextBoxBuilder, TextBoxMessage},
     widget::WidgetBuilder,
     Thickness, VerticalAlignment,
 };

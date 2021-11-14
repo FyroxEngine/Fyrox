@@ -1,13 +1,11 @@
-use crate::core::algebra::Vector2;
-use crate::formatted_text::WrapMode;
-use crate::ttf::SharedFont;
 use crate::{
     brush::Brush,
-    core::{color::Color, pool::Handle},
+    core::{algebra::Vector2, color::Color, pool::Handle},
+    define_constructor,
     draw::DrawingContext,
-    formatted_text::{FormattedText, FormattedTextBuilder},
-    message::TextMessage,
-    message::UiMessage,
+    formatted_text::{FormattedText, FormattedTextBuilder, WrapMode},
+    message::{MessageDirection, UiMessage},
+    ttf::SharedFont,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, HorizontalAlignment, UiNode, UserInterface, VerticalAlignment,
 };
@@ -15,6 +13,23 @@ use std::{
     cell::RefCell,
     ops::{Deref, DerefMut},
 };
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum TextMessage {
+    Text(String),
+    Wrap(WrapMode),
+    Font(SharedFont),
+    VerticalAlignment(VerticalAlignment),
+    HorizontalAlignment(HorizontalAlignment),
+}
+
+impl TextMessage {
+    define_constructor!(TextMessage:Text => fn text(String), layout: false);
+    define_constructor!(TextMessage:Wrap=> fn wrap(WrapMode), layout: false);
+    define_constructor!(TextMessage:Font => fn font(SharedFont), layout: false);
+    define_constructor!(TextMessage:VerticalAlignment => fn vertical_alignment(VerticalAlignment), layout: false);
+    define_constructor!(TextMessage:HorizontalAlignment => fn horizontal_alignment(HorizontalAlignment), layout: false);
+}
 
 #[derive(Clone)]
 pub struct Text {

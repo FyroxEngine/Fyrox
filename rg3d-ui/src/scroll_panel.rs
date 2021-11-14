@@ -1,13 +1,28 @@
-use crate::draw::Draw;
 use crate::{
     brush::Brush,
     core::{algebra::Vector2, color::Color, math::Rect, pool::Handle, scope_profile},
-    draw::{CommandTexture, DrawingContext},
-    message::{MessageDirection, ScrollPanelMessage, UiMessage},
+    define_constructor,
+    draw::{CommandTexture, Draw, DrawingContext},
+    message::{MessageDirection, UiMessage},
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
 use std::ops::{Deref, DerefMut};
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ScrollPanelMessage {
+    VerticalScroll(f32),
+    HorizontalScroll(f32),
+    /// Adjusts vertical and horizontal scroll values so given node will be in "view box"
+    /// of scroll panel.
+    BringIntoView(Handle<UiNode>),
+}
+
+impl ScrollPanelMessage {
+    define_constructor!(ScrollPanelMessage:VerticalScroll => fn vertical_scroll(f32), layout: false);
+    define_constructor!(ScrollPanelMessage:HorizontalScroll => fn horizontal_scroll(f32), layout: false);
+    define_constructor!(ScrollPanelMessage:BringIntoView => fn bring_into_view(Handle<UiNode>), layout: true);
+}
 
 /// Allows user to scroll content
 #[derive(Clone)]

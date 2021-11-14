@@ -3,15 +3,13 @@ use crate::{
     brush::Brush,
     core::{algebra::Vector2, color::Color, pool::Handle},
     decorator::DecoratorBuilder,
+    define_constructor,
     grid::{Column, GridBuilder, Row},
-    message::{
-        ButtonState, MenuItemMessage, MenuMessage, MessageDirection, OsEvent, PopupMessage,
-        UiMessage, WidgetMessage,
-    },
-    popup::{Placement, Popup, PopupBuilder},
+    message::{ButtonState, MessageDirection, OsEvent, UiMessage},
+    popup::{Placement, Popup, PopupBuilder, PopupMessage},
     stack_panel::StackPanelBuilder,
     text::TextBuilder,
-    widget::{Widget, WidgetBuilder},
+    widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, RestrictionEntry,
     Thickness, UiNode, UserInterface, VerticalAlignment, BRUSH_BRIGHT_BLUE, BRUSH_PRIMARY,
 };
@@ -19,6 +17,30 @@ use std::{
     ops::{Deref, DerefMut},
     rc::Rc,
 };
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum MenuMessage {
+    Activate,
+    Deactivate,
+}
+
+impl MenuMessage {
+    define_constructor!(MenuMessage:Activate => fn activate(), layout: false);
+    define_constructor!(MenuMessage:Deactivate => fn deactivate(), layout: false);
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum MenuItemMessage {
+    Open,
+    Close,
+    Click,
+}
+
+impl MenuItemMessage {
+    define_constructor!(MenuItemMessage:Open => fn open(), layout: false);
+    define_constructor!(MenuItemMessage:Close => fn close(), layout: false);
+    define_constructor!(MenuItemMessage:Click => fn click(), layout: false);
+}
 
 #[derive(Clone)]
 pub struct Menu {

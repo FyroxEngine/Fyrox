@@ -2,16 +2,32 @@ use crate::{
     border::BorderBuilder,
     brush::Brush,
     core::{color::Color, pool::Handle},
-    decorator::Decorator,
+    decorator::{Decorator, DecoratorMessage},
+    define_constructor,
     draw::{CommandTexture, Draw, DrawingContext},
-    message::{DecoratorMessage, ListViewMessage, MessageDirection, UiMessage, WidgetMessage},
+    message::{MessageDirection, UiMessage},
     scroll_viewer::{ScrollViewer, ScrollViewerBuilder},
     stack_panel::StackPanelBuilder,
-    widget::{Widget, WidgetBuilder},
+    widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, NodeHandleMapping, Thickness, UiNode, UserInterface, BRUSH_DARK,
     BRUSH_LIGHT,
 };
 use std::ops::{Deref, DerefMut};
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ListViewMessage {
+    SelectionChanged(Option<usize>),
+    Items(Vec<Handle<UiNode>>),
+    AddItem(Handle<UiNode>),
+    RemoveItem(Handle<UiNode>),
+}
+
+impl ListViewMessage {
+    define_constructor!(ListViewMessage:SelectionChanged => fn selection(Option<usize>), layout: false);
+    define_constructor!(ListViewMessage:Items => fn items(Vec<Handle<UiNode >>), layout: false);
+    define_constructor!(ListViewMessage:AddItem => fn add_item(Handle<UiNode>), layout: false);
+    define_constructor!(ListViewMessage:RemoveItem => fn remove_item(Handle<UiNode>), layout: false);
+}
 
 #[derive(Clone)]
 pub struct ListView {
