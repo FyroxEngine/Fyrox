@@ -371,6 +371,10 @@ impl<T> Pool<T> {
         }
     }
 
+    fn records_len(&self) -> u32 {
+        u32::try_from(self.records.len()).expect("Number of records overflowed u32")
+    }
+
     #[inline]
     #[must_use]
     pub fn spawn(&mut self, payload: T) -> Handle<T> {
@@ -386,7 +390,7 @@ impl<T> Pool<T> {
     /// In typical uses cases `n` is very low. It should be noted that if a pool is filled entirely
     /// and you trying to put an object at the end of pool, the method will have O(1) complexity.    
     #[inline]
-    pub fn spawn_at(&mut self, index: usize, payload: T) -> Result<Handle<T>, T> {
+    pub fn spawn_at(&mut self, index: u32, payload: T) -> Result<Handle<T>, T> {
         self.spawn_at_internal(index, INVALID_GENERATION, payload)
     }
 
@@ -399,23 +403,24 @@ impl<T> Pool<T> {
     /// In typical uses cases `n` is very low. It should be noted that if a pool is filled entirely
     /// and you trying to put an object at the end of pool, the method will have O(1) complexity.   
     pub fn spawn_at_handle(&mut self, handle: Handle<T>, payload: T) -> Result<Handle<T>, T> {
-        self.spawn_at_internal(handle.index as usize, handle.generation, payload)
+        self.spawn_at_internal(handle.index, handle.generation, payload)
     }
 
     fn spawn_at_internal(
         &mut self,
-        index: usize,
+        index: u32,
         desired_generation: u32,
         payload: T,
     ) -> Result<Handle<T>, T> {
-        match self.records.get_mut(index) {
+        let index_usize = usize::try_from(index).expect("Couldn't convert index to usize");
+        match self.records.get_mut(index_usize) {
             Some(record) => match record.payload {
                 Some(_) => Err(payload),
                 None => {
                     let position = self
                         .free_stack
                         .iter()
-                        .rposition(|i| *i == index as u32)
+                        .rposition(|i| *i == index)
                         .expect("free_stack must contain the index of empty record!");
 
                     self.free_stack.remove(position);
@@ -429,17 +434,17 @@ impl<T> Pool<T> {
                     record.generation = generation;
                     record.payload = Some(payload);
 
-                    Ok(Handle::new(index as u32, generation))
+                    Ok(Handle::new(index, generation))
                 }
             },
             None => {
                 // Spawn missing records to fill gaps.
-                for i in self.records.len()..index {
+                for i in self.records_len()..index {
                     self.records.push(PoolRecord {
                         generation: 1,
                         payload: None,
                     });
-                    self.free_stack.push(i as u32);
+                    self.free_stack.push(i);
                 }
 
                 let generation = if desired_generation == INVALID_GENERATION {
@@ -453,7 +458,7 @@ impl<T> Pool<T> {
                     payload: Some(payload),
                 });
 
-                Ok(Handle::new(index as u32, generation))
+                Ok(Handle::new(index, generation))
             }
         }
     }
