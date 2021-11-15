@@ -1,6 +1,6 @@
-#![warn(missing_docs)]
+//! Resource management
 
-//! Resource module contains all structures and method to manage resources.
+#![warn(missing_docs)]
 
 use crate::core::parking_lot::{Mutex, MutexGuard};
 use crate::core::visitor::prelude::*;
