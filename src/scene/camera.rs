@@ -784,7 +784,7 @@ impl SkyBoxBuilder {
 /// skies and/or some other objects (mountains, buildings, etc.). Usually skyboxes used
 /// in outdoor scenes, however real use of it limited only by your imagination. Skybox
 /// will be drawn first, none of objects could be drawn before skybox.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Inspect)]
 pub struct SkyBox {
     /// Texture for front face.
     pub(in crate) front: Option<Texture>,
@@ -799,6 +799,7 @@ pub struct SkyBox {
     /// Texture for bottom face.
     pub(in crate) bottom: Option<Texture>,
     /// Cubemap texture
+    #[inspect(skip)]
     pub(in crate) cubemap: Option<Texture>,
 }
 
