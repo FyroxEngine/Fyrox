@@ -155,6 +155,12 @@ impl<T: Inspect> Inspect for Option<T> {
     }
 }
 
+impl<T: Inspect> Inspect for Box<T> {
+    fn properties(&self) -> Vec<PropertyInfo<'_>> {
+        (**self).properties()
+    }
+}
+
 macro_rules! impl_self_inspect {
     ($ty:ty, $min:expr, $max:expr, $step:expr, $precision:expr) => {
         impl Inspect for $ty {
