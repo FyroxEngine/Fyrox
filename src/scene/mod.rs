@@ -1,8 +1,8 @@
 #![warn(missing_docs)]
 
-//! Contains all structures and methods to create and manage scenes.
+//! Contains all structures and methods to create and manage 3D scenes.
 //!
-//! Scene is container for graph nodes, animations and physics.
+//! A `Scene` is a container for graph nodes, animations and physics.
 
 pub mod accel;
 pub mod base;
