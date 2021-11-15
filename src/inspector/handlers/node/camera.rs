@@ -4,10 +4,11 @@ use crate::{
     scene::commands::camera::*,
 };
 use rg3d::{
-    core::pool::Handle,
+    core::{futures::executor::block_on, pool::Handle},
     gui::inspector::{FieldKind, PropertyChanged},
+    resource::texture::Texture,
     scene::{
-        camera::{Camera, Exposure},
+        camera::{Camera, ColorGradingLut, Exposure},
         node::Node,
     },
 };
@@ -107,6 +108,31 @@ pub fn handle_camera_property_changed(
                                     handle,
                                     Exposure::Manual(value.cast_value::<f32>().cloned()?),
                                 ))
+                            }
+                            _ => None,
+                        }
+                    } else {
+                        None
+                    }
+                }
+                Camera::COLOR_GRADING_LUT => {
+                    if let FieldKind::Object(ref value) = inner.value {
+                        match inner.name.as_ref() {
+                            ColorGradingLut::LUT => {
+                                if let Some(texture) =
+                                    value.cast_value::<Option<Texture>>().cloned()?
+                                {
+                                    if let Ok(lut) = block_on(ColorGradingLut::new(texture)) {
+                                        helper.do_scene_command(SetColorGradingLutCommand::new(
+                                            handle,
+                                            Some(lut),
+                                        ))
+                                    } else {
+                                        None
+                                    }
+                                } else {
+                                    None
+                                }
                             }
                             _ => None,
                         }

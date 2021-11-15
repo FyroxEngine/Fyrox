@@ -8,6 +8,7 @@ use crate::{
     },
     Message,
 };
+use rg3d::scene::camera::ColorGradingLut;
 use rg3d::{
     core::{inspect::Inspect, parking_lot::Mutex, pool::ErasedHandle},
     gui::inspector::editors::{
@@ -220,6 +221,7 @@ pub fn make_property_editors_container(
     container.insert(InspectablePropertyEditorDefinition::<CsmOptions>::new());
     container.insert(make_frustum_split_options_enum_editor_definition());
     container.insert(ArrayPropertyEditorDefinition::<f32, 3>::new());
+    container.insert(make_option_editor_definition::<ColorGradingLut>());
 
     Rc::new(container)
 }
