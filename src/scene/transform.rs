@@ -1,49 +1,47 @@
-//! Contains all structures and methods to create and manage transforms.
+//! Contains all structures and methods to create and manage 3D transforms.
 //!
-//! Transform allows you to combine spatial properties into single matrix in
-//! easy manner. It contains many methods that can be used to modify a single
-//! property of transform which then will be "baked" into single matrix.
+//! `Transform` allows you to combine spatial properties into a single matrix in
+//! an easy manner. It contains many methods that can be used to modify a single
+//! property of a transform which then will be "baked" into the single matrix.
 //!
 //! # Complexity
 //!
-//! rg3d uses complex transform model inherited from FBX transform formulae:
+//! rg3d uses a complex transform model inherited from the [FBX transform formulae](http://download.autodesk.com/us/fbx/20112/FBX_SDK_HELP/index.html?url=WS1a9193826455f5ff1f92379812724681e696651.htm,topicNumber=d0e7429):
 //!
-//! <http://download.autodesk.com/us/fbx/20112/FBX_SDK_HELP/index.html?url=WS1a9193826455f5ff1f92379812724681e696651.htm,topicNumber=d0e7429>
+//! `Transform = T * Roff * Rp * Rpre * R * Rpost * Rp⁻¹ * Soff * Sp * S * Sp⁻¹`
 //!
-//! Transform = T * Roff * Rp * Rpre * R * Rpost * Rp⁻¹ * Soff * Sp * S * Sp⁻¹
+//! where  
+//! `T`     - Translation  
+//! `Roff`  - Rotation offset  
+//! `Rp`    - Rotation pivot  
+//! `Rpre`  - Pre-rotation  
+//! `R`     - Rotation  
+//! `Rpost` - Post-rotation  
+//! `Rp⁻¹`  - Inverse of the rotation pivot  
+//! `Soff`  - Scaling offset  
+//! `Sp`    - Scaling pivot  
+//! `S`     - Scaling  
+//! `Sp⁻¹`  - Inverse of the scaling pivot  
 //!
-//! where
-//! T     - Translation
-//! Roff  - Rotation offset
-//! Rp    - Rotation pivot
-//! Rpre  - Pre-rotation
-//! R     - Rotation
-//! Rpost - Post-rotation
-//! Rp⁻¹  - Inverse of the rotation pivot
-//! Soff  - Scaling offset
-//! Sp    - Scaling pivot
-//! S     - Scaling
-//! Sp⁻¹  - Inverse of the scaling pivot
-//!
-//! It is very flexible, however it can be slow in computation. To solve possible
+//! It is very flexible, however it can be slow to computate. To solve possible
 //! performance issues, rg3d tries to precache every possible component. This means
-//! that we use lazy evaluation: you can setup all required properties, and actual
-//! calculations will be delayed until you try to get matrix from transform. This makes
-//! calculations faster, but increases required amount of memory.
+//! that we use lazy evaluation: you can setup all the required properties, and the actual
+//! calculations will be delayed until you try to get the matrix from the transform. This makes
+//! calculations faster, but increases the required amount of memory.
 //!
-//! In most cases you don't need to bother about all those properties, you need just T R S -
-//! it will cover 99% of requirements.
+//! In most cases you don't need to worry about all those properties, you need just `T`, `R`, `S` -
+//! those will cover 99% of your requirements.
 //!
-//! Fun fact: transform format was dictated by the use of monster called FBX file format.
-//! Some libraries (like assimp) decomposes this complex formula into set of smaller transforms
-//! which are contains only T R S components and then combine them to get final result, I find
-//! this approach very bug prone, and it is still heavy from computation side. It is much
+//! Fun fact: the transform format was dictated by the use of the monster called FBX file format.
+//! Some libraries (like assimp) decompose this complex formula into a set of smaller transforms
+//! which contain only T R S components and then combine them to get the final result, I find
+//! this approach very bug prone and it is still heavy from a computation perspective. It is much
 //! easier to use it as is.
 //!
 //! # Decomposition
 //!
-//! Once transform baked into matrix, it is *almost* impossible to decompose it back into
-//! initial components, thats why engine does not provide any methods to get those
+//! Once the transform is baked into a matrix, it is *almost* impossible to decompose it back into
+//! its initial components, thats why the engine does not provide any methods to get those
 //! properties back.
 
 use crate::{
