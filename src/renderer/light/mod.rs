@@ -588,7 +588,7 @@ impl DeferredLightRenderer {
 
                         true
                     }
-                    Light::Directional(directional) => {
+                    Light::Directional(directional) if settings.csm_settings.enabled => {
                         pass_stats += self.csm_renderer.render(CsmRenderContext {
                             aspect: viewport.w() as f32 / viewport.h() as f32,
                             state,
@@ -603,7 +603,10 @@ impl DeferredLightRenderer {
                             white_dummy: white_dummy.clone(),
                             black_dummy: black_dummy.clone(),
                         });
-                        false
+
+                        light_stats.csm_rendered += 1;
+
+                        true
                     }
                     _ => false,
                 };
@@ -852,10 +855,8 @@ impl DeferredLightRenderer {
                                 )
                                 .set_f32_slice(&shader.cascade_distances, &distances)
                                 .set_matrix4(&shader.view_matrix, &camera.view_matrix())
-                                .set_f32(
-                                    &shader.shadow_bias,
-                                    directional.csm_options.shadow_bias(),
-                                );
+                                .set_f32(&shader.shadow_bias, directional.csm_options.shadow_bias())
+                                .set_bool(&shader.shadows_enabled, shadows_enabled);
                         },
                     )
                 }
