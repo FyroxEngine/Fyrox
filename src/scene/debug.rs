@@ -14,7 +14,7 @@ use std::ops::Range;
 pub struct Line {
     /// Beginning of the line.
     pub begin: Vector3<f32>,
-    /// End of the line.    
+    /// End of the line.
     pub end: Vector3<f32>,
     /// Color of the line.
     pub color: Color,

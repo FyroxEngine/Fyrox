@@ -388,7 +388,7 @@ impl<T> Pool<T> {
     ///
     /// The method has O(n) complexity in worst case, where `n` - amount of free records in the pool.
     /// In typical uses cases `n` is very low. It should be noted that if a pool is filled entirely
-    /// and you trying to put an object at the end of pool, the method will have O(1) complexity.    
+    /// and you trying to put an object at the end of pool, the method will have O(1) complexity.
     #[inline]
     pub fn spawn_at(&mut self, index: u32, payload: T) -> Result<Handle<T>, T> {
         self.spawn_at_internal(index, INVALID_GENERATION, payload)
@@ -401,7 +401,7 @@ impl<T> Pool<T> {
     ///
     /// The method has O(n) complexity in worst case, where `n` - amount of free records in the pool.
     /// In typical uses cases `n` is very low. It should be noted that if a pool is filled entirely
-    /// and you trying to put an object at the end of pool, the method will have O(1) complexity.   
+    /// and you trying to put an object at the end of pool, the method will have O(1) complexity.
     pub fn spawn_at_handle(&mut self, handle: Handle<T>, payload: T) -> Result<Handle<T>, T> {
         self.spawn_at_internal(handle.index, handle.generation, payload)
     }

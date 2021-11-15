@@ -1,7 +1,7 @@
 //! Forward renderer is used to render transparent meshes and meshes with custom blending options.
 //!
 //! # Notes
-//!  
+//!
 //! This renderer eventually will replace deferred renderer, because deferred renderer is too restrictive.
 //! For now it is used **only** to render transparent meshes (or any other mesh that has Forward render
 //! path).

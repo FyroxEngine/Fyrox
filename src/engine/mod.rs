@@ -42,7 +42,7 @@ pub struct Engine {
     pub renderer: Renderer,
     /// User interface allows you to build interface of any kind. UI itself is *not* thread-safe,
     /// but it uses messages to "talk" with outside world and message queue (MPSC) *is* thread-safe
-    /// so its sender part can be shared across threads.   
+    /// so its sender part can be shared across threads.
     pub user_interface: UserInterface,
     /// Sound context control all sound sources in the engine. It is wrapped into Arc<Mutex<>>
     /// because internally sound engine spawns separate thread to mix and send data to sound

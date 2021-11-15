@@ -162,7 +162,7 @@ pub struct Intersection {
     pub position: Point<f32>,
 
     /// Additional data that contains a kind of the feature with which
-    /// intersection was detected as well as its index.    
+    /// intersection was detected as well as its index.
     ///
     /// # Important notes.
     ///
