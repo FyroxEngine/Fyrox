@@ -440,10 +440,11 @@ pub enum ColorGradingLutCreationError {
 /// games - this is achieved by color grading.
 ///
 /// See [more info in Unreal engine docs](https://docs.unrealengine.com/4.26/en-US/RenderingAndGraphics/PostProcessEffects/UsingLUTs/)
-#[derive(Visit, Clone, Default, Debug)]
+#[derive(Visit, Clone, Default, Debug, Inspect)]
 pub struct ColorGradingLut {
     #[visit(skip)]
     lut: Option<Texture>,
+    #[inspect(skip)]
     unwrapped_lut: Option<Texture>,
 }
 
