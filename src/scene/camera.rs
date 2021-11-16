@@ -879,6 +879,60 @@ impl SkyBox {
             self.back.clone(),
         ]
     }
+
+    /// Returns a texture that is used for left face of the cube map.
+    ///
+    /// # Important notes.
+    ///
+    /// This textures is not used for rendering! The renderer uses cube map made of face textures.
+    pub fn left(&self) -> Option<Texture> {
+        self.left.clone()
+    }
+
+    /// Returns a texture that is used for right face of the cube map.
+    ///
+    /// # Important notes.
+    ///
+    /// This textures is not used for rendering! The renderer uses cube map made of face textures.
+    pub fn right(&self) -> Option<Texture> {
+        self.right.clone()
+    }
+
+    /// Returns a texture that is used for top face of the cube map.
+    ///
+    /// # Important notes.
+    ///
+    /// This textures is not used for rendering! The renderer uses cube map made of face textures.
+    pub fn top(&self) -> Option<Texture> {
+        self.top.clone()
+    }
+
+    /// Returns a texture that is used for bottom face of the cube map.
+    ///
+    /// # Important notes.
+    ///
+    /// This textures is not used for rendering! The renderer uses cube map made of face textures.
+    pub fn bottom(&self) -> Option<Texture> {
+        self.bottom.clone()
+    }
+
+    /// Returns a texture that is used for front face of the cube map.
+    ///
+    /// # Important notes.
+    ///
+    /// This textures is not used for rendering! The renderer uses cube map made of face textures.
+    pub fn front(&self) -> Option<Texture> {
+        self.front.clone()
+    }
+
+    /// Returns a texture that is used for back face of the cube map.
+    ///
+    /// # Important notes.
+    ///
+    /// This textures is not used for rendering! The renderer uses cube map made of face textures.
+    pub fn back(&self) -> Option<Texture> {
+        self.back.clone()
+    }
 }
 
 impl Visit for SkyBox {
