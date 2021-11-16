@@ -1,3 +1,7 @@
+//! Core data structures and algorithms used throughout rg3d.
+//!
+//! Some of them can be useful separately outside the engine.
+
 #![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::from_over_into)]
 

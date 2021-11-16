@@ -213,7 +213,7 @@ fn map_to_local(v: Vector3<f32>) -> Vector2<f32> {
     Vector2::new(v.x, v.z)
 }
 
-/// Ray-terrain intersection result.  
+/// Ray-terrain intersection result.
 #[derive(Debug)]
 pub struct TerrainRayCastResult {
     /// World-space position of impact point.

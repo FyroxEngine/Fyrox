@@ -162,7 +162,7 @@ pub enum PropertyKind {
     /// The colors you see on your monitor are in sRGB color space, this is fine for simple cases
     /// of rendering, but not for complex things like lighting. Such things require color to be
     /// linear. Value of this variant will be automatically **converted to linear color space**
-    /// before it passed to shader.  
+    /// before it passed to shader.
     Color {
         /// Default Red.
         r: u8,

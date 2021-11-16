@@ -31,7 +31,7 @@ use my savings to drive development forward, I'm looking for any financial suppo
 ## Tutorials and learning materials
 
 ### Book
-[Read the official rg3d book here.](https://rg3d-book.github.io) 
+[Read the official rg3d book here.](https://rg3d-book.github.io)
 
 ### Writing a 3D Shooter using rg3d:
 - [#1 Character controller](https://rg3d.rs/tutorials/2021/03/05/tutorial1.html)

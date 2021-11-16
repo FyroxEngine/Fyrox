@@ -1056,7 +1056,7 @@ impl ResourceManagerState {
     /// Returns percentage of loading progress. This method is useful to show progress on
     /// loading screen in your game. This method could be used alone if your game depends
     /// only on external resources, or if your game doing some heavy calculations this value
-    /// can be combined with progress of your tasks.  
+    /// can be combined with progress of your tasks.
     pub fn loading_progress(&self) -> usize {
         let registered = self.count_registered_resources();
         if registered > 0 {

@@ -1,8 +1,8 @@
 #![warn(missing_docs)]
 
-//! Contains all structures and methods to create and manage scenes.
+//! Contains all structures and methods to create and manage 3D scenes.
 //!
-//! Scene is container for graph nodes, animations and physics.
+//! A `Scene` is a container for graph nodes, animations and physics.
 
 pub mod accel;
 pub mod base;
@@ -428,7 +428,7 @@ impl Scene {
     }
 
     /// Removes node from scene with all associated entities, like animations etc. This method
-    /// should be used all times instead of [Graph::remove_node](crate::scene::graph::Graph::remove_node),     
+    /// should be used all times instead of [Graph::remove_node](crate::scene::graph::Graph::remove_node).
     ///
     /// # Panics
     ///

@@ -140,7 +140,7 @@ impl<'a> PropertyInfo<'a> {
 /// - `#[inspect(group = "Group Name")]` - override group name.
 /// - `#[inspect(expand)]` - extends the list of properties in case of composition, in other words it
 /// "flattens" and exposes the properties of an inner object. Useful when you have a structure that
-/// has some fields that are complex objects that implements `Inspect` too.  
+/// has some fields that are complex objects that implements `Inspect` too.
 pub trait Inspect {
     /// Returns information about "public" properties.
     fn properties(&self) -> Vec<PropertyInfo<'_>>;
