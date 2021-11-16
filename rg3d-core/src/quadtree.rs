@@ -64,7 +64,7 @@ pub trait BoundsProvider {
 
 pub enum QuadTreeBuildError {
     /// It means that given split threshold is too low for an algorithm to build quad tree.
-    /// Make it larger and try again. Also this might mean that your initial bounds are too small.  
+    /// Make it larger and try again. Also this might mean that your initial bounds are too small.
     ReachedRecursionLimit,
 }
 

@@ -8,7 +8,7 @@
 //! for inventory and so on. With this approach of multiple contexts it is very easy to manage such scenes:
 //! for example your main menu have a complex scene with some sounds and you decide to load a game level -
 //! once the level is loaded you just set master gain of main menu context and it will no longer produce any
-//! sounds, only your level will do.  
+//! sounds, only your level will do.
 
 use crate::pool::Ticket;
 use crate::{

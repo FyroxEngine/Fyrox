@@ -2,7 +2,7 @@
 //!
 //! # Limitations
 //!
-//! Vertex size cannot be more than 256 bytes, this limitation shouldn't be a problem because  
+//! Vertex size cannot be more than 256 bytes, this limitation shouldn't be a problem because
 //! almost every GPU supports up to 16 vertex attributes with 16 bytes of size each, which
 //! gives exactly 256 bytes.
 
@@ -566,7 +566,7 @@ impl VertexBuffer {
         }
     }
 
-    /// Creates iterator that emits read accessors for vertices.    
+    /// Creates iterator that emits read accessors for vertices.
     pub fn iter(&self) -> impl Iterator<Item = VertexViewRef<'_>> + '_ {
         VertexViewRefIterator {
             data: &self.data,

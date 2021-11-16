@@ -186,7 +186,7 @@ impl AxisAlignedBoundingBox {
     /// Transforms axis-aligned bounding box using given affine transformation matrix.
     ///
     /// # References
-    ///     
+    ///
     /// Transforming Axis-Aligned Bounding Boxes by Jim Arvo, "Graphics Gems", Academic Press, 1990
     #[inline]
     #[must_use]

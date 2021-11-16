@@ -1,5 +1,5 @@
 //! Sphere emitter uniformly places particles in spherical volume. Can be used with
-//! radius = 0, then it represents point emitter.   
+//! radius = 0, then it represents point emitter.
 
 use crate::core::numeric_range::RangeExt;
 use crate::{

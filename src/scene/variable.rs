@@ -17,7 +17,7 @@ use std::ops::Deref;
 /// The question is: what should happen with the instance of the object in the scene? Logical answer would be:
 /// if it hasn't been modified, then just take the new position from the 3D model. This is where template
 /// variable comes into play. If you've change the value of such variable, it will remember changes and the object
-/// will stay on its new position instead of changed.   
+/// will stay on its new position instead of changed.
 #[derive(Debug)]
 pub struct TemplateVariable<T> {
     // Actual value.

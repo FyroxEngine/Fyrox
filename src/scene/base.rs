@@ -78,7 +78,7 @@ pub struct LevelOfDetail {
 }
 
 impl LevelOfDetail {
-    /// Creates new level of detail.    
+    /// Creates new level of detail.
     pub fn new(begin: f32, end: f32, objects: Vec<Handle<Node>>) -> Self {
         for object in objects.iter() {
             // Invalid handles are not allowed.
@@ -127,7 +127,7 @@ impl LevelOfDetail {
 /// if distance satisfy cascade range. LOD may significantly improve performance if your scene
 /// contains lots of high poly objects and objects may be far away from camera. Distant objects
 /// in this case will be rendered with lower details freeing precious GPU resources for other
-/// useful tasks.   
+/// useful tasks.
 ///
 /// Lod group must contain non-overlapping cascades, each cascade with its own set of objects
 /// that belongs to level of detail. Engine does not care if you create overlapping cascades,

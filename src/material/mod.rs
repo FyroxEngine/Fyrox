@@ -94,7 +94,7 @@ pub enum PropertyValue {
     /// The colors you see on your monitor are in sRGB color space, this is fine for simple cases
     /// of rendering, but not for complex things like lighting. Such things require color to be
     /// linear. Value of this variant will be automatically **converted to linear color space**
-    /// before it passed to shader.  
+    /// before it passed to shader.
     Color(Color),
 
     /// A texture with fallback option.
@@ -298,7 +298,7 @@ impl Default for PropertyValue {
 ///             fallback: SamplerFallback::White
 ///         })
 ///         .unwrap();
-///     
+///
 ///     material
 /// }
 /// ```
@@ -322,7 +322,7 @@ impl Default for PropertyValue {
 ///
 /// async fn create_grass_material(resource_manager: ResourceManager) -> Material {
 ///     let shader = resource_manager.request_shader("my_grass_shader.ron").await.unwrap();
-///     
+///
 ///     // Here we assume that the material really has the properties defined below.
 ///     let mut material = Material::from_shader(shader, Some(resource_manager));
 ///
@@ -397,7 +397,7 @@ impl Material {
     ///             fallback: SamplerFallback::White
     ///         })
     ///         .unwrap();
-    ///     
+    ///
     ///     material
     /// }
     /// ```
@@ -429,7 +429,7 @@ impl Material {
     ///
     /// async fn create_grass_material(resource_manager: ResourceManager) -> Material {
     ///     let shader = resource_manager.request_shader("my_grass_shader.ron").await.unwrap();
-    ///     
+    ///
     ///     // Here we assume that the material really has the properties defined below.
     ///     let mut material = Material::from_shader(shader, Some(resource_manager));
     ///

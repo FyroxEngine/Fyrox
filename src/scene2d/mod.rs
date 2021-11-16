@@ -1,3 +1,7 @@
+//! Contains all structures and methods to create and manage 2D scenes.
+//!
+//! A `Scene` is a container for graph nodes, animations and physics.
+
 use crate::physics2d::PhysicsPerformanceStatistics;
 use crate::physics2d::RigidBodyHandle;
 use crate::{

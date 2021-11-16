@@ -1,6 +1,6 @@
-#![warn(missing_docs)]
+//! Resource management
 
-//! Resource module contains all structures and method to manage resources.
+#![warn(missing_docs)]
 
 use crate::core::parking_lot::{Mutex, MutexGuard};
 use crate::core::visitor::prelude::*;
@@ -41,7 +41,7 @@ impl<T> ResourceLoadError for T where T: 'static + Debug + Send + Sync {}
 /// Long answer: when you loading a scene you expect it to be loaded as fast as
 /// possible, use all available power of the CPU. To achieve that each resource
 /// ideally should be loaded on separate core of the CPU, but since this is
-/// asynchronous, we must have the ability to track the state of the resource.  
+/// asynchronous, we must have the ability to track the state of the resource.
 #[derive(Debug)]
 pub enum ResourceState<T: ResourceData, E: ResourceLoadError> {
     /// Resource is loading from external resource or in the queue to load.
@@ -55,7 +55,7 @@ pub enum ResourceState<T: ResourceData, E: ResourceLoadError> {
     LoadError {
         /// A path at which it was impossible to load the resource.
         path: PathBuf,
-        /// An error. This wrapped in Option only to be Default_ed.        
+        /// An error. This wrapped in Option only to be Default_ed.
         error: Option<Arc<E>>,
     },
     /// Actual resource data when it is fully loaded.
@@ -197,7 +197,7 @@ impl<T: ResourceData, E: ResourceLoadError> Resource<T, E> {
     /// there was load error. Usually this is ok because normally you'd chain this call
     /// like this `resource.await?.data_ref()`. Every resource implements Future trait
     /// and it returns Result, so if you'll await future then you'll get Result, so
-    /// call to `data_ref` will be fine.  
+    /// call to `data_ref` will be fine.
     #[inline]
     pub fn data_ref(&self) -> ResourceDataRef<'_, T, E> {
         ResourceDataRef {
@@ -333,7 +333,7 @@ impl<T: ResourceData, E: ResourceLoadError> Default for ResourceState<T, E> {
     }
 }
 
-/// Defines a new resource type via new-type wrapper.  
+/// Defines a new resource type via new-type wrapper.
 #[macro_export]
 macro_rules! define_new_resource {
     ($(#[$meta:meta])* $name:ident<$state:ty, $error:ty>) => {
