@@ -1614,11 +1614,6 @@ impl UserInterface {
                                 let node = &self.nodes[handle];
                                 if node.is_drag_allowed() {
                                     self.drag_context.drag_node = handle;
-                                    self.drag_context.drag_preview =
-                                        self.copy_node_with_limit(handle, Some(30));
-                                    self.nodes[self.drag_context.drag_preview]
-                                        .set_opacity(Some(0.5));
-
                                     self.stack.clear();
                                     break;
                                 } else if node.parent().is_some() {
@@ -1707,6 +1702,10 @@ impl UserInterface {
                     && self.drag_context.drag_node.is_some()
                     && (self.drag_context.click_pos - *position).norm() > 5.0
                 {
+                    self.drag_context.drag_preview =
+                        self.copy_node_with_limit(self.drag_context.drag_node, Some(30));
+                    self.nodes[self.drag_context.drag_preview].set_opacity(Some(0.5));
+
                     self.drag_context.is_dragging = true;
 
                     self.send_message(WidgetMessage::drag_started(
