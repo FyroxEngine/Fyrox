@@ -6,12 +6,82 @@ use crate::{
 use rg3d::{
     core::{futures::executor::block_on, pool::Handle},
     gui::inspector::{FieldKind, PropertyChanged},
-    resource::texture::Texture,
+    resource::texture::{Texture, TextureWrapMode},
     scene::{
-        camera::{Camera, ColorGradingLut, Exposure},
+        camera::{Camera, ColorGradingLut, Exposure, SkyBox, SkyBoxBuilder},
         node::Node,
     },
 };
+
+#[derive(Copy, Clone, PartialEq, Eq)]
+#[repr(u32)]
+enum SkyBoxFace {
+    Left,
+    Right,
+    Top,
+    Bottom,
+    Front,
+    Back,
+}
+
+fn modify_skybox(
+    camera: &Camera,
+    texture: Option<Texture>,
+    face: SkyBoxFace,
+) -> Option<Box<SkyBox>> {
+    if let Some(skybox) = camera.skybox_ref() {
+        if let Some(texture) = texture.clone() {
+            block_on(texture).ok()?;
+        }
+
+        let skybox = SkyBoxBuilder {
+            front: if face == SkyBoxFace::Front {
+                texture.clone()
+            } else {
+                skybox.front()
+            },
+            back: if face == SkyBoxFace::Back {
+                texture.clone()
+            } else {
+                skybox.back()
+            },
+            left: if face == SkyBoxFace::Left {
+                texture.clone()
+            } else {
+                skybox.left()
+            },
+            right: if face == SkyBoxFace::Right {
+                texture.clone()
+            } else {
+                skybox.right()
+            },
+            top: if face == SkyBoxFace::Top {
+                texture.clone()
+            } else {
+                skybox.top()
+            },
+            bottom: if face == SkyBoxFace::Bottom {
+                texture.clone()
+            } else {
+                skybox.bottom()
+            },
+        }
+        .build()
+        .unwrap();
+
+        // Set S and T coordinate wrap mode, ClampToEdge will remove any possible seams on edges
+        // of the skybox.
+        if let Some(cubemap) = skybox.cubemap() {
+            let mut data = cubemap.data_ref();
+            data.set_s_wrap_mode(TextureWrapMode::ClampToEdge);
+            data.set_t_wrap_mode(TextureWrapMode::ClampToEdge);
+        }
+
+        Some(Box::new(skybox))
+    } else {
+        None
+    }
+}
 
 pub fn handle_camera_property_changed(
     args: &PropertyChanged,
@@ -135,6 +205,31 @@ pub fn handle_camera_property_changed(
                                 }
                             }
                             _ => None,
+                        }
+                    } else {
+                        None
+                    }
+                }
+                Camera::SKY_BOX => {
+                    if let FieldKind::Object(ref value) = inner.value {
+                        let texture = value.cast_value::<Option<Texture>>().cloned()?;
+                        let face = match inner.name.as_ref() {
+                            SkyBox::FRONT => Some(SkyBoxFace::Front),
+                            SkyBox::BACK => Some(SkyBoxFace::Back),
+                            SkyBox::LEFT => Some(SkyBoxFace::Left),
+                            SkyBox::RIGHT => Some(SkyBoxFace::Right),
+                            SkyBox::BOTTOM => Some(SkyBoxFace::Bottom),
+                            SkyBox::TOP => Some(SkyBoxFace::Top),
+                            _ => None,
+                        };
+
+                        if let Some(face) = face {
+                            helper.do_scene_command(SetSkyBoxCommand::new(
+                                handle,
+                                modify_skybox(camera, texture, face),
+                            ))
+                        } else {
+                            None
                         }
                     } else {
                         None
