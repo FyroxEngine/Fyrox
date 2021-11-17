@@ -400,6 +400,10 @@ impl<T> Pool<T> {
     /// The method has O(n) complexity in worst case, where `n` - amount of free records in the pool.
     /// In typical uses cases `n` is very low. It should be noted that if a pool is filled entirely
     /// and you trying to put an object at the end of pool, the method will have O(1) complexity.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the index is occupied or reserved (e.g. by `take_reserve`).
     #[inline]
     pub fn spawn_at(&mut self, index: u32, payload: T) -> Result<Handle<T>, T> {
         self.spawn_at_internal(index, INVALID_GENERATION, payload)
@@ -413,6 +417,10 @@ impl<T> Pool<T> {
     /// The method has O(n) complexity in worst case, where `n` - amount of free records in the pool.
     /// In typical uses cases `n` is very low. It should be noted that if a pool is filled entirely
     /// and you trying to put an object at the end of pool, the method will have O(1) complexity.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the index is occupied or reserved (e.g. by `take_reserve`).
     pub fn spawn_at_handle(&mut self, handle: Handle<T>, payload: T) -> Result<Handle<T>, T> {
         self.spawn_at_internal(handle.index, handle.generation, payload)
     }
@@ -432,7 +440,7 @@ impl<T> Pool<T> {
                         .free_stack
                         .iter()
                         .rposition(|i| *i == index)
-                        .expect("free_stack must contain the index of empty record!");
+                        .expect("free_stack must contain the index of the empty record (most likely attempting to spawn at a reserved index)!");
 
                     self.free_stack.remove(position);
 
@@ -828,12 +836,11 @@ impl<T> Pool<T> {
         (first, None)
     }
 
-    /// Moves object out of pool using given handle. All handles to the object will become invalid.
+    /// Moves object out of the pool using the given handle. All handles to the object will become invalid.
     ///
     /// # Panics
     ///
-    /// Panics if given handle is invalid.
-    ///
+    /// Panics if the given handle is invalid.
     #[inline]
     pub fn free(&mut self, handle: Handle<T>) -> T {
         let index = usize::try_from(handle.index).expect("index overflowed usize");
@@ -858,25 +865,24 @@ impl<T> Pool<T> {
         }
     }
 
-    /// Moves object out of pool using given handle with a promise that object will be returned back.
-    /// Returns pair (ticket, value). Ticket must be used to put value back!
+    /// Moves an object out of the pool using the given handle with a promise that the object will be returned back.
+    /// Returns pair (ticket, value). The ticket must be used to put the value back!
     ///
     /// # Motivation
     ///
     /// This method is useful when you need to take temporary ownership of an object, do something
-    /// with it and then put it back while keep all handles valid and be able to put new objects into
-    /// pool without overriding a payload at its handle.
+    /// with it and then put it back while preserving all handles to it and being able to put new objects into
+    /// the pool without overriding the payload at its handle.
     ///
     /// # Notes
     ///
-    /// All handles to the object will be invalid until object is returned in pool! Pool record will
-    /// be reserved for further put_back call, which means if you lose ticket you will have empty
+    /// All handles to the object will be temporarily invalid until the object is returned to the pool! The pool record will
+    /// be reserved for a further [`put_back`] call, which means if you lose the ticket you will have an empty
     /// "unusable" pool record forever.
     ///
     /// # Panics
     ///
-    /// Panics if given handle is invalid.
-    ///
+    /// Panics if the given handle is invalid.
     #[inline]
     pub fn take_reserve(&mut self, handle: Handle<T>) -> (Ticket<T>, T) {
         if let Some(record) = self.records_get_mut(handle.index) {
@@ -904,7 +910,7 @@ impl<T> Pool<T> {
         }
     }
 
-    /// Does same as take_reserve but returns option, instead of panic.
+    /// Does the same as [`take_reserve`] but returns an option, instead of panicking.
     #[inline]
     pub fn try_take_reserve(&mut self, handle: Handle<T>) -> Option<(Ticket<T>, T)> {
         if let Some(record) = self.records_get_mut(handle.index) {
@@ -925,11 +931,9 @@ impl<T> Pool<T> {
             None
         }
     }
-    /// Returns value back into pool using given ticket.
-    ///
-    /// # Panics
-    ///
-    /// In normal conditions it must never panic.
+
+    /// Returns the value back into the pool using the given ticket. See [`take_reserve`] for more
+    /// information.
     pub fn put_back(&mut self, ticket: Ticket<T>, value: T) -> Handle<T> {
         let record = self.records_get_mut(ticket.index).expect("Ticket index was invalid");
         let old = record.payload.replace(value);
