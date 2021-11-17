@@ -935,7 +935,9 @@ impl<T> Pool<T> {
     /// Returns the value back into the pool using the given ticket. See [`take_reserve`] for more
     /// information.
     pub fn put_back(&mut self, ticket: Ticket<T>, value: T) -> Handle<T> {
-        let record = self.records_get_mut(ticket.index).expect("Ticket index was invalid");
+        let record = self
+            .records_get_mut(ticket.index)
+            .expect("Ticket index was invalid");
         let old = record.payload.replace(value);
         assert!(old.is_none());
         Handle::new(ticket.index, record.generation)
@@ -1172,7 +1174,8 @@ impl<T> FromIterator<T> for Pool<T> {
         let iter = iter.into_iter();
         let (lower_bound, upper_bound) = iter.size_hint();
         let lower_bound = u32::try_from(lower_bound).expect("lower_bound overflowed u32");
-        let upper_bound = upper_bound.map(|b| u32::try_from(b).expect("upper_bound overflowed u32"));
+        let upper_bound =
+            upper_bound.map(|b| u32::try_from(b).expect("upper_bound overflowed u32"));
         let mut pool = Self::with_capacity(upper_bound.unwrap_or(lower_bound));
         for v in iter.into_iter() {
             let _ = pool.spawn(v);
