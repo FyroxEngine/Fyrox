@@ -216,6 +216,16 @@ impl Font {
     }
 
     #[inline]
+    pub fn glyph_index(&self, unicode: u32) -> Option<usize> {
+        self.char_map.get(&unicode).cloned()
+    }
+
+    #[inline]
+    pub fn glyphs(&self) -> &[FontGlyph] {
+        &self.glyphs
+    }
+
+    #[inline]
     pub fn height(&self) -> f32 {
         self.height
     }

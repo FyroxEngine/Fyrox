@@ -469,12 +469,7 @@ impl DrawingContext {
         position: Vector2<f32>,
         formatted_text: &FormattedText,
     ) {
-        let font = if let Some(font) = formatted_text.get_font() {
-            font
-        } else {
-            println!("Trying to draw text without font!");
-            return;
-        };
+        let font = formatted_text.get_font();
 
         for element in formatted_text.get_glyphs() {
             let bounds = element.get_bounds();

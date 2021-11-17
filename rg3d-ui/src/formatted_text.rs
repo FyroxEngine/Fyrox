@@ -2,7 +2,7 @@ use crate::{
     brush::Brush,
     core::{algebra::Vector2, color::Color, math::Rect},
     ttf::SharedFont,
-    HorizontalAlignment, VerticalAlignment,
+    Font, HorizontalAlignment, VerticalAlignment, DEFAULT_FONT,
 };
 use std::ops::Range;
 
@@ -72,23 +72,37 @@ pub enum WrapMode {
     Word,
 }
 
+#[derive(Copy, Clone, Debug)]
+pub struct Character {
+    pub char_code: u32,
+    pub glyph_index: u32,
+}
+
+impl Character {
+    pub fn from_char_with_font(char_code: u32, font: &Font) -> Self {
+        Self {
+            char_code,
+            glyph_index: font.glyph_index(char_code).unwrap_or_default() as u32,
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct FormattedText {
-    font: Option<SharedFont>,
-    /// Text in UTF32 format.
-    text: Vec<u32>,
-    /// Temporary buffer used to split text on lines. We need it to reduce memory allocations
-    /// when we changing text too frequently, here we sacrifice some memory in order to get
-    /// more performance.
+    font: SharedFont,
+    text: Vec<Character>,
+    // Temporary buffer used to split text on lines. We need it to reduce memory allocations
+    // when we changing text too frequently, here we sacrifice some memory in order to get
+    // more performance.
     lines: Vec<TextLine>,
-    /// Final glyphs for draw buffer.
+    // Final glyphs for draw buffer.
     glyphs: Vec<TextGlyph>,
     vertical_alignment: VerticalAlignment,
     horizontal_alignment: HorizontalAlignment,
     brush: Brush,
     constraint: Vector2<f32>,
     wrap: WrapMode,
-    mask_char: Option<char>,
+    mask_char: Option<Character>,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -102,12 +116,12 @@ impl FormattedText {
         &self.glyphs
     }
 
-    pub fn get_font(&self) -> Option<SharedFont> {
+    pub fn get_font(&self) -> SharedFont {
         self.font.clone()
     }
 
     pub fn set_font(&mut self, font: SharedFont) -> &mut Self {
-        self.font = Some(font);
+        self.font = font;
         self
     }
 
@@ -150,24 +164,22 @@ impl FormattedText {
         self
     }
 
-    pub fn get_raw_text(&self) -> &[u32] {
+    pub fn get_raw_text(&self) -> &[Character] {
         &self.text
     }
 
     pub fn text(&self) -> String {
         self.text
             .iter()
-            .filter_map(|c| std::char::from_u32(*c))
+            .filter_map(|c| std::char::from_u32(c.char_code))
             .collect()
     }
 
     pub fn get_range_width<T: IntoIterator<Item = usize>>(&self, range: T) -> f32 {
         let mut width = 0.0;
-        if let Some(ref font) = self.font {
-            let font = font.0.lock().unwrap();
-            for index in range {
-                width += font.glyph_advance(self.text[index]);
-            }
+        let font = self.font.0.lock().unwrap();
+        for index in range {
+            width += font.glyph_advance(self.text[index].glyph_index);
         }
         width
     }
@@ -175,9 +187,15 @@ impl FormattedText {
     pub fn set_text<P: AsRef<str>>(&mut self, text: P) -> &mut Self {
         // Convert text to UTF32.
         self.text.clear();
+
+        let font = self.font.0.lock().unwrap();
+
         for code in text.as_ref().chars().map(|c| c as u32) {
-            self.text.push(code);
+            self.text.push(Character::from_char_with_font(code, &font));
         }
+
+        drop(font);
+
         self
     }
 
@@ -190,15 +208,29 @@ impl FormattedText {
         self.wrap
     }
 
-    pub fn insert_char(&mut self, c: char, index: usize) -> &mut Self {
-        self.text.insert(index, c as u32);
+    pub fn insert_char(&mut self, code: char, index: usize) -> &mut Self {
+        let font = self.font.0.lock().unwrap();
+
+        self.text
+            .insert(index, Character::from_char_with_font(code as u32, &font));
+
+        drop(font);
+
         self
     }
 
     pub fn insert_str(&mut self, str: &str, position: usize) -> &mut Self {
-        for (i, char) in str.chars().enumerate() {
-            self.text.insert(position + i, char as u32);
+        let font = self.font.0.lock().unwrap();
+
+        for (i, code) in str.chars().enumerate() {
+            self.text.insert(
+                position + i,
+                Character::from_char_with_font(code as u32, &font),
+            );
         }
+
+        drop(font);
+
         self
     }
 
@@ -213,15 +245,11 @@ impl FormattedText {
     }
 
     pub fn build(&mut self) -> Vector2<f32> {
-        let font = if let Some(font) = &self.font {
-            font.0.lock().unwrap()
-        } else {
-            return Vector2::default();
-        };
+        let font = self.font.0.lock().unwrap();
 
-        let masked_text: Vec<u32>;
-        let text: &Vec<u32> = if let Some(mask_char) = self.mask_char {
-            masked_text = (0..self.text.len()).map(|_| mask_char as u32).collect();
+        let masked_text;
+        let text = if let Some(mask_char) = self.mask_char {
+            masked_text = (0..self.text.len()).map(|_| mask_char.clone()).collect();
             &masked_text
         } else {
             &self.text
@@ -232,15 +260,17 @@ impl FormattedText {
         let mut current_line = TextLine::new();
         let mut word: Option<Word> = None;
         self.lines.clear();
-        for (i, code) in text.iter().enumerate() {
-            let advance = match font.glyph(*code) {
+        for (i, character) in text.iter().enumerate() {
+            let advance = match font.glyphs().get(character.glyph_index as usize) {
                 Some(glyph) => glyph.advance,
                 None => font.height(),
             };
-            let is_new_line = *code == u32::from(b'\n') || *code == u32::from(b'\r');
+            let is_new_line =
+                character.char_code == u32::from(b'\n') || character.char_code == u32::from(b'\r');
             let new_width = current_line.width + advance;
-            let is_white_space = char::from_u32(*code).map_or(false, |c| c.is_whitespace());
-            let word_ended = word.is_some() && is_white_space || i == text.len() - 1;
+            let is_white_space =
+                char::from_u32(character.char_code).map_or(false, |c| c.is_whitespace());
+            let word_ended = word.is_some() && is_white_space || i == self.text.len() - 1;
 
             if self.wrap == WrapMode::Word && !is_white_space {
                 match word.as_mut() {
@@ -324,14 +354,14 @@ impl FormattedText {
         }
         // Commit rest of text.
         if current_line.begin != current_line.end {
-            for code in text.iter().skip(current_line.end) {
-                let advance = match font.glyph(*code) {
+            for character in text.iter().skip(current_line.end) {
+                let advance = match font.glyphs().get(character.glyph_index as usize) {
                     Some(glyph) => glyph.advance,
                     None => font.height(),
                 };
                 current_line.width += advance;
             }
-            current_line.end = text.len();
+            current_line.end = self.text.len();
             self.lines.push(current_line);
             total_height += font.ascender();
         }
@@ -390,8 +420,8 @@ impl FormattedText {
         for line in self.lines.iter_mut() {
             cursor.x = line.x_offset;
 
-            for &code in text.iter().take(line.end).skip(line.begin) {
-                match font.glyph(code) {
+            for &character in text.iter().take(line.end).skip(line.begin) {
+                match font.glyphs().get(character.glyph_index as usize) {
                     Some(glyph) => {
                         // Insert glyph
                         let rect = Rect::new(
@@ -441,7 +471,7 @@ impl FormattedText {
 }
 
 pub struct FormattedTextBuilder {
-    font: Option<SharedFont>,
+    font: SharedFont,
     brush: Brush,
     constraint: Vector2<f32>,
     text: String,
@@ -461,7 +491,7 @@ impl FormattedTextBuilder {
     /// Creates new formatted text builder with default parameters.
     pub fn new() -> FormattedTextBuilder {
         FormattedTextBuilder {
-            font: None,
+            font: DEFAULT_FONT.clone(),
             text: "".to_owned(),
             horizontal_alignment: HorizontalAlignment::Left,
             vertical_alignment: VerticalAlignment::Top,
@@ -473,7 +503,7 @@ impl FormattedTextBuilder {
     }
 
     pub fn with_font(mut self, font: SharedFont) -> Self {
-        self.font = Some(font);
+        self.font = font;
         self
     }
 
@@ -513,9 +543,13 @@ impl FormattedTextBuilder {
     }
 
     pub fn build(self) -> FormattedText {
+        let font = self.font.0.lock().unwrap();
         FormattedText {
-            font: self.font,
-            text: self.text.chars().map(|c| c as u32).collect(),
+            text: self
+                .text
+                .chars()
+                .map(|c| Character::from_char_with_font(c as u32, &font))
+                .collect(),
             lines: Vec::new(),
             glyphs: Vec::new(),
             vertical_alignment: self.vertical_alignment,
@@ -523,7 +557,13 @@ impl FormattedTextBuilder {
             brush: self.brush,
             constraint: self.constraint,
             wrap: self.wrap,
-            mask_char: self.mask_char,
+            mask_char: self
+                .mask_char
+                .map(|code| Character::from_char_with_font(u32::from(code), &font)),
+            font: {
+                drop(font);
+                self.font
+            },
         }
     }
 }

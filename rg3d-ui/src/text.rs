@@ -116,7 +116,7 @@ impl Text {
     }
 
     pub fn font(&self) -> SharedFont {
-        self.formatted_text.borrow().get_font().unwrap()
+        self.formatted_text.borrow().get_font()
     }
 
     pub fn vertical_alignment(&self) -> VerticalAlignment {

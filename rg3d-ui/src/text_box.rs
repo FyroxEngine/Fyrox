@@ -334,21 +334,22 @@ impl TextBox {
 
     pub fn screen_pos_to_text_pos(&self, screen_pos: Vector2<f32>) -> Option<Position> {
         let caret_pos = self.widget.screen_position;
-        if let Some(font) = self.formatted_text.borrow().get_font() {
-            let font = font.0.lock().unwrap();
-            for (line_index, line) in self.formatted_text.borrow().get_lines().iter().enumerate() {
-                let line_bounds = Rect::new(
-                    caret_pos.x + line.x_offset,
-                    caret_pos.y + line.y_offset,
-                    line.width,
-                    font.ascender(),
-                );
-                if line_bounds.contains(screen_pos) {
-                    let mut x = line_bounds.x();
-                    // Check each character in line.
-                    for (offset, index) in (line.begin..line.end).enumerate() {
-                        let symbol = self.formatted_text.borrow().get_raw_text()[index];
-                        let (width, height, advance) = if let Some(glyph) = font.glyph(symbol) {
+        let font = self.formatted_text.borrow().get_font();
+        let font = font.0.lock().unwrap();
+        for (line_index, line) in self.formatted_text.borrow().get_lines().iter().enumerate() {
+            let line_bounds = Rect::new(
+                caret_pos.x + line.x_offset,
+                caret_pos.y + line.y_offset,
+                line.width,
+                font.ascender(),
+            );
+            if line_bounds.contains(screen_pos) {
+                let mut x = line_bounds.x();
+                // Check each character in line.
+                for (offset, index) in (line.begin..line.end).enumerate() {
+                    let character = self.formatted_text.borrow().get_raw_text()[index];
+                    let (width, height, advance) =
+                        if let Some(glyph) = font.glyphs().get(character.char_code as usize) {
                             (
                                 glyph.bitmap_width as f32,
                                 glyph.bitmap_height as f32,
@@ -359,15 +360,14 @@ impl TextBox {
                             let h = font.height();
                             (h, h, h)
                         };
-                        let char_bounds = Rect::new(x, line_bounds.y(), width, height);
-                        if char_bounds.contains(screen_pos) {
-                            return Some(Position {
-                                line: line_index,
-                                offset,
-                            });
-                        }
-                        x += advance;
+                    let char_bounds = Rect::new(x, line_bounds.y(), width, height);
+                    if char_bounds.contains(screen_pos) {
+                        return Some(Position {
+                            line: line_index,
+                            offset,
+                        });
                     }
+                    x += advance;
                 }
             }
         }
@@ -393,7 +393,7 @@ impl TextBox {
     }
 
     pub fn font(&self) -> SharedFont {
-        self.formatted_text.borrow().get_font().unwrap()
+        self.formatted_text.borrow().get_font()
     }
 
     pub fn set_vertical_alignment(&mut self, valign: VerticalAlignment) -> &mut Self {
@@ -517,34 +517,33 @@ impl Control for TextBox {
         if self.caret_visible {
             let text = self.formatted_text.borrow();
 
-            if let Some(font) = text.get_font() {
-                let mut caret_pos = screen_position;
+            let font = text.get_font();
+            let mut caret_pos = screen_position;
 
-                let font = font.0.lock().unwrap();
-                if let Some(line) = text.get_lines().get(self.caret_position.line) {
-                    let text = text.get_raw_text();
-                    caret_pos += Vector2::new(line.x_offset, line.y_offset);
-                    for (offset, char_index) in (line.begin..line.end).enumerate() {
-                        if offset >= self.caret_position.offset {
-                            break;
-                        }
-                        if let Some(glyph) = font.glyph(text[char_index]) {
-                            caret_pos.x += glyph.advance;
-                        } else {
-                            caret_pos.x += font.height();
-                        }
+            let font = font.0.lock().unwrap();
+            if let Some(line) = text.get_lines().get(self.caret_position.line) {
+                let text = text.get_raw_text();
+                caret_pos += Vector2::new(line.x_offset, line.y_offset);
+                for (offset, char_index) in (line.begin..line.end).enumerate() {
+                    if offset >= self.caret_position.offset {
+                        break;
+                    }
+                    if let Some(glyph) = font.glyphs().get(text[char_index].glyph_index as usize) {
+                        caret_pos.x += glyph.advance;
+                    } else {
+                        caret_pos.x += font.height();
                     }
                 }
-
-                let caret_bounds = Rect::new(caret_pos.x, caret_pos.y, 2.0, font.height());
-                drawing_context.push_rect_filled(&caret_bounds, None);
-                drawing_context.commit(
-                    self.clip_bounds(),
-                    self.caret_brush.clone(),
-                    CommandTexture::None,
-                    None,
-                );
             }
+
+            let caret_bounds = Rect::new(caret_pos.x, caret_pos.y, 2.0, font.height());
+            drawing_context.push_rect_filled(&caret_bounds, None);
+            drawing_context.commit(
+                self.clip_bounds(),
+                self.caret_brush.clone(),
+                CommandTexture::None,
+                None,
+            );
         }
     }
 
@@ -788,14 +787,14 @@ impl Control for TextBox {
             } else if let Some(TextBoxMessage::Text(new_text)) = message.data::<TextBoxMessage>() {
                 if message.direction() == MessageDirection::ToWidget {
                     let mut equals = false;
-                    for (&new, old) in self
+                    for (&old, new) in self
                         .formatted_text
                         .borrow()
                         .get_raw_text()
                         .iter()
                         .zip(new_text.chars())
                     {
-                        if old as u32 != new {
+                        if old.char_code != new as u32 {
                             equals = false;
                             break;
                         }
