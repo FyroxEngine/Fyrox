@@ -883,6 +883,8 @@ impl<T> Pool<T> {
     /// # Panics
     ///
     /// Panics if the given handle is invalid.
+    ///
+    /// [`put_back`]: Pool::put_back
     #[inline]
     pub fn take_reserve(&mut self, handle: Handle<T>) -> (Ticket<T>, T) {
         if let Some(record) = self.records_get_mut(handle.index) {
@@ -911,6 +913,8 @@ impl<T> Pool<T> {
     }
 
     /// Does the same as [`take_reserve`] but returns an option, instead of panicking.
+    ///
+    /// [`take_reserve`]: Pool::take_reserve
     #[inline]
     pub fn try_take_reserve(&mut self, handle: Handle<T>) -> Option<(Ticket<T>, T)> {
         if let Some(record) = self.records_get_mut(handle.index) {
@@ -934,6 +938,8 @@ impl<T> Pool<T> {
 
     /// Returns the value back into the pool using the given ticket. See [`take_reserve`] for more
     /// information.
+    ///
+    /// [`take_reserve`]: Pool::take_reserve
     pub fn put_back(&mut self, ticket: Ticket<T>, value: T) -> Handle<T> {
         let record = self
             .records_get_mut(ticket.index)
@@ -964,7 +970,6 @@ impl<T> Pool<T> {
     /// Use this method cautiously if objects in pool have cross "references" (handles)
     /// to each other. This method will make all produced handles invalid and any further
     /// calls for [`borrow`](Self::borrow) or [`borrow_mut`](Self::borrow_mut) will raise panic.
-    ///
     #[inline]
     pub fn clear(&mut self) {
         self.records.clear();
