@@ -253,13 +253,10 @@ impl State {
         let last_time = rg3d_core::instant::Instant::now();
 
         if !self.paused {
-            for i in 0..self.sources.get_capacity() {
-                if let Some(source) = self.sources.at(i) {
-                    if source.is_play_once() && source.status() == Status::Stopped {
-                        self.sources.free(self.sources.handle_from_index(i));
-                    }
-                }
-            }
+            self.sources.retain(|source| {
+                let done = source.is_play_once() && source.status() == Status::Stopped;
+                !done
+            });
 
             for source in self
                 .sources
