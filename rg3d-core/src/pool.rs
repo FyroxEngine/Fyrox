@@ -364,7 +364,8 @@ impl<T> Pool<T> {
     }
 
     #[inline]
-    pub fn with_capacity(capacity: usize) -> Self {
+    pub fn with_capacity(capacity: u32) -> Self {
+        let capacity = usize::try_from(capacity).expect("capacity overflowed usize");
         Pool {
             records: Vec::with_capacity(capacity),
             free_stack: Vec::new(),
@@ -373,6 +374,16 @@ impl<T> Pool<T> {
 
     fn records_len(&self) -> u32 {
         u32::try_from(self.records.len()).expect("Number of records overflowed u32")
+    }
+
+    fn records_get(&self, index: u32) -> Option<&PoolRecord<T>> {
+        let index = usize::try_from(index).expect("Index overflowed usize");
+        self.records.get(index)
+    }
+
+    fn records_get_mut(&mut self, index: u32) -> Option<&mut PoolRecord<T>> {
+        let index = usize::try_from(index).expect("Index overflowed usize");
+        self.records.get_mut(index)
     }
 
     #[inline]
@@ -412,7 +423,7 @@ impl<T> Pool<T> {
         desired_generation: u32,
         payload: T,
     ) -> Result<Handle<T>, T> {
-        let index_usize = usize::try_from(index).expect("Couldn't convert index to usize");
+        let index_usize = usize::try_from(index).expect("index overflowed usize");
         match self.records.get_mut(index_usize) {
             Some(record) => match record.payload {
                 Some(_) => Err(payload),
@@ -582,7 +593,7 @@ impl<T> Pool<T> {
     #[inline]
     #[must_use]
     pub fn borrow(&self, handle: Handle<T>) -> &T {
-        if let Some(record) = self.records.get(handle.index as usize) {
+        if let Some(record) = self.records_get(handle.index) {
             if record.generation == handle.generation {
                 if let Some(ref payload) = record.payload {
                     payload
@@ -625,7 +636,7 @@ impl<T> Pool<T> {
     #[must_use]
     pub fn borrow_mut(&mut self, handle: Handle<T>) -> &mut T {
         let record_count = self.records.len();
-        if let Some(record) = self.records.get_mut(handle.index as usize) {
+        if let Some(record) = self.records_get_mut(handle.index) {
             if record.generation == handle.generation {
                 if let Some(ref mut payload) = record.payload {
                     payload
@@ -651,7 +662,7 @@ impl<T> Pool<T> {
     #[inline]
     #[must_use]
     pub fn try_borrow(&self, handle: Handle<T>) -> Option<&T> {
-        self.records.get(handle.index as usize).and_then(|r| {
+        self.records_get(handle.index).and_then(|r| {
             if r.generation == handle.generation {
                 r.payload.as_ref()
             } else {
@@ -668,7 +679,7 @@ impl<T> Pool<T> {
     #[inline]
     #[must_use]
     pub fn try_borrow_mut(&mut self, handle: Handle<T>) -> Option<&mut T> {
-        self.records.get_mut(handle.index as usize).and_then(|r| {
+        self.records_get_mut(handle.index).and_then(|r| {
             if r.generation == handle.generation {
                 r.payload.as_mut()
             } else {
@@ -825,7 +836,8 @@ impl<T> Pool<T> {
     ///
     #[inline]
     pub fn free(&mut self, handle: Handle<T>) -> T {
-        if let Some(record) = self.records.get_mut(handle.index as usize) {
+        let index = usize::try_from(handle.index).expect("index overflowed usize");
+        if let Some(record) = self.records.get_mut(index) {
             if record.generation == handle.generation {
                 // Remember this index as free
                 self.free_stack.push(handle.index);
@@ -867,7 +879,7 @@ impl<T> Pool<T> {
     ///
     #[inline]
     pub fn take_reserve(&mut self, handle: Handle<T>) -> (Ticket<T>, T) {
-        if let Some(record) = self.records.get_mut(handle.index as usize) {
+        if let Some(record) = self.records_get_mut(handle.index) {
             if record.generation == handle.generation {
                 if let Some(payload) = record.payload.take() {
                     let ticket = Ticket {
@@ -895,7 +907,7 @@ impl<T> Pool<T> {
     /// Does same as take_reserve but returns option, instead of panic.
     #[inline]
     pub fn try_take_reserve(&mut self, handle: Handle<T>) -> Option<(Ticket<T>, T)> {
-        if let Some(record) = self.records.get_mut(handle.index as usize) {
+        if let Some(record) = self.records_get_mut(handle.index) {
             if record.generation == handle.generation {
                 if let Some(payload) = record.payload.take() {
                     let ticket = Ticket {
@@ -919,7 +931,7 @@ impl<T> Pool<T> {
     ///
     /// In normal conditions it must never panic.
     pub fn put_back(&mut self, ticket: Ticket<T>, value: T) -> Handle<T> {
-        let record = &mut self.records[ticket.index as usize];
+        let record = self.records_get_mut(ticket.index).expect("Ticket index was invalid");
         let old = record.payload.replace(value);
         assert!(old.is_none());
         Handle::new(ticket.index, record.generation)
@@ -935,8 +947,8 @@ impl<T> Pool<T> {
     /// Returns total capacity of pool. Capacity has nothing about real amount of objects in pool!
     #[inline]
     #[must_use]
-    pub fn get_capacity(&self) -> usize {
-        self.records.len()
+    pub fn get_capacity(&self) -> u32 {
+        u32::try_from(self.records.len()).expect("records.len() overflowed u32")
     }
 
     /// Destroys all objects in pool. All handles to objects will become invalid.
@@ -955,22 +967,22 @@ impl<T> Pool<T> {
 
     #[inline]
     #[must_use]
-    pub fn at_mut(&mut self, n: usize) -> Option<&mut T> {
-        self.records.get_mut(n).and_then(|rec| rec.payload.as_mut())
+    pub fn at_mut(&mut self, n: u32) -> Option<&mut T> {
+        self.records_get_mut(n).and_then(|rec| rec.payload.as_mut())
     }
 
     #[inline]
     #[must_use]
-    pub fn at(&self, n: usize) -> Option<&T> {
-        self.records.get(n).and_then(|rec| rec.payload.as_ref())
+    pub fn at(&self, n: u32) -> Option<&T> {
+        self.records_get(n).and_then(|rec| rec.payload.as_ref())
     }
 
     #[inline]
     #[must_use]
-    pub fn handle_from_index(&self, n: usize) -> Handle<T> {
-        if let Some(record) = self.records.get(n) {
+    pub fn handle_from_index(&self, n: u32) -> Handle<T> {
+        if let Some(record) = self.records_get(n) {
             if record.generation != INVALID_GENERATION {
-                return Handle::new(n as u32, record.generation);
+                return Handle::new(n, record.generation);
             }
         }
         Handle::NONE
@@ -1142,7 +1154,9 @@ impl<T> Pool<T> {
             let record_size = std::mem::size_of::<PoolRecord<T>>();
             let record_location = (val - offset_of!(PoolRecord<T>, payload)) - begin;
             if record_location % record_size == 0 {
-                return self.handle_from_index(record_location / record_size);
+                let index = record_location / record_size;
+                let index = u32::try_from(index).expect("Index overflowed u32");
+                return self.handle_from_index(index);
             }
         }
         Handle::NONE
@@ -1153,6 +1167,8 @@ impl<T> FromIterator<T> for Pool<T> {
     fn from_iter<C: IntoIterator<Item = T>>(iter: C) -> Self {
         let iter = iter.into_iter();
         let (lower_bound, upper_bound) = iter.size_hint();
+        let lower_bound = u32::try_from(lower_bound).expect("lower_bound overflowed u32");
+        let upper_bound = upper_bound.map(|b| u32::try_from(b).expect("upper_bound overflowed u32"));
         let mut pool = Self::with_capacity(upper_bound.unwrap_or(lower_bound));
         for v in iter.into_iter() {
             let _ = pool.spawn(v);

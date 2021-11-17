@@ -859,7 +859,7 @@ impl Graph {
     ///     }
     /// }
     /// ```
-    pub fn capacity(&self) -> usize {
+    pub fn capacity(&self) -> u32 {
         self.pool.get_capacity()
     }
 
@@ -880,7 +880,7 @@ impl Graph {
     ///     }
     /// }
     /// ```
-    pub fn handle_from_index(&self, index: usize) -> Handle<Node> {
+    pub fn handle_from_index(&self, index: u32) -> Handle<Node> {
         self.pool.handle_from_index(index)
     }
 
