@@ -1013,6 +1013,11 @@ impl<T> Pool<T> {
         self.iter().count()
     }
 
+    pub fn count(&self) -> u32 {
+        let free = u32::try_from(self.free_stack.len()).expect("free stack length overflowed u32");
+        self.records_len() - free
+    }
+
     #[inline]
     pub fn replace(&mut self, handle: Handle<T>, payload: T) -> Option<T> {
         if let Some(record) = self.records.get_mut(handle.index as usize) {
