@@ -249,7 +249,7 @@ impl FormattedText {
 
         let masked_text;
         let text = if let Some(mask_char) = self.mask_char {
-            masked_text = (0..self.text.len()).map(|_| mask_char.clone()).collect();
+            masked_text = (0..self.text.len()).map(|_| mask_char).collect();
             &masked_text
         } else {
             &self.text
