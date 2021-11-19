@@ -124,8 +124,8 @@ crate::define_widget_deref!(Grid);
 
 struct Cell {
     nodes: Vec<Handle<UiNode>>,
-    width_constraint: f32,
-    height_constraint: f32,
+    width_constraint: Option<f32>,
+    height_constraint: Option<f32>,
     row_index: usize,
     column_index: usize,
 }
@@ -177,14 +177,18 @@ impl Control for Grid {
                         })
                         .collect(),
                     width_constraint: if column.size_mode == SizeMode::Strict {
-                        column.desired_width
+                        Some(column.desired_width)
+                    } else if column.size_mode == SizeMode::Auto {
+                        Some(available_size.x)
                     } else {
-                        available_size.x
+                        None
                     },
                     height_constraint: if row.size_mode == SizeMode::Strict {
-                        row.desired_height
+                        Some(row.desired_height)
+                    } else if row.size_mode == SizeMode::Auto {
+                        Some(available_size.y)
                     } else {
-                        available_size.y
+                        None
                     },
                     row_index,
                     column_index,
@@ -196,26 +200,39 @@ impl Control for Grid {
             for cell_index in group {
                 let cell = &cells[cell_index];
 
-                let child_constraint = Vector2::new(cell.width_constraint, cell.height_constraint);
+                let stretch_sized_width = self.calc_stretch_sized_column_width(
+                    ui,
+                    available_size,
+                    self.calc_preset_width(ui),
+                );
+
+                let stretch_sized_height = self.calc_stretch_sized_row_height(
+                    ui,
+                    available_size,
+                    self.calc_preset_height(ui),
+                );
+
+                let child_constraint = Vector2::new(
+                    cell.width_constraint.unwrap_or_else(|| {
+                        if available_size.x.is_infinite() {
+                            available_size.x
+                        } else {
+                            stretch_sized_width
+                        }
+                    }),
+                    cell.height_constraint.unwrap_or_else(|| {
+                        if available_size.y.is_infinite() {
+                            available_size.y
+                        } else {
+                            stretch_sized_height
+                        }
+                    }),
+                );
 
                 for &node in cell.nodes.iter() {
                     ui.measure_node(node, child_constraint);
                     let node_ref = ui.node(node);
                     let desired_size = node_ref.desired_size();
-
-                    let stretch_sized_width = self.calc_stretch_sized_column_width(
-                        ui,
-                        available_size,
-                        self.calc_preset_width(ui),
-                    );
-
-                    let stretch_sized_height = self.calc_stretch_sized_row_height(
-                        ui,
-                        available_size,
-                        self.calc_preset_height(ui),
-                    );
-
-                    dbg!(stretch_sized_width, stretch_sized_height);
 
                     let column = &mut self.columns.borrow_mut()[cell.column_index];
                     column.actual_width = if column.size_mode == SizeMode::Stretch {
@@ -254,7 +271,7 @@ impl Control for Grid {
         for row in self.rows.borrow().iter() {
             desired_size.y += row.actual_height;
         }
-        dbg!(desired_size)
+        desired_size
     }
 
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
