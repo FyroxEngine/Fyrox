@@ -204,6 +204,56 @@ fn choose_actual_size<D: GridDimension>(
     }
 }
 
+fn calc_total_size_of_non_stretch_dims<D: GridDimension>(
+    dims: &[D],
+    children: &[Handle<UiNode>],
+    ui: &UserInterface,
+    desired_size_fetcher: fn(&UiNode, usize) -> Option<f32>,
+) -> f32 {
+    let mut preset_size = 0.0;
+
+    for (i, dim) in dims.iter().enumerate() {
+        if dim.size_mode() == SizeMode::Strict {
+            preset_size += dim.desired_size();
+        } else if dim.size_mode() == SizeMode::Auto {
+            let mut dim_size = 0.0f32;
+            for child_handle in children {
+                let child = ui.nodes.borrow(*child_handle);
+                if let Some(desired_size) = (desired_size_fetcher)(child, i) {
+                    dim_size = dim_size.max(desired_size);
+                }
+            }
+            preset_size += dim_size;
+        }
+    }
+
+    preset_size
+}
+
+fn calc_avg_size_for_stretch_dim<D: GridDimension>(
+    dims: &[D],
+    children: &[Handle<UiNode>],
+    available_size: f32,
+    ui: &UserInterface,
+    desired_size_fetcher: fn(&UiNode, usize) -> Option<f32>,
+) -> f32 {
+    let preset_size = calc_total_size_of_non_stretch_dims(dims, children, ui, desired_size_fetcher);
+
+    let rest_width = available_size - preset_size;
+
+    let mut stretch_sized_dims = 0;
+    for dim in dims.iter() {
+        if dim.size_mode() == SizeMode::Stretch {
+            stretch_sized_dims += 1;
+        }
+    }
+    if stretch_sized_dims > 0 {
+        rest_width / stretch_sized_dims as f32
+    } else {
+        0.0
+    }
+}
+
 impl Control for Grid {
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
@@ -257,11 +307,33 @@ impl Control for Grid {
             for &cell_index in group.iter() {
                 let cell = &cells[cell_index];
 
-                let stretch_sized_width = self
-                    .calc_stretch_sized_column_width(available_size, self.calc_preset_width(ui));
+                let stretch_sized_width = calc_avg_size_for_stretch_dim(
+                    &self.columns.borrow(),
+                    self.children(),
+                    available_size.x,
+                    ui,
+                    |child, i| {
+                        if child.column() == i && child.visibility() {
+                            Some(child.desired_size().x)
+                        } else {
+                            None
+                        }
+                    },
+                );
 
-                let stretch_sized_height =
-                    self.calc_stretch_sized_row_height(available_size, self.calc_preset_height(ui));
+                let stretch_sized_height = calc_avg_size_for_stretch_dim(
+                    &self.rows.borrow(),
+                    self.children(),
+                    available_size.y,
+                    ui,
+                    |child, i| {
+                        if child.row() == i && child.visibility() {
+                            Some(child.desired_size().y)
+                        } else {
+                            None
+                        }
+                    },
+                );
 
                 let child_constraint = Vector2::new(
                     cell.width_constraint.unwrap_or(stretch_sized_width),
@@ -466,90 +538,6 @@ impl Grid {
 
     pub fn set_rows(&mut self, rows: Vec<Row>) {
         self.rows = RefCell::new(rows);
-    }
-
-    fn calc_preset_width(&self, ui: &UserInterface) -> f32 {
-        let mut preset_width = 0.0;
-
-        // Calculate size of strict-sized and auto-sized columns.
-        for (i, col) in self.columns.borrow().iter().enumerate() {
-            if col.size_mode == SizeMode::Strict {
-                preset_width += col.desired_width;
-            } else if col.size_mode == SizeMode::Auto {
-                let mut actual_width = col.desired_width;
-                for child_handle in self.widget.children() {
-                    let child = ui.nodes.borrow(*child_handle);
-                    if child.column() == i && child.visibility() {
-                        actual_width = child.desired_size().x;
-                    }
-                }
-                preset_width += actual_width;
-            }
-        }
-
-        preset_width
-    }
-
-    fn calc_preset_height(&self, ui: &UserInterface) -> f32 {
-        let mut preset_height = 0.0;
-
-        // Calculate size of strict-sized and auto-sized rows.
-        for (i, row) in self.rows.borrow().iter().enumerate() {
-            if row.size_mode == SizeMode::Strict {
-                preset_height += row.desired_height;
-            } else if row.size_mode == SizeMode::Auto {
-                let mut actual_height = row.desired_height;
-                for child_handle in self.widget.children() {
-                    let child = ui.nodes.borrow(*child_handle);
-                    if child.row() == i && child.visibility() {
-                        actual_height = child.desired_size().y;
-                    }
-                }
-                preset_height += actual_height;
-            }
-        }
-
-        preset_height
-    }
-
-    fn calc_stretch_sized_column_width(
-        &self,
-        available_size: Vector2<f32>,
-        preset_width: f32,
-    ) -> f32 {
-        let rest_width = available_size.x - preset_width;
-
-        let mut stretch_sized_columns = 0;
-        for column in self.columns.borrow().iter() {
-            if column.size_mode == SizeMode::Stretch {
-                stretch_sized_columns += 1;
-            }
-        }
-        if stretch_sized_columns > 0 {
-            rest_width / stretch_sized_columns as f32
-        } else {
-            0.0
-        }
-    }
-
-    fn calc_stretch_sized_row_height(
-        &self,
-        available_size: Vector2<f32>,
-        preset_height: f32,
-    ) -> f32 {
-        let rest_height = available_size.y - preset_height;
-
-        let mut stretch_sized_rows = 0;
-        for row in self.rows.borrow().iter() {
-            if row.size_mode == SizeMode::Stretch {
-                stretch_sized_rows += 1;
-            }
-        }
-        if stretch_sized_rows > 0 {
-            rest_height / stretch_sized_rows as f32
-        } else {
-            0.0
-        }
     }
 
     fn arrange_rows(&self) {
