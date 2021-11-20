@@ -218,37 +218,40 @@ impl Control for Grid {
                     cell.height_constraint.unwrap_or(stretch_sized_height),
                 );
 
+                let mut cell_size = Vector2::<f32>::default();
                 for &node in cell.nodes.iter() {
                     ui.measure_node(node, child_constraint);
                     let node_ref = ui.node(node);
                     let desired_size = node_ref.desired_size();
-
-                    let column = &mut self.columns.borrow_mut()[cell.column_index];
-                    column.actual_width = if column.size_mode == SizeMode::Stretch {
-                        column.actual_width.max(if available_size.x.is_infinite() {
-                            desired_size.x
-                        } else {
-                            stretch_sized_width
-                        })
-                    } else if column.size_mode == SizeMode::Auto {
-                        column.actual_width.max(desired_size.x)
-                    } else {
-                        column.desired_width
-                    };
-
-                    let row = &mut self.rows.borrow_mut()[cell.row_index];
-                    row.actual_height = if row.size_mode == SizeMode::Stretch {
-                        row.actual_height.max(if available_size.y.is_infinite() {
-                            desired_size.y
-                        } else {
-                            stretch_sized_height
-                        })
-                    } else if row.size_mode == SizeMode::Auto {
-                        row.actual_height.max(desired_size.y)
-                    } else {
-                        row.desired_height
-                    };
+                    cell_size.x = cell_size.x.max(desired_size.x);
+                    cell_size.y = cell_size.y.max(desired_size.y);
                 }
+
+                let column = &mut self.columns.borrow_mut()[cell.column_index];
+                column.actual_width = if column.size_mode == SizeMode::Stretch {
+                    column.actual_width.max(if available_size.x.is_infinite() {
+                        cell_size.x
+                    } else {
+                        stretch_sized_width
+                    })
+                } else if column.size_mode == SizeMode::Auto {
+                    column.actual_width.max(cell_size.x)
+                } else {
+                    column.desired_width
+                };
+
+                let row = &mut self.rows.borrow_mut()[cell.row_index];
+                row.actual_height = if row.size_mode == SizeMode::Stretch {
+                    row.actual_height.max(if available_size.y.is_infinite() {
+                        cell_size.y
+                    } else {
+                        stretch_sized_height
+                    })
+                } else if row.size_mode == SizeMode::Auto {
+                    row.actual_height.max(cell_size.y)
+                } else {
+                    row.desired_height
+                };
             }
         }
 
