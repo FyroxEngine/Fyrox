@@ -10,6 +10,12 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+trait GridDimension {
+    fn size_mode(&self) -> SizeMode;
+    fn desired_size(&self) -> f32;
+    fn actual_size(&self) -> f32;
+}
+
 #[derive(Clone, Copy, PartialEq)]
 pub enum SizeMode {
     Strict,
@@ -23,6 +29,20 @@ pub struct Column {
     desired_width: f32,
     actual_width: f32,
     x: f32,
+}
+
+impl GridDimension for Column {
+    fn size_mode(&self) -> SizeMode {
+        self.size_mode
+    }
+
+    fn desired_size(&self) -> f32 {
+        self.desired_width
+    }
+
+    fn actual_size(&self) -> f32 {
+        self.actual_width
+    }
 }
 
 impl Column {
@@ -69,6 +89,20 @@ pub struct Row {
     desired_height: f32,
     actual_height: f32,
     y: f32,
+}
+
+impl GridDimension for Row {
+    fn size_mode(&self) -> SizeMode {
+        self.size_mode
+    }
+
+    fn desired_size(&self) -> f32 {
+        self.desired_height
+    }
+
+    fn actual_size(&self) -> f32 {
+        self.actual_height
+    }
 }
 
 impl Row {
@@ -144,6 +178,32 @@ fn group_index(row_size_mode: SizeMode, column_size_mode: SizeMode) -> usize {
     }
 }
 
+fn choose_constraint<D: GridDimension>(dimension: &D, available_size: f32) -> Option<f32> {
+    match dimension.size_mode() {
+        SizeMode::Strict => Some(dimension.desired_size()),
+        SizeMode::Auto => Some(available_size),
+        SizeMode::Stretch => None,
+    }
+}
+
+fn choose_actual_size<D: GridDimension>(
+    dimension: &D,
+    cell_size: f32,
+    available_size: f32,
+    stretch_size: f32,
+) -> f32 {
+    let current_actual_size = dimension.actual_size();
+    match dimension.size_mode() {
+        SizeMode::Strict => dimension.desired_size(),
+        SizeMode::Auto => current_actual_size.max(cell_size),
+        SizeMode::Stretch => current_actual_size.max(if available_size.is_infinite() {
+            cell_size
+        } else {
+            stretch_size
+        }),
+    }
+}
+
 impl Control for Grid {
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
@@ -185,20 +245,8 @@ impl Control for Grid {
                             }
                         })
                         .collect(),
-                    width_constraint: if column.size_mode == SizeMode::Strict {
-                        Some(column.desired_width)
-                    } else if column.size_mode == SizeMode::Auto {
-                        Some(available_size.x)
-                    } else {
-                        None
-                    },
-                    height_constraint: if row.size_mode == SizeMode::Strict {
-                        Some(row.desired_height)
-                    } else if row.size_mode == SizeMode::Auto {
-                        Some(available_size.y)
-                    } else {
-                        None
-                    },
+                    width_constraint: choose_constraint(column, available_size.x),
+                    height_constraint: choose_constraint(row, available_size.y),
                     row_index,
                     column_index,
                 })
@@ -230,28 +278,12 @@ impl Control for Grid {
                 }
 
                 let column = &mut self.columns.borrow_mut()[cell.column_index];
-                column.actual_width = match column.size_mode {
-                    SizeMode::Strict => column.desired_width,
-                    SizeMode::Auto => column.actual_width.max(cell_size.x),
-                    SizeMode::Stretch => {
-                        column.actual_width.max(if available_size.x.is_infinite() {
-                            cell_size.x
-                        } else {
-                            stretch_sized_width
-                        })
-                    }
-                };
+                column.actual_width =
+                    choose_actual_size(column, cell_size.x, available_size.x, stretch_sized_width);
 
                 let row = &mut self.rows.borrow_mut()[cell.row_index];
-                row.actual_height = match row.size_mode {
-                    SizeMode::Strict => row.desired_height,
-                    SizeMode::Auto => row.actual_height.max(cell_size.y),
-                    SizeMode::Stretch => row.actual_height.max(if available_size.y.is_infinite() {
-                        cell_size.y
-                    } else {
-                        stretch_sized_height
-                    }),
-                };
+                row.actual_height =
+                    choose_actual_size(row, cell_size.y, available_size.y, stretch_sized_height);
             }
         }
 
