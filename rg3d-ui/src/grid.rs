@@ -1,7 +1,6 @@
-use crate::draw::Draw;
 use crate::{
     core::{algebra::Vector2, math::Rect, pool::Handle, scope_profile},
-    draw::{CommandTexture, DrawingContext},
+    draw::{CommandTexture, Draw, DrawingContext},
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
@@ -228,29 +227,27 @@ impl Control for Grid {
                 }
 
                 let column = &mut self.columns.borrow_mut()[cell.column_index];
-                column.actual_width = if column.size_mode == SizeMode::Stretch {
-                    column.actual_width.max(if available_size.x.is_infinite() {
-                        cell_size.x
-                    } else {
-                        stretch_sized_width
-                    })
-                } else if column.size_mode == SizeMode::Auto {
-                    column.actual_width.max(cell_size.x)
-                } else {
-                    column.desired_width
+                column.actual_width = match column.size_mode {
+                    SizeMode::Strict => column.desired_width,
+                    SizeMode::Auto => column.actual_width.max(cell_size.x),
+                    SizeMode::Stretch => {
+                        column.actual_width.max(if available_size.x.is_infinite() {
+                            cell_size.x
+                        } else {
+                            stretch_sized_width
+                        })
+                    }
                 };
 
                 let row = &mut self.rows.borrow_mut()[cell.row_index];
-                row.actual_height = if row.size_mode == SizeMode::Stretch {
-                    row.actual_height.max(if available_size.y.is_infinite() {
+                row.actual_height = match row.size_mode {
+                    SizeMode::Strict => row.desired_height,
+                    SizeMode::Auto => row.actual_height.max(cell_size.y),
+                    SizeMode::Stretch => row.actual_height.max(if available_size.y.is_infinite() {
                         cell_size.y
                     } else {
                         stretch_sized_height
-                    })
-                } else if row.size_mode == SizeMode::Auto {
-                    row.actual_height.max(cell_size.y)
-                } else {
-                    row.desired_height
+                    }),
                 };
             }
         }
