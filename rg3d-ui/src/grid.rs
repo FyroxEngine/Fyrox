@@ -132,6 +132,18 @@ struct Cell {
     column_index: usize,
 }
 
+fn group_index(row_size_mode: SizeMode, column_size_mode: SizeMode) -> usize {
+    match (row_size_mode, column_size_mode) {
+        (SizeMode::Strict, SizeMode::Strict)
+        | (SizeMode::Strict, SizeMode::Auto)
+        | (SizeMode::Auto, SizeMode::Strict)
+        | (SizeMode::Auto, SizeMode::Auto) => 0,
+        (SizeMode::Stretch, SizeMode::Auto) => 1,
+        (SizeMode::Strict, SizeMode::Stretch) | (SizeMode::Auto, SizeMode::Stretch) => 2,
+        (SizeMode::Stretch, SizeMode::Strict) | (SizeMode::Stretch, SizeMode::Stretch) => 3,
+    }
+}
+
 impl Control for Grid {
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
@@ -158,20 +170,7 @@ impl Control for Grid {
 
         for (column_index, column) in self.columns.borrow().iter().enumerate() {
             for (row_index, row) in self.rows.borrow().iter().enumerate() {
-                let group_index = match (row.size_mode, column.size_mode) {
-                    (SizeMode::Strict, SizeMode::Strict)
-                    | (SizeMode::Strict, SizeMode::Auto)
-                    | (SizeMode::Auto, SizeMode::Strict)
-                    | (SizeMode::Auto, SizeMode::Auto) => 0,
-                    (SizeMode::Stretch, SizeMode::Auto) => 1,
-                    (SizeMode::Strict, SizeMode::Stretch) | (SizeMode::Auto, SizeMode::Stretch) => {
-                        2
-                    }
-                    (SizeMode::Stretch, SizeMode::Strict)
-                    | (SizeMode::Stretch, SizeMode::Stretch) => 3,
-                };
-
-                groups[group_index].push(cells.len());
+                groups[group_index(row.size_mode, column.size_mode)].push(cells.len());
 
                 cells.push(Cell {
                     nodes: self
