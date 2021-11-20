@@ -117,10 +117,13 @@ pub struct Grid {
     columns: RefCell<Vec<Column>>,
     draw_border: bool,
     border_thickness: f32,
+    cells: RefCell<Vec<Cell>>,
+    groups: RefCell<[Vec<usize>; 4]>,
 }
 
 crate::define_widget_deref!(Grid);
 
+#[derive(Clone)]
 struct Cell {
     nodes: Vec<Handle<UiNode>>,
     width_constraint: Option<f32>,
@@ -145,13 +148,14 @@ impl Control for Grid {
             column.actual_width = 0.0;
         }
 
-        let mut groups = [
-            Vec::default(),
-            Vec::default(),
-            Vec::default(),
-            Vec::default(),
-        ];
-        let mut cells = Vec::new();
+        let mut groups = self.groups.borrow_mut();
+        for group in groups.iter_mut() {
+            group.clear();
+        }
+
+        let mut cells = self.cells.borrow_mut();
+        cells.clear();
+
         for (column_index, column) in self.columns.borrow().iter().enumerate() {
             for (row_index, row) in self.rows.borrow().iter().enumerate() {
                 let group_index = match (row.size_mode, column.size_mode) {
@@ -202,8 +206,8 @@ impl Control for Grid {
             }
         }
 
-        for group in groups {
-            for cell_index in group {
+        for group in groups.iter() {
+            for &cell_index in group.iter() {
                 let cell = &cells[cell_index];
 
                 let stretch_sized_width = self
@@ -387,6 +391,8 @@ impl GridBuilder {
             columns: RefCell::new(self.columns),
             draw_border: self.draw_border,
             border_thickness: self.border_thickness,
+            cells: Default::default(),
+            groups: Default::default(),
         };
         ui.add_node(UiNode::new(grid))
     }
@@ -400,6 +406,8 @@ impl Grid {
             columns: Default::default(),
             draw_border: false,
             border_thickness: 1.0,
+            cells: Default::default(),
+            groups: Default::default(),
         }
     }
 
