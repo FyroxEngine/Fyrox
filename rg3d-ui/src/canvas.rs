@@ -4,7 +4,10 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
-use std::ops::{Deref, DerefMut};
+use std::{
+    any::{Any, TypeId},
+    ops::{Deref, DerefMut},
+};
 
 /// Allows user to directly set position and size of a node
 #[derive(Clone)]
@@ -15,6 +18,14 @@ pub struct Canvas {
 crate::define_widget_deref!(Canvas);
 
 impl Control for Canvas {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        if type_id == TypeId::of::<Self>() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
     fn measure_override(&self, ui: &UserInterface, _available_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
 

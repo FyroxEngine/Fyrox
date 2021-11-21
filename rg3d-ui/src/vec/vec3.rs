@@ -1,13 +1,16 @@
-use crate::numeric::{NumericType, NumericUpDownMessage};
 use crate::{
     core::{algebra::Vector3, color::Color, pool::Handle},
     define_constructor,
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
+    numeric::{NumericType, NumericUpDownMessage},
     vec::{make_mark, make_numeric_input},
     BuildContext, Control, NodeHandleMapping, UiNode, UserInterface, Widget, WidgetBuilder,
 };
-use std::ops::{Deref, DerefMut};
+use std::{
+    any::{Any, TypeId},
+    ops::{Deref, DerefMut},
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Vec3EditorMessage<T: NumericType> {
@@ -42,6 +45,14 @@ impl<T: NumericType> DerefMut for Vec3Editor<T> {
 }
 
 impl<T: NumericType> Control for Vec3Editor<T> {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        if type_id == TypeId::of::<Self>() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.x_field);
         node_map.resolve(&mut self.y_field);

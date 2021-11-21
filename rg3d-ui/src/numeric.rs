@@ -21,6 +21,7 @@ use crate::{
     UserInterface, VerticalAlignment, BRUSH_DARK, BRUSH_LIGHT,
 };
 use std::{
+    any::{Any, TypeId},
     fmt::{Debug, Display},
     ops::{Deref, DerefMut},
     str::FromStr,
@@ -135,6 +136,14 @@ fn saturating_add<T: NumericType>(a: T, b: T) -> T {
 }
 
 impl<T: NumericType> Control for NumericUpDown<T> {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        if type_id == TypeId::of::<Self>() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.field);
         node_map.resolve(&mut self.increase);

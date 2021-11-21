@@ -9,6 +9,7 @@ use crate::{
     BuildContext, Control, NodeHandleMapping, UiNode, UserInterface, BRUSH_BRIGHT, BRUSH_LIGHT,
     BRUSH_LIGHTER, BRUSH_LIGHTEST, COLOR_DARKEST, COLOR_LIGHTEST,
 };
+use std::any::{Any, TypeId};
 use std::{
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
@@ -50,7 +51,41 @@ pub struct Decorator {
     selected_brush: Brush,
     disabled_brush: Brush,
     is_selected: bool,
-    pressable: bool,
+    is_pressable: bool,
+}
+
+impl Decorator {
+    pub fn border(&self) -> &Border {
+        &self.border
+    }
+
+    pub fn normal_brush(&self) -> &Brush {
+        &self.normal_brush
+    }
+
+    pub fn hover_brush(&self) -> &Brush {
+        &self.hover_brush
+    }
+
+    pub fn pressed_brush(&self) -> &Brush {
+        &self.pressed_brush
+    }
+
+    pub fn selected_brush(&self) -> &Brush {
+        &self.selected_brush
+    }
+
+    pub fn disabled_brush(&self) -> &Brush {
+        &self.disabled_brush
+    }
+
+    pub fn is_pressable(&self) -> bool {
+        self.is_pressable
+    }
+
+    pub fn is_selected(&self) -> bool {
+        self.is_pressable
+    }
 }
 
 impl Deref for Decorator {
@@ -68,6 +103,16 @@ impl DerefMut for Decorator {
 }
 
 impl Control for Decorator {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        self.border.query_component(type_id).or_else(|| {
+            if type_id == TypeId::of::<Self>() {
+                Some(self)
+            } else {
+                None
+            }
+        })
+    }
+
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         self.border.resolve(node_map)
     }
@@ -172,7 +217,7 @@ impl Control for Decorator {
                             self.hover_brush.clone(),
                         ));
                     }
-                    WidgetMessage::MouseDown { .. } if self.pressable => {
+                    WidgetMessage::MouseDown { .. } if self.is_pressable => {
                         ui.send_message(WidgetMessage::background(
                             self.handle(),
                             MessageDirection::ToWidget,
@@ -292,7 +337,7 @@ impl DecoratorBuilder {
                 .disabled_brush
                 .unwrap_or_else(|| Brush::Solid(Color::opaque(50, 50, 50))),
             is_selected: false,
-            pressable: self.pressable,
+            is_pressable: self.pressable,
         });
         ui.add_node(node)
     }

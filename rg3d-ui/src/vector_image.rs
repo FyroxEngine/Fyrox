@@ -1,12 +1,14 @@
-use crate::draw::Draw;
 use crate::{
     core::{algebra::Vector2, color::Color, math::Vector2Ext, pool::Handle},
-    draw::{CommandTexture, DrawingContext},
+    draw::{CommandTexture, Draw, DrawingContext},
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
-use std::ops::{Deref, DerefMut};
+use std::{
+    any::{Any, TypeId},
+    ops::{Deref, DerefMut},
+};
 
 #[derive(Clone, Debug)]
 pub enum Primitive {
@@ -76,6 +78,14 @@ pub struct VectorImage {
 crate::define_widget_deref!(VectorImage);
 
 impl Control for VectorImage {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        if type_id == TypeId::of::<Self>() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
     fn measure_override(&self, _ui: &UserInterface, _available_size: Vector2<f32>) -> Vector2<f32> {
         if self.primitives.is_empty() {
             Default::default()

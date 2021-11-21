@@ -12,6 +12,7 @@ use crate::{
 };
 use copypasta::ClipboardProvider;
 use std::{
+    any::{Any, TypeId},
     cell::RefCell,
     cmp::{self, Ordering},
     fmt::{Debug, Formatter},
@@ -420,6 +421,14 @@ impl TextBox {
 }
 
 impl Control for TextBox {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        if type_id == TypeId::of::<Self>() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
     fn measure_override(&self, _: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         self.formatted_text
             .borrow_mut()

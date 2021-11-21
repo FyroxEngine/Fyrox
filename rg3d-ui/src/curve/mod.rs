@@ -20,6 +20,7 @@ use crate::{
     BuildContext, Control, UiNode, UserInterface,
 };
 use std::{
+    any::{Any, TypeId},
     cell::{Cell, RefCell},
     collections::HashSet,
     ops::{Deref, DerefMut},
@@ -149,6 +150,14 @@ impl Selection {
 }
 
 impl Control for CurveEditor {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        if type_id == TypeId::of::<Self>() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
     fn draw(&self, ctx: &mut DrawingContext) {
         self.update_matrices();
         self.draw_background(ctx);

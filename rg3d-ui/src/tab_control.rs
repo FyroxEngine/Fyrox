@@ -8,7 +8,10 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, NodeHandleMapping, UiNode, UserInterface,
 };
-use std::ops::{Deref, DerefMut};
+use std::{
+    any::{Any, TypeId},
+    ops::{Deref, DerefMut},
+};
 
 #[derive(Clone, PartialEq)]
 pub struct Tab {
@@ -25,6 +28,14 @@ pub struct TabControl {
 crate::define_widget_deref!(TabControl);
 
 impl Control for TabControl {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        if type_id == TypeId::of::<Self>() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         for tab in self.tabs.iter_mut() {
             node_map.resolve(&mut tab.header_button);

@@ -14,6 +14,7 @@ use crate::{
     Thickness, UiNode, UserInterface, VerticalAlignment, BRUSH_BRIGHT_BLUE, BRUSH_PRIMARY,
 };
 use std::{
+    any::{Any, TypeId},
     ops::{Deref, DerefMut},
     rc::Rc,
 };
@@ -51,6 +52,14 @@ pub struct Menu {
 crate::define_widget_deref!(Menu);
 
 impl Control for Menu {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        if type_id == TypeId::of::<Self>() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
@@ -198,6 +207,14 @@ fn close_menu_chain(from: Handle<UiNode>, ui: &UserInterface) {
 }
 
 impl Control for MenuItem {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        if type_id == TypeId::of::<Self>() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve_slice(&mut self.items);
         node_map.resolve(&mut self.popup);

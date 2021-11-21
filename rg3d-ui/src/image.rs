@@ -7,7 +7,10 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
-use std::ops::{Deref, DerefMut};
+use std::{
+    any::{Any, TypeId},
+    ops::{Deref, DerefMut},
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ImageMessage {
@@ -48,6 +51,14 @@ impl Image {
 }
 
 impl Control for Image {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        if type_id == TypeId::of::<Self>() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.widget.screen_bounds();
         let tex_coords = if self.flip {

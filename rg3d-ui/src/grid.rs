@@ -6,6 +6,7 @@ use crate::{
     BuildContext, Control, UiNode, UserInterface,
 };
 use std::{
+    any::{Any, TypeId},
     cell::RefCell,
     ops::{Deref, DerefMut},
 };
@@ -209,6 +210,14 @@ fn arrange_dims(dims: &mut [GridDimension], final_size: f32) {
 }
 
 impl Control for Grid {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        if type_id == TypeId::of::<Self>() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
 

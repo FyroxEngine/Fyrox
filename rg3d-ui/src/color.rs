@@ -18,7 +18,10 @@ use crate::{
     BuildContext, Control, NodeHandleMapping, Orientation, Thickness, UiNode, UserInterface,
     VerticalAlignment,
 };
-use std::ops::{Deref, DerefMut};
+use std::{
+    any::{Any, TypeId},
+    ops::{Deref, DerefMut},
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum HueBarMessage {
@@ -190,6 +193,14 @@ fn push_gradient_rect(
 const CHECKERBOARD_SIZE: f32 = 6.0;
 
 impl Control for AlphaBar {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        if type_id == TypeId::of::<Self>() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.screen_bounds();
 
@@ -362,6 +373,14 @@ impl HueBar {
 }
 
 impl Control for HueBar {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        if type_id == TypeId::of::<Self>() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.screen_bounds();
         for hue in 1..360 {
@@ -518,6 +537,14 @@ impl SaturationBrightnessField {
 }
 
 impl Control for SaturationBrightnessField {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        if type_id == TypeId::of::<Self>() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         let size = self.deref().arrange_override(ui, final_size);
         // Make sure field is always square.
@@ -769,6 +796,14 @@ impl ColorPicker {
 }
 
 impl Control for ColorPicker {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        if type_id == TypeId::of::<Self>() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.hue_bar);
         node_map.resolve(&mut self.alpha_bar);
@@ -1129,6 +1164,14 @@ pub struct ColorField {
 crate::define_widget_deref!(ColorField);
 
 impl Control for ColorField {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        if type_id == TypeId::of::<Self>() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.screen_bounds();
 

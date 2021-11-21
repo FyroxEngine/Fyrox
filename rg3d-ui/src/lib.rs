@@ -77,6 +77,7 @@ use crate::{
 };
 
 use copypasta::ClipboardContext;
+use std::any::TypeId;
 use std::{
     any::Any,
     cell::Cell,
@@ -276,6 +277,15 @@ impl<T: Any + Clone + 'static + Control> BaseControl for T {
 
 /// Trait for all UI controls in library.
 pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut {
+    /// Allows a widget to provide access to inner components. For example you can build your custom
+    /// MyTree widget using engine's Tree widget as a base. The engine needs to know whether the custom
+    /// widget is actually extends functionality of some existing widget.
+    ///
+    /// # Implementation
+    ///
+    /// It should at least return `Some(self)` for `type_id == TypeId::of::<Self>`.
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any>;
+
     fn resolve(&mut self, _node_map: &NodeHandleMapping) {}
 
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {

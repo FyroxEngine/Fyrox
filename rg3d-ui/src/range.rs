@@ -1,17 +1,17 @@
-use crate::grid::{Column, Row};
-use crate::message::MessageDirection;
-use crate::numeric::NumericUpDownMessage;
-use crate::text::TextBuilder;
 use crate::{
     core::pool::Handle,
     define_constructor,
-    grid::GridBuilder,
-    message::UiMessage,
-    numeric::{NumericType, NumericUpDownBuilder},
+    grid::{Column, GridBuilder, Row},
+    message::{MessageDirection, UiMessage},
+    numeric::{NumericType, NumericUpDownBuilder, NumericUpDownMessage},
+    text::TextBuilder,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
-use std::ops::{Deref, DerefMut, Range};
+use std::{
+    any::{Any, TypeId},
+    ops::{Deref, DerefMut, Range},
+};
 
 #[derive(Debug, PartialEq)]
 pub enum RangeEditorMessage<T>
@@ -62,6 +62,14 @@ impl<T> Control for RangeEditor<T>
 where
     T: NumericType,
 {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        if type_id == TypeId::of::<Self>() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 

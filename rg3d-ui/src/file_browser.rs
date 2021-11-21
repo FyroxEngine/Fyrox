@@ -22,6 +22,7 @@ use crate::{
 };
 use core::time;
 use std::{
+    any::{Any, TypeId},
     borrow::BorrowMut,
     cell,
     cmp::Ordering,
@@ -163,6 +164,14 @@ impl FileBrowser {
 }
 
 impl Control for FileBrowser {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        if type_id == TypeId::of::<Self>() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.tree_root);
         node_map.resolve(&mut self.path_text);
@@ -980,6 +989,16 @@ impl DerefMut for FileSelector {
 // File selector extends Window widget so it delegates most of calls
 // to inner window.
 impl Control for FileSelector {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        self.window.query_component(type_id).or_else(|| {
+            if type_id == TypeId::of::<Self>() {
+                Some(self)
+            } else {
+                None
+            }
+        })
+    }
+
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         self.window.resolve(node_map);
         node_map.resolve(&mut self.ok);

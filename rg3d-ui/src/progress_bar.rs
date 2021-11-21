@@ -8,7 +8,10 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, NodeHandleMapping, UiNode, UserInterface,
 };
-use std::ops::{Deref, DerefMut};
+use std::{
+    any::{Any, TypeId},
+    ops::{Deref, DerefMut},
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ProgressBarMessage {
@@ -30,6 +33,14 @@ pub struct ProgressBar {
 crate::define_widget_deref!(ProgressBar);
 
 impl Control for ProgressBar {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        if type_id == TypeId::of::<Self>() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.indicator);
         node_map.resolve(&mut self.body);

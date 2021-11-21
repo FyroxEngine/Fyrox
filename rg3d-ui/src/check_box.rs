@@ -11,8 +11,10 @@ use crate::{
     UserInterface, VerticalAlignment, BRUSH_BRIGHT, BRUSH_DARK, BRUSH_LIGHT, BRUSH_TEXT,
 };
 use rg3d_core::algebra::Vector2;
-
-use std::ops::{Deref, DerefMut};
+use std::{
+    any::{Any, TypeId},
+    ops::{Deref, DerefMut},
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum CheckBoxMessage {
@@ -35,6 +37,14 @@ pub struct CheckBox {
 crate::define_widget_deref!(CheckBox);
 
 impl Control for CheckBox {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        if type_id == TypeId::of::<Self>() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.check_mark);
         node_map.resolve(&mut self.uncheck_mark);

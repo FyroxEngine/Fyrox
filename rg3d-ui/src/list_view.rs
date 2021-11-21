@@ -12,7 +12,10 @@ use crate::{
     BuildContext, Control, NodeHandleMapping, Thickness, UiNode, UserInterface, BRUSH_DARK,
     BRUSH_LIGHT,
 };
-use std::ops::{Deref, DerefMut};
+use std::{
+    any::{Any, TypeId},
+    ops::{Deref, DerefMut},
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ListViewMessage {
@@ -118,6 +121,14 @@ pub struct ListViewItem {
 crate::define_widget_deref!(ListViewItem);
 
 impl Control for ListViewItem {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        if type_id == TypeId::of::<Self>() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
     fn draw(&self, drawing_context: &mut DrawingContext) {
         // Emit transparent geometry so item container can be picked by hit test.
         drawing_context.push_rect_filled(&self.widget.screen_bounds(), None);
@@ -160,6 +171,14 @@ impl Control for ListViewItem {
 }
 
 impl Control for ListView {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        if type_id == TypeId::of::<Self>() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.panel);
         node_map.resolve_slice(&mut self.items);

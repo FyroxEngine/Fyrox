@@ -19,7 +19,7 @@ use crate::{
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use std::{
-    any::TypeId,
+    any::{Any, TypeId},
     fmt::Debug,
     marker::PhantomData,
     ops::{Deref, DerefMut},
@@ -41,6 +41,14 @@ pub struct ArrayEditor {
 crate::define_widget_deref!(ArrayEditor);
 
 impl Control for ArrayEditor {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        if type_id == TypeId::of::<Self>() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 

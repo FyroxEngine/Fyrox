@@ -15,6 +15,7 @@ use crate::{
     BRUSH_LIGHTEST, COLOR_DARK, COLOR_DARKEST,
 };
 use std::{
+    any::{Any, TypeId},
     cell::RefCell,
     ops::{Deref, DerefMut},
 };
@@ -133,6 +134,14 @@ impl Grip {
 crate::define_widget_deref!(Window);
 
 impl Control for Window {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        if type_id == TypeId::of::<Self>() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.header);
         node_map.resolve(&mut self.minimize_button);

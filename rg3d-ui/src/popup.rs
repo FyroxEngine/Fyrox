@@ -7,7 +7,10 @@ use crate::{
     BuildContext, Control, NodeHandleMapping, RestrictionEntry, Thickness, UiNode, UserInterface,
     BRUSH_DARKER, BRUSH_LIGHTER,
 };
-use std::ops::{Deref, DerefMut};
+use std::{
+    any::{Any, TypeId},
+    ops::{Deref, DerefMut},
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum PopupMessage {
@@ -74,6 +77,14 @@ pub struct Popup {
 crate::define_widget_deref!(Popup);
 
 impl Control for Popup {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        if type_id == TypeId::of::<Self>() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.content);
         node_map.resolve(&mut self.body);

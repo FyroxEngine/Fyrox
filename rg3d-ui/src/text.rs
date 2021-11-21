@@ -10,6 +10,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, UiNode, UserInterface, VerticalAlignment,
 };
 use std::{
+    any::{Any, TypeId},
     cell::RefCell,
     ops::{Deref, DerefMut},
 };
@@ -40,6 +41,14 @@ pub struct Text {
 crate::define_widget_deref!(Text);
 
 impl Control for Text {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        if type_id == TypeId::of::<Self>() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
     fn measure_override(&self, _: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         self.formatted_text
             .borrow_mut()

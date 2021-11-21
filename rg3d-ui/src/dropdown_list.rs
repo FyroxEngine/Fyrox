@@ -14,7 +14,10 @@ use crate::{
     widget::{WidgetBuilder, WidgetMessage},
     BuildContext, Control, NodeHandleMapping, UiNode, UserInterface, BRUSH_LIGHT,
 };
-use std::ops::{Deref, DerefMut};
+use std::{
+    any::{Any, TypeId},
+    ops::{Deref, DerefMut},
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum DropdownListMessage {
@@ -48,6 +51,14 @@ pub struct DropdownList {
 crate::define_widget_deref!(DropdownList);
 
 impl Control for DropdownList {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        if type_id == TypeId::of::<Self>() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.popup);
         node_map.resolve(&mut self.list_view);

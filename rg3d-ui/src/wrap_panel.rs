@@ -1,13 +1,13 @@
 #![allow(clippy::reversed_empty_ranges)]
 
-use crate::core::algebra::Vector2;
 use crate::{
-    core::{math::Rect, pool::Handle},
+    core::{algebra::Vector2, math::Rect, pool::Handle},
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Orientation, UiNode, UserInterface,
 };
 use std::{
+    any::{Any, TypeId},
     cell::RefCell,
     ops::{Deref, DerefMut, Range},
 };
@@ -58,6 +58,14 @@ impl Default for Line {
 }
 
 impl Control for WrapPanel {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        if type_id == TypeId::of::<Self>() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         let mut measured_size: Vector2<f32> = Vector2::default();
         let mut line_size = Vector2::default();

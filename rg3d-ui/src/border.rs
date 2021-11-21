@@ -5,6 +5,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Thickness, UiNode, UserInterface, BRUSH_PRIMARY,
 };
+use std::any::{Any, TypeId};
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone)]
@@ -16,6 +17,14 @@ pub struct Border {
 crate::define_widget_deref!(Border);
 
 impl Control for Border {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        if type_id == TypeId::of::<Self>() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
 

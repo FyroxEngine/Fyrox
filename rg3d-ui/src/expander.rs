@@ -8,7 +8,10 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, UiNode, UserInterface, VerticalAlignment,
 };
-use std::ops::{Deref, DerefMut};
+use std::{
+    any::{Any, TypeId},
+    ops::{Deref, DerefMut},
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ExpanderMessage {
@@ -31,6 +34,14 @@ pub struct Expander {
 crate::define_widget_deref!(Expander);
 
 impl Control for Expander {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        if type_id == TypeId::of::<Self>() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         if let Some(&ExpanderMessage::Expand(expand)) = message.data::<ExpanderMessage>() {
             if message.destination() == self.handle()

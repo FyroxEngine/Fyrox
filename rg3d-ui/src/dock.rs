@@ -17,6 +17,7 @@ use crate::{
     BuildContext, Control, NodeHandleMapping, Thickness, UiNode, UserInterface,
 };
 use std::{
+    any::{Any, TypeId},
     cell::{Cell, RefCell},
     ops::{Deref, DerefMut},
 };
@@ -82,6 +83,14 @@ pub struct Tile {
 crate::define_widget_deref!(Tile);
 
 impl Control for Tile {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        if type_id == TypeId::of::<Self>() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve_cell(&mut self.drop_anchor);
         node_map.resolve(&mut self.splitter);
@@ -755,6 +764,14 @@ pub struct DockingManager {
 crate::define_widget_deref!(DockingManager);
 
 impl Control for DockingManager {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        if type_id == TypeId::of::<Self>() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve_slice(&mut self.floating_windows.borrow_mut());
     }

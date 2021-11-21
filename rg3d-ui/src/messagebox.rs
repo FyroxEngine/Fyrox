@@ -14,6 +14,7 @@ use crate::{
     Thickness, UiNode, UserInterface,
 };
 use std::{
+    any::{Any, TypeId},
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
 };
@@ -74,6 +75,16 @@ impl DerefMut for MessageBox {
 // Message box extends Window widget so it delegates most of calls
 // to inner window.
 impl Control for MessageBox {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        self.window.query_component(type_id).or_else(|| {
+            if type_id == TypeId::of::<Self>() {
+                Some(self)
+            } else {
+                None
+            }
+        })
+    }
+
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         self.window.resolve(node_map);
         node_map.resolve(&mut self.ok_yes);
