@@ -212,28 +212,29 @@ impl Control for Grid {
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
 
+        let mut rows = self.rows.borrow_mut();
+        let mut columns = self.columns.borrow_mut();
+        let mut groups = self.groups.borrow_mut();
+        let mut cells = self.cells.borrow_mut();
+
         // In case of no rows or columns, grid acts like default panel.
-        if self.columns.borrow().is_empty() || self.rows.borrow().is_empty() {
+        if columns.is_empty() || rows.is_empty() {
             return self.widget.measure_override(ui, available_size);
         }
 
-        for row in self.rows.borrow_mut().iter_mut() {
+        for row in rows.iter_mut() {
             row.actual_size = 0.0;
         }
-        for column in self.columns.borrow_mut().iter_mut() {
+        for column in columns.iter_mut() {
             column.actual_size = 0.0;
         }
-
-        let mut groups = self.groups.borrow_mut();
         for group in groups.iter_mut() {
             group.clear();
         }
-
-        let mut cells = self.cells.borrow_mut();
         cells.clear();
 
-        for (column_index, column) in self.columns.borrow().iter().enumerate() {
-            for (row_index, row) in self.rows.borrow().iter().enumerate() {
+        for (column_index, column) in columns.iter().enumerate() {
+            for (row_index, row) in rows.iter().enumerate() {
                 groups[group_index(row.size_mode, column.size_mode)].push(cells.len());
 
                 cells.push(Cell {
@@ -262,7 +263,7 @@ impl Control for Grid {
                 let cell = &cells[cell_index];
 
                 let stretch_sized_width = calc_avg_size_for_stretch_dim(
-                    &self.columns.borrow(),
+                    &columns,
                     self.children(),
                     available_size.x,
                     ui,
@@ -270,7 +271,7 @@ impl Control for Grid {
                 );
 
                 let stretch_sized_height = calc_avg_size_for_stretch_dim(
-                    &self.rows.borrow(),
+                    &rows,
                     self.children(),
                     available_size.y,
                     ui,
@@ -291,11 +292,11 @@ impl Control for Grid {
                     cell_size.y = cell_size.y.max(desired_size.y);
                 }
 
-                let column = &mut self.columns.borrow_mut()[cell.column_index];
+                let column = &mut columns[cell.column_index];
                 column.actual_size =
                     choose_actual_size(column, cell_size.x, available_size.x, stretch_sized_width);
 
-                let row = &mut self.rows.borrow_mut()[cell.row_index];
+                let row = &mut rows[cell.row_index];
                 row.actual_size =
                     choose_actual_size(row, cell_size.y, available_size.y, stretch_sized_height);
             }
@@ -303,10 +304,10 @@ impl Control for Grid {
 
         let mut desired_size = Vector2::default();
         // Step 4. Calculate desired size of grid.
-        for column in self.columns.borrow().iter() {
+        for column in columns.iter() {
             desired_size.x += column.actual_size;
         }
-        for row in self.rows.borrow().iter() {
+        for row in rows.iter() {
             desired_size.y += row.actual_size;
         }
         desired_size
