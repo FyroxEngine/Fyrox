@@ -110,10 +110,6 @@ impl<S: 'static, D: 'static> Control for LinkItem<S, D> {
     ) {
         self.tree.handle_os_event(_self_handle, _ui, _event)
     }
-
-    fn remove_ref(&mut self, _handle: Handle<UiNode>) {
-        self.tree.remove_ref(_handle)
-    }
 }
 
 pub struct LinkItemBuilder<S, D> {

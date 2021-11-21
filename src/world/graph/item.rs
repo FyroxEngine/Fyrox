@@ -128,10 +128,6 @@ impl<T: 'static> Control for SceneItem<T> {
     ) {
         self.tree.handle_os_event(self_handle, ui, event);
     }
-
-    fn remove_ref(&mut self, handle: Handle<UiNode>) {
-        self.tree.remove_ref(handle);
-    }
 }
 
 pub struct SceneItemBuilder<T> {
