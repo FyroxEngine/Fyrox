@@ -199,10 +199,6 @@ impl Control for Decorator {
             }
         }
     }
-
-    fn remove_ref(&mut self, handle: Handle<UiNode>) {
-        self.border.remove_ref(handle)
-    }
 }
 
 pub struct DecoratorBuilder {

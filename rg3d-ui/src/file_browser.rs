@@ -436,15 +436,6 @@ impl Control for FileBrowser {
             }
         }
     }
-
-    fn remove_ref(&mut self, handle: Handle<UiNode>) {
-        if self.tree_root == handle {
-            self.tree_root = Handle::NONE;
-        }
-        if self.path_text == handle {
-            self.path_text = Handle::NONE;
-        }
-    }
 }
 
 fn parent_path(path: &Path) -> PathBuf {
@@ -1077,10 +1068,6 @@ impl Control for FileSelector {
         event: &OsEvent,
     ) {
         self.window.handle_os_event(self_handle, ui, event);
-    }
-
-    fn remove_ref(&mut self, handle: Handle<UiNode>) {
-        self.window.remove_ref(handle)
     }
 }
 

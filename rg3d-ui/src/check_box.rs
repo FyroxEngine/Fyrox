@@ -128,18 +128,6 @@ impl Control for CheckBox {
             }
         }
     }
-
-    fn remove_ref(&mut self, handle: Handle<UiNode>) {
-        if self.check_mark == handle {
-            self.check_mark = Handle::NONE;
-        }
-        if self.uncheck_mark == handle {
-            self.uncheck_mark = Handle::NONE;
-        }
-        if self.undefined_mark == handle {
-            self.undefined_mark = Handle::NONE;
-        }
-    }
 }
 
 pub struct CheckBoxBuilder {

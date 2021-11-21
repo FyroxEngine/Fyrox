@@ -220,21 +220,6 @@ impl Control for ScrollViewer {
             }
         }
     }
-
-    fn remove_ref(&mut self, handle: Handle<UiNode>) {
-        if self.content == handle {
-            self.content = Handle::NONE;
-        }
-        if self.v_scroll_bar == handle {
-            self.v_scroll_bar = Handle::NONE;
-        }
-        if self.h_scroll_bar == handle {
-            self.h_scroll_bar = Handle::NONE;
-        }
-        if self.scroll_panel == handle {
-            self.scroll_panel = Handle::NONE;
-        }
-    }
 }
 
 pub struct ScrollViewerBuilder {

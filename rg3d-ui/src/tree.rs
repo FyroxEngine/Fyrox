@@ -255,21 +255,6 @@ impl Control for Tree {
             }
         }
     }
-
-    fn remove_ref(&mut self, handle: Handle<UiNode>) {
-        if self.expander == handle {
-            self.expander = Default::default();
-        }
-        if self.content == handle {
-            self.content = Default::default();
-        }
-        if self.panel == handle {
-            self.panel = Default::default();
-        }
-        if self.background == handle {
-            self.background = Default::default();
-        }
-    }
 }
 
 impl Tree {
@@ -549,15 +534,6 @@ impl Control for TreeRoot {
                     }
                 }
             }
-        }
-    }
-
-    fn remove_ref(&mut self, handle: Handle<UiNode>) {
-        if self.panel == handle {
-            self.panel = Default::default();
-        }
-        if let Some(position) = self.selected.iter().position(|&s| s == handle) {
-            self.selected.remove(position);
         }
     }
 }

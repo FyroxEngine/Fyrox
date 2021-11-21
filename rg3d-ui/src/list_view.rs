@@ -239,10 +239,6 @@ impl Control for ListView {
             }
         }
     }
-
-    fn remove_ref(&mut self, handle: Handle<UiNode>) {
-        self.item_containers.retain(|i| *i != handle);
-    }
 }
 
 pub struct ListViewBuilder {

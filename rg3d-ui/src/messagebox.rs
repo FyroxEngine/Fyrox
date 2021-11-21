@@ -174,10 +174,6 @@ impl Control for MessageBox {
     ) {
         self.window.handle_os_event(self_handle, ui, event);
     }
-
-    fn remove_ref(&mut self, handle: Handle<UiNode>) {
-        self.window.remove_ref(handle)
-    }
 }
 
 pub struct MessageBoxBuilder<'b> {

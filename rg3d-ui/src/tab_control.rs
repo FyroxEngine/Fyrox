@@ -53,17 +53,6 @@ impl Control for TabControl {
             }
         }
     }
-
-    fn remove_ref(&mut self, handle: Handle<UiNode>) {
-        for tab in self.tabs.iter_mut() {
-            if tab.content == handle {
-                tab.content = Handle::NONE;
-            }
-            if tab.header_button == handle {
-                tab.header_button = Handle::NONE;
-            }
-        }
-    }
 }
 
 pub struct TabControlBuilder {

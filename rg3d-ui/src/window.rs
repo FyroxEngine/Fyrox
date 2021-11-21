@@ -515,27 +515,6 @@ impl Control for Window {
             }
         }
     }
-
-    fn remove_ref(&mut self, handle: Handle<UiNode>) {
-        if self.header == handle {
-            self.header = Handle::NONE;
-        }
-        if self.content == handle {
-            self.content = Handle::NONE;
-        }
-        if self.close_button == handle {
-            self.close_button = Handle::NONE;
-        }
-        if self.minimize_button == handle {
-            self.minimize_button = Handle::NONE;
-        }
-        if self.title == handle {
-            self.title = Handle::NONE;
-        }
-        if self.title_grid == handle {
-            self.title_grid = Handle::NONE;
-        }
-    }
 }
 
 impl Window {

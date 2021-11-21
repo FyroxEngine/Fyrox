@@ -341,10 +341,6 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut {
         _event: &OsEvent,
     ) {
     }
-
-    /// Called when a node is deleted from container thus giving a chance to remove dangling
-    /// handles which may cause panic.
-    fn remove_ref(&mut self, _handle: Handle<UiNode>) {}
 }
 
 pub struct DragContext {
@@ -1363,8 +1359,8 @@ impl UserInterface {
                 }
 
                 for &handle in self.preview_set.iter() {
-                    if self.nodes.is_valid_handle(handle) {
-                        self.nodes[handle].preview_message(self, &mut message);
+                    if let Some(node_ref) = self.nodes.try_borrow(handle) {
+                        node_ref.preview_message(self, &mut message);
                     }
                 }
 
@@ -1917,12 +1913,6 @@ impl UserInterface {
         }
 
         self.preview_set.remove(&node);
-
-        for node in self.nodes.iter_mut() {
-            for removed_node in removed_nodes.iter() {
-                node.remove_ref(*removed_node);
-            }
-        }
     }
 
     /// Links specified child with specified parent.

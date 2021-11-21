@@ -292,24 +292,6 @@ impl Control for ScrollBar {
             }
         }
     }
-
-    fn remove_ref(&mut self, handle: Handle<UiNode>) {
-        if self.indicator == handle {
-            self.indicator = Handle::NONE;
-        }
-        if self.decrease == handle {
-            self.decrease = Handle::NONE;
-        }
-        if self.increase == handle {
-            self.increase = Handle::NONE;
-        }
-        if self.value_text == handle {
-            self.value_text = Handle::NONE;
-        }
-        if self.field == handle {
-            self.field = Handle::NONE;
-        }
-    }
 }
 
 impl ScrollBar {

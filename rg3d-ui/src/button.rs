@@ -104,12 +104,6 @@ impl Control for Button {
             }
         }
     }
-
-    fn remove_ref(&mut self, handle: Handle<UiNode>) {
-        if self.content == handle {
-            self.content = Handle::NONE;
-        }
-    }
 }
 
 pub enum ButtonContent {
