@@ -17,6 +17,7 @@ use rg3d::{
     },
 };
 use std::{
+    any::{Any, TypeId},
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
 };
@@ -66,6 +67,16 @@ impl<S, D> DerefMut for LinkItem<S, D> {
 }
 
 impl<S: 'static, D: 'static> Control for LinkItem<S, D> {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        self.tree.query_component(type_id).or_else(|| {
+            if type_id == TypeId::of::<Self>() {
+                Some(self)
+            } else {
+                None
+            }
+        })
+    }
+
     fn resolve(&mut self, _node_map: &NodeHandleMapping) {
         self.tree.resolve(_node_map)
     }

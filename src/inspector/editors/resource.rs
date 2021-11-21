@@ -23,7 +23,7 @@ use rg3d::{
     sound::buffer::SoundBufferResource,
 };
 use std::{
-    any::TypeId,
+    any::{Any, TypeId},
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
 };
@@ -124,6 +124,14 @@ impl DerefMut for SoundBufferField {
 }
 
 impl Control for SoundBufferField {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        if type_id == TypeId::of::<Self>() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 

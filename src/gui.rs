@@ -15,6 +15,7 @@ use rg3d::{
         UserInterface, VerticalAlignment,
     },
 };
+use std::any::{Any, TypeId};
 use std::ops::{Deref, DerefMut};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -71,6 +72,14 @@ impl<D: Clone> DerefMut for DeletableItem<D> {
 }
 
 impl<D: Clone + 'static> Control for DeletableItem<D> {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        if type_id == TypeId::of::<Self>() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.delete);
     }

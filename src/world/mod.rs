@@ -143,19 +143,22 @@ fn tree_node(ui: &UserInterface, tree: Handle<UiNode>) -> Handle<Node> {
 fn colorize(handle: Handle<UiNode>, ui: &UserInterface, index: &mut usize) {
     let node = ui.node(handle);
 
-    if node.cast::<Decorator>().is_some()
-        && node.parent().is_some()
-        && ui.node(node.parent()).cast::<Button>().is_none()
-    {
-        ui.send_message(DecoratorMessage::normal_brush(
-            handle,
-            MessageDirection::ToWidget,
-            Brush::Solid(if *index % 2 == 0 {
+    if let Some(decorator) = node.cast::<Decorator>() {
+        if node.parent().is_some() && ui.node(node.parent()).cast::<Button>().is_none() {
+            let new_brush = Brush::Solid(if *index % 2 == 0 {
                 Color::opaque(50, 50, 50)
             } else {
                 Color::opaque(60, 60, 60)
-            }),
-        ));
+            });
+
+            if decorator.normal_brush() != &new_brush {
+                ui.send_message(DecoratorMessage::normal_brush(
+                    handle,
+                    MessageDirection::ToWidget,
+                    new_brush,
+                ));
+            }
+        }
     }
 
     *index += 1;
@@ -266,13 +269,17 @@ where
 
     // Sync names.
     for item in ui.node(folder).cast::<Tree>().unwrap().items() {
-        let entity_handle = ui.node(*item).cast::<SceneItem<T>>().unwrap().entity_handle;
+        let item_ref = ui.node(*item).cast::<SceneItem<T>>().unwrap();
+        let entity_handle = item_ref.entity_handle;
         if pool.is_valid_handle(entity_handle) {
-            ui.send_message(SceneItemMessage::name(
-                *item,
-                MessageDirection::ToWidget,
-                (make_name)(entity_handle),
-            ));
+            let new_name = (make_name)(entity_handle);
+            if new_name != item_ref.name() {
+                ui.send_message(SceneItemMessage::name(
+                    *item,
+                    MessageDirection::ToWidget,
+                    new_name,
+                ));
+            }
         }
     }
 
@@ -804,14 +811,18 @@ impl WorldViewer {
             if let Some(item) = ui_node.cast::<SceneItem<Node>>() {
                 if graph.is_valid_handle(item.entity_handle) {
                     let node = &graph[item.entity_handle];
-                    send_sync_message(
-                        ui,
-                        SceneItemMessage::name(
-                            handle,
-                            MessageDirection::ToWidget,
-                            node.name().to_owned(),
-                        ),
-                    );
+
+                    if item.name() != node.name() {
+                        send_sync_message(
+                            ui,
+                            SceneItemMessage::name(
+                                handle,
+                                MessageDirection::ToWidget,
+                                node.name().to_owned(),
+                            ),
+                        );
+                    }
+
                     stack.extend_from_slice(item.tree.items());
                 }
             } else if let Some(root) = ui_node.cast::<TreeRoot>() {

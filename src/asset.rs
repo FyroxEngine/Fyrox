@@ -21,6 +21,7 @@ use rg3d::{
     utils::into_gui_texture,
 };
 use std::{
+    any::{Any, TypeId},
     ffi::OsStr,
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
@@ -59,6 +60,14 @@ impl DerefMut for AssetItem {
 }
 
 impl Control for AssetItem {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        if type_id == TypeId::of::<Self>() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.screen_bounds();
         drawing_context.push_rect_filled(&bounds, None);

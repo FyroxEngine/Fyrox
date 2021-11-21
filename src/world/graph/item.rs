@@ -14,6 +14,7 @@ use rg3d::{
         VerticalAlignment,
     },
 };
+use std::any::{Any, TypeId};
 use std::{
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
@@ -74,6 +75,16 @@ impl<T> DerefMut for SceneItem<T> {
 }
 
 impl<T: 'static> Control for SceneItem<T> {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        self.tree.query_component(type_id).or_else(|| {
+            if type_id == TypeId::of::<Self>() {
+                Some(self)
+            } else {
+                None
+            }
+        })
+    }
+
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         self.tree.resolve(node_map);
         node_map.resolve(&mut self.text_name);

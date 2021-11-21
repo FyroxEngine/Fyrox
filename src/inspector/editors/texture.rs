@@ -19,6 +19,7 @@ use rg3d::{
     resource::texture::Texture,
     utils::into_gui_texture,
 };
+use std::any::Any;
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},
@@ -63,6 +64,14 @@ impl TextureEditorMessage {
 }
 
 impl Control for TextureEditor {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        if type_id == TypeId::of::<Self>() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
