@@ -61,7 +61,7 @@ fn modify_skybox(
                 skybox.top()
             },
             bottom: if face == SkyBoxFace::Bottom {
-                texture.clone()
+                texture
             } else {
                 skybox.bottom()
             },

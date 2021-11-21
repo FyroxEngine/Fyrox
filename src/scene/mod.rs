@@ -44,7 +44,7 @@ pub struct EditorScene {
 }
 
 fn convert_physics(scene: &mut Scene) -> Physics {
-    let physics = Physics::new(&scene);
+    let physics = Physics::new(scene);
 
     // Once we've converted physics to editor's representation, we need to clear
     // physics of the scene, this is needed because when saving, the native physics will
