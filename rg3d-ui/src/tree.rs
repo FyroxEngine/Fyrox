@@ -525,18 +525,24 @@ impl Control for TreeRoot {
                             while let Some(handle) = stack.pop() {
                                 let node = ui.node(handle);
                                 stack.extend_from_slice(node.children());
-                                if selected.contains(&handle) {
-                                    ui.send_message(TreeMessage::select(
-                                        handle,
-                                        MessageDirection::ToWidget,
-                                        SelectionState(true),
-                                    ));
+
+                                let new_selection_state = if selected.contains(&handle) {
+                                    SelectionState(true)
                                 } else {
-                                    ui.send_message(TreeMessage::select(
-                                        handle,
-                                        MessageDirection::ToWidget,
-                                        SelectionState(false),
-                                    ));
+                                    SelectionState(false)
+                                };
+
+                                if let Some(tree_ref) = node
+                                    .query_component(TypeId::of::<Tree>())
+                                    .and_then(|tree_ref| tree_ref.downcast_ref::<Tree>())
+                                {
+                                    if tree_ref.is_selected != new_selection_state.0 {
+                                        ui.send_message(TreeMessage::select(
+                                            handle,
+                                            MessageDirection::ToWidget,
+                                            new_selection_state,
+                                        ));
+                                    }
                                 }
                             }
                             self.selected = selected.clone();
