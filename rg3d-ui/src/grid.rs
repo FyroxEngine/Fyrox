@@ -10,13 +10,6 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-trait GridDimension {
-    fn size_mode(&self) -> SizeMode;
-    fn desired_size(&self) -> f32;
-    fn actual_size(&self) -> f32;
-    fn set_location(&mut self, location: f32);
-}
-
 #[derive(Clone, Copy, PartialEq)]
 pub enum SizeMode {
     Strict,
@@ -25,132 +18,38 @@ pub enum SizeMode {
 }
 
 #[derive(Clone, Copy, PartialEq)]
-pub struct Column {
+pub struct GridDimension {
     size_mode: SizeMode,
-    desired_width: f32,
-    actual_width: f32,
-    x: f32,
+    desired_size: f32,
+    actual_size: f32,
+    location: f32,
 }
 
-impl GridDimension for Column {
-    fn size_mode(&self) -> SizeMode {
-        self.size_mode
-    }
-
-    fn desired_size(&self) -> f32 {
-        self.desired_width
-    }
-
-    fn actual_size(&self) -> f32 {
-        self.actual_width
-    }
-
-    fn set_location(&mut self, location: f32) {
-        self.x = location;
-    }
-}
-
-impl Column {
-    pub fn generic(size_mode: SizeMode, desired_width: f32) -> Self {
-        Column {
-            size_mode,
-            desired_width,
-            actual_width: 0.0,
-            x: 0.0,
-        }
-    }
-
-    pub fn strict(desired_width: f32) -> Self {
+impl GridDimension {
+    pub fn generic(size_mode: SizeMode, desired_size: f32) -> Self {
         Self {
-            size_mode: SizeMode::Strict,
-            desired_width,
-            actual_width: 0.0,
-            x: 0.0,
+            size_mode,
+            desired_size,
+            actual_size: 0.0,
+            location: 0.0,
         }
+    }
+
+    pub fn strict(desired_size: f32) -> Self {
+        Self::generic(SizeMode::Strict, desired_size)
     }
 
     pub fn stretch() -> Self {
-        Self {
-            size_mode: SizeMode::Stretch,
-            desired_width: 0.0,
-            actual_width: 0.0,
-            x: 0.0,
-        }
+        Self::generic(SizeMode::Stretch, 0.0)
     }
 
     pub fn auto() -> Self {
-        Self {
-            size_mode: SizeMode::Auto,
-            desired_width: 0.0,
-            actual_width: 0.0,
-            x: 0.0,
-        }
+        Self::generic(SizeMode::Auto, 0.0)
     }
 }
 
-#[derive(Clone, Copy, PartialEq)]
-pub struct Row {
-    size_mode: SizeMode,
-    desired_height: f32,
-    actual_height: f32,
-    y: f32,
-}
-
-impl GridDimension for Row {
-    fn size_mode(&self) -> SizeMode {
-        self.size_mode
-    }
-
-    fn desired_size(&self) -> f32 {
-        self.desired_height
-    }
-
-    fn actual_size(&self) -> f32 {
-        self.actual_height
-    }
-
-    fn set_location(&mut self, location: f32) {
-        self.y = location;
-    }
-}
-
-impl Row {
-    pub fn generic(size_mode: SizeMode, desired_height: f32) -> Self {
-        Self {
-            size_mode,
-            desired_height,
-            actual_height: 0.0,
-            y: 0.0,
-        }
-    }
-
-    pub fn strict(desired_height: f32) -> Self {
-        Self {
-            size_mode: SizeMode::Strict,
-            desired_height,
-            actual_height: 0.0,
-            y: 0.0,
-        }
-    }
-
-    pub fn stretch() -> Self {
-        Self {
-            size_mode: SizeMode::Stretch,
-            desired_height: 0.0,
-            actual_height: 0.0,
-            y: 0.0,
-        }
-    }
-
-    pub fn auto() -> Self {
-        Self {
-            size_mode: SizeMode::Auto,
-            desired_height: 0.0,
-            actual_height: 0.0,
-            y: 0.0,
-        }
-    }
-}
+pub type Column = GridDimension;
+pub type Row = GridDimension;
 
 /// Automatically arranges children by rows and columns
 #[derive(Clone)]
@@ -187,23 +86,23 @@ fn group_index(row_size_mode: SizeMode, column_size_mode: SizeMode) -> usize {
     }
 }
 
-fn choose_constraint<D: GridDimension>(dimension: &D, available_size: f32) -> Option<f32> {
-    match dimension.size_mode() {
-        SizeMode::Strict => Some(dimension.desired_size()),
+fn choose_constraint(dimension: &GridDimension, available_size: f32) -> Option<f32> {
+    match dimension.size_mode {
+        SizeMode::Strict => Some(dimension.desired_size),
         SizeMode::Auto => Some(available_size),
         SizeMode::Stretch => None,
     }
 }
 
-fn choose_actual_size<D: GridDimension>(
-    dimension: &D,
+fn choose_actual_size(
+    dimension: &GridDimension,
     cell_size: f32,
     available_size: f32,
     stretch_size: f32,
 ) -> f32 {
-    let current_actual_size = dimension.actual_size();
-    match dimension.size_mode() {
-        SizeMode::Strict => dimension.desired_size(),
+    let current_actual_size = dimension.actual_size;
+    match dimension.size_mode {
+        SizeMode::Strict => dimension.desired_size,
         SizeMode::Auto => current_actual_size.max(cell_size),
         SizeMode::Stretch => current_actual_size.max(if available_size.is_infinite() {
             cell_size
@@ -213,8 +112,8 @@ fn choose_actual_size<D: GridDimension>(
     }
 }
 
-fn calc_total_size_of_non_stretch_dims<D: GridDimension>(
-    dims: &[D],
+fn calc_total_size_of_non_stretch_dims(
+    dims: &[GridDimension],
     children: &[Handle<UiNode>],
     ui: &UserInterface,
     desired_size_fetcher: fn(&UiNode, usize) -> Option<f32>,
@@ -222,9 +121,9 @@ fn calc_total_size_of_non_stretch_dims<D: GridDimension>(
     let mut preset_size = 0.0;
 
     for (i, dim) in dims.iter().enumerate() {
-        if dim.size_mode() == SizeMode::Strict {
-            preset_size += dim.desired_size();
-        } else if dim.size_mode() == SizeMode::Auto {
+        if dim.size_mode == SizeMode::Strict {
+            preset_size += dim.desired_size;
+        } else if dim.size_mode == SizeMode::Auto {
             let mut dim_size = 0.0f32;
             for child_handle in children {
                 let child = ui.nodes.borrow(*child_handle);
@@ -239,18 +138,18 @@ fn calc_total_size_of_non_stretch_dims<D: GridDimension>(
     preset_size
 }
 
-fn count_stretch_dims<D: GridDimension>(dims: &[D]) -> usize {
+fn count_stretch_dims(dims: &[GridDimension]) -> usize {
     let mut stretch_sized_dims = 0;
     for dim in dims.iter() {
-        if dim.size_mode() == SizeMode::Stretch {
+        if dim.size_mode == SizeMode::Stretch {
             stretch_sized_dims += 1;
         }
     }
     stretch_sized_dims
 }
 
-fn calc_avg_size_for_stretch_dim<D: GridDimension>(
-    dims: &[D],
+fn calc_avg_size_for_stretch_dim(
+    dims: &[GridDimension],
     children: &[Handle<UiNode>],
     available_size: f32,
     ui: &UserInterface,
@@ -284,11 +183,11 @@ fn fetch_height(child: &UiNode, i: usize) -> Option<f32> {
     }
 }
 
-fn arrange_dims<D: GridDimension>(dims: &mut [D], final_size: f32) {
+fn arrange_dims(dims: &mut [GridDimension], final_size: f32) {
     let mut preset_width = 0.0;
     for dim in dims.iter() {
-        if dim.size_mode() == SizeMode::Auto || dim.size_mode() == SizeMode::Strict {
-            preset_width += dim.actual_size();
+        if dim.size_mode == SizeMode::Auto || dim.size_mode == SizeMode::Strict {
+            preset_width += dim.actual_size;
         }
     }
 
@@ -301,9 +200,9 @@ fn arrange_dims<D: GridDimension>(dims: &mut [D], final_size: f32) {
 
     let mut location = 0.0;
     for dim in dims.iter_mut() {
-        dim.set_location(location);
-        location += match dim.size_mode() {
-            SizeMode::Strict | SizeMode::Auto => dim.actual_size(),
+        dim.location = location;
+        location += match dim.size_mode {
+            SizeMode::Strict | SizeMode::Auto => dim.actual_size,
             SizeMode::Stretch => avg_size,
         };
     }
@@ -319,10 +218,10 @@ impl Control for Grid {
         }
 
         for row in self.rows.borrow_mut().iter_mut() {
-            row.actual_height = 0.0;
+            row.actual_size = 0.0;
         }
         for column in self.columns.borrow_mut().iter_mut() {
-            column.actual_width = 0.0;
+            column.actual_size = 0.0;
         }
 
         let mut groups = self.groups.borrow_mut();
@@ -393,11 +292,11 @@ impl Control for Grid {
                 }
 
                 let column = &mut self.columns.borrow_mut()[cell.column_index];
-                column.actual_width =
+                column.actual_size =
                     choose_actual_size(column, cell_size.x, available_size.x, stretch_sized_width);
 
                 let row = &mut self.rows.borrow_mut()[cell.row_index];
-                row.actual_height =
+                row.actual_size =
                     choose_actual_size(row, cell_size.y, available_size.y, stretch_sized_height);
             }
         }
@@ -405,10 +304,10 @@ impl Control for Grid {
         let mut desired_size = Vector2::default();
         // Step 4. Calculate desired size of grid.
         for column in self.columns.borrow().iter() {
-            desired_size.x += column.actual_width;
+            desired_size.x += column.actual_size;
         }
         for row in self.rows.borrow().iter() {
-            desired_size.y += row.actual_height;
+            desired_size.y += row.actual_size;
         }
         desired_size
     }
@@ -436,7 +335,12 @@ impl Control for Grid {
                 if let Some(row) = rows.get(child.row()) {
                     ui.arrange_node(
                         *child_handle,
-                        &Rect::new(column.x, row.y, column.actual_width, row.actual_height),
+                        &Rect::new(
+                            column.location,
+                            row.location,
+                            column.actual_size,
+                            row.actual_size,
+                        ),
                     );
                 }
             }
@@ -460,13 +364,13 @@ impl Control for Grid {
             drawing_context.push_line(left_bottom, left_top, self.border_thickness);
 
             for column in self.columns.borrow().iter() {
-                let a = Vector2::new(bounds.x() + column.x, bounds.y());
-                let b = Vector2::new(bounds.x() + column.x, bounds.y() + bounds.h());
+                let a = Vector2::new(bounds.x() + column.location, bounds.y());
+                let b = Vector2::new(bounds.x() + column.location, bounds.y() + bounds.h());
                 drawing_context.push_line(a, b, self.border_thickness);
             }
             for row in self.rows.borrow().iter() {
-                let a = Vector2::new(bounds.x(), bounds.y() + row.y);
-                let b = Vector2::new(bounds.x() + bounds.w(), bounds.y() + row.y);
+                let a = Vector2::new(bounds.x(), bounds.y() + row.location);
+                let b = Vector2::new(bounds.x() + bounds.w(), bounds.y() + row.location);
                 drawing_context.push_line(a, b, self.border_thickness);
             }
 
