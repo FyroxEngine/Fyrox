@@ -1,9 +1,7 @@
 use crate::inspector::{make_expander_margin, make_layer_margin};
 use crate::{
-    border::BorderBuilder,
-    brush::Brush,
     button::{ButtonBuilder, ButtonMessage},
-    core::{color::Color, inspect::Inspect, pool::Handle},
+    core::{inspect::Inspect, pool::Handle},
     define_constructor,
     expander::ExpanderBuilder,
     grid::{Column, GridBuilder, Row},
@@ -14,8 +12,7 @@ use crate::{
             PropertyEditorMessageContext,
         },
         CollectionChanged, FieldKind, Inspector, InspectorBuilder, InspectorContext,
-        InspectorEnvironment, InspectorError, InspectorMessage, PropertyChanged, HEADER_MARGIN,
-        NAME_COLUMN_WIDTH,
+        InspectorEnvironment, InspectorError, InspectorMessage, PropertyChanged, NAME_COLUMN_WIDTH,
     },
     message::{MessageDirection, UiMessage},
     stack_panel::StackPanelBuilder,
@@ -199,7 +196,6 @@ where
                 definition_container.clone(),
                 environment.clone(),
                 sync_flag,
-                false,
                 layer_index,
             );
 

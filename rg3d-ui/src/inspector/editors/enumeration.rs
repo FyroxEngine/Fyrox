@@ -115,7 +115,6 @@ impl<T: InspectableEnum> Control for EnumPropertyEditor<T> {
                     self.definition_container.clone(),
                     self.environment.clone(),
                     self.sync_flag,
-                    false,
                     self.layer_index,
                 );
 
@@ -223,7 +222,6 @@ impl EnumPropertyEditorBuilder {
             definition_container.clone(),
             self.environment.clone(),
             self.sync_flag,
-            false,
             self.layer_index,
         );
 
@@ -388,7 +386,6 @@ where
                 ctx.definition_container.clone(),
                 environment,
                 ctx.sync_flag,
-                true,
                 ctx.layer_index + 1,
             );
 

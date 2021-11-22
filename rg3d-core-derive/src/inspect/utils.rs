@@ -143,8 +143,6 @@ pub fn gen_inspect_fn_body(
     field_prefix: FieldPrefix,
     field_args: &ast::Fields<args::FieldArgs>,
 ) -> TokenStream2 {
-    let owner_name = ty_args.ident.to_string();
-
     // `inspect` function body, consisting of a sequence of quotes
     let mut quotes = Vec::new();
 
@@ -154,9 +152,7 @@ pub fn gen_inspect_fn_body(
         .iter()
         .enumerate()
         .filter(|(_i, f)| !(f.skip || f.expand || f.expand_subtree))
-        .map(|(i, field)| {
-            self::quote_field_prop(&owner_name, field_prefix, i, field, field_args.style)
-        });
+        .map(|(i, field)| self::quote_field_prop(field_prefix, i, field, field_args.style));
 
     quotes.push(quote! {
         let mut props = Vec::new();
@@ -172,8 +168,7 @@ pub fn gen_inspect_fn_body(
     {
         // parent (the field)
         if field.expand_subtree {
-            let prop =
-                self::quote_field_prop(&owner_name, field_prefix, i, field, field_args.style);
+            let prop = self::quote_field_prop(field_prefix, i, field, field_args.style);
 
             quotes.push(quote! {
                 props.push(#prop);
@@ -197,8 +192,6 @@ pub fn gen_inspect_fn_body(
 
 /// `PropertyInfo { .. }`
 fn quote_field_prop(
-    // the name of the property owner, used as default property group
-    owner_name: &str,
     field_prefix: FieldPrefix,
     nth_field: usize,
     field: &args::FieldArgs,
@@ -226,9 +219,6 @@ fn quote_field_prop(
         .clone()
         .unwrap_or_else(|| field_ident.to_string());
     let display_name = display_name.to_case(Case::Title);
-
-    // consider #[inspect(group = ..)]
-    let group = field.group.as_deref().unwrap_or(owner_name);
 
     let min_value = match field.min_value {
         None => quote! { None },
@@ -259,7 +249,6 @@ fn quote_field_prop(
             owner_type_id: std::any::TypeId::of::<Self>(),
             name: #field_name,
             display_name: #display_name,
-            group: #group,
             value: #field_ref,
             read_only: #read_only,
             min_value: #min_value,

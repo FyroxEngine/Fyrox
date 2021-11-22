@@ -126,7 +126,6 @@ where
                 definition_container.clone(),
                 environment.clone(),
                 sync_flag,
-                true,
                 layer_index,
             );
 

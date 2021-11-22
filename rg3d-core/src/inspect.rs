@@ -48,9 +48,6 @@ pub struct PropertyInfo<'a> {
     /// A human-readable name of the property.
     pub display_name: &'static str,
 
-    /// A name of the group that the property belongs to.
-    pub group: &'static str,
-
     /// An reference to the actual value of the property.
     pub value: &'a dyn PropertyValue,
 
@@ -79,7 +76,6 @@ impl<'a> PartialEq<Self> for PropertyInfo<'a> {
         self.owner_type_id == other.owner_type_id
             && self.name == other.name
             && self.display_name == other.display_name
-            && self.group == other.group
             && std::ptr::eq(self.value, other.value)
             && self.read_only == other.read_only
             && self.min_value == other.min_value
@@ -96,7 +92,6 @@ impl<'a> fmt::Debug for PropertyInfo<'a> {
             .field("owner_type_id", &self.owner_type_id)
             .field("name", &self.name)
             .field("display_name", &self.display_name)
-            .field("group", &self.group)
             .field("value", &format_args!("{:?}", self.value as *const _))
             .field("read_only", &self.read_only)
             .field("min_value", &self.min_value)
@@ -169,7 +164,6 @@ macro_rules! impl_self_inspect {
                     owner_type_id: TypeId::of::<Self>(),
                     name: "Value",
                     display_name: "Value",
-                    group: "Self",
                     value: self,
                     read_only: false,
                     min_value: Some($min),
