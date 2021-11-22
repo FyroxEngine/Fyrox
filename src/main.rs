@@ -556,7 +556,7 @@ impl ScenePreview {
         This also allows you to select an object or add an object to current selection using Ctrl+Click";
 
         let scale_mode_tooltip =
-            "Rotate Object(s) - Shortcut: [4]\n\nScaling interaction mode allows you to scale selected \
+            "Scale Object(s) - Shortcut: [4]\n\nScaling interaction mode allows you to scale selected \
         objects. Keep in mind that scaling always works in local coordinates!\n\n\
         This also allows you to select an object or add an object to current selection using Ctrl+Click";
 
