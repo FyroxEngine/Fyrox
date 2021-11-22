@@ -158,7 +158,7 @@ impl Inspector {
     }
 }
 
-pub const NAME_COLUMN_WIDTH: f32 = 110.0;
+pub const NAME_COLUMN_WIDTH: f32 = 150.0;
 pub const HEADER_MARGIN: Thickness = Thickness {
     left: 4.0,
     top: 1.0,
@@ -237,8 +237,20 @@ impl Debug for InspectorContext {
     }
 }
 
-fn create_header(ctx: &mut BuildContext, text: &str) -> Handle<UiNode> {
-    TextBuilder::new(WidgetBuilder::new().with_margin(HEADER_MARGIN))
+pub fn make_layer_margin(layer_index: usize) -> Thickness {
+    let mut margin = HEADER_MARGIN;
+    margin.left += layer_index as f32 * 10.0;
+    margin
+}
+
+pub fn make_expander_margin(layer_index: usize) -> Thickness {
+    let mut margin = make_layer_margin(layer_index);
+    margin.left = (margin.left - 20.0).max(0.0);
+    margin
+}
+
+fn create_header(ctx: &mut BuildContext, text: &str, layer_index: usize) -> Handle<UiNode> {
+    TextBuilder::new(WidgetBuilder::new().with_margin(make_layer_margin(layer_index)))
         .with_text(text)
         .with_vertical_text_alignment(VerticalAlignment::Center)
         .build(ctx)
@@ -310,6 +322,8 @@ impl InspectorContext {
         definition_container: Rc<PropertyEditorDefinitionContainer>,
         environment: Option<Rc<dyn InspectorEnvironment>>,
         sync_flag: u64,
+        show_property_expanders: bool,
+        layer_index: usize,
     ) -> Self {
         let mut property_groups = HashMap::<&'static str, Vec<PropertyInfo>>::new();
         for info in object.properties() {
@@ -352,6 +366,7 @@ impl InspectorContext {
                                 environment: environment.clone(),
                                 definition_container: definition_container.clone(),
                                 sync_flag,
+                                layer_index,
                             }) {
                                 Ok(instance) => {
                                     entries.push(ContextEntry {
@@ -369,7 +384,7 @@ impl InspectorContext {
                                         if instance.title.is_some() {
                                             instance.title
                                         } else {
-                                            create_header(ctx, info.display_name)
+                                            create_header(ctx, info.display_name, layer_index)
                                         },
                                         instance.editor,
                                         definition.layout(),
@@ -378,7 +393,7 @@ impl InspectorContext {
                                     )
                                 }
                                 Err(e) => wrap_property(
-                                    create_header(ctx, info.display_name),
+                                    create_header(ctx, info.display_name, layer_index),
                                     TextBuilder::new(WidgetBuilder::new().on_row(i).on_column(1))
                                         .with_wrap(WrapMode::Word)
                                         .with_vertical_text_alignment(VerticalAlignment::Center)
@@ -395,7 +410,7 @@ impl InspectorContext {
                             }
                         } else {
                             wrap_property(
-                                create_header(ctx, info.display_name),
+                                create_header(ctx, info.display_name, layer_index),
                                 TextBuilder::new(WidgetBuilder::new().on_row(i).on_column(1))
                                     .with_wrap(WrapMode::Word)
                                     .with_vertical_text_alignment(VerticalAlignment::Center)
@@ -409,23 +424,18 @@ impl InspectorContext {
                     })
                     .collect::<Vec<_>>();
 
-                let section = BorderBuilder::new(
-                    WidgetBuilder::new()
-                        .with_margin(Thickness::uniform(1.0))
-                        .with_child(
-                            ExpanderBuilder::new(WidgetBuilder::new())
-                                .with_header(create_header(ctx, group))
-                                .with_content(
-                                    StackPanelBuilder::new(
-                                        WidgetBuilder::new().with_children(editors),
-                                    )
-                                    .build(ctx),
-                                )
+                let section = if show_property_expanders {
+                    ExpanderBuilder::new(WidgetBuilder::new())
+                        .with_header(create_header(ctx, group, 0))
+                        .with_expander_margin(make_expander_margin(layer_index))
+                        .with_content(
+                            StackPanelBuilder::new(WidgetBuilder::new().with_children(editors))
                                 .build(ctx),
                         )
-                        .with_foreground(Brush::Solid(Color::opaque(130, 130, 130))),
-                )
-                .build(ctx);
+                        .build(ctx)
+                } else {
+                    StackPanelBuilder::new(WidgetBuilder::new().with_children(editors)).build(ctx)
+                };
 
                 Group { section, entries }
             })
@@ -443,6 +453,7 @@ impl InspectorContext {
         &self,
         object: &dyn Inspect,
         ui: &mut UserInterface,
+        layer_index: usize,
     ) -> Result<(), Vec<InspectorError>> {
         let mut sync_errors = Vec::new();
 
@@ -458,6 +469,7 @@ impl InspectorContext {
                     ui,
                     property_info: &info,
                     definition_container: self.property_definitions.clone(),
+                    layer_index,
                 };
 
                 match constructor.create_message(ctx) {

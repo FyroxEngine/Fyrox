@@ -6,7 +6,7 @@ use crate::{
     message::{MessageDirection, UiMessage},
     utils::{make_arrow, ArrowDirection},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, UiNode, UserInterface, VerticalAlignment,
+    BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use std::{
     any::{Any, TypeId},
@@ -82,6 +82,7 @@ pub struct ExpanderBuilder {
     header: Handle<UiNode>,
     content: Handle<UiNode>,
     is_expanded: bool,
+    expander_margin: Thickness,
 }
 
 impl ExpanderBuilder {
@@ -91,6 +92,7 @@ impl ExpanderBuilder {
             header: Handle::NONE,
             content: Handle::NONE,
             is_expanded: true,
+            expander_margin: Default::default(),
         }
     }
 
@@ -109,9 +111,16 @@ impl ExpanderBuilder {
         self
     }
 
+    pub fn with_expander_margin(mut self, expander_margin: Thickness) -> Self {
+        self.expander_margin = expander_margin;
+        self
+    }
+
     pub fn build(self, ctx: &mut BuildContext<'_>) -> Handle<UiNode> {
         let expander = CheckBoxBuilder::new(
-            WidgetBuilder::new().with_vertical_alignment(VerticalAlignment::Center),
+            WidgetBuilder::new()
+                .with_margin(self.expander_margin)
+                .with_vertical_alignment(VerticalAlignment::Center),
         )
         .with_check_mark(make_arrow(ctx, ArrowDirection::Bottom, 8.0))
         .with_uncheck_mark(make_arrow(ctx, ArrowDirection::Right, 8.0))

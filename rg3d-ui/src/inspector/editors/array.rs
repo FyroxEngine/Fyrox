@@ -78,6 +78,7 @@ where
     collection: Option<I>,
     environment: Option<Rc<dyn InspectorEnvironment>>,
     definition_container: Option<Rc<PropertyEditorDefinitionContainer>>,
+    layer_index: usize,
 }
 
 fn create_item_views(items: &[Item], ctx: &mut BuildContext) -> Vec<Handle<UiNode>> {
@@ -111,6 +112,7 @@ fn create_items<'a, T, I>(
     definition_container: Rc<PropertyEditorDefinitionContainer>,
     ctx: &mut BuildContext,
     sync_flag: u64,
+    layer_index: usize,
 ) -> Vec<Item>
 where
     T: Inspect + 'static,
@@ -124,6 +126,8 @@ where
                 definition_container.clone(),
                 environment.clone(),
                 sync_flag,
+                true,
+                layer_index,
             );
 
             let inspector = InspectorBuilder::new(WidgetBuilder::new())
@@ -146,6 +150,7 @@ where
             collection: None,
             environment: None,
             definition_container: None,
+            layer_index: 0,
         }
     }
 
@@ -167,6 +172,11 @@ where
         self
     }
 
+    pub fn with_layer_index(mut self, layer_index: usize) -> Self {
+        self.layer_index = layer_index;
+        self
+    }
+
     pub fn build(self, ctx: &mut BuildContext, sync_flag: u64) -> Handle<UiNode> {
         let definition_container = self
             .definition_container
@@ -182,6 +192,7 @@ where
                     definition_container,
                     ctx,
                     sync_flag,
+                    self.layer_index,
                 )
             })
             .unwrap_or_default();
@@ -253,6 +264,7 @@ where
             )
             .with_collection(value.iter())
             .with_environment(ctx.environment.clone())
+            .with_layer_index(ctx.layer_index + 1)
             .with_definition_container(ctx.definition_container.clone())
             .build(ctx.build_context, ctx.sync_flag),
         })
@@ -283,13 +295,14 @@ where
 
         // Just sync inspector of every item.
         for (item, obj) in instance_ref.items.clone().iter().zip(value.iter()) {
+            let layer_index = ctx.layer_index;
             let ctx = ui
                 .node(item.inspector)
                 .cast::<Inspector>()
                 .expect("Must be Inspector!")
                 .context()
                 .clone();
-            if let Err(e) = ctx.sync(obj, ui) {
+            if let Err(e) = ctx.sync(obj, ui, layer_index + 1) {
                 error_group.extend(e.into_iter())
             }
         }

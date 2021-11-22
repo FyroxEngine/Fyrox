@@ -40,6 +40,7 @@ pub struct PropertyEditorBuildContext<'a, 'b, 'c> {
     pub environment: Option<Rc<dyn InspectorEnvironment>>,
     pub definition_container: Rc<PropertyEditorDefinitionContainer>,
     pub sync_flag: u64,
+    pub layer_index: usize,
 }
 
 pub struct PropertyEditorMessageContext<'a, 'b> {
@@ -48,6 +49,7 @@ pub struct PropertyEditorMessageContext<'a, 'b> {
     pub ui: &'b mut UserInterface,
     pub property_info: &'a PropertyInfo<'a>,
     pub definition_container: Rc<PropertyEditorDefinitionContainer>,
+    pub layer_index: usize,
 }
 
 pub enum Layout {

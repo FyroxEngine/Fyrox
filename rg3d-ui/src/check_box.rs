@@ -252,7 +252,7 @@ impl CheckBoxBuilder {
                 .with_child(self.content),
         )
         .add_row(Row::stretch())
-        .add_column(Column::strict(20.0))
+        .add_column(Column::auto())
         .add_column(Column::stretch())
         .build(ctx);
 

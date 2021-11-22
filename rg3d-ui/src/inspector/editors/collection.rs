@@ -1,3 +1,4 @@
+use crate::inspector::{make_expander_margin, make_layer_margin};
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -43,6 +44,7 @@ pub struct CollectionEditor {
     add: Handle<UiNode>,
     items: Vec<Item>,
     panel: Handle<UiNode>,
+    layer_index: usize,
 }
 
 crate::define_widget_deref!(CollectionEditor);
@@ -96,7 +98,7 @@ impl Control for CollectionEditor {
         } else if let Some(msg) = message.data::<CollectionEditorMessage>() {
             match msg {
                 CollectionEditorMessage::Items(items) => {
-                    let views = create_item_views(items, &mut ui.build_ctx());
+                    let views = create_item_views(items, &mut ui.build_ctx(), self.layer_index + 1);
 
                     for old_item in ui.node(self.panel).children() {
                         ui.send_message(WidgetMessage::remove(
@@ -141,41 +143,38 @@ where
     environment: Option<Rc<dyn InspectorEnvironment>>,
     definition_container: Option<Rc<PropertyEditorDefinitionContainer>>,
     add: Handle<UiNode>,
+    layer_index: usize,
 }
 
-fn create_item_views(items: &[Item], ctx: &mut BuildContext) -> Vec<Handle<UiNode>> {
+fn create_item_views(
+    items: &[Item],
+    ctx: &mut BuildContext,
+    layer_index: usize,
+) -> Vec<Handle<UiNode>> {
     items
         .iter()
         .enumerate()
         .map(|(n, item)| {
-            BorderBuilder::new(
-                WidgetBuilder::new()
-                    .with_child(
-                        ExpanderBuilder::new(WidgetBuilder::new())
-                            .with_header(
-                                GridBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_child(
-                                            TextBuilder::new(WidgetBuilder::new())
-                                                .with_vertical_text_alignment(
-                                                    VerticalAlignment::Center,
-                                                )
-                                                .with_text(format!("Item {}", n))
-                                                .build(ctx),
-                                        )
-                                        .with_child(item.remove),
-                                )
-                                .add_column(Column::stretch())
-                                .add_column(Column::strict(16.0))
-                                .add_row(Row::strict(26.0))
-                                .build(ctx),
+            ExpanderBuilder::new(WidgetBuilder::new())
+                .with_header(
+                    GridBuilder::new(
+                        WidgetBuilder::new()
+                            .with_child(
+                                TextBuilder::new(WidgetBuilder::new())
+                                    .with_vertical_text_alignment(VerticalAlignment::Center)
+                                    .with_text(format!("Item {}", n))
+                                    .build(ctx),
                             )
-                            .with_content(item.inspector)
-                            .build(ctx),
+                            .with_child(item.remove),
                     )
-                    .with_foreground(Brush::Solid(Color::opaque(130, 130, 130))),
-            )
-            .build(ctx)
+                    .add_column(Column::stretch())
+                    .add_column(Column::strict(16.0))
+                    .add_row(Row::strict(26.0))
+                    .build(ctx),
+                )
+                .with_expander_margin(make_expander_margin(layer_index))
+                .with_content(item.inspector)
+                .build(ctx)
         })
         .collect::<Vec<_>>()
 }
@@ -186,6 +185,7 @@ fn create_items<'a, T, I>(
     definition_container: Rc<PropertyEditorDefinitionContainer>,
     ctx: &mut BuildContext,
     sync_flag: u64,
+    layer_index: usize,
 ) -> Vec<Item>
 where
     T: Inspect + 'static,
@@ -199,6 +199,8 @@ where
                 definition_container.clone(),
                 environment.clone(),
                 sync_flag,
+                false,
+                layer_index,
             );
 
             let inspector = InspectorBuilder::new(WidgetBuilder::new())
@@ -233,6 +235,7 @@ where
             environment: None,
             definition_container: None,
             add: Default::default(),
+            layer_index: 0,
         }
     }
 
@@ -259,6 +262,11 @@ where
         self
     }
 
+    pub fn with_layer_index(mut self, layer_index: usize) -> Self {
+        self.layer_index = layer_index;
+        self
+    }
+
     pub fn build(self, ctx: &mut BuildContext, sync_flag: u64) -> Handle<UiNode> {
         let definition_container = self
             .definition_container
@@ -274,13 +282,16 @@ where
                     definition_container,
                     ctx,
                     sync_flag,
+                    self.layer_index + 1,
                 )
             })
             .unwrap_or_default();
 
-        let panel = StackPanelBuilder::new(
-            WidgetBuilder::new().with_children(create_item_views(&items, ctx)),
-        )
+        let panel = StackPanelBuilder::new(WidgetBuilder::new().with_children(create_item_views(
+            &items,
+            ctx,
+            self.layer_index,
+        )))
         .build(ctx);
 
         let ce = CollectionEditor {
@@ -292,6 +303,7 @@ where
             add: self.add,
             items,
             panel,
+            layer_index: self.layer_index,
         };
 
         ctx.add_node(UiNode::new(ce))
@@ -355,10 +367,12 @@ where
             title: GridBuilder::new(
                 WidgetBuilder::new()
                     .with_child(
-                        TextBuilder::new(WidgetBuilder::new().with_margin(HEADER_MARGIN))
-                            .with_text(ctx.property_info.display_name)
-                            .with_vertical_text_alignment(VerticalAlignment::Center)
-                            .build(ctx.build_context),
+                        TextBuilder::new(
+                            WidgetBuilder::new().with_margin(make_layer_margin(ctx.layer_index)),
+                        )
+                        .with_text(ctx.property_info.display_name)
+                        .with_vertical_text_alignment(VerticalAlignment::Center)
+                        .build(ctx.build_context),
                     )
                     .with_child(add),
             )
@@ -372,6 +386,7 @@ where
             .with_add(add)
             .with_collection(value.iter())
             .with_environment(ctx.environment.clone())
+            .with_layer_index(ctx.layer_index + 1)
             .with_definition_container(ctx.definition_container.clone())
             .build(ctx.build_context, ctx.sync_flag),
         })
@@ -387,6 +402,7 @@ where
             ui,
             property_info,
             definition_container,
+            layer_index,
         } = ctx;
 
         let instance_ref = if let Some(instance) = ui.node(instance).cast::<CollectionEditor>() {
@@ -407,6 +423,7 @@ where
                 definition_container,
                 &mut ui.build_ctx(),
                 sync_flag,
+                layer_index + 1,
             );
 
             Ok(Some(CollectionEditorMessage::items(
@@ -419,13 +436,14 @@ where
 
             // Just sync inspector of every item.
             for (item, obj) in instance_ref.items.clone().iter().zip(value.iter()) {
+                let layer_index = ctx.layer_index;
                 let ctx = ui
                     .node(item.inspector)
                     .cast::<Inspector>()
                     .expect("Must be Inspector!")
                     .context()
                     .clone();
-                if let Err(e) = ctx.sync(obj, ui) {
+                if let Err(e) = ctx.sync(obj, ui, layer_index + 1) {
                     error_group.extend(e.into_iter())
                 }
             }

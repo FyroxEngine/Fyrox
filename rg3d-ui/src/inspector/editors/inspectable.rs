@@ -64,6 +64,8 @@ where
             ctx.definition_container.clone(),
             ctx.environment.clone(),
             ctx.sync_flag,
+            false,
+            ctx.layer_index + 1,
         );
 
         Ok(PropertyEditorInstance {
@@ -89,7 +91,7 @@ where
             .expect("Must be Inspector!")
             .context()
             .clone();
-        if let Err(e) = inspector_context.sync(value, ctx.ui) {
+        if let Err(e) = inspector_context.sync(value, ctx.ui, ctx.layer_index + 1) {
             error_group.extend(e.into_iter())
         }
 
