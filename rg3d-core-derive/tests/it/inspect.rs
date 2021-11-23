@@ -19,7 +19,6 @@ fn inspect_default() {
             owner_type_id: TypeId::of::<Data>(),
             name: "the_field",
             display_name: "The Field",
-            group: "Data",
             value: &data.the_field,
             read_only: false,
             min_value: None,
@@ -32,7 +31,6 @@ fn inspect_default() {
             owner_type_id: TypeId::of::<Data>(),
             name: "another_field",
             display_name: "Another Field",
-            group: "Data",
             value: &data.another_field,
             read_only: false,
             min_value: None,
@@ -59,14 +57,13 @@ fn inspect_attributes() {
         // NOTE: Even though this field is skipped, the next field is given index `1` for simplicity
         #[inspect(skip)]
         _skipped: u32,
-        #[inspect(group = "Pos", name = "the_x", display_name = "Super X")]
+        #[inspect(name = "the_x", display_name = "Super X")]
         x: f32,
         // Expand properties are added to the end of the list.
         // NOTE: Even though this field inspection is postponed, this field is given index `2`
         #[inspect(expand)]
         aar_gee: AarGee,
         #[inspect(
-            group = "Pos",
             read_only,
             min_value = 0.1,
             max_value = 1.1,
@@ -84,7 +81,6 @@ fn inspect_attributes() {
             owner_type_id: TypeId::of::<Data>(),
             name: "the_x",
             display_name: "Super X",
-            group: "Pos",
             value: &data.x,
             read_only: false,
             min_value: None,
@@ -97,7 +93,6 @@ fn inspect_attributes() {
             owner_type_id: TypeId::of::<Data>(),
             name: "y",
             display_name: "Y",
-            group: "Pos",
             value: &data.y,
             read_only: true,
             min_value: Some(0.1),
@@ -139,7 +134,6 @@ fn inspect_struct() {
                 owner_type_id: TypeId::of::<Tuple>(),
                 name: "0",
                 display_name: "0",
-                group: "Tuple",
                 value: &x.0,
                 read_only: false,
                 min_value: None,
@@ -152,7 +146,6 @@ fn inspect_struct() {
                 owner_type_id: TypeId::of::<Tuple>(),
                 name: "1",
                 display_name: "1",
-                group: "Tuple",
                 value: &x.1,
                 read_only: false,
                 min_value: None,
@@ -198,7 +191,6 @@ fn inspect_enum() {
                 owner_type_id: TypeId::of::<Data>(),
                 name: "x",
                 display_name: "X",
-                group: "Data",
                 value: match data {
                     Data::Named { ref x, .. } => x,
                     _ => unreachable!(),
@@ -214,7 +206,6 @@ fn inspect_enum() {
                 owner_type_id: TypeId::of::<Data>(),
                 name: "y",
                 display_name: "Y",
-                group: "Data",
                 value: match data {
                     Data::Named { ref y, .. } => y,
                     _ => unreachable!(),
@@ -230,7 +221,6 @@ fn inspect_enum() {
                 owner_type_id: TypeId::of::<Data>(),
                 name: "z",
                 display_name: "Z",
-                group: "Data",
                 value: match data {
                     Data::Named { ref z, .. } => z,
                     _ => unreachable!(),
@@ -254,7 +244,6 @@ fn inspect_enum() {
                 owner_type_id: TypeId::of::<Data>(),
                 name: "0",
                 display_name: "0",
-                group: "Data",
                 value: match data {
                     Data::Tuple(ref f0, ref _f1) => f0,
                     _ => unreachable!(),
@@ -270,7 +259,6 @@ fn inspect_enum() {
                 owner_type_id: TypeId::of::<Data>(),
                 name: "1",
                 display_name: "1",
-                group: "Data",
                 value: match data {
                     Data::Tuple(ref _f0, ref f1) => f1,
                     _ => unreachable!(),

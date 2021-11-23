@@ -18,49 +18,48 @@ pub fn impl_inspect(ast: DeriveInput) -> TokenStream2 {
 
 fn impl_inspect_struct(ty_args: &args::TypeArgs, field_args: &args::Fields) -> TokenStream2 {
     let field_prefix = utils::FieldPrefix::of_struct(field_args.style);
-    let body = utils::gen_inspect_fn_body(ty_args, field_prefix, field_args);
+    let body = utils::gen_inspect_fn_body(field_prefix, field_args);
     utils::create_inspect_impl(ty_args, field_args.iter(), body)
 }
 
 fn impl_inspect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs]) -> TokenStream2 {
-    let variant_matches = variant_args.iter().map(|variant| {
-        let variant_ident = &variant.ident;
+    let variant_matches =
+        variant_args.iter().map(|variant| {
+            let variant_ident = &variant.ident;
 
-        let field_prefix = utils::FieldPrefix::of_enum_variant(variant.fields.style);
+            let field_prefix = utils::FieldPrefix::of_enum_variant(variant.fields.style);
 
-        let field_match_idents = variant
-            .fields
-            .fields
-            .iter()
-            .enumerate()
-            .map(|(i, field)| field_prefix.field_match_ident(i, field, variant.fields.style));
+            let field_match_idents =
+                variant.fields.fields.iter().enumerate().map(|(i, field)| {
+                    field_prefix.field_match_ident(i, field, variant.fields.style)
+                });
 
-        let variant_match = match variant.fields.style {
-            ast::Style::Struct => {
-                quote! {
-                    Self::#variant_ident { #(#field_match_idents),* }
+            let variant_match = match variant.fields.style {
+                ast::Style::Struct => {
+                    quote! {
+                        Self::#variant_ident { #(#field_match_idents),* }
+                    }
+                }
+                ast::Style::Tuple => {
+                    quote! {
+                        Self::#variant_ident(#(#field_match_idents),*)
+                    }
+                }
+                ast::Style::Unit => {
+                    quote! {
+                        Self::#variant_ident
+                    }
+                }
+            };
+
+            let fields_inspects = utils::gen_inspect_fn_body(field_prefix, &variant.fields);
+
+            quote! {
+                #variant_match => {
+                    #fields_inspects
                 }
             }
-            ast::Style::Tuple => {
-                quote! {
-                    Self::#variant_ident(#(#field_match_idents),*)
-                }
-            }
-            ast::Style::Unit => {
-                quote! {
-                    Self::#variant_ident
-                }
-            }
-        };
-
-        let fields_inspects = utils::gen_inspect_fn_body(ty_args, field_prefix, &variant.fields);
-
-        quote! {
-            #variant_match => {
-                #fields_inspects
-            }
-        }
-    });
+        });
 
     let body = quote! {
         match self {

@@ -139,7 +139,6 @@ fn impl_inspect_generics<'a>(
 }
 
 pub fn gen_inspect_fn_body(
-    ty_args: &args::TypeArgs,
     field_prefix: FieldPrefix,
     field_args: &ast::Fields<args::FieldArgs>,
 ) -> TokenStream2 {
