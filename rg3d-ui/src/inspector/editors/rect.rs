@@ -2,7 +2,7 @@ use crate::{
     core::math::Rect,
     inspector::{
         editors::{
-            Layout, PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
+            PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext,
         },
         FieldKind, InspectorError, PropertyChanged,
@@ -56,8 +56,7 @@ where
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<Rect<T>>()?;
 
-        Ok(PropertyEditorInstance {
-            title: Default::default(),
+        Ok(PropertyEditorInstance::Simple {
             editor: RectEditorBuilder::new(WidgetBuilder::new().with_height(36.0))
                 .with_value(*value)
                 .build(ctx.build_context),
@@ -92,9 +91,5 @@ where
             }
         }
         None
-    }
-
-    fn layout(&self) -> Layout {
-        Layout::Vertical
     }
 }

@@ -1,15 +1,19 @@
 use crate::{
     core::inspect::Inspect,
+    expander::ExpanderBuilder,
+    grid::{Column, GridBuilder, Row},
     inspector::{
         editors::{
-            Layout, PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
+            PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext,
         },
-        FieldKind, InspectorError, InspectorMessage, PropertyChanged,
+        make_expander_margin, FieldKind, Inspector, InspectorBuilder, InspectorContext,
+        InspectorError, InspectorMessage, PropertyChanged, NAME_COLUMN_WIDTH,
     },
-    inspector::{Inspector, InspectorBuilder, InspectorContext},
     message::{MessageDirection, UiMessage},
+    text::TextBuilder,
     widget::WidgetBuilder,
+    VerticalAlignment,
 };
 use std::{
     any::TypeId,
@@ -67,12 +71,33 @@ where
             ctx.layer_index + 1,
         );
 
-        Ok(PropertyEditorInstance {
-            title: Default::default(),
-            editor: InspectorBuilder::new(WidgetBuilder::new())
-                .with_context(inspector_context)
+        let editor;
+        let container = ExpanderBuilder::new(WidgetBuilder::new())
+            .with_expanded(true)
+            .with_expander_margin(make_expander_margin(ctx.layer_index))
+            .with_header(
+                GridBuilder::new(
+                    WidgetBuilder::new().with_child(
+                        TextBuilder::new(WidgetBuilder::new())
+                            .with_text(ctx.property_info.display_name)
+                            .with_vertical_text_alignment(VerticalAlignment::Center)
+                            .build(ctx.build_context),
+                    ),
+                )
+                .add_column(Column::strict(NAME_COLUMN_WIDTH))
+                .add_column(Column::stretch())
+                .add_row(Row::strict(26.0))
                 .build(ctx.build_context),
-        })
+            )
+            .with_content({
+                editor = InspectorBuilder::new(WidgetBuilder::new())
+                    .with_context(inspector_context)
+                    .build(ctx.build_context);
+                editor
+            })
+            .build(ctx.build_context);
+
+        Ok(PropertyEditorInstance::Custom { container, editor })
     }
 
     fn create_message(
@@ -118,9 +143,5 @@ where
         }
 
         None
-    }
-
-    fn layout(&self) -> Layout {
-        Layout::Vertical
     }
 }

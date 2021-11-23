@@ -2,7 +2,7 @@ use crate::{
     core::num_traits::NumCast,
     inspector::{
         editors::{
-            Layout, PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
+            PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext,
         },
         FieldKind, InspectorError, PropertyChanged,
@@ -46,8 +46,7 @@ where
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<T>()?;
-        Ok(PropertyEditorInstance {
-            title: Default::default(),
+        Ok(PropertyEditorInstance::Simple {
             editor: NumericUpDownBuilder::new(
                 WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
             )
@@ -106,9 +105,5 @@ where
         }
 
         None
-    }
-
-    fn layout(&self) -> Layout {
-        Layout::Horizontal
     }
 }

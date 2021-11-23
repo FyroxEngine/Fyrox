@@ -1,3 +1,4 @@
+use crate::inspector::editors::PropertyEditorInstance;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -11,8 +12,8 @@ use crate::{
     formatted_text::WrapMode,
     grid::{Column, GridBuilder, Row},
     inspector::editors::{
-        Layout, PropertyEditorBuildContext, PropertyEditorDefinition,
-        PropertyEditorDefinitionContainer, PropertyEditorMessageContext,
+        PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorDefinitionContainer,
+        PropertyEditorMessageContext,
     },
     message::{MessageDirection, UiMessage},
     stack_panel::StackPanelBuilder,
@@ -269,42 +270,20 @@ fn make_tooltip(ctx: &mut BuildContext, text: &str) -> Handle<UiNode> {
     }
 }
 
-fn wrap_property(
+fn make_simple_property_container(
     title: Handle<UiNode>,
     editor: Handle<UiNode>,
-    layout: Layout,
     description: &str,
     ctx: &mut BuildContext,
 ) -> Handle<UiNode> {
-    match layout {
-        Layout::Horizontal => {
-            ctx[editor].set_row(0).set_column(1);
-        }
-        Layout::Vertical => {
-            ctx[editor].set_row(1).set_column(0);
-        }
-    }
+    ctx[editor].set_row(0).set_column(1);
 
     let tooltip = make_tooltip(ctx, description);
     ctx[title].set_tooltip(tooltip);
 
     GridBuilder::new(WidgetBuilder::new().with_child(title).with_child(editor))
-        .add_rows(match layout {
-            Layout::Horizontal => {
-                vec![Row::strict(26.0)]
-            }
-            Layout::Vertical => {
-                vec![Row::strict(26.0), Row::stretch()]
-            }
-        })
-        .add_columns(match layout {
-            Layout::Horizontal => {
-                vec![Column::strict(NAME_COLUMN_WIDTH), Column::stretch()]
-            }
-            Layout::Vertical => {
-                vec![Column::stretch()]
-            }
-        })
+        .add_rows(vec![Row::strict(26.0)])
+        .add_columns(vec![Column::strict(NAME_COLUMN_WIDTH), Column::stretch()])
         .build(ctx)
 }
 
@@ -343,30 +322,35 @@ impl InspectorContext {
                         layer_index,
                     }) {
                         Ok(instance) => {
+                            let (container, editor) = match instance {
+                                PropertyEditorInstance::Simple { editor } => (
+                                    make_simple_property_container(
+                                        create_header(ctx, info.display_name, layer_index),
+                                        editor,
+                                        &description,
+                                        ctx,
+                                    ),
+                                    editor,
+                                ),
+                                PropertyEditorInstance::Custom { container, editor } => {
+                                    (container, editor)
+                                }
+                            };
+
                             entries.push(ContextEntry {
-                                property_editor: instance.editor,
+                                property_editor: editor,
                                 property_editor_definition: definition.clone(),
                                 property_name: info.name.to_string(),
                                 property_owner_type_id: info.owner_type_id,
                             });
 
                             if info.read_only {
-                                ctx[instance.editor].set_enabled(false);
+                                ctx[editor].set_enabled(false);
                             }
 
-                            wrap_property(
-                                if instance.title.is_some() {
-                                    instance.title
-                                } else {
-                                    create_header(ctx, info.display_name, layer_index)
-                                },
-                                instance.editor,
-                                definition.layout(),
-                                &description,
-                                ctx,
-                            )
+                            container
                         }
-                        Err(e) => wrap_property(
+                        Err(e) => make_simple_property_container(
                             create_header(ctx, info.display_name, layer_index),
                             TextBuilder::new(WidgetBuilder::new().on_row(i).on_column(1))
                                 .with_wrap(WrapMode::Word)
@@ -377,20 +361,18 @@ impl InspectorContext {
                                     e
                                 ))
                                 .build(ctx),
-                            Layout::Horizontal,
                             &description,
                             ctx,
                         ),
                     }
                 } else {
-                    wrap_property(
+                    make_simple_property_container(
                         create_header(ctx, info.display_name, layer_index),
                         TextBuilder::new(WidgetBuilder::new().on_row(i).on_column(1))
                             .with_wrap(WrapMode::Word)
                             .with_vertical_text_alignment(VerticalAlignment::Center)
                             .with_text("Property Editor Is Missing!")
                             .build(ctx),
-                        Layout::Horizontal,
                         &description,
                         ctx,
                     )

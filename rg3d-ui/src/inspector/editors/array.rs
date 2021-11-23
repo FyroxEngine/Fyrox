@@ -5,12 +5,12 @@ use crate::{
     expander::ExpanderBuilder,
     inspector::{
         editors::{
-            Layout, PropertyEditorBuildContext, PropertyEditorDefinition,
+            PropertyEditorBuildContext, PropertyEditorDefinition,
             PropertyEditorDefinitionContainer, PropertyEditorInstance,
             PropertyEditorMessageContext,
         },
         CollectionChanged, FieldKind, Inspector, InspectorBuilder, InspectorContext,
-        InspectorEnvironment, InspectorError, InspectorMessage, PropertyChanged, HEADER_MARGIN,
+        InspectorEnvironment, InspectorError, InspectorMessage, PropertyChanged,
     },
     message::{MessageDirection, UiMessage},
     stack_panel::StackPanelBuilder,
@@ -253,11 +253,7 @@ where
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<[T; N]>()?;
 
-        Ok(PropertyEditorInstance {
-            title: TextBuilder::new(WidgetBuilder::new().with_margin(HEADER_MARGIN))
-                .with_text(ctx.property_info.display_name)
-                .with_vertical_text_alignment(VerticalAlignment::Center)
-                .build(ctx.build_context),
+        Ok(PropertyEditorInstance::Simple {
             editor: ArrayEditorBuilder::new(
                 WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
             )
@@ -329,9 +325,5 @@ where
             }
         }
         None
-    }
-
-    fn layout(&self) -> Layout {
-        Layout::Vertical
     }
 }

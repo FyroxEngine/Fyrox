@@ -2,7 +2,7 @@ use crate::{
     core::algebra::{Vector2, Vector3, Vector4},
     inspector::{
         editors::{
-            Layout, PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
+            PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext,
         },
         FieldKind, InspectorError, PropertyChanged,
@@ -44,8 +44,7 @@ macro_rules! define_vector_editor {
                 ctx: PropertyEditorBuildContext,
             ) -> Result<PropertyEditorInstance, InspectorError> {
                 let value = ctx.property_info.cast_value::<$value>()?;
-                Ok(PropertyEditorInstance {
-                    title: Default::default(),
+                Ok(PropertyEditorInstance::Simple {
                     editor: <$builder>::new(
                         WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
                     )
@@ -82,10 +81,6 @@ macro_rules! define_vector_editor {
                     }
                 }
                 None
-            }
-
-            fn layout(&self) -> Layout {
-                Layout::Horizontal
             }
         }
     };

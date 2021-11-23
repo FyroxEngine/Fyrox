@@ -52,25 +52,19 @@ pub struct PropertyEditorMessageContext<'a, 'b> {
     pub layer_index: usize,
 }
 
-pub enum Layout {
-    /// Horizontal grid layout. Suitable for simple properties.
-    Horizontal,
+pub enum PropertyEditorInstance {
+    Simple {
+        /// A property editor. Could be any widget that capable of editing a property
+        /// value.
+        editor: Handle<UiNode>,
+    },
+    Custom {
+        container: Handle<UiNode>,
 
-    /// Vertical grid layout. Suitable for large collections and in situations when you
-    /// don't want the editor to be shifted on the right side.
-    Vertical,
-}
-
-pub struct PropertyEditorInstance {
-    /// Title of a property editor. Usually just a text with a property display name.
-    ///
-    /// Could be [`Handle::NONE`], in this case inspector will automatically create
-    /// a text widget with property name.
-    pub title: Handle<UiNode>,
-
-    /// A property editor. Could be any widget that capable of editing a property
-    /// value.
-    pub editor: Handle<UiNode>,
+        /// A property editor. Could be any widget that capable of editing a property
+        /// value.
+        editor: Handle<UiNode>,
+    },
 }
 
 pub trait PropertyEditorDefinition: Debug {
@@ -92,10 +86,6 @@ pub trait PropertyEditorDefinition: Debug {
         owner_type_id: TypeId,
         message: &UiMessage,
     ) -> Option<PropertyChanged>;
-
-    fn layout(&self) -> Layout {
-        Layout::Horizontal
-    }
 }
 
 #[derive(Clone, Default)]

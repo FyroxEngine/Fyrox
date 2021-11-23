@@ -1,4 +1,4 @@
-use crate::inspector::{make_expander_margin, make_layer_margin};
+use crate::inspector::make_expander_margin;
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{inspect::Inspect, pool::Handle},
@@ -7,7 +7,7 @@ use crate::{
     grid::{Column, GridBuilder, Row},
     inspector::{
         editors::{
-            Layout, PropertyEditorBuildContext, PropertyEditorDefinition,
+            PropertyEditorBuildContext, PropertyEditorDefinition,
             PropertyEditorDefinitionContainer, PropertyEditorInstance,
             PropertyEditorMessageContext,
         },
@@ -359,33 +359,41 @@ where
         .with_text("+")
         .build(ctx.build_context);
 
-        Ok(PropertyEditorInstance {
-            title: GridBuilder::new(
-                WidgetBuilder::new()
-                    .with_child(
-                        TextBuilder::new(
-                            WidgetBuilder::new().with_margin(make_layer_margin(ctx.layer_index)),
+        let editor;
+        let container = ExpanderBuilder::new(WidgetBuilder::new())
+            .with_expanded(true)
+            .with_expander_margin(make_expander_margin(ctx.layer_index))
+            .with_header(
+                GridBuilder::new(
+                    WidgetBuilder::new()
+                        .with_child(
+                            TextBuilder::new(WidgetBuilder::new())
+                                .with_text(ctx.property_info.display_name)
+                                .with_vertical_text_alignment(VerticalAlignment::Center)
+                                .build(ctx.build_context),
                         )
-                        .with_text(ctx.property_info.display_name)
-                        .with_vertical_text_alignment(VerticalAlignment::Center)
-                        .build(ctx.build_context),
-                    )
-                    .with_child(add),
+                        .with_child(add),
+                )
+                .add_column(Column::strict(NAME_COLUMN_WIDTH))
+                .add_column(Column::stretch())
+                .add_row(Row::stretch())
+                .build(ctx.build_context),
             )
-            .add_column(Column::strict(NAME_COLUMN_WIDTH))
-            .add_column(Column::stretch())
-            .add_row(Row::stretch())
-            .build(ctx.build_context),
-            editor: CollectionEditorBuilder::new(
-                WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
-            )
-            .with_add(add)
-            .with_collection(value.iter())
-            .with_environment(ctx.environment.clone())
-            .with_layer_index(ctx.layer_index + 1)
-            .with_definition_container(ctx.definition_container.clone())
-            .build(ctx.build_context, ctx.sync_flag),
-        })
+            .with_content({
+                editor = CollectionEditorBuilder::new(
+                    WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
+                )
+                .with_add(add)
+                .with_collection(value.iter())
+                .with_environment(ctx.environment.clone())
+                .with_layer_index(ctx.layer_index + 1)
+                .with_definition_container(ctx.definition_container.clone())
+                .build(ctx.build_context, ctx.sync_flag);
+                editor
+            })
+            .build(ctx.build_context);
+
+        Ok(PropertyEditorInstance::Custom { container, editor })
     }
 
     fn create_message(
@@ -468,9 +476,5 @@ where
             }
         }
         None
-    }
-
-    fn layout(&self) -> Layout {
-        Layout::Vertical
     }
 }

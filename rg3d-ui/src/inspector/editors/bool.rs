@@ -2,7 +2,7 @@ use crate::{
     check_box::{CheckBoxBuilder, CheckBoxMessage},
     inspector::{
         editors::{
-            Layout, PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
+            PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext,
         },
         FieldKind, InspectorError, PropertyChanged,
@@ -26,8 +26,7 @@ impl PropertyEditorDefinition for BoolPropertyEditorDefinition {
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<bool>()?;
-        Ok(PropertyEditorInstance {
-            title: Default::default(),
+        Ok(PropertyEditorInstance::Simple {
             editor: CheckBoxBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
                 .checked(Some(*value))
                 .build(ctx.build_context),
@@ -62,9 +61,5 @@ impl PropertyEditorDefinition for BoolPropertyEditorDefinition {
             }
         }
         None
-    }
-
-    fn layout(&self) -> Layout {
-        Layout::Horizontal
     }
 }
