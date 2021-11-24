@@ -1,5 +1,4 @@
-use crate::expander::ExpanderBuilder;
-use crate::inspector::make_expander_margin;
+use crate::inspector::make_expander_container;
 use crate::{
     border::BorderBuilder,
     core::{inspect::Inspect, pool::Handle},
@@ -316,26 +315,23 @@ where
         .build(ctx.build_context);
 
         let editor;
-        let container = ExpanderBuilder::new(WidgetBuilder::new())
-            .with_expanded(true)
-            .with_expander_margin(make_expander_margin(ctx.layer_index))
-            .with_header(
-                GridBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child(
-                            TextBuilder::new(WidgetBuilder::new())
-                                .with_text(ctx.property_info.display_name)
-                                .with_vertical_text_alignment(VerticalAlignment::Center)
-                                .build(ctx.build_context),
-                        )
-                        .with_child(variant_selector),
-                )
-                .add_column(Column::strict(NAME_COLUMN_WIDTH))
-                .add_column(Column::stretch())
-                .add_row(Row::strict(26.0))
-                .build(ctx.build_context),
+        let container = make_expander_container(
+            ctx.layer_index,
+            GridBuilder::new(
+                WidgetBuilder::new()
+                    .with_child(
+                        TextBuilder::new(WidgetBuilder::new())
+                            .with_text(ctx.property_info.display_name)
+                            .with_vertical_text_alignment(VerticalAlignment::Center)
+                            .build(ctx.build_context),
+                    )
+                    .with_child(variant_selector),
             )
-            .with_content({
+            .add_column(Column::strict(NAME_COLUMN_WIDTH))
+            .add_column(Column::stretch())
+            .add_row(Row::strict(26.0))
+            .build(ctx.build_context),
+            {
                 editor = EnumPropertyEditorBuilder::new(WidgetBuilder::new())
                     .with_variant_selector(variant_selector)
                     .with_layer_index(ctx.layer_index + 1)
@@ -344,8 +340,9 @@ where
                     .with_sync_flag(ctx.sync_flag)
                     .build(ctx.build_context, self, value);
                 editor
-            })
-            .build(ctx.build_context);
+            },
+            ctx.build_context,
+        );
 
         Ok(PropertyEditorInstance::Custom { container, editor })
     }

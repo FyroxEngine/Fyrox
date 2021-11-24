@@ -1,4 +1,7 @@
+use crate::check_box::CheckBoxBuilder;
+use crate::expander::ExpanderBuilder;
 use crate::inspector::editors::PropertyEditorInstance;
+use crate::utils::{make_arrow, ArrowDirection};
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -237,10 +240,42 @@ pub fn make_layer_margin(layer_index: usize) -> Thickness {
     margin
 }
 
-pub fn make_expander_margin(layer_index: usize) -> Thickness {
+fn make_expander_margin(layer_index: usize) -> Thickness {
     let mut margin = make_layer_margin(layer_index);
     margin.left = (margin.left - 20.0).max(0.0);
     margin
+}
+
+fn make_expander_check_box(layer_index: usize, ctx: &mut BuildContext) -> Handle<UiNode> {
+    CheckBoxBuilder::new(
+        WidgetBuilder::new()
+            .with_vertical_alignment(VerticalAlignment::Center)
+            .with_min_size(Vector2::new(4.0, 4.0))
+            .with_margin(make_expander_margin(layer_index)),
+    )
+    .with_background(
+        BorderBuilder::new(WidgetBuilder::new())
+            .with_stroke_thickness(Thickness::zero())
+            .build(ctx),
+    )
+    .checked(Some(true))
+    .with_check_mark(make_arrow(ctx, ArrowDirection::Bottom, 8.0))
+    .with_uncheck_mark(make_arrow(ctx, ArrowDirection::Right, 8.0))
+    .build(ctx)
+}
+
+pub fn make_expander_container(
+    layer_index: usize,
+    header: Handle<UiNode>,
+    content: Handle<UiNode>,
+    ctx: &mut BuildContext,
+) -> Handle<UiNode> {
+    ExpanderBuilder::new(WidgetBuilder::new())
+        .with_checkbox(make_expander_check_box(layer_index, ctx))
+        .with_expanded(true)
+        .with_header(header)
+        .with_content(content)
+        .build(ctx)
 }
 
 fn create_header(ctx: &mut BuildContext, text: &str, layer_index: usize) -> Handle<UiNode> {

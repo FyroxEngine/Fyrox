@@ -1,9 +1,8 @@
-use crate::inspector::make_expander_margin;
+use crate::inspector::make_expander_container;
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{inspect::Inspect, pool::Handle},
     define_constructor,
-    expander::ExpanderBuilder,
     grid::{Column, GridBuilder, Row},
     inspector::{
         editors::{
@@ -152,26 +151,25 @@ fn create_item_views(
         .iter()
         .enumerate()
         .map(|(n, item)| {
-            ExpanderBuilder::new(WidgetBuilder::new())
-                .with_header(
-                    GridBuilder::new(
-                        WidgetBuilder::new()
-                            .with_child(
-                                TextBuilder::new(WidgetBuilder::new())
-                                    .with_vertical_text_alignment(VerticalAlignment::Center)
-                                    .with_text(format!("Item {}", n))
-                                    .build(ctx),
-                            )
-                            .with_child(item.remove),
-                    )
-                    .add_column(Column::stretch())
-                    .add_column(Column::strict(16.0))
-                    .add_row(Row::strict(26.0))
-                    .build(ctx),
+            make_expander_container(
+                layer_index,
+                GridBuilder::new(
+                    WidgetBuilder::new()
+                        .with_child(
+                            TextBuilder::new(WidgetBuilder::new())
+                                .with_vertical_text_alignment(VerticalAlignment::Center)
+                                .with_text(format!("Item {}", n))
+                                .build(ctx),
+                        )
+                        .with_child(item.remove),
                 )
-                .with_expander_margin(make_expander_margin(layer_index))
-                .with_content(item.inspector)
-                .build(ctx)
+                .add_column(Column::stretch())
+                .add_column(Column::strict(16.0))
+                .add_row(Row::strict(26.0))
+                .build(ctx),
+                item.inspector,
+                ctx,
+            )
         })
         .collect::<Vec<_>>()
 }
@@ -360,26 +358,23 @@ where
         .build(ctx.build_context);
 
         let editor;
-        let container = ExpanderBuilder::new(WidgetBuilder::new())
-            .with_expanded(true)
-            .with_expander_margin(make_expander_margin(ctx.layer_index))
-            .with_header(
-                GridBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child(
-                            TextBuilder::new(WidgetBuilder::new())
-                                .with_text(ctx.property_info.display_name)
-                                .with_vertical_text_alignment(VerticalAlignment::Center)
-                                .build(ctx.build_context),
-                        )
-                        .with_child(add),
-                )
-                .add_column(Column::strict(NAME_COLUMN_WIDTH))
-                .add_column(Column::stretch())
-                .add_row(Row::stretch())
-                .build(ctx.build_context),
+        let container = make_expander_container(
+            ctx.layer_index,
+            GridBuilder::new(
+                WidgetBuilder::new()
+                    .with_child(
+                        TextBuilder::new(WidgetBuilder::new())
+                            .with_text(ctx.property_info.display_name)
+                            .with_vertical_text_alignment(VerticalAlignment::Center)
+                            .build(ctx.build_context),
+                    )
+                    .with_child(add),
             )
-            .with_content({
+            .add_column(Column::strict(NAME_COLUMN_WIDTH))
+            .add_column(Column::stretch())
+            .add_row(Row::stretch())
+            .build(ctx.build_context),
+            {
                 editor = CollectionEditorBuilder::new(
                     WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
                 )
@@ -390,8 +385,9 @@ where
                 .with_definition_container(ctx.definition_container.clone())
                 .build(ctx.build_context, ctx.sync_flag);
                 editor
-            })
-            .build(ctx.build_context);
+            },
+            ctx.build_context,
+        );
 
         Ok(PropertyEditorInstance::Custom { container, editor })
     }
