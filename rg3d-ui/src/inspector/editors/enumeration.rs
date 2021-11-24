@@ -1,19 +1,17 @@
-use crate::inspector::make_expander_container;
 use crate::{
     border::BorderBuilder,
     core::{inspect::Inspect, pool::Handle},
     decorator::DecoratorBuilder,
     define_constructor,
     dropdown_list::{DropdownList, DropdownListBuilder, DropdownListMessage},
-    grid::{Column, GridBuilder, Row},
     inspector::{
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition,
             PropertyEditorDefinitionContainer, PropertyEditorInstance,
             PropertyEditorMessageContext,
         },
-        FieldKind, Inspector, InspectorBuilder, InspectorContext, InspectorEnvironment,
-        InspectorError, InspectorMessage, PropertyChanged, NAME_COLUMN_WIDTH,
+        make_expander_container, FieldKind, Inspector, InspectorBuilder, InspectorContext,
+        InspectorEnvironment, InspectorError, InspectorMessage, PropertyChanged,
     },
     message::{MessageDirection, UiMessage},
     text::TextBuilder,

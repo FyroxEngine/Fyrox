@@ -1,18 +1,15 @@
 use crate::{
     core::inspect::Inspect,
-    grid::{Column, GridBuilder, Row},
     inspector::{
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext,
         },
         make_expander_container, FieldKind, Inspector, InspectorBuilder, InspectorContext,
-        InspectorError, InspectorMessage, PropertyChanged, NAME_COLUMN_WIDTH,
+        InspectorError, InspectorMessage, PropertyChanged,
     },
     message::{MessageDirection, UiMessage},
-    text::TextBuilder,
     widget::WidgetBuilder,
-    VerticalAlignment,
 };
 use rg3d_core::pool::Handle;
 use std::{

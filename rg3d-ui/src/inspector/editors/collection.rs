@@ -1,21 +1,18 @@
-use crate::inspector::make_expander_container;
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{inspect::Inspect, pool::Handle},
     define_constructor,
-    grid::{Column, GridBuilder, Row},
     inspector::{
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition,
             PropertyEditorDefinitionContainer, PropertyEditorInstance,
             PropertyEditorMessageContext,
         },
-        CollectionChanged, FieldKind, Inspector, InspectorBuilder, InspectorContext,
-        InspectorEnvironment, InspectorError, InspectorMessage, PropertyChanged, NAME_COLUMN_WIDTH,
+        make_expander_container, CollectionChanged, FieldKind, Inspector, InspectorBuilder,
+        InspectorContext, InspectorEnvironment, InspectorError, InspectorMessage, PropertyChanged,
     },
     message::{MessageDirection, UiMessage},
     stack_panel::StackPanelBuilder,
-    text::TextBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
     VerticalAlignment,
