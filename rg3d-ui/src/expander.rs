@@ -83,6 +83,7 @@ pub struct ExpanderBuilder {
     content: Handle<UiNode>,
     check_box: Handle<UiNode>,
     is_expanded: bool,
+    expander_column: Option<Column>,
 }
 
 impl ExpanderBuilder {
@@ -93,6 +94,7 @@ impl ExpanderBuilder {
             content: Handle::NONE,
             check_box: Default::default(),
             is_expanded: true,
+            expander_column: None,
         }
     }
 
@@ -113,6 +115,11 @@ impl ExpanderBuilder {
 
     pub fn with_checkbox(mut self, check_box: Handle<UiNode>) -> Self {
         self.check_box = check_box;
+        self
+    }
+
+    pub fn with_expander_column(mut self, expander_column: Column) -> Self {
+        self.expander_column = Some(expander_column);
         self
     }
 
@@ -141,7 +148,7 @@ impl ExpanderBuilder {
                 .with_child(self.header),
         )
         .add_row(Row::auto())
-        .add_column(Column::auto())
+        .add_column(self.expander_column.unwrap_or_else(Column::auto))
         .add_column(Column::stretch())
         .build(ctx);
 

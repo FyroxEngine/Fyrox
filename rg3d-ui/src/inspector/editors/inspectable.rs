@@ -14,6 +14,7 @@ use crate::{
     widget::WidgetBuilder,
     VerticalAlignment,
 };
+use rg3d_core::pool::Handle;
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},
@@ -73,18 +74,8 @@ where
         let editor;
         let container = make_expander_container(
             ctx.layer_index,
-            GridBuilder::new(
-                WidgetBuilder::new().with_child(
-                    TextBuilder::new(WidgetBuilder::new())
-                        .with_text(ctx.property_info.display_name)
-                        .with_vertical_text_alignment(VerticalAlignment::Center)
-                        .build(ctx.build_context),
-                ),
-            )
-            .add_column(Column::strict(NAME_COLUMN_WIDTH))
-            .add_column(Column::stretch())
-            .add_row(Row::strict(26.0))
-            .build(ctx.build_context),
+            ctx.property_info.display_name,
+            Handle::NONE,
             {
                 editor = InspectorBuilder::new(WidgetBuilder::new())
                     .with_context(inspector_context)

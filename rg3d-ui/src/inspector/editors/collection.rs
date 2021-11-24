@@ -94,7 +94,7 @@ impl Control for CollectionEditor {
         } else if let Some(msg) = message.data::<CollectionEditorMessage>() {
             match msg {
                 CollectionEditorMessage::Items(items) => {
-                    let views = create_item_views(items, &mut ui.build_ctx(), self.layer_index + 1);
+                    let views = create_item_views(items, &mut ui.build_ctx(), self.layer_index);
 
                     for old_item in ui.node(self.panel).children() {
                         ui.send_message(WidgetMessage::remove(
@@ -153,20 +153,8 @@ fn create_item_views(
         .map(|(n, item)| {
             make_expander_container(
                 layer_index,
-                GridBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child(
-                            TextBuilder::new(WidgetBuilder::new())
-                                .with_vertical_text_alignment(VerticalAlignment::Center)
-                                .with_text(format!("Item {}", n))
-                                .build(ctx),
-                        )
-                        .with_child(item.remove),
-                )
-                .add_column(Column::stretch())
-                .add_column(Column::strict(16.0))
-                .add_row(Row::strict(26.0))
-                .build(ctx),
+                &format!("Item {}", n),
+                item.remove,
                 item.inspector,
                 ctx,
             )
@@ -205,6 +193,7 @@ where
                 WidgetBuilder::new()
                     .with_margin(Thickness::uniform(1.0))
                     .with_vertical_alignment(VerticalAlignment::Center)
+                    .with_horizontal_alignment(HorizontalAlignment::Right)
                     .on_column(1)
                     .with_width(16.0)
                     .with_height(16.0),
@@ -360,20 +349,8 @@ where
         let editor;
         let container = make_expander_container(
             ctx.layer_index,
-            GridBuilder::new(
-                WidgetBuilder::new()
-                    .with_child(
-                        TextBuilder::new(WidgetBuilder::new())
-                            .with_text(ctx.property_info.display_name)
-                            .with_vertical_text_alignment(VerticalAlignment::Center)
-                            .build(ctx.build_context),
-                    )
-                    .with_child(add),
-            )
-            .add_column(Column::strict(NAME_COLUMN_WIDTH))
-            .add_column(Column::stretch())
-            .add_row(Row::stretch())
-            .build(ctx.build_context),
+            ctx.property_info.display_name,
+            add,
             {
                 editor = CollectionEditorBuilder::new(
                     WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),

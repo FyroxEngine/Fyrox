@@ -161,7 +161,7 @@ impl Inspector {
 
 pub const NAME_COLUMN_WIDTH: f32 = 150.0;
 pub const HEADER_MARGIN: Thickness = Thickness {
-    left: 4.0,
+    left: 2.0,
     top: 1.0,
     right: 4.0,
     bottom: 1.0,
@@ -234,29 +234,46 @@ impl Debug for InspectorContext {
     }
 }
 
-pub fn make_layer_margin(layer_index: usize) -> Thickness {
+pub fn make_property_margin(layer_index: usize) -> Thickness {
+    let mut margin = HEADER_MARGIN;
+    margin.left += 10.0 + layer_index as f32 * 10.0;
+    margin
+}
+
+fn make_expander_margin(layer_index: usize) -> Thickness {
     let mut margin = HEADER_MARGIN;
     margin.left += layer_index as f32 * 10.0;
     margin
 }
 
-fn make_expander_margin(layer_index: usize) -> Thickness {
-    let mut margin = make_layer_margin(layer_index);
-    margin.left = (margin.left - 20.0).max(0.0);
-    margin
-}
-
-fn make_expander_check_box(layer_index: usize, ctx: &mut BuildContext) -> Handle<UiNode> {
+fn make_expander_check_box(
+    layer_index: usize,
+    property_name: &str,
+    ctx: &mut BuildContext,
+) -> Handle<UiNode> {
     CheckBoxBuilder::new(
         WidgetBuilder::new()
             .with_vertical_alignment(VerticalAlignment::Center)
-            .with_min_size(Vector2::new(4.0, 4.0))
             .with_margin(make_expander_margin(layer_index)),
     )
     .with_background(
-        BorderBuilder::new(WidgetBuilder::new())
-            .with_stroke_thickness(Thickness::zero())
-            .build(ctx),
+        BorderBuilder::new(
+            WidgetBuilder::new()
+                .with_vertical_alignment(VerticalAlignment::Center)
+                .with_min_size(Vector2::new(4.0, 4.0)),
+        )
+        .with_stroke_thickness(Thickness::zero())
+        .build(ctx),
+    )
+    .with_content(
+        TextBuilder::new(
+            WidgetBuilder::new()
+                .with_height(16.0)
+                .with_margin(Thickness::left(2.0)),
+        )
+        .with_vertical_text_alignment(VerticalAlignment::Center)
+        .with_text(property_name)
+        .build(ctx),
     )
     .checked(Some(true))
     .with_check_mark(make_arrow(ctx, ArrowDirection::Bottom, 8.0))
@@ -266,12 +283,14 @@ fn make_expander_check_box(layer_index: usize, ctx: &mut BuildContext) -> Handle
 
 pub fn make_expander_container(
     layer_index: usize,
+    property_name: &str,
     header: Handle<UiNode>,
     content: Handle<UiNode>,
     ctx: &mut BuildContext,
 ) -> Handle<UiNode> {
     ExpanderBuilder::new(WidgetBuilder::new())
-        .with_checkbox(make_expander_check_box(layer_index, ctx))
+        .with_checkbox(make_expander_check_box(layer_index, property_name, ctx))
+        .with_expander_column(Column::strict(NAME_COLUMN_WIDTH))
         .with_expanded(true)
         .with_header(header)
         .with_content(content)
@@ -279,7 +298,7 @@ pub fn make_expander_container(
 }
 
 fn create_header(ctx: &mut BuildContext, text: &str, layer_index: usize) -> Handle<UiNode> {
-    TextBuilder::new(WidgetBuilder::new().with_margin(make_layer_margin(layer_index)))
+    TextBuilder::new(WidgetBuilder::new().with_margin(make_property_margin(layer_index)))
         .with_text(text)
         .with_vertical_text_alignment(VerticalAlignment::Center)
         .build(ctx)
