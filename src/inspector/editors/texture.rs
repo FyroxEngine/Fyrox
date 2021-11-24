@@ -168,8 +168,7 @@ impl PropertyEditorDefinition for TexturePropertyEditorDefinition {
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<Option<Texture>>()?;
 
-        Ok(PropertyEditorInstance {
-            title: Default::default(),
+        Ok(PropertyEditorInstance::Simple {
             editor: TextureEditorBuilder::new(WidgetBuilder::new())
                 .with_texture(value.clone())
                 .build(

@@ -7,8 +7,8 @@ use rg3d::{
         grid::{Column, GridBuilder, Row},
         inspector::{
             editors::{
-                Layout, PropertyEditorBuildContext, PropertyEditorDefinition,
-                PropertyEditorInstance, PropertyEditorMessageContext,
+                PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
+                PropertyEditorMessageContext,
             },
             InspectorError, PropertyChanged,
         },
@@ -149,8 +149,7 @@ impl PropertyEditorDefinition for MaterialPropertyEditorDefinition {
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<Arc<Mutex<Material>>>()?;
-        Ok(PropertyEditorInstance {
-            title: Default::default(),
+        Ok(PropertyEditorInstance::Simple {
             editor: MaterialFieldEditorBuilder::new(WidgetBuilder::new()).build(
                 ctx.build_context,
                 self.sender.lock().clone(),
@@ -173,9 +172,5 @@ impl PropertyEditorDefinition for MaterialPropertyEditorDefinition {
         _message: &UiMessage,
     ) -> Option<PropertyChanged> {
         None
-    }
-
-    fn layout(&self) -> Layout {
-        Layout::Horizontal
     }
 }

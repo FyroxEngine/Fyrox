@@ -54,8 +54,7 @@ impl PropertyEditorDefinition for ModelResourcePropertyEditorDefinition {
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<Option<Model>>()?;
 
-        Ok(PropertyEditorInstance {
-            title: Default::default(),
+        Ok(PropertyEditorInstance::Simple {
             editor: TextBuilder::new(WidgetBuilder::new())
                 .with_text(resource_path(value))
                 .with_vertical_text_alignment(VerticalAlignment::Center)
@@ -255,8 +254,7 @@ impl PropertyEditorDefinition for SoundBufferResourcePropertyEditorDefinition {
             .property_info
             .cast_value::<Option<SoundBufferResource>>()?;
 
-        Ok(PropertyEditorInstance {
-            title: Default::default(),
+        Ok(PropertyEditorInstance::Simple {
             editor: SoundBufferFieldBuilder::new(WidgetBuilder::new())
                 .with_sound_buffer(value.clone())
                 .build(
