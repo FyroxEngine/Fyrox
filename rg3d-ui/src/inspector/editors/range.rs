@@ -37,8 +37,7 @@ impl<T: NumericType> PropertyEditorDefinition for RangePropertyEditorDefinition<
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<Range<T>>()?;
 
-        Ok(PropertyEditorInstance {
-            title: Default::default(),
+        Ok(PropertyEditorInstance::Simple {
             editor: RangeEditorBuilder::new(WidgetBuilder::new())
                 .with_value(value.clone())
                 .build(ctx.build_context),

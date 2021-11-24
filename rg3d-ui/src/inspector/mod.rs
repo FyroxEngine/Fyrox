@@ -1,19 +1,22 @@
+use crate::check_box::CheckBoxBuilder;
+use crate::expander::ExpanderBuilder;
+use crate::inspector::editors::PropertyEditorInstance;
+use crate::utils::{make_arrow, ArrowDirection};
 use crate::{
     border::BorderBuilder,
     brush::Brush,
     core::{
         algebra::Vector2,
         color::Color,
-        inspect::{CastError, Inspect, PropertyInfo, PropertyValue},
+        inspect::{CastError, Inspect, PropertyValue},
         pool::Handle,
     },
     define_constructor,
-    expander::ExpanderBuilder,
     formatted_text::WrapMode,
     grid::{Column, GridBuilder, Row},
     inspector::editors::{
-        Layout, PropertyEditorBuildContext, PropertyEditorDefinition,
-        PropertyEditorDefinitionContainer, PropertyEditorMessageContext,
+        PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorDefinitionContainer,
+        PropertyEditorMessageContext,
     },
     message::{MessageDirection, UiMessage},
     stack_panel::StackPanelBuilder,
@@ -23,7 +26,6 @@ use crate::{
 };
 use std::{
     any::{Any, TypeId},
-    collections::{hash_map::Entry, HashMap},
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
     rc::Rc,
@@ -146,7 +148,6 @@ pub trait InspectorEnvironment: Any + Send + Sync {
 #[derive(Clone)]
 pub struct Inspector {
     widget: Widget,
-    stack_panel: Handle<UiNode>,
     context: InspectorContext,
 }
 
@@ -158,9 +159,9 @@ impl Inspector {
     }
 }
 
-pub const NAME_COLUMN_WIDTH: f32 = 110.0;
+pub const NAME_COLUMN_WIDTH: f32 = 150.0;
 pub const HEADER_MARGIN: Thickness = Thickness {
-    left: 4.0,
+    left: 2.0,
     top: 1.0,
     right: 4.0,
     bottom: 1.0,
@@ -200,15 +201,10 @@ impl PartialEq for ContextEntry {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct Group {
-    section: Handle<UiNode>,
-    entries: Vec<ContextEntry>,
-}
-
 #[derive(Clone)]
 pub struct InspectorContext {
-    groups: Vec<Group>,
+    stack_panel: Handle<UiNode>,
+    entries: Vec<ContextEntry>,
     property_definitions: Rc<PropertyEditorDefinitionContainer>,
     environment: Option<Rc<dyn InspectorEnvironment>>,
     sync_flag: u64,
@@ -216,14 +212,15 @@ pub struct InspectorContext {
 
 impl PartialEq for InspectorContext {
     fn eq(&self, other: &Self) -> bool {
-        self.groups == other.groups
+        self.entries == other.entries
     }
 }
 
 impl Default for InspectorContext {
     fn default() -> Self {
         Self {
-            groups: Default::default(),
+            stack_panel: Default::default(),
+            entries: Default::default(),
             property_definitions: Rc::new(PropertyEditorDefinitionContainer::new()),
             environment: None,
             sync_flag: 0,
@@ -237,8 +234,71 @@ impl Debug for InspectorContext {
     }
 }
 
-fn create_header(ctx: &mut BuildContext, text: &str) -> Handle<UiNode> {
-    TextBuilder::new(WidgetBuilder::new().with_margin(HEADER_MARGIN))
+pub fn make_property_margin(layer_index: usize) -> Thickness {
+    let mut margin = HEADER_MARGIN;
+    margin.left += 10.0 + layer_index as f32 * 10.0;
+    margin
+}
+
+fn make_expander_margin(layer_index: usize) -> Thickness {
+    let mut margin = HEADER_MARGIN;
+    margin.left += layer_index as f32 * 10.0;
+    margin
+}
+
+fn make_expander_check_box(
+    layer_index: usize,
+    property_name: &str,
+    ctx: &mut BuildContext,
+) -> Handle<UiNode> {
+    CheckBoxBuilder::new(
+        WidgetBuilder::new()
+            .with_vertical_alignment(VerticalAlignment::Center)
+            .with_margin(make_expander_margin(layer_index)),
+    )
+    .with_background(
+        BorderBuilder::new(
+            WidgetBuilder::new()
+                .with_vertical_alignment(VerticalAlignment::Center)
+                .with_min_size(Vector2::new(4.0, 4.0)),
+        )
+        .with_stroke_thickness(Thickness::zero())
+        .build(ctx),
+    )
+    .with_content(
+        TextBuilder::new(
+            WidgetBuilder::new()
+                .with_height(16.0)
+                .with_margin(Thickness::left(2.0)),
+        )
+        .with_vertical_text_alignment(VerticalAlignment::Center)
+        .with_text(property_name)
+        .build(ctx),
+    )
+    .checked(Some(true))
+    .with_check_mark(make_arrow(ctx, ArrowDirection::Bottom, 8.0))
+    .with_uncheck_mark(make_arrow(ctx, ArrowDirection::Right, 8.0))
+    .build(ctx)
+}
+
+pub fn make_expander_container(
+    layer_index: usize,
+    property_name: &str,
+    header: Handle<UiNode>,
+    content: Handle<UiNode>,
+    ctx: &mut BuildContext,
+) -> Handle<UiNode> {
+    ExpanderBuilder::new(WidgetBuilder::new())
+        .with_checkbox(make_expander_check_box(layer_index, property_name, ctx))
+        .with_expander_column(Column::strict(NAME_COLUMN_WIDTH))
+        .with_expanded(true)
+        .with_header(header)
+        .with_content(content)
+        .build(ctx)
+}
+
+fn create_header(ctx: &mut BuildContext, text: &str, layer_index: usize) -> Handle<UiNode> {
+    TextBuilder::new(WidgetBuilder::new().with_margin(make_property_margin(layer_index)))
         .with_text(text)
         .with_vertical_text_alignment(VerticalAlignment::Center)
         .build(ctx)
@@ -264,42 +324,20 @@ fn make_tooltip(ctx: &mut BuildContext, text: &str) -> Handle<UiNode> {
     }
 }
 
-fn wrap_property(
+fn make_simple_property_container(
     title: Handle<UiNode>,
     editor: Handle<UiNode>,
-    layout: Layout,
     description: &str,
     ctx: &mut BuildContext,
 ) -> Handle<UiNode> {
-    match layout {
-        Layout::Horizontal => {
-            ctx[editor].set_row(0).set_column(1);
-        }
-        Layout::Vertical => {
-            ctx[editor].set_row(1).set_column(0);
-        }
-    }
+    ctx[editor].set_row(0).set_column(1);
 
     let tooltip = make_tooltip(ctx, description);
     ctx[title].set_tooltip(tooltip);
 
     GridBuilder::new(WidgetBuilder::new().with_child(title).with_child(editor))
-        .add_rows(match layout {
-            Layout::Horizontal => {
-                vec![Row::strict(26.0)]
-            }
-            Layout::Vertical => {
-                vec![Row::strict(26.0), Row::stretch()]
-            }
-        })
-        .add_columns(match layout {
-            Layout::Horizontal => {
-                vec![Column::strict(NAME_COLUMN_WIDTH), Column::stretch()]
-            }
-            Layout::Vertical => {
-                vec![Column::stretch()]
-            }
-        })
+        .add_rows(vec![Row::strict(26.0)])
+        .add_columns(vec![Column::strict(NAME_COLUMN_WIDTH), Column::stretch()])
         .build(ctx)
 }
 
@@ -310,129 +348,98 @@ impl InspectorContext {
         definition_container: Rc<PropertyEditorDefinitionContainer>,
         environment: Option<Rc<dyn InspectorEnvironment>>,
         sync_flag: u64,
+        layer_index: usize,
     ) -> Self {
-        let mut property_groups = HashMap::<&'static str, Vec<PropertyInfo>>::new();
-        for info in object.properties() {
-            match property_groups.entry(info.group) {
-                Entry::Vacant(e) => {
-                    e.insert(vec![info]);
-                }
-                Entry::Occupied(e) => {
-                    e.into_mut().push(info);
-                }
-            }
-        }
+        let mut entries = Vec::new();
 
-        let mut sorted_groups = property_groups.into_iter().collect::<Vec<_>>();
-
-        sorted_groups.sort_by_key(|(name, _)| *name);
-
-        let groups = sorted_groups
+        let editors = object
+            .properties()
             .iter()
-            .map(|(group, infos)| {
-                let mut entries = Vec::new();
+            .enumerate()
+            .map(|(i, info)| {
+                let description = if info.description.is_empty() {
+                    info.display_name.to_string()
+                } else {
+                    format!("{}\n\n{}", info.display_name, info.description)
+                };
 
-                let editors = infos
-                    .iter()
-                    .enumerate()
-                    .map(|(i, info)| {
-                        let description = if info.description.is_empty() {
-                            info.display_name.to_string()
-                        } else {
-                            format!("{}\n\n{}", info.display_name, info.description)
-                        };
-
-                        if let Some(definition) = definition_container
-                            .definitions()
-                            .get(&info.value.type_id())
-                        {
-                            match definition.create_instance(PropertyEditorBuildContext {
-                                build_context: ctx,
-                                property_info: info,
-                                environment: environment.clone(),
-                                definition_container: definition_container.clone(),
-                                sync_flag,
-                            }) {
-                                Ok(instance) => {
-                                    entries.push(ContextEntry {
-                                        property_editor: instance.editor,
-                                        property_editor_definition: definition.clone(),
-                                        property_name: info.name.to_string(),
-                                        property_owner_type_id: info.owner_type_id,
-                                    });
-
-                                    if info.read_only {
-                                        ctx[instance.editor].set_enabled(false);
-                                    }
-
-                                    wrap_property(
-                                        if instance.title.is_some() {
-                                            instance.title
-                                        } else {
-                                            create_header(ctx, info.display_name)
-                                        },
-                                        instance.editor,
-                                        definition.layout(),
+                if let Some(definition) = definition_container
+                    .definitions()
+                    .get(&info.value.type_id())
+                {
+                    match definition.create_instance(PropertyEditorBuildContext {
+                        build_context: ctx,
+                        property_info: info,
+                        environment: environment.clone(),
+                        definition_container: definition_container.clone(),
+                        sync_flag,
+                        layer_index,
+                    }) {
+                        Ok(instance) => {
+                            let (container, editor) = match instance {
+                                PropertyEditorInstance::Simple { editor } => (
+                                    make_simple_property_container(
+                                        create_header(ctx, info.display_name, layer_index),
+                                        editor,
                                         &description,
                                         ctx,
-                                    )
-                                }
-                                Err(e) => wrap_property(
-                                    create_header(ctx, info.display_name),
-                                    TextBuilder::new(WidgetBuilder::new().on_row(i).on_column(1))
-                                        .with_wrap(WrapMode::Word)
-                                        .with_vertical_text_alignment(VerticalAlignment::Center)
-                                        .with_text(format!(
-                                            "Unable to create property \
-                                                    editor instance: Reason {:?}",
-                                            e
-                                        ))
-                                        .build(ctx),
-                                    Layout::Horizontal,
-                                    &description,
-                                    ctx,
+                                    ),
+                                    editor,
                                 ),
+                                PropertyEditorInstance::Custom { container, editor } => {
+                                    (container, editor)
+                                }
+                            };
+
+                            entries.push(ContextEntry {
+                                property_editor: editor,
+                                property_editor_definition: definition.clone(),
+                                property_name: info.name.to_string(),
+                                property_owner_type_id: info.owner_type_id,
+                            });
+
+                            if info.read_only {
+                                ctx[editor].set_enabled(false);
                             }
-                        } else {
-                            wrap_property(
-                                create_header(ctx, info.display_name),
-                                TextBuilder::new(WidgetBuilder::new().on_row(i).on_column(1))
-                                    .with_wrap(WrapMode::Word)
-                                    .with_vertical_text_alignment(VerticalAlignment::Center)
-                                    .with_text("Property Editor Is Missing!")
-                                    .build(ctx),
-                                Layout::Horizontal,
-                                &description,
-                                ctx,
-                            )
+
+                            container
                         }
-                    })
-                    .collect::<Vec<_>>();
-
-                let section = BorderBuilder::new(
-                    WidgetBuilder::new()
-                        .with_margin(Thickness::uniform(1.0))
-                        .with_child(
-                            ExpanderBuilder::new(WidgetBuilder::new())
-                                .with_header(create_header(ctx, group))
-                                .with_content(
-                                    StackPanelBuilder::new(
-                                        WidgetBuilder::new().with_children(editors),
-                                    )
-                                    .build(ctx),
-                                )
+                        Err(e) => make_simple_property_container(
+                            create_header(ctx, info.display_name, layer_index),
+                            TextBuilder::new(WidgetBuilder::new().on_row(i).on_column(1))
+                                .with_wrap(WrapMode::Word)
+                                .with_vertical_text_alignment(VerticalAlignment::Center)
+                                .with_text(format!(
+                                    "Unable to create property \
+                                                    editor instance: Reason {:?}",
+                                    e
+                                ))
                                 .build(ctx),
-                        )
-                        .with_foreground(Brush::Solid(Color::opaque(130, 130, 130))),
-                )
-                .build(ctx);
-
-                Group { section, entries }
+                            &description,
+                            ctx,
+                        ),
+                    }
+                } else {
+                    make_simple_property_container(
+                        create_header(ctx, info.display_name, layer_index),
+                        TextBuilder::new(WidgetBuilder::new().on_row(i).on_column(1))
+                            .with_wrap(WrapMode::Word)
+                            .with_vertical_text_alignment(VerticalAlignment::Center)
+                            .with_text("Property Editor Is Missing!")
+                            .build(ctx),
+                        &description,
+                        ctx,
+                    )
+                }
             })
             .collect::<Vec<_>>();
 
+        let stack_panel =
+            StackPanelBuilder::new(WidgetBuilder::new().with_children(editors)).build(ctx);
+
         Self {
-            groups,
+            stack_panel,
+            entries,
             property_definitions: definition_container,
             sync_flag,
             environment,
@@ -443,6 +450,7 @@ impl InspectorContext {
         &self,
         object: &dyn Inspect,
         ui: &mut UserInterface,
+        layer_index: usize,
     ) -> Result<(), Vec<InspectorError>> {
         let mut sync_errors = Vec::new();
 
@@ -458,6 +466,7 @@ impl InspectorContext {
                     ui,
                     property_info: &info,
                     definition_container: self.property_definitions.clone(),
+                    layer_index,
                 };
 
                 match constructor.create_message(ctx) {
@@ -480,20 +489,19 @@ impl InspectorContext {
     }
 
     pub fn property_editors(&self) -> impl Iterator<Item = &ContextEntry> + '_ {
-        self.groups.iter().map(|g| g.entries.iter()).flatten()
+        self.entries.iter()
     }
 
     pub fn find_property_editor(&self, name: &str) -> Handle<UiNode> {
-        for group in self.groups.iter() {
-            if let Some(property_editor) = group
-                .entries
-                .iter()
-                .find(|e| e.property_name == name)
-                .map(|e| e.property_editor)
-            {
-                return property_editor;
-            }
+        if let Some(property_editor) = self
+            .entries
+            .iter()
+            .find(|e| e.property_name == name)
+            .map(|e| e.property_editor)
+        {
+            return property_editor;
         }
+
         Default::default()
     }
 }
@@ -514,18 +522,16 @@ impl Control for Inspector {
         {
             if let Some(InspectorMessage::Context(ctx)) = message.data::<InspectorMessage>() {
                 // Remove previous content.
-                for child in ui.node(self.stack_panel).children() {
+                for child in self.children() {
                     ui.send_message(WidgetMessage::remove(*child, MessageDirection::ToWidget));
                 }
 
-                // Link new sections to the panel.
-                for group in ctx.groups.iter() {
-                    ui.send_message(WidgetMessage::link(
-                        group.section,
-                        MessageDirection::ToWidget,
-                        self.stack_panel,
-                    ));
-                }
+                // Link new panel.
+                ui.send_message(WidgetMessage::link(
+                    ctx.stack_panel,
+                    MessageDirection::ToWidget,
+                    self.handle,
+                ));
 
                 self.context = ctx.clone();
             }
@@ -534,20 +540,18 @@ impl Control for Inspector {
         // Check each message from descendant widget and try to translate it to
         // PropertyChanged message.
         if message.flags != self.context.sync_flag {
-            for group in self.context.groups.iter() {
-                for entry in group.entries.iter() {
-                    if message.destination() == entry.property_editor {
-                        if let Some(args) = entry.property_editor_definition.translate_message(
-                            &entry.property_name,
-                            entry.property_owner_type_id,
-                            message,
-                        ) {
-                            ui.send_message(InspectorMessage::property_changed(
-                                self.handle,
-                                MessageDirection::FromWidget,
-                                args,
-                            ));
-                        }
+            for entry in self.context.entries.iter() {
+                if message.destination() == entry.property_editor {
+                    if let Some(args) = entry.property_editor_definition.translate_message(
+                        &entry.property_name,
+                        entry.property_owner_type_id,
+                        message,
+                    ) {
+                        ui.send_message(InspectorMessage::property_changed(
+                            self.handle,
+                            MessageDirection::FromWidget,
+                            args,
+                        ));
                     }
                 }
             }
@@ -574,19 +578,11 @@ impl InspectorBuilder {
     }
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        let sections = self
-            .context
-            .groups
-            .iter()
-            .map(|g| g.section)
-            .collect::<Vec<_>>();
-
-        let stack_panel =
-            StackPanelBuilder::new(WidgetBuilder::new().with_children(sections)).build(ctx);
-
         let canvas = Inspector {
-            widget: self.widget_builder.with_child(stack_panel).build(),
-            stack_panel,
+            widget: self
+                .widget_builder
+                .with_child(self.context.stack_panel)
+                .build(),
             context: self.context,
         };
         ctx.add_node(UiNode::new(canvas))

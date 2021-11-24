@@ -1,24 +1,18 @@
 use crate::{
-    border::BorderBuilder,
-    brush::Brush,
     button::{ButtonBuilder, ButtonMessage},
-    core::{color::Color, inspect::Inspect, pool::Handle},
+    core::{inspect::Inspect, pool::Handle},
     define_constructor,
-    expander::ExpanderBuilder,
-    grid::{Column, GridBuilder, Row},
     inspector::{
         editors::{
-            Layout, PropertyEditorBuildContext, PropertyEditorDefinition,
+            PropertyEditorBuildContext, PropertyEditorDefinition,
             PropertyEditorDefinitionContainer, PropertyEditorInstance,
             PropertyEditorMessageContext,
         },
-        CollectionChanged, FieldKind, Inspector, InspectorBuilder, InspectorContext,
-        InspectorEnvironment, InspectorError, InspectorMessage, PropertyChanged, HEADER_MARGIN,
-        NAME_COLUMN_WIDTH,
+        make_expander_container, CollectionChanged, FieldKind, Inspector, InspectorBuilder,
+        InspectorContext, InspectorEnvironment, InspectorError, InspectorMessage, PropertyChanged,
     },
     message::{MessageDirection, UiMessage},
     stack_panel::StackPanelBuilder,
-    text::TextBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
     VerticalAlignment,
@@ -43,6 +37,7 @@ pub struct CollectionEditor {
     add: Handle<UiNode>,
     items: Vec<Item>,
     panel: Handle<UiNode>,
+    layer_index: usize,
 }
 
 crate::define_widget_deref!(CollectionEditor);
@@ -96,7 +91,7 @@ impl Control for CollectionEditor {
         } else if let Some(msg) = message.data::<CollectionEditorMessage>() {
             match msg {
                 CollectionEditorMessage::Items(items) => {
-                    let views = create_item_views(items, &mut ui.build_ctx());
+                    let views = create_item_views(items, &mut ui.build_ctx(), self.layer_index);
 
                     for old_item in ui.node(self.panel).children() {
                         ui.send_message(WidgetMessage::remove(
@@ -141,41 +136,25 @@ where
     environment: Option<Rc<dyn InspectorEnvironment>>,
     definition_container: Option<Rc<PropertyEditorDefinitionContainer>>,
     add: Handle<UiNode>,
+    layer_index: usize,
 }
 
-fn create_item_views(items: &[Item], ctx: &mut BuildContext) -> Vec<Handle<UiNode>> {
+fn create_item_views(
+    items: &[Item],
+    ctx: &mut BuildContext,
+    layer_index: usize,
+) -> Vec<Handle<UiNode>> {
     items
         .iter()
         .enumerate()
         .map(|(n, item)| {
-            BorderBuilder::new(
-                WidgetBuilder::new()
-                    .with_child(
-                        ExpanderBuilder::new(WidgetBuilder::new())
-                            .with_header(
-                                GridBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_child(
-                                            TextBuilder::new(WidgetBuilder::new())
-                                                .with_vertical_text_alignment(
-                                                    VerticalAlignment::Center,
-                                                )
-                                                .with_text(format!("Item {}", n))
-                                                .build(ctx),
-                                        )
-                                        .with_child(item.remove),
-                                )
-                                .add_column(Column::stretch())
-                                .add_column(Column::strict(16.0))
-                                .add_row(Row::strict(26.0))
-                                .build(ctx),
-                            )
-                            .with_content(item.inspector)
-                            .build(ctx),
-                    )
-                    .with_foreground(Brush::Solid(Color::opaque(130, 130, 130))),
+            make_expander_container(
+                layer_index,
+                &format!("Item {}", n),
+                item.remove,
+                item.inspector,
+                ctx,
             )
-            .build(ctx)
         })
         .collect::<Vec<_>>()
 }
@@ -186,6 +165,7 @@ fn create_items<'a, T, I>(
     definition_container: Rc<PropertyEditorDefinitionContainer>,
     ctx: &mut BuildContext,
     sync_flag: u64,
+    layer_index: usize,
 ) -> Vec<Item>
 where
     T: Inspect + 'static,
@@ -199,6 +179,7 @@ where
                 definition_container.clone(),
                 environment.clone(),
                 sync_flag,
+                layer_index,
             );
 
             let inspector = InspectorBuilder::new(WidgetBuilder::new())
@@ -209,6 +190,7 @@ where
                 WidgetBuilder::new()
                     .with_margin(Thickness::uniform(1.0))
                     .with_vertical_alignment(VerticalAlignment::Center)
+                    .with_horizontal_alignment(HorizontalAlignment::Right)
                     .on_column(1)
                     .with_width(16.0)
                     .with_height(16.0),
@@ -233,6 +215,7 @@ where
             environment: None,
             definition_container: None,
             add: Default::default(),
+            layer_index: 0,
         }
     }
 
@@ -259,6 +242,11 @@ where
         self
     }
 
+    pub fn with_layer_index(mut self, layer_index: usize) -> Self {
+        self.layer_index = layer_index;
+        self
+    }
+
     pub fn build(self, ctx: &mut BuildContext, sync_flag: u64) -> Handle<UiNode> {
         let definition_container = self
             .definition_container
@@ -274,13 +262,16 @@ where
                     definition_container,
                     ctx,
                     sync_flag,
+                    self.layer_index + 1,
                 )
             })
             .unwrap_or_default();
 
-        let panel = StackPanelBuilder::new(
-            WidgetBuilder::new().with_children(create_item_views(&items, ctx)),
-        )
+        let panel = StackPanelBuilder::new(WidgetBuilder::new().with_children(create_item_views(
+            &items,
+            ctx,
+            self.layer_index,
+        )))
         .build(ctx);
 
         let ce = CollectionEditor {
@@ -292,6 +283,7 @@ where
             add: self.add,
             items,
             panel,
+            layer_index: self.layer_index,
         };
 
         ctx.add_node(UiNode::new(ce))
@@ -351,30 +343,27 @@ where
         .with_text("+")
         .build(ctx.build_context);
 
-        Ok(PropertyEditorInstance {
-            title: GridBuilder::new(
-                WidgetBuilder::new()
-                    .with_child(
-                        TextBuilder::new(WidgetBuilder::new().with_margin(HEADER_MARGIN))
-                            .with_text(ctx.property_info.display_name)
-                            .with_vertical_text_alignment(VerticalAlignment::Center)
-                            .build(ctx.build_context),
-                    )
-                    .with_child(add),
-            )
-            .add_column(Column::strict(NAME_COLUMN_WIDTH))
-            .add_column(Column::stretch())
-            .add_row(Row::stretch())
-            .build(ctx.build_context),
-            editor: CollectionEditorBuilder::new(
-                WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
-            )
-            .with_add(add)
-            .with_collection(value.iter())
-            .with_environment(ctx.environment.clone())
-            .with_definition_container(ctx.definition_container.clone())
-            .build(ctx.build_context, ctx.sync_flag),
-        })
+        let editor;
+        let container = make_expander_container(
+            ctx.layer_index,
+            ctx.property_info.display_name,
+            add,
+            {
+                editor = CollectionEditorBuilder::new(
+                    WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
+                )
+                .with_add(add)
+                .with_collection(value.iter())
+                .with_environment(ctx.environment.clone())
+                .with_layer_index(ctx.layer_index + 1)
+                .with_definition_container(ctx.definition_container.clone())
+                .build(ctx.build_context, ctx.sync_flag);
+                editor
+            },
+            ctx.build_context,
+        );
+
+        Ok(PropertyEditorInstance::Custom { container, editor })
     }
 
     fn create_message(
@@ -387,6 +376,7 @@ where
             ui,
             property_info,
             definition_container,
+            layer_index,
         } = ctx;
 
         let instance_ref = if let Some(instance) = ui.node(instance).cast::<CollectionEditor>() {
@@ -407,6 +397,7 @@ where
                 definition_container,
                 &mut ui.build_ctx(),
                 sync_flag,
+                layer_index + 1,
             );
 
             Ok(Some(CollectionEditorMessage::items(
@@ -419,13 +410,14 @@ where
 
             // Just sync inspector of every item.
             for (item, obj) in instance_ref.items.clone().iter().zip(value.iter()) {
+                let layer_index = ctx.layer_index;
                 let ctx = ui
                     .node(item.inspector)
                     .cast::<Inspector>()
                     .expect("Must be Inspector!")
                     .context()
                     .clone();
-                if let Err(e) = ctx.sync(obj, ui) {
+                if let Err(e) = ctx.sync(obj, ui, layer_index + 1) {
                     error_group.extend(e.into_iter())
                 }
             }
@@ -454,9 +446,5 @@ where
             }
         }
         None
-    }
-
-    fn layout(&self) -> Layout {
-        Layout::Vertical
     }
 }

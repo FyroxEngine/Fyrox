@@ -146,6 +146,7 @@ pub struct CheckBoxBuilder {
     check_mark: Option<Handle<UiNode>>,
     uncheck_mark: Option<Handle<UiNode>>,
     undefined_mark: Option<Handle<UiNode>>,
+    background: Option<Handle<UiNode>>,
     content: Handle<UiNode>,
 }
 
@@ -158,6 +159,7 @@ impl CheckBoxBuilder {
             uncheck_mark: None,
             undefined_mark: None,
             content: Handle::NONE,
+            background: None,
         }
     }
 
@@ -183,6 +185,11 @@ impl CheckBoxBuilder {
 
     pub fn with_content(mut self, content: Handle<UiNode>) -> Self {
         self.content = content;
+        self
+    }
+
+    pub fn with_background(mut self, background: Handle<UiNode>) -> Self {
+        self.background = Some(background);
         self
     }
 
@@ -235,25 +242,37 @@ impl CheckBoxBuilder {
             ctx[self.content].set_row(0).set_column(1);
         }
 
+        let background = self.background.unwrap_or_else(|| {
+            BorderBuilder::new(
+                WidgetBuilder::new()
+                    .with_background(BRUSH_DARK)
+                    .with_foreground(BRUSH_LIGHT),
+            )
+            .with_stroke_thickness(Thickness::uniform(1.0))
+            .build(ctx)
+        });
+
+        let background_ref = &mut ctx[background];
+        background_ref.set_row(0).set_column(0);
+        if background_ref.min_width() < 0.01 {
+            background_ref.set_min_width(16.0);
+        }
+        if background_ref.min_height() < 0.01 {
+            background_ref.set_min_height(16.0);
+        }
+
+        ctx.link(check_mark, background);
+        ctx.link(uncheck_mark, background);
+        ctx.link(undefined_mark, background);
+
         let grid = GridBuilder::new(
             WidgetBuilder::new()
-                .with_child(
-                    BorderBuilder::new(
-                        WidgetBuilder::new()
-                            .with_child(check_mark)
-                            .with_child(uncheck_mark)
-                            .with_child(undefined_mark)
-                            .with_background(BRUSH_DARK)
-                            .with_foreground(BRUSH_LIGHT),
-                    )
-                    .with_stroke_thickness(Thickness::uniform(1.0))
-                    .build(ctx),
-                )
+                .with_child(background)
                 .with_child(self.content),
         )
         .add_row(Row::stretch())
-        .add_column(Column::strict(20.0))
-        .add_column(Column::stretch())
+        .add_column(Column::auto())
+        .add_column(Column::auto())
         .build(ctx);
 
         let cb = CheckBox {

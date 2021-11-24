@@ -4,15 +4,14 @@ use crate::{
     decorator::DecoratorBuilder,
     define_constructor,
     dropdown_list::{DropdownList, DropdownListBuilder, DropdownListMessage},
-    grid::{Column, GridBuilder, Row},
     inspector::{
         editors::{
-            Layout, PropertyEditorBuildContext, PropertyEditorDefinition,
+            PropertyEditorBuildContext, PropertyEditorDefinition,
             PropertyEditorDefinitionContainer, PropertyEditorInstance,
             PropertyEditorMessageContext,
         },
-        FieldKind, Inspector, InspectorBuilder, InspectorContext, InspectorEnvironment,
-        InspectorError, InspectorMessage, PropertyChanged, HEADER_MARGIN, NAME_COLUMN_WIDTH,
+        make_expander_container, FieldKind, Inspector, InspectorBuilder, InspectorContext,
+        InspectorEnvironment, InspectorError, InspectorMessage, PropertyChanged,
     },
     message::{MessageDirection, UiMessage},
     text::TextBuilder,
@@ -52,6 +51,7 @@ pub struct EnumPropertyEditor<T: InspectableEnum> {
     definition_container: Rc<PropertyEditorDefinitionContainer>,
     environment: Option<Rc<dyn InspectorEnvironment>>,
     sync_flag: u64,
+    layer_index: usize,
 }
 
 impl<T: InspectableEnum> Debug for EnumPropertyEditor<T> {
@@ -70,6 +70,7 @@ impl<T: InspectableEnum> Clone for EnumPropertyEditor<T> {
             definition_container: self.definition_container.clone(),
             environment: self.environment.clone(),
             sync_flag: self.sync_flag,
+            layer_index: self.layer_index,
         }
     }
 }
@@ -112,6 +113,7 @@ impl<T: InspectableEnum> Control for EnumPropertyEditor<T> {
                     self.definition_container.clone(),
                     self.environment.clone(),
                     self.sync_flag,
+                    self.layer_index,
                 );
 
                 ui.send_message(InspectorMessage::context(
@@ -159,6 +161,7 @@ pub struct EnumPropertyEditorBuilder {
     environment: Option<Rc<dyn InspectorEnvironment>>,
     sync_flag: u64,
     variant_selector: Handle<UiNode>,
+    layer_index: usize,
 }
 
 impl EnumPropertyEditorBuilder {
@@ -169,6 +172,7 @@ impl EnumPropertyEditorBuilder {
             environment: None,
             sync_flag: 0,
             variant_selector: Handle::NONE,
+            layer_index: 0,
         }
     }
 
@@ -195,6 +199,11 @@ impl EnumPropertyEditorBuilder {
         self
     }
 
+    pub fn with_layer_index(mut self, layer_index: usize) -> Self {
+        self.layer_index = layer_index;
+        self
+    }
+
     pub fn build<T: InspectableEnum>(
         self,
         ctx: &mut BuildContext,
@@ -211,6 +220,7 @@ impl EnumPropertyEditorBuilder {
             definition_container.clone(),
             self.environment.clone(),
             self.sync_flag,
+            self.layer_index,
         );
 
         let inspector = InspectorBuilder::new(WidgetBuilder::new())
@@ -229,6 +239,7 @@ impl EnumPropertyEditorBuilder {
             definition_container,
             environment: self.environment,
             sync_flag: self.sync_flag,
+            layer_index: self.layer_index,
         };
 
         ctx.add_node(UiNode::new(editor))
@@ -301,28 +312,25 @@ where
         .with_close_on_selection(true)
         .build(ctx.build_context);
 
-        Ok(PropertyEditorInstance {
-            title: GridBuilder::new(
-                WidgetBuilder::new()
-                    .with_child(
-                        TextBuilder::new(WidgetBuilder::new().with_margin(HEADER_MARGIN))
-                            .with_text(ctx.property_info.display_name)
-                            .with_vertical_text_alignment(VerticalAlignment::Center)
-                            .build(ctx.build_context),
-                    )
-                    .with_child(variant_selector),
-            )
-            .add_column(Column::strict(NAME_COLUMN_WIDTH))
-            .add_column(Column::stretch())
-            .add_row(Row::strict(26.0))
-            .build(ctx.build_context),
-            editor: EnumPropertyEditorBuilder::new(WidgetBuilder::new())
-                .with_variant_selector(variant_selector)
-                .with_definition_container(ctx.definition_container.clone())
-                .with_environment(ctx.environment.clone())
-                .with_sync_flag(ctx.sync_flag)
-                .build(ctx.build_context, self, value),
-        })
+        let editor;
+        let container = make_expander_container(
+            ctx.layer_index,
+            ctx.property_info.display_name,
+            variant_selector,
+            {
+                editor = EnumPropertyEditorBuilder::new(WidgetBuilder::new())
+                    .with_variant_selector(variant_selector)
+                    .with_layer_index(ctx.layer_index + 1)
+                    .with_definition_container(ctx.definition_container.clone())
+                    .with_environment(ctx.environment.clone())
+                    .with_sync_flag(ctx.sync_flag)
+                    .build(ctx.build_context, self, value);
+                editor
+            },
+            ctx.build_context,
+        );
+
+        Ok(PropertyEditorInstance::Custom { container, editor })
     }
 
     fn create_message(
@@ -370,6 +378,7 @@ where
                 ctx.definition_container.clone(),
                 environment,
                 ctx.sync_flag,
+                ctx.layer_index + 1,
             );
 
             Ok(Some(InspectorMessage::context(
@@ -378,6 +387,7 @@ where
                 context,
             )))
         } else {
+            let layer_index = ctx.layer_index;
             let inspector_ctx = ctx
                 .ui
                 .node(instance_ref.inspector)
@@ -386,7 +396,7 @@ where
                 .context()
                 .clone();
 
-            if let Err(e) = inspector_ctx.sync(value, ctx.ui) {
+            if let Err(e) = inspector_ctx.sync(value, ctx.ui, layer_index + 1) {
                 Err(InspectorError::Group(e))
             } else {
                 Ok(None)
@@ -418,9 +428,5 @@ where
         }
 
         None
-    }
-
-    fn layout(&self) -> Layout {
-        Layout::Vertical
     }
 }

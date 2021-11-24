@@ -2,15 +2,16 @@ use crate::{
     core::inspect::Inspect,
     inspector::{
         editors::{
-            Layout, PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
+            PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext,
         },
-        FieldKind, InspectorError, InspectorMessage, PropertyChanged,
+        make_expander_container, FieldKind, Inspector, InspectorBuilder, InspectorContext,
+        InspectorError, InspectorMessage, PropertyChanged,
     },
-    inspector::{Inspector, InspectorBuilder, InspectorContext},
     message::{MessageDirection, UiMessage},
     widget::WidgetBuilder,
 };
+use rg3d_core::pool::Handle;
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},
@@ -64,14 +65,24 @@ where
             ctx.definition_container.clone(),
             ctx.environment.clone(),
             ctx.sync_flag,
+            ctx.layer_index + 1,
         );
 
-        Ok(PropertyEditorInstance {
-            title: Default::default(),
-            editor: InspectorBuilder::new(WidgetBuilder::new())
-                .with_context(inspector_context)
-                .build(ctx.build_context),
-        })
+        let editor;
+        let container = make_expander_container(
+            ctx.layer_index,
+            ctx.property_info.display_name,
+            Handle::NONE,
+            {
+                editor = InspectorBuilder::new(WidgetBuilder::new())
+                    .with_context(inspector_context)
+                    .build(ctx.build_context);
+                editor
+            },
+            ctx.build_context,
+        );
+
+        Ok(PropertyEditorInstance::Custom { container, editor })
     }
 
     fn create_message(
@@ -89,7 +100,7 @@ where
             .expect("Must be Inspector!")
             .context()
             .clone();
-        if let Err(e) = inspector_context.sync(value, ctx.ui) {
+        if let Err(e) = inspector_context.sync(value, ctx.ui, ctx.layer_index + 1) {
             error_group.extend(e.into_iter())
         }
 
@@ -117,9 +128,5 @@ where
         }
 
         None
-    }
-
-    fn layout(&self) -> Layout {
-        Layout::Vertical
     }
 }

@@ -27,8 +27,7 @@ impl PropertyEditorDefinition for ColorPropertyEditorDefinition {
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<Color>()?;
-        Ok(PropertyEditorInstance {
-            title: Default::default(),
+        Ok(PropertyEditorInstance::Simple {
             editor: ColorFieldBuilder::new(
                 WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
             )

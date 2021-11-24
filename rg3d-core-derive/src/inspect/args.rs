@@ -44,12 +44,6 @@ pub struct FieldArgs {
     #[darling(default)]
     pub display_name: Option<String>,
 
-    /// #[inspect(group = "<group>")]
-    ///
-    /// Group override for a field (default: Common)
-    #[darling(default)]
-    pub group: Option<String>,
-
     /// `#[inspect(expand)]`
     ///
     /// Include the fields of the field, exclude the marked field itself.

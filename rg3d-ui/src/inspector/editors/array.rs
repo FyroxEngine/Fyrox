@@ -5,12 +5,12 @@ use crate::{
     expander::ExpanderBuilder,
     inspector::{
         editors::{
-            Layout, PropertyEditorBuildContext, PropertyEditorDefinition,
+            PropertyEditorBuildContext, PropertyEditorDefinition,
             PropertyEditorDefinitionContainer, PropertyEditorInstance,
             PropertyEditorMessageContext,
         },
         CollectionChanged, FieldKind, Inspector, InspectorBuilder, InspectorContext,
-        InspectorEnvironment, InspectorError, InspectorMessage, PropertyChanged, HEADER_MARGIN,
+        InspectorEnvironment, InspectorError, InspectorMessage, PropertyChanged,
     },
     message::{MessageDirection, UiMessage},
     stack_panel::StackPanelBuilder,
@@ -78,6 +78,7 @@ where
     collection: Option<I>,
     environment: Option<Rc<dyn InspectorEnvironment>>,
     definition_container: Option<Rc<PropertyEditorDefinitionContainer>>,
+    layer_index: usize,
 }
 
 fn create_item_views(items: &[Item], ctx: &mut BuildContext) -> Vec<Handle<UiNode>> {
@@ -111,6 +112,7 @@ fn create_items<'a, T, I>(
     definition_container: Rc<PropertyEditorDefinitionContainer>,
     ctx: &mut BuildContext,
     sync_flag: u64,
+    layer_index: usize,
 ) -> Vec<Item>
 where
     T: Inspect + 'static,
@@ -124,6 +126,7 @@ where
                 definition_container.clone(),
                 environment.clone(),
                 sync_flag,
+                layer_index,
             );
 
             let inspector = InspectorBuilder::new(WidgetBuilder::new())
@@ -146,6 +149,7 @@ where
             collection: None,
             environment: None,
             definition_container: None,
+            layer_index: 0,
         }
     }
 
@@ -167,6 +171,11 @@ where
         self
     }
 
+    pub fn with_layer_index(mut self, layer_index: usize) -> Self {
+        self.layer_index = layer_index;
+        self
+    }
+
     pub fn build(self, ctx: &mut BuildContext, sync_flag: u64) -> Handle<UiNode> {
         let definition_container = self
             .definition_container
@@ -182,6 +191,7 @@ where
                     definition_container,
                     ctx,
                     sync_flag,
+                    self.layer_index,
                 )
             })
             .unwrap_or_default();
@@ -243,16 +253,13 @@ where
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<[T; N]>()?;
 
-        Ok(PropertyEditorInstance {
-            title: TextBuilder::new(WidgetBuilder::new().with_margin(HEADER_MARGIN))
-                .with_text(ctx.property_info.display_name)
-                .with_vertical_text_alignment(VerticalAlignment::Center)
-                .build(ctx.build_context),
+        Ok(PropertyEditorInstance::Simple {
             editor: ArrayEditorBuilder::new(
                 WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
             )
             .with_collection(value.iter())
             .with_environment(ctx.environment.clone())
+            .with_layer_index(ctx.layer_index + 1)
             .with_definition_container(ctx.definition_container.clone())
             .build(ctx.build_context, ctx.sync_flag),
         })
@@ -283,13 +290,14 @@ where
 
         // Just sync inspector of every item.
         for (item, obj) in instance_ref.items.clone().iter().zip(value.iter()) {
+            let layer_index = ctx.layer_index;
             let ctx = ui
                 .node(item.inspector)
                 .cast::<Inspector>()
                 .expect("Must be Inspector!")
                 .context()
                 .clone();
-            if let Err(e) = ctx.sync(obj, ui) {
+            if let Err(e) = ctx.sync(obj, ui, layer_index + 1) {
                 error_group.extend(e.into_iter())
             }
         }
@@ -317,9 +325,5 @@ where
             }
         }
         None
-    }
-
-    fn layout(&self) -> Layout {
-        Layout::Vertical
     }
 }

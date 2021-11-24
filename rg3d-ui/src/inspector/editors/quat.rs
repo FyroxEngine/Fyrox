@@ -6,7 +6,7 @@ use crate::{
     },
     inspector::{
         editors::{
-            Layout, PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
+            PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext,
         },
         FieldKind, InspectorError, PropertyChanged,
@@ -55,8 +55,7 @@ where
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<UnitQuaternion<T>>()?;
         let euler = value.euler_angles();
-        Ok(PropertyEditorInstance {
-            title: Default::default(),
+        Ok(PropertyEditorInstance::Simple {
             editor: Vec3EditorBuilder::new(
                 WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
             )
@@ -110,9 +109,5 @@ where
         }
 
         None
-    }
-
-    fn layout(&self) -> Layout {
-        Layout::Horizontal
     }
 }

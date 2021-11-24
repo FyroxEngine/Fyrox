@@ -403,6 +403,18 @@ impl Widget {
     }
 
     #[inline]
+    pub fn set_min_width(&mut self, value: f32) -> &mut Self {
+        self.min_size.x = value;
+        self
+    }
+
+    #[inline]
+    pub fn set_min_height(&mut self, value: f32) -> &mut Self {
+        self.min_size.y = value;
+        self
+    }
+
+    #[inline]
     pub fn min_size(&self) -> Vector2<f32> {
         self.min_size
     }
