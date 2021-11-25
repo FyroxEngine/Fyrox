@@ -1,5 +1,6 @@
 //! Resource manager controls loading and lifetime of resource in the engine.
 
+use crate::resource::curve::{CurveResource, CurveResourceState};
 use crate::{
     asset::{Resource, ResourceData, ResourceLoadError, ResourceState},
     core::{futures::executor::ThreadPool, instant, visitor::prelude::*, VecExtensions},
@@ -238,6 +239,7 @@ pub struct ResourceManagerState {
     models: ResourceContainer<Model>,
     sound_buffers: ResourceContainer<SoundBufferResource>,
     shaders: ResourceContainer<Shader>,
+    curves: ResourceContainer<CurveResource>,
     textures_import_options: TextureImportOptions,
     #[cfg(not(target_arch = "wasm32"))]
     thread_pool: ThreadPool,
@@ -251,6 +253,7 @@ impl Default for ResourceManagerState {
             models: Default::default(),
             sound_buffers: Default::default(),
             shaders: Default::default(),
+            curves: Default::default(),
             textures_import_options: Default::default(),
             #[cfg(not(target_arch = "wasm32"))]
             thread_pool: ThreadPool::new().unwrap(),
@@ -443,6 +446,30 @@ async fn load_shader(shader: Shader, path: PathBuf) {
             );
 
             shader.state().commit(ResourceState::LoadError {
+                path,
+                error: Some(Arc::new(error)),
+            });
+        }
+    }
+}
+
+async fn load_curve_resource(curve: CurveResource, path: PathBuf) {
+    match CurveResourceState::from_file(&path).await {
+        Ok(curve_state) => {
+            Log::writeln(
+                MessageKind::Information,
+                format!("Curve {:?} is loaded!", path),
+            );
+
+            curve.state().commit(ResourceState::Ok(curve_state));
+        }
+        Err(error) => {
+            Log::writeln(
+                MessageKind::Error,
+                format!("Unable to load curve from {:?}! Reason {:?}", path, error),
+            );
+
+            curve.state().commit(ResourceState::LoadError {
                 path,
                 error: Some(Arc::new(error)),
             });
@@ -770,6 +797,41 @@ impl ResourceManager {
         result
     }
 
+    /// Tries to load a new curve resource from given path or get instance of existing, if any.
+    /// This method is asynchronous, it immediately returns a curve which can be shared across
+    /// multiple places, the loading may fail, but it is internal state of the curve resource.
+    ///
+    /// # Async/.await
+    ///
+    /// Each shader implements Future trait and can be used in async contexts.
+    pub fn request_curve_resource<P: AsRef<Path>>(&self, path: P) -> CurveResource {
+        let mut state = self.state();
+
+        if let Some(curve) = state.curves.find(path.as_ref()) {
+            return curve.clone();
+        }
+
+        let curve = CurveResource(Resource::new(ResourceState::new_pending(
+            path.as_ref().to_owned(),
+        )));
+        state.curves.push(curve.clone());
+
+        let result = curve.clone();
+        let path = path.as_ref().to_owned();
+
+        #[cfg(target_arch = "wasm32")]
+        crate::core::wasm_bindgen_futures::spawn_local(async move {
+            load_curve_resource(curve, path).await;
+        });
+
+        #[cfg(not(target_arch = "wasm32"))]
+        state.thread_pool.spawn_ok(async move {
+            load_curve_resource(curve, path).await;
+        });
+
+        result
+    }
+
     /// Reloads every loaded texture. This method is asynchronous, internally it uses thread pool
     /// to run reload on separate thread per texture.
     pub async fn reload_textures(&self) {
@@ -878,7 +940,41 @@ impl ResourceManager {
 
         Log::writeln(
             MessageKind::Information,
-            "All shader resources reloaded!".to_owned(),
+            "All shader resources are reloaded!".to_owned(),
+        );
+    }
+
+    /// Reloads every loaded curve resource. This method is asynchronous, internally it uses thread pool
+    /// to run reload on separate thread per resource.
+    pub async fn reload_curve_resources(&self) {
+        let curves = {
+            let state = self.state();
+
+            let curves = state.curves.iter().cloned().collect::<Vec<_>>();
+
+            for curve in curves.iter().cloned() {
+                let path = curve.state().path().to_path_buf();
+                *curve.state() = ResourceState::new_pending(path.clone());
+
+                #[cfg(target_arch = "wasm32")]
+                crate::core::wasm_bindgen_futures::spawn_local(async move {
+                    load_curve_resource(curve, path).await;
+                });
+
+                #[cfg(not(target_arch = "wasm32"))]
+                state.thread_pool.spawn_ok(async move {
+                    load_curve_resource(curve, path).await;
+                })
+            }
+
+            curves
+        };
+
+        crate::core::futures::future::join_all(curves).await;
+
+        Log::writeln(
+            MessageKind::Information,
+            "All curve resources are reloaded!".to_owned(),
         );
     }
 
@@ -932,7 +1028,8 @@ impl ResourceManager {
             self.reload_textures(),
             self.reload_models(),
             self.reload_sound_buffers(),
-            self.reload_shaders()
+            self.reload_shaders(),
+            self.reload_curve_resources(),
         );
     }
 }
@@ -995,6 +1092,7 @@ impl ResourceManagerState {
             models: Default::default(),
             sound_buffers: Default::default(),
             shaders: Default::default(),
+            curves: Default::default(),
             textures_import_options: Default::default(),
             #[cfg(not(target_arch = "wasm32"))]
             thread_pool: ThreadPool::new().unwrap(),
@@ -1032,12 +1130,19 @@ impl ResourceManagerState {
         &self.shaders
     }
 
+    /// Returns a reference to curves container.
+    #[inline]
+    pub fn curves(&self) -> &ResourceContainer<CurveResource> {
+        &self.curves
+    }
+
     /// Returns total amount of resources in pending state.
     pub fn count_pending_resources(&self) -> usize {
         self.textures.count_pending_resources()
             + self.sound_buffers.count_pending_resources()
             + self.models.count_pending_resources()
             + self.shaders.count_pending_resources()
+            + self.curves.count_pending_resources()
     }
 
     /// Returns total amount of loaded resources.
@@ -1046,11 +1151,16 @@ impl ResourceManagerState {
             + self.sound_buffers.count_loaded_resources()
             + self.models.count_loaded_resources()
             + self.shaders.count_loaded_resources()
+            + self.curves.count_loaded_resources()
     }
 
     /// Returns total amount of registered resources.
     pub fn count_registered_resources(&self) -> usize {
-        self.textures.len() + self.sound_buffers.len() + self.models.len() + self.shaders.len()
+        self.textures.len()
+            + self.sound_buffers.len()
+            + self.models.len()
+            + self.shaders.len()
+            + self.curves.len()
     }
 
     /// Returns percentage of loading progress. This method is useful to show progress on
@@ -1072,6 +1182,7 @@ impl ResourceManagerState {
         self.models.destroy_unused();
         self.textures.destroy_unused();
         self.shaders.destroy_unused();
+        self.curves.destroy_unused();
     }
 
     pub(in crate) fn update(&mut self, dt: f32) {
@@ -1079,6 +1190,7 @@ impl ResourceManagerState {
         self.models.update(dt);
         self.sound_buffers.update(dt);
         self.shaders.update(dt);
+        self.curves.update(dt);
     }
 }
 
@@ -1090,11 +1202,13 @@ impl Visit for ResourceManagerState {
         self.models.wait();
         self.sound_buffers.wait();
         self.shaders.wait();
+        self.curves.wait();
 
         self.textures.visit("Textures", visitor)?;
         self.models.visit("Models", visitor)?;
         self.sound_buffers.visit("SoundBuffers", visitor)?;
         self.shaders.visit("Shaders", visitor)?;
+        self.curves.visit("Curves", visitor)?;
 
         visitor.leave_region()
     }
