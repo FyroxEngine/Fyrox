@@ -5,7 +5,7 @@ use crate::{
     scene::EditorScene,
     send_sync_message,
     settings::Settings,
-    GameEngine, Message,
+    CurveEditorWindow, GameEngine, Message,
 };
 use rg3d::{
     core::{algebra::Vector2, pool::Handle, scope_profile},
@@ -35,7 +35,7 @@ pub struct Menu {
     utils_menu: UtilsMenu,
 }
 
-pub struct Panels {
+pub struct Panels<'b> {
     pub light_panel: Handle<UiNode>,
     pub log_panel: Handle<UiNode>,
     pub inspector_window: Handle<UiNode>,
@@ -43,12 +43,13 @@ pub struct Panels {
     pub asset_window: Handle<UiNode>,
     pub configurator_window: Handle<UiNode>,
     pub path_fixer: Handle<UiNode>,
+    pub curve_editor: &'b CurveEditorWindow,
 }
 
 pub struct MenuContext<'a, 'b> {
     pub engine: &'a mut GameEngine,
     pub editor_scene: Option<&'b mut EditorScene>,
-    pub panels: Panels,
+    pub panels: Panels<'b>,
     pub settings: &'b mut Settings,
 }
 

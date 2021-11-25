@@ -3,6 +3,7 @@ use std::fmt::Debug;
 
 pub mod panel;
 
+#[macro_export]
 macro_rules! define_command_stack {
     ($command_trait:ident, $command_stack:ident, $context:ty) => {
         pub trait $command_trait: Debug + Send + 'static {

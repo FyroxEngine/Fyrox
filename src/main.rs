@@ -12,26 +12,28 @@ extern crate rg3d;
 extern crate lazy_static;
 extern crate directories;
 
-pub mod asset;
-pub mod camera;
-pub mod command;
-pub mod configurator;
-pub mod gui;
-pub mod inspector;
-pub mod interaction;
-pub mod light;
-pub mod log;
-pub mod material;
-pub mod menu;
-pub mod overlay;
-pub mod physics;
-pub mod preview;
-pub mod project_dirs;
-pub mod scene;
-pub mod settings;
-pub mod utils;
-pub mod world;
+mod asset;
+mod camera;
+mod command;
+mod configurator;
+mod curve_editor;
+mod gui;
+mod inspector;
+mod interaction;
+mod light;
+mod log;
+mod material;
+mod menu;
+mod overlay;
+mod physics;
+mod preview;
+mod project_dirs;
+mod scene;
+mod settings;
+mod utils;
+mod world;
 
+use crate::curve_editor::CurveEditorWindow;
 use crate::{
     asset::{AssetBrowser, AssetItem, AssetKind},
     command::{panel::CommandStackViewer, Command, CommandStack},
@@ -814,6 +816,7 @@ struct Editor {
     path_fixer: PathFixer,
     material_editor: MaterialEditor,
     inspector: Inspector,
+    curve_editor: CurveEditorWindow,
 }
 
 impl Editor {
@@ -998,6 +1001,8 @@ impl Editor {
 
         let path_fixer = PathFixer::new(ctx);
 
+        let curve_editor = CurveEditorWindow::new(ctx);
+
         let material_editor = MaterialEditor::new(engine);
 
         let mut editor = Self {
@@ -1026,6 +1031,7 @@ impl Editor {
             path_fixer,
             material_editor,
             inspector,
+            curve_editor,
         };
 
         editor.set_interaction_mode(Some(InteractionModeKind::Move), engine);
@@ -1151,6 +1157,7 @@ impl Editor {
                     log_panel: self.log.window,
                     configurator_window: self.configurator.window,
                     path_fixer: self.path_fixer.window,
+                    curve_editor: &self.curve_editor,
                 },
                 settings: &mut self.settings,
             },
@@ -1159,6 +1166,7 @@ impl Editor {
         self.log.handle_ui_message(message, engine);
         self.asset_browser.handle_ui_message(message, engine);
         self.command_stack_viewer.handle_ui_message(message);
+        self.curve_editor.handle_ui_message(message, engine);
         self.path_fixer
             .handle_ui_message(message, &mut engine.user_interface);
 

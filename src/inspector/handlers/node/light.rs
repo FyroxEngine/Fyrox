@@ -128,9 +128,7 @@ pub fn handle_directional_light_property_changed(
                         if let FieldKind::Collection(ref collection_changed) =
                             split_options_value.value
                         {
-                            if let CollectionChanged::ItemChanged { index, .. } =
-                                **collection_changed
-                            {
+                            if let CollectionChanged::ItemChanged { .. } = **collection_changed {
                                 match split_options_value.name.as_ref() {
                                     FrustumSplitOptions::ABSOLUTE_FAR_PLANES => None,
                                     FrustumSplitOptions::RELATIVE_FRACTIONS => None,
