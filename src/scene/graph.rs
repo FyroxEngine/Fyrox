@@ -962,7 +962,7 @@ impl Graph {
         root_handle
     }
 
-    /// Forgets entire sub-graph making handles to nodes invalid.
+    /// Forgets the entire sub-graph making handles to nodes invalid.
     pub fn forget_sub_graph(&mut self, sub_graph: SubGraph) {
         for (ticket, _) in sub_graph.descendants {
             self.pool.forget_ticket(ticket);
@@ -971,12 +971,12 @@ impl Graph {
         self.pool.forget_ticket(ticket);
     }
 
-    /// Returns amount of nodes in graph.s
-    pub fn node_count(&self) -> usize {
+    /// Returns the number of nodes in the graph.
+    pub fn node_count(&self) -> u32 {
         self.pool.alive_count()
     }
 
-    /// Create graph depth traversal iterator.
+    /// Create a graph depth traversal iterator.
     ///
     /// # Notes
     ///
@@ -989,7 +989,7 @@ impl Graph {
         }
     }
 
-    /// Create graph depth traversal iterator which will emit *handles* to nodes.
+    /// Create a graph depth traversal iterator which will emit *handles* to nodes.
     ///
     /// # Notes
     ///

@@ -1023,8 +1023,9 @@ impl<T> Pool<T> {
     /// [`total_count`]: Pool::total_count
     #[inline]
     #[must_use]
-    pub fn alive_count(&self) -> usize {
-        self.iter().count()
+    pub fn alive_count(&self) -> u32 {
+        let cnt = self.iter().count();
+        u32::try_from(cnt).expect("alive_count overflowed u32")
     }
 
     /// Returns the number of allocated objects in the pool.
