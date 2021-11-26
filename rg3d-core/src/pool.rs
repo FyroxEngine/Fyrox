@@ -1045,7 +1045,8 @@ impl<T> Pool<T> {
 
     #[inline]
     pub fn replace(&mut self, handle: Handle<T>, payload: T) -> Option<T> {
-        if let Some(record) = self.records.get_mut(handle.index as usize) {
+        let index_usize = usize::try_from(handle.index).expect("index overflowed usize");
+        if let Some(record) = self.records.get_mut(index_usize) {
             if record.generation == handle.generation {
                 self.free_stack.retain(|i| *i != handle.index);
 
@@ -1070,7 +1071,7 @@ impl<T> Pool<T> {
     /// ```
     #[inline]
     pub fn is_valid_handle(&self, handle: Handle<T>) -> bool {
-        if let Some(record) = self.records.get(handle.index as usize) {
+        if let Some(record) = self.records_get(handle.index) {
             record.payload.is_some() && record.generation == handle.generation
         } else {
             false
