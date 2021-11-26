@@ -207,7 +207,8 @@ where
         .filter(|i| ui.node(*i).cast::<SceneItem<T>>().is_some())
         .collect::<Vec<_>>();
 
-    match pool.alive_count().cmp(&folder_items.len()) {
+    let pool_count = usize::try_from(pool.alive_count()).expect("overflowed usize");
+    match pool_count.cmp(&folder_items.len()) {
         Ordering::Less => {
             // An entity was removed.
             for &item in folder_items.iter() {
