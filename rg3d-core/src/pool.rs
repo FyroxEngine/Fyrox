@@ -401,7 +401,9 @@ impl<T> Pool<T> {
     ///
     /// # Panics
     ///
-    /// Panics if the index is occupied or reserved (e.g. by `take_reserve`).
+    /// Panics if the index is occupied or reserved (e.g. by [`take_reserve`]).
+    ///
+    /// [`take_reserve`]: Pool::take_reserve
     #[inline]
     pub fn spawn_at(&mut self, index: u32, payload: T) -> Result<Handle<T>, T> {
         self.spawn_at_internal(index, INVALID_GENERATION, payload)
@@ -418,7 +420,9 @@ impl<T> Pool<T> {
     ///
     /// # Panics
     ///
-    /// Panics if the index is occupied or reserved (e.g. by `take_reserve`).
+    /// Panics if the index is occupied or reserved (e.g. by [`take_reserve`]).
+    ///
+    /// [`take_reserve`]: Pool::take_reserve
     pub fn spawn_at_handle(&mut self, handle: Handle<T>, payload: T) -> Result<Handle<T>, T> {
         self.spawn_at_internal(handle.index, handle.generation, payload)
     }
@@ -997,9 +1001,13 @@ impl<T> Pool<T> {
         Handle::NONE
     }
 
-    /// Returns exact amount of "alive" objects in pool.
+    /// Returns the exact number of "alive" objects in the pool.
+    ///
+    /// Records that have been reserved (e.g. by [`take_reserve`]) are *not* counted.
     ///
     /// It iterates through the entire pool to count the live objects so the complexity is `O(n)`.
+    ///
+    /// See also [`total_count`].
     ///
     /// # Example
     ///
@@ -1010,13 +1018,26 @@ impl<T> Pool<T> {
     /// pool.spawn(321);
     /// assert_eq!(pool.alive_count(), 2);
     /// ```
+    ///
+    /// [`take_reserve`]: Pool::take_reserve
+    /// [`total_count`]: Pool::total_count
     #[inline]
     #[must_use]
     pub fn alive_count(&self) -> usize {
         self.iter().count()
     }
 
-    pub fn count(&self) -> u32 {
+    /// Returns the number of allocated objects in the pool.
+    ///
+    /// It also counts records that have been reserved (e.g. by [`take_reserve`]).
+    ///
+    /// This method is `O(1)`.
+    ///
+    /// See also [`alive_count`].
+    ///
+    /// [`take_reserve`]: Pool::take_reserve
+    /// [`alive_count`]: Pool::alive_count
+    pub fn total_count(&self) -> u32 {
         let free = u32::try_from(self.free_stack.len()).expect("free stack length overflowed u32");
         self.records_len() - free
     }
