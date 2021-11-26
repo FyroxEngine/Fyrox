@@ -43,7 +43,7 @@ impl Visit for ImmutableString {
 
         // Deduplicate on deserialization.
         if visitor.is_reading() {
-            *self = SSTORAGE.lock().insert(self.0.as_ref());
+            *self = SSTORAGE.lock().insert(string);
         }
 
         Ok(())
