@@ -489,8 +489,10 @@ impl<T> Pool<T> {
     /// Construct a value with the handle it would be given.
     /// Note: Handle is _not_ valid until function has finished executing.
     pub fn spawn_with<F: FnOnce(Handle<T>) -> T>(&mut self, callback: F) -> Handle<T> {
-        if let Some(free_index) = self.free_stack.last() {
-            let record = &mut self.records[*free_index as usize];
+        if let Some(free_index) = self.free_stack.pop() {
+            let record = self
+                .records_get_mut(free_index)
+                .expect("free stack contained invalid index");
 
             if record.payload.is_some() {
                 panic!(
@@ -501,15 +503,12 @@ impl<T> Pool<T> {
 
             let generation = record.generation + 1;
             let handle = Handle {
-                index: *free_index,
+                index: free_index,
                 generation,
                 type_marker: PhantomData,
             };
 
             let payload = callback(handle);
-
-            // Pop the index we've decided to use off.
-            self.free_stack.pop();
 
             record.generation = generation;
             record.payload.replace(payload);
@@ -545,8 +544,10 @@ impl<T> Pool<T> {
         F: FnOnce(Handle<T>) -> Fut,
         Fut: Future<Output = T>,
     {
-        if let Some(free_index) = self.free_stack.last() {
-            let record = &mut self.records[*free_index as usize];
+        if let Some(free_index) = self.free_stack.pop() {
+            let record = self
+                .records_get_mut(free_index)
+                .expect("free stack contained invalid index");
 
             if record.payload.is_some() {
                 panic!(
@@ -557,15 +558,12 @@ impl<T> Pool<T> {
 
             let generation = record.generation + 1;
             let handle = Handle {
-                index: *free_index,
+                index: free_index,
                 generation,
                 type_marker: PhantomData,
             };
 
             let payload = callback(handle).await;
-
-            // Pop the index we've decided to use off.
-            self.free_stack.pop();
 
             record.generation = generation;
             record.payload.replace(payload);
