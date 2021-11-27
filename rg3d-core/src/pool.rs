@@ -401,7 +401,9 @@ impl<T> Pool<T> {
     ///
     /// # Panics
     ///
-    /// Panics if the index is occupied or reserved (e.g. by `take_reserve`).
+    /// Panics if the index is occupied or reserved (e.g. by [`take_reserve`]).
+    ///
+    /// [`take_reserve`]: Pool::take_reserve
     #[inline]
     pub fn spawn_at(&mut self, index: u32, payload: T) -> Result<Handle<T>, T> {
         self.spawn_at_internal(index, INVALID_GENERATION, payload)
@@ -418,7 +420,9 @@ impl<T> Pool<T> {
     ///
     /// # Panics
     ///
-    /// Panics if the index is occupied or reserved (e.g. by `take_reserve`).
+    /// Panics if the index is occupied or reserved (e.g. by [`take_reserve`]).
+    ///
+    /// [`take_reserve`]: Pool::take_reserve
     pub fn spawn_at_handle(&mut self, handle: Handle<T>, payload: T) -> Result<Handle<T>, T> {
         self.spawn_at_internal(handle.index, handle.generation, payload)
     }
@@ -485,8 +489,10 @@ impl<T> Pool<T> {
     /// Construct a value with the handle it would be given.
     /// Note: Handle is _not_ valid until function has finished executing.
     pub fn spawn_with<F: FnOnce(Handle<T>) -> T>(&mut self, callback: F) -> Handle<T> {
-        if let Some(free_index) = self.free_stack.last() {
-            let record = &mut self.records[*free_index as usize];
+        if let Some(free_index) = self.free_stack.pop() {
+            let record = self
+                .records_get_mut(free_index)
+                .expect("free stack contained invalid index");
 
             if record.payload.is_some() {
                 panic!(
@@ -497,15 +503,12 @@ impl<T> Pool<T> {
 
             let generation = record.generation + 1;
             let handle = Handle {
-                index: *free_index,
+                index: free_index,
                 generation,
                 type_marker: PhantomData,
             };
 
             let payload = callback(handle);
-
-            // Pop the index we've decided to use off.
-            self.free_stack.pop();
 
             record.generation = generation;
             record.payload.replace(payload);
@@ -541,8 +544,10 @@ impl<T> Pool<T> {
         F: FnOnce(Handle<T>) -> Fut,
         Fut: Future<Output = T>,
     {
-        if let Some(free_index) = self.free_stack.last() {
-            let record = &mut self.records[*free_index as usize];
+        if let Some(free_index) = self.free_stack.pop() {
+            let record = self
+                .records_get_mut(free_index)
+                .expect("free stack contained invalid index");
 
             if record.payload.is_some() {
                 panic!(
@@ -553,15 +558,12 @@ impl<T> Pool<T> {
 
             let generation = record.generation + 1;
             let handle = Handle {
-                index: *free_index,
+                index: free_index,
                 generation,
                 type_marker: PhantomData,
             };
 
             let payload = callback(handle).await;
-
-            // Pop the index we've decided to use off.
-            self.free_stack.pop();
 
             record.generation = generation;
             record.payload.replace(payload);
@@ -997,9 +999,13 @@ impl<T> Pool<T> {
         Handle::NONE
     }
 
-    /// Returns exact amount of "alive" objects in pool.
+    /// Returns the exact number of "alive" objects in the pool.
+    ///
+    /// Records that have been reserved (e.g. by [`take_reserve`]) are *not* counted.
     ///
     /// It iterates through the entire pool to count the live objects so the complexity is `O(n)`.
+    ///
+    /// See also [`total_count`].
     ///
     /// # Example
     ///
@@ -1010,20 +1016,35 @@ impl<T> Pool<T> {
     /// pool.spawn(321);
     /// assert_eq!(pool.alive_count(), 2);
     /// ```
+    ///
+    /// [`take_reserve`]: Pool::take_reserve
+    /// [`total_count`]: Pool::total_count
     #[inline]
     #[must_use]
-    pub fn alive_count(&self) -> usize {
-        self.iter().count()
+    pub fn alive_count(&self) -> u32 {
+        let cnt = self.iter().count();
+        u32::try_from(cnt).expect("alive_count overflowed u32")
     }
 
-    pub fn count(&self) -> u32 {
+    /// Returns the number of allocated objects in the pool.
+    ///
+    /// It also counts records that have been reserved (e.g. by [`take_reserve`]).
+    ///
+    /// This method is `O(1)`.
+    ///
+    /// See also [`alive_count`].
+    ///
+    /// [`take_reserve`]: Pool::take_reserve
+    /// [`alive_count`]: Pool::alive_count
+    pub fn total_count(&self) -> u32 {
         let free = u32::try_from(self.free_stack.len()).expect("free stack length overflowed u32");
         self.records_len() - free
     }
 
     #[inline]
     pub fn replace(&mut self, handle: Handle<T>, payload: T) -> Option<T> {
-        if let Some(record) = self.records.get_mut(handle.index as usize) {
+        let index_usize = usize::try_from(handle.index).expect("index overflowed usize");
+        if let Some(record) = self.records.get_mut(index_usize) {
             if record.generation == handle.generation {
                 self.free_stack.retain(|i| *i != handle.index);
 
@@ -1048,7 +1069,7 @@ impl<T> Pool<T> {
     /// ```
     #[inline]
     pub fn is_valid_handle(&self, handle: Handle<T>) -> bool {
-        if let Some(record) = self.records.get(handle.index as usize) {
+        if let Some(record) = self.records_get(handle.index) {
             record.payload.is_some() && record.generation == handle.generation
         } else {
             false
