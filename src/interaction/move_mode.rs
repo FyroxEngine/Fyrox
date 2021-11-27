@@ -304,7 +304,8 @@ impl MoveContext {
                 // Snap to grid if needed.
                 if settings.move_mode_settings.grid_snapping {
                     fn round_to_step(x: f32, step: f32) -> f32 {
-                        x - x % step
+                        let ieee_remainder = x - (x / step).round() * step;
+                        x - ieee_remainder
                     }
 
                     new_local_position = Vector3::new(
