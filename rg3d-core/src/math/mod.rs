@@ -395,6 +395,11 @@ pub fn ieee_remainder(x: f32, y: f32) -> f32 {
 }
 
 #[inline]
+pub fn round_to_step(x: f32, step: f32) -> f32 {
+    x - ieee_remainder(x, step)
+}
+
+#[inline]
 pub fn wrapf(mut n: f32, mut min_limit: f32, mut max_limit: f32) -> f32 {
     if n >= min_limit && n <= max_limit {
         return n;
