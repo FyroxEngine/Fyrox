@@ -1,3 +1,4 @@
+use crate::settings::rotate_mode::{RotateInteractionModeSettings, RotateModeSection};
 use crate::{
     scene::EditorScene,
     settings::{
@@ -33,6 +34,7 @@ use std::{fs::File, path::PathBuf, sync::mpsc::Sender};
 pub mod debugging;
 pub mod graphics;
 pub mod move_mode;
+pub mod rotate_mode;
 
 struct SwitchEntry {
     tree_item: Handle<UiNode>,
@@ -47,6 +49,7 @@ pub struct SettingsWindow {
     sender: Sender<Message>,
     graphics_section: GraphicsSection,
     move_mode_section: MoveModeSection,
+    rotate_mode_section: RotateModeSection,
     debugging_section: DebuggingSection,
     section_switches: Vec<SwitchEntry>,
     sections_root: Handle<UiNode>,
@@ -57,6 +60,7 @@ pub enum SettingsSectionKind {
     Graphics,
     Debugging,
     MoveModeSettings,
+    RotateModeSettings,
 }
 
 #[derive(Deserialize, Serialize, PartialEq, Clone, Default)]
@@ -64,6 +68,7 @@ pub struct Settings {
     pub graphics: GraphicsSettings,
     pub debugging: DebuggingSettings,
     pub move_mode_settings: MoveInteractionModeSettings,
+    pub rotate_mode_settings: RotateInteractionModeSettings,
 }
 
 #[derive(Debug)]
@@ -144,6 +149,16 @@ fn make_f32_input_field(
     .build(ctx)
 }
 
+fn make_section(ctx: &mut BuildContext, name: &str) -> Handle<UiNode> {
+    TreeBuilder::new(WidgetBuilder::new())
+        .with_content(
+            TextBuilder::new(WidgetBuilder::new())
+                .with_text(name)
+                .build(ctx),
+        )
+        .build(ctx)
+}
+
 impl SettingsWindow {
     pub fn new(engine: &mut GameEngine, sender: Sender<Message>, settings: &Settings) -> Self {
         let ok;
@@ -158,11 +173,13 @@ impl SettingsWindow {
         let graphics_section = GraphicsSection::new(ctx, &settings.graphics);
         let debugging_section = DebuggingSection::new(ctx, &settings.debugging);
         let move_mode_section = MoveModeSection::new(ctx, &settings.move_mode_settings);
+        let rotate_mode_section = RotateModeSection::new(ctx, &settings.rotate_mode_settings);
 
         let sections_root;
         let graphics_section_item;
         let debugging_section_item;
         let move_mode_section_item;
+        let rotate_mode_section_item;
         let section = GridBuilder::new(
             WidgetBuilder::new()
                 .on_row(1)
@@ -171,34 +188,22 @@ impl SettingsWindow {
                         TreeRootBuilder::new(WidgetBuilder::new().on_column(0).on_row(0))
                             .with_items(vec![
                                 {
-                                    graphics_section_item = TreeBuilder::new(WidgetBuilder::new())
-                                        .with_content(
-                                            TextBuilder::new(WidgetBuilder::new())
-                                                .with_text("Graphics")
-                                                .build(ctx),
-                                        )
-                                        .build(ctx);
+                                    graphics_section_item = make_section(ctx, "Graphics");
                                     graphics_section_item
                                 },
                                 {
-                                    debugging_section_item = TreeBuilder::new(WidgetBuilder::new())
-                                        .with_content(
-                                            TextBuilder::new(WidgetBuilder::new())
-                                                .with_text("Debugging")
-                                                .build(ctx),
-                                        )
-                                        .build(ctx);
+                                    debugging_section_item = make_section(ctx, "Debugging");
                                     debugging_section_item
                                 },
                                 {
-                                    move_mode_section_item = TreeBuilder::new(WidgetBuilder::new())
-                                        .with_content(
-                                            TextBuilder::new(WidgetBuilder::new())
-                                                .with_text("Move Interaction Mode")
-                                                .build(ctx),
-                                        )
-                                        .build(ctx);
+                                    move_mode_section_item =
+                                        make_section(ctx, "Move Interaction Mode");
                                     move_mode_section_item
+                                },
+                                {
+                                    rotate_mode_section_item =
+                                        make_section(ctx, "Rotate Interaction Mode");
+                                    rotate_mode_section_item
                                 },
                             ])
                             .build(ctx);
@@ -210,6 +215,7 @@ impl SettingsWindow {
                             graphics_section.section,
                             debugging_section.section,
                             move_mode_section.section,
+                            rotate_mode_section.section,
                         ],
                     ))
                     .build(ctx),
@@ -235,6 +241,11 @@ impl SettingsWindow {
                 tree_item: move_mode_section_item,
                 section: move_mode_section.section,
                 kind: SettingsSectionKind::MoveModeSettings,
+            },
+            SwitchEntry {
+                tree_item: rotate_mode_section_item,
+                section: rotate_mode_section.section,
+                kind: SettingsSectionKind::RotateModeSettings,
             },
         ];
 
@@ -302,6 +313,7 @@ impl SettingsWindow {
             default,
             graphics_section,
             move_mode_section,
+            rotate_mode_section,
             debugging_section,
         }
     }
@@ -337,6 +349,8 @@ impl SettingsWindow {
         self.graphics_section.sync_to_model(ui, &settings.graphics);
         self.move_mode_section
             .sync_to_model(ui, &settings.move_mode_settings);
+        self.rotate_mode_section
+            .sync_to_model(ui, &settings.rotate_mode_settings);
         self.debugging_section
             .sync_to_model(ui, &settings.debugging);
     }
@@ -358,6 +372,8 @@ impl SettingsWindow {
             .handle_message(message, &mut settings.debugging);
         self.move_mode_section
             .handle_message(message, &mut settings.move_mode_settings);
+        self.rotate_mode_section
+            .handle_message(message, &mut settings.rotate_mode_settings);
 
         if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             if message.destination() == self.ok {

@@ -1,16 +1,16 @@
-use crate::scene::commands::SceneCommand;
-use crate::world::graph::selection::GraphSelection;
 use crate::{
     interaction::{
         calculate_gizmo_distance_scaling, gizmo::rotate_gizmo::RotationGizmo, InteractionMode,
     },
     scene::{
-        commands::{graph::RotateNodeCommand, ChangeSelectionCommand, CommandGroup},
+        commands::{graph::RotateNodeCommand, ChangeSelectionCommand, CommandGroup, SceneCommand},
         EditorScene, Selection,
     },
     settings::Settings,
+    world::graph::selection::GraphSelection,
     GameEngine, Message,
 };
+use rg3d::core::math::round_to_step;
 use rg3d::{
     core::{
         algebra::{UnitQuaternion, Vector2},
@@ -158,7 +158,7 @@ impl InteractionMode for RotateInteractionMode {
         editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
         frame_size: Vector2<f32>,
-        _settings: &Settings,
+        settings: &Settings,
     ) {
         if let Selection::Graph(selection) = &editor_scene.selection {
             if self.interacting {
@@ -174,7 +174,23 @@ impl InteractionMode for RotateInteractionMode {
                     let transform =
                         engine.scenes[editor_scene.scene].graph[node].local_transform_mut();
                     let rotation = **transform.rotation();
-                    transform.set_rotation(rotation * rotation_delta);
+                    let final_rotation = rotation * rotation_delta;
+                    let (mut roll, mut pitch, mut yaw) = final_rotation.euler_angles();
+                    if settings.rotate_mode_settings.angle_snapping {
+                        pitch = round_to_step(
+                            pitch,
+                            settings.rotate_mode_settings.x_snap_step.to_radians(),
+                        );
+                        yaw = round_to_step(
+                            yaw,
+                            settings.rotate_mode_settings.y_snap_step.to_radians(),
+                        );
+                        roll = round_to_step(
+                            roll,
+                            settings.rotate_mode_settings.z_snap_step.to_radians(),
+                        );
+                    }
+                    transform.set_rotation(UnitQuaternion::from_euler_angles(roll, pitch, yaw));
                 }
             }
         }

@@ -1,27 +1,30 @@
-use crate::physics::RigidBody;
-use crate::scene::commands::physics::MoveRigidBodyCommand;
-use crate::world::physics::selection::RigidBodySelection;
 use crate::{
     camera::CameraController,
     interaction::{
         calculate_gizmo_distance_scaling, gizmo::move_gizmo::MoveGizmo, plane::PlaneKind,
         InteractionMode,
     },
+    physics::RigidBody,
     scene::{
         commands::{
-            graph::MoveNodeCommand, sound::MoveSpatialSoundSourceCommand, ChangeSelectionCommand,
-            CommandGroup, SceneCommand,
+            graph::MoveNodeCommand, physics::MoveRigidBodyCommand,
+            sound::MoveSpatialSoundSourceCommand, ChangeSelectionCommand, CommandGroup,
+            SceneCommand,
         },
         EditorScene, Selection,
     },
     settings::Settings,
-    world::{graph::selection::GraphSelection, sound::selection::SoundSelection},
+    world::{
+        graph::selection::GraphSelection, physics::selection::RigidBodySelection,
+        sound::selection::SoundSelection,
+    },
     GameEngine, Message,
 };
 use rg3d::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
         math::plane::Plane,
+        math::round_to_step,
         pool::Handle,
     },
     scene::{graph::Graph, node::Node, Scene},
@@ -303,11 +306,6 @@ impl MoveContext {
 
                 // Snap to grid if needed.
                 if settings.move_mode_settings.grid_snapping {
-                    fn round_to_step(x: f32, step: f32) -> f32 {
-                        let ieee_remainder = x - (x / step).round() * step;
-                        x - ieee_remainder
-                    }
-
                     new_local_position = Vector3::new(
                         round_to_step(
                             new_local_position.x,
