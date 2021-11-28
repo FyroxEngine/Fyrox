@@ -18,6 +18,7 @@ use crate::{
     BuildContext, Control, NodeHandleMapping, Orientation, Thickness, UiNode, UserInterface,
     VerticalAlignment,
 };
+use std::sync::mpsc::Sender;
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
@@ -1170,6 +1171,17 @@ impl Control for ColorField {
         } else {
             None
         }
+    }
+
+    fn on_remove(&self, sender: &Sender<UiMessage>) {
+        // Popup won't be deleted with the color field, because it is not the child of the field.
+        // So we have to remove it manually.
+        sender
+            .send(WidgetMessage::remove(
+                self.popup,
+                MessageDirection::ToWidget,
+            ))
+            .unwrap();
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {

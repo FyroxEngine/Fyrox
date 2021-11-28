@@ -14,6 +14,7 @@ use crate::{
     widget::{WidgetBuilder, WidgetMessage},
     BuildContext, Control, NodeHandleMapping, UiNode, UserInterface, BRUSH_LIGHT,
 };
+use std::sync::mpsc::Sender;
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
@@ -57,6 +58,17 @@ impl Control for DropdownList {
         } else {
             None
         }
+    }
+
+    fn on_remove(&self, sender: &Sender<UiMessage>) {
+        // Popup won't be deleted with the dropdown list, because it is not the child of the list.
+        // So we have to remove it manually.
+        sender
+            .send(WidgetMessage::remove(
+                self.popup,
+                MessageDirection::ToWidget,
+            ))
+            .unwrap();
     }
 
     fn resolve(&mut self, node_map: &NodeHandleMapping) {

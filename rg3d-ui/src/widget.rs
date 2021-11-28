@@ -1195,6 +1195,12 @@ impl WidgetBuilder {
         self
     }
 
+    /// Sets the desired tooltip for the node.
+    ///
+    /// ## Important
+    ///
+    /// The widget will **own** the tooltip, which means that when widget will be deleted, the
+    /// tooltip will be deleted too.
     pub fn with_tooltip(mut self, tooltip: Handle<UiNode>) -> Self {
         if tooltip.is_some() {
             self.tooltip = tooltip;

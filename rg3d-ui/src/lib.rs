@@ -288,6 +288,8 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut {
 
     fn resolve(&mut self, _node_map: &NodeHandleMapping) {}
 
+    fn on_remove(&self, _sender: &Sender<UiMessage>) {}
+
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
 
@@ -1897,11 +1899,10 @@ impl UserInterface {
     fn remove_node(&mut self, node: Handle<UiNode>) {
         self.unlink_node_internal(node);
 
-        let mut removed_nodes = Vec::new();
+        let mut tooltips = Vec::new();
+        let sender = self.sender.clone();
         let mut stack = vec![node];
         while let Some(handle) = stack.pop() {
-            removed_nodes.push(handle);
-
             if self.prev_picked_node == handle {
                 self.prev_picked_node = Handle::NONE;
             }
@@ -1916,11 +1917,27 @@ impl UserInterface {
             }
             self.remove_picking_restriction(handle);
 
-            for child in self.nodes().borrow(handle).children().iter() {
-                stack.push(*child);
+            let node_ref = self.nodes.borrow(handle);
+            stack.extend_from_slice(node_ref.children());
+
+            // We also must delete tooltips, since they're not in the tree of the widget they
+            // won't be deleted automatically.
+            if node_ref.tooltip().is_some() {
+                tooltips.push(node_ref.tooltip());
             }
+
+            // Notify node that it is about to be deleted so it will have a chance to remove
+            // other widgets (like popups).
+            node_ref.on_remove(&sender);
+
             self.nodes.free(handle);
         }
+
+        for tooltip in tooltips {
+            self.remove_node(tooltip);
+        }
+
+        dbg!(self.nodes.total_count());
 
         self.preview_set.remove(&node);
     }

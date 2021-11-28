@@ -13,6 +13,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, RestrictionEntry,
     Thickness, UiNode, UserInterface, VerticalAlignment, BRUSH_BRIGHT_BLUE, BRUSH_PRIMARY,
 };
+use std::sync::mpsc::Sender;
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
@@ -213,6 +214,17 @@ impl Control for MenuItem {
         } else {
             None
         }
+    }
+
+    fn on_remove(&self, sender: &Sender<UiMessage>) {
+        // Popup won't be deleted with the menu item, because it is not the child of the item.
+        // So we have to remove it manually.
+        sender
+            .send(WidgetMessage::remove(
+                self.popup,
+                MessageDirection::ToWidget,
+            ))
+            .unwrap();
     }
 
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
