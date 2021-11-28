@@ -213,6 +213,7 @@ impl Visit for ModelData {
 
 /// Model instance is a combination of handle to root node of instance in a scene,
 /// and list of all animations from model which were instantiated on a scene.
+#[derive(Debug)]
 pub struct ModelInstance {
     /// Handle of root node of instance.
     pub root: Handle<Node>,

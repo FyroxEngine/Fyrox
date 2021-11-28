@@ -264,6 +264,7 @@ pub enum PlaneClass {
     XZ,
 }
 
+#[inline]
 #[allow(clippy::useless_let_if_seq)]
 pub fn classify_plane(normal: Vector3<f32>) -> PlaneClass {
     let mut longest = 0.0f32;
@@ -286,6 +287,7 @@ pub fn classify_plane(normal: Vector3<f32>) -> PlaneClass {
     class
 }
 
+#[inline]
 pub fn get_polygon_normal(polygon: &[Vector3<f32>]) -> Result<Vector3<f32>, &'static str> {
     let mut normal = Vector3::default();
 
@@ -301,10 +303,12 @@ pub fn get_polygon_normal(polygon: &[Vector3<f32>]) -> Result<Vector3<f32>, &'st
         .ok_or("Unable to get normal of degenerated polygon!")
 }
 
+#[inline]
 pub fn get_signed_triangle_area(v1: Vector2<f32>, v2: Vector2<f32>, v3: Vector2<f32>) -> f32 {
     0.5 * (v1.x * (v3.y - v2.y) + v2.x * (v1.y - v3.y) + v3.x * (v2.y - v1.y))
 }
 
+#[inline]
 pub fn vec3_to_vec2_by_plane(
     plane_class: PlaneClass,
     normal: Vector3<f32>,
@@ -335,6 +339,7 @@ pub fn vec3_to_vec2_by_plane(
     }
 }
 
+#[inline]
 pub fn is_point_inside_2d_triangle(
     point: Vector2<f32>,
     pt_a: Vector2<f32>,
@@ -362,6 +367,7 @@ pub fn is_point_inside_2d_triangle(
     (u >= 0.0) && (v >= 0.0) && (u + v < 1.0)
 }
 
+#[inline]
 pub fn wrap_angle(angle: f32) -> f32 {
     let two_pi = 2.0 * std::f32::consts::PI;
 
@@ -372,6 +378,7 @@ pub fn wrap_angle(angle: f32) -> f32 {
     }
 }
 
+#[inline]
 pub fn clampf(v: f32, min: f32, max: f32) -> f32 {
     if v < min {
         min
@@ -382,6 +389,12 @@ pub fn clampf(v: f32, min: f32, max: f32) -> f32 {
     }
 }
 
+#[inline]
+pub fn ieee_remainder(x: f32, y: f32) -> f32 {
+    x - (x / y).round() * y
+}
+
+#[inline]
 pub fn wrapf(mut n: f32, mut min_limit: f32, mut max_limit: f32) -> f32 {
     if n >= min_limit && n <= max_limit {
         return n;
@@ -414,6 +427,7 @@ pub fn lerpf(a: f32, b: f32, t: f32) -> f32 {
 }
 
 // https://en.wikipedia.org/wiki/Cubic_Hermite_spline
+#[inline]
 pub fn cubicf(p0: f32, p1: f32, t: f32, m0: f32, m1: f32) -> f32 {
     let t2 = t * t;
     let t3 = t2 * t;
@@ -425,6 +439,7 @@ pub fn cubicf(p0: f32, p1: f32, t: f32, m0: f32, m1: f32) -> f32 {
         + (t3 - t2) * m1 * scale
 }
 
+#[inline]
 pub fn cubicf_derivative(p0: f32, p1: f32, t: f32, m0: f32, m1: f32) -> f32 {
     let t2 = t * t;
     let scale = (p1 - p0).abs();
@@ -435,6 +450,7 @@ pub fn cubicf_derivative(p0: f32, p1: f32, t: f32, m0: f32, m1: f32) -> f32 {
         + (3.0 * t2 - 2.0 * t) * m1 * scale
 }
 
+#[inline]
 pub fn inf_sup_cubicf(p0: f32, p1: f32, m0: f32, m1: f32) -> (f32, f32) {
     // Find two `t`s where derivative of cubicf is zero - these will be
     // extreme points of the spline. Then get the values at those `t`s
@@ -451,6 +467,7 @@ pub fn inf_sup_cubicf(p0: f32, p1: f32, m0: f32, m1: f32) -> (f32, f32) {
     (cubicf(p0, p1, t0, m0, m1), cubicf(p0, p1, t1, m0, m1))
 }
 
+#[inline]
 pub fn get_farthest_point(points: &[Vector3<f32>], dir: Vector3<f32>) -> Vector3<f32> {
     let mut n_farthest = 0;
     let mut max_dot = -f32::MAX;
@@ -464,6 +481,7 @@ pub fn get_farthest_point(points: &[Vector3<f32>], dir: Vector3<f32>) -> Vector3
     points[n_farthest]
 }
 
+#[inline]
 pub fn get_barycentric_coords(
     p: &Vector3<f32>,
     a: &Vector3<f32>,
@@ -488,6 +506,7 @@ pub fn get_barycentric_coords(
     (u, v, w)
 }
 
+#[inline]
 pub fn get_barycentric_coords_2d(
     p: Vector2<f32>,
     a: Vector2<f32>,
@@ -512,6 +531,7 @@ pub fn get_barycentric_coords_2d(
     (u, v, w)
 }
 
+#[inline]
 pub fn barycentric_to_world(
     bary: (f32, f32, f32),
     pa: Vector3<f32>,
@@ -521,10 +541,12 @@ pub fn barycentric_to_world(
     pa.scale(bary.0) + pb.scale(bary.1) + pc.scale(bary.2)
 }
 
+#[inline]
 pub fn barycentric_is_inside(bary: (f32, f32, f32)) -> bool {
     (bary.0 >= 0.0) && (bary.1 >= 0.0) && (bary.0 + bary.1 < 1.0)
 }
 
+#[inline]
 pub fn is_point_inside_triangle(p: &Vector3<f32>, vertices: &[Vector3<f32>; 3]) -> bool {
     let ba = vertices[1] - vertices[0];
     let ca = vertices[2] - vertices[0];
@@ -546,10 +568,12 @@ pub fn is_point_inside_triangle(p: &Vector3<f32>, vertices: &[Vector3<f32>; 3]) 
     (u >= 0.0) && (v >= 0.0) && (u + v < 1.0)
 }
 
+#[inline]
 pub fn triangle_area(a: Vector3<f32>, b: Vector3<f32>, c: Vector3<f32>) -> f32 {
     (b - a).cross(&(c - a)).norm() * 0.5
 }
 
+#[inline]
 pub fn solve_quadratic(a: f32, b: f32, c: f32) -> Option<[f32; 2]> {
     let discriminant = b * b - 4.0 * a * c;
     if discriminant < 0.0 {
@@ -566,6 +590,7 @@ pub fn solve_quadratic(a: f32, b: f32, c: f32) -> Option<[f32; 2]> {
     }
 }
 
+#[inline]
 pub fn spherical_to_cartesian(azimuth: f32, elevation: f32, radius: f32) -> Vector3<f32> {
     let x = radius * elevation.sin() * azimuth.sin();
     let y = radius * elevation.cos();
@@ -573,6 +598,7 @@ pub fn spherical_to_cartesian(azimuth: f32, elevation: f32, radius: f32) -> Vect
     Vector3::new(x, y, z)
 }
 
+#[inline]
 pub fn ray_rect_intersection(
     rect: Rect<f32>,
     origin: Vector2<f32>,
@@ -632,14 +658,17 @@ impl Eq for TriangleEdge {}
 pub struct TriangleDefinition(pub [u32; 3]);
 
 impl TriangleDefinition {
+    #[inline]
     pub fn indices(&self) -> &[u32] {
         self.as_ref()
     }
 
+    #[inline]
     pub fn indices_mut(&mut self) -> &mut [u32] {
         self.as_mut()
     }
 
+    #[inline]
     pub fn edges(&self) -> [TriangleEdge; 3] {
         [
             TriangleEdge {
@@ -673,12 +702,14 @@ impl Visit for TriangleDefinition {
 impl Index<usize> for TriangleDefinition {
     type Output = u32;
 
+    #[inline]
     fn index(&self, index: usize) -> &Self::Output {
         &self.0[index]
     }
 }
 
 impl IndexMut<usize> for TriangleDefinition {
+    #[inline]
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         &mut self.0[index]
     }
@@ -689,18 +720,21 @@ pub trait PositionProvider: Sized {
 }
 
 impl PositionProvider for Vector3<f32> {
+    #[inline]
     fn position(&self) -> Vector3<f32> {
         *self
     }
 }
 
 impl AsRef<[u32]> for TriangleDefinition {
+    #[inline]
     fn as_ref(&self) -> &[u32] {
         &self.0
     }
 }
 
 impl AsMut<[u32]> for TriangleDefinition {
+    #[inline]
     fn as_mut(&mut self) -> &mut [u32] {
         &mut self.0
     }
@@ -711,6 +745,7 @@ impl AsMut<[u32]> for TriangleDefinition {
 /// # Notes
 ///
 /// O(n) complexity.
+#[inline]
 pub fn get_closest_point<P: PositionProvider>(points: &[P], point: Vector3<f32>) -> Option<usize> {
     let mut closest_sqr_distance = f32::MAX;
     let mut closest_index = None;
@@ -724,6 +759,7 @@ pub fn get_closest_point<P: PositionProvider>(points: &[P], point: Vector3<f32>)
     closest_index
 }
 
+#[inline]
 pub fn get_closest_point_triangles<P: PositionProvider>(
     points: &[P],
     triangles: &[TriangleDefinition],
@@ -746,6 +782,7 @@ pub fn get_closest_point_triangles<P: PositionProvider>(
     closest_index
 }
 
+#[inline]
 pub fn get_closest_point_triangle_set<P: PositionProvider>(
     points: &[P],
     triangles: &[TriangleDefinition],
@@ -779,11 +816,13 @@ pub struct SmoothAngle {
 }
 
 impl SmoothAngle {
+    #[inline]
     pub fn set_target(&mut self, angle: f32) -> &mut Self {
         self.target = angle;
         self
     }
 
+    #[inline]
     pub fn update(&mut self, dt: f32) -> &mut Self {
         self.target = wrap_angle(self.target);
         self.angle = wrap_angle(self.angle);
@@ -798,24 +837,29 @@ impl SmoothAngle {
         self
     }
 
+    #[inline]
     pub fn set_speed(&mut self, speed: f32) -> &mut Self {
         self.speed = speed;
         self
     }
 
+    #[inline]
     pub fn set_angle(&mut self, angle: f32) -> &mut Self {
         self.angle = angle;
         self
     }
 
+    #[inline]
     pub fn angle(&self) -> f32 {
         self.angle
     }
 
+    #[inline]
     pub fn at_target(&self) -> bool {
         (self.target - self.angle).abs() <= f32::EPSILON
     }
 
+    #[inline]
     pub fn distance(&self) -> f32 {
         let diff = (self.target - self.angle + std::f32::consts::PI) % std::f32::consts::TAU
             - std::f32::consts::PI;
@@ -826,6 +870,7 @@ impl SmoothAngle {
         }
     }
 
+    #[inline]
     fn turn_direction(&self) -> f32 {
         let distance = self.distance();
 
@@ -875,6 +920,7 @@ pub enum RotationOrder {
     ZYX,
 }
 
+#[inline]
 pub fn quat_from_euler<T: SimdRealField + RealField + Copy + Clone>(
     euler_radians: Vector3<T>,
     order: RotationOrder,
@@ -951,16 +997,19 @@ pub trait Vector3Ext {
 }
 
 impl Vector3Ext for Vector3<f32> {
+    #[inline]
     fn follow(&mut self, other: &Self, fraction: f32) {
         self.x += (other.x - self.x) * fraction;
         self.y += (other.y - self.y) * fraction;
         self.z += (other.z - self.z) * fraction;
     }
 
+    #[inline]
     fn sqr_distance(&self, other: &Self) -> f32 {
         (self - other).norm_squared()
     }
 
+    #[inline]
     fn non_uniform_scale(&self, other: &Self) -> Self {
         Self::new(self.x * other.x, self.y * other.y, self.z * other.z)
     }
@@ -974,15 +1023,18 @@ pub trait Vector2Ext {
 }
 
 impl Vector2Ext for Vector2<f32> {
+    #[inline]
     fn follow(&mut self, other: &Self, fraction: f32) {
         self.x += (other.x - self.x) * fraction;
         self.y += (other.y - self.y) * fraction;
     }
 
+    #[inline]
     fn per_component_min(&self, other: &Self) -> Self {
         Self::new(self.x.min(other.x), self.y.min(other.y))
     }
 
+    #[inline]
     fn per_component_max(&self, other: &Self) -> Self {
         Self::new(self.x.max(other.x), self.y.max(other.y))
     }
@@ -990,6 +1042,7 @@ impl Vector2Ext for Vector2<f32> {
 
 /// Returns rotation quaternion that represents rotation basis with Z axis aligned on `vec`.
 /// This function handles singularities for you.
+#[inline]
 pub fn vector_to_quat(vec: Vector3<f32>) -> UnitQuaternion<f32> {
     let dot = vec.normalize().dot(&Vector3::y());
 
