@@ -34,6 +34,7 @@ mod utils;
 mod world;
 
 use crate::curve_editor::CurveEditorWindow;
+use crate::world::graph::selection::GraphSelection;
 use crate::{
     asset::{AssetBrowser, AssetItem, AssetKind},
     command::{panel::CommandStackViewer, Command, CommandStack},
@@ -57,7 +58,7 @@ use crate::{
     physics::Physics,
     scene::{
         commands::{
-            graph::LoadModelCommand, make_delete_selection_command, mesh::SetMeshTextureCommand,
+            graph::AddModelCommand, make_delete_selection_command, mesh::SetMeshTextureCommand,
             particle_system::SetParticleSystemTextureCommand, sound::DeleteSoundSourceCommand,
             sprite::SetSpriteTextureCommand, ChangeSelectionCommand, CommandGroup, PasteCommand,
             SceneCommand, SceneContext,
@@ -68,6 +69,7 @@ use crate::{
     utils::path_fixer::PathFixer,
     world::WorldViewer,
 };
+use rg3d::engine::Engine;
 use rg3d::{
     core::{
         algebra::{Point3, Vector2},
@@ -430,9 +432,12 @@ impl ModelImportDialog {
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
-        ui: &UserInterface,
+        editor_scene: &EditorScene,
+        engine: &mut Engine,
         sender: &Sender<Message>,
     ) {
+        let ui = &engine.user_interface;
+
         if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             if message.destination() == self.ok {
                 ui.send_message(WindowMessage::close(
@@ -440,12 +445,44 @@ impl ModelImportDialog {
                     MessageDirection::ToWidget,
                 ));
 
-                sender
-                    .send(Message::do_scene_command(LoadModelCommand::new(
+                // No model was loaded yet, do it.
+                if let Ok(model) =
+                    rg3d::core::futures::executor::block_on(engine.resource_manager.request_model(
                         self.model_path.clone(),
                         self.material_search_options.clone(),
-                    )))
-                    .unwrap();
+                    ))
+                {
+                    let scene = &mut engine.scenes[editor_scene.scene];
+
+                    // Instantiate the model.
+                    let instance = model.instantiate(scene);
+                    // Enable instantiated animations.
+                    for &animation in instance.animations.iter() {
+                        scene.animations[animation].set_enabled(true);
+                    }
+
+                    // Immediately after extract if from the scene to subgraph. This is required to not violate
+                    // the rule of one place of execution, only commands allowed to modify the scene.
+                    let sub_graph = scene.graph.take_reserve_sub_graph(instance.root);
+                    let animations_container = instance
+                        .animations
+                        .iter()
+                        .map(|&anim| scene.animations.take_reserve(anim))
+                        .collect();
+
+                    let group = vec![
+                        SceneCommand::new(AddModelCommand::new(sub_graph, animations_container)),
+                        // We also want to select newly instantiated model.
+                        SceneCommand::new(ChangeSelectionCommand::new(
+                            Selection::Graph(GraphSelection::single_or_empty(instance.root)),
+                            editor_scene.selection.clone(),
+                        )),
+                    ];
+
+                    sender
+                        .send(Message::do_scene_command(CommandGroup::from(group)))
+                        .unwrap();
+                }
             } else if message.destination() == self.cancel {
                 ui.send_message(WindowMessage::close(
                     self.window,
@@ -1211,7 +1248,8 @@ impl Editor {
 
             self.model_import_dialog.handle_ui_message(
                 message,
-                &engine.user_interface,
+                editor_scene,
+                engine,
                 &self.message_sender,
             );
 

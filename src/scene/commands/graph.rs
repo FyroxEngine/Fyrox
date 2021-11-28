@@ -2,21 +2,18 @@ use crate::{
     command::Command, define_node_command, get_set_swap, physics::Physics,
     scene::commands::SceneContext,
 };
-use rg3d::scene::base::Mobility;
 use rg3d::{
     animation::Animation,
     core::{
         algebra::{UnitQuaternion, Vector3},
         pool::{Handle, Ticket},
     },
-    engine::resource_manager::MaterialSearchOptions,
     scene::{
-        base::PhysicsBinding,
+        base::{Mobility, PhysicsBinding},
         graph::{Graph, SubGraph},
         node::Node,
     },
 };
-use std::path::PathBuf;
 
 #[derive(Debug)]
 pub struct MoveNodeCommand {
@@ -261,60 +258,41 @@ impl Command for DeleteNodeCommand {
 }
 
 #[derive(Debug)]
-pub struct LoadModelCommand {
-    path: PathBuf,
+pub struct AddModelCommand {
     model: Handle<Node>,
     animations: Vec<Handle<Animation>>,
     sub_graph: Option<SubGraph>,
     animations_container: Vec<(Ticket<Animation>, Animation)>,
-    materials_search_options: MaterialSearchOptions,
 }
 
-impl LoadModelCommand {
-    pub fn new(path: PathBuf, materials_search_options: MaterialSearchOptions) -> Self {
+impl AddModelCommand {
+    pub fn new(
+        sub_graph: SubGraph,
+        animations_container: Vec<(Ticket<Animation>, Animation)>,
+    ) -> Self {
         Self {
-            path,
             model: Default::default(),
             animations: Default::default(),
-            sub_graph: None,
-            animations_container: Default::default(),
-            materials_search_options,
+            sub_graph: Some(sub_graph),
+            animations_container,
         }
     }
 }
 
-impl Command for LoadModelCommand {
+impl Command for AddModelCommand {
     fn name(&mut self, _context: &SceneContext) -> String {
         "Load Model".to_owned()
     }
 
     fn execute(&mut self, context: &mut SceneContext) {
-        if self.model.is_none() {
-            // No model was loaded yet, do it.
-            if let Ok(model) = rg3d::core::futures::executor::block_on(
-                context
-                    .resource_manager
-                    .request_model(&self.path, self.materials_search_options.clone()),
-            ) {
-                let instance = model.instantiate(context.scene);
-                self.model = instance.root;
-                self.animations = instance.animations;
-
-                // Enable instantiated animations.
-                for &animation in self.animations.iter() {
-                    context.scene.animations[animation].set_enabled(true);
-                }
-            }
-        } else {
-            // A model was loaded, but change was reverted and here we must put all nodes
-            // back to graph.
-            self.model = context
-                .scene
-                .graph
-                .put_sub_graph_back(self.sub_graph.take().unwrap());
-            for (ticket, animation) in self.animations_container.drain(..) {
-                context.scene.animations.put_back(ticket, animation);
-            }
+        // A model was loaded, but change was reverted and here we must put all nodes
+        // back to graph.
+        self.model = context
+            .scene
+            .graph
+            .put_sub_graph_back(self.sub_graph.take().unwrap());
+        for (ticket, animation) in self.animations_container.drain(..) {
+            context.scene.animations.put_back(ticket, animation);
         }
     }
 
