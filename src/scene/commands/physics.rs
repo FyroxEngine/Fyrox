@@ -212,6 +212,12 @@ impl Command for SetBodyCommand {
                     .physics
                     .bodies
                     .spawn(self.body.take().unwrap());
+
+                // Sync position and rotation with the scene node.
+                let node_transform = context.scene.graph[self.node].local_transform();
+                let body = &mut context.editor_scene.physics.bodies[self.handle];
+                body.rotation = **node_transform.rotation();
+                body.position = **node_transform.position();
             }
             Some(ticket) => {
                 context
@@ -221,6 +227,7 @@ impl Command for SetBodyCommand {
                     .put_back(ticket, self.body.take().unwrap());
             }
         }
+
         context
             .editor_scene
             .physics
