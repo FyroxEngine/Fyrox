@@ -1937,8 +1937,6 @@ impl UserInterface {
             self.remove_node(tooltip);
         }
 
-        dbg!(self.nodes.total_count());
-
         self.preview_set.remove(&node);
     }
 
