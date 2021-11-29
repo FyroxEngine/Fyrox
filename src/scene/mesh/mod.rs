@@ -198,13 +198,17 @@ impl Mesh {
         }
 
         if self.surfaces.iter().any(|s| !s.bones.is_empty()) {
-            let mut world_aabb = AxisAlignedBoundingBox::default();
+            let mut world_aabb = self
+                .local_bounding_box()
+                .transform(&self.global_transform());
+
             // Special case for skinned meshes.
             for surface in self.surfaces.iter() {
                 for &bone in surface.bones() {
                     world_aabb.add_point(graph[bone].global_position())
                 }
             }
+
             self.world_bounding_box.set(world_aabb)
         } else {
             self.world_bounding_box.set(
