@@ -57,6 +57,10 @@ impl NavmeshSelection {
         self.entities.len() == 1
     }
 
+    pub fn len(&self) -> usize {
+        self.entities.len()
+    }
+
     pub fn unique_vertices(&mut self) -> &HashSet<Handle<NavmeshVertex>> {
         if self.dirty {
             self.unique_vertices.clear();

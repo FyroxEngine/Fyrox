@@ -96,10 +96,6 @@ impl CommandGroup {
     pub fn push(&mut self, command: SceneCommand) {
         self.commands.push(command)
     }
-
-    pub fn is_empty(&self) -> bool {
-        self.commands.is_empty()
-    }
 }
 
 impl Command for CommandGroup {

@@ -1,7 +1,6 @@
 use crate::{
-    do_command,
-    inspector::{handlers::node::base::handle_base_property_changed, SenderHelper},
-    scene::commands::camera::*,
+    inspector::handlers::node::base::handle_base_property_changed, make_command,
+    scene::commands::camera::*, SceneCommand,
 };
 use rg3d::{
     core::{futures::executor::block_on, pool::Handle},
@@ -87,41 +86,40 @@ pub fn handle_camera_property_changed(
     args: &PropertyChanged,
     handle: Handle<Node>,
     node: &Node,
-    helper: &SenderHelper,
-) -> Option<()> {
+) -> Option<SceneCommand> {
     if let Node::Camera(camera) = node {
         match args.value {
             FieldKind::Object(ref value) => match args.name.as_ref() {
-                Camera::EXPOSURE => helper.do_scene_command(SetExposureCommand::new(
+                Camera::EXPOSURE => Some(SceneCommand::new(SetExposureCommand::new(
                     handle,
                     *value.cast_value::<Exposure>()?,
-                )),
+                ))),
                 Camera::Z_NEAR => {
-                    do_command!(helper, SetZNearCommand, handle, value)
+                    make_command!(SetZNearCommand, handle, value)
                 }
                 Camera::Z_FAR => {
-                    do_command!(helper, SetZFarCommand, handle, value)
+                    make_command!(SetZFarCommand, handle, value)
                 }
                 Camera::FOV => {
-                    do_command!(helper, SetFovCommand, handle, value)
+                    make_command!(SetFovCommand, handle, value)
                 }
                 Camera::VIEWPORT => {
-                    do_command!(helper, SetViewportCommand, handle, value)
+                    make_command!(SetViewportCommand, handle, value)
                 }
                 Camera::ENABLED => {
-                    do_command!(helper, SetCameraPreviewCommand, handle, value)
+                    make_command!(SetCameraPreviewCommand, handle, value)
                 }
                 Camera::SKY_BOX => {
-                    do_command!(helper, SetSkyBoxCommand, handle, value)
+                    make_command!(SetSkyBoxCommand, handle, value)
                 }
                 Camera::ENVIRONMENT => {
-                    do_command!(helper, SetEnvironmentMap, handle, value)
+                    make_command!(SetEnvironmentMap, handle, value)
                 }
                 Camera::COLOR_GRADING_LUT => {
-                    do_command!(helper, SetColorGradingLutCommand, handle, value)
+                    make_command!(SetColorGradingLutCommand, handle, value)
                 }
                 Camera::COLOR_GRADING_ENABLED => {
-                    do_command!(helper, SetColorGradingEnabledCommand, handle, value)
+                    make_command!(SetColorGradingEnabledCommand, handle, value)
                 }
                 _ => None,
             },
@@ -138,10 +136,10 @@ pub fn handle_camera_property_changed(
                                     *key_value = *value.cast_value::<f32>()?;
                                 }
 
-                                helper.do_scene_command(SetExposureCommand::new(
+                                Some(SceneCommand::new(SetExposureCommand::new(
                                     handle,
                                     current_auto_exposure,
-                                ))
+                                )))
                             }
                             Exposure::AUTO_MIN_LUMINANCE => {
                                 let mut current_auto_exposure = camera.exposure();
@@ -153,10 +151,10 @@ pub fn handle_camera_property_changed(
                                     *min_luminance = *value.cast_value::<f32>()?;
                                 }
 
-                                helper.do_scene_command(SetExposureCommand::new(
+                                Some(SceneCommand::new(SetExposureCommand::new(
                                     handle,
                                     current_auto_exposure,
-                                ))
+                                )))
                             }
                             Exposure::AUTO_MAX_LUMINANCE => {
                                 let mut current_auto_exposure = camera.exposure();
@@ -168,16 +166,16 @@ pub fn handle_camera_property_changed(
                                     *max_luminance = *value.cast_value::<f32>()?;
                                 }
 
-                                helper.do_scene_command(SetExposureCommand::new(
+                                Some(SceneCommand::new(SetExposureCommand::new(
                                     handle,
                                     current_auto_exposure,
-                                ))
+                                )))
                             }
                             Exposure::MANUAL_F_0 => {
-                                helper.do_scene_command(SetExposureCommand::new(
+                                Some(SceneCommand::new(SetExposureCommand::new(
                                     handle,
                                     Exposure::Manual(value.cast_value::<f32>().cloned()?),
-                                ))
+                                )))
                             }
                             _ => None,
                         }
@@ -193,10 +191,10 @@ pub fn handle_camera_property_changed(
                                     value.cast_value::<Option<Texture>>().cloned()?
                                 {
                                     if let Ok(lut) = block_on(ColorGradingLut::new(texture)) {
-                                        helper.do_scene_command(SetColorGradingLutCommand::new(
+                                        Some(SceneCommand::new(SetColorGradingLutCommand::new(
                                             handle,
                                             Some(lut),
-                                        ))
+                                        )))
                                     } else {
                                         None
                                     }
@@ -224,10 +222,10 @@ pub fn handle_camera_property_changed(
                         };
 
                         if let Some(face) = face {
-                            helper.do_scene_command(SetSkyBoxCommand::new(
+                            Some(SceneCommand::new(SetSkyBoxCommand::new(
                                 handle,
                                 modify_skybox(camera, texture, face),
-                            ))
+                            )))
                         } else {
                             None
                         }
@@ -235,7 +233,7 @@ pub fn handle_camera_property_changed(
                         None
                     }
                 }
-                Camera::BASE => handle_base_property_changed(inner, handle, node, helper),
+                Camera::BASE => handle_base_property_changed(inner, handle, node),
                 _ => None,
             },
             _ => None,

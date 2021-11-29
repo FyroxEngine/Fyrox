@@ -1,5 +1,4 @@
 use crate::{
-    command::Command,
     inspector::{
         editors::make_property_editors_container,
         handlers::{
@@ -12,21 +11,23 @@ use crate::{
     },
     physics::{Collider, Joint, RigidBody},
     scene::{EditorScene, Selection},
-    GameEngine, Message, MSG_SYNC_FLAG,
+    Brush, CommandGroup, GameEngine, Message, WidgetMessage, WrapMode, MSG_SYNC_FLAG,
 };
 use rg3d::{
-    core::{inspect::Inspect, pool::Handle},
+    core::{color::Color, inspect::Inspect, pool::Handle},
     engine::resource_manager::ResourceManager,
     gui::{
+        grid::{Column, GridBuilder, Row},
         inspector::{
             editors::PropertyEditorDefinitionContainer, InspectorBuilder, InspectorContext,
             InspectorEnvironment, InspectorMessage,
         },
         message::{MessageDirection, UiMessage},
         scroll_viewer::ScrollViewerBuilder,
+        text::TextBuilder,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
-        BuildContext, UiNode, UserInterface,
+        BuildContext, Thickness, UiNode, UserInterface,
     },
     sound::source::{generic::GenericSource, spatial::SpatialSource},
     utils::log::{Log, MessageKind},
@@ -60,25 +61,16 @@ pub struct Inspector {
     // inspector is already in correct state.
     needs_sync: bool,
     node_property_changed_handler: SceneNodePropertyChangedHandler,
-}
-
-pub struct SenderHelper {
-    sender: Sender<Message>,
-}
-
-impl SenderHelper {
-    pub fn do_scene_command<C: Command>(&self, command: C) -> Option<()> {
-        self.sender
-            .send(Message::do_scene_command(command))
-            .unwrap();
-        Some(())
-    }
+    warning_text: Handle<UiNode>,
 }
 
 #[macro_export]
-macro_rules! do_command {
-    ($helper:expr, $cmd:ty, $handle:expr, $value:expr) => {
-        $helper.do_scene_command(<$cmd>::new($handle, $value.cast_value().cloned()?))
+macro_rules! make_command {
+    ($cmd:ty, $handle:expr, $value:expr) => {
+        Some(crate::scene::commands::SceneCommand::new(<$cmd>::new(
+            $handle,
+            $value.cast_value().cloned()?,
+        )))
     };
 }
 
@@ -86,16 +78,43 @@ impl Inspector {
     pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
         let property_editors = make_property_editors_container(sender);
 
+        let warning_text_str =
+            "Multiple objects are selected, showing properties of the first object only!\
+            Only common properties will be editable!";
+
+        let warning_text;
         let inspector;
         let window = WindowBuilder::new(WidgetBuilder::new())
             .with_title(WindowTitle::text("Inspector"))
             .with_content(
-                ScrollViewerBuilder::new(WidgetBuilder::new())
-                    .with_content({
-                        inspector = InspectorBuilder::new(WidgetBuilder::new()).build(ctx);
-                        inspector
-                    })
-                    .build(ctx),
+                GridBuilder::new(
+                    WidgetBuilder::new()
+                        .with_child({
+                            warning_text = TextBuilder::new(
+                                WidgetBuilder::new()
+                                    .with_margin(Thickness::left(4.0))
+                                    .with_foreground(Brush::Solid(Color::RED))
+                                    .on_row(0),
+                            )
+                            .with_wrap(WrapMode::Word)
+                            .with_text(warning_text_str)
+                            .build(ctx);
+                            warning_text
+                        })
+                        .with_child(
+                            ScrollViewerBuilder::new(WidgetBuilder::new().on_row(1))
+                                .with_content({
+                                    inspector =
+                                        InspectorBuilder::new(WidgetBuilder::new()).build(ctx);
+                                    inspector
+                                })
+                                .build(ctx),
+                        ),
+                )
+                .add_row(Row::auto())
+                .add_row(Row::stretch())
+                .add_column(Column::stretch())
+                .build(ctx),
             )
             .build(ctx);
 
@@ -107,6 +126,7 @@ impl Inspector {
             node_property_changed_handler: SceneNodePropertyChangedHandler {
                 particle_system_handler: ParticleSystemHandler::new(ctx),
             },
+            warning_text,
         }
     }
 
@@ -200,7 +220,15 @@ impl Inspector {
         if let Message::SelectionChanged = message {
             let scene = &engine.scenes[editor_scene.scene];
 
-            if editor_scene.selection.is_single_selection() {
+            engine
+                .user_interface
+                .send_message(WidgetMessage::visibility(
+                    self.warning_text,
+                    MessageDirection::ToWidget,
+                    editor_scene.selection.len() > 1,
+                ));
+
+            if !editor_scene.selection.is_empty() {
                 let ctx = scene.sound_context.state();
                 let obj: Option<&dyn Inspect> = match &editor_scene.selection {
                     Selection::Graph(selection) => scene
@@ -247,104 +275,121 @@ impl Inspector {
         engine: &mut GameEngine,
         sender: &Sender<Message>,
     ) {
-        let helper = SenderHelper {
-            sender: sender.clone(),
-        };
-
         let scene = &engine.scenes[editor_scene.scene];
-
-        let mut success = Some(());
 
         // Special case for particle systems.
         if let Selection::Graph(selection) = &editor_scene.selection {
-            if let Some(first) = selection.nodes().first() {
-                self.node_property_changed_handler
-                    .particle_system_handler
-                    .handle_ui_message(message, *first, &helper, &engine.user_interface);
+            if let Some(group) = self
+                .node_property_changed_handler
+                .particle_system_handler
+                .handle_ui_message(message, selection, &engine.user_interface)
+            {
+                sender
+                    .send(Message::do_scene_command(CommandGroup::from(group)))
+                    .unwrap();
             }
         }
 
-        if editor_scene.selection.is_single_selection()
-            && message.destination() == self.inspector
+        if message.destination() == self.inspector
             && message.direction() == MessageDirection::FromWidget
         {
             if let Some(InspectorMessage::PropertyChanged(args)) =
                 message.data::<InspectorMessage>()
             {
-                match &editor_scene.selection {
-                    Selection::Graph(selection) => {
-                        let node_handle = selection.nodes()[0];
-                        if scene.graph.is_valid_handle(node_handle) {
-                            success = self.node_property_changed_handler.handle(
-                                args,
-                                node_handle,
-                                &scene.graph[node_handle],
-                                &helper,
-                                &engine.user_interface,
-                                scene,
-                            );
-                        }
-                    }
-                    Selection::Sound(selection) => {
-                        let source_handle = selection.sources()[0];
-                        success = if args.owner_type_id == TypeId::of::<GenericSource>() {
-                            handle_generic_source_property_changed(args, source_handle, &helper)
-                        } else if args.owner_type_id == TypeId::of::<SpatialSource>() {
-                            handle_spatial_source_property_changed(args, source_handle, &helper)
-                        } else {
-                            Some(())
-                        }
-                    }
-                    Selection::RigidBody(selection) => {
-                        let rigid_body_handle = selection.bodies()[0];
-                        let rigid_body_ref = &editor_scene.physics.bodies[rigid_body_handle];
-                        success = if args.owner_type_id == TypeId::of::<RigidBody>() {
-                            handle_rigid_body_property_changed(
-                                args,
-                                rigid_body_handle,
-                                rigid_body_ref,
-                                &helper,
-                            )
-                        } else {
-                            Some(())
-                        }
-                    }
-                    Selection::Collider(selection) => {
-                        let collider_handle = selection.colliders()[0];
-                        let collider = &editor_scene.physics.colliders[collider_handle];
-                        success = if args.owner_type_id == TypeId::of::<Collider>() {
-                            handle_collider_property_changed(
-                                args,
-                                collider_handle,
-                                collider,
-                                &helper,
-                            )
-                        } else {
-                            Some(())
-                        }
-                    }
-                    Selection::Joint(selection) => {
-                        let joint_handle = selection.joints()[0];
-                        let joint = &editor_scene.physics.joints[joint_handle];
-                        success = if args.owner_type_id == TypeId::of::<Joint>() {
-                            handle_joint_property_changed(args, joint_handle, joint, &helper)
-                        } else {
-                            Some(())
-                        }
-                    }
-                    _ => {}
-                }
-            }
-        }
+                let group = match &editor_scene.selection {
+                    Selection::Graph(selection) => selection
+                        .nodes
+                        .iter()
+                        .filter_map(|&node_handle| {
+                            if scene.graph.is_valid_handle(node_handle) {
+                                self.node_property_changed_handler.handle(
+                                    args,
+                                    node_handle,
+                                    &scene.graph[node_handle],
+                                    &engine.user_interface,
+                                    scene,
+                                )
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>(),
+                    Selection::Sound(selection) => selection
+                        .sources
+                        .iter()
+                        .filter_map(|&source_handle| {
+                            if args.owner_type_id == TypeId::of::<GenericSource>() {
+                                handle_generic_source_property_changed(args, source_handle)
+                            } else if args.owner_type_id == TypeId::of::<SpatialSource>() {
+                                handle_spatial_source_property_changed(
+                                    args,
+                                    source_handle,
+                                    scene.sound_context.state().source(source_handle),
+                                )
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>(),
+                    Selection::RigidBody(selection) => selection
+                        .bodies
+                        .iter()
+                        .filter_map(|&rigid_body_handle| {
+                            let rigid_body_ref = &editor_scene.physics.bodies[rigid_body_handle];
+                            if args.owner_type_id == TypeId::of::<RigidBody>() {
+                                handle_rigid_body_property_changed(
+                                    args,
+                                    rigid_body_handle,
+                                    rigid_body_ref,
+                                )
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>(),
+                    Selection::Collider(selection) => selection
+                        .colliders
+                        .iter()
+                        .filter_map(|&collider_handle| {
+                            let collider = &editor_scene.physics.colliders[collider_handle];
+                            if args.owner_type_id == TypeId::of::<Collider>() {
+                                handle_collider_property_changed(args, collider_handle, collider)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>(),
+                    Selection::Joint(selection) => selection
+                        .joints
+                        .iter()
+                        .filter_map(|&joint_handle| {
+                            let joint = &editor_scene.physics.joints[joint_handle];
+                            if args.owner_type_id == TypeId::of::<Joint>() {
+                                handle_joint_property_changed(args, joint_handle, joint)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>(),
+                    _ => vec![],
+                };
 
-        if let Some(InspectorMessage::PropertyChanged(args)) = message.data::<InspectorMessage>() {
-            if success.is_none() {
-                sender
-                    .send(Message::Log(format!(
-                        "Failed to handle property {}",
-                        args.path()
-                    )))
-                    .unwrap();
+                if group.is_empty() {
+                    sender
+                        .send(Message::Log(format!(
+                            "Failed to handle a property {}",
+                            args.path()
+                        )))
+                        .unwrap();
+                } else if group.len() == 1 {
+                    sender
+                        .send(Message::DoSceneCommand(group.into_iter().next().unwrap()))
+                        .unwrap()
+                } else {
+                    sender
+                        .send(Message::do_scene_command(CommandGroup::from(group)))
+                        .unwrap();
+                }
             }
         }
     }

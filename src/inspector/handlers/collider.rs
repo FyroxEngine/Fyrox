@@ -1,4 +1,4 @@
-use crate::{do_command, inspector::SenderHelper, physics::Collider, scene::commands::physics::*};
+use crate::{make_command, physics::Collider, scene::commands::physics::*, SceneCommand};
 use rg3d::{
     core::pool::Handle,
     gui::inspector::{FieldKind, PropertyChanged},
@@ -10,27 +10,26 @@ pub fn handle_collider_property_changed(
     args: &PropertyChanged,
     handle: Handle<Collider>,
     collider: &Collider,
-    helper: &SenderHelper,
-) -> Option<()> {
+) -> Option<SceneCommand> {
     match args.value {
         FieldKind::Object(ref value) => match args.name.as_ref() {
             Collider::FRICTION => {
-                do_command!(helper, SetColliderFrictionCommand, handle, value)
+                make_command!(SetColliderFrictionCommand, handle, value)
             }
             Collider::RESTITUTION => {
-                do_command!(helper, SetColliderRestitutionCommand, handle, value)
+                make_command!(SetColliderRestitutionCommand, handle, value)
             }
             Collider::IS_SENSOR => {
-                do_command!(helper, SetColliderIsSensorCommand, handle, value)
+                make_command!(SetColliderIsSensorCommand, handle, value)
             }
             Collider::DENSITY => {
-                do_command!(helper, SetColliderDensityCommand, handle, value)
+                make_command!(SetColliderDensityCommand, handle, value)
             }
             Collider::TRANSLATION => {
-                do_command!(helper, SetColliderPositionCommand, handle, value)
+                make_command!(SetColliderPositionCommand, handle, value)
             }
             Collider::ROTATION => {
-                do_command!(helper, SetColliderRotationCommand, handle, value)
+                make_command!(SetColliderRotationCommand, handle, value)
             }
             _ => None,
         },
@@ -38,20 +37,10 @@ pub fn handle_collider_property_changed(
             Collider::COLLISION_GROUPS => match inner_property.value {
                 FieldKind::Object(ref value) => match inner_property.name.as_ref() {
                     InteractionGroupsDesc::MEMBERSHIPS => {
-                        do_command!(
-                            helper,
-                            SetColliderCollisionGroupsMembershipsCommand,
-                            handle,
-                            value
-                        )
+                        make_command!(SetColliderCollisionGroupsMembershipsCommand, handle, value)
                     }
                     InteractionGroupsDesc::FILTER => {
-                        do_command!(
-                            helper,
-                            SetColliderCollisionGroupsFilterCommand,
-                            handle,
-                            value
-                        )
+                        make_command!(SetColliderCollisionGroupsFilterCommand, handle, value)
                     }
                     _ => None,
                 },
@@ -60,15 +49,10 @@ pub fn handle_collider_property_changed(
             Collider::SOLVER_GROUPS => match inner_property.value {
                 FieldKind::Object(ref value) => match inner_property.name.as_ref() {
                     InteractionGroupsDesc::MEMBERSHIPS => {
-                        do_command!(
-                            helper,
-                            SetColliderSolverGroupsMembershipsCommand,
-                            handle,
-                            value
-                        )
+                        make_command!(SetColliderSolverGroupsMembershipsCommand, handle, value)
                     }
                     InteractionGroupsDesc::FILTER => {
-                        do_command!(helper, SetColliderSolverGroupsFilterCommand, handle, value)
+                        make_command!(SetColliderSolverGroupsFilterCommand, handle, value)
                     }
                     _ => None,
                 },
@@ -76,26 +60,21 @@ pub fn handle_collider_property_changed(
             },
             Collider::SHAPE => {
                 if inner_property.owner_type_id == TypeId::of::<CuboidDesc>() {
-                    handle_cuboid_desc_property_changed(handle, collider, inner_property, helper)
+                    handle_cuboid_desc_property_changed(handle, collider, inner_property)
                 } else if inner_property.owner_type_id == TypeId::of::<BallDesc>() {
-                    handle_ball_desc_property_changed(handle, collider, inner_property, helper)
+                    handle_ball_desc_property_changed(handle, collider, inner_property)
                 } else if inner_property.owner_type_id == TypeId::of::<CylinderDesc>() {
-                    handle_cylinder_desc_property_changed(handle, collider, inner_property, helper)
+                    handle_cylinder_desc_property_changed(handle, collider, inner_property)
                 } else if inner_property.owner_type_id == TypeId::of::<RoundCylinderDesc>() {
-                    handle_round_cylinder_desc_property_changed(
-                        handle,
-                        collider,
-                        inner_property,
-                        helper,
-                    )
+                    handle_round_cylinder_desc_property_changed(handle, collider, inner_property)
                 } else if inner_property.owner_type_id == TypeId::of::<ConeDesc>() {
-                    handle_cone_desc_property_changed(handle, collider, inner_property, helper)
+                    handle_cone_desc_property_changed(handle, collider, inner_property)
                 } else if inner_property.owner_type_id == TypeId::of::<CapsuleDesc>() {
-                    handle_capsule_desc_property_changed(handle, collider, inner_property, helper)
+                    handle_capsule_desc_property_changed(handle, collider, inner_property)
                 } else if inner_property.owner_type_id == TypeId::of::<SegmentDesc>() {
-                    handle_segment_desc_property_changed(handle, collider, inner_property, helper)
+                    handle_segment_desc_property_changed(handle, collider, inner_property)
                 } else if inner_property.owner_type_id == TypeId::of::<TriangleDesc>() {
-                    handle_triangle_desc_property_changed(handle, collider, inner_property, helper)
+                    handle_triangle_desc_property_changed(handle, collider, inner_property)
                 } else {
                     None
                 }
@@ -110,12 +89,11 @@ fn handle_ball_desc_property_changed(
     handle: Handle<Collider>,
     collider: &Collider,
     property_changed: &PropertyChanged,
-    helper: &SenderHelper,
-) -> Option<()> {
+) -> Option<SceneCommand> {
     if let ColliderShapeDesc::Ball(_) = collider.shape {
         match property_changed.value {
             FieldKind::Object(ref value) => match property_changed.name.as_ref() {
-                BallDesc::RADIUS => do_command!(helper, SetBallRadiusCommand, handle, value),
+                BallDesc::RADIUS => make_command!(SetBallRadiusCommand, handle, value),
                 _ => None,
             },
             _ => None,
@@ -129,13 +107,12 @@ fn handle_cuboid_desc_property_changed(
     handle: Handle<Collider>,
     collider: &Collider,
     property_changed: &PropertyChanged,
-    helper: &SenderHelper,
-) -> Option<()> {
+) -> Option<SceneCommand> {
     if let ColliderShapeDesc::Cuboid(_) = collider.shape {
         match property_changed.value {
             FieldKind::Object(ref value) => match property_changed.name.as_ref() {
                 CuboidDesc::HALF_EXTENTS => {
-                    do_command!(helper, SetCuboidHalfExtentsCommand, handle, value)
+                    make_command!(SetCuboidHalfExtentsCommand, handle, value)
                 }
                 _ => None,
             },
@@ -150,16 +127,15 @@ fn handle_cylinder_desc_property_changed(
     handle: Handle<Collider>,
     collider: &Collider,
     property_changed: &PropertyChanged,
-    helper: &SenderHelper,
-) -> Option<()> {
+) -> Option<SceneCommand> {
     if let ColliderShapeDesc::Cylinder(_) = collider.shape {
         match property_changed.value {
             FieldKind::Object(ref value) => match property_changed.name.as_ref() {
                 CylinderDesc::HALF_HEIGHT => {
-                    do_command!(helper, SetCylinderHalfHeightCommand, handle, value)
+                    make_command!(SetCylinderHalfHeightCommand, handle, value)
                 }
                 CylinderDesc::RADIUS => {
-                    do_command!(helper, SetCylinderRadiusCommand, handle, value)
+                    make_command!(SetCylinderRadiusCommand, handle, value)
                 }
                 _ => None,
             },
@@ -174,19 +150,18 @@ fn handle_round_cylinder_desc_property_changed(
     handle: Handle<Collider>,
     collider: &Collider,
     property_changed: &PropertyChanged,
-    helper: &SenderHelper,
-) -> Option<()> {
+) -> Option<SceneCommand> {
     if let ColliderShapeDesc::RoundCylinder(_) = collider.shape {
         match property_changed.value {
             FieldKind::Object(ref value) => match property_changed.name.as_ref() {
                 RoundCylinderDesc::HALF_HEIGHT => {
-                    do_command!(helper, SetRoundCylinderHalfHeightCommand, handle, value)
+                    make_command!(SetRoundCylinderHalfHeightCommand, handle, value)
                 }
                 RoundCylinderDesc::RADIUS => {
-                    do_command!(helper, SetRoundCylinderRadiusCommand, handle, value)
+                    make_command!(SetRoundCylinderRadiusCommand, handle, value)
                 }
                 RoundCylinderDesc::BORDER_RADIUS => {
-                    do_command!(helper, SetRoundCylinderBorderRadiusCommand, handle, value)
+                    make_command!(SetRoundCylinderBorderRadiusCommand, handle, value)
                 }
                 _ => None,
             },
@@ -201,15 +176,14 @@ fn handle_cone_desc_property_changed(
     handle: Handle<Collider>,
     collider: &Collider,
     property_changed: &PropertyChanged,
-    helper: &SenderHelper,
-) -> Option<()> {
+) -> Option<SceneCommand> {
     if let ColliderShapeDesc::Cone(_) = collider.shape {
         match property_changed.value {
             FieldKind::Object(ref value) => match property_changed.name.as_ref() {
                 ConeDesc::HALF_HEIGHT => {
-                    do_command!(helper, SetConeHalfHeightCommand, handle, value)
+                    make_command!(SetConeHalfHeightCommand, handle, value)
                 }
-                ConeDesc::RADIUS => do_command!(helper, SetConeRadiusCommand, handle, value),
+                ConeDesc::RADIUS => make_command!(SetConeRadiusCommand, handle, value),
                 _ => None,
             },
             _ => None,
@@ -223,14 +197,15 @@ fn handle_capsule_desc_property_changed(
     handle: Handle<Collider>,
     collider: &Collider,
     property_changed: &PropertyChanged,
-    helper: &SenderHelper,
-) -> Option<()> {
+) -> Option<SceneCommand> {
     if let ColliderShapeDesc::Capsule(_) = collider.shape {
         match property_changed.value {
             FieldKind::Object(ref value) => match property_changed.name.as_ref() {
-                CapsuleDesc::BEGIN => do_command!(helper, SetCapsuleBeginCommand, handle, value),
-                CapsuleDesc::END => do_command!(helper, SetCapsuleEndCommand, handle, value),
-                CapsuleDesc::RADIUS => do_command!(helper, SetCapsuleRadiusCommand, handle, value),
+                CapsuleDesc::BEGIN => make_command!(SetCapsuleBeginCommand, handle, value),
+                CapsuleDesc::END => make_command!(SetCapsuleEndCommand, handle, value),
+                CapsuleDesc::RADIUS => {
+                    make_command!(SetCapsuleRadiusCommand, handle, value)
+                }
                 _ => None,
             },
             _ => None,
@@ -244,13 +219,12 @@ fn handle_segment_desc_property_changed(
     handle: Handle<Collider>,
     collider: &Collider,
     property_changed: &PropertyChanged,
-    helper: &SenderHelper,
-) -> Option<()> {
+) -> Option<SceneCommand> {
     if let ColliderShapeDesc::Segment(_) = collider.shape {
         match property_changed.value {
             FieldKind::Object(ref value) => match property_changed.name.as_ref() {
-                SegmentDesc::BEGIN => do_command!(helper, SetSegmentBeginCommand, handle, value),
-                SegmentDesc::END => do_command!(helper, SetSegmentEndCommand, handle, value),
+                SegmentDesc::BEGIN => make_command!(SetSegmentBeginCommand, handle, value),
+                SegmentDesc::END => make_command!(SetSegmentEndCommand, handle, value),
                 _ => None,
             },
             _ => None,
@@ -264,14 +238,13 @@ fn handle_triangle_desc_property_changed(
     handle: Handle<Collider>,
     collider: &Collider,
     property_changed: &PropertyChanged,
-    helper: &SenderHelper,
-) -> Option<()> {
+) -> Option<SceneCommand> {
     if let ColliderShapeDesc::Triangle(_) = collider.shape {
         match property_changed.value {
             FieldKind::Object(ref value) => match property_changed.name.as_ref() {
-                TriangleDesc::A => do_command!(helper, SetTriangleACommand, handle, value),
-                TriangleDesc::B => do_command!(helper, SetTriangleBCommand, handle, value),
-                TriangleDesc::C => do_command!(helper, SetTriangleCCommand, handle, value),
+                TriangleDesc::A => make_command!(SetTriangleACommand, handle, value),
+                TriangleDesc::B => make_command!(SetTriangleBCommand, handle, value),
+                TriangleDesc::C => make_command!(SetTriangleCCommand, handle, value),
                 _ => None,
             },
             _ => None,

@@ -219,17 +219,6 @@ pub struct DeleteNodeCommand {
     parent: Handle<Node>,
 }
 
-impl DeleteNodeCommand {
-    pub fn new(handle: Handle<Node>) -> Self {
-        Self {
-            handle,
-            ticket: None,
-            node: None,
-            parent: Default::default(),
-        }
-    }
-}
-
 impl Command for DeleteNodeCommand {
     fn name(&mut self, _context: &SceneContext) -> String {
         "Delete Node".to_owned()

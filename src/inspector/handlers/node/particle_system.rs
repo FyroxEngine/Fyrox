@@ -1,6 +1,6 @@
 use crate::{
-    do_command, inspector::handlers::node::base::handle_base_property_changed,
-    inspector::SenderHelper, scene::commands::particle_system::*,
+    inspector::handlers::node::base::handle_base_property_changed, make_command,
+    scene::commands::particle_system::*, GraphSelection, SceneCommand,
 };
 use rg3d::{
     core::pool::Handle,
@@ -82,10 +82,9 @@ impl ParticleSystemHandler {
     pub fn handle_ui_message(
         &self,
         message: &UiMessage,
-        node_handle: Handle<Node>,
-        helper: &SenderHelper,
+        selection: &GraphSelection,
         ui: &UserInterface,
-    ) {
+    ) -> Option<Vec<SceneCommand>> {
         if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             let emitter = if message.destination() == self.cuboid {
                 Some(Emitter::Cuboid(Default::default()))
@@ -98,13 +97,26 @@ impl ParticleSystemHandler {
             };
 
             if let Some(emitter) = emitter {
-                helper.do_scene_command(AddParticleSystemEmitterCommand::new(node_handle, emitter));
                 ui.send_message(WindowMessage::close(
                     self.selector_window,
                     MessageDirection::ToWidget,
                 ));
+
+                return Some(
+                    selection
+                        .nodes
+                        .iter()
+                        .map(|&node_handle| {
+                            SceneCommand::new(AddParticleSystemEmitterCommand::new(
+                                node_handle,
+                                emitter.clone(),
+                            ))
+                        })
+                        .collect::<Vec<_>>(),
+                );
             }
         }
+        None
     }
 
     pub fn handle(
@@ -112,23 +124,22 @@ impl ParticleSystemHandler {
         args: &PropertyChanged,
         handle: Handle<Node>,
         node: &Node,
-        helper: &SenderHelper,
         ui: &UserInterface,
-    ) -> Option<()> {
+    ) -> Option<SceneCommand> {
         if let Node::ParticleSystem(particle_system) = node {
             match args.value {
                 FieldKind::Object(ref value) => match args.name.as_ref() {
                     ParticleSystem::TEXTURE => {
-                        do_command!(helper, SetParticleSystemTextureCommand, handle, value)
+                        make_command!(SetParticleSystemTextureCommand, handle, value)
                     }
                     ParticleSystem::ACCELERATION => {
-                        do_command!(helper, SetAccelerationCommand, handle, value)
+                        make_command!(SetAccelerationCommand, handle, value)
                     }
                     ParticleSystem::ENABLED => {
-                        do_command!(helper, SetParticleSystemEnabledCommand, handle, value)
+                        make_command!(SetParticleSystemEnabledCommand, handle, value)
                     }
                     ParticleSystem::SOFT_BOUNDARY_SHARPNESS_FACTOR => {
-                        do_command!(helper, SetSoftBoundarySharpnessFactorCommand, handle, value)
+                        make_command!(SetSoftBoundarySharpnessFactorCommand, handle, value)
                     }
                     _ => None,
                 },
@@ -140,24 +151,24 @@ impl ParticleSystemHandler {
                                 MessageDirection::ToWidget,
                                 true,
                             ));
-                            Some(())
+                            None
                         }
                         CollectionChanged::Remove(index) => {
-                            helper.do_scene_command(DeleteEmitterCommand::new(handle, *index))
+                            Some(SceneCommand::new(DeleteEmitterCommand::new(handle, *index)))
                         }
                         CollectionChanged::ItemChanged { index, property } => {
                             let emitter = particle_system.emitters.get(*index)?;
                             if property.owner_type_id == TypeId::of::<SphereEmitter>() {
                                 handle_sphere_emitter_property_changed(
-                                    handle, emitter, property, helper, *index,
+                                    handle, emitter, property, *index,
                                 )
                             } else if property.owner_type_id == TypeId::of::<CylinderEmitter>() {
                                 handle_cylinder_emitter_property_changed(
-                                    handle, emitter, property, helper, *index,
+                                    handle, emitter, property, *index,
                                 )
                             } else if property.owner_type_id == TypeId::of::<CuboidEmitter>() {
                                 handle_cuboid_emitter_property_changed(
-                                    handle, emitter, property, helper, *index,
+                                    handle, emitter, property, *index,
                                 )
                             } else {
                                 None
@@ -167,9 +178,7 @@ impl ParticleSystemHandler {
                     _ => None,
                 },
                 FieldKind::Inspectable(ref inner) => match args.name.as_ref() {
-                    ParticleSystem::BASE => {
-                        handle_base_property_changed(inner, handle, node, helper)
-                    }
+                    ParticleSystem::BASE => handle_base_property_changed(inner, handle, node),
                     _ => None,
                 },
             }
@@ -182,55 +191,54 @@ impl ParticleSystemHandler {
 fn handle_base_emitter_property_changed(
     handle: Handle<Node>,
     property_changed: &PropertyChanged,
-    helper: &SenderHelper,
     index: usize,
-) -> Option<()> {
+) -> Option<SceneCommand> {
     match property_changed.value {
         FieldKind::Object(ref value) => match property_changed.name.as_ref() {
-            BaseEmitter::POSITION => helper.do_scene_command(SetEmitterPositionCommand::new(
+            BaseEmitter::POSITION => Some(SceneCommand::new(SetEmitterPositionCommand::new(
                 handle,
                 index,
                 value.cast_value_cloned()?,
-            )),
-            BaseEmitter::PARTICLE_SPAWN_RATE => helper.do_scene_command(
+            ))),
+            BaseEmitter::PARTICLE_SPAWN_RATE => Some(SceneCommand::new(
                 SetEmitterSpawnRateCommand::new(handle, index, value.cast_value_cloned()?),
-            ),
-            BaseEmitter::MAX_PARTICLES => helper.do_scene_command(
+            )),
+            BaseEmitter::MAX_PARTICLES => Some(SceneCommand::new(
                 SetEmitterParticleLimitCommand::new(handle, index, value.cast_value_cloned()?),
-            ),
-            BaseEmitter::LIFETIME => helper.do_scene_command(SetEmitterLifetimeRangeCommand::new(
+            )),
+            BaseEmitter::LIFETIME => Some(SceneCommand::new(SetEmitterLifetimeRangeCommand::new(
                 handle,
                 index,
                 value.cast_value_cloned()?,
-            )),
-            BaseEmitter::SIZE => helper.do_scene_command(SetEmitterSizeRangeCommand::new(
+            ))),
+            BaseEmitter::SIZE => Some(SceneCommand::new(SetEmitterSizeRangeCommand::new(
                 handle,
                 index,
                 value.cast_value_cloned()?,
-            )),
-            BaseEmitter::SIZE_MODIFIER => helper.do_scene_command(
+            ))),
+            BaseEmitter::SIZE_MODIFIER => Some(SceneCommand::new(
                 SetEmitterSizeModifierRangeCommand::new(handle, index, value.cast_value_cloned()?),
-            ),
-            BaseEmitter::X_VELOCITY => helper.do_scene_command(
+            )),
+            BaseEmitter::X_VELOCITY => Some(SceneCommand::new(
                 SetEmitterXVelocityRangeCommand::new(handle, index, value.cast_value_cloned()?),
-            ),
-            BaseEmitter::Y_VELOCITY => helper.do_scene_command(
+            )),
+            BaseEmitter::Y_VELOCITY => Some(SceneCommand::new(
                 SetEmitterYVelocityRangeCommand::new(handle, index, value.cast_value_cloned()?),
-            ),
-            BaseEmitter::Z_VELOCITY => helper.do_scene_command(
+            )),
+            BaseEmitter::Z_VELOCITY => Some(SceneCommand::new(
                 SetEmitterZVelocityRangeCommand::new(handle, index, value.cast_value_cloned()?),
-            ),
-            BaseEmitter::ROTATION_SPEED => helper.do_scene_command(
+            )),
+            BaseEmitter::ROTATION_SPEED => Some(SceneCommand::new(
                 SetEmitterRotationSpeedRangeCommand::new(handle, index, value.cast_value_cloned()?),
-            ),
-            BaseEmitter::ROTATION => helper.do_scene_command(SetEmitterRotationRangeCommand::new(
+            )),
+            BaseEmitter::ROTATION => Some(SceneCommand::new(SetEmitterRotationRangeCommand::new(
                 handle,
                 index,
                 value.cast_value_cloned()?,
-            )),
-            BaseEmitter::RESURRECT_PARTICLES => helper.do_scene_command(
+            ))),
+            BaseEmitter::RESURRECT_PARTICLES => Some(SceneCommand::new(
                 SetEmitterResurrectParticlesCommand::new(handle, index, value.cast_value_cloned()?),
-            ),
+            )),
             _ => None,
         },
         _ => None,
@@ -241,20 +249,19 @@ fn handle_sphere_emitter_property_changed(
     handle: Handle<Node>,
     emitter: &Emitter,
     property_changed: &PropertyChanged,
-    helper: &SenderHelper,
     index: usize,
-) -> Option<()> {
+) -> Option<SceneCommand> {
     if let Emitter::Sphere(_) = emitter {
         match property_changed.value {
             FieldKind::Object(ref value) => match property_changed.name.as_ref() {
-                SphereEmitter::RADIUS => helper.do_scene_command(
+                SphereEmitter::RADIUS => Some(SceneCommand::new(
                     SetSphereEmitterRadiusCommand::new(handle, index, value.cast_value().cloned()?),
-                ),
+                )),
                 _ => None,
             },
             FieldKind::Inspectable(ref inner) => match property_changed.name.as_ref() {
                 SphereEmitter::EMITTER => {
-                    handle_base_emitter_property_changed(handle, inner, helper, index)
+                    handle_base_emitter_property_changed(handle, inner, index)
                 }
                 _ => None,
             },
@@ -269,23 +276,22 @@ fn handle_cylinder_emitter_property_changed(
     handle: Handle<Node>,
     emitter: &Emitter,
     property_changed: &PropertyChanged,
-    helper: &SenderHelper,
     index: usize,
-) -> Option<()> {
+) -> Option<SceneCommand> {
     if let Emitter::Cylinder(_) = emitter {
         match property_changed.value {
             FieldKind::Object(ref value) => match property_changed.name.as_ref() {
-                CylinderEmitter::RADIUS => helper.do_scene_command(
+                CylinderEmitter::RADIUS => Some(SceneCommand::new(
                     SetCylinderEmitterRadiusCommand::new(handle, index, value.cast_value_cloned()?),
-                ),
-                CylinderEmitter::HEIGHT => helper.do_scene_command(
+                )),
+                CylinderEmitter::HEIGHT => Some(SceneCommand::new(
                     SetCylinderEmitterHeightCommand::new(handle, index, value.cast_value_cloned()?),
-                ),
+                )),
                 _ => None,
             },
             FieldKind::Inspectable(ref inner) => match property_changed.name.as_ref() {
                 CylinderEmitter::EMITTER => {
-                    handle_base_emitter_property_changed(handle, inner, helper, index)
+                    handle_base_emitter_property_changed(handle, inner, index)
                 }
                 _ => None,
             },
@@ -300,26 +306,25 @@ fn handle_cuboid_emitter_property_changed(
     handle: Handle<Node>,
     emitter: &Emitter,
     property_changed: &PropertyChanged,
-    helper: &SenderHelper,
     index: usize,
-) -> Option<()> {
+) -> Option<SceneCommand> {
     if let Emitter::Cuboid(_) = emitter {
         match property_changed.value {
             FieldKind::Object(ref value) => match property_changed.name.as_ref() {
-                CuboidEmitter::HALF_HEIGHT => helper.do_scene_command(
+                CuboidEmitter::HALF_HEIGHT => Some(SceneCommand::new(
                     SetBoxEmitterHalfHeightCommand::new(handle, index, value.cast_value_cloned()?),
-                ),
-                CuboidEmitter::HALF_WIDTH => helper.do_scene_command(
+                )),
+                CuboidEmitter::HALF_WIDTH => Some(SceneCommand::new(
                     SetBoxEmitterHalfWidthCommand::new(handle, index, value.cast_value_cloned()?),
-                ),
-                CuboidEmitter::HALF_DEPTH => helper.do_scene_command(
+                )),
+                CuboidEmitter::HALF_DEPTH => Some(SceneCommand::new(
                     SetBoxEmitterHalfDepthCommand::new(handle, index, value.cast_value_cloned()?),
-                ),
+                )),
                 _ => None,
             },
             FieldKind::Inspectable(ref inner) => match property_changed.name.as_ref() {
                 CylinderEmitter::EMITTER => {
-                    handle_base_emitter_property_changed(handle, inner, helper, index)
+                    handle_base_emitter_property_changed(handle, inner, index)
                 }
                 _ => None,
             },

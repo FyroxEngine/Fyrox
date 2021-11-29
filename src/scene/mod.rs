@@ -229,15 +229,19 @@ impl Selection {
         }
     }
 
-    pub fn is_single_selection(&self) -> bool {
+    pub fn len(&self) -> usize {
         match self {
-            Selection::None => false,
-            Selection::Graph(graph) => graph.is_single_selection(),
-            Selection::Navmesh(navmesh) => navmesh.is_single_selection(),
-            Selection::Sound(sound) => sound.is_single_selection(),
-            Selection::RigidBody(rb) => rb.is_single_selection(),
-            Selection::Joint(joint) => joint.is_single_selection(),
-            Selection::Collider(collider) => collider.is_single_selection(),
+            Selection::None => 0,
+            Selection::Graph(graph) => graph.len(),
+            Selection::Navmesh(navmesh) => navmesh.len(),
+            Selection::Sound(sound) => sound.len(),
+            Selection::RigidBody(rb) => rb.len(),
+            Selection::Joint(joint) => joint.len(),
+            Selection::Collider(collider) => collider.len(),
         }
+    }
+
+    pub fn is_single_selection(&self) -> bool {
+        self.len() == 1
     }
 }

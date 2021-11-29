@@ -18,6 +18,10 @@ impl SoundSelection {
         self.sources.len() == 1
     }
 
+    pub fn len(&self) -> usize {
+        self.sources.len()
+    }
+
     pub fn first(&self) -> Option<Handle<SoundSource>> {
         self.sources.first().cloned()
     }

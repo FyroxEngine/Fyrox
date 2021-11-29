@@ -16,6 +16,10 @@ impl RigidBodySelection {
         self.bodies.len() == 1
     }
 
+    pub fn len(&self) -> usize {
+        self.bodies.len()
+    }
+
     pub fn first(&self) -> Option<Handle<RigidBody>> {
         self.bodies.first().cloned()
     }
@@ -56,6 +60,10 @@ impl JointSelection {
         self.joints.len() == 1
     }
 
+    pub fn len(&self) -> usize {
+        self.joints.len()
+    }
+
     pub fn first(&self) -> Option<Handle<Joint>> {
         self.joints.first().cloned()
     }
@@ -81,6 +89,10 @@ impl ColliderSelection {
 
     pub fn is_single_selection(&self) -> bool {
         self.colliders.len() == 1
+    }
+
+    pub fn len(&self) -> usize {
+        self.colliders.len()
     }
 
     pub fn first(&self) -> Option<Handle<Collider>> {

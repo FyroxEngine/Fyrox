@@ -1,7 +1,6 @@
 use crate::{
-    do_command,
-    inspector::{handlers::node::base::handle_base_property_changed, SenderHelper},
-    scene::commands::sprite::*,
+    inspector::handlers::node::base::handle_base_property_changed, make_command,
+    scene::commands::sprite::*, SceneCommand,
 };
 use rg3d::{
     core::pool::Handle,
@@ -13,28 +12,31 @@ pub fn handle_sprite_property_changed(
     args: &PropertyChanged,
     handle: Handle<Node>,
     node: &Node,
-    helper: &SenderHelper,
-) -> Option<()> {
-    match args.value {
-        FieldKind::Object(ref value) => match args.name.as_ref() {
-            Sprite::TEXTURE => {
-                do_command!(helper, SetSpriteTextureCommand, handle, value)
-            }
-            Sprite::COLOR => {
-                do_command!(helper, SetSpriteColorCommand, handle, value)
-            }
-            Sprite::SIZE => {
-                do_command!(helper, SetSpriteSizeCommand, handle, value)
-            }
-            Sprite::ROTATION => {
-                do_command!(helper, SetSpriteRotationCommand, handle, value)
-            }
+) -> Option<SceneCommand> {
+    if let Node::Sprite(_) = node {
+        match args.value {
+            FieldKind::Object(ref value) => match args.name.as_ref() {
+                Sprite::TEXTURE => {
+                    make_command!(SetSpriteTextureCommand, handle, value)
+                }
+                Sprite::COLOR => {
+                    make_command!(SetSpriteColorCommand, handle, value)
+                }
+                Sprite::SIZE => {
+                    make_command!(SetSpriteSizeCommand, handle, value)
+                }
+                Sprite::ROTATION => {
+                    make_command!(SetSpriteRotationCommand, handle, value)
+                }
+                _ => None,
+            },
+            FieldKind::Inspectable(ref inner) => match args.name.as_ref() {
+                Sprite::BASE => handle_base_property_changed(inner, handle, node),
+                _ => None,
+            },
             _ => None,
-        },
-        FieldKind::Inspectable(ref inner) => match args.name.as_ref() {
-            Sprite::BASE => handle_base_property_changed(inner, handle, node, helper),
-            _ => None,
-        },
-        _ => None,
+        }
+    } else {
+        None
     }
 }

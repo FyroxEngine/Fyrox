@@ -1,4 +1,4 @@
-use crate::{do_command, inspector::SenderHelper, physics::RigidBody, scene::commands::physics::*};
+use crate::{make_command, physics::RigidBody, scene::commands::physics::*, SceneCommand};
 use rg3d::{
     core::pool::Handle,
     gui::inspector::{CollectionChanged, FieldKind, PropertyChanged},
@@ -8,50 +8,55 @@ pub fn handle_rigid_body_property_changed(
     args: &PropertyChanged,
     handle: Handle<RigidBody>,
     rigid_body: &RigidBody,
-    helper: &SenderHelper,
-) -> Option<()> {
+) -> Option<SceneCommand> {
     match args.value {
         FieldKind::Object(ref value) => match args.name.as_ref() {
             RigidBody::MASS => {
-                do_command!(helper, SetBodyMassCommand, handle, value)
+                make_command!(SetBodyMassCommand, handle, value)
             }
             RigidBody::POSITION => {
-                do_command!(helper, SetBodyPositionCommand, handle, value)
+                make_command!(SetBodyPositionCommand, handle, value)
             }
             RigidBody::ROTATION => {
-                do_command!(helper, SetBodyRotationCommand, handle, value)
+                make_command!(SetBodyRotationCommand, handle, value)
             }
             RigidBody::LIN_VEL => {
-                do_command!(helper, SetBodyLinVelCommand, handle, value)
+                make_command!(SetBodyLinVelCommand, handle, value)
             }
             RigidBody::ANG_VEL => {
-                do_command!(helper, SetBodyAngVelCommand, handle, value)
+                make_command!(SetBodyAngVelCommand, handle, value)
             }
             RigidBody::STATUS => {
-                do_command!(helper, SetBodyStatusCommand, handle, value)
+                make_command!(SetBodyStatusCommand, handle, value)
             }
             RigidBody::X_ROTATION_LOCKED => {
-                do_command!(helper, SetBodyXRotationLockedCommand, handle, value)
+                make_command!(SetBodyXRotationLockedCommand, handle, value)
             }
             RigidBody::Y_ROTATION_LOCKED => {
-                do_command!(helper, SetBodyYRotationLockedCommand, handle, value)
+                make_command!(SetBodyYRotationLockedCommand, handle, value)
             }
             RigidBody::Z_ROTATION_LOCKED => {
-                do_command!(helper, SetBodyZRotationLockedCommand, handle, value)
+                make_command!(SetBodyZRotationLockedCommand, handle, value)
             }
             RigidBody::TRANSLATION_LOCKED => {
-                do_command!(helper, SetBodyTranslationLockedCommand, handle, value)
+                make_command!(SetBodyTranslationLockedCommand, handle, value)
             }
             _ => None,
         },
         FieldKind::Collection(ref collection_changed) => {
             if args.name == RigidBody::COLLIDERS {
                 match **collection_changed {
-                    CollectionChanged::Add => None,
-                    CollectionChanged::Remove(index) => helper.do_scene_command(
+                    CollectionChanged::Add => {
+                        // TODO
+                        None
+                    }
+                    CollectionChanged::Remove(index) => Some(SceneCommand::new(
                         DeleteColliderCommand::new(rigid_body.colliders[index].into()),
-                    ),
-                    CollectionChanged::ItemChanged { .. } => None,
+                    )),
+                    CollectionChanged::ItemChanged { .. } => {
+                        // TODO
+                        None
+                    }
                 }
             } else {
                 None

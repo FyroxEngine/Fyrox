@@ -17,15 +17,13 @@ use rg3d::{
     },
 };
 
-use crate::inspector::{
-    handlers::node::{
-        base::handle_base_property_changed, camera::handle_camera_property_changed,
-        decal::handle_decal_property_changed, light::*, mesh::handle_mesh_property_changed,
-        particle_system::ParticleSystemHandler, sprite::handle_sprite_property_changed,
-        terrain::handle_terrain_property_changed,
-    },
-    SenderHelper,
+use crate::inspector::handlers::node::{
+    base::handle_base_property_changed, camera::handle_camera_property_changed,
+    decal::handle_decal_property_changed, light::*, mesh::handle_mesh_property_changed,
+    particle_system::ParticleSystemHandler, sprite::handle_sprite_property_changed,
+    terrain::handle_terrain_property_changed,
 };
+use crate::SceneCommand;
 
 pub mod base;
 pub mod camera;
@@ -47,33 +45,31 @@ impl SceneNodePropertyChangedHandler {
         args: &PropertyChanged,
         handle: Handle<Node>,
         node: &Node,
-        helper: &SenderHelper,
         ui: &UserInterface,
         scene: &Scene,
-    ) -> Option<()> {
+    ) -> Option<SceneCommand> {
         if args.owner_type_id == TypeId::of::<Base>() {
-            handle_base_property_changed(args, handle, node, helper)
+            handle_base_property_changed(args, handle, node)
         } else if args.owner_type_id == TypeId::of::<Camera>() {
-            handle_camera_property_changed(args, handle, node, helper)
+            handle_camera_property_changed(args, handle, node)
         } else if args.owner_type_id == TypeId::of::<Sprite>() {
-            handle_sprite_property_changed(args, handle, node, helper)
+            handle_sprite_property_changed(args, handle, node)
         } else if args.owner_type_id == TypeId::of::<DirectionalLight>() {
-            handle_directional_light_property_changed(args, handle, node, helper)
+            handle_directional_light_property_changed(args, handle, node)
         } else if args.owner_type_id == TypeId::of::<PointLight>() {
-            handle_point_light_property_changed(args, handle, node, helper)
+            handle_point_light_property_changed(args, handle, node)
         } else if args.owner_type_id == TypeId::of::<SpotLight>() {
-            handle_spot_light_property_changed(args, handle, node, helper)
+            handle_spot_light_property_changed(args, handle, node)
         } else if args.owner_type_id == TypeId::of::<ParticleSystem>() {
-            self.particle_system_handler
-                .handle(args, handle, node, helper, ui)
+            self.particle_system_handler.handle(args, handle, node, ui)
         } else if args.owner_type_id == TypeId::of::<Decal>() {
-            handle_decal_property_changed(args, handle, node, helper)
+            handle_decal_property_changed(args, handle, node)
         } else if args.owner_type_id == TypeId::of::<Terrain>() {
-            handle_terrain_property_changed(args, handle, node, helper, &scene.graph)
+            handle_terrain_property_changed(args, handle, node, &scene.graph)
         } else if args.owner_type_id == TypeId::of::<Mesh>() {
-            handle_mesh_property_changed(args, handle, node, helper)
+            handle_mesh_property_changed(args, handle, node)
         } else {
-            Some(())
+            None
         }
     }
 }
