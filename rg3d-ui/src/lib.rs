@@ -528,6 +528,7 @@ pub struct UserInterface {
     clipboard: Option<ClipboardContext>,
     layout_events_receiver: Receiver<LayoutEvent>,
     layout_events_sender: Sender<LayoutEvent>,
+    need_update_global_transform: bool,
 }
 
 lazy_static! {
@@ -640,6 +641,7 @@ impl UserInterface {
             clipboard: ClipboardContext::new().ok(),
             layout_events_receiver,
             layout_events_sender,
+            need_update_global_transform: Default::default(),
         };
         ui.root_canvas = ui.add_node(UiNode::new(Canvas::new(WidgetBuilder::new().build())));
         ui
@@ -770,6 +772,7 @@ impl UserInterface {
                     invalidate_recursive_up(&self.nodes, node, |node_ref| {
                         node_ref.arrange_valid.set(false)
                     });
+                    self.need_update_global_transform = true;
                 }
                 LayoutEvent::VisibilityChanged(node) => {
                     self.update_global_visibility(node);
@@ -790,7 +793,11 @@ impl UserInterface {
             self.root_canvas,
             &Rect::new(0.0, 0.0, screen_size.x, screen_size.y),
         );
-        self.update_transform();
+
+        if self.need_update_global_transform {
+            self.update_transform();
+            self.need_update_global_transform = false;
+        }
 
         let sender = self.sender.clone();
         for node in self.nodes.iter_mut() {
