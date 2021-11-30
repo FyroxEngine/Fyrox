@@ -625,12 +625,6 @@ impl Widget {
     }
 
     #[inline]
-    pub fn set_visibility(&mut self, visibility: bool) -> &mut Self {
-        self.visibility = visibility;
-        self
-    }
-
-    #[inline]
     pub fn screen_bounds(&self) -> Rect<f32> {
         Rect::new(
             self.screen_position.x,
@@ -741,10 +735,7 @@ impl Widget {
                         self.hit_test_visibility = *hit_test_visibility
                     }
                     &WidgetMessage::Visibility(visibility) => {
-                        if self.visibility != visibility {
-                            self.visibility = visibility;
-                            self.invalidate_layout();
-                        }
+                        self.set_visibility(visibility);
                     }
                     &WidgetMessage::DesiredPosition(pos) => {
                         if self.desired_local_position != pos {
@@ -878,6 +869,18 @@ impl Widget {
     #[inline]
     pub fn is_globally_visible(&self) -> bool {
         self.global_visibility
+    }
+
+    #[inline]
+    pub fn set_visibility(&mut self, visibility: bool) -> &mut Self {
+        if self.visibility != visibility {
+            self.visibility = visibility;
+            self.invalidate_layout();
+            if let Some(layout_events_sender) = self.layout_events_sender.as_ref() {
+                let _ = layout_events_sender.send(LayoutEvent::VisibilityChanged(self.handle));
+            }
+        }
+        self
     }
 
     #[inline]

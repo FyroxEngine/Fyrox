@@ -500,6 +500,7 @@ impl TooltipEntry {
 enum LayoutEvent {
     MeasurementInvalidated(Handle<UiNode>),
     ArrangementInvalidated(Handle<UiNode>),
+    VisibilityChanged(Handle<UiNode>),
 }
 
 pub struct UserInterface {
@@ -681,11 +682,11 @@ impl UserInterface {
         is_node_enabled(&self.nodes, handle)
     }
 
-    fn update_visibility(&mut self) {
+    fn update_global_visibility(&mut self, from: Handle<UiNode>) {
         scope_profile!();
 
         self.stack.clear();
-        self.stack.push(self.root_canvas);
+        self.stack.push(from);
         while let Some(node_handle) = self.stack.pop() {
             let (widget, parent) = self
                 .nodes
@@ -701,8 +702,6 @@ impl UserInterface {
                 widget.visibility()
             };
 
-            widget.set_global_visibility(visibility);
-
             if widget.prev_global_visibility != visibility {
                 let _ = self
                     .layout_events_sender
@@ -711,6 +710,8 @@ impl UserInterface {
                     .layout_events_sender
                     .send(LayoutEvent::ArrangementInvalidated(node_handle));
             }
+
+            widget.set_global_visibility(visibility);
         }
     }
 
@@ -744,40 +745,34 @@ impl UserInterface {
         self.screen_size
     }
 
-    fn handle_layout_events(&self) {
+    fn handle_layout_events(&mut self) {
+        fn invalidate_recursive_up(
+            nodes: &Pool<UiNode>,
+            node: Handle<UiNode>,
+            callback: fn(&UiNode),
+        ) {
+            if let Some(node_ref) = nodes.try_borrow(node) {
+                (callback)(node_ref);
+                if node_ref.parent().is_some() {
+                    invalidate_recursive_up(nodes, node_ref.parent(), callback);
+                }
+            }
+        }
+
         while let Ok(layout_event) = self.layout_events_receiver.try_recv() {
             match layout_event {
                 LayoutEvent::MeasurementInvalidated(node) => {
-                    fn invalidate_measurement_recursive_up(
-                        nodes: &Pool<UiNode>,
-                        node: Handle<UiNode>,
-                    ) {
-                        if let Some(node_ref) = nodes.try_borrow(node) {
-                            node_ref.measure_valid.set(false);
-
-                            if node_ref.parent().is_some() {
-                                invalidate_measurement_recursive_up(nodes, node_ref.parent());
-                            }
-                        }
-                    }
-
-                    invalidate_measurement_recursive_up(&self.nodes, node);
+                    invalidate_recursive_up(&self.nodes, node, |node_ref| {
+                        node_ref.measure_valid.set(false)
+                    });
                 }
                 LayoutEvent::ArrangementInvalidated(node) => {
-                    fn invalidate_arrangement_recursive_up(
-                        nodes: &Pool<UiNode>,
-                        node: Handle<UiNode>,
-                    ) {
-                        if let Some(node_ref) = nodes.try_borrow(node) {
-                            node_ref.arrange_valid.set(false);
-
-                            if node_ref.parent().is_some() {
-                                invalidate_arrangement_recursive_up(nodes, node_ref.parent());
-                            }
-                        }
-                    }
-
-                    invalidate_arrangement_recursive_up(&self.nodes, node);
+                    invalidate_recursive_up(&self.nodes, node, |node_ref| {
+                        node_ref.arrange_valid.set(false)
+                    });
+                }
+                LayoutEvent::VisibilityChanged(node) => {
+                    self.update_global_visibility(node);
                 }
             }
         }
@@ -787,16 +782,8 @@ impl UserInterface {
         scope_profile!();
 
         self.screen_size = screen_size;
-        self.update_visibility();
 
         self.handle_layout_events();
-
-        for n in self.nodes.iter() {
-            if !n.is_globally_visible() && n.prev_global_visibility == n.is_globally_visible() {
-                n.commit_measure(Vector2::default());
-                n.commit_arrange(Vector2::new(0.0, 0.0), Vector2::default());
-            }
-        }
 
         self.measure_node(self.root_canvas, screen_size);
         self.arrange_node(
